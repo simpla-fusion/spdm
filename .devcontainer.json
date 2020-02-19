@@ -1,0 +1,34 @@
+{
+	"name": "SpDB ",
+	
+	
+  	"dockerComposeFile": ["../dockerfiles/docker-compose.yml"],
+  	"service": "spdb",
+  	"shutdownAction": "none",
+	"workspaceFolder": "/workspace/SpDB",
+	// Use 'settings' to set *default* container specific settings.json values on container create.
+	// You can edit these settings after create using File > Preferences > Settings > Remote.
+	"settings": {
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"python.pythonPath": "/opt/conda/bin/python",
+		"python.linting.enabled": true,
+		"python.linting.pylintEnabled": true,
+		"python.linting.pylintPath": "/opt/conda/bin/pylint"
+	},
+
+	// Use 'appPort' to create a container with published ports. If the port isn't working, be sure
+	// your server accepts connections from all interfaces (0.0.0.0 or '*'), not just localhost.
+	// "appPort": [ 9000 ],
+
+	// Install flask and any other dependencies
+	"postCreateCommand": "uname -a",
+
+	// Comment out next line to run as root
+	// "remoteUser": "fydev",
+
+	// Add the IDs of extensions you want installed when the container is created in the array below.
+	"extensions": [
+		"ms-python.python",
+		"ms-azuretools.vscode-cosmosdb"
+	]
+}
