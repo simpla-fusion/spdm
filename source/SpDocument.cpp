@@ -1,8 +1,9 @@
 #include "SpDocument.h"
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include "SpUtil.h"
-#include "pugixml/pugixml.hpp"
+#include "SpDocBackend.h"
 SpOID::SpOID() : m_id_(0)
 {
     // TODO:  random  init m_id_
@@ -23,108 +24,89 @@ SpXPath SpXPath::operator/(std::string const &suffix) const
 }
 SpXPath::operator std::string() const { return m_path_; }
 
-SpAttribute::SpAttribute() { ; }
-SpAttribute::~SpAttribute() { ; }
-SpAttribute::SpAttribute(SpAttribute &&other) { ; }
-
-bool load_preprocess(pugi::xml_document &doc, const std::string &path, std::string const &prefix = "");
-
-bool preprocess(pugi::xml_node node, std::string const &prefix)
+class SpAttribute::pimpl_s
 {
-    for (pugi::xml_node child = node.first_child(); child;)
-    {
-        if (child.type() == pugi::node_element && strcmp(child.name(), "xi:include") == 0)
-        {
-            pugi::xml_node include = child;
+};
 
-            // load new preprocessed document (note: ideally this should handle relative paths)
-            std::string path = include.attribute("href").as_string();
+SpAttribute::SpAttribute() : m_pimpl_(new pimpl_s) { ; }
+SpAttribute::~SpAttribute() { delete m_pimpl_; }
+SpAttribute::SpAttribute(SpAttribute &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
 
-            pugi::xml_document doc;
+// class SpNode::range::pimpl_s
+// {
+// };
 
-            if (load_preprocess(doc, path, prefix))
-            {
-                // insert the comment marker above include directive
-                node.insert_child_before(pugi::node_comment, include).set_value(path.c_str());
+// SpNode &SpNode::range::iterator::operator*() const
+// {
+//     SpNode res;
+//     return res;
+// }
+// SpNode *SpNode::range::iterator::operator->() const
+// {
+//     SpNode res;
+//     return &res;
+// }
 
-                // copy the document above the include directive (this retains the original order!)
-                for (pugi::xml_node ic = doc.first_child(); ic; ic = ic.next_sibling())
-                {
-                    node.insert_copy_before(ic, include);
-                }
-                // remove the include node and move to the next child
-                child = child.next_sibling();
-
-                node.remove_child(include);
-            }
-            else
-            {
-                child = child.next_sibling();
-            }
-        }
-        else
-        {
-            if (!preprocess(child, prefix))
-                return false;
-
-            child = child.next_sibling();
-        }
-    }
-
-    return true;
-}
-
-bool load_preprocess(pugi::xml_document &doc, std::string const &path, std::string const &prefix)
+// SpNode::range::iterator SpNode::range::begin() { ; }
+// SpNode::range::iterator SpNode::range::end() { ; }
+class SpNode::pimpl_s
 {
-    std::string abs_path = urljoin(prefix, path);
+};
+SpNode::SpNode() : m_pimpl_(new pimpl_s) {}
+SpNode::~SpNode() { delete m_pimpl_; }
+SpNode::SpNode(SpNode &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
 
-    pugi::xml_parse_result result = doc.load_file(abs_path.c_str(), pugi::parse_default | pugi::parse_pi); // for <?include?>
-
-    std::cout << "Load file [" << abs_path << "] (" << result.description() << ")" << std::endl;
-
-    return result ? preprocess(doc, abs_path) : false;
+std::pair<SpNode::iterator, SpNode::iterator> SpNode::select(SpXPath const &path)
+{
+    SpNode::range nodes;
+    return  ;
 }
-
-SpNode::SpNode() {}
-SpNode::~SpNode() {}
-SpNode::SpNode(SpNode &&) {}
-SpNode::range SpNode::select(SpXPath const &path)
+std::pair<SpNode::const_iterator, SpNode::const_iterator> SpNode::select(SpXPath const &path) const
 {
     SpNode::range nodes;
     return std::move(nodes);
 }
-const SpNode::range SpNode::select(SpXPath const &path) const
-{
-    SpNode::range nodes;
-    return std::move(nodes);
-}
+
+std::pair<SpNode::iterator, SpNode::iterator> SpNode::children() {}
+std::pair<SpNode::const_iterator, SpNode::const_iterator> SpNode::children() const {}
+
 SpAttribute SpNode::attribute(std::string const &)
 {
     SpAttribute attr;
     return std::move(attr);
 }
+
+std::pair<SpAttribute::iterator, SpAttribute::iterator> SpNode::attributes() {}
+std::pair<SpAttribute::const_iterator, SpAttribute::const_iterator> SpNode::attributes() const {}
+
 SpNode SpNode::child()
 {
     SpNode node;
     return std::move(node);
 }
+SpNode SpNode::clone() {}
 
-SpDocument::SpDocument()
+struct SpDocument::pimpl_s
 {
-}
+    SpNode m_root_;
+};
 
-SpDocument::~SpDocument()
+SpDocument::SpDocument() : m_pimpl_(new pimpl_s) {}
+SpDocument::~SpDocument() { delete m_pimpl_; }
+SpDocument::SpDocument(SpDocument &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; };
+SpNode SpDocument::root() { return m_pimpl_->m_root_.clone(); }
+
+int SpDocument::load(std::string const &path)
 {
+    std::ifstream fid(path);
+    int res = this->load(fid);
+    return res;
 }
-
-SpDocument::SpDocument(SpDocument &&){};
-int SpDocument::load(std::string const &) { return 0; }
-int SpDocument::save(std::string const &) { return 0; }
+int SpDocument::save(std::string const &path)
+{
+    std::ofstream fid(path);
+    int res = this->save(fid);
+    return res;
+}
 int SpDocument::load(std::istream const &) { return 0; }
 int SpDocument::save(std::ostream const &) { return 0; }
-
-SpNode SpDocument::root()
-{
-    SpNode node;
-    return std::move(node);
-}

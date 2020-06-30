@@ -56,6 +56,50 @@ public:
     SpAttribute(SpAttribute const &) = delete;
     SpAttribute &operator=(SpAttribute const &) = delete;
 
+    class iterator : public std::iterator<
+                         std::input_iterator_tag, // iterator_category
+                         SpAttribute,             // value_type
+                         long,                    // difference_type
+                         SpAttribute *,           // pointer
+                         SpAttribute &            // reference
+                         >
+    {
+    public:
+        explicit iterator(value_type &&);
+        iterator &operator++();
+        iterator operator++(int);
+        bool operator==(iterator other) const;
+        bool operator!=(iterator other) const;
+        reference operator*() const;
+        pointer operator->() const;
+
+    private:
+        struct pimpl_s;
+        pimpl_s *m_pimpl_;
+    };
+
+    class const_iterator : public std::iterator<
+                               std::input_iterator_tag, // iterator_category
+                               const SpAttribute,       // value_type
+                               long,                    // difference_type
+                               SpAttribute const *,     // pointer
+                               SpAttribute const &      // reference
+                               >
+    {
+    public:
+        explicit const_iterator(value_type &&);
+        const_iterator &operator++();
+        const_iterator operator++(int);
+        bool operator==(const_iterator other) const;
+        bool operator!=(const_iterator other) const;
+        reference operator*() const;
+        pointer operator->() const;
+
+    private:
+        struct pimpl_s;
+        pimpl_s *m_pimpl_;
+    };
+
     std::any get() const;
     void set(std::any const &);
 
@@ -88,35 +132,69 @@ public:
     SpNode(SpNode const &) = delete;
     SpNode &operator=(SpNode const &) = delete;
 
-    class iterator
+    SpNode clone();
+
+    class iterator : public std::iterator<
+                         std::input_iterator_tag, // iterator_category
+                         SpNode,                  // value_type
+                         long,                    // difference_type
+                         SpNode *,                // pointer
+                         SpNode &                 // reference
+                         >
     {
-        SpNode &operator*();
-        const SpNode &operator*() const;
-        SpNode *operator->();
-        const SpNode *operator->() const;
+    public:
+        explicit iterator(value_type &&);
+        iterator &operator++();
+        iterator operator++(int);
+        bool operator==(iterator other) const;
+        bool operator!=(iterator other) const;
+        reference operator*() const;
+        pointer operator->() const;
+
+    private:
+        struct pimpl_s;
+        pimpl_s *m_pimpl_;
     };
-    class range
+
+    class const_iterator : public std::iterator<
+                               std::input_iterator_tag, // iterator_category
+                               const SpNode,            // value_type
+                               long,                    // difference_type
+                               SpNode const *,          // pointer
+                               SpNode const &           // reference
+                               >
     {
-        iterator begin();
-        iterator end();
-        const iterator begin() const;
-        const iterator end() const;
+    public:
+        explicit const_iterator(value_type &&);
+        const_iterator &operator++();
+        const_iterator operator++(int);
+        bool operator==(const_iterator other) const;
+        bool operator!=(const_iterator other) const;
+        reference operator*() const;
+        pointer operator->() const;
+
+    private:
+        struct pimpl_s;
+        pimpl_s *m_pimpl_;
     };
 
-    SpNode child();
-    const SpNode child() const;
+    bool empty() const;
+    SpNode parent() const;
+    SpNode child() const;
+    void append_child(SpNode const &);
+    void append_child(SpNode &&);
 
-    range children();
-    const range children() const;
+    std::any get_attribute(std::string const &) const;
+    void set_attribute(std::string const &, std::any);
 
-    range select(SpXPath const &path = "");
-    const range select(SpXPath const &path = "") const;
+    std::pair<iterator, iterator> children();
+    std::pair<const_iterator, const_iterator> children() const;
 
-    SpAttribute attribute(std::string const &);
-    const SpAttribute attribute(std::string const &) const;
+    std::pair<iterator, iterator> select(SpXPath const &path = "");
+    std::pair<const_iterator, const_iterator> select(SpXPath const &path = "") const;
 
-    std::map<std::string, SpAttribute> attributes();
-    std::map<std::string, const SpAttribute> attributes() const;
+    std::pair<SpAttribute::iterator, SpAttribute::iterator> SpNode::attributes() {}
+    std::pair<SpAttribute::const_iterator, SpAttribute::const_iterator> SpNode::attributes() const {}
 
 private:
     struct pimpl_s;
@@ -128,12 +206,18 @@ class SpDocument
 public:
     SpOID oid;
     SpDocument();
-    ~SpDocument();
 
     SpDocument(SpDocument &&);
 
+    ~SpDocument();
+
     SpDocument(SpDocument const &) = delete;
     SpDocument &operator=(SpDocument const &) = delete;
+
+    void schema(SpDocument const &schema);
+    const SpDocument &schema();
+    void schema(std::string const &schema);
+    const std::string &schema_id();
 
     SpNode root();
 

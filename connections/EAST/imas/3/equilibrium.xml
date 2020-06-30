@@ -4,7 +4,7 @@
         <homogeneous_time value='0' />
     </ids_properties>
     <time>
-        <data:mdsplus> VALUE_OF(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)</data:mdsplus>
+        <data:mdsplus>  VALUE_OF(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)</data:mdsplus>
     </time>
     <time_slice>
         <!-- <Shape_of value="SHAPE(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" /> -->
