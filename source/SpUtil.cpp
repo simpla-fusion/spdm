@@ -1,4 +1,4 @@
-#include "SpDBUtil.h"
+#include "SpUtil.h"
 #include <regex>
 
 #include <string>
@@ -41,12 +41,12 @@ std::string urljoin(std::string const &prefix, std::string const &path)
 std::tuple<std::string, std::string, std::string, std::string, std::string> urlparse(std::string const &url)
 {
     std::smatch m;
-    if (!std::regex_match(request, m, url_pattern))
+    if (!std::regex_match(url, m, url_pattern))
     {
-        throw std::runtime_error("illegal request! " + request);
+        throw std::runtime_error("illegal request! " + url);
     }
 
-    std::string scheme = m[2].length() == 0 ? "mdsplus" : m[2].str();
+    std::string scheme =  m[2].str();
     std::string authority = m[4].str();
     std::string path = m[5].str();
     std::string query = m[7].str();

@@ -1,17 +1,15 @@
 
 #include "SpDB.h"
-#include "SpDBProxy.h"
-
 #include "SpUtil.h"
 
-// SpDBProxy const &SpDBProxy::load(std::string const &prefix)
+// SpProxy const &SpProxy::load(std::string const &prefix)
 // {
-//     static std::map<std::string, std::shared_ptr<SpDBProxy>> mappers;
+//     static std::map<std::string, std::shared_ptr<SpProxy>> mappers;
 
 //     auto it = mappers.find(prefix);
 //     if (it == mappers.end())
 //     {
-//         return *mappers.emplace(prefix, std::make_shared<SpDBProxy>(prefix)).first->second;
+//         return *mappers.emplace(prefix, std::make_shared<SpProxy>(prefix)).first->second;
 //     }
 //     else
 //     {
@@ -20,17 +18,16 @@
 // }
 struct SpDB::pimpl_s
 {
-    SpDBProxy proxy;
+    // SpProxy proxy;
 };
 
-SpDB::SpDB() : m_pimpl_(new pimpl_s)
-{
-    this->m_pimpl_->proxy.init();
-};
+SpDB::SpDB() : m_pimpl_(new pimpl_s){
+                   // this->m_pimpl_->proxy.init();
+               };
 
 SpDB::~SpDB() { delete this->m_pimpl_; }
 
-int SpDB::connect(std::string const &connection, std::string const &schema = "")
+int SpDB::connect(std::string const &connection, std::string const &schema)
 {
 
     const char *config_path = getenv("SPDB_CONFIG_PATH");
@@ -45,11 +42,35 @@ int SpDB::connect(std::string const &connection, std::string const &schema = "")
     }
     catch (std::exception const &error)
     {
-        throw std::runtime_error("Can not load config file from " + urljoin(prefix, connection) + "! " + error.what());
+        throw std::runtime_error("Can not load config file from " + urljoin(base, connection) + "! " + error.what());
     }
 
-    std::string schema = config.first_child().name();
-    if (schema == "mapping")
-    {
-    }
+    // std::string schema = config.first_child().name();
+    // if (schema == "mapping")
+    // {
+    // }
+    return 0;
+}
+
+int SpDB::disconnect() { return 0; }
+
+SpDocument SpDB::create(SpOID const &oid)
+{
+    SpDocument doc;
+    return std::move(doc);
+}
+SpDocument SpDB::open(SpOID const &oid)
+{
+    SpDocument doc;
+    return std::move(doc);
+}
+int SpDB::insert(SpOID const &oid, SpDocument &&) { return 0; }
+int SpDB::insert(SpOID const &oid, SpDocument const &) { return 0; }
+int SpDB::remove(SpOID const &oid) { return 0; }
+int SpDB::remove(std::string const &query) { return 0; }
+
+std::vector<SpDocument> SpDB::search(std::string const &query)
+{
+    std::vector<SpDocument> nodes;
+    return std::move(nodes);
 }

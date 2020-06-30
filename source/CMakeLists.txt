@@ -1,12 +1,12 @@
-find_package( MDSplus  REQUIRED)
+# find_package( MDSplus  REQUIRED)
 # find_package( Boost  COMPONENTS regex )
 # find_package( NetCDF )
 
 
 set(SPDB_INCLUDES
   SpDBObject.h
-  SpDBXMLUtil.h
-  SpDBProxy.h
+  SpUtil.h
+  
   SpDB.h
 )
  
@@ -14,8 +14,9 @@ set(SPDB_INCLUDES
 
 set(SPDB_SOURCES
   SpDB.cpp
-  SpDBXMLUtil.cpp
-  SpDBProxy.cpp
+  SpDocument.cpp
+  SpUtil.cpp
+  
   ../extern/pugixml/pugixml.cpp
 )
 

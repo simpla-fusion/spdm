@@ -14,5 +14,5 @@ TEST_CASE("SpDB Create", "[SpDB]")
 
     auto ids = db.open(1234);
 
-    auto nodes = doc.root.select_nodes("/equilibrium/time_slice/profiles_2d[@id='1']/psi#itime=3");
+    auto nodes = ids.root().select("/equilibrium/time_slice/profiles_2d[@id='1']/psi#itime=3");
 }
