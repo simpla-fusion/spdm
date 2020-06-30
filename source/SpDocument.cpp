@@ -26,13 +26,13 @@ std::ostream &operator<<(std::ostream &os, SpDOMObject const &d)
     return d.repr(os);
 };
 //#########################################################################################################
- 
+
 //#########################################################################################################
 SpDOMObject::SpDOMObject() : m_parent_(nullptr) {}
 SpDOMObject::~SpDOMObject() {}
-SpDOMObject::SpDOMObject(SpDOMObject &parent) : m_parent_(&parent) {}
+SpDOMObject::SpDOMObject(SpDOMObject *parent) : m_parent_(parent) {}
 
-SpDOMObject *SpDOMObject::parent()
+SpDOMObject *SpDOMObject::parent() const
 {
     if (m_parent_ == nullptr)
     {
@@ -40,41 +40,18 @@ SpDOMObject *SpDOMObject::parent()
     }
     return m_parent_;
 }
-const SpDOMObject *SpDOMObject::parent() const
-{
-    if (m_parent_ == nullptr)
-    {
-        throw std::runtime_error("parent node is null!");
-    }
-    return m_parent_;
-}
-
-SpDOMObject::range SpDOMObject::children()
+SpDOMObject::range SpDOMObject::children() const
 {
     SpDOMObject::range range;
     return std::move(range);
 }
-SpDOMObject::const_range SpDOMObject::children() const
-{
-    SpDOMObject::const_range range;
-    return std::move(range);
-}
-SpDOMObject::range SpDOMObject::slibings()
+SpDOMObject::range SpDOMObject::slibings() const
 {
     return this->parent()->children();
 }
-SpDOMObject::const_range SpDOMObject::slibings() const
-{
-    return this->parent()->children();
-}
-SpDOMObject::range SpDOMObject::select(SpXPath const &path)
+SpDOMObject::range SpDOMObject::select(SpXPath const &path) const
 {
     SpDOMObject::range r;
-    return std::move(r);
-}
-SpDOMObject::const_range SpDOMObject::select(SpXPath const &path) const
-{
-    SpDOMObject::const_range r;
     return std::move(r);
 }
 
@@ -92,17 +69,15 @@ SpAttribute::SpAttribute() : m_pimpl_(new pimpl_s) { ; }
 SpAttribute::~SpAttribute() { delete m_pimpl_; }
 SpAttribute::SpAttribute(SpAttribute &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
 
-SpAttribute::range SpAttribute::slibings()
-{
-    return dynamic_cast<SpNode *>(parent())->attributes();
-}
-SpAttribute::const_range SpAttribute::slibings() const
-{
-    return dynamic_cast<const SpNode *>(parent())->attributes();
-}
+std::string SpAttribute::name() const { return ""; }
+std::any SpAttribute::value() const { return nullptr; }
 
 std::any SpAttribute::get() const { return std::any(nullptr); }
 void SpAttribute::set(std::any const &v) {}
+
+void SpAttribute::iterator::next() { ; }
+bool SpAttribute::iterator::same_as(this_type const &other) const { return false; }
+ptrdiff_t SpAttribute::iterator::distance(this_type const &other) const { return 0; }
 
 class SpNode::pimpl_s
 {
@@ -111,43 +86,26 @@ SpNode::SpNode() : m_pimpl_(new pimpl_s) {}
 SpNode::~SpNode() { delete m_pimpl_; }
 SpNode::SpNode(SpNode &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
 
-typename SpNode::range SpNode::select(SpXPath const &path)
+typename SpNode::range SpNode::select(SpXPath const &path) const
 {
     SpNode::range nodes;
     return std::move(nodes);
 }
 
-typename SpNode::const_range SpNode::select(SpXPath const &path) const
-{
-    SpNode::const_range nodes;
-    return std::move(nodes);
-}
-
-typename SpNode::range SpNode::children()
+typename SpNode::range SpNode::children() const
 {
     SpNode::range nodes;
     return std::move(nodes);
 }
-typename SpNode::const_range SpNode::children() const
-{
-    SpNode::const_range nodes;
-    return std::move(nodes);
-}
 
-SpAttribute SpNode::attribute(std::string const &)
+SpAttribute SpNode::attribute(std::string const &) const
 {
     SpAttribute attr;
     return std::move(attr);
 }
-
-typename SpNode::range SpNode::attributes()
+typename SpNode::range SpNode::attributes() const
 {
-    range attr;
-    return std::move(attr);
-}
-typename SpNode::const_range SpNode::attributes() const
-{
-    const_range attrs;
+    range attrs;
     return std::move(attrs);
 }
 

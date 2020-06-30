@@ -28,6 +28,6 @@ set( TESTS
 
 foreach( TEST ${TESTS} )
   add_executable(${TEST} ${TEST}.cpp )
-  target_link_libraries(${TEST} )
+  target_link_libraries(${TEST} spdb)
   add_test( ${TEST}  ${TEST} )
 endforeach()

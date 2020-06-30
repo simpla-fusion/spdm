@@ -13,13 +13,13 @@ set(SPDB_INCLUDES
 
 set(SPDB_SOURCES
   # SpDB.cpp
-  # SpDocument.cpp
-  # SpUtil.cpp
+  SpDocument.cpp
+  SpUtil.cpp
     # ../extern/pugixml/pugixml.cpp
 )
 
 
-# add_library(spdb SHARED ${SPDB_INCLUDES} ${SPDB_SOURCES} )
-# target_include_directories(spdb PRIVATE ../extern/)
+add_library(spdb SHARED ${SPDB_INCLUDES} ${SPDB_SOURCES} )
+target_include_directories(spdb PRIVATE ../extern/)
 
-# install( TARGETS spdb  DESTINATION lib )
+install( TARGETS spdb  DESTINATION lib )

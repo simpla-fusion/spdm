@@ -30,10 +30,10 @@ TEST_CASE("SpDocument Create", "[SpDB]")
         std::cout << "[RANGE2]" << v << std::endl;
     }
 
-    // SpNode root;
+    SpNode root;
 
-    // for (auto const &a : root.attributes())
-    // {
-    //     std::cout << dynamic_cast<SpAttribute const &>(a).name() << "=" << std::any_cast<std::string>(dynamic_cast<SpAttribute const &>(a).value()) << std::endl;
-    // }
+    for (auto const &a : root.attributes())
+    {
+        std::cout << dynamic_cast<SpAttribute const &>(a).name() << "=" << std::any_cast<std::string>(dynamic_cast<SpAttribute const &>(a).value()) << std::endl;
+    }
 }
