@@ -4,17 +4,18 @@ find_package( MDSplus  REQUIRED)
 
 
 set(SPDB_INCLUDES
-  SpDBMapper.h
-  SpDBHandler.h
-  spdb_object.h
+  SpDBObject.h
+  SpDBXMLUtil.h
+  SpDBProxy.h
+  SpDB.h
 )
  
 
 
 set(SPDB_SOURCES
-  SpDBMapper.cpp
-  SpDBHandler.cpp
-  spdb_object.c
+  SpDB.cpp
+  SpDBXMLUtil.cpp
+  SpDBProxy.cpp
   ../extern/pugixml/pugixml.cpp
 )
 

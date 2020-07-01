@@ -1,7 +1,7 @@
-#include "spdb_object.h"
+#include "SpDBObject.h"
 #include "SpDBHandler.h"
 
-#include "pugixml.hpp"
+#include "pugixml/pugixml.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -298,11 +298,11 @@ public:
 
         if (!node.attribute("value").empty())
         {
-            success = dobj_set_value_by_typename(data_block, node.attribute("value").as_string(), dtype.c_str(), 0, nullptr);
+            success = data_block->set(node.attribute("value").as_string(), dtype.c_str());
         }
         else if (!node.text().empty())
         {
-            success = dobj_set_value_by_typename(data_block, node.text().as_string(), dtype.c_str(), 0, nullptr);
+            success = data_block->set(node.text().as_string(), dtype.c_str());
         }
         else if (!node.first_child().empty())
         {

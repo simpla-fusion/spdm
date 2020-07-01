@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 
-<Mapping xmlns:xi="http://www.w3.org/2001/XInclude">
+<mapping xmlns:xi="http://www.w3.org/2001/XInclude">
     <xi:include href="equilibrium.xml"/>
     <xi:include href="magnetics.xml"/>
     <xi:include href="pf_active.xml"/>
     <xi:include href="tf.xml"/>
     <xi:include href="wall.xml"/>
-</Mapping>
+</mapping>
