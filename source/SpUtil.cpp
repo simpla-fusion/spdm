@@ -1,9 +1,23 @@
 #include "SpDBUtil.h"
-#include "pugixml/pugixml.hpp"
+#include <regex>
 
 #include <string>
+/**
+ * https://www.ietf.org/rfc/rfc3986.txt
+ * 
+ *    scheme    = $2
+ *    authority = $4
+ *    path      = $5
+ *    query     = $7
+ *    fragment  = $9
+ * 
+ * 
+*/
+static const std::regex url_pattern("(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
 
-std::string path_append(std::string const &prefix, std::string const &path)
+static const std::regex xpath_pattern("([a-zA-Z_\\$][^/#\\[\\]]*)(\\[([^\\[\\]]*)\\])?");
+
+std::string urljoin(std::string const &prefix, std::string const &path)
 {
     std::string res;
     if (path[0] == '/')
@@ -23,4 +37,19 @@ std::string path_append(std::string const &prefix, std::string const &path)
         }
     }
     return res;
+}
+std::tuple<std::string, std::string, std::string, std::string, std::string> urlparse(std::string const &url)
+{
+    std::smatch m;
+    if (!std::regex_match(request, m, url_pattern))
+    {
+        throw std::runtime_error("illegal request! " + request);
+    }
+
+    std::string scheme = m[2].length() == 0 ? "mdsplus" : m[2].str();
+    std::string authority = m[4].str();
+    std::string path = m[5].str();
+    std::string query = m[7].str();
+    std::string fragment = m[9];
+    return std::make_tuple(scheme, authority, path, query, fragment);
 }

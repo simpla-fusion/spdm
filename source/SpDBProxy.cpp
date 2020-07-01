@@ -67,17 +67,7 @@ int SpDBProxy::fetch(std::string const &request, SpDBObject *data_block) const
 {
     std::cout << "Request:" << request;
 
-    std::smatch m;
-    if (!std::regex_match(request, m, url_pattern))
-    {
-        throw std::runtime_error("illegal request! " + request);
-    }
-
-    std::string scheme = m[2].length() == 0 ? "mdsplus" : m[2].str();
-    std::string authority = m[4].str();
-    std::string path = m[5].str();
-    std::string query = m[7].str();
-    std::string fragment = m[9];
+   
 
     pugi::xpath_node_set nodes = this->m_pimpl_->doc.select_nodes((this->m_pimpl_->m_node_path_prefix_ + path).c_str());
 

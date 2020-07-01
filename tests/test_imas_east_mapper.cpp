@@ -10,9 +10,9 @@ TEST_CASE("SpDB Create", "[SpDB]")
 
     SpDB db;
 
-    db.connect("EAST","imas/3");
+    db.connect("EAST", "imas/3");
 
-    auto doc = db.open(1234);
-  
-    doc.fetch("/equilibrium/time_slice/profiles_2d[@id='1']/psi#itime=3");
+    auto ids = db.open(1234);
+
+    auto nodes = doc.root.select_nodes("/equilibrium/time_slice/profiles_2d[@id='1']/psi#itime=3");
 }

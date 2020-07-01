@@ -35,13 +35,13 @@ int SpDB::connect(std::string const &connection, std::string const &schema = "")
 
     const char *config_path = getenv("SPDB_CONFIG_PATH");
 
-    std::string prefix = config_path == nullptr ? "" : std::string("local://") + config_path + schema + "/config.xml";
+    std::string base = config_path == nullptr ? "" : std::string("local://") + config_path;
 
     SpDocument config;
 
     try
     {
-        config.load(urljoin(prefix, connection));
+        config.load(urljoin(urljoin(base, connection), schema + "/config.xml"));
     }
     catch (std::exception const &error)
     {

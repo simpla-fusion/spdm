@@ -1,22 +1,15 @@
 #ifndef SPDB_UTIL_H_
 #define SPDB_UTIL_H_
-#include <regex>
+#include <string>
+#include <tuple>
 
-/**
- * https://www.ietf.org/rfc/rfc3986.txt
- * 
- *    scheme    = $2
- *    authority = $4
- *    path      = $5
- *    query     = $7
- *    fragment  = $9
- * 
- * 
-*/
-static const std::regex url_pattern("(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+std::string urljoin(std::string const &base, std::string const &path);
 
-static const std::regex xpath_pattern("([a-zA-Z_\\$][^/#\\[\\]]*)(\\[([^\\[\\]]*)\\])?");
 
-std::string urljoin(std::string const &prefix, std::string const &path);
+/***
+ * Return:   
+ *    tuple( scheme ,authority , path,query ,fragment )
+ */
+std::tuple<std::string, std::string, std::string, std::string, std::string> urlparser(std::string const &url);
 
 #endif //SPDB_UTIL_H_

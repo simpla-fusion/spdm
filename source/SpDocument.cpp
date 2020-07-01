@@ -1,6 +1,6 @@
 #include "SpDocument.h"
-#include <stdlib>
-
+#include <stdlib.h>
+#include "SpUtil.h"
 #include "pugixml/pugixml.hpp"
 bool load_preprocess(pugi::xml_document &doc, const std::string &path, std::string const &prefix = "");
 
@@ -51,7 +51,7 @@ bool preprocess(pugi::xml_node node, std::string const &prefix)
 
 bool load_preprocess(pugi::xml_document &doc, std::string const &path, std::string const &prefix)
 {
-    std::string abs_path = path_append(prefix, path);
+    std::string abs_path = urljoin(prefix, path);
 
     pugi::xml_parse_result result = doc.load_file(abs_path.c_str(), pugi::parse_default | pugi::parse_pi); // for <?include?>
 
