@@ -1,0 +1,40 @@
+{
+	"name": "SpDev ",
+	"dockerFile": "Dockerfile",
+	// "dockerComposeFile": ["./docker-compose.yml"],
+	// "service": "spdev",
+	// "shutdownAction": "none",
+	// "workspaceFolder": "/workspace",
+	// Use 'settings' to set *default* container specific settings.json values on container create.
+	// You can edit these settings after create using File > Preferences > Settings > Remote.
+	"settings": {
+		"terminal.integrated.shell.linux": "/bin/bash",
+		// "python.pythonPath": "/fuyun/software/Python/3.7.4-GCCcore-8.3.0/bin/python",
+		// "python.linting.pylintEnabled": true,
+		// "python.testing.unittestEnabled": true,
+		// "python.linting.pylintPath": "/fuyun/software/Python/3.7.4-GCCcore-8.3.0/bin/pylint",
+		// "python.formatting.provider": "autopep8",
+		// "python.formatting.autopep8Path": "/fuyun/software/Python/3.7.4-GCCcore-8.3.0/bin/autopep8"
+	},
+	// Use 'appPort' to create a container with published ports. If the port isn't working, be sure
+	// your server accepts connections from all interfaces (0.0.0.0 or '*'), not just localhost.
+	"appPort": [
+		8888
+	],
+	"postCreateCommand": "patch -p0 -i  ${containerWorkspaceFolder}/.devcontainer/server.patch `ls /home/fydev/.vscode-server/bin/*/server.sh |head -n 1`  && mkdir -m 700 -p ~/.ssh && ssh-keyscan gitee.com > ~/.ssh/known_hosts  && sudo chown fydev:fydef ${containerWorkspaceFolder}/.."
+	 ,
+	"remoteUser": "fydev",
+	// Add the IDs of extensions you want installed when the container is created in the array below.
+	"extensions": [
+		"shd101wyy.markdown-preview-enhanced",
+		"ms-vscode.vscode-typescript-next",
+		"cssho.vscode-svgviewer",
+	],
+	"mounts": [
+		"source=spdev_vscode_extensions,target=/home/fydev/.vscode-server/extensions,type=volume",
+		// 	// // And/or for VS Code Insiders
+		// 	// "source=spdev_vscode_extensions-insiders,target=/root/.vscode-server-insiders/extensions,type=volume",
+		// 	// "source=~/.ssh,target=/root/.ssh,type=bind"/root
+		// 	// "source=~/.ssh,target=/root/.ssh,type=bind,consistency=cached"
+	]
+}

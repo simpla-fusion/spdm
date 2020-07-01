@@ -1,0 +1,12 @@
+diff -ruN server.sh server_patched.sh
+--- server.sh	2020-05-02 05:36:22.295693100 +0000
++++ server_patched.sh	2020-05-02 05:37:00.189237000 +0000
+@@ -8,5 +8,7 @@
+ esac
+
+ ROOT="$(dirname "$0")"
+-
++source /etc/profile.d/modules.sh
++module use /fuyun/modules/fuyun
++module load CMake Ninja UDA  MDSplus
+ "$ROOT/node" ${INSPECT:-} "$ROOT/out/vs/server/main.js" "$@"
