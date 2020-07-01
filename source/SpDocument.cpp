@@ -5,6 +5,8 @@
 #include "SpUtil.h"
 #include "SpDocBackend.h"
 
+
+
 SpXPath::SpXPath(std::string const &path) : m_path_(path) {}
 SpXPath::SpXPath(const char *path) : m_path_(path) {}
 // SpXPath::~SpXPath() = default;
@@ -61,6 +63,10 @@ std::ostream &SpDOMObject::repr(std::ostream &os) const
     return os;
 }
 
+void SpDOMObject::iterator::next() { ; }
+bool SpDOMObject::iterator::same_as(this_type const &other) const { return false; }
+ptrdiff_t SpDOMObject::iterator::distance(this_type const &other) const { return 0; }
+
 class SpAttribute::pimpl_s
 {
 };
@@ -74,10 +80,6 @@ std::any SpAttribute::value() const { return nullptr; }
 
 std::any SpAttribute::get() const { return std::any(nullptr); }
 void SpAttribute::set(std::any const &v) {}
-
-void SpAttribute::iterator::next() { ; }
-bool SpAttribute::iterator::same_as(this_type const &other) const { return false; }
-ptrdiff_t SpAttribute::iterator::distance(this_type const &other) const { return 0; }
 
 class SpNode::pimpl_s
 {

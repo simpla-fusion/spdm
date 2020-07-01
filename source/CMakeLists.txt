@@ -4,8 +4,8 @@
 
 
 set(SPDB_INCLUDES
-  # SpDBObject.h
-  # SpUtil.h
+  SpDocument.h
+  SpUtil.h
   # SpDB.h
 )
  
