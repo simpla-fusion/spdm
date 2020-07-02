@@ -6,6 +6,8 @@
 #include <map>
 #include <any>
 
+#include "SpRange.h"
+
 class SpXPath;
 class SpDOMObject;
 class SpAttribute;
@@ -31,86 +33,6 @@ public:
 
 private:
     std::string m_path_;
-};
-
-template <typename _Tp>
-class SpRange
-{
-public:
-    class iterator : public std::iterator<std::input_iterator_tag, _Tp>
-    {
-    public:
-        typedef iterator this_type;
-        typedef std::iterator<std::input_iterator_tag, _Tp> base_type;
-
-        using typename base_type::pointer;
-        using typename base_type::reference;
-
-        iterator();
-        ~iterator();
-        iterator(this_type const &);
-        iterator(this_type &&);
-        this_type &operator=(this_type const &);
-
-        this_type operator++(int)
-        {
-            this_type res(*this);
-            next();
-            return res;
-        }
-
-        this_type &operator++()
-        {
-            next();
-            return *this;
-        }
-
-        bool operator==(this_type const &other) const { return equal(other); };
-        bool operator!=(this_type const &other) const { return !equal(other); }
-
-        reference operator*() const { return *self(); }
-        pointer operator->() const { return self(); }
-
-        void next();
-        bool equal(this_type const &other) const;
-        size_t distance(this_type const &other) const;
-        pointer self() const;
-
-    private:
-        struct pimpl_s;
-        pimpl_s *m_pimpl_;
-    };
-
-    typedef SpRange<_Tp> this_type;
-
-    /// One of the @link iterator_tags tag types@endlink.
-    typedef typename iterator::iterator_category iterator_category;
-    /// The type "pointed to" by the iterator.
-    typedef typename iterator::value_type value_type;
-    /// Distance between iterators is represented as this type.
-    typedef typename iterator::difference_type difference_type;
-    /// This type represents a pointer-to-value_type.
-    typedef typename iterator::pointer pointer;
-    /// This type represents a reference-to-value_type.
-    typedef typename iterator::reference reference;
-
-    SpRange() : m_b_(), m_e_(){};
-    SpRange(iterator b, iterator e = iterator()) : m_b_(b), m_e_(e){};
-    SpRange(this_type const &other) : m_b_(other.m_b_), m_e_(other.m_e_){};
-    SpRange(this_type &&other) : m_b_(std::move(other.m_b_)), m_e_(std::move(other.m_e_)){};
-    SpRange &operator=(this_type const &) = default;
-
-    bool empty() const { return m_b_ == m_e_; }
-    size_t size() const { return std::distance(m_b_, m_e_); }
-
-    iterator begin() const { return m_b_; };
-    iterator end() const { return m_e_; };
-
-    this_type filter(SpXPath const &) const;
-
-private:
-    iterator m_b_;
-    iterator m_e_;
 };
 
 class SpDOMObject

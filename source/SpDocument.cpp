@@ -23,73 +23,10 @@ SpXPath::operator std::string() const { return m_path_; }
 std::ostream &operator<<(std::ostream &os, SpDOMObject const &d)
 {
 
-    os << "NOT IMPLEMENTED!" << std::endl;
     return d.repr(os);
 };
 //#########################################################################################################
-
-template <>
-struct SpRange<SpDOMObject>::iterator::pimpl_s
-{
-};
-template <>
-SpRange<SpDOMObject>::iterator::iterator() : m_pimpl_(new pimpl_s)
-{
-}
-template <>
-SpRange<SpDOMObject>::iterator::iterator(this_type const &other)
-{
-}
-template <>
-SpRange<SpDOMObject>::iterator::iterator(this_type &&other) : m_pimpl_(other.m_pimpl_)
-{
-    other.m_pimpl_ = nullptr;
-}
-template <>
-SpRange<SpDOMObject>::iterator::~iterator()
-{
-    delete m_pimpl_;
-}
-template <>
-void SpRange<SpDOMObject>::iterator ::next(){};
-template <>
-bool SpRange<SpDOMObject>::iterator::equal(this_type const &other) const { return true; }
-template <>
-size_t SpRange<SpDOMObject>::iterator::distance(this_type const &other) const { return 0; }
-template <>
-typename SpRange<SpDOMObject>::iterator::pointer SpRange<SpDOMObject>::iterator::self() const { return nullptr; }
-//----------------------------------------------------------------------------------------------------------
-template <>
-struct SpRange<const SpDOMObject>::iterator::pimpl_s
-{
-};
-template <>
-SpRange<const SpDOMObject>::iterator::iterator() : m_pimpl_(new pimpl_s)
-{
-}
-template <>
-SpRange<const SpDOMObject>::iterator::iterator(this_type const &other)
-{
-}
-template <>
-SpRange<const SpDOMObject>::iterator::iterator(this_type &&other) : m_pimpl_(other.m_pimpl_)
-{
-    other.m_pimpl_ = nullptr;
-}
-template <>
-SpRange<const SpDOMObject>::iterator::~iterator()
-{
-    delete m_pimpl_;
-}
-template <>
-void SpRange<const SpDOMObject>::iterator ::next(){};
-template <>
-bool SpRange<const SpDOMObject>::iterator::equal(this_type const &other) const { return true; }
-template <>
-size_t SpRange<const SpDOMObject>::iterator::distance(this_type const &other) const { return 0; }
-template <>
-typename SpRange<const SpDOMObject>::iterator::pointer SpRange<const SpDOMObject>::iterator::self() const { return nullptr; }
-
+ 
 //#########################################################################################################
 SpDOMObject::SpDOMObject() : m_parent_(nullptr) {}
 SpDOMObject::~SpDOMObject() {}
@@ -143,6 +80,7 @@ SpDOMObject::const_range SpDOMObject::select(SpXPath const &path) const
 
 std::ostream &SpDOMObject::repr(std::ostream &os) const
 {
+    os << "NOT IMPLEMENTED!" << std::endl;
     return os;
 }
 
@@ -162,23 +100,10 @@ SpAttribute::const_range SpAttribute::slibings() const
 {
     return dynamic_cast<const SpNode *>(parent())->attributes();
 }
-// class SpNode::range::pimpl_s
-// {
-// };
 
-// SpNode &SpNode::range::iterator::operator*() const
-// {
-//     SpNode res;
-//     return res;
-// }
-// SpNode *SpNode::range::iterator::operator->() const
-// {
-//     SpNode res;
-//     return &res;
-// }
+std::any SpAttribute::get() const { return std::any(nullptr); }
+void SpAttribute::set(std::any const &v) {}
 
-// SpNode::range::iterator SpNode::range::begin() { ; }
-// SpNode::range::iterator SpNode::range::end() { ; }
 class SpNode::pimpl_s
 {
 };
