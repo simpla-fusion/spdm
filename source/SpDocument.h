@@ -40,39 +40,84 @@ class SpDOMObject
 
 public:
     typedef SpDOMObject this_type;
-    typedef SpRange<this_type> range;
-    typedef SpRange<const this_type> const_range;
 
-    typedef typename const_range::iterator const_iterator;
-    typedef typename range::iterator iterator;
+    class iterator;
+
+    typedef SpRange<iterator> range;
 
     SpDOMObject();
+
     SpDOMObject(SpDOMObject &&other);
-    explicit SpDOMObject(SpDOMObject &parent);
 
     virtual ~SpDOMObject();
 
-    // SpDOMObject(SpDOMObject const &) = delete;
+    SpDOMObject(SpDOMObject *parent);
+
+    SpDOMObject(SpDOMObject const &) = delete;
+
     SpDOMObject &operator=(SpDOMObject const &) = delete;
 
     bool is_root() const { return m_parent_ == nullptr; }
 
-    SpDOMObject *parent();
-    const SpDOMObject *parent() const;
+    SpDOMObject *parent() const;
 
-    range children();
-    const_range children() const;
+    iterator next() const;
 
-    range slibings();
-    const_range slibings() const;
+    iterator first_child() const;
 
-    range select(SpXPath const &path);
-    const_range select(SpXPath const &path) const;
+    range children() const;
+
+    range slibings() const;
+
+    range select(SpXPath const &path) const;
 
     std::ostream &repr(std::ostream &os) const;
 
 protected:
     SpDOMObject *m_parent_ = nullptr;
+};
+
+class SpDOMObject::iterator
+{
+public:
+    typedef iterator this_type;
+
+    typedef SpDOMObject value_type;
+    typedef value_type *pointer;
+    typedef value_type &reference;
+
+    iterator(pointer d = nullptr) : m_self_(d){};
+    ~iterator() = default;
+    iterator(this_type const &) = default;
+    iterator(this_type &&) = default;
+
+    this_type &operator=(this_type const &) = default;
+
+    bool operator==(this_type const &other) const { return same_as(other); }
+    bool operator!=(this_type const &other) const { return !operator==(other); }
+
+    reference operator*() const { return *m_self_; };
+    pointer operator->() const { return m_self_; };
+
+    this_type operator++(int)
+    {
+        this_type res(*this);
+        next();
+        return res;
+    }
+
+    this_type &operator++()
+    {
+        next();
+        return *this;
+    }
+
+    void next();
+    bool same_as(this_type const &other) const;
+    ptrdiff_t distance(this_type const &other) const;
+
+private:
+    pointer m_self_;
 };
 
 class SpAttribute : public SpDOMObject
@@ -84,6 +129,9 @@ public:
 
     SpAttribute(SpAttribute const &) = delete;
     SpAttribute &operator=(SpAttribute const &) = delete;
+
+    std::string name() const;
+    std::any value() const;
 
     std::any get() const;
     void set(std::any const &);
@@ -100,9 +148,6 @@ public:
 
     template <typename T>
     T as() const { return std::any_cast<T>(this->get()); }
-
-    range slibings();
-    const_range slibings() const;
 
 private:
     struct pimpl_s;
@@ -125,17 +170,13 @@ public:
     void append_child(SpNode const &);
     void append_child(SpNode &&);
 
-    range children();
-    const_range children() const;
+    range children() const;
 
-    range select(SpXPath const &path);
-    const_range select(SpXPath const &path) const;
+    range select(SpXPath const &path) const;
 
-    SpAttribute attribute(std::string const &);
-    const SpAttribute attribute(std::string const &) const;
+    SpAttribute attribute(std::string const &) const;
 
-    range attributes();
-    const_range attributes() const;
+    range attributes() const;
 
 private:
     struct pimpl_s;
