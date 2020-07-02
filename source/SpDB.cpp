@@ -54,19 +54,19 @@ int SpDB::connect(std::string const &connection, std::string const &schema)
 
 int SpDB::disconnect() { return 0; }
 
-SpDocument SpDB::create(SpOID const &oid)
+SpDocument SpDB::create(SpDocument::id_type const &oid)
 {
     SpDocument doc;
     return std::move(doc);
 }
-SpDocument SpDB::open(SpOID const &oid)
+SpDocument SpDB::open(SpDocument::id_type const &oid)
 {
     SpDocument doc;
     return std::move(doc);
 }
-int SpDB::insert(SpOID const &oid, SpDocument &&) { return 0; }
-int SpDB::insert(SpOID const &oid, SpDocument const &) { return 0; }
-int SpDB::remove(SpOID const &oid) { return 0; }
+int SpDB::insert(SpDocument::id_type const &oid, SpDocument &&) { return 0; }
+int SpDB::insert(SpDocument::id_type const &oid, SpDocument const &) { return 0; }
+int SpDB::remove(SpDocument::id_type const &oid) { return 0; }
 int SpDB::remove(std::string const &query) { return 0; }
 
 std::vector<SpDocument> SpDB::search(std::string const &query)
