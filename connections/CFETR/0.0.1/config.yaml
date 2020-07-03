@@ -1,7 +1,0 @@
-mapping:
-    xi:include:
-        - @href: "equilibrium"
-        - @href: "magnetics"
-        - @href: "pf_active"
-        - @href: "tf"
-        - @href: "wall"

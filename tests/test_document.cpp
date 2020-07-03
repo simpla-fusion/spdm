@@ -1,6 +1,6 @@
 // #include "SpDocument.h"
-#include "SpRange.h"
 #include "SpDocument.h"
+#include "SpUtil.h"
 
 #include <iostream>
 
@@ -14,26 +14,27 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     // node.attribute("first") = 1234;
 
-    int d[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    // int d[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-    auto range = make_range(d + 0, d + 10);
+    // auto range = make_range(d + 0, d + 10);
 
-    for (auto const &v : range)
+    // for (auto const &v : range)
+    // {
+    //     std::cout << "[RANGE]" << v << std::endl;
+    // }
+
+    // auto range2 = range.filter([](int const &d) { return d % 2 == 0; });
+
+    // for (auto const &v : range2)
+    // {
+    //     std::cout << "[RANGE2]" << v << std::endl;
+    // }
+
+    sp::SpDocument doc;
+    doc.load("/workspaces/SpDB/mapper/EAST/imas/3/config.xml");
+
+    for (auto const &a : doc.root().attributes())
     {
-        std::cout << "[RANGE]" << v << std::endl;
-    }
-
-    auto range2 = range.filter([](int const &d) { return d % 2 == 0; });
-
-    for (auto const &v : range2)
-    {
-        std::cout << "[RANGE2]" << v << std::endl;
-    }
-
-    SpNode root;
-
-    for (auto const &a : root.attributes())
-    {
-        std::cout << dynamic_cast<SpAttribute const &>(a).name() << "=" << std::any_cast<std::string>(dynamic_cast<SpAttribute const &>(a).value()) << std::endl;
+        std::cout << a.name() << "=" << std::any_cast<std::string>(a.value()) << std::endl;
     }
 }
