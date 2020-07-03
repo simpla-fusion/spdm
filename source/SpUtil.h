@@ -86,11 +86,11 @@ namespace sp
         base_iterator_type m_begin_, m_end_;
     };
 
-    template <typename T>
+    template <typename T, typename... Others>
     class Iterator
     {
     public:
-        typedef Iterator<T> this_type;
+        typedef Iterator<T, Others...> this_type;
         typedef T value_type;
         typedef value_type *pointer;
         typedef value_type &reference;
@@ -102,8 +102,8 @@ namespace sp
 
         this_type &operator=(this_type const &) = default;
 
-        bool operator==(this_type const &other) const { return m_self_ == other.m_self_s || same_as(*m_self_, *other.m_self_); }
-        bool operator!=(this_type const &other) const { return !(*this, other); }
+        bool operator==(this_type const &other) const { return m_self_ == other.m_self_  || same_as(*m_self_, *other.m_self_); }
+        bool operator!=(this_type const &other) const { return !(*this == other); }
         ptrdiff_t operator-(this_type const &other) const { return distance(*this, other); }
 
         reference operator*() const { return *m_self_; };
@@ -141,21 +141,30 @@ namespace sp
     using iterator_trait_t = typename iterator_trait<T>::type;
 
     template <typename T1, typename T2 = T1>
-    class Range :public std::pair<iterator_trait_t<T1>, iterator_trait_t<T2>>;
+    class Range : public std::pair<iterator_trait_t<T1>, iterator_trait_t<T2>>
+    {
+
+    public:
+        typedef std::pair<iterator_trait_t<T1>, iterator_trait_t<T2>> base_type;
+        typedef Range<T1, T2> this_type;
+        typedef iterator_trait_t<T1> iterator;
+        typedef iterator_trait_t<T2> iterator_end;
+        using base_type::first;
+        using base_type::second;
+
+        Range(T1 const &a, T2 const &b) : base_type(iterator(a), iterator(b)) {}
+        Range() = default;
+        ~Range() = default;
+        Range(Range const &) = default;
+        Range(Range &&) = default;
+
+        size_t size() const { return std::distance(first, second); }
+        size_t empty() const { return first == second; }
+
+        auto begin() const { return base_type::first; }
+        auto end() const { return base_type::first; }
+    };
+
 } // namespace sp
-namespace std
-{
-    template <typename T1, typename T2>
-    T1 const &begin(sp::Range<T1, T2> const &p)
-    {
-        return p.first;
-    }
 
-    template <typename T1, typename T2>
-    T2 const &end(sp::Range<T1, T2> const &p)
-    {
-        return p.first;
-    }
-
-} // namespace std
 #endif //SP_UTIL_H_

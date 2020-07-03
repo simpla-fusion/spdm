@@ -61,9 +61,9 @@ namespace sp
 
         bool empty() const;
 
-        bool same_as(SpNode const &other)const;
-        
-        ptrdiff_t distance(this_type const &other)const;
+        bool same_as(SpNode const &other) const;
+
+        ptrdiff_t distance(this_type const &other) const;
 
         Attribute attribute(std::string const &) const;
 
@@ -92,6 +92,9 @@ namespace sp
         SpNode *m_parent_;
     };
 
+    SpNode *next(SpNode *);
+    SpNode const *next(SpNode const *);
+
     class SpNode::Attribute
     {
     public:
@@ -104,6 +107,8 @@ namespace sp
 
         std::string name() const;
         std::any value() const;
+        bool same_as(Attribute const &) const;
+        size_t distance(Attribute const&) const;
 
         std::any get() const;
         void set(std::any const &);
@@ -125,6 +130,13 @@ namespace sp
         SpNode const *m_node_;
         std::string m_name_;
     };
+
+    SpNode::iterator next(SpNode const &n) { return n.next(); }
+    bool same_as(SpNode::Attribute &first, SpNode::Attribute &second) { return first.same_as(second); }
+    ptrdiff_t distance(SpNode::Attribute &first, SpNode::Attribute &second) { return first.distance(second); }
+
+    SpNode::Attribute *next(SpNode::Attribute *);
+    SpNode::Attribute const *next(SpNode::Attribute const *);
 
     class SpDocument
     {

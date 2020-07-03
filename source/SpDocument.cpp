@@ -6,6 +6,15 @@
 #include <fstream>
 namespace sp
 {
+
+    SpNode::Backend::Backend() {}
+    SpNode::Backend::~Backend() {}
+    void SpNode::Backend::set_attribute(std::string const &name, std::any const &v) {}
+    std::any SpNode::Backend::get_attribute(std::string const &name) { return std::any(nullptr); }
+    void SpNode::Backend::remove_attribute(std::string const &name) {}
+
+    //#########################################################################################################
+
     SpXPath::SpXPath(std::string const &path) : m_path_(path) {}
     SpXPath::SpXPath(const char *path) : m_path_(path) {}
     // SpXPath::~SpXPath() = default;
@@ -19,7 +28,6 @@ namespace sp
         return SpXPath(urljoin(m_path_, suffix));
     }
     SpXPath::operator std::string() const { return m_path_; }
-
     //#########################################################################################################
 
     SpNode::~SpNode() { delete m_pimpl_; }
@@ -79,9 +87,14 @@ namespace sp
     SpNode::Attribute::Attribute(SpNode const *p, std::string const &name) : m_node_(p), m_name_(name) { ; }
     SpNode::Attribute::~Attribute() {}
     SpNode::Attribute::Attribute(Attribute &&other) : m_node_(other.m_node_), m_name_(other.m_name_) {}
-
+    SpNode::Attribute *next(SpNode::Attribute *)
+    {
+        return nullptr;
+    }
     std::string SpNode::Attribute::name() const { return m_name_; }
     std::any SpNode::Attribute::value() const { return get(); }
+    bool SpNode::Attribute::same_as(Attribute const &other) const { return false; }
+    size_t SpNode::Attribute::distance(Attribute const &other) const { return 0; }
 
     std::any SpNode::Attribute::get() const
     {
@@ -97,15 +110,15 @@ namespace sp
     }
     //----------------------------------------------------------------------------------------------------------
 
-    SpNode::iterator next(SpNode const &n) { return n.next(); }
-    bool same_as(SpNode const &first, SpNode const &second) { return first.same_as(second); }
-    ptrdiff_t distance(SpNode const &first, SpNode const &second) { return first.distance(second); }
+    // SpNode::iterator next(SpNode const &n) { return n.next(); }
+    // bool same_as(SpNode const &first, SpNode const &second) { return first.same_as(second); }
+    // ptrdiff_t distance(SpNode const &first, SpNode const &second) { return first.distance(second); }
 
     //##########################################################################################
 
-    SpDocument::SpDocument() {}
+    SpDocument::SpDocument() : m_root_(nullptr) {}
     SpDocument::~SpDocument() {}
-    SpDocument::SpDocument(SpDocument &&other) : m_root_(other.m_root_){};
+    SpDocument::SpDocument(SpDocument &&other) : m_root_(other.m_root_) { other.m_root_ == nullptr; };
 
     SpDocument::OID::OID() : m_id_(0)
     {
