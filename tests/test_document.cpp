@@ -33,8 +33,12 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     sp::SpDocument doc;
     doc.load("/workspaces/SpDB/mapper/EAST/imas/3/config.xml");
 
-    for (auto const &a : doc.root()->attributes())
+    for (auto const &a : doc.root().attributes())
     {
-        std::cout << a.name() << "=" << std::any_cast<std::string>(a.value()) << std::endl;
+        std::cout << a << std::endl;
+    }
+    for (auto const &n : doc.root().children())
+    {
+        std::cout << n << std::endl;
     }
 }
