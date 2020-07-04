@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 #include <vector>
-
+#include <algorithm>
 namespace sp
 {
     class SpXPath;
@@ -15,7 +15,73 @@ namespace sp
     class SpNode;
     class SpDocument;
 
-    std::ostream &operator<<(std::ostream &os, SpNode const &d);
+    template <typename T, typename... Others>
+    class SpIterator
+    {
+    public:
+        typedef SpIterator<T, Others...> this_type;
+        typedef T value_type;
+        typedef value_type *pointer;
+        typedef value_type &reference;
+
+        SpIterator(pointer d = nullptr) : m_self_(d){};
+        virtual ~SpIterator() = default;
+        SpIterator(this_type const &) = default;
+        SpIterator(this_type &&) = default;
+
+        this_type &operator=(this_type const &) = default;
+
+        bool operator==(this_type const &other) const { return equal(other); }
+        bool operator!=(this_type const &other) const { return !equal(other); }
+        ptrdiff_t operator-(this_type const &other) const { return distance(other); }
+
+        reference operator*() const { return *m_self_; };
+        pointer operator->() const { return m_self_; };
+
+        this_type operator++(int)
+        {
+            this_type res(*this);
+            m_self_ = next(m_self_);
+            return res;
+        }
+
+        this_type &operator++()
+        {
+            m_self_ = next(m_self_);
+            return *this;
+        }
+
+        pointer next(pointer p) const { return std::next(p); }
+        bool equal(this_type const &other) const { return *m_self_ == *other.m_self_; }
+        bool distance(this_type const &other) const { return std::distance(m_self_, other.m_self_); }
+
+    private:
+        pointer m_self_;
+    };
+
+    template <typename T>
+    class SpRange : public std::pair<SpIterator<T>, SpIterator<T>>
+    {
+
+    public:
+        typedef std::pair<SpIterator<T>, SpIterator<T>> base_type;
+        typedef SpRange<T> this_type;
+        typedef SpIterator<T> iterator;
+        using base_type::first;
+        using base_type::second;
+
+        SpRange(iterator const &a, iterator const &b) : base_type(a, b) {}
+        SpRange() = default;
+        virtual ~SpRange() = default;
+        SpRange(SpRange const &) = default;
+        SpRange(SpRange &&) = default;
+
+        size_t size() const { return std::distance(first, second); }
+        size_t empty() const { return first == second; }
+
+        auto &begin() const { return base_type::first; }
+        auto &end() const { return base_type::second; }
+    };
 
     class SpXPath
     {
@@ -45,15 +111,17 @@ namespace sp
 
         class Attribute;
         friend class Attribute;
-        typedef Iterator<SpNode> iterator;
-        typedef Range<SpNode> range;
+        class Iterator;
+        class Range;
 
         SpNode();
         virtual ~SpNode();
-        SpNode(iterator parent);
+        explicit SpNode(SpNode *parent);
         SpNode(SpNode &&other);
         SpNode(SpNode const &) = delete;
         SpNode &operator=(SpNode const &) = delete;
+
+        bool operator==(SpNode const &) const;
 
         void swap(SpNode &other);
 
@@ -61,25 +129,21 @@ namespace sp
 
         bool empty() const;
 
-        bool same_as(SpNode const &other) const;
-
-        ptrdiff_t distance(this_type const &other) const;
-
         Attribute attribute(std::string const &) const;
 
-        Range<Attribute> attributes() const;
+        SpRange<Attribute> attributes() const;
 
-        iterator parent() const;
+        Iterator parent() const;
 
-        iterator next() const;
+        Iterator next() const;
 
-        iterator first_child() const;
+        Iterator first_child() const;
 
-        range children() const;
+        Range children() const;
 
-        range slibings() const;
+        Range slibings() const;
 
-        range select(SpXPath const &path) const;
+        Range select(SpXPath const &path) const;
 
         std::ostream &repr(std::ostream &os) const;
 
@@ -87,28 +151,57 @@ namespace sp
         void append_child(SpNode &&);
 
     private:
-        class Backend;
-        Backend *m_pimpl_;
+        struct pimpl_s;
+        pimpl_s *m_pimpl_;
         SpNode *m_parent_;
     };
 
-    SpNode *next(SpNode *);
-    SpNode const *next(SpNode const *);
+    std::ostream &operator<<(std::ostream &os, SpNode const &d) { return d.repr(os); }
+
+    class SpNode::Iterator : public SpIterator<SpNode>
+    {
+    public:
+        typedef SpIterator<SpNode> base_type;
+        typedef Iterator this_type;
+
+        using typename base_type::pointer;
+        using typename base_type::reference;
+        using typename base_type::value_type;
+
+        Iterator(pointer d = nullptr) : base_type(d){};
+        ~Iterator() = default;
+        Iterator(this_type const &) = default;
+        Iterator(this_type &&) = default;
+
+        this_type &operator=(this_type const &) = default;
+
+        pointer next(pointer p);
+        bool equal(this_type const &other);
+        bool distance(this_type const &other);
+    };
+
+    class SpNode::Range : public SpRange<SpNode::Iterator>
+    {
+    };
 
     class SpNode::Attribute
     {
     public:
+        class Iterator;
+        class Range;
+
         Attribute(SpNode const *p = nullptr, std::string const &name = "");
         ~Attribute();
+        Attribute(Attribute const &);
         Attribute(Attribute &&other);
 
-        Attribute(Attribute const &) = delete;
         Attribute &operator=(Attribute const &) = delete;
+        bool operator==(Attribute const &other) const { return same_as(other); };
 
         std::string name() const;
         std::any value() const;
         bool same_as(Attribute const &) const;
-        size_t distance(Attribute const&) const;
+        size_t distance(Attribute const &) const;
 
         std::any get() const;
         void set(std::any const &);
@@ -130,13 +223,6 @@ namespace sp
         SpNode const *m_node_;
         std::string m_name_;
     };
-
-    SpNode::iterator next(SpNode const &n) { return n.next(); }
-    bool same_as(SpNode::Attribute &first, SpNode::Attribute &second) { return first.same_as(second); }
-    ptrdiff_t distance(SpNode::Attribute &first, SpNode::Attribute &second) { return first.distance(second); }
-
-    SpNode::Attribute *next(SpNode::Attribute *);
-    SpNode::Attribute const *next(SpNode::Attribute const *);
 
     class SpDocument
     {
@@ -180,7 +266,7 @@ namespace sp
         void schema(std::string const &schema);
         const std::string &schema_id();
 
-        SpNode const &root() const;
+        SpNode::Iterator root() const;
 
         int load(std::string const &);
         int save(std::string const &);
@@ -188,7 +274,8 @@ namespace sp
         int save(std::ostream const &);
 
     private:
-        SpNode *m_root_;
+        struct pimpl_s;
+        pimpl_s *m_pimpl_;
     };
 } // namespace sp
 #endif //SPDB_DOCUMENT_H_

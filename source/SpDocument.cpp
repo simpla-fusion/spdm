@@ -1,5 +1,4 @@
 #include "SpDocument.h"
-#include "SpDocumentBackend.h"
 #include "SpUtil.h"
 #include <cstdlib>
 #include <cstring>
@@ -7,11 +6,11 @@
 namespace sp
 {
 
-    SpNode::Backend::Backend() {}
-    SpNode::Backend::~Backend() {}
-    void SpNode::Backend::set_attribute(std::string const &name, std::any const &v) {}
-    std::any SpNode::Backend::get_attribute(std::string const &name) { return std::any(nullptr); }
-    void SpNode::Backend::remove_attribute(std::string const &name) {}
+    // SpNode::Backend::Backend() {}
+    // SpNode::Backend::~Backend() {}
+    // void SpNode::Backend::set_attribute(std::string const &name, std::any const &v) {}
+    // std::any SpNode::Backend::get_attribute(std::string const &name) { return std::any(nullptr); }
+    // void SpNode::Backend::remove_attribute(std::string const &name) {}
 
     //#########################################################################################################
 
@@ -29,10 +28,15 @@ namespace sp
     }
     SpXPath::operator std::string() const { return m_path_; }
     //#########################################################################################################
-
+    struct SpNode ::pimpl_s
+    {
+        void set_attribute(std::string const &name, std::any const &v) {}
+        std::any get_attribute(std::string const &name) { return std::any(nullptr); }
+        void remove_attribute(std::string const &name) {}
+    };
     SpNode::~SpNode() { delete m_pimpl_; }
     SpNode::SpNode(SpNode &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
-    // SpNode::SpNode(SpNode *parent) : m_parent_(parent) {}
+    SpNode::SpNode(SpNode *parent) : m_parent_(parent), m_pimpl_(new pimpl_s) {}
 
     std::ostream &SpNode::repr(std::ostream &os) const
     {
@@ -40,19 +44,14 @@ namespace sp
         return os;
     }
 
-    std::ostream &operator<<(std::ostream &os, SpNode const &d)
-    {
-        return d.repr(os);
-    };
-
     SpNode::Attribute SpNode::attribute(std::string const &name) const { return SpNode::Attribute(this, name); }
 
-    Range<SpNode::Attribute> SpNode::attributes() const
+    SpRange<SpNode::Attribute> SpNode::attributes() const
     {
-        return Range<SpNode::Attribute>();
+        return SpRange<SpNode::Attribute>();
     }
 
-    SpNode::iterator SpNode::parent() const
+    SpNode::Iterator SpNode::parent() const
     {
         if (m_parent_ == nullptr)
         {
@@ -61,24 +60,22 @@ namespace sp
         return m_parent_;
     }
 
-    SpNode::iterator SpNode::next() const { return SpNode::iterator(); }
+    SpNode::Iterator SpNode::first_child() const { return SpNode::Iterator(); }
 
-    SpNode::iterator SpNode::first_child() const { return SpNode::iterator(); }
-
-    SpNode::range SpNode::children() const
+    SpNode::Range SpNode::children() const
     {
-        SpNode::range range;
+        SpNode::Range range;
         return std::move(range);
     }
 
-    SpNode::range SpNode::slibings() const
+    SpNode::Range SpNode::slibings() const
     {
         return this->parent()->children();
     }
 
-    SpNode::range SpNode::select(SpXPath const &path) const
+    SpNode::Range SpNode::select(SpXPath const &path) const
     {
-        SpNode::range r;
+        SpNode::Range r;
         return std::move(r);
     }
 
@@ -86,7 +83,13 @@ namespace sp
 
     SpNode::Attribute::Attribute(SpNode const *p, std::string const &name) : m_node_(p), m_name_(name) { ; }
     SpNode::Attribute::~Attribute() {}
-    SpNode::Attribute::Attribute(Attribute &&other) : m_node_(other.m_node_), m_name_(other.m_name_) {}
+    SpNode::Attribute::Attribute(Attribute &&other) : m_node_(other.m_node_), m_name_(other.m_name_)
+    {
+        other.m_node_ = nullptr;
+        other.m_name_ = "";
+    }
+    SpNode::Attribute::Attribute(Attribute const &other) : m_node_(other.m_node_), m_name_(other.m_name_) {}
+
     SpNode::Attribute *next(SpNode::Attribute *)
     {
         return nullptr;
@@ -116,17 +119,21 @@ namespace sp
 
     //##########################################################################################
 
-    SpDocument::SpDocument() : m_root_(nullptr) {}
-    SpDocument::~SpDocument() {}
-    SpDocument::SpDocument(SpDocument &&other) : m_root_(other.m_root_) { other.m_root_ == nullptr; };
-
     SpDocument::OID::OID() : m_id_(0)
     {
         // TODO:  random  init m_id_
     }
     SpDocument::OID::OID(unsigned long id) : m_id_(id) {}
 
-    SpNode const &SpDocument::root() const { return *m_root_; }
+    struct SpDocument::pimpl_s
+    {
+        SpNode *m_root_ = nullptr;
+    };
+    SpDocument::SpDocument() : m_pimpl_(new pimpl_s) {}
+    SpDocument::~SpDocument() { delete m_pimpl_; }
+    SpDocument::SpDocument(SpDocument &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ == nullptr; };
+
+    SpNode::Iterator SpDocument::root() const { return SpNode::Iterator(m_pimpl_->m_root_); }
 
     int SpDocument::load(std::string const &path)
     {
