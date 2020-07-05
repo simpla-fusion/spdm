@@ -7,7 +7,7 @@
 
 #include <functional>
 #include "SpDM.h"
-namespace simpla {
+namespace sp {
 struct Notification {
     void Notify();
     void WaitForNotification();
@@ -28,5 +28,5 @@ struct DAGExecutor {
         return kSuccessful;
     }
 };
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_DAGEXECUTOR_H

@@ -10,7 +10,7 @@
 #include <iterator>
 #include <memory>
 #include "Utility.h"
-namespace simpla {
+namespace sp {
 
 /** @ingroup concept */
 

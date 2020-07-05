@@ -8,7 +8,7 @@
 #include <deque>
 #include <functional>
 #include "SpDM.h"
-namespace simpla {
+namespace sp {
 
 template <typename TObj, typename SFINAE = void>
 struct SpDMFactory;
@@ -134,11 +134,11 @@ struct SpDMRegisteredInFactory {
 };
 template <typename TBase, typename TObj>
 int SpDMRegisteredInFactory<TBase, TObj>::s_is_registered_ =
-    ::simpla::SpDMFactory<TBase>::template RegisterCreator<TObj>(TObj::RegisterName());
+    ::sp::SpDMFactory<TBase>::template RegisterCreator<TObj>(TObj::RegisterName());
 
 #define SP_OBJECT_REGISTER(...)
 
-#define SP_REGISTERED_IN_FACTORY(_BASE_, _CLASS_) simpla::SpDMRegisteredInFactory<_BASE_, _CLASS_>
+#define SP_REGISTERED_IN_FACTORY(_BASE_, _CLASS_) sp::SpDMRegisteredInFactory<_BASE_, _CLASS_>
 
 #define SP_REGISTER_OBJECT_2(_BASE_, _CLASS_)                                  \
     SP_OBJECT_HEAD(_BASE_, _CLASS_)                                            \
@@ -149,7 +149,7 @@ int SpDMRegisteredInFactory<TBase, TObj>::s_is_registered_ =
     this_type *Copy() const override { return new this_type(*this); };         \
     std::string GetRegisterName() const override { return __STRING(_CLASS_); } \
     static std::string RegisterName() {                                        \
-        simpla::SpDMRegisteredInFactory<_BASE_, _CLASS_>::s_is_registered_;    \
+        sp::SpDMRegisteredInFactory<_BASE_, _CLASS_>::s_is_registered_;    \
         return __STRING(_CLASS_);                                              \
     }
 
@@ -162,7 +162,7 @@ int SpDMRegisteredInFactory<TBase, TObj>::s_is_registered_ =
     this_type *Copy() const override { return new this_type(*this); };            \
     std::string GetRegisterName() const override { return __STRING(_REG_NAME_); } \
     static std::string RegisterName() {                                           \
-        simpla::SpDMRegisteredInFactory<_BASE_, _CLASS_>::s_is_registered_;       \
+        sp::SpDMRegisteredInFactory<_BASE_, _CLASS_>::s_is_registered_;       \
         return __STRING(_REG_NAME_);                                              \
     }
 
@@ -190,8 +190,8 @@ int SpDMRegisteredInFactory<TBase, TObj>::s_is_registered_ =
     }                                                                                                   \
     template <typename... Args>                                                                         \
     static _CLASS_ *New(Args &&... args) {                                                              \
-        return simpla::SpDMFactory<_CLASS_>::New(std::forward<Args>(args)...);                          \
+        return sp::SpDMFactory<_CLASS_>::New(std::forward<Args>(args)...);                          \
     }
 
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_SPDMWRITER_H

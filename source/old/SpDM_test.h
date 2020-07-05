@@ -6,7 +6,7 @@
 #define SIMPLA_SPDM_TEST_H
 #include <gtest/gtest.h>
 #include "spdm/SpDM.h"
-using namespace simpla;
+using namespace sp;
 
 template <typename TDataModel>
 class TestDataModel : public testing::Test {
@@ -328,23 +328,23 @@ TYPED_TEST_P(TestDataModel, Property) {
     struct Foo : public TestFixture::object_type {
         typedef typename TestFixture::object_type::object_type object_type;
         SP_PROPERTY(int, Data) = 123;
-        SP_PROPERTY(simpla::nTuple<int, 3>, VData) = {4, 5, 6};
+        SP_PROPERTY(sp::nTuple<int, 3>, VData) = {4, 5, 6};
         SP_PROPERTY_STR(Name);
     };
     Foo foo;
     EXPECT_EQ(foo.GetData(), foo["Data"].template as<int>());
-    EXPECT_TRUE(foo.GetVData() == (foo["VData"].template as<simpla::nTuple<int, 3>>()));
+    EXPECT_TRUE(foo.GetVData() == (foo["VData"].template as<sp::nTuple<int, 3>>()));
     foo.SetName("Hello");
     foo["Data"]->Set(128);
     EXPECT_EQ(128, foo.GetData());
-    simpla::nTuple<int, 3> v{7, 8, 9};
+    sp::nTuple<int, 3> v{7, 8, 9};
     foo["VData"]->Set(v);
-    EXPECT_TRUE(v == (foo["VData"].template as<simpla::nTuple<int, 3>>()));
+    EXPECT_TRUE(v == (foo["VData"].template as<sp::nTuple<int, 3>>()));
     EXPECT_TRUE((v == foo.GetVData()));
     EXPECT_TRUE((v == foo.m_VData_));
-    simpla::nTuple<int, 3> v2{9, 8, 7};
+    sp::nTuple<int, 3> v2{9, 8, 7};
     foo.m_VData_ = {9, 8, 7};
-    EXPECT_TRUE(v2 == (foo["VData"].template as<simpla::nTuple<int, 3>>()));
+    EXPECT_TRUE(v2 == (foo["VData"].template as<sp::nTuple<int, 3>>()));
     EXPECT_TRUE((v2 == foo.GetVData()));
     EXPECT_TRUE((v2 == foo.m_VData_));
 }
@@ -360,8 +360,8 @@ REGISTER_TYPED_TEST_CASE_P(TestDataModel, AsNumber, AsString, AsNumberTensor, As
 //#include <complex>
 //#include <iostream>
 //
-// using namespace simpla;
-// using namespace simpla::ptr;
+// using namespace sp;
+// using namespace sp::ptr;
 //
 // class SpDMTest : public testing::Test {
 // protected:

@@ -13,7 +13,7 @@
 #include "SpDM.h"
 #include "SpDMSAX.h"
 
-namespace simpla {
+namespace sp {
 namespace traits {
 template <typename StringBuffer>
 struct is_sax_interface<rapidjson::PrettyWriter<StringBuffer>> : public std::true_type {};
@@ -47,5 +47,5 @@ OS &WriteJSON(OS &output_stream, DOM const &db) {
 inline SpDMElement<> operator"" _json(const char *c, std::size_t n) {
     return ReadJSON<SpDMElement<>>(c, n);
 }
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_SPDMJSON_H

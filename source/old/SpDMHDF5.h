@@ -9,7 +9,7 @@
 #include "SpDM.h"
 #include "SpDMFactory.h"
 
-namespace simpla {
+namespace sp {
 namespace data {
 class DataBlock;
 struct HDF5SAXWriter : public SpDMSAXInterface {
@@ -77,6 +77,6 @@ void WriteHDF5(std::string const &path, DOM const &db) {
     db.Serialize(writer);
 };
 }  //    namespace m_data_{
-}  // namespace simpla{
+}  // namespace sp{
 
 #endif  // SIMPLA_SPDMHDF5_H

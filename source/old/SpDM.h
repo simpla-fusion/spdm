@@ -19,7 +19,7 @@
 #include "TypeTraits.h"
 #include "Utility.h"
 #include "nTuple.h"
-namespace simpla {
+namespace sp {
 template <typename _C = char>
 struct SpDMString;
 template <typename _C = char>
@@ -2009,26 +2009,26 @@ struct SpDMObject {
 #define SP_PROPERTY_IMPL(_NAME_, ...)                                                                         \
     void Set##_NAME_(__VA_ARGS__ _v_) { m_##_NAME_##_ = std::move(_v_); }                                     \
     auto const &Get##_NAME_() const { return m_##_NAME_##_; }                                                 \
-    int m_##_NAME_##_reg_ = object_type::Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, simpla::kIsReference); \
+    int m_##_NAME_##_reg_ = object_type::Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, sp::kIsReference); \
     __VA_ARGS__ m_##_NAME_##_
 
 #define SP_ATTRIBUTE_IMPL(_NAME_, ...)                                                                \
     void Set##_NAME_(__VA_ARGS__ _v_) { m_##_NAME_##_ = std::move(_v_); }                             \
     auto const &Get##_NAME_() const { return m_##_NAME_##_; }                                         \
     int m_##_NAME_##_reg_ =                                                                           \
-        object_type::Insert(__STRING(@) __STRING(_NAME_))->Set(&m_##_NAME_##_, simpla::kIsReference); \
+        object_type::Insert(__STRING(@) __STRING(_NAME_))->Set(&m_##_NAME_##_, sp::kIsReference); \
     __VA_ARGS__ m_##_NAME_##_
 
 #define SP_CONST_ATTRIBUTE_IMPL(_NAME_, ...)                                                          \
     auto const &Get##_NAME_() const { return m_##_NAME_##_; }                                         \
     int m_##_NAME_##_reg_ =                                                                           \
-        object_type::Insert(__STRING(@) __STRING(_NAME_))->Set(&m_##_NAME_##_, simpla::kIsReference); \
+        object_type::Insert(__STRING(@) __STRING(_NAME_))->Set(&m_##_NAME_##_, sp::kIsReference); \
     const __VA_ARGS__ m_##_NAME_##_
 
 #define SP_ELEMENT_IMPL(_NAME_, ...)                                                                          \
     void Set##_NAME_(__VA_ARGS__ _v_) { m_##_NAME_##_ = std::move(_v_); }                                     \
     auto const &Get##_NAME_() const { return m_##_NAME_##_; }                                                 \
-    int m_##_NAME_##_reg_ = object_type::Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, simpla::kIsReference); \
+    int m_##_NAME_##_reg_ = object_type::Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, sp::kIsReference); \
     __VA_ARGS__ m_##_NAME_##_
 
 //#define SP_PROPERTY_1(_V) SP_PROPERTY_IMPL(_V, void)
@@ -2065,7 +2065,7 @@ struct SpDMObject {
     void Set##_NAME_(__VA_ARGS__ *_v_) { m_##_NAME_##_ = _v_; }                                              \
     auto const *Get##_NAME_() const { return m_##_NAME_##_; }                                                \
     auto *Get##_NAME_() { return m_##_NAME_##_; }                                                            \
-    int m_##_NAME_##_reg_ = object_type::Insert(__STRING(_NAME_))->Set(m_##_NAME_##_, simpla::kIsReference); \
+    int m_##_NAME_##_reg_ = object_type::Insert(__STRING(_NAME_))->Set(m_##_NAME_##_, sp::kIsReference); \
     __VA_ARGS__ *m_##_NAME_##_
 
 #define SP_PROPERTY_POINTER(...) SP_ARGS_CYC_SHIFT(SP_PROPERTY_POINTER_IMPL, __VA_ARGS__)
@@ -2998,6 +2998,6 @@ using spArray = SpDMArray<>;
 using DataEntry = SpDMElement<>;
 using SpDataEntry = SpDMElement<>;
 using spString = SpDMString<>;
-}  // namespace simpla
+}  // namespace sp
 
 #endif  // SPDM_SPDM_H

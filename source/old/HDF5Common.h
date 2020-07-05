@@ -8,12 +8,12 @@
 #include "../DataBlock.h"
 #include "../DataEntity.h"
 #include "../DataEntry.h"
-#include "simpla/parallel/MPIComm.h"
+#include "sp/parallel/MPIComm.h"
 extern "C" {
 #include <hdf5.h>
 #include <hdf5_hl.h>
 }
-namespace simpla {
+namespace sp {
 namespace data {
 #define H5_ERROR(_FUN_)                                                               \
     if ((_FUN_) < 0) {                                                                \

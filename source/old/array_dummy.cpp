@@ -5,7 +5,7 @@
 #include "spdm/Utility.h"
 #include "spdm/nTuple.h"
 #include "spdm/Array.h"
-using namespace simpla;
+using namespace sp;
 
 int main(int argc, char** argv) {
     std::size_t count = 0;

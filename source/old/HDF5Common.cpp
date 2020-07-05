@@ -3,7 +3,7 @@
 //
 #include "HDF5Common.h"
 #include <string>
-namespace simpla {
+namespace sp {
 namespace data {
 
 hid_t GetHDF5DataType(std::type_info const& t_info) {

@@ -8,7 +8,7 @@
 #include "SpDM.h"
 #include "SpDMFactory.h"
 
-namespace simpla {
+namespace sp {
 #define DAG_CONTROL_SLOT_NUM 0
 struct DAGraph;
 struct DAGNode;
@@ -64,12 +64,12 @@ struct DAGNode : public spObject {
 
 #define SP_NODE_INPUT_IMPL_(_NAME_, ...)                                                                  \
     void Set##_NAME_(__VA_ARGS__ _v_) { m_##_NAME_##_ = std::move(_v_); }                                 \
-    int m_##_NAME_##_reg_ = m_Input_.Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, simpla::kIsReference); \
+    int m_##_NAME_##_reg_ = m_Input_.Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, sp::kIsReference); \
     __VA_ARGS__ m_##_NAME_##_
 
 #define SP_NODE_OUTPUT_IMPL_(_NAME_, ...)                                                                  \
     auto const& Get##_NAME_() const { return m_##_NAME_##_; }                                              \
-    int m_##_NAME_##_reg_ = m_Output_.Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, simpla::kIsReference); \
+    int m_##_NAME_##_reg_ = m_Output_.Insert(__STRING(_NAME_))->Set(&m_##_NAME_##_, sp::kIsReference); \
     __VA_ARGS__ m_##_NAME_##_
 
 #define SP_NODE_INPUT(...) SP_ARGS_CYC_SHIFT(SP_NODE_INPUT_IMPL_, __VA_ARGS__)
@@ -204,5 +204,5 @@ struct DAGExecutor {
 };
 
 >>>>>>> b135fe8dc2a6f8decb1d38c73f6b6b747456f302
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_GRAPH_H

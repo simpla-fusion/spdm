@@ -1,5 +1,4 @@
 #include "SpDocument.h"
-#include "SpNdArray.h"
 #include "SpUtil.h"
 #include <cstdlib>
 #include <cstring>
@@ -37,62 +36,200 @@ namespace sp
         std::any get() const;
         void set(std::any) const;
 
-        SpNdArray get_block() const;
-        void set_block(SpNdArray &&);
+        SpDataBlock get_block() const;
+        void set_block(SpDataBlock &&);
     };
 
-    SpNode::SpNode() {}
+    SpNode::SpNode() : m_pimpl_(new pimpl_s) {}
     SpNode::~SpNode() { delete m_pimpl_; }
     SpNode::SpNode(SpNode &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
     SpNode::SpNode(SpNode const &other) : m_pimpl_(new pimpl_s{other.m_pimpl_->m_parent_}) {}
-
-    SpNode::SpNode(SpNode *parent) : m_pimpl_(new pimpl_s{parent}) {}
-
+    void SpNode::swap(SpNode &other) { std::swap(m_pimpl_, other.m_pimpl_); }
     std::ostream &SpNode::repr(std::ostream &os) const
     {
         os << "NOT IMPLEMENTED!" << std::endl;
         return os;
     }
 
+    SpAttribute SpNode::attribute(const std::string &name) { return SpAttribute(this, name); }
     SpAttribute SpNode::attribute(const std::string &name) const { return SpAttribute(this, name); }
+    SpRange<SpAttribute> SpNode::attributes() const { return SpRange<SpAttribute>(); }
 
-    SpRange<SpAttribute> SpNode::attributes() const
+    bool SpNode::equal(this_type const &other) const
     {
-        return SpRange<SpAttribute>();
+        NOT_IMPLEMENTED;
+        return true;
+    }
+    bool SpNode::empty() const
+    {
+        NOT_IMPLEMENTED;
+        return true;
+    }
+    size_t SpNode::size() const
+    {
+        NOT_IMPLEMENTED;
+        return true;
+    }
+    bool SpNode::is_null() const
+    {
+        NOT_IMPLEMENTED;
+        return true;
+    }
+    bool SpNode::is_sclar() const
+    {
+        NOT_IMPLEMENTED;
+        return true;
+    }
+    bool SpNode::is_array() const
+    {
+        NOT_IMPLEMENTED;
+        return true;
+    }
+    bool SpNode::is_object() const
+    {
+        NOT_IMPLEMENTED;
+        return true;
     }
 
+    bool SpNode::is_root() const
+    {
+        return parent().empty();
+    };
+    bool SpNode::is_leaf() const
+    {
+        return children().size() == 0;
+    };
+    bool SpNode::distance(this_type const &target) const
+    {
+        NOT_IMPLEMENTED;
+        return 0;
+    };
+    size_t SpNode::depth() const
+    {
+        NOT_IMPLEMENTED;
+        return 0;
+    };
+    SpNode SpNode::next() const
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    };
     SpNode SpNode::parent() const
     {
-        if (m_pimpl_->m_parent_ == nullptr)
-        {
-            throw std::runtime_error("parent node is null!");
-        }
-        return *m_pimpl_->m_parent_;
-    }
-
-    SpNode SpNode::first_child() const { return SpNode(); }
-
-    SpNode::Range SpNode::children() const
+        NOT_IMPLEMENTED;
+        return SpNode();
+    };
+    SpNode SpNode::first_child() const
     {
-        SpNode::Range range;
-        return std::move(range);
-    }
-
-    SpNode::Range SpNode::slibings() const
+        NOT_IMPLEMENTED;
+        return SpNode();
+    };
+    SpRange<SpNode> SpNode::ancestor() const
     {
-        return this->parent().children();
-    }
-
-    SpNode::Range SpNode::select(SpXPath const &path) const
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpRange<SpNode> SpNode::descendants() const
     {
-        SpNode::Range r;
-        return std::move(r);
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpRange<SpNode> SpNode::leaves() const
+    {
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpRange<SpNode> SpNode::children() const
+    {
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpRange<SpNode> SpNode::slibings() const
+    {
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpRange<SpNode> SpNode::path(SpNode const target) const
+    {
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpRange<SpNode> SpNode::select(SpXPath const &path) const
+    {
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    };
+    SpNode SpNode::select_one(SpXPath const &path) const
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    };
+    // as object
+    SpNode SpNode::child(std::string const &) const
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    SpNode SpNode::child(std::string const &)
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    int SpNode::remove_child(std::string const &key)
+    {
+        NOT_IMPLEMENTED;
+        return 0;
     }
 
-    void SpNode::next(){};
-    bool SpNode::equal(this_type const &other) const { return true; }
-    bool SpNode::distance(this_type const &other) const { return false; }
+    // as array
+    SpNode SpNode::child(int)
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    SpNode SpNode::child(int) const
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    SpNode SpNode::insert_before(int pos)
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    SpNode SpNode::insert_after(int pos)
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    // SpNode SpNode::prepend() { return insert_before(0); }
+    // SpNode SpNode::append() { return insert_after(-1); }
+    int SpNode::remove_child(int idx)
+    {
+        NOT_IMPLEMENTED;
+        return 0;
+    }
+    size_t SpRange<SpNode>::size() const
+    {
+        NOT_IMPLEMENTED;
+        return 0;
+    }
+    SpNode SpRange<SpNode>::begin() const
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
+    SpNode SpRange<SpNode>::end() const
+    {
+        NOT_IMPLEMENTED;
+        return SpNode();
+    }
 
+    SpRange<SpNode> SpRange<SpNode>::filter(filter_type const &)
+    {
+        NOT_IMPLEMENTED;
+        return SpRange<SpNode>();
+    }
     //----------------------------------------------------------------------------------------------------------
 
     struct SpAttribute::pimpl_s

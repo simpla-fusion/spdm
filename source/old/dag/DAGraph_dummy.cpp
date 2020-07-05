@@ -7,9 +7,9 @@
 #include <iostream>
 #include "DAGraphUtility.h"
 //
-// using namespace simpla;
+// using namespace sp;
 //
-namespace simpla {
+namespace sp {
 struct Foo1 : public DAGNode, SP_REGISTERED_IN_FACTORY(DAGNode, Foo1) {
     SP_REGISTERED_OBJECT_HEAD(DAGNode, Foo1);
     template <typename... Args>
@@ -31,7 +31,7 @@ struct Foo2 : public DAGNode, SP_REGISTERED_IN_FACTORY(DAGNode, Foo2) {
     SP_NODE_OUTPUT(double, E) = 1.0;
     SP_NODE_OUTPUT(double, B) = 1.0;
 };
-}  // namespace simpla{
+}  // namespace sp{
 //
 // int main(int argc, char** argv) {
 //    DAGraph graph("@Name"_ = "DAG 1");
@@ -105,27 +105,27 @@ struct list_with_allocatorS {};
 
 namespace boost {
 template <typename V>
-struct container_gen<std::list<simpla::DAGEdge*>, V> {
-    typedef std::list<simpla::DAGEdge*> type;
+struct container_gen<std::list<sp::DAGEdge*>, V> {
+    typedef std::list<sp::DAGEdge*> type;
 };
 template <>
-struct parallel_edge_traits<std::list<simpla::DAGEdge*>> {
+struct parallel_edge_traits<std::list<sp::DAGEdge*>> {
     typedef allow_parallel_edge_tag type;
 };
 
 template <typename V>
-struct container_gen<std::vector<simpla::DAGNode*>, V> {
-    typedef std::vector<simpla::DAGEdge*> type;
+struct container_gen<std::vector<sp::DAGNode*>, V> {
+    typedef std::vector<sp::DAGEdge*> type;
 };
 template <>
-struct parallel_edge_traits<std::vector<simpla::DAGNode*>> {
+struct parallel_edge_traits<std::vector<sp::DAGNode*>> {
     typedef allow_parallel_edge_tag type;
 };
 }
 
 // now you can define a graph using std::list and a specific allocator
 using namespace boost;
-using namespace simpla;
+using namespace sp;
 int main(int, char* []) {
     // create a typedef for the Graph type
     typedef boost::adjacency_list<boost::listS, boost::vecS, boost::directedS, std::string,

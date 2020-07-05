@@ -10,7 +10,7 @@
 #include <boost/utility.hpp>  // for boost::tie
 #include <iostream>           // for std::cout
 #include <utility>            // for std::pair
-namespace simpla {
+namespace sp {
 // DAGNode::DAGNode(std::string const& name) : spObject() {}
 // DAGNode::~DAGNode() = default;
 
@@ -158,7 +158,7 @@ Status DAGraph::RemoveEdge(edge_type const* x) { return Status::NotModified(); }
 //    void RunAsync(DoneCallback done) override;
 //    const DAGraph* m_graph_;
 //};
-// void DAGExecutorImpl::RunAsync(simpla::DAGExecutor::DoneCallback done) {
+// void DAGExecutorImpl::RunAsync(sp::DAGExecutor::DoneCallback done) {
 //    if (m_graph_ == nullptr) { done(Status::OK()); }
 //
 //    while (1) {
@@ -190,4 +190,4 @@ Status DAGraph::RemoveEdge(edge_type const* x) { return Status::NotModified(); }
 //}
 
 >>>>>>> b135fe8dc2a6f8decb1d38c73f6b6b747456f302
-}  // namespace simpla
+}  // namespace sp

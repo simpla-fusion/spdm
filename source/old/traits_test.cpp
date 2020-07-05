@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 #include "spdm/TypeTraits.h"
 #include "spdm/Utility.h"
-using namespace simpla;
+using namespace sp;
 
 TEST(spdm_traits, add_extent) {
     EXPECT_TRUE((std::is_same<int[2], traits::add_extent_t<int, 2>>::value));

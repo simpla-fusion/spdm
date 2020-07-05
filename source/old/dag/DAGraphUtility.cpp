@@ -5,7 +5,7 @@
 #include "DAGraph.h"
 #include "SpDMIOStream.h"
 
-namespace simpla {
+namespace sp {
 
 std::ostream& DAGraphDrawDot(std::ostream& os, DAGraph const& graph, int indent, int tab) {
     os << std::setw(indent) << " "
@@ -55,4 +55,4 @@ std::ostream& DAGraphDrawDot(std::ostream& os, DAGraph const& graph, int indent,
     return os;
 }
 
-}  // namespace simpla{
+}  // namespace sp{

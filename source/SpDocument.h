@@ -1,5 +1,7 @@
 #ifndef SPDB_DOCUMENT_H_
 #define SPDB_DOCUMENT_H_
+#include "Array.h"
+#include "SpDataBlock.h"
 #include "SpUtil.h"
 #include <algorithm>
 #include <any>
@@ -123,7 +125,6 @@ namespace sp
         typedef SpNode this_type;
 
         friend class SpAttribute;
-        class Range;
 
         SpNode();
         virtual ~SpNode();
@@ -131,53 +132,96 @@ namespace sp
         SpNode(SpNode &&other);
         SpNode(SpNode const &);
         SpNode &operator=(SpNode const &) = default;
+        void swap(SpNode &other);
 
         std::ostream &repr(std::ostream &os) const;
 
-        void swap(SpNode &other);
-
-        bool is_root() const;
-
-        bool empty() const;
-
         SpAttribute attribute(std::string const &) const;
-
         SpAttribute attribute(std::string const &);
-
         SpRange<SpAttribute> attributes() const;
 
-        SpNode &self() { return *this; }
+        void value(std::any const &);
+        std::any value() const;
 
-        SpNode parent() const;
+        template <typename T>
+        void value(T const &v) { value(std::any(v)); };
+        template <typename T>
+        T as() { return std::any_cast<T>(value()); }
 
-        SpNode next_slibing() const;
+        void data(SpDataBlock const &block);
+        SpDataBlock data() const;
 
-        SpNode first_child() const;
+        template <typename T>
+        Array<T> as_array() { return Array<T>(data()); }
 
-        Range children() const;
+        bool equal(this_type const &other) const;
+        bool empty() const;
+        size_t size() const;
+        bool is_null() const;
+        bool is_sclar() const;
+        bool is_array() const;
+        bool is_list() const;
+        bool is_object() const;
 
-        Range slibings() const;
+        // as Hierarchy tree node
+        template <typename T>
+        SpNode operator[](T const &v) { return child(v); }
 
-        Range select(SpXPath const &path) const;
+        bool is_root() const;                         // parent().empty() is true
+        bool is_leaf() const;                         // children().size() =0
+        bool distance(this_type const &target) const; // lenght of short path to target
+        size_t depth() const;                         // distance(root())
 
-        void append_child(this_type const &);
-        void append_child(this_type &&);
-        void remove_child(this_type const &);
+        void remove(); // remove self
+
+        SpNode &self() { return *this; }             // return self
+        const SpNode &self() const { return *this; } // return self
+
+        SpNode next() const;                             // return next slibing
+        SpNode parent() const;                           // return parent node
+        SpNode first_child() const;                      // return first child node
+        SpRange<SpNode> ancestor() const;                // return ancestor
+        SpRange<SpNode> descendants() const;             // return descendants
+        SpRange<SpNode> leaves() const;                  // return leave nodes in traversal order
+        SpRange<SpNode> children() const;                // return children
+        SpRange<SpNode> slibings() const;                // return slibings
+        SpRange<SpNode> path(SpNode const target) const; // return the shortest path to target
+
+        SpRange<SpNode> select(SpXPath const &path) const; // select from children
+        SpNode select_one(SpXPath const &path) const;      // return the first selected child
+
+        // as object
+        SpNode child(std::string const &) const;  // return node at key,  if key does not exist then throw exception
+        SpNode child(std::string const &);        // return node at key,  if key does not exist then create one
+        int remove_child(std::string const &key); // remove child with key, return true if key exists
+
+        // as list
+        SpNode child(int);                            // return node at idx,  if idx >size() then throw exception
+        SpNode child(int) const;                      // return node at idx,  if idx >size() then throw exception
+        SpNode insert_before(int pos);                // insert new child node before pos, return new node
+        SpNode insert_after(int pos);                 // insert new child node after pos, return new node
+        SpNode prepend() { return insert_before(0); } // insert new child node before first child
+        SpNode append() { return insert_after(-1); }  // insert new child node afater last child
+        int remove_child(int idx);                    // remove child at pos, return true if idx exists
+
+        // as iterator
 
         bool operator==(this_type const &other) const { return equal(other); }
         bool operator!=(this_type const &other) const { return !equal(other); }
-        ptrdiff_t operator-(this_type const &other) const { return distance(other); }
 
         this_type &operator++()
         {
-            next();
+            next().swap(*this);
             return *this;
         }
+        this_type operator++(int)
+        {
+            SpNode res(*this);
+            next().swap(*this);
+            return res;
+        }
         this_type &operator*() { return *this; }
-
-        void next();
-        bool equal(this_type const &other) const;
-        bool distance(this_type const &other) const;
+        this_type *operator->() { return this; }
 
     private:
         struct pimpl_s;
@@ -186,10 +230,35 @@ namespace sp
 
     std::ostream &operator<<(std::ostream &os, SpNode const &d) { return d.repr(os); }
 
-    class SpNode::Range : public SpRange<SpNode>
+    template <>
+    class SpRange<SpNode> : public std::pair<SpNode, SpNode>
     {
-    };
+    public:
+        typedef std::pair<SpNode, SpNode> base_type;
+        typedef SpRange<SpNode> this_type;
 
+        typedef SpNode iterator;
+        using base_type::first;
+        using base_type::second;
+
+        SpRange(iterator const &a, iterator const &b) : base_type(a, b) {}
+        SpRange() = default;
+        virtual ~SpRange() = default;
+        SpRange(SpRange const &) = default;
+        SpRange(SpRange &&) = default;
+
+        size_t empty() const { return first == second; }
+
+        size_t size() const;
+        SpNode begin() const;
+        SpNode end() const;
+
+        typedef std::function<bool(SpNode const &)> filter_type;
+        this_type filter(filter_type const &);
+
+        template <typename U>
+        SpRange<U> map(std::function<U(SpNode const &)> const &);
+    };
     class SpDocument
     {
     public:

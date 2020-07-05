@@ -7,6 +7,6 @@
 
 #include "SpDM_test.h"
 
-typedef testing::Types<simpla::SpDMElement<char>> TypeParamList;
+typedef testing::Types<sp::SpDMElement<char>> TypeParamList;
 
 INSTANTIATE_TYPED_TEST_CASE_P(DataModel, TestDataModel, TypeParamList);

@@ -9,7 +9,7 @@
 
 #include "spdm/Utility.h"
 #include "spdm/nTuple.h"
-using namespace simpla;
+using namespace sp;
 
 // TEST(TestnTupleTraits, is_pod) {
 //    EXPECT_TRUE((std::is_pod<nTuple<int, 2>>::value));

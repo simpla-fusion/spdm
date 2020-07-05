@@ -6,9 +6,9 @@
 #define SIMPLA_DAGRAPHUTILITY_H
 
 #include <ostream>
-namespace simpla {
+namespace sp {
 struct DAGraph;
 std::ostream& DAGraphDrawDot(std::ostream& os, DAGraph const&, int indent = 0, int tab = 4);
-}  // namespace simpla{
+}  // namespace sp{
 
 #endif  // SIMPLA_DAGRAPHUTILITY_H

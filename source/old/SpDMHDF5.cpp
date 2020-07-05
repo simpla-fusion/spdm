@@ -12,7 +12,7 @@ extern "C" {
 #include <hdf5_hl.h>
 }
 #include "spdm/SpDM.h"
-namespace simpla {
+namespace sp {
 namespace data {
 
 #define H5_ERROR(_FUN_)                                                                                  \
@@ -465,7 +465,7 @@ herr_t grp_op_func(hid_t loc_id, const char* name, const H5L_info_t* info, void*
     return 0;
 }
 
-void HDF5SAXReader::Parse(std::string const& path, simpla::data::SpDMSAXInterface& handler) const {
+void HDF5SAXReader::Parse(std::string const& path, sp::data::SpDMSAXInterface& handler) const {
     hid_t f_id;
     H5_ERROR(f_id = H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT));
     grp_op_data_s od{.recurs = 0, .prev = nullptr, .addr = 0, .handler = &handler};
@@ -473,4 +473,4 @@ void HDF5SAXReader::Parse(std::string const& path, simpla::data::SpDMSAXInterfac
     H5_ERROR(H5Fclose(f_id));
 }
 }  // namespace m_data_{
-}  // namespace simpla{
+}  // namespace sp{

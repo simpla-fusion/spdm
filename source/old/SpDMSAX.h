@@ -10,7 +10,7 @@
 #include <cstring>
 #include <deque>
 #include "SpDM.h"
-namespace simpla {
+namespace sp {
 namespace traits {
 template <typename U, typename SFINAE = void>
 struct is_sax_interface : public std::false_type {};
@@ -201,6 +201,6 @@ struct SpDMSAXWrapper<TObj, std::enable_if_t<traits::is_spdm<TObj>::value>> {
     bool RawNumber(const char *str, size_t len, bool copy) { return String(str, len, copy); }
 };
 
-}  // namespace simpla{
+}  // namespace sp{
 
 #endif  // SIMPLA_SPDMSAXINTERFACE_H

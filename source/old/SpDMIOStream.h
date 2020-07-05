@@ -12,7 +12,7 @@
 //#include "SpDMJSON.h"
 //#endif
 
-namespace simpla {
+namespace sp {
 template <typename OS, typename _C>
 struct SpDMProxyVisitor<OS, _C, std::enable_if_t<std::is_base_of<std::basic_ostream<_C>, OS>::value>>
     : public SpDMVisitorInterface<_C> {
@@ -154,5 +154,5 @@ std::istream &operator>>(std::istream &is, SpDMElement<_C> &v) {
     throw(std::runtime_error("unimlemented!"));
     return is;
 }
-}  // namespace simpla {
+}  // namespace sp {
 #endif  // SIMPLA_SPDMIOSTREAM_H

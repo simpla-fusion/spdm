@@ -6,10 +6,10 @@
 #include <map>
 #include <vector>
 #include "spdm/SpDM.h"
-using namespace simpla::data;
+using namespace sp::data;
 #define PRINT_SIZE(_TYPE_) "sizeof(" << __STRING(_TYPE_) << ") = " << sizeof(_TYPE_)
 int main(int argc, char **argv) {
-    simpla::data::SpDM db;
+    sp::data::SpDM db;
     //    db["Second"] = "The Second";
     //    db.Set("first", "The First");
     //    db["Third"]["A"] = "The Third";

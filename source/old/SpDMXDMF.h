@@ -9,7 +9,7 @@
 #include <deque>
 #include <memory>
 #include "SpDM.h"
-namespace simpla {
+namespace sp {
 using boost::optional;
 
 namespace data {
@@ -144,5 +144,5 @@ OS &WriteXDMF(DM const &db, OS &os) {
 }
 
 }  // namespace m_data_
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_SPDMXDMF_H

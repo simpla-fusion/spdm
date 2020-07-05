@@ -7,7 +7,7 @@
 
 #include <deque>
 #include "SpDMSAX.h"
-namespace simpla {
+namespace sp {
 
 template <typename OS>
 struct SpDMXMLWriter {
@@ -152,6 +152,6 @@ namespace traits {
 template <typename OS>
 struct is_sax_interface<SpDMXMLWriter<OS>> : public std::true_type {};
 }
-}  // namespace simpla
+}  // namespace sp
 
 #endif  // SIMPLA_SPDMXML_H

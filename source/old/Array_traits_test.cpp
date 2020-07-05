@@ -12,7 +12,7 @@
 #include "spdm/Utility.h"
 #include "spdm/nTuple.h"
 
-using namespace simpla;
+using namespace sp;
 TEST(TestnArrayTraits, traits) {
     EXPECT_EQ(3, (traits::number_of_dimensions<Array<double, 3>>::value));
     EXPECT_TRUE((std::is_same<double, traits::remove_all_dimensions_t<Array<double, 3> const>>::value));

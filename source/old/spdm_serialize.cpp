@@ -7,7 +7,7 @@
 #include "spdm/SpDMIOStream.h"
 #include "spdm/SpDMJSON.h"
 #include "spdm/Serializable.h"
-using namespace simpla::data;
+using namespace sp::data;
 struct gTorus : public Serializable<SpDM> {
     gTorus() = default;
     ~gTorus() = default;

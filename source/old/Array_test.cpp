@@ -10,7 +10,7 @@
 
 #include "spdm/Array.h"
 #include "spdm/Utility.h"
-using namespace simpla;
+using namespace sp;
 
 #define EQUATION(_A, _B, _C) (-(_A + 1.0) / (_B * 2.0 - 3.0) - _C)
 

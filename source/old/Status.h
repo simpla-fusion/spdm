@@ -6,7 +6,7 @@
 #define SIMPLA_SPDMSTATUS_H
 
 #include <utility>
-namespace simpla {
+namespace sp {
 
 struct Status {
     /**
@@ -53,5 +53,5 @@ struct Status {
    private:
     int m_code_ = kOK;
 };
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_SPDMSTATUS_H

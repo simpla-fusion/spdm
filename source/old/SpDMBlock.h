@@ -6,7 +6,7 @@
 #define SIMPLA_SPDMBLOCK_H
 
 #include "SpDM.h"
-namespace simpla {
+namespace sp {
 namespace data {
 
 struct SpDMBlock : public spObject {
@@ -63,5 +63,5 @@ struct SpDMBlock : public spObject {
 };
 }  // namespace data
 typedef data::SpDMBlock spBlock;
-}  // namespace simpla
+}  // namespace sp
 #endif  // SIMPLA_SPDMBLOCK_H
