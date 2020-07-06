@@ -1,20 +1,60 @@
 #ifndef SP_DATABLOCK_
 #define SP_DATABLOCK_
+#include <memory>
+#include <vector>
+// #ifdef __cplusplus
+// extern "C"
+// {
+// #endif
+
+// #define SpObject_INTERFACE_HEAD ;
+
+//     typedef struct
+//     {
+//         SpObject_INTERFACE_HEAD;
+
+//     } SpObjectInterface;
+
+//     typedef struct
+//     {
+//         // SpObject_INTERFACE_HEAD;
+
+//         char *data;
+//         unsigned int element_size;
+//         int dtype;
+//         int nd;
+//         unsigned int *dimensions;
+//         unsigned int *strides;
+//         int flags;
+//         char _[];
+//     } SpDataBlockInterface;
+
+// #ifdef __cplusplus
+// }
+// #endif
+
 namespace sp
 {
-
-    struct DataBlock
+    class SpDataBlock
     {
-        char *data;
-        int nd;
-        size_t *dimensions;
-        size_t *elementsize;
-        char _[];
-    };
-    class SpDataBlock : public DataBlock
-    {
-    };
+    public:
+        SpDataBlock();
+        ~SpDataBlock();
+        SpDataBlock(std::shared_ptr<void> data, int element_size, int nd, size_t dimensions);
+        SpDataBlock(SpDataBlock const &);
+        SpDataBlock(SpDataBlock &&);
+        void swap(SpDataBlock &other);
 
+        char *data();
+        char const *data() const;
+        size_t element_size() const;
+        size_t ndims() const;
+        size_t const *dims() const;
+
+    private:
+        std::shared_ptr<char> m_data_;
+        std::vector<size_t> m_dims_;
+        size_t m_element_size_ = 1;
+    };
 } // namespace sp
-
 #endif // SP_DATABLOCK_

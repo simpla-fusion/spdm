@@ -1,19 +1,17 @@
-#include "SpDBInterface.h"
+#include "SpDB.h"
+#include "SpEntry.h"
 #include "SpUtil.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 using namespace sp;
 
-
 struct SpDB::pimpl_s
 {
     // SpProxy proxy;
 };
 
-SpDB::SpDB() : m_pimpl_(new pimpl_s){
-                   // this->m_pimpl_->proxy.init();
-               };
+SpDB::SpDB() : m_pimpl_(new pimpl_s){};
 
 SpDB::~SpDB() { delete this->m_pimpl_; }
 
@@ -65,258 +63,120 @@ std::vector<SpDocument> SpDB::search(std::string const &query)
     return std::move(nodes);
 }
 
-
-size_t sp::SpDBInterface::attribute_find(const std::string &name) {}
-size_t sp::SpDBInterface::attribute_insert(const std::string &name) {}
-int sp::SpDBInterface::attribute_remove(size_t) {}
-size_t sp::SpDBInterface::attribute_next(size_t) {}
-
-bool sp::SpDBInterface::attribute_equal(size_t, std::any const &) {}
-std::any sp::SpDBInterface::attribute_get_value(size_t) {}
-size_t sp::SpDBInterface::attribute_set_value(size_t, std::any const &v) {}
-
-SpNode::NodeType sp::SpDBInterface::type() {}
-
-std::any sp::SpDBInterface::get() const {}
-void sp::SpDBInterface::set(std::any) const {}
-
-SpDataBlock sp::SpDBInterface::get_block() const {}
-void sp::SpDBInterface::set_block(SpDataBlock &&) {}
-
-std::shared_ptr<sp::SpDBInterface> sp::SpDBInterface::next() const {}
-
 //#########################################################################################################
 SpXPath::SpXPath(const std::string &path) : m_path_(path) {}
 // SpXPath::~SpXPath() = default;
 // SpXPath::SpXPath(SpXPath &&) = default;
 // SpXPath::SpXPath(SpXPath const &) = default;
 // SpXPath &SpXPath::operator=(SpXPath const &) = default;
-const std::string &SpXPath::value() const { return m_path_; }
+const std::string &SpXPath::str() const { return m_path_; }
 
-SpXPath SpXPath::operator/(const std::string &suffix) const
-{
-    return SpXPath(urljoin(m_path_, suffix));
-}
+SpXPath SpXPath::operator/(const std::string &suffix) const { return SpXPath(urljoin(m_path_, suffix)); }
 SpXPath::operator std::string() const { return m_path_; }
+
 //#########################################################################################################
-struct SpNode::pimpl_s
-{
-    std::shared_ptr<SpDBInterface> m_node_;
-};
-struct SpAttribute::pimpl_s
-{
-    SpNode m_node_;
-    std::string m_name_;
-    size_t m_hid_;
-};
 
-SpAttribute::SpAttribute() : m_pimpl_(new pimpl_s) {}
-SpAttribute::~SpAttribute() { delete m_pimpl_; }
-SpAttribute::SpAttribute(SpAttribute &&other) : SpAttribute(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
-SpAttribute::SpAttribute(SpAttribute const &other)
-    : m_pimpl_(
-          new pimpl_s{
-              other.m_pimpl_->m_node_,
-              other.m_pimpl_->m_name_,
-              other.m_pimpl_->m_hid_}) {}
-SpAttribute::SpAttribute(pimpl_s *p) : m_pimpl_(p) {}
+//----------------------------------------------------------------------------------------------------------
+// Node
+//----------------------------------------------------------------------------------------------------------
 
-std::string SpAttribute::name() const { return m_pimpl_->m_name_; }
-std::any SpAttribute::value() const { return std::any(); }
-void SpAttribute::swap(this_type &other) { std::swap(m_pimpl_, other.m_pimpl_); }
-std::ostream &SpAttribute::repr(std::ostream &os) const { return os; }
-bool SpAttribute::same_as(SpAttribute const &other) const
-{
-    return m_pimpl_->m_node_ == other.m_pimpl_->m_node_ &&
-           m_pimpl_->m_hid_ == other.m_pimpl_->m_hid_;
-}
-SpAttribute SpAttribute::next() const
-{
-    NOT_IMPLEMENTED;
-    return SpAttribute();
-}
+SpNode::SpNode(std::shared_ptr<SpEntry> const &entry) : m_entry_(entry) {}
 
-std::any SpAttribute::get() const
-{
-    return m_pimpl_->m_node_.m_pimpl_->m_node_->attribute_get_value(m_pimpl_->m_hid_);
-}
-SpAttribute &SpAttribute::set(std::any const &v)
-{
-    m_pimpl_->m_node_.m_pimpl_->m_node_->attribute_set_value(m_pimpl_->m_hid_, v);
-    return *this;
-}
+SpNode::~SpNode() {}
 
-bool SpAttribute::distance(this_type const &other) const
-{
-    NOT_IMPLEMENTED;
-    return false;
-}
-//--------------------------------------------------------------------------------------------------------------
+SpNode::SpNode(SpNode &&other) : m_entry_(other.m_entry_) { other.m_entry_ = nullptr; }
 
-SpNode::SpNode() : m_pimpl_(new pimpl_s) {}
-SpNode::~SpNode() { delete m_pimpl_; }
-SpNode::SpNode(SpNode &&other) : m_pimpl_(other.m_pimpl_) { other.m_pimpl_ = nullptr; }
-SpNode::SpNode(SpNode const &other) : m_pimpl_(new pimpl_s{other.m_pimpl_->m_node_}) {}
-void SpNode::swap(SpNode &other) { std::swap(m_pimpl_, other.m_pimpl_); }
-std::ostream &SpNode::repr(std::ostream &os) const
-{
-    os << "NOT IMPLEMENTED!" << std::endl;
-    return os;
-}
+SpNode::SpNode(SpNode const &other) : m_entry_(other.m_entry_) {}
 
-SpAttribute SpNode::attribute(const std::string &name) { return SpAttribute(new SpAttribute::pimpl_s{*this, name}); }
-SpAttribute SpNode::attribute(const std::string &name) const { return SpAttribute(new SpAttribute::pimpl_s{*this, name}); }
-SpRange<SpAttribute> SpNode::attributes() const { return SpRange<SpAttribute>(); }
+std::map<std::string, std::any> SpNode::attributes() const { return m_entry_ == nullptr ? std::map<std::string, std::any>{} : m_entry_->attributes(); }
 
-bool SpNode::same_as(this_type const &other) const { return m_pimpl_->m_node_ == other.m_pimpl_->m_node_; }
-bool SpNode::empty() const { return m_pimpl_->m_node_ == nullptr; }
+std::any SpNode::attribute(std::string const &name) const { return m_entry_ == nullptr ? nullptr : m_entry_->attribute(name); }
 
-size_t SpNode::size() const
-{
-    NOT_IMPLEMENTED;
-    return true;
-}
+int SpNode::attribute(std::string const &name, std::any const &v) { return m_entry_ == nullptr ? 0 : m_entry_->attribute(name, v); }
 
-SpNode::NodeType SpNode::type() const { return m_pimpl_->m_node_ == nullptr ? NodeType::Null : m_pimpl_->m_node_->type(); }
+int SpNode::remove_attribute(std::string const &name) { return m_entry_ == nullptr ? 0 : m_entry_->remove_attribute(name); }
 
-bool SpNode::is_root() const { return parent().empty(); }
-bool SpNode::is_leaf() const { return children().size() == 0; }
-bool SpNode::distance(this_type const &target) const
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
-size_t SpNode::depth() const
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
-SpNode SpNode::next() const
-{
-    SpNode res;
-    if (m_pimpl_->m_node_ != nullptr)
-    {
-        res->m_pimpl_->m_node_ = res->m_pimpl_->m_node_->next();
-    }
-    return std::move(res);
-}
-SpNode SpNode::parent() const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-};
-SpNode SpNode::first_child() const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-};
+void SpNode::swap(SpNode &other) { std::swap(m_entry_, other.m_entry_); }
+
+std::ostream &SpNode::repr(std::ostream &os) const { return (m_entry_ == nullptr) ? os : m_entry_->repr(os); }
+
+bool SpNode::same_as(this_type const &other) const { return m_entry_ == other.m_entry_ || m_entry_->same_as(other.m_entry_); }
+
+bool SpNode::empty() const { return m_entry_ == nullptr; }
+
+size_t SpNode::size() const { return m_entry_ == nullptr ? 0 : m_entry_->size(); }
+
+SpNode::TypeOfNode SpNode::type() const { return m_entry_ == nullptr ? TypeOfNode::Null : m_entry_->type(); }
+
+bool SpNode::is_root() const { return m_entry_ == nullptr ? false : m_entry_->is_root(); }
+
+bool SpNode::is_leaf() const { return m_entry_ == nullptr ? false : m_entry_->is_leaf(); }
+
+size_t SpNode::depth() const { return m_entry_ == nullptr ? 0 : m_entry_->depth(); }
+
+SpNode SpNode::next() const { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->next())); }
+
+SpNode SpNode::parent() const { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->parent())); }
+
+SpNode SpNode::first_child() const { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->first_child())); }
+
+SpRange<SpNode> SpNode::children() const { return std::move(m_entry_ == nullptr ? range_type() : range_type(m_entry_->children())); }
+
+SpRange<SpNode> SpNode::select(SpXPath const &selector) const { return std::move(m_entry_ == nullptr ? range_type() : range_type(m_entry_->select(selector.str()))); }
+
+SpNode SpNode::select_one(SpXPath const &selector) const { return std::move(m_entry_ == nullptr ? SpNode() : SpNode(m_entry_->select_one(selector.str()))); }
+
+SpNode SpNode::child(std::string const &key) const { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->child(key))); }
+
+SpNode SpNode::child(std::string const &key) { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->child(key))); }
+
+SpNode SpNode::child(int idx) { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->child(idx))); }
+
+SpNode SpNode::child(int idx) const { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->child(idx))); }
+
+SpNode SpNode::insert_before(int idx) { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->insert_before(idx))); }
+
+SpNode SpNode::insert_after(int idx) { return std::move(SpNode(m_entry_ == nullptr ? nullptr : m_entry_->insert_before(idx))); }
+
+int SpNode::remove_child(int idx) { return (m_entry_ == nullptr) ? 0 : m_entry_->remove_child(idx); }
+
+int SpNode::remove_child(std::string const &key) { return (m_entry_ == nullptr) ? 0 : m_entry_->remove_child(key); }
+
+//----------------------------------------------------------------------------------------------------------
+// level 2
+
+ptrdiff_t SpNode::distance(this_type const &target) const { return path(target).size(); }
+
 SpRange<SpNode> SpNode::ancestor() const
 {
     NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
+    return range_type(nullptr, nullptr);
+}
+
 SpRange<SpNode> SpNode::descendants() const
 {
     NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
+    return range_type(nullptr, nullptr);
+}
+
 SpRange<SpNode> SpNode::leaves() const
 {
     NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
-SpRange<SpNode> SpNode::children() const
-{
-    NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
+    return range_type(nullptr, nullptr);
+}
+
 SpRange<SpNode> SpNode::slibings() const
 {
     NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
-SpRange<SpNode> SpNode::path(SpNode const target) const
-{
-    NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
-SpRange<SpNode> SpNode::select(SpXPath const &path) const
-{
-    NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-};
-SpNode SpNode::select_one(SpXPath const &path) const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-};
-// as object
-SpNode SpNode::child(std::string const &) const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-SpNode SpNode::child(std::string const &)
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-int SpNode::remove_child(std::string const &key)
-{
-    NOT_IMPLEMENTED;
-    return 0;
+    return range_type(nullptr, nullptr);
 }
 
-// as array
-SpNode SpNode::child(int)
+SpRange<SpNode> SpNode::path(SpNode const &target) const
 {
     NOT_IMPLEMENTED;
-    return SpNode();
+    return range_type(nullptr, nullptr);
 }
-SpNode SpNode::child(int) const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-SpNode SpNode::insert_before(int pos)
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-SpNode SpNode::insert_after(int pos)
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-// SpNode SpNode::prepend() { return insert_before(0); }
-// SpNode SpNode::append() { return insert_after(-1); }
-int SpNode::remove_child(int idx)
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
-size_t SpRange<SpNode>::size() const
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
-SpNode SpRange<SpNode>::begin() const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-SpNode SpRange<SpNode>::end() const
-{
-    NOT_IMPLEMENTED;
-    return SpNode();
-}
-
-SpRange<SpNode> SpRange<SpNode>::filter(filter_type const &)
-{
-    NOT_IMPLEMENTED;
-    return SpRange<SpNode>();
-}
-
+//----------------------------------------------------------------------------------------------------------
 //##########################################################################################
 
 SpDocument::OID::OID() : m_id_(0)
