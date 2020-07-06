@@ -1,8 +1,5 @@
 #ifndef SPDB_H_
 #define SPDB_H_
-
-#include "SpEntry.h"
-#include "SpRange.h"
 #include "SpUtil.h"
 #include <algorithm>
 #include <any>
@@ -41,29 +38,39 @@ namespace sp
         std::string m_path_;
     };
 
+    template <typename T0, typename T1 = T0>
+    class SpRange : std::pair<T0, T1>
+    {
+    };
+
     class SpNode
     {
 
     public:
-        typedef typename SpEntry::TypeOfNode TypeOfNode;
+        enum TypeOfNode
+        {
+            Null,
+            Scalar,
+            Block,
+            List,
+            Object
+        };
+        class iterator;
 
         typedef SpNode this_type;
         typedef SpNode node_type;
-        typedef SpRange<SpNode> range_type;
+        typedef SpRange<iterator> range_type;
 
-        friend class SpAttribute;
-
-        SpNode(std::shared_ptr<SpEntry> const &entry = nullptr);
+        explicit SpNode(std::shared_ptr<SpNode> const &parent = nullptr);
         virtual ~SpNode();
-        explicit SpNode(SpNode *parent);
         SpNode(SpNode &&other);
         SpNode(SpNode const &);
         SpNode &operator=(SpNode const &) = default;
         void swap(SpNode &other);
         std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
 
-        std::map<std::string, std::any> attributes() const;         // return list of attributes
-        std::any attribute(std::string const &name) const;          // get attribute, return nullptr is name does not exist
+        std::map<std::string, std::any> attributes() const;        // return list of attributes
+        std::any attribute(std::string const &name) const;         // get attribute, return nullptr is name does not exist
         int attribute(std::string const &name, std::any const &v); // set attribute
         int remove_attribute(std::string const &name);             // remove attribuet
 
@@ -81,7 +88,7 @@ namespace sp
         bool is_block() const { return type() == TypeOfNode::Block; }
         bool is_list() const { return type() == TypeOfNode::List; }
         bool is_object() const { return type() == TypeOfNode::Object; }
-
+        //----------------------------------------------------------------------------------------------------------
         // as Hierarchy tree node
         template <typename T>
         SpNode operator[](T const &v) { return child(v); }
@@ -94,69 +101,85 @@ namespace sp
         // level 0
         void remove(); // remove self
 
-        SpNode &self() { return *this; }             // return self
-        const SpNode &self() const { return *this; } // return self
-
-        SpNode next() const;              // return next slibing
-        SpNode parent() const;            // return parent node
-        SpNode first_child() const;       // return first child node
-        SpRange<SpNode> children() const; // return children
+        iterator parent() const;      // return parent node
+        iterator first_child() const; // return first child node
+        range_type children() const;  // return children
 
         // as object
-        SpNode child(std::string const &) const;   // return node at key,  if key does not exist then throw exception
-        SpNode child(std::string const &);         // return node at key,  if key does not exist then create one
-        int remove_child(std::string const &key); // remove child with key, return true if key exists
+        iterator child(std::string const &) const; // return node at key,  if key does not exist then throw exception
+        iterator child(std::string const &);       // return node at key,  if key does not exist then create one
+        int remove_child(std::string const &key);  // remove child with key, return true if key exists
 
         // as list
-        SpNode child(int);                            // return node at idx,  if idx >size() then throw exception
-        SpNode child(int) const;                      // return node at idx,  if idx >size() then throw exception
-        SpNode insert_before(int pos);                // insert new child node before pos, return new node
-        SpNode insert_after(int pos);                 // insert new child node after pos, return new node
-        SpNode prepend() { return insert_before(0); } // insert new child node before first child
-        SpNode append() { return insert_after(-1); }  // insert new child node afater last child
-        int remove_child(int idx);                   // remove child at pos, return true if idx exists
+        iterator child(int);             // return node at idx,  if idx >size() then throw exception
+        iterator child(int) const;       // return node at idx,  if idx >size() then throw exception
+        iterator insert_before(int pos); // insert new child node before pos, return new node
+        iterator insert_after(int pos);  // insert new child node after pos, return new node
+        iterator prepend();              // insert new child node before first child
+        iterator append();               // insert new child node afater last child
+        int remove_child(int idx);       // remove child at pos, return true if idx exists
 
         //----------------------------------------------------------------------------------------------------------
         // level 1
-        SpRange<SpNode> select(SpXPath const &path) const; // select from children
-        SpNode select_one(SpXPath const &path) const;      // return the first selected child
+        range_type select(SpXPath const &path) const;   // select from children
+        iterator select_one(SpXPath const &path) const; // return the first selected child
 
         //----------------------------------------------------------------------------------------------------------
         // level 2
-        SpRange<SpNode> ancestor() const;                  // return ancestor
-        SpRange<SpNode> descendants() const;               // return descendants
-        SpRange<SpNode> leaves() const;                    // return leave nodes in traversal order
-        SpRange<SpNode> slibings() const;                  // return slibings
-        SpRange<SpNode> path(SpNode const &target) const;  // return the shortest path to target
+        range_type ancestor() const;                       // return ancestor
+        range_type descendants() const;                    // return descendants
+        range_type leaves() const;                         // return leave nodes in traversal order
+        range_type slibings() const;                       // return slibings
+        range_type path(SpNode const &target) const;       // return the shortest path to target
         ptrdiff_t distance(const this_type &target) const; // lenght of short path to target
 
-        //----------------------------------------------------------------------------------------------------------
+    private:
+        std::shared_ptr<SpNode> m_parent_;
+        struct pimpl_s;
+        std::unique_ptr<pimpl_s> m_pimpl_;
+    };
 
-        // as iterator
+    std::ostream &operator<<(std::ostream &os, SpNode const &d) { return d.repr(os); }
+    //----------------------------------------------------------------------------------------------------------
+    class SpNode::iterator : public std::iterator<std::input_iterator_tag, SpNode>
+    {
 
-        bool operator==(this_type const &other) const { return same_as(other); }
-        bool operator!=(this_type const &other) const { return !same_as(other); }
-        ptrdiff_t operator-(this_type const &other) const { return distance(other); }
+    public:
+        iterator(std::shared_ptr<SpNode> const &p = nullptr);
+        virtual ~iterator();
+        iterator(iterator const &);
+        iterator(iterator &&);
+        iterator &swap(iterator &other);
 
-        this_type &operator++()
+        iterator &operator=(iterator const &other) { return iterator(other).swap(*this); }
+
+        bool operator==(iterator const &other) const { return equal(other); }
+        bool operator!=(iterator const &other) const { return !equal(other); }
+        ptrdiff_t operator-(iterator const &other) const { return distance(other); }
+
+        iterator &operator++()
         {
             next().swap(*this);
             return *this;
         }
-        this_type operator++(int)
+        iterator operator++(int)
         {
-            SpNode res(*this);
+            iterator res(*this);
             next().swap(*this);
             return res;
         }
-        this_type &operator*() { return *this; }
-        this_type *operator->() { return this; }
+        reference operator*() { return *self(); }
+        pointer operator->() { return self(); }
+
+        iterator next() const;
+        bool equal(iterator const &) const;
+        ptrdiff_t distance(iterator const &) const;
+        pointer self();
 
     private:
-        std::shared_ptr<SpEntry> m_entry_;
+        struct pimpl_s;
+        std::unique_ptr<pimpl_s> m_pimpl_;
     };
-
-    std::ostream &operator<<(std::ostream &os, SpNode const &d) { return d.repr(os); }
 
     class SpDocument
     {
