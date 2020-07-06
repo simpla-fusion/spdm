@@ -1,4 +1,4 @@
-#include "SpDocument.h"
+#include "SpNode.h"
 #include <iostream>
 
 #define CATCH_CONFIG_MAIN
@@ -7,7 +7,7 @@
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
 
-    sp::SpNode node;
+    sp::node_t node;
 
     node.attribute("key", "a");
 }

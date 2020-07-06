@@ -6,58 +6,12 @@
 #include <memory>
 namespace sp
 {
-    struct SpEntry
+
+    template <>
+    class SpEntry::ContentT<SpNode::TypeOfNode::Scalar> : public SpEntry::Content
     {
     public:
-        class Attributes
-        {
-        public:
-            Attributes *copy() const { return new Attributes(*this); }
-
-            std::any get(std::string const &name) const;         // get attribute, return nullptr is name does not exist
-            int set(std::string const &name, std::any const &v); // set attribute
-            int remove(std::string const &name);                 // remove attribuet
-        };
-
-        class Content
-        {
-        public:
-            Content *copy() const { return new Content(*this); }
-        };
-
-        SpEntry() : m_content_(nullptr), m_attributes_(nullptr){};
-        ~SpEntry() = default;
-        SpEntry(SpEntry const &other) : m_content_(other.m_content_.copy()), m_attributes_(other.m_attributes_->copy()) {}
-        SpEntry(SpEntry &&other) : m_content_(std::move(other.m_content_)), m_attributes_(std::move(other.m_attributes_)) {}
-
-        SpEntry &operator=(SpEntry const &other)
-        {
-            SpEntry(other).swap(*this);
-            return *this;
-        }
-        SpEntry &swap(SpEntry &other)
-        {
-            std::swap(m_content_, other.m_content_);
-            std::swap(m_attributes_, other.m_attributes_);
-        }
-        SpEntry *copy() const { return new SpEntry(*this); };
-
-        SpNode::TypeOfNode type() const { return SpNode::TypeOfNode::Null; };
-
-        // attributes
-        const auto &attributes() const { return *m_attributes_; } // return list of attributes
-        auto &attributes() { return *m_attributes_; }             // return list of attributes
-
-        //----------------------------------------------------------------------------------------------------------
-        // content
-        auto &content() { return *m_content_; }
-        const auto &content() const { return *m_content_; }
-
-    private:
-        std::unique_ptr<Content> m_content_;
-        std::unique_ptr<Attributes> m_attributes_;
     };
-
     // class SpEntry : public std::enable_shared_from_this<SpEntry>
     // {
     // public:
