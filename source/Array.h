@@ -6,6 +6,7 @@
 #define SIMPLA_SPDM_ARRAY_H
 
 #include "ExpressionTemplate.h"
+#include "SpDataBlock.h"
 #include "TypeTraits.h"
 #include "Utility.h"
 #include "nTuple.h"
@@ -324,9 +325,9 @@ namespace sp
     template <typename...>
     class Expression;
     template <typename V, typename SFC>
-    class ArrayBase;
+    class ArrayImplement;
 #define ARRAY_BASIC_TEMPLATE_HEAD template <typename V, typename SFC>
-#define ARRAY_BASIC_TEMPLATE ArrayBase<V, SFC>
+#define ARRAY_BASIC_TEMPLATE ArrayImplement<V, SFC>
 
     namespace traits
     {
@@ -497,20 +498,22 @@ namespace sp
     template <typename V, typename SFC>
     auto make_array(std::shared_ptr<V> d, SFC sfc)
     {
-        return ArrayBase<V, traits::remove_cvref_t<SFC>>(std::move(d), std::move(sfc));
+        return ArrayImplement<V, traits::remove_cvref_t<SFC>>(std::move(d), std::move(sfc));
     };
+  
+  
     template <typename V, typename SFC>
-    class ArrayBase /*, public m_data_::DataBlock*/
+    class ArrayImplement : public DataBlock
     {
-        typedef ArrayBase<V, SFC> this_type;
+        typedef ArrayImplement<V, SFC> this_type;
 
     public:
         typedef V value_type;
         static constexpr value_type s_nan = std::numeric_limits<value_type>::signaling_NaN();
         static value_type m_null_;
 
-        typedef ArrayBase<V, SFC> array_type;
-        typedef ArrayBase<std::add_const_t<V>, SFC> const_array_type;
+        typedef ArrayImplement<V, SFC> array_type;
+        typedef ArrayImplement<std::add_const_t<V>, SFC> const_array_type;
 
         typedef SFC sfc_type;
         static constexpr unsigned int ndim = sfc_type::ndim;
@@ -520,24 +523,24 @@ namespace sp
         sfc_type m_sfc_;
 
     public:
-        ArrayBase() = default;
-        virtual ~ArrayBase(){};
-        ArrayBase(this_type const &other) : m_sfc_(other.m_sfc_), m_data_(other.m_data_) {}
-        ArrayBase(this_type &&other) noexcept : m_sfc_(std::move(other.m_sfc_)), m_data_(std::move(other.m_data_)) {}
-        explicit ArrayBase(sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
-        explicit ArrayBase(sfc_type &&sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
+        ArrayImplement() = default;
+        virtual ~ArrayImplement(){};
+        ArrayImplement(this_type const &other) : m_sfc_(other.m_sfc_), m_data_(other.m_data_) {}
+        ArrayImplement(this_type &&other) noexcept : m_sfc_(std::move(other.m_sfc_)), m_data_(std::move(other.m_data_)) {}
+        explicit ArrayImplement(sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
+        explicit ArrayImplement(sfc_type &&sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
 
-        explicit ArrayBase(std::shared_ptr<value_type> d, sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(std::move(d)) {}
+        explicit ArrayImplement(std::shared_ptr<value_type> d, sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(std::move(d)) {}
         template <typename... Args>
-        explicit ArrayBase(Args &&... args) : m_sfc_(std::forward<Args>(args)...) {}
+        explicit ArrayImplement(Args &&... args) : m_sfc_(std::forward<Args>(args)...) {}
         template <typename... Args>
-        explicit ArrayBase(std::shared_ptr<value_type> d, Args &&... args)
+        explicit ArrayImplement(std::shared_ptr<value_type> d, Args &&... args)
             : m_sfc_(std::forward<Args>(args)...), m_data_(std::move(d)) {}
 
         template <typename _UInt>
-        ArrayBase(std::initializer_list<_UInt> const &d) : m_sfc_(d) {}
+        ArrayImplement(std::initializer_list<_UInt> const &d) : m_sfc_(d) {}
 
-        ArrayBase(this_type &other, tags::split) : m_sfc_(other.m_sfc_, tags::split()), m_data_(other.m_data_) {}
+        ArrayImplement(this_type &other, tags::split) : m_sfc_(other.m_sfc_, tags::split()), m_data_(other.m_data_) {}
 
         void swap(this_type &other)
         {
@@ -844,11 +847,12 @@ namespace sp
             return const_iterator(m_data_.get(), m_sfc_.end());
         }
 
-    }; // class ArrayBase<V, SFC>
+    }; // class ArrayImplement<V, SFC>
+
     template <typename V, unsigned int NDIM = 1>
-    using Array = ArrayBase<V, ZSFC<NDIM>>;
+    using Array = ArrayImplement<V, ZSFC<NDIM>>;
     template <typename V, unsigned int NDIM>
-    using VecArray = nTuple<ArrayBase<V, ZSFC<NDIM>>, 3>;
+    using VecArray = nTuple<ArrayImplement<V, ZSFC<NDIM>>, 3>;
 
 #define DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(_GLOBAL_FUN_, _MEMBER_FUN_NAME_)                                    \
     namespace detail                                                                                            \
@@ -1063,22 +1067,22 @@ namespace sp
     DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(Shift, Shift)
 
     template <typename... V>
-    auto begin(ArrayBase<V...> &a)
+    auto begin(ArrayImplement<V...> &a)
     {
         return a.begin();
     }
     template <typename... V>
-    auto end(ArrayBase<V...> &a)
+    auto end(ArrayImplement<V...> &a)
     {
         return a.end();
     }
     template <typename... V>
-    auto begin(ArrayBase<V...> const &a)
+    auto begin(ArrayImplement<V...> const &a)
     {
         return a.begin();
     }
     template <typename... V>
-    auto end(ArrayBase<V...> const &a)
+    auto end(ArrayImplement<V...> const &a)
     {
         return a.end();
     }
@@ -1087,7 +1091,7 @@ namespace sp
     {
         ARRAY_BASIC_TEMPLATE_HEAD void swap(ARRAY_BASIC_TEMPLATE &lhs, ARRAY_BASIC_TEMPLATE &rhs) { lhs.swap(rhs); }
         template <typename... T, typename V>
-        V Fill(ArrayBase<T...> &a, V start, V inc = 0)
+        V Fill(ArrayImplement<T...> &a, V start, V inc = 0)
         {
             for (decltype(auto) item : a)
             {
@@ -1096,7 +1100,7 @@ namespace sp
             return start;
         }
         template <typename... T, typename V>
-        V Fill(ArrayBase<T...> &&a, V start, V inc = 0)
+        V Fill(ArrayImplement<T...> &&a, V start, V inc = 0)
         {
             for (decltype(auto) item : a)
             {
@@ -1180,15 +1184,15 @@ namespace sp
 #undef _SP_DEFINE_UNARY_FUNCTION
 
     template <typename... TL>
-    auto operator<<(ArrayBase<TL...> const &lhs, unsigned int n)
+    auto operator<<(ArrayImplement<TL...> const &lhs, unsigned int n)
     {
-        return Expression<tags::bitwise_left_shift, ArrayBase<TL...>, int>(lhs, n);
+        return Expression<tags::bitwise_left_shift, ArrayImplement<TL...>, int>(lhs, n);
     };
 
     template <typename... TL>
-    auto operator>>(ArrayBase<TL...> const &lhs, unsigned int n)
+    auto operator>>(ArrayImplement<TL...> const &lhs, unsigned int n)
     {
-        return Expression<tags::bitwise_right_shifit, ArrayBase<TL...>, int>(lhs, n);
+        return Expression<tags::bitwise_right_shifit, ArrayImplement<TL...>, int>(lhs, n);
     };
 
 #define _SP_DEFINE_COMPOUND_OP(_TAG_, _FUN_)                                                  \
