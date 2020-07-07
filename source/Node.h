@@ -66,7 +66,9 @@ namespace sp
 
         std::any as_scalar() const;       // get value , if value is invalid then throw exception
         void as_scalar(std::any const &); // set value , if fail then throw exception
-        // void as_scalar(char const *); // set value , if fail then throw exception
+        int as_integer() const;
+        double as_float() const;
+        std::string as_string() const;
 
         block_type as_block() const;       // get block
         void as_block(block_type const &); // set block

@@ -346,22 +346,28 @@ std::shared_ptr<Node> EntryInMemory::find_child(std::string const &)
     return nullptr;
 }
 
-std::shared_ptr<Node> EntryInMemory::child(std::string const &)
+std::shared_ptr<Node> EntryInMemory::child(std::string const &key)
 {
-    NOT_IMPLEMENTED;
-    return nullptr;
+    auto &m = as_object();
+    auto p = m.find(key);
+    if (p == m.end())
+    {
+        auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+        return m.emplace(key, n).first->second;
+    }
+    else
+    {
+        return p->second;
+    }
 }
 
-std::shared_ptr<Node> EntryInMemory::child(int idx)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
+std::shared_ptr<Node> EntryInMemory::child(int idx) { return as_list()[idx]; }
 
 std::shared_ptr<Node> EntryInMemory::append()
 {
-    NOT_IMPLEMENTED;
-    return nullptr;
+    auto p = std::make_shared<Node>(m_self_, new EntryInMemory);
+    as_list().push_back(p);
+    return p;
 }
 
 void EntryInMemory::remove_child(int idx)
@@ -371,13 +377,14 @@ void EntryInMemory::remove_child(int idx)
 
 void EntryInMemory::remove_child(std::string const &key)
 {
-    NOT_IMPLEMENTED;
+    if (m_content_->type_info() == typeid(ContentObject))
+    {
+        auto &m = as_object();
+        m.erase(m.find(key));
+    }
 }
 
-void EntryInMemory::remove_children()
-{
-    NOT_IMPLEMENTED;
-}
+void EntryInMemory::remove_children() { m_content_.reset(new ContentScalar{}); }
 
 Range<Iterator<std::shared_ptr<Node>>> EntryInMemory::children() const
 {
