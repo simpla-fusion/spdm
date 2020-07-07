@@ -1,6 +1,6 @@
 #ifndef SP_NODE_H_
 #define SP_NODE_H_
-#include "SpEntry.h"
+
 #include "SpUtil.h"
 #include <algorithm>
 #include <any>
@@ -23,36 +23,36 @@ namespace sp
         List,
         Object
     };
-    class SpXPath;
+    class XPath;
 
-    class SpEntry;
+    class Entry;
     class Attributes;
     class Content;
 
-    class SpNode;
+    class Node;
 
-    class SpXPath
+    //##############################################################################################################
+    class XPath
     {
     public:
-        SpXPath(std::string const &path = "");
-        SpXPath(const char *path);
-        ~SpXPath() = default;
+        XPath(std::string const &path = "");
+        XPath(const char *path);
+        ~XPath() = default;
 
-        SpXPath(SpXPath &&) = default;
-        SpXPath(SpXPath const &) = default;
-        SpXPath &operator=(SpXPath const &) = default;
+        XPath(XPath &&) = default;
+        XPath(XPath const &) = default;
+        XPath &operator=(XPath const &) = default;
 
         const std::string &str() const;
 
-        SpXPath operator/(std::string const &suffix) const;
+        XPath operator/(std::string const &suffix) const;
         operator std::string() const;
 
     private:
         std::string m_path_;
     };
 
-    //----------------------------------------------------------------------------------------------------------
-
+    //##############################################################################################################
     template <typename U>
     class Iterator : public std::iterator<std::input_iterator_tag, U>
     {
@@ -109,6 +109,7 @@ namespace sp
         next_function_type m_next_;
     };
 
+    //##############################################################################################################
     template <typename T0, typename T1 = T0>
     class Range : public std::pair<T0, T1>
     {
@@ -133,19 +134,113 @@ namespace sp
         T1 end() const { return second; }
     };
 
-    //----------------------------------------------------------------------------------------------------------
-
-    class SpNode : public std::enable_shared_from_this<SpNode>
+    //##############################################################################################################
+    class Attributes
     {
     public:
-        typedef SpNode this_type;
+        typedef Attributes this_type;
+
+        static Attributes *create();
+        Attributes *copy() const;
+
+        Attributes() = default;
+        Attributes(this_type const &) = default;
+        Attributes(this_type &&) = default;
+        virtual ~Attributes() = default;
+
+        Attributes &operator=(this_type const &other);
+
+        void swap(this_type &);
+
+        std::any get(std::string const &name) const;         // get attribute, return nullptr is name does not exist
+        int set(std::string const &name, std::any const &v); // set attribute
+        int remove(std::string const &name);                 // remove attribuet
+    };
+
+    //##############################################################################################################
+    class Content
+    {
+    public:
+        typedef Content this_type;
+
+        static Content *create(int tag);
+        Content *as(int tag);
+        Content *copy() const;
+
+        Content() = default;
+        virtual ~Content() = default;
+        Content(this_type const &) = default;
+        Content(this_type &&) = default;
+        Content &operator=(this_type const &other);
+        void swap(Content &);
+
+        int type() const;
+    };
+
+    //##############################################################################################################
+    class Entry : public std::enable_shared_from_this<Entry>
+    {
+    public:
+        typedef Entry this_type;
+
+        static Entry *create(int tag = 0);
+        Entry *copy() const;
+
+        Entry(int tag = 0);
+        Entry(this_type const &other);
+        Entry(this_type &&other);
+        virtual ~Entry();
+        this_type &operator=(this_type const &other);
+        void swap(this_type &other);
+
+        std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
+
+        int type() const;
+
+        // attributes
+        const Attributes &attributes() const { return *m_attributes_; } // return list of attributes
+        Attributes &attributes() { return *m_attributes_; }             // return list of attributes
+
+        //----------------------------------------------------------------------------------------------------------
+        // content
+        Content &content() { return *m_content_; }
+        const Content &content() const { return *m_content_; }
+
+        //----------------------------------------------------------------------------------------------------------
+        // as Hierarchy tree node
+        template <typename T>
+        std::shared_ptr<this_type> operator[](T const &v) { return child(v); }
+
+        //----------------------------------------------------------------------------------------------------------
+        // level 0
+        std::shared_ptr<Node> parent() const; // return parent node
+        void remove();                          // remove self from parent
+
+        //----------------------------------------------------------------------------------------------------------
+        // level 1
+        // range select(XPath const &path) const;                       // select from children
+        // std::shared_ptr<Node> select_one(XPath const &path) const; // return the first selected child
+
+    protected:
+        Entry(Attributes *attr, Content *content);
+
+    private:
+        std::unique_ptr<Content> m_content_;
+        std::unique_ptr<Attributes> m_attributes_;
+    };
+
+    //##############################################################################################################
+    class Node : public std::enable_shared_from_this<Node>
+    {
+    public:
+        typedef Node this_type;
         typedef Iterator<std::shared_ptr<this_type>> iterator;
         typedef Range<iterator, iterator> range;
 
-        SpNode(std::shared_ptr<SpNode> const &parent = nullptr, int tag = NodeTag::Null);
-        SpNode(this_type const &other);
-        SpNode(this_type &&other);
-        ~SpNode();
+        Node(std::shared_ptr<Node> const &parent = nullptr, int tag = NodeTag::Null);
+        Node(this_type const &other);
+        Node(this_type &&other);
+        ~Node();
         this_type &operator=(this_type const &other);
         void swap(this_type &other);
 
@@ -177,13 +272,13 @@ namespace sp
 
         //----------------------------------------------------------------------------------------------------------
         // level 0
-        std::shared_ptr<SpNode> parent() const; // return parent node
+        std::shared_ptr<Node> parent() const; // return parent node
         void remove();                          // remove self from parent
 
         //----------------------------------------------------------------------------------------------------------
         // level 1
-        range select(SpXPath const &path) const;                       // select from children
-        std::shared_ptr<SpNode> select_one(SpXPath const &path) const; // return the first selected child
+        range select(XPath const &path) const;                       // select from children
+        std::shared_ptr<Node> select_one(XPath const &path) const; // return the first selected child
 
         //----------------------------------------------------------------------------------------------------------
         // level 2
@@ -195,11 +290,11 @@ namespace sp
         ptrdiff_t distance(const this_type &target) const; // lenght of short path to target
 
     private:
-        std::shared_ptr<SpNode> m_parent_;
-        std::unique_ptr<SpEntry> m_entry_;
+        std::shared_ptr<Node> m_parent_;
+        std::unique_ptr<Entry> m_entry_;
     };
 
-    std::ostream &operator<<(std::ostream &os, SpNode const &d);
+    std::ostream &operator<<(std::ostream &os, Node const &d);
 
 } // namespace sp
 
