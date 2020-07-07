@@ -1,6 +1,5 @@
-#include "SpNode.h"
-
-#include "SpUtil.h"
+#include "Node.h"
+#include "Util.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>

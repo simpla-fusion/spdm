@@ -1,4 +1,4 @@
-#include "SpNode.h"
+#include "Node.h"
 
 #include <iostream>
 

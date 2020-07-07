@@ -4,17 +4,17 @@
 
 
 set(SPDB_INCLUDES
-  SpUtil.h
-  SpNode.h
+  Util.h
+  Node.h
   
 )
  
 
 
 set(SPDB_SOURCES
-  SpNode.cpp
-  
-  SpUtil.cpp
+  Node.cpp
+  Node_Impl.cpp
+  Util.cpp
     # ../extern/pugixml/pugixml.cpp
 )
 
