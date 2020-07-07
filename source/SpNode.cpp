@@ -1,11 +1,12 @@
 #include "SpNode.h"
+#include "SpEntry.h"
 #include "SpUtil.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 using namespace sp;
-
 //#########################################################################################################
+
 SpXPath::SpXPath(const std::string &path) : m_path_(path) {}
 // SpXPath::~SpXPath() = default;
 // SpXPath::SpXPath(SpXPath &&) = default;
@@ -20,129 +21,38 @@ SpXPath::operator std::string() const { return m_path_; }
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-// SpNode::iterator SpNode::first_child() const
-// {
-//     NOT_IMPLEMENTED;
-//     return iterator();
-// }
+SpNode::SpNode(std::shared_ptr<SpNode> const &parent, int tag) : m_parent_(parent), m_entry_(SpEntry::create(tag)){};
 
-// SpNode::range SpNode::children() const
-// {
-//     NOT_IMPLEMENTED;
-//     return SpNode::range();
-// }
+SpNode::SpNode(SpNode const &other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_->copy()) {}
 
-// SpNode::range SpNode::select(SpXPath const &selector) const
-// {
-//     NOT_IMPLEMENTED;
-//     return SpNode::range();
-// }
+SpNode::SpNode(SpNode &&other) : m_parent_(other.m_parent_), m_entry_(std::move(other.m_entry_)) { other.m_entry_.reset(); }
 
-// std::shared_ptr<SpNode> SpNode::select_one(SpXPath const &selector) const
-//     NOT_IMPLEMENTED;
-// {
-//     return nullptr;
-// }
+SpNode::~SpNode() {}
 
-// std::shared_ptr<SpNode> SpNode::child(std::string const &key) const
-// {
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// std::shared_ptr<SpNode> SpNode::child(std::string const &key)
-// {
-
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// std::shared_ptr<SpNode> SpNode::child(int idx)
-// {
-
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// std::shared_ptr<SpNode> SpNode::child(int idx) const
-// {
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// // SpNode SpNode::insert_before(int idx)
-// // {
-// //     return SpNode(m_entry_->insert_before(idx));
-// // }
-
-// // SpNode SpNode::insert_after(int idx)
-// // {
-// //     return SpNode(m_entry_->insert_after(idx));
-// // }
-
-// int SpNode::remove_child(int idx)
-// {
-//     NOT_IMPLEMENTED;
-//     return 0;
-// }
-
-// int SpNode::remove_child(std::string const &key)
-// {
-//     NOT_IMPLEMENTED;
-//     return 0;
-// }
-
-// //----------------------------------------------------------------------------------------------------------
-// // level 2
-
-// ptrdiff_t SpNode::distance(this_type const &target) const { return path(target).size(); }
-
-// SpNode::range SpNode::ancestor() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// SpNode::range SpNode::descendants() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// SpNode::range SpNode::leaves() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// SpNode::range SpNode::slibings() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// SpNode::range SpNode::path(SpNode const &target) const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// //----------------------------------------------------------------------------------------------------------
-// // Content
-// //----------------------------------------------------------------------------------------------------------
-
-// class SpContent
-// {
-// public:
-//     std::unique_ptr<SpContent> copy() const { return std::unique_ptr<SpContent>(new SpContent(*this)); };
-//     NodeTag type() const { return NodeTag::Null; }; //
-// };
-
-struct node_tag_in_memory
+SpNode &SpNode::operator=(this_type const &other)
 {
-};
+    this_type(other).swap(*this);
+    return *this;
+}
 
-node_t *create_node(std::shared_ptr<node_t> const &parent, NodeTag tag)
+std::ostream &SpNode::repr(std::ostream &os) const { return os; }
+
+std::ostream &operator<<(std::ostream &os, SpNode const &d) { return d.repr(os); }
+
+void SpNode::swap(this_type &other)
 {
-    return new SpNode<node_tag_in_memory>(parent);
-};
+    std::swap(m_parent_, other.m_parent_);
+    std::swap(m_entry_, other.m_entry_);
+}
+int SpNode::type() const { return m_entry_->type(); }
+
+bool SpNode::is_root() const { return m_parent_ == nullptr; }
+
+bool SpNode::is_leaf() const { return !(type() == NodeTag::List || type() == NodeTag::Object); }
+
+size_t SpNode::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth() + 1; }
+
+bool SpNode::same_as(this_type const &other) const { return this == &other; }
+
+Attributes const &SpNode::attributes() const { return m_entry_->attributes(); }
+Attributes &SpNode::attributes() { return m_entry_->attributes(); }

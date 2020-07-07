@@ -1,73 +1,113 @@
-#ifndef SPDB_IMPLEMENT_H_
-#define SPDB_IMPLEMENT_H_
-#include "SpNode.h"
+#ifndef SP_ENTRY_H_
+#define SP_ENTRY_H_
+
+#include "SpUtil.h"
+#include <algorithm>
 #include <any>
+#include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
+#include <stdlib.h>
+#include <string>
+#include <utility>
+#include <vector>
 namespace sp
 {
+    class SpNode;
 
-    template <>
-    class SpEntry::ContentT<SpNode::TypeOfNode::Scalar> : public SpEntry::Content
+    class Attributes
     {
     public:
+        typedef Attributes this_type;
+
+        static Attributes *create();
+        Attributes *copy() const;
+
+        Attributes() = default;
+        Attributes(this_type const &) = default;
+        Attributes(this_type &&) = default;
+        virtual ~Attributes() = default;
+
+        Attributes &operator=(this_type const &other);
+
+        void swap(this_type &);
+
+        std::any get(std::string const &name) const;         // get attribute, return nullptr is name does not exist
+        int set(std::string const &name, std::any const &v); // set attribute
+        int remove(std::string const &name);                 // remove attribuet
     };
-    // class SpEntry : public std::enable_shared_from_this<SpEntry>
-    // {
-    // public:
-    //     friend class SpNode;
-    //     typedef std::shared_ptr<SpNode> node_type;
-    //     typedef std::pair<node_type, node_type> range_type;
 
-    //     SpEntry(){};
-    //     SpEntry(SpEntry const &) {}
-    //     SpEntry(SpEntry &&) {}
-    //     SpEntry(std::shared_ptr<SpNode> const &parent) : m_parent_(parent) {}
-    //     virtual ~SpEntry(){};
-    //     void swap(SpEntry &other) { std::swap(m_parent_, other.m_parent_); }
+    class Content
+    {
+    public:
+        typedef Content this_type;
 
-    //     virtual SpNode::TypeOfNode type() const { return SpNode::TypeOfNode::Null; }; //
+        static Content *create(int tag);
+        Content *as(int tag);
+        Content *copy() const;
 
-    //     std::shared_ptr<SpNode> parent() const { return m_parent_; }
+        Content() = default;
+        virtual ~Content() = default;
+        Content(this_type const &) = default;
+        Content(this_type &&) = default;
+        Content &operator=(this_type const &other);
+        void swap(Content &);
 
-    //     size_t depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth() + 1; }; // distance(root())
+        int type() const;
+    };
 
-    //     virtual size_t size() const = 0;
+    class SpEntry : public std::enable_shared_from_this<SpEntry>
+    {
+    public:
+        typedef SpEntry this_type;
 
-    //     virtual void remove() = 0;                                             // remove self
-    //     virtual std::shared_ptr<SpEntry> copy() const = 0;                     //
-    //     virtual std::shared_ptr<SpEntry> create(SpNode::TypeOfNode) const = 0; //
+        static SpEntry *create(int tag = 0);
+        SpEntry *copy() const;
 
-    //     virtual std::map<std::string, std::any> attributes() const = 0;        // return list of attributes
-    //     virtual std::any attribute(std::string const &name) const = 0;         // get attribute, return nullptr is name does not exist
-    //     virtual int attribute(std::string const &name, std::any const &v) = 0; // set attribute
-    //     virtual int remove_attribute(std::string const &name) = 0;             // remove attribute
+        SpEntry(int tag = 0);
+        SpEntry(this_type const &other);
+        SpEntry(this_type &&other);
+        virtual ~SpEntry();
+        this_type &operator=(this_type const &other);
+        void swap(this_type &other);
 
-    //     virtual void value(std::any const &) = 0;  // set value
-    //     virtual std::any &value() = 0;             // get value
-    //     virtual std::any const &value() const = 0; // get value
+        std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
 
-    //     virtual range_type children() const = 0;      // return children
-    //     virtual node_type first_child() const = 0;    // return first child node
-    //     virtual node_type child(int) = 0;             // return node at idx,  if idx >size() then throw exception
-    //     virtual node_type child(int) const = 0;       // return node at idx,  if idx >size() then throw exception
-    //     virtual node_type insert_before(int pos) = 0; // insert new child node before pos, return new node
-    //     virtual node_type insert_after(int pos) = 0;  // insert new child node after pos, return new node
-    //     virtual node_type prepend() = 0;              // insert new child node before first child
-    //     virtual node_type append() = 0;               // insert new child node afater last child
+        int type() const;
 
-    //     virtual node_type child(std::string const &) const = 0; // return node at key,  if key does not exist then throw exception
-    //     virtual node_type child(std::string const &) = 0;       // return node at key,  if key does not exist then create one
+        // attributes
+        const Attributes &attributes() const { return *m_attributes_; } // return list of attributes
+        Attributes &attributes() { return *m_attributes_; }             // return list of attributes
 
-    //     virtual int remove_child(std::string const &key) = 0; // remove child with key, return true if key exists
-    //     virtual int remove_child(int idx) = 0;                // remove child at pos, return true if idx exists
+        //----------------------------------------------------------------------------------------------------------
+        // content
+        Content &content() { return *m_content_; }
+        const Content &content() const { return *m_content_; }
 
-    //     virtual range_type select(SpXPath const &path) const = 0;    // select from children
-    //     virtual node_type select_one(SpXPath const &path) const = 0; // return the first selected child
+        //----------------------------------------------------------------------------------------------------------
+        // as Hierarchy tree node
+        template <typename T>
+        std::shared_ptr<this_type> operator[](T const &v) { return child(v); }
 
-    // protected:
-    //     std::shared_ptr<SpNode> m_parent_;
-    // };
+        //----------------------------------------------------------------------------------------------------------
+        // level 0
+        std::shared_ptr<SpNode> parent() const; // return parent node
+        void remove();                          // remove self from parent
+
+        //----------------------------------------------------------------------------------------------------------
+        // level 1
+        // range select(SpXPath const &path) const;                       // select from children
+        // std::shared_ptr<SpNode> select_one(SpXPath const &path) const; // return the first selected child
+
+    protected:
+        SpEntry(Attributes *attr, Content *content);
+
+    private:
+        std::unique_ptr<Content> m_content_;
+        std::unique_ptr<Attributes> m_attributes_;
+    };
 
 } // namespace sp
-#endif //SPDB_IMPLEMENT_H_
+
+#endif // SP_ENTRY_H_
