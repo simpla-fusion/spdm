@@ -11,13 +11,13 @@ using namespace sp;
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(std::shared_ptr<Node> const &parent, Entry *entry)
+Node::Node(Node *parent, Entry *entry)
     : m_parent_(parent), m_entry_(entry)
 {
-    m_entry_->bind(this->shared_from_this());
+    m_entry_->bind(this);
 }
 
-Node::Node(std::shared_ptr<Node> const &parent, std::string const &backend)
+Node::Node(Node *parent, std::string const &backend)
     : Node(parent, Entry::create(backend)) {}
 
 Node::Node(Node const &other) : Node(other.m_parent_, other.m_entry_->copy()) {}

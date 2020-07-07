@@ -9,7 +9,7 @@ namespace sp
 
     Entry::Entry() : m_self_(nullptr) {}
     Entry::Entry(Entry const &other) : m_self_(other.m_self_) {}
-    Entry::Entry(Entry &&other) : m_self_(other.m_self_) { other.m_self_.reset(); }
+    Entry::Entry(Entry &&other) : m_self_(other.m_self_) { other.m_self_ = nullptr; }
     Entry::~Entry() {}
     void Entry::swap(Entry &other) { std::swap(m_self_, other.m_self_); }
 
@@ -60,7 +60,7 @@ namespace sp
     struct ContentScalar : public Content
     {
         std::any content;
-
+        ContentScalar() {}
         ContentScalar(ContentScalar const &other) : content(other.content) {}
         ContentScalar(ContentScalar &&other) : content(std::move(other.content)) {}
         std::type_info const &type_info() const { return typeid(ContentScalar); }
@@ -70,7 +70,7 @@ namespace sp
     struct ContentBlock : public Content
     {
         std::tuple<std::shared_ptr<char>, size_t, std::vector<size_t>> content;
-
+        ContentBlock() : content({nullptr, 9, {}}) {}
         ContentBlock(ContentBlock const &other) : content(other.content) {}
         ContentBlock(ContentBlock &&other) : content(std::move(other.content)) {}
         std::type_info const &type_info() const { return typeid(ContentBlock); }
@@ -186,7 +186,12 @@ namespace sp
 } // namespace sp
 using namespace sp;
 
-EntryInMemory::EntryInMemory() : Entry() {}
+EntryInMemory::EntryInMemory()
+    : Entry(),
+      m_attributes_(new sp::Attributes{}),
+      m_content_(new sp::ContentScalar{})
+{
+}
 
 EntryInMemory::EntryInMemory(EntryInMemory const &other)
     : Entry(other),

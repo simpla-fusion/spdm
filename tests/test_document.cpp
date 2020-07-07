@@ -22,7 +22,7 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     node.attribute("A", "a");
     node.attribute("B", "1234");
-    // node.child("C").as_scalar("1234");
-    // node.append().attribute("id", "234");
+    node.child("C").as_scalar("1234");
+    node.append().attribute("id", "234");
     std::cout << node << std::endl;
 }

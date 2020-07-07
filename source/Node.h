@@ -33,8 +33,8 @@ namespace sp
         typedef Iterator<std::shared_ptr<this_type>> iterator;
         typedef Range<iterator, iterator> range;
 
-        Node(std::shared_ptr<Node> const &parent = nullptr, Entry *e= nullptr);
-        Node(std::shared_ptr<Node> const &parent, std::string const &backend);
+        Node(Node *parent, Entry *e);
+        Node(Node *parent = nullptr, std::string const &backend = "");
         Node(this_type const &other);
         Node(this_type &&other);
         ~Node();
@@ -114,7 +114,7 @@ namespace sp
         Entry &entry();             // return bundle of attributes
 
     private:
-        std::shared_ptr<Node> m_parent_;
+        Node *m_parent_;
         std::unique_ptr<Entry> m_entry_;
     };
 

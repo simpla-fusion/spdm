@@ -24,7 +24,7 @@ namespace sp
         static const char SP_DEFAULT_KEY_OF_CONTENT = '_';
 
     protected:
-        std::shared_ptr<Node> m_self_;
+        Node *m_self_;
 
     public:
         Entry();
@@ -32,9 +32,9 @@ namespace sp
         Entry(Entry &&other);
         virtual ~Entry();
 
-        void bind(std::shared_ptr<Node> const &self) { m_self_ = self; }
+        void bind(Node *self) { m_self_ = self; }
 
-        std::shared_ptr<Node> node() const { return m_self_; }
+        Node &node() const { return *m_self_; }
 
         void swap(Entry &other);
 
