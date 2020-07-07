@@ -18,116 +18,137 @@ SpXPath SpXPath::operator/(const std::string &suffix) const { return SpXPath(url
 SpXPath::operator std::string() const { return m_path_; }
 
 //#########################################################################################################
-
-// class SpMemoryEntry : public SpEntry
-// {
-// public:
-//     SpMemoryEntry();
-//     ~SpMemoryEntry();
-
-//     size_t size() const;
-//     size_t depth() const;
-//     void remove();
-//     node_type parent() const;
-//     SpNode::TypeOfNode type() const;
-//     node_type copy() const;
-//     node_type create(SpNode::TypeOfNode) const;
-//     std::map<std::string, std::any> attributes() const;
-//     std::any attribute(std::string const &name) const;
-//     int attribute(std::string const &name, std::any const &v);
-//     int remove_attribute(std::string const &name);
-//     void value(std::any const &);
-//     std::any value() const;
-//     range_type children() const;
-//     node_type first_child() const;
-//     node_type child(int);
-//     node_type child(int) const;
-//     node_type insert_before(int pos);
-//     node_type insert_after(int pos);
-//     node_type prepend();
-//     node_type append();
-//     int remove_child(int idx);
-//     node_type child(std::string const &) const;
-//     node_type child(std::string const &);
-//     int remove_child(std::string const &key);
-//     range_type select(SpXPath const &path) const;
-//     node_type select_one(SpXPath const &path) const;
-// };
-
-template <>
-struct SpEntryT<entry_tag_in_memory>::pimpl_s
+class SpContent
 {
-    pimpl_s *copy() const { return new pimpl_s; }
+public:
+    std::unique_ptr<SpContent> copy() const { return std::unique_ptr<SpContent>(new SpContent(*this)); };
+    SpNode::TypeOfNode type() const { return SpNode::TypeOfNode::Null; }; //
 };
 
-template <>
-SpEntryT<entry_tag_in_memory>::SpEntryT() : m_pimpl_(new pimpl_s) {}
-template <>
-SpEntryT<entry_tag_in_memory>::SpEntryT(SpEntryT const &other) : m_pimpl_(other.m_pimpl_->copy()) {}
-template <>
-SpEntryT<entry_tag_in_memory>::SpEntryT(SpEntryT &&other) : m_pimpl_(std::move(other.m_pimpl_)) {}
-template <>
-SpEntryT<entry_tag_in_memory>::~SpEntryT() {}
-template <>
-size_t SpEntryT<entry_tag_in_memory>::size() const { return 0; }
-template <>
-size_t SpEntryT<entry_tag_in_memory>::depth() const { return 0; }
-template <>
-void SpEntryT<entry_tag_in_memory>::remove() {}
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::parent() const { return nullptr; }
-template <>
-SpNode::TypeOfNode SpEntryT<entry_tag_in_memory>::type() const { return SpNode::TypeOfNode::Null; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::copy() const { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::create(SpNode::TypeOfNode) const { return nullptr; }
-template <>
-std::map<std::string, std::any> SpEntryT<entry_tag_in_memory>::attributes() const { return std::map<std::string, std::any>{}; }
-template <>
-std::any SpEntryT<entry_tag_in_memory>::attribute(std::string const &name) const { return nullptr; }
-template <>
-int SpEntryT<entry_tag_in_memory>::attribute(std::string const &name, std::any const &v) { return 0; }
-template <>
-int SpEntryT<entry_tag_in_memory>::remove_attribute(std::string const &name) { return 0; }
-template <>
-void SpEntryT<entry_tag_in_memory>::value(std::any const &) {}
-template <>
-std::any SpEntryT<entry_tag_in_memory>::value() const { return nullptr; }
-template <>
-SpEntry::range_type SpEntryT<entry_tag_in_memory>::children() const { return SpEntry::range_type{}; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::first_child() const { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::child(int) { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::child(int) const { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::insert_before(int pos) { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::insert_after(int pos) { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::prepend() { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::append() { return nullptr; }
-template <>
-int SpEntryT<entry_tag_in_memory>::remove_child(int idx) { return 0; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::child(std::string const &) const { return nullptr; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::child(std::string const &) { return nullptr; }
-template <>
-int SpEntryT<entry_tag_in_memory>::remove_child(std::string const &key) { return 0; }
-template <>
-SpEntry::range_type SpEntryT<entry_tag_in_memory>::select(SpXPath const &path) const { return SpEntry::range_type{}; }
-template <>
-std::shared_ptr<SpEntry> SpEntryT<entry_tag_in_memory>::select_one(SpXPath const &path) const { return nullptr; }
+class SpContentScalar : public SpContent
+{
+public:
+    SpContentScalar() {}
+    SpContentScalar(SpContentScalar const &other) : m_value_(other.m_value_) {}
+
+    ~SpContentScalar() {}
+    void swap(SpContentScalar &other)
+    {
+        std::swap(m_value_, other.m_value_);
+    }
+
+    SpNode::TypeOfNode type() const { return SpNode::TypeOfNode::Scalar; }
+
+    std::shared_ptr<SpContent> copy() const { return std::make_shared<SpContentScalar>(*this); }
+
+    std::any &value() { return m_value_; }
+    std::any const &value() const { return m_value_; }
+    void value(std::any const &v) { m_value_ = v; }
+
+private:
+    std::any m_value_;
+};
+
+class SpEntryInMemory : public SpEntry
+{
+public:
+    SpEntryInMemory() : SpEntry(), m_content_(new SpContent) {}
+    SpEntryInMemory(SpEntryInMemory const &other) : SpEntry(other), m_content_(other.m_content_->copy()) {}
+    SpEntryInMemory(SpEntryInMemory &&other) : SpEntry(std::forward<SpEntryInMemory>(other)), m_content_(std::move(other.m_content_)) {}
+    SpEntryInMemory(std::shared_ptr<SpNode> const &parent) : SpEntry(parent), m_content_(new SpContent) {}
+    ~SpEntryInMemory() {}
+
+    void swap(SpEntryInMemory &other)
+    {
+        SpEntry::swap(other);
+        std::swap(m_attributes_, other.m_attributes_);
+        std::swap(m_content_, other.m_content_);
+    };
+
+    std::shared_ptr<SpEntry> copy() const { return std::make_shared<SpEntryInMemory>(*this); }
+
+    SpNode::TypeOfNode type() const { return m_content_->type(); }; //
+
+    std::map<std::string, std::any> attributes() const { return m_attributes_; }
+
+    std::any attribute(std::string const &name) const { return m_attributes_.at(name); }
+
+    int attribute(std::string const &name, std::any const &v)
+    {
+        m_attributes_[name] = v;
+        return 1;
+    }
+
+    int remove_attribute(std::string const &name)
+    {
+        auto p = m_attributes_.find(name);
+        if (p == m_attributes_.end())
+        {
+            return 0;
+        }
+        else
+        {
+            m_attributes_.erase(p);
+            return 1;
+        }
+    }
+
+    void value(std::any const &v) { return dynamic_cast<SpContentScalar>(m_content_.get())->value(v); }; // set value
+    std::any &value() = 0;                                                                               // get value
+    std::any const &value() const = 0;                                                                   // get value
+    range_type children() const;
+    node_type first_child() const;
+    node_type child(int);
+    node_type child(int) const;
+    node_type insert_before(int pos);
+    node_type insert_after(int pos);
+    node_type prepend();
+    node_type append();
+    int remove_child(int idx);
+    node_type child(std::string const &) const;
+    node_type child(std::string const &);
+    int remove_child(std::string const &key);
+    range_type select(SpXPath const &path) const;
+    node_type select_one(SpXPath const &path) const;
+
+private:
+    std::map<std::string, std::any> m_attributes_;
+    std::unique_ptr<SpContent> m_content_;
+};
+
+SpEntry::range_type SpEntryInMemory::children() const { return SpEntry::range_type{}; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::first_child() const { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::child(int) { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::child(int) const { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::insert_before(int pos) { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::insert_after(int pos) { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::prepend() { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::append() { return nullptr; }
+
+int SpEntryInMemory::remove_child(int idx) { return 0; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::child(std::string const &) const { return nullptr; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::child(std::string const &) { return nullptr; }
+
+int SpEntryInMemory::remove_child(std::string const &key) { return 0; }
+
+SpEntry::range_type SpEntryInMemory::select(SpXPath const &path) const { return SpEntry::range_type{}; }
+
+std::shared_ptr<SpEntry> SpEntryInMemory::select_one(SpXPath const &path) const { return nullptr; }
 
 //----------------------------------------------------------------------------------------------------------
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-SpNode::SpNode() : m_entry_(std::make_shared<SpEntryT<entry_tag_in_memory>>()) {}
+SpNode::SpNode() : m_entry_(std::make_shared<SpEntryInMemory>()) {}
 
 SpNode::~SpNode() {}
 
