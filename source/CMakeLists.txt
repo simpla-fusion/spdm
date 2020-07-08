@@ -16,7 +16,6 @@ set(SPDB_INCLUDES
 set(SPDB_SOURCES
   XPath.cpp
   Entry.cpp
-  EntryImpl.cpp
   Node.cpp
   Util.cpp
     # ../extern/pugixml/pugixml.cpp

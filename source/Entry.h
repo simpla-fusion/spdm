@@ -22,64 +22,80 @@ namespace sp
     public:
         typedef Entry this_type;
 
-        Entry() = default;
-        Entry(this_type const &other) = default;
-        Entry(this_type &&other) = default;
-        virtual ~Entry() = default;
-        this_type &operator=(this_type const &other) = default;
+    protected:
+        std::shared_ptr<Node> m_self_;
 
-        void swap(this_type &other);
+    public:
+        Entry(std::shared_ptr<Node> const &);
+        Entry(Entry const &other);
+        Entry(Entry &&other);
+        virtual ~Entry();
 
-        static Entry *create(std::string const &backend = "");
+        static Entry *create(std::shared_ptr<Node> const &self, std::string const &backend = "");
 
-        Entry *copy() const;
+        virtual Entry *copy() const = 0;
 
-        std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
+        virtual std::ostream &repr(std::ostream &os) const = 0; // represent object as string and push ostream
 
-        int type() const;
+        virtual int type() const = 0;
+
+        //----------------------------------------------------------------------------------------------------------
+        // attribute
+        //----------------------------------------------------------------------------------------------------------
+        virtual bool has_attribute(std::string const &k) const = 0; // if key exists then return true else return false
+
+        virtual bool check_attribute(std::string const &k, std::any const &v) const = 0; // if key exists and value ==v then return true else return false
+
+        virtual std::any attribute(std::string const &key) const = 0; // get attribute at key, if key does not exist return nullptr
+
+        virtual void attribute(std::string const &key, std::any const &v) = 0; // set attribute at key as v
+
+        virtual void remove_attribute(std::string const &key = "") = 0; // remove attribute at key, if key=="" then remove all
+
+        virtual Range<Iterator<std::pair<std::string, std::any>>> attributes() const = 0; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
         //----------------------------------------------------------------------------------------------------------
         typedef std::tuple<std::shared_ptr<char> /*data pointer*/, int /*element size*/, std::vector<size_t> /*dimensions*/> block_type;
 
-        std::any as_scalar() const; // get value , if value is invalid then throw exception
+        virtual std::any as_scalar() const = 0; // get value , if value is invalid then throw exception
 
-        void as_scalar(std::any); // set value , if fail then throw exception
+        virtual void as_scalar(std::any const &) = 0; // set value , if fail then throw exception
 
-        block_type as_block() const; // get block
+        virtual block_type as_block() const = 0; // get block
 
-        void as_block(block_type const &); // set block
+        virtual void as_block(block_type const &) = 0; // set block
 
-        Entry &as_list();
+        virtual Entry &as_list() = 0;
 
-        Entry &as_object();
+        virtual Entry &as_object() = 0;
 
         //----------------------------------------------------------------------------------------------------------
         // as Hierarchy tree node
         // function level 0
-        std::shared_ptr<Node> child(std::string const &); // return reference of child node , if key does not exists then insert new
+        virtual std::shared_ptr<Node> find_child(std::string const &) = 0; // return reference of child node , if key does not exists then insert new
 
-        std::shared_ptr<const Node> child(std::string const &) const; // return reference of child node , if key does not exists then insert new
+        virtual void insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr) = 0; // insert node to object
 
-        std::shared_ptr<Node> child(int idx); // return reference i-th child node , if idx does not exists then throw exception
+        virtual std::shared_ptr<Node> child(std::string const &key) = 0; // get child, create new if key does not  exist
 
-        std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
+        virtual void remove_child(std::string const &key) = 0; // remove child at key
 
-        std::shared_ptr<Node> append(); // append node to tail of list , return reference of new node
+        virtual std::shared_ptr<Node> child(int idx) = 0; // return reference i-th child node , if idx does not exists then throw exception
 
-        void remove_child(int idx); // remove i-th child
+        virtual std::shared_ptr<Node> append() = 0; // append node to tail of list , return reference of new node
 
-        void remove_child(std::string const &key); // remove child at key
+        virtual void remove_child(int idx) = 0; // remove i-th child
 
-        void remove_children(); // remove children , set node.type => Null
+        virtual void remove_children() = 0; // remove children , set node.type => Null
 
-        Range<Iterator<std::shared_ptr<Node>>> children() const; // reutrn list of children
+        virtual Range<Iterator<std::shared_ptr<Node>>> children() const = 0; // reutrn list of children
 
         // level 1
-        Range<Iterator<std::shared_ptr<Node>>> select(XPath const &path) const; // select from children
+        virtual Range<Iterator<std::shared_ptr<Node>>> select(XPath const &path) const = 0; // select from children
 
-        std::shared_ptr<Node> select_one(XPath const &path) const; // return the first selected child
+        virtual std::shared_ptr<Node> select_one(XPath const &path) const = 0; // return the first selected child
     };
 
 } // namespace sp

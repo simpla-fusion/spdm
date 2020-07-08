@@ -11,7 +11,7 @@ using namespace sp;
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(std::shared_ptr<Node> const &parent, std::string const &backend) : m_parent_(parent), m_entry_(Entry::create(backend)){};
+Node::Node(std::shared_ptr<Node> const &parent, std::string const &backend) : m_parent_(parent), m_entry_(Entry::create(this->shared_from_this(), backend)){};
 
 Node::Node(Node const &other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_->copy()) {}
 
@@ -25,7 +25,7 @@ Node &Node::operator=(this_type const &other)
     return *this;
 }
 
-std::ostream &Node::repr(std::ostream &os) const { return os; }
+std::ostream &Node::repr(std::ostream &os) const { return m_entry_->repr(os); }
 
 std::ostream &operator<<(std::ostream &os, Node const &d) { return d.repr(os); }
 
@@ -47,13 +47,15 @@ size_t Node::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth(
 //----------------------------------------------------------------------------------------------------------
 // attribute
 //----------------------------------------------------------------------------------------------------------
-bool Node::has_attribute(std::string const &k) const { return false; }
+bool Node::has_attribute(std::string const &key) const { return m_entry_->has_attribute(key); }
 
-bool Node::check_attribute(std::string const &k, std::any const &v) const { return false; }
+bool Node::check_attribute(std::string const &key, std::any const &v) const { return m_entry_->check_attribute(key, v); }
 
-std::any Node::attribute(std::string const &key) const { return std::any{}; }
+std::any Node::attribute(std::string const &key) const { return m_entry_->attribute(key); }
 
-void Node::attribute(std::string const &key, std::any const &v) {}
+void Node::attribute(std::string const &key, const char *v) { m_entry_->attribute(key, std::any(std::string(v))); }
+
+void Node::attribute(std::string const &key, std::any const &v) { m_entry_->attribute(key, v); }
 
 void Node::remove_attribute(std::string const &key) {}
 
@@ -65,9 +67,10 @@ Range<Iterator<std::pair<std::string, std::any>>> Node::attributes() const
 //----------------------------------------------------------------------------------------------------------
 // as leaf node,  need node.type = Scalar || Block
 //----------------------------------------------------------------------------------------------------------
-std::any Node::as_scalar() const { return std::any{}; }
+std::any Node::as_scalar() const { return m_entry_->as_scalar(); }
 
-void Node::as_scalar(std::any) {}
+void Node::as_scalar(std::any const &v) { m_entry_->as_scalar(v); }
+// void as_scalar(char const *); // set value , if fail then throw exception
 
 Node::block_type Node::as_block() const { return m_entry_->as_block(); }
 

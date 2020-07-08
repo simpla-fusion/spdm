@@ -54,6 +54,7 @@ namespace sp
         bool check_attribute(std::string const &k, std::any const &v) const;  // if key exists and value ==v then return true else return false
         std::any attribute(std::string const &key) const;                     // get attribute at key, if key does not exist return nullptr
         void attribute(std::string const &key, std::any const &v);            // set attribute at key as v
+        void attribute(std::string const &key, const char *v);                // set attribute at key as v
         void remove_attribute(std::string const &key = "");                   // remove attribute at key, if key=="" then remove all
         Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
 
@@ -62,8 +63,10 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         typedef std::tuple<std::shared_ptr<char> /*data pointer*/, int /*element size*/, std::vector<size_t> /*dimensions*/> block_type;
 
-        std::any as_scalar() const;        // get value , if value is invalid then throw exception
-        void as_scalar(std::any);          // set value , if fail then throw exception
+        std::any as_scalar() const;   // get value , if value is invalid then throw exception
+        void as_scalar(std::any const &) ;     // set value , if fail then throw exception
+        // void as_scalar(char const *); // set value , if fail then throw exception
+
         block_type as_block() const;       // get block
         void as_block(block_type const &); // set block
         template <typename V, typename... Args>
@@ -114,8 +117,7 @@ namespace sp
         std::unique_ptr<Entry> m_entry_;
     };
 
-    std::ostream &operator<<(std::ostream &os, Node const &d);
-
 } // namespace sp
+std::ostream &operator<<(std::ostream &os, sp::Node const &d);
 
 #endif // SP_NODE_H_
