@@ -33,7 +33,8 @@ namespace sp
         typedef Iterator<std::shared_ptr<this_type>> iterator;
         typedef Range<iterator, iterator> range;
 
-        Node(std::shared_ptr<Node> const &parent = nullptr, std::string const &backend = "");
+        Node(std::shared_ptr<Node> const &parent = nullptr, Entry *e= nullptr);
+        Node(std::shared_ptr<Node> const &parent, std::string const &backend);
         Node(this_type const &other);
         Node(this_type &&other);
         ~Node();
@@ -63,8 +64,8 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         typedef std::tuple<std::shared_ptr<char> /*data pointer*/, int /*element size*/, std::vector<size_t> /*dimensions*/> block_type;
 
-        std::any as_scalar() const;   // get value , if value is invalid then throw exception
-        void as_scalar(std::any const &) ;     // set value , if fail then throw exception
+        std::any as_scalar() const;       // get value , if value is invalid then throw exception
+        void as_scalar(std::any const &); // set value , if fail then throw exception
         // void as_scalar(char const *); // set value , if fail then throw exception
 
         block_type as_block() const;       // get block

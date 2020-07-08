@@ -11,11 +11,18 @@ using namespace sp;
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(std::shared_ptr<Node> const &parent, std::string const &backend) : m_parent_(parent), m_entry_(Entry::create(this->shared_from_this(), backend)){};
+Node::Node(std::shared_ptr<Node> const &parent, Entry *entry)
+    : m_parent_(parent), m_entry_(entry)
+{
+    m_entry_->bind(this->shared_from_this());
+}
 
-Node::Node(Node const &other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_->copy()) {}
+Node::Node(std::shared_ptr<Node> const &parent, std::string const &backend)
+    : Node(parent, Entry::create(backend)) {}
 
-Node::Node(Node &&other) : m_parent_(other.m_parent_), m_entry_(std::move(other.m_entry_)) { other.m_entry_.reset(); }
+Node::Node(Node const &other) : Node(other.m_parent_, other.m_entry_->copy()) {}
+
+Node::Node(Node &&other) : Node(other.m_parent_, other.m_entry_.release()) {}
 
 Node::~Node() {}
 

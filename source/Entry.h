@@ -21,19 +21,28 @@ namespace sp
     {
     public:
         typedef Entry this_type;
+        static const char SP_DEFAULT_KEY_OF_CONTENT = '_';
 
     protected:
         std::shared_ptr<Node> m_self_;
 
     public:
-        Entry(std::shared_ptr<Node> const &);
+        Entry();
         Entry(Entry const &other);
         Entry(Entry &&other);
         virtual ~Entry();
 
-        static Entry *create(std::shared_ptr<Node> const &self, std::string const &backend = "");
+        void bind(std::shared_ptr<Node> const &self) { m_self_ = self; }
+
+        std::shared_ptr<Node> node() const { return m_self_; }
+
+        void swap(Entry &other);
+
+        static Entry *create(std::string const &backend = "");
 
         virtual Entry *copy() const = 0;
+
+        virtual Entry *move() = 0;
 
         virtual std::ostream &repr(std::ostream &os) const = 0; // represent object as string and push ostream
 
@@ -66,10 +75,6 @@ namespace sp
         virtual block_type as_block() const = 0; // get block
 
         virtual void as_block(block_type const &) = 0; // set block
-
-        virtual Entry &as_list() = 0;
-
-        virtual Entry &as_object() = 0;
 
         //----------------------------------------------------------------------------------------------------------
         // as Hierarchy tree node
