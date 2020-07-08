@@ -10,5 +10,5 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     sp::Node node;
 
-    node.attributes().set("key", "a");
+    node.attribute("key", "a");
 }

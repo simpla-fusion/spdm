@@ -5,15 +5,18 @@
 
 set(SPDB_INCLUDES
   Util.h
+  Entry.h
   Node.h
+  XPath.h
   
 )
  
 
 
 set(SPDB_SOURCES
+  XPath.cpp
+  Entry.cpp
   Node.cpp
-  Node_Impl.cpp
   Util.cpp
     # ../extern/pugixml/pugixml.cpp
 )

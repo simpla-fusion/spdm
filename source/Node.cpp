@@ -1,239 +1,11 @@
 #include "Node.h"
+#include "Entry.h"
 #include "Util.h"
+#include "XPath.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 using namespace sp;
-//#########################################################################################################
-
-XPath::XPath(const std::string &path) : m_path_(path) {}
-// XPath::~XPath() = default;
-// XPath::XPath(XPath &&) = default;
-// XPath::XPath(XPath const &) = default;
-// XPath &XPath::operator=(XPath const &) = default;
-const std::string &XPath::str() const { return m_path_; }
-
-XPath XPath::operator/(const std::string &suffix) const { return XPath(urljoin(m_path_, suffix)); }
-XPath::operator std::string() const { return m_path_; }
-
-//----------------------------------------------------------------------------------------------------------
-// Attributes
-//----------------------------------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------
-Attributes *Attributes::create() { return new Attributes; }
-
-Attributes *Attributes::copy() const { return new this_type(*this); }
-
-Attributes &Attributes::operator=(this_type const &other)
-{
-    Attributes(other).swap(*this);
-    return *this;
-};
-
-void Attributes::swap(this_type &) {}
-
-std::any Attributes::get(std::string const &name) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-
-int Attributes::set(std::string const &name, std::any const &v)
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
-
-int Attributes::remove(std::string const &name)
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
-
-//----------------------------------------------------------------------------------------------------------
-// Content
-//----------------------------------------------------------------------------------------------------------
-Content *Content::create(int tag) { return new Content; }
-
-Content *Content::copy() const { return new this_type(*this); }
-
-Content &Content::operator=(this_type const &other)
-{
-    Content(other).swap(*this);
-    return *this;
-};
-
-void Content::swap(Content &) {}
-
-Content *Content::as(int tag) { return this; }
-
-int Content::type() const { return NodeTag::Null; }
-
-//----------------------------------------------------------------------------------------------------------
-// Entry
-//----------------------------------------------------------------------------------------------------------
-
-Entry *Entry::create(int tag) { return new Entry; }
-
-Entry *Entry::copy() const { return new Entry(*this); }
-
-Entry::Entry(int tag) {}
-// : m_attributes_(new Attributes::create()),
-//   m_content_(new Content::create(tag)){};
-
-Entry::Entry(Entry const &other)
-    : m_content_(other.m_content_->copy()),
-      m_attributes_(other.m_attributes_->copy()) {}
-
-Entry::Entry(Entry &&other)
-    : m_content_(std::move(other.m_content_)),
-      m_attributes_(std::move(other.m_attributes_))
-{
-    other.m_attributes_.reset();
-    other.m_content_.reset();
-}
-
-Entry::Entry(Attributes *attr, Content *content) : m_attributes_(attr), m_content_(content){};
-
-Entry::~Entry() {}
-
-Entry &Entry::operator=(this_type const &other)
-{
-    this_type(other).swap(*this);
-    return *this;
-}
-
-int Entry::type() const { return m_content_->type(); }
-
-void Entry::swap(this_type &other)
-{
-    std::swap(m_content_, other.m_content_);
-    std::swap(m_attributes_, other.m_attributes_);
-}
-
-std::ostream &Entry::repr(std::ostream &os) const
-{
-    return os;
-}
-
-// Entry::iterator Entry::first_child() const
-// {
-//     NOT_IMPLEMENTED;
-//     return iterator();
-// }
-
-// Entry::range Entry::children() const
-// {
-//     NOT_IMPLEMENTED;
-//     return Entry::range();
-// }
-
-// Entry::range Entry::select(XPath const &selector) const
-// {
-//     NOT_IMPLEMENTED;
-//     return Entry::range();
-// }
-
-// std::shared_ptr<Entry> Entry::select_one(XPath const &selector) const
-//     NOT_IMPLEMENTED;
-// {
-//     return nullptr;
-// }
-
-// std::shared_ptr<Entry> Entry::child(std::string const &key) const
-// {
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// std::shared_ptr<Entry> Entry::child(std::string const &key)
-// {
-
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// std::shared_ptr<Entry> Entry::child(int idx)
-// {
-
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// std::shared_ptr<Entry> Entry::child(int idx) const
-// {
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// // Entry Entry::insert_before(int idx)
-// // {
-// //     return Entry(m_entry_->insert_before(idx));
-// // }
-
-// // Entry Entry::insert_after(int idx)
-// // {
-// //     return Entry(m_entry_->insert_after(idx));
-// // }
-
-// int Entry::remove_child(int idx)
-// {
-//     NOT_IMPLEMENTED;
-//     return 0;
-// }
-
-// int Entry::remove_child(std::string const &key)
-// {
-//     NOT_IMPLEMENTED;
-//     return 0;
-// }
-
-// //----------------------------------------------------------------------------------------------------------
-// // level 2
-
-// ptrdiff_t Entry::distance(this_type const &target) const { return path(target).size(); }
-
-// Entry::range Entry::ancestor() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// Entry::range Entry::descendants() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// Entry::range Entry::leaves() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// Entry::range Entry::slibings() const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// Entry::range Entry::path(Entry const &target) const
-// {
-//     NOT_IMPLEMENTED;
-//     return range(nullptr, nullptr);
-// }
-
-// //----------------------------------------------------------------------------------------------------------
-// // Content
-// //----------------------------------------------------------------------------------------------------------
-
-// class SpContent
-// {
-// public:
-//     std::unique_ptr<SpContent> copy() const { return std::unique_ptr<SpContent>(new SpContent(*this)); };
-//     int type() const { return int::Null; }; //
-// };
 
 //----------------------------------------------------------------------------------------------------------
 // Node
@@ -270,7 +42,69 @@ bool Node::is_leaf() const { return !(type() == NodeTag::List || type() == NodeT
 
 size_t Node::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth() + 1; }
 
-bool Node::same_as(this_type const &other) const { return this == &other; }
+// bool Node::same_as(this_type const &other) const { return this == &other; }
 
-Attributes const &Node::attributes() const { return m_entry_->attributes(); }
-Attributes &Node::attributes() { return m_entry_->attributes(); }
+//----------------------------------------------------------------------------------------------------------
+// attribute
+//----------------------------------------------------------------------------------------------------------
+bool Node::has_attribute(std::string const &k) const {return false; }
+
+bool Node::check_attribute(std::string const &k, std::any const &v) const { return false; }
+
+std::any Node::attribute(std::string const &key) const { return std::any{}; }
+
+void Node::attribute(std::string const &key, std::any const &v) {}
+
+void Node::remove_attribute(std::string const &key) {}
+
+Range<Iterator<std::pair<std::string, std::any>>> Node::attributes() const
+{
+    return Range<Iterator<std::pair<std::string, std::any>>>{};
+}
+
+//----------------------------------------------------------------------------------------------------------
+// as leaf node,  need node.type = Scalar || Block
+//----------------------------------------------------------------------------------------------------------
+std::any Node::as_scalar() const { return std::any{}; }
+
+void Node::as_scalar(std::any) {}
+
+Node::block_type Node::as_block() const { return m_entry_->as_block(); }
+
+void Node::as_block(Node::block_type const &b) { m_entry_->as_block(b); }
+
+//----------------------------------------------------------------------------------------------------------
+// as tree node,  need node.type = List || Object
+//----------------------------------------------------------------------------------------------------------
+// function level 0
+Node &Node::parent() const { return *m_parent_; }
+
+Node &Node::child(std::string const &key) { return *m_entry_->child(key); }
+
+const Node &Node::child(std::string const &key) const { return *m_entry_->child(key); }
+
+Node &Node::child(int idx) { return *m_entry_->child(idx); }
+
+const Node &Node::child(int idx) const { return *m_entry_->child(idx); }
+
+Node &Node::append() { return *m_entry_->append(); }
+
+Node::range Node::children() const { return m_entry_->children(); }
+
+void Node::remove_child(int idx) { return m_entry_->remove_child(idx); }
+
+void Node::remove_child(std::string const &key) { return m_entry_->remove_child(key); }
+
+void Node::remove_children() { return m_entry_->remove_children(); }
+
+//----------------------------------------------------------------------------------------------------------
+// function level 1
+Node::range Node::select(XPath const &path) const { return  m_entry_->select(path); }
+
+Node &Node::select_one(XPath const &path) { return *m_entry_->select_one(path); }
+
+Node &Node::select_one(XPath const &path) const { return *m_entry_->select_one(path); }
+
+Node &Node::operator[](std::string const &path) { return *m_entry_->select_one(XPath(path)); }
+
+Node &Node::operator[](size_t idx) { return *m_entry_->child(idx); }
