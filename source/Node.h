@@ -33,7 +33,7 @@ namespace sp
         typedef Iterator<std::shared_ptr<this_type>> iterator;
         typedef Range<iterator, iterator> range;
 
-        Node(std::shared_ptr<Node> const &parent = nullptr, int tag = NodeTag::Null);
+        Node(std::shared_ptr<Node> const &parent = nullptr, std::string const &backend = "");
         Node(this_type const &other);
         Node(this_type &&other);
         ~Node();

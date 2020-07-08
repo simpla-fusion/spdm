@@ -11,7 +11,7 @@ using namespace sp;
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(std::shared_ptr<Node> const &parent, int tag) : m_parent_(parent), m_entry_(Entry::create(tag)){};
+Node::Node(std::shared_ptr<Node> const &parent, std::string const &backend) : m_parent_(parent), m_entry_(Entry::create(backend)){};
 
 Node::Node(Node const &other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_->copy()) {}
 
@@ -47,7 +47,7 @@ size_t Node::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth(
 //----------------------------------------------------------------------------------------------------------
 // attribute
 //----------------------------------------------------------------------------------------------------------
-bool Node::has_attribute(std::string const &k) const {return false; }
+bool Node::has_attribute(std::string const &k) const { return false; }
 
 bool Node::check_attribute(std::string const &k, std::any const &v) const { return false; }
 
@@ -99,7 +99,7 @@ void Node::remove_children() { return m_entry_->remove_children(); }
 
 //----------------------------------------------------------------------------------------------------------
 // function level 1
-Node::range Node::select(XPath const &path) const { return  m_entry_->select(path); }
+Node::range Node::select(XPath const &path) const { return m_entry_->select(path); }
 
 Node &Node::select_one(XPath const &path) { return *m_entry_->select_one(path); }
 
