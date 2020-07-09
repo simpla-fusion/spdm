@@ -329,7 +329,8 @@ void EntryInMemory::set_scalar(std::any const &v)
     m_content_.reset(new ContentScalar{v});
 }
 
-std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> EntryInMemory::get_raw_block() const
+std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> 
+EntryInMemory::get_raw_block() const
 {
     if (m_content_->type_info() != typeid(ContentBlock))
     {
@@ -364,7 +365,8 @@ EntryInMemory::as_list()
     return dynamic_cast<ContentList *>(m_content_.get())->content;
 }
 
-std::map<std::string, std::shared_ptr<Node>> &EntryInMemory::as_object()
+std::map<std::string, std::shared_ptr<Node>> &
+EntryInMemory::as_object()
 {
     if (m_content_->type_info() == typeid(Content))
     {
@@ -389,6 +391,7 @@ EntryInMemory::as_list() const
     }
     return dynamic_cast<ContentList const *>(m_content_.get())->content;
 }
+
 const std::map<std::string, std::shared_ptr<Node>> &
 EntryInMemory::as_object() const
 {
@@ -476,7 +479,7 @@ EntryInMemory::children() const
     }
     else
     {
-        return std::pair<Iterator<Node *>, Iterator<Node *>>{nullptr, nullptr};
+        return std::make_pair(Iterator<Node *>(),Iterator<Node *>());
     }
 }
 

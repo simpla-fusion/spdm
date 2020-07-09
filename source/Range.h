@@ -29,7 +29,9 @@ namespace sp
 
         virtual this_type *copy() const { return nullptr; }
 
-        virtual pointer next() { return nullptr; }
+        virtual void next() {}
+
+        virtual pointer get() const { return nullptr; }
     };
 
     template <typename T, typename IT>
@@ -48,14 +50,16 @@ namespace sp
         IteratorProxy(iterator const &it) : m_it_(it) {}
         IteratorProxy(this_type const &other) : m_it_(other.m_it_) {}
         IteratorProxy(this_type &&other) : m_it_(std::move(other.m_it_)) {}
-
         virtual ~IteratorProxy() {}
 
-        bool equal(base_type const &other) const { return dynamic_cast<this_type const &>(other).m_it_ == m_it_; }
+        bool equal(base_type const &other) const
+        {
+            return dynamic_cast<this_type const &>(other).m_it_ == m_it_;
+        }
 
         virtual base_type *copy() const { return new this_type(*this); };
 
-        virtual pointer next() { return nullptr; };
+        void next() { ++m_it_; }
 
     protected:
         iterator m_it_;
@@ -67,9 +71,11 @@ namespace sp
     public:
         typedef IteratorProxy<T, IT, Mapper> this_type;
         typedef IteratorProxy<T, IT> base_type;
-        typedef IT iterator;
         typedef Mapper mapper_t;
+
         using base_type::m_it_;
+
+        using typename base_type::iterator;
         using typename base_type::pointer;
 
         IteratorProxy(iterator const &it, mapper_t const &mapper) : base_type(it), m_mapper_(mapper) {}
@@ -79,19 +85,15 @@ namespace sp
 
         base_type *copy() const { return new this_type(*this); }
 
-        pointer next()
-        {
-            pointer p = m_mapper_(m_it_);
-            ++m_it_;
-            return p;
-        }
+        pointer get() const { return m_mapper_(m_it_); }
 
     private:
         mapper_t m_mapper_;
     };
 
     template <typename T, typename... Args>
-    IteratorProxy<T, std::remove_const_t<std::remove_reference_t<Args>>...> *make_iterator_proxy(Args &&... args)
+    IteratorProxy<T, std::remove_const_t<std::remove_reference_t<Args>>...> *
+    make_iterator_proxy(Args &&... args)
     {
         return new IteratorProxy<T, std::remove_const_t<std::remove_reference_t<Args>>...>(std::forward<Args>(args)...);
     }
@@ -109,22 +111,15 @@ namespace sp
         Iterator() {}
 
         template <typename... Args>
-        Iterator(Args &&... args)
-            : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)), m_current_(m_proxy_->next())
-        {
-        }
+        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)) {}
 
-        Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()), m_current_(other.m_current_) {}
+        Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()) {}
 
-        Iterator(Iterator &&other) : m_proxy_(other.m_proxy_.release()), m_current_(other.m_current_) {}
+        Iterator(Iterator &&other) : m_proxy_(other.m_proxy_.release()) {}
 
         ~Iterator() {}
 
-        void swap(Iterator &other)
-        {
-            std::swap(m_current_, other.m_current_);
-            std::swap(m_proxy_, other.m_proxy_);
-        }
+        void swap(Iterator &other) { std::swap(m_proxy_, other.m_proxy_); }
 
         Iterator &operator=(Iterator const &other)
         {
@@ -138,24 +133,23 @@ namespace sp
 
         Iterator &operator++()
         {
-            m_current_ = m_proxy_->next();
+            m_proxy_->next();
             return *this;
         }
 
         Iterator operator++(int)
         {
             Iterator res(*this);
-            m_current_ = m_proxy_.next();
+            m_proxy_->next();
             return res;
         }
 
-        reference operator*() { return *m_current_; }
+        reference operator*() { return *m_proxy_->get(); }
 
-        pointer operator->() { return m_current_; }
+        pointer operator->() { return m_proxy_->get(); }
 
     private:
         std::unique_ptr<IteratorProxy<T>> m_proxy_;
-        pointer m_current_;
     };
 
     //##############################################################################################################
