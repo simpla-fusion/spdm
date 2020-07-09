@@ -47,7 +47,6 @@ namespace sp
         std::any get(std::string const &key) const { return m_attributes_.at(key); }
         void set(std::string const &key, std::any const &v) { m_attributes_[key] = v; }
 
-    private:
         std::map<std::string, std::any> m_attributes_;
     };
 
@@ -129,13 +128,13 @@ namespace sp
 
         bool check_attribute(std::string const &k, std::any const &v) const; // if key exists and value ==v then return true else return false
 
-        std::any attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
+        std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
 
-        void attribute(std::string const &key, std::any const &v); // set attribute at key as v
+        void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
 
         void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
 
-        Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
+        // Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
@@ -169,10 +168,10 @@ namespace sp
 
         void remove_children();
 
-        std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> children() const;
+        std::pair<Iterator<Node *>, Iterator<Node *>> children() const;
 
         // level 1
-        std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> select(XPath const &path) const;
+        std::pair<Iterator<Node *>, Iterator<Node *>> select(XPath const &path) const;
 
         std::shared_ptr<Node> select_one(XPath const &path) const;
 
@@ -181,7 +180,9 @@ namespace sp
         std::unique_ptr<Content> m_content_;
 
         std::vector<std::shared_ptr<Node>> &as_list();
+        const std::vector<std::shared_ptr<Node>> &as_list() const;
         std::map<std::string, std::shared_ptr<Node>> &as_object();
+        const std::map<std::string, std::shared_ptr<Node>> &as_object() const;
     };
 } // namespace sp
 using namespace sp;
@@ -244,11 +245,11 @@ int EntryInMemory::type() const
     }
     else if (typeinfo == typeid(ContentList))
     {
-        tag = NodeTag::Null;
+        tag = NodeTag::List;
     }
     else if (typeinfo == typeid(ContentObject))
     {
-        tag = NodeTag::Null;
+        tag = NodeTag::Object;
     }
     else
     {
@@ -270,12 +271,12 @@ bool EntryInMemory::check_attribute(std::string const &key, std::any const &v) c
     return m_attributes_->check(key, v);
 }
 
-std::any EntryInMemory::attribute(std::string const &key) const
+std::any EntryInMemory::get_attribute(std::string const &key) const
 {
     return m_attributes_->get(key);
 }
 
-void EntryInMemory::attribute(std::string const &key, std::any const &v)
+void EntryInMemory::set_attribute(std::string const &key, std::any const &v)
 {
     m_attributes_->set(key, v);
 }
@@ -285,10 +286,26 @@ void EntryInMemory::remove_attribute(std::string const &key)
     m_attributes_->erase(key);
 }
 
-Range<Iterator<std::pair<std::string, std::any>>> EntryInMemory::attributes() const
-{
-    return Range<Iterator<std::pair<std::string, std::any>>>{};
-}
+// Range<Iterator<std::pair<std::string, std::any>>> EntryInMemory::attributes() const
+// {
+//     auto b = m_attributes_->m_attributes_.cbegin();
+//     auto e = m_attributes_->m_attributes_.cend();
+//     auto next = [=]() {
+//         static auto it = b;
+//         if (b == e)
+//         {
+//             return std::pair<std::string, std::any>{"", nullptr};
+//         }
+//         else
+//         {
+//             auto res = *it;
+//             ++it;
+//             return std::pair<std::string, std::any>{std::get<0>(res), std::get<1>(res)};
+//         }
+//     };
+//     typedef Iterator<std::pair<std::string, std::any>> it;
+//     return Range<it>{it(next), it(nullptr)};
+// }
 
 //----------------------------------------------------------------------------------------------------------
 // as leaf node,  need node.type = Scalar || Block
@@ -335,7 +352,8 @@ void EntryInMemory::set_raw_block(std::shared_ptr<char> const &p, std::type_info
 // convert
 //----------------------------------------------------------------------------------------------------------
 
-std::vector<std::shared_ptr<Node>> &EntryInMemory::as_list()
+std::vector<std::shared_ptr<Node>> &
+EntryInMemory::as_list()
 {
     if (m_content_->type_info() != typeid(ContentList))
     {
@@ -362,6 +380,25 @@ std::map<std::string, std::shared_ptr<Node>> &EntryInMemory::as_object()
     return dynamic_cast<ContentObject *>(m_content_.get())->content;
 }
 
+const std::vector<std::shared_ptr<Node>> &
+EntryInMemory::as_list() const
+{
+    if (m_content_->type_info() != typeid(ContentList))
+    {
+        throw std::runtime_error("This is not a List Node");
+    }
+    return dynamic_cast<ContentList const *>(m_content_.get())->content;
+}
+const std::map<std::string, std::shared_ptr<Node>> &
+EntryInMemory::as_object() const
+{
+    if (m_content_->type_info() != typeid(ContentObject))
+    {
+        throw std::runtime_error("This is not a List Node");
+    }
+    return dynamic_cast<ContentObject const *>(m_content_.get())->content;
+}
+
 //----------------------------------------------------------------------------------------------------------
 // as Hierarchy tree node
 // function level 0
@@ -383,6 +420,7 @@ std::shared_ptr<Node> EntryInMemory::child(std::string const &key)
     if (p == m.end())
     {
         auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+        n->set_attribute<std::string>("@name", key);
         return m.emplace(key, n).first->second;
     }
     else
@@ -395,9 +433,11 @@ std::shared_ptr<Node> EntryInMemory::child(int idx) { return as_list()[idx]; }
 
 std::shared_ptr<Node> EntryInMemory::append()
 {
-    auto p = std::make_shared<Node>(m_self_, new EntryInMemory);
-    as_list().push_back(p);
-    return p;
+    auto &l = as_list();
+    auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+    n->set_attribute<int>("@id", size(l));
+    l.push_back(n);
+    return n;
 }
 
 void EntryInMemory::remove_child(int idx)
@@ -416,16 +456,35 @@ void EntryInMemory::remove_child(std::string const &key)
 
 void EntryInMemory::remove_children() { m_content_.reset(new ContentScalar{}); }
 
-std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> EntryInMemory::children() const
+std::pair<Iterator<Node *>, Iterator<Node *>>
+EntryInMemory::children() const
 {
-    NOT_IMPLEMENTED;
-    return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>>{};
+    if (m_content_->type_info() == typeid(ContentList))
+    {
+        auto const &m = as_list();
+        auto b = m.begin();
+        auto e = m.end();
+        return std::make_pair(Iterator<Node *>(b, [](std::remove_reference_t<decltype(b)> const &p) { return p->get(); }), Iterator<Node *>(e));
+    }
+    else if (m_content_->type_info() == typeid(ContentObject))
+    {
+        auto const &m = as_object();
+        auto b = m.begin();
+        auto e = m.end();
+
+        return std::make_pair(Iterator<Node *>(b, [](std::remove_reference_t<decltype(b)> const &p) { return p->second.get(); }), Iterator<Node *>(e));
+    }
+    else
+    {
+        return std::pair<Iterator<Node *>, Iterator<Node *>>{nullptr, nullptr};
+    }
 }
 
-std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> EntryInMemory::select(XPath const &path) const
+std::pair<Iterator<Node *>, Iterator<Node *>>
+EntryInMemory::select(XPath const &path) const
 {
     NOT_IMPLEMENTED;
-    return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>>{};
+    return std::pair<Iterator<Node *>, Iterator<Node *>>{};
 }
 
 std::shared_ptr<Node> EntryInMemory::select_one(XPath const &path) const

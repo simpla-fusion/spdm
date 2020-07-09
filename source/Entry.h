@@ -55,13 +55,13 @@ namespace sp
 
         virtual bool check_attribute(std::string const &k, std::any const &v) const = 0; // if key exists and value ==v then return true else return false
 
-        virtual std::any attribute(std::string const &key) const = 0; // get attribute at key, if key does not exist return nullptr
+        virtual std::any get_attribute(std::string const &key) const = 0; // get attribute at key, if key does not exist return nullptr
 
-        virtual void attribute(std::string const &key, std::any const &v) = 0; // set attribute at key as v
+        virtual void set_attribute(std::string const &key, std::any const &v) = 0; // set attribute at key as v
 
         virtual void remove_attribute(std::string const &key = "") = 0; // remove attribute at key, if key=="" then remove all
 
-        virtual Range<Iterator<std::pair<std::string, std::any>>> attributes() const = 0; // return reference of  all attributes
+        // virtual Range<Iterator<std::pair<std::string, std::any>>> attributes() const = 0; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
@@ -94,12 +94,10 @@ namespace sp
 
         virtual void remove_children() = 0; // remove children , set node.type => Null
 
-        typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> range;
-
-        virtual range children() const = 0; // reutrn list of children
+        virtual std::pair<Iterator<Node *>, Iterator<Node *>> children() const = 0; // reutrn list of children
 
         // level 1
-        virtual range select(XPath const &path) const = 0; // select from children
+        virtual std::pair<Iterator<Node *>, Iterator<Node *>> select(XPath const &path) const = 0; // select from children
 
         virtual std::shared_ptr<Node> select_one(XPath const &path) const = 0; // return the first selected child
     };

@@ -30,8 +30,8 @@ namespace sp
     {
     public:
         typedef Node this_type;
-        class iterator;
-        class range;
+        typedef Iterator<Node *> iterator;
+        typedef Range<iterator> range;
 
         Node(Node *parent, Entry *e);
         Node(Node *parent = nullptr, std::string const &backend = "");
@@ -51,13 +51,20 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         // attribute
         //----------------------------------------------------------------------------------------------------------
-        bool has_attribute(std::string const &k) const;                       // if key exists then return true else return false
-        bool check_attribute(std::string const &k, std::any const &v) const;  // if key exists and value ==v then return true else return false
-        std::any attribute(std::string const &key) const;                     // get attribute at key, if key does not exist return nullptr
-        void attribute(std::string const &key, std::any const &v);            // set attribute at key as v
-        void attribute(std::string const &key, const char *v);                // set attribute at key as v
-        void remove_attribute(std::string const &key = "");                   // remove attribute at key, if key=="" then remove all
-        Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
+        bool has_attribute(std::string const &k) const;                      // if key exists then return true else return false
+        bool check_attribute(std::string const &k, std::any const &v) const; // if key exists and value ==v then return true else return false
+
+        std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
+        template <typename U>
+        U get_attribute(std::string const &key) const { return std::any_cast<U>(get_attribute(key)); }
+
+        void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
+        template <typename U, typename V>
+        void set_attribute(std::string const &key, V const &v) { set_attribute(key, std::make_any<V>(v)); }
+
+        void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
+
+        // Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
@@ -100,7 +107,9 @@ namespace sp
         void remove_child(int idx);                   // remove i-th child
         void remove_child(std::string const &key);    // remove child at key
         void remove_children();                       // remove children , set node.type => Null
-        range children() const;                       // reutrn list of children
+
+        Range<Iterator<std::string>> keys() const; // reutrn keys of children , only valid for Object Node
+        range children() const;                    // reutrn list of children
 
         //----------------------------------------------------------------------------------------------------------
         // function level 1
@@ -131,85 +140,7 @@ namespace sp
         Node *m_parent_;
         std::unique_ptr<Entry> m_entry_;
     };
-    //##############################################################################################################
-    class Node::iterator : public std::iterator<std::input_iterator_tag, Node>
-    {
-    public:
-        typedef std::iterator<std::input_iterator_tag, Node> base_type;
 
-        using typename base_type::pointer;
-        using typename base_type::reference;
-        using typename base_type::value_type;
-
-        typedef std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)> next_function_type;
-
-        iterator() {}
-        iterator(std::shared_ptr<Node> first) : m_self_(first) { ; }
-        iterator(std::shared_ptr<Node> first, next_function_type next_fun) : m_self_(first), m_next_(next_fun) { ; }
-        iterator(iterator const &other) : m_self_(other.m_self_), m_next_(other.m_next_) {}
-        iterator(iterator &&other) : m_self_(other.m_self_), m_next_(std::move(other.m_next_)) { other.m_self_ = nullptr; }
-
-        ~iterator() {}
-
-        void swap(iterator &other)
-        {
-            std::swap(m_self_, other.m_self_);
-            std::swap(m_next_, other.m_next_);
-        }
-
-        iterator &operator=(iterator const &other)
-        {
-            iterator(other).swap(*this);
-            return *this;
-        }
-
-        bool operator==(iterator const &other) const { return m_self_ == other.m_self_; }
-        bool operator!=(iterator const &other) const { return m_self_ != other.m_self_; }
-
-        iterator &operator++()
-        {
-            m_self_ = m_next_(m_self_);
-
-            return *this;
-        }
-        iterator operator++(int)
-        {
-            iterator res(*this);
-            m_self_ = m_next_(m_self_);
-            return res;
-        }
-        reference operator*() { return *m_self_; }
-        pointer operator->() { return m_self_.get(); }
-
-    private:
-        std::shared_ptr<Node> m_self_;
-        next_function_type m_next_;
-    };
-
-    //##############################################################################################################
-    class Node::range : public std::pair<Node::iterator, Node::iterator>
-    {
-
-    public:
-        typedef std::pair<Node::iterator, Node::iterator> base_type;
-
-        using base_type::first;
-        using base_type::second;
-
-        range() {}
-
-        template <typename U0, typename U1>
-        range(U0 const &first, U1 const &second) : base_type(Node::iterator(first), Node::iterator(second)) {}
-
-        range(base_type const &p) : base_type(p) {}
-
-        // virtual ~range(){};
-
-        ptrdiff_t size() { return std::distance(first, second); };
-
-        Node::iterator begin() const { return first; };
-        Node::iterator end() const { return second; }
-    };
 } // namespace sp
 std::ostream &operator<<(std::ostream &os, sp::Node const &d);
 

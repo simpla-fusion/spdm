@@ -7,23 +7,12 @@
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
-    // struct A
-    // {
-    //     virtual void foo() { std::cout << "I'm A" << std::endl; }
-    // };
-    // struct B : public A
-    // {
-    //     void foo()  { std::cout << "I'm B" << std::endl; }
-    // };
-
-    // A *p = new B;
-    // p->foo();
     sp::Node node;
 
-    node.attribute("A", "a");
-    node.attribute("B", "1234");
+    node.set_attribute("A", "a");
+    node.set_attribute("B", "1234");
     node.child("C").set_value<std::string>("1234");
     node.append().set_value<int>(5);
-
-    REQUIRE(node.child("C").child(0).get_value<std::string>() == "1234");
+    std::cout << node << std::endl;
+    // REQUIRE(node.child("C").child(0).get_value<std::string>() == "1234");
 }

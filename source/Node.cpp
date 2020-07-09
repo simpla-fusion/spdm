@@ -5,20 +5,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
 using namespace sp;
 
 //----------------------------------------------------------------------------------------------------------
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(Node *parent, Entry *entry)
-    : m_parent_(parent), m_entry_(entry)
-{
-    m_entry_->bind(this);
-}
+Node::Node(Node *parent, Entry *entry) : m_parent_(parent), m_entry_(entry) { m_entry_->bind(this); }
 
-Node::Node(Node *parent, std::string const &backend)
-    : Node(parent, Entry::create(backend)) {}
+Node::Node(Node *parent, std::string const &backend) : Node(parent, Entry::create(backend)) {}
 
 Node::Node(Node const &other) : Node(other.m_parent_, other.m_entry_->copy()) {}
 
@@ -32,7 +28,44 @@ Node &Node::operator=(this_type const &other)
     return *this;
 }
 
-std::ostream &Node::repr(std::ostream &os) const { return m_entry_->repr(os); }
+std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
+{
+    switch (n.type())
+    {
+    case NodeTag::List:
+    {
+        for (auto const &item : n.children())
+        {
+            os << std::setw(indent * 2) << " "
+               << "- ";
+            _repr_as_yaml(os, item, indent + 1);
+            os << "," << std::endl;
+        }
+    }
+    break;
+    case NodeTag::Object:
+    {
+        for (auto const &item : n.children())
+        {
+            os << std::setw(indent * 2) << " "
+               << item.get_attribute<std::string>("@name") << ": ";
+            _repr_as_yaml(os, item, indent + 1);
+            os << "," << std::endl;
+        }
+    }
+    break;
+    case NodeTag::Null:
+    case NodeTag::Scalar:
+    default:
+    {
+        os << std::any_cast<std::string>(n.get_scalar());
+    }
+    }
+
+    return os;
+}
+
+std::ostream &Node::repr(std::ostream &os) const { return _repr_as_yaml(os, *this, 0); }
 
 std::ostream &operator<<(std::ostream &os, Node const &d) { return d.repr(os); }
 
@@ -59,18 +92,16 @@ bool Node::has_attribute(std::string const &key) const { return m_entry_->has_at
 
 bool Node::check_attribute(std::string const &key, std::any const &v) const { return m_entry_->check_attribute(key, v); }
 
-std::any Node::attribute(std::string const &key) const { return m_entry_->attribute(key); }
+std::any Node::get_attribute(std::string const &key) const { return m_entry_->get_attribute(key); }
 
-void Node::attribute(std::string const &key, const char *v) { m_entry_->attribute(key, std::any(std::string(v))); }
+void Node::set_attribute(std::string const &key, std::any const &v) { m_entry_->set_attribute(key, v); }
 
-void Node::attribute(std::string const &key, std::any const &v) { m_entry_->attribute(key, v); }
+void Node::remove_attribute(std::string const &key) { m_entry_->remove_attribute(key); }
 
-void Node::remove_attribute(std::string const &key) {}
-
-Range<Iterator<std::pair<std::string, std::any>>> Node::attributes() const
-{
-    return Range<Iterator<std::pair<std::string, std::any>>>{};
-}
+// Range<Iterator<std::pair<std::string, std::any>>> Node::attributes() const
+// {
+//     return Range<Iterator<std::pair<std::string, std::any>>>{};
+// }
 
 //----------------------------------------------------------------------------------------------------------
 // as leaf node,  need node.type = Scalar || Block
@@ -100,11 +131,7 @@ const Node &Node::child(int idx) const { return *m_entry_->child(idx); }
 
 Node &Node::append() { return *m_entry_->append(); }
 
-Node::range Node::children() const
-{
-    auto r = m_entry_->children();
-    return Node::range(Node::iterator(std::get<0>(r), std::get<2>(r)), Node::iterator(std::get<1>(r)));
-}
+Node::range Node::children() const { return Node::range(m_entry_->children()); }
 
 void Node::remove_child(int idx) { return m_entry_->remove_child(idx); }
 
@@ -114,11 +141,7 @@ void Node::remove_children() { return m_entry_->remove_children(); }
 
 //----------------------------------------------------------------------------------------------------------
 // function level 1
-Node::range Node::select(XPath const &path) const
-{
-    auto r = m_entry_->select(path);
-    return range(Node::iterator(std::get<0>(r), std::get<2>(r)), Node::iterator(std::get<1>(r)));
-}
+Node::range Node::select(XPath const &path) const { return Node::range(m_entry_->select(path)); }
 
 Node &Node::select_one(XPath const &path) { return *m_entry_->select_one(path); }
 
