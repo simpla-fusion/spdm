@@ -25,7 +25,9 @@ namespace sp
 
         virtual ~IteratorProxy() {}
 
-        bool equal(this_type const &other) const { return false; }
+        virtual bool is_derived_from(const std::type_info &tinfo) const { return tinfo == typeid(this_type); }
+
+        virtual bool equal(this_type const &other) const { return false; }
 
         virtual this_type *copy() const { return nullptr; }
 
@@ -39,11 +41,10 @@ namespace sp
     {
     public:
         typedef IteratorProxy<T> base_type;
+        typedef IteratorProxy<T, IT> this_type;
         using typename base_type::pointer;
         using typename base_type::reference;
         using typename base_type::value_type;
-
-        typedef IteratorProxy<T, IT> this_type;
 
         typedef IT iterator;
 
@@ -52,14 +53,17 @@ namespace sp
         IteratorProxy(this_type &&other) : m_it_(std::move(other.m_it_)) {}
         virtual ~IteratorProxy() {}
 
-        bool equal(base_type const &other) const
+        bool is_derived_from(const std::type_info &tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
+
+        base_type *copy() const override { return new this_type(*this); };
+
+        bool equal(base_type const &other) const override
         {
-            return dynamic_cast<this_type const &>(other).m_it_ == m_it_;
+
+            return other.is_derived_from(typeid(this_type)) && dynamic_cast<this_type const &>(other).m_it_ == m_it_;
         }
 
-        virtual base_type *copy() const { return new this_type(*this); };
-
-        void next() { ++m_it_; }
+        void next() override { ++m_it_; }
 
     protected:
         iterator m_it_;
@@ -83,9 +87,11 @@ namespace sp
         IteratorProxy(this_type &&other) : base_type(std::forward<this_type>(other)), m_mapper_(std::move(other.m_mapper_)) {}
         ~IteratorProxy() {}
 
-        base_type *copy() const { return new this_type(*this); }
+        bool is_derived_from(const std::type_info &tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
 
-        pointer get() const { return m_mapper_(m_it_); }
+        base_type *copy() const override { return new this_type(*this); }
+
+        pointer get() const override { return m_mapper_(m_it_); }
 
     private:
         mapper_t m_mapper_;

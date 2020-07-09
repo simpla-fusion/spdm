@@ -53,24 +53,24 @@ namespace sp
     struct Content
     {
         virtual std::type_info const &type_info() const { return typeid(Content); };
-        virtual Content *copy() const = 0;
-        virtual Content *move() = 0;
+        virtual Content *copy() const { return nullptr; }
+        virtual Content *move() { return nullptr; }
     };
     struct ContentScalar : public Content
     {
         std::any content;
-        ContentScalar(std::any const &v = nullptr) : content(v) {}
-        ContentScalar(ContentScalar const &other) : content(other.content) {}
+        ContentScalar() {}
+        ContentScalar(const ContentScalar &other) : content(other.content) {}
         ContentScalar(ContentScalar &&other) : content(std::move(other.content)) {}
         std::type_info const &type_info() const { return typeid(ContentScalar); }
-        Content *copy() const { return new ContentScalar{*this}; };
-        Content *move() { return new ContentScalar{std::move(*this)}; };
+        Content *copy() const override { return new ContentScalar(*this); };
+        Content *move() override { return new ContentScalar(std::move(*this)); };
     };
     struct ContentBlock : public Content
     {
         std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> content;
         ContentBlock(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d) : content({p, t, d}) {}
-        ContentBlock(ContentBlock const &other) : content(other.content) {}
+        ContentBlock(const ContentBlock &other) : content(other.content) {}
         ContentBlock(ContentBlock &&other) : content(std::move(other.content)) {}
         std::type_info const &type_info() const { return typeid(ContentBlock); }
         Content *copy() const { return new ContentBlock{*this}; };
@@ -190,7 +190,7 @@ using namespace sp;
 EntryInMemory::EntryInMemory()
     : Entry(),
       m_attributes_(new sp::Attributes{}),
-      m_content_(new sp::ContentScalar{nullptr})
+      m_content_(new sp::Content{})
 {
 }
 
@@ -234,8 +234,12 @@ int EntryInMemory::type() const
     auto const &typeinfo = m_content_->type_info();
 
     NodeTag tag;
+    if (typeinfo == typeid(Content))
+    {
+        tag = NodeTag::Null;
+    }
 
-    if (typeinfo == typeid(ContentScalar))
+    else if (typeinfo == typeid(ContentScalar))
     {
         tag = NodeTag::Scalar;
     }
@@ -326,10 +330,12 @@ void EntryInMemory::set_scalar(std::any const &v)
     {
         throw std::runtime_error("Can not set value to tree node!");
     }
-    m_content_.reset(new ContentScalar{v});
+    auto *p = new ContentScalar{};
+    std::any(v).swap(p->content);
+    m_content_.reset(p);
 }
 
-std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> 
+std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>>
 EntryInMemory::get_raw_block() const
 {
     if (m_content_->type_info() != typeid(ContentBlock))
@@ -356,7 +362,11 @@ void EntryInMemory::set_raw_block(std::shared_ptr<char> const &p, std::type_info
 std::vector<std::shared_ptr<Node>> &
 EntryInMemory::as_list()
 {
-    if (m_content_->type_info() != typeid(ContentList))
+    if (m_content_->type_info() == typeid(Content))
+    {
+        m_content_.reset(dynamic_cast<Content *>(new ContentList{}));
+    }
+    else if (m_content_->type_info() != typeid(ContentList))
     {
         auto *p = new ContentList{};
         p->content.push_back(std::make_shared<Node>(m_self_, this->move()));
@@ -457,7 +467,7 @@ void EntryInMemory::remove_child(std::string const &key)
     }
 }
 
-void EntryInMemory::remove_children() { m_content_.reset(new ContentScalar{}); }
+void EntryInMemory::remove_children() { m_content_.reset(new Content{}); }
 
 std::pair<Iterator<Node *>, Iterator<Node *>>
 EntryInMemory::children() const
@@ -467,7 +477,10 @@ EntryInMemory::children() const
         auto const &m = as_list();
         auto b = m.begin();
         auto e = m.end();
-        return std::make_pair(Iterator<Node *>(b, [](std::remove_reference_t<decltype(b)> const &p) { return p->get(); }), Iterator<Node *>(e));
+        return std::make_pair(
+            Iterator<Node *>(b,
+                             [](auto const &p) { return p->get(); }),
+            Iterator<Node *>(e));
     }
     else if (m_content_->type_info() == typeid(ContentObject))
     {
@@ -475,11 +488,14 @@ EntryInMemory::children() const
         auto b = m.begin();
         auto e = m.end();
 
-        return std::make_pair(Iterator<Node *>(b, [](std::remove_reference_t<decltype(b)> const &p) { return p->second.get(); }), Iterator<Node *>(e));
+        return std::make_pair(
+            Iterator<Node *>(b,
+                             [](auto const &p) { return p->second.get(); }),
+            Iterator<Node *>(e));
     }
     else
     {
-        return std::make_pair(Iterator<Node *>(),Iterator<Node *>());
+        return std::make_pair(Iterator<Node *>(), Iterator<Node *>());
     }
 }
 
