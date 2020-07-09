@@ -30,8 +30,8 @@ namespace sp
     {
     public:
         typedef Node this_type;
-        typedef Iterator<std::shared_ptr<this_type>> iterator;
-        typedef Range<iterator, iterator> range;
+        class iterator;
+        class range;
 
         Node(Node *parent, Entry *e);
         Node(Node *parent = nullptr, std::string const &backend = "");
@@ -62,18 +62,30 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
         //----------------------------------------------------------------------------------------------------------
-        typedef std::tuple<std::shared_ptr<char> /*data pointer*/, int /*element size*/, std::vector<size_t> /*dimensions*/> block_type;
 
-        std::any as_scalar() const;       // get value , if value is invalid then throw exception
-        void as_scalar(std::any const &); // set value , if fail then throw exception
-        int as_integer() const;
-        double as_float() const;
-        std::string as_string() const;
+        std::any get_scalar() const; // get value , if value is invalid then throw exception
 
-        block_type as_block() const;       // get block
-        void as_block(block_type const &); // set block
+        void set_scalar(std::any const &);
+
+        std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> get_raw_block() const; // get block
+
+        void set_raw_block(std::shared_ptr<char> const & /*data pointer*/, std::type_info const & /*element type*/, std::vector<size_t> const & /*dimensions*/); // set block
+
+        template <typename U, typename V>
+        void set_value(V const &v) { set_scalar(std::make_any<U>(v)); }
+
+        template <typename U>
+        U get_value() const { return std::any_cast<U>(get_scalar()); }
+
         template <typename V, typename... Args>
-        void as_block(std::shared_ptr<V> const &d, Args... args) { as_block(std::make_tuple(std::reinterpret_pointer_cast<char>(d), std::forward<Args>(args)...)); }
+        void set_block(std::shared_ptr<V> const &d, Args... args) { set_raw_block(std::reinterpret_pointer_cast<char>(d), typeid(V), std::vector<size_t>{std::forward<Args>(args)...}); }
+
+        template <typename V, typename... Args>
+        std::tuple<std::shared_ptr<V>, std::type_info const &, std::vector<size_t>> const get_block() const
+        {
+            auto blk = get_raw_block();
+            return std::make_tuple(std::reinterpret_pointer_cast<char>(std::get<0>(blk)), std::get<1>(blk), std::get<2>(blk));
+        }
 
         //----------------------------------------------------------------------------------------------------------
         // as tree node,  need node.type = List || Object
@@ -119,7 +131,85 @@ namespace sp
         Node *m_parent_;
         std::unique_ptr<Entry> m_entry_;
     };
+    //##############################################################################################################
+    class Node::iterator : public std::iterator<std::input_iterator_tag, Node>
+    {
+    public:
+        typedef std::iterator<std::input_iterator_tag, Node> base_type;
 
+        using typename base_type::pointer;
+        using typename base_type::reference;
+        using typename base_type::value_type;
+
+        typedef std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)> next_function_type;
+
+        iterator() {}
+        iterator(std::shared_ptr<Node> first) : m_self_(first) { ; }
+        iterator(std::shared_ptr<Node> first, next_function_type next_fun) : m_self_(first), m_next_(next_fun) { ; }
+        iterator(iterator const &other) : m_self_(other.m_self_), m_next_(other.m_next_) {}
+        iterator(iterator &&other) : m_self_(other.m_self_), m_next_(std::move(other.m_next_)) { other.m_self_ = nullptr; }
+
+        ~iterator() {}
+
+        void swap(iterator &other)
+        {
+            std::swap(m_self_, other.m_self_);
+            std::swap(m_next_, other.m_next_);
+        }
+
+        iterator &operator=(iterator const &other)
+        {
+            iterator(other).swap(*this);
+            return *this;
+        }
+
+        bool operator==(iterator const &other) const { return m_self_ == other.m_self_; }
+        bool operator!=(iterator const &other) const { return m_self_ != other.m_self_; }
+
+        iterator &operator++()
+        {
+            m_self_ = m_next_(m_self_);
+
+            return *this;
+        }
+        iterator operator++(int)
+        {
+            iterator res(*this);
+            m_self_ = m_next_(m_self_);
+            return res;
+        }
+        reference operator*() { return *m_self_; }
+        pointer operator->() { return m_self_.get(); }
+
+    private:
+        std::shared_ptr<Node> m_self_;
+        next_function_type m_next_;
+    };
+
+    //##############################################################################################################
+    class Node::range : public std::pair<Node::iterator, Node::iterator>
+    {
+
+    public:
+        typedef std::pair<Node::iterator, Node::iterator> base_type;
+
+        using base_type::first;
+        using base_type::second;
+
+        range() {}
+
+        template <typename U0, typename U1>
+        range(U0 const &first, U1 const &second) : base_type(Node::iterator(first), Node::iterator(second)) {}
+
+        range(base_type const &p) : base_type(p) {}
+
+        // virtual ~range(){};
+
+        ptrdiff_t size() { return std::distance(first, second); };
+
+        Node::iterator begin() const { return first; };
+        Node::iterator end() const { return second; }
+    };
 } // namespace sp
 std::ostream &operator<<(std::ostream &os, sp::Node const &d);
 

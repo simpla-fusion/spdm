@@ -22,7 +22,8 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     node.attribute("A", "a");
     node.attribute("B", "1234");
-    node.child("C").as_scalar(std::any(std::string("1234")));
+    node.child("C").set_value<std::string>("1234");
+    node.append().set_value<int>(5);
 
-    REQUIRE(std::any_cast<std::string>(node.child("C").as_scalar()) == "1234");
+    REQUIRE(node.child("C").child(0).get_value<std::string>() == "1234");
 }

@@ -60,7 +60,7 @@ namespace sp
     struct ContentScalar : public Content
     {
         std::any content;
-        ContentScalar() {}
+        ContentScalar(std::any const &v = nullptr) : content(v) {}
         ContentScalar(ContentScalar const &other) : content(other.content) {}
         ContentScalar(ContentScalar &&other) : content(std::move(other.content)) {}
         std::type_info const &type_info() const { return typeid(ContentScalar); }
@@ -69,8 +69,8 @@ namespace sp
     };
     struct ContentBlock : public Content
     {
-        std::tuple<std::shared_ptr<char>, size_t, std::vector<size_t>> content;
-        ContentBlock() : content({nullptr, 9, {}}) {}
+        std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> content;
+        ContentBlock(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d) : content({p, t, d}) {}
         ContentBlock(ContentBlock const &other) : content(other.content) {}
         ContentBlock(ContentBlock &&other) : content(std::move(other.content)) {}
         std::type_info const &type_info() const { return typeid(ContentBlock); }
@@ -142,13 +142,13 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         typedef std::tuple<std::shared_ptr<char> /*data pointer*/, int /*element size*/, std::vector<size_t> /*dimensions*/> block_type;
 
-        std::any as_scalar() const;
+        std::any get_scalar() const;
 
-        void as_scalar(std::any const &);
+        void set_scalar(std::any const &);
 
-        block_type as_block() const;
+        std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> get_raw_block() const; // get block
 
-        void as_block(block_type const &);
+        void set_raw_block(std::shared_ptr<char> const &, std::type_info const &, std::vector<size_t> const &); // set block
 
         //----------------------------------------------------------------------------------------------------------
         // as Hierarchy tree node
@@ -169,10 +169,10 @@ namespace sp
 
         void remove_children();
 
-        Range<Iterator<std::shared_ptr<Node>>> children() const;
+        std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> children() const;
 
         // level 1
-        Range<Iterator<std::shared_ptr<Node>>> select(XPath const &path) const;
+        std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> select(XPath const &path) const;
 
         std::shared_ptr<Node> select_one(XPath const &path) const;
 
@@ -189,7 +189,7 @@ using namespace sp;
 EntryInMemory::EntryInMemory()
     : Entry(),
       m_attributes_(new sp::Attributes{}),
-      m_content_(new sp::ContentScalar{})
+      m_content_(new sp::ContentScalar{nullptr})
 {
 }
 
@@ -294,13 +294,42 @@ Range<Iterator<std::pair<std::string, std::any>>> EntryInMemory::attributes() co
 // as leaf node,  need node.type = Scalar || Block
 //----------------------------------------------------------------------------------------------------------
 
-std::any EntryInMemory::as_scalar() const { return dynamic_cast<ContentScalar const *>(m_content_.get())->content; }
+std::any EntryInMemory::get_scalar() const
+{
+    if (m_content_->type_info() != typeid(ContentScalar))
+    {
+        throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Scalar ]");
+    }
+    return dynamic_cast<ContentScalar const *>(m_content_.get())->content;
+}
 
-void EntryInMemory::as_scalar(std::any const &v) { dynamic_cast<ContentScalar *>(m_content_.get())->content = v; }
+void EntryInMemory::set_scalar(std::any const &v)
+{
+    if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
+    {
+        throw std::runtime_error("Can not set value to tree node!");
+    }
+    m_content_.reset(new ContentScalar{v});
+}
 
-EntryInMemory::block_type EntryInMemory::as_block() const { return dynamic_cast<ContentBlock const *>(m_content_.get())->content; }
+std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> EntryInMemory::get_raw_block() const
+{
+    if (m_content_->type_info() != typeid(ContentBlock))
+    {
+        throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Block ]");
+    }
+    return dynamic_cast<ContentBlock const *>(m_content_.get())->content;
+}
 
-void EntryInMemory::as_block(block_type const &blk) { dynamic_cast<ContentBlock *>(m_content_.get())->content = blk; }
+void EntryInMemory::set_raw_block(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d)
+{
+
+    if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
+    {
+        throw std::runtime_error("Can not set value to tree node!");
+    }
+    m_content_.reset(new ContentBlock{p, t, d});
+}
 
 //----------------------------------------------------------------------------------------------------------
 // convert
@@ -332,6 +361,7 @@ std::map<std::string, std::shared_ptr<Node>> &EntryInMemory::as_object()
 
     return dynamic_cast<ContentObject *>(m_content_.get())->content;
 }
+
 //----------------------------------------------------------------------------------------------------------
 // as Hierarchy tree node
 // function level 0
@@ -386,16 +416,16 @@ void EntryInMemory::remove_child(std::string const &key)
 
 void EntryInMemory::remove_children() { m_content_.reset(new ContentScalar{}); }
 
-Range<Iterator<std::shared_ptr<Node>>> EntryInMemory::children() const
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> EntryInMemory::children() const
 {
     NOT_IMPLEMENTED;
-    return Range<Iterator<std::shared_ptr<Node>>>{};
+    return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>>{};
 }
 
-Range<Iterator<std::shared_ptr<Node>>> EntryInMemory::select(XPath const &path) const
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> EntryInMemory::select(XPath const &path) const
 {
     NOT_IMPLEMENTED;
-    return Range<Iterator<std::shared_ptr<Node>>>{};
+    return std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>>{};
 }
 
 std::shared_ptr<Node> EntryInMemory::select_one(XPath const &path) const

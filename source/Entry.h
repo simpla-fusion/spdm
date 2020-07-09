@@ -66,15 +66,14 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
         //----------------------------------------------------------------------------------------------------------
-        typedef std::tuple<std::shared_ptr<char> /*data pointer*/, int /*element size*/, std::vector<size_t> /*dimensions*/> block_type;
 
-        virtual std::any as_scalar() const = 0; // get value , if value is invalid then throw exception
+        virtual std::any get_scalar() const = 0; // get value , if value is invalid then throw exception
 
-        virtual void as_scalar(std::any const &) = 0; // set value , if fail then throw exception
+        virtual void set_scalar(std::any const &) = 0; // set value , if fail then throw exception
 
-        virtual block_type as_block() const = 0; // get block
+        virtual std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> get_raw_block() const = 0; // get block
 
-        virtual void as_block(block_type const &) = 0; // set block
+        virtual void set_raw_block(std::shared_ptr<char> const &, std::type_info const &, std::vector<size_t> const &) = 0; // set block
 
         //----------------------------------------------------------------------------------------------------------
         // as Hierarchy tree node
@@ -95,10 +94,12 @@ namespace sp
 
         virtual void remove_children() = 0; // remove children , set node.type => Null
 
-        virtual Range<Iterator<std::shared_ptr<Node>>> children() const = 0; // reutrn list of children
+        typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>, std::function<std::shared_ptr<Node>(std::shared_ptr<Node> const &)>> range;
+
+        virtual range children() const = 0; // reutrn list of children
 
         // level 1
-        virtual Range<Iterator<std::shared_ptr<Node>>> select(XPath const &path) const = 0; // select from children
+        virtual range select(XPath const &path) const = 0; // select from children
 
         virtual std::shared_ptr<Node> select_one(XPath const &path) const = 0; // return the first selected child
     };
