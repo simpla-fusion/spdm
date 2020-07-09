@@ -45,7 +45,6 @@ namespace sp
 
         typedef IT iterator;
 
-        IteratorProxy() {}
         IteratorProxy(iterator const &it) : m_it_(it) {}
         IteratorProxy(this_type const &other) : m_it_(other.m_it_) {}
         IteratorProxy(this_type &&other) : m_it_(std::move(other.m_it_)) {}
@@ -56,7 +55,7 @@ namespace sp
 
         virtual base_type *copy() const { return new this_type(*this); };
 
-        virtual pointer next() { return pointer(); };
+        virtual pointer next() { return nullptr; };
 
     protected:
         iterator m_it_;
@@ -69,12 +68,10 @@ namespace sp
         typedef IteratorProxy<T, IT, Mapper> this_type;
         typedef IteratorProxy<T, IT> base_type;
         typedef IT iterator;
+        typedef Mapper mapper_t;
         using base_type::m_it_;
         using typename base_type::pointer;
 
-        typedef std::function<pointer(iterator const &)> mapper_t;
-
-        IteratorProxy(iterator const &it) : base_type(it) {}
         IteratorProxy(iterator const &it, mapper_t const &mapper) : base_type(it), m_mapper_(mapper) {}
         IteratorProxy(this_type const &other) : base_type(other.m_it_), m_mapper_(other.m_mapper_) {}
         IteratorProxy(this_type &&other) : base_type(std::forward<this_type>(other)), m_mapper_(std::move(other.m_mapper_)) {}
@@ -112,8 +109,10 @@ namespace sp
         Iterator() {}
 
         template <typename... Args>
-        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)),
-                                    m_current_(m_proxy_->next()) {}
+        Iterator(Args &&... args)
+            : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)), m_current_(m_proxy_->next())
+        {
+        }
 
         Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()), m_current_(other.m_current_) {}
 
@@ -155,9 +154,8 @@ namespace sp
         pointer operator->() { return m_current_; }
 
     private:
-        pointer m_current_;
-
         std::unique_ptr<IteratorProxy<T>> m_proxy_;
+        pointer m_current_;
     };
 
     //##############################################################################################################
