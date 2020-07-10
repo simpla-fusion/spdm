@@ -97,11 +97,11 @@ namespace sp
 
         virtual std::shared_ptr<Node> child(std::string const &key) = 0; // get child, create new if key does not  exist
 
-        virtual std::shared_ptr<const Node> child(std::string const &key) const = 0; // get child, create new if key does not  exist
+        // virtual std::shared_ptr<const Node> child(std::string const &key) const = 0; // get child, create new if key does not  exist
 
         virtual std::shared_ptr<Node> child(int idx) = 0; // return reference i-th child node , if idx does not exists then throw exception
 
-        virtual std::shared_ptr<const Node> child(int idx) const = 0; // return reference i-th child node , if idx does not exists then throw exception
+        // virtual std::shared_ptr<const Node> child(int idx) const = 0; // return reference i-th child node , if idx does not exists then throw exception
 
         virtual void remove_child(std::string const &key) = 0; // remove child at key
 
@@ -109,16 +109,16 @@ namespace sp
 
         virtual void remove_children() = 0; // remove children , set node.type => Null
 
-        virtual std::pair<Iterator<const Node>, Iterator<const Node>> children() const = 0; // reutrn list of children
+        // virtual std::pair<Iterator<const Node>, Iterator<const Node>> children() const = 0; // reutrn list of children
 
         virtual std::pair<Iterator<Node>, Iterator<Node>> children() = 0; // reutrn list of children
 
         // level 1
-        virtual std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const = 0; // select from children
+        // virtual std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const = 0; // select from children
 
         virtual std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path) = 0; // select from children
 
-        virtual std::shared_ptr<const Node> select_one(XPath const &path) const = 0; // return the first selected child
+        // virtual std::shared_ptr<const Node> select_one(XPath const &path) const = 0; // return the first selected child
 
         virtual std::shared_ptr<Node> select_one(XPath const &path) = 0; // return the first selected child
     };

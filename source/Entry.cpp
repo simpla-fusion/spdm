@@ -190,11 +190,11 @@ namespace sp
 
         std::shared_ptr<Node> child(std::string const &key); // get child, create new if key does not  exist
 
-        std::shared_ptr<const Node> child(std::string const &key) const; // get child, create new if key does not  exist
+        // std::shared_ptr<const Node> child(std::string const &key) const; // get child, create new if key does not  exist
 
         std::shared_ptr<Node> child(int idx); // return reference i-th child node , if idx does not exists then throw exception
 
-        std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
+        // std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
 
         void remove_child(std::string const &key); // remove child at key
 
@@ -202,16 +202,16 @@ namespace sp
 
         void remove_children(); // remove children , set node.type => Null
 
-        std::pair<Iterator<const Node>, Iterator<const Node>> children() const; // reutrn list of children
+        // std::pair<Iterator<const Node>, Iterator<const Node>> children() const; // reutrn list of children
 
         std::pair<Iterator<Node>, Iterator<Node>> children(); // reutrn list of children
 
         // level 1
-        std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const; // select from children
+        // std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const; // select from children
 
         std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path); // select from children
 
-        std::shared_ptr<const Node> select_one(XPath const &path) const; // return the first selected child
+        // std::shared_ptr<const Node> select_one(XPath const &path) const; // return the first selected child
 
         std::shared_ptr<Node> select_one(XPath const &path); // return the first selected child
 
@@ -222,11 +222,11 @@ namespace sp
 
         std::vector<std::shared_ptr<Node>> &as_list();
 
-        const std::vector<std::shared_ptr<Node>> &as_list() const;
+        // const std::vector<std::shared_ptr<Node>> &as_list() const;
 
         std::map<std::string, std::shared_ptr<Node>> &as_object();
 
-        const std::map<std::string, std::shared_ptr<Node>> &as_object() const;
+        // const std::map<std::string, std::shared_ptr<Node>> &as_object() const;
     };
 
     EntryInMemory::EntryInMemory()
@@ -404,25 +404,25 @@ namespace sp
         return dynamic_cast<ContentObject *>(m_content_.get())->content;
     }
 
-    const std::vector<std::shared_ptr<Node>> &
-    EntryInMemory::as_list() const
-    {
-        if (m_content_->type_info() != typeid(ContentList))
-        {
-            throw std::runtime_error("This is not a List Node");
-        }
-        return dynamic_cast<ContentList const *>(m_content_.get())->content;
-    }
+    // const std::vector<std::shared_ptr<Node>> &
+    // EntryInMemory::as_list() const
+    // {
+    //     if (m_content_->type_info() != typeid(ContentList))
+    //     {
+    //         throw std::runtime_error("This is not a List Node");
+    //     }
+    //     return dynamic_cast<ContentList const *>(m_content_.get())->content;
+    // }
 
-    const std::map<std::string, std::shared_ptr<Node>> &
-    EntryInMemory::as_object() const
-    {
-        if (m_content_->type_info() != typeid(ContentObject))
-        {
-            throw std::runtime_error("This is not a List Node");
-        }
-        return dynamic_cast<ContentObject const *>(m_content_.get())->content;
-    }
+    // const std::map<std::string, std::shared_ptr<Node>> &
+    // EntryInMemory::as_object() const
+    // {
+    //     if (m_content_->type_info() != typeid(ContentObject))
+    //     {
+    //         throw std::runtime_error("This is not a List Node");
+    //     }
+    //     return dynamic_cast<ContentObject const *>(m_content_.get())->content;
+    // }
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
@@ -461,19 +461,19 @@ namespace sp
         }
     }
 
-    std::shared_ptr<const Node> EntryInMemory::child(std::string const &key) const
-    {
-        auto p = find_child(key);
-        if (p == nullptr)
-        {
-            throw std::runtime_error(std::string("Can not find " + key));
-        }
-        return p;
-    }
+    // std::shared_ptr<const Node> EntryInMemory::child(std::string const &key) const
+    // {
+    //     auto p = find_child(key);
+    //     if (p == nullptr)
+    //     {
+    //         throw std::runtime_error(std::string("Can not find " + key));
+    //     }
+    //     return p;
+    // }
 
     std::shared_ptr<Node> EntryInMemory::child(int idx) { return as_list()[idx]; }
 
-    std::shared_ptr<const Node> EntryInMemory::child(int idx) const { return as_list()[idx]; }
+    // std::shared_ptr<const Node> EntryInMemory::child(int idx) const { return as_list()[idx]; }
 
     std::shared_ptr<Node> EntryInMemory::append()
     {
@@ -483,6 +483,7 @@ namespace sp
         l.push_back(n);
         return n;
     }
+    
     std::shared_ptr<Node> EntryInMemory::append(std::shared_ptr<Node> const &n)
     {
         auto &l = as_list();
@@ -524,33 +525,34 @@ namespace sp
 
     void EntryInMemory::remove_children() { m_content_.reset(new Content{}); }
 
-    std::pair<Iterator<const Node>, Iterator<const Node>>
-    EntryInMemory::children() const
-    {
-        if (m_content_->type_info() == typeid(ContentList))
-        {
-            auto const &m = as_list();
-            auto b = m.begin();
-            auto e = m.end();
-            return std::move(std::make_pair(
-                Iterator<Node>(b, [](auto const &p) { return p->get(); }),
-                Iterator<Node>(e)));
-        }
-        else if (m_content_->type_info() == typeid(ContentObject))
-        {
-            auto const &m = as_object();
-            auto b = m.begin();
-            auto e = m.end();
+    // std::pair<Iterator<const Node>, Iterator<const Node>>
+    // EntryInMemory::children() const
+    // {
+    //     if (m_content_->type_info() == typeid(ContentList))
+    //     {
+    //         auto const &m = as_list();
+    //         auto b = m.begin();
+    //         auto e = m.end();
+    //         return std::move(std::make_pair(
+    //             Iterator<const Node>(b, [](auto const &p) { return p->get(); }),
+    //             Iterator<const Node>(e)));
+    //     }
+    //     else if (m_content_->type_info() == typeid(ContentObject))
+    //     {
+    //         auto const &m = as_object();
+    //         auto b = m.begin();
+    //         auto e = m.end();
 
-            return std::move(std::make_pair(
-                Iterator<Node>(b, [](auto const &p) { return p->second.get(); }),
-                Iterator<Node>(e)));
-        }
-        else
-        {
-            return std::move(std::make_pair(Iterator<Node>(), Iterator<Node>()));
-        }
-    }
+    //         return std::move(std::make_pair(
+    //             Iterator<const Node>(b, [](auto const &p) { return p->second.get(); }),
+    //             Iterator<const Node>(e)));
+    //     }
+    //     else
+    //     {
+    //         return std::move(std::make_pair(Iterator<const Node>(), Iterator<const Node>()));
+    //     }
+    // }
+
     std::pair<Iterator<Node>, Iterator<Node>>
     EntryInMemory::children()
     {
@@ -586,20 +588,16 @@ namespace sp
         return std::pair<Iterator<const Node>, Iterator<const Node>>{};
     }
 
-    std::pair<Iterator<const Node>, Iterator<const Node>>
-    EntryInMemory::select(XPath const &path) const
-    {
-        NOT_IMPLEMENTED;
-        return std::pair<Iterator<const Node>, Iterator<const Node>>{};
-    }
+    // std::pair<Iterator<const Node>, Iterator<const Node>>
+    // EntryInMemory::select(XPath const &path) const
+    // {
+    //     NOT_IMPLEMENTED;
+    //     return std::pair<Iterator<const Node>, Iterator<const Node>>{};
+    // }
 
-    std::shared_ptr<const Node> EntryInMemory::select_one(XPath const &path) const { return child(path.str()); }
+    // std::shared_ptr<const Node> EntryInMemory::select_one(XPath const &path) const { return child(path.str()); }
 
     std::shared_ptr<Node> EntryInMemory::select_one(XPath const &path) { return child(path.str()); }
 
-    Entry *Entry::create(std::string const &backend)
-    {
-
-        return new EntryInMemory();
-    }
+    Entry *Entry::create(std::string const &backend) { return new EntryInMemory(); }
 } // namespace sp
