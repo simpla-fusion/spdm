@@ -1,17 +1,17 @@
-#include <mdslib.h>
-#include <string>
-#include <map>
-#include <fstream>
-#include <sstream>
-#include <stack>
-#include <vector>
-#include <iterator>
-#include <stdexcept>
-#include <iostream>
-#include <algorithm>
-#include <regex>
 #include "SpDBProxy.h"
 #include "SpXMLUtil.h"
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <map>
+#include <mdslib.h>
+#include <regex>
+#include <sstream>
+#include <stack>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 bool load_preprocess(pugi::xml_document &doc, const std::string &path, std::string const &prefix = "");
 
@@ -71,8 +71,6 @@ bool load_preprocess(pugi::xml_document &doc, std::string const &path, std::stri
     return result ? preprocess(doc, abs_path) : false;
 }
 
-
-
 struct SpDBProxy::pimpl_s
 {
     pugi::xml_document doc;
@@ -122,12 +120,9 @@ int SpDBProxy::close()
     delete this->m_pimpl_;
 }
 
-
 int SpDBProxy::fetch(std::string const &request, SpDBObject *data_block) const
 {
     std::cout << "Request:" << request;
-
-   
 
     pugi::xpath_node_set nodes = this->m_pimpl_->doc.select_nodes((this->m_pimpl_->m_node_path_prefix_ + path).c_str());
 

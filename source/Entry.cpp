@@ -119,171 +119,164 @@ namespace sp
         Content *move() { return new ContentObject{std::move(*this)}; };
     };
 
-    class EntryInMemory : public Entry
+    // class EntryInMemory : public Entry
+    // {
+    // public:
+    //     typedef EntryInMemory this_type;
+
+    //     EntryInMemory();
+
+    //     EntryInMemory(EntryInMemory const &other);
+
+    //     EntryInMemory(EntryInMemory &&other);
+
+    //     ~EntryInMemory();
+
+    //     EntryInMemory &operator=(EntryInMemory const &other);
+
+    //     void swap(EntryInMemory &other);
+
+    //     Entry *copy() const;
+
+    //     Entry *move();
+
+    //     std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
+
+    //     int type() const;
+
+    //     //----------------------------------------------------------------------------------------------------------
+    //     // attribute
+    //     //----------------------------------------------------------------------------------------------------------
+    //     bool has_attribute(std::string const &k) const; // if key exists then return true else return false
+
+    //     bool check_attribute(std::string const &k, std::any const &v) const; // if key exists and value ==v then return true else return false
+
+    //     std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
+
+    //     std::any get_attribute(std::string const &key, std::any const &default_value = std::any{}); // get attribute at key, if key does not exist return nullptr
+
+    //     void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
+
+    //     void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
+
+    //     Range<Iterator<const std::pair<const std::string, std::any>>> attributes() const; // return reference of  all attributes
+
+    //     //----------------------------------------------------------------------------------------------------------
+    //     // as leaf node,  need node.type = Scalar || Block
+    //     //----------------------------------------------------------------------------------------------------------
+
+    //     std::any get_scalar() const; // get value , if value is invalid then throw exception
+
+    //     void set_scalar(std::any const &); // set value , if fail then throw exception
+
+    //     std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> get_raw_block() const; // get block
+
+    //     void set_raw_block(std::shared_ptr<char> const &, std::type_info const &, std::vector<size_t> const &); // set block
+
+    //     //----------------------------------------------------------------------------------------------------------
+    //     // as Hierarchy tree node
+    //     // function level 0
+    //     std::shared_ptr<const Node> find_child(std::string const &) const; // return reference of child node , if key does not exists then insert new
+
+    //     std::shared_ptr<Node> find_child(std::string const &); // return reference of child node , if key does not exists then insert new
+
+    //     std::shared_ptr<Node> append(); // append node to tail of list , return reference of new node
+
+    //     std::shared_ptr<Node> append(std::shared_ptr<Node> const &);
+
+    //     void append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &); // insert node to object
+
+    //     std::shared_ptr<Node> insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr); // insert node to object
+
+    //     void insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
+    //                 Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e); // insert node to object
+
+    //     std::shared_ptr<Node> child(std::string const &key); // get child, create new if key does not  exist
+
+    //     // std::shared_ptr<const Node> child(std::string const &key) const; // get child, create new if key does not  exist
+
+    //     std::shared_ptr<Node> child(int idx); // return reference i-th child node , if idx does not exists then throw exception
+
+    //     // std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
+
+    //     void remove_child(std::string const &key); // remove child at key
+
+    //     void remove_child(int idx); // remove i-th child
+
+    //     void remove_children(); // remove children , set node.type => Null
+
+    //     // std::pair<Iterator<const Node>, Iterator<const Node>> children() const; // reutrn list of children
+
+    //     std::pair<Iterator<Node>, Iterator<Node>> children(); // reutrn list of children
+
+    //     // level 1
+    //     // std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const; // select from children
+
+    //     std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path); // select from children
+
+    //     // std::shared_ptr<const Node> select_one(XPath const &path) const; // return the first selected child
+
+    //     std::shared_ptr<Node> select_one(XPath const &path); // return the first selected child
+
+    // private:
+
+    // };
+    struct entry_tag_memory
     {
-    public:
-        typedef EntryInMemory this_type;
-
-        EntryInMemory();
-
-        EntryInMemory(EntryInMemory const &other);
-
-        EntryInMemory(EntryInMemory &&other);
-
-        ~EntryInMemory();
-
-        EntryInMemory &operator=(EntryInMemory const &other);
-
-        void swap(EntryInMemory &other);
-
-        Entry *copy() const;
-
-        Entry *move();
-
-        std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
-
-        int type() const;
-
-        //----------------------------------------------------------------------------------------------------------
-        // attribute
-        //----------------------------------------------------------------------------------------------------------
-        bool has_attribute(std::string const &k) const; // if key exists then return true else return false
-
-        bool check_attribute(std::string const &k, std::any const &v) const; // if key exists and value ==v then return true else return false
-
-        std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
-
-        std::any get_attribute(std::string const &key, std::any const &default_value = std::any{}); // get attribute at key, if key does not exist return nullptr
-
-        void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
-
-        void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
-
-        Range<Iterator<const std::pair<const std::string, std::any>>> attributes() const; // return reference of  all attributes
-
-        //----------------------------------------------------------------------------------------------------------
-        // as leaf node,  need node.type = Scalar || Block
-        //----------------------------------------------------------------------------------------------------------
-
-        std::any get_scalar() const; // get value , if value is invalid then throw exception
-
-        void set_scalar(std::any const &); // set value , if fail then throw exception
-
-        std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> get_raw_block() const; // get block
-
-        void set_raw_block(std::shared_ptr<char> const &, std::type_info const &, std::vector<size_t> const &); // set block
-
-        //----------------------------------------------------------------------------------------------------------
-        // as Hierarchy tree node
-        // function level 0
-        std::shared_ptr<const Node> find_child(std::string const &) const; // return reference of child node , if key does not exists then insert new
-
-        std::shared_ptr<Node> find_child(std::string const &); // return reference of child node , if key does not exists then insert new
-
-        std::shared_ptr<Node> append(); // append node to tail of list , return reference of new node
-
-        std::shared_ptr<Node> append(std::shared_ptr<Node> const &);
-
-        void append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &); // insert node to object
-
-        std::shared_ptr<Node> insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr); // insert node to object
-
-        void insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
-                    Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e); // insert node to object
-
-        std::shared_ptr<Node> child(std::string const &key); // get child, create new if key does not  exist
-
-        // std::shared_ptr<const Node> child(std::string const &key) const; // get child, create new if key does not  exist
-
-        std::shared_ptr<Node> child(int idx); // return reference i-th child node , if idx does not exists then throw exception
-
-        // std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
-
-        void remove_child(std::string const &key); // remove child at key
-
-        void remove_child(int idx); // remove i-th child
-
-        void remove_children(); // remove children , set node.type => Null
-
-        // std::pair<Iterator<const Node>, Iterator<const Node>> children() const; // reutrn list of children
-
-        std::pair<Iterator<Node>, Iterator<Node>> children(); // reutrn list of children
-
-        // level 1
-        // std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const; // select from children
-
-        std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path); // select from children
-
-        // std::shared_ptr<const Node> select_one(XPath const &path) const; // return the first selected child
-
-        std::shared_ptr<Node> select_one(XPath const &path); // return the first selected child
-
-    private:
-        std::unique_ptr<Attributes> m_attributes_;
-
+        Attributes m_attributes_;
         std::unique_ptr<Content> m_content_;
 
+        entry_tag_memory *copy() const
+        {
+            auto *p = new entry_tag_memory;
+            Attributes(m_attributes_).swap(p->m_attributes_);
+            p->m_content_.reset(new Content);
+            return p;
+        }
+
         std::vector<std::shared_ptr<Node>> &as_list();
-
         // const std::vector<std::shared_ptr<Node>> &as_list() const;
-
         std::map<std::string, std::shared_ptr<Node>> &as_object();
-
         // const std::map<std::string, std::shared_ptr<Node>> &as_object() const;
     };
+    template <>
+    EntryTmpl<entry_tag_memory>::EntryTmpl() : Entry(), m_pimpl_(new entry_tag_memory) {}
+    template <>
+    EntryTmpl<entry_tag_memory>::EntryTmpl(EntryTmpl<entry_tag_memory> const &other)
+        : Entry(other), m_pimpl_(other.m_pimpl_->copy()) {}
+    template <>
+    EntryTmpl<entry_tag_memory>::EntryTmpl(EntryTmpl<entry_tag_memory> &&other)
+        : Entry(other), m_pimpl_(other.m_pimpl_.release()) {}
 
-    EntryInMemory::EntryInMemory()
-        : Entry(),
-          m_attributes_(new sp::Attributes{}),
-          m_content_(new sp::Content{})
-    {
-    }
-
-    EntryInMemory::EntryInMemory(EntryInMemory const &other)
-        : Entry(other),
-          m_attributes_(other.m_attributes_->copy()),
-          m_content_(other.m_content_->copy())
-    {
-    }
-
-    EntryInMemory::EntryInMemory(EntryInMemory &&other)
-        : Entry(other),
-          m_attributes_(other.m_attributes_.release()),
-          m_content_(other.m_content_.release())
-    {
-        other.m_attributes_.reset(nullptr);
-        other.m_content_.reset(nullptr);
-    }
-
-    EntryInMemory::~EntryInMemory() {}
-
-    void EntryInMemory::swap(EntryInMemory &other)
+    template <>
+    EntryTmpl<entry_tag_memory>::~EntryTmpl() {}
+    template <>
+    void EntryTmpl<entry_tag_memory>::swap(EntryTmpl<entry_tag_memory> &other)
     {
         Entry::swap(other);
-        std::swap(m_content_, other.m_content_);
-        std::swap(m_attributes_, other.m_attributes_);
+        std::swap(m_pimpl_, other.m_pimpl_);
     }
-
-    EntryInMemory &EntryInMemory::operator=(EntryInMemory const &other)
+    template <>
+    EntryTmpl<entry_tag_memory> &EntryTmpl<entry_tag_memory>::operator=(EntryTmpl<entry_tag_memory> const &other)
     {
-        EntryInMemory(other).swap(*this);
+        EntryTmpl<entry_tag_memory>(other).swap(*this);
         return *this;
     }
-
-    Entry *EntryInMemory::copy() const { return dynamic_cast<Entry *>(new EntryInMemory(*this)); };
-
-    Entry *EntryInMemory::move()
+    template <>
+    Entry *EntryTmpl<entry_tag_memory>::copy() const { return dynamic_cast<Entry *>(new EntryTmpl<entry_tag_memory>(*this)); };
+    template <>
+    Entry *EntryTmpl<entry_tag_memory>::move()
     {
-        auto res = new EntryInMemory();
+        auto res = new EntryTmpl<entry_tag_memory>();
         res->swap(*this);
         return res;
     };
-
-    std::ostream &EntryInMemory::repr(std::ostream &os) const { return os; }
-
-    int EntryInMemory::type() const
+    template <>
+    std::ostream &EntryTmpl<entry_tag_memory>::repr(std::ostream &os) const { return os; }
+    template <>
+    int EntryTmpl<entry_tag_memory>::type() const
     {
-        auto const &typeinfo = m_content_->type_info();
+        auto const &typeinfo = m_pimpl_->m_content_->type_info();
 
         NodeTag tag;
         if (typeinfo == typeid(Content))
@@ -317,81 +310,81 @@ namespace sp
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
-
-    bool EntryInMemory::has_attribute(std::string const &key) const { return m_attributes_->has_a(key); }
-
-    bool EntryInMemory::check_attribute(std::string const &key, std::any const &v) const { return m_attributes_->check(key, v); }
-
-    std::any EntryInMemory::get_attribute(std::string const &key) const
+    template <>
+    bool EntryTmpl<entry_tag_memory>::has_attribute(std::string const &key) const { return m_pimpl_->m_attributes_.has_a(key); }
+    template <>
+    bool EntryTmpl<entry_tag_memory>::check_attribute(std::string const &key, std::any const &v) const { return m_pimpl_->m_attributes_.check(key, v); }
+    template <>
+    std::any EntryTmpl<entry_tag_memory>::get_attribute(std::string const &key) const
     {
-        return m_attributes_->get(key);
+        return m_pimpl_->m_attributes_.get(key);
     }
-
-    std::any EntryInMemory::get_attribute(std::string const &key, std::any const &default_value)
+    template <>
+    std::any EntryTmpl<entry_tag_memory>::get_attribute(std::string const &key, std::any const &default_value)
     {
-        return m_attributes_->get(key, default_value);
+        return m_pimpl_->m_attributes_.get(key, default_value);
     }
-
-    void EntryInMemory::set_attribute(std::string const &key, std::any const &v)
+    template <>
+    void EntryTmpl<entry_tag_memory>::set_attribute(std::string const &key, std::any const &v)
     {
-        m_attributes_->set(key, v);
+        m_pimpl_->m_attributes_.set(key, v);
     }
-
-    void EntryInMemory::remove_attribute(std::string const &key) { m_attributes_->erase(key); }
-
+    template <>
+    void EntryTmpl<entry_tag_memory>::remove_attribute(std::string const &key) { m_pimpl_->m_attributes_.erase(key); }
+    template <>
     Range<Iterator<const std::pair<const std::string, std::any>>>
-    EntryInMemory::attributes() const { return std::move(m_attributes_->items()); }
+    EntryTmpl<entry_tag_memory>::attributes() const { return std::move(m_pimpl_->m_attributes_.items()); }
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-
-    std::any EntryInMemory::get_scalar() const
+    template <>
+    std::any EntryTmpl<entry_tag_memory>::get_scalar() const
     {
-        if (m_content_->type_info() != typeid(ContentScalar))
+        if (m_pimpl_->m_content_->type_info() != typeid(ContentScalar))
         {
-            throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Scalar ]");
+            throw std::runtime_error(std::string("Illegal type! [") + m_pimpl_->m_content_->type_info().name() + " != Scalar ]");
         }
-        return dynamic_cast<ContentScalar const *>(m_content_.get())->content;
+        return dynamic_cast<ContentScalar const *>(m_pimpl_->m_content_.get())->content;
     }
-
-    void EntryInMemory::set_scalar(std::any const &v)
+    template <>
+    void EntryTmpl<entry_tag_memory>::set_scalar(std::any const &v)
     {
-        if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
+        if (m_pimpl_->m_content_->type_info() == typeid(ContentList) || m_pimpl_->m_content_->type_info() == typeid(ContentObject))
         {
             throw std::runtime_error("Can not set value to tree node!");
         }
         auto *p = new ContentScalar{};
         std::any(v).swap(p->content);
-        m_content_.reset(p);
+        m_pimpl_->m_content_.reset(p);
     }
-
+    template <>
     std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>>
-    EntryInMemory::get_raw_block() const
+    EntryTmpl<entry_tag_memory>::get_raw_block() const
     {
-        if (m_content_->type_info() != typeid(ContentBlock))
+        if (m_pimpl_->m_content_->type_info() != typeid(ContentBlock))
         {
-            throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Block ]");
+            throw std::runtime_error(std::string("Illegal type! [") + m_pimpl_->m_content_->type_info().name() + " != Block ]");
         }
-        return dynamic_cast<ContentBlock const *>(m_content_.get())->content;
+        return dynamic_cast<ContentBlock const *>(m_pimpl_->m_content_.get())->content;
     }
-
-    void EntryInMemory::set_raw_block(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d)
+    template <>
+    void EntryTmpl<entry_tag_memory>::set_raw_block(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d)
     {
 
-        if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
+        if (m_pimpl_->m_content_->type_info() == typeid(ContentList) || m_pimpl_->m_content_->type_info() == typeid(ContentObject))
         {
             throw std::runtime_error("Can not set value to tree node!");
         }
-        m_content_.reset(new ContentBlock{p, t, d});
+        m_pimpl_->m_content_.reset(new ContentBlock{p, t, d});
     }
 
     //----------------------------------------------------------------------------------------------------------
     // convert
     //----------------------------------------------------------------------------------------------------------
-
+    
     std::vector<std::shared_ptr<Node>> &
-    EntryInMemory::as_list()
+    entry_tag_memory::as_list()
     {
         if (m_content_->type_info() == typeid(Content))
         {
@@ -400,24 +393,24 @@ namespace sp
         else if (m_content_->type_info() != typeid(ContentList))
         {
             auto *p = new ContentList{};
-            auto n = std::make_shared<Node>(m_self_, this->move());
+            auto n = std::make_shared<Node>();//(m_self_, this->move());
             p->content.push_back(n);
             if (n->has_attribute("@name"))
             {
-                m_attributes_->set("@name", n->get_attribute<std::string>("@name"));
+                m_attributes_.set("@name", n->get_attribute<std::string>("@name"));
             }
             else
             {
-                m_attributes_->set("@name", "_");
+                m_attributes_.set("@name", "_");
             }
 
             m_content_.reset(dynamic_cast<Content *>(p));
         }
         return dynamic_cast<ContentList *>(m_content_.get())->content;
     }
-
+    
     std::map<std::string, std::shared_ptr<Node>> &
-    EntryInMemory::as_object()
+    entry_tag_memory::as_object()
     {
         if (m_content_->type_info() == typeid(Content))
         {
@@ -426,7 +419,7 @@ namespace sp
         else if (m_content_->type_info() != typeid(ContentObject))
         {
             auto *p = new ContentObject{};
-            p->content.emplace("_", std::make_shared<Node>(m_self_, this->move()));
+            // p->content.emplace("_", std::make_shared<Node>(m_self_, this->move()));
             m_content_.reset(dynamic_cast<Content *>(p));
         }
 
@@ -434,53 +427,58 @@ namespace sp
     }
 
     // const std::vector<std::shared_ptr<Node>> &
-    // EntryInMemory::as_list() const
+    // EntryTmpl<entry_tag_memory>::as_list() const
     // {
-    //     if (m_content_->type_info() != typeid(ContentList))
+    //     if (m_pimpl_->m_content_->type_info() != typeid(ContentList))
     //     {
     //         throw std::runtime_error("This is not a List Node");
     //     }
-    //     return dynamic_cast<ContentList const *>(m_content_.get())->content;
+    //     return dynamic_cast<ContentList const *>(m_pimpl_->m_content_.get())->content;
     // }
 
     // const std::map<std::string, std::shared_ptr<Node>> &
-    // EntryInMemory::as_object() const
+    // EntryTmpl<entry_tag_memory>::as_object() const
     // {
-    //     if (m_content_->type_info() != typeid(ContentObject))
+    //     if (m_pimpl_->m_content_->type_info() != typeid(ContentObject))
     //     {
     //         throw std::runtime_error("This is not a List Node");
     //     }
-    //     return dynamic_cast<ContentObject const *>(m_content_.get())->content;
+    //     return dynamic_cast<ContentObject const *>(m_pimpl_->m_content_.get())->content;
     // }
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
-    std::shared_ptr<Node> EntryInMemory::insert(std::string const &key, std::shared_ptr<Node> const &n)
+    template <>
+    std::shared_ptr<Node>
+    EntryTmpl<entry_tag_memory>::insert(std::string const &key, std::shared_ptr<Node> const &n)
     {
         NOT_IMPLEMENTED;
         return nullptr;
     }
-
-    std::shared_ptr<Node> EntryInMemory::find_child(std::string const &)
+    template <>
+    std::shared_ptr<Node>
+    EntryTmpl<entry_tag_memory>::find_child(std::string const &)
     {
         NOT_IMPLEMENTED;
         return nullptr;
     }
-
-    std::shared_ptr<const Node> EntryInMemory::find_child(std::string const &) const
+    template <>
+    std::shared_ptr<const Node>
+    EntryTmpl<entry_tag_memory>::find_child(std::string const &) const
     {
         NOT_IMPLEMENTED;
         return nullptr;
     }
-
-    std::shared_ptr<Node> EntryInMemory::child(std::string const &key)
+    template <>
+    std::shared_ptr<Node>
+    EntryTmpl<entry_tag_memory>::child(std::string const &key)
     {
-        auto &m = as_object();
+        auto &m = m_pimpl_->as_object();
         auto p = m.find(key);
         if (p == m.end())
         {
-            auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+            auto n = std::make_shared<Node>(m_self_, new EntryTmpl<entry_tag_memory>);
             n->set_attribute<std::string>("@name", key);
             return m.emplace(key, n).first->second;
         }
@@ -490,7 +488,7 @@ namespace sp
         }
     }
 
-    // std::shared_ptr<const Node> EntryInMemory::child(std::string const &key) const
+    // std::shared_ptr<const Node> EntryTmpl<entry_tag_memory>::child(std::string const &key) const
     // {
     //     auto p = find_child(key);
     //     if (p == nullptr)
@@ -499,76 +497,79 @@ namespace sp
     //     }
     //     return p;
     // }
+    template <>
+    std::shared_ptr<Node>
+    EntryTmpl<entry_tag_memory>::child(int idx) { return m_pimpl_->as_list()[idx]; }
 
-    std::shared_ptr<Node> EntryInMemory::child(int idx) { return as_list()[idx]; }
-
-    // std::shared_ptr<const Node> EntryInMemory::child(int idx) const { return as_list()[idx]; }
-
-    std::shared_ptr<Node> EntryInMemory::append()
+    // std::shared_ptr<const Node> EntryTmpl<entry_tag_memory>::child(int idx) const { return m_pimpl_->as_list()[idx]; }
+    template <>
+    std::shared_ptr<Node>
+    EntryTmpl<entry_tag_memory>::append()
     {
-        auto &l = as_list();
-        auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+        auto &l = m_pimpl_->as_list();
+        auto n = std::make_shared<Node>(m_self_, new EntryTmpl<entry_tag_memory>);
         n->set_attribute<int>("@id", size(l));
         l.push_back(n);
         return n;
     }
-
-    std::shared_ptr<Node> EntryInMemory::append(std::shared_ptr<Node> const &n)
+    template <>
+    std::shared_ptr<Node>
+    EntryTmpl<entry_tag_memory>::append(std::shared_ptr<Node> const &n)
     {
-        auto &l = as_list();
+        auto &l = m_pimpl_->as_list();
         n->set_attribute<int>("@id", l.size());
         l.push_back(n);
         return n;
     }
-
-    void EntryInMemory::append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &e)
+    template <>
+    void EntryTmpl<entry_tag_memory>::append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &e)
     {
         for (auto it = b; b != e; ++it)
         {
             append(*it);
         }
     }
-
-    void EntryInMemory::insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
-                               Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e)
+    template <>
+    void EntryTmpl<entry_tag_memory>::insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
+                                             Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e)
     {
         for (auto it = b; b != e; ++it)
         {
             insert(it->first, it->second);
         }
     }
-
-    void EntryInMemory::remove_child(int idx)
+    template <>
+    void EntryTmpl<entry_tag_memory>::remove_child(int idx)
     {
         NOT_IMPLEMENTED;
     }
-
-    void EntryInMemory::remove_child(std::string const &key)
+    template <>
+    void EntryTmpl<entry_tag_memory>::remove_child(std::string const &key)
     {
-        if (m_content_->type_info() == typeid(ContentObject))
+        if (m_pimpl_->m_content_->type_info() == typeid(ContentObject))
         {
-            auto &m = as_object();
+            auto &m = m_pimpl_->as_object();
             m.erase(m.find(key));
         }
     }
-
-    void EntryInMemory::remove_children() { m_content_.reset(new Content{}); }
+    template <>
+    void EntryTmpl<entry_tag_memory>::remove_children() { m_pimpl_->m_content_.reset(new Content{}); }
 
     // std::pair<Iterator<const Node>, Iterator<const Node>>
-    // EntryInMemory::children() const
+    // EntryTmpl<entry_tag_memory>::children() const
     // {
-    //     if (m_content_->type_info() == typeid(ContentList))
+    //     if (m_pimpl_->m_content_->type_info() == typeid(ContentList))
     //     {
-    //         auto const &m = as_list();
+    //         auto const &m = m_pimpl_->as_list();
     //         auto b = m.begin();
     //         auto e = m.end();
     //         return std::move(std::make_pair(
     //             Iterator<const Node>(b, [](auto const &p) { return p->get(); }),
     //             Iterator<const Node>(e)));
     //     }
-    //     else if (m_content_->type_info() == typeid(ContentObject))
+    //     else if (m_pimpl_->m_content_->type_info() == typeid(ContentObject))
     //     {
-    //         auto const &m = as_object();
+    //         auto const &m = m_pimpl_->as_object();
     //         auto b = m.begin();
     //         auto e = m.end();
 
@@ -581,22 +582,22 @@ namespace sp
     //         return std::move(std::make_pair(Iterator<const Node>(), Iterator<const Node>()));
     //     }
     // }
-
+    template <>
     std::pair<Iterator<Node>, Iterator<Node>>
-    EntryInMemory::children()
+    EntryTmpl<entry_tag_memory>::children()
     {
-        if (m_content_->type_info() == typeid(ContentList))
+        if (m_pimpl_->m_content_->type_info() == typeid(ContentList))
         {
-            auto const &m = as_list();
+            auto const &m = m_pimpl_->as_list();
             auto b = m.begin();
             auto e = m.end();
             return std::move(std::make_pair(
                 Iterator<Node>(b, [](auto const &p) { return p->get(); }),
                 Iterator<Node>(e)));
         }
-        else if (m_content_->type_info() == typeid(ContentObject))
+        else if (m_pimpl_->m_content_->type_info() == typeid(ContentObject))
         {
-            auto const &m = as_object();
+            auto const &m = m_pimpl_->as_object();
             auto b = m.begin();
             auto e = m.end();
 
@@ -609,24 +610,37 @@ namespace sp
             return std::move(std::make_pair(Iterator<Node>(), Iterator<Node>()));
         }
     }
-
+    template <>
     std::pair<Iterator<Node>, Iterator<Node>>
-    EntryInMemory::select(XPath const &path)
+    EntryTmpl<entry_tag_memory>::select(XPath const &path)
     {
         NOT_IMPLEMENTED;
         return std::pair<Iterator<const Node>, Iterator<const Node>>{};
     }
 
     // std::pair<Iterator<const Node>, Iterator<const Node>>
-    // EntryInMemory::select(XPath const &path) const
+    // EntryTmpl<entry_tag_memory>::select(XPath const &path) const
     // {
     //     NOT_IMPLEMENTED;
     //     return std::pair<Iterator<const Node>, Iterator<const Node>>{};
     // }
 
-    // std::shared_ptr<const Node> EntryInMemory::select_one(XPath const &path) const { return child(path.str()); }
+    // std::shared_ptr<const Node> EntryTmpl<entry_tag_memory>::select_one(XPath const &path) const { return child(path.str()); }
+    template <>
+    std::shared_ptr<Node> EntryTmpl<entry_tag_memory>::select_one(XPath const &path) { return child(path.str()); }
 
-    std::shared_ptr<Node> EntryInMemory::select_one(XPath const &path) { return child(path.str()); }
 
-    Entry *Entry::create(std::string const &backend) { return new EntryInMemory(); }
+    //#######################################################################################################################################
+    Entry *Entry::create(std::string const &backend)
+    {
+        if (backend == "XML")
+        {
+            // return new EntryTmpl<entry_tag_xml>();
+        }
+        else
+        {
+            return new EntryTmpl<entry_tag_memory>();
+        }
+    }
+
 } // namespace sp
