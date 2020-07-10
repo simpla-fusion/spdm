@@ -80,28 +80,47 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         // as Hierarchy tree node
         // function level 0
+        virtual std::shared_ptr<const Node> find_child(std::string const &) const = 0; // return reference of child node , if key does not exists then insert new
+
         virtual std::shared_ptr<Node> find_child(std::string const &) = 0; // return reference of child node , if key does not exists then insert new
 
-        virtual void insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr) = 0; // insert node to object
+        virtual std::shared_ptr<Node> append() = 0; // append node to tail of list , return reference of new node
+
+        virtual std::shared_ptr<Node> append(std::shared_ptr<Node>  const &) = 0; // append node to tail of list , return reference of new node
+
+        virtual void append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &) = 0; // insert node to object
+
+        virtual std::shared_ptr<Node> insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr) = 0; // insert node to object
+
+        virtual void insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
+                            Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e) = 0; // insert node to object
 
         virtual std::shared_ptr<Node> child(std::string const &key) = 0; // get child, create new if key does not  exist
 
-        virtual void remove_child(std::string const &key) = 0; // remove child at key
+        virtual std::shared_ptr<const Node> child(std::string const &key) const = 0; // get child, create new if key does not  exist
 
         virtual std::shared_ptr<Node> child(int idx) = 0; // return reference i-th child node , if idx does not exists then throw exception
 
-        virtual std::shared_ptr<Node> append() = 0; // append node to tail of list , return reference of new node
+        virtual std::shared_ptr<const Node> child(int idx) const = 0; // return reference i-th child node , if idx does not exists then throw exception
+
+        virtual void remove_child(std::string const &key) = 0; // remove child at key
 
         virtual void remove_child(int idx) = 0; // remove i-th child
 
         virtual void remove_children() = 0; // remove children , set node.type => Null
 
-        virtual std::pair<Iterator<Node *>, Iterator<Node *>> children() const = 0; // reutrn list of children
+        virtual std::pair<Iterator<const Node>, Iterator<const Node>> children() const = 0; // reutrn list of children
+
+        virtual std::pair<Iterator<Node>, Iterator<Node>> children() = 0; // reutrn list of children
 
         // level 1
-        virtual std::pair<Iterator<Node *>, Iterator<Node *>> select(XPath const &path) const = 0; // select from children
+        virtual std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const = 0; // select from children
 
-        virtual std::shared_ptr<Node> select_one(XPath const &path) const = 0; // return the first selected child
+        virtual std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path) = 0; // select from children
+
+        virtual std::shared_ptr<const Node> select_one(XPath const &path) const = 0; // return the first selected child
+
+        virtual std::shared_ptr<Node> select_one(XPath const &path) = 0; // return the first selected child
     };
 
 } // namespace sp

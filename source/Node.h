@@ -30,15 +30,27 @@ namespace sp
     {
     public:
         typedef Node this_type;
-        typedef Iterator<Node *> iterator;
+
+        typedef Iterator<Node> iterator;
+
+        typedef Iterator<const Node> const_iterator;
+
         typedef Range<iterator> range;
 
+        typedef Range<const_iterator> const_range;
+
         Node(Node *parent, Entry *e);
+
         Node(Node *parent = nullptr, std::string const &backend = "");
+
         Node(this_type const &other);
+
         Node(this_type &&other);
+
         ~Node();
+
         this_type &operator=(this_type const &other);
+
         void swap(this_type &other);
 
         std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
@@ -101,38 +113,82 @@ namespace sp
         // as tree node,  need node.type = List || Object
         //----------------------------------------------------------------------------------------------------------
         // function level 0
-        Node &parent() const;                         // return parent node
-        Node &child(std::string const &);             // return reference of child node , if key does not exists then insert new
-        const Node &child(std::string const &) const; // return reference of child node , if key does not exists then insert new
-        Node &child(int idx);                         // return reference i-th child node , if idx does not exists then throw exception
-        const Node &child(int idx) const;             // return reference i-th child node , if idx does not exists then throw exception
-        Node &append();                               // append node to tail of list , return reference of new node
-        void remove_child(int idx);                   // remove i-th child
-        void remove_child(std::string const &key);    // remove child at key
-        void remove_children();                       // remove children , set node.type => Null
+        Node &parent() const; // return parent node
 
-        Range<Iterator<std::string>> keys() const; // reutrn keys of children , only valid for Object Node
-        range children() const;                    // reutrn list of children
+        Node &append(); // append node to tail of list , return reference of new node
+
+        Node &append(std::shared_ptr<Node> const &);
+
+        void append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &); //
+
+        template <typename TI0, typename TI1>
+        void append(TI0 const &b, TI1 const &); //
+
+        template <typename U>
+        void insert(std::map<std::string, U> const &m); //
+
+        template <typename U, typename V>
+        void insert(U const &b, V const &e);
+
+        void insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b, Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e);
+
+        Node &child(std::string const &); // return reference of child node , if key does not exists then insert new
+
+        const Node &child(std::string const &) const; // return reference of child node , if key does not exists then insert new
+
+        Node &child(int idx); // return reference i-th child node , if idx does not exists then throw exception
+
+        const Node &child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
+
+        void remove_child(int idx); // remove i-th child
+
+        void remove_child(std::string const &key); // remove child at key
+
+        void remove_children(); // remove children , set node.type => Null
+
+        range children(); // reutrn list of children
+
+        const_range children() const; // reutrn list of children
 
         //----------------------------------------------------------------------------------------------------------
         // function level 1
-        range select(XPath const &path) const;     // select from children
-        Node &select_one(XPath const &path);       // return refernce of the first selected child  , if fail then throw exception
-        Node &select_one(XPath const &path) const; // return refernce of the first selected child , if fail then throw exception
+        const_range select(XPath const &path) const; // select from children
+
+        range select(XPath const &path); // select from children
+
+        Node &select_one(XPath const &path); // return refernce of the first selected child  , if fail then throw exception
+
+        const Node &select_one(XPath const &path) const; // return refernce of the first selected child , if fail then throw exception
+
         Node &operator[](std::string const &path); // => select_one(XPath(path))
-        Node &operator[](size_t);                  // => child(idx)
+
+        const Node &operator[](std::string const &path) const; // => select_one(XPath(path))
+
+        Node &operator[](size_t); // => child(idx)
+
+        const Node &operator[](size_t) const; // => child(idx)
 
         //----------------------------------------------------------------------------------------------------------
         // function level 2
         ptrdiff_t distance(const this_type &target) const; // lenght of short path to target
-        size_t depth() const;                              // parent.depth +1
-        size_t height() const;                             // max(leaf.height) +1
-        iterator first_child() const;                      // return iterator of the first child;
-        range slibings() const;                            // return slibings
-        range ancestor() const;                            // return ancestor
-        range descendants() const;                         // return descendants
-        range leaves() const;                              // return leave nodes in traversal order
-        range path(this_type const &target) const;         // return the shortest path to target
+
+        size_t depth() const; // parent.depth +1
+
+        size_t height() const; // max(leaf.height) +1
+
+        const_iterator first_child() const; // return iterator of the first child;
+
+        iterator first_child(); // return iterator of the first child;
+
+        const_range slibings() const; // return slibings
+
+        const_range ancestor() const; // return ancestor
+
+        const_range descendants() const; // return descendants
+
+        const_range leaves() const; // return leave nodes in traversal order
+
+        const_range path(this_type const &target) const; // return the shortest path to target
 
         //----------------------------------------------------------------------------------------------------------
         // backend

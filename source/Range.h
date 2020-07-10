@@ -48,6 +48,7 @@ namespace sp
 
         typedef IT iterator;
 
+        IteratorProxy(iterator &&it) : m_it_(std::move(it)) {}
         IteratorProxy(iterator const &it) : m_it_(it) {}
         IteratorProxy(this_type const &other) : m_it_(other.m_it_) {}
         IteratorProxy(this_type &&other) : m_it_(std::move(other.m_it_)) {}
@@ -83,6 +84,7 @@ namespace sp
         using typename base_type::pointer;
 
         IteratorProxy(iterator const &it, mapper_t const &mapper) : base_type(it), m_mapper_(mapper) {}
+        IteratorProxy(iterator &&it, mapper_t &&mapper) : base_type(std::move(it)), m_mapper_(std::move(mapper)) {}
         IteratorProxy(this_type const &other) : base_type(other.m_it_), m_mapper_(other.m_mapper_) {}
         IteratorProxy(this_type &&other) : base_type(std::forward<this_type>(other)), m_mapper_(std::move(other.m_mapper_)) {}
         ~IteratorProxy() {}
@@ -103,11 +105,9 @@ namespace sp
     {
         return new IteratorProxy<T, std::remove_const_t<std::remove_reference_t<Args>>...>(std::forward<Args>(args)...);
     }
-    template <typename T>
-    class Iterator;
 
     template <typename T>
-    class Iterator<T *> : public std::iterator_traits<T *>
+    class Iterator : public std::iterator_traits<T *>
     {
     public:
         typedef std::iterator_traits<T *> traits_type;
@@ -119,59 +119,7 @@ namespace sp
         Iterator() {}
 
         template <typename... Args>
-        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<value_type>(std::forward<Args>(args)...)) {}
-
-        Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()) {}
-
-        Iterator(Iterator &&other) : m_proxy_(other.m_proxy_.release()) {}
-
-        ~Iterator() {}
-
-        void swap(Iterator &other) { std::swap(m_proxy_, other.m_proxy_); }
-
-        Iterator &operator=(Iterator const &other)
-        {
-            Iterator(other).swap(*this);
-            return *this;
-        }
-
-        bool operator==(Iterator const &other) const { return m_proxy_->equal(*other.m_proxy_); }
-
-        bool operator!=(Iterator const &other) const { return !m_proxy_->equal(*other.m_proxy_); }
-
-        Iterator &operator++()
-        {
-            m_proxy_->next();
-            return *this;
-        }
-
-        Iterator operator++(int)
-        {
-            Iterator res(*this);
-            m_proxy_->next();
-            return res;
-        }
-
-        reference operator*() { return *m_proxy_->get(); }
-
-        pointer operator->() { return m_proxy_->get(); }
-
-    private:
-        std::unique_ptr<IteratorProxy<value_type>> m_proxy_;
-    };
-
-    template <typename T>
-    class Iterator
-    {
-    public:
-        typedef T value_type;
-        typedef value_type *pointer;
-        typedef value_type &reference;
-
-        Iterator() {}
-
-        template <typename... Args>
-        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<value_type>(std::forward<Args>(args)...)) {}
+        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)) {}
 
         Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()) {}
 
@@ -232,7 +180,7 @@ namespace sp
         Range(U0 const &first, U1 const &second) : Range(iterator(first), iterator(second)) {}
 
         template <typename U0, typename U1>
-        Range(std::tuple<U0, U1> const &r) : Range(std::get<0>(r), std::get<1>(r)) {}
+        Range(std::pair<U0, U1> &&r) : Range(std::move(std::get<0>(r)), std::move(std::get<1>(r))) {}
 
         Range(base_type const &p) : base_type(p) {}
 

@@ -34,19 +34,13 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     {
     case NodeTag::List:
     {
-        bool is_first = true;
+        os << std::endl;
+
         for (auto const &item : n.children())
         {
-            if (is_first)
-            {
-                is_first = false;
-            }
-            else
-            {
-                os << std::setw(indent * 2) << " ";
-            }
 
-            os << "- ";
+            os << std::setw(indent * 2) << std::right << "- ";
+
             _repr_as_yaml(os, item, indent + 1);
             os << std::endl;
         }
@@ -56,32 +50,32 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     {
         bool is_first = true;
 
-        for (auto const &item : n.attributes())
-        {
-            if (is_first)
-            {
-                is_first = false;
-            }
-            else
-            {
-                os << std::setw(indent * 2) << " ";
-            }
+        // for (auto const &item : n.attributes())
+        // {
+        //     // if (is_first)
+        //     // {
+        //     //     is_first = false;
+        //     // }
+        //     // else
+        //     // {
+        //     // }
 
-            os << item.first << ": " << std::any_cast<std::string>(item.second);
-            os << std::endl;
-        }
+        //     os << std::setw(indent * 2) << std::right << item.first << ": " << std::any_cast<std::string>(item.second);
+        //     os << std::endl;
+        // }
         for (auto const &item : n.children())
         {
             if (is_first)
             {
                 is_first = false;
+                os << item.get_attribute<std::string>("@name") << ": ";
             }
             else
             {
-                os << std::setw(indent * 2) << " ";
+                os << std::setw(indent * 2) << " " << item.get_attribute<std::string>("@name") << ": ";
             }
 
-            os << item.get_attribute<std::string>("@name") << ": ";
+            // os << std::setw(indent * 2) << std::right << item.get_attribute<std::string>("@name") << ": ";
             _repr_as_yaml(os, item, indent + 1);
             os << std::endl;
         }
@@ -161,7 +155,23 @@ const Node &Node::child(int idx) const { return *m_entry_->child(idx); }
 
 Node &Node::append() { return *m_entry_->append(); }
 
-Node::range Node::children() const { return Node::range (m_entry_->children()); }
+Node &Node::append(std::shared_ptr<Node> const &n) { return *m_entry_->append(n); }
+
+void Node::append(const Iterator<std::shared_ptr<Node>> &b,
+                  const Iterator<std::shared_ptr<Node>> &e)
+{
+    m_entry_->append(b, e);
+}
+
+void Node::insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
+                  Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e)
+{
+    m_entry_->insert(b, e);
+}
+
+Node::const_range Node::children() const { return const_range(m_entry_->children()); }
+
+Node::range Node::children() { return range(m_entry_->children()); }
 
 void Node::remove_child(int idx) { return m_entry_->remove_child(idx); }
 
@@ -171,12 +181,18 @@ void Node::remove_children() { return m_entry_->remove_children(); }
 
 //----------------------------------------------------------------------------------------------------------
 // function level 1
-Node::range Node::select(XPath const &path) const { return Node::range(m_entry_->select(path)); }
+Node::range Node::select(XPath const &path) { return range(m_entry_->select(path)); }
+
+Node::const_range Node::select(XPath const &path) const { return const_range(m_entry_->select(path)); }
 
 Node &Node::select_one(XPath const &path) { return *m_entry_->select_one(path); }
 
-Node &Node::select_one(XPath const &path) const { return *m_entry_->select_one(path); }
+const Node &Node::select_one(XPath const &path) const { return *m_entry_->select_one(path); }
 
 Node &Node::operator[](std::string const &path) { return *m_entry_->select_one(XPath(path)); }
 
+const Node &Node::operator[](std::string const &path) const { return *m_entry_->select_one(XPath(path)); }
+
 Node &Node::operator[](size_t idx) { return *m_entry_->child(idx); }
+
+const Node &Node::operator[](size_t idx) const { return *m_entry_->child(idx); }
