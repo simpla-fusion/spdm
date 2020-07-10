@@ -34,15 +34,14 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     {
     case NodeTag::List:
     {
-        os << std::endl;
 
         for (auto const &item : n.children())
         {
 
-            os << std::setw(indent * 2) << std::right << "- ";
+            os << std::endl
+               << std::setw(indent * 2) << std::right << "- ";
 
             _repr_as_yaml(os, item, indent + 1);
-            os << std::endl;
         }
     }
     break;
@@ -50,34 +49,34 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     {
         bool is_first = true;
 
-        // for (auto const &item : n.attributes())
-        // {
-        //     // if (is_first)
-        //     // {
-        //     //     is_first = false;
-        //     // }
-        //     // else
-        //     // {
-        //     // }
+        for (auto const &item : n.attributes())
+        {
+            if (is_first)
+            {
+                is_first = false;
+            }
+            else
+            {
+                os << std::endl
+                   << std::setw(indent * 2) << std::right << item.first << ": ";
+            }
 
-        //     os << std::setw(indent * 2) << std::right << item.first << ": " << std::any_cast<std::string>(item.second);
-        //     os << std::endl;
-        // }
+            os << std::any_cast<std::string>(item.second);
+        }
         for (auto const &item : n.children())
         {
             if (is_first)
             {
                 is_first = false;
-                os << item.get_attribute<std::string>("@name") << ": ";
             }
             else
             {
-                os << std::setw(indent * 2) << " " << item.get_attribute<std::string>("@name") << ": ";
+                os << std::endl
+                   << std::setw(indent * 2) << " ";
             }
-
+            os << item.get_attribute<std::string>("@name") << ":";
             // os << std::setw(indent * 2) << std::right << item.get_attribute<std::string>("@name") << ": ";
             _repr_as_yaml(os, item, indent + 1);
-            os << std::endl;
         }
     }
     break;
