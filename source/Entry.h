@@ -57,11 +57,13 @@ namespace sp
 
         virtual std::any get_attribute(std::string const &key) const = 0; // get attribute at key, if key does not exist return nullptr
 
+        virtual std::any get_attribute(std::string const &key, std::any const &default_value = std::any{}) = 0; // get attribute at key, if key does not exist return nullptr
+
         virtual void set_attribute(std::string const &key, std::any const &v) = 0; // set attribute at key as v
 
         virtual void remove_attribute(std::string const &key = "") = 0; // remove attribute at key, if key=="" then remove all
 
-        // virtual Range<Iterator<std::pair<std::string, std::any>>> attributes() const = 0; // return reference of  all attributes
+        virtual Range<Iterator<const std::pair<const std::string, std::any>>> attributes() const = 0; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block

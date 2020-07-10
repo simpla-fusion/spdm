@@ -55,6 +55,21 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     case NodeTag::Object:
     {
         bool is_first = true;
+
+        for (auto const &item : n.attributes())
+        {
+            if (is_first)
+            {
+                is_first = false;
+            }
+            else
+            {
+                os << std::setw(indent * 2) << " ";
+            }
+
+            os << item.first << ": " << std::any_cast<std::string>(item.second);
+            os << std::endl;
+        }
         for (auto const &item : n.children())
         {
             if (is_first)
@@ -116,10 +131,7 @@ void Node::set_attribute(std::string const &key, std::any const &v) { m_entry_->
 
 void Node::remove_attribute(std::string const &key) { m_entry_->remove_attribute(key); }
 
-// Range<Iterator<std::pair<std::string, std::any>>> Node::attributes() const
-// {
-//     return Range<Iterator<std::pair<std::string, std::any>>>{};
-// }
+Range<Iterator<const std::pair<const std::string, std::any>>> Node::attributes() const { return std::move(m_entry_->attributes()); }
 
 //----------------------------------------------------------------------------------------------------------
 // as leaf node,  need node.type = Scalar || Block
@@ -149,7 +161,7 @@ const Node &Node::child(int idx) const { return *m_entry_->child(idx); }
 
 Node &Node::append() { return *m_entry_->append(); }
 
-Node::range Node::children() const { return Node::range(m_entry_->children()); }
+Node::range Node::children() const { return Node::range (m_entry_->children()); }
 
 void Node::remove_child(int idx) { return m_entry_->remove_child(idx); }
 

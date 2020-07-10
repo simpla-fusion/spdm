@@ -51,20 +51,23 @@ namespace sp
         //----------------------------------------------------------------------------------------------------------
         // attribute
         //----------------------------------------------------------------------------------------------------------
-        bool has_attribute(std::string const &k) const;                      // if key exists then return true else return false
+        bool has_attribute(std::string const &k) const; // if key exists then return true else return false
+
         bool check_attribute(std::string const &k, std::any const &v) const; // if key exists and value ==v then return true else return false
 
         std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
+
         template <typename U>
         U get_attribute(std::string const &key) const { return std::any_cast<U>(get_attribute(key)); }
 
         void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
+
         template <typename U, typename V>
         void set_attribute(std::string const &key, V const &v) { set_attribute(key, std::make_any<V>(v)); }
 
         void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
 
-        // Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
+        Range<Iterator<const std::pair<const std::string, std::any>>> attributes() const; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block

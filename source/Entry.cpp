@@ -38,14 +38,48 @@ namespace sp
         {
             return m_attributes_.find(key) != m_attributes_.end();
         }
+
         bool check(std::string const &key, std::any const &v) const
         {
             NOT_IMPLEMENTED;
             return has_a(key);
         }
+
         void erase(std::string const &key) { m_attributes_.erase(m_attributes_.find(key)); }
-        std::any get(std::string const &key) const { return m_attributes_.at(key); }
+
+        std::any get(std::string const &key) const
+        {
+            std::cout << "====================std::any get(std::string const &key) const====================" << std::endl;
+            for (auto const &item : m_attributes_)
+            {
+                std::cout << item.first << ":" << std::any_cast<std::string>(item.second) << std::endl;
+            }
+            std::cout << "====================std::any get(std::string const &key) const====================" << std::endl;
+
+            return m_attributes_.at(key);
+        }
+
+        std::any get(std::string const &key, std::any const &default_value)
+        {
+            std::cout << "====================" << key << "====================" << std::endl;
+            for (auto const &item : m_attributes_)
+            {
+                std::cout << item.first << ":"  << std::endl;
+            }
+            std::cout << "========================================" << std::endl;
+
+            return m_attributes_.emplace(key, default_value).first->second;
+        }
+
         void set(std::string const &key, std::any const &v) { m_attributes_[key] = v; }
+
+        Range<Iterator<const std::pair<const std::string, std::any>>>
+        items() const
+        {
+            return Range<Iterator<const std::pair<const std::string, std::any>>>{
+                Iterator<const std::pair<const std::string, std::any>>{m_attributes_.begin(), [](const auto &it) { return it.operator->(); }},
+                Iterator<const std::pair<const std::string, std::any>>{m_attributes_.end()}};
+        }
 
         std::map<std::string, std::any> m_attributes_;
     };
@@ -56,6 +90,7 @@ namespace sp
         virtual Content *copy() const { return nullptr; }
         virtual Content *move() { return nullptr; }
     };
+    
     struct ContentScalar : public Content
     {
         std::any content;
@@ -66,6 +101,7 @@ namespace sp
         Content *copy() const override { return new ContentScalar(*this); };
         Content *move() override { return new ContentScalar(std::move(*this)); };
     };
+    
     struct ContentBlock : public Content
     {
         std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> content;
@@ -76,6 +112,7 @@ namespace sp
         Content *copy() const { return new ContentBlock{*this}; };
         Content *move() { return new ContentBlock{std::move(*this)}; };
     };
+    
     struct ContentList : public Content
     {
         std::vector<std::shared_ptr<Node>> content;
@@ -86,6 +123,7 @@ namespace sp
         Content *copy() const { return new ContentList{*this}; };
         Content *move() { return new ContentList{std::move(*this)}; };
     };
+    
     struct ContentObject : public Content
     {
         std::map<std::string, std::shared_ptr<Node>> content;
@@ -130,11 +168,13 @@ namespace sp
 
         std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
 
+        std::any get_attribute(std::string const &key, std::any const &default_value = std::any{}); // get attribute at key, if key does not exist return nullptr
+
         void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
 
         void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
 
-        // Range<Iterator<std::pair<std::string, std::any>>> attributes() const; // return reference of  all attributes
+        Range<Iterator<const std::pair<const std::string, std::any>>> attributes() const; // return reference of  all attributes
 
         //----------------------------------------------------------------------------------------------------------
         // as leaf node,  need node.type = Scalar || Block
@@ -177,342 +217,357 @@ namespace sp
 
     private:
         std::unique_ptr<Attributes> m_attributes_;
+
         std::unique_ptr<Content> m_content_;
 
         std::vector<std::shared_ptr<Node>> &as_list();
+
         const std::vector<std::shared_ptr<Node>> &as_list() const;
+
         std::map<std::string, std::shared_ptr<Node>> &as_object();
+
         const std::map<std::string, std::shared_ptr<Node>> &as_object() const;
     };
-} // namespace sp
-using namespace sp;
 
-EntryInMemory::EntryInMemory()
-    : Entry(),
-      m_attributes_(new sp::Attributes{}),
-      m_content_(new sp::Content{})
-{
-}
-
-EntryInMemory::EntryInMemory(EntryInMemory const &other)
-    : Entry(other),
-      m_attributes_(other.m_attributes_->copy()),
-      m_content_(other.m_content_->copy())
-{
-}
-
-EntryInMemory::EntryInMemory(EntryInMemory &&other)
-    : Entry(other),
-      m_attributes_(std::move(other.m_attributes_)),
-      m_content_(std::move(other.m_content_))
-{
-}
-
-EntryInMemory::~EntryInMemory() {}
-
-void EntryInMemory::swap(EntryInMemory &other)
-{
-    Entry::swap(other);
-    std::swap(m_content_, other.m_content_);
-    std::swap(m_attributes_, other.m_attributes_);
-}
-
-EntryInMemory &EntryInMemory::operator=(EntryInMemory const &other)
-{
-    EntryInMemory(other).swap(*this);
-    return *this;
-}
-
-Entry *EntryInMemory::copy() const { return dynamic_cast<Entry *>(new EntryInMemory(*this)); };
-
-Entry *EntryInMemory::move() { return dynamic_cast<Entry *>(new EntryInMemory(std::move(*this))); };
-
-std::ostream &EntryInMemory::repr(std::ostream &os) const { return os; }
-
-int EntryInMemory::type() const
-{
-    auto const &typeinfo = m_content_->type_info();
-
-    NodeTag tag;
-    if (typeinfo == typeid(Content))
+    EntryInMemory::EntryInMemory()
+        : Entry(),
+          m_attributes_(new sp::Attributes{}),
+          m_content_(new sp::Content{})
     {
-        tag = NodeTag::Null;
     }
 
-    else if (typeinfo == typeid(ContentScalar))
+    EntryInMemory::EntryInMemory(EntryInMemory const &other)
+        : Entry(other),
+          m_attributes_(other.m_attributes_->copy()),
+          m_content_(other.m_content_->copy())
     {
-        tag = NodeTag::Scalar;
-    }
-    else if (typeinfo == typeid(ContentBlock))
-    {
-        tag = NodeTag::Block;
-    }
-    else if (typeinfo == typeid(ContentList))
-    {
-        tag = NodeTag::List;
-    }
-    else if (typeinfo == typeid(ContentObject))
-    {
-        tag = NodeTag::Object;
-    }
-    else
-    {
-        tag = NodeTag::Null;
-    }
-    return tag;
-}
-
-//----------------------------------------------------------------------------------------------------------
-// attribute
-//----------------------------------------------------------------------------------------------------------
-bool EntryInMemory::has_attribute(std::string const &key) const
-{
-    return m_attributes_->has_a(key);
-}
-
-bool EntryInMemory::check_attribute(std::string const &key, std::any const &v) const
-{
-    return m_attributes_->check(key, v);
-}
-
-std::any EntryInMemory::get_attribute(std::string const &key) const
-{
-    return m_attributes_->get(key);
-}
-
-void EntryInMemory::set_attribute(std::string const &key, std::any const &v)
-{
-    m_attributes_->set(key, v);
-}
-
-void EntryInMemory::remove_attribute(std::string const &key)
-{
-    m_attributes_->erase(key);
-}
-
-// Range<Iterator<std::pair<std::string, std::any>>> EntryInMemory::attributes() const
-// {
-//     auto b = m_attributes_->m_attributes_.cbegin();
-//     auto e = m_attributes_->m_attributes_.cend();
-//     auto next = [=]() {
-//         static auto it = b;
-//         if (b == e)
-//         {
-//             return std::pair<std::string, std::any>{"", nullptr};
-//         }
-//         else
-//         {
-//             auto res = *it;
-//             ++it;
-//             return std::pair<std::string, std::any>{std::get<0>(res), std::get<1>(res)};
-//         }
-//     };
-//     typedef Iterator<std::pair<std::string, std::any>> it;
-//     return Range<it>{it(next), it(nullptr)};
-// }
-
-//----------------------------------------------------------------------------------------------------------
-// as leaf node,  need node.type = Scalar || Block
-//----------------------------------------------------------------------------------------------------------
-
-std::any EntryInMemory::get_scalar() const
-{
-    if (m_content_->type_info() != typeid(ContentScalar))
-    {
-        throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Scalar ]");
-    }
-    return dynamic_cast<ContentScalar const *>(m_content_.get())->content;
-}
-
-void EntryInMemory::set_scalar(std::any const &v)
-{
-    if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
-    {
-        throw std::runtime_error("Can not set value to tree node!");
-    }
-    auto *p = new ContentScalar{};
-    std::any(v).swap(p->content);
-    m_content_.reset(p);
-}
-
-std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>>
-EntryInMemory::get_raw_block() const
-{
-    if (m_content_->type_info() != typeid(ContentBlock))
-    {
-        throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Block ]");
-    }
-    return dynamic_cast<ContentBlock const *>(m_content_.get())->content;
-}
-
-void EntryInMemory::set_raw_block(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d)
-{
-
-    if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
-    {
-        throw std::runtime_error("Can not set value to tree node!");
-    }
-    m_content_.reset(new ContentBlock{p, t, d});
-}
-
-//----------------------------------------------------------------------------------------------------------
-// convert
-//----------------------------------------------------------------------------------------------------------
-
-std::vector<std::shared_ptr<Node>> &
-EntryInMemory::as_list()
-{
-    if (m_content_->type_info() == typeid(Content))
-    {
-        m_content_.reset(dynamic_cast<Content *>(new ContentList{}));
-    }
-    else if (m_content_->type_info() != typeid(ContentList))
-    {
-        auto *p = new ContentList{};
-        p->content.push_back(std::make_shared<Node>(m_self_, this->move()));
-        m_content_.reset(dynamic_cast<Content *>(p));
-    }
-    return dynamic_cast<ContentList *>(m_content_.get())->content;
-}
-
-std::map<std::string, std::shared_ptr<Node>> &
-EntryInMemory::as_object()
-{
-    if (m_content_->type_info() == typeid(Content))
-    {
-        m_content_.reset(dynamic_cast<Content *>(new ContentObject{}));
-    }
-    else if (m_content_->type_info() != typeid(ContentObject))
-    {
-        auto *p = new ContentObject{};
-        p->content.emplace("_", std::make_shared<Node>(m_self_, this->move()));
-        m_content_.reset(dynamic_cast<Content *>(p));
     }
 
-    return dynamic_cast<ContentObject *>(m_content_.get())->content;
-}
-
-const std::vector<std::shared_ptr<Node>> &
-EntryInMemory::as_list() const
-{
-    if (m_content_->type_info() != typeid(ContentList))
+    EntryInMemory::EntryInMemory(EntryInMemory &&other)
+        : Entry(other),
+          m_attributes_(std::move(other.m_attributes_)),
+          m_content_(std::move(other.m_content_))
     {
-        throw std::runtime_error("This is not a List Node");
     }
-    return dynamic_cast<ContentList const *>(m_content_.get())->content;
-}
 
-const std::map<std::string, std::shared_ptr<Node>> &
-EntryInMemory::as_object() const
-{
-    if (m_content_->type_info() != typeid(ContentObject))
+    EntryInMemory::~EntryInMemory() {}
+
+    void EntryInMemory::swap(EntryInMemory &other)
     {
-        throw std::runtime_error("This is not a List Node");
+        Entry::swap(other);
+        std::swap(m_content_, other.m_content_);
+        std::swap(m_attributes_, other.m_attributes_);
     }
-    return dynamic_cast<ContentObject const *>(m_content_.get())->content;
-}
 
-//----------------------------------------------------------------------------------------------------------
-// as Hierarchy tree node
-// function level 0
-void EntryInMemory::insert(std::string const &key, std::shared_ptr<Node> const &n)
-{
-    NOT_IMPLEMENTED;
-}
-
-std::shared_ptr<Node> EntryInMemory::find_child(std::string const &)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-
-std::shared_ptr<Node> EntryInMemory::child(std::string const &key)
-{
-    auto &m = as_object();
-    auto p = m.find(key);
-    if (p == m.end())
+    EntryInMemory &EntryInMemory::operator=(EntryInMemory const &other)
     {
-        auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
-        n->set_attribute<std::string>("@name", key);
-        return m.emplace(key, n).first->second;
+        EntryInMemory(other).swap(*this);
+        return *this;
     }
-    else
+
+    Entry *EntryInMemory::copy() const { return dynamic_cast<Entry *>(new EntryInMemory(*this)); };
+
+    Entry *EntryInMemory::move() { return dynamic_cast<Entry *>(new EntryInMemory(std::move(*this))); };
+
+    std::ostream &EntryInMemory::repr(std::ostream &os) const { return os; }
+
+    int EntryInMemory::type() const
     {
-        return p->second;
+        auto const &typeinfo = m_content_->type_info();
+
+        NodeTag tag;
+        if (typeinfo == typeid(Content))
+        {
+            tag = NodeTag::Null;
+        }
+
+        else if (typeinfo == typeid(ContentScalar))
+        {
+            tag = NodeTag::Scalar;
+        }
+        else if (typeinfo == typeid(ContentBlock))
+        {
+            tag = NodeTag::Block;
+        }
+        else if (typeinfo == typeid(ContentList))
+        {
+            tag = NodeTag::List;
+        }
+        else if (typeinfo == typeid(ContentObject))
+        {
+            tag = NodeTag::Object;
+        }
+        else
+        {
+            tag = NodeTag::Null;
+        }
+        return tag;
     }
-}
 
-std::shared_ptr<Node> EntryInMemory::child(int idx) { return as_list()[idx]; }
+    //----------------------------------------------------------------------------------------------------------
+    // attribute
+    //----------------------------------------------------------------------------------------------------------
 
-std::shared_ptr<Node> EntryInMemory::append()
-{
-    auto &l = as_list();
-    auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
-    n->set_attribute<int>("@id", size(l));
-    l.push_back(n);
-    return n;
-}
+    bool EntryInMemory::has_attribute(std::string const &key) const
+    {
+        return m_attributes_->has_a(key);
+    }
 
-void EntryInMemory::remove_child(int idx)
-{
-    NOT_IMPLEMENTED;
-}
+    bool EntryInMemory::check_attribute(std::string const &key, std::any const &v) const
+    {
+        return m_attributes_->check(key, v);
+    }
+    
+    std::any EntryInMemory::get_attribute(std::string const &key) const
+    {
+        return m_attributes_->get(key);
+    }
 
-void EntryInMemory::remove_child(std::string const &key)
-{
-    if (m_content_->type_info() == typeid(ContentObject))
+    std::any EntryInMemory::get_attribute(std::string const &key, std::any const &default_value)
+    {
+        return m_attributes_->get(key, default_value);
+    }
+
+    void EntryInMemory::set_attribute(std::string const &key, std::any const &v)
+    {
+        m_attributes_->set(key, v);
+    }
+
+    void EntryInMemory::remove_attribute(std::string const &key)
+    {
+        m_attributes_->erase(key);
+    }
+
+    Range<Iterator<const std::pair<const std::string, std::any>>>
+    EntryInMemory::attributes() const
+    {
+        return m_attributes_->items();
+    }
+
+    // Range<Iterator<std::pair<std::string, std::any>>> EntryInMemory::attributes() const
+    // {
+    //     auto b = m_attributes_->m_attributes_.cbegin();
+    //     auto e = m_attributes_->m_attributes_.cend();
+    //     auto next = [=]() {
+    //         static auto it = b;
+    //         if (b == e)
+    //         {
+    //             return std::pair<std::string, std::any>{"", nullptr};
+    //         }
+    //         else
+    //         {
+    //             auto res = *it;
+    //             ++it;
+    //             return std::pair<std::string, std::any>{std::get<0>(res), std::get<1>(res)};
+    //         }
+    //     };
+    //     typedef Iterator<std::pair<std::string, std::any>> it;
+    //     return Range<it>{it(next), it(nullptr)};
+    // }
+
+    //----------------------------------------------------------------------------------------------------------
+    // as leaf node,  need node.type = Scalar || Block
+    //----------------------------------------------------------------------------------------------------------
+
+    std::any EntryInMemory::get_scalar() const
+    {
+        if (m_content_->type_info() != typeid(ContentScalar))
+        {
+            throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Scalar ]");
+        }
+        return dynamic_cast<ContentScalar const *>(m_content_.get())->content;
+    }
+
+    void EntryInMemory::set_scalar(std::any const &v)
+    {
+        if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
+        {
+            throw std::runtime_error("Can not set value to tree node!");
+        }
+        auto *p = new ContentScalar{};
+        std::any(v).swap(p->content);
+        m_content_.reset(p);
+    }
+
+    std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>>
+    EntryInMemory::get_raw_block() const
+    {
+        if (m_content_->type_info() != typeid(ContentBlock))
+        {
+            throw std::runtime_error(std::string("Illegal type! [") + m_content_->type_info().name() + " != Block ]");
+        }
+        return dynamic_cast<ContentBlock const *>(m_content_.get())->content;
+    }
+
+    void EntryInMemory::set_raw_block(std::shared_ptr<char> const &p, std::type_info const &t, std::vector<size_t> const &d)
+    {
+
+        if (m_content_->type_info() == typeid(ContentList) || m_content_->type_info() == typeid(ContentObject))
+        {
+            throw std::runtime_error("Can not set value to tree node!");
+        }
+        m_content_.reset(new ContentBlock{p, t, d});
+    }
+
+    //----------------------------------------------------------------------------------------------------------
+    // convert
+    //----------------------------------------------------------------------------------------------------------
+
+    std::vector<std::shared_ptr<Node>> &
+    EntryInMemory::as_list()
+    {
+        if (m_content_->type_info() == typeid(Content))
+        {
+            m_content_.reset(dynamic_cast<Content *>(new ContentList{}));
+        }
+        else if (m_content_->type_info() != typeid(ContentList))
+        {
+            auto *p = new ContentList{};
+            p->content.push_back(std::make_shared<Node>(m_self_, this->move()));
+            m_content_.reset(dynamic_cast<Content *>(p));
+        }
+        return dynamic_cast<ContentList *>(m_content_.get())->content;
+    }
+
+    std::map<std::string, std::shared_ptr<Node>> &
+    EntryInMemory::as_object()
+    {
+        if (m_content_->type_info() == typeid(Content))
+        {
+            m_content_.reset(dynamic_cast<Content *>(new ContentObject{}));
+        }
+        else if (m_content_->type_info() != typeid(ContentObject))
+        {
+            auto *p = new ContentObject{};
+            p->content.emplace("_", std::make_shared<Node>(m_self_, this->move()));
+            m_content_.reset(dynamic_cast<Content *>(p));
+        }
+
+        return dynamic_cast<ContentObject *>(m_content_.get())->content;
+    }
+
+    const std::vector<std::shared_ptr<Node>> &
+    EntryInMemory::as_list() const
+    {
+        if (m_content_->type_info() != typeid(ContentList))
+        {
+            throw std::runtime_error("This is not a List Node");
+        }
+        return dynamic_cast<ContentList const *>(m_content_.get())->content;
+    }
+
+    const std::map<std::string, std::shared_ptr<Node>> &
+    EntryInMemory::as_object() const
+    {
+        if (m_content_->type_info() != typeid(ContentObject))
+        {
+            throw std::runtime_error("This is not a List Node");
+        }
+        return dynamic_cast<ContentObject const *>(m_content_.get())->content;
+    }
+
+    //----------------------------------------------------------------------------------------------------------
+    // as Hierarchy tree node
+    // function level 0
+    void EntryInMemory::insert(std::string const &key, std::shared_ptr<Node> const &n)
+    {
+        NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<Node> EntryInMemory::find_child(std::string const &)
+    {
+        NOT_IMPLEMENTED;
+        return nullptr;
+    }
+
+    std::shared_ptr<Node> EntryInMemory::child(std::string const &key)
     {
         auto &m = as_object();
-        m.erase(m.find(key));
+        auto p = m.find(key);
+        if (p == m.end())
+        {
+            auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+            n->set_attribute<std::string>("@name", key);
+            return m.emplace(key, n).first->second;
+        }
+        else
+        {
+            return p->second;
+        }
     }
-}
 
-void EntryInMemory::remove_children() { m_content_.reset(new Content{}); }
+    std::shared_ptr<Node> EntryInMemory::child(int idx) { return as_list()[idx]; }
 
-std::pair<Iterator<Node *>, Iterator<Node *>>
-EntryInMemory::children() const
-{
-    if (m_content_->type_info() == typeid(ContentList))
+    std::shared_ptr<Node> EntryInMemory::append()
     {
-        auto const &m = as_list();
-        auto b = m.begin();
-        auto e = m.end();
-        return std::make_pair(
-            Iterator<Node *>(b,
-                             [](auto const &p) { return p->get(); }),
-            Iterator<Node *>(e));
+        auto &l = as_list();
+        auto n = std::make_shared<Node>(m_self_, new EntryInMemory);
+        n->set_attribute<int>("@id", size(l));
+        l.push_back(n);
+        return n;
     }
-    else if (m_content_->type_info() == typeid(ContentObject))
+
+    void EntryInMemory::remove_child(int idx)
     {
-        auto const &m = as_object();
-        auto b = m.begin();
-        auto e = m.end();
-
-        return std::make_pair(
-            Iterator<Node *>(b,
-                             [](auto const &p) { return p->second.get(); }),
-            Iterator<Node *>(e));
+        NOT_IMPLEMENTED;
     }
-    else
+
+    void EntryInMemory::remove_child(std::string const &key)
     {
-        return std::make_pair(Iterator<Node *>(), Iterator<Node *>());
+        if (m_content_->type_info() == typeid(ContentObject))
+        {
+            auto &m = as_object();
+            m.erase(m.find(key));
+        }
     }
-}
 
-std::pair<Iterator<Node *>, Iterator<Node *>>
-EntryInMemory::select(XPath const &path) const
-{
-    NOT_IMPLEMENTED;
-    return std::pair<Iterator<Node *>, Iterator<Node *>>{};
-}
+    void EntryInMemory::remove_children() { m_content_.reset(new Content{}); }
 
-std::shared_ptr<Node> EntryInMemory::select_one(XPath const &path) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
+    std::pair<Iterator<Node*>, Iterator<Node*>>
+    EntryInMemory::children() const
+    {
+        if (m_content_->type_info() == typeid(ContentList))
+        {
+            auto const &m = as_list();
+            auto b = m.begin();
+            auto e = m.end();
+            return std::make_pair(
+                Iterator<Node >(b,
+                                 [](auto const &p) { return p->get(); }),
+                Iterator<Node >(e));
+        }
+        else if (m_content_->type_info() == typeid(ContentObject))
+        {
+            auto const &m = as_object();
+            auto b = m.begin();
+            auto e = m.end();
 
-Entry *Entry::create(std::string const &backend)
-{
-    return new EntryInMemory();
-}
+            return std::make_pair(
+                Iterator<Node >(b,
+                                 [](auto const &p) { return p->second.get(); }),
+                Iterator<Node >(e));
+        }
+        else
+        {
+            return std::make_pair(Iterator<Node *>(), Iterator<Node *>());
+        }
+    }
+
+    std::pair<Iterator<Node *>, Iterator<Node *>>
+    EntryInMemory::select(XPath const &path) const
+    {
+        NOT_IMPLEMENTED;
+        return std::pair<Iterator<Node *>, Iterator<Node *>>{};
+    }
+
+    std::shared_ptr<Node> EntryInMemory::select_one(XPath const &path) const
+    {
+        NOT_IMPLEMENTED;
+        return nullptr;
+    }
+
+    Entry *Entry::create(std::string const &backend)
+    {
+        return new EntryInMemory();
+    }
+} // namespace sp

@@ -135,15 +135,26 @@ int EntryImpl<nullptr_t>::type() const { return m_node_type_; }
 // attribute
 //----------------------------------------------------------------------------------------------------------
 bool EntryImpl<nullptr_t>::has_attribute(std::string const &key) const { return m_attributes_.find(key) != m_attributes_.end(); }
+
 bool EntryImpl<nullptr_t>::check_attribute(std::string const &key, std::any const &v) const
 {
     return has_attribute(key) &&
            std::any_cast<std::string>(m_attributes_.at(key)) == std::any_cast<std::string>(v);
 }
+
 std::any EntryImpl<nullptr_t>::attribute(std::string const &key) const { return m_attributes_.at(key); }
+
 void EntryImpl<nullptr_t>::attribute(std::string const &key, std::any const &v) { m_attributes_[key] = v; }
+
 void EntryImpl<nullptr_t>::remove_attribute(std::string const &key) { m_attributes_.erase(m_attributes_.find(key)); }
-Range<Iterator<std::pair<std::string, std::any>>> EntryImpl<nullptr_t>::attributes() const { return Range<Iterator<std::pair<std::string, std::any>>>{}; }
+
+Range<Iterator<std::pair<std::string, std::any>>> EntryImpl<nullptr_t>::attributes() const
+{
+    return Range<Iterator<std::pair<std::string, std::any>>>{
+        Iterator<std::pair<std::string, std::any>>{m_attributes_.begin(), [](const auto &it) { return it.operator->(); }},
+        Iterator<std::pair<std::string, std::any>>{m_attributes_.end()}
+    };
+}
 //----------------------------------------------------------------------------------------------------------
 // as leaf node,  need node.type = Scalar || Block
 //----------------------------------------------------------------------------------------------------------

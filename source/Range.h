@@ -16,7 +16,7 @@ namespace sp
     {
     public:
         typedef IteratorProxy<T> this_type;
-        typedef std::iterator_traits<T> traits_type;
+        typedef std::iterator_traits<T *> traits_type;
         typedef typename traits_type::pointer pointer;
         typedef typename traits_type::reference reference;
         typedef typename traits_type::value_type value_type;
@@ -103,12 +103,14 @@ namespace sp
     {
         return new IteratorProxy<T, std::remove_const_t<std::remove_reference_t<Args>>...>(std::forward<Args>(args)...);
     }
+    template <typename T>
+    class Iterator;
 
     template <typename T>
-    class Iterator : public std::iterator_traits<T>
+    class Iterator<T *> : public std::iterator_traits<T *>
     {
     public:
-        typedef std::iterator_traits<T> traits_type;
+        typedef std::iterator_traits<T *> traits_type;
 
         using typename traits_type::pointer;
         using typename traits_type::reference;
@@ -117,7 +119,59 @@ namespace sp
         Iterator() {}
 
         template <typename... Args>
-        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)) {}
+        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<value_type>(std::forward<Args>(args)...)) {}
+
+        Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()) {}
+
+        Iterator(Iterator &&other) : m_proxy_(other.m_proxy_.release()) {}
+
+        ~Iterator() {}
+
+        void swap(Iterator &other) { std::swap(m_proxy_, other.m_proxy_); }
+
+        Iterator &operator=(Iterator const &other)
+        {
+            Iterator(other).swap(*this);
+            return *this;
+        }
+
+        bool operator==(Iterator const &other) const { return m_proxy_->equal(*other.m_proxy_); }
+
+        bool operator!=(Iterator const &other) const { return !m_proxy_->equal(*other.m_proxy_); }
+
+        Iterator &operator++()
+        {
+            m_proxy_->next();
+            return *this;
+        }
+
+        Iterator operator++(int)
+        {
+            Iterator res(*this);
+            m_proxy_->next();
+            return res;
+        }
+
+        reference operator*() { return *m_proxy_->get(); }
+
+        pointer operator->() { return m_proxy_->get(); }
+
+    private:
+        std::unique_ptr<IteratorProxy<value_type>> m_proxy_;
+    };
+
+    template <typename T>
+    class Iterator
+    {
+    public:
+        typedef T value_type;
+        typedef value_type *pointer;
+        typedef value_type &reference;
+
+        Iterator() {}
+
+        template <typename... Args>
+        Iterator(Args &&... args) : m_proxy_(make_iterator_proxy<value_type>(std::forward<Args>(args)...)) {}
 
         Iterator(Iterator const &other) : m_proxy_(other.m_proxy_->copy()) {}
 
