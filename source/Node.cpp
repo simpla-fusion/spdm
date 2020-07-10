@@ -34,13 +34,13 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     {
     case NodeTag::List:
     {
-
         for (auto const &item : n.children())
         {
 
             os << std::endl
-               << std::setw(indent * 2) << std::right << "- ";
+               << std::setw(indent * 2) << " ";
 
+            os << "- ";
             _repr_as_yaml(os, item, indent + 1);
         }
     }
@@ -74,8 +74,9 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
                 os << std::endl
                    << std::setw(indent * 2) << " ";
             }
+
             os << item.get_attribute<std::string>("@name") << ":";
-            // os << std::setw(indent * 2) << std::right << item.get_attribute<std::string>("@name") << ": ";
+
             _repr_as_yaml(os, item, indent + 1);
         }
     }
@@ -84,7 +85,24 @@ std::ostream &_repr_as_yaml(std::ostream &os, Node const &n, int indent)
     case NodeTag::Scalar:
     default:
     {
-        os << std::any_cast<std::string>(n.get_scalar());
+        auto const &d = n.get_scalar();
+
+        try
+        {
+            std::string s = std::any_cast<std::string>(d);
+            os << s;
+        }
+        catch (...)
+        {
+            try
+            {
+                double s = std::any_cast<double>(d);
+                os << s;
+            }
+            catch (...)
+            {
+            }
+        }
     }
     }
 

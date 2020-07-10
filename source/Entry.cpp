@@ -50,7 +50,10 @@ namespace sp
 
         std::any get(std::string const &key) const { return m_attributes_.at(key); }
 
-        std::any get(std::string const &key, std::any const &default_value) { return m_attributes_.emplace(key, default_value).first->second; }
+        std::any get(std::string const &key, std::any const &default_value)
+        {
+            return m_attributes_.emplace(key, default_value).first->second;
+        }
 
         void set(std::string const &key, std::any const &v) { m_attributes_[key] = v; }
 
@@ -245,9 +248,11 @@ namespace sp
 
     EntryInMemory::EntryInMemory(EntryInMemory &&other)
         : Entry(other),
-          m_attributes_(std::move(other.m_attributes_)),
-          m_content_(std::move(other.m_content_))
+          m_attributes_(other.m_attributes_.release()),
+          m_content_(other.m_content_.release())
     {
+        other.m_attributes_.reset(nullptr);
+        other.m_content_.reset(nullptr);
     }
 
     EntryInMemory::~EntryInMemory() {}
@@ -267,7 +272,12 @@ namespace sp
 
     Entry *EntryInMemory::copy() const { return dynamic_cast<Entry *>(new EntryInMemory(*this)); };
 
-    Entry *EntryInMemory::move() { return dynamic_cast<Entry *>(new EntryInMemory(std::move(*this))); };
+    Entry *EntryInMemory::move()
+    {
+        auto res = new EntryInMemory();
+        res->swap(*this);
+        return res;
+    };
 
     std::ostream &EntryInMemory::repr(std::ostream &os) const { return os; }
 
@@ -312,11 +322,20 @@ namespace sp
 
     bool EntryInMemory::check_attribute(std::string const &key, std::any const &v) const { return m_attributes_->check(key, v); }
 
-    std::any EntryInMemory::get_attribute(std::string const &key) const { return m_attributes_->get(key); }
+    std::any EntryInMemory::get_attribute(std::string const &key) const
+    {
+        return m_attributes_->get(key);
+    }
 
-    std::any EntryInMemory::get_attribute(std::string const &key, std::any const &default_value) { return m_attributes_->get(key, default_value); }
+    std::any EntryInMemory::get_attribute(std::string const &key, std::any const &default_value)
+    {
+        return m_attributes_->get(key, default_value);
+    }
 
-    void EntryInMemory::set_attribute(std::string const &key, std::any const &v) { m_attributes_->set(key, v); }
+    void EntryInMemory::set_attribute(std::string const &key, std::any const &v)
+    {
+        m_attributes_->set(key, v);
+    }
 
     void EntryInMemory::remove_attribute(std::string const &key) { m_attributes_->erase(key); }
 
@@ -381,7 +400,17 @@ namespace sp
         else if (m_content_->type_info() != typeid(ContentList))
         {
             auto *p = new ContentList{};
-            p->content.push_back(std::make_shared<Node>(m_self_, this->move()));
+            auto n = std::make_shared<Node>(m_self_, this->move());
+            p->content.push_back(n);
+            if (n->has_attribute("@name"))
+            {
+                m_attributes_->set("@name", n->get_attribute<std::string>("@name"));
+            }
+            else
+            {
+                m_attributes_->set("@name", "_");
+            }
+
             m_content_.reset(dynamic_cast<Content *>(p));
         }
         return dynamic_cast<ContentList *>(m_content_.get())->content;
@@ -483,7 +512,7 @@ namespace sp
         l.push_back(n);
         return n;
     }
-    
+
     std::shared_ptr<Node> EntryInMemory::append(std::shared_ptr<Node> const &n)
     {
         auto &l = as_list();
