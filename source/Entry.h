@@ -1,7 +1,6 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
 #include "Range.h"
-#include "Util.h"
 #include "XPath.h"
 #include <algorithm>
 #include <any>
@@ -45,6 +44,8 @@ namespace sp
         virtual Entry *move() = 0;
 
         virtual std::ostream &repr(std::ostream &os) const = 0; // represent object as string and push ostream
+
+        virtual std::type_info const &type_info() const = 0;
 
         virtual int type() const = 0;
 
@@ -123,11 +124,11 @@ namespace sp
         virtual std::shared_ptr<Node> select_one(XPath const &path) = 0; // return the first selected child
     };
 
-    template <typename TAG, typename... OTHERS>
+    template <typename BACKEND, typename... OTHERS>
     class EntryTmpl : public Entry
     {
     public:
-        typedef EntryTmpl<TAG, OTHERS...> this_type;
+        typedef EntryTmpl<BACKEND, OTHERS...> this_type;
 
         EntryTmpl();
 
@@ -146,6 +147,8 @@ namespace sp
         Entry *move();
 
         std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
+
+        const std::type_info & type_info()const {return typeid(this_type);}
 
         int type() const;
 
@@ -198,11 +201,7 @@ namespace sp
 
         std::shared_ptr<Node> child(std::string const &key); // get child, create new if key does not  exist
 
-        // std::shared_ptr<const Node> child(std::string const &key) const; // get child, create new if key does not  exist
-
         std::shared_ptr<Node> child(int idx); // return reference i-th child node , if idx does not exists then throw exception
-
-        // std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
 
         void remove_child(std::string const &key); // remove child at key
 
@@ -210,21 +209,14 @@ namespace sp
 
         void remove_children(); // remove children , set node.type => Null
 
-        // std::pair<Iterator<const Node>, Iterator<const Node>> children() const; // reutrn list of children
-
         std::pair<Iterator<Node>, Iterator<Node>> children(); // reutrn list of children
 
         // level 1
-        // std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const; // select from children
-
         std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path); // select from children
-
-        // std::shared_ptr<const Node> select_one(XPath const &path) const; // return the first selected child
-
-        std::shared_ptr<Node> select_one(XPath const &path); // return the first selected child
+        std::shared_ptr<Node> select_one(XPath const &path);                 // return the first selected child
 
     private:
-        std::unique_ptr<TAG> m_pimpl_;
+        std::unique_ptr<BACKEND> m_pimpl_;
     };
 
 } // namespace sp

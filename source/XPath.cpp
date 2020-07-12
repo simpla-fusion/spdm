@@ -1,5 +1,6 @@
 #include "XPath.h"
-#include "Util.h"
+#include "utility/Logger.h"
+#include "utility/URL.h"
 using namespace sp;
 XPath::XPath(const std::string &path) : m_path_(path) {}
 // XPath::~XPath() = default;

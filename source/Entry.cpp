@@ -1,5 +1,6 @@
 #include "Entry.h"
 #include "Node.h"
+#include "utility/Logger.h"
 
 //----------------------------------------------------------------------------------------------------------
 // Entry
@@ -24,6 +25,11 @@ namespace sp
         Attributes(Attributes const &other) : m_attributes_(other.m_attributes_) {}
         Attributes(Attributes &&other) : m_attributes_(std::move(other.m_attributes_)) {}
         ~Attributes() {}
+
+        void swap(Attributes &other)
+        {
+            std::swap(m_attributes_, other.m_attributes_);
+        }
 
         Attributes *copy() const { return new Attributes(*this); }
 
@@ -119,117 +125,15 @@ namespace sp
         Content *move() { return new ContentObject{std::move(*this)}; };
     };
 
-    // class EntryInMemory : public Entry
-    // {
-    // public:
-    //     typedef EntryInMemory this_type;
-
-    //     EntryInMemory();
-
-    //     EntryInMemory(EntryInMemory const &other);
-
-    //     EntryInMemory(EntryInMemory &&other);
-
-    //     ~EntryInMemory();
-
-    //     EntryInMemory &operator=(EntryInMemory const &other);
-
-    //     void swap(EntryInMemory &other);
-
-    //     Entry *copy() const;
-
-    //     Entry *move();
-
-    //     std::ostream &repr(std::ostream &os) const; // represent object as string and push ostream
-
-    //     int type() const;
-
-    //     //----------------------------------------------------------------------------------------------------------
-    //     // attribute
-    //     //----------------------------------------------------------------------------------------------------------
-    //     bool has_attribute(std::string const &k) const; // if key exists then return true else return false
-
-    //     bool check_attribute(std::string const &k, std::any const &v) const; // if key exists and value ==v then return true else return false
-
-    //     std::any get_attribute(std::string const &key) const; // get attribute at key, if key does not exist return nullptr
-
-    //     std::any get_attribute(std::string const &key, std::any const &default_value = std::any{}); // get attribute at key, if key does not exist return nullptr
-
-    //     void set_attribute(std::string const &key, std::any const &v); // set attribute at key as v
-
-    //     void remove_attribute(std::string const &key = ""); // remove attribute at key, if key=="" then remove all
-
-    //     Range<Iterator<const std::pair<const std::string, std::any>>> attributes() const; // return reference of  all attributes
-
-    //     //----------------------------------------------------------------------------------------------------------
-    //     // as leaf node,  need node.type = Scalar || Block
-    //     //----------------------------------------------------------------------------------------------------------
-
-    //     std::any get_scalar() const; // get value , if value is invalid then throw exception
-
-    //     void set_scalar(std::any const &); // set value , if fail then throw exception
-
-    //     std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>> get_raw_block() const; // get block
-
-    //     void set_raw_block(std::shared_ptr<char> const &, std::type_info const &, std::vector<size_t> const &); // set block
-
-    //     //----------------------------------------------------------------------------------------------------------
-    //     // as Hierarchy tree node
-    //     // function level 0
-    //     std::shared_ptr<const Node> find_child(std::string const &) const; // return reference of child node , if key does not exists then insert new
-
-    //     std::shared_ptr<Node> find_child(std::string const &); // return reference of child node , if key does not exists then insert new
-
-    //     std::shared_ptr<Node> append(); // append node to tail of list , return reference of new node
-
-    //     std::shared_ptr<Node> append(std::shared_ptr<Node> const &);
-
-    //     void append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &); // insert node to object
-
-    //     std::shared_ptr<Node> insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr); // insert node to object
-
-    //     void insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
-    //                 Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e); // insert node to object
-
-    //     std::shared_ptr<Node> child(std::string const &key); // get child, create new if key does not  exist
-
-    //     // std::shared_ptr<const Node> child(std::string const &key) const; // get child, create new if key does not  exist
-
-    //     std::shared_ptr<Node> child(int idx); // return reference i-th child node , if idx does not exists then throw exception
-
-    //     // std::shared_ptr<const Node> child(int idx) const; // return reference i-th child node , if idx does not exists then throw exception
-
-    //     void remove_child(std::string const &key); // remove child at key
-
-    //     void remove_child(int idx); // remove i-th child
-
-    //     void remove_children(); // remove children , set node.type => Null
-
-    //     // std::pair<Iterator<const Node>, Iterator<const Node>> children() const; // reutrn list of children
-
-    //     std::pair<Iterator<Node>, Iterator<Node>> children(); // reutrn list of children
-
-    //     // level 1
-    //     // std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const; // select from children
-
-    //     std::pair<Iterator<Node>, Iterator<Node>> select(XPath const &path); // select from children
-
-    //     // std::shared_ptr<const Node> select_one(XPath const &path) const; // return the first selected child
-
-    //     std::shared_ptr<Node> select_one(XPath const &path); // return the first selected child
-
-    // private:
-
-    // };
     struct entry_tag_memory
     {
-        Attributes m_attributes_;
+        std::unique_ptr<Attributes> m_attributes_;
         std::unique_ptr<Content> m_content_;
 
         entry_tag_memory *copy() const
         {
             auto *p = new entry_tag_memory;
-            Attributes(m_attributes_).swap(p->m_attributes_);
+            p->m_attributes_.reset(new Attributes(*m_attributes_));
             p->m_content_.reset(new Content);
             return p;
         }
@@ -311,29 +215,29 @@ namespace sp
     // attribute
     //----------------------------------------------------------------------------------------------------------
     template <>
-    bool EntryTmpl<entry_tag_memory>::has_attribute(std::string const &key) const { return m_pimpl_->m_attributes_.has_a(key); }
+    bool EntryTmpl<entry_tag_memory>::has_attribute(std::string const &key) const { return m_pimpl_->m_attributes_->has_a(key); }
     template <>
-    bool EntryTmpl<entry_tag_memory>::check_attribute(std::string const &key, std::any const &v) const { return m_pimpl_->m_attributes_.check(key, v); }
+    bool EntryTmpl<entry_tag_memory>::check_attribute(std::string const &key, std::any const &v) const { return m_pimpl_->m_attributes_->check(key, v); }
     template <>
     std::any EntryTmpl<entry_tag_memory>::get_attribute(std::string const &key) const
     {
-        return m_pimpl_->m_attributes_.get(key);
+        return m_pimpl_->m_attributes_->get(key);
     }
     template <>
     std::any EntryTmpl<entry_tag_memory>::get_attribute(std::string const &key, std::any const &default_value)
     {
-        return m_pimpl_->m_attributes_.get(key, default_value);
+        return m_pimpl_->m_attributes_->get(key, default_value);
     }
     template <>
     void EntryTmpl<entry_tag_memory>::set_attribute(std::string const &key, std::any const &v)
     {
-        m_pimpl_->m_attributes_.set(key, v);
+        m_pimpl_->m_attributes_->set(key, v);
     }
     template <>
-    void EntryTmpl<entry_tag_memory>::remove_attribute(std::string const &key) { m_pimpl_->m_attributes_.erase(key); }
+    void EntryTmpl<entry_tag_memory>::remove_attribute(std::string const &key) { m_pimpl_->m_attributes_->erase(key); }
     template <>
     Range<Iterator<const std::pair<const std::string, std::any>>>
-    EntryTmpl<entry_tag_memory>::attributes() const { return std::move(m_pimpl_->m_attributes_.items()); }
+    EntryTmpl<entry_tag_memory>::attributes() const { return std::move(m_pimpl_->m_attributes_->items()); }
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
@@ -382,7 +286,7 @@ namespace sp
     //----------------------------------------------------------------------------------------------------------
     // convert
     //----------------------------------------------------------------------------------------------------------
-    
+
     std::vector<std::shared_ptr<Node>> &
     entry_tag_memory::as_list()
     {
@@ -393,22 +297,22 @@ namespace sp
         else if (m_content_->type_info() != typeid(ContentList))
         {
             auto *p = new ContentList{};
-            auto n = std::make_shared<Node>();//(m_self_, this->move());
+            auto n = std::make_shared<Node>(); //(m_self_, this->move());
             p->content.push_back(n);
             if (n->has_attribute("@name"))
             {
-                m_attributes_.set("@name", n->get_attribute<std::string>("@name"));
+                m_attributes_->set("@name", n->get_attribute<std::string>("@name"));
             }
             else
             {
-                m_attributes_.set("@name", "_");
+                m_attributes_->set("@name", "_");
             }
 
             m_content_.reset(dynamic_cast<Content *>(p));
         }
         return dynamic_cast<ContentList *>(m_content_.get())->content;
     }
-    
+
     std::map<std::string, std::shared_ptr<Node>> &
     entry_tag_memory::as_object()
     {
@@ -629,13 +533,12 @@ namespace sp
     template <>
     std::shared_ptr<Node> EntryTmpl<entry_tag_memory>::select_one(XPath const &path) { return child(path.str()); }
 
-
     //#######################################################################################################################################
     Entry *Entry::create(std::string const &backend)
     {
         if (backend == "XML")
         {
-            // return new EntryTmpl<entry_tag_xml>();
+            return new EntryTmpl<entry_tag_memory>();
         }
         else
         {

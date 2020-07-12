@@ -1,7 +1,7 @@
 #include "Node.h"
 #include "Entry.h"
-#include "Util.h"
 #include "XPath.h"
+#include "utility/Logger.h"
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
