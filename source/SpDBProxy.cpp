@@ -1,5 +1,4 @@
 #include "SpDBProxy.h"
-#include "SpXMLUtil.h"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
