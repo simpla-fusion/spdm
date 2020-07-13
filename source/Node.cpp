@@ -1,5 +1,4 @@
 #include "Node.h"
-#include "Entry.h"
 #include "XPath.h"
 #include "utility/Logger.h"
 #include <cstdlib>
@@ -13,106 +12,16 @@ namespace sp
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(Node* parent, Entry* entry) : m_parent_(parent), m_entry_(entry) { m_entry_->bind(this); }
-
-Node::Node(Node* parent, std::string const& backend) : Node(parent, Entry::create(backend)) {}
-
-Node::Node(Node const& other) : Node(other.m_parent_, other.m_entry_->copy()) {}
-
-Node::Node(Node&& other) : Node(other.m_parent_, other.m_entry_.release()) {}
+Node::Node(Node* parent, Entry* entry) : m_parent_(parent), m_entry_(entry != nullptr ? entry : Entry::create()) {}
 
 Node::~Node() {}
 
-Node& Node::operator=(this_type const& other)
+Node::Node(this_type const& other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_->copy()) {}
+
+Node::Node(this_type&& other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_.release())
 {
-    this_type(other).swap(*this);
-    return *this;
+    other.m_entry_.reset(Entry::create());
 }
-
-std::ostream& _repr_as_yaml(std::ostream& os, Node const& n, int indent)
-{
-    switch (n.type())
-    {
-    case NodeTag::List:
-    {
-        for (auto const& item : n.children())
-        {
-
-            os << std::endl
-               << std::setw(indent * 2) << " ";
-
-            os << "- ";
-            _repr_as_yaml(os, item, indent + 1);
-        }
-    }
-    break;
-    case NodeTag::Object:
-    {
-        bool is_first = true;
-
-        for (auto const& item : n.attributes())
-        {
-            if (is_first)
-            {
-                is_first = false;
-            }
-            else
-            {
-                os << std::endl
-                   << std::setw(indent * 2) << std::right << item.first << ": ";
-            }
-
-            os << std::any_cast<std::string>(item.second);
-        }
-        for (auto const& item : n.children())
-        {
-            if (is_first)
-            {
-                is_first = false;
-            }
-            else
-            {
-                os << std::endl
-                   << std::setw(indent * 2) << " ";
-            }
-
-            os << item.get_attribute<std::string>("@name") << ":";
-
-            _repr_as_yaml(os, item, indent + 1);
-        }
-    }
-    break;
-    case NodeTag::Null:
-    case NodeTag::Scalar:
-    default:
-    {
-        auto const& d = n.get_scalar();
-
-        try
-        {
-            std::string s = std::any_cast<std::string>(d);
-            os << s;
-        }
-        catch (...)
-        {
-            try
-            {
-                double s = std::any_cast<double>(d);
-                os << s;
-            }
-            catch (...)
-            {
-            }
-        }
-    }
-    }
-
-    return os;
-}
-
-std::ostream& Node::repr(std::ostream& os) const { return _repr_as_yaml(os, *this, 0); }
-
-std::ostream& operator<<(std::ostream& os, Node const& d) { return d.repr(os); }
 
 void Node::swap(this_type& other)
 {
@@ -120,99 +29,175 @@ void Node::swap(this_type& other)
     std::swap(m_entry_, other.m_entry_);
 }
 
-int Node::type() const { return m_entry_->type(); }
+Node& Node::operator=(this_type const& other)
+{
+    Node(other).swap(*this);
+    return *this;
+}
+
+Node* Node::create(TypeTag t, Node* parent, std::string const& backend)
+{
+    return new Node(parent, Entry::create(t, backend));
+}
+
+Node* Node::copy() const { return new Node(m_parent_, m_entry_->copy()); }
+
+Node::TypeTag Node::type_tag() const { return m_entry_ == nullptr ? TypeTag::Null : m_entry_->type_tag(); }
+
+bool Node::empty() const { return m_entry_ == nullptr; }
+
+bool Node::is_null() const { return type_tag() == TypeTag::Null; }
+
+bool Node::is_scalar() const { return type_tag() == TypeTag::Scalar; }
+
+bool Node::is_tensor() const { return type_tag() == TypeTag::Tensor; }
+
+bool Node::is_array() const { return type_tag() == TypeTag::Array; }
+
+bool Node::is_table() const { return type_tag() == TypeTag::Table; }
 
 bool Node::is_root() const { return m_parent_ == nullptr; }
 
-bool Node::is_leaf() const { return !(type() == NodeTag::List || type() == NodeTag::Object); }
+bool Node::is_leaf() const { return !(is_table() || is_array()); }
 
 size_t Node::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth() + 1; }
 
-// bool Node::same_as(this_type const &other) const { return this == &other; }
-
 //----------------------------------------------------------------------------------------------------------
-// attribute
+// Node: Common
 //----------------------------------------------------------------------------------------------------------
-bool Node::has_attribute(std::string const& key) const { return m_entry_->has_attribute(key); }
+Node& Node::parent() const { return *m_parent_; }
 
-bool Node::check_attribute(std::string const& key, std::any const& v) const { return m_entry_->check_attribute(key, v); }
-
-std::any Node::get_attribute(std::string const& key) const { return m_entry_->get_attribute(key); }
-
-void Node::set_attribute(std::string const& key, std::any const& v) { m_entry_->set_attribute(key, v); }
-
-void Node::remove_attribute(std::string const& key) { m_entry_->remove_attribute(key); }
-
-Range<Iterator<const std::pair<const std::string, std::any>>> Node::attributes() const { return std::move(m_entry_->attributes()); }
-
-//----------------------------------------------------------------------------------------------------------
-// as leaf node,  need node.type = Scalar || Block
-//----------------------------------------------------------------------------------------------------------
-std::any Node::get_scalar() const { return m_entry_->get_scalar(); }
-
-void Node::set_scalar(std::any const& v) { m_entry_->set_scalar(v); }
-// void as_scalar(char const *); // set value , if fail then throw exception
-
-std::tuple<std::shared_ptr<char>, std::type_info const&, std::vector<size_t>> Node::get_raw_block() const { return m_entry_->get_raw_block(); }
-
-void Node::set_raw_block(std::shared_ptr<char> const& p, std::type_info const& t, std::vector<size_t> const& d) { m_entry_->set_raw_block(p, t, d); }
+void Node::resolve() { NOT_IMPLEMENTED; }
 
 //----------------------------------------------------------------------------------------------------------
 // as tree node,  need node.type = List || Object
 //----------------------------------------------------------------------------------------------------------
 // function level 0
-Node& Node::parent() const { return *m_parent_; }
 
-Node& Node::child(std::string const& key) { return *m_entry_->child(key); }
+Attributes& Node::attributes() { return m_entry_->attributes(); }
 
-const Node& Node::child(std::string const& key) const { return *m_entry_->child(key); }
-
-Node& Node::child(int idx) { return *m_entry_->child(idx); }
-
-const Node& Node::child(int idx) const { return *m_entry_->child(idx); }
-
-Node& Node::append() { return *m_entry_->append(); }
-
-Node& Node::append(std::shared_ptr<Node> const& n) { return *m_entry_->append(n); }
-
-void Node::append(const Iterator<std::shared_ptr<Node>>& b,
-                  const Iterator<std::shared_ptr<Node>>& e)
-{
-    m_entry_->append(b, e);
-}
-
-void Node::insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const& b,
-                  Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const& e)
-{
-    m_entry_->insert(b, e);
-}
-
-Node::const_range Node::children() const { return const_range(m_entry_->children()); }
-
-Node::range Node::children() { return range(m_entry_->children()); }
-
-void Node::remove_child(int idx) { return m_entry_->remove_child(idx); }
-
-void Node::remove_child(std::string const& key) { return m_entry_->remove_child(key); }
-
-void Node::remove_children() { return m_entry_->remove_children(); }
+const Attributes& Node::attributes() const { return m_entry_->attributes(); }
 
 //----------------------------------------------------------------------------------------------------------
+// Node
+//----------------------------------------------------------------------------------------------------------
+
+ScalarEntry& Node::as_scalar() { return *dynamic_cast<ScalarEntry*>(m_entry_.get()); }
+
+const ScalarEntry& Node::as_scalar() const { return *dynamic_cast<const ScalarEntry*>(m_entry_.get()); }
+
+TensorEntry& Node::as_tensor() { return *dynamic_cast<TensorEntry*>(m_entry_.get()); }
+
+const TensorEntry& Node::as_tensor() const { return *dynamic_cast<const TensorEntry*>(m_entry_.get()); }
+
+TreeEntry& Node::as_tree() { return *dynamic_cast<TreeEntry*>(m_entry_.get()); }
+
+const TreeEntry& Node::as_tree() const { return *dynamic_cast<const TreeEntry*>(m_entry_.get()); }
+
+ArrayEntry& Node::as_array()
+{
+
+    if (m_entry_->type_tag() != TypeTag::Array)
+    {
+        auto* p = m_entry_->create(TypeTag::Array);
+
+        dynamic_cast<ArrayEntry*>(p)->push_back(std::move(*this));
+
+        m_entry_.reset(p);
+    }
+    return *dynamic_cast<ArrayEntry*>(m_entry_.get());
+}
+
+const ArrayEntry& Node::as_array() const { return *dynamic_cast<const ArrayEntry*>(m_entry_.get()); }
+
+TableEntry& Node::as_table()
+{
+
+    if (m_entry_->type_tag() != TypeTag::Table)
+    {
+        m_entry_.reset(m_entry_->create(TypeTag::Table));
+    }
+
+    return *dynamic_cast<TableEntry*>(m_entry_.get());
+}
+
+const TableEntry& Node::as_table() const { return *dynamic_cast<const TableEntry*>(m_entry_.get()); }
+
+//----------------------------------------------------------------------------------------------------------
+// as tree node,
+//----------------------------------------------------------------------------------------------------------
+// function level 0
+size_t Node::size() const { return as_tree().size(); }
+
+Node::range Node::children() { return as_tree().children(); }
+
+Node::const_range Node::children() const { return as_tree().children(); }
+
+void Node::clear_children() { as_tree().clear_children(); }
+
+void Node::remove_child(iterator const& it) { as_tree().remove_child(it); }
+
+void Node::remove_children(range const& r) { as_tree().remove_children(r); }
+
+std::shared_ptr<Node> Node::find_child(std::string const& key) { return as_table().find_child(key); }
+
+std::shared_ptr<Node> Node::find_child(int idx) { return as_array().find_child(idx); }
+
+Node::iterator Node::begin() { return as_tree().begin(); }
+
+Node::iterator Node::end() { return as_tree().end(); }
+
+Node::const_iterator Node::cbegin() const { return as_tree().cbegin(); }
+
+Node::const_iterator Node::cend() const { return as_tree().cend(); }
+
+// as Table
+// Node& Node::insert(std::string const&, std::shared_ptr<Node> const&);
+
+// Node& Node::operator[](std::string const& path) { return as_table()[path]; }
+
+// const Node& Node::operator[](std::string const& path) const { return as_table()[path]; }
+
+// // as Array
+// Node& Node::push_back(std::shared_ptr<Node> const&);
+
+// Node& Node::operator[](size_t idx) { return as_array()[idx]; }
+
+// const Node& Node::operator[](size_t idx) const { return as_array()[idx]; }
+//----------------------------------------------------------------------------------------------------------
 // function level 1
-Node::range Node::select(XPath const& path) { return range(m_entry_->select(path)); }
+Node::range Node::select(XPath const& path)
+{
+    NOT_IMPLEMENTED;
+    return Node::range();
+}
 
-Node::const_range Node::select(XPath const& path) const { return const_range(m_entry_->select(path)); }
+Node::const_range Node::select(XPath const& path) const
+{
+    NOT_IMPLEMENTED;
+    return Node::const_range();
+}
 
-Node& Node::select_one(XPath const& path) { return *m_entry_->select_one(path); }
+Node::iterator Node::select_one(XPath const& path)
+{
+    NOT_IMPLEMENTED;
+    return Node::iterator();
+}
 
-const Node& Node::select_one(XPath const& path) const { return *m_entry_->select_one(path); }
+Node::const_iterator Node::select_one(XPath const& path) const
+{
+    NOT_IMPLEMENTED;
+    return Node::const_iterator();
+}
 
-Node& Node::operator[](std::string const& path) { return *m_entry_->select_one(XPath(path)); }
+//===================================================================================================
+// Entry
+//----------------------------------------------------------------------------------------------------------
 
-const Node& Node::operator[](std::string const& path) const { return *m_entry_->select_one(XPath(path)); }
-
-Node& Node::operator[](size_t idx) { return *m_entry_->child(idx); }
-
-const Node& Node::operator[](size_t idx) const { return *m_entry_->child(idx); }
+Entry* Entry::create(Node::TypeTag t, std::string const& backend)
+{
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
 
 } // namespace sp

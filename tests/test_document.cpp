@@ -13,22 +13,22 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     // // node.set_attribute("B", "1234");
     // node["A"].set_value<std::string>("1234");
     // node["B"].set_value<std::string>("1234");
-    node["C"].set_value<std::string>("1234");
-    std::cout << node << std::endl;
-    std::cout << "====================================" << std::endl;
-    node.child("C").append().set_value<std::string>("1234");
+    node.as_array().push_back().as_scalar().set_value<std::string>("1234");
+    // std::cout << node << std::endl;
+    // std::cout << "====================================" << std::endl;
+    // node.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");
 
-    // node.set_value<std::string>("1234");
-    std::cout << node << std::endl;
+    // // node.set_value<std::string>("1234");
+    // std::cout << node << std::endl;
 
+    // // std::cout << "====================================" << std::endl;
+
+    // // node.append().set_value<std::string>("4567");
     // std::cout << "====================================" << std::endl;
 
-    // node.append().set_value<std::string>("4567");
-    std::cout << "====================================" << std::endl;
+    // node.as_array().push_back().as_scalar().set_value<std::string>("7890");
 
-    node.append().set_value<std::string>("7890");
-
-    std::cout << node << std::endl;
+    // std::cout << node << std::endl;
 
     // REQUIRE(node.child("C").child(0).get_value<std::string>() == "1234");
 }

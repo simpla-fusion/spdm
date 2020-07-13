@@ -18,62 +18,6 @@ Entry::~Entry() {}
 
 void Entry::swap(Entry& other) { std::swap(m_self_, other.m_self_); }
 
-class Attributes
-{
-public:
-    Attributes() {}
-    Attributes(Attributes const& other) : m_attributes_(other.m_attributes_) {}
-    Attributes(Attributes&& other) : m_attributes_(std::move(other.m_attributes_)) {}
-    ~Attributes() {}
-
-    void swap(Attributes& other)
-    {
-        std::swap(m_attributes_, other.m_attributes_);
-    }
-
-    Attributes* copy() const { return new Attributes(*this); }
-
-    std::ostream& repr(std::ostream& os) const
-    {
-        for (auto const& item : m_attributes_)
-        {
-            std::cout << "\t @" << item.first
-                      << " : " << std::any_cast<std::string>(item.second) << ","
-                      << std::endl;
-        }
-        return os;
-    }
-
-    bool has_a(std::string const& key) const { return m_attributes_.find(key) != m_attributes_.end(); }
-
-    bool check(std::string const& key, std::any const& v) const
-    {
-        NOT_IMPLEMENTED;
-        return has_a(key);
-    }
-
-    void erase(std::string const& key) { m_attributes_.erase(m_attributes_.find(key)); }
-
-    std::any get(std::string const& key) const { return m_attributes_.at(key); }
-
-    std::any get(std::string const& key, std::any const& default_value)
-    {
-        return m_attributes_.emplace(key, default_value).first->second;
-    }
-
-    void set(std::string const& key, std::any const& v) { m_attributes_[key] = v; }
-
-    Range<Iterator<const std::pair<const std::string, std::any>>>
-    items() const
-    {
-        return std::move(Range<Iterator<const std::pair<const std::string, std::any>>>{
-            Iterator<const std::pair<const std::string, std::any>>{m_attributes_.begin(), [](const auto& it) { return it.operator->(); }},
-            Iterator<const std::pair<const std::string, std::any>>{m_attributes_.end()}});
-    }
-
-    std::map<std::string, std::any> m_attributes_;
-};
-
 struct Content
 {
     virtual std::type_info const& type_info() const { return typeid(Content); };
