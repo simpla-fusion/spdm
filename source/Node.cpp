@@ -12,7 +12,7 @@ namespace sp
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(Node* parent, Entry* entry) : m_parent_(parent), m_entry_(entry != nullptr ? entry : Entry::create()) {}
+Node::Node(Node* parent, Entry* entry) : m_parent_(parent), m_entry_(entry != nullptr ? entry : create_entry()) {}
 
 Node::~Node() {}
 
@@ -188,16 +188,6 @@ Node::const_iterator Node::select_one(XPath const& path) const
 {
     NOT_IMPLEMENTED;
     return Node::const_iterator();
-}
-
-//===================================================================================================
-// Entry
-//----------------------------------------------------------------------------------------------------------
-
-Entry* Entry::create(Node::TypeTag t, std::string const& backend)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
 }
 
 } // namespace sp

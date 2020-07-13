@@ -202,6 +202,8 @@ public:
     virtual const Attributes& attributes() const = 0;
 };
 
+Entry* create_entry(std::string const& backend, Node::TypeTag t);
+
 class ScalarEntry : public Entry
 {
 public:
