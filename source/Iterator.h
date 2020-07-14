@@ -142,8 +142,8 @@ public:
 
     Iterator() {}
 
-    // template <typename... Args>
-    // Iterator(Args&&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)) {}
+    template <typename... Args>
+    Iterator(Args&&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)) {}
 
     Iterator(Iterator const& other) : m_proxy_(other.m_proxy_->copy()) {}
 

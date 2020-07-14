@@ -1,5 +1,5 @@
+#include "Entry.h"
 #include "Node.h"
-
 #include <iostream>
 
 #define CATCH_CONFIG_MAIN
@@ -13,7 +13,7 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     // // node.set_attribute("B", "1234");
     // node["A"].set_value<std::string>("1234");
     // node["B"].set_value<std::string>("1234");
-    node.as_array().push_back().as_scalar().set_value<std::string>("1234");
+    node.push_back().set_value<std::string>("1234");
     // std::cout << node << std::endl;
     // std::cout << "====================================" << std::endl;
     // node.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");

@@ -1,4 +1,5 @@
 #include "Node.h"
+#include "Entry.h"
 #include "XPath.h"
 #include "utility/Logger.h"
 #include <cstdlib>
@@ -7,12 +8,15 @@
 #include <iomanip>
 namespace sp
 {
-
 //----------------------------------------------------------------------------------------------------------
 // Node
 //----------------------------------------------------------------------------------------------------------
 
-Node::Node(Node* parent, Entry* entry) : m_parent_(parent), m_entry_(entry != nullptr ? entry : create_entry()) {}
+Node::Node() : m_parent_(nullptr), m_entry_(create_entry()) {}
+
+Node::Node(Node* parent, EntryInterface* entry)
+    : m_parent_(parent),
+      m_entry_(entry != nullptr ? entry : create_entry()) {}
 
 Node::~Node() {}
 
@@ -20,7 +24,7 @@ Node::Node(this_type const& other) : m_parent_(other.m_parent_), m_entry_(other.
 
 Node::Node(this_type&& other) : m_parent_(other.m_parent_), m_entry_(other.m_entry_.release())
 {
-    other.m_entry_.reset(Entry::create());
+    other.m_entry_.reset(other.m_entry_->create());
 }
 
 void Node::swap(this_type& other)
@@ -35,14 +39,9 @@ Node& Node::operator=(this_type const& other)
     return *this;
 }
 
-Node* Node::create(TypeTag t, Node* parent, std::string const& backend)
-{
-    return new Node(parent, Entry::create(t, backend));
-}
-
 Node* Node::copy() const { return new Node(m_parent_, m_entry_->copy()); }
 
-Node::TypeTag Node::type_tag() const { return m_entry_ == nullptr ? TypeTag::Null : m_entry_->type_tag(); }
+TypeTag Node::type_tag() const { return m_entry_ == nullptr ? TypeTag::Null : m_entry_->type_tag(); }
 
 bool Node::empty() const { return m_entry_ == nullptr; }
 
@@ -50,7 +49,7 @@ bool Node::is_null() const { return type_tag() == TypeTag::Null; }
 
 bool Node::is_scalar() const { return type_tag() == TypeTag::Scalar; }
 
-bool Node::is_tensor() const { return type_tag() == TypeTag::Tensor; }
+bool Node::is_block() const { return type_tag() == TypeTag::Block; }
 
 bool Node::is_array() const { return type_tag() == TypeTag::Array; }
 
@@ -67,89 +66,159 @@ size_t Node::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth(
 //----------------------------------------------------------------------------------------------------------
 Node& Node::parent() const { return *m_parent_; }
 
-void Node::resolve() { NOT_IMPLEMENTED; }
+void Node::resolve() { m_entry_->resolve(); }
+
+Node* Node::create_child() { return new Node(this, m_entry_->create()); };
+
+Node& Node::as_scalar()
+{
+    m_entry_->as_scalar();
+    return *this;
+}
+
+Node& Node::as_block()
+{
+    m_entry_->as_block();
+    return *this;
+}
+
+Node& Node::as_array()
+{
+    m_entry_->as_array();
+    return *this;
+}
+
+Node& Node::as_table()
+{
+    m_entry_->as_table();
+    return *this;
+}
 
 //----------------------------------------------------------------------------------------------------------
-// as tree node,  need node.type = List || Object
+// as leaf node,
 //----------------------------------------------------------------------------------------------------------
 // function level 0
 
-Attributes& Node::attributes() { return m_entry_->attributes(); }
+std::any Node::get_scalar() const { return m_entry_->get_scalar(); }
 
-const Attributes& Node::attributes() const { return m_entry_->attributes(); }
+void Node::set_scalar(const std::any& v) { m_entry_->set_scalar(v); }
 
-//----------------------------------------------------------------------------------------------------------
-// Node
-//----------------------------------------------------------------------------------------------------------
-
-ScalarEntry& Node::as_scalar() { return *dynamic_cast<ScalarEntry*>(m_entry_.get()); }
-
-const ScalarEntry& Node::as_scalar() const { return *dynamic_cast<const ScalarEntry*>(m_entry_.get()); }
-
-TensorEntry& Node::as_tensor() { return *dynamic_cast<TensorEntry*>(m_entry_.get()); }
-
-const TensorEntry& Node::as_tensor() const { return *dynamic_cast<const TensorEntry*>(m_entry_.get()); }
-
-TreeEntry& Node::as_tree() { return *dynamic_cast<TreeEntry*>(m_entry_.get()); }
-
-const TreeEntry& Node::as_tree() const { return *dynamic_cast<const TreeEntry*>(m_entry_.get()); }
-
-ArrayEntry& Node::as_array()
+std::tuple<std::shared_ptr<void>, const std::type_info &, std::vector<size_t>>
+Node::get_raw_block() const
 {
-
-    if (m_entry_->type_tag() != TypeTag::Array)
-    {
-        auto* p = m_entry_->create(TypeTag::Array);
-
-        dynamic_cast<ArrayEntry*>(p)->push_back(std::move(*this));
-
-        m_entry_.reset(p);
-    }
-    return *dynamic_cast<ArrayEntry*>(m_entry_.get());
+    return m_entry_->get_raw_block();
 }
 
-const ArrayEntry& Node::as_array() const { return *dynamic_cast<const ArrayEntry*>(m_entry_.get()); }
-
-TableEntry& Node::as_table()
+void Node::set_raw_block(const std::shared_ptr<void>& data /*data pointer*/,
+                         const std::type_info& t /*element type*/,
+                         const std::vector<size_t>& dims /*dimensions*/)
 {
-
-    if (m_entry_->type_tag() != TypeTag::Table)
-    {
-        m_entry_.reset(m_entry_->create(TypeTag::Table));
-    }
-
-    return *dynamic_cast<TableEntry*>(m_entry_.get());
+    m_entry_->set_raw_block(data, t, dims);
 }
-
-const TableEntry& Node::as_table() const { return *dynamic_cast<const TableEntry*>(m_entry_.get()); }
 
 //----------------------------------------------------------------------------------------------------------
 // as tree node,
 //----------------------------------------------------------------------------------------------------------
 // function level 0
-size_t Node::size() const { return as_tree().size(); }
+size_t Node::size() const { return m_entry_->size(); }
 
-Node::range Node::children() { return as_tree().children(); }
+Node::range Node::children() { return m_entry_->children(); }
 
-Node::const_range Node::children() const { return as_tree().children(); }
+// Node::const_range Node::children() const { return m_entry_->children(); }
 
-void Node::clear_children() { as_tree().clear_children(); }
+void Node::clear_children() { m_entry_->clear_children(); }
 
-void Node::remove_child(iterator const& it) { as_tree().remove_child(it); }
+void Node::remove_child(const iterator& it) { m_entry_->remove_child(it); }
 
-void Node::remove_children(range const& r) { as_tree().remove_children(r); }
+void Node::remove_children(const range& r) { m_entry_->remove_children(r); }
 
-std::shared_ptr<Node> Node::find_child(std::string const& key) { return as_table().find_child(key); }
+Node::iterator Node::begin() { return m_entry_->begin(); }
 
-std::shared_ptr<Node> Node::find_child(int idx) { return as_array().find_child(idx); }
+Node::iterator Node::end() { return m_entry_->end(); }
 
-Node::iterator Node::begin() { return as_tree().begin(); }
+Node::const_iterator Node::cbegin() const { return m_entry_->cbegin(); }
 
-Node::iterator Node::end() { return as_tree().end(); }
+Node::const_iterator Node::cend() const { return m_entry_->cend(); }
 
-Node::const_iterator Node::cbegin() const { return as_tree().cbegin(); }
+// as table
 
-Node::const_iterator Node::cend() const { return as_tree().cend(); }
+Node& Node::insert(const std::string& k, const std::shared_ptr<Node>& v)
+{
+    return *m_entry_->insert(k, v);
+}
+
+Node& Node::insert(const std::string& k, const Node& n)
+{
+    return *m_entry_->insert(k, std::make_shared<Node>(n));
+}
+
+Node& Node::insert(const std::string& k, Node&& n)
+{
+    return *m_entry_->insert(k, std::make_shared<Node>(std::move(n)));
+}
+
+Node::range_kv Node::insert(const iterator_kv& b, const iterator_kv& e)
+{
+    return m_entry_->insert(b, e);
+}
+
+Node::range_kv Node::insert(const range_kv& r)
+{
+    return m_entry_->insert(r.begin(), r.end());
+}
+
+// Node::const_range_kv Node::items() const
+// {
+//     return m_entry_->items();
+// }
+
+Node::range_kv Node::items()
+{
+    return m_entry_->items();
+}
+
+Node::iterator Node::find_child(const std::string& k)
+{
+    return iterator(m_entry_->find_child(k).get());
+}
+
+Node& Node::at(const std::string& k)
+{
+    return *m_entry_->at(k);
+}
+
+const Node& Node::at(const std::string& k) const
+{
+    return *m_entry_->at(k);
+}
+
+Node& Node::operator[](const std::string& path) { return at(path); }
+
+const Node& Node::operator[](const std::string& path) const { return at(path); }
+
+// as array
+
+Node& Node::push_back() { return *m_entry_->push_back(); }
+
+Node& Node::push_back(const std::shared_ptr<Node>& n) { return *m_entry_->push_back(n); }
+
+Node& Node::push_back(const Node& n) { return *m_entry_->push_back(n); }
+
+Node& Node::push_back(Node&& n) { return *m_entry_->push_back(std::move(n)); }
+
+Node::range Node::push_back(const range& r) { return m_entry_->push_back(r.begin(), r.end()); }
+
+Node::range Node::push_back(const iterator& b, const iterator& e) { return m_entry_->push_back(b, e); }
+
+Node::iterator Node::find_child(int idx) { return iterator(m_entry_->find_child(idx).get()); }
+
+Node& Node::at(int idx) { return *m_entry_->find_child(idx); }
+
+const Node& Node::at(int idx) const { return *m_entry_->find_child(idx); }
+
+Node& Node::operator[](size_t idx) { return at(idx); }
+
+const Node& Node::operator[](size_t idx) const { return at(idx); }
 
 // as Table
 // Node& Node::insert(std::string const&, std::shared_ptr<Node> const&);

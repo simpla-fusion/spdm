@@ -13,38 +13,45 @@ class Attributes
 {
 public:
     Attributes();
+    Attributes(const Attributes& other);
+    Attributes(Attributes&& other);
+    ~Attributes();
 
-    virtual ~Attributes();
+    void swap(Attributes& other);
+
+    Attributes& operator=(Attributes const& other);
 
     Attributes* copy() const;
-    static Attributes* create();
 
-    Attributes(const Attributes& other) = delete;
-    Attributes(Attributes&& other) = delete;
-    Attributes& operator=(Attributes const& other) = delete;
+    Range<Iterator<const std::pair<const std::string, std::any>>> items() const;
+    
+    Range<Iterator<std::pair<const std::string, std::any>>> items();
 
-    virtual Range<Iterator<const std::pair<const std::string, std::any>>> items() const = 0;
+    void clear();
 
-    virtual bool has_a(std::string const& key) const = 0;
+    bool has_a(std::string const& key) const;
 
-    virtual bool check(std::string const& key, std::any const& v) const = 0;
+    bool check(std::string const& key, const std::any& v) const;
 
-    virtual void erase(std::string const& key) = 0;
+    void erase(std::string const& key);
 
-    virtual std::any get_any(std::string const& key) const = 0;
+    std::any get(std::string const& key) const;
 
-    virtual std::any get_any(std::string const& key, std::any const& default_value) = 0;
+    std::any get(std::string const& key, const std::any& default_value);
 
-    virtual void set_any(std::string const& key, std::any const& v) = 0;
+    void set(std::string const& key, const std::any& v);
 
     template <typename U, typename V>
-    void set(std::string const& key, V const& v) { set_any(std::make_any<U>(v)); }
+    void set(std::string const& key, V const& v) { set(std::make_any<U>(v)); }
 
     template <typename U>
-    U get(std::string const& key) const { return std::any_cast<U>(get_any(key)); }
+    U get(std::string const& key) const { return std::any_cast<U>(get(key)); }
 
     template <typename U, typename V>
-    U get(std::string const& key, V const& default_value) { return std::any_cast<U>(get_any(key, std::make_any<U>(default_value))); }
+    U get(std::string const& key, V const& default_value) { return std::any_cast<U>(get(key, std::make_any<U>(default_value))); }
+
+private:
+    std::map<std::string, std::any> m_data_;
 };
 
 } // namespace sp
