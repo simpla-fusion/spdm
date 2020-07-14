@@ -24,10 +24,7 @@ void Attributes::erase(std::string const& key) { m_data_.erase(m_data_.find(key)
 
 std::any Attributes::get(std::string const& key) const { return m_data_.at(key); }
 
-std::any Attributes::get(std::string const& key, std::any const& default_value)
-{
-    return m_data_.emplace(key, default_value).first->second;
-}
+std::any Attributes::get(std::string const& key, std::any const& default_value) { return m_data_.emplace(key, default_value).first->second; }
 
 void Attributes::set(std::string const& key, std::any const& v) { m_data_[key] = v; }
 
@@ -40,6 +37,7 @@ Attributes::items() const
         Iterator<const std::pair<const std::string, std::any>>{m_data_.begin(), [](const auto& it) { return it.operator->(); }},
         Iterator<const std::pair<const std::string, std::any>>{m_data_.end()}});
 }
+
 Range<Iterator<std::pair<const std::string, std::any>>>
 Attributes::items()
 {

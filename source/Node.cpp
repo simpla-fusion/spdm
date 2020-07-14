@@ -103,7 +103,7 @@ std::any Node::get_scalar() const { return m_entry_->get_scalar(); }
 
 void Node::set_scalar(const std::any& v) { m_entry_->set_scalar(v); }
 
-std::tuple<std::shared_ptr<void>, const std::type_info &, std::vector<size_t>>
+std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>>
 Node::get_raw_block() const
 {
     return m_entry_->get_raw_block();
