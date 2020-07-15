@@ -22,31 +22,11 @@ enum TypeTag
  *  @ref  Virtual inheritance ,https://en.wikipedia.org/wiki/Virtual_inheritance
 */
 
-struct Entry
+template <TypeTag TAG>
+struct EntryInterface;
+
+struct EntryInterfaceAttributes
 {
-    typedef Iterator<Entry> iterator;
-    typedef Iterator<const Entry> const_iterator;
-    typedef Range<iterator> range;
-    typedef Range<const_iterator> const_range;
-    typedef Iterator<std::pair<const std::string, std::shared_ptr<Entry>>> iterator_kv;
-    typedef Iterator<std::pair<const std::string, std::shared_ptr<const Entry>>> const_iterator_kv;
-    typedef Range<iterator_kv> range_kv;
-    typedef Range<const_iterator_kv> const_range_kv;
-
-    Entry() = default;
-
-    virtual ~Entry() = default;
-
-    virtual TypeTag type_tag() const { return TypeTag::Null; }
-
-    virtual Entry* create() const = 0;
-
-    virtual Entry* copy() const = 0;
-
-    // virtual Entry* create_child() = 0;
-
-    virtual void resolve() = 0;
-
     virtual bool has_attribute(std::string const& key) const = 0;
 
     virtual bool check_attribute(std::string const& key, std::any const& v) const = 0;
@@ -62,19 +42,54 @@ struct Entry
     virtual Range<Iterator<std::pair<std::string, std::any>>> attributes() const = 0;
 
     virtual void clear_attributes() = 0;
+};
+struct Entry;
 
-    virtual Entry* as_interface(TypeTag tag) = 0;
+struct EntryInterfaceBase
+{
+
+    EntryInterfaceBase() = default;
+
+    virtual ~EntryInterfaceBase() = default;
+
+    virtual TypeTag type_tag() const { return TypeTag::Null; }
+
+    virtual std::shared_ptr<Entry> create() const = 0;
+
+    virtual std::shared_ptr<Entry> copy() const = 0;
+
+    virtual std::shared_ptr<Entry> as_interface(TypeTag tag) = 0;
 
     template <TypeTag I0>
-    Entry* as() { return as_interface(I0); }
+    std::shared_ptr<EntryInterface<I0>> as() { return std::dynamic_pointer_cast<EntryInterface<I0>>(as_interface(I0)); }
+
+    virtual void resolve() = 0;
 };
 
-template <TypeTag TAG>
-struct EntryInterface;
+struct Entry
+    : public virtual EntryInterfaceBase,
+      public virtual EntryInterfaceAttributes
+{
+    typedef Iterator<Entry> iterator;
+    typedef Iterator<const Entry> const_iterator;
+    typedef Range<iterator> range;
+    typedef Range<const_iterator> const_range;
+    typedef Iterator<std::pair<const std::string, std::shared_ptr<Entry>>> iterator_kv;
+    typedef Iterator<std::pair<const std::string, std::shared_ptr<const Entry>>> const_iterator_kv;
+    typedef Range<iterator_kv> range_kv;
+    typedef Range<const_iterator_kv> const_range_kv;
+};
+
+template <>
+struct EntryInterface<TypeTag::Null>
+    : public virtual EntryInterfaceBase
+{
+    TypeTag type_tag() const { return TypeTag::Null; }
+};
 
 template <>
 struct EntryInterface<TypeTag::Scalar>
-    : public virtual Entry
+    : public virtual EntryInterfaceBase
 {
     // as scalar
     TypeTag type_tag() const { return TypeTag::Scalar; }
@@ -92,7 +107,7 @@ struct EntryInterface<TypeTag::Scalar>
 
 template <>
 struct EntryInterface<TypeTag::Block>
-    : public virtual Entry
+    : public virtual EntryInterfaceBase
 {
     // as leaf node
     TypeTag type_tag() const { return TypeTag::Block; }
@@ -120,7 +135,7 @@ struct EntryInterface<TypeTag::Block>
 };
 
 struct EntryInterfaceTree
-    : public virtual Entry
+    : public virtual EntryInterfaceBase
 {
     //--------------------------------------------------------
     // as tree node
@@ -133,9 +148,9 @@ struct EntryInterfaceTree
 
     virtual void clear_children() = 0;
 
-    virtual void remove_child(Entry::iterator const&) = 0;
+    virtual void remove_child(const Entry::iterator&) = 0;
 
-    virtual void remove_children(Entry::range const&) = 0;
+    virtual void remove_children(const Entry::range&) = 0;
 
     virtual Entry::iterator begin() = 0;
 
@@ -206,14 +221,24 @@ struct EntryPolicy;
 
 template <typename Backend>
 struct EntryPolicyBase
-    : public virtual Entry
 {
-    virtual Backend* backend() = 0;
+    virtual std::shared_ptr<Entry> self() = 0;
+    virtual std::shared_ptr<Entry> parent() = 0;
+};
 
-    virtual const Backend* backend() const = 0;
+template <typename Backend>
+struct EntryPolicyBody
+    : public virtual EntryInterfaceBase,
+      public virtual EntryPolicyBase<Backend>
+{
+    void resolve() final;
+};
 
-    void resolve();
-
+template <typename Backend>
+struct EntryPolicyAttributes
+    : public virtual EntryPolicyBase<Backend>,
+      public virtual EntryInterfaceAttributes
+{
     //----------------------------------------------------------------
     // attributes
 
@@ -235,10 +260,20 @@ struct EntryPolicyBase
 };
 
 template <typename Backend>
+struct EntryPolicy<Backend, TypeTag::Null>
+    : public virtual EntryInterface<TypeTag::Null>,
+      public virtual EntryPolicyBase<Backend>
+{
+    std::shared_ptr<Entry> as_interface(TypeTag tag);
+};
+
+template <typename Backend>
 struct EntryPolicy<Backend, TypeTag::Scalar>
     : public virtual EntryInterface<TypeTag::Scalar>,
-      public EntryPolicyBase<Backend>
+      public virtual EntryPolicyBase<Backend>
 {
+    std::shared_ptr<Entry> as_interface(TypeTag tag);
+
     //--------------------------------------------------------------------
     // as scalar
     std::any get_scalar() const;
@@ -249,8 +284,10 @@ struct EntryPolicy<Backend, TypeTag::Scalar>
 template <typename Backend>
 struct EntryPolicy<Backend, TypeTag::Block>
     : public virtual EntryInterface<TypeTag::Block>,
-      public EntryPolicyBase<Backend>
+      public virtual EntryPolicyBase<Backend>
 {
+    std::shared_ptr<Entry> as_interface(TypeTag tag);
+
     // as block
     std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>> get_raw_block() const; // get block
 
@@ -262,8 +299,10 @@ struct EntryPolicy<Backend, TypeTag::Block>
 template <typename Backend>
 struct EntryPolicy<Backend, TypeTag::Array>
     : public virtual EntryInterface<TypeTag::Array>,
-      public EntryPolicyBase<Backend>
+      public virtual EntryPolicyBase<Backend>
 {
+    std::shared_ptr<Entry> as_interface(TypeTag tag);
+
     size_t size() const;
 
     Entry::range children();
@@ -307,6 +346,8 @@ struct EntryPolicy<Backend, TypeTag::Table>
     : public virtual EntryInterface<TypeTag::Table>,
       public EntryPolicyBase<Backend>
 {
+    std::shared_ptr<Entry> as_interface(TypeTag tag);
+
     size_t size() const;
 
     Entry::range children();
@@ -345,36 +386,40 @@ struct EntryPolicy<Backend, TypeTag::Table>
     std::shared_ptr<const Entry> find_child(const std::string&) const;
 };
 
-template <typename Backend, TypeTag TAG = TypeTag::Scalar>
-class EntryImplement : public EntryPolicy<Backend, TAG>
+template <typename... Args>
+void unpack(Args&&... args) {}
+
+template <typename Backend, TypeTag TAG, template <typename, TypeTag> class... Policies>
+class EntryImplement : public virtual Entry,
+                       public std::enable_shared_from_this<Entry>,
+                       public EntryPolicyBody<Backend>,
+                       public EntryPolicyAttributes<Backend>,
+                       public EntryPolicy<Backend, TAG>,
+                       public Policies<Backend, TAG>...
 {
 private:
-    std::shared_ptr<Backend> m_backend_;
+    std::shared_ptr<Entry> m_parent_;
 
 public:
-    typedef EntryImplement<Backend, TAG> this_type;
+    typedef EntryImplement<Backend, TAG, Policies...> this_type;
 
-    EntryImplement(const std::shared_ptr<Backend>& p) : m_backend_(p) {}
+    EntryImplement() : m_parent_(nullptr), Policies<Backend, TAG>()... {}
 
-    EntryImplement(Backend* p) : EntryImplement(std::shared_ptr<Backend>(p)) {}
+    EntryImplement(const std::shared_ptr<Entry>& p) : m_parent_(p), Policies<Backend, TAG>()... {}
 
-    EntryImplement() : EntryImplement(std::make_shared<Backend>()) {}
+    EntryImplement(Entry* p) : EntryImplement(std::shared_ptr<Entry>(p)) {}
 
-    EntryImplement(const this_type& other) : EntryImplement(other.m_backend_){};
+    EntryImplement(const this_type& other) : m_parent_(other.m_parent_), Policies<Backend, TAG>(other)... {};
 
-    EntryImplement(this_type&& other) : EntryImplement(std::move(other.m_backend_)){};
+    EntryImplement(this_type&& other) : m_parent_(std::move(other.m_parent_)), Policies<Backend, TAG>(std::forward<this_type>(other))... {};
 
     virtual ~EntryImplement() = default;
 
-    Backend* backend() { return m_backend_.get(); }
-
-    const Backend* backend() const { return m_backend_.get(); }
-
-    void swap(this_type& other) { std::swap(m_backend_, other.m_backend_); }
-
-    Entry* create() const { return new this_type(backend()->create()); }
-
-    Entry* copy() const { return new this_type(*this); }
+    void swap(this_type& other)
+    {
+        std::swap(m_parent_, other.m_parent_);
+        unpack(Policies<Backend, TAG>::swap(*this)...);
+    }
 
     this_type& operator=(this_type const& other)
     {
@@ -382,32 +427,17 @@ public:
         return *this;
     }
 
-    Entry* as_interface(TypeTag tag)
-    {
-        Entry* res = nullptr;
-        switch (tag)
-        {
-        case TypeTag::Scalar:
-            res = new EntryImplement<Backend, TypeTag::Scalar>(m_backend_);
-            break;
-        case TypeTag::Block:
-            res = new EntryImplement<Backend, TypeTag::Block>(m_backend_);
-            break;
-        case TypeTag::Array:
-            res = new EntryImplement<Backend, TypeTag::Array>(m_backend_);
-            break;
-        case TypeTag::Table:
-            res = new EntryImplement<Backend, TypeTag::Table>(m_backend_);
-            break;
-        default:
-            res = new EntryImplement<Backend>(m_backend_);
-            break;
-        }
-        return res;
-    }
+    std::shared_ptr<Entry> self() final { return this->shared_from_this(); }
+
+    std::shared_ptr<Entry> parent() final { return m_parent_; }
+
+    std::shared_ptr<Entry> create() const final { return std::dynamic_pointer_cast<Entry>(std::make_shared<this_type>(m_parent_)); }
+
+    std::shared_ptr<Entry> copy() const final { return std::dynamic_pointer_cast<Entry>(std::make_shared<this_type>(*this)); }
 };
 
-Entry* create_entry(const std::string& backend = "");
+std::shared_ptr<Entry>
+create_entry(const std::string& backend = "");
 
 } // namespace sp
 
