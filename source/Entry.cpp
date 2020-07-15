@@ -4,19 +4,6 @@
 namespace sp
 {
 
-EntryInterface<TypeTag::Null>* EntryInterface<TypeTag::Null>::as_interface(TypeTag tag)
-{
-    if (tag == type_tag())
-    {
-        return this;
-    }
-    else
-    {
-        NOT_IMPLEMENTED;
-        return nullptr;
-    }
-}
-
 // //-----------------------------------------------------------------------------------------------------
 // // content
 
@@ -108,9 +95,9 @@ EntryInterface<TypeTag::Null>* EntryInterface<TypeTag::Null>::as_interface(TypeT
 //     // node
 //     TypeTag type_tag() const override;
 
-//     EntryInterface* create() override;
+//     EntryInterfaceBase* create() override;
 
-//     EntryInterface* copy() const override;
+//     EntryInterfaceBase* copy() const override;
 
 //     void resolve();
 
@@ -242,9 +229,9 @@ EntryInterface<TypeTag::Null>* EntryInterface<TypeTag::Null>::as_interface(TypeT
 
 // //------------------------------------------------------------------------------------
 // // node
-// EntryInterface* EntryInMemory::create() { return new EntryInMemory(); }
+// EntryInterfaceBase* EntryInMemory::create() { return new EntryInMemory(); }
 
-// EntryInterface* EntryInMemory::copy() const { return new EntryInMemory(*this); }
+// EntryInterfaceBase* EntryInMemory::copy() const { return new EntryInMemory(*this); }
 
 // void EntryInMemory::resolve() {}
 
@@ -582,67 +569,148 @@ struct entry_in_memory
 
     TypeTag m_type_tag_;
 };
-template <>
-Node* Entry<entry_in_memory>::create_child()
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
+// template <>
+// EntryInterfaceBase* Entry<entry_in_memory>::create_child()
+// {
+//     NOT_IMPLEMENTED;
+//     return nullptr;
+// }
 
-template <>
-void Entry<entry_in_memory>::resolve()
-{
-    NOT_IMPLEMENTED;
-}
+// template <>
+// void Entry<entry_in_memory>::resolve()
+// {
+//     NOT_IMPLEMENTED;
+// }
 
-template <>
-bool Entry<entry_in_memory>::has_attribute(std::string const& key) const
-{
-    NOT_IMPLEMENTED;
-    return false;
-}
-template <>
-bool Entry<entry_in_memory>::check_attribute(std::string const& key, std::any const& v) const
-{
-    NOT_IMPLEMENTED;
-    return false;
-}
-template <>
-void Entry<entry_in_memory>::set_attribute(const std::string&, const std::any&)
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-std::any Entry<entry_in_memory>::get_attribute(const std::string&) const
-{
-    NOT_IMPLEMENTED;
-    return std::any{};
-}
-template <>
-std::any Entry<entry_in_memory>::get_attribute(std::string const& key, std::any const& default_value)
-{
-    NOT_IMPLEMENTED;
-    return std::any{};
-}
-template <>
-void Entry<entry_in_memory>::remove_attribute(const std::string&)
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-Range<Iterator<std::pair<std::string, std::any>>>
-Entry<entry_in_memory>::attributes() const
-{
-    NOT_IMPLEMENTED;
-    return Range<Iterator<std::pair<std::string, std::any>>>{};
-}
-template <>
-void Entry<entry_in_memory>::clear_attributes()
-{
-    NOT_IMPLEMENTED;
-}
+// template <>
+// bool Entry<entry_in_memory>::has_attribute(std::string const& key) const
+// {
+//     NOT_IMPLEMENTED;
+//     return false;
+// }
+// template <>
+// bool Entry<entry_in_memory>::check_attribute(std::string const& key, std::any const& v) const
+// {
+//     NOT_IMPLEMENTED;
+//     return false;
+// }
+// template <>
+// void Entry<entry_in_memory>::set_attribute(const std::string&, const std::any&)
+// {
+//     NOT_IMPLEMENTED;
+// }
+// template <>
+// std::any Entry<entry_in_memory>::get_attribute(const std::string&) const
+// {
+//     NOT_IMPLEMENTED;
+//     return std::any{};
+// }
+// template <>
+// std::any Entry<entry_in_memory>::get_attribute(std::string const& key, std::any const& default_value)
+// {
+//     NOT_IMPLEMENTED;
+//     return std::any{};
+// }
+// template <>
+// void Entry<entry_in_memory>::remove_attribute(const std::string&)
+// {
+//     NOT_IMPLEMENTED;
+// }
+// template <>
+// Range<Iterator<std::pair<std::string, std::any>>>
+// Entry<entry_in_memory>::attributes() const
+// {
+//     NOT_IMPLEMENTED;
+//     return Range<Iterator<std::pair<std::string, std::any>>>{};
+// }
+// template <>
+// void Entry<entry_in_memory>::clear_attributes()
+// {
+//     NOT_IMPLEMENTED;
+// }
 
-EntryInterface<>*
+// EntryInterfaceBase* Entry<entry_in_memory>::create_child()
+// {
+//     NOT_IMPLEMENTED;
+//     return nullptr;
+// }
+
+// void Entry<entry_in_memory>::resolve() final;
+
+// //--------------------------------------------------------------------
+// // as leaf node
+// // as scalar
+// std::any Entry<entry_in_memory>::get_scalar() const final;
+
+// void Entry<entry_in_memory>::set_scalar(std::any const&) final;
+
+// // as block
+// std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>> Entry<entry_in_memory>::get_raw_block() const final; // get block
+
+// void Entry<entry_in_memory>::set_raw_block(const std::shared_ptr<void>& /*data pointer*/,
+//                                            const std::type_info& /*element type*/,
+//                                            const std::vector<size_t>& /*dimensions*/) final; // set block
+
+// // as tree node
+// size_t Entry<entry_in_memory>::size() const final;
+
+// Node::range Entry<entry_in_memory>::children() final;
+
+// Node::const_range Entry<entry_in_memory>::children() const final;
+
+// void Entry<entry_in_memory>::clear_children() final;
+
+// void Entry<entry_in_memory>::remove_child(Node::iterator const&) final;
+
+// void Entry<entry_in_memory>::remove_children(Node::range const&) final;
+
+// Node::iterator Entry<entry_in_memory>::begin() final;
+
+// Node::iterator Entry<entry_in_memory>::end() final;
+
+// Node::const_iterator Entry<entry_in_memory>::cbegin() const final;
+
+// Node::const_iterator Entry<entry_in_memory>::cend() const final;
+
+// // as array
+// void Entry<entry_in_memory>::as_array() override;
+
+// std::shared_ptr<Node> Entry<entry_in_memory>::push_back(const std::shared_ptr<Node>& p = nullptr) final;
+
+// std::shared_ptr<Node> Entry<entry_in_memory>::push_back(Node&&) final;
+
+// std::shared_ptr<Node> Entry<entry_in_memory>::push_back(const Node&) final;
+
+// Node::range push_back(const Node::iterator& b, const Node::iterator& e) final;
+
+// std::shared_ptr<Node> at(int idx) final;
+
+// std::shared_ptr<const Node> at(int idx) const final;
+
+// std::shared_ptr<Node> find_child(size_t) final;
+
+// std::shared_ptr<const Node> find_child(size_t) const final;
+
+// // as table
+// void as_table() override;
+
+// Node::const_range_kv items() const final;
+
+// Node::range_kv items() final;
+
+// std::shared_ptr<Node> insert(const std::string& k, std::shared_ptr<Node> const& node) final;
+
+// Node::range_kv insert(const Node::iterator_kv& b, const Node::iterator_kv& e) final;
+
+// std::shared_ptr<Node> at(const std::string& key) final;
+
+// std::shared_ptr<const Node> at(const std::string& idx) const final;
+
+// std::shared_ptr<Node> find_child(const std::string&) final;
+
+// std::shared_ptr<const Node> find_child(const std::string&) const final;
+
+EntryInterfaceBase*
 create_entry(const std::string& str)
 {
     return new Entry<entry_in_memory>();

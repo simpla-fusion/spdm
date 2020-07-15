@@ -18,7 +18,6 @@ enum TypeTag
     Null = 0000, // value is invalid
     Scalar,
     Block,
-    Tree,
     Array, // as JSON array
     Table  // key-value, C++ map or JSON object
 
@@ -26,8 +25,10 @@ enum TypeTag
 class XPath;
 class Attributes;
 
-template <TypeTag TAG = TypeTag::Null>
-class EntryInterface;
+// template <TypeTag TAG = TypeTag::Null>
+// class EntryInterface;
+
+class EntryInterfaceBase;
 
 class Node : public std::enable_shared_from_this<Node>
 {
@@ -75,10 +76,6 @@ public:
     Node& parent() const; // return parent node
 
     Node* create_child();
-
-    Attributes& attributes();
-
-    const Attributes& attributes() const;
 
     this_type& as_scalar();
 
@@ -232,10 +229,10 @@ public:
     const_range path(this_type const& target) const; // return the shortest path to target
 
 private:
-    Node(Node* parent, EntryInterface<>* entry);
+    Node(Node* parent, EntryInterfaceBase* entry);
 
     Node* m_parent_;
-    std::unique_ptr<EntryInterface<>> m_entry_;
+    std::unique_ptr<EntryInterfaceBase> m_entry_;
 };
 
 } // namespace sp
