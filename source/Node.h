@@ -28,7 +28,7 @@ class Attributes;
 // template <TypeTag TAG = TypeTag::Null>
 // class EntryInterface;
 
-class EntryInterfaceBase;
+class Entry;
 
 class Node : public std::enable_shared_from_this<Node>
 {
@@ -229,10 +229,10 @@ public:
     const_range path(this_type const& target) const; // return the shortest path to target
 
 private:
-    Node(Node* parent, EntryInterfaceBase* entry);
+    Node(Node* parent, Entry* entry);
 
     Node* m_parent_;
-    std::unique_ptr<EntryInterfaceBase> m_entry_;
+    std::unique_ptr<Entry> m_entry_;
 };
 
 } // namespace sp
