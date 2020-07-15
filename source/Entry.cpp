@@ -57,6 +57,7 @@ EntryPolicyBase<entry_in_memory>::attributes() const
     NOT_IMPLEMENTED;
     return Range<Iterator<std::pair<std::string, std::any>>>{};
 }
+
 template <>
 void EntryPolicyBase<entry_in_memory>::clear_attributes()
 {
@@ -170,18 +171,6 @@ std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::at(int idx)
 }
 template <>
 std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::at(int idx) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::find_child(size_t)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::find_child(size_t) const
 {
     NOT_IMPLEMENTED;
     return nullptr;
@@ -590,8 +579,7 @@ std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::find_
 //     }
 // }
 
-Entry*
-create_entry(const std::string& str)
+Entry* create_entry(const std::string& str)
 {
     return new EntryImplement<entry_in_memory>();
 }

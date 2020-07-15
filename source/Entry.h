@@ -82,6 +82,12 @@ struct EntryInterface<TypeTag::Scalar>
     virtual std::any get_scalar() const = 0; // get value , if value is invalid then throw exception
 
     virtual void set_scalar(std::any const&) = 0;
+
+    template <typename U, typename V>
+    void set_value(V const& v) { set_scalar(std::make_any<U>(v)); }
+
+    template <typename U>
+    U get_value() const { return std::any_cast<U>(get_scalar()); }
 };
 
 template <>
@@ -96,6 +102,21 @@ struct EntryInterface<TypeTag::Block>
     virtual void set_raw_block(const std::shared_ptr<void>& /*data pointer*/,
                                const std::type_info& /*element type*/,
                                const std::vector<size_t>& /*dimensions*/) = 0; // set block
+
+    template <typename V, typename... Args>
+    void set_block(std::shared_ptr<V> const& d, Args... args)
+    {
+        set_raw_block(std::reinterpret_pointer_cast<void>(d),
+                      typeid(V), std::vector<size_t>{std::forward<Args>(args)...});
+    }
+
+    template <typename V, typename... Args>
+    std::tuple<std::shared_ptr<V>, std::type_info const&, std::vector<size_t>> get_block() const
+    {
+        auto blk = get_raw_block();
+        return std::make_tuple(std::reinterpret_pointer_cast<void>(std::get<0>(blk)),
+                               std::get<1>(blk), std::get<2>(blk));
+    }
 };
 
 struct EntryInterfaceTree
@@ -144,9 +165,9 @@ struct EntryInterface<TypeTag::Array>
 
     virtual std::shared_ptr<const Entry> at(int idx) const = 0;
 
-    virtual std::shared_ptr<Entry> find_child(size_t) = 0;
+    Entry& operator[](size_t idx) { return *at(idx); }
 
-    virtual std::shared_ptr<const Entry> find_child(size_t) const = 0;
+    const Entry& operator[](size_t idx) const { return *at(idx); }
 };
 
 template <>
@@ -171,6 +192,13 @@ struct EntryInterface<TypeTag::Table>
     virtual std::shared_ptr<Entry> find_child(const std::string&) = 0;
 
     virtual std::shared_ptr<const Entry> find_child(const std::string&) const = 0;
+
+    template <typename TI0, typename TI1>
+    auto insert(TI0 const& b, TI1 const& e) { return insert(iterator_kv(b), iterator_kv(e)); }
+
+    Entry& operator[](const std::string& path) { return *at(path); }
+
+    const Entry& operator[](const std::string& path) const { return *at(path); }
 };
 
 template <typename Backend, TypeTag TAG>
