@@ -1,21 +1,33 @@
 #include "Entry.h"
 #include "utility/Logger.h"
+#include <map>
+#include <variant>
 namespace sp
 {
 struct entry_in_memory
 {
-    entry_in_memory* create() const { return new entry_in_memory(); }
-    entry_in_memory* copy() const { return new entry_in_memory{*this}; }
-    TypeTag type_tag() const { return m_type_tag_; }
+    typedef std::vector<std::shared_ptr<Entry>> entry_array;
+    typedef std::map<std::string, std::shared_ptr<Entry>> entry_table;
+    std::map<std::string, std::variant<bool, int, float, std::string>> m_attributes_;
+    std::variant<bool, int, double, std::string, entry_array, entry_table> m_data_;
 
-    TypeTag m_type_tag_;
+    entry_in_memory() : m_data_(false) {}
+    entry_in_memory(const entry_in_memory& other) : m_attributes_(other.m_attributes_), m_data_(other.m_data_) {}
+    entry_in_memory(entry_in_memory&& other) : m_attributes_(std::move(other.m_attributes_)), m_data_(std::move(other.m_data_)) {}
+    ~entry_in_memory() {}
+
+    void swap(entry_in_memory& other)
+    {
+        std::swap(m_attributes_, other.m_attributes_);
+        std::swap(m_data_, other.m_data_);
+    }
 };
-
 template <>
 void EntryPolicyBody<entry_in_memory>::resolve() { NOT_IMPLEMENTED; }
 
 //----------------------------------------------------------------
 // attributes
+
 template <>
 bool EntryPolicyAttributes<entry_in_memory>::has_attribute(std::string const& key) const
 {
@@ -64,53 +76,27 @@ void EntryPolicyAttributes<entry_in_memory>::clear_attributes()
     NOT_IMPLEMENTED;
 }
 
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Null>::as_interface(TypeTag tag)
-{
-    typedef entry_in_memory Backend;
-    std::shared_ptr<Entry> res;
-    switch (tag)
-    {
-    case TypeTag::Scalar:
-        res.reset(new EntryImplement<Backend, TypeTag::Scalar>(parent()));
-        break;
-    case TypeTag::Block:
-        res.reset(new EntryImplement<Backend, TypeTag::Block>(parent()));
-        break;
-    case TypeTag::Array:
-        res.reset(new EntryImplement<Backend, TypeTag::Array>(parent()));
-        break;
-    case TypeTag::Table:
-        res.reset(new EntryImplement<Backend, TypeTag::Table>(parent()));
-        break;
-    default:
-        res.reset(new EntryImplement<Backend, TypeTag::Table>(parent()));
-        break;
-    }
-    return res;
-}
-
 //-------------------------------------------------------------------------------------------------------
 // as scalar
 template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Scalar>::as_interface(TypeTag tag)
-{
-    if (tag == TypeTag::Scalar)
-    {
-        return this->self();
-    }
-    else
-    {
-        NOT_IMPLEMENTED;
-        return nullptr;
-    }
-}
+std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Scalar>::as_interface(TypeTag tag) { return this->self(); }
 
 template <>
-std::any EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_scalar() const { return nullptr; }
-
+void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_bool(bool v) { backend()->m_data_.emplace<bool>(v); }
 template <>
-void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_scalar(std::any const&) {}
+void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_integer(int v) { backend()->m_data_.emplace<int>(v); }
+template <>
+void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_float(double v) { backend()->m_data_.emplace<double>(v); }
+template <>
+void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_string(std::string const& v) { backend()->m_data_.emplace<std::string>(v); }
+template <>
+bool EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_bool() const { return std::get<bool>(backend()->m_data_); }
+template <>
+int EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_integer() const { return std::get<int>(backend()->m_data_); }
+template <>
+double EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_float() const { return std::get<double>(backend()->m_data_); }
+template <>
+std::string EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_string() const { return std::get<std::string>(backend()->m_data_); }
 
 //-------------------------------------------------------------------------------------------------------
 // as block
@@ -144,18 +130,7 @@ void EntryPolicy<entry_in_memory, TypeTag::Block>::set_raw_block(const std::shar
 //-------------------------------------------------------------------------------------------------------
 // array
 template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::as_interface(TypeTag tag)
-{
-    if (tag == TypeTag::Array)
-    {
-        return this->self();
-    }
-    else
-    {
-        NOT_IMPLEMENTED;
-        return nullptr;
-    }
-}
+std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::as_interface(TypeTag tag) { return this->self(); }
 template <>
 size_t EntryPolicy<entry_in_memory, TypeTag::Array>::size() const
 {
@@ -207,8 +182,17 @@ Entry::const_iterator EntryPolicy<entry_in_memory, TypeTag::Array>::cend() const
 template <>
 std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(const std::shared_ptr<Entry>& p)
 {
-    NOT_IMPLEMENTED;
-    return nullptr;
+    std::shared_ptr<Entry> e = p != nullptr ? p : convert_to(TypeTag::Null);
+
+    try
+    {
+        std::get<entry_in_memory::entry_array>(backend()->m_data_).push_back(e);
+    }
+    catch (const std::bad_variant_access&)
+    {
+        backend()->m_data_.emplace<entry_in_memory::entry_array>({e});
+    }
+    return e;
 }
 template <>
 std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(Entry&&)
@@ -246,16 +230,9 @@ std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::at(in
 template <>
 std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::as_interface(TypeTag tag)
 {
-    if (tag == TypeTag::Table)
-    {
-        return this->self();
-    }
-    else
-    {
-        NOT_IMPLEMENTED;
-        return nullptr;
-    }
+    return convert_to(tag);
 }
+
 template <>
 size_t EntryPolicy<entry_in_memory, TypeTag::Table>::size() const
 {

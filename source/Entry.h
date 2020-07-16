@@ -54,7 +54,7 @@ struct EntryInterfaceBase
 
     virtual TypeTag type_tag() const { return TypeTag::Null; }
 
-    virtual std::shared_ptr<Entry> create() const = 0;
+    virtual std::shared_ptr<Entry> convert_to(TypeTag tag) const = 0;
 
     virtual std::shared_ptr<Entry> copy() const = 0;
 
@@ -94,15 +94,15 @@ struct EntryInterface<TypeTag::Scalar>
     // as scalar
     TypeTag type_tag() const { return TypeTag::Scalar; }
 
-    virtual std::any get_scalar() const = 0; // get value , if value is invalid then throw exception
+    virtual void set_bool(bool) = 0;
+    virtual void set_integer(int) = 0;
+    virtual void set_float(double) = 0;
+    virtual void set_string(std::string const&) = 0;
 
-    virtual void set_scalar(std::any const&) = 0;
-
-    template <typename U, typename V>
-    void set_value(V const& v) { set_scalar(std::make_any<U>(v)); }
-
-    template <typename U>
-    U get_value() const { return std::any_cast<U>(get_scalar()); }
+    virtual bool get_bool() const = 0;
+    virtual int get_integer() const = 0;
+    virtual double get_float() const = 0;
+    virtual std::string get_string() const = 0;
 };
 
 template <>
@@ -223,7 +223,10 @@ template <typename Backend>
 struct EntryPolicyBase
 {
     virtual std::shared_ptr<Entry> self() = 0;
-    virtual std::shared_ptr<Entry> parent() = 0;
+    virtual std::shared_ptr<Entry> parent() const = 0;
+    virtual std::shared_ptr<Backend> backend() = 0;
+    virtual std::shared_ptr<Backend> backend() const = 0;
+    virtual void swap(EntryPolicyBase<Backend>&){};
 };
 
 template <typename Backend>
@@ -264,7 +267,7 @@ struct EntryPolicy<Backend, TypeTag::Null>
     : public virtual EntryInterface<TypeTag::Null>,
       public virtual EntryPolicyBase<Backend>
 {
-    std::shared_ptr<Entry> as_interface(TypeTag tag);
+    std::shared_ptr<Entry> as_interface(TypeTag tag) { return convert_to(tag); }
 };
 
 template <typename Backend>
@@ -276,9 +279,15 @@ struct EntryPolicy<Backend, TypeTag::Scalar>
 
     //--------------------------------------------------------------------
     // as scalar
-    std::any get_scalar() const;
+    void set_bool(bool) final;
+    void set_integer(int) final;
+    void set_float(double) final;
+    void set_string(std::string const&) final;
 
-    void set_scalar(std::any const&);
+    bool get_bool() const final;
+    int get_integer() const final;
+    double get_float() const final;
+    std::string get_string() const final;
 };
 
 template <typename Backend>
@@ -399,26 +408,51 @@ class EntryImplement : public virtual Entry,
 {
 private:
     std::shared_ptr<Entry> m_parent_;
+    std::shared_ptr<Backend> m_backend_;
 
 public:
     typedef EntryImplement<Backend, TAG, Policies...> this_type;
 
-    EntryImplement() : m_parent_(nullptr), Policies<Backend, TAG>()... {}
+    EntryImplement(const std::shared_ptr<Entry>& p, std::shared_ptr<Backend> const& b)
+        : m_parent_(p),
+          m_backend_(b),
+          EntryPolicyBody<Backend>(),
+          EntryPolicyAttributes<Backend>(),
+          EntryPolicy<Backend, TAG>(),
+          Policies<Backend, TAG>()... {}
 
-    EntryImplement(const std::shared_ptr<Entry>& p) : m_parent_(p), Policies<Backend, TAG>()... {}
+    EntryImplement() : EntryImplement(nullptr, std::make_shared<Backend>()) {}
 
-    EntryImplement(Entry* p) : EntryImplement(std::shared_ptr<Entry>(p)) {}
+    // template <typename... Args>
+    // EntryImplement(const std::shared_ptr<Entry>& p, Args&&... args)
+    //     : EntryImplement(p, std::make_shared<Backend>(std::forward<Args>(args)...)) {}
 
-    EntryImplement(const this_type& other) : m_parent_(other.m_parent_), Policies<Backend, TAG>(other)... {};
+    EntryImplement(const this_type& other)
+        : m_parent_(other.m_parent_),
+          m_backend_(other.m_backend_),
+          EntryPolicyBody<Backend>(other),
+          EntryPolicyAttributes<Backend>(other),
+          EntryPolicy<Backend, TAG>(other),
+          Policies<Backend, TAG>(other)... {}
 
-    EntryImplement(this_type&& other) : m_parent_(std::move(other.m_parent_)), Policies<Backend, TAG>(std::forward<this_type>(other))... {};
+    EntryImplement(this_type&& other)
+        : m_parent_(std::move(other.m_parent_)),
+          m_backend_(std::move(other.m_backend_)),
+          EntryPolicyBody<Backend>(std::forward<this_type>(other)),
+          EntryPolicyAttributes<Backend>(std::forward<this_type>(other)),
+          EntryPolicy<Backend, TAG>(std::forward<this_type>(other)),
+          Policies<Backend, TAG>(std::forward<this_type>(other))... {};
 
     virtual ~EntryImplement() = default;
 
     void swap(this_type& other)
     {
         std::swap(m_parent_, other.m_parent_);
-        unpack(Policies<Backend, TAG>::swap(*this)...);
+        m_backend_.swap(other.m_backend_);
+        EntryPolicyBody<Backend>::swap(other);
+        EntryPolicyAttributes<Backend>::swap(other);
+        EntryPolicy<Backend, TAG>::swap(other);
+        unpack(Policies<Backend, TAG>::swap(other)...);
     }
 
     this_type& operator=(this_type const& other)
@@ -429,9 +463,35 @@ public:
 
     std::shared_ptr<Entry> self() final { return this->shared_from_this(); }
 
-    std::shared_ptr<Entry> parent() final { return m_parent_; }
+    std::shared_ptr<Entry> parent() const final { return m_parent_; }
 
-    std::shared_ptr<Entry> create() const final { return std::dynamic_pointer_cast<Entry>(std::make_shared<this_type>(m_parent_)); }
+    std::shared_ptr<Backend> backend() { return m_backend_; }
+
+    std::shared_ptr<Backend> backend() const { return m_backend_; }
+
+    std::shared_ptr<Entry> convert_to(TypeTag tag) const final
+    {
+        std::shared_ptr<Entry> res;
+        switch (tag)
+        {
+        case TypeTag::Scalar:
+            res.reset(new EntryImplement<Backend, TypeTag::Scalar, Policies...>(parent(), backend()));
+            break;
+        case TypeTag::Block:
+            res.reset(new EntryImplement<Backend, TypeTag::Block, Policies...>(parent(), backend()));
+            break;
+        case TypeTag::Array:
+            res.reset(new EntryImplement<Backend, TypeTag::Array, Policies...>(parent(), backend()));
+            break;
+        case TypeTag::Table:
+            res.reset(new EntryImplement<Backend, TypeTag::Table, Policies...>(parent(), backend()));
+            break;
+        default:
+            res.reset(new EntryImplement<Backend, TypeTag::Table, Policies...>(parent(), backend()));
+            break;
+        }
+        return res;
+    }
 
     std::shared_ptr<Entry> copy() const final { return std::dynamic_pointer_cast<Entry>(std::make_shared<this_type>(*this)); }
 };
