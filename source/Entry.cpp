@@ -1,27 +1,18 @@
 #include "Entry.h"
 #include "utility/Logger.h"
+#include <any>
 #include <map>
-#include <variant>
+#include <vector>
+
 namespace sp
 {
-struct entry_in_memory
+typedef std::vector<std::shared_ptr<Entry>> array_t;
+typedef std::map<std::string, std::shared_ptr<Entry>> map_t;
+struct node_t : public std::variant<scalar_t, array_t, map_t>
 {
-    typedef std::vector<std::shared_ptr<Entry>> entry_array;
-    typedef std::map<std::string, std::shared_ptr<Entry>> entry_table;
-    std::map<std::string, std::variant<bool, int, float, std::string>> m_attributes_;
-    std::variant<bool, int, double, std::string, entry_array, entry_table> m_data_;
-
-    entry_in_memory() : m_data_(false) {}
-    entry_in_memory(const entry_in_memory& other) : m_attributes_(other.m_attributes_), m_data_(other.m_data_) {}
-    entry_in_memory(entry_in_memory&& other) : m_attributes_(std::move(other.m_attributes_)), m_data_(std::move(other.m_data_)) {}
-    ~entry_in_memory() {}
-
-    void swap(entry_in_memory& other)
-    {
-        std::swap(m_attributes_, other.m_attributes_);
-        std::swap(m_data_, other.m_data_);
-    }
 };
+typedef node_t entry_in_memory;
+
 template <>
 void EntryPolicyBody<entry_in_memory>::resolve() { NOT_IMPLEMENTED; }
 
@@ -35,24 +26,24 @@ bool EntryPolicyAttributes<entry_in_memory>::has_attribute(std::string const& ke
     return false;
 }
 template <>
-bool EntryPolicyAttributes<entry_in_memory>::check_attribute(std::string const& key, std::any const& v) const
+bool EntryPolicyAttributes<entry_in_memory>::check_attribute(std::string const& key, scalar_t const& v) const
 {
     NOT_IMPLEMENTED;
     return false;
 }
 template <>
-void EntryPolicyAttributes<entry_in_memory>::set_attribute(const std::string&, const std::any&)
+void EntryPolicyAttributes<entry_in_memory>::set_attribute(const std::string&, const scalar_t&)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-std::any EntryPolicyAttributes<entry_in_memory>::get_attribute(const std::string&) const
+scalar_t EntryPolicyAttributes<entry_in_memory>::get_attribute(const std::string&) const
 {
     NOT_IMPLEMENTED;
     return nullptr;
 }
 template <>
-std::any EntryPolicyAttributes<entry_in_memory>::get_attribute(std::string const& key, std::any const& default_value)
+scalar_t EntryPolicyAttributes<entry_in_memory>::get_attribute(std::string const& key, scalar_t const& default_value)
 {
     NOT_IMPLEMENTED;
     return nullptr;
@@ -63,11 +54,11 @@ void EntryPolicyAttributes<entry_in_memory>::remove_attribute(const std::string&
     NOT_IMPLEMENTED;
 }
 template <>
-Range<Iterator<std::pair<std::string, std::any>>>
+Range<Iterator<std::pair<std::string, scalar_t>>>
 EntryPolicyAttributes<entry_in_memory>::attributes() const
 {
     NOT_IMPLEMENTED;
-    return Range<Iterator<std::pair<std::string, std::any>>>{};
+    return Range<Iterator<std::pair<std::string, scalar_t>>>{};
 }
 
 template <>
@@ -82,21 +73,10 @@ template <>
 std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Scalar>::as_interface(TypeTag tag) { return this->self(); }
 
 template <>
-void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_bool(bool v) { backend()->m_data_.emplace<bool>(v); }
+void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_scalar(scalar_t const& v) { backend()->emplace<scalar_t>(v); }
+
 template <>
-void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_integer(int v) { backend()->m_data_.emplace<int>(v); }
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_float(double v) { backend()->m_data_.emplace<double>(v); }
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_string(std::string const& v) { backend()->m_data_.emplace<std::string>(v); }
-template <>
-bool EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_bool() const { return std::get<bool>(backend()->m_data_); }
-template <>
-int EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_integer() const { return std::get<int>(backend()->m_data_); }
-template <>
-double EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_float() const { return std::get<double>(backend()->m_data_); }
-template <>
-std::string EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_string() const { return std::get<std::string>(backend()->m_data_); }
+scalar_t EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_scalar() const { return std::get<scalar_t>(*backend()); }
 
 //-------------------------------------------------------------------------------------------------------
 // as block
@@ -186,11 +166,11 @@ std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(c
 
     try
     {
-        std::get<entry_in_memory::entry_array>(backend()->m_data_).push_back(e);
+        std::get<array_t>(*backend()).push_back(e);
     }
     catch (const std::bad_variant_access&)
     {
-        backend()->m_data_.emplace<entry_in_memory::entry_array>({e});
+        backend()->emplace<array_t>({e});
     }
     return e;
 }
@@ -352,7 +332,7 @@ std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::find_
 
 // struct ContentScalar : public Content
 // {
-//     std::any content;
+//     scalar_t content;
 //     ContentScalar() {}
 //     ContentScalar(const ContentScalar& other) : content(other.content) {}
 //     ContentScalar(ContentScalar&& other) : content(std::move(other.content)) {}
@@ -418,17 +398,17 @@ std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::find_
 
 // bool EntryInMemory::has_attribute(std::string const& key) const { return m_attributes_->has_a(key); }
 
-// bool EntryInMemory::check_attribute(std::string const& key, std::any const& v) const { return m_attributes_->check(key, v); }
+// bool EntryInMemory::check_attribute(std::string const& key, scalar_t const& v) const { return m_attributes_->check(key, v); }
 
-// std::any EntryInMemory::get_attribute(std::string const& key) const { return m_attributes_->get(key); }
+// scalar_t EntryInMemory::get_attribute(std::string const& key) const { return m_attributes_->get(key); }
 
-// std::any EntryInMemory::get_attribute(std::string const& key, std::any const& default_value) { return m_attributes_->get(key, default_value); }
+// scalar_t EntryInMemory::get_attribute(std::string const& key, scalar_t const& default_value) { return m_attributes_->get(key, default_value); }
 
-// void EntryInMemory::set_attribute(std::string const& key, std::any const& v) { m_attributes_->set(key, v); }
+// void EntryInMemory::set_attribute(std::string const& key, scalar_t const& v) { m_attributes_->set(key, v); }
 
 // void EntryInMemory::remove_attribute(std::string const& key) { m_attributes_->erase(key); }
 
-// Range<Iterator<std::pair<std::string, std::any>>> EntryInMemory::attributes() const { return std::move(m_attributes_->items()); }
+// Range<Iterator<std::pair<std::string, scalar_t>>> EntryInMemory::attributes() const { return std::move(m_attributes_->items()); }
 
 // void EntryInMemory::clear_attributes() { m_attributes_->clear(); }
 
@@ -463,9 +443,9 @@ std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::find_
 // }
 
 // // as leaf node
-// std::any EntryInMemory::get_scalar() const { return std::any{}; } // get value , if value is invalid then throw exception
+// scalar_t EntryInMemory::get_scalar() const { return scalar_t{}; } // get value , if value is invalid then throw exception
 
-// void EntryInMemory::set_scalar(std::any const& v) {}
+// void EntryInMemory::set_scalar(scalar_t const& v) {}
 
 // std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>>
 // EntryInMemory::get_raw_block() const

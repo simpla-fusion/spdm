@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 namespace sp
 {
@@ -22,18 +23,58 @@ enum TypeTag
     Table  // key-value, C++ map or JSON object
 
 };
-class XPath;
-class Attributes;
+typedef std::variant<bool, int, double, std::string> scalar_t;
 
-// template <TypeTag TAG = TypeTag::Null>
-// class EntryInterface;
+/**
+ * 
+ * 
+ *  @ref  Virtual inheritance ,https://en.wikipedia.org/wiki/Virtual_inheritance
+*/
 
-class Entry;
+template <TypeTag TAG>
+struct NodeInterface;
 
-class Node : public std::enable_shared_from_this<Node>
+struct NodeInterfaceAttributes
 {
-public:
-    typedef Node this_type;
+    virtual bool has_attribute(std::string const& key) const = 0;
+
+    virtual bool check_attribute(std::string const& key, scalar_t const& v) const = 0;
+
+    virtual void set_attribute(const std::string&, const scalar_t&) = 0;
+
+    virtual scalar_t get_attribute(const std::string&) const = 0;
+
+    virtual scalar_t get_attribute(std::string const& key, scalar_t const& default_value) = 0;
+
+    virtual void remove_attribute(const std::string&) = 0;
+
+    virtual Range<Iterator<std::pair<std::string, scalar_t>>> attributes() const = 0;
+
+    virtual void clear_attributes() = 0;
+};
+struct Node;
+
+struct iteraotr;
+
+struct NodeInterfaceBase
+{
+
+    NodeInterfaceBase() = default;
+
+    virtual ~NodeInterfaceBase() = default;
+
+    virtual TypeTag type_tag() const { return TypeTag::Null; }
+
+    virtual bool is_leaf() const = 0;
+    virtual bool is_root() const = 0;
+    virtual bool is_emptry() const = 0;
+
+    virtual iterator parent() const = 0;
+};
+
+struct Node
+    : public virtual NodeInterfaceBase
+{
     typedef Iterator<Node> iterator;
     typedef Iterator<const Node> const_iterator;
     typedef Range<iterator> range;
@@ -42,66 +83,44 @@ public:
     typedef Iterator<std::pair<const std::string, std::shared_ptr<const Node>>> const_iterator_kv;
     typedef Range<iterator_kv> range_kv;
     typedef Range<const_iterator_kv> const_range_kv;
+};
 
-    Node();
-    virtual ~Node();
+template <>
+struct NodeInterface<TypeTag::Null>
+    : public virtual NodeInterfaceBase
+{
+    TypeTag type_tag() const { return TypeTag::Null; }
+};
 
-    Node(this_type const& other);
-    Node(this_type&& other);
-    void swap(this_type& other);
-    this_type& operator=(this_type const& other);
+template <>
+struct NodeInterface<TypeTag::Scalar>
+    : public virtual NodeInterfaceBase
+{
+    // as scalar
+    TypeTag type_tag() const { return TypeTag::Scalar; }
 
-    Node* copy() const;
-
-    TypeTag type_tag() const;
-
-    bool empty() const;
-
-    bool is_null() const;
-    bool is_scalar() const;
-
-    bool is_block() const;
-
-    bool is_array() const;
-    bool is_table() const;
-
-    bool is_root() const; // if  parent is null then true else false
-    bool is_leaf() const; // if type in [Null,Scalar,Block]
-
-    //----------------------------------------------------------------------------------------------------------
-    // Attribute
-    //----------------------------------------------------------------------------------------------------------
-    void resolve(); // resolve reference or operator in object
-
-    Node& parent() const; // return parent node
-
-    Node* create_child();
-
-    this_type& as_scalar();
-
-    this_type& as_block();
-
-    this_type& as_array();
-
-    this_type& as_table();
-
-    //----------------------------------------------------------------------------------------------------------
-    // Node
-    //----------------------------------------------------------------------------------------------------------
-
-    std::any get_scalar() const; // get value , if value is invalid then throw exception
-
-    void set_scalar(const std::any&);
-
-    template <typename U, typename V>
-    void set_value(V const& v) { set_scalar(std::make_any<U>(v)); }
+    virtual void set_scalar(const scalar_t&) = 0;
+    virtual scalar_t get_scalar() const = 0;
 
     template <typename U>
-    U get_value() const { return std::any_cast<U>(get_scalar()); }
+    void set_value(const U& u) { return set_scalar(scalar_t(u)); }
 
-    std::tuple<std::shared_ptr<void>, std::type_info const&, std::vector<size_t>> get_raw_block() const; // get block
+    template <typename U>
+    U get_value() const { return std::get<U>(get_scalar()); }
+};
 
-    void set_raw_block(const std::shared_ptr<void>& /*data pointer*/, const std::type_info& /*element type*/, const std::vector<size_t>& /*dimensions*/); // set block
+template <>
+struct NodeInterface<TypeTag::Block>
+    : public virtual NodeInterfaceBase
+{
+    // as leaf node
+    TypeTag type_tag() const { return TypeTag::Block; }
+
+    virtual std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>> get_raw_block() const = 0; // get block
+
+    virtual void set_raw_block(const std::shared_ptr<void>& /*data pointer*/,
+                               const std::type_info& /*element type*/,
+                               const std::vector<size_t>& /*dimensions*/) = 0; // set block
 
     template <typename V, typename... Args>
     void set_block(std::shared_ptr<V> const& d, Args... args)
@@ -117,125 +136,341 @@ public:
         return std::make_tuple(std::reinterpret_pointer_cast<void>(std::get<0>(blk)),
                                std::get<1>(blk), std::get<2>(blk));
     }
-    //----------------------------------------------------------------------------------------------------------
-    // as tree node,  need node.type = List || Object
-    //----------------------------------------------------------------------------------------------------------
-    // function level 0
+};
 
-    size_t size() const;
+struct NodeInterfaceTree
+    : public virtual NodeInterfaceBase
+{
+    //--------------------------------------------------------
+    // as tree node
 
-    range children(); // reutrn list of children
+    virtual size_t size() const = 0;
 
-    const_range children() const; // reutrn list of children
+    virtual Node::range children() = 0; // reutrn list of children
 
-    void clear_children();
+    virtual Node::const_range children() const = 0; // reutrn list of children
 
-    void remove_child(const iterator&);
+    virtual void clear_children() = 0;
 
-    void remove_children(const range&);
+    virtual void remove_child(const Node::iterator&) = 0;
 
-    iterator begin();
+    virtual void remove_children(const Node::range&) = 0;
 
-    iterator end();
+    virtual Node::iterator begin() = 0;
 
-    const_iterator cbegin() const;
+    virtual Node::iterator end() = 0;
 
-    const_iterator cend() const;
+    virtual Node::const_iterator cbegin() const = 0;
 
+    virtual Node::const_iterator cend() const = 0;
+};
+
+template <>
+struct NodeInterface<TypeTag::Array>
+    : public virtual NodeInterfaceTree
+{
+    // as array
+    TypeTag type_tag() const { return TypeTag::Array; }
+
+    virtual std::shared_ptr<Node> push_back(const std::shared_ptr<Node>& p = nullptr) = 0;
+
+    virtual std::shared_ptr<Node> push_back(Node&&) = 0;
+
+    virtual std::shared_ptr<Node> push_back(const Node&) = 0;
+
+    virtual Node::range push_back(const Node::iterator& b, const Node::iterator& e) = 0;
+
+    virtual std::shared_ptr<Node> at(int idx) = 0;
+
+    virtual std::shared_ptr<const Node> at(int idx) const = 0;
+
+    Node& operator[](size_t idx) { return *at(idx); }
+
+    const Node& operator[](size_t idx) const { return *at(idx); }
+};
+
+template <>
+struct NodeInterface<TypeTag::Table>
+    : public virtual NodeInterfaceTree
+{
     // as table
+    TypeTag type_tag() const { return TypeTag::Table; }
 
-    Node& insert(const std::string&, const std::shared_ptr<Node>&);
+    virtual Node::const_range_kv items() const = 0;
 
-    Node& insert(const std::string&, const Node&);
+    virtual Node::range_kv items() = 0;
 
-    Node& insert(const std::string&, Node&&);
+    virtual std::shared_ptr<Node> insert(const std::string& k, std::shared_ptr<Node> const& node) = 0;
 
-    range_kv insert(const iterator_kv& b, const iterator_kv& e);
+    virtual Node::range_kv insert(const Node::iterator_kv& b, const Node::iterator_kv& e) = 0;
 
-    range_kv insert(const range_kv& r);
+    virtual std::shared_ptr<Node> at(const std::string& key) = 0;
+
+    virtual std::shared_ptr<const Node> at(const std::string& idx) const = 0;
+
+    virtual std::shared_ptr<Node> find_child(const std::string&) = 0;
+
+    virtual std::shared_ptr<const Node> find_child(const std::string&) const = 0;
 
     template <typename TI0, typename TI1>
     auto insert(TI0 const& b, TI1 const& e) { return insert(iterator_kv(b), iterator_kv(e)); }
 
-    const_range_kv items() const;
+    Node& operator[](const std::string& path) { return *at(path); }
 
-    range_kv items();
-
-    iterator find_child(const std::string&);
-
-    Node& at(const std::string&);
-
-    const Node& at(const std::string&) const;
-
-    Node& operator[](const std::string& path);
-
-    const Node& operator[](const std::string& path) const;
-
-    // as array
-
-    Node& push_back();
-
-    Node& push_back(const std::shared_ptr<Node>&);
-
-    Node& push_back(const Node&);
-
-    Node& push_back(Node&&);
-
-    range push_back(const range&);
-
-    range push_back(const iterator&, const iterator&);
-
-    iterator find_child(int idx);
-
-    Node& at(int idx);
-
-    const Node& at(int idx) const;
-
-    Node& operator[](size_t idx);
-
-    const Node& operator[](size_t idx) const;
-
-    //----------------------------------------------------------------------------------------------------------
-    // function level 1
-
-    const_range select(XPath const& path) const; // select from children
-
-    range select(XPath const& path); // select from children
-
-    iterator select_one(XPath const& path); // return refernce of the first selected child  , if fail then throw exception
-
-    const_iterator select_one(XPath const& path) const; // return refernce of the first selected child , if fail then throw exception
-
-    //----------------------------------------------------------------------------------------------------------
-    // function level 2
-    ptrdiff_t distance(const this_type& target) const; // lenght of short path to target
-
-    size_t depth() const; // parent.depth +1
-
-    size_t height() const; // max(leaf.height) +1
-
-    const_iterator first_child() const; // return iterator of the first child;
-
-    iterator first_child(); // return iterator of the first child;
-
-    const_range slibings() const; // return slibings
-
-    const_range ancestor() const; // return ancestor
-
-    const_range descendants() const; // return descendants
-
-    const_range leaves() const; // return leave nodes in traversal order
-
-    const_range path(this_type const& target) const; // return the shortest path to target
-
-private:
-    Node(Node* parent, Entry* entry);
-
-    Node* m_parent_;
-    std::unique_ptr<Entry> m_entry_;
+    const Node& operator[](const std::string& path) const { return *at(path); }
 };
 
+template <typename TEntry, TypeTag TAG>
+struct NodePolicy;
+
+template <typename TEntry>
+struct NodePolicyBase
+{
+    virtual std::shared_ptr<Node> self() = 0;
+    virtual std::shared_ptr<Node> parent() const = 0;
+    virtual std::shared_ptr<TEntry> entry() = 0;
+    virtual std::shared_ptr<TEntry> entry() const = 0;
+    virtual void swap(NodePolicyBase<TEntry>&){};
+};
+
+template <typename TEntry>
+struct NodePolicyBody
+    : public virtual NodeInterfaceBase,
+      public virtual NodePolicyBase<TEntry>
+{
+    void resolve() final;
+};
+
+template <typename TEntry>
+struct NodePolicy<TEntry, TypeTag::Null>
+    : public virtual NodeInterface<TypeTag::Null>,
+      public virtual NodePolicyBase<TEntry>
+{
+    std::shared_ptr<Node> as_interface(TypeTag tag) { return convert_to(tag); }
+};
+
+template <typename TEntry>
+struct NodePolicy<TEntry, TypeTag::Scalar>
+    : public virtual NodeInterface<TypeTag::Scalar>,
+      public virtual NodePolicyBase<TEntry>
+{
+    std::shared_ptr<Node> as_interface(TypeTag tag);
+
+    //--------------------------------------------------------------------
+    // as scalar
+    void set_scalar(const scalar_t&) final;
+    scalar_t get_scalar() const final;
+};
+
+template <typename TEntry>
+struct NodePolicy<TEntry, TypeTag::Block>
+    : public virtual NodeInterface<TypeTag::Block>,
+      public virtual NodePolicyBase<TEntry>
+{
+    std::shared_ptr<Node> as_interface(TypeTag tag);
+
+    // as block
+    std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>> get_raw_block() const; // get block
+
+    void set_raw_block(const std::shared_ptr<void>& /*data pointer*/,
+                       const std::type_info& /*element type*/,
+                       const std::vector<size_t>& /*dimensions*/); // set block
+};
+
+template <typename TEntry>
+struct NodePolicy<TEntry, TypeTag::Array>
+    : public virtual NodeInterface<TypeTag::Array>,
+      public virtual NodePolicyBase<TEntry>
+{
+    std::shared_ptr<Node> as_interface(TypeTag tag);
+
+    size_t size() const;
+
+    Node::range children();
+
+    Node::const_range children() const;
+
+    void clear_children();
+
+    void remove_child(Node::iterator const&);
+
+    void remove_children(Node::range const&);
+
+    Node::iterator begin();
+
+    Node::iterator end();
+
+    Node::const_iterator cbegin() const;
+
+    Node::const_iterator cend() const;
+
+    // as array
+    std::shared_ptr<Node> push_back(const std::shared_ptr<Node>& p = nullptr);
+
+    std::shared_ptr<Node> push_back(Node&&);
+
+    std::shared_ptr<Node> push_back(const Node&);
+
+    Node::range push_back(const Node::iterator& b, const Node::iterator& e);
+
+    std::shared_ptr<Node> at(int idx);
+
+    std::shared_ptr<const Node> at(int idx) const;
+
+    std::shared_ptr<Node> find_child(size_t);
+
+    std::shared_ptr<const Node> find_child(size_t) const;
+};
+
+template <typename TEntry>
+struct NodePolicy<TEntry, TypeTag::Table>
+    : public virtual NodeInterface<TypeTag::Table>,
+      public NodePolicyBase<TEntry>
+{
+    std::shared_ptr<Node> as_interface(TypeTag tag);
+
+    size_t size() const;
+
+    Node::range children();
+
+    Node::const_range children() const;
+
+    void clear_children();
+
+    void remove_child(Node::iterator const&);
+
+    void remove_children(Node::range const&);
+
+    Node::iterator begin();
+
+    Node::iterator end();
+
+    Node::const_iterator cbegin() const;
+
+    Node::const_iterator cend() const;
+
+    // as table
+    Node::const_range_kv items() const;
+
+    Node::range_kv items();
+
+    std::shared_ptr<Node> insert(const std::string& k, std::shared_ptr<Node> const& node);
+
+    Node::range_kv insert(const Node::iterator_kv& b, const Node::iterator_kv& e);
+
+    std::shared_ptr<Node> at(const std::string& key);
+
+    std::shared_ptr<const Node> at(const std::string& idx) const;
+
+    std::shared_ptr<Node> find_child(const std::string&);
+
+    std::shared_ptr<const Node> find_child(const std::string&) const;
+};
+
+template <typename... Args>
+void unpack(Args&&... args) {}
+
+template <typename TEntry, TypeTag TAG, template <typename, TypeTag> class... Policies>
+class NodeImplement : public virtual Node,
+                      public std::enable_shared_from_this<Node>,
+                      public NodePolicyBody<TEntry>,
+                      public NodePolicyAttributes<TEntry>,
+                      public NodePolicy<TEntry, TAG>,
+                      public Policies<TEntry, TAG>...
+{
+private:
+    std::shared_ptr<Node> m_parent_;
+    std::shared_ptr<TEntry> m_entry_;
+
+public:
+    typedef NodeImplement<TEntry, TAG, Policies...> this_type;
+
+    NodeImplement(const std::shared_ptr<Node>& p, std::shared_ptr<TEntry> const& b)
+        : m_parent_(p),
+          m_entry_(b),
+          NodePolicyBody<TEntry>(),
+          NodePolicyAttributes<TEntry>(),
+          NodePolicy<TEntry, TAG>(),
+          Policies<TEntry, TAG>()... {}
+
+    NodeImplement() : NodeImplement(nullptr, std::make_shared<TEntry>()) {}
+
+    // template <typename... Args>
+    // NodeImplement(const std::shared_ptr<Node>& p, Args&&... args)
+    //     : NodeImplement(p, std::make_shared<TEntry>(std::forward<Args>(args)...)) {}
+
+    NodeImplement(const this_type& other)
+        : m_parent_(other.m_parent_),
+          m_entry_(other.m_entry_),
+          NodePolicyBody<TEntry>(other),
+          NodePolicyAttributes<TEntry>(other),
+          NodePolicy<TEntry, TAG>(other),
+          Policies<TEntry, TAG>(other)... {}
+
+    NodeImplement(this_type&& other)
+        : m_parent_(std::move(other.m_parent_)),
+          m_entry_(std::move(other.m_entry_)),
+          NodePolicyBody<TEntry>(std::forward<this_type>(other)),
+          NodePolicyAttributes<TEntry>(std::forward<this_type>(other)),
+          NodePolicy<TEntry, TAG>(std::forward<this_type>(other)),
+          Policies<TEntry, TAG>(std::forward<this_type>(other))... {};
+
+    virtual ~NodeImplement() = default;
+
+    void swap(this_type& other)
+    {
+        std::swap(m_parent_, other.m_parent_);
+        m_entry_.swap(other.m_entry_);
+        NodePolicyBody<TEntry>::swap(other);
+        NodePolicyAttributes<TEntry>::swap(other);
+        NodePolicy<TEntry, TAG>::swap(other);
+        unpack(Policies<TEntry, TAG>::swap(other)...);
+    }
+
+    this_type& operator=(this_type const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    }
+
+    std::shared_ptr<Node> self() final { return this->shared_from_this(); }
+
+    std::shared_ptr<Node> parent() const final { return m_parent_; }
+
+    std::shared_ptr<TEntry> entry() { return m_entry_; }
+
+    std::shared_ptr<TEntry> entry() const { return m_entry_; }
+
+    std::shared_ptr<Node> convert_to(TypeTag tag) const final
+    {
+        std::shared_ptr<Node> res;
+        switch (tag)
+        {
+        case TypeTag::Scalar:
+            res.reset(new NodeImplement<TEntry, TypeTag::Scalar, Policies...>(parent(), entry()));
+            break;
+        case TypeTag::Block:
+            res.reset(new NodeImplement<TEntry, TypeTag::Block, Policies...>(parent(), entry()));
+            break;
+        case TypeTag::Array:
+            res.reset(new NodeImplement<TEntry, TypeTag::Array, Policies...>(parent(), entry()));
+            break;
+        case TypeTag::Table:
+            res.reset(new NodeImplement<TEntry, TypeTag::Table, Policies...>(parent(), entry()));
+            break;
+        default:
+            res.reset(new NodeImplement<TEntry, TypeTag::Table, Policies...>(parent(), entry()));
+            break;
+        }
+        return res;
+    }
+
+    std::shared_ptr<Node> copy() const final { return std::dynamic_pointer_cast<Node>(std::make_shared<this_type>(*this)); }
+};
+
+std::shared_ptr<Node>
+create_node(const std::string& backend = "");
+
 } // namespace sp
-std::ostream& operator<<(std::ostream& os, sp::Node const& d);
 
 #endif // SP_NODE_H_

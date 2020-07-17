@@ -5,8 +5,7 @@
 add_subdirectory(utility)
 
 set(SPDB_INCLUDES
-  Entry.h  
-  # Node.h
+  Node.h  
   # Attributes.h
   # XPath.h
   
@@ -17,8 +16,7 @@ set(SPDB_INCLUDES
 
 set(SPDB_SOURCES
   # XPath.cpp
-  # Node.cpp
-  Entry.cpp
+  Node.cpp
   # Attributes.cpp
 )
 
