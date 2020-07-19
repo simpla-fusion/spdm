@@ -139,6 +139,7 @@ public:
             throw std::runtime_error("Set value failed!");
         }
     }
+
     Entry::block_t get_block() const override
     {
         if (type() != Entry::Type::Block)
@@ -150,24 +151,31 @@ public:
 
     // as Tree
 
-    Entry::cursor parent() const override { return Entry::cursor(m_parent_); }
+    Entry::iterator parent() const override { return Entry::iterator(const_cast<Entry*>(m_parent_)); }
 
-    Entry::cursor next() const override
+    Entry::iterator next() const override
     {
         NOT_IMPLEMENTED;
-        return Entry::cursor();
+        return Entry::iterator();
     };
 
-    Entry::cursor first_child() const override
+    Entry::iterator first_child() override
     {
-        NOT_IMPLEMENTED;
-        return Entry::cursor();
+        if (type() == Entry::Type::Array)
+        {
+            return Entry::iterator(std::get<Entry::Type::Array>(m_data_).begin());
+        }
+        return Entry::iterator();
     };
 
-    Entry::cursor last_child() const override
+    Entry::iterator last_child() override
     {
-        NOT_IMPLEMENTED;
-        return Entry::cursor();
+
+        if (type() == Entry::Type::Array)
+        {
+            return Entry::iterator(std::get<Entry::Type::Array>(m_data_).end());
+        }
+        return Entry::iterator();
     };
 
     size_t size() const
@@ -181,7 +189,7 @@ public:
         NOT_IMPLEMENTED;
     }
 
-    void erase(const Entry::cursor& p)
+    void erase(const Entry::iterator& p)
     {
         NOT_IMPLEMENTED;
     }
@@ -197,20 +205,20 @@ public:
     }
 
     // as vector
-    Entry::cursor at(int idx)
+    Entry::iterator at(int idx)
     {
         try
         {
             auto& m = std::get<Entry::Type::Array>(m_data_);
-            return Entry::cursor(&m[idx]);
+            return Entry::iterator(&m[idx]);
         }
         catch (std::bad_variant_access&)
         {
-            return Entry::cursor();
+            return Entry::iterator();
         };
     }
 
-    Entry::cursor push_back()
+    Entry::iterator push_back()
     {
         if (type() == Entry::Type::Null)
         {
@@ -220,11 +228,11 @@ public:
         {
             auto& m = std::get<Entry::Type::Array>(m_data_);
             m.emplace_back(Entry(m_self_));
-            return Entry::cursor(&*m.rbegin());
+            return Entry::iterator(&*m.rbegin());
         }
         catch (std::bad_variant_access&)
         {
-            return Entry::cursor();
+            return Entry::iterator();
         };
     }
 
@@ -245,7 +253,7 @@ public:
     }
 
     // as object
-    Entry::const_cursor find(const std::string& key) const
+    Entry::const_iterator find(const std::string& key) const
     {
         try
         {
@@ -259,10 +267,10 @@ public:
         catch (std::bad_variant_access&)
         {
         }
-        return Entry::const_cursor();
+        return Entry::const_iterator();
     }
 
-    Entry::cursor find(const std::string& key)
+    Entry::iterator find(const std::string& key)
     {
         try
         {
@@ -276,10 +284,10 @@ public:
         catch (std::bad_variant_access&)
         {
         }
-        return Entry::cursor();
+        return Entry::iterator();
     }
 
-    Entry::cursor insert(const std::string& key)
+    Entry::iterator insert(const std::string& key)
     {
         if (type() == Entry::Type::Null)
         {
@@ -289,11 +297,11 @@ public:
         {
             auto& m = std::get<Entry::Type::Object>(m_data_);
 
-            return Entry::cursor(&(m.emplace(key, Entry(m_self_)).first->second));
+            return Entry::iterator(&(m.emplace(key, Entry(m_self_)).first->second));
         }
         catch (std::bad_variant_access&)
         {
-            return Entry::cursor();
+            return Entry::iterator();
         }
     }
 
@@ -374,17 +382,17 @@ void Entry::set_block(const block_t& v) { m_pimpl_->set_block(v); }
 Entry::block_t Entry::get_block() const { return m_pimpl_->get_block(); }
 
 // as Tree
-Entry::cursor Entry::parent() const { return m_pimpl_->parent(); }
+Entry::iterator Entry::parent() const { return m_pimpl_->parent(); }
 
-Entry::const_cursor Entry::self() const { return const_cursor(this); }
+Entry::const_iterator Entry::self() const { return const_iterator(this); }
 
-Entry::cursor Entry::self() { return cursor(this); }
+Entry::iterator Entry::self() { return iterator(this); }
 
-Entry::cursor Entry::next() const { return m_pimpl_->next(); }
+Entry::iterator Entry::next() const { return m_pimpl_->next(); }
 
-Entry::cursor Entry::first_child() const { return m_pimpl_->first_child(); }
+Entry::iterator Entry::first_child() const { return m_pimpl_->first_child(); }
 
-Entry::cursor Entry::last_child() const { return m_pimpl_->last_child(); }
+Entry::iterator Entry::last_child() const { return m_pimpl_->last_child(); }
 
 Entry::range Entry::children() const { return range{first_child(), last_child()}; }
 
@@ -393,25 +401,25 @@ size_t Entry::size() const { return m_pimpl_->size(); }
 
 Entry::range Entry::find(const pred_fun& pred) { return m_pimpl_->find(pred); }
 
-void Entry::erase(const cursor& p) { m_pimpl_->erase(p); }
+void Entry::erase(const iterator& p) { m_pimpl_->erase(p); }
 
 void Entry::erase_if(const pred_fun& p) { m_pimpl_->erase_if(p); }
 
 void Entry::erase_if(const range& r, const pred_fun& p) { m_pimpl_->erase_if(r, p); }
 
 // as vector
-Entry::cursor Entry::at(int idx) { return m_pimpl_->at(idx); }
+Entry::iterator Entry::at(int idx) { return m_pimpl_->at(idx); }
 
-Entry::cursor Entry::push_back() { return m_pimpl_->push_back(); }
+Entry::iterator Entry::push_back() { return m_pimpl_->push_back(); }
 
-Entry::cursor Entry::push_back(const Entry& other)
+Entry::iterator Entry::push_back(const Entry& other)
 {
     auto p = push_back();
     Entry(other).swap(*p);
     return p;
 }
 
-Entry::cursor Entry::push_back(Entry&& other)
+Entry::iterator Entry::push_back(Entry&& other)
 {
     auto p = push_back();
     p->swap(other);
@@ -441,9 +449,9 @@ Entry& Entry::operator[](int idx)
 // @note : map is unordered
 bool Entry::has_a(const std::string& key) { return !find(key); }
 
-Entry::cursor Entry::find(const std::string& key) { return m_pimpl_->find(key); }
+Entry::iterator Entry::find(const std::string& key) { return m_pimpl_->find(key); }
 
-Entry::cursor Entry::at(const std::string& key)
+Entry::iterator Entry::at(const std::string& key)
 {
     auto p = find(key);
     if (!p)
@@ -455,16 +463,16 @@ Entry::cursor Entry::at(const std::string& key)
 
 Entry& Entry::operator[](const std::string& key) { return *insert(key); }
 
-Entry::cursor Entry::insert(const std::string& key) { return m_pimpl_->insert(key); }
+Entry::iterator Entry::insert(const std::string& key) { return m_pimpl_->insert(key); }
 
-Entry::cursor Entry::insert(const std::string& key, const Entry& other)
+Entry::iterator Entry::insert(const std::string& key, const Entry& other)
 {
     auto p = insert(key);
     Entry(other).swap(*p);
     return p;
 }
 
-Entry::cursor Entry::insert(const std::string& key, Entry&& other)
+Entry::iterator Entry::insert(const std::string& key, Entry&& other)
 {
     auto p = insert(key);
     p->swap(other);
@@ -507,7 +515,7 @@ Entry::range Entry::leaves() const
     return range{};
 }
 
-Entry::range Entry::shortest_path(cursor const& target) const
+Entry::range Entry::shortest_path(iterator const& target) const
 {
     NOT_IMPLEMENTED;
     return range{};

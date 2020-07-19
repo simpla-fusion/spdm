@@ -1,10 +1,10 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
+#include "Iterator.h"
+#include "Range.h"
 #include <any>
 #include <array>
 #include <complex>
-#include <experimental/propagate_const>
-#include <functional>
 #include <map>
 #include <memory>
 #include <variant>
@@ -32,70 +32,14 @@ public:
         Array = 4,
         Object = 5
     };
-    template <typename U>
-    class Cursor
-    {
 
-    public:
-        typedef Cursor<U> this_type;
-        typedef U value_type;
-        typedef value_type* pointer;
-        typedef value_type& reference;
+    typedef Iterator<Entry> iterator;
+    typedef Iterator<const Entry> const_iterator;
 
-        typedef std::function<pointer(pointer)> traversal_fun;
-
-        Cursor(pointer p = nullptr) : m_current_(p), f_next_([](pointer) -> pointer { return nullptr; }) {}
-        Cursor(pointer p, traversal_fun const& next) : m_current_(p), f_next_(next) {}
-        Cursor(const this_type& other) : m_current_(other.m_current_), f_next_(other.f_next_) {}
-        Cursor(this_type&& other) : m_current_(other.m_current_), f_next_(std::move(other.f_next_)) { other.m_current_ = nullptr; }
-        ~Cursor() = default;
-
-        this_type& operator=(this_type const& other)
-        {
-            this_type(other).swap(*this);
-            return *this;
-        }
-        void swap(this_type& other)
-        {
-            std::swap(m_current_, other.m_current_);
-            std::swap(f_next_, other.f_next_);
-        }
-
-        reference operator*() const { return *m_current_; }
-
-        pointer operator->() const { return m_current_; }
-
-        operator bool() const { return m_current_ != nullptr; }
-
-        bool operator==(const this_type& other) const { return m_current_ == other.m_current_; }
-        bool operator!=(const this_type& other) const { return m_current_ != other.m_current_; }
-        bool operator==(pointer p) const { return m_current_ == p; }
-        bool operator!=(pointer p) const { return m_current_ != p; }
-
-        this_type& operator++()
-        {
-            m_current_ = f_next_(m_current_);
-            return *this;
-        }
-
-        this_type operator++(int)
-        {
-            this_type res(*this);
-            m_current_ = f_next_(m_current_);
-            return res;
-        }
-
-    private:
-        pointer m_current_;
-        traversal_fun f_next_;
-    };
-
-    typedef Cursor<Entry> cursor;
-    typedef Cursor<const Entry> const_cursor;
+    typedef Range<iterator> range;
+    typedef Range<const_iterator> const_range;
 
     friend class EntryInterface;
-
-    typedef std::pair<cursor, cursor> range;
 
     typedef Entry this_type;
 
@@ -185,17 +129,17 @@ public:
     void set_block(Args&&... args) { return selt_block(std::make_tuple(std::forward<Args>(args)...)); };
 
     // as Tree
-    cursor parent() const;
+    iterator parent() const;
 
-    const_cursor self() const;
+    const_iterator self() const;
 
-    cursor self();
+    iterator self();
 
-    cursor next() const;
+    iterator next() const;
 
-    cursor first_child() const;
+    iterator first_child() const;
 
-    cursor last_child() const;
+    iterator last_child() const;
 
     range children() const;
 
@@ -206,7 +150,7 @@ public:
 
     range find(const pred_fun& pred);
 
-    void erase(const cursor&);
+    void erase(const iterator&);
 
     void erase_if(const pred_fun& pred);
 
@@ -216,18 +160,18 @@ public:
 
     // as vector
 
-    cursor at(int); // access specified child with bounds checking
+    iterator at(int); // access specified child with bounds checking
 
     Entry& operator[](int); // access  specified child
 
-    cursor push_back();
+    iterator push_back();
 
-    cursor push_back(const Entry&);
+    iterator push_back(const Entry&);
 
-    cursor push_back(Entry&&);
+    iterator push_back(Entry&&);
 
     template <typename... Args>
-    cursor emplace_back(Args&&... args) { return push_back(std::move(this_type(std::forward<Args>(args)...))); };
+    iterator emplace_back(Args&&... args) { return push_back(std::move(this_type(std::forward<Args>(args)...))); };
 
     Entry pop_back();
 
@@ -236,22 +180,22 @@ public:
 
     bool has_a(const std::string& key);
 
-    cursor find(const std::string& key);
+    iterator find(const std::string& key);
 
-    cursor at(const std::string& key); // access specified child with bounds checking
+    iterator at(const std::string& key); // access specified child with bounds checking
 
     Entry& operator[](const std::string&); // access or insert specified child
 
-    cursor insert(const std::string& key); // if key is not exists then insert node at key else return entry at key
+    iterator insert(const std::string& key); // if key is not exists then insert node at key else return entry at key
 
-    cursor insert(const std::string& pos, const Entry& other);
+    iterator insert(const std::string& pos, const Entry& other);
 
-    cursor insert(const std::string& pos, Entry&& other);
+    iterator insert(const std::string& pos, Entry&& other);
 
     template <typename... Args>
-    cursor emplace(const std::string& key, Args&&... args)
+    iterator emplace(const std::string& key, Args&&... args)
     {
-        cursor p = find(key);
+        iterator p = find(key);
         if (!p)
         {
             p = insert(key, std::move(Entry(std::forward<Args>(args)...)));
@@ -286,7 +230,7 @@ public:
 
     range leaves() const; // return leave nodes in traversal order
 
-    range shortest_path(cursor const& target) const; // return the shortest path to target
+    range shortest_path(iterator const& target) const; // return the shortest path to target
 
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
