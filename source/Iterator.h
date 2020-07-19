@@ -72,7 +72,7 @@ public:
 
     pointer next() override
     {
-        pointer p = &(*m_it_);
+        pointer p = const_cast<pointer>(&(*m_it_));
         ++m_it_;
         return p;
     }

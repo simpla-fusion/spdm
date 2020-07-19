@@ -14,6 +14,8 @@ public:
 
     virtual std::string prefix() const = 0;
 
+    virtual std::string name() const = 0;
+
     virtual Entry::Type type() const = 0;
     //----------------------------------------------------------------------------------------------------------
     // attribute
@@ -47,9 +49,9 @@ public:
 
     virtual Entry::iterator next() const = 0;
 
-    virtual Entry::iterator first_child()  = 0;
+    virtual Range<Iterator<Entry>> children() const = 0;
 
-    virtual Entry::iterator last_child()  = 0;
+    virtual Range<Iterator<const  std::pair<const std::string, Entry>>> items() const = 0;
 
     // container
     virtual size_t size() const = 0;
@@ -71,13 +73,13 @@ public:
 
     // as object
 
-    virtual Entry::const_iterator find(const std::string& key) const = 0;
+    virtual Entry::const_iterator find(const std::string& name) const = 0;
 
-    virtual Entry::iterator find(const std::string& key) = 0;
+    virtual Entry::iterator find(const std::string& name) = 0;
 
-    virtual Entry::iterator insert(const std::string& key) = 0;
+    virtual Entry::iterator insert(const std::string& name) = 0;
 
-    virtual Entry erase(const std::string& key) = 0;
+    virtual Entry erase(const std::string& name) = 0;
 };
 
 } // namespace sp

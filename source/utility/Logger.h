@@ -29,118 +29,118 @@
 
 namespace sp
 {
-    /** @ingroup utility */
-    namespace logger
-    {
+/** @ingroup utility */
+namespace logger
+{
 
-        void open_file(std::string const &file_name);
+void open_file(std::string const& file_name);
 
-        void close();
+void close();
 
-        void set_stdout_level(int l);
+void set_stdout_level(int l);
 
-        void set_line_width(int lw);
+void set_line_width(int lw);
 
-        int get_line_width();
+int get_line_width();
 
-        void set_mpi_comm(int rank = 0, int size = 1);
+void set_mpi_comm(int rank = 0, int size = 1);
 
-        /**
+/**
          * @ingroup utility
          * @addtogroup logging   Log
          * @{
          *
          */
 
-        enum tags
-        {
-            LOG_FORCE_OUTPUT = -10000,    //!< LOG_FORCE_OUTPUT
-            LOG_MESSAGE = -20,            //!< LOG_MESSAGE
-            LOG_OUT_RANGE_ERROR = -4,     //!< LOG_OUT_RANGE_ERROR
-            LOG_LOGIC_ERROR = -3,         //!< LOG_LOGIC_ERROR
-            LOG_ERROR = -2,               //!< LOG_ERROR
-            LOG_ERROR_RUNTIME = -10,      //!< LOG_ERROR_RUNTIME
-            LOG_ERROR_BAD_CAST = -11,     //!< LOG_ERROR_RUNTIME
-            LOG_ERROR_OUT_OF_RANGE = -12, //!< LOG_ERROR_RUNTIME
-            LOG_ERROR_LOGICAL = -13,      //!< LOG_ERROR_RUNTIME
-            LOG_ERROR_DOMAIN = -14,
-            LOG_ERROR_INVALID_ARGUMENT = -15,
-            LOG_ERROR_NOT_IMEPLEMENT = -16,
+enum tags
+{
+    LOG_FORCE_OUTPUT = -10000,    //!< LOG_FORCE_OUTPUT
+    LOG_MESSAGE = -20,            //!< LOG_MESSAGE
+    LOG_OUT_RANGE_ERROR = -4,     //!< LOG_OUT_RANGE_ERROR
+    LOG_LOGIC_ERROR = -3,         //!< LOG_LOGIC_ERROR
+    LOG_ERROR = -2,               //!< LOG_ERROR
+    LOG_ERROR_RUNTIME = -10,      //!< LOG_ERROR_RUNTIME
+    LOG_ERROR_BAD_CAST = -11,     //!< LOG_ERROR_RUNTIME
+    LOG_ERROR_OUT_OF_RANGE = -12, //!< LOG_ERROR_RUNTIME
+    LOG_ERROR_LOGICAL = -13,      //!< LOG_ERROR_RUNTIME
+    LOG_ERROR_DOMAIN = -14,
+    LOG_ERROR_INVALID_ARGUMENT = -15,
+    LOG_ERROR_NOT_IMEPLEMENT = -16,
 
-            LOG_WARNING = -1, //!< LOG_WARNING
+    LOG_WARNING = -1, //!< LOG_WARNING
 
-            LOG_INFORM = 0, //!< LOG_INFORM
-            LOG_LOG = 1,    //!< LOG_LOG
+    LOG_INFORM = 0, //!< LOG_INFORM
+    LOG_LOG = 1,    //!< LOG_LOG
 
-            LOG_VERBOSE = 10, //!< LOG_VERBOSE
-            LOG_DEBUG = -30   //!< LOG_DEBUG
-        };
-        // CHECK_MEMBER_FUNCTION(has_member_function_print, print);
+    LOG_VERBOSE = 10, //!< LOG_VERBOSE
+    LOG_DEBUG = -30   //!< LOG_DEBUG
+};
+// CHECK_MEMBER_FUNCTION(has_member_function_print, print);
 
-        /**
+/**
          *
          *  @brief log message m_buffer,
          */
-        class Logger : public std::ostringstream
+class Logger : public std::ostringstream
+{
+    typedef std::ostringstream base_type;
+    typedef Logger this_type;
+
+public:
+    Logger();
+    Logger(int lv);
+    ~Logger();
+    int get_buffer_length() const;
+    void flush();
+    void surffix(std::string const& s);
+    void endl();
+    void not_endl();
+
+private:
+public:
+    template <typename T>
+    inline this_type& push(
+        T const& value
+        //            , std::enable_if_t<!has_member_function_print<T, std::ostream &>::value> *__p = nullptr
+    )
+    {
+        current_line_char_count_ -= get_buffer_length();
+        *dynamic_cast<base_type*>(this) << (value);
+        current_line_char_count_ += get_buffer_length();
+        if (current_line_char_count_ > get_line_width())
         {
-            typedef std::ostringstream base_type;
-            typedef Logger this_type;
+            endl();
+        }
+        return *this;
+    }
 
-        public:
-            Logger();
-            Logger(int lv);
-            ~Logger();
-            int get_buffer_length() const;
-            void flush();
-            void surffix(std::string const &s);
-            void endl();
-            void not_endl();
+    //    template <typename T>
+    //    inline this_type &push(T const &value,
+    //                           std::enable_if_t<has_member_function_print<T, std::ostream &>::value> *__p = nullptr) {
+    //        current_line_char_count_ -= get_buffer_length();
+    //        value.print(*dynamic_cast<base_type *>(this));
+    //        current_line_char_count_ += get_buffer_length();
+    //        if (current_line_char_count_ > get_line_width()) { endl(); }
+    //
+    //        return *this;
+    //    }
 
-        private:
-        public:
-            template <typename T>
-            inline this_type &push(
-                T const &value
-                //            , std::enable_if_t<!has_member_function_print<T, std::ostream &>::value> *__p = nullptr
-            )
-            {
-                current_line_char_count_ -= get_buffer_length();
-                *dynamic_cast<base_type *>(this) << (value);
-                current_line_char_count_ += get_buffer_length();
-                if (current_line_char_count_ > get_line_width())
-                {
-                    endl();
-                }
-                return *this;
-            }
+    template <typename T>
+    inline this_type const& push(T const& value) const
+    {
+        const_cast<this_type&>(*this).push(value);
+        return *this;
+    }
 
-            //    template <typename T>
-            //    inline this_type &push(T const &value,
-            //                           std::enable_if_t<has_member_function_print<T, std::ostream &>::value> *__p = nullptr) {
-            //        current_line_char_count_ -= get_buffer_length();
-            //        value.print(*dynamic_cast<base_type *>(this));
-            //        current_line_char_count_ += get_buffer_length();
-            //        if (current_line_char_count_ > get_line_width()) { endl(); }
-            //
-            //        return *this;
-            //    }
+    typedef Logger& (*LoggerStreamManipulator)(Logger&);
 
-            template <typename T>
-            inline this_type const &push(T const &value) const
-            {
-                const_cast<this_type &>(*this).push(value);
-                return *this;
-            }
+    Logger& push(LoggerStreamManipulator manip)
+    {
+        // call the function, and return it's entity
+        return manip(*this);
+    }
 
-            typedef Logger &(*LoggerStreamManipulator)(Logger &);
-
-            Logger &push(LoggerStreamManipulator manip)
-            {
-                // call the function, and return it's entity
-                return manip(*this);
-            }
-
-            /**
+    /**
      *
      * define the custom endl for this stream.
      * note how it matches the `LoggerStreamManipulator`
@@ -163,116 +163,116 @@ namespace sp
      *
      */
 
-            int m_level_ = 10;
-            int current_line_char_count_;
-            bool endl_;
-        };
+    int m_level_ = 10;
+    int current_line_char_count_;
+    bool endl_;
+};
 
-        // this is the function signature of std::endl
-        typedef std::basic_ostream<char, std::char_traits<char>> StdCoutType;
-        typedef StdCoutType &(*StandardEndLine)(StdCoutType &);
-        //! define an operator<< to take in std::endl
-        inline Logger &operator<<(Logger &self, StandardEndLine manip)
-        {
-            // call the function, but we cannot return it's entity
-            manip(dynamic_cast<std::ostringstream &>(self));
-            return self;
-        }
+// this is the function signature of std::endl
+typedef std::basic_ostream<char, std::char_traits<char>> StdCoutType;
+typedef StdCoutType& (*StandardEndLine)(StdCoutType&);
+//! define an operator<< to take in std::endl
+inline Logger& operator<<(Logger& self, StandardEndLine manip)
+{
+    // call the function, but we cannot return it's entity
+    manip(dynamic_cast<std::ostringstream&>(self));
+    return self;
+}
 
-        inline Logger &operator<<(Logger &self, const char *arg) { return self.push(arg); }
+inline Logger& operator<<(Logger& self, const char* arg) { return self.push(arg); }
 
-        template <typename Arg>
-        inline Logger &operator<<(Logger &self, Arg const &arg)
-        {
-            return self.push(arg);
-        }
+template <typename Arg>
+inline Logger& operator<<(Logger& self, Arg const& arg)
+{
+    return self.push(arg);
+}
 
-        // template<typename Arg>
-        // Logger &operator<<(Logger &L, Arg const &arg)
-        //{
-        //    return L.push(arg);
-        //}
-        //
-        // template<typename Arg>
-        // Logger const &operator<<(Logger const &L, Arg const &arg)
-        //{
-        //    return L.push(arg);
-        //}
-        //
-        // inline Logger &operator<<(Logger &L, std::string const &arg)
-        //{
-        //    return L.push(arg);
-        //}
-        //
-        // inline Logger const &operator<<(Logger const &L, std::string const &arg)
-        //{
-        //    return L.push(arg);
-        //}
+// template<typename Arg>
+// Logger &operator<<(Logger &L, Arg const &arg)
+//{
+//    return L.push(arg);
+//}
+//
+// template<typename Arg>
+// Logger const &operator<<(Logger const &L, Arg const &arg)
+//{
+//    return L.push(arg);
+//}
+//
+// inline Logger &operator<<(Logger &L, std::string const &arg)
+//{
+//    return L.push(arg);
+//}
+//
+// inline Logger const &operator<<(Logger const &L, std::string const &arg)
+//{
+//    return L.push(arg);
+//}
 
-        /**
+/**
          * @name     manip for Logger
          * @{
          **/
 
-        inline Logger &endl(Logger &self)
-        {
-            self << std::endl;
-            self.flush();
-            return self;
-        }
+inline Logger& endl(Logger& self)
+{
+    self << std::endl;
+    self.flush();
+    return self;
+}
 
-        inline Logger &done(Logger &self)
-        {
-            self.surffix("[DONE]");
-            return self;
-        }
+inline Logger& done(Logger& self)
+{
+    self.surffix("[DONE]");
+    return self;
+}
 
-        inline Logger &failed(Logger &self)
-        {
-            self.surffix("\e[31;1m[FAILED]\e[0m");
-            return self;
-        }
+inline Logger& failed(Logger& self)
+{
+    self.surffix("\e[31;1m[FAILED]\e[0m");
+    return self;
+}
 
-        inline Logger &start(Logger &self)
-        {
-            self.surffix("[START]");
-            return self;
-        }
+inline Logger& start(Logger& self)
+{
+    self.surffix("[START]");
+    return self;
+}
 
-        inline Logger &flush(Logger &self)
-        {
-            self.flush();
-            return self;
-        }
+inline Logger& flush(Logger& self)
+{
+    self.flush();
+    return self;
+}
 
-        // inline std::string ShowBit(unsigned long s) { return std::bitset<64>(s).to_string(); }
+// inline std::string ShowBit(unsigned long s) { return std::bitset<64>(s).to_string(); }
 
-        inline std::ostringstream &_make_error_msg(std::ostringstream &os) { return os; }
+inline std::ostringstream& _make_error_msg(std::ostringstream& os) { return os; }
 
-        template <typename T>
-        std::ostringstream &_make_msg(std::ostringstream &os, T const &first)
-        {
-            os << first;
-            return os;
-        }
+template <typename T>
+std::ostringstream& _make_msg(std::ostringstream& os, T const& first)
+{
+    os << first;
+    return os;
+}
 
-        template <typename T, typename... Others>
-        std::ostringstream &_make_msg(std::ostringstream &os, T const &first, Others const &... others)
-        {
-            _make_msg(os, (first));
-            return _make_msg(os, (others)...);
-        }
+template <typename T, typename... Others>
+std::ostringstream& _make_msg(std::ostringstream& os, T const& first, Others const&... others)
+{
+    _make_msg(os, (first));
+    return _make_msg(os, (others)...);
+}
 
-        template <typename... Others>
-        std::string make_msg(Others const &... others)
-        {
-            std::ostringstream buffer;
-            _make_msg(buffer, (others)...);
-            return buffer.str();
-        }
-        /** @} */
+template <typename... Others>
+std::string make_msg(Others const&... others)
+{
+    std::ostringstream buffer;
+    _make_msg(buffer, (others)...);
+    return buffer.str();
+}
+/** @} */
 
-    } // namespace logger
+} // namespace logger
 
 /**
  *  @name   Shortcuts for logging
@@ -287,7 +287,7 @@ namespace sp
 #define MAKE_ERROR_MSG(...) \
     sp::logger::make_msg("From [", (__FILE__), ":", (__LINE__), ":0: ", (__PRETTY_FUNCTION__), "] \t", __VA_ARGS__)
 
-    // sp::logger::make_error_msg( (__FILE__),(__LINE__), (__PRETTY_FUNCTION__),__VA_ARGS__)
+// sp::logger::make_error_msg( (__FILE__),(__LINE__), (__PRETTY_FUNCTION__),__VA_ARGS__)
 
 #define DONE sp::logger::done
 
@@ -419,8 +419,8 @@ namespace sp
                << std::endl;                                                                                          \
         throw(std::bad_alloc());                                                                                      \
     }
-    //
-    //
+//
+//
 
 #define THROW_EXCEPTION_BAD_CAST(_FIRST_, _SECOND_)                                          \
     {                                                                                        \
@@ -448,7 +448,7 @@ namespace sp
     {                                                                                 \
         _CMD_;                                                                        \
     }                                                                                 \
-    catch (std::exception const &_error)                                              \
+    catch (std::exception const& _error)                                              \
     {                                                                                 \
         RUNTIME_ERROR << "[" << __STRING(_CMD_) << "]" << _error.what() << std::endl; \
     }
@@ -458,7 +458,7 @@ namespace sp
     {                                                                                             \
         _CMD_;                                                                                    \
     }                                                                                             \
-    catch (std::exception const &error)                                                           \
+    catch (std::exception const& error)                                                           \
     {                                                                                             \
         THROW_EXCEPTION_RUNTIME_ERROR(__VA_ARGS__, ":", "[", __STRING(_CMD_), "]", error.what()); \
     }
@@ -473,9 +473,9 @@ namespace sp
     sp::logger::Logger(sp::logger::LOG_VERBOSE) \
         << __STRING(_MSG_) << "\t= " << std::hex << (_MSG_) << std::dec << std::endl;
 
-    //#else
-    //#	define CHECK(_MSG_)
-    //#endif
+//#else
+//#	define CHECK(_MSG_)
+//#endif
 
 #define REDUCE_CHECK(_MSG_)                                                                     \
     {                                                                                           \
@@ -508,7 +508,7 @@ namespace sp
         _CMD_;                                                                   \
         __logger << DONE;                                                        \
     }                                                                            \
-    catch (std::exception const &error)                                          \
+    catch (std::exception const& error)                                          \
     {                                                                            \
         RUNTIME_ERROR << ("[", __STRING(_CMD_), "]", error.what()) << std::endl; \
     }
@@ -521,7 +521,7 @@ namespace sp
         _CMD_;                                                                   \
         __logger << DONE;                                                        \
     }                                                                            \
-    catch (std::exception const &error)                                          \
+    catch (std::exception const& error)                                          \
     {                                                                            \
         RUNTIME_ERROR << ("[", __STRING(_CMD_), "]", error.what()) << std::endl; \
     }
@@ -564,8 +564,8 @@ namespace sp
         std::feclearexcept(FE_ALL_EXCEPT);                          \
     }
 #endif
-    //#define LOG_CMD2(_MSG_, _CMD_) {auto
-    //__logger=logger::Logger(sp::logger::LOG_LOG);__logger<<_MSG_<<__STRING(_CMD_);_CMD_;__logger<<DONE;}
+//#define LOG_CMD2(_MSG_, _CMD_) {auto
+//__logger=logger::Logger(sp::logger::LOG_LOG);__logger<<_MSG_<<__STRING(_CMD_);_CMD_;__logger<<DONE;}
 
 #define CHECK_BIT(_MSG_)                                                                                        \
     std::cout << std::setfill(' ') << std::setw(10) << __STRING(_MSG_) << " = 0b" << sp::logger::ShowBit(_MSG_) \
@@ -610,17 +610,17 @@ namespace sp
     {                                                                                              \
         _CMD_;                                                                                     \
     }                                                                                              \
-    catch (std::exception const &_msg_)                                                            \
+    catch (std::exception const& _msg_)                                                            \
     {                                                                                              \
         throw std::runtime_error(_msg_.what() + std::string("\n from:") + FILE_LINE_STAMP_STRING + \
                                  "\"" __STRING(_CMD_) + "\" ");                                    \
     }
 
-    class NotImplementedException : public std::logic_error
-    {
-    public:
-        NotImplementedException(std::string const &prefix = "") : std::logic_error{prefix + " Function  not yet implemented."} {}
-    };
+class NotImplementedException : public std::logic_error
+{
+public:
+    NotImplementedException(std::string const& prefix = "") : std::logic_error{prefix + " Function  not yet implemented."} {}
+};
 
 #define NOT_IMPLEMENTED                                                              \
     {                                                                                \

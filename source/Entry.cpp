@@ -1,7 +1,9 @@
 #include "Entry.h"
 #include "EntryInterface.h"
 #include "utility/Logger.h"
+#include "utility/fancy_print.h"
 #include <any>
+#include <array>
 #include <map>
 #include <vector>
 namespace sp
@@ -15,6 +17,7 @@ class EntryInterfaceInMemory : public EntryInterface
 private:
     Entry* m_self_;
     Entry* m_parent_;
+    std::string m_name_;
 
     std::variant<nullptr_t,
                  Entry::single_t,
@@ -25,11 +28,23 @@ private:
         m_data_;
 
 public:
-    EntryInterfaceInMemory(Entry* self, Entry* parent = nullptr) : m_self_(self), m_parent_(parent), m_data_(nullptr){};
+    EntryInterfaceInMemory(Entry* self, const std::string& name = "", Entry* parent = nullptr)
+        : m_self_(self),
+          m_name_(name),
+          m_parent_(parent),
+          m_data_(nullptr){};
 
-    EntryInterfaceInMemory(const EntryInterfaceInMemory& other) : m_self_(other.m_self_), m_parent_(other.m_parent_), m_data_(other.m_data_) {}
+    EntryInterfaceInMemory(const EntryInterfaceInMemory& other)
+        : m_self_(other.m_self_),
+          m_name_(other.m_name_),
+          m_parent_(other.m_parent_),
+          m_data_(other.m_data_) {}
 
-    EntryInterfaceInMemory(EntryInterfaceInMemory&& other) : m_self_(other.m_self_), m_parent_(other.m_parent_), m_data_(std::move(other.m_data_)) {}
+    EntryInterfaceInMemory(EntryInterfaceInMemory&& other)
+        : m_self_(other.m_self_),
+          m_name_(other.m_name_),
+          m_parent_(other.m_parent_),
+          m_data_(std::move(other.m_data_)) {}
 
     ~EntryInterfaceInMemory() = default;
 
@@ -43,6 +58,22 @@ public:
         return "";
     }
 
+    std::string name() const
+    {
+        if (m_parent_ == nullptr)
+        {
+            return "";
+        }
+        else if (m_parent_->type() == Entry::Type::Array)
+        {
+            return m_parent_->name();
+        }
+        else
+        {
+            return m_name_;
+        }
+    }
+
     Entry::Type type() const { return Entry::Type(m_data_.index()); }
 
     // attributes
@@ -54,7 +85,7 @@ public:
         auto p = find("@" + name);
         if (!p)
         {
-            throw std::out_of_range("Can not find attribute '" + name + "'");
+            throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find attribute '" + name + "'");
         }
         return p->get_single();
     }
@@ -94,7 +125,7 @@ public:
         }
         else
         {
-            throw std::runtime_error("Set value failed!");
+            throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
         }
     }
 
@@ -102,7 +133,7 @@ public:
     {
         if (type() != Entry::Type::Single)
         {
-            throw std::runtime_error("This is not block!");
+            throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not Single!");
         }
         return std::get<Entry::Type::Single>(m_data_);
     }
@@ -115,7 +146,7 @@ public:
         }
         else
         {
-            throw std::runtime_error("Set value failed!");
+            throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
         }
     }
 
@@ -123,7 +154,7 @@ public:
     {
         if (type() != Entry::Type::Tensor)
         {
-            throw std::runtime_error("This is not block!");
+            throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
         }
         return std::get<Entry::Type::Tensor>(m_data_);
     }
@@ -136,7 +167,7 @@ public:
         }
         else
         {
-            throw std::runtime_error("Set value failed!");
+            throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
         }
     }
 
@@ -144,7 +175,7 @@ public:
     {
         if (type() != Entry::Type::Block)
         {
-            throw std::runtime_error("This is not block!");
+            throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
         }
         return std::get<Entry::Type::Block>(m_data_);
     }
@@ -159,34 +190,39 @@ public:
         return Entry::iterator();
     };
 
-    Entry::iterator first_child() override
+    Range<Iterator<Entry>> children() const override
     {
         if (type() == Entry::Type::Array)
         {
-            return Entry::iterator(std::get<Entry::Type::Array>(m_data_).begin());
+            auto& m = std::get<Entry::Type::Array>(m_data_);
+            return Entry::range{Entry::iterator(m.begin()),
+                                Entry::iterator(m.end())};
+            ;
         }
-        else if (type() == Entry::Type::Object)
-        {
-            return Entry::iterator(std::get<Entry::Type::Object>(m_data_).begin(),
-                                   [](auto const& item) -> Entry* { return &item->second; });
-        }
-        return Entry::iterator();
-    };
+        // else if (type() == Entry::Type::Object)
+        // {
+        //     auto& m = std::get<Entry::Type::Object>(m_data_);
+        //     auto mapper = [](auto const& item) -> Entry* { return &item->second; };
+        //     return Entry::range{Entry::iterator(m.begin(), mapper),
+        //                         Entry::iterator(m.end(), mapper)};
+        // }
 
-    Entry::iterator last_child() override
+        return Entry::range{};
+    }
+
+    Range<Iterator<const std::pair<const std::string, Entry>>> items() const
     {
+        if (type() == Entry::Type::Object)
+        {
+            auto& m = std::get<Entry::Type::Object>(m_data_);
 
-        if (type() == Entry::Type::Array)
-        {
-            return Entry::iterator(std::get<Entry::Type::Array>(m_data_).end());
+            return Range<Iterator<const std::pair<const std::string, Entry>>>{
+                Iterator<const std::pair<const std::string, Entry>>(m.begin()),
+                Iterator<const std::pair<const std::string, Entry>>(m.end())};
         }
-        else if (type() == Entry::Type::Object)
-        {
-            return Entry::iterator(std::get<Entry::Type::Object>(m_data_).end(),
-                                   [](auto const& item) -> Entry* { return &item->second; });
-        }
-        return Entry::iterator();
-    };
+
+        return Range<Iterator<const std::pair<const std::string, Entry>>>{};
+    }
 
     size_t size() const
     {
@@ -263,12 +299,12 @@ public:
     }
 
     // as object
-    Entry::const_iterator find(const std::string& key) const
+    Entry::const_iterator find(const std::string& name) const
     {
         try
         {
             auto const& m = std::get<Entry::Type::Object>(m_data_);
-            auto it = m.find(key);
+            auto it = m.find(name);
             if (it != m.end())
             {
                 return it->second.self();
@@ -280,12 +316,12 @@ public:
         return Entry::const_iterator();
     }
 
-    Entry::iterator find(const std::string& key)
+    Entry::iterator find(const std::string& name)
     {
         try
         {
             auto const& m = std::get<Entry::Type::Object>(m_data_);
-            auto it = m.find(key);
+            auto it = m.find(name);
             if (it != m.end())
             {
                 return const_cast<Entry&>(it->second).self();
@@ -297,7 +333,7 @@ public:
         return Entry::iterator();
     }
 
-    Entry::iterator insert(const std::string& key)
+    Entry::iterator insert(const std::string& name)
     {
         if (type() == Entry::Type::Null)
         {
@@ -307,7 +343,7 @@ public:
         {
             auto& m = std::get<Entry::Type::Object>(m_data_);
 
-            return Entry::iterator(&(m.emplace(key, Entry(m_self_)).first->second));
+            return Entry::iterator(&(m.emplace(name, Entry(m_self_, name)).first->second));
         }
         catch (std::bad_variant_access&)
         {
@@ -315,12 +351,12 @@ public:
         }
     }
 
-    Entry erase(const std::string& key)
+    Entry erase(const std::string& name)
     {
         try
         {
             auto& m = std::get<Entry::Type::Object>(m_data_);
-            auto it = m.find(key);
+            auto it = m.find(name);
             if (it != m.end())
             {
                 Entry res;
@@ -336,7 +372,7 @@ public:
     }
 };
 
-Entry::Entry(Entry* parent) : m_pimpl_(new EntryInterfaceInMemory(this, parent)) {}
+Entry::Entry(Entry* parent, const std::string& name) : m_pimpl_(new EntryInterfaceInMemory(this, name, parent)) {}
 
 Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
 
@@ -354,6 +390,8 @@ Entry& Entry::operator=(this_type const& other)
 
 //
 std::string Entry::prefix() const { return m_pimpl_->prefix(); }
+
+std::string Entry::name() const { return m_pimpl_->name(); }
 
 // metadata
 Entry::Type Entry::type() const { return m_pimpl_->type(); }
@@ -400,12 +438,13 @@ Entry::iterator Entry::self() { return iterator(this); }
 
 Entry::iterator Entry::next() const { return m_pimpl_->next(); }
 
-Entry::iterator Entry::first_child() const { return m_pimpl_->first_child(); }
+// Entry::iterator Entry::first_child() const { return m_pimpl_->first_child(); }
 
-Entry::iterator Entry::last_child() const { return m_pimpl_->last_child(); }
+// Entry::iterator Entry::last_child() const { return m_pimpl_->last_child(); }
 
-Entry::range Entry::children() const { return range{first_child(), last_child()}; }
+Entry::range Entry::children() const { return m_pimpl_->children(); }
 
+Range<Iterator<const std::pair<const std::string, Entry>>> Entry::items() const { return m_pimpl_->items(); };
 // as container
 size_t Entry::size() const { return m_pimpl_->size(); }
 
@@ -449,7 +488,7 @@ Entry& Entry::operator[](int idx)
         auto p = at(idx);
         if (!p)
         {
-            throw std::out_of_range("index out of range");
+            throw std::out_of_range(FILE_LINE_STAMP_STRING + "index out of range");
         }
         return *p;
     }
@@ -457,39 +496,39 @@ Entry& Entry::operator[](int idx)
 
 // as map
 // @note : map is unordered
-bool Entry::has_a(const std::string& key) { return !find(key); }
+bool Entry::has_a(const std::string& name) { return !find(name); }
 
-Entry::iterator Entry::find(const std::string& key) { return m_pimpl_->find(key); }
+Entry::iterator Entry::find(const std::string& name) { return m_pimpl_->find(name); }
 
-Entry::iterator Entry::at(const std::string& key)
+Entry::iterator Entry::at(const std::string& name)
 {
-    auto p = find(key);
+    auto p = find(name);
     if (!p)
     {
-        throw std::out_of_range(key);
+        throw std::out_of_range(FILE_LINE_STAMP_STRING + name);
     }
     return p;
 }
 
-Entry& Entry::operator[](const std::string& key) { return *insert(key); }
+Entry& Entry::operator[](const std::string& name) { return *insert(name); }
 
-Entry::iterator Entry::insert(const std::string& key) { return m_pimpl_->insert(key); }
+Entry::iterator Entry::insert(const std::string& name) { return m_pimpl_->insert(name); }
 
-Entry::iterator Entry::insert(const std::string& key, const Entry& other)
+Entry::iterator Entry::insert(const std::string& name, const Entry& other)
 {
-    auto p = insert(key);
+    auto p = insert(name);
     Entry(other).swap(*p);
     return p;
 }
 
-Entry::iterator Entry::insert(const std::string& key, Entry&& other)
+Entry::iterator Entry::insert(const std::string& name, Entry&& other)
 {
-    auto p = insert(key);
+    auto p = insert(name);
     p->swap(other);
     return p;
 }
 
-Entry Entry::erase(const std::string& key) { return m_pimpl_->erase(key); }
+Entry Entry::erase(const std::string& name) { return m_pimpl_->erase(name); }
 
 //-------------------------------------------------------------------
 // level 2
@@ -544,5 +583,66 @@ void save(const Entry&, const std::string& uri) { NOT_IMPLEMENTED; }
 Entry load(const std::istream&, const std::string& format) { NOT_IMPLEMENTED; }
 
 void save(const Entry&, const std::ostream&, const std::string& format) { NOT_IMPLEMENTED; }
+
+std::ostream& fancy_print(std::ostream& os, const Entry& entry, int indent = 0)
+{
+    if (entry.type() == Entry::Type::Single)
+    {
+        auto v = entry.get_single();
+
+        switch (v.index())
+        {
+        case 0:
+            os << "\"" << std::get<std::string>(v) << "\"";
+            break;
+        case 1:
+            os << std::get<bool>(v);
+            break;
+        case 2:
+            os << std::get<int>(v);
+            break;
+        case 3:
+            os << std::get<double>(v);
+            break;
+        case 4:
+            os << std::get<std::complex<double>>(v);
+            break;
+        case 5:
+        {
+            auto d = std::get<std::array<int, 3>>(v);
+            os << d[0] << "," << d[1] << "," << d[2];
+        }
+        break;
+        case 6:
+        {
+            auto d = std::get<std::array<double, 3>>(v);
+            os << d[0] << "," << d[1] << "," << d[2];
+        }
+        break;
+        default:
+            break;
+        }
+    }
+    else if (entry.type() == Entry::Type::Array)
+    {
+        auto r = entry.children();
+        os << "[ ";
+        fancy_print_array1(os, r.first, r.second, indent);
+        os << " ]";
+    }
+    else if (entry.type() == Entry::Type::Object)
+    {
+        auto r = entry.items();
+        os << "{";
+        fancy_print_key_value(os, r.first, r.second, indent, ":");
+        os << "}";
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, Entry const& entry)
+{
+    return fancy_print(os, entry, 0);
+}
 
 } // namespace sp

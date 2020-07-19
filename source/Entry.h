@@ -7,7 +7,9 @@
 #include <complex>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <variant>
+
 namespace sp
 {
 struct type_desc;
@@ -64,7 +66,7 @@ public:
                        >
         block_t;
 
-    Entry(Entry* parent = nullptr);
+    Entry(Entry* parent = nullptr, const std::string& name = "");
 
     Entry(const this_type&);
 
@@ -94,6 +96,8 @@ public:
 
     std::string prefix() const;
 
+    std::string name() const;
+
     // attributes
 
     bool has_attribute(const std::string& name) const;
@@ -114,7 +118,7 @@ public:
     template <typename V>
     void set_attribute(const std::string& name, const V& value)
     {
-        set_attribute_raw(name,single_t{value});
+        set_attribute_raw(name, single_t{value});
     }
 
     void remove_attribute(const std::string& name);
@@ -157,6 +161,8 @@ public:
     iterator last_child() const;
 
     range children() const;
+
+    Range<Iterator<const  std::pair<const std::string, Entry>>> items() const;
 
     // as container
     size_t size() const;
@@ -249,6 +255,8 @@ public:
 
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
+
+std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
 } // namespace sp
 
