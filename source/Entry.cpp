@@ -88,37 +88,65 @@ public:
 
     void set_single(const Entry::single_t& v) override
     {
-        if (type() == Entry::Type::Null)
+        if (type() < Entry::Type::Array)
         {
-            m_data_.emplace<Entry::Type::Single>();
+            m_data_.emplace<Entry::Type::Single>(v);
         }
-        try
-        {
-            auto& m = std::get<Entry::Type::Single>(m_data_);
-            Entry::single_t(v).swap(m);
-        }
-        catch (std::bad_variant_access&)
+        else
         {
             throw std::runtime_error("Set value failed!");
         }
     }
+
     Entry::single_t get_single() const override
     {
-        try
+        if (type() != Entry::Type::Single)
         {
-            return std::get<Entry::Type::Single>(m_data_);
+            throw std::runtime_error("This is not block!");
         }
-        catch (std::bad_variant_access&)
+        return std::get<Entry::Type::Single>(m_data_);
+    }
+
+    void set_tensor(const Entry::tensor_t& v) override
+    {
+        if (type() < Entry::Type::Array)
         {
-            throw std::runtime_error("Get value failed!");
+            m_data_.emplace<Entry::Type::Tensor>(v);
+        }
+        else
+        {
+            throw std::runtime_error("Set value failed!");
         }
     }
 
-    void set_tensor(const Entry::tensor_t&) override { NOT_IMPLEMENTED; }
-    Entry::tensor_t get_tensor() const override { NOT_IMPLEMENTED; }
+    Entry::tensor_t get_tensor() const override
+    {
+        if (type() != Entry::Type::Tensor)
+        {
+            throw std::runtime_error("This is not block!");
+        }
+        return std::get<Entry::Type::Tensor>(m_data_);
+    }
 
-    void set_block(const Entry::block_t&) override { NOT_IMPLEMENTED; }
-    Entry::block_t get_block() const override { NOT_IMPLEMENTED; }
+    void set_block(const Entry::block_t& v) override
+    {
+        if (type() < Entry::Type::Array)
+        {
+            m_data_.emplace<Entry::Type::Block>(v);
+        }
+        else
+        {
+            throw std::runtime_error("Set value failed!");
+        }
+    }
+    Entry::block_t get_block() const override
+    {
+        if (type() != Entry::Type::Block)
+        {
+            throw std::runtime_error("This is not block!");
+        }
+        return std::get<Entry::Type::Block>(m_data_);
+    }
 
     // as Tree
 
