@@ -25,8 +25,11 @@ private:
 
 public:
     EntryInterfaceInMemory() : m_data_(nullptr){};
+   
     EntryInterfaceInMemory(const EntryInterfaceInMemory& other) : m_data_(other.m_data_) {}
+   
     EntryInterfaceInMemory(EntryInterfaceInMemory&& other) : m_data_(std::move(other.m_data_)) {}
+   
     ~EntryInterfaceInMemory() = default;
 
     EntryInterface* copy() const override { return new EntryInterfaceInMemory(*this); }
@@ -43,15 +46,39 @@ public:
 
     // attributes
 
-    bool has_attribute(const std::string& name) const { NOT_IMPLEMENTED; }
+    bool has_attribute(const std::string& name) const { return !find("@" + name); }
 
-    const Entry::single_t get_attribute(const std::string& name) { NOT_IMPLEMENTED; }
+    Entry::single_t get_attribute(const std::string& name) const
+    {
+        auto p = find("@" + name);
+        if (!p)
+        {
+            throw std::out_of_range(name);
+        }
+        return p->get_single();
+    }
 
-    void set_attribute(const std::string& name, const Entry::single_t& value) { NOT_IMPLEMENTED; }
+    void set_attribute(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
 
-    void remove_attribute(const std::string& name) { NOT_IMPLEMENTED; }
+    void remove_attribute(const std::string& name) { erase("@" + name); }
 
-    std::map<std::string, Entry::single_t> attributes() const { NOT_IMPLEMENTED; }
+    std::map<std::string, Entry::single_t> attributes() const
+    {
+        if (type() != Entry::Type::Object)
+        {
+            return std::map<std::string, Entry::single_t>{};
+        }
+
+        std::map<std::string, Entry::single_t> res;
+        for (const auto& item : std::get<Entry::Type::Object>(m_data_))
+        {
+            if (item.first[0] == '@')
+            {
+                res.emplace(item.first.substr(1, std::string::npos), item.second.get_single());
+            }
+        }
+        return std::move(res);
+    }
 
     //----------------------------------------------------------------------------------
     // level 0
@@ -123,11 +150,12 @@ public:
     Entry pop_back() { NOT_IMPLEMENTED; }
 
     // as object
-    Entry::cursor find(const std::string& key)
+    Entry::cursor find(const std::string& key) const
     {
         NOT_IMPLEMENTED;
         return Entry::cursor();
     }
+
     Entry::cursor insert(const std::string& key)
     {
         NOT_IMPLEMENTED;
