@@ -13,7 +13,7 @@ include_directories(../extern)
 set( TESTS
    
   #  test_document
-   test_node
+   test_entry
   #  test_imas_east_magnetics
   #  test_imas_east_equilibrium
   # # test_imas_jet_tf

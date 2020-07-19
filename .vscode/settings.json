@@ -75,6 +75,7 @@
         "bit": "cpp",
         "shared_mutex": "cpp",
         "csignal": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "propagate_const": "cpp"
     }
 }

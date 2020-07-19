@@ -1,621 +1,349 @@
 #include "Entry.h"
+#include "EntryInterface.h"
 #include "utility/Logger.h"
 #include <any>
 #include <map>
 #include <vector>
-
 namespace sp
 {
-typedef std::vector<std::shared_ptr<Entry>> array_t;
-typedef std::map<std::string, std::shared_ptr<Entry>> map_t;
-struct node_t : public std::variant<scalar_t, array_t, map_t>
+struct type_desc
 {
 };
-typedef node_t entry_in_memory;
 
-template <>
-void EntryPolicyBody<entry_in_memory>::resolve() { NOT_IMPLEMENTED; }
+class EntryInterfaceInMemory : public EntryInterface
+{
+private:
+    std::variant<nullptr_t,
+                 Entry::single_t,
+                 Entry::tensor_t,
+                 Entry::block_t,
+                 std::vector<Entry>,
+                 std::map<std::string, Entry>>
+        m_data_;
 
-//----------------------------------------------------------------
-// attributes
+    Entry* m_parent_;
 
-template <>
-bool EntryPolicyAttributes<entry_in_memory>::has_attribute(std::string const& key) const
-{
-    NOT_IMPLEMENTED;
-    return false;
-}
-template <>
-bool EntryPolicyAttributes<entry_in_memory>::check_attribute(std::string const& key, scalar_t const& v) const
-{
-    NOT_IMPLEMENTED;
-    return false;
-}
-template <>
-void EntryPolicyAttributes<entry_in_memory>::set_attribute(const std::string&, const scalar_t&)
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-scalar_t EntryPolicyAttributes<entry_in_memory>::get_attribute(const std::string&) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-scalar_t EntryPolicyAttributes<entry_in_memory>::get_attribute(std::string const& key, scalar_t const& default_value)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-void EntryPolicyAttributes<entry_in_memory>::remove_attribute(const std::string&)
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-Range<Iterator<std::pair<std::string, scalar_t>>>
-EntryPolicyAttributes<entry_in_memory>::attributes() const
-{
-    NOT_IMPLEMENTED;
-    return Range<Iterator<std::pair<std::string, scalar_t>>>{};
-}
+public:
+    EntryInterfaceInMemory() : m_data_(nullptr){};
+    EntryInterfaceInMemory(const EntryInterfaceInMemory& other) : m_data_(other.m_data_) {}
+    EntryInterfaceInMemory(EntryInterfaceInMemory&& other) : m_data_(std::move(other.m_data_)) {}
+    ~EntryInterfaceInMemory() = default;
 
-template <>
-void EntryPolicyAttributes<entry_in_memory>::clear_attributes()
-{
-    NOT_IMPLEMENTED;
-}
+    EntryInterface* copy() const override { return new EntryInterfaceInMemory(*this); }
 
-//-------------------------------------------------------------------------------------------------------
-// as scalar
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Scalar>::as_interface(TypeTag tag) { return this->self(); }
+    //
 
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Scalar>::set_scalar(scalar_t const& v) { backend()->emplace<scalar_t>(v); }
-
-template <>
-scalar_t EntryPolicy<entry_in_memory, TypeTag::Scalar>::get_scalar() const { return std::get<scalar_t>(*backend()); }
-
-//-------------------------------------------------------------------------------------------------------
-// as block
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Block>::as_interface(TypeTag tag)
-{
-    if (tag == TypeTag::Block)
+    std::string prefix() const
     {
-        return this->self();
+        NOT_IMPLEMENTED;
+        return "";
+    }
+
+    Entry::Type type() const { return Entry::Type(m_data_.index()); }
+
+    // attributes
+
+    bool has_attribute(const std::string& name) const { NOT_IMPLEMENTED; }
+
+    const Entry::single_t get_attribute(const std::string& name) { NOT_IMPLEMENTED; }
+
+    void set_attribute(const std::string& name, const Entry::single_t& value) { NOT_IMPLEMENTED; }
+
+    void remove_attribute(const std::string& name) { NOT_IMPLEMENTED; }
+
+    std::map<std::string, Entry::single_t> attributes() const { NOT_IMPLEMENTED; }
+
+    //----------------------------------------------------------------------------------
+    // level 0
+    //
+    // as leaf
+
+    void set_single(const Entry::single_t&) override { NOT_IMPLEMENTED; }
+    Entry::single_t get_single() const override { NOT_IMPLEMENTED; }
+
+    void set_tensor(const Entry::tensor_t&) override { NOT_IMPLEMENTED; }
+    Entry::tensor_t get_tensor() const override { NOT_IMPLEMENTED; }
+
+    void set_block(const Entry::block_t&) override { NOT_IMPLEMENTED; }
+    Entry::block_t get_block() const override { NOT_IMPLEMENTED; }
+
+    // as Tree
+
+    Entry::cursor parent() const override { return Entry::cursor(m_parent_); }
+
+    Entry::cursor next() const override
+    {
+        NOT_IMPLEMENTED;
+        return Entry::cursor();
+    };
+
+    Entry::cursor first_child() const override
+    {
+        NOT_IMPLEMENTED;
+        return Entry::cursor();
+    };
+
+    Entry::cursor last_child() const override
+    {
+        NOT_IMPLEMENTED;
+        return Entry::cursor();
+    };
+
+    size_t size() const
+    {
+        NOT_IMPLEMENTED;
+        return 0;
+    }
+
+    Entry::range find(const Entry::pred_fun& pred)
+    {
+        NOT_IMPLEMENTED;
+    }
+
+    void erase(const Entry::cursor& p)
+    {
+        NOT_IMPLEMENTED;
+    }
+
+    void erase_if(const Entry::pred_fun& p)
+    {
+        NOT_IMPLEMENTED;
+    }
+
+    void erase_if(const Entry::range& r, const Entry::pred_fun& p)
+    {
+        NOT_IMPLEMENTED;
+    }
+
+    // as vector
+    Entry::cursor at(int idx) { NOT_IMPLEMENTED; }
+
+    Entry::cursor push_back() { NOT_IMPLEMENTED; }
+
+    Entry pop_back() { NOT_IMPLEMENTED; }
+
+    // as object
+    Entry::cursor find(const std::string& key)
+    {
+        NOT_IMPLEMENTED;
+        return Entry::cursor();
+    }
+    Entry::cursor insert(const std::string& key)
+    {
+        NOT_IMPLEMENTED;
+        return Entry::cursor();
+    }
+    Entry erase(const std::string& key)
+    {
+        NOT_IMPLEMENTED;
+        return Entry();
+    }
+};
+
+Entry::Entry() : m_pimpl_(new EntryInterfaceInMemory) {}
+
+Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
+
+Entry::Entry(this_type&& other) : m_pimpl_(other.m_pimpl_.release()) {}
+
+Entry::~Entry() {}
+
+void Entry::swap(this_type& other) { std::swap(m_pimpl_, other.m_pimpl_); }
+
+Entry& Entry::operator=(this_type const& other)
+{
+    this_type(other).swap(*this);
+    return *this;
+}
+
+//
+std::string Entry::prefix() const { return m_pimpl_->prefix(); }
+
+// metadata
+Entry::Type Entry::type() const { return m_pimpl_->type(); }
+bool Entry::is_null() const { return type() == Type::Null; }
+bool Entry::is_single() const { return type() == Type::Single; }
+bool Entry::is_tensor() const { return type() == Type::Tensor; }
+bool Entry::is_block() const { return type() == Type::Block; }
+bool Entry::is_array() const { return type() == Type::Array; }
+bool Entry::is_object() const { return type() == Type::Object; }
+
+// attributes
+bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->has_attribute(name); }
+
+const Entry::single_t Entry::get_attribute(const std::string& name) { return m_pimpl_->get_attribute(name); }
+
+void Entry::set_attribute(const std::string& name, const single_t& value) { m_pimpl_->set_attribute(name, value); }
+
+void Entry::remove_attribute(const std::string& name) { m_pimpl_->remove_attribute(name); }
+
+std::map<std::string, Entry::single_t> Entry::attributes() const { return m_pimpl_->attributes(); }
+
+// as leaf
+void Entry::set_single(const single_t& v) { m_pimpl_->set_single(v); }
+
+Entry::single_t Entry::get_single() const { return m_pimpl_->get_single(); }
+
+void Entry::set_tensor(const tensor_t& v) { m_pimpl_->set_tensor(v); }
+
+Entry::tensor_t Entry::get_tensor() const { return m_pimpl_->get_tensor(); }
+
+void Entry::set_block(const block_t& v) { m_pimpl_->set_block(v); }
+
+Entry::block_t Entry::get_block() const { return m_pimpl_->get_block(); }
+
+// as Tree
+Entry::cursor Entry::parent() const { return m_pimpl_->parent(); }
+
+Entry::const_cursor Entry::self() const { return const_cursor(this); }
+
+Entry::cursor Entry::self() { return cursor(this); }
+
+Entry::cursor Entry::next() const { return m_pimpl_->next(); }
+
+Entry::cursor Entry::first_child() const { return m_pimpl_->first_child(); }
+
+Entry::cursor Entry::last_child() const { return m_pimpl_->last_child(); }
+
+Entry::range Entry::children() const { return range{first_child(), last_child()}; }
+
+// as container
+size_t Entry::size() const { return m_pimpl_->size(); }
+
+Entry::range Entry::find(const pred_fun& pred) { return m_pimpl_->find(pred); }
+
+void Entry::erase(const cursor& p) { m_pimpl_->erase(p); }
+
+void Entry::erase_if(const pred_fun& p) { m_pimpl_->erase_if(p); }
+
+void Entry::erase_if(const range& r, const pred_fun& p) { m_pimpl_->erase_if(r, p); }
+
+// as vector
+Entry::cursor Entry::at(int idx) { return m_pimpl_->at(idx); }
+
+Entry::cursor Entry::push_back() { return m_pimpl_->push_back(); }
+
+Entry::cursor Entry::push_back(const Entry& other)
+{
+    auto p = push_back();
+    Entry(other).swap(*p);
+    return p;
+}
+
+Entry::cursor Entry::push_back(Entry&& other)
+{
+    auto p = push_back();
+    p->swap(other);
+    return p;
+}
+
+Entry Entry::pop_back() { NOT_IMPLEMENTED; }
+
+Entry& Entry::operator[](int idx)
+{
+    if (idx < 0)
+    {
+        return *push_back();
     }
     else
     {
-        NOT_IMPLEMENTED;
-        return nullptr;
+        auto p = at(idx);
+        if (!p)
+        {
+            throw std::out_of_range("index out of range");
+        }
+        return *p;
     }
 }
-template <>
-std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>>
-EntryPolicy<entry_in_memory, TypeTag::Block>::get_raw_block() const
+
+// as map
+// @note : map is unordered
+bool Entry::has_a(const std::string& key) { return !find(key); }
+
+Entry::cursor Entry::find(const std::string& key) { return m_pimpl_->find(key); }
+
+Entry::cursor Entry::at(const std::string& key)
 {
-    NOT_IMPLEMENTED;
-    return std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>>{nullptr, typeid(nullptr_t), {}};
+    auto p = find(key);
+    if (!p)
+    {
+        throw std::out_of_range(key);
+    }
+    return p;
 }
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Block>::set_raw_block(const std::shared_ptr<void>& /*data pointer*/,
-                                                                 const std::type_info& /*element type*/,
-                                                                 const std::vector<size_t>& /*dimensions*/)
+
+Entry& Entry::operator[](const std::string& key) { return *at(key); }
+
+Entry::cursor Entry::insert(const std::string& key) { return m_pimpl_->insert(key); }
+
+Entry::cursor Entry::insert(const std::string& key, const Entry& other)
 {
-    NOT_IMPLEMENTED;
+    auto p = insert(key);
+    Entry(other).swap(*p);
+    return p;
 }
-//-------------------------------------------------------------------------------------------------------
-// array
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::as_interface(TypeTag tag) { return this->self(); }
-template <>
-size_t EntryPolicy<entry_in_memory, TypeTag::Array>::size() const
+
+Entry::cursor Entry::insert(const std::string& key, Entry&& other)
+{
+    auto p = insert(key);
+    p->swap(other);
+    return p;
+}
+
+Entry Entry::erase(const std::string& key) { return m_pimpl_->erase(key); }
+
+//-------------------------------------------------------------------
+// level 2
+size_t Entry::depth() const
+{
+    auto p = parent();
+    return p == nullptr ? 0 : p->depth() + 1;
+}
+
+size_t Entry::height() const
 {
     NOT_IMPLEMENTED;
     return 0;
 }
-template <>
-Entry::range EntryPolicy<entry_in_memory, TypeTag::Array>::children()
-{
-    NOT_IMPLEMENTED;
-    return Entry::range{};
-}
-template <>
-Entry::const_range EntryPolicy<entry_in_memory, TypeTag::Array>::children() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_range{};
-}
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Array>::clear_children() { NOT_IMPLEMENTED; }
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Array>::remove_child(Entry::iterator const&) { NOT_IMPLEMENTED; }
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Array>::remove_children(Entry::range const&) { NOT_IMPLEMENTED; }
-template <>
-Entry::iterator EntryPolicy<entry_in_memory, TypeTag::Array>::begin()
-{
-    NOT_IMPLEMENTED;
-    return Entry::iterator{};
-}
-template <>
-Entry::iterator EntryPolicy<entry_in_memory, TypeTag::Array>::end()
-{
-    NOT_IMPLEMENTED;
-    return Entry::iterator{};
-}
-template <>
-Entry::const_iterator EntryPolicy<entry_in_memory, TypeTag::Array>::cbegin() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_iterator{};
-}
-template <>
-Entry::const_iterator EntryPolicy<entry_in_memory, TypeTag::Array>::cend() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_iterator{};
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(const std::shared_ptr<Entry>& p)
-{
-    std::shared_ptr<Entry> e = p != nullptr ? p : convert_to(TypeTag::Null);
 
-    try
-    {
-        std::get<array_t>(*backend()).push_back(e);
-    }
-    catch (const std::bad_variant_access&)
-    {
-        backend()->emplace<array_t>({e});
-    }
-    return e;
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(Entry&&)
+Entry::range Entry::slibings() const { return range{next(), const_cast<this_type*>(this)->self()}; } // return slibings
+
+Entry::range Entry::ancestor() const
 {
     NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(const Entry&)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-Entry::range EntryPolicy<entry_in_memory, TypeTag::Array>::push_back(const Entry::iterator& b, const Entry::iterator& e)
-{
-    NOT_IMPLEMENTED;
-    return Entry::range{};
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::at(int idx)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Array>::at(int idx) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
+    return range{};
 }
 
-//---------------------------------------------------------------------------------------------------
-// Table
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::as_interface(TypeTag tag)
+Entry::range Entry::descendants() const
 {
-    return convert_to(tag);
+    NOT_IMPLEMENTED;
+    return range{};
 }
 
-template <>
-size_t EntryPolicy<entry_in_memory, TypeTag::Table>::size() const
+Entry::range Entry::leaves() const
+{
+    NOT_IMPLEMENTED;
+    return range{};
+}
+
+Entry::range Entry::shortest_path(cursor const& target) const
+{
+    NOT_IMPLEMENTED;
+    return range{};
+}
+
+ptrdiff_t Entry::distance(const this_type& target) const
 {
     NOT_IMPLEMENTED;
     return 0;
 }
-template <>
-Entry::range EntryPolicy<entry_in_memory, TypeTag::Table>::children()
-{
-    NOT_IMPLEMENTED;
-    return Entry::range{};
-}
-template <>
-Entry::const_range EntryPolicy<entry_in_memory, TypeTag::Table>::children() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_range{};
-}
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Table>::clear_children()
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Table>::remove_child(Entry::iterator const&)
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-void EntryPolicy<entry_in_memory, TypeTag::Table>::remove_children(Entry::range const&)
-{
-    NOT_IMPLEMENTED;
-}
-template <>
-Entry::iterator EntryPolicy<entry_in_memory, TypeTag::Table>::begin()
-{
-    NOT_IMPLEMENTED;
-    return Entry::iterator{};
-}
-template <>
-Entry::iterator EntryPolicy<entry_in_memory, TypeTag::Table>::end()
-{
-    NOT_IMPLEMENTED;
-    return Entry::iterator{};
-}
-template <>
-Entry::const_iterator EntryPolicy<entry_in_memory, TypeTag::Table>::cbegin() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_iterator{};
-}
-template <>
-Entry::const_iterator EntryPolicy<entry_in_memory, TypeTag::Table>::cend() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_iterator{};
-}
-template <>
-Entry::const_range_kv EntryPolicy<entry_in_memory, TypeTag::Table>::items() const
-{
-    NOT_IMPLEMENTED;
-    return Entry::const_range_kv{};
-}
-template <>
-Entry::range_kv EntryPolicy<entry_in_memory, TypeTag::Table>::items()
-{
-    NOT_IMPLEMENTED;
-    return Entry::range_kv{};
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::insert(const std::string& k, std::shared_ptr<Entry> const& node)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-Entry::range_kv EntryPolicy<entry_in_memory, TypeTag::Table>::insert(const Entry::iterator_kv& b, const Entry::iterator_kv& e)
-{
-    NOT_IMPLEMENTED;
-    return Entry::range_kv{};
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::at(const std::string& key)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::at(const std::string& idx) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::find_child(const std::string&)
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
-std::shared_ptr<const Entry> EntryPolicy<entry_in_memory, TypeTag::Table>::find_child(const std::string&) const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
 
-// //-----------------------------------------------------------------------------------------------------
-// // content
+Entry load(const std::string& uri) { NOT_IMPLEMENTED; }
 
-// struct Content
-// {
-//     virtual bool is_leaf() const { return true; }
-//     virtual std::type_info const& type_info() const { return typeid(Content); };
-//     virtual Content* copy() const { return nullptr; }
-//     virtual Content* move() { return nullptr; }
-// };
+void save(const Entry&, const std::string& uri) { NOT_IMPLEMENTED; }
 
-// struct ContentScalar : public Content
-// {
-//     scalar_t content;
-//     ContentScalar() {}
-//     ContentScalar(const ContentScalar& other) : content(other.content) {}
-//     ContentScalar(ContentScalar&& other) : content(std::move(other.content)) {}
-//     std::type_info const& type_info() const { return typeid(ContentScalar); }
-//     Content* copy() const override { return new ContentScalar(*this); };
-//     Content* move() override { return new ContentScalar(std::move(*this)); };
-// };
+Entry load(const std::istream&, const std::string& format) { NOT_IMPLEMENTED; }
 
-// struct ContentBlock : public Content
-// {
-//     std::tuple<std::shared_ptr<char>, std::type_info const&, std::vector<size_t>> content;
-//     ContentBlock() : content(nullptr, typeid(nullptr_t), {}) {}
-//     ContentBlock(std::shared_ptr<char> const& p, std::type_info const& t, std::vector<size_t> const& d) : content({p, t, d}) {}
-//     ContentBlock(const ContentBlock& other) : content(other.content) {}
-//     ContentBlock(ContentBlock&& other) : content(std::move(other.content)) {}
-//     std::type_info const& type_info() const { return typeid(ContentBlock); }
-//     Content* copy() const { return new ContentBlock{*this}; };
-//     Content* move() { return new ContentBlock{std::move(*this)}; };
-// };
+void save(const Entry&, const std::ostream&, const std::string& format) { NOT_IMPLEMENTED; }
 
-// struct ContentTree : public Content
-// {
-//     bool is_leaf() const override { return false; }
-// };
-// struct ContentArray : public ContentTree
-// {
-//     std::vector<std::shared_ptr<Entry>> content;
-//     ContentArray() {}
-//     ContentArray(ContentArray const& other) : content(other.content) {}
-//     ContentArray(ContentArray&& other) : content(std::move(other.content)) {}
-//     std::type_info const& type_info() const { return typeid(ContentArray); }
-//     Content* copy() const { return new ContentArray{*this}; };
-//     Content* move() { return new ContentArray{std::move(*this)}; };
-// };
-
-// struct ContentTable : public Content
-// {
-//     std::map<std::string, std::shared_ptr<Entry>> content;
-//     ContentTable() {}
-//     ContentTable(ContentTable const& other) : content(other.content) {}
-//     ContentTable(ContentTable&& other) : content(std::move(other.content)) {}
-//     std::type_info const& type_info() const { return typeid(ContentTable); }
-//     Content* copy() const { return new ContentTable{*this}; };
-//     Content* move() { return new ContentTable{std::move(*this)}; };
-// };
-
-// EntryInMemory::EntryInMemory()
-//     : m_attributes_(new Attributes),
-//       m_content_(new ContentScalar) {}
-
-// EntryInMemory::EntryInMemory(EntryInMemory const& other)
-//     : m_attributes_(other.m_attributes_->copy()),
-//       m_content_(other.m_content_->copy()) {}
-
-// EntryInMemory::EntryInMemory(EntryInMemory&& other)
-//     : m_attributes_(other.m_attributes_.release()),
-//       m_content_(other.m_content_.release()) {}
-
-// EntryInMemory::~EntryInMemory() {}
-
-// //------------------------------------------------------------------------------------
-// // attribute
-
-// bool EntryInMemory::has_attribute(std::string const& key) const { return m_attributes_->has_a(key); }
-
-// bool EntryInMemory::check_attribute(std::string const& key, scalar_t const& v) const { return m_attributes_->check(key, v); }
-
-// scalar_t EntryInMemory::get_attribute(std::string const& key) const { return m_attributes_->get(key); }
-
-// scalar_t EntryInMemory::get_attribute(std::string const& key, scalar_t const& default_value) { return m_attributes_->get(key, default_value); }
-
-// void EntryInMemory::set_attribute(std::string const& key, scalar_t const& v) { m_attributes_->set(key, v); }
-
-// void EntryInMemory::remove_attribute(std::string const& key) { m_attributes_->erase(key); }
-
-// Range<Iterator<std::pair<std::string, scalar_t>>> EntryInMemory::attributes() const { return std::move(m_attributes_->items()); }
-
-// void EntryInMemory::clear_attributes() { m_attributes_->clear(); }
-
-// //------------------------------------------------------------------------------------
-// // node
-// std::shared_ptr<Entry> EntryInMemory::create() { return new EntryInMemory(); }
-
-// std::shared_ptr<Entry> EntryInMemory::copy() const { return new EntryInMemory(*this); }
-
-// void EntryInMemory::resolve() {}
-
-// std::shared_ptr<Entry> EntryInMemory::create_child()
-// {
-//     NOT_IMPLEMENTED;
-//     return nullptr;
-// }
-
-// void EntryInMemory::as_scalar()
-// {
-//     if (m_content_->type_info() != typeid(ContentScalar))
-//     {
-//         m_content_.reset(new ContentScalar{});
-//     }
-// }
-
-// void EntryInMemory::as_block()
-// {
-//     if (m_content_->type_info() != typeid(ContentBlock))
-//     {
-//         m_content_.reset(new ContentBlock{});
-//     }
-// }
-
-// // as leaf node
-// scalar_t EntryInMemory::get_scalar() const { return scalar_t{}; } // get value , if value is invalid then throw exception
-
-// void EntryInMemory::set_scalar(scalar_t const& v) {}
-
-// std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>>
-// EntryInMemory::get_raw_block() const
-// {
-//     return std::tuple<std::shared_ptr<void>, const std::type_info&, std::vector<size_t>>{nullptr, typeid(nullptr_t), {}};
-// } // get block
-
-// void EntryInMemory::set_raw_block(const std::shared_ptr<void>& data /*data pointer*/,
-//                                   const std::type_info& t /*element type*/,
-//                                   const std::vector<size_t>& dims /*dimensions*/)
-// {
-// }
-
-// // as tree node
-
-// size_t EntryInMemory::size() const
-// {
-
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         return dynamic_cast<const ContentArray*>(m_content_.get())->content.size();
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         return dynamic_cast<const ContentTable*>(m_content_.get())->content.size();
-//     }
-//     else
-//     {
-//         return 0;
-//     }
-// }
-
-// Entry::range EntryInMemory::children()
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         const auto& content = dynamic_cast<ContentArray*>(m_content_.get())->content;
-
-//         return Entry::range(content.begin(), content.end());
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         const auto& content = dynamic_cast<ContentTable*>(m_content_.get())->content;
-
-//         return Entry::range(content.begin(), content.end());
-//     }
-//     else
-//     {
-//         return Entry::range{};
-//     }
-// }
-
-// Entry::const_range EntryInMemory::children() const
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         const auto& content = dynamic_cast<const ContentArray*>(m_content_.get())->content;
-
-//         return Entry::const_range(content.begin(), content.end());
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         const auto& content = dynamic_cast<const ContentTable*>(m_content_.get())->content;
-
-//         return Entry::const_range(content.begin(), content.end());
-//     }
-//     else
-//     {
-//         return Entry::range{};
-//     }
-// }
-
-// void EntryInMemory::clear_children()
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         dynamic_cast<ContentArray*>(m_content_.get())->content.clear();
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         dynamic_cast<ContentTable*>(m_content_.get())->content.clear();
-//     }
-// }
-
-// void EntryInMemory::remove_child(Entry::iterator const&) {}
-
-// void EntryInMemory::remove_children(Entry::range const&) {}
-
-// Entry::iterator EntryInMemory::begin()
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         auto& content = dynamic_cast<const ContentArray*>(m_content_.get())->content;
-
-//         return Entry::iterator(content.begin());
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         auto& content = dynamic_cast<const ContentTable*>(m_content_.get())->content;
-
-//         return Entry::iterator(content.begin());
-//     }
-//     else
-//     {
-//         return Entry::iterator();
-//     }
-// }
-
-// Entry::iterator EntryInMemory::end()
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         auto& content = dynamic_cast<const ContentArray*>(m_content_.get())->content;
-
-//         return Entry::iterator(content.end());
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         auto& content = dynamic_cast<const ContentTable*>(m_content_.get())->content;
-
-//         return Entry::iterator(content.end());
-//     }
-//     else
-//     {
-//         return Entry::iterator();
-//     }
-// }
-
-// Entry::const_iterator EntryInMemory::cbegin() const
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         const auto& content = dynamic_cast<const ContentArray*>(m_content_.get())->content;
-
-//         return Entry::const_iterator(content.begin());
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         const auto& content = dynamic_cast<const ContentTable*>(m_content_.get())->content;
-
-//         return Entry::const_iterator(content.begin());
-//     }
-//     else
-//     {
-//         return Entry::const_iterator();
-//     }
-// }
-
-// Entry::const_iterator EntryInMemory::cend() const
-// {
-//     if (m_content_->type_info() == typeid(ContentArray))
-//     {
-//         const auto& content = dynamic_cast<const ContentArray*>(m_content_.get())->content;
-
-//         return Entry::const_iterator(content.end());
-//     }
-//     else if (m_content_->type_info() == typeid(ContentTable))
-//     {
-//         const auto& content = dynamic_cast<const ContentTable*>(m_content_.get())->content;
-
-//         return Entry::const_iterator(content.end());
-//     }
-//     else
-//     {
-//         return Entry::const_iterator();
-//     }
-// }
-
-std::shared_ptr<Entry> create_entry(const std::string& str)
-{
-    return std::dynamic_pointer_cast<Entry>(std::make_shared<EntryImplement<entry_in_memory, TypeTag::Null>>());
-}
 } // namespace sp
