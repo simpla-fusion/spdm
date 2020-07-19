@@ -98,9 +98,24 @@ public:
 
     bool has_attribute(const std::string& name) const;
 
-    const single_t get_attribute(const std::string& name);
+    const single_t get_attribute_raw(const std::string& name);
+    void set_attribute_raw(const std::string& name, const single_t& value);
 
-    void set_attribute(const std::string& name, const single_t& value);
+    template <typename V>
+    const single_t get_attribute(const std::string& name)
+    {
+        return std::get<V>(get_attribute_raw(name));
+    };
+
+    void set_attribute(const std::string& name, const char* value)
+    {
+        set_attribute_raw(name, single_t{std::string(value)});
+    }
+    template <typename V>
+    void set_attribute(const std::string& name, const V& value)
+    {
+        set_attribute_raw(name,single_t{value});
+    }
 
     void remove_attribute(const std::string& name);
 

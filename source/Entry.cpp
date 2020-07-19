@@ -49,7 +49,7 @@ public:
 
     bool has_attribute(const std::string& name) const { return !find("@" + name); }
 
-    Entry::single_t get_attribute(const std::string& name) const
+    Entry::single_t get_attribute_raw(const std::string& name) const
     {
         auto p = find("@" + name);
         if (!p)
@@ -59,7 +59,7 @@ public:
         return p->get_single();
     }
 
-    void set_attribute(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
+    void set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
 
     void remove_attribute(const std::string& name) { erase("@" + name); }
 
@@ -165,6 +165,11 @@ public:
         {
             return Entry::iterator(std::get<Entry::Type::Array>(m_data_).begin());
         }
+        else if (type() == Entry::Type::Object)
+        {
+            return Entry::iterator(std::get<Entry::Type::Object>(m_data_).begin(),
+                                   [](auto const& item) -> Entry* { return &item->second; });
+        }
         return Entry::iterator();
     };
 
@@ -174,6 +179,11 @@ public:
         if (type() == Entry::Type::Array)
         {
             return Entry::iterator(std::get<Entry::Type::Array>(m_data_).end());
+        }
+        else if (type() == Entry::Type::Object)
+        {
+            return Entry::iterator(std::get<Entry::Type::Object>(m_data_).end(),
+                                   [](auto const& item) -> Entry* { return &item->second; });
         }
         return Entry::iterator();
     };
@@ -360,9 +370,9 @@ bool Entry::is_leaf() const { return type() < Type::Array; };
 // attributes
 bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->has_attribute(name); }
 
-const Entry::single_t Entry::get_attribute(const std::string& name) { return m_pimpl_->get_attribute(name); }
+const Entry::single_t Entry::get_attribute_raw(const std::string& name) { return m_pimpl_->get_attribute_raw(name); }
 
-void Entry::set_attribute(const std::string& name, const single_t& value) { m_pimpl_->set_attribute(name, value); }
+void Entry::set_attribute_raw(const std::string& name, const single_t& value) { m_pimpl_->set_attribute_raw(name, value); }
 
 void Entry::remove_attribute(const std::string& name) { m_pimpl_->remove_attribute(name); }
 
