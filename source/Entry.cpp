@@ -13,6 +13,9 @@ struct type_desc
 class EntryInterfaceInMemory : public EntryInterface
 {
 private:
+    Entry* m_self_;
+    Entry* m_parent_;
+
     std::variant<nullptr_t,
                  Entry::single_t,
                  Entry::tensor_t,
@@ -21,15 +24,13 @@ private:
                  std::map<std::string, Entry>>
         m_data_;
 
-    Entry* m_parent_;
-
 public:
-    EntryInterfaceInMemory() : m_data_(nullptr){};
-   
-    EntryInterfaceInMemory(const EntryInterfaceInMemory& other) : m_data_(other.m_data_) {}
-   
-    EntryInterfaceInMemory(EntryInterfaceInMemory&& other) : m_data_(std::move(other.m_data_)) {}
-   
+    EntryInterfaceInMemory(Entry* self, Entry* parent = nullptr) : m_self_(self), m_parent_(parent), m_data_(nullptr){};
+
+    EntryInterfaceInMemory(const EntryInterfaceInMemory& other) : m_self_(other.m_self_), m_parent_(other.m_parent_), m_data_(other.m_data_) {}
+
+    EntryInterfaceInMemory(EntryInterfaceInMemory&& other) : m_self_(other.m_self_), m_parent_(other.m_parent_), m_data_(std::move(other.m_data_)) {}
+
     ~EntryInterfaceInMemory() = default;
 
     EntryInterface* copy() const override { return new EntryInterfaceInMemory(*this); }
@@ -53,7 +54,7 @@ public:
         auto p = find("@" + name);
         if (!p)
         {
-            throw std::out_of_range(name);
+            throw std::out_of_range("Can not find attribute '" + name + "'");
         }
         return p->get_single();
     }
@@ -85,8 +86,33 @@ public:
     //
     // as leaf
 
-    void set_single(const Entry::single_t&) override { NOT_IMPLEMENTED; }
-    Entry::single_t get_single() const override { NOT_IMPLEMENTED; }
+    void set_single(const Entry::single_t& v) override
+    {
+        if (type() == Entry::Type::Null)
+        {
+            m_data_.emplace<Entry::Type::Single>();
+        }
+        try
+        {
+            auto& m = std::get<Entry::Type::Single>(m_data_);
+            Entry::single_t(v).swap(m);
+        }
+        catch (std::bad_variant_access&)
+        {
+            throw std::runtime_error("Set value failed!");
+        }
+    }
+    Entry::single_t get_single() const override
+    {
+        try
+        {
+            return std::get<Entry::Type::Single>(m_data_);
+        }
+        catch (std::bad_variant_access&)
+        {
+            throw std::runtime_error("Get value failed!");
+        }
+    }
 
     void set_tensor(const Entry::tensor_t&) override { NOT_IMPLEMENTED; }
     Entry::tensor_t get_tensor() const override { NOT_IMPLEMENTED; }
@@ -143,32 +169,128 @@ public:
     }
 
     // as vector
-    Entry::cursor at(int idx) { NOT_IMPLEMENTED; }
+    Entry::cursor at(int idx)
+    {
+        try
+        {
+            auto& m = std::get<Entry::Type::Array>(m_data_);
+            return Entry::cursor(&m[idx]);
+        }
+        catch (std::bad_variant_access&)
+        {
+            return Entry::cursor();
+        };
+    }
 
-    Entry::cursor push_back() { NOT_IMPLEMENTED; }
+    Entry::cursor push_back()
+    {
+        if (type() == Entry::Type::Null)
+        {
+            m_data_.emplace<Entry::Type::Array>();
+        }
+        try
+        {
+            auto& m = std::get<Entry::Type::Array>(m_data_);
+            m.emplace_back(Entry(m_self_));
+            return Entry::cursor(&*m.rbegin());
+        }
+        catch (std::bad_variant_access&)
+        {
+            return Entry::cursor();
+        };
+    }
 
-    Entry pop_back() { NOT_IMPLEMENTED; }
+    Entry pop_back()
+    {
+        try
+        {
+            auto& m = std::get<Entry::Type::Array>(m_data_);
+            Entry res;
+            m.rbegin()->swap(res);
+            m.pop_back();
+            return std::move(res);
+        }
+        catch (std::bad_variant_access&)
+        {
+            return Entry();
+        }
+    }
 
     // as object
-    Entry::cursor find(const std::string& key) const
+    Entry::const_cursor find(const std::string& key) const
     {
-        NOT_IMPLEMENTED;
+        try
+        {
+            auto const& m = std::get<Entry::Type::Object>(m_data_);
+            auto it = m.find(key);
+            if (it != m.end())
+            {
+                return it->second.self();
+            }
+        }
+        catch (std::bad_variant_access&)
+        {
+        }
+        return Entry::const_cursor();
+    }
+
+    Entry::cursor find(const std::string& key)
+    {
+        try
+        {
+            auto const& m = std::get<Entry::Type::Object>(m_data_);
+            auto it = m.find(key);
+            if (it != m.end())
+            {
+                return const_cast<Entry&>(it->second).self();
+            }
+        }
+        catch (std::bad_variant_access&)
+        {
+        }
         return Entry::cursor();
     }
 
     Entry::cursor insert(const std::string& key)
     {
-        NOT_IMPLEMENTED;
-        return Entry::cursor();
+        if (type() == Entry::Type::Null)
+        {
+            m_data_.emplace<Entry::Type::Object>();
+        }
+        try
+        {
+            auto& m = std::get<Entry::Type::Object>(m_data_);
+
+            return Entry::cursor(&(m.emplace(key, Entry(m_self_)).first->second));
+        }
+        catch (std::bad_variant_access&)
+        {
+            return Entry::cursor();
+        }
     }
+
     Entry erase(const std::string& key)
     {
-        NOT_IMPLEMENTED;
+        try
+        {
+            auto& m = std::get<Entry::Type::Object>(m_data_);
+            auto it = m.find(key);
+            if (it != m.end())
+            {
+                Entry res;
+                res.swap(it->second);
+                m.erase(it);
+                return std::move(res);
+            }
+        }
+        catch (std::bad_variant_access&)
+        {
+        }
         return Entry();
     }
 };
 
-Entry::Entry() : m_pimpl_(new EntryInterfaceInMemory) {}
+Entry::Entry(Entry* parent) : m_pimpl_(new EntryInterfaceInMemory(this, parent)) {}
 
 Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
 
@@ -195,6 +317,9 @@ bool Entry::is_tensor() const { return type() == Type::Tensor; }
 bool Entry::is_block() const { return type() == Type::Block; }
 bool Entry::is_array() const { return type() == Type::Array; }
 bool Entry::is_object() const { return type() == Type::Object; }
+
+bool Entry::is_root() const { return !parent(); }
+bool Entry::is_leaf() const { return type() < Type::Array; };
 
 // attributes
 bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->has_attribute(name); }
@@ -300,7 +425,7 @@ Entry::cursor Entry::at(const std::string& key)
     return p;
 }
 
-Entry& Entry::operator[](const std::string& key) { return *at(key); }
+Entry& Entry::operator[](const std::string& key) { return *insert(key); }
 
 Entry::cursor Entry::insert(const std::string& key) { return m_pimpl_->insert(key); }
 

@@ -120,7 +120,7 @@ public:
                        >
         block_t;
 
-    Entry();
+    Entry(Entry* parent = nullptr);
 
     Entry(const this_type&);
 
@@ -142,6 +142,9 @@ public:
     bool is_block() const;
     bool is_array() const;
     bool is_object() const;
+
+    bool is_root() const;
+    bool is_leaf() const;
 
     //
 
