@@ -31,17 +31,20 @@ template <>
 EntryInterface* EntryImplement<entry_xml>::duplicate() const { return new EntryImplement<entry_xml>(); }
 
 template <>
-Entry::Type EntryImplement<entry_xml>::type() const { return Entry::Type(0); }
+Entry::Type EntryImplement<entry_xml>::type() const { 
+    
+    return Entry::Type(0); 
+    }
 
 template <>
 int EntryImplement<entry_xml>::fetch(const std::string& uri)
 {
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(uri.c_str(), pugi::parse_default | pugi::parse_pi);
+
     if (result)
     {
         VERBOSE << uri << std::endl;
-
         m_pimpl_ = doc.first_child();
     }
     else
