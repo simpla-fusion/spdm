@@ -4,7 +4,7 @@
 #include <iostream>
 
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include "catch/catch.hpp"
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
