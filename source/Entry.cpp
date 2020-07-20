@@ -10,20 +10,35 @@
 #include <vector>
 namespace sp
 {
-Entry::Entry(EntryInterface* p) : m_pimpl_(p != nullptr ? p : EntryInterface::create("memory").release())
-{
-    m_pimpl_->bind(this);
-}
+Entry::Entry() : m_pimpl_(nullptr), m_parent_(nullptr), m_name_("") {}
 
-Entry::Entry(const std::string& uri) : m_pimpl_(nullptr) { fetch(uri); }
+Entry::Entry(Entry* parent, const std::string& name) : m_pimpl_(nullptr), m_parent_(parent), m_name_(name) {}
 
-Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
+Entry::Entry(const std::shared_ptr<EntryInterface>& p) : m_pimpl_(p), m_parent_(nullptr), m_name_("") {}
 
-Entry::Entry(this_type&& other) : m_pimpl_(other.m_pimpl_.release()) {}
+Entry::Entry(const Entry& other) : m_pimpl_(other.m_pimpl_), m_name_(other.m_name_), m_parent_(other.m_parent_) {}
+
+Entry::Entry(Entry&& other) : m_pimpl_(other.m_pimpl_), m_name_(other.m_name_), m_parent_(other.m_parent_) { other.m_pimpl_.reset(); }
 
 Entry::~Entry() {}
 
-void Entry::fetch(const std::string& uri)
+EntryInterface& Entry::impl()
+{
+    if (m_pimpl_ == nullptr)
+    {
+    }
+    else if (m_parent_ == nullptr)
+    {
+        m_pimpl_ = EntryInterface::create();
+    }
+    else
+    {
+        m_pimpl_ = m_parent_->impl().find(m_name_);
+    }
+    return *m_pimpl_;
+}
+
+Entry Entry::fetch(const std::string& uri)
 {
     if (m_pimpl_ == nullptr)
     {
@@ -60,7 +75,7 @@ void Entry::fetch(const std::string& uri)
         {
             RUNTIME_ERROR << "Can not parse schema " << schema << std::endl;
         }
-        Factory<EntryInterface>::create(schema).swap(m_pimpl_);
+        m_pimpl_ = Factory<EntryInterface>::create(schema);
 
         VERBOSE << "load backend:" << schema << std::endl;
 
@@ -75,17 +90,17 @@ void Entry::fetch(const std::string& uri)
     }
 }
 
-void Entry::swap(this_type& other) { std::swap(m_pimpl_, other.m_pimpl_); }
+void Entry::swap(this_type& other)
+{
+    std::swap(m_name_, other.m_name_);
+    std::swap(m_parent_, other.m_parent_);
+    std::swap(m_pimpl_, other.m_pimpl_);
+}
 
 Entry& Entry::operator=(this_type const& other)
 {
     this_type(other).swap(*this);
     return *this;
-}
-void Entry::bind(Entry* parent, const std::string& name)
-{
-    m_parent_ = parent;
-    m_name_ = name;
 }
 
 //
@@ -130,105 +145,64 @@ void Entry::set_block(const block_t& v) { m_pimpl_->set_block(v); }
 Entry::block_t Entry::get_block() const { return m_pimpl_->get_block(); }
 
 // as Tree
-Entry::iterator Entry::parent() const { return Entry::iterator(m_parent_); }
-
-Entry::const_iterator Entry::self() const { return this; }
-
-Entry::iterator Entry::self() { return this; }
-
-Entry::iterator Entry::next() const { return m_pimpl_->next(); }
-
-// Entry::iterator Entry::first_child() const { return m_pimpl_->first_child(); }
-
-// Entry::iterator Entry::last_child() const { return m_pimpl_->last_child(); }
-
-Entry::range Entry::items() const { return m_pimpl_->items(); }
-
-Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> Entry::children() const { return m_pimpl_->children(); };
 // as container
-size_t Entry::size() const { return m_pimpl_->size(); }
 
-Entry::range Entry::find(const pred_fun& pred) { return m_pimpl_->find(pred); }
+Entry Entry::parent() const { return m_parent_ == nullptr ? Entry() : Entry(*m_parent_); }
 
-void Entry::erase(const iterator& p) { m_pimpl_->erase(p); }
+Entry const& Entry::self() const { return *this; }
 
-void Entry::erase_if(const pred_fun& p) { m_pimpl_->erase_if(p); }
+Entry& Entry::self() { return *this; }
 
-void Entry::erase_if(const range& r, const pred_fun& p) { m_pimpl_->erase_if(r, p); }
+Entry::range Entry::children() { return Entry::range{m_pimpl_->children()}; };
 
-// as vector
-Entry::iterator Entry::at(int idx) { return m_pimpl_->at(idx); }
+int Entry::remove(const Entry& p) { m_pimpl_->remove(p); }
 
-Entry::iterator Entry::push_back() { return iterator(m_pimpl_->push_back()); }
+// as array
 
-Entry::iterator Entry::push_back(const Entry& other)
+Entry Entry::push_back()
 {
-    auto p = push_back();
-    Entry(other).swap(**p);
-    return p;
+    Entry res(m_pimpl_->push_back());
+    res.m_parent_ = this;
+    return std::move(res);
 }
 
-Entry::iterator Entry::push_back(Entry&& other)
-{
-    auto p = push_back();
-    (*p)->swap(other);
-    return p;
-}
+Entry Entry::pop_back() { return Entry{m_pimpl_->pop_back()}; }
 
-Entry Entry::pop_back() { return Entry(*m_pimpl_->pop_back()); }
-
-Entry& Entry::operator[](int idx)
+Entry Entry::operator[](int idx)
 {
     if (idx < 0)
     {
-        return **push_back();
+        return push_back();
     }
     else
     {
-        auto p = at(idx);
-        if (!p)
+        Entry res(m_pimpl_->item(idx));
+
+        if (res.m_pimpl_ == nullptr)
         {
             throw std::out_of_range(FILE_LINE_STAMP_STRING + "index out of range");
         }
-        return **p;
+        res.m_parent_ = this;
+        return std::move(res);
     }
 }
 
 // as map
 // @note : map is unordered
-bool Entry::has_a(const std::string& name) { return !find(name); }
+bool Entry::has_a(const std::string& name) const { return impl()->has_a(name).size() == 0; }
 
-Entry::iterator Entry::find(const std::string& name) { return iterator(m_pimpl_->find(name)); }
+Entry Entry::find(const std::string& name) const { return Entry(m_pimpl_->find(name)); }
 
-Entry::iterator Entry::at(const std::string& name)
+Entry Entry::operator[](const std::string& name) { return Entry(this, name); }
+
+Entry Entry::insert(const std::string& name)
 {
-    auto p = find(name);
-    if (!p)
-    {
-        throw std::out_of_range(FILE_LINE_STAMP_STRING + name);
-    }
-    return iterator(p);
+    Entry res(m_pimpl_->insert(name));
+    res.bind(this, name);
+    return std::move(res);
 }
 
-Entry& Entry::operator[](const std::string& name) { return **insert(name); }
-
-Entry::iterator Entry::insert(const std::string& name) { return m_pimpl_->insert(name); }
-
-Entry::iterator Entry::insert(const std::string& name, const Entry& other)
-{
-    auto p = insert(name);
-    Entry(other).swap(**p);
-    return p;
-}
-
-Entry::iterator Entry::insert(const std::string& name, Entry&& other)
-{
-    auto p = insert(name);
-    (*p)->swap(other);
-    return p;
-}
-
-Entry Entry::erase(const std::string& name) { return Entry(*m_pimpl_->erase(name)); }
+void Entry::remove(const std::string& name) { m_pimpl_->remove(name); }
 
 //-------------------------------------------------------------------
 // level 2
@@ -260,7 +234,7 @@ Entry::range Entry::leaves() const
     return range{};
 }
 
-Entry::range Entry::shortest_path(iterator const& target) const
+Entry::range Entry::shortest_path(Entry const& target) const
 {
     NOT_IMPLEMENTED;
     return range{};

@@ -11,8 +11,6 @@ namespace sp
 // iterator
 template <typename T, typename... Others>
 struct IteratorProxy;
-template <typename T>
-class Iterator;
 
 template <typename T>
 class IteratorProxy<T>
@@ -167,8 +165,11 @@ private:
     mapper_t m_mapper_;
 };
 
+template <typename... T>
+class Iterator;
+
 template <typename T>
-class Iterator : public std::iterator_traits<T*>
+class Iterator<T> : public std::iterator_traits<T*>
 {
 public:
     typedef std::iterator_traits<T*> traits_type;
@@ -177,7 +178,7 @@ public:
     using typename traits_type::reference;
     using typename traits_type::value_type;
 
-    template <typename U>
+    template <typename... U>
     friend class Iterator;
 
     Iterator() : m_proxy_(nullptr), m_current_(nullptr) {}
@@ -277,6 +278,11 @@ private:
     {
         return other.m_proxy_->copy();
     }
+};
+
+template <typename... T>
+class Iterator : public Iterator<std::tuple<T...>>
+{
 };
 
 } // namespace sp

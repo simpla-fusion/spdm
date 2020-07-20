@@ -6,12 +6,12 @@ namespace sp
 {
 
 //##############################################################################################################
-template <typename IT>
-class Range : public std::pair<IT, IT>
+template <typename... T>
+class Range : public std::pair<Iterator<T...>, Iterator<T...>>
 {
 
 public:
-    typedef IT iterator;
+    typedef Iterator<T...> iterator;
     typedef typename iterator::pointer pointer;
     typedef typename std::pair<iterator, iterator> base_type;
     using base_type::first;
@@ -30,6 +30,8 @@ public:
     Range(base_type const& p) : base_type(p) {}
 
     ~Range(){};
+
+    size_t size() const { return std::distance(first, second); }
 
     iterator begin() const { return first; }
 

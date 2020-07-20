@@ -20,9 +20,12 @@ class Entry
 {
 private:
     // std::experimental::propagate_const<>
-    std::unique_ptr<EntryInterface> m_pimpl_;
+    std::shared_ptr<EntryInterface> m_pimpl_;
     Entry* m_parent_;
     std::string m_name_;
+
+    EntryInterface& impl();
+    const EntryInterface& impl() const;
 
 public:
     enum Type
@@ -34,16 +37,6 @@ public:
         Array = 4,
         Object = 5
     };
-
-    typedef Iterator<std::shared_ptr<Entry>> iterator;
-    typedef Iterator<const std::shared_ptr<Entry>> const_iterator;
-
-    typedef Range<iterator> range;
-    typedef Range<const_iterator> const_range;
-
-    friend class EntryInterface;
-
-    typedef Entry this_type;
 
     typedef std::variant<std::string,
                          bool, int, double,
@@ -66,9 +59,17 @@ public:
                        >
         block_t;
 
-    Entry(EntryInterface* p = nullptr);
+    typedef Range<Entry> range;
 
-    Entry(const std::string& path);
+    friend class EntryInterface;
+
+    typedef Entry this_type;
+
+    Entry();
+
+    Entry(Entry* parent, const std::string& name);
+
+    Entry(const std::shared_ptr<EntryInterface>& p);
 
     Entry(const this_type&);
 
@@ -82,11 +83,11 @@ public:
 
     bool operator==(this_type const& other) const;
 
-    void bind(Entry* parent, const std::string& name = "");
+    operator bool() const { return !is_null(); }
 
-    void resolve_reference();
+    void resolve();
 
-    void fetch(const std::string& uri);
+    Entry fetch(const std::string& uri);
 
     // metadata
     Type type() const;
@@ -139,106 +140,81 @@ public:
     // as leaf
 
     void set_single(const single_t&);
+
     single_t get_single() const;
 
     template <typename V>
     void set_value(const V& v) { set_single(single_t(v)); };
+
     template <typename V>
     V get_value() const { return std::get<V>(get_single()); }
 
     void set_tensor(const tensor_t&);
+
     tensor_t get_tensor() const;
 
     void set_block(const block_t&);
+
     block_t get_block() const;
 
     template <typename... Args>
     void set_block(Args&&... args) { return selt_block(std::make_tuple(std::forward<Args>(args)...)); };
 
     // as Tree
-    iterator parent() const;
-
-    const_iterator self() const;
-
-    iterator self();
-
-    iterator next() const;
-
     // as container
-    size_t size() const;
 
-    typedef std::function<bool(this_type const&)> pred_fun;
+    Entry parent() const;
 
-    range find(const pred_fun& pred);
+    const Entry& self() const;
 
-    void erase(const iterator&);
+    Entry& self();
 
-    void erase_if(const pred_fun& pred);
+    range children();
 
-    void erase_if(const range&, const pred_fun& pred);
+    int remove(const Entry&);
 
     void clear();
 
-    // as vector
+    // as array
 
-    iterator at(int); // access specified child with bounds checking
+    Entry operator[](int); // access  specified child
 
-    Entry& operator[](int); // access  specified child
+    Entry operator[](int) const; // access  specified child
 
-    iterator push_back();
+    Entry push_back(); // append new item
 
-    iterator push_back(const Entry&);
+    Entry pop_back(); // remove and return last item
 
-    iterator push_back(Entry&&);
-
-    template <typename... Args>
-    iterator emplace_back(Args&&... args) { return push_back(std::move(this_type(std::forward<Args>(args)...))); };
-
-    Entry pop_back();
-
-    range items() const;
-
-    // as map
+    // as object
     // @note : map is unordered
 
-    bool has_a(const std::string& key);
+    Entry insert(const std::string& key); // if key is not exists then insert node at key else return entry at key
 
-    iterator find(const std::string& key);
+    bool has_a(const std::string& key) const;
 
-    iterator at(const std::string& key); // access specified child with bounds checking
+    Entry find(const std::string& key) const;
 
-    Entry& operator[](const std::string&); // access or insert specified child
+    Entry operator[](const std::string&) const; // access  specified child
 
-    iterator insert(const std::string& key); // if key is not exists then insert node at key else return entry at key
+    Entry operator[](const std::string&); // access or insert specified child
 
-    iterator insert(const std::string& pos, const Entry& other);
-
-    iterator insert(const std::string& pos, Entry&& other);
-
-    template <typename... Args>
-    iterator emplace(const std::string& key, Args&&... args)
-    {
-        iterator p = find(key);
-        if (!p)
-        {
-            p = insert(key, std::move(Entry(std::forward<Args>(args)...)));
-        }
-        return p;
-    }
-
-    Entry erase(const std::string&);
-
-    Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> children() const;
+    bool remove(const std::string&);
 
     //-------------------------------------------------------------------
     // level 1
     // xpath
 
-    Entry fetch(const XPath&) const;
+    Entry insert(const XPath&);
 
-    bool update(const XPath&, Entry&&);
+    range find(const XPath&) const;
 
-    bool update(const XPath&, const Entry&);
+    typedef std::function<bool(const Entry&)> pred_fun;
+
+    range find(const pred_fun&) const;
+
+    int update(const range&, const Entry&);
+
+    int remove(const range&);
 
     //-------------------------------------------------------------------
     // level 2
@@ -255,13 +231,14 @@ public:
 
     range leaves() const; // return leave nodes in traversal order
 
-    range shortest_path(iterator const& target) const; // return the shortest path to target
+    range shortest_path(Entry const& target) const; // return the shortest path to target
 
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
 
 std::string to_string(const Entry::single_t& s);
 Entry::single_t from_string(const std::string& s);
+
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
 } // namespace sp

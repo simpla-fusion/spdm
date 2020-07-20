@@ -18,13 +18,13 @@ set(SPDB_INCLUDES
 
 
 set(SPDB_SOURCES
-  DataBlock.cpp
+  # DataBlock.cpp
   Entry.cpp
-  EntryInterface.cpp
-  XPath.cpp
-  Document.cpp
-  Collection.cpp
-  DataBase.cpp
+  # EntryInterface.cpp
+  # XPath.cpp
+  # Document.cpp
+  # Collection.cpp
+  # DataBase.cpp
 )
 
 

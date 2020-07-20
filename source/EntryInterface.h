@@ -1,5 +1,17 @@
+#ifndef SP_ENTRY_INTERFACE_H_
+#define SP_ENTRY_INTERFACE_H_
 #include "Entry.h"
+#include "Iterator.h"
+#include "Range.h"
+#include <any>
+#include <array>
+#include <complex>
+#include <functional>
+#include <map>
+#include <memory>
 #include <string>
+#include <variant>
+#include <vector>
 namespace sp
 {
 
@@ -17,7 +29,7 @@ public:
 
     static std::unique_ptr<EntryInterface> create(const std::string& rpath = "");
 
-    static bool add_creator(const std::string& c_id, const std::function<EntryInterface*()>&);
+    static bool add_creator(const std::string& c_id, const std::function<std::shared_ptr<EntryInterface>()>&);
 
     virtual ~EntryInterface() = default;
 
@@ -29,9 +41,9 @@ public:
 
     virtual Entry::Type type() const = 0;
 
-    virtual EntryInterface* copy() const = 0;
+    virtual std::shared_ptr<EntryInterface> copy() const = 0;
 
-    virtual EntryInterface* duplicate() const = 0;
+    virtual std::shared_ptr<EntryInterface> duplicate() const = 0;
 
     virtual int fetch(const std::string& uri) = 0;
 
@@ -64,39 +76,27 @@ public:
     // as Hierarchy tree node
     // function level 0
 
-    virtual Entry::iterator next() const = 0;
-
     // container
     virtual size_t size() const = 0;
 
-    virtual Entry::range find(const Entry::pred_fun& pred) = 0;
-
-    virtual void erase(const Entry::iterator& p) = 0;
-
-    virtual void erase_if(const Entry::pred_fun& p) = 0;
-
-    virtual void erase_if(const Entry::range& r, const Entry::pred_fun& p) = 0;
-
     // as array
-    virtual std::shared_ptr<Entry> at(int idx) = 0;
 
-    virtual std::shared_ptr<Entry> push_back() = 0;
+    virtual std::shared_ptr<EntryInterface> push_back() = 0;
 
-    virtual std::shared_ptr<Entry> pop_back() = 0;
+    virtual std::shared_ptr<EntryInterface> pop_back() = 0;
 
-    virtual Entry::range items() const = 0;
+    virtual Range<std::shared_ptr<EntryInterface>> items() const = 0;
 
+    virtual std::shared_ptr<EntryInterface> item(int idx) = 0;
     // as object
 
-    virtual const std::shared_ptr<Entry> find(const std::string& name) const = 0;
+    virtual std::shared_ptr<EntryInterface> find(const std::string& name) const = 0;
 
-    virtual std::shared_ptr<Entry> find(const std::string& name) = 0;
+    virtual std::shared_ptr<EntryInterface> insert(const std::string& name) = 0;
 
-    virtual std::shared_ptr<Entry> insert(const std::string& name) = 0;
+    virtual std::shared_ptr<EntryInterface> remove(const std::string& name) = 0;
 
-    virtual std::shared_ptr<Entry> erase(const std::string& name) = 0;
-
-    virtual Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> children() const = 0;
+    virtual Range<std::string, std::shared_ptr<EntryInterface>> children() const = 0;
 };
 
 template <typename Impl>
@@ -114,12 +114,12 @@ public:
 
     void swap(EntryImplement& other);
 
-    EntryInterface* copy() const override;
-    EntryInterface* duplicate() const override;
+    std::shared_ptr<EntryInterface> copy() const override;
+    std::shared_ptr<EntryInterface> duplicate() const override;
 
     int fetch(const std::string& uri);
 
-    Entry::Type type() const override;
+    int type() const override;
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
@@ -148,41 +148,39 @@ public:
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
-    // Entry::iterator parent() const override;
-
-    Entry::iterator next() const override;
+    // iterator parent() const override;
 
     // container
     size_t size() const override;
 
-    Entry::range find(const Entry::pred_fun& pred) override;
+    Range<Entry> find(const Entry::pred_fun& pred) override;
 
-    void erase(const Entry::iterator& p) override;
+    void remove(const Entry& p) override;
 
-    void erase_if(const Entry::pred_fun& p) override;
+    void remove_if(const Entry::pred_fun& p) override;
 
-    void erase_if(const Entry::range& r, const Entry::pred_fun& p) override;
+    void remove_if(const Range<Entry>& r, const Entry::pred_fun& p) override;
 
     // as array
-    std::shared_ptr<Entry> at(int idx) override;
+    std::shared_ptr<EntryInterface> at(int idx) override;
 
-    std::shared_ptr<Entry> push_back() override;
+    std::shared_ptr<EntryInterface> push_back() override;
 
-    std::shared_ptr<Entry> pop_back() override;
+    std::shared_ptr<EntryInterface> pop_back() override;
 
-    Entry::range items() const override;
+    Range<Entry> items() const override;
 
     // as object
 
-    const std::shared_ptr<Entry> find(const std::string& name) const override;
+    const std::shared_ptr<EntryInterface> find(const std::string& name) const override;
 
-    std::shared_ptr<Entry> find(const std::string& name) override;
+    std::shared_ptr<EntryInterface> find(const std::string& name) override;
 
-    std::shared_ptr<Entry> insert(const std::string& name) override;
+    std::shared_ptr<EntryInterface> insert(const std::string& name) override;
 
-    std::shared_ptr<Entry> erase(const std::string& name) override;
+    std::shared_ptr<EntryInterface> remove(const std::string& name) override;
 
-    Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> children() const override;
+    Range<const std::string, Entry> children() const override;
 
 private:
     Impl m_pimpl_;
@@ -194,6 +192,8 @@ private:
     bool sp::EntryImplement<_CLASS_>::is_registered = \
         EntryInterface::add_creator(                  \
             __STRING(_NAME_),                         \
-            []() { return dynamic_cast<EntryInterface*>(new EntryImplement<_CLASS_>()); });
+            []() { return dynamic_cast<std::shared_ptr<EntryInterface>>(new EntryImplement<_CLASS_>()); });
 
 } // namespace sp
+
+#endif //SP_ENTRY_INTERFACE_H_
