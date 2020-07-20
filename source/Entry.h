@@ -21,6 +21,8 @@ class Entry
 private:
     // std::experimental::propagate_const<>
     std::unique_ptr<EntryInterface> m_pimpl_;
+    Entry* m_parent_;
+    std::string m_name_;
 
 public:
     enum Type
@@ -64,7 +66,7 @@ public:
                        >
         block_t;
 
-    Entry(Entry* parent = nullptr, const std::string& name = "");
+    Entry(const std::string& rpath = "");
 
     Entry(const this_type&);
 
@@ -77,6 +79,8 @@ public:
     this_type& operator=(this_type const& other);
 
     bool operator==(this_type const& other) const;
+
+    void bind(Entry* parent, const std::string& name = "");
 
     // metadata
     Type type() const;

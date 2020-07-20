@@ -1,4 +1,6 @@
 #include "Entry.h"
+#include "EntryInterface.h"
+#include "utility/Factory.h"
 #include <iostream>
 
 #define CATCH_CONFIG_MAIN
@@ -6,8 +8,9 @@
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
+    using namespace sp;
     sp::Entry entry;
-
+    // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     entry.set_attribute("A", std::string("a"));
     entry.set_attribute("B", std::string("b"));
     entry["A"].set_value<std::string>("1234");

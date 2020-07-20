@@ -1,5 +1,4 @@
 #include "Entry.h"
-#include "utility/Factory.h"
 #include <string>
 namespace sp
 {
@@ -8,29 +7,31 @@ class EntryInterface
 {
 protected:
     Entry* m_self_;
-    std::string m_name_;
-    Entry* m_parent_;
 
 public:
-    EntryInterface(Entry* self = nullptr, const std::string& name = "", Entry* parent = nullptr);
+    EntryInterface();
 
     EntryInterface(const EntryInterface& other);
 
     EntryInterface(EntryInterface&& other);
 
-    static std::unique_ptr<EntryInterface> create(const std::string& backend, Entry* self, const std::string& name = "", Entry* parent = nullptr);
+    static std::unique_ptr<EntryInterface> create(const std::string& rpath = "");
+
+    static bool add_creator(const std::string& c_id, const std::function<EntryInterface*()>&);
 
     virtual ~EntryInterface() = default;
 
-    virtual std::string prefix() const;
+    void bind(Entry* self);
 
-    virtual std::string name() const;
+    Entry* self();
 
-    virtual Entry::iterator parent() const;
+    const Entry* self() const;
 
     virtual Entry::Type type() const = 0;
 
     virtual EntryInterface* copy() const = 0;
+
+    virtual int fetch(const std::string& uri) = 0;
 
     //----------------------------------------------------------------------------------------------------------
     // attribute
@@ -80,6 +81,7 @@ public:
     virtual Entry::iterator push_back() = 0;
 
     virtual Entry pop_back() = 0;
+
     virtual Range<Iterator<Entry>> items() const = 0;
 
     // as object
@@ -95,8 +97,103 @@ public:
     virtual Range<Iterator<const std::pair<const std::string, Entry>>> children() const = 0;
 };
 
-#define SP_REGISTER_ENTRY(_CLASS_NAME_)          \
-    static bool REGISTERED_Entry##_CLASS_NAME_ = \
-        ::sp::Factory<EntryInterface, Entry*, const std::string&, Entry*>::register_creator<Entry##_CLASS_NAME_>(__STRING(_CLASS_NAME_));
+template <typename Impl>
+class EntryImplement : public EntryInterface
+{
+
+public:
+    using EntryInterface::m_self_;
+    using EntryInterface::name;
+    using EntryInterface::parent;
+
+    EntryImplement();
+    EntryImplement(const EntryImplement&);
+    EntryImplement(EntryImplement&&);
+    ~EntryImplement();
+
+    void swap(EntryImplement& other);
+
+    EntryInterface* copy() const override;
+
+    int fetch(const std::string& uri);
+
+    Entry::Type type() const override;
+    //----------------------------------------------------------------------------------------------------------
+    // attribute
+    //----------------------------------------------------------------------------------------------------------
+    bool has_attribute(const std::string& name) const override;
+
+    Entry::single_t get_attribute_raw(const std::string& name) const override;
+
+    void set_attribute_raw(const std::string& name, const Entry::single_t& value) override;
+
+    void remove_attribute(const std::string& name) override;
+
+    std::map<std::string, Entry::single_t> attributes() const override;
+
+    //----------------------------------------------------------------------------------------------------------
+    // as leaf node,  need node.type = Scalar || Block
+    //----------------------------------------------------------------------------------------------------------
+    void set_single(const Entry::single_t&) override;
+    Entry::single_t get_single() const override;
+
+    void set_tensor(const Entry::tensor_t&) override;
+    Entry::tensor_t get_tensor() const override;
+
+    void set_block(const Entry::block_t&) override;
+    Entry::block_t get_block() const override;
+
+    //----------------------------------------------------------------------------------------------------------
+    // as Hierarchy tree node
+    // function level 0
+    // Entry::iterator parent() const override;
+
+    Entry::iterator next() const override;
+
+    // container
+    size_t size() const override;
+
+    Entry::range find(const Entry::pred_fun& pred) override;
+
+    void erase(const Entry::iterator& p) override;
+
+    void erase_if(const Entry::pred_fun& p) override;
+
+    void erase_if(const Entry::range& r, const Entry::pred_fun& p) override;
+
+    // as array
+    Entry::iterator at(int idx) override;
+
+    Entry::iterator push_back() override;
+
+    Entry pop_back() override;
+
+    Range<Iterator<Entry>> items() const override;
+
+    // as object
+
+    Entry::const_iterator find(const std::string& name) const override;
+
+    Entry::iterator find(const std::string& name) override;
+
+    Entry::iterator insert(const std::string& name) override;
+
+    Entry erase(const std::string& name) override;
+
+    Range<Iterator<const std::pair<const std::string, Entry>>> children() const override;
+
+private:
+    Impl m_pimpl_;
+    static bool is_registered;
+};
+
+#define SP_REGISTER_ENTRY(_NAME_, _CLASS_)                                                             \
+    template <>                                                                                        \
+    bool sp::EntryImplement<_CLASS_>::is_registered =                                                  \
+        EntryInterface::add_creator(                                                                   \
+            __STRING(_NAME_),                                                                          \
+            [](Entry* self, const std::string& name, Entry* parent) {                                  \
+                return dynamic_cast<EntryInterface*>(new EntryImplement<_CLASS_>(self, name, parent)); \
+            });
 
 } // namespace sp

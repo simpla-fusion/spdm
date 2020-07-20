@@ -57,23 +57,23 @@ public:
         return res;
     };
 
-    static int register_creator(std::string const& k,
-                                std::function<TObj*(Args const&...)> const& fun) noexcept
+    static int add(std::string const& k,
+                   std::function<TObj*(Args const&...)> const& fun) noexcept
     {
+        std::cout << k << std::endl;
         return Singleton<ObjectFactory>::instance().m_factory_.emplace(k, fun).second ? 1 : 0;
     };
     template <typename U>
-    static int register_creator(std::string const& k_hint,
-                                std::enable_if_t<(std::is_constructible<U, Args...>::value)>* _p = nullptr) noexcept
+    static int add(std::string const& k_hint,
+                   std::enable_if_t<(std::is_constructible<U, Args...>::value)>* _p = nullptr) noexcept
     {
-        std::cout << k_hint << std::endl;
-        return register_creator(k_hint, [](Args const&... args) { return new U(args...); });
+        return add(k_hint, [](Args const&... args) { return new U(args...); });
     };
     template <typename U>
-    static int register_creator(std::string const& k_hint,
-                                std::enable_if_t<(!std::is_constructible<U, Args...>::value)>* _p = nullptr) noexcept
+    static int add(std::string const& k_hint,
+                   std::enable_if_t<(!std::is_constructible<U, Args...>::value)>* _p = nullptr) noexcept
     {
-        return register_creator(k_hint.empty(), [](Args const&... args) { return U::create(args...); });
+        return add(k_hint.empty(), [](Args const&... args) { return U::create(args...); });
     };
 
 private:
@@ -114,14 +114,7 @@ public:
     }
 };
 
-#define SP_REGISTER_CREATOR(_BASE_NAME_, _CLASS_NAME_) \
-    bool _CLASS_NAME_::_is_registered =                \
-        ::sp::Factory<_BASE_NAME_>::register_creator<_CLASS_NAME_>(__STRING(_CLASS_NAME_));
 
-template <typename T>
-static bool register_creator()
-{
-    return T::template register_creator<T>();
-}
+
 } // namespace sp
 #endif // SIMPLA_FACTORY_H

@@ -9,7 +9,8 @@
 namespace sp
 {
 
-Entry::Entry(Entry* parent, const std::string& name) : m_pimpl_(EntryInterface::create("Memory", this, name, parent).release()) {}
+Entry::Entry(const std::string& rpath)
+    : m_pimpl_(EntryInterface::create(rpath).release()) { m_pimpl_->bind(this); }
 
 Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
 
@@ -24,11 +25,16 @@ Entry& Entry::operator=(this_type const& other)
     this_type(other).swap(*this);
     return *this;
 }
+void Entry::bind(Entry* parent, const std::string& name = "")
+{
+    m_parent_ = parent;
+    m_name_ = name;
+}
 
 //
-std::string Entry::prefix() const { return m_pimpl_->prefix(); }
+std::string Entry::prefix() const {return m_parent_->prefix() + (m_parent_ == nullptr ? m_name_ : m_parent_->prefix() + "/" + m_name_; }
 
-std::string Entry::name() const { return m_pimpl_->name(); }
+std::string Entry::name() const { return m_name_; }
 
 // metadata
 Entry::Type Entry::type() const { return m_pimpl_->type(); }

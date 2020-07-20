@@ -1,34 +1,37 @@
 #include "EntryInterface.h"
 #include "utility/Factory.h"
-
 namespace sp
 {
-EntryInterface::EntryInterface(Entry* self, const std::string& name, Entry* parent)
-    : m_self_(self), m_name_(name), m_parent_(parent) {}
 
-EntryInterface::EntryInterface(const EntryInterface& other)
-    : m_self_(other.m_self_),
-      m_name_(other.m_name_),
-      m_parent_(other.m_parent_)
+EntryInterface::EntryInterface() : m_self_(nullptr) {}
+
+EntryInterface::EntryInterface(const EntryInterface& other) : m_self_(other.m_self_) {}
+
+EntryInterface::EntryInterface(EntryInterface&& other) : m_self_(other.m_self_) {}
+
+void EntryInterface::bind(Entry* self) { m_self_ = self; }
+
+std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& rpath = "memory")
 {
-}
 
-EntryInterface::EntryInterface(EntryInterface&& other)
-    : m_self_(other.m_self_),
-      m_name_(other.m_name_),
-      m_parent_(other.m_parent_)
+    auto pos = rpath.find(":");
+
+    if (pos != std::string::npos)
+    {
+        auto p = Factory<EntryInterface>::create(rpath.substr(0, pos));
+
+        p->fetch(rpath);
+
+        return p;
+    }
+    else
+    {
+        return Factory<EntryInterface>::create(rpath);
+    }
+}
+bool EntryInterface::add_creator(const std::string& c_id, const std::function<EntryInterface*()>& fun)
 {
-}
-
-std::string EntryInterface::prefix() const { return m_parent_ == nullptr ? m_name_ : m_parent_->prefix() + "/" + m_name_; };
-
-std::string EntryInterface::name() const { return m_name_; };
-
-Entry::iterator EntryInterface::parent() const { return Entry::iterator(m_parent_); };
-
-std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& backend, Entry* self, const std::string& name, Entry* parent)
-{
-    return Factory<EntryInterface, Entry*, const std::string&, Entry*>::create(backend, self, name, parent);
-}
+    return Factory<EntryInterface>::add(c_id, fun);
+};
 
 } // namespace sp
