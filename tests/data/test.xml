@@ -1,0 +1,18 @@
+<ids>
+    <timeslice id="0">
+        <eq>
+            <psi>
+            mdsplus://1.2.3.4/east
+        </psi>
+
+        </eq>
+    </timeslice>
+    <timeslice id="1">
+        <eq>
+            <psi>
+            mdsplus://1.2.3.4/east
+        </psi>
+
+        </eq>
+    </timeslice>
+</ids>

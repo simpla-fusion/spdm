@@ -351,15 +351,15 @@ std::string make_msg(Others const&... others)
         << "[" << __FILE__ << ":" << __LINE__ << ":" << (__PRETTY_FUNCTION__) << "]:" \
         << "WHAT YOU DO!! YOU SHOULD NOT GET HERE!!"
 
-#define LOGGER sp::logger::Logger(sp::logger::LOG_LOG)
+#define LOGGER sp::logger::Logger(sp::logger::LOG_LOG) << FILE_LINE_STAMP
 
 #define MESSAGE sp::logger::Logger(sp::logger::LOG_MESSAGE)
 
-#define VERBOSE sp::logger::Logger(sp::logger::LOG_VERBOSE)
+#define VERBOSE sp::logger::Logger(sp::logger::LOG_VERBOSE) << FILE_LINE_STAMP
 
 #define SHOW_ERROR sp::logger::Logger(sp::logger::LOG_ERROR) << FILE_LINE_STAMP
 
-#define SHOW_WARNING sp::logger::Logger(sp::logger::LOG_WARNING)
+#define SHOW_WARNING sp::logger::Logger(sp::logger::LOG_WARNING) << FILE_LINE_STAMP
 
 #define RUNTIME_ERROR sp::logger::Logger(sp::logger::LOG_ERROR_RUNTIME) << FILE_LINE_STAMP
 

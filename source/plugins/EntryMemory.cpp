@@ -18,6 +18,9 @@ template <>
 EntryImplement<entry_memory>::EntryImplement() : EntryInterface(), m_pimpl_(nullptr){};
 
 template <>
+EntryImplement<entry_memory>::EntryImplement(const entry_memory& other) : EntryInterface(), m_pimpl_(other){};
+
+template <>
 EntryImplement<entry_memory>::EntryImplement(const EntryImplement& other) : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
 
 template <>
@@ -340,6 +343,5 @@ std::map<std::string, Entry::single_t> EntryImplement<entry_memory>::attributes(
 }
 
 SP_REGISTER_ENTRY(memory, entry_memory);
-
 
 } // namespace sp

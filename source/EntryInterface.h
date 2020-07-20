@@ -107,6 +107,7 @@ public:
     using EntryInterface::m_self_;
 
     EntryImplement();
+    EntryImplement(Impl const&);
     EntryImplement(const EntryImplement&);
     EntryImplement(EntryImplement&&);
     ~EntryImplement();

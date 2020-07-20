@@ -9,9 +9,12 @@ set(SPDB_PLUGINS_SOURCES
   EntryXML.cpp
   EntryJSON.cpp
   EntryHDF5.cpp
+  ../../extern/pugixml/pugixml.cpp
 
   # Attributes.cpp
 )
+
+
 
 
 add_library(spdb_plugins_  STATIC   ${SPDB_PLUGINS_SOURCES} )

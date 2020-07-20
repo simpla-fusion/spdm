@@ -66,10 +66,10 @@ public:
                        >
         block_t;
 
-    Entry(const std::string& rpath = "");
+    Entry(EntryInterface* p = nullptr);
 
-    Entry(EntryInterface*);
-    
+    Entry(const std::string& path);
+
     Entry(const this_type&);
 
     Entry(this_type&&);
@@ -83,6 +83,10 @@ public:
     bool operator==(this_type const& other) const;
 
     void bind(Entry* parent, const std::string& name = "");
+
+    void resolve_reference();
+
+    void fetch(const std::string& uri);
 
     // metadata
     Type type() const;

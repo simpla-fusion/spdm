@@ -60,7 +60,6 @@ public:
     static int add(std::string const& k,
                    std::function<TObj*(Args const&...)> const& fun) noexcept
     {
-        std::cout << k << std::endl;
         return Singleton<ObjectFactory>::instance().m_factory_.emplace(k, fun).second ? 1 : 0;
     };
     template <typename U>
@@ -106,8 +105,6 @@ public:
         }
         else
         {
-            std::cout << show_description() << std::endl;
-
             RUNTIME_ERROR << "Can not find Creator \"" << k << "\"" << std::endl;
         }
         return std::unique_ptr<TObj>(res);

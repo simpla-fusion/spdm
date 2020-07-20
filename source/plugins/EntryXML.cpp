@@ -1,30 +1,19 @@
 
 #include "../Entry.h"
 #include "../EntryInterface.h"
-#include "../utility/Factory.h"
 #include "../utility/Logger.h"
+#include "pugixml/pugixml.hpp"
 #include <variant>
 namespace sp
 {
-struct entry_xml : public std::variant<nullptr_t,
-                                       Entry::single_t,
-                                       Entry::tensor_t,
-                                       Entry::block_t,
-                                       std::vector<Entry>,
-                                       std::map<std::string, Entry>>
-{
-    typedef std::variant<nullptr_t,
-                         Entry::single_t,
-                         Entry::tensor_t,
-                         Entry::block_t,
-                         std::vector<Entry>,
-                         std::map<std::string, Entry>>
-        base_type;
-    using base_type::variant;
-};
+
+typedef pugi::xml_node entry_xml;
 
 template <>
-EntryImplement<entry_xml>::EntryImplement() : EntryInterface(), m_pimpl_( ){NOT_IMPLEMENTED;};
+EntryImplement<entry_xml>::EntryImplement() : EntryInterface(), m_pimpl_(){};
+
+template <>
+EntryImplement<entry_xml>::EntryImplement(const entry_xml& other) : EntryInterface(), m_pimpl_(other){};
 
 template <>
 EntryImplement<entry_xml>::EntryImplement(const EntryImplement& other) : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
@@ -34,22 +23,32 @@ EntryImplement<entry_xml>::EntryImplement(EntryImplement&& other) : EntryInterfa
 
 template <>
 EntryImplement<entry_xml>::~EntryImplement() = default;
+
 template <>
-EntryInterface* EntryImplement<entry_xml>::copy() const
-{
-    return new EntryImplement(*this);
-};
+EntryInterface* EntryImplement<entry_xml>::copy() const { return new EntryImplement(*this); };
 
 template <>
 EntryInterface* EntryImplement<entry_xml>::duplicate() const { return new EntryImplement<entry_xml>(); }
 
 template <>
-Entry::Type EntryImplement<entry_xml>::type() const { return Entry::Type(m_pimpl_.index()); }
+Entry::Type EntryImplement<entry_xml>::type() const { return Entry::Type(0); }
 
 template <>
 int EntryImplement<entry_xml>::fetch(const std::string& uri)
 {
-    NOT_IMPLEMENTED;
+    pugi::xml_document doc;
+    pugi::xml_parse_result result = doc.load_file(uri.c_str(), pugi::parse_default | pugi::parse_pi);
+    if (result)
+    {
+        VERBOSE << uri << std::endl;
+
+        m_pimpl_ = doc.first_child();
+    }
+    else
+    {
+        VERBOSE << "Can not load" << uri << std::endl;
+    }
+    return 0;
 }
 //----------------------------------------------------------------------------------
 // level 0
@@ -60,12 +59,13 @@ void EntryImplement<entry_xml>::set_single(const Entry::single_t& v)
 {
     if (type() < Entry::Type::Array)
     {
-        m_pimpl_.emplace<Entry::Type::Single>(v);
+        // m_pimpl_.emplace<Entry::Type::Single>(v);
     }
     else
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
     }
+    NOT_IMPLEMENTED;
 }
 template <>
 Entry::single_t EntryImplement<entry_xml>::get_single() const
@@ -74,14 +74,15 @@ Entry::single_t EntryImplement<entry_xml>::get_single() const
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not Single!");
     }
-    return std::get<Entry::Type::Single>(m_pimpl_);
+    NOT_IMPLEMENTED;
+    return Entry::single_t{nullptr};
 }
 template <>
 void EntryImplement<entry_xml>::set_tensor(const Entry::tensor_t& v)
 {
     if (type() < Entry::Type::Array)
     {
-        m_pimpl_.emplace<Entry::Type::Tensor>(v);
+        // m_pimpl_.emplace<Entry::Type::Tensor>(v);
     }
     else
     {
@@ -95,14 +96,18 @@ Entry::tensor_t EntryImplement<entry_xml>::get_tensor() const
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
     }
-    return std::get<Entry::Type::Tensor>(m_pimpl_);
+
+    NOT_IMPLEMENTED;
+    return Entry::tensor_t{nullptr, typeid(nullptr_t), {}};
 }
 template <>
 void EntryImplement<entry_xml>::set_block(const Entry::block_t& v)
 {
     if (type() < Entry::Type::Array)
     {
-        m_pimpl_.emplace<Entry::Type::Block>(v);
+        NOT_IMPLEMENTED;
+
+        // m_pimpl_.emplace<Entry::Type::Block>(v);
     }
     else
     {
@@ -116,7 +121,8 @@ Entry::block_t EntryImplement<entry_xml>::get_block() const
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
     }
-    return std::get<Entry::Type::Block>(m_pimpl_);
+    NOT_IMPLEMENTED;
+    return Entry::block_t{nullptr, (nullptr), {}, {}, {}, {}};
 }
 
 // as Tree
@@ -125,73 +131,41 @@ Entry::block_t EntryImplement<entry_xml>::get_block() const
 template <>
 const Entry* EntryImplement<entry_xml>::find(const std::string& name) const
 {
-    try
-    {
-        auto const& m = std::get<Entry::Type::Object>(m_pimpl_);
-        auto it = m.find(name);
-        if (it != m.end())
-        {
-            return &it->second;
-        }
-    }
-    catch (std::bad_variant_access&)
-    {
-    }
+    NOT_IMPLEMENTED;
     return nullptr;
 }
 template <>
 Entry* EntryImplement<entry_xml>::find(const std::string& name)
 {
-    try
-    {
-        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
-        auto it = m.find(name);
-        if (it != m.end())
-        {
-            return &it->second;
-        }
-    }
-    catch (std::bad_variant_access&)
-    {
-    }
+    NOT_IMPLEMENTED;
     return nullptr;
 }
 template <>
 Entry* EntryImplement<entry_xml>::insert(const std::string& name)
 {
-    if (type() == Entry::Type::Null)
-    {
-        m_pimpl_.emplace<Entry::Type::Object>();
-    }
-    try
-    {
-        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-        return &(m.emplace(name, Entry(duplicate())).first->second);
-    }
-    catch (std::bad_variant_access&)
-    {
-        return nullptr;
-    }
+    NOT_IMPLEMENTED;
+    return nullptr;
 }
 template <>
 Entry EntryImplement<entry_xml>::erase(const std::string& name)
 {
-    try
-    {
-        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
-        auto it = m.find(name);
-        if (it != m.end())
-        {
-            Entry res;
-            res.swap(it->second);
-            m.erase(it);
-            return std::move(res);
-        }
-    }
-    catch (std::bad_variant_access&)
-    {
-    }
+    // try
+    // {
+    //     auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+    //     auto it = m.find(name);
+    //     if (it != m.end())
+    //     {
+    //         Entry res;
+    //         res.swap(it->second);
+    //         m.erase(it);
+    //         return std::move(res);
+    //     }
+    // }
+    // catch (std::bad_variant_access&)
+    // {
+    // }
+    NOT_IMPLEMENTED;
     return Entry();
 }
 
@@ -207,10 +181,10 @@ Range<Iterator<Entry>> EntryImplement<entry_xml>::items() const
 {
     if (type() == Entry::Type::Array)
     {
-        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        return Entry::range{Entry::iterator(m.begin()),
-                            Entry::iterator(m.end())};
-        ;
+        // auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+        // return Entry::range{Entry::iterator(m.begin()),
+        //                     Entry::iterator(m.end())};
+        // ;
     }
     // else if (type() == Entry::Type::Object)
     // {
@@ -225,14 +199,14 @@ Range<Iterator<Entry>> EntryImplement<entry_xml>::items() const
 template <>
 Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_xml>::children() const
 {
-    if (type() == Entry::Type::Object)
-    {
-        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+    // if (type() == Entry::Type::Object)
+    // {
+    //     auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-        return Range<Iterator<const std::pair<const std::string, Entry>>>{
-            Iterator<const std::pair<const std::string, Entry>>(m.begin()),
-            Iterator<const std::pair<const std::string, Entry>>(m.end())};
-    }
+    //     return Range<Iterator<const std::pair<const std::string, Entry>>>{
+    //         Iterator<const std::pair<const std::string, Entry>>(m.begin()),
+    //         Iterator<const std::pair<const std::string, Entry>>(m.end())};
+    // }
 
     return Range<Iterator<const std::pair<const std::string, Entry>>>{};
 }
@@ -267,49 +241,20 @@ void EntryImplement<entry_xml>::erase_if(const Entry::range& r, const Entry::pre
 template <>
 Entry* EntryImplement<entry_xml>::at(int idx)
 {
-    try
-    {
-        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        return &m[idx];
-    }
-    catch (std::bad_variant_access&)
-    {
-        return nullptr;
-    };
+    NOT_IMPLEMENTED;
+    return nullptr;
 }
 template <>
 Entry* EntryImplement<entry_xml>::push_back()
 {
-    if (type() == Entry::Type::Null)
-    {
-        m_pimpl_.emplace<Entry::Type::Array>();
-    }
-    try
-    {
-        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        m.emplace_back(Entry(duplicate()));
-        return &*m.rbegin();
-    }
-    catch (std::bad_variant_access&)
-    {
-        return nullptr;
-    };
+    NOT_IMPLEMENTED;
+    return nullptr;
 }
 template <>
 Entry EntryImplement<entry_xml>::pop_back()
 {
-    try
-    {
-        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        Entry res;
-        m.rbegin()->swap(res);
-        m.pop_back();
-        return std::move(res);
-    }
-    catch (std::bad_variant_access&)
-    {
-        return Entry();
-    }
+    NOT_IMPLEMENTED;
+    return nullptr;
 }
 
 // attributes
@@ -318,12 +263,8 @@ bool EntryImplement<entry_xml>::has_attribute(const std::string& name) const { r
 template <>
 Entry::single_t EntryImplement<entry_xml>::get_attribute_raw(const std::string& name) const
 {
-    auto p = find("@" + name);
-    if (!p)
-    {
-        throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find attribute '" + name + "'");
-    }
-    return p->get_single();
+    NOT_IMPLEMENTED;
+    return Entry::single_t{nullptr};
 }
 template <>
 void EntryImplement<entry_xml>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
@@ -332,19 +273,20 @@ void EntryImplement<entry_xml>::remove_attribute(const std::string& name) { eras
 template <>
 std::map<std::string, Entry::single_t> EntryImplement<entry_xml>::attributes() const
 {
-    if (type() != Entry::Type::Object)
-    {
-        return std::map<std::string, Entry::single_t>{};
-    }
+    // if (type() != Entry::Type::Object)
+    // {
+    //     return std::map<std::string, Entry::single_t>{};
+    // }
 
     std::map<std::string, Entry::single_t> res;
-    for (const auto& item : std::get<Entry::Type::Object>(m_pimpl_))
-    {
-        if (item.first[0] == '@')
-        {
-            res.emplace(item.first.substr(1, std::string::npos), item.second.get_single());
-        }
-    }
+    // for (const auto& item : std::get<Entry::Type::Object>(m_pimpl_))
+    // {
+    //     if (item.first[0] == '@')
+    //     {
+    //         res.emplace(item.first.substr(1, std::string::npos), item.second.get_single());
+    //     }
+    // }
+    NOT_IMPLEMENTED;
     return std::move(res);
 }
 

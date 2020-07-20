@@ -1,6 +1,8 @@
 #include "Entry.h"
 #include "EntryInterface.h"
+#include "utility/Factory.h"
 #include "utility/Logger.h"
+#include "utility/URL.h"
 #include "utility/fancy_print.h"
 #include <any>
 #include <array>
@@ -8,15 +10,70 @@
 #include <vector>
 namespace sp
 {
-Entry::Entry(EntryInterface* p) : m_pimpl_(p) { m_pimpl_->bind(this); }
+Entry::Entry(EntryInterface* p) : m_pimpl_(p != nullptr ? p : EntryInterface::create("memory").release())
+{
+    m_pimpl_->bind(this);
+}
 
-Entry::Entry(const std::string& rpath) : Entry(EntryInterface::create(rpath).release()) {}
+Entry::Entry(const std::string& uri) : m_pimpl_(nullptr) { fetch(uri); }
 
 Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
 
 Entry::Entry(this_type&& other) : m_pimpl_(other.m_pimpl_.release()) {}
 
 Entry::~Entry() {}
+
+void Entry::fetch(const std::string& uri)
+{
+    if (m_pimpl_ == nullptr)
+    {
+        std::string schema = "memory";
+
+        auto pos = uri.find(":");
+
+        if (pos == std::string::npos)
+        {
+            pos = uri.rfind('.');
+            if (pos != std::string::npos)
+            {
+                schema = uri.substr(pos);
+            }
+            else
+            {
+                schema = uri;
+            }
+        }
+        else
+        {
+            schema = uri.substr(0, pos);
+        }
+
+        if (schema == "")
+        {
+            schema = "memory";
+        }
+        else if (schema == "http" || schema == "https")
+        {
+            NOT_IMPLEMENTED;
+        }
+        if (!Factory<EntryInterface>::has_creator(schema))
+        {
+            RUNTIME_ERROR << "Can not parse schema " << schema << std::endl;
+        }
+        Factory<EntryInterface>::create(schema).swap(m_pimpl_);
+
+        VERBOSE << "load backend:" << schema << std::endl;
+        
+        if (schema != uri)
+        {
+            m_pimpl_->fetch(uri);
+        }
+    }
+    else
+    {
+        m_pimpl_->fetch(uri);
+    }
+}
 
 void Entry::swap(this_type& other) { std::swap(m_pimpl_, other.m_pimpl_); }
 
