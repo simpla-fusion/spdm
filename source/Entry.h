@@ -35,8 +35,8 @@ public:
         Object = 5
     };
 
-    typedef Iterator<Entry> iterator;
-    typedef Iterator<const Entry> const_iterator;
+    typedef Iterator<std::shared_ptr<Entry>> iterator;
+    typedef Iterator<const std::shared_ptr<Entry>> const_iterator;
 
     typedef Range<iterator> range;
     typedef Range<const_iterator> const_range;
@@ -228,7 +228,7 @@ public:
 
     Entry erase(const std::string&);
 
-    Range<Iterator<const std::pair<const std::string, Entry>>> children() const;
+    Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> children() const;
 
     //-------------------------------------------------------------------
     // level 1
@@ -260,6 +260,8 @@ public:
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
 
+std::string to_string(const Entry::single_t& s);
+Entry::single_t from_string(const std::string& s);
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
 } // namespace sp

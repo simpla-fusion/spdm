@@ -63,7 +63,7 @@ void Entry::fetch(const std::string& uri)
         Factory<EntryInterface>::create(schema).swap(m_pimpl_);
 
         VERBOSE << "load backend:" << schema << std::endl;
-        
+
         if (schema != uri)
         {
             m_pimpl_->fetch(uri);
@@ -144,7 +144,7 @@ Entry::iterator Entry::next() const { return m_pimpl_->next(); }
 
 Entry::range Entry::items() const { return m_pimpl_->items(); }
 
-Range<Iterator<const std::pair<const std::string, Entry>>> Entry::children() const { return m_pimpl_->children(); };
+Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> Entry::children() const { return m_pimpl_->children(); };
 // as container
 size_t Entry::size() const { return m_pimpl_->size(); }
 
@@ -159,29 +159,29 @@ void Entry::erase_if(const range& r, const pred_fun& p) { m_pimpl_->erase_if(r, 
 // as vector
 Entry::iterator Entry::at(int idx) { return m_pimpl_->at(idx); }
 
-Entry::iterator Entry::push_back() { return m_pimpl_->push_back(); }
+Entry::iterator Entry::push_back() { return iterator(m_pimpl_->push_back()); }
 
 Entry::iterator Entry::push_back(const Entry& other)
 {
     auto p = push_back();
-    Entry(other).swap(*p);
+    Entry(other).swap(**p);
     return p;
 }
 
 Entry::iterator Entry::push_back(Entry&& other)
 {
     auto p = push_back();
-    p->swap(other);
+    (*p)->swap(other);
     return p;
 }
 
-Entry Entry::pop_back() { NOT_IMPLEMENTED; }
+Entry Entry::pop_back() { return Entry(*m_pimpl_->pop_back()); }
 
 Entry& Entry::operator[](int idx)
 {
     if (idx < 0)
     {
-        return *push_back();
+        return **push_back();
     }
     else
     {
@@ -190,7 +190,7 @@ Entry& Entry::operator[](int idx)
         {
             throw std::out_of_range(FILE_LINE_STAMP_STRING + "index out of range");
         }
-        return *p;
+        return **p;
     }
 }
 
@@ -198,7 +198,7 @@ Entry& Entry::operator[](int idx)
 // @note : map is unordered
 bool Entry::has_a(const std::string& name) { return !find(name); }
 
-Entry::iterator Entry::find(const std::string& name) { return m_pimpl_->find(name); }
+Entry::iterator Entry::find(const std::string& name) { return iterator(m_pimpl_->find(name)); }
 
 Entry::iterator Entry::at(const std::string& name)
 {
@@ -207,28 +207,28 @@ Entry::iterator Entry::at(const std::string& name)
     {
         throw std::out_of_range(FILE_LINE_STAMP_STRING + name);
     }
-    return p;
+    return iterator(p);
 }
 
-Entry& Entry::operator[](const std::string& name) { return *insert(name); }
+Entry& Entry::operator[](const std::string& name) { return **insert(name); }
 
 Entry::iterator Entry::insert(const std::string& name) { return m_pimpl_->insert(name); }
 
 Entry::iterator Entry::insert(const std::string& name, const Entry& other)
 {
     auto p = insert(name);
-    Entry(other).swap(*p);
+    Entry(other).swap(**p);
     return p;
 }
 
 Entry::iterator Entry::insert(const std::string& name, Entry&& other)
 {
     auto p = insert(name);
-    p->swap(other);
+    (*p)->swap(other);
     return p;
 }
 
-Entry Entry::erase(const std::string& name) { return m_pimpl_->erase(name); }
+Entry Entry::erase(const std::string& name) { return Entry(*m_pimpl_->erase(name)); }
 
 //-------------------------------------------------------------------
 // level 2
@@ -343,4 +343,41 @@ Entry load(const std::istream&, const std::string& format) { NOT_IMPLEMENTED; }
 
 void save(const Entry&, const std::ostream&, const std::string& format) { NOT_IMPLEMENTED; }
 
+std::string to_string(Entry::single_t const& s)
+{
+    std::ostringstream os;
+    switch (s.index())
+    {
+    case 0: // std::string
+        os << std::get<0>(s);
+        break;
+    case 1: // bool
+        os << std::boolalpha << std::get<1>(s);
+        break;
+    case 2: // int
+        os << std::get<2>(s);
+        break;
+    case 3: // double
+        os << std::get<3>(s);
+        break;
+    case 4: // std::complex<4>
+        os << std::get<4>(s);
+        break;
+    case 5: //   std::array<int, 3>,
+        os << std::get<5>(s)[0] << "," << std::get<5>(s)[1] << "," << std::get<5>(s)[2];
+        break;
+    case 6: //   std::array<int, 3>,
+        os << std::get<6>(s)[0] << "," << std::get<6>(s)[1] << "," << std::get<6>(s)[2];
+        break;
+
+    default:
+        break;
+    }
+    return os.str();
+}
+
+Entry::single_t from_string(const std::string& s)
+{
+    NOT_IMPLEMENTED;
+}
 } // namespace sp

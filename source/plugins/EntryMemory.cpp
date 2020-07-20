@@ -10,8 +10,8 @@ typedef std::variant<nullptr_t,
                      Entry::single_t,
                      Entry::tensor_t,
                      Entry::block_t,
-                     std::vector<Entry>,
-                     std::map<std::string, Entry>>
+                     std::vector<std::shared_ptr<Entry>>,
+                     std::map<std::string, std::shared_ptr<Entry>>>
     entry_memory;
 
 template <>
@@ -117,7 +117,7 @@ Entry::block_t EntryImplement<entry_memory>::get_block() const
 
 // as object
 template <>
-const Entry* EntryImplement<entry_memory>::find(const std::string& name) const
+const std::shared_ptr<Entry> EntryImplement<entry_memory>::find(const std::string& name) const
 {
     try
     {
@@ -125,7 +125,7 @@ const Entry* EntryImplement<entry_memory>::find(const std::string& name) const
         auto it = m.find(name);
         if (it != m.end())
         {
-            return &it->second;
+            return it->second;
         }
     }
     catch (std::bad_variant_access&)
@@ -134,7 +134,7 @@ const Entry* EntryImplement<entry_memory>::find(const std::string& name) const
     return nullptr;
 }
 template <>
-Entry* EntryImplement<entry_memory>::find(const std::string& name)
+std::shared_ptr<Entry> EntryImplement<entry_memory>::find(const std::string& name)
 {
     try
     {
@@ -142,7 +142,7 @@ Entry* EntryImplement<entry_memory>::find(const std::string& name)
         auto it = m.find(name);
         if (it != m.end())
         {
-            return &it->second;
+            return it->second;
         }
     }
     catch (std::bad_variant_access&)
@@ -151,7 +151,7 @@ Entry* EntryImplement<entry_memory>::find(const std::string& name)
     return nullptr;
 }
 template <>
-Entry* EntryImplement<entry_memory>::insert(const std::string& name)
+std::shared_ptr<Entry> EntryImplement<entry_memory>::insert(const std::string& name)
 {
     if (type() == Entry::Type::Null)
     {
@@ -161,7 +161,7 @@ Entry* EntryImplement<entry_memory>::insert(const std::string& name)
     {
         auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-        return &(m.emplace(name, Entry(duplicate())).first->second);
+        return m.emplace(name, std::make_shared<Entry>(duplicate())).first->second;
     }
     catch (std::bad_variant_access&)
     {
@@ -169,7 +169,7 @@ Entry* EntryImplement<entry_memory>::insert(const std::string& name)
     }
 }
 template <>
-Entry EntryImplement<entry_memory>::erase(const std::string& name)
+std::shared_ptr<Entry> EntryImplement<entry_memory>::erase(const std::string& name)
 {
     try
     {
@@ -177,19 +177,20 @@ Entry EntryImplement<entry_memory>::erase(const std::string& name)
         auto it = m.find(name);
         if (it != m.end())
         {
-            Entry res;
+            std::shared_ptr<Entry> res;
+            res = it->second;
             res.swap(it->second);
             m.erase(it);
-            return std::move(res);
+            return res;
         }
     }
     catch (std::bad_variant_access&)
     {
     }
-    return Entry();
+    return nullptr;
 }
 
-// Entry::iterator parent() const  { return Entry::iterator(const_cast<Entry*>(m_parent_)); }
+// Entry::iterator parent() const  { return Entry::iterator(const_cast<std::shared_ptr<Entry>>(m_parent_)); }
 template <>
 Entry::iterator EntryImplement<entry_memory>::next() const
 {
@@ -197,7 +198,7 @@ Entry::iterator EntryImplement<entry_memory>::next() const
     return Entry::iterator();
 };
 template <>
-Range<Iterator<Entry>> EntryImplement<entry_memory>::items() const
+Entry::range EntryImplement<entry_memory>::items() const
 {
     if (type() == Entry::Type::Array)
     {
@@ -209,7 +210,7 @@ Range<Iterator<Entry>> EntryImplement<entry_memory>::items() const
     // else if (type() == Entry::Type::Object)
     // {
     //     auto& m = std::get<Entry::Type::Object>(m_pimpl_);
-    //     auto mapper = [](auto const& item) -> Entry* { return &item->second; };
+    //     auto mapper = [](auto const& item) -> std::shared_ptr<Entry> { return &item->second; };
     //     return Entry::range{Entry::iterator(m.begin(), mapper),
     //                         Entry::iterator(m.end(), mapper)};
     // }
@@ -217,18 +218,18 @@ Range<Iterator<Entry>> EntryImplement<entry_memory>::items() const
     return Entry::range{};
 }
 template <>
-Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_memory>::children() const
+Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> EntryImplement<entry_memory>::children() const
 {
     if (type() == Entry::Type::Object)
     {
         auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-        return Range<Iterator<const std::pair<const std::string, Entry>>>{
-            Iterator<const std::pair<const std::string, Entry>>(m.begin()),
-            Iterator<const std::pair<const std::string, Entry>>(m.end())};
+        return Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>>{
+            Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>(m.begin()),
+            Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>(m.end())};
     }
 
-    return Range<Iterator<const std::pair<const std::string, Entry>>>{};
+    return Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>>{};
 }
 template <>
 size_t EntryImplement<entry_memory>::size() const
@@ -259,12 +260,12 @@ void EntryImplement<entry_memory>::erase_if(const Entry::range& r, const Entry::
 
 // as vector
 template <>
-Entry* EntryImplement<entry_memory>::at(int idx)
+std::shared_ptr<Entry> EntryImplement<entry_memory>::at(int idx)
 {
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        return &m[idx];
+        return m[idx];
     }
     catch (std::bad_variant_access&)
     {
@@ -272,7 +273,7 @@ Entry* EntryImplement<entry_memory>::at(int idx)
     };
 }
 template <>
-Entry* EntryImplement<entry_memory>::push_back()
+std::shared_ptr<Entry> EntryImplement<entry_memory>::push_back()
 {
     if (type() == Entry::Type::Null)
     {
@@ -281,8 +282,8 @@ Entry* EntryImplement<entry_memory>::push_back()
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        m.emplace_back(Entry(duplicate()));
-        return &*m.rbegin();
+        m.emplace_back(std::make_shared<Entry>(duplicate()));
+        return *m.rbegin();
     }
     catch (std::bad_variant_access&)
     {
@@ -290,19 +291,18 @@ Entry* EntryImplement<entry_memory>::push_back()
     };
 }
 template <>
-Entry EntryImplement<entry_memory>::pop_back()
+std::shared_ptr<Entry> EntryImplement<entry_memory>::pop_back()
 {
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        Entry res;
-        m.rbegin()->swap(res);
+        std::shared_ptr<Entry> res = *m.rbegin();
         m.pop_back();
-        return std::move(res);
+        return res;
     }
     catch (std::bad_variant_access&)
     {
-        return Entry();
+        return nullptr;
     }
 }
 
@@ -336,7 +336,7 @@ std::map<std::string, Entry::single_t> EntryImplement<entry_memory>::attributes(
     {
         if (item.first[0] == '@')
         {
-            res.emplace(item.first.substr(1, std::string::npos), item.second.get_single());
+            res.emplace(item.first.substr(1, std::string::npos), item.second->get_single());
         }
     }
     return std::move(res);

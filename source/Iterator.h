@@ -81,6 +81,46 @@ protected:
     iterator m_it_;
 };
 
+template <typename T>
+class IteratorProxy<T, std::shared_ptr<std::remove_const_t<T>>> : public IteratorProxy<T>
+{
+public:
+    typedef IteratorProxy<T> base_type;
+    typedef IteratorProxy<T, std::shared_ptr<std::remove_const_t<T>>> this_type;
+
+    using typename base_type::pointer;
+    using typename base_type::reference;
+    using typename base_type::value_type;
+
+    typedef std::shared_ptr<std::remove_const_t<T>> iterator;
+
+    IteratorProxy(iterator&& it) : m_it_(std::move(it)), m_pos_(0) {}
+
+    IteratorProxy(const iterator& it) : m_it_(it), m_pos_(0) {}
+
+    IteratorProxy(const this_type& other) : base_type(other), m_it_(other.m_it_), m_pos_(other.m_pos_) {}
+
+    IteratorProxy(this_type&& other) : base_type(other), m_it_(std::move(other.m_it_)), m_pos_(other.m_pos_) {}
+
+    virtual ~IteratorProxy() = default;
+
+    bool is_derived_from(const std::type_info& tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
+
+    base_type* copy() const override { return new this_type(*this); };
+
+    IteratorProxy<const T>* const_copy() const { return new IteratorProxy<const T, iterator>(m_it_); }
+
+    pointer next() override
+    {
+        ++m_pos_;
+        return m_it_.get() + m_pos_ - 1;
+    }
+
+protected:
+    iterator m_it_;
+    size_t m_pos_;
+};
+
 template <typename T, typename IT, typename Mapper>
 struct IteratorProxy<T, IT, Mapper> : public IteratorProxy<T>
 {
@@ -216,6 +256,7 @@ private:
     {
         return new IteratorProxy<U>(p);
     }
+
     template <typename U, typename TI>
     auto make_iterator_proxy(const TI& it)
     {

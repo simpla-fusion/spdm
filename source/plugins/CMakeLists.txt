@@ -6,10 +6,10 @@
 
 set(SPDB_PLUGINS_SOURCES
   EntryMemory.cpp
-  EntryXML.cpp
-  EntryJSON.cpp
-  EntryHDF5.cpp
-  ../../extern/pugixml/pugixml.cpp
+  # EntryXML.cpp
+  # EntryJSON.cpp
+  # EntryHDF5.cpp
+  # ../../extern/pugixml/pugixml.cpp
 
   # Attributes.cpp
 )

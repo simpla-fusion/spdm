@@ -78,25 +78,25 @@ public:
     virtual void erase_if(const Entry::range& r, const Entry::pred_fun& p) = 0;
 
     // as array
-    virtual Entry* at(int idx) = 0;
+    virtual std::shared_ptr<Entry> at(int idx) = 0;
 
-    virtual Entry* push_back() = 0;
+    virtual std::shared_ptr<Entry> push_back() = 0;
 
-    virtual Entry pop_back() = 0;
+    virtual std::shared_ptr<Entry> pop_back() = 0;
 
-    virtual Range<Iterator<Entry>> items() const = 0;
+    virtual Entry::range items() const = 0;
 
     // as object
 
-    virtual const Entry* find(const std::string& name) const = 0;
+    virtual const std::shared_ptr<Entry> find(const std::string& name) const = 0;
 
-    virtual Entry* find(const std::string& name) = 0;
+    virtual std::shared_ptr<Entry> find(const std::string& name) = 0;
 
-    virtual Entry* insert(const std::string& name) = 0;
+    virtual std::shared_ptr<Entry> insert(const std::string& name) = 0;
 
-    virtual Entry erase(const std::string& name) = 0;
+    virtual std::shared_ptr<Entry> erase(const std::string& name) = 0;
 
-    virtual Range<Iterator<const std::pair<const std::string, Entry>>> children() const = 0;
+    virtual Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> children() const = 0;
 };
 
 template <typename Impl>
@@ -164,25 +164,25 @@ public:
     void erase_if(const Entry::range& r, const Entry::pred_fun& p) override;
 
     // as array
-    Entry* at(int idx) override;
+    std::shared_ptr<Entry> at(int idx) override;
 
-    Entry* push_back() override;
+    std::shared_ptr<Entry> push_back() override;
 
-    Entry pop_back() override;
+    std::shared_ptr<Entry> pop_back() override;
 
-    Range<Iterator<Entry>> items() const override;
+    Entry::range items() const override;
 
     // as object
 
-    const Entry* find(const std::string& name) const override;
+    const std::shared_ptr<Entry> find(const std::string& name) const override;
 
-    Entry* find(const std::string& name) override;
+    std::shared_ptr<Entry> find(const std::string& name) override;
 
-    Entry* insert(const std::string& name) override;
+    std::shared_ptr<Entry> insert(const std::string& name) override;
 
-    Entry erase(const std::string& name) override;
+    std::shared_ptr<Entry> erase(const std::string& name) override;
 
-    Range<Iterator<const std::pair<const std::string, Entry>>> children() const override;
+    Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>> children() const override;
 
 private:
     Impl m_pimpl_;
