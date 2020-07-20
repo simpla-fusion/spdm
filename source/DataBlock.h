@@ -27,7 +27,7 @@
 //         unsigned int *strides;
 //         int flags;
 //         char _[];
-//     } SpDataBlockInterface;
+//     } DataBlockInterface;
 
 // #ifdef __cplusplus
 // }
@@ -35,26 +35,26 @@
 
 namespace sp
 {
-    class SpDataBlock
-    {
-    public:
-        SpDataBlock();
-        ~SpDataBlock();
-        SpDataBlock(std::shared_ptr<void> data, int element_size, int nd, size_t dimensions);
-        SpDataBlock(SpDataBlock const &);
-        SpDataBlock(SpDataBlock &&);
-        void swap(SpDataBlock &other);
+class DataBlock
+{
+public:
+    DataBlock();
+    ~DataBlock();
+    DataBlock(std::shared_ptr<void> data, int element_size, int nd, size_t dimensions);
+    DataBlock(DataBlock const&);
+    DataBlock(DataBlock&&);
+    void swap(DataBlock& other);
 
-        char *data();
-        char const *data() const;
-        size_t element_size() const;
-        size_t ndims() const;
-        size_t const *dims() const;
+    char* data();
+    char const* data() const;
+    size_t element_size() const;
+    size_t ndims() const;
+    size_t const* dims() const;
 
-    private:
-        std::shared_ptr<char> m_data_;
-        std::vector<size_t> m_dims_;
-        size_t m_element_size_ = 1;
-    };
+private:
+    std::shared_ptr<char> m_data_;
+    std::vector<size_t> m_dims_;
+    size_t m_element_size_ = 1;
+};
 } // namespace sp
 #endif // SP_DATABLOCK_

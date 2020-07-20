@@ -31,6 +31,8 @@ public:
 
     virtual EntryInterface* copy() const = 0;
 
+    virtual EntryInterface* duplicate() const = 0;
+
     virtual int fetch(const std::string& uri) = 0;
 
     //----------------------------------------------------------------------------------------------------------
@@ -76,9 +78,9 @@ public:
     virtual void erase_if(const Entry::range& r, const Entry::pred_fun& p) = 0;
 
     // as array
-    virtual Entry::iterator at(int idx) = 0;
+    virtual Entry* at(int idx) = 0;
 
-    virtual Entry::iterator push_back() = 0;
+    virtual Entry* push_back() = 0;
 
     virtual Entry pop_back() = 0;
 
@@ -86,11 +88,11 @@ public:
 
     // as object
 
-    virtual Entry::const_iterator find(const std::string& name) const = 0;
+    virtual const Entry* find(const std::string& name) const = 0;
 
-    virtual Entry::iterator find(const std::string& name) = 0;
+    virtual Entry* find(const std::string& name) = 0;
 
-    virtual Entry::iterator insert(const std::string& name) = 0;
+    virtual Entry* insert(const std::string& name) = 0;
 
     virtual Entry erase(const std::string& name) = 0;
 
@@ -103,8 +105,6 @@ class EntryImplement : public EntryInterface
 
 public:
     using EntryInterface::m_self_;
-    using EntryInterface::name;
-    using EntryInterface::parent;
 
     EntryImplement();
     EntryImplement(const EntryImplement&);
@@ -114,6 +114,7 @@ public:
     void swap(EntryImplement& other);
 
     EntryInterface* copy() const override;
+    EntryInterface* duplicate() const override;
 
     int fetch(const std::string& uri);
 
@@ -162,9 +163,9 @@ public:
     void erase_if(const Entry::range& r, const Entry::pred_fun& p) override;
 
     // as array
-    Entry::iterator at(int idx) override;
+    Entry* at(int idx) override;
 
-    Entry::iterator push_back() override;
+    Entry* push_back() override;
 
     Entry pop_back() override;
 
@@ -172,11 +173,11 @@ public:
 
     // as object
 
-    Entry::const_iterator find(const std::string& name) const override;
+    const Entry* find(const std::string& name) const override;
 
-    Entry::iterator find(const std::string& name) override;
+    Entry* find(const std::string& name) override;
 
-    Entry::iterator insert(const std::string& name) override;
+    Entry* insert(const std::string& name) override;
 
     Entry erase(const std::string& name) override;
 
@@ -187,13 +188,11 @@ private:
     static bool is_registered;
 };
 
-#define SP_REGISTER_ENTRY(_NAME_, _CLASS_)                                                             \
-    template <>                                                                                        \
-    bool sp::EntryImplement<_CLASS_>::is_registered =                                                  \
-        EntryInterface::add_creator(                                                                   \
-            __STRING(_NAME_),                                                                          \
-            [](Entry* self, const std::string& name, Entry* parent) {                                  \
-                return dynamic_cast<EntryInterface*>(new EntryImplement<_CLASS_>(self, name, parent)); \
-            });
+#define SP_REGISTER_ENTRY(_NAME_, _CLASS_)            \
+    template <>                                       \
+    bool sp::EntryImplement<_CLASS_>::is_registered = \
+        EntryInterface::add_creator(                  \
+            __STRING(_NAME_),                         \
+            []() { return dynamic_cast<EntryInterface*>(new EntryImplement<_CLASS_>()); });
 
 } // namespace sp

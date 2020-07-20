@@ -11,7 +11,7 @@ EntryInterface::EntryInterface(EntryInterface&& other) : m_self_(other.m_self_) 
 
 void EntryInterface::bind(Entry* self) { m_self_ = self; }
 
-std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& rpath = "memory")
+std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& rpath)
 {
 
     auto pos = rpath.find(":");
@@ -26,7 +26,7 @@ std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& rpath 
     }
     else
     {
-        return Factory<EntryInterface>::create(rpath);
+        return Factory<EntryInterface>::create(rpath != "" ? rpath : "memory");
     }
 }
 bool EntryInterface::add_creator(const std::string& c_id, const std::function<EntryInterface*()>& fun)

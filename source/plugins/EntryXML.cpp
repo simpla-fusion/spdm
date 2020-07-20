@@ -1,31 +1,37 @@
-#include "Entry.h"
-#include "EntryInterface.h"
-#include "utility/Logger.h"
-#include <any>
-#include <map>
-#include <pugixml/pugixml.hpp>
-#include <vector>
 
+#include "../Entry.h"
+#include "../EntryInterface.h"
+#include "../utility/Factory.h"
+#include "../utility/Logger.h"
+#include <variant>
 namespace sp
 {
-typedef std::variant<nullptr_t,
-                     Entry::single_t,
-                     Entry::tensor_t,
-                     Entry::block_t,
-                     std::vector<Entry>,
-                     std::map<std::string, Entry>>
-    entry_xml;
+struct entry_xml : public std::variant<nullptr_t,
+                                       Entry::single_t,
+                                       Entry::tensor_t,
+                                       Entry::block_t,
+                                       std::vector<Entry>,
+                                       std::map<std::string, Entry>>
+{
+    typedef std::variant<nullptr_t,
+                         Entry::single_t,
+                         Entry::tensor_t,
+                         Entry::block_t,
+                         std::vector<Entry>,
+                         std::map<std::string, Entry>>
+        base_type;
+    using base_type::variant;
+};
 
 template <>
-EntryImplement<entry_xml>::EntryImplement(Entry* self, const std::string& name, Entry* parent)
-    : EntryInterface(self, name, parent),
-      m_pimpl_(nullptr){};
+EntryImplement<entry_xml>::EntryImplement() : EntryInterface(), m_pimpl_( ){NOT_IMPLEMENTED;};
+
 template <>
-EntryImplement<entry_xml>::EntryImplement(const EntryImplement& other)
-    : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
+EntryImplement<entry_xml>::EntryImplement(const EntryImplement& other) : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
+
 template <>
-EntryImplement<entry_xml>::EntryImplement(EntryImplement&& other)
-    : EntryInterface(std::forward<EntryImplement>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
+EntryImplement<entry_xml>::EntryImplement(EntryImplement&& other) : EntryInterface(std::forward<EntryImplement>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
+
 template <>
 EntryImplement<entry_xml>::~EntryImplement() = default;
 template <>
@@ -33,9 +39,18 @@ EntryInterface* EntryImplement<entry_xml>::copy() const
 {
     return new EntryImplement(*this);
 };
+
+template <>
+EntryInterface* EntryImplement<entry_xml>::duplicate() const { return new EntryImplement<entry_xml>(); }
+
 template <>
 Entry::Type EntryImplement<entry_xml>::type() const { return Entry::Type(m_pimpl_.index()); }
 
+template <>
+int EntryImplement<entry_xml>::fetch(const std::string& uri)
+{
+    NOT_IMPLEMENTED;
+}
 //----------------------------------------------------------------------------------
 // level 0
 //
@@ -108,7 +123,7 @@ Entry::block_t EntryImplement<entry_xml>::get_block() const
 
 // as object
 template <>
-Entry::const_iterator EntryImplement<entry_xml>::find(const std::string& name) const
+const Entry* EntryImplement<entry_xml>::find(const std::string& name) const
 {
     try
     {
@@ -116,33 +131,33 @@ Entry::const_iterator EntryImplement<entry_xml>::find(const std::string& name) c
         auto it = m.find(name);
         if (it != m.end())
         {
-            return it->second.self();
+            return &it->second;
         }
     }
     catch (std::bad_variant_access&)
     {
     }
-    return Entry::const_iterator();
+    return nullptr;
 }
 template <>
-Entry::iterator EntryImplement<entry_xml>::find(const std::string& name)
+Entry* EntryImplement<entry_xml>::find(const std::string& name)
 {
     try
     {
-        auto const& m = std::get<Entry::Type::Object>(m_pimpl_);
+        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
         auto it = m.find(name);
         if (it != m.end())
         {
-            return const_cast<Entry&>(it->second).self();
+            return &it->second;
         }
     }
     catch (std::bad_variant_access&)
     {
     }
-    return Entry::iterator();
+    return nullptr;
 }
 template <>
-Entry::iterator EntryImplement<entry_xml>::insert(const std::string& name)
+Entry* EntryImplement<entry_xml>::insert(const std::string& name)
 {
     if (type() == Entry::Type::Null)
     {
@@ -152,11 +167,11 @@ Entry::iterator EntryImplement<entry_xml>::insert(const std::string& name)
     {
         auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-        return Entry::iterator(&(m.emplace(name, Entry(m_self_, name)).first->second));
+        return &(m.emplace(name, Entry(duplicate())).first->second);
     }
     catch (std::bad_variant_access&)
     {
-        return Entry::iterator();
+        return nullptr;
     }
 }
 template <>
@@ -250,20 +265,20 @@ void EntryImplement<entry_xml>::erase_if(const Entry::range& r, const Entry::pre
 
 // as vector
 template <>
-Entry::iterator EntryImplement<entry_xml>::at(int idx)
+Entry* EntryImplement<entry_xml>::at(int idx)
 {
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        return Entry::iterator(&m[idx]);
+        return &m[idx];
     }
     catch (std::bad_variant_access&)
     {
-        return Entry::iterator();
+        return nullptr;
     };
 }
 template <>
-Entry::iterator EntryImplement<entry_xml>::push_back()
+Entry* EntryImplement<entry_xml>::push_back()
 {
     if (type() == Entry::Type::Null)
     {
@@ -272,12 +287,12 @@ Entry::iterator EntryImplement<entry_xml>::push_back()
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        m.emplace_back(Entry(m_self_));
-        return Entry::iterator(&*m.rbegin());
+        m.emplace_back(Entry(duplicate()));
+        return &*m.rbegin();
     }
     catch (std::bad_variant_access&)
     {
-        return Entry::iterator();
+        return nullptr;
     };
 }
 template <>
@@ -333,5 +348,6 @@ std::map<std::string, Entry::single_t> EntryImplement<entry_xml>::attributes() c
     return std::move(res);
 }
 
-SP_REGISTER_ENTRY(xml, EntryImplement<entry_xml>);
+SP_REGISTER_ENTRY(xml, entry_xml);
+
 } // namespace sp

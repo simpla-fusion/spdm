@@ -1,10 +1,13 @@
 #ifndef SP_DOCUMENT_H_
 #define SP_DOCUMENT_H_
-#include "Node.h"
+#include "Entry.h"
+#include <iostream>
+#include <memory>
+#include <string>
 
 namespace sp
 {
-class SpDocument
+class Document
 {
 public:
     class OID
@@ -32,22 +35,22 @@ public:
 
     OID oid;
 
-    SpDocument();
+    Document();
 
-    SpDocument(SpDocument&&);
+    Document(Document&&);
 
-    ~SpDocument();
+    ~Document();
 
-    SpDocument(SpDocument const&) = delete;
-    SpDocument& operator=(SpDocument const&) = delete;
+    Document(Document const&) = delete;
+    Document& operator=(Document const&) = delete;
 
-    void schema(SpDocument const& schema);
-    const SpDocument& schema();
-    void schema(std::string const& schema);
+    void schema(Document const& schema);
+    const Document& schema();
+    void schema(const std::string& schema);
     const std::string& schema_id();
 
-    const SpNode& root() const;
-    SpNode& root();
+    const Entry& root() const;
+    Entry& root();
 
     int load(std::string const&);
     int save(std::string const&);
@@ -55,8 +58,7 @@ public:
     int save(std::ostream const&);
 
 private:
-    struct pimpl_s;
-    std::unique_ptr<pimpl_s> m_pimpl_;
+    std::unique_ptr<Entry> m_pimpl_;
 };
 
 } // namespace sp

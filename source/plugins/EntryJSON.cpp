@@ -1,45 +1,62 @@
 
-#include "Entry.h"
-#include "EntryInterface.h"
-#include "utility/Factory.h"
-#include "utility/Logger.h"
+#include "../Entry.h"
+#include "../EntryInterface.h"
+#include "../utility/Factory.h"
+#include "../utility/Logger.h"
 #include <variant>
 namespace sp
 {
-typedef std::variant<nullptr_t,
-                     Entry::single_t,
-                     Entry::tensor_t,
-                     Entry::block_t,
-                     std::vector<Entry>,
-                     std::map<std::string, Entry>>
-    entry_Memory;
+struct entry_json : public std::variant<nullptr_t,
+                                       Entry::single_t,
+                                       Entry::tensor_t,
+                                       Entry::block_t,
+                                       std::vector<Entry>,
+                                       std::map<std::string, Entry>>
+{
+    typedef std::variant<nullptr_t,
+                         Entry::single_t,
+                         Entry::tensor_t,
+                         Entry::block_t,
+                         std::vector<Entry>,
+                         std::map<std::string, Entry>>
+        base_type;
+    using base_type::variant;
+};
 
 template <>
-EntryImplement<entry_Memory>::EntryImplement(Entry* self, const std::string& name, Entry* parent)
-    : EntryInterface(self, name, parent),
-      m_pimpl_(nullptr){};
+EntryImplement<entry_json>::EntryImplement() : EntryInterface(), m_pimpl_( ){NOT_IMPLEMENTED;};
+
 template <>
-EntryImplement<entry_Memory>::EntryImplement(const EntryImplement& other)
-    : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
+EntryImplement<entry_json>::EntryImplement(const EntryImplement& other) : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
+
 template <>
-EntryImplement<entry_Memory>::EntryImplement(EntryImplement&& other)
-    : EntryInterface(std::forward<EntryImplement>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
+EntryImplement<entry_json>::EntryImplement(EntryImplement&& other) : EntryInterface(std::forward<EntryImplement>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
+
 template <>
-EntryImplement<entry_Memory>::~EntryImplement() = default;
+EntryImplement<entry_json>::~EntryImplement() = default;
 template <>
-EntryInterface* EntryImplement<entry_Memory>::copy() const
+EntryInterface* EntryImplement<entry_json>::copy() const
 {
     return new EntryImplement(*this);
 };
-template <>
-Entry::Type EntryImplement<entry_Memory>::type() const { return Entry::Type(m_pimpl_.index()); }
 
+template <>
+EntryInterface* EntryImplement<entry_json>::duplicate() const { return new EntryImplement<entry_json>(); }
+
+template <>
+Entry::Type EntryImplement<entry_json>::type() const { return Entry::Type(m_pimpl_.index()); }
+
+template <>
+int EntryImplement<entry_json>::fetch(const std::string& uri)
+{
+    NOT_IMPLEMENTED;
+}
 //----------------------------------------------------------------------------------
 // level 0
 //
 // as leaf
 template <>
-void EntryImplement<entry_Memory>::set_single(const Entry::single_t& v)
+void EntryImplement<entry_json>::set_single(const Entry::single_t& v)
 {
     if (type() < Entry::Type::Array)
     {
@@ -51,7 +68,7 @@ void EntryImplement<entry_Memory>::set_single(const Entry::single_t& v)
     }
 }
 template <>
-Entry::single_t EntryImplement<entry_Memory>::get_single() const
+Entry::single_t EntryImplement<entry_json>::get_single() const
 {
     if (type() != Entry::Type::Single)
     {
@@ -60,7 +77,7 @@ Entry::single_t EntryImplement<entry_Memory>::get_single() const
     return std::get<Entry::Type::Single>(m_pimpl_);
 }
 template <>
-void EntryImplement<entry_Memory>::set_tensor(const Entry::tensor_t& v)
+void EntryImplement<entry_json>::set_tensor(const Entry::tensor_t& v)
 {
     if (type() < Entry::Type::Array)
     {
@@ -72,7 +89,7 @@ void EntryImplement<entry_Memory>::set_tensor(const Entry::tensor_t& v)
     }
 }
 template <>
-Entry::tensor_t EntryImplement<entry_Memory>::get_tensor() const
+Entry::tensor_t EntryImplement<entry_json>::get_tensor() const
 {
     if (type() != Entry::Type::Tensor)
     {
@@ -81,7 +98,7 @@ Entry::tensor_t EntryImplement<entry_Memory>::get_tensor() const
     return std::get<Entry::Type::Tensor>(m_pimpl_);
 }
 template <>
-void EntryImplement<entry_Memory>::set_block(const Entry::block_t& v)
+void EntryImplement<entry_json>::set_block(const Entry::block_t& v)
 {
     if (type() < Entry::Type::Array)
     {
@@ -93,7 +110,7 @@ void EntryImplement<entry_Memory>::set_block(const Entry::block_t& v)
     }
 }
 template <>
-Entry::block_t EntryImplement<entry_Memory>::get_block() const
+Entry::block_t EntryImplement<entry_json>::get_block() const
 {
     if (type() != Entry::Type::Block)
     {
@@ -106,7 +123,7 @@ Entry::block_t EntryImplement<entry_Memory>::get_block() const
 
 // as object
 template <>
-Entry::const_iterator EntryImplement<entry_Memory>::find(const std::string& name) const
+const Entry* EntryImplement<entry_json>::find(const std::string& name) const
 {
     try
     {
@@ -114,33 +131,33 @@ Entry::const_iterator EntryImplement<entry_Memory>::find(const std::string& name
         auto it = m.find(name);
         if (it != m.end())
         {
-            return it->second.self();
+            return &it->second;
         }
     }
     catch (std::bad_variant_access&)
     {
     }
-    return Entry::const_iterator();
+    return nullptr;
 }
 template <>
-Entry::iterator EntryImplement<entry_Memory>::find(const std::string& name)
+Entry* EntryImplement<entry_json>::find(const std::string& name)
 {
     try
     {
-        auto const& m = std::get<Entry::Type::Object>(m_pimpl_);
+        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
         auto it = m.find(name);
         if (it != m.end())
         {
-            return const_cast<Entry&>(it->second).self();
+            return &it->second;
         }
     }
     catch (std::bad_variant_access&)
     {
     }
-    return Entry::iterator();
+    return nullptr;
 }
 template <>
-Entry::iterator EntryImplement<entry_Memory>::insert(const std::string& name)
+Entry* EntryImplement<entry_json>::insert(const std::string& name)
 {
     if (type() == Entry::Type::Null)
     {
@@ -150,15 +167,15 @@ Entry::iterator EntryImplement<entry_Memory>::insert(const std::string& name)
     {
         auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-        return Entry::iterator(&(m.emplace(name, Entry(m_self_, name)).first->second));
+        return &(m.emplace(name, Entry(duplicate())).first->second);
     }
     catch (std::bad_variant_access&)
     {
-        return Entry::iterator();
+        return nullptr;
     }
 }
 template <>
-Entry EntryImplement<entry_Memory>::erase(const std::string& name)
+Entry EntryImplement<entry_json>::erase(const std::string& name)
 {
     try
     {
@@ -180,13 +197,13 @@ Entry EntryImplement<entry_Memory>::erase(const std::string& name)
 
 // Entry::iterator parent() const  { return Entry::iterator(const_cast<Entry*>(m_parent_)); }
 template <>
-Entry::iterator EntryImplement<entry_Memory>::next() const
+Entry::iterator EntryImplement<entry_json>::next() const
 {
     NOT_IMPLEMENTED;
     return Entry::iterator();
 };
 template <>
-Range<Iterator<Entry>> EntryImplement<entry_Memory>::items() const
+Range<Iterator<Entry>> EntryImplement<entry_json>::items() const
 {
     if (type() == Entry::Type::Array)
     {
@@ -206,7 +223,7 @@ Range<Iterator<Entry>> EntryImplement<entry_Memory>::items() const
     return Entry::range{};
 }
 template <>
-Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_Memory>::children() const
+Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_json>::children() const
 {
     if (type() == Entry::Type::Object)
     {
@@ -220,48 +237,48 @@ Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_
     return Range<Iterator<const std::pair<const std::string, Entry>>>{};
 }
 template <>
-size_t EntryImplement<entry_Memory>::size() const
+size_t EntryImplement<entry_json>::size() const
 {
     NOT_IMPLEMENTED;
     return 0;
 }
 template <>
-Entry::range EntryImplement<entry_Memory>::find(const Entry::pred_fun& pred)
+Entry::range EntryImplement<entry_json>::find(const Entry::pred_fun& pred)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-void EntryImplement<entry_Memory>::erase(const Entry::iterator& p)
+void EntryImplement<entry_json>::erase(const Entry::iterator& p)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-void EntryImplement<entry_Memory>::erase_if(const Entry::pred_fun& p)
+void EntryImplement<entry_json>::erase_if(const Entry::pred_fun& p)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-void EntryImplement<entry_Memory>::erase_if(const Entry::range& r, const Entry::pred_fun& p)
+void EntryImplement<entry_json>::erase_if(const Entry::range& r, const Entry::pred_fun& p)
 {
     NOT_IMPLEMENTED;
 }
 
 // as vector
 template <>
-Entry::iterator EntryImplement<entry_Memory>::at(int idx)
+Entry* EntryImplement<entry_json>::at(int idx)
 {
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        return Entry::iterator(&m[idx]);
+        return &m[idx];
     }
     catch (std::bad_variant_access&)
     {
-        return Entry::iterator();
+        return nullptr;
     };
 }
 template <>
-Entry::iterator EntryImplement<entry_Memory>::push_back()
+Entry* EntryImplement<entry_json>::push_back()
 {
     if (type() == Entry::Type::Null)
     {
@@ -270,16 +287,16 @@ Entry::iterator EntryImplement<entry_Memory>::push_back()
     try
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-        m.emplace_back(Entry(m_self_));
-        return Entry::iterator(&*m.rbegin());
+        m.emplace_back(Entry(duplicate()));
+        return &*m.rbegin();
     }
     catch (std::bad_variant_access&)
     {
-        return Entry::iterator();
+        return nullptr;
     };
 }
 template <>
-Entry EntryImplement<entry_Memory>::pop_back()
+Entry EntryImplement<entry_json>::pop_back()
 {
     try
     {
@@ -297,9 +314,9 @@ Entry EntryImplement<entry_Memory>::pop_back()
 
 // attributes
 template <>
-bool EntryImplement<entry_Memory>::has_attribute(const std::string& name) const { return !find("@" + name); }
+bool EntryImplement<entry_json>::has_attribute(const std::string& name) const { return !find("@" + name); }
 template <>
-Entry::single_t EntryImplement<entry_Memory>::get_attribute_raw(const std::string& name) const
+Entry::single_t EntryImplement<entry_json>::get_attribute_raw(const std::string& name) const
 {
     auto p = find("@" + name);
     if (!p)
@@ -309,11 +326,11 @@ Entry::single_t EntryImplement<entry_Memory>::get_attribute_raw(const std::strin
     return p->get_single();
 }
 template <>
-void EntryImplement<entry_Memory>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
+void EntryImplement<entry_json>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
 template <>
-void EntryImplement<entry_Memory>::remove_attribute(const std::string& name) { erase("@" + name); }
+void EntryImplement<entry_json>::remove_attribute(const std::string& name) { erase("@" + name); }
 template <>
-std::map<std::string, Entry::single_t> EntryImplement<entry_Memory>::attributes() const
+std::map<std::string, Entry::single_t> EntryImplement<entry_json>::attributes() const
 {
     if (type() != Entry::Type::Object)
     {
@@ -331,6 +348,6 @@ std::map<std::string, Entry::single_t> EntryImplement<entry_Memory>::attributes(
     return std::move(res);
 }
 
-SP_REGISTER_ENTRY(memory, EntryImplement<entry_Memory>);
+SP_REGISTER_ENTRY(json, entry_json);
 
 } // namespace sp

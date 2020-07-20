@@ -68,6 +68,8 @@ public:
 
     Entry(const std::string& rpath = "");
 
+    Entry(EntryInterface*);
+    
     Entry(const this_type&);
 
     Entry(this_type&&);

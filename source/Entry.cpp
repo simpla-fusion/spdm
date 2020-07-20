@@ -8,9 +8,9 @@
 #include <vector>
 namespace sp
 {
+Entry::Entry(EntryInterface* p) : m_pimpl_(p) { m_pimpl_->bind(this); }
 
-Entry::Entry(const std::string& rpath)
-    : m_pimpl_(EntryInterface::create(rpath).release()) { m_pimpl_->bind(this); }
+Entry::Entry(const std::string& rpath) : Entry(EntryInterface::create(rpath).release()) {}
 
 Entry::Entry(const this_type& other) : m_pimpl_(other.m_pimpl_->copy()) {}
 
@@ -25,14 +25,14 @@ Entry& Entry::operator=(this_type const& other)
     this_type(other).swap(*this);
     return *this;
 }
-void Entry::bind(Entry* parent, const std::string& name = "")
+void Entry::bind(Entry* parent, const std::string& name)
 {
     m_parent_ = parent;
     m_name_ = name;
 }
 
 //
-std::string Entry::prefix() const {return m_parent_->prefix() + (m_parent_ == nullptr ? m_name_ : m_parent_->prefix() + "/" + m_name_; }
+std::string Entry::prefix() const { return m_parent_ == nullptr ? m_name_ : (m_parent_->prefix() + "/" + m_name_); }
 
 std::string Entry::name() const { return m_name_; }
 
@@ -45,7 +45,7 @@ bool Entry::is_block() const { return type() == Type::Block; }
 bool Entry::is_array() const { return type() == Type::Array; }
 bool Entry::is_object() const { return type() == Type::Object; }
 
-bool Entry::is_root() const { return !parent(); }
+bool Entry::is_root() const { return m_parent_ == nullptr; }
 bool Entry::is_leaf() const { return type() < Type::Array; };
 
 // attributes
@@ -73,11 +73,11 @@ void Entry::set_block(const block_t& v) { m_pimpl_->set_block(v); }
 Entry::block_t Entry::get_block() const { return m_pimpl_->get_block(); }
 
 // as Tree
-Entry::iterator Entry::parent() const { return m_pimpl_->parent(); }
+Entry::iterator Entry::parent() const { return Entry::iterator(m_parent_); }
 
-Entry::const_iterator Entry::self() const { return const_iterator(this); }
+Entry::const_iterator Entry::self() const { return this; }
 
-Entry::iterator Entry::self() { return iterator(this); }
+Entry::iterator Entry::self() { return this; }
 
 Entry::iterator Entry::next() const { return m_pimpl_->next(); }
 
@@ -175,11 +175,7 @@ Entry Entry::erase(const std::string& name) { return m_pimpl_->erase(name); }
 
 //-------------------------------------------------------------------
 // level 2
-size_t Entry::depth() const
-{
-    auto p = parent();
-    return p == nullptr ? 0 : p->depth() + 1;
-}
+size_t Entry::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth() + 1; }
 
 size_t Entry::height() const
 {
