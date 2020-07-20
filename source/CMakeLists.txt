@@ -17,6 +17,9 @@ set(SPDB_INCLUDES
 set(SPDB_SOURCES
   # XPath.cpp
   Entry.cpp
+  EntryInterface.cpp
+  EntryXML.cpp
+  EntryMemory.cpp
   # Attributes.cpp
 )
 

@@ -1,15 +1,13 @@
 #ifndef SP_ENTRY_XML_H_
 #define SP_ENTRY_XML_H_
 #include "Entry.h"
-#include "Node.h"
+#include "EntryInterface.h"
+#include "utility/Logger.h"
 #include <any>
 #include <map>
+#include <string>
+#include <variant>
 #include <vector>
-namespace sp
-{
-    struct entry_tag_xml
-    {
-    };
+ 
 
-} // namespace sp
 #endif //SP_ENTRY_XML_H_

@@ -1,22 +1,37 @@
 #include "Entry.h"
+#include "utility/Factory.h"
 #include <string>
 namespace sp
 {
 
 class EntryInterface
 {
+protected:
+    Entry* m_self_;
+    std::string m_name_;
+    Entry* m_parent_;
+
 public:
-    EntryInterface() = default;
+    EntryInterface(Entry* self = nullptr, const std::string& name = "", Entry* parent = nullptr);
+
+    EntryInterface(const EntryInterface& other);
+
+    EntryInterface(EntryInterface&& other);
+
+    static std::unique_ptr<EntryInterface> create(const std::string& backend, Entry* self, const std::string& name = "", Entry* parent = nullptr);
 
     virtual ~EntryInterface() = default;
 
-    virtual EntryInterface* copy() const = 0;
+    virtual std::string prefix() const;
 
-    virtual std::string prefix() const = 0;
+    virtual std::string name() const;
 
-    virtual std::string name() const = 0;
+    virtual Entry::iterator parent() const;
 
     virtual Entry::Type type() const = 0;
+
+    virtual EntryInterface* copy() const = 0;
+
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
@@ -45,13 +60,8 @@ public:
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
-    virtual Entry::iterator parent() const = 0;
 
     virtual Entry::iterator next() const = 0;
-
-    virtual Range<Iterator<Entry>> children() const = 0;
-
-    virtual Range<Iterator<const  std::pair<const std::string, Entry>>> items() const = 0;
 
     // container
     virtual size_t size() const = 0;
@@ -70,6 +80,7 @@ public:
     virtual Entry::iterator push_back() = 0;
 
     virtual Entry pop_back() = 0;
+    virtual Range<Iterator<Entry>> items() const = 0;
 
     // as object
 
@@ -80,6 +91,12 @@ public:
     virtual Entry::iterator insert(const std::string& name) = 0;
 
     virtual Entry erase(const std::string& name) = 0;
+
+    virtual Range<Iterator<const std::pair<const std::string, Entry>>> children() const = 0;
 };
+
+#define SP_REGISTER_ENTRY(_CLASS_NAME_)          \
+    static bool REGISTERED_Entry##_CLASS_NAME_ = \
+        ::sp::Factory<EntryInterface, Entry*, const std::string&, Entry*>::register_creator<Entry##_CLASS_NAME_>(__STRING(_CLASS_NAME_));
 
 } // namespace sp

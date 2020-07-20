@@ -1,109 +1,473 @@
-#include "EntryXML.h"
 #include "Entry.h"
-#include "Node.h"
+#include "EntryInterface.h"
+#include "utility/Logger.h"
 #include <any>
 #include <map>
-#include <pugixml.hpp>
+#include <pugixml/pugixml.hpp>
 #include <vector>
+
 namespace sp
 {
 
-    EntryTmpl<entry_tag_xml>::EntryTmpl() {}
+class EntryXML : public EntryInterface
+{
+public:
+    EntryXML(Entry* self, const std::string& name = "", Entry* parent = nullptr);
+    EntryXML(const EntryXML&);
+    EntryXML(EntryXML&&);
+    ~EntryXML();
 
-    EntryTmpl<entry_tag_xml>::EntryTmpl(EntryTmpl const &other) {}
+    void swap(EntryXML& other);
 
-    EntryTmpl<entry_tag_xml>::EntryTmpl(EntryTmpl &&other) {}
+    EntryInterface* copy() const override;
 
-    EntryTmpl<entry_tag_xml>::~EntryTmpl() {}
+    std::string prefix() const override;
 
-    EntryTmpl<entry_tag_xml> &EntryTmpl<entry_tag_xml>::operator=(EntryTmpl const &other) {}
+    std::string name() const override;
 
-    void EntryTmpl<entry_tag_xml>::swap(EntryTmpl &other){}
-
-    Entry *EntryTmpl<entry_tag_xml>::copy() const{}
-
-    Entry *EntryTmpl<entry_tag_xml>::move(){}
-
-    std::ostream &EntryTmpl<entry_tag_xml>::repr(std::ostream &os) const {} // represent object as string and push ostream
-
-    int EntryTmpl<entry_tag_xml>::type() const {}
-
+    Entry::Type type() const override;
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
-    bool EntryTmpl<entry_tag_xml>::has_attribute(std::string const &k) const {} // if key exists then return true else return false
+    bool has_attribute(const std::string& name) const override;
 
-    bool EntryTmpl<entry_tag_xml>::check_attribute(std::string const &k, std::any const &v) const {} // if key exists and value ==v then return true else return false
+    Entry::single_t get_attribute_raw(const std::string& name) const override;
 
-    std::any EntryTmpl<entry_tag_xml>::get_attribute(std::string const &key) const {} // get attribute at key, if key does not exist return nullptr
+    void set_attribute_raw(const std::string& name, const Entry::single_t& value) override;
 
-    std::any EntryTmpl<entry_tag_xml>::get_attribute(std::string const &key, std::any const &default_value = std::any{}){} // get attribute at key, if key does not exist return nullptr
+    void remove_attribute(const std::string& name) override;
 
-    void EntryTmpl<entry_tag_xml>::set_attribute(std::string const &key, std::any const &v){} // set attribute at key as v
-
-    void EntryTmpl<entry_tag_xml>::remove_attribute(std::string const &key = ""){} // remove attribute at key, if key=="" then remove all
-
-    Range<Iterator<const std::pair<const std::string, std::any>>> EntryTmpl<entry_tag_xml>::attributes() const {} // return reference of  all attributes
+    std::map<std::string, Entry::single_t> attributes() const override;
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
+    void set_single(const Entry::single_t&) override;
+    Entry::single_t get_single() const override;
 
-    std::any EntryTmpl<entry_tag_xml>::get_scalar() const {} // get value , if value is invalid then throw exception
+    void set_tensor(const Entry::tensor_t&) override;
+    Entry::tensor_t get_tensor() const override;
 
-    void EntryTmpl<entry_tag_xml>::set_scalar(std::any const &){} // set value , if fail then throw exception
-
-    std::tuple<std::shared_ptr<char>, std::type_info const &, std::vector<size_t>>
-    EntryTmpl<entry_tag_xml>::get_raw_block() const {} // get block
-
-    void EntryTmpl<entry_tag_xml>::set_raw_block(std::shared_ptr<char> const &, std::type_info const &, std::vector<size_t> const &){} // set block
+    void set_block(const Entry::block_t&) override;
+    Entry::block_t get_block() const override;
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
-    std::shared_ptr<const Node> EntryTmpl<entry_tag_xml>::find_child(std::string const &) const {} // return reference of child node , if key does not exists then insert new
+    Entry::iterator parent() const override;
 
-    std::shared_ptr<Node> EntryTmpl<entry_tag_xml>::find_child(std::string const &){} // return reference of child node , if key does not exists then insert new
+    Entry::iterator next() const override;
 
-    std::shared_ptr<Node> EntryTmpl<entry_tag_xml>::append(){} // append node to tail of list , return reference of new node
+    // container
+    size_t size() const override;
 
-    std::shared_ptr<Node> EntryTmpl<entry_tag_xml>::append(std::shared_ptr<Node> const &){}
+    Entry::range find(const Entry::pred_fun& pred) override;
 
-    void EntryTmpl<entry_tag_xml>::append(const Iterator<std::shared_ptr<Node>> &b, const Iterator<std::shared_ptr<Node>> &){} // insert node to object
+    void erase(const Entry::iterator& p) override;
 
-    std::shared_ptr<Node> EntryTmpl<entry_tag_xml>::insert(std::string const &key, std::shared_ptr<Node> const &n = nullptr){} // insert node to object
+    void erase_if(const Entry::pred_fun& p) override;
 
-    void EntryTmpl<entry_tag_xml>::insert(Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &b,
-                                          Iterator<std::pair<const std::string, std::shared_ptr<Node>>> const &e){} // insert node to object
+    void erase_if(const Entry::range& r, const Entry::pred_fun& p) override;
 
-    std::shared_ptr<Node> EntryTmpl<entry_tag_xml>::child(std::string const &key){} // get child, create new if key does not  exist
+    // as array
+    Entry::iterator at(int idx) override;
 
-    // std::shared_ptr<const Node> child(std::string const &key) const {} // get child, create new if key does not  exist
+    Entry::iterator push_back() override;
 
-    std::shared_ptr<Node> EntryTmpl<entry_tag_xml>::child(int idx){} // return reference i-th child node , if idx does not exists then throw exception
+    Entry pop_back() override;
 
-    // std::shared_ptr<const Node> child(int idx) const {} // return reference i-th child node , if idx does not exists then throw exception
+    Range<Iterator<Entry>> items() const override;
 
-    void EntryTmpl<entry_tag_xml>::remove_child(std::string const &key){} // remove child at key
+    // as object
 
-    void EntryTmpl<entry_tag_xml>::remove_child(int idx){} // remove i-th child
+    Entry::const_iterator find(const std::string& name) const override;
 
-    void EntryTmpl<entry_tag_xml>::remove_children(){} // remove children , set node.type => Null
+    Entry::iterator find(const std::string& name) override;
 
-    // std::pair<Iterator<const Node>, Iterator<const Node>> children() const {} // reutrn list of children
+    Entry::iterator insert(const std::string& name) override;
 
-    std::pair<Iterator<Node>, Iterator<Node>>
-    EntryTmpl<entry_tag_xml>::children(){} // reutrn list of children
+    Entry erase(const std::string& name) override;
 
-    // level 1
-    // std::pair<Iterator<const Node>, Iterator<const Node>> select(XPath const &path) const {} // select from children
+    Range<Iterator<const std::pair<const std::string, Entry>>> children() const override;
 
-    std::pair<Iterator<Node>, Iterator<Node>>
-    EntryTmpl<entry_tag_xml>::select(XPath const &path){} // select from children
+private:
+    Entry* m_self_;
+    std::string m_name_;
+    Entry* m_parent_;
 
-    // std::shared_ptr<const Node> select_one(XPath const &path) const {} // return the first selected child
+    std::variant<nullptr_t,
+                 Entry::single_t,
+                 Entry::tensor_t,
+                 Entry::block_t,
+                 std::vector<Entry>,
+                 std::map<std::string, Entry>>
+        m_data_;
+};
+//
+// class EntryXML;
 
-    std::shared_ptr<Node>
-    EntryTmpl<entry_tag_xml>::select_one(XPath const &path){} // return the first selected child
+EntryXML::EntryXML(Entry* self, const std::string& name, Entry* parent)
+    : m_self_(self),
+      m_name_(name),
+      m_parent_(parent),
+      m_data_(nullptr){};
 
+EntryXML::EntryXML(const EntryXML& other)
+    : m_self_(other.m_self_),
+      m_name_(other.m_name_),
+      m_parent_(other.m_parent_),
+      m_data_(other.m_data_) {}
+
+EntryXML::EntryXML(EntryXML&& other)
+    : m_self_(other.m_self_),
+      m_name_(other.m_name_),
+      m_parent_(other.m_parent_),
+      m_data_(std::move(other.m_data_)) {}
+
+EntryXML::~EntryXML(){};
+
+void EntryXML::swap(EntryXML& other)
+{
+}
+
+EntryInterface* EntryXML::copy() const
+{
+    return new EntryXML(*this);
+};
+
+//
+
+std::string EntryXML::prefix() const
+{
+    NOT_IMPLEMENTED;
+    return "";
+}
+
+std::string EntryXML::name() const
+{
+    if (m_parent_ == nullptr)
+    {
+        return "";
+    }
+    else if (m_parent_->type() == Entry::Type::Array)
+    {
+        return m_parent_->name();
+    }
+    else
+    {
+        return m_name_;
+    }
+}
+
+Entry::Type EntryXML::type() const
+{
+    return Entry::Type(m_data_.index());
+}
+
+// attributes
+
+bool EntryXML::has_attribute(const std::string& name) const
+{
+    return !find("@" + name);
+}
+
+Entry::single_t EntryXML::get_attribute_raw(const std::string& name) const
+{
+    auto p = find("@" + name);
+    if (!p)
+    {
+        throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find attribute '" + name + "'");
+    }
+    return p->get_single();
+}
+
+void EntryXML::set_attribute_raw(const std::string& name, const Entry::single_t& value)
+{
+    insert("@" + name)->set_single(value);
+}
+
+void EntryXML::remove_attribute(const std::string& name)
+{
+    erase("@" + name);
+}
+
+std::map<std::string, Entry::single_t> EntryXML::attributes() const
+{
+    if (type() != Entry::Type::Object)
+    {
+        return std::map<std::string, Entry::single_t>{};
+    }
+
+    std::map<std::string, Entry::single_t> res;
+    for (const auto& item : std::get<Entry::Type::Object>(m_data_))
+    {
+        if (item.first[0] == '@')
+        {
+            res.emplace(item.first.substr(1, std::string::npos), item.second.get_single());
+        }
+    }
+    return std::move(res);
+}
+
+//----------------------------------------------------------------------------------
+// level 0
+//
+// as leaf
+
+void EntryXML::set_single(const Entry::single_t& v)
+{
+    if (type() < Entry::Type::Array)
+    {
+        m_data_.emplace<Entry::Type::Single>(v);
+    }
+    else
+    {
+        throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
+    }
+}
+
+Entry::single_t EntryXML::get_single() const
+{
+    if (type() != Entry::Type::Single)
+    {
+        throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not Single!");
+    }
+    return std::get<Entry::Type::Single>(m_data_);
+}
+
+void EntryXML::set_tensor(const Entry::tensor_t& v)
+{
+    if (type() < Entry::Type::Array)
+    {
+        m_data_.emplace<Entry::Type::Tensor>(v);
+    }
+    else
+    {
+        throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
+    }
+}
+
+Entry::tensor_t EntryXML::get_tensor() const
+{
+    if (type() != Entry::Type::Tensor)
+    {
+        throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
+    }
+    return std::get<Entry::Type::Tensor>(m_data_);
+}
+
+void EntryXML::set_block(const Entry::block_t& v)
+{
+    if (type() < Entry::Type::Array)
+    {
+        m_data_.emplace<Entry::Type::Block>(v);
+    }
+    else
+    {
+        throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
+    }
+}
+
+Entry::block_t EntryXML::get_block() const
+{
+    if (type() != Entry::Type::Block)
+    {
+        throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
+    }
+    return std::get<Entry::Type::Block>(m_data_);
+}
+
+// as Tree
+
+Entry::iterator EntryXML::parent() const
+{
+    return Entry::iterator(const_cast<Entry*>(m_parent_));
+}
+
+Entry::iterator EntryXML::next() const
+{
+    NOT_IMPLEMENTED;
+    return Entry::iterator();
+};
+
+Range<Iterator<Entry>> EntryXML::items() const
+{
+    if (type() == Entry::Type::Array)
+    {
+        auto& m = std::get<Entry::Type::Array>(m_data_);
+        return Entry::range{Entry::iterator(m.begin()),
+                            Entry::iterator(m.end())};
+        ;
+    }
+    // else if (type() == Entry::Type::Object)
+    // {
+    //     auto& m = std::get<Entry::Type::Object>(m_data_);
+    //     auto mapper = [](auto const& item) -> Entry* { return &item->second; };
+    //     return Entry::range{Entry::iterator(m.begin(), mapper),
+    //                         Entry::iterator(m.end(), mapper)};
+    // }
+
+    return Entry::range{};
+}
+
+Range<Iterator<const std::pair<const std::string, Entry>>> EntryXML::children() const
+{
+    if (type() == Entry::Type::Object)
+    {
+        auto& m = std::get<Entry::Type::Object>(m_data_);
+
+        return Range<Iterator<const std::pair<const std::string, Entry>>>{
+            Iterator<const std::pair<const std::string, Entry>>(m.begin()),
+            Iterator<const std::pair<const std::string, Entry>>(m.end())};
+    }
+
+    return Range<Iterator<const std::pair<const std::string, Entry>>>{};
+}
+
+size_t EntryXML::size() const
+{
+    NOT_IMPLEMENTED;
+    return 0;
+}
+
+Entry::range EntryXML::find(const Entry::pred_fun& pred)
+{
+    NOT_IMPLEMENTED;
+}
+
+void EntryXML::erase(const Entry::iterator& p)
+{
+    NOT_IMPLEMENTED;
+}
+
+void EntryXML::erase_if(const Entry::pred_fun& p)
+{
+    NOT_IMPLEMENTED;
+}
+
+void EntryXML::erase_if(const Entry::range& r, const Entry::pred_fun& p)
+{
+    NOT_IMPLEMENTED;
+}
+
+Entry::iterator EntryXML::at(int idx)
+{
+    try
+    {
+        auto& m = std::get<Entry::Type::Array>(m_data_);
+        return Entry::iterator(&m[idx]);
+    }
+    catch (std::bad_variant_access&)
+    {
+        return Entry::iterator();
+    };
+}
+
+Entry::iterator EntryXML::push_back()
+{
+    if (type() == Entry::Type::Null)
+    {
+        m_data_.emplace<Entry::Type::Array>();
+    }
+    try
+    {
+        auto& m = std::get<Entry::Type::Array>(m_data_);
+        m.emplace_back(Entry(m_self_));
+        return Entry::iterator(&*m.rbegin());
+    }
+    catch (std::bad_variant_access&)
+    {
+        return Entry::iterator();
+    };
+}
+
+Entry EntryXML::pop_back()
+{
+    try
+    {
+        auto& m = std::get<Entry::Type::Array>(m_data_);
+        Entry res;
+        m.rbegin()->swap(res);
+        m.pop_back();
+        return std::move(res);
+    }
+    catch (std::bad_variant_access&)
+    {
+        return Entry();
+    }
+}
+
+Entry::const_iterator EntryXML::find(const std::string& name) const
+{
+    try
+    {
+        auto const& m = std::get<Entry::Type::Object>(m_data_);
+        auto it = m.find(name);
+        if (it != m.end())
+        {
+            return it->second.self();
+        }
+    }
+    catch (std::bad_variant_access&)
+    {
+    }
+    return Entry::const_iterator();
+}
+
+Entry::iterator EntryXML::find(const std::string& name)
+{
+    try
+    {
+        auto const& m = std::get<Entry::Type::Object>(m_data_);
+        auto it = m.find(name);
+        if (it != m.end())
+        {
+            return const_cast<Entry&>(it->second).self();
+        }
+    }
+    catch (std::bad_variant_access&)
+    {
+    }
+    return Entry::iterator();
+}
+
+Entry::iterator EntryXML::insert(const std::string& name)
+{
+    if (type() == Entry::Type::Null)
+    {
+        m_data_.emplace<Entry::Type::Object>();
+    }
+    try
+    {
+        auto& m = std::get<Entry::Type::Object>(m_data_);
+
+        return Entry::iterator(&(m.emplace(name, Entry(m_self_, name)).first->second));
+    }
+    catch (std::bad_variant_access&)
+    {
+        return Entry::iterator();
+    }
+}
+
+Entry EntryXML::erase(const std::string& name)
+{
+    try
+    {
+        auto& m = std::get<Entry::Type::Object>(m_data_);
+        auto it = m.find(name);
+        if (it != m.end())
+        {
+            Entry res;
+            res.swap(it->second);
+            m.erase(it);
+            return std::move(res);
+        }
+    }
+    catch (std::bad_variant_access&)
+    {
+    }
+    return Entry();
+}
+
+SP_REGISTER_ENTRY(XML);
 } // namespace sp

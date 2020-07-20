@@ -197,24 +197,24 @@ namespace sp
         Logger::~Logger()
         {
             flush();
-            switch (m_level_)
-            {
-            case LOG_ERROR_RUNTIME:
-                throw(std::runtime_error(this->str()));
-            case LOG_ERROR_BAD_CAST:
-                flush();
-                throw(std::bad_cast());
-            case LOG_ERROR_OUT_OF_RANGE:
-                throw(std::out_of_range(this->str()));
-            case LOG_ERROR_LOGICAL:
-                throw(std::logic_error(this->str()));
-            case LOG_ERROR_DOMAIN:
-                throw(std::domain_error(this->str()));
-            case LOG_ERROR_INVALID_ARGUMENT:
-                throw(std::invalid_argument(this->str()));
-            default:
-                break;
-            }
+            // switch (m_level_)
+            // {
+            // case LOG_ERROR_RUNTIME:
+            //     throw(std::runtime_error(this->str()));
+            // case LOG_ERROR_BAD_CAST:
+            //     flush();
+            //     throw(std::bad_cast());
+            // case LOG_ERROR_OUT_OF_RANGE:
+            //     throw(std::out_of_range(this->str()));
+            // case LOG_ERROR_LOGICAL:
+            //     throw(std::logic_error(this->str()));
+            // case LOG_ERROR_DOMAIN:
+            //     throw(std::domain_error(this->str()));
+            // case LOG_ERROR_INVALID_ARGUMENT:
+            //     throw(std::invalid_argument(this->str()));
+            // default:
+            //     break;
+            // }
         }
 
         int Logger::get_buffer_length() const { return static_cast<int>(this->str().size()); }

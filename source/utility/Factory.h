@@ -5,93 +5,123 @@
 #ifndef SIMPLA_FACTORY_H
 #define SIMPLA_FACTORY_H
 
-#include <spdm/TypeTraits.h>
+#include "Logger.h"
+#include "Singleton.h"
+#include "TypeTraits.h"
 #include <functional>
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <string>
-#include "SingletonHolder.h"
-namespace simpla {
+namespace sp
+{
 template <typename TObj, typename... Args>
-class Factory {
-   public:
+class Factory
+{
+public:
     Factory() = default;
     virtual ~Factory() = default;
 
-    struct ObjectFactory {
-        std::map<std::string, std::function<std::shared_ptr<TObj>(Args const &...)>> m_factory_;
+    struct ObjectFactory
+    {
+        std::map<std::string, std::function<TObj*(Args const&...)>> m_factory_;
     };
-    static bool HasCreator(std::string const &k) {
-        auto const &f = SingletonHolder<ObjectFactory>::instance().m_factory_;
+    static bool has_creator(std::string const& k)
+    {
+        auto const& f = Singleton<ObjectFactory>::instance().m_factory_;
         return f.find(k) != f.end();
     }
-    static std::string ShowDescription(std::string const &k = "") {
-        auto const &f = SingletonHolder<ObjectFactory>::instance().m_factory_;
+    static std::string show_description(std::string const& k = "")
+    {
+        auto const& f = Singleton<ObjectFactory>::instance().m_factory_;
         std::string res;
-        if (!k.empty()) {
+        if (!k.empty())
+        {
             auto it = f.find(k);
-            if (it != f.end()) { res = it->first; }
+            if (it != f.end())
+            {
+                res = it->first;
+            }
         }
-        if (res.empty()) {
+        if (res.empty())
+        {
             std::ostringstream os;
-            os << std::endl << "Registered " << traits::type_name<TObj>::value() << " Creator:" << std::endl;
-            for (auto const &item : f) { os << " " << item.first << std::endl; }
+            os << std::endl
+               << "Registered " << typeid(TObj).name() << " Creator:" << std::endl;
+            for (auto const& item : f)
+            {
+                os << " " << item.first << std::endl;
+            }
             res = os.str();
         }
         return res;
     };
-    static int RegisterCreator(std::string const &k,
-                               std::function<std::shared_ptr<TObj>(Args const &...)> const &fun) noexcept {
-        return SingletonHolder<ObjectFactory>::instance().m_factory_.emplace(k, fun).second ? 1 : 0;
+
+    static int register_creator(std::string const& k,
+                                std::function<TObj*(Args const&...)> const& fun) noexcept
+    {
+        return Singleton<ObjectFactory>::instance().m_factory_.emplace(k, fun).second ? 1 : 0;
     };
     template <typename U>
-    static int RegisterCreator(std::string const &k_hint = "",
-                               std::enable_if_t<(std::is_constructible<U, Args...>::value)> *_p = nullptr) noexcept {
-        return RegisterCreator(!k_hint.empty() ? k_hint : U::RegisterName(),
-                               [](Args const &... args) { return std::make_shared<U>(args...); });
+    static int register_creator(std::string const& k_hint,
+                                std::enable_if_t<(std::is_constructible<U, Args...>::value)>* _p = nullptr) noexcept
+    {
+        std::cout << k_hint << std::endl;
+        return register_creator(k_hint, [](Args const&... args) { return new U(args...); });
     };
     template <typename U>
-    static int RegisterCreator(std::string const &k_hint = "",
-                               std::enable_if_t<(!std::is_constructible<U, Args...>::value)> *_p = nullptr) noexcept {
-        return RegisterCreator(!k_hint.empty() ? k_hint : traits::type_name<U>::value(),
-                               [](Args const &... args) { return U::New(args...); });
+    static int register_creator(std::string const& k_hint,
+                                std::enable_if_t<(!std::is_constructible<U, Args...>::value)>* _p = nullptr) noexcept
+    {
+        return register_creator(k_hint.empty(), [](Args const&... args) { return U::create(args...); });
     };
 
-   private:
+private:
     template <typename... U>
-    static std::shared_ptr<TObj> _TryCreate(std::integral_constant<bool, true> _, U &&... args) {
-        return std::make_shared<TObj>(std::forward<U>(args)...);
+    static TObj* _try_create(std::integral_constant<bool, true> _, U&&... args)
+    {
+        return new TObj(std::forward<U>(args)...);
     }
     template <typename... U>
-    static std::shared_ptr<TObj> _TryCreate(std::integral_constant<bool, false> _, U &&... args) {
+    static TObj* _try_create(std::integral_constant<bool, false> _, U&&... args)
+    {
         return nullptr;
     }
 
-   public:
+public:
     template <typename... U>
-    static std::shared_ptr<TObj> Create(std::string const &k, U &&... args) {
-        if (k.empty()) { return nullptr; }
-        //        if (k.find("://") != std::string::npos) { return Create_(ptr::DataTable(k), args...); }
-        auto const &f = SingletonHolder<ObjectFactory>::instance().m_factory_;
-        std::shared_ptr<TObj> res = nullptr;
-        auto it = f.find(k);
-        if (it != f.end()) {
-            res = it->second(std::forward<U>(args)...);
-        } else {
-            RUNTIME_ERROR << "Can not find Creator \"" << k << "\"" << std::endl << ShowDescription() << std::endl;
+    static std::unique_ptr<TObj> create(std::string const& k, U&&... args)
+    {
+        if (k.empty())
+        {
+            return nullptr;
         }
-        return res;
+        //        if (k.find("://") != std::string::npos) { return create_(ptr::DataTable(k), args...); }
+        auto const& f = Singleton<ObjectFactory>::instance().m_factory_;
+        TObj* res = nullptr;
+        auto it = f.find(k);
+        if (it != f.end())
+        {
+            res = it->second(std::forward<U>(args)...);
+        }
+        else
+        {
+            std::cout << show_description() << std::endl;
+
+            RUNTIME_ERROR << "Can not find Creator \"" << k << "\"" << std::endl;
+        }
+        return std::unique_ptr<TObj>(res);
     }
 };
+
 #define SP_REGISTER_CREATOR(_BASE_NAME_, _CLASS_NAME_) \
     bool _CLASS_NAME_::_is_registered =                \
-        simpla::Factory<_BASE_NAME_>::RegisterCreator<_CLASS_NAME_>(_CLASS_NAME_::RegisterName());
+        ::sp::Factory<_BASE_NAME_>::register_creator<_CLASS_NAME_>(__STRING(_CLASS_NAME_));
 
 template <typename T>
-static bool RegisterCreator() {
-    return T::template RegisterCreator<T>();
+static bool register_creator()
+{
+    return T::template register_creator<T>();
 }
-}  // namespace simpla{
-#endif  // SIMPLA_FACTORY_H
+} // namespace sp
+#endif // SIMPLA_FACTORY_H

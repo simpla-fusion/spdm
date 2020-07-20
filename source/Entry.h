@@ -12,8 +12,6 @@
 
 namespace sp
 {
-struct type_desc;
-
 struct XPath;
 
 class EntryInterface;
@@ -58,7 +56,7 @@ public:
         tensor_t;
 
     typedef std::tuple<std::shared_ptr<void> /* data ponter*/,
-                       type_desc /* type description*/,
+                       std::any /* type description*/,
                        std::vector<size_t> /* shapes */,
                        std::vector<size_t> /* offset */,
                        std::vector<size_t> /* strides */,
@@ -156,14 +154,6 @@ public:
 
     iterator next() const;
 
-    iterator first_child() const;
-
-    iterator last_child() const;
-
-    range children() const;
-
-    Range<Iterator<const  std::pair<const std::string, Entry>>> items() const;
-
     // as container
     size_t size() const;
 
@@ -196,6 +186,8 @@ public:
 
     Entry pop_back();
 
+    range items() const;
+
     // as map
     // @note : map is unordered
 
@@ -225,6 +217,8 @@ public:
     }
 
     Entry erase(const std::string&);
+
+    Range<Iterator<const std::pair<const std::string, Entry>>> children() const;
 
     //-------------------------------------------------------------------
     // level 1
