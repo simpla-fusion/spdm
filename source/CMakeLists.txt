@@ -20,7 +20,7 @@ set(SPDB_INCLUDES
 set(SPDB_SOURCES
   # DataBlock.cpp
   Entry.cpp
-  # EntryInterface.cpp
+  EntryInterface.cpp
   # XPath.cpp
   # Document.cpp
   # Collection.cpp

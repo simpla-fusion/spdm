@@ -29,15 +29,9 @@ public:
 
     static std::unique_ptr<EntryInterface> create(const std::string& rpath = "");
 
-    static bool add_creator(const std::string& c_id, const std::function<std::shared_ptr<EntryInterface>()>&);
+    static bool add_creator(const std::string& c_id, const std::function<EntryInterface*()>&);
 
     virtual ~EntryInterface() = default;
-
-    void bind(Entry* self);
-
-    Entry* self();
-
-    const Entry* self() const;
 
     virtual Entry::Type type() const = 0;
 
@@ -85,16 +79,18 @@ public:
 
     virtual std::shared_ptr<EntryInterface> pop_back() = 0;
 
-    virtual Range<std::shared_ptr<EntryInterface>> items() const = 0;
-
     virtual std::shared_ptr<EntryInterface> item(int idx) = 0;
+
+    virtual Range<std::shared_ptr<EntryInterface>> items() = 0;
+
     // as object
+    virtual std::shared_ptr<EntryInterface> insert(const std::string& name) = 0;
+
+    virtual std::shared_ptr<EntryInterface> find(const std::string& name) = 0;
 
     virtual std::shared_ptr<EntryInterface> find(const std::string& name) const = 0;
 
-    virtual std::shared_ptr<EntryInterface> insert(const std::string& name) = 0;
-
-    virtual std::shared_ptr<EntryInterface> remove(const std::string& name) = 0;
+    virtual void remove(const std::string& name) = 0;
 
     virtual Range<std::string, std::shared_ptr<EntryInterface>> children() const = 0;
 };
@@ -107,19 +103,21 @@ public:
     using EntryInterface::m_self_;
 
     EntryImplement();
-    EntryImplement(Impl const&);
+    EntryImplement(const Impl&);
     EntryImplement(const EntryImplement&);
     EntryImplement(EntryImplement&&);
     ~EntryImplement();
 
     void swap(EntryImplement& other);
 
+    Entry::Type type() const override;
+
     std::shared_ptr<EntryInterface> copy() const override;
+
     std::shared_ptr<EntryInterface> duplicate() const override;
 
-    int fetch(const std::string& uri);
+    int fetch(const std::string& uri) override;
 
-    int type() const override;
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
@@ -148,39 +146,30 @@ public:
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
-    // iterator parent() const override;
 
     // container
     size_t size() const override;
 
-    Range<Entry> find(const Entry::pred_fun& pred) override;
-
-    void remove(const Entry& p) override;
-
-    void remove_if(const Entry::pred_fun& p) override;
-
-    void remove_if(const Range<Entry>& r, const Entry::pred_fun& p) override;
-
     // as array
-    std::shared_ptr<EntryInterface> at(int idx) override;
 
     std::shared_ptr<EntryInterface> push_back() override;
 
     std::shared_ptr<EntryInterface> pop_back() override;
 
-    Range<Entry> items() const override;
+    std::shared_ptr<EntryInterface> item(int idx) override;
+
+    Range<std::shared_ptr<EntryInterface>> items() override;
 
     // as object
-
-    const std::shared_ptr<EntryInterface> find(const std::string& name) const override;
+    std::shared_ptr<EntryInterface> insert(const std::string& name) override;
 
     std::shared_ptr<EntryInterface> find(const std::string& name) override;
 
-    std::shared_ptr<EntryInterface> insert(const std::string& name) override;
+    std::shared_ptr<EntryInterface> find(const std::string& name) const override;
 
-    std::shared_ptr<EntryInterface> remove(const std::string& name) override;
+    void remove(const std::string& name) override;
 
-    Range<const std::string, Entry> children() const override;
+    Range<std::string, std::shared_ptr<EntryInterface>> children() const override;
 
 private:
     Impl m_pimpl_;
@@ -192,7 +181,7 @@ private:
     bool sp::EntryImplement<_CLASS_>::is_registered = \
         EntryInterface::add_creator(                  \
             __STRING(_NAME_),                         \
-            []() { return dynamic_cast<std::shared_ptr<EntryInterface>>(new EntryImplement<_CLASS_>()); });
+            []() { return dynamic_cast<EntryInterface*>(new EntryImplement<_CLASS_>()); });
 
 } // namespace sp
 

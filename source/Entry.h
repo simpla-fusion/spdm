@@ -24,8 +24,8 @@ private:
     Entry* m_parent_;
     std::string m_name_;
 
-    EntryInterface& impl();
-    const EntryInterface& impl() const;
+    std::shared_ptr<EntryInterface> get(const std::string& path = "");
+    std::shared_ptr<EntryInterface> get(const std::string& path = "") const;
 
 public:
     enum Type
@@ -66,6 +66,8 @@ public:
     typedef Entry this_type;
 
     Entry();
+
+    Entry(const std::string& uri);
 
     Entry(Entry* parent, const std::string& name);
 
@@ -169,9 +171,9 @@ public:
 
     Entry& self();
 
-    range children();
+    range children() const;
 
-    int remove(const Entry&);
+    void remove(const Entry&);
 
     void clear();
 
@@ -198,7 +200,7 @@ public:
 
     Entry operator[](const std::string&); // access or insert specified child
 
-    bool remove(const std::string&);
+    void remove(const std::string&);
 
     //-------------------------------------------------------------------
     // level 1

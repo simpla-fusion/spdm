@@ -11,7 +11,7 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     using namespace sp;
     sp::logger::set_stdout_level(-1000);
     VERBOSE << "hello world" << std::endl;
-    sp::Entry entry("xml");
+    sp::Entry entry("/workspaces/SpDB/tests/data/test.xml");
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));
     // entry.set_attribute("B", std::string("b"));
@@ -21,7 +21,6 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     // entry["C"][-1].set_value<int>(5);
     // entry["C"][-1].set_value<float>(6.0);
 
-    entry.fetch("/workspaces/SpDB/tests/data/test.xml");
 
     std::cout << entry << std::endl;
 

@@ -12,6 +12,8 @@ namespace sp
 {
 Entry::Entry() : m_pimpl_(nullptr), m_parent_(nullptr), m_name_("") {}
 
+Entry::Entry(const std::string& uri) : m_pimpl_(EntryInterface::create(uri)), m_parent_(nullptr), m_name_("") {}
+
 Entry::Entry(Entry* parent, const std::string& name) : m_pimpl_(nullptr), m_parent_(parent), m_name_(name) {}
 
 Entry::Entry(const std::shared_ptr<EntryInterface>& p) : m_pimpl_(p), m_parent_(nullptr), m_name_("") {}
@@ -22,22 +24,53 @@ Entry::Entry(Entry&& other) : m_pimpl_(other.m_pimpl_), m_name_(other.m_name_), 
 
 Entry::~Entry() {}
 
-EntryInterface& Entry::impl()
+std::shared_ptr<EntryInterface> Entry::get(const std::string& path)
 {
-    if (m_pimpl_ == nullptr)
+
+    std::shared_ptr<EntryInterface> res = m_pimpl_;
+
+    if (m_pimpl_ != nullptr)
     {
+        res = path == "" ? m_pimpl_ : m_pimpl_->find(path);
     }
     else if (m_parent_ == nullptr)
     {
-        m_pimpl_ = EntryInterface::create();
+        res = EntryInterface::create();
+    }
+    else if (path == "")
+    {
+        m_pimpl_ = m_parent_->get(m_name_);
+        res = m_pimpl_;
     }
     else
     {
-        m_pimpl_ = m_parent_->impl().find(m_name_);
+        res = m_parent_->get(m_name_ + "." + path);
     }
-    return *m_pimpl_;
+    return res;
 }
+std::shared_ptr<EntryInterface> Entry::get(const std::string& path) const
+{
 
+    std::shared_ptr<EntryInterface> res = m_pimpl_;
+
+    if (m_pimpl_ != nullptr)
+    {
+        res = path == "" ? m_pimpl_ : m_pimpl_->find(path);
+    }
+    else if (m_parent_ == nullptr)
+    {
+        res = nullptr;
+    }
+    else if (path == "")
+    {
+        res = m_pimpl_;
+    }
+    else
+    {
+        res = m_parent_->get(m_name_ + "." + path);
+    }
+    return res;
+}
 Entry Entry::fetch(const std::string& uri)
 {
     if (m_pimpl_ == nullptr)
@@ -88,6 +121,8 @@ Entry Entry::fetch(const std::string& uri)
     {
         m_pimpl_->fetch(uri);
     }
+
+    return Entry{};
 }
 
 void Entry::swap(this_type& other)
@@ -153,9 +188,13 @@ Entry const& Entry::self() const { return *this; }
 
 Entry& Entry::self() { return *this; }
 
-Entry::range Entry::children() { return Entry::range{m_pimpl_->children()}; };
+Entry::range Entry::children() const
+{
+    NOT_IMPLEMENTED;
+    return Entry::range{};
+};
 
-int Entry::remove(const Entry& p) { m_pimpl_->remove(p); }
+void Entry::remove(const Entry& p) { m_pimpl_->remove(p.name()); }
 
 // as array
 
@@ -189,7 +228,7 @@ Entry Entry::operator[](int idx)
 
 // as map
 // @note : map is unordered
-bool Entry::has_a(const std::string& name) const { return impl()->has_a(name).size() == 0; }
+bool Entry::has_a(const std::string& name) const { return get()->find(name) != nullptr; }
 
 Entry Entry::find(const std::string& name) const { return Entry(m_pimpl_->find(name)); }
 
@@ -198,7 +237,6 @@ Entry Entry::operator[](const std::string& name) { return Entry(this, name); }
 Entry Entry::insert(const std::string& name)
 {
     Entry res(m_pimpl_->insert(name));
-    res.bind(this, name);
     return std::move(res);
 }
 
@@ -214,7 +252,7 @@ size_t Entry::height() const
     return 0;
 }
 
-Entry::range Entry::slibings() const { return range{next(), const_cast<this_type*>(this)->self()}; } // return slibings
+Entry::range Entry::slibings() const { return range{}; }
 
 Entry::range Entry::ancestor() const
 {
@@ -287,16 +325,16 @@ std::ostream& fancy_print(std::ostream& os, const Entry& entry, int indent = 0)
     }
     else if (entry.type() == Entry::Type::Array)
     {
-        auto r = entry.items();
+        auto r = entry.children();
         os << "[ ";
-        fancy_print_array1(os, r.first, r.second, indent);
+        // fancy_print_array1(os, r.first, r.second, indent);
         os << " ]";
     }
     else if (entry.type() == Entry::Type::Object)
     {
         auto r = entry.children();
         os << "{";
-        fancy_print_key_value(os, r.first, r.second, indent, ":");
+        // fancy_print_key_value(os, r.first, r.second, indent, ":");
         os << "}";
     }
     return os;

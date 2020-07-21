@@ -9,12 +9,55 @@ EntryInterface::EntryInterface(const EntryInterface& other) : m_self_(other.m_se
 
 EntryInterface::EntryInterface(EntryInterface&& other) : m_self_(other.m_self_) {}
 
-void EntryInterface::bind(Entry* self) { m_self_ = self; }
-
-std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& rpath)
+std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& uri)
 {
-    return Factory<EntryInterface>::create(rpath != "" ? rpath : "memory");
+
+    std::string schema = "memory";
+
+    auto pos = uri.find(":");
+
+    if (pos == std::string::npos)
+    {
+        pos = uri.rfind('.');
+        if (pos != std::string::npos)
+        {
+            schema = uri.substr(pos);
+        }
+        else
+        {
+            schema = uri;
+        }
+    }
+    else
+    {
+        schema = uri.substr(0, pos);
+    }
+
+    if (schema == "")
+    {
+        schema = "memory";
+    }
+    else if (schema == "http" || schema == "https")
+    {
+        NOT_IMPLEMENTED;
+    }
+    if (!Factory<EntryInterface>::has_creator(schema))
+    {
+        RUNTIME_ERROR << "Can not parse schema " << schema << std::endl;
+    }
+
+    auto res = Factory<EntryInterface>::create(schema);
+
+    VERBOSE << "load backend:" << schema << std::endl;
+
+    if (schema != uri)
+    {
+        res->fetch(uri);
+    }
+
+    return res;
 }
+
 bool EntryInterface::add_creator(const std::string& c_id, const std::function<EntryInterface*()>& fun)
 {
     return Factory<EntryInterface>::add(c_id, fun);
