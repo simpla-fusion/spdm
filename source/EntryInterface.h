@@ -15,7 +15,7 @@
 namespace sp
 {
 
-class EntryInterface
+class EntryInterface : public std::enable_shared_from_this<EntryInterface>
 {
 protected:
     Entry* m_self_;
@@ -39,7 +39,7 @@ public:
 
     virtual std::shared_ptr<EntryInterface> duplicate() const = 0;
 
-    virtual int fetch(const std::string& uri) = 0;
+    // virtual int fetch(const std::string& uri) = 0;
 
     //----------------------------------------------------------------------------------------------------------
     // attribute
@@ -71,28 +71,30 @@ public:
     // function level 0
 
     // container
-    virtual size_t size() const = 0;
+    virtual size_t size(const std::string& path = "") const = 0;
+
+    virtual std::shared_ptr<EntryInterface> parent() = 0;
+
+    virtual Range<std::string, std::shared_ptr<EntryInterface>> children(const std::string& path = "") const = 0;
 
     // as array
 
-    virtual std::shared_ptr<EntryInterface> push_back() = 0;
+    virtual std::shared_ptr<EntryInterface> push_back(const std::string& path) = 0;
 
-    virtual std::shared_ptr<EntryInterface> pop_back() = 0;
+    virtual std::shared_ptr<EntryInterface> pop_back(const std::string& path) = 0;
 
-    virtual std::shared_ptr<EntryInterface> item(int idx) = 0;
+    virtual std::shared_ptr<EntryInterface> item(int idx, const std::string& path = "") = 0;
 
-    virtual Range<std::shared_ptr<EntryInterface>> items() = 0;
+    virtual Range<std::shared_ptr<EntryInterface>> items(const std::string& path = "") = 0;
 
     // as object
-    virtual std::shared_ptr<EntryInterface> insert(const std::string& name) = 0;
+    virtual std::shared_ptr<EntryInterface> insert(const std::string& path) = 0;
 
-    virtual std::shared_ptr<EntryInterface> find(const std::string& name) = 0;
+    virtual std::shared_ptr<EntryInterface> find(const std::string& path) = 0;
 
-    virtual std::shared_ptr<EntryInterface> find(const std::string& name) const = 0;
+    virtual std::shared_ptr<EntryInterface> find(const std::string& path) const = 0;
 
-    virtual void remove(const std::string& name) = 0;
-
-    virtual Range<std::string, std::shared_ptr<EntryInterface>> children() const = 0;
+    virtual void remove(const std::string& path) = 0;
 };
 
 template <typename Impl>
@@ -116,7 +118,8 @@ public:
 
     std::shared_ptr<EntryInterface> duplicate() const override;
 
-    int fetch(const std::string& uri) override;
+    // int fetch(const std::string& uri) override;
+    std::shared_ptr<EntryInterface> parent() const override;
 
     //----------------------------------------------------------------------------------------------------------
     // attribute
@@ -148,28 +151,30 @@ public:
     // function level 0
 
     // container
-    size_t size() const override;
+    size_t size(const std::string& path = "") const;
+
+    std::shared_ptr<EntryInterface> parent();
+
+    Range<std::string, std::shared_ptr<EntryInterface>> children(const std::string& path = "") const;
 
     // as array
 
-    std::shared_ptr<EntryInterface> push_back() override;
+    std::shared_ptr<EntryInterface> push_back(const std::string& path = "") override;
 
-    std::shared_ptr<EntryInterface> pop_back() override;
+    std::shared_ptr<EntryInterface> pop_back(const std::string& path = "") override;
 
-    std::shared_ptr<EntryInterface> item(int idx) override;
+    std::shared_ptr<EntryInterface> item(int idx, const std::string& path = "") override;
 
-    Range<std::shared_ptr<EntryInterface>> items() override;
+    Range<std::shared_ptr<EntryInterface>> items(const std::string& path = "") override;
 
     // as object
-    std::shared_ptr<EntryInterface> insert(const std::string& name) override;
+    std::shared_ptr<EntryInterface> insert(const std::string& path) override;
 
-    std::shared_ptr<EntryInterface> find(const std::string& name) override;
+    std::shared_ptr<EntryInterface> find(const std::string& path) override;
 
-    std::shared_ptr<EntryInterface> find(const std::string& name) const override;
+    std::shared_ptr<EntryInterface> find(const std::string& path) const override;
 
-    void remove(const std::string& name) override;
-
-    Range<std::string, std::shared_ptr<EntryInterface>> children() const override;
+    void remove(const std::string& path) override;
 
 private:
     Impl m_pimpl_;

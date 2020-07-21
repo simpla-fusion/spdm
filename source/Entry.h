@@ -20,9 +20,8 @@ class Entry
 {
 private:
     // std::experimental::propagate_const<>
+    std::string m_prefix_;
     std::shared_ptr<EntryInterface> m_pimpl_;
-    Entry* m_parent_;
-    std::string m_name_;
 
     std::shared_ptr<EntryInterface> get(const std::string& path = "");
     std::shared_ptr<EntryInterface> get(const std::string& path = "") const;
@@ -67,11 +66,10 @@ public:
 
     Entry();
 
-    Entry(const std::string& uri);
+    explicit Entry(const std::string& uri);
 
-    Entry(Entry* parent, const std::string& name);
-
-    Entry(const std::shared_ptr<EntryInterface>& p);
+    explicit Entry(const std::shared_ptr<EntryInterface>& p,
+                   const std::string& prefix = "");
 
     Entry(const this_type&);
 
@@ -89,8 +87,6 @@ public:
 
     void resolve();
 
-    Entry fetch(const std::string& uri);
-
     // metadata
     Type type() const;
     bool is_null() const;
@@ -105,9 +101,9 @@ public:
 
     //
 
-    std::string prefix() const;
+    std::string full_path() const;
 
-    std::string name() const;
+    std::string relative_path() const;
 
     // attributes
 
@@ -195,6 +191,10 @@ public:
     bool has_a(const std::string& key) const;
 
     Entry find(const std::string& key) const;
+
+    Entry operator[](const char* c) const { return operator[](std::string(c)); }
+
+    Entry operator[](const char* c) { return operator[](std::string(c)); }
 
     Entry operator[](const std::string&) const; // access  specified child
 

@@ -8,16 +8,18 @@
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
+    sp::logger::set_stdout_level(-1000);
+
     using namespace sp;
     sp::Entry entry;
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
-    entry.set_attribute("A", std::string("a"));
-    entry.set_attribute("B", std::string("b"));
-    entry["A"].set_value<std::string>("1234");
+    // entry.set_attribute("A", std::string("a"));
+    // entry.set_attribute("B", std::string("b"));
+    // entry["A"].set_value<std::string>("1234");
     entry["B"].set_value<std::string>("5678");
 
-    entry["C"][-1].set_value<int>(5);
-    entry["C"][-1].set_value<float>(6.0);
+    // entry["C"][-1].set_value<int>(5);
+    // entry["C"][-1].set_value<float>(6.0);
 
     std::cout << entry << std::endl;
 

@@ -52,11 +52,11 @@ std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::duplicate() const
 template <>
 Entry::Type EntryImplement<entry_memory>::type() const { return Entry::Type(m_pimpl_.index()); }
 
-template <>
-int EntryImplement<entry_memory>::fetch(const std::string& uri)
-{
-    NOT_IMPLEMENTED;
-}
+// template <>
+// int EntryImplement<entry_memory>::fetch(const std::string& uri)
+// {
+//     NOT_IMPLEMENTED;
+// }
 //----------------------------------------------------------------------------------
 // level 0
 //

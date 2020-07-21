@@ -10,44 +10,64 @@
 #include <vector>
 namespace sp
 {
-Entry::Entry() : m_pimpl_(nullptr), m_parent_(nullptr), m_name_("") {}
+Entry::Entry()
+    : m_prefix_(""), m_pimpl_(EntryInterface::create()) {}
 
-Entry::Entry(const std::string& uri) : m_pimpl_(EntryInterface::create(uri)), m_parent_(nullptr), m_name_("") {}
+Entry::Entry(const std::string& uri)
+    : m_prefix_(""), m_pimpl_(EntryInterface::create(uri)) {}
 
-Entry::Entry(Entry* parent, const std::string& name) : m_pimpl_(nullptr), m_parent_(parent), m_name_(name) {}
+Entry::Entry(const std::shared_ptr<EntryInterface>& p, const std::string& prefix)
+    : m_prefix_(prefix), m_pimpl_(p != nullptr ? p : EntryInterface::create()) {}
 
-Entry::Entry(const std::shared_ptr<EntryInterface>& p) : m_pimpl_(p), m_parent_(nullptr), m_name_("") {}
+Entry::Entry(const Entry& other)
+    : m_prefix_(other.m_prefix_), m_pimpl_(other.m_pimpl_) {}
 
-Entry::Entry(const Entry& other) : m_pimpl_(other.m_pimpl_), m_name_(other.m_name_), m_parent_(other.m_parent_) {}
-
-Entry::Entry(Entry&& other) : m_pimpl_(other.m_pimpl_), m_name_(other.m_name_), m_parent_(other.m_parent_) { other.m_pimpl_.reset(); }
+Entry::Entry(Entry&& other)
+    : m_prefix_(other.m_prefix_), m_pimpl_(other.m_pimpl_) { other.m_pimpl_.reset(); }
 
 Entry::~Entry() {}
 
-std::shared_ptr<EntryInterface> Entry::get(const std::string& path)
+std::shared_ptr<EntryInterface>
+Entry::get(const std::string& path)
 {
 
-    std::shared_ptr<EntryInterface> res = m_pimpl_;
+    std::shared_ptr<EntryInterface> res = nullptr;
+
+    std::string rpath = m_prefix_;
+    if (path != "")
+    {
+        rpath = rpath + "." + m_prefix_;
+    }
 
     if (m_pimpl_ != nullptr)
     {
-        res = path == "" ? m_pimpl_ : m_pimpl_->find(path);
     }
-    else if (m_parent_ == nullptr)
+    else if (m_parent_ != nullptr)
     {
-        res = EntryInterface::create();
+        m_pimpl_ = m_parent_->insert(m_prefix_);
     }
-    else if (path == "")
+    m_pimpl_ = EntryInterface::create();
+
+    if (m_pimpl_ != nullptr)
     {
-        m_pimpl_ = m_parent_->get(m_name_);
-        res = m_pimpl_;
+        res = path == "" ? m_pimpl_ : m_pimpl_->insert(path);
     }
     else
     {
-        res = m_parent_->get(m_name_ + "." + path);
+        res = m_pimpl_;
+    }
+
+    if (path == "")
+    {
+        m_pimpl_ = res;
+    }
+    else
+    {
+        res = m_parent_->get(m_prefix_ + "." + path);
     }
     return res;
 }
+
 std::shared_ptr<EntryInterface> Entry::get(const std::string& path) const
 {
 
@@ -67,67 +87,14 @@ std::shared_ptr<EntryInterface> Entry::get(const std::string& path) const
     }
     else
     {
-        res = m_parent_->get(m_name_ + "." + path);
+        res = m_parent_->get(m_prefix_ + "." + path);
     }
     return res;
-}
-Entry Entry::fetch(const std::string& uri)
-{
-    if (m_pimpl_ == nullptr)
-    {
-        std::string schema = "memory";
-
-        auto pos = uri.find(":");
-
-        if (pos == std::string::npos)
-        {
-            pos = uri.rfind('.');
-            if (pos != std::string::npos)
-            {
-                schema = uri.substr(pos);
-            }
-            else
-            {
-                schema = uri;
-            }
-        }
-        else
-        {
-            schema = uri.substr(0, pos);
-        }
-
-        if (schema == "")
-        {
-            schema = "memory";
-        }
-        else if (schema == "http" || schema == "https")
-        {
-            NOT_IMPLEMENTED;
-        }
-        if (!Factory<EntryInterface>::has_creator(schema))
-        {
-            RUNTIME_ERROR << "Can not parse schema " << schema << std::endl;
-        }
-        m_pimpl_ = Factory<EntryInterface>::create(schema);
-
-        VERBOSE << "load backend:" << schema << std::endl;
-
-        if (schema != uri)
-        {
-            m_pimpl_->fetch(uri);
-        }
-    }
-    else
-    {
-        m_pimpl_->fetch(uri);
-    }
-
-    return Entry{};
 }
 
 void Entry::swap(this_type& other)
 {
-    std::swap(m_name_, other.m_name_);
+    std::swap(m_prefix_, other.m_prefix_);
     std::swap(m_parent_, other.m_parent_);
     std::swap(m_pimpl_, other.m_pimpl_);
 }
@@ -139,9 +106,9 @@ Entry& Entry::operator=(this_type const& other)
 }
 
 //
-std::string Entry::prefix() const { return m_parent_ == nullptr ? m_name_ : (m_parent_->prefix() + "/" + m_name_); }
+std::string Entry::full_path() const { return m_pimpl_->full_path() + "/" + m_prefix_; }
 
-std::string Entry::name() const { return m_name_; }
+std::string Entry::relative_path() const { return m_prefix_; }
 
 // metadata
 Entry::Type Entry::type() const { return m_pimpl_->type(); }
@@ -152,37 +119,48 @@ bool Entry::is_block() const { return type() == Type::Block; }
 bool Entry::is_array() const { return type() == Type::Array; }
 bool Entry::is_object() const { return type() == Type::Object; }
 
-bool Entry::is_root() const { return m_parent_ == nullptr; }
+bool Entry::is_root() const { return m_pimpl_->parent() == nullptr; }
 bool Entry::is_leaf() const { return type() < Type::Array; };
 
 // attributes
-bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->has_attribute(name); }
+bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->find(m_prefix_)->has_attribute(name); }
 
-const Entry::single_t Entry::get_attribute_raw(const std::string& name) { return m_pimpl_->get_attribute_raw(name); }
+const Entry::single_t Entry::get_attribute_raw(const std::string& name) { return  m_pimpl_->find(m_prefix_)->get_attribute_raw(name); }
 
-void Entry::set_attribute_raw(const std::string& name, const single_t& value) { m_pimpl_->set_attribute_raw(name, value); }
+void Entry::set_attribute_raw(const std::string& name, const single_t& value) {  m_pimpl_->find(m_prefix_)->set_attribute_raw(name, value); }
 
-void Entry::remove_attribute(const std::string& name) { m_pimpl_->remove_attribute(name); }
+void Entry::remove_attribute(const std::string& name) {  m_pimpl_->find(m_prefix_)->remove_attribute(name); }
 
-std::map<std::string, Entry::single_t> Entry::attributes() const { return m_pimpl_->attributes(); }
+std::map<std::string, Entry::single_t> Entry::attributes() const { return  m_pimpl_->find(m_prefix_)->attributes(); }
 
 // as leaf
-void Entry::set_single(const single_t& v) { m_pimpl_->set_single(v); }
+void Entry::set_single(const single_t& v) { get()->set_single(v); }
 
-Entry::single_t Entry::get_single() const { return m_pimpl_->get_single(); }
+Entry::single_t Entry::get_single() const { return get()->get_single(); }
 
-void Entry::set_tensor(const tensor_t& v) { m_pimpl_->set_tensor(v); }
+void Entry::set_tensor(const tensor_t& v) { get()->set_tensor(v); }
 
-Entry::tensor_t Entry::get_tensor() const { return m_pimpl_->get_tensor(); }
+Entry::tensor_t Entry::get_tensor() const { return get()->get_tensor(); }
 
-void Entry::set_block(const block_t& v) { m_pimpl_->set_block(v); }
+void Entry::set_block(const block_t& v) { get()->set_block(v); }
 
-Entry::block_t Entry::get_block() const { return m_pimpl_->get_block(); }
+Entry::block_t Entry::get_block() const { return get()->get_block(); }
 
 // as Tree
 // as container
 
-Entry Entry::parent() const { return m_parent_ == nullptr ? Entry() : Entry(*m_parent_); }
+Entry Entry::parent() const
+{
+    auto pos = m_prefix_.rfind("/");
+    if (pos == std::string::npos)
+    {
+        return Entry(m_pimpl_->parent());
+    }
+    else
+    {
+        return Entry(m_pimpl_->parent(), m_prefix_.substr(0, pos));
+    }
+}
 
 Entry const& Entry::self() const { return *this; }
 
@@ -194,57 +172,29 @@ Entry::range Entry::children() const
     return Entry::range{};
 };
 
-void Entry::remove(const Entry& p) { m_pimpl_->remove(p.name()); }
-
 // as array
 
-Entry Entry::push_back()
-{
-    Entry res(m_pimpl_->push_back());
-    res.m_parent_ = this;
-    return std::move(res);
-}
+Entry Entry::push_back() { return Entry(m_pimpl_->push_back(m_prefix_)); }
 
-Entry Entry::pop_back() { return Entry{m_pimpl_->pop_back()}; }
+Entry Entry::pop_back() { return Entry{m_pimpl_->pop_back(m_prefix_)}; }
 
-Entry Entry::operator[](int idx)
-{
-    if (idx < 0)
-    {
-        return push_back();
-    }
-    else
-    {
-        Entry res(m_pimpl_->item(idx));
-
-        if (res.m_pimpl_ == nullptr)
-        {
-            throw std::out_of_range(FILE_LINE_STAMP_STRING + "index out of range");
-        }
-        res.m_parent_ = this;
-        return std::move(res);
-    }
-}
+Entry Entry::operator[](int idx) { return Entry(m_pimpl_->item(idx, m_prefix_)); }
 
 // as map
 // @note : map is unordered
-bool Entry::has_a(const std::string& name) const { return get()->find(name) != nullptr; }
+bool Entry::has_a(const std::string& name) const { return m_pimpl_->find(m_prefix_ + "/" + name) != nullptr; }
 
-Entry Entry::find(const std::string& name) const { return Entry(m_pimpl_->find(name)); }
+Entry Entry::find(const std::string& name) const { return Entry(m_pimpl_->find(m_prefix_ + "/" + name)); }
 
-Entry Entry::operator[](const std::string& name) { return Entry(this, name); }
+Entry Entry::operator[](const std::string& name) { return Entry(m_pimpl_, m_prefix_ + "/" + name); }
 
-Entry Entry::insert(const std::string& name)
-{
-    Entry res(m_pimpl_->insert(name));
-    return std::move(res);
-}
+Entry Entry::insert(const std::string& name) { return Entry(m_pimpl_->insert(m_prefix_ + "/" + name)); }
 
-void Entry::remove(const std::string& name) { m_pimpl_->remove(name); }
+void Entry::remove(const std::string& name) { m_pimpl_->remove(m_prefix_ + "/" + name); }
 
 //-------------------------------------------------------------------
 // level 2
-size_t Entry::depth() const { return m_parent_ == nullptr ? 0 : m_parent_->depth() + 1; }
+size_t Entry::depth() const { return m_pimpl_ == nullptr ? 0 : parent().depth() + 1; }
 
 size_t Entry::height() const
 {

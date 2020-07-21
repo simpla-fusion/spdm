@@ -50,10 +50,10 @@ std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& uri)
 
     VERBOSE << "load backend:" << schema << std::endl;
 
-    if (schema != uri)
-    {
-        res->fetch(uri);
-    }
+    // if (schema != uri)
+    // {
+    //     res->fetch(uri);
+    // }
 
     return res;
 }
