@@ -23,8 +23,8 @@ private:
     std::string m_prefix_;
     std::shared_ptr<EntryInterface> m_pimpl_;
 
-    std::shared_ptr<EntryInterface> get(const std::string& path = "");
-    std::shared_ptr<EntryInterface> get(const std::string& path = "") const;
+    std::shared_ptr<EntryInterface> get( );
+    std::shared_ptr<EntryInterface> get( ) const;
 
 public:
     enum Type

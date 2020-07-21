@@ -28,74 +28,22 @@ Entry::Entry(Entry&& other)
 Entry::~Entry() {}
 
 std::shared_ptr<EntryInterface>
-Entry::get(const std::string& path)
+Entry::get()
 {
-
-    std::shared_ptr<EntryInterface> res = nullptr;
-
-    std::string rpath = m_prefix_;
-    if (path != "")
+    if (m_prefix_ != "")
     {
-        rpath = rpath + "." + m_prefix_;
+        m_pimpl_ = m_pimpl_->insert(m_prefix_);
+        m_prefix_ = "";
     }
 
-    if (m_pimpl_ != nullptr)
-    {
-    }
-    else if (m_parent_ != nullptr)
-    {
-        m_pimpl_ = m_parent_->insert(m_prefix_);
-    }
-    m_pimpl_ = EntryInterface::create();
-
-    if (m_pimpl_ != nullptr)
-    {
-        res = path == "" ? m_pimpl_ : m_pimpl_->insert(path);
-    }
-    else
-    {
-        res = m_pimpl_;
-    }
-
-    if (path == "")
-    {
-        m_pimpl_ = res;
-    }
-    else
-    {
-        res = m_parent_->get(m_prefix_ + "." + path);
-    }
-    return res;
+    return m_pimpl_;
 }
 
-std::shared_ptr<EntryInterface> Entry::get(const std::string& path) const
-{
-
-    std::shared_ptr<EntryInterface> res = m_pimpl_;
-
-    if (m_pimpl_ != nullptr)
-    {
-        res = path == "" ? m_pimpl_ : m_pimpl_->find(path);
-    }
-    else if (m_parent_ == nullptr)
-    {
-        res = nullptr;
-    }
-    else if (path == "")
-    {
-        res = m_pimpl_;
-    }
-    else
-    {
-        res = m_parent_->get(m_prefix_ + "." + path);
-    }
-    return res;
-}
+std::shared_ptr<EntryInterface> Entry::get() const { return m_pimpl_->find(m_prefix_); }
 
 void Entry::swap(this_type& other)
 {
     std::swap(m_prefix_, other.m_prefix_);
-    std::swap(m_parent_, other.m_parent_);
     std::swap(m_pimpl_, other.m_pimpl_);
 }
 
@@ -106,7 +54,11 @@ Entry& Entry::operator=(this_type const& other)
 }
 
 //
-std::string Entry::full_path() const { return m_pimpl_->full_path() + "/" + m_prefix_; }
+std::string Entry::full_path() const
+{
+    NOT_IMPLEMENTED;
+    return "/" + m_prefix_;
+}
 
 std::string Entry::relative_path() const { return m_prefix_; }
 
@@ -125,13 +77,13 @@ bool Entry::is_leaf() const { return type() < Type::Array; };
 // attributes
 bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->find(m_prefix_)->has_attribute(name); }
 
-const Entry::single_t Entry::get_attribute_raw(const std::string& name) { return  m_pimpl_->find(m_prefix_)->get_attribute_raw(name); }
+const Entry::single_t Entry::get_attribute_raw(const std::string& name) { return m_pimpl_->find(m_prefix_)->get_attribute_raw(name); }
 
-void Entry::set_attribute_raw(const std::string& name, const single_t& value) {  m_pimpl_->find(m_prefix_)->set_attribute_raw(name, value); }
+void Entry::set_attribute_raw(const std::string& name, const single_t& value) { m_pimpl_->find(m_prefix_)->set_attribute_raw(name, value); }
 
-void Entry::remove_attribute(const std::string& name) {  m_pimpl_->find(m_prefix_)->remove_attribute(name); }
+void Entry::remove_attribute(const std::string& name) { m_pimpl_->find(m_prefix_)->remove_attribute(name); }
 
-std::map<std::string, Entry::single_t> Entry::attributes() const { return  m_pimpl_->find(m_prefix_)->attributes(); }
+std::map<std::string, Entry::single_t> Entry::attributes() const { return m_pimpl_->find(m_prefix_)->attributes(); }
 
 // as leaf
 void Entry::set_single(const single_t& v) { get()->set_single(v); }
@@ -174,11 +126,11 @@ Entry::range Entry::children() const
 
 // as array
 
-Entry Entry::push_back() { return Entry(m_pimpl_->push_back(m_prefix_)); }
+Entry Entry::push_back() { return Entry{m_pimpl_->insert(m_prefix_)->push_back()}; }
 
-Entry Entry::pop_back() { return Entry{m_pimpl_->pop_back(m_prefix_)}; }
+Entry Entry::pop_back() { return Entry{m_pimpl_->insert(m_prefix_)->pop_back()}; }
 
-Entry Entry::operator[](int idx) { return Entry(m_pimpl_->item(idx, m_prefix_)); }
+Entry Entry::operator[](int idx) { return Entry{m_pimpl_->insert(m_prefix_)->item(idx)}; }
 
 // as map
 // @note : map is unordered

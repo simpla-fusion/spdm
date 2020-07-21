@@ -196,6 +196,21 @@ void EntryImplement<entry_memory>::remove(const std::string& name)
 }
 
 template <>
+size_t EntryImplement<entry_memory>::size() const
+{
+    NOT_IMPLEMENTED;
+    return 0;
+}
+
+template <>
+std::shared_ptr<EntryInterface> 
+EntryImplement<entry_memory>::parent() const
+{
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
+
+template <>
 Range<std::string, std::shared_ptr<EntryInterface>>
 EntryImplement<entry_memory>::children() const
 {
@@ -209,12 +224,6 @@ EntryImplement<entry_memory>::children() const
     // }
 
     return Range<std::string, std::shared_ptr<EntryInterface>>{};
-}
-template <>
-size_t EntryImplement<entry_memory>::size() const
-{
-    NOT_IMPLEMENTED;
-    return 0;
 }
 
 // as arraytemplate <>
@@ -268,12 +277,27 @@ std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx)
     // catch (std::bad_variant_access&)
     // {
     // };
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
+template <>
+std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx) const
+{
+    // try
+    // {
+    //     auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+    //     return m[idx];
+    // }
+    // catch (std::bad_variant_access&)
+    // {
+    // };
+    NOT_IMPLEMENTED;
     return nullptr;
 }
 
 template <>
 Range<std::shared_ptr<EntryInterface>>
-EntryImplement<entry_memory>::items()
+EntryImplement<entry_memory>::items() const
 {
     // if (type() == Entry::Type::Array)
     // {
@@ -289,6 +313,8 @@ EntryImplement<entry_memory>::items()
     //     return Entry::range{Entry::iterator(m.begin(), mapper),
     //                         Entry::iterator(m.end(), mapper)};
     // }
+
+    NOT_IMPLEMENTED;
 
     return Range<std::shared_ptr<EntryInterface>>{};
 }
