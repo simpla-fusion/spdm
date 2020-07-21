@@ -21,7 +21,7 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     // entry["C"][-1].set_value<int>(5);
     // entry["C"][-1].set_value<float>(6.0);
 
-    std::cout << entry << std::endl;
+    // std::cout << entry << std::endl;
 
     // std::cout << "====================================" << std::endl;
     // entry.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");

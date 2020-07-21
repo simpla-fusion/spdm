@@ -10,8 +10,28 @@
 #include <vector>
 namespace sp
 {
+template <typename... Others>
+std::string join_path(const std::string& l, const std::string& r)
+{
+    if (l == "")
+    {
+        return r;
+    }
+    else
+    {
+        return l + "/" + r;
+    }
+}
+template <typename... Others>
+std::string join_path(const std::string& l, const std::string& r, Others&&... others)
+{
+    return join_path(join_path(l, r), std::forward<Others>(others)...);
+}
+
 Entry::Entry()
-    : m_prefix_(""), m_pimpl_(EntryInterface::create()) {}
+    : m_prefix_(""), m_pimpl_(EntryInterface::create())
+{
+}
 
 Entry::Entry(const std::string& uri)
     : m_prefix_(""), m_pimpl_(EntryInterface::create(uri)) {}
@@ -122,15 +142,15 @@ Entry Entry::operator[](int idx) { return Entry{m_pimpl_->insert(m_prefix_)->ite
 
 // as map
 // @note : map is unordered
-bool Entry::has_a(const std::string& name) const { return m_pimpl_->find(m_prefix_ + "/" + name) != nullptr; }
+bool Entry::has_a(const std::string& name) const { return m_pimpl_->find(join_path(m_prefix_, name)) != nullptr; }
 
-Entry Entry::find(const std::string& name) const { return Entry(m_pimpl_->find(m_prefix_ + "/" + name)); }
+Entry Entry::find(const std::string& name) const { return Entry(m_pimpl_->find(join_path(m_prefix_, name))); }
 
-Entry Entry::operator[](const std::string& name) { return Entry(m_pimpl_, m_prefix_ + "/" + name); }
+Entry Entry::operator[](const std::string& name) { return Entry(m_pimpl_, join_path(m_prefix_, name)); }
 
-Entry Entry::insert(const std::string& name) { return Entry(m_pimpl_->insert(m_prefix_ + "/" + name)); }
+Entry Entry::insert(const std::string& name) { return Entry(m_pimpl_->insert(join_path(m_prefix_, name))); }
 
-void Entry::remove(const std::string& name) { m_pimpl_->remove(m_prefix_ + "/" + name); }
+void Entry::remove(const std::string& name) { m_pimpl_->remove(join_path(m_prefix_, name)); }
 
 //-------------------------------------------------------------------
 // level 2
