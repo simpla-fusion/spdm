@@ -23,9 +23,6 @@ private:
     std::string m_prefix_;
     std::shared_ptr<EntryInterface> m_pimpl_;
 
-    std::shared_ptr<EntryInterface> get( );
-    std::shared_ptr<EntryInterface> get( ) const;
-
 public:
     enum Type
     {
@@ -161,15 +158,13 @@ public:
     // as Tree
     // as container
 
-    Entry parent() const;
-
     const Entry& self() const;
 
     Entry& self();
 
-    range children() const;
+    Entry parent() const;
 
-    void remove(const Entry&);
+    range children() const;
 
     void clear();
 

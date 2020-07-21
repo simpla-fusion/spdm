@@ -36,6 +36,19 @@ public:
     iterator begin() const { return first; }
 
     iterator end() const { return second; }
+
+    template <typename U, typename V, typename... Others>
+    Range<U, V, Others...> map(const std::function<std::tuple<U, V, Others...>(const T&...)>& fun) const
+    {
+        return Range<U, V, Others...>{Iterator<U, V, Others...>(begin(), fun), Iterator<U, V, Others...>(end(), fun)};
+    };
+    template <typename U>
+    Range<U> map(const std::function<U(const T&...)>& fun) const
+    {
+        // Iterator<U>(begin(), fun), Iterator<U>(end(), fun)
+        // NOT_IMPLEMENTED;
+        return Range<U>{};
+    };
 };
 //##############################################################################################################
 

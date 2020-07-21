@@ -27,20 +27,6 @@ Entry::Entry(Entry&& other)
 
 Entry::~Entry() {}
 
-std::shared_ptr<EntryInterface>
-Entry::get()
-{
-    if (m_prefix_ != "")
-    {
-        m_pimpl_ = m_pimpl_->insert(m_prefix_);
-        m_prefix_ = "";
-    }
-
-    return m_pimpl_;
-}
-
-std::shared_ptr<EntryInterface> Entry::get() const { return m_pimpl_->find(m_prefix_); }
-
 void Entry::swap(this_type& other)
 {
     std::swap(m_prefix_, other.m_prefix_);
@@ -86,17 +72,17 @@ void Entry::remove_attribute(const std::string& name) { m_pimpl_->find(m_prefix_
 std::map<std::string, Entry::single_t> Entry::attributes() const { return m_pimpl_->find(m_prefix_)->attributes(); }
 
 // as leaf
-void Entry::set_single(const single_t& v) { get()->set_single(v); }
+void Entry::set_single(const single_t& v) { m_pimpl_->insert(m_prefix_)->set_single(v); }
 
-Entry::single_t Entry::get_single() const { return get()->get_single(); }
+Entry::single_t Entry::get_single() const { return m_pimpl_->find(m_prefix_)->get_single(); }
 
-void Entry::set_tensor(const tensor_t& v) { get()->set_tensor(v); }
+void Entry::set_tensor(const tensor_t& v) { m_pimpl_->insert(m_prefix_)->set_tensor(v); }
 
-Entry::tensor_t Entry::get_tensor() const { return get()->get_tensor(); }
+Entry::tensor_t Entry::get_tensor() const { return m_pimpl_->find(m_prefix_)->get_tensor(); }
 
-void Entry::set_block(const block_t& v) { get()->set_block(v); }
+void Entry::set_block(const block_t& v) { m_pimpl_->insert(m_prefix_)->set_block(v); }
 
-Entry::block_t Entry::get_block() const { return get()->get_block(); }
+Entry::block_t Entry::get_block() const { return m_pimpl_->find(m_prefix_)->get_block(); }
 
 // as Tree
 // as container
@@ -120,9 +106,11 @@ Entry& Entry::self() { return *this; }
 
 Entry::range Entry::children() const
 {
-    NOT_IMPLEMENTED;
-    return Entry::range{};
-};
+    return m_pimpl_
+        ->find(m_prefix_)
+        ->children()
+        .template map<Entry>([](const std::string& k, const std::shared_ptr<EntryInterface>& p) -> Entry { return Entry{p}; });
+}
 
 // as array
 
