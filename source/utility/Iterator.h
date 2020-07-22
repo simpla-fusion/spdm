@@ -23,23 +23,24 @@ struct IteratorTraits : public std::iterator<std::input_iterator_tag, T>
     using base_type ::value_type;
 };
 template <typename T>
-struct IteratorTraits<std::shared_ptr<T>>
+struct IteratorTraits<std::shared_ptr<T>> : public std::iterator<std::input_iterator_tag, T>
 {
-    typedef ptrdiff_t difference_type;
-    typedef std::shared_ptr<T> pointer;
-    typedef T& reference;
-    typedef T value_type;
+    typedef std::iterator<std::input_iterator_tag, T> base_type;
+    using base_type::difference_type;
+    using base_type::pointer;
+    using base_type::reference;
+    using base_type::value_type;
 };
 
-template <typename T, typename V = T, typename Enable = void>
+template <typename P, typename Q = P, typename Enable = void>
 struct IteratorProxy;
 
 template <typename T>
-class IteratorProxy<T> : public std::iterator<std::input_iterator_tag, T>
+class IteratorProxy<T*> : public IteratorTraits<T>
 {
 public:
-    typedef IteratorProxy<T> this_type;
-    typedef std::iterator<std::input_iterator_tag, T> base_type;
+    typedef IteratorProxy<T*> this_type;
+    typedef IteratorTraits<T*> base_type;
 
     using typename base_type::difference_type;
     using typename base_type::pointer;
@@ -69,13 +70,13 @@ public:
     virtual void next() = 0;
 };
 
-template <typename T, typename V>
-class IteratorProxy<T, V,
-                    std::enable_if_t<
-                        // std::is_same_v<V, T*> ||
-                        // std::is_same_v<V, std::remove_const_t<T>*> ||
-                        std::is_same_v<V, std::shared_ptr<T>> ||
-                        std::is_same_v<V, std::shared_ptr<std::remove_const_t<T>>>>> : public IteratorProxy<T>
+template <typename P, typename V>
+class IteratorProxy<P, V,
+                    std::enable_if_t<                                              //
+                        std::is_same_v<V, std::shared_ptr<T>> ||                   //
+                        std::is_same_v<V, std::shared_ptr<std::remove_const_t<T>>> //
+                        >>
+    : public IteratorProxy<T>
 {
 public:
     typedef IteratorProxy<T> base_type;

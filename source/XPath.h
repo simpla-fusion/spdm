@@ -13,26 +13,26 @@
 #include <vector>
 namespace sp
 {
-    //##############################################################################################################
-    class XPath
-    {
-    public:
-        XPath(std::string const &path = "");
-        XPath(const char *path);
-        ~XPath() = default;
+//##############################################################################################################
+class XPath
+{
+public:
+    XPath(std::string const& path = "");
+    XPath(const char* path);
+    ~XPath() = default;
 
-        XPath(XPath &&) = default;
-        XPath(XPath const &) = default;
-        XPath &operator=(XPath const &) = default;
+    XPath(XPath&&) = default;
+    XPath(XPath const&) = default;
+    XPath& operator=(XPath const&) = default;
 
-        const std::string &str() const;
+    const std::string& str() const;
 
-        XPath operator/(std::string const &suffix) const;
-        operator std::string() const;
+    XPath operator/(std::string const& suffix) const;
+    operator std::string() const;
 
-    private:
-        std::string m_path_;
-    };
+private:
+    std::string m_path_;
+};
 
 } // namespace sp
 #endif //SP_XPATH_H_
