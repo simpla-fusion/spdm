@@ -28,15 +28,20 @@ public:
 
     Range(const iterator& first, const iterator& second) : base_type(first, second) {}
 
-    template <typename U0, typename U1, typename Fun, typename... Args>
-    Range(U0 const& first, U1 const& second, const Fun& fun, Args&&... args)
-        : Range{iterator(first, fun, std::forward<Args>(args)...), iterator(second, fun, std::forward<Args>(args)...)} {}
+    template <typename U0, typename U1, typename... Args>
+    Range(U0 const& first, U1 const& second, Args&&... args)
+        : Range{iterator(first, std::forward<Args>(args)...), iterator(second, std::forward<Args>(args)...)} {}
 
     Range(const base_type& p) : base_type(p) {}
 
     Range(base_type&& p) : base_type(std::move(p)) {}
 
     ~Range(){};
+
+    void swap(this_type& other)
+    {
+        base_type::swap(other);
+    }
 
     size_t size() const { return std::distance(first, second); }
 

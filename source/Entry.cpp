@@ -30,6 +30,9 @@ Entry::Entry(const std::string& uri)
 Entry::Entry(const std::shared_ptr<EntryInterface>& p, const std::string& prefix)
     : m_prefix_(prefix), m_pimpl_(p != nullptr ? p : EntryInterface::create()) {}
 
+Entry::Entry(EntryInterface* p, const std::string& prefix)
+    : Entry(p->shared_from_this(), prefix) {}
+
 Entry::Entry(const Entry& other)
     : m_prefix_(other.m_prefix_), m_pimpl_(other.m_pimpl_) {}
 
@@ -115,16 +118,11 @@ Entry const& Entry::self() const { return *this; }
 
 Entry& Entry::self() { return *this; }
 
-Range<std::string, Entry> Entry::children() const
+Range<Entry> Entry::children() const
 {
-    return m_pimpl_
-        ->find(m_prefix_)
-        ->children()
-        .template map<std::string, Entry>(
-            [](const auto& item) {
-                return std::tuple<std::string, Entry>{std::get<0>(item), Entry{std::get<1>(item)}};
-            });
-    // return Range<std::string, Entry> {};
+    auto p = m_prefix_ == "" ? m_pimpl_ : m_pimpl_->find(m_prefix_);
+
+    return (p == nullptr) ? Range<Entry>{} : p->children().template map<Entry>([](const auto& item) { return Entry{item}; });
 }
 
 // as array
@@ -191,67 +189,6 @@ ptrdiff_t Entry::distance(const this_type& target) const
     return 0;
 }
 
-std::ostream& fancy_print(std::ostream& os, const Entry& entry, int indent = 0)
-{
-    if (entry.type() == Entry::Type::Single)
-    {
-        auto v = entry.get_single();
-
-        switch (v.index())
-        {
-        case 0:
-            os << "\"" << std::get<std::string>(v) << "\"";
-            break;
-        case 1:
-            os << std::get<bool>(v);
-            break;
-        case 2:
-            os << std::get<int>(v);
-            break;
-        case 3:
-            os << std::get<double>(v);
-            break;
-        case 4:
-            os << std::get<std::complex<double>>(v);
-            break;
-        case 5:
-        {
-            auto d = std::get<std::array<int, 3>>(v);
-            os << d[0] << "," << d[1] << "," << d[2];
-        }
-        break;
-        case 6:
-        {
-            auto d = std::get<std::array<double, 3>>(v);
-            os << d[0] << "," << d[1] << "," << d[2];
-        }
-        break;
-        default:
-            break;
-        }
-    }
-    else if (entry.type() == Entry::Type::Array)
-    {
-        auto r = entry.children();
-        os << "[ ";
-        // fancy_print_array1(os, r.first, r.second, indent);
-        os << " ]";
-    }
-    else if (entry.type() == Entry::Type::Object)
-    {
-        auto r = entry.children();
-        os << "{";
-        // fancy_print_key_value(os, r.first, r.second, indent, ":");
-        os << "}";
-    }
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, Entry const& entry)
-{
-    return fancy_print(os, entry, 0);
-}
-
 Entry load_entry_xml(const std::string& uri);
 
 Entry load(const std::string& uri) { NOT_IMPLEMENTED; }
@@ -299,4 +236,66 @@ Entry::single_t from_string(const std::string& s)
 {
     NOT_IMPLEMENTED;
 }
+
+std::ostream& fancy_print(std::ostream& os, const Entry& entry, int indent = 0)
+{
+    if (entry.type() == Entry::Type::Single)
+    {
+        auto v = entry.get_single();
+
+        switch (v.index())
+        {
+        case 0:
+            os << "\"" << std::get<std::string>(v) << "\"";
+            break;
+        case 1:
+            os << std::get<bool>(v);
+            break;
+        case 2:
+            os << std::get<int>(v);
+            break;
+        case 3:
+            os << std::get<double>(v);
+            break;
+        case 4:
+            os << std::get<std::complex<double>>(v);
+            break;
+        case 5:
+        {
+            auto d = std::get<std::array<int, 3>>(v);
+            os << d[0] << "," << d[1] << "," << d[2];
+        }
+        break;
+        case 6:
+        {
+            auto d = std::get<std::array<double, 3>>(v);
+            os << d[0] << "," << d[1] << "," << d[2];
+        }
+        break;
+        default:
+            break;
+        }
+    }
+    else if (entry.type() == Entry::Type::Array)
+    {
+        auto r = entry.children();
+        os << "[ ";
+        fancy_print_array1(os, r.first, r.second, indent);
+        os << " ]";
+    }
+    else if (entry.type() == Entry::Type::Object)
+    {
+        auto r = entry.children();
+        os << "{";
+        // fancy_print_key_value(os, r.first, r.second, indent, ":");
+        os << "}";
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, Entry const& entry)
+{
+    return fancy_print(os, entry, 0);
+}
+
 } // namespace sp

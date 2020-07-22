@@ -252,11 +252,17 @@ public:
     Iterator(pointer p) : m_proxy_(nullptr), m_current_(p) {}
 
     template <typename... Args>
-    Iterator(Args&&... args) : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)), m_current_(m_proxy_->next()) {}
+    Iterator(Args&&... args)
+        : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)),
+          m_current_(m_proxy_ == nullptr ? nullptr : m_proxy_->next())
+    {
+    }
 
-    Iterator(Iterator const& other) : m_proxy_(other.m_proxy_->copy()), m_current_(other.m_current_) {}
+    Iterator(Iterator const& other)
+        : m_proxy_(other.m_proxy_ == nullptr ? nullptr : other.m_proxy_->copy()), m_current_(other.m_current_) {}
 
-    Iterator(Iterator&& other) : m_proxy_(other.m_proxy_.release()), m_current_(other.m_current_) { other.m_current_ = nullptr; }
+    Iterator(Iterator&& other)
+        : m_proxy_(other.m_proxy_.release()), m_current_(other.m_current_) { other.m_current_ = nullptr; }
 
     ~Iterator() {}
 

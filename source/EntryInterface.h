@@ -83,14 +83,14 @@ public:
 
     virtual std::shared_ptr<EntryInterface> item(int idx) const = 0;
 
-    virtual Range<std::shared_ptr<EntryInterface>> items() const = 0;
+    virtual Range<EntryInterface> items() const = 0;
 
     // as object
     virtual std::shared_ptr<EntryInterface> insert(const std::string& path) = 0;
 
     virtual std::shared_ptr<EntryInterface> find(const std::string& path) const = 0;
 
-    virtual Range<std::string, std::shared_ptr<EntryInterface>> children() const = 0;
+    virtual Range<EntryInterface> children() const = 0;
 
     virtual void remove(const std::string& path) = 0;
 };
@@ -161,7 +161,7 @@ public:
 
     std::shared_ptr<EntryInterface> item(int idx) const override;
 
-    Range<std::shared_ptr<EntryInterface>> items() const override;
+    Range<EntryInterface> items() const override;
 
     // as object
     std::shared_ptr<EntryInterface> insert(const std::string& path) override;
@@ -170,7 +170,7 @@ public:
 
     void remove(const std::string& path) override;
 
-    Range<std::string, std::shared_ptr<EntryInterface>> children() const;
+    Range<EntryInterface> children() const;
 
 private:
     Impl m_pimpl_;

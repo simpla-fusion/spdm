@@ -193,7 +193,7 @@ EntryImplement<entry_memory>::parent() const
 }
 
 template <>
-Range<std::string, std::shared_ptr<EntryInterface>>
+Range<EntryInterface>
 EntryImplement<entry_memory>::children() const
 {
     // if (type() == Entry::Type::Object)
@@ -205,7 +205,7 @@ EntryImplement<entry_memory>::children() const
     //         Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>(m.end())};
     // }
 
-    return Range<std::string, std::shared_ptr<EntryInterface>>{};
+    return Range<EntryInterface>{};
 }
 
 // as arraytemplate <>
@@ -264,23 +264,24 @@ std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx) cons
 }
 
 template <>
-Range<std::shared_ptr<EntryInterface>>
+Range<EntryInterface>
 EntryImplement<entry_memory>::items() const
 {
-    Range<std::shared_ptr<EntryInterface>> res{};
+    Range<EntryInterface> res{};
 
     if (type() == Entry::Type::Array)
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+        auto mapper = [](auto const& p) -> EntryInterface* { return p->get(); };
 
-        Range<std::shared_ptr<EntryInterface>>{m.begin(), m.end()}.swap(res);
+        Range<EntryInterface>{m.begin(), m.end(), mapper}.swap(res);
     }
-    else if (type() == Entry::Type::Object)
-    {
-        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
-        auto mapper = [](auto const& item) -> std::shared_ptr<EntryInterface> { return item->second; };
-        Range<std::shared_ptr<EntryInterface>>{m.begin(), m.end(), mapper}.swap(res);
-    }
+    // else if (type() == Entry::Type::Object)
+    // {
+    //     auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+    //     auto mapper = [](auto const& item) -> EntryInterface* { return item->second; };
+    //     //  Range<EntryInterface>{m.begin(), m.end(), mapper}.swap(res);
+    // }
 
     return res;
 }

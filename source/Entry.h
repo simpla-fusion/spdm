@@ -65,6 +65,9 @@ public:
     explicit Entry(const std::shared_ptr<EntryInterface>& p,
                    const std::string& prefix = "");
 
+    explicit Entry(EntryInterface* p,
+                   const std::string& prefix = "");
+
     Entry(const this_type&);
 
     Entry(this_type&&);
@@ -103,10 +106,10 @@ public:
 
     bool has_attribute(const std::string& name) const;
 
-    const single_t get_attribute_raw(const std::string& name)const;
-    
+    const single_t get_attribute_raw(const std::string& name) const;
+
     void set_attribute_raw(const std::string& name, const single_t& value);
-    
+
     void remove_attribute(const std::string& name);
 
     template <typename V>
@@ -119,13 +122,12 @@ public:
     {
         set_attribute_raw(name, single_t{std::string(value)});
     }
-    
+
     template <typename V>
     void set_attribute(const std::string& name, const V& value)
     {
         set_attribute_raw(name, single_t{value});
     }
-
 
     std::map<std::string, single_t> attributes() const;
 
@@ -164,8 +166,6 @@ public:
 
     Entry parent() const;
 
-    Range<std::string, Entry> children() const;
-
     void clear();
 
     // as array
@@ -198,6 +198,8 @@ public:
     Entry operator[](const std::string&); // access or insert specified child
 
     void remove(const std::string&);
+
+    Range<Entry> children() const;
 
     //-------------------------------------------------------------------
     // level 1
