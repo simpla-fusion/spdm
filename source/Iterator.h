@@ -4,6 +4,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <type_traits>
 namespace sp
 {
 
@@ -34,80 +35,131 @@ template <typename T, typename... Others>
 struct IteratorProxy;
 
 template <typename T>
-class IteratorProxy<T>
+class IteratorProxy<T> : public std::iterator<std::input_iterator_tag, T>
 {
 public:
     typedef IteratorProxy<T> this_type;
-    typedef std::iterator_traits<T*> traits_type;
-    typedef typename traits_type::pointer pointer;
-    typedef typename traits_type::reference reference;
-    typedef typename traits_type::value_type value_type;
+    typedef std::iterator<std::input_iterator_tag, T> base_type;
+
+    using typename base_type::difference_type;
+    using typename base_type::pointer;
+    using typename base_type::reference;
+    using typename base_type::value_type;
 
     IteratorProxy() = default;
 
-    IteratorProxy(const IteratorProxy& other) = default;
+    IteratorProxy(const this_type& other) = default;
 
-    IteratorProxy(IteratorProxy&& other) = default;
+    IteratorProxy(this_type&& other) = default;
 
     virtual ~IteratorProxy() = default;
 
     virtual bool is_derived_from(const std::type_info& tinfo) const { return tinfo == typeid(this_type); }
 
-    virtual this_type* copy() const = 0;
+    virtual std::unique_ptr<this_type> copy() const = 0;
 
-    virtual IteratorProxy<const T>* const_copy() const = 0;
+    virtual bool equal(this_type const& other) const { return get_pointer() == other.get_pointer(); };
 
-    virtual pointer next() = 0;
+    virtual bool not_equal(this_type const& other) const { return !equal(other); };
+
+    virtual pointer get_pointer() const = 0;
+
+    virtual reference get_reference() const { return *get_pointer(); }
+
+    virtual void next() = 0;
 };
 
-template <typename T, typename IT>
-class IteratorProxy<T, IT> : public IteratorProxy<T>
+template <typename T, typename V>
+class IteratorProxy<T, V,
+                    std::enable_if_t<
+                        std::is_same_v<V, T*> ||
+                            std::is_same_v<V, std::remove_const_t<T>*> ||
+                            std::is_same_v<V, std::shared_ptr<T>> ||
+                            std::is_same_v<V, std::shared_ptr<std::remove_const_t<T>>>,
+                        void>> : public IteratorProxy<T>
 {
 public:
     typedef IteratorProxy<T> base_type;
-    typedef IteratorProxy<T, IT> this_type;
+    typedef IteratorProxy<T, V> this_type;
+    typedef V iterator;
 
+    using typename base_type::difference_type;
     using typename base_type::pointer;
     using typename base_type::reference;
     using typename base_type::value_type;
 
-    typedef IT iterator;
+    IteratorProxy(iterator&& it, difference_type pos = 0) : m_base_(std::move(it)), m_pos_(pos) {}
 
-    IteratorProxy(iterator&& it) : m_it_(std::move(it)) {}
+    IteratorProxy(const iterator& it, difference_type pos = 0) : m_base_(it), m_pos_(pos) {}
 
-    IteratorProxy(const iterator& it) : m_it_(it) {}
+    IteratorProxy(const this_type& other) : base_type(other), m_base_(other.m_base_), m_pos_(other.m_pos_) {}
 
-    IteratorProxy(const this_type& other) : base_type(other), m_it_(other.m_it_) {}
-
-    IteratorProxy(this_type&& other) : base_type(other), m_it_(std::move(other.m_it_)) {}
+    IteratorProxy(this_type&& other) : base_type(other), m_base_(std::move(other.m_base_)), m_pos_(other.m_pos_) {}
 
     virtual ~IteratorProxy() = default;
 
     bool is_derived_from(const std::type_info& tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
 
-    base_type* copy() const override { return new this_type(*this); };
+    std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); };
 
-    IteratorProxy<const T>* const_copy() const { return new IteratorProxy<const T, IT>(m_it_); }
+    pointer get_pointer() const override { return &(*m_base_) + m_pos_; }
 
-    pointer next() override
-    {
-        pointer p = const_cast<pointer>(&(*m_it_));
-        ++m_it_;
-        return p;
-    }
+    void next() override { ++m_pos_; }
 
 protected:
-    iterator m_it_;
+    iterator m_base_;
+    difference_type m_pos_;
 };
 
-template <typename T, typename IT, typename Mapper>
-struct IteratorProxy<T, IT, Mapper> : public IteratorProxy<T>
+template <typename T, typename V>
+class IteratorProxy<T, V,
+                    std::enable_if_t<
+                        std::is_same_v<V&, decltype(std::declval<V>().operator++())> &&
+                            std::is_same_v<T&, decltype(std::declval<V>().operator*())>,
+                        void>> : public IteratorProxy<T>
 {
 public:
-    typedef IteratorProxy<T, IT, Mapper> this_type;
+    typedef IteratorProxy<T> base_type;
+    typedef IteratorProxy<T, V> this_type;
+    typedef V iterator;
+
+    using typename base_type::difference_type;
+    using typename base_type::pointer;
+    using typename base_type::reference;
+    using typename base_type::value_type;
+
+    IteratorProxy(iterator&& it, difference_type pos = 0) : m_base_(std::move(it)) {}
+
+    IteratorProxy(const iterator& it, difference_type pos = 0) : m_base_(it) {}
+
+    IteratorProxy(const this_type& other) : base_type(other), m_base_(other.m_base_) {}
+
+    IteratorProxy(this_type&& other) : base_type(other), m_base_(std::move(other.m_base_)) {}
+
+    virtual ~IteratorProxy() = default;
+
+    bool is_derived_from(const std::type_info& tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
+
+    std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); };
+
+    pointer get_pointer() const { return &get_reference(); }
+
+    reference get_reference() const { return (*m_base_); }
+
+    void next() override { ++m_base_; }
+
+protected:
+    iterator m_base_;
+};
+template <typename T, typename V>
+struct IteratorProxy<T, Iterator<V>, std::function<U(const V&)>> : public IteratorProxy<T>
+{
+public:
+    typedef std::function<T(const V&)> mapper_t;
+    typedef IteratorProxy<T, V, Mapper> this_type;
     typedef IteratorProxy<T> base_type;
     typedef Mapper mapper_t;
-    typedef IT iterator;
+    typedef V iterator;
 
     using typename base_type::pointer;
     using typename base_type::value_type;
@@ -120,33 +172,16 @@ public:
 
     bool is_derived_from(const std::type_info& tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
 
-    base_type* copy() const override { return new this_type(*this); }
+    std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); }
 
-    IteratorProxy<const T>* const_copy() const { return new IteratorProxy<const T, IT, Mapper>(m_it_, m_mapper_); }
+    pointer get_pointer() const { return m_mapper_(*m_it_); }
 
-    pointer next() override
-    {
-        pointer p = nullptr;
-
-        try
-        {
-            p = m_mapper_(*m_it_);
-            ++m_it_;
-        }
-        catch (...)
-        {
-            p = nullptr;
-        }
-
-        return p;
-    }
+    void next() { ++m_it_; }
 
 private:
     iterator m_it_;
     mapper_t m_mapper_;
 };
-
-
 
 // template <typename T>
 // class IteratorProxy<T, std::shared_ptr<std::remove_const_t<T>>> : public IteratorProxy<T>
@@ -247,32 +282,24 @@ public:
     template <typename... U>
     friend class Iterator;
 
-    Iterator() : m_proxy_(nullptr), m_current_(nullptr) {}
+    Iterator() : m_proxy_(nullptr) {}
 
     Iterator(nullptr_t) = delete;
 
-    Iterator(pointer p) : m_proxy_(nullptr), m_current_(p) {}
+    Iterator(pointer p) : m_proxy_(nullptr) {}
 
     template <typename... Args>
-    Iterator(Args&&... args)
-        : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)),
-          m_current_(m_proxy_ == nullptr ? nullptr : m_proxy_->next())
-    {
-    }
+    Iterator(Args&&... args) : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)) {}
 
-    Iterator(Iterator const& other)
-        : m_proxy_(other.m_proxy_ == nullptr ? nullptr : other.m_proxy_->copy()), m_current_(other.m_current_) {}
+    Iterator(Iterator const& other) : m_proxy_(other.m_proxy_ == nullptr ? nullptr : other.m_proxy_->copy()) {}
 
-    Iterator(Iterator&& other)
-        : m_proxy_(other.m_proxy_.release()), m_current_(other.m_current_) { other.m_current_ = nullptr; }
+    Iterator(Iterator&& other) : m_proxy_(other.m_proxy_.release()) {}
 
     ~Iterator() {}
 
     void swap(Iterator& other)
     {
         std::swap(m_proxy_, other.m_proxy_);
-
-        std::swap(m_current_, other.m_current_);
     }
 
     Iterator& operator=(Iterator const& other)
@@ -281,43 +308,36 @@ public:
         return *this;
     }
 
-    bool operator==(Iterator const& other) const { return m_current_ == other.m_current_; }
+    bool operator==(Iterator const& other) const { return m_proxy_->equal(*other.m_proxy_); }
 
-    bool operator!=(Iterator const& other) const { return m_current_ != other.m_current_; }
+    bool operator!=(Iterator const& other) const { return m_proxy_->not_equal(*other.m_proxy_); }
 
-    bool operator==(pointer other) const { return m_current_ == other; }
+    bool operator==(pointer other) const { return m_proxy_->get_pointer() = other; }
 
-    bool operator!=(pointer other) const { return m_current_ != other; }
+    bool operator!=(pointer other) const { return m_proxy_->get_pointer() != other; }
 
-    operator bool() const { return m_current_ != nullptr; }
+    operator bool() const { return m_proxy_->get_pointer() != nullptr; }
 
-    pointer next()
-    {
-        m_current_ = m_proxy_ == nullptr ? nullptr : m_proxy_->next();
-        return m_current_;
-    }
     Iterator&
     operator++()
     {
-        next();
+        m_proxy_->next();
         return *this;
     }
 
     Iterator operator++(int)
     {
         Iterator res(*this);
-        next();
+        m_proxy_->next();
         return res;
     }
 
-    reference operator*() { return *m_current_; }
+    reference operator*() { return m_proxy_->get_reference(); }
 
-    pointer operator->() { return m_current_; }
+    pointer operator->() { return m_proxy_->get_pointer(); }
 
 private:
     std::unique_ptr<IteratorProxy<T>> m_proxy_;
-
-    pointer m_current_;
 
     auto make_iterator_proxy()
     {
