@@ -22,6 +22,9 @@ private:
     std::string m_prefix_;
     std::shared_ptr<EntryInterface> m_pimpl_;
 
+    std::shared_ptr<EntryInterface> get_self() const;
+    std::shared_ptr<EntryInterface> get_self();
+
 public:
     enum Type
     {
@@ -166,6 +169,8 @@ public:
 
     Entry parent() const;
 
+    Range<Entry> children() const;
+
     void clear();
 
     // as array
@@ -177,8 +182,6 @@ public:
     Entry push_back(); // append new item
 
     Entry pop_back(); // remove and return last item
-
-    Range<Entry> items() const;
 
     // as object
     // @note : map is unordered
@@ -198,8 +201,6 @@ public:
     Entry operator[](const std::string&); // access or insert specified child
 
     void remove(const std::string&);
-
-    Range<Entry> children() const;
 
     //-------------------------------------------------------------------
     // level 1

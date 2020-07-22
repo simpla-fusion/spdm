@@ -137,33 +137,92 @@ template <>
 std::shared_ptr<EntryInterface>
 EntryImplement<entry_memory>::find(const std::string& name) const
 {
-    return nullptr;
+    std::shared_ptr<EntryInterface> res = nullptr;
+    if (type() == Entry::Type::Object)
+    {
+
+        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+        auto it = m.find(name);
+        if (it != m.end())
+        {
+            res = it->second;
+        }
+    }
+
+    return res;
+};
+template <>
+std::shared_ptr<EntryInterface>
+EntryImplement<entry_memory>::find_r(const std::string& path) const
+{
+    int pos = 0;
+    auto res = const_cast<EntryImplement<entry_memory>*>(this)->shared_from_this();
+
+    while (res != nullptr && pos < path.size())
+    {
+        int end = path.find("/", pos);
+        if (end == std::string::npos)
+        {
+            end = path.size();
+        }
+        res = res->find(path.substr(pos, end - pos));
+        pos = end + 1;
+    }
+    return res;
 };
 
 template <>
 std::shared_ptr<EntryInterface>
 EntryImplement<entry_memory>::insert(const std::string& name)
 {
+    std::shared_ptr<EntryInterface> res = nullptr;
+
     if (type() == Entry::Type::Null)
     {
         m_pimpl_.emplace<Entry::Type::Object>();
     }
-    try
+
+    if (name == "")
+    {
+        res = this->shared_from_this();
+    }
+    else if (type() == Entry::Type::Object)
     {
         auto& m = std::get<Entry::Type::Object>(m_pimpl_);
-
-        return m.emplace(name, duplicate()).first->second;
+        res = m.emplace(name, duplicate()).first->second;
     }
-    catch (std::bad_variant_access&)
+    else
     {
-        return nullptr;
+        throw std::runtime_error("Can not insert node to non-object!");
     }
+
+    return res;
+}
+
+template <>
+std::shared_ptr<EntryInterface>
+EntryImplement<entry_memory>::insert_r(const std::string& path)
+{
+    int pos = 0;
+    std::shared_ptr<EntryInterface> res = shared_from_this();
+
+    while (res != nullptr && pos < path.size())
+    {
+        int end = path.find("/", pos);
+        if (end == std::string::npos)
+        {
+            end = path.size();
+        }
+        res = res->insert(path.substr(pos, end - pos));
+        pos = end + 1;
+    }
+    return res;
 }
 
 template <>
 void EntryImplement<entry_memory>::remove(const std::string& name)
 {
-    try
+    if (type() == Entry::Type::Object)
     {
         auto& m = std::get<Entry::Type::Object>(m_pimpl_);
         auto it = m.find(name);
@@ -172,16 +231,23 @@ void EntryImplement<entry_memory>::remove(const std::string& name)
             m.erase(it);
         }
     }
-    catch (std::bad_variant_access&)
-    {
-    }
 }
 
 template <>
 size_t EntryImplement<entry_memory>::size() const
 {
-    NOT_IMPLEMENTED;
-    return 0;
+    size_t res = 0;
+    if (type() == Entry::Type::Object)
+    {
+        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+        res = m.size();
+    }
+    else if (type() == Entry::Type::Array)
+    {
+        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+        res = m.size();
+    }
+    return res;
 }
 
 template <>
@@ -196,70 +262,67 @@ template <>
 Range<EntryInterface>
 EntryImplement<entry_memory>::children() const
 {
-    // if (type() == Entry::Type::Object)
-    // {
-    //     auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+    Range<EntryInterface> res{};
+    if (type() == Entry::Type::Object)
+    {
+        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
 
-    //     return Range<Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>>{
-    //         Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>(m.begin()),
-    //         Iterator<const std::pair<const std::string, std::shared_ptr<Entry>>>(m.end())};
-    // }
+        Range<EntryInterface>{m.begin(), m.end(), [](const auto& item) -> EntryInterface* { return item.second.get(); }}.swap(res);
+    }
+    else if (type() == Entry::Type::Array)
+    {
+        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
 
-    return Range<EntryInterface>{};
+        Range<EntryInterface>{m.begin(), m.end()}.swap(res);
+    }
+    return std::move(res);
 }
 
 // as arraytemplate <>
 template <>
 std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::push_back()
 {
+    std::shared_ptr<EntryInterface> res = nullptr;
     if (type() == Entry::Type::Null)
     {
         m_pimpl_.emplace<Entry::Type::Array>();
     }
-    try
+    if (type() == Entry::Type::Array)
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
         m.emplace_back(duplicate());
-        return *m.rbegin();
+        res = *m.rbegin();
     }
-    catch (std::bad_variant_access&)
-    {
-    };
 
-    return nullptr;
+    return res;
 }
 
 template <>
 std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::pop_back()
 {
-    // try
-    // {
-    //     auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-    //     std::shared_ptr<EntryInterface> res = *m.rbegin();
-    //     m.pop_back();
-    //     return res;
-    // }
-    // catch (std::bad_variant_access&)
-    // {
+    std::shared_ptr<EntryInterface> res = nullptr;
 
-    // }
+    if (type() == Entry::Type::Array)
+    {
+        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+        res = *m.rbegin();
+        m.pop_back();
+    }
 
-    return nullptr;
+    return res;
 }
 
 template <>
 std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx) const
 {
     std::shared_ptr<EntryInterface> res = nullptr;
-    try
+
+    if (type() == Entry::Type::Array)
     {
         auto& m = std::get<Entry::Type::Array>(m_pimpl_);
         res = m[idx];
     }
-    catch (std::bad_variant_access&)
-    {
-        RUNTIME_ERROR << "illegal entry type!" << std::endl;
-    };
+
     return res;
 }
 

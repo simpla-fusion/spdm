@@ -54,6 +54,33 @@ Entry& Entry::operator=(this_type const& other)
 }
 
 //
+
+std::shared_ptr<EntryInterface> Entry::get_self() const
+{
+    auto p = m_prefix_ == "" ? m_pimpl_ : m_pimpl_->find_r(m_prefix_);
+
+    if (p == nullptr)
+    {
+        throw std::out_of_range("Can not find node:" + m_prefix_);
+    }
+    
+    return p;
+}
+std::shared_ptr<EntryInterface> Entry::get_self()
+{
+    if (m_prefix_ != "")
+    {
+        auto p = m_pimpl_->insert_r(m_prefix_);
+        if (p == nullptr)
+        {
+            throw std::out_of_range("Can not find or insert node:" + m_prefix_);
+        }
+        m_pimpl_ = p;
+        m_prefix_ = "";
+    }
+    return m_pimpl_;
+}
+
 std::string Entry::full_path() const
 {
     NOT_IMPLEMENTED;
@@ -75,28 +102,28 @@ bool Entry::is_root() const { return m_pimpl_->parent() == nullptr; }
 bool Entry::is_leaf() const { return type() < Type::Array; };
 
 // attributes
-bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->find(m_prefix_)->has_attribute(name); }
+bool Entry::has_attribute(const std::string& name) const { return get_self()->has_attribute(name); }
 
-const Entry::single_t Entry::get_attribute_raw(const std::string& name) const { return m_pimpl_->find(m_prefix_)->get_attribute_raw(name); }
+const Entry::single_t Entry::get_attribute_raw(const std::string& name) const { return get_self()->get_attribute_raw(name); }
 
-void Entry::set_attribute_raw(const std::string& name, const single_t& value) { m_pimpl_->insert(m_prefix_)->set_attribute_raw(name, value); }
+void Entry::set_attribute_raw(const std::string& name, const single_t& value) { get_self()->set_attribute_raw(name, value); }
 
-void Entry::remove_attribute(const std::string& name) { m_pimpl_->find(m_prefix_)->remove_attribute(name); }
+void Entry::remove_attribute(const std::string& name) { get_self()->remove_attribute(name); }
 
-std::map<std::string, Entry::single_t> Entry::attributes() const { return m_pimpl_->find(m_prefix_)->attributes(); }
+std::map<std::string, Entry::single_t> Entry::attributes() const { return get_self()->attributes(); }
 
 // as leaf
-void Entry::set_single(const single_t& v) { m_pimpl_->insert(m_prefix_)->set_single(v); }
+void Entry::set_single(const single_t& v) { get_self()->set_single(v); }
 
-Entry::single_t Entry::get_single() const { return m_pimpl_->find(m_prefix_)->get_single(); }
+Entry::single_t Entry::get_single() const { return get_self()->get_single(); }
 
-void Entry::set_tensor(const tensor_t& v) { m_pimpl_->insert(m_prefix_)->set_tensor(v); }
+void Entry::set_tensor(const tensor_t& v) { get_self()->set_tensor(v); }
 
-Entry::tensor_t Entry::get_tensor() const { return m_pimpl_->find(m_prefix_)->get_tensor(); }
+Entry::tensor_t Entry::get_tensor() const { return get_self()->get_tensor(); }
 
-void Entry::set_block(const block_t& v) { m_pimpl_->insert(m_prefix_)->set_block(v); }
+void Entry::set_block(const block_t& v) { get_self()->set_block(v); }
 
-Entry::block_t Entry::get_block() const { return m_pimpl_->find(m_prefix_)->get_block(); }
+Entry::block_t Entry::get_block() const { return get_self()->get_block(); }
 
 // as Tree
 // as container
@@ -120,20 +147,22 @@ Entry& Entry::self() { return *this; }
 
 Range<Entry> Entry::children() const
 {
-    auto p = m_prefix_ == "" ? m_pimpl_ : m_pimpl_->find(m_prefix_);
-
-    return (p == nullptr) ? Range<Entry>{} : p->children().template map<Entry>([](const auto& item) { return Entry{item}; });
+    return get_self()->children().map<Entry>([](const auto& item) { return Entry{item}; });
 }
 
 // as array
 
-Entry Entry::push_back() { return Entry{m_pimpl_->insert(m_prefix_)->push_back()}; }
+Entry Entry::push_back() { return Entry{get_self()->push_back()}; }
 
-Entry Entry::pop_back() { return Entry{m_pimpl_->insert(m_prefix_)->pop_back()}; }
+Entry Entry::pop_back() { return Entry{get_self()->pop_back()}; }
 
-Entry Entry::operator[](int idx) { return Entry{m_pimpl_->insert(m_prefix_)->item(idx)}; }
+Entry Entry::operator[](int idx) { return Entry{get_self()->item(idx)}; }
 
-Range<Entry> Entry::items() const { return Range<Entry>{}; }
+Entry Entry::operator[](int idx) const
+{
+
+    return Entry{get_self()->item(idx)};
+}
 
 // as map
 // @note : map is unordered

@@ -87,8 +87,10 @@ public:
 
     // as object
     virtual std::shared_ptr<EntryInterface> insert(const std::string& path) = 0;
+    virtual std::shared_ptr<EntryInterface> insert_r(const std::string& path) = 0;
 
     virtual std::shared_ptr<EntryInterface> find(const std::string& path) const = 0;
+    virtual std::shared_ptr<EntryInterface> find_r(const std::string& path) const = 0;
 
     virtual Range<EntryInterface> children() const = 0;
 
@@ -164,9 +166,11 @@ public:
     Range<EntryInterface> items() const override;
 
     // as object
-    std::shared_ptr<EntryInterface> insert(const std::string& path) override;
+    std::shared_ptr<EntryInterface> insert(const std::string& key) override;
+    std::shared_ptr<EntryInterface> insert_r(const std::string& path) override;
 
-    std::shared_ptr<EntryInterface> find(const std::string& path) const override;
+    std::shared_ptr<EntryInterface> find(const std::string& key) const override;
+    std::shared_ptr<EntryInterface> find_r(const std::string& path) const override;
 
     void remove(const std::string& path) override;
 
