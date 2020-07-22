@@ -151,14 +151,13 @@ public:
 protected:
     iterator m_base_;
 };
-template <typename T, typename V>
-struct IteratorProxy<T, Iterator<V>, std::function<U(const V&)>> : public IteratorProxy<T>
+template <typename T, typename V, typename Mapper>
+struct IteratorProxy<T, Iterator<V>, Mapper> : public IteratorProxy<T>
 {
 public:
-    typedef std::function<T(const V&)> mapper_t;
-    typedef IteratorProxy<T, V, Mapper> this_type;
-    typedef IteratorProxy<T> base_type;
     typedef Mapper mapper_t;
+    typedef IteratorProxy<T, V, mapper_t> this_type;
+    typedef IteratorProxy<T> base_type;
     typedef V iterator;
 
     using typename base_type::pointer;
@@ -286,7 +285,7 @@ public:
 
     Iterator(nullptr_t) = delete;
 
-    Iterator(pointer p) : m_proxy_(nullptr) {}
+    explicit Iterator(pointer p) : m_proxy_(nullptr) {}
 
     template <typename... Args>
     Iterator(Args&&... args) : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)) {}
