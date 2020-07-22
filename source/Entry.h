@@ -19,7 +19,6 @@ class EntryInterface;
 class Entry
 {
 private:
-    // std::experimental::propagate_const<>
     std::string m_prefix_;
     std::shared_ptr<EntryInterface> m_pimpl_;
 
@@ -54,8 +53,6 @@ public:
                        std::vector<size_t> /* dimensions */
                        >
         block_t;
-
-    typedef Range<Entry> range;
 
     friend class EntryInterface;
 
@@ -107,7 +104,10 @@ public:
     bool has_attribute(const std::string& name) const;
 
     const single_t get_attribute_raw(const std::string& name);
+    
     void set_attribute_raw(const std::string& name, const single_t& value);
+    
+    void remove_attribute(const std::string& name);
 
     template <typename V>
     const single_t get_attribute(const std::string& name)
@@ -119,13 +119,13 @@ public:
     {
         set_attribute_raw(name, single_t{std::string(value)});
     }
+    
     template <typename V>
     void set_attribute(const std::string& name, const V& value)
     {
         set_attribute_raw(name, single_t{value});
     }
 
-    void remove_attribute(const std::string& name);
 
     std::map<std::string, single_t> attributes() const;
 
@@ -164,7 +164,7 @@ public:
 
     Entry parent() const;
 
-    range children() const;
+    Range<std::string, Entry> children() const;
 
     void clear();
 
@@ -177,6 +177,8 @@ public:
     Entry push_back(); // append new item
 
     Entry pop_back(); // remove and return last item
+
+    Range<Entry> items() const;
 
     // as object
     // @note : map is unordered
@@ -203,15 +205,15 @@ public:
 
     Entry insert(const XPath&);
 
-    range find(const XPath&) const;
+    Range<Entry> find(const XPath&) const;
 
     typedef std::function<bool(const Entry&)> pred_fun;
 
-    range find(const pred_fun&) const;
+    Range<Entry> find(const pred_fun&) const;
 
-    int update(const range&, const Entry&);
+    int update(const Range<std::string, Entry>&, const Entry&);
 
-    int remove(const range&);
+    int remove(const Range<std::string, Entry>&);
 
     //-------------------------------------------------------------------
     // level 2
@@ -220,20 +222,21 @@ public:
 
     size_t height() const; // max(children.height) +1
 
-    range slibings() const; // return slibings
+    Range<Entry> slibings() const; // return slibings
 
-    range ancestor() const; // return ancestor
+    Range<Entry> ancestor() const; // return ancestor
 
-    range descendants() const; // return descendants
+    Range<Entry> descendants() const; // return descendants
 
-    range leaves() const; // return leave nodes in traversal order
+    Range<Entry> leaves() const; // return leave nodes in traversal order
 
-    range shortest_path(Entry const& target) const; // return the shortest path to target
+    Range<Entry> shortest_path(Entry const& target) const; // return the shortest path to target
 
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
 
 std::string to_string(const Entry::single_t& s);
+
 Entry::single_t from_string(const std::string& s);
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

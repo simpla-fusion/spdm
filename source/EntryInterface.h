@@ -75,15 +75,11 @@ public:
 
     virtual std::shared_ptr<EntryInterface> parent() const = 0;
 
-    virtual Range<std::string, std::shared_ptr<EntryInterface>> children() const = 0;
-
     // as array
 
     virtual std::shared_ptr<EntryInterface> push_back() = 0;
 
     virtual std::shared_ptr<EntryInterface> pop_back() = 0;
-
-    virtual std::shared_ptr<EntryInterface> item(int idx) = 0;
 
     virtual std::shared_ptr<EntryInterface> item(int idx) const = 0;
 
@@ -92,9 +88,9 @@ public:
     // as object
     virtual std::shared_ptr<EntryInterface> insert(const std::string& path) = 0;
 
-    virtual std::shared_ptr<EntryInterface> find(const std::string& path) = 0;
-
     virtual std::shared_ptr<EntryInterface> find(const std::string& path) const = 0;
+
+    virtual Range<std::string, std::shared_ptr<EntryInterface>> children() const = 0;
 
     virtual void remove(const std::string& path) = 0;
 };
@@ -107,9 +103,13 @@ public:
     using EntryInterface::m_self_;
 
     EntryImplement();
+
     EntryImplement(const Impl&);
+
     EntryImplement(const EntryImplement&);
+
     EntryImplement(EntryImplement&&);
+
     ~EntryImplement();
 
     void swap(EntryImplement& other);
@@ -154,16 +154,11 @@ public:
 
     std::shared_ptr<EntryInterface> parent() const;
 
-    Range<std::string, std::shared_ptr<EntryInterface>> children() const;
-
     // as array
-
     std::shared_ptr<EntryInterface> push_back() override;
 
     std::shared_ptr<EntryInterface> pop_back() override;
 
-    std::shared_ptr<EntryInterface> item(int idx) override;
-    
     std::shared_ptr<EntryInterface> item(int idx) const override;
 
     Range<std::shared_ptr<EntryInterface>> items() const override;
@@ -171,11 +166,11 @@ public:
     // as object
     std::shared_ptr<EntryInterface> insert(const std::string& path) override;
 
-    std::shared_ptr<EntryInterface> find(const std::string& path) override;
-
     std::shared_ptr<EntryInterface> find(const std::string& path) const override;
 
     void remove(const std::string& path) override;
+
+    Range<std::string, std::shared_ptr<EntryInterface>> children() const;
 
 private:
     Impl m_pimpl_;

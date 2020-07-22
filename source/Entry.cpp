@@ -11,17 +11,8 @@
 namespace sp
 {
 template <typename... Others>
-std::string join_path(const std::string& l, const std::string& r)
-{
-    if (l == "")
-    {
-        return r;
-    }
-    else
-    {
-        return l + "/" + r;
-    }
-}
+std::string join_path(const std::string& l, const std::string& r) { return (l == "") ? r : l + "/" + r; }
+
 template <typename... Others>
 std::string join_path(const std::string& l, const std::string& r, Others&&... others)
 {
@@ -124,12 +115,15 @@ Entry const& Entry::self() const { return *this; }
 
 Entry& Entry::self() { return *this; }
 
-Entry::range Entry::children() const
+Range<std::string, Entry> Entry::children() const
 {
     return m_pimpl_
         ->find(m_prefix_)
         ->children()
-        .template map<Entry>([](const std::string& k, const std::shared_ptr<EntryInterface>& p) -> Entry { return Entry{p}; });
+        .template map<std::string, Entry>(
+            [](const std::string& k, const std::shared_ptr<EntryInterface>& p) {
+                return std::tuple<std::string, Entry>{k, Entry{p}};
+            });
 }
 
 // as array
@@ -139,6 +133,8 @@ Entry Entry::push_back() { return Entry{m_pimpl_->insert(m_prefix_)->push_back()
 Entry Entry::pop_back() { return Entry{m_pimpl_->insert(m_prefix_)->pop_back()}; }
 
 Entry Entry::operator[](int idx) { return Entry{m_pimpl_->insert(m_prefix_)->item(idx)}; }
+
+Range<Entry> Entry::items() const { return Range<Entry>{}; }
 
 // as map
 // @note : map is unordered
@@ -162,30 +158,30 @@ size_t Entry::height() const
     return 0;
 }
 
-Entry::range Entry::slibings() const { return range{}; }
+Range<Entry> Entry::slibings() const { return Range<Entry>{}; }
 
-Entry::range Entry::ancestor() const
+Range<Entry> Entry::ancestor() const
 {
     NOT_IMPLEMENTED;
-    return range{};
+    return Range<Entry>{};
 }
 
-Entry::range Entry::descendants() const
+Range<Entry> Entry::descendants() const
 {
     NOT_IMPLEMENTED;
-    return range{};
+    return Range<Entry>{};
 }
 
-Entry::range Entry::leaves() const
+Range<Entry> Entry::leaves() const
 {
     NOT_IMPLEMENTED;
-    return range{};
+    return Range<Entry>{};
 }
 
-Entry::range Entry::shortest_path(Entry const& target) const
+Range<Entry> Entry::shortest_path(Entry const& target) const
 {
     NOT_IMPLEMENTED;
-    return range{};
+    return Range<Entry>{};
 }
 
 ptrdiff_t Entry::distance(const this_type& target) const

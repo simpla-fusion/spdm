@@ -9,6 +9,9 @@ namespace sp
 
 //##############################################################################################################
 // iterator
+template <typename... T>
+class Iterator;
+
 template <typename T, typename... Others>
 struct IteratorProxy;
 
@@ -165,12 +168,12 @@ private:
     mapper_t m_mapper_;
 };
 
-template <typename U, typename... V>
-struct IteratorProxy<U, IteratorProxy<V...>, std::function<U(const V&...)>> : public IteratorProxy<U>
+template <typename U, typename... V, typename Mapper>
+struct IteratorProxy<U, Iterator<V...>, Mapper> : public IteratorProxy<U>
 {
 public:
-    typedef std::function<U(const V&...)> mapper_t;
-    typedef IteratorProxy<V...> iterator;
+    typedef Mapper mapper_t;
+    typedef Iterator<V...> iterator;
     typedef IteratorProxy<U, iterator, mapper_t> this_type;
     typedef IteratorProxy<U> base_type;
 
@@ -210,8 +213,6 @@ private:
     iterator m_it_;
     mapper_t m_mapper_;
 };
-template <typename... T>
-class Iterator;
 
 template <typename T>
 class Iterator<T> : public std::iterator_traits<T*>
@@ -328,6 +329,8 @@ private:
 template <typename... T>
 class Iterator : public Iterator<std::tuple<T...>>
 {
+    typedef Iterator<std::tuple<T...>> base_type;
+    using base_type::Iterator;
 };
 
 } // namespace sp

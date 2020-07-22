@@ -135,24 +135,6 @@ Entry::block_t EntryImplement<entry_memory>::get_block() const
 // as object
 template <>
 std::shared_ptr<EntryInterface>
-EntryImplement<entry_memory>::find(const std::string& name)
-{
-    // try
-    // {
-    //     auto const& m = std::get<Entry::Type::Object>(m_pimpl_);
-    //     auto it = m.find(name);
-    //     // if (it != m.end())
-    //     // {
-    //     //     return it->second;
-    //     // }
-    // }
-    // catch (std::bad_variant_access&)
-    // {
-    // }
-    return nullptr;
-}
-template <>
-std::shared_ptr<EntryInterface>
 EntryImplement<entry_memory>::find(const std::string& name) const
 {
     return nullptr;
@@ -267,20 +249,6 @@ std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::pop_back()
 }
 
 template <>
-std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx)
-{
-    // try
-    // {
-    //     auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-    //     return m[idx];
-    // }
-    // catch (std::bad_variant_access&)
-    // {
-    // };
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
-template <>
 std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx) const
 {
     // try
@@ -322,6 +290,7 @@ EntryImplement<entry_memory>::items() const
 // attributes
 template <>
 bool EntryImplement<entry_memory>::has_attribute(const std::string& name) const { return find("@" + name) != nullptr; }
+
 template <>
 Entry::single_t EntryImplement<entry_memory>::get_attribute_raw(const std::string& name) const
 {
@@ -333,9 +302,12 @@ Entry::single_t EntryImplement<entry_memory>::get_attribute_raw(const std::strin
     return p->get_single();
 }
 template <>
+
 void EntryImplement<entry_memory>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
+
 template <>
 void EntryImplement<entry_memory>::remove_attribute(const std::string& name) { remove("@" + name); }
+
 template <>
 std::map<std::string, Entry::single_t> EntryImplement<entry_memory>::attributes() const
 {
