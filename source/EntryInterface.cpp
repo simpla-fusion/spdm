@@ -48,7 +48,14 @@ std::unique_ptr<EntryInterface> EntryInterface::create(const std::string& uri)
 
     auto res = Factory<EntryInterface>::create(schema);
 
-    VERBOSE << "load backend:" << schema << std::endl;
+    if (res == nullptr)
+    {
+        throw std::runtime_error("Can not create EntryInterface for schema: " + schema);
+    }
+    else
+    {
+        VERBOSE << "load backend:" << schema << std::endl;
+    }
 
     // if (schema != uri)
     // {

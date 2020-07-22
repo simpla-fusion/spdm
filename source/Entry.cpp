@@ -74,9 +74,9 @@ bool Entry::is_leaf() const { return type() < Type::Array; };
 // attributes
 bool Entry::has_attribute(const std::string& name) const { return m_pimpl_->find(m_prefix_)->has_attribute(name); }
 
-const Entry::single_t Entry::get_attribute_raw(const std::string& name) { return m_pimpl_->find(m_prefix_)->get_attribute_raw(name); }
+const Entry::single_t Entry::get_attribute_raw(const std::string& name) const { return m_pimpl_->find(m_prefix_)->get_attribute_raw(name); }
 
-void Entry::set_attribute_raw(const std::string& name, const single_t& value) { m_pimpl_->find(m_prefix_)->set_attribute_raw(name, value); }
+void Entry::set_attribute_raw(const std::string& name, const single_t& value) { m_pimpl_->insert(m_prefix_)->set_attribute_raw(name, value); }
 
 void Entry::remove_attribute(const std::string& name) { m_pimpl_->find(m_prefix_)->remove_attribute(name); }
 
@@ -121,9 +121,10 @@ Range<std::string, Entry> Entry::children() const
         ->find(m_prefix_)
         ->children()
         .template map<std::string, Entry>(
-            [](const std::string& k, const std::shared_ptr<EntryInterface>& p) {
-                return std::tuple<std::string, Entry>{k, Entry{p}};
+            [](const auto& item) {
+                return std::tuple<std::string, Entry>{std::get<0>(item), Entry{std::get<1>(item)}};
             });
+    // return Range<std::string, Entry> {};
 }
 
 // as array

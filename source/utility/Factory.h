@@ -105,7 +105,7 @@ public:
         }
         else
         {
-            RUNTIME_ERROR << "Can not find Creator \"" << k << "\"" << std::endl;
+            VERBOSE << "Can not find Creator \"" << k << "\"" << std::endl;
         }
         return std::unique_ptr<TObj>(res);
     }

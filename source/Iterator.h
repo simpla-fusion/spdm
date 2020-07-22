@@ -12,6 +12,24 @@ namespace sp
 template <typename... T>
 class Iterator;
 
+template <typename T>
+struct IteratorTraits : public std::iterator<std::input_iterator_tag, T>
+{
+    typedef std::iterator<std::input_iterator_tag, T> base_type;
+    using base_type::difference_type;
+    using base_type::pointer;
+    using base_type::reference;
+    using base_type ::value_type;
+};
+template <typename T>
+struct IteratorTraits<std::shared_ptr<T>>
+{
+    typedef ptrdiff_t difference_type;
+    typedef std::shared_ptr<T> pointer;
+    typedef T& reference;
+    typedef T value_type;
+};
+
 template <typename T, typename... Others>
 struct IteratorProxy;
 
@@ -215,14 +233,14 @@ private:
 };
 
 template <typename T>
-class Iterator<T> : public std::iterator_traits<T*>
+class Iterator<T> : public IteratorTraits<T>
 {
 public:
-    typedef std::iterator_traits<T*> traits_type;
+    typedef IteratorTraits<T> base_type;
 
-    using typename traits_type::pointer;
-    using typename traits_type::reference;
-    using typename traits_type::value_type;
+    using typename base_type::pointer;
+    using typename base_type::reference;
+    using typename base_type::value_type;
 
     template <typename... U>
     friend class Iterator;
@@ -234,7 +252,7 @@ public:
     Iterator(pointer p) : m_proxy_(nullptr), m_current_(p) {}
 
     template <typename... Args>
-    Iterator(Args&&... args) : m_proxy_(make_iterator_proxy<T>(std::forward<Args>(args)...)), m_current_(m_proxy_->next()) {}
+    Iterator(Args&&... args) : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)), m_current_(m_proxy_->next()) {}
 
     Iterator(Iterator const& other) : m_proxy_(other.m_proxy_->copy()), m_current_(other.m_current_) {}
 
@@ -293,34 +311,39 @@ private:
 
     pointer m_current_;
 
-    template <typename U>
     auto make_iterator_proxy()
     {
-        return new IteratorProxy<U>();
+        return new IteratorProxy<value_type>();
     }
-    template <typename U>
-    auto make_iterator_proxy(U* p)
+    auto make_iterator_proxy(value_type* p)
     {
-        return new IteratorProxy<U>(p);
+        return new IteratorProxy<value_type>(p);
     }
 
-    template <typename U, typename TI>
+    template <typename TI>
     auto make_iterator_proxy(const TI& it)
     {
-        return new IteratorProxy<U, TI>(it);
+        return new IteratorProxy<value_type, TI>(it);
     }
-    template <typename U, typename TI, typename Mapper>
+    template <typename TI, typename Mapper>
     auto make_iterator_proxy(const TI& it, const Mapper& mapper)
     {
-        return new IteratorProxy<U, TI, Mapper>(it, mapper);
+        return new IteratorProxy<value_type, TI, Mapper>(it, mapper);
     }
-    template <typename U, typename V>
-    auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<U, const V>, void*> _ = nullptr)
+
+    template <typename TI>
+    auto make_iterator_proxy(const TI& it, const std::function<bool(const value_type&)>& filter)
+    {
+        return new IteratorProxy<value_type, TI, std::function<bool(const value_type&)>>(it, filter);
+    }
+
+    template <typename V>
+    auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<value_type, const V>, void*> _ = nullptr)
     {
         return other.m_proxy_->const_copy();
     }
-    template <typename U, typename V>
-    auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<U, V>, void*> _ = nullptr)
+    template <typename V>
+    auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<value_type, V>, void*> _ = nullptr)
     {
         return other.m_proxy_->copy();
     }

@@ -103,7 +103,7 @@ public:
 
     bool has_attribute(const std::string& name) const;
 
-    const single_t get_attribute_raw(const std::string& name);
+    const single_t get_attribute_raw(const std::string& name)const;
     
     void set_attribute_raw(const std::string& name, const single_t& value);
     

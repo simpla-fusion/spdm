@@ -185,7 +185,7 @@ size_t EntryImplement<entry_memory>::size() const
 }
 
 template <>
-std::shared_ptr<EntryInterface> 
+std::shared_ptr<EntryInterface>
 EntryImplement<entry_memory>::parent() const
 {
     NOT_IMPLEMENTED;
@@ -212,20 +212,19 @@ EntryImplement<entry_memory>::children() const
 template <>
 std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::push_back()
 {
-    // if (type() == Entry::Type::Null)
-    // {
-    //     m_pimpl_.emplace<Entry::Type::Array>();
-    // }
-    // try
-    // {
-    //     auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-    //     m.emplace_back(std::make_shared<EntryImplement<entry_memory>>(duplicate()));
-    //     return *m.rbegin();
-    // }
-    // catch (std::bad_variant_access&)
-    // {
-
-    // };
+    if (type() == Entry::Type::Null)
+    {
+        m_pimpl_.emplace<Entry::Type::Array>();
+    }
+    try
+    {
+        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+        m.emplace_back(duplicate());
+        return *m.rbegin();
+    }
+    catch (std::bad_variant_access&)
+    {
+    };
 
     return nullptr;
 }
@@ -251,40 +250,39 @@ std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::pop_back()
 template <>
 std::shared_ptr<EntryInterface> EntryImplement<entry_memory>::item(int idx) const
 {
-    // try
-    // {
-    //     auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-    //     return m[idx];
-    // }
-    // catch (std::bad_variant_access&)
-    // {
-    // };
-    NOT_IMPLEMENTED;
-    return nullptr;
+    std::shared_ptr<EntryInterface> res = nullptr;
+    try
+    {
+        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
+        res = m[idx];
+    }
+    catch (std::bad_variant_access&)
+    {
+        RUNTIME_ERROR << "illegal entry type!" << std::endl;
+    };
+    return res;
 }
 
 template <>
 Range<std::shared_ptr<EntryInterface>>
 EntryImplement<entry_memory>::items() const
 {
-    // if (type() == Entry::Type::Array)
-    // {
-    //     auto& m = std::get<Entry::Type::Array>(m_pimpl_);
-    //     return Entry::range{Entry::iterator(m.begin()),
-    //                         Entry::iterator(m.end())};
-    //     ;
-    // }
-    // else if (type() == Entry::Type::Object)
-    // {
-    //     auto& m = std::get<Entry::Type::Object>(m_pimpl_);
-    //     auto mapper = [](auto const& item) -> std::shared_ptr<Entry> { return &item->second; };
-    //     return Entry::range{Entry::iterator(m.begin(), mapper),
-    //                         Entry::iterator(m.end(), mapper)};
-    // }
+    Range<std::shared_ptr<EntryInterface>> res{};
 
-    NOT_IMPLEMENTED;
+    if (type() == Entry::Type::Array)
+    {
+        auto& m = std::get<Entry::Type::Array>(m_pimpl_);
 
-    return Range<std::shared_ptr<EntryInterface>>{};
+        Range<std::shared_ptr<EntryInterface>>{m.begin(), m.end()}.swap(res);
+    }
+    else if (type() == Entry::Type::Object)
+    {
+        auto& m = std::get<Entry::Type::Object>(m_pimpl_);
+        auto mapper = [](auto const& item) -> std::shared_ptr<EntryInterface> { return item->second; };
+        Range<std::shared_ptr<EntryInterface>>{m.begin(), m.end(), mapper}.swap(res);
+    }
+
+    return res;
 }
 
 // attributes
@@ -303,7 +301,10 @@ Entry::single_t EntryImplement<entry_memory>::get_attribute_raw(const std::strin
 }
 template <>
 
-void EntryImplement<entry_memory>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
+void EntryImplement<entry_memory>::set_attribute_raw(const std::string& name, const Entry::single_t& value)
+{
+    insert("@" + name)->set_single(value);
+}
 
 template <>
 void EntryImplement<entry_memory>::remove_attribute(const std::string& name) { remove("@" + name); }
