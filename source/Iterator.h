@@ -31,7 +31,7 @@ struct IteratorTraits<std::shared_ptr<T>>
     typedef T value_type;
 };
 
-template <typename T, typename... Others>
+template <typename T, typename V = T, typename Enable = void>
 struct IteratorProxy;
 
 template <typename T>
@@ -72,11 +72,10 @@ public:
 template <typename T, typename V>
 class IteratorProxy<T, V,
                     std::enable_if_t<
-                        std::is_same_v<V, T*> ||
-                            std::is_same_v<V, std::remove_const_t<T>*> ||
-                            std::is_same_v<V, std::shared_ptr<T>> ||
-                            std::is_same_v<V, std::shared_ptr<std::remove_const_t<T>>>,
-                        void>> : public IteratorProxy<T>
+                        // std::is_same_v<V, T*> ||
+                        // std::is_same_v<V, std::remove_const_t<T>*> ||
+                        std::is_same_v<V, std::shared_ptr<T>> ||
+                        std::is_same_v<V, std::shared_ptr<std::remove_const_t<T>>>>> : public IteratorProxy<T>
 {
 public:
     typedef IteratorProxy<T> base_type;
@@ -92,9 +91,9 @@ public:
 
     IteratorProxy(const iterator& it, difference_type pos = 0) : m_base_(it), m_pos_(pos) {}
 
-    IteratorProxy(const this_type& other) : base_type(other), m_base_(other.m_base_), m_pos_(other.m_pos_) {}
+    IteratorProxy(const this_type& other) : m_base_(other.m_base_), m_pos_(other.m_pos_) {}
 
-    IteratorProxy(this_type&& other) : base_type(other), m_base_(std::move(other.m_base_)), m_pos_(other.m_pos_) {}
+    IteratorProxy(this_type&& other) : m_base_(std::move(other.m_base_)), m_pos_(other.m_pos_) {}
 
     virtual ~IteratorProxy() = default;
 
@@ -112,11 +111,7 @@ protected:
 };
 
 template <typename T, typename V>
-class IteratorProxy<T, V,
-                    std::enable_if_t<
-                        std::is_same_v<V&, decltype(std::declval<V>().operator++())> &&
-                            std::is_same_v<T&, decltype(std::declval<V>().operator*())>,
-                        void>> : public IteratorProxy<T>
+class IteratorProxy<T, V, std::enable_if_t<std::is_same_v<T, typename std::iterator_traits<V>::value_type>>> : public IteratorProxy<T>
 {
 public:
     typedef IteratorProxy<T> base_type;
@@ -151,36 +146,37 @@ public:
 protected:
     iterator m_base_;
 };
-template <typename T, typename V, typename Mapper>
-struct IteratorProxy<T, Iterator<V>, Mapper> : public IteratorProxy<T>
-{
-public:
-    typedef Mapper mapper_t;
-    typedef IteratorProxy<T, V, mapper_t> this_type;
-    typedef IteratorProxy<T> base_type;
-    typedef V iterator;
 
-    using typename base_type::pointer;
-    using typename base_type::value_type;
+// template <typename T, typename V, typename Mapper>
+// struct IteratorProxy<T, Iterator<V>, Mapper> : public IteratorProxy<T>
+// {
+// public:
+//     typedef Mapper mapper_t;
+//     typedef IteratorProxy<T, V, mapper_t> this_type;
+//     typedef IteratorProxy<T> base_type;
+//     typedef V iterator;
 
-    IteratorProxy(iterator const& it, mapper_t const& mapper) : m_it_(it), m_mapper_(mapper) {}
-    IteratorProxy(iterator&& it, mapper_t&& mapper) : m_it_(std::move(it)), m_mapper_(std::move(mapper)) {}
-    IteratorProxy(this_type const& other) : m_it_(other.m_it_), m_mapper_(other.m_mapper_) {}
-    IteratorProxy(this_type&& other) : m_it_(std::move(other.m_it_)), m_mapper_(std::move(other.m_mapper_)) {}
-    ~IteratorProxy() = default;
+//     using typename base_type::pointer;
+//     using typename base_type::value_type;
 
-    bool is_derived_from(const std::type_info& tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
+//     IteratorProxy(iterator const& it, mapper_t const& mapper) : m_it_(it), m_mapper_(mapper) {}
+//     IteratorProxy(iterator&& it, mapper_t&& mapper) : m_it_(std::move(it)), m_mapper_(std::move(mapper)) {}
+//     IteratorProxy(this_type const& other) : m_it_(other.m_it_), m_mapper_(other.m_mapper_) {}
+//     IteratorProxy(this_type&& other) : m_it_(std::move(other.m_it_)), m_mapper_(std::move(other.m_mapper_)) {}
+//     ~IteratorProxy() = default;
 
-    std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); }
+//     bool is_derived_from(const std::type_info& tinfo) const override { return tinfo == typeid(this_type) || base_type::is_derived_from(tinfo); }
 
-    pointer get_pointer() const { return m_mapper_(*m_it_); }
+//     std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); }
 
-    void next() { ++m_it_; }
+//     pointer get_pointer() const { return m_mapper_(*m_it_); }
 
-private:
-    iterator m_it_;
-    mapper_t m_mapper_;
-};
+//     void next() { ++m_it_; }
+
+// private:
+//     iterator m_it_;
+//     mapper_t m_mapper_;
+// };
 
 // template <typename T>
 // class IteratorProxy<T, std::shared_ptr<std::remove_const_t<T>>> : public IteratorProxy<T>
@@ -274,6 +270,8 @@ class Iterator<T> : public IteratorTraits<T>
 public:
     typedef IteratorTraits<T> base_type;
 
+    typedef Iterator<T> this_type;
+
     using typename base_type::pointer;
     using typename base_type::reference;
     using typename base_type::value_type;
@@ -281,25 +279,16 @@ public:
     template <typename... U>
     friend class Iterator;
 
-    Iterator() : m_proxy_(nullptr) {}
+    template <typename V, typename... Others>
+    Iterator(const V& v, Others&&... others) : m_proxy_(new IteratorProxy<T, V>(v, std::forward<Others>(others)...)) {}
 
-    Iterator(nullptr_t) = delete;
+    Iterator(const this_type& other) : m_proxy_(other.m_proxy_ == nullptr ? nullptr : other.m_proxy_->copy()) {}
 
-    explicit Iterator(pointer p) : m_proxy_(nullptr) {}
-
-    template <typename... Args>
-    Iterator(Args&&... args) : m_proxy_(make_iterator_proxy(std::forward<Args>(args)...)) {}
-
-    Iterator(Iterator const& other) : m_proxy_(other.m_proxy_ == nullptr ? nullptr : other.m_proxy_->copy()) {}
-
-    Iterator(Iterator&& other) : m_proxy_(other.m_proxy_.release()) {}
+    Iterator(this_type&& other) : m_proxy_(other.m_proxy_.release()) {}
 
     ~Iterator() {}
 
-    void swap(Iterator& other)
-    {
-        std::swap(m_proxy_, other.m_proxy_);
-    }
+    void swap(this_type& other) { std::swap(m_proxy_, other.m_proxy_); }
 
     Iterator& operator=(Iterator const& other)
     {
@@ -307,9 +296,9 @@ public:
         return *this;
     }
 
-    bool operator==(Iterator const& other) const { return m_proxy_->equal(*other.m_proxy_); }
+    bool operator==(Iterator const& other) const { return m_proxy_ != nullptr || m_proxy_->equal(*other.m_proxy_); }
 
-    bool operator!=(Iterator const& other) const { return m_proxy_->not_equal(*other.m_proxy_); }
+    bool operator!=(Iterator const& other) const { return m_proxy_ == other.m_proxy_ || m_proxy_->not_equal(*other.m_proxy_); }
 
     bool operator==(pointer other) const { return m_proxy_->get_pointer() = other; }
 
@@ -338,42 +327,28 @@ public:
 private:
     std::unique_ptr<IteratorProxy<T>> m_proxy_;
 
-    auto make_iterator_proxy()
-    {
-        return new IteratorProxy<value_type>();
-    }
-    auto make_iterator_proxy(value_type* p)
-    {
-        return new IteratorProxy<value_type>(p);
-    }
+    // template <typename TI>
+    // auto make_iterator_proxy(const TI& it)
+    // {
+    //     return new IteratorProxy<value_type, TI>(it);
+    // }
 
-    template <typename TI>
-    auto make_iterator_proxy(const TI& it)
-    {
-        return new IteratorProxy<value_type, TI>(it);
-    }
-    template <typename TI, typename Mapper>
-    auto make_iterator_proxy(const TI& it, const Mapper& mapper)
-    {
-        return new IteratorProxy<value_type, TI, Mapper>(it, mapper);
-    }
+    // template <typename TI>
+    // auto make_iterator_proxy(const TI& it, const std::function<bool(const value_type&)>& filter)
+    // {
+    //     return new IteratorProxy<value_type, TI, std::function<bool(const value_type&)>>(it, filter);
+    // }
 
-    template <typename TI>
-    auto make_iterator_proxy(const TI& it, const std::function<bool(const value_type&)>& filter)
-    {
-        return new IteratorProxy<value_type, TI, std::function<bool(const value_type&)>>(it, filter);
-    }
-
-    template <typename V>
-    auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<value_type, const V>, void*> _ = nullptr)
-    {
-        return other.m_proxy_->const_copy();
-    }
-    template <typename V>
-    auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<value_type, V>, void*> _ = nullptr)
-    {
-        return other.m_proxy_->copy();
-    }
+    // template <typename V>
+    // auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<value_type, const V>, void*> _ = nullptr)
+    // {
+    //     return other.m_proxy_->const_copy();
+    // }
+    // template <typename V>
+    // auto make_iterator_proxy(const Iterator<V>& other, std::enable_if_t<std::is_same_v<value_type, V>, void*> _ = nullptr)
+    // {
+    //     return other.m_proxy_->copy();
+    // }
 };
 
 template <typename... T>

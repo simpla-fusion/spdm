@@ -17,7 +17,7 @@ public:
 
     typedef std::pair<iterator, iterator> base_type;
     typedef Range<T> this_type;
-
+    typedef typename iterator::difference_type difference_type;
     typedef typename iterator::pointer pointer;
     typedef typename iterator::value_type value_type;
 
@@ -28,8 +28,11 @@ public:
 
     Range(const iterator& first, const iterator& second) : base_type(first, second) {}
 
-    template <typename U0, typename U1, typename... Args>
-    Range(U0 const& first, U1 const& second, Args&&... args)
+    template <typename V, typename... Args>
+    Range(const std::shared_ptr<V>& p, difference_type len, Args&&... args) : base_type(Iterator<T>(p), Iterator<T>(p, len)) {}
+
+    template <typename V, typename... Args>
+    Range(V const& first, V const& second, Args&&... args)
         : Range{iterator(first, std::forward<Args>(args)...), iterator(second, std::forward<Args>(args)...)} {}
 
     Range(const base_type& p) : base_type(p) {}
