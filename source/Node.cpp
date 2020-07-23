@@ -91,40 +91,40 @@ std::string Node::full_path() const
 std::string Node::relative_path() const { return m_prefix_; }
 
 // metadata
-Node::Type Node::type() const { return m_entry_->type(); }
-bool Node::is_null() const { return type() == Type::Null; }
-bool Node::is_single() const { return type() == Type::Single; }
-bool Node::is_tensor() const { return type() == Type::Tensor; }
-bool Node::is_block() const { return type() == Type::Block; }
-bool Node::is_array() const { return type() == Type::Array; }
-bool Node::is_object() const { return type() == Type::Object; }
+Entry::Type Node::type() const { return m_entry_->type(); }
+bool Node::is_null() const { return type() == Entry::Type::Null; }
+bool Node::is_element() const { return type() == Entry::Type::Element; }
+bool Node::is_tensor() const { return type() == Entry::Type::Tensor; }
+bool Node::is_block() const { return type() == Entry::Type::Block; }
+bool Node::is_array() const { return type() == Entry::Type::Array; }
+bool Node::is_object() const { return type() == Entry::Type::Object; }
 
 bool Node::is_root() const { return m_entry_->parent() == nullptr; }
-bool Node::is_leaf() const { return type() < Type::Array; };
+bool Node::is_leaf() const { return type() < Entry::Type::Array; };
 
 // attributes
 bool Node::has_attribute(const std::string& name) const { return get_entry()->has_attribute(name); }
 
-const Node::element_t Node::get_attribute_raw(const std::string& name) const { return get_entry()->get_attribute_raw(name); }
+const Entry::element_t Node::get_attribute_raw(const std::string& name) const { return get_entry()->get_attribute_raw(name); }
 
-void Node::set_attribute_raw(const std::string& name, const element_t& value) { get_entry()->set_attribute_raw(name, value); }
+void Node::set_attribute_raw(const std::string& name, const Entry::element_t& value) { get_entry()->set_attribute_raw(name, value); }
 
 void Node::remove_attribute(const std::string& name) { get_entry()->remove_attribute(name); }
 
-std::map<std::string, Node::element_t> Node::attributes() const { return get_entry()->attributes(); }
+std::map<std::string, Entry::element_t> Node::attributes() const { return get_entry()->attributes(); }
 
 // as leaf
-void Node::set_single(const element_t& v) { get_entry()->set_single(v); }
+void Node::set_element(const Entry::element_t& v) { get_entry()->set_element(v); }
 
-Node::element_t Node::get_single() const { return get_entry()->get_single(); }
+Entry::element_t Node::get_element() const { return get_entry()->get_element(); }
 
-void Node::set_tensor(const tensor_t& v) { get_entry()->set_tensor(v); }
+void Node::set_tensor(const Entry::tensor_t& v) { get_entry()->set_tensor(v); }
 
-Node::tensor_t Node::get_tensor() const { return get_entry()->get_tensor(); }
+Entry::tensor_t Node::get_tensor() const { return get_entry()->get_tensor(); }
 
-void Node::set_block(const block_t& v) { get_entry()->set_block(v); }
+void Node::set_block(const Entry::block_t& v) { get_entry()->set_block(v); }
 
-Node::block_t Node::get_block() const { return get_entry()->get_block(); }
+Entry::block_t Node::get_block() const { return get_entry()->get_block(); }
 
 // as Tree
 // as container
@@ -146,11 +146,7 @@ Node const& Node::self() const { return *this; }
 
 Node& Node::self() { return *this; }
 
-Node::range Node::children() const
-{
-    // return map(get_entry()->children(), [](const auto& item) { return Node{item}; });
-    return range{};
-}
+Node::range Node::children() const { return range{m_entry_->first_child(), nullptr}; }
 
 // as array
 
@@ -224,7 +220,7 @@ Node load(const std::istream&, const std::string& format) { NOT_IMPLEMENTED; }
 
 void save(const Node&, const std::ostream&, const std::string& format) { NOT_IMPLEMENTED; }
 
-std::string to_string(Node::element_t const& s)
+std::string to_string(Entry::element_t const& s)
 {
     std::ostringstream os;
     switch (s.index())
@@ -257,16 +253,16 @@ std::string to_string(Node::element_t const& s)
     return os.str();
 }
 
-Node::element_t from_string(const std::string& s)
+Entry::element_t from_string(const std::string& s)
 {
     NOT_IMPLEMENTED;
 }
 
 std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
 {
-    if (entry.type() == Node::Type::Single)
+    if (entry.type() == Entry::Type::Element)
     {
-        auto v = entry.get_single();
+        auto v = entry.get_element();
 
         switch (v.index())
         {
@@ -301,14 +297,14 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
             break;
         }
     }
-    else if (entry.type() == Node::Type::Array)
+    else if (entry.type() == Entry::Type::Array)
     {
         auto r = entry.children();
         os << "[ ";
         fancy_print_array1(os, r.first, r.second, indent);
         os << " ]";
     }
-    else if (entry.type() == Node::Type::Object)
+    else if (entry.type() == Entry::Type::Object)
     {
         auto r = entry.children();
         os << "{";
@@ -320,27 +316,27 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
 
 std::ostream& operator<<(std::ostream& os, Node const& entry) { return fancy_print(os, entry, 0); }
 
-Node::iterator::iterator() : m_entry_(nullptr) {}
+Node::iterator::iterator() : m_iterator_(nullptr) {}
 
-Node::iterator::iterator(const std::shared_ptr<Entry>& entry) : m_entry_(entry) {}
+Node::iterator::iterator(const std::shared_ptr<Entry::iterator>& it) : m_iterator_(it) {}
 
-Node::iterator::iterator(const iterator& other) : m_entry_(other.m_entry_) {}
+Node::iterator::iterator(const iterator& other) : m_iterator_(other.m_iterator_->copy()) {}
 
-Node::iterator::iterator(iterator&& other) : m_entry_(other.m_entry_) { other.m_entry_.reset(); }
+Node::iterator::iterator(iterator&& other) : m_iterator_(other.m_iterator_) { other.m_iterator_.reset(); }
 
-bool Node::iterator::operator==(iterator const& other) const { return m_entry_ == other.m_entry_ || (m_entry_ != nullptr && m_entry_->equal(other.m_entry_)); }
+bool Node::iterator::operator==(iterator const& other) const { return m_iterator_ == other.m_iterator_ || (m_iterator_ != nullptr && m_iterator_->equal(*other.m_iterator_)); }
 
 bool Node::iterator::operator!=(iterator const& other) const { return !(operator==(other)); }
 
-Node Node::iterator::operator*() { return Node(m_entry_); }
+Node Node::iterator::operator*() { return Node(m_iterator_ == nullptr ? nullptr : m_iterator_->get()); }
 
-std::unique_ptr<Node> Node::iterator::operator->() { return std::make_unique<Node>(m_entry_); }
+std::unique_ptr<Node> Node::iterator::operator->() { return std::make_unique<Node>(m_iterator_ == nullptr ? nullptr : m_iterator_->get()); }
 
 Node::iterator& Node::iterator::operator++()
 {
-    if (m_entry_ != nullptr)
+    if (m_iterator_ != nullptr)
     {
-        m_entry_ = m_entry_->next();
+        m_iterator_->next();
     }
     return *this;
 }
@@ -348,7 +344,10 @@ Node::iterator& Node::iterator::operator++()
 Node::iterator Node::iterator::operator++(int)
 {
     Node::iterator res(*this);
-    ++(*this);
+    if (m_iterator_ != nullptr)
+    {
+        m_iterator_->next();
+    }
     return std::move(res);
 }
 
