@@ -8,29 +8,29 @@ namespace sp
 {
 
 template <typename Plugin, typename IT, typename Enable = void>
-class EntryPluginIterator;
+class EntryIterator;
 
-template <typename Plugin, typename IT>
-std::shared_ptr<Entry::iterator> make_iterator(const IT& ib, const IT& ie)
+template <typename Plugin, typename IT, typename... Args>
+std::shared_ptr<Entry> make_iterator(const IT& ib, const IT& ie, Args&&... args)
 {
-    return std::make_shared<EntryPluginIterator<Plugin, IT>>(ib, ie);
+    return std::make_shared<EntryIterator<Plugin, IT>>(ib, ie, std::forward<Args>(args)...);
 }
 
 template <typename Plugin, typename IT>
-class EntryPluginIterator<Plugin, IT, std::enable_if_t<std::is_same_v<std::shared_ptr<Entry>, typename std::iterator_traits<IT>::value_type>>>
-    : public Entry::iterator
+class EntryIterator<Plugin, IT, std::enable_if_t<std::is_same_v<std::shared_ptr<Entry>, typename std::iterator_traits<IT>::value_type>>>
+    : public Entry
 {
 
 public:
-    typedef EntryPluginIterator<Plugin, IT> this_type;
+    typedef EntryIterator<Plugin, IT> this_type;
 
     typedef IT base_iterator;
 
-    EntryPluginIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
+    EntryIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
 
-    EntryPluginIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
+    EntryIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
 
-    ~EntryPluginIterator() = default;
+    ~EntryIterator() = default;
 
     this_type* copy() const override { return new this_type{*this}; }
 
@@ -59,23 +59,23 @@ private:
 };
 
 template <typename Plugin, typename IT>
-class EntryPluginIterator<Plugin, IT,
-                          std::enable_if_t<std::is_same_v<
-                              std::pair<const std::string, std::shared_ptr<Entry>>,
-                              typename std::iterator_traits<IT>::value_type>>>
+class EntryIterator<Plugin, IT,
+                    std::enable_if_t<std::is_same_v<
+                        std::pair<const std::string, std::shared_ptr<Entry>>,
+                        typename std::iterator_traits<IT>::value_type>>>
     : public Entry::iterator
 {
 
 public:
-    typedef EntryPluginIterator<Plugin, IT> this_type;
+    typedef EntryIterator<Plugin, IT> this_type;
 
     typedef IT base_iterator;
 
-    EntryPluginIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
+    EntryIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
 
-    EntryPluginIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
+    EntryIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
 
-    ~EntryPluginIterator() = default;
+    ~EntryIterator() = default;
 
     iterator* copy() const override { return new this_type{*this}; }
 
@@ -136,11 +136,11 @@ std::shared_ptr<Entry> EntryPlugin<entry_memory>::copy() const
     return std::make_shared<EntryPlugin<entry_memory>>(*this);
 };
 
-template <>
-std::shared_ptr<Entry> EntryPlugin<entry_memory>::duplicate() const
-{
-    return std::make_shared<EntryPlugin<entry_memory>>();
-}
+// template <>
+// std::shared_ptr<Entry> EntryPlugin<entry_memory>::duplicate() const
+// {
+//     return std::make_shared<EntryPlugin<entry_memory>>();
+// }
 
 template <>
 Entry::Type EntryPlugin<entry_memory>::type() const { return Type(m_pimpl_.index()); }
@@ -268,7 +268,7 @@ EntryPlugin<entry_memory>::insert(const std::string& name)
     else if (type() == Type::Object)
     {
         auto& m = std::get<Type::Object>(m_pimpl_);
-        res = m.emplace(name, duplicate()).first->second;
+        // res = m.emplace(name, duplicate()).first->second;
     }
     else
     {
@@ -338,21 +338,21 @@ EntryPlugin<entry_memory>::parent() const
 }
 
 template <>
-std::shared_ptr<Entry::iterator>
+std::shared_ptr<Entry>
 EntryPlugin<entry_memory>::first_child() const
 {
-    std::shared_ptr<Entry::iterator> res{nullptr};
+    std::shared_ptr<Entry> res{nullptr};
     if (type() == Type::Object)
     {
         auto& m = std::get<Type::Object>(m_pimpl_);
 
-        res = make_iterator(m.begin(), m.end());
+        res = make_iterator<entry_memory>(m.begin(), m.end());
     }
     else if (type() == Type::Array)
     {
         auto& m = std::get<Type::Array>(m_pimpl_);
 
-        res = make_iterator(m.begin(), m.end());
+        res = make_iterator<entry_memory>(m.begin(), m.end());
     }
 
     return res;
@@ -371,7 +371,7 @@ EntryPlugin<entry_memory>::push_back()
     if (type() == Type::Array)
     {
         auto& m = std::get<Type::Array>(m_pimpl_);
-        m.emplace_back(duplicate());
+        // m.emplace_back(duplicate());
         res = *m.rbegin();
     }
 
@@ -450,6 +450,102 @@ std::map<std::string, Entry::element_t> EntryPlugin<entry_memory>::attributes() 
     }
     return std::move(res);
 }
+
+// template <typename Plugin, typename IT, typename Enable = void>
+// class EntryIterator;
+
+// template <typename Plugin, typename IT>
+// std::shared_ptr<Entry> make_iterator(const IT& ib, const IT& ie)
+// {
+//     return std::make_shared<EntryIterator<Plugin, IT>>(ib, ie);
+// }
+
+// template <typename Plugin, typename IT>
+// class EntryIterator<Plugin, IT, std::enable_if_t<std::is_same_v<std::shared_ptr<Entry>, typename std::iterator_traits<IT>::value_type>>>
+//     : public Entry::iterator
+// {
+
+// public:
+//     typedef EntryIterator<Plugin, IT> this_type;
+
+//     typedef IT base_iterator;
+
+//     EntryIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
+
+//     EntryIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
+
+//     ~EntryIterator() = default;
+
+//     this_type* copy() const override { return new this_type{*this}; }
+
+//     std::shared_ptr<Entry> get() const override { return m_current_; }
+
+//     void next() override
+//     {
+//         if (m_it_ != m_ie_)
+//         {
+//             m_current_ = *m_it_;
+//             ++m_it_;
+//         }
+//         else
+//         {
+//             m_current_ = nullptr;
+//         }
+//     }
+
+//     bool not_equal(const Entry* other) const override { return get().get() == other; };
+
+//     bool equal(const Entry* other) const override { return get().get() == other; };
+
+// private:
+//     std::shared_ptr<Entry> m_current_;
+//     base_iterator m_it_, m_ie_;
+// };
+
+// template <typename Plugin, typename IT>
+// class EntryIterator<Plugin, IT,
+//                           std::enable_if_t<std::is_same_v<
+//                               std::pair<const std::string, std::shared_ptr<Entry>>,
+//                               typename std::iterator_traits<IT>::value_type>>>
+//     : public Entry::iterator
+// {
+
+// public:
+//     typedef EntryIterator<Plugin, IT> this_type;
+
+//     typedef IT base_iterator;
+
+//     EntryIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
+
+//     EntryIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
+
+//     ~EntryIterator() = default;
+
+//     iterator* copy() const override { return new this_type{*this}; }
+
+//     std::shared_ptr<Entry> get() const override { return m_current_; }
+
+//     void next() override
+//     {
+//         if (m_it_ != m_ie_)
+//         {
+//             m_current_ = m_it_->second;
+//             ++m_it_;
+//         }
+//         else
+//         {
+//             m_current_ = nullptr;
+//         }
+//     }
+
+//     bool not_equal(const Entry* other) const override { return get().get() == other; };
+
+//     bool equal(const Entry* other) const override { return get().get() == other; };
+
+// private:
+//     std::shared_ptr<Entry> m_current_;
+//     base_iterator m_it_, m_ie_;
+// };
 
 SP_REGISTER_ENTRY(memory, entry_memory);
 

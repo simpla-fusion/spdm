@@ -217,13 +217,13 @@ class Node::iterator
 public:
     iterator();
 
-    ~iterator() = default;
-
-    iterator(const std::shared_ptr<Entry::iterator>&);
+    iterator(const std::shared_ptr<Entry>&);
 
     iterator(const iterator&);
 
     iterator(iterator&&);
+
+    ~iterator() = default;
 
     bool operator==(iterator const& other) const;
 
@@ -238,7 +238,7 @@ public:
     iterator operator++(int);
 
 private:
-    std::shared_ptr<Entry::iterator> m_iterator_;
+    std::shared_ptr<Entry> m_cursor_;
 };
 
 class Node::range : public std::pair<Node::iterator, Node::iterator>

@@ -33,8 +33,6 @@ public:
 
     std::shared_ptr<Entry> copy() const override;
 
-    std::shared_ptr<Entry> duplicate() const override;
-
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
@@ -64,12 +62,14 @@ public:
     // as Hierarchy tree node
     // function level 0
 
-    std::shared_ptr<Entry::iterator> first_child() const override;
-
     // container
     size_t size() const override;
 
     std::shared_ptr<Entry> parent() const override;
+
+    std::shared_ptr<Entry> first_child() const override;
+
+    std::shared_ptr<Entry> next() const override;
 
     // as array
     std::shared_ptr<Entry> push_back() override;

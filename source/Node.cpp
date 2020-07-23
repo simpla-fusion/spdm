@@ -320,38 +320,32 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
 
 std::ostream& operator<<(std::ostream& os, Node const& entry) { return fancy_print(os, entry, 0); }
 
-Node::iterator::iterator() : m_iterator_(nullptr) {}
+Node::iterator::iterator() : m_cursor_() {}
 
-Node::iterator::iterator(const std::shared_ptr<Entry::iterator>& it) : m_iterator_(it) {}
+Node::iterator::iterator(const std::shared_ptr<Entry>& p) : m_cursor_(p) {}
 
-Node::iterator::iterator(const iterator& other) : m_iterator_(other.m_iterator_->copy()) {}
+Node::iterator::iterator(const iterator& other) : m_cursor_(other.m_cursor_->copy()) {}
 
-Node::iterator::iterator(iterator&& other) : m_iterator_(other.m_iterator_) { other.m_iterator_.reset(); }
+Node::iterator::iterator(iterator&& other) : m_cursor_(other.m_cursor_) { other.m_cursor_.reset(); }
 
-bool Node::iterator::operator==(iterator const& other) const { return m_iterator_ == other.m_iterator_ || (m_iterator_ != nullptr && m_iterator_->equal(*other.m_iterator_)); }
+bool Node::iterator::operator==(iterator const& other) const { return m_cursor_ == other.m_cursor_; }
 
-bool Node::iterator::operator!=(iterator const& other) const { return !(operator==(other)); }
+bool Node::iterator::operator!=(iterator const& other) const { return m_cursor_ != other.m_cursor_; }
 
-Node Node::iterator::operator*() { return Node(m_iterator_ == nullptr ? nullptr : m_iterator_->get()); }
+Node Node::iterator::operator*() { return Node(m_cursor_); }
 
-std::unique_ptr<Node> Node::iterator::operator->() { return std::make_unique<Node>(m_iterator_ == nullptr ? nullptr : m_iterator_->get()); }
+std::unique_ptr<Node> Node::iterator::operator->() { return std::make_unique<Node>(m_cursor_); }
 
 Node::iterator& Node::iterator::operator++()
 {
-    if (m_iterator_ != nullptr)
-    {
-        m_iterator_->next();
-    }
+    m_cursor_ = m_cursor_->next();
     return *this;
 }
 
 Node::iterator Node::iterator::operator++(int)
 {
     Node::iterator res(*this);
-    if (m_iterator_ != nullptr)
-    {
-        m_iterator_->next();
-    }
+    m_cursor_ = m_cursor_->next();
     return std::move(res);
 }
 

@@ -62,8 +62,6 @@ public:
 
     virtual std::shared_ptr<Entry> copy() const = 0;
 
-    virtual std::shared_ptr<Entry> duplicate() const = 0;
-
     //----------------------------------------------------------------------------------------------------------
     // attribute
     //----------------------------------------------------------------------------------------------------------
@@ -98,29 +96,9 @@ public:
 
     virtual std::shared_ptr<Entry> parent() const = 0;
 
-    class iterator
-    {
-    public:
-        iterator() = default;
+    virtual std::shared_ptr<Entry> first_child() const = 0;
 
-        virtual ~iterator() = default;
-
-        virtual iterator* copy() const = 0;
-
-        virtual std::shared_ptr<Entry> get() const = 0;
-
-        virtual void next() = 0;
-
-        virtual bool not_equal(const Entry*) const = 0;
-
-        virtual bool not_equal(const iterator& other) const { return not_equal(other.get().get()); };
-
-        virtual bool equal(const Entry*) const = 0;
-
-        virtual bool equal(const iterator& other) const { return equal(other.get().get()); };
-    };
-
-    virtual std::shared_ptr<Entry::iterator> first_child() const = 0;
+    virtual std::shared_ptr<Entry> next() const = 0; // traversal
 
     // as array
 
@@ -143,7 +121,7 @@ public:
 
     // level 1
 
-    virtual std::shared_ptr<Entry::iterator> select(const std::string& path) const { return nullptr; };
+    virtual std::shared_ptr<Entry> select(const std::string& path) const { return nullptr; };
 
     // virtual std::shared_ptr<Entry::iterator> select(const XPath& path) const { return nullptr; };
 };
