@@ -146,6 +146,8 @@ Node const& Node::self() const { return *this; }
 
 Node& Node::self() { return *this; }
 
+size_t Node::size() const { return m_entry_->size(); }
+
 Node::range Node::children() const { return range{m_entry_->first_child(), nullptr}; }
 
 // as array
@@ -308,6 +310,8 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
     {
         auto r = entry.children();
         os << "{";
+        fancy_print_array1(os, r.first, r.second, indent);
+
         // fancy_print_key_value(os, r.first, r.second, indent, ":");
         os << "}";
     }

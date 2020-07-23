@@ -18,7 +18,7 @@ TEST_CASE("Create Node", "[SpDB]")
     node["C"][-1].set_value<int>(5);
     node["C"][-1].set_value<float>(6.0);
 
-    std::cout << node << std::endl;
+    std::cout << node.size() << node << std::endl;
 
     // std::cout << "====================================" << std::endl;
     // entry.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");

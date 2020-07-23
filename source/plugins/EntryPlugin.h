@@ -73,7 +73,6 @@ public:
 
     std::shared_ptr<Entry::iterator> first_child() const override;
 
-   
     // container
     size_t size() const override;
 
@@ -118,16 +117,20 @@ class EntryPlugin<Plugin>::iterator<IT,
 
 public:
     typedef iterator<IT> this_type;
+
     typedef IT base_iterator;
 
-    iterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie) { next(); }
+    iterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
+
     iterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
 
-    iterator* copy() const { return new this_type{*this}; }
+    ~iterator() = default;
 
-    std::shared_ptr<Entry> get() const { return m_current_; }
+    iterator* copy() const override { return new this_type{*this}; }
 
-    void next()
+    std::shared_ptr<Entry> get() const override { return m_current_; }
+
+    void next() override
     {
         if (m_it_ != m_ie_)
         {
@@ -140,9 +143,9 @@ public:
         }
     }
 
-    bool not_equal(const Entry* other) const { return get().get() == other; };
+    bool not_equal(const Entry* other) const override { return get().get() == other; };
 
-    bool equal(const Entry* other) const { return get().get()  == other; };
+    bool equal(const Entry* other) const override { return get().get() == other; };
 
 private:
     std::shared_ptr<Entry> m_current_;
@@ -160,16 +163,20 @@ class EntryPlugin<Plugin>::iterator<IT,
 
 public:
     typedef iterator<IT> this_type;
+
     typedef IT base_iterator;
 
-    iterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie) { next(); }
+    iterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
+
     iterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
 
-    iterator* copy() const { return new this_type{*this}; }
+    ~iterator() = default;
 
-    std::shared_ptr<Entry> get() const { return m_current_; }
+    iterator* copy() const override { return new this_type{*this}; }
 
-    void next()
+    std::shared_ptr<Entry> get() const override { return m_current_; }
+
+    void next() override
     {
         if (m_it_ != m_ie_)
         {
@@ -182,9 +189,9 @@ public:
         }
     }
 
-    bool not_equal(const Entry* other) const { return get().get()  == other; };
+    bool not_equal(const Entry* other) const override { return get().get() == other; };
 
-    bool equal(const Entry* other) const { return get().get()  == other; };
+    bool equal(const Entry* other) const override { return get().get() == other; };
 
 private:
     std::shared_ptr<Entry> m_current_;

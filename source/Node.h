@@ -139,6 +139,8 @@ public:
 
     Node parent() const;
 
+    size_t size() const;
+
     range children() const;
 
     range children();

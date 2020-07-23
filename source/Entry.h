@@ -112,9 +112,11 @@ public:
         virtual void next() = 0;
 
         virtual bool not_equal(const Entry*) const = 0;
+
         virtual bool not_equal(const iterator& other) const { return not_equal(other.get().get()); };
 
         virtual bool equal(const Entry*) const = 0;
+
         virtual bool equal(const iterator& other) const { return equal(other.get().get()); };
     };
 
