@@ -70,6 +70,8 @@ public:
 
     virtual std::shared_ptr<Entry> next() const = 0;
 
+    virtual bool not_equal(const std::shared_ptr<Entry>& other) const = 0;
+
     virtual bool equal(const std::shared_ptr<Entry>&) const = 0;
 
     // as array
@@ -145,6 +147,8 @@ public:
     // function level 0
 
     std::shared_ptr<Entry> next() const override;
+
+    bool not_equal(const std::shared_ptr<Entry>& other) const override;
 
     bool equal(const std::shared_ptr<Entry>&) const override;
 

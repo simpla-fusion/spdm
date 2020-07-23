@@ -326,6 +326,11 @@ bool EntryImplement<entry_memory>::equal(const std::shared_ptr<Entry>& other) co
 {
     return other.get() == this;
 }
+template <>
+bool EntryImplement<entry_memory>::not_equal(const std::shared_ptr<Entry>& other) const
+{
+    return other.get() != this;
+}
 // template <>
 // Range<Entry>
 // EntryImplement<entry_memory>::items() const
