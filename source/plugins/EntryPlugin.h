@@ -63,13 +63,6 @@ public:
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
-    template <typename IT, typename Enable = void>
-    class iterator;
-    template <typename IT>
-    std::shared_ptr<Entry::iterator> make_iterator(const IT& ib, const IT& ie) const
-    {
-        return std::make_shared<iterator<IT>>(ib, ie);
-    }
 
     std::shared_ptr<Entry::iterator> first_child() const override;
 
@@ -108,94 +101,5 @@ private:
             __STRING(_NAME_),                      \
             []() { return dynamic_cast<Entry*>(new EntryPlugin<_CLASS_>()); });
 
-template <typename Plugin>
-template <typename IT>
-class EntryPlugin<Plugin>::iterator<IT,
-                                    std::enable_if_t<std::is_same_v<std::shared_ptr<Entry>, typename std::iterator_traits<IT>::value_type>>>
-    : public Entry::iterator
-{
-
-public:
-    typedef iterator<IT> this_type;
-
-    typedef IT base_iterator;
-
-    iterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
-
-    iterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
-
-    ~iterator() = default;
-
-    iterator* copy() const override { return new this_type{*this}; }
-
-    std::shared_ptr<Entry> get() const override { return m_current_; }
-
-    void next() override
-    {
-        if (m_it_ != m_ie_)
-        {
-            m_current_ = *m_it_;
-            ++m_it_;
-        }
-        else
-        {
-            m_current_ = nullptr;
-        }
-    }
-
-    bool not_equal(const Entry* other) const override { return get().get() == other; };
-
-    bool equal(const Entry* other) const override { return get().get() == other; };
-
-private:
-    std::shared_ptr<Entry> m_current_;
-    base_iterator m_it_, m_ie_;
-};
-
-template <typename Plugin>
-template <typename IT>
-class EntryPlugin<Plugin>::iterator<IT,
-                                    std::enable_if_t<std::is_same_v<
-                                        std::pair<const std::string, std::shared_ptr<Entry>>,
-                                        typename std::iterator_traits<IT>::value_type>>>
-    : public Entry::iterator
-{
-
-public:
-    typedef iterator<IT> this_type;
-
-    typedef IT base_iterator;
-
-    iterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
-
-    iterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
-
-    ~iterator() = default;
-
-    iterator* copy() const override { return new this_type{*this}; }
-
-    std::shared_ptr<Entry> get() const override { return m_current_; }
-
-    void next() override
-    {
-        if (m_it_ != m_ie_)
-        {
-            m_current_ = m_it_->second;
-            ++m_it_;
-        }
-        else
-        {
-            m_current_ = nullptr;
-        }
-    }
-
-    bool not_equal(const Entry* other) const override { return get().get() == other; };
-
-    bool equal(const Entry* other) const override { return get().get() == other; };
-
-private:
-    std::shared_ptr<Entry> m_current_;
-    base_iterator m_it_, m_ie_;
-};
 } // namespace sp
 #endif // SP_ENTRY_PLUGIN_H_
