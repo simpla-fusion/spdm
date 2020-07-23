@@ -41,10 +41,7 @@ public:
 
     ~Range(){};
 
-    void swap(this_type& other)
-    {
-        base_type::swap(other);
-    }
+    void swap(this_type& other) { base_type::swap(other); }
 
     size_t size() const { return std::distance(first, second); }
 

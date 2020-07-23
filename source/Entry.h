@@ -1,249 +1,188 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
-#include "Iterator.h"
-#include "Range.h"
+#include "Node.h"
 #include <any>
 #include <array>
 #include <complex>
+#include <functional>
 #include <map>
 #include <memory>
-#include <ostream>
+#include <string>
 #include <variant>
-
+#include <vector>
 namespace sp
 {
-struct XPath;
 
-class EntryInterface;
-
-class Entry
+class Entry : public std::enable_shared_from_this<Entry>
 {
-private:
-    std::string m_prefix_;
-    std::shared_ptr<EntryInterface> m_pimpl_;
-
-    std::shared_ptr<EntryInterface> get_self() const;
-    std::shared_ptr<EntryInterface> get_self();
-
 public:
-    enum Type
-    {
-        Null = 0,
-        Single = 1,
-        Tensor = 2,
-        Block = 3,
-        Array = 4,
-        Object = 5
-    };
+    Entry() = default;
 
-    typedef std::variant<std::string,
-                         bool, int, double,
-                         std::complex<double>,
-                         std::array<int, 3>,
-                         std::array<double, 3>>
-        single_t;
+    Entry(const Entry& other) = default;
 
-    typedef std::tuple<std::shared_ptr<void> /* data ponter*/,
-                       const std::type_info& /* type information */,
-                       std::vector<size_t> /* dimensions */>
-        tensor_t;
+    Entry(Entry&& other) = default;
 
-    typedef std::tuple<std::shared_ptr<void> /* data ponter*/,
-                       std::any /* type description*/,
-                       std::vector<size_t> /* shapes */,
-                       std::vector<size_t> /* offset */,
-                       std::vector<size_t> /* strides */,
-                       std::vector<size_t> /* dimensions */
-                       >
-        block_t;
+    virtual ~Entry() = default;
 
-    friend class EntryInterface;
+    static std::unique_ptr<Entry> create(const std::string& rpath = "");
 
-    typedef Entry this_type;
+    static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
-    Entry();
+    virtual Node::Type type() const = 0;
 
-    explicit Entry(const std::string& uri);
+    virtual std::shared_ptr<Entry> copy() const = 0;
 
-    explicit Entry(const std::shared_ptr<EntryInterface>& p,
-                   const std::string& prefix = "");
+    virtual std::shared_ptr<Entry> duplicate() const = 0;
 
-    explicit Entry(EntryInterface* p,
-                   const std::string& prefix = "");
+    //----------------------------------------------------------------------------------------------------------
+    // attribute
+    //----------------------------------------------------------------------------------------------------------
+    virtual bool has_attribute(const std::string& name) const = 0;
 
-    Entry(const this_type&);
+    virtual Node::element_t get_attribute_raw(const std::string& name) const = 0;
 
-    Entry(this_type&&);
+    virtual void set_attribute_raw(const std::string& name, const Node::element_t& value) = 0;
 
-    ~Entry();
+    virtual void remove_attribute(const std::string& name) = 0;
 
-    void swap(this_type&);
+    virtual std::map<std::string, Node::element_t> attributes() const = 0;
 
-    this_type& operator=(this_type const& other);
+    //----------------------------------------------------------------------------------------------------------
+    // as leaf node,  need node.type = Scalar || Block
+    //----------------------------------------------------------------------------------------------------------
+    virtual void set_single(const Node::element_t&) = 0;
+    virtual Node::element_t get_single() const = 0;
 
-    bool operator==(this_type const& other) const;
+    virtual void set_tensor(const Node::tensor_t&) = 0;
+    virtual Node::tensor_t get_tensor() const = 0;
 
-    operator bool() const { return !is_null(); }
+    virtual void set_block(const Node::block_t&) = 0;
+    virtual Node::block_t get_block() const = 0;
 
-    void resolve();
+    //----------------------------------------------------------------------------------------------------------
+    // as Hierarchy tree node
+    // function level 0
 
-    // metadata
-    Type type() const;
-    bool is_null() const;
-    bool is_single() const;
-    bool is_tensor() const;
-    bool is_block() const;
-    bool is_array() const;
-    bool is_object() const;
+    // container
+    virtual size_t size() const = 0;
 
-    bool is_root() const;
-    bool is_leaf() const;
+    virtual std::shared_ptr<Entry> parent() const = 0;
 
-    //
+    virtual std::shared_ptr<Entry> next() const = 0;
 
-    std::string full_path() const;
-
-    std::string relative_path() const;
-
-    // attributes
-
-    bool has_attribute(const std::string& name) const;
-
-    const single_t get_attribute_raw(const std::string& name) const;
-
-    void set_attribute_raw(const std::string& name, const single_t& value);
-
-    void remove_attribute(const std::string& name);
-
-    template <typename V>
-    const single_t get_attribute(const std::string& name)
-    {
-        return std::get<V>(get_attribute_raw(name));
-    };
-
-    void set_attribute(const std::string& name, const char* value)
-    {
-        set_attribute_raw(name, single_t{std::string(value)});
-    }
-
-    template <typename V>
-    void set_attribute(const std::string& name, const V& value)
-    {
-        set_attribute_raw(name, single_t{value});
-    }
-
-    std::map<std::string, single_t> attributes() const;
-
-    //----------------------------------------------------------------------------------
-    // level 0
-    //
-    // as leaf
-
-    void set_single(const single_t&);
-
-    single_t get_single() const;
-
-    template <typename V>
-    void set_value(const V& v) { set_single(single_t(v)); };
-
-    template <typename V>
-    V get_value() const { return std::get<V>(get_single()); }
-
-    void set_tensor(const tensor_t&);
-
-    tensor_t get_tensor() const;
-
-    void set_block(const block_t&);
-
-    block_t get_block() const;
-
-    template <typename... Args>
-    void set_block(Args&&... args) { return selt_block(std::make_tuple(std::forward<Args>(args)...)); };
-
-    // as Tree
-    // as container
-
-    const Entry& self() const;
-
-    Entry& self();
-
-    Entry parent() const;
-
-    Range<Entry> children() const;
-
-    void clear();
+    virtual bool equal(const std::shared_ptr<Entry>&) const = 0;
 
     // as array
 
-    Entry operator[](int); // access  specified child
+    virtual std::shared_ptr<Entry> push_back() = 0;
 
-    Entry operator[](int) const; // access  specified child
+    virtual std::shared_ptr<Entry> pop_back() = 0;
 
-    Entry push_back(); // append new item
-
-    Entry pop_back(); // remove and return last item
+    virtual std::shared_ptr<Entry> item(int idx) const = 0;
 
     // as object
-    // @note : map is unordered
+    virtual std::shared_ptr<Entry> insert(const std::string& path) = 0;
+    virtual std::shared_ptr<Entry> insert_r(const std::string& path) = 0;
 
-    Entry insert(const std::string& key); // if key is not exists then insert node at key else return entry at key
+    virtual std::shared_ptr<Entry> find(const std::string& path) const = 0;
+    virtual std::shared_ptr<Entry> find_r(const std::string& path) const = 0;
 
-    bool has_a(const std::string& key) const;
+    virtual std::shared_ptr<Entry> first_child() const = 0;
 
-    Entry find(const std::string& key) const;
-
-    Entry operator[](const char* c) const { return operator[](std::string(c)); }
-
-    Entry operator[](const char* c) { return operator[](std::string(c)); }
-
-    Entry operator[](const std::string&) const; // access  specified child
-
-    Entry operator[](const std::string&); // access or insert specified child
-
-    void remove(const std::string&);
-
-    //-------------------------------------------------------------------
-    // level 1
-    // xpath
-
-    Entry insert(const XPath&);
-
-    Range<Entry> find(const XPath&) const;
-
-    typedef std::function<bool(const Entry&)> pred_fun;
-
-    Range<Entry> find(const pred_fun&) const;
-
-    int update(const Range<std::string, Entry>&, const Entry&);
-
-    int remove(const Range<std::string, Entry>&);
-
-    //-------------------------------------------------------------------
-    // level 2
-
-    size_t depth() const; // parent.depth +1
-
-    size_t height() const; // max(children.height) +1
-
-    Range<Entry> slibings() const; // return slibings
-
-    Range<Entry> ancestor() const; // return ancestor
-
-    Range<Entry> descendants() const; // return descendants
-
-    Range<Entry> leaves() const; // return leave nodes in traversal order
-
-    Range<Entry> shortest_path(Entry const& target) const; // return the shortest path to target
-
-    ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
+    virtual void remove(const std::string& path) = 0;
 };
 
-std::string to_string(const Entry::single_t& s);
+template <typename Impl>
+class EntryImplement : public Entry
+{
 
-Entry::single_t from_string(const std::string& s);
+public:
+    EntryImplement();
 
-std::ostream& operator<<(std::ostream& os, Entry const& entry);
+    EntryImplement(const Impl&);
+
+    EntryImplement(const EntryImplement&);
+
+    EntryImplement(EntryImplement&&);
+
+    ~EntryImplement();
+
+    void swap(EntryImplement& other);
+
+    Node::Type type() const override;
+
+    std::shared_ptr<Entry> copy() const override;
+
+    std::shared_ptr<Entry> duplicate() const override;
+
+    //----------------------------------------------------------------------------------------------------------
+    // attribute
+    //----------------------------------------------------------------------------------------------------------
+    bool has_attribute(const std::string& name) const override;
+
+    Node::element_t get_attribute_raw(const std::string& name) const override;
+
+    void set_attribute_raw(const std::string& name, const Node::element_t& value) override;
+
+    void remove_attribute(const std::string& name) override;
+
+    std::map<std::string, Node::element_t> attributes() const override;
+
+    //----------------------------------------------------------------------------------------------------------
+    // as leaf node,  need node.type = Scalar || Block
+    //----------------------------------------------------------------------------------------------------------
+    void set_single(const Node::element_t&) override;
+    Node::element_t get_single() const override;
+
+    void set_tensor(const Node::tensor_t&) override;
+    Node::tensor_t get_tensor() const override;
+
+    void set_block(const Node::block_t&) override;
+    Node::block_t get_block() const override;
+
+    //----------------------------------------------------------------------------------------------------------
+    // as Hierarchy tree node
+    // function level 0
+
+    std::shared_ptr<Entry> next() const override;
+
+    bool equal(const std::shared_ptr<Entry>&) const override;
+
+    // container
+    size_t size() const override;
+
+    std::shared_ptr<Entry> parent() const override;
+
+    // as array
+    std::shared_ptr<Entry> push_back() override;
+
+    std::shared_ptr<Entry> pop_back() override;
+
+    std::shared_ptr<Entry> item(int idx) const override;
+
+    // as object
+    std::shared_ptr<Entry> insert(const std::string& key) override;
+    std::shared_ptr<Entry> insert_r(const std::string& path) override;
+
+    std::shared_ptr<Entry> find(const std::string& key) const override;
+    std::shared_ptr<Entry> find_r(const std::string& path) const override;
+
+    void remove(const std::string& path) override;
+
+    std::shared_ptr<Entry> first_child() const override;
+
+private:
+    Impl m_pimpl_;
+    static bool is_registered;
+};
+
+#define SP_REGISTER_ENTRY(_NAME_, _CLASS_)            \
+    template <>                                       \
+    bool sp::EntryImplement<_CLASS_>::is_registered = \
+        Entry::add_creator(                           \
+            __STRING(_NAME_),                         \
+            []() { return dynamic_cast<Entry*>(new EntryImplement<_CLASS_>()); });
 
 } // namespace sp
 
-#endif // SP_ENTRY_H_
+#endif //SP_ENTRY_H_

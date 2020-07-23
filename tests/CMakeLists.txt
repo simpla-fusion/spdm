@@ -11,9 +11,9 @@ include_directories(../extern)
 
 
 set( TESTS
-   test_iterator
+  #  test_iterator
   #  test_document
-  #  test_entry
+   test_node
   #  test_xml
   #  test_imas_east_magnetics
   #  test_imas_east_equilibrium
@@ -31,6 +31,6 @@ set( TESTS
 
 foreach( TEST ${TESTS} )
   add_executable(${TEST} ${TEST}.cpp )
-  # target_link_libraries(${TEST} spdb)
+  target_link_libraries(${TEST} spdb)
   add_test( ${TEST}  ${TEST} )
 endforeach()
