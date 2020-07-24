@@ -95,7 +95,6 @@ Entry::block_t EntryPlugin<entry_memory>::get_block() const
 }
 
 // as Tree
-
 // as object
 template <>
 std::shared_ptr<Entry>

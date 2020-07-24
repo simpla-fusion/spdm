@@ -20,10 +20,12 @@ TEST_CASE("Create Node", "[SpDB]")
 
     std::cout << node.size() << std::endl;
 
-    for (auto it = node.first_child(); !it.is_null(); ++it)
-    {
-        std::cout << it->name() << ":" << *it << std::endl;
-    }
+    std::cout << node  << std::endl;
+
+    // for (auto it = node.first_child(); !it.is_null(); ++it)
+    // {
+    //     std::cout << it->name() << ":" << *it << std::endl;
+    // }
 
     // std::cout << "====================================" << std::endl;
     // entry.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");

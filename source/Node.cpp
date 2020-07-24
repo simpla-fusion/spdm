@@ -92,6 +92,8 @@ std::shared_ptr<Entry> Node::self()
 std::string Node::path() const { return self()->path(); }
 
 std::string Node::name() const { return self()->name(); }
+const Node& Node::value() const { return *this; }
+Node& Node::value() { return *this; }
 
 // metadata
 Entry::Type Node::type() const { return m_entry_ == nullptr ? Entry::Type::Null : m_entry_->type(); }
@@ -145,7 +147,6 @@ Node Node::parent() const
     }
 }
 
-
 size_t Node::size() const { return self()->size(); }
 
 Node::cursor Node::first_child() const { return cursor{self()->first_child()}; }
@@ -157,7 +158,7 @@ Node Node::push_back() { return Node{self()->push_back()}; }
 
 Node Node::pop_back() { return Node{self()->pop_back()}; }
 
-Node Node::operator[](int idx) { return Node{self()->item(idx)}; }
+Node Node::operator[](int idx) { return idx < 0 ? Node{push_back()} : Node{self()->item(idx)}; }
 
 Node Node::operator[](int idx) const { return Node{self()->item(idx)}; }
 
@@ -261,8 +262,9 @@ Entry::element_t from_string(const std::string& s)
     NOT_IMPLEMENTED;
 }
 
-std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
+std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0, int tab = 4)
 {
+
     if (entry.type() == Entry::Type::Element)
     {
         auto v = entry.get_element();
@@ -302,22 +304,32 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
     }
     else if (entry.type() == Entry::Type::Array)
     {
-        os << "[ ";
-
+        os << "[";
         for (auto it = entry.first_child(); !it.is_null(); ++it)
         {
-            os << std::setw(indent) << " " << *it << "," << std::endl;
+            os << std::endl
+               << std::setw(indent * tab) << " ";
+            fancy_print(os, it->value(), indent + 1, tab);
+            os << ",";
         }
-        os << " ]";
+        os << std::endl
+           << std::setw(indent * tab)
+           << "]";
     }
     else if (entry.type() == Entry::Type::Object)
     {
         os << "{";
         for (auto it = entry.first_child(); !it.is_null(); ++it)
         {
-            os << std::setw(indent) << " " << it->name() << ":" << *it << "," << std::endl;
+            os << std::endl
+               << std::setw(indent * tab) << " "
+               << "\"" << it->name() << "\" : ";
+            fancy_print(os, it->value(), indent + 1, tab);
+            os << ",";
         }
-        os << "}";
+        os << std::endl
+           << std::setw(indent * tab)
+           << "}";
     }
     return os;
 }

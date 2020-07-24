@@ -68,6 +68,10 @@ public:
 
     std::string name() const;
 
+    const Node& value() const;
+
+    Node& value();
+    
     // attributes
 
     bool has_attribute(const std::string& name) const;
@@ -126,7 +130,6 @@ public:
     // as Tree
     // as container
 
-  
     Node parent() const;
 
     size_t size() const;
