@@ -10,17 +10,24 @@ TEST_CASE("Create Node", "[SpDB]")
 
     sp::Node node;
 
-    node.set_attribute("A", std::string("a"));
-    node.set_attribute("B", std::string("b"));
+    node.set_attribute<std::string>("A", ("a"));
+    node.set_attribute<std::string>("B", std::string("b"));
     node["A"].set_value<std::string>("1234");
     node["B"].set_value<std::string>("5678");
 
     node["C"][-1].set_value<int>(5);
-    node["C"][-1].set_value<float>(6.0);
+    node["C"][-1].set_value<double>(6.0);
+    node["D/E/F"].set_value<double>(1.2345);
 
-    std::cout << node.size() << std::endl;
+    std::cout << node << std::endl;
 
-    std::cout << node  << std::endl;
+    REQUIRE(node.get_attribute<std::string>("A") == "a");
+
+    REQUIRE(node.size() == 6);
+
+    REQUIRE(node["C"].size() == 2);
+
+    REQUIRE(node["D"]["E"]["F"].get_value<double>() == 1.2345);
 
     // for (auto it = node.first_child(); !it.is_null(); ++it)
     // {

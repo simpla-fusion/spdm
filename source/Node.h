@@ -71,7 +71,7 @@ public:
     const Node& value() const;
 
     Node& value();
-    
+
     // attributes
 
     bool has_attribute(const std::string& name) const;
@@ -83,20 +83,15 @@ public:
     void remove_attribute(const std::string& name);
 
     template <typename V>
-    const Entry::element_t get_attribute(const std::string& name)
+    const V get_attribute(const std::string& name)
     {
         return std::get<V>(get_attribute_raw(name));
     };
 
-    void set_attribute(const std::string& name, const char* value)
+    template <typename V, typename U>
+    void set_attribute(const std::string& name, const U& value)
     {
-        set_attribute_raw(name, Entry::element_t{std::string(value)});
-    }
-
-    template <typename V>
-    void set_attribute(const std::string& name, const V& value)
-    {
-        set_attribute_raw(name, Entry::element_t{value});
+        set_attribute_raw(name, Entry::element_t{V(value)});
     }
 
     std::map<std::string, Entry::element_t> attributes() const;
