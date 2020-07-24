@@ -3,55 +3,51 @@
 #include <iostream>
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
+const char PLUGIN_NAME[] = "xml";
 
-TEST_CASE("Create Node", "[SpDB]")
+// TEST_CASE("Attribute ", "[SpDB]")
+// {
+//     sp::Node node(PLUGIN_NAME);
+
+//     node.set_attribute<std::string>("A", ("a"));
+
+//     node.set_attribute<std::string>("B", std::string("b"));
+
+//     REQUIRE(node.has_attribute("A") == true);
+
+//     REQUIRE(node.has_attribute("C") == false);
+
+//     REQUIRE(node.get_attribute<std::string>("A") == "a");
+// }
+TEST_CASE("Object", "[SpDB]")
 {
-    sp::logger::set_stdout_level(-1000);
+    sp::Node node(PLUGIN_NAME);
 
-    sp::Node node;
-
-    node.set_attribute<std::string>("A", ("a"));
-    node.set_attribute<std::string>("B", std::string("b"));
     node["A"].set_value<std::string>("1234");
-    node["B"].set_value<std::string>("5678");
 
-    node["C"][-1].set_value<sp::Entry::ElementType::Integer>(5);
-    node["C"][-1].set_value<double>(6.0);
-    node["D/E/F"].set_value<double>(1.2345);
+    node["B"].set_value<sp::Entry::ElementType::Float>(3.14);
 
-    std::cout << node << std::endl;
+    // node["D/E/F"].set_value<double>(1.2345);
 
-    REQUIRE(node.get_attribute<std::string>("A") == "a");
+    // REQUIRE(node.size() == 3);
+    REQUIRE(node["A"].get_value<sp::Entry::ElementType::String>() == "1234");
+    
+    REQUIRE(node["B"].get_value<sp::Entry::ElementType::Float>() == 3.14);
 
-    REQUIRE(node.has_attribute("A") == true);
-
-    REQUIRE(node.has_attribute("C") == false);
-
-    REQUIRE(node.size() == 6);
-
-    REQUIRE(node["C"].size() == 2);
-
-    REQUIRE(node["D"]["E"]["F"].get_value<double>() == 1.2345);
-
-    // for (auto it = node.first_child(); !it.is_null(); ++it)
-    // {
-    //     std::cout << it->name() << ":" << *it << std::endl;
-    // }
-
-    // std::cout << "====================================" << std::endl;
-    // entry.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");
-
-    // // entry.set_value<std::string>("1234");
-    // std::cout << entry << std::endl;
-
-    // // std::cout << "====================================" << std::endl;
-
-    // // entry.append().set_value<std::string>("4567");
-    // std::cout << "====================================" << std::endl;
-
-    // entry.as_array().push_back().as_scalar().set_value<std::string>("7890");
-
-    // std::cout << entry << std::endl;
-
-    // REQUIRE(entry.child("C").child(0).get_value<std::string>() == "1234");
+    // REQUIRE(node["D"]["E"]["F"].get_value<sp::Entry::ElementType::Float>() == 1.2345);
 }
+// TEST_CASE("Array", "[SpDB]")
+// {
+//     sp::Node node(PLUGIN_NAME);
+
+//     REQUIRE(node.size() == 2);
+
+//     node["C"][-1].set_value<sp::Entry::ElementType::Integer>(5);
+
+//     node["C"][-1].set_value<double>(6.0);
+
+//     REQUIRE(node["C"].size() == 2);
+
+//     REQUIRE(node["C"][0].get_value<sp::Entry::ElementType::Integer>() == 5);
+//     REQUIRE(node["C"][1].get_value<sp::Entry::ElementType::Float>() == 6.0);
+// }

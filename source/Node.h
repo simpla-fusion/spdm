@@ -117,10 +117,10 @@ public:
     };
 
     template <typename V>
-    V get_value() const { return std::get<V>(get_element()); }
+    auto get_value() const { return std::get<V>(get_element()); }
 
     template <typename Entry::ElementType E>
-    void get_value() const { return std::get<E>(get_element()); };
+    auto get_value() const { return std::get<E>(get_element()); };
 
     void set_tensor(const Entry::tensor_t&);
 
