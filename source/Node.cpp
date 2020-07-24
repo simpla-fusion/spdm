@@ -19,31 +19,23 @@ std::string join_path(const std::string& l, const std::string& r, Others&&... ot
     return join_path(join_path(l, r), std::forward<Others>(others)...);
 }
 
-Node::Node()
-    : m_prefix_(""), m_entry_(Entry::create())
+Node::Node(const std::shared_ptr<Entry>& p, const std::string& path) : m_entry_(p), m_path_(path) {}
+
+Node::Node(const std::string& uri) : Node(Entry::create(uri), "") {}
+
+Node::Node(const Node& other) : m_path_(other.m_path_), m_entry_(other.m_entry_) {}
+
+Node::Node(Node&& other) : m_path_(other.m_path_), m_entry_(other.m_entry_)
 {
+    other.m_entry_.reset();
+    other.m_path_ = "";
 }
-
-Node::Node(const std::string& uri)
-    : m_prefix_(""), m_entry_(Entry::create(uri)) {}
-
-Node::Node(const std::shared_ptr<Entry>& p, const std::string& prefix)
-    : m_prefix_(prefix), m_entry_(p != nullptr ? p : Entry::create()) {}
-
-Node::Node(Entry* p, const std::string& prefix)
-    : Node(p->shared_from_this(), prefix) {}
-
-Node::Node(const Node& other)
-    : m_prefix_(other.m_prefix_), m_entry_(other.m_entry_) {}
-
-Node::Node(Node&& other)
-    : m_prefix_(other.m_prefix_), m_entry_(other.m_entry_) { other.m_entry_.reset(); }
 
 Node::~Node() {}
 
 void Node::swap(this_type& other)
 {
-    std::swap(m_prefix_, other.m_prefix_);
+    std::swap(m_path_, other.m_path_);
     std::swap(m_entry_, other.m_entry_);
 }
 
@@ -55,40 +47,51 @@ Node& Node::operator=(this_type const& other)
 
 //
 
-std::shared_ptr<Entry> Node::get_entry() const
+std::shared_ptr<Entry> Node::self() const
 {
-    auto p = m_prefix_ == "" ? m_entry_ : m_entry_->find_r(m_prefix_);
+    if (m_entry_ == nullptr)
+    {
+        throw std::out_of_range("try to access empty node.");
+    }
+    std::shared_ptr<Entry> p = m_entry_;
+
+    if (m_path_ != "")
+    {
+        p = m_entry_->find_r(m_path_);
+    }
 
     if (p == nullptr)
     {
-        throw std::out_of_range("Can not find node:" + m_prefix_);
+        throw std::out_of_range("Can not find node:" + m_path_);
     }
 
     return p;
 }
 
-std::shared_ptr<Entry> Node::get_entry()
+std::shared_ptr<Entry> Node::self()
 {
-    if (m_prefix_ != "")
+    if (m_entry_ == nullptr)
     {
-        auto p = m_entry_->insert_r(m_prefix_);
-        if (p == nullptr)
-        {
-            throw std::out_of_range("Can not find or insert node:" + m_prefix_);
-        }
-        m_entry_ = p;
-        m_prefix_ = "";
+        m_entry_ = Entry::create(m_path_);
+        m_path_ = "";
     }
+    else if (m_path_ != "")
+    {
+        m_entry_ = m_entry_->insert_r(m_path_);
+        m_path_ = "";
+    }
+
+    if (m_entry_ == nullptr)
+    {
+        throw std::runtime_error("null entry!");
+    }
+
     return m_entry_;
 }
 
-std::string Node::full_path() const
-{
-    NOT_IMPLEMENTED;
-    return "/" + m_prefix_;
-}
+std::string Node::path() const { return self()->path(); }
 
-std::string Node::relative_path() const { return m_prefix_; }
+std::string Node::name() const { return self()->name(); }
 
 // metadata
 Entry::Type Node::type() const { return m_entry_ == nullptr ? Entry::Type::Null : m_entry_->type(); }
@@ -103,77 +106,72 @@ bool Node::is_root() const { return m_entry_ == nullptr || m_entry_->parent() ==
 bool Node::is_leaf() const { return type() < Entry::Type::Array; };
 
 // attributes
-bool Node::has_attribute(const std::string& name) const { return get_entry()->has_attribute(name); }
+bool Node::has_attribute(const std::string& name) const { return self()->has_attribute(name); }
 
-const Entry::element_t Node::get_attribute_raw(const std::string& name) const { return get_entry()->get_attribute_raw(name); }
+const Entry::element_t Node::get_attribute_raw(const std::string& name) const { return self()->get_attribute_raw(name); }
 
-void Node::set_attribute_raw(const std::string& name, const Entry::element_t& value) { get_entry()->set_attribute_raw(name, value); }
+void Node::set_attribute_raw(const std::string& name, const Entry::element_t& value) { self()->set_attribute_raw(name, value); }
 
-void Node::remove_attribute(const std::string& name) { get_entry()->remove_attribute(name); }
+void Node::remove_attribute(const std::string& name) { self()->remove_attribute(name); }
 
-std::map<std::string, Entry::element_t> Node::attributes() const { return get_entry()->attributes(); }
+std::map<std::string, Entry::element_t> Node::attributes() const { return self()->attributes(); }
 
 // as leaf
-void Node::set_element(const Entry::element_t& v) { get_entry()->set_element(v); }
+void Node::set_element(const Entry::element_t& v) { self()->set_element(v); }
 
-Entry::element_t Node::get_element() const { return get_entry()->get_element(); }
+Entry::element_t Node::get_element() const { return self()->get_element(); }
 
-void Node::set_tensor(const Entry::tensor_t& v) { get_entry()->set_tensor(v); }
+void Node::set_tensor(const Entry::tensor_t& v) { self()->set_tensor(v); }
 
-Entry::tensor_t Node::get_tensor() const { return get_entry()->get_tensor(); }
+Entry::tensor_t Node::get_tensor() const { return self()->get_tensor(); }
 
-void Node::set_block(const Entry::block_t& v) { get_entry()->set_block(v); }
+void Node::set_block(const Entry::block_t& v) { self()->set_block(v); }
 
-Entry::block_t Node::get_block() const { return get_entry()->get_block(); }
+Entry::block_t Node::get_block() const { return self()->get_block(); }
 
 // as Tree
 // as container
 
 Node Node::parent() const
 {
-    auto pos = m_prefix_.rfind("/");
+    auto pos = m_path_.rfind("/");
     if (pos == std::string::npos)
     {
         return Node(m_entry_->parent());
     }
     else
     {
-        return Node(m_entry_->parent(), m_prefix_.substr(0, pos));
+        return Node(m_entry_->parent(), m_path_.substr(0, pos));
     }
 }
 
-Node const& Node::self() const { return *this; }
 
-Node& Node::self() { return *this; }
+size_t Node::size() const { return self()->size(); }
 
-size_t Node::size() const { return m_entry_->size(); }
+Node::cursor Node::first_child() const { return cursor{self()->first_child()}; }
 
-Node::range Node::children() const { return range{m_entry_->first_child()}; }
-
-Node Node::first_child() const { return Node{m_entry_->first_child()}; }
-
-Node Node::next() const { return Node{m_entry_->next()}; }
+Node::cursor Node::next() const { return cursor{self()->next()}; }
 // as array
 
-Node Node::push_back() { return Node{get_entry()->push_back()}; }
+Node Node::push_back() { return Node{self()->push_back()}; }
 
-Node Node::pop_back() { return Node{get_entry()->pop_back()}; }
+Node Node::pop_back() { return Node{self()->pop_back()}; }
 
-Node Node::operator[](int idx) { return Node{get_entry()->item(idx)}; }
+Node Node::operator[](int idx) { return Node{self()->item(idx)}; }
 
-Node Node::operator[](int idx) const { return Node{get_entry()->item(idx)}; }
+Node Node::operator[](int idx) const { return Node{self()->item(idx)}; }
 
 // as map
 // @note : map is unordered
-bool Node::has_a(const std::string& name) const { return m_entry_->find(join_path(m_prefix_, name)) != nullptr; }
+bool Node::has_a(const std::string& name) const { return m_entry_->find(join_path(m_path_, name)) != nullptr; }
 
-Node Node::find(const std::string& name) const { return Node(m_entry_->find(join_path(m_prefix_, name))); }
+Node Node::find(const std::string& name) const { return Node(m_entry_->find(join_path(m_path_, name))); }
 
-Node Node::operator[](const std::string& name) { return Node(m_entry_, join_path(m_prefix_, name)); }
+Node Node::operator[](const std::string& name) { return Node(m_entry_, join_path(m_path_, name)); }
 
-Node Node::insert(const std::string& name) { return Node(m_entry_->insert(join_path(m_prefix_, name))); }
+Node Node::insert(const std::string& name) { return Node(m_entry_->insert(join_path(m_path_, name))); }
 
-void Node::remove(const std::string& name) { m_entry_->remove(join_path(m_prefix_, name)); }
+void Node::remove(const std::string& name) { m_entry_->remove(join_path(m_path_, name)); }
 
 //-------------------------------------------------------------------
 // level 2
@@ -185,30 +183,30 @@ size_t Node::height() const
     return 0;
 }
 
-Node::range Node::slibings() const { return Node::range{}; }
+Node::cursor Node::slibings() const { return Node::cursor{}; }
 
-Node::range Node::ancestor() const
+Node::cursor Node::ancestor() const
 {
     NOT_IMPLEMENTED;
-    return Node::range{};
+    return Node::cursor{};
 }
 
-Node::range Node::descendants() const
+Node::cursor Node::descendants() const
 {
     NOT_IMPLEMENTED;
-    return Node::range{};
+    return Node::cursor{};
 }
 
-Node::range Node::leaves() const
+Node::cursor Node::leaves() const
 {
     NOT_IMPLEMENTED;
-    return Node::range{};
+    return Node::cursor{};
 }
 
-Node::range Node::shortest_path(Node const& target) const
+Node::cursor Node::shortest_path(Node const& target) const
 {
     NOT_IMPLEMENTED;
-    return Node::range{};
+    return Node::cursor{};
 }
 
 ptrdiff_t Node::distance(const this_type& target) const
@@ -304,18 +302,21 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
     }
     else if (entry.type() == Entry::Type::Array)
     {
-        auto r = entry.children();
         os << "[ ";
-        fancy_print_array1(os, r.first, r.second, indent);
+
+        for (auto it = entry.first_child(); !it.is_null(); ++it)
+        {
+            os << std::setw(indent) << " " << *it << "," << std::endl;
+        }
         os << " ]";
     }
     else if (entry.type() == Entry::Type::Object)
     {
-        auto r = entry.children();
         os << "{";
-        fancy_print_array1(os, r.first, r.second, indent);
-
-        // fancy_print_key_value(os, r.first, r.second, indent, ":");
+        for (auto it = entry.first_child(); !it.is_null(); ++it)
+        {
+            os << std::setw(indent) << " " << it->name() << ":" << *it << "," << std::endl;
+        }
         os << "}";
     }
     return os;
@@ -323,7 +324,7 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
 
 std::ostream& operator<<(std::ostream& os, Node const& entry) { return fancy_print(os, entry, 0); }
 
-Node::cursor::cursor() : m_entry_() {}
+Node::cursor::cursor() : m_entry_(nullptr) {}
 
 Node::cursor::cursor(Entry* p) : m_entry_(p == nullptr ? nullptr : p->shared_from_this()) {}
 
@@ -338,6 +339,8 @@ bool Node::cursor::operator==(cursor const& other) const { return m_entry_ == ot
 bool Node::cursor::operator!=(cursor const& other) const { return !(operator==(other)); }
 
 Node Node::cursor::operator*() { return Node(m_entry_); }
+
+bool Node::cursor::is_null() const { return m_entry_ == nullptr || m_entry_->type() == Entry::Null; }
 
 std::unique_ptr<Node> Node::cursor::operator->() { return std::make_unique<Node>(m_entry_); }
 

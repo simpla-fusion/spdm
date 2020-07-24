@@ -19,27 +19,20 @@ class Entry;
 class Node
 {
 private:
-    std::string m_prefix_;
+    std::string m_path_;
     std::shared_ptr<Entry> m_entry_;
 
-    std::shared_ptr<Entry> get_entry() const;
-    std::shared_ptr<Entry> get_entry();
+    std::shared_ptr<Entry> self() const;
+    std::shared_ptr<Entry> self();
 
 public:
     typedef Node this_type;
 
     class cursor;
-    class range;
 
-    Node();
+    explicit Node(const std::string& uri = "");
 
-    explicit Node(const std::string& uri);
-
-    explicit Node(const std::shared_ptr<Entry>& p,
-                  const std::string& prefix = "");
-
-    explicit Node(Entry* p,
-                  const std::string& prefix = "");
+    explicit Node(const std::shared_ptr<Entry>& p, const std::string& prefix = "");
 
     Node(const this_type&);
 
@@ -71,9 +64,9 @@ public:
 
     //
 
-    std::string full_path() const;
+    std::string path() const;
 
-    std::string relative_path() const;
+    std::string name() const;
 
     // attributes
 
@@ -133,21 +126,16 @@ public:
     // as Tree
     // as container
 
-    const Node& self() const;
-
-    Node& self();
-
+  
     Node parent() const;
 
     size_t size() const;
 
-    range children() const;
-    
+    cursor first_child() const;
+
+    cursor next() const;
+
     void clear();
-
-    Node first_child() const;
-
-    Node next() const;
 
     // as array
 
@@ -184,15 +172,15 @@ public:
 
     Node insert(const XPath&);
 
-    range find(const XPath&) const;
+    cursor find(const XPath&) const;
 
     typedef std::function<bool(const Node&)> pred_fun;
 
-    range find(const pred_fun&) const;
+    cursor find(const pred_fun&) const;
 
-    int update(range&, const Node&);
+    int update(cursor&, const Node&);
 
-    int remove(range&);
+    int remove(cursor&);
 
     //-------------------------------------------------------------------
     // level 2
@@ -201,15 +189,15 @@ public:
 
     size_t height() const; // max(children.height) +1
 
-    range slibings() const; // return slibings
+    cursor slibings() const; // return slibings
 
-    range ancestor() const; // return ancestor
+    cursor ancestor() const; // return ancestor
 
-    range descendants() const; // return descendants
+    cursor descendants() const; // return descendants
 
-    range leaves() const; // return leave nodes in traversal order
+    cursor leaves() const; // return leave nodes in traversal order
 
-    range shortest_path(Node const& target) const; // return the shortest path to target
+    cursor shortest_path(Node const& target) const; // return the shortest path to target
 
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
@@ -233,6 +221,10 @@ public:
 
     bool operator!=(const cursor& other) const;
 
+    operator bool() const { return !is_null(); }
+
+    bool is_null() const;
+
     Node operator*();
 
     std::unique_ptr<Node> operator->();
@@ -243,33 +235,6 @@ public:
 
 private:
     std::shared_ptr<Entry> m_entry_;
-};
-
-class Node::range : public std::pair<Node::cursor, Node::cursor>
-{
-public:
-    typedef std::pair<Node::cursor, Node::cursor> base_type;
-
-    using base_type::pair;
-
-    using base_type::first;
-
-    using base_type::second;
-
-    range() = default;
-
-    range(const cursor& first) : range{first, cursor{}} {}
-
-    range(const cursor& first, const cursor& second) : base_type(first, second) {}
-
-    template <typename U, typename V>
-    range(const U& first, const V& second) : range{Node::cursor(first), Node::cursor(second)} {}
-
-    ~range() = default;
-
-    Node::cursor begin() { return first; }
-
-    Node::cursor end() { return second; }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);

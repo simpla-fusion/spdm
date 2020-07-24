@@ -14,14 +14,25 @@ typedef std::variant<std::nullptr_t,
                      Entry::block_t,
                      std::vector<std::shared_ptr<Entry>>,
                      std::map<std::string, std::shared_ptr<Entry>>>
-    entry_memory;
+    entry_memory_union;
+
+struct entry_memory : public entry_memory_union
+{
+    entry_memory(const std::shared_ptr<Entry>& p = nullptr, const std::string& n = "") : entry_memory_union(nullptr), parent(p), name(n) {}
+    ~entry_memory() = default;
+    std::string name;
+    std::shared_ptr<Entry> parent;
+};
 
 template <>
 Entry::Type EntryPlugin<entry_memory>::type() const { return Type(m_pimpl_.index()); }
-
+// template <>
+// std::string EntryPlugin<entry_memory>::name() const { return ""; }
 //----------------------------------------------------------------------------------
 // level 0
-//
+template <>
+std::string EntryPlugin<entry_memory>::name() const { return m_pimpl_.name; };
+
 // as leaf
 template <>
 void EntryPlugin<entry_memory>::set_element(const Entry::element_t& v)
@@ -136,14 +147,10 @@ EntryPlugin<entry_memory>::insert(const std::string& name)
         m_pimpl_.emplace<Type::Object>();
     }
 
-    if (name == "")
-    {
-        res = this->shared_from_this();
-    }
-    else if (type() == Type::Object)
+    if (type() == Type::Object)
     {
         auto& m = std::get<Type::Object>(m_pimpl_);
-        res = m.emplace(name, std::make_shared<this_type>()).first->second;
+        res = m.emplace(name, std::make_shared<this_type>(this->shared_from_this(), name)).first->second;
     }
     else
     {
@@ -246,7 +253,7 @@ EntryPlugin<entry_memory>::push_back()
     if (type() == Type::Array)
     {
         auto& m = std::get<Type::Array>(m_pimpl_);
-        m.emplace_back(std::make_shared<this_type>());
+        m.emplace_back(std::make_shared<this_type>(this->shared_from_this(), ""));
         res = *m.rbegin();
     }
 
