@@ -6,102 +6,8 @@
 #include <variant>
 namespace sp
 {
-
-template <typename Plugin, typename IT, typename Enable = void>
-class EntryIterator;
-
 template <typename Plugin, typename IT, typename... Args>
-std::shared_ptr<Entry> make_iterator(const IT& ib, const IT& ie, Args&&... args)
-{
-    return std::make_shared<EntryIterator<Plugin, IT>>(ib, ie, std::forward<Args>(args)...);
-}
-
-template <typename Plugin, typename IT>
-class EntryIterator<Plugin, IT, std::enable_if_t<std::is_same_v<std::shared_ptr<Entry>, typename std::iterator_traits<IT>::value_type>>>
-    : public Entry
-{
-
-public:
-    typedef EntryIterator<Plugin, IT> this_type;
-
-    typedef IT base_iterator;
-
-    EntryIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
-
-    EntryIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
-
-    ~EntryIterator() = default;
-
-    this_type* copy() const override { return new this_type{*this}; }
-
-    std::shared_ptr<Entry> get() const override { return m_current_; }
-
-    void next() override
-    {
-        if (m_it_ != m_ie_)
-        {
-            m_current_ = *m_it_;
-            ++m_it_;
-        }
-        else
-        {
-            m_current_ = nullptr;
-        }
-    }
-
-    bool not_equal(const Entry* other) const override { return get().get() == other; };
-
-    bool equal(const Entry* other) const override { return get().get() == other; };
-
-private:
-    std::shared_ptr<Entry> m_current_;
-    base_iterator m_it_, m_ie_;
-};
-
-template <typename Plugin, typename IT>
-class EntryIterator<Plugin, IT,
-                    std::enable_if_t<std::is_same_v<
-                        std::pair<const std::string, std::shared_ptr<Entry>>,
-                        typename std::iterator_traits<IT>::value_type>>>
-    : public Entry::iterator
-{
-
-public:
-    typedef EntryIterator<Plugin, IT> this_type;
-
-    typedef IT base_iterator;
-
-    EntryIterator(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie), m_current_(nullptr) { next(); }
-
-    EntryIterator(const this_type& other) : m_it_(other.m_it_), m_ie_(other.m_ie_), m_current_(other.m_current_) {}
-
-    ~EntryIterator() = default;
-
-    iterator* copy() const override { return new this_type{*this}; }
-
-    std::shared_ptr<Entry> get() const override { return m_current_; }
-
-    void next() override
-    {
-        if (m_it_ != m_ie_)
-        {
-            m_current_ = m_it_->second;
-            ++m_it_;
-        }
-        else
-        {
-            m_current_ = nullptr;
-        }
-    }
-
-    bool not_equal(const Entry* other) const override { return get().get() == other; };
-
-    bool equal(const Entry* other) const override { return get().get() == other; };
-
-private:
-    std::shared_ptr<Entry> m_current_;
-    base_iterator m_it_, m_ie_;
-};
+std::shared_ptr<Entry> make_iterator(const IT& ib, const IT& ie, Args&&... args);
 
 typedef std::variant<std::nullptr_t,
                      Entry::element_t,
@@ -111,30 +17,26 @@ typedef std::variant<std::nullptr_t,
                      std::map<std::string, std::shared_ptr<Entry>>>
     entry_memory;
 
-template <>
-EntryPlugin<entry_memory>::EntryPlugin()
-    : Entry(), m_pimpl_(nullptr){};
+// template <>
+// EntryPlugin<entry_memory>::EntryPlugin(const entry_memory& other)
+//     : Entry(), m_pimpl_(other){};
 
-template <>
-EntryPlugin<entry_memory>::EntryPlugin(const entry_memory& other)
-    : Entry(), m_pimpl_(other){};
+// template <>
+// EntryPlugin<entry_memory>::EntryPlugin(const EntryPlugin& other)
+//     : Entry(other), m_pimpl_(other.m_pimpl_) {}
 
-template <>
-EntryPlugin<entry_memory>::EntryPlugin(const EntryPlugin& other)
-    : Entry(other), m_pimpl_(other.m_pimpl_) {}
+// template <>
+// EntryPlugin<entry_memory>::EntryPlugin(EntryPlugin&& other)
+//     : Entry(std::forward<EntryPlugin>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
 
-template <>
-EntryPlugin<entry_memory>::EntryPlugin(EntryPlugin&& other)
-    : Entry(std::forward<EntryPlugin>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
+// template <>
+// EntryPlugin<entry_memory>::~EntryPlugin() = default;
 
-template <>
-EntryPlugin<entry_memory>::~EntryPlugin() = default;
-
-template <>
-std::shared_ptr<Entry> EntryPlugin<entry_memory>::copy() const
-{
-    return std::make_shared<EntryPlugin<entry_memory>>(*this);
-};
+// template <>
+// std::shared_ptr<Entry> EntryPlugin<entry_memory>::copy() const
+// {
+//     return std::make_shared<EntryPlugin<entry_memory>>(*this);
+// };
 
 // template <>
 // std::shared_ptr<Entry> EntryPlugin<entry_memory>::duplicate() const
@@ -451,10 +353,11 @@ std::map<std::string, Entry::element_t> EntryPlugin<entry_memory>::attributes() 
     return std::move(res);
 }
 
+
 // template <typename Plugin, typename IT, typename Enable = void>
 // class EntryIterator;
 
-// template <typename Plugin, typename IT>
+//
 // std::shared_ptr<Entry> make_iterator(const IT& ib, const IT& ie)
 // {
 //     return std::make_shared<EntryIterator<Plugin, IT>>(ib, ie);

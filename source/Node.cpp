@@ -148,7 +148,7 @@ Node& Node::self() { return *this; }
 
 size_t Node::size() const { return m_entry_->size(); }
 
-Node::range Node::children() const { return range{m_entry_->first_child(), nullptr}; }
+Node::range Node::children() const { return range{m_entry_->first_child()}; }
 
 // as array
 
@@ -320,32 +320,34 @@ std::ostream& fancy_print(std::ostream& os, const Node& entry, int indent = 0)
 
 std::ostream& operator<<(std::ostream& os, Node const& entry) { return fancy_print(os, entry, 0); }
 
-Node::iterator::iterator() : m_cursor_() {}
+Node::cursor::cursor() : m_entry_() {}
 
-Node::iterator::iterator(const std::shared_ptr<Entry>& p) : m_cursor_(p) {}
+Node::cursor::cursor(Entry* p) : m_entry_(p == nullptr ? nullptr : p->shared_from_this()) {}
 
-Node::iterator::iterator(const iterator& other) : m_cursor_(other.m_cursor_->copy()) {}
+Node::cursor::cursor(const std::shared_ptr<Entry>& p) : m_entry_(p) {}
 
-Node::iterator::iterator(iterator&& other) : m_cursor_(other.m_cursor_) { other.m_cursor_.reset(); }
+Node::cursor::cursor(const cursor& other) : m_entry_(other.m_entry_->copy()) {}
 
-bool Node::iterator::operator==(iterator const& other) const { return m_cursor_ == other.m_cursor_; }
+Node::cursor::cursor(cursor&& other) : m_entry_(other.m_entry_) { other.m_entry_.reset(); }
 
-bool Node::iterator::operator!=(iterator const& other) const { return m_cursor_ != other.m_cursor_; }
+bool Node::cursor::operator==(cursor const& other) const { return m_entry_ == other.m_entry_ || (m_entry_ != nullptr && m_entry_->same_as(other.m_entry_.get())); }
 
-Node Node::iterator::operator*() { return Node(m_cursor_); }
+bool Node::cursor::operator!=(cursor const& other) const { return !(operator==(other)); }
 
-std::unique_ptr<Node> Node::iterator::operator->() { return std::make_unique<Node>(m_cursor_); }
+Node Node::cursor::operator*() { return Node(m_entry_); }
 
-Node::iterator& Node::iterator::operator++()
+std::unique_ptr<Node> Node::cursor::operator->() { return std::make_unique<Node>(m_entry_); }
+
+Node::cursor& Node::cursor::operator++()
 {
-    m_cursor_ = m_cursor_->next();
+    m_entry_ = m_entry_->next();
     return *this;
 }
 
-Node::iterator Node::iterator::operator++(int)
+Node::cursor Node::cursor::operator++(int)
 {
-    Node::iterator res(*this);
-    m_cursor_ = m_cursor_->next();
+    Node::cursor res(*this);
+    m_entry_ = m_entry_->next();
     return std::move(res);
 }
 

@@ -10,7 +10,6 @@
 #include <vector>
 namespace sp
 {
-class EntryIterator;
 
 class Entry : public std::enable_shared_from_this<Entry>
 {
@@ -58,13 +57,14 @@ public:
 
     static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
-    virtual Type type() const = 0;
-
     virtual std::shared_ptr<Entry> copy() const = 0;
 
     //----------------------------------------------------------------------------------------------------------
-    // attribute
+
+    virtual Type type() const = 0;
+
     //----------------------------------------------------------------------------------------------------------
+    // attribute
     virtual bool has_attribute(const std::string& name) const = 0;
 
     virtual element_t get_attribute_raw(const std::string& name) const = 0;
@@ -91,14 +91,19 @@ public:
     // as Hierarchy tree node
     // function level 0
 
-    // container
+    //as cursor
+
     virtual size_t size() const = 0;
+
+    virtual std::shared_ptr<Entry> next() const = 0; // traversal
+
+    virtual bool same_as(const Entry*) const = 0; // check
+
+    // as tree node
 
     virtual std::shared_ptr<Entry> parent() const = 0;
 
     virtual std::shared_ptr<Entry> first_child() const = 0;
-
-    virtual std::shared_ptr<Entry> next() const = 0; // traversal
 
     // as array
 

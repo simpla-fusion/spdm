@@ -28,7 +28,7 @@ private:
 public:
     typedef Node this_type;
 
-    class iterator;
+    class cursor;
     class range;
 
     Node();
@@ -143,8 +143,6 @@ public:
 
     range children() const;
 
-    range children();
-
     void clear();
 
     // as array
@@ -212,39 +210,41 @@ public:
     ptrdiff_t distance(const this_type& target) const; // lenght of shortest path to target
 };
 
-class Node::iterator
+class Node::cursor
 {
 public:
-    iterator();
+    cursor();
 
-    iterator(const std::shared_ptr<Entry>&);
+    cursor(Entry*);
 
-    iterator(const iterator&);
+    cursor(const std::shared_ptr<Entry>&);
 
-    iterator(iterator&&);
+    cursor(const cursor&);
 
-    ~iterator() = default;
+    cursor(cursor&&);
 
-    bool operator==(iterator const& other) const;
+    ~cursor() = default;
 
-    bool operator!=(iterator const& other) const;
+    bool operator==(const cursor& other) const;
+
+    bool operator!=(const cursor& other) const;
 
     Node operator*();
 
     std::unique_ptr<Node> operator->();
 
-    iterator& operator++();
+    cursor& operator++();
 
-    iterator operator++(int);
+    cursor operator++(int);
 
 private:
-    std::shared_ptr<Entry> m_cursor_;
+    std::shared_ptr<Entry>  m_entry_;
 };
 
-class Node::range : public std::pair<Node::iterator, Node::iterator>
+class Node::range : public std::pair<Node::cursor, Node::cursor>
 {
 public:
-    typedef std::pair<Node::iterator, Node::iterator> base_type;
+    typedef std::pair<Node::cursor, Node::cursor> base_type;
 
     using base_type::pair;
 
@@ -254,14 +254,18 @@ public:
 
     range() = default;
 
+    range(const cursor& first) : range{first, cursor{}} {}
+
+    range(const cursor& first, const cursor& second ) : base_type(first, second) {}
+
     template <typename U, typename V>
-    range(const U& first, const V& second) : range(Node::iterator(first), Node::iterator(second)) {}
+    range(const U& first, const V& second) : range{Node::cursor(first), Node::cursor(second)} {}
 
     ~range() = default;
 
-    Node::iterator begin() { return first; }
+    Node::cursor begin() { return first; }
 
-    Node::iterator end() { return second; }
+    Node::cursor end() { return second; }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);
