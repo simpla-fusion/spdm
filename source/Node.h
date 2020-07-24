@@ -142,8 +142,12 @@ public:
     size_t size() const;
 
     range children() const;
-
+    
     void clear();
+
+    Node first_child() const;
+
+    Node next() const;
 
     // as array
 
@@ -238,7 +242,7 @@ public:
     cursor operator++(int);
 
 private:
-    std::shared_ptr<Entry>  m_entry_;
+    std::shared_ptr<Entry> m_entry_;
 };
 
 class Node::range : public std::pair<Node::cursor, Node::cursor>
@@ -256,7 +260,7 @@ public:
 
     range(const cursor& first) : range{first, cursor{}} {}
 
-    range(const cursor& first, const cursor& second ) : base_type(first, second) {}
+    range(const cursor& first, const cursor& second) : base_type(first, second) {}
 
     template <typename U, typename V>
     range(const U& first, const V& second) : range{Node::cursor(first), Node::cursor(second)} {}

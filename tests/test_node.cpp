@@ -15,10 +15,15 @@ TEST_CASE("Create Node", "[SpDB]")
     node["A"].set_value<std::string>("1234");
     node["B"].set_value<std::string>("5678");
 
-    node["C"][-1].set_value<int>(5);
-    node["C"][-1].set_value<float>(6.0);
+    // node["C"][-1].set_value<int>(5);
+    // node["C"][-1].set_value<float>(6.0);
 
-    std::cout << node.size() << node << std::endl;
+    std::cout << node.size() << std::endl;
+
+    for (auto n = node.first_child(); !node.is_null(); n = n.next())
+    {
+        std::cout << n << std::endl;
+    }
 
     // std::cout << "====================================" << std::endl;
     // entry.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");

@@ -91,7 +91,7 @@ std::string Node::full_path() const
 std::string Node::relative_path() const { return m_prefix_; }
 
 // metadata
-Entry::Type Node::type() const { return m_entry_->type(); }
+Entry::Type Node::type() const { return m_entry_ == nullptr ? Entry::Type::Null : m_entry_->type(); }
 bool Node::is_null() const { return type() == Entry::Type::Null; }
 bool Node::is_element() const { return type() == Entry::Type::Element; }
 bool Node::is_tensor() const { return type() == Entry::Type::Tensor; }
@@ -99,7 +99,7 @@ bool Node::is_block() const { return type() == Entry::Type::Block; }
 bool Node::is_array() const { return type() == Entry::Type::Array; }
 bool Node::is_object() const { return type() == Entry::Type::Object; }
 
-bool Node::is_root() const { return m_entry_->parent() == nullptr; }
+bool Node::is_root() const { return m_entry_ == nullptr || m_entry_->parent() == nullptr; }
 bool Node::is_leaf() const { return type() < Entry::Type::Array; };
 
 // attributes
@@ -150,6 +150,9 @@ size_t Node::size() const { return m_entry_->size(); }
 
 Node::range Node::children() const { return range{m_entry_->first_child()}; }
 
+Node Node::first_child() const { return Node{m_entry_->first_child()}; }
+
+Node Node::next() const { return Node{m_entry_->next()}; }
 // as array
 
 Node Node::push_back() { return Node{get_entry()->push_back()}; }

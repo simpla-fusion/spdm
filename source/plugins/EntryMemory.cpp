@@ -143,7 +143,7 @@ EntryPlugin<entry_memory>::insert(const std::string& name)
     else if (type() == Type::Object)
     {
         auto& m = std::get<Type::Object>(m_pimpl_);
-        // res = m.emplace(name, duplicate()).first->second;
+        res = m.emplace(name, std::make_shared<this_type>()).first->second;
     }
     else
     {
@@ -246,7 +246,7 @@ EntryPlugin<entry_memory>::push_back()
     if (type() == Type::Array)
     {
         auto& m = std::get<Type::Array>(m_pimpl_);
-        // m.emplace_back(duplicate());
+        m.emplace_back(std::make_shared<this_type>());
         res = *m.rbegin();
     }
 
@@ -297,8 +297,8 @@ Entry::element_t EntryPlugin<entry_memory>::get_attribute_raw(const std::string&
     }
     return p->get_element();
 }
-template <>
 
+template <>
 void EntryPlugin<entry_memory>::set_attribute_raw(const std::string& name, const Entry::element_t& value)
 {
     insert("@" + name)->set_element(value);
