@@ -14,7 +14,7 @@ namespace sp
 class Entry : public std::enable_shared_from_this<Entry>
 {
 public:
-    enum Type
+    enum NodeType
     {
         Null = 0,
         Element = 1,
@@ -23,9 +23,18 @@ public:
         Array = 4,
         Object = 5
     };
-
+    enum ElementType
+    {
+        String = 0,
+        Boolean = 1,
+        Integer = 2,
+        Float = 3,
+        Complex = 4,
+        IntVec3 = 5,
+        FloatVec3 = 6,
+    };
     typedef std::variant<std::string,
-                         bool, int, double,
+                         bool, long, double,
                          std::complex<double>,
                          std::array<int, 3>,
                          std::array<double, 3>>
@@ -61,7 +70,7 @@ public:
 
     //----------------------------------------------------------------------------------------------------------
 
-    virtual Type type() const = 0;
+    virtual NodeType type() const = 0;
 
     virtual std::string path() const = 0;
 
@@ -135,6 +144,9 @@ public:
 
     // virtual std::shared_ptr<Entry::iterator> select(const XPath& path) const { return nullptr; };
 };
+std::string to_string(Entry::element_t const& s);
+Entry::element_t from_string(const std::string& s, int idx = 0);
+
 } // namespace sp
 
 #endif //SP_ENTRY_H_

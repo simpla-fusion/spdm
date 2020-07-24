@@ -51,7 +51,7 @@ public:
     void resolve();
 
     // metadata
-    Entry::Type type() const;
+    Entry::NodeType type() const;
     bool is_null() const;
     bool is_element() const;
     bool is_tensor() const;
@@ -108,8 +108,19 @@ public:
     template <typename V>
     void set_value(const V& v) { set_element(Entry::element_t(v)); };
 
+    template <typename Entry::ElementType E, typename V>
+    void set_value(const V& v)
+    {
+        Entry::element_t res;
+        res.emplace<E>(v);
+        set_element(res);
+    };
+
     template <typename V>
     V get_value() const { return std::get<V>(get_element()); }
+
+    template <typename Entry::ElementType E>
+    void get_value() const { return std::get<E>(get_element()); };
 
     void set_tensor(const Entry::tensor_t&);
 

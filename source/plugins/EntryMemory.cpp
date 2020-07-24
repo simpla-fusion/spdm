@@ -25,7 +25,7 @@ struct entry_memory : public entry_memory_union
 };
 
 template <>
-Entry::Type EntryPlugin<entry_memory>::type() const { return Type(m_pimpl_.index()); }
+Entry::NodeType EntryPlugin<entry_memory>::type() const { return NodeType(m_pimpl_.index()); }
 // template <>
 // std::string EntryPlugin<entry_memory>::name() const { return ""; }
 //----------------------------------------------------------------------------------
@@ -37,61 +37,61 @@ std::string EntryPlugin<entry_memory>::name() const { return m_pimpl_.name; };
 template <>
 void EntryPlugin<entry_memory>::set_element(const Entry::element_t& v)
 {
-    if (type() >= Type::Array)
+    if (type() >= NodeType::Array)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
     }
-    m_pimpl_.emplace<Type::Element>(v);
+    m_pimpl_.emplace<NodeType::Element>(v);
 }
 
 template <>
 Entry::element_t EntryPlugin<entry_memory>::get_element() const
 {
-    if (type() != Type::Element)
+    if (type() != NodeType::Element)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not Element!");
     }
-    return std::get<Type::Element>(m_pimpl_);
+    return std::get<NodeType::Element>(m_pimpl_);
 }
 
 template <>
 void EntryPlugin<entry_memory>::set_tensor(const Entry::tensor_t& v)
 {
-    if (type() >= Type::Array)
+    if (type() >= NodeType::Array)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
     }
-    m_pimpl_.emplace<Type::Tensor>(v);
+    m_pimpl_.emplace<NodeType::Tensor>(v);
 }
 
 template <>
 Entry::tensor_t EntryPlugin<entry_memory>::get_tensor() const
 {
-    if (type() != Type::Tensor)
+    if (type() != NodeType::Tensor)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
     }
-    return std::get<Type::Tensor>(m_pimpl_);
+    return std::get<NodeType::Tensor>(m_pimpl_);
 }
 
 template <>
 void EntryPlugin<entry_memory>::set_block(const Entry::block_t& v)
 {
-    if (type() >= Type::Array)
+    if (type() >= NodeType::Array)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
     }
-    m_pimpl_.emplace<Type::Block>(v);
+    m_pimpl_.emplace<NodeType::Block>(v);
 }
 
 template <>
 Entry::block_t EntryPlugin<entry_memory>::get_block() const
 {
-    if (type() != Type::Block)
+    if (type() != NodeType::Block)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not block!");
     }
-    return std::get<Type::Block>(m_pimpl_);
+    return std::get<NodeType::Block>(m_pimpl_);
 }
 
 // as Tree
@@ -101,10 +101,10 @@ std::shared_ptr<Entry>
 EntryPlugin<entry_memory>::find(const std::string& name) const
 {
     std::shared_ptr<Entry> res = nullptr;
-    if (type() == Type::Object)
+    if (type() == NodeType::Object)
     {
 
-        auto& m = std::get<Type::Object>(m_pimpl_);
+        auto& m = std::get<NodeType::Object>(m_pimpl_);
         auto it = m.find(name);
         if (it != m.end())
         {
@@ -141,14 +141,14 @@ EntryPlugin<entry_memory>::insert(const std::string& name)
 {
     std::shared_ptr<Entry> res = nullptr;
 
-    if (type() == Type::Null)
+    if (type() == NodeType::Null)
     {
-        m_pimpl_.emplace<Type::Object>();
+        m_pimpl_.emplace<NodeType::Object>();
     }
 
-    if (type() == Type::Object)
+    if (type() == NodeType::Object)
     {
-        auto& m = std::get<Type::Object>(m_pimpl_);
+        auto& m = std::get<NodeType::Object>(m_pimpl_);
         res = m.emplace(name, std::make_shared<this_type>(this->shared_from_this(), name)).first->second;
     }
     else
@@ -182,9 +182,9 @@ EntryPlugin<entry_memory>::insert_r(const std::string& path)
 template <>
 void EntryPlugin<entry_memory>::remove(const std::string& name)
 {
-    if (type() == Type::Object)
+    if (type() == NodeType::Object)
     {
-        auto& m = std::get<Type::Object>(m_pimpl_);
+        auto& m = std::get<NodeType::Object>(m_pimpl_);
         auto it = m.find(name);
         if (it != m.end())
         {
@@ -197,14 +197,14 @@ template <>
 size_t EntryPlugin<entry_memory>::size() const
 {
     size_t res = 0;
-    if (type() == Type::Object)
+    if (type() == NodeType::Object)
     {
-        auto& m = std::get<Type::Object>(m_pimpl_);
+        auto& m = std::get<NodeType::Object>(m_pimpl_);
         res = m.size();
     }
-    else if (type() == Type::Array)
+    else if (type() == NodeType::Array)
     {
-        auto& m = std::get<Type::Array>(m_pimpl_);
+        auto& m = std::get<NodeType::Array>(m_pimpl_);
         res = m.size();
     }
     return res;
@@ -223,15 +223,15 @@ std::shared_ptr<Entry>
 EntryPlugin<entry_memory>::first_child() const
 {
     std::shared_ptr<Entry> res{nullptr};
-    if (type() == Type::Object)
+    if (type() == NodeType::Object)
     {
-        auto& m = std::get<Type::Object>(m_pimpl_);
+        auto& m = std::get<NodeType::Object>(m_pimpl_);
 
         res = make_iterator<entry_memory>(m.begin(), m.end());
     }
-    else if (type() == Type::Array)
+    else if (type() == NodeType::Array)
     {
-        auto& m = std::get<Type::Array>(m_pimpl_);
+        auto& m = std::get<NodeType::Array>(m_pimpl_);
 
         res = make_iterator<entry_memory>(m.begin(), m.end());
     }
@@ -245,13 +245,13 @@ std::shared_ptr<Entry>
 EntryPlugin<entry_memory>::push_back()
 {
     std::shared_ptr<Entry> res = nullptr;
-    if (type() == Type::Null)
+    if (type() == NodeType::Null)
     {
-        m_pimpl_.emplace<Type::Array>();
+        m_pimpl_.emplace<NodeType::Array>();
     }
-    if (type() == Type::Array)
+    if (type() == NodeType::Array)
     {
-        auto& m = std::get<Type::Array>(m_pimpl_);
+        auto& m = std::get<NodeType::Array>(m_pimpl_);
         m.emplace_back(std::make_shared<this_type>(this->shared_from_this(), ""));
         res = *m.rbegin();
     }
@@ -264,9 +264,9 @@ std::shared_ptr<Entry> EntryPlugin<entry_memory>::pop_back()
 {
     std::shared_ptr<Entry> res = nullptr;
 
-    if (type() == Type::Array)
+    if (type() == NodeType::Array)
     {
-        auto& m = std::get<Type::Array>(m_pimpl_);
+        auto& m = std::get<NodeType::Array>(m_pimpl_);
         res = *m.rbegin();
         m.pop_back();
     }
@@ -280,9 +280,9 @@ EntryPlugin<entry_memory>::item(int idx) const
 {
     std::shared_ptr<Entry> res = nullptr;
 
-    if (type() == Type::Array)
+    if (type() == NodeType::Array)
     {
-        auto& m = std::get<Type::Array>(m_pimpl_);
+        auto& m = std::get<NodeType::Array>(m_pimpl_);
         res = m[idx];
     }
 
@@ -316,13 +316,13 @@ void EntryPlugin<entry_memory>::remove_attribute(const std::string& name) { remo
 template <>
 std::map<std::string, Entry::element_t> EntryPlugin<entry_memory>::attributes() const
 {
-    if (type() != Type::Object)
+    if (type() != NodeType::Object)
     {
         return std::map<std::string, Entry::element_t>{};
     }
 
     std::map<std::string, Entry::element_t> res;
-    for (const auto& item : std::get<Type::Object>(m_pimpl_))
+    for (const auto& item : std::get<NodeType::Object>(m_pimpl_))
     {
         if (item.first[0] == '@')
         {

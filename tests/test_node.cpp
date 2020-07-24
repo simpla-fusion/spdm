@@ -15,13 +15,17 @@ TEST_CASE("Create Node", "[SpDB]")
     node["A"].set_value<std::string>("1234");
     node["B"].set_value<std::string>("5678");
 
-    node["C"][-1].set_value<int>(5);
+    node["C"][-1].set_value<sp::Entry::ElementType::Integer>(5);
     node["C"][-1].set_value<double>(6.0);
     node["D/E/F"].set_value<double>(1.2345);
 
     std::cout << node << std::endl;
 
     REQUIRE(node.get_attribute<std::string>("A") == "a");
+
+    REQUIRE(node.has_attribute("A") == true);
+
+    REQUIRE(node.has_attribute("C") == false);
 
     REQUIRE(node.size() == 6);
 
