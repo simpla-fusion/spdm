@@ -22,6 +22,8 @@ public:
     template <typename... Args>
     EntryPlugin(Args&&... args) : m_pimpl_(std::forward<Args>(args)...) {}
 
+    EntryPlugin(const std::string& request) : EntryPlugin(request){};
+
     EntryPlugin(const EntryPlugin& other) : EntryPlugin(other.m_pimpl_){};
 
     EntryPlugin(EntryPlugin&& other) : EntryPlugin(std::move(other.m_pimpl_)){};
@@ -31,6 +33,8 @@ public:
     std::shared_ptr<Entry> copy() const override { return std::make_shared<this_type>(*this); }
 
     void swap(EntryPlugin& other) { std::swap(m_pimpl_, other.m_pimpl_); }
+
+    void init(const Attributes&){};
 
     //----------------------------------------------------------------------------------------------------------
 

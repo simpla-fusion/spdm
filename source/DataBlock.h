@@ -15,19 +15,19 @@
 
 //     } SpObjectInterface;
 
-//     typedef struct
-//     {
-//         // SpObject_INTERFACE_HEAD;
+typedef struct
+{
+    // SpObject_INTERFACE_HEAD;
 
-//         char *data;
-//         unsigned int element_size;
-//         int dtype;
-//         int nd;
-//         unsigned int *dimensions;
-//         unsigned int *strides;
-//         int flags;
-//         char _[];
-//     } DataBlockInterface;
+    char* data;
+    unsigned int element_size;
+    int dtype;
+    int nd;
+    unsigned int* dimensions;
+    unsigned int* strides;
+    int flags;
+    char _[];
+} DataBlock;
 
 // #ifdef __cplusplus
 // }

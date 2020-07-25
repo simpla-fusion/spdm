@@ -7,65 +7,39 @@
 namespace sp
 {
 
-struct entry_xml
-{
-    entry_xml() : m_node_(std::dynamic_pointer_cast<pugi::xml_node>(std::make_shared<pugi::xml_document>())) {}
-
-    entry_xml(const pugi::xml_node& n) : m_node_(std::make_shared<pugi::xml_node>(n)) {}
-
-    entry_xml(pugi::xml_node&& n) : m_node_(std::make_shared<pugi::xml_node>(std::move(n))) {}
-
-    entry_xml(const std::shared_ptr<pugi::xml_node>& p) : m_node_(p) {}
-
-    entry_xml(const std::string& path) : entry_xml()
-    {
-        auto doc = std::make_shared<pugi::xml_document>();
-        doc->load_file(path.c_str());
-        m_node_ = std::dynamic_pointer_cast<pugi::xml_node>(doc);
-    }
-
-    entry_xml(const entry_xml& other) : m_node_(other.m_node_) {}
-
-    entry_xml(entry_xml&& other) : m_node_(std::move(other.m_node_)) {}
-
-    ~entry_xml() = default;
-
-    std::shared_ptr<pugi::xml_node> m_node_;
-};
-
 template <>
-Entry::NodeType EntryPlugin<entry_xml>::type() const { return NodeType(m_pimpl_.m_node_->type()); }
+Entry::NodeType EntryPlugin<pugi::xml_node>::type() const { return NodeType(m_pimpl_.type()); }
 
 //----------------------------------------------------------------------------------
 // attributes
 template <>
-bool EntryPlugin<entry_xml>::has_attribute(const std::string& name) const
+bool EntryPlugin<pugi::xml_node>::has_attribute(const std::string& name) const
 {
-    return !m_pimpl_.m_node_->attribute(name.c_str()).empty();
+    return !m_pimpl_.attribute(name.c_str()).empty();
 }
 
 template <>
-Entry::element_t EntryPlugin<entry_xml>::get_attribute_raw(const std::string& name) const
+Entry::element_t EntryPlugin<pugi::xml_node>::get_attribute_raw(const std::string& name) const
 {
     Entry::element_t res;
-    res.emplace<std::string>(m_pimpl_.m_node_->attribute(name.c_str()).value());
+    res.emplace<std::string>(m_pimpl_.attribute(name.c_str()).value());
     return std::move(res);
 }
 
 template <>
-void EntryPlugin<entry_xml>::set_attribute_raw(const std::string& name, const Entry::element_t& value)
+void EntryPlugin<pugi::xml_node>::set_attribute_raw(const std::string& name, const Entry::element_t& value)
 {
-    m_pimpl_.m_node_->append_attribute(name.c_str()).set_value(to_string(value).c_str());
+    m_pimpl_.append_attribute(name.c_str()).set_value(to_string(value).c_str());
 }
 
 template <>
-void EntryPlugin<entry_xml>::remove_attribute(const std::string& name)
+void EntryPlugin<pugi::xml_node>::remove_attribute(const std::string& name)
 {
-    m_pimpl_.m_node_->remove_attribute(name.c_str());
+    m_pimpl_.remove_attribute(name.c_str());
 }
 
 template <>
-std::map<std::string, Entry::element_t> EntryPlugin<entry_xml>::attributes() const
+std::map<std::string, Entry::element_t> EntryPlugin<pugi::xml_node>::attributes() const
 {
     std::map<std::string, Entry::element_t> res{};
     NOT_IMPLEMENTED;
@@ -74,42 +48,42 @@ std::map<std::string, Entry::element_t> EntryPlugin<entry_xml>::attributes() con
 //----------------------------------------------------------------------------------
 // level 0
 template <>
-std::string EntryPlugin<entry_xml>::name() const { return m_pimpl_.m_node_->name(); };
+std::string EntryPlugin<pugi::xml_node>::name() const { return m_pimpl_.name(); };
 
 // as leaf
 template <>
-void EntryPlugin<entry_xml>::set_element(const Entry::element_t& v)
+void EntryPlugin<pugi::xml_node>::set_element(const Entry::element_t& v)
 {
-    m_pimpl_.m_node_->text().set(to_string(v).c_str());
+    m_pimpl_.text().set(to_string(v).c_str());
 }
 
 template <>
-Entry::element_t EntryPlugin<entry_xml>::get_element() const
+Entry::element_t EntryPlugin<pugi::xml_node>::get_element() const
 {
-    return Entry::element_t(std::string(m_pimpl_.m_node_->text().as_string()));
+    return Entry::element_t(std::string(m_pimpl_.text().as_string()));
 }
 
 template <>
-void EntryPlugin<entry_xml>::set_tensor(const Entry::tensor_t& v)
+void EntryPlugin<pugi::xml_node>::set_tensor(const Entry::tensor_t& v)
 {
     NOT_IMPLEMENTED;
 }
 
 template <>
-Entry::tensor_t EntryPlugin<entry_xml>::get_tensor() const
+Entry::tensor_t EntryPlugin<pugi::xml_node>::get_tensor() const
 {
     NOT_IMPLEMENTED;
     return Entry::tensor_t{nullptr, typeid(nullptr), {}};
 }
 
 template <>
-void EntryPlugin<entry_xml>::set_block(const Entry::block_t& v)
+void EntryPlugin<pugi::xml_node>::set_block(const Entry::block_t& v)
 {
     NOT_IMPLEMENTED;
 }
 
 template <>
-Entry::block_t EntryPlugin<entry_xml>::get_block() const
+Entry::block_t EntryPlugin<pugi::xml_node>::get_block() const
 {
     return Entry::block_t{};
 }
@@ -118,26 +92,26 @@ Entry::block_t EntryPlugin<entry_xml>::get_block() const
 // as object
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::find(const std::string& name) const
+EntryPlugin<pugi::xml_node>::find(const std::string& name) const
 {
-    return std::make_shared<this_type>(m_pimpl_.m_node_->child(name.c_str()));
+    return std::make_shared<this_type>(m_pimpl_.child(name.c_str()));
 };
 
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::find_r(const std::string& path) const
+EntryPlugin<pugi::xml_node>::find_r(const std::string& path) const
 {
     return find(path);
 };
 
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::insert(const std::string& name)
+EntryPlugin<pugi::xml_node>::insert(const std::string& name)
 {
-    auto n = m_pimpl_.m_node_->child(name.c_str());
+    auto n = m_pimpl_.child(name.c_str());
     if (n.empty())
     {
-        n = m_pimpl_.m_node_->append_child(name.c_str());
+        n = m_pimpl_.append_child(name.c_str());
     }
 
     return std::make_shared<this_type>(n);
@@ -145,20 +119,20 @@ EntryPlugin<entry_xml>::insert(const std::string& name)
 
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::insert_r(const std::string& path)
+EntryPlugin<pugi::xml_node>::insert_r(const std::string& path)
 {
     // NOT_IMPLEMENTED;
     return insert(path);
 }
 
 template <>
-void EntryPlugin<entry_xml>::remove(const std::string& name)
+void EntryPlugin<pugi::xml_node>::remove(const std::string& name)
 {
     NOT_IMPLEMENTED;
 }
 
 template <>
-size_t EntryPlugin<entry_xml>::size() const
+size_t EntryPlugin<pugi::xml_node>::size() const
 {
     NOT_IMPLEMENTED;
 
@@ -167,7 +141,7 @@ size_t EntryPlugin<entry_xml>::size() const
 
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::parent() const
+EntryPlugin<pugi::xml_node>::parent() const
 {
     NOT_IMPLEMENTED;
     return nullptr;
@@ -175,22 +149,22 @@ EntryPlugin<entry_xml>::parent() const
 
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::first_child() const
+EntryPlugin<pugi::xml_node>::first_child() const
 {
-    return std::make_shared<this_type>(m_pimpl_.m_node_->first_child());
+    return std::make_shared<this_type>(m_pimpl_.first_child());
 }
 
 // as arraytemplate <>
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::push_back()
+EntryPlugin<pugi::xml_node>::push_back()
 {
     NOT_IMPLEMENTED;
     return nullptr;
 }
 
 template <>
-std::shared_ptr<Entry> EntryPlugin<entry_xml>::pop_back()
+std::shared_ptr<Entry> EntryPlugin<pugi::xml_node>::pop_back()
 {
     NOT_IMPLEMENTED;
     return nullptr;
@@ -198,12 +172,12 @@ std::shared_ptr<Entry> EntryPlugin<entry_xml>::pop_back()
 
 template <>
 std::shared_ptr<Entry>
-EntryPlugin<entry_xml>::item(int idx) const
+EntryPlugin<pugi::xml_node>::item(int idx) const
 {
     NOT_IMPLEMENTED;
     return nullptr;
 }
 
-SP_REGISTER_ENTRY(xml, entry_xml);
+SP_REGISTER_ENTRY(xml, pugi::xml_node);
 
 } // namespace sp

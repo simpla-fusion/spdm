@@ -2,28 +2,28 @@
 #include "utility/Factory.h"
 namespace sp
 {
-std::unique_ptr<Entry> Entry::create(const std::string& uri)
+std::unique_ptr<Entry> Entry::create(const std::string& request)
 {
 
     std::string schema = "memory";
 
-    auto pos = uri.find(":");
+    auto pos = request.find(":");
 
     if (pos == std::string::npos)
     {
-        pos = uri.rfind('.');
+        pos = request.rfind('.');
         if (pos != std::string::npos)
         {
-            schema = uri.substr(pos);
+            schema = request.substr(pos);
         }
         else
         {
-            schema = uri;
+            schema = request;
         }
     }
     else
     {
-        schema = uri.substr(0, pos);
+        schema = request.substr(0, pos);
     }
 
     if (schema == "")
@@ -50,9 +50,9 @@ std::unique_ptr<Entry> Entry::create(const std::string& uri)
         VERBOSE << "load backend:" << schema << std::endl;
     }
 
-    // if (schema != uri)
+    // if (schema != request)
     // {
-    //     res->fetch(uri);
+    //     res->fetch(request);
     // }
 
     return res;

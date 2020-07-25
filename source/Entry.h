@@ -1,5 +1,6 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
+#include "Attributes.h"
 #include <array>
 #include <complex>
 #include <functional>
@@ -14,25 +15,7 @@ namespace sp
 class Entry : public std::enable_shared_from_this<Entry>
 {
 public:
-    enum NodeType
-    {
-        Null = 0,
-        Element = 1,
-        Tensor = 2,
-        Block = 3,
-        Array = 4,
-        Object = 5
-    };
-    enum ElementType
-    {
-        String = 0,
-        Boolean = 1,
-        Integer = 2,
-        Float = 3,
-        Complex = 4,
-        IntVec3 = 5,
-        FloatVec3 = 6,
-    };
+   
     typedef std::variant<std::string,
                          bool, long, double,
                          std::complex<double>,
@@ -62,9 +45,11 @@ public:
 
     virtual ~Entry() = default;
 
-    static std::unique_ptr<Entry> create(const std::string& rpath = "");
+    static std::unique_ptr<Entry> create(const std::string& request = "");
 
     static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
+
+    virtual void init(const Attributes& ) = 0;
 
     virtual std::shared_ptr<Entry> copy() const = 0;
 
