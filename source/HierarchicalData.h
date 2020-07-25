@@ -17,10 +17,10 @@ namespace sp
 {
 enum DataType
 {
-    Null = 0,
-    Object = 1,
-    Array = 2,
-    Block = 3,
+    Object,
+    Array,
+    Null,
+    Block,
     String,
     Boolean,
     Integer,
@@ -32,46 +32,45 @@ enum DataType
     LongVec3,
     FloatVec3,
     DoubleVec3,
-    Custom
+    Other
 };
 
-template <typename T,
-          typename TObject = std::map<std::string, T>,
-          typename TArray = std::vector<T>,
-          typename TBlock = std::tuple<std::shared_ptr<void>, DataType, std::vector<size_t>>>
-using DataUnion = std::variant<
-    std::nullptr_t,
-    TObject,               //Object = 1,
-    TArray,                //Array = 2,
-    TBlock,                //Block = 3,
-    std::string,           //String,
-    bool,                  //Boolean,
-    int,                   //Integer,
-    long,                  //Long,
-    float,                 //Float,
-    double,                //Double,
-    std::complex<double>,  //Complex,
-    std::array<int, 3>,    //IntVec3,
-    std::array<long, 3>,   //LongVec3,
-    std::array<float, 3>,  //FloatVec3,
-    std::array<double, 3>, //DoubleVec3,
-    std::any>;
+template <typename T>
+using ObjectContainer = std::map<std::string, T>;
+template <typename T>
+using ArrayContainer = std::vector<T>;
 
+typedef std::tuple<std::shared_ptr<void>, DataType, std::vector<size_t>> block_type;
 /**
  * Hierarchical Data Struct
 */
-class HierarchicalData : public DataUnion<HierarchicalData>
+template <template <typename> class TmplObject = ObjectContainer,
+          template <typename> class TmplArray = ArrayContainer,
+          typename... ElementTypes>
+class HierarchicalDataTmpl : public std::variant<
+                                 TmplObject<HierarchicalDataTmpl<TmplObject, TmplArray, ElementTypes...>>,
+                                 TmplArray<HierarchicalDataTmpl<TmplObject, TmplArray, ElementTypes...>>,
+                                 ElementTypes...>
 {
 public:
-    typedef DataUnion<HierarchicalData> base_type;
-    typedef HierarchicalData this_type;
+    typedef HierarchicalDataTmpl<TmplObject, TmplArray, ElementTypes...> this_type;
 
-    HierarchicalData() = default;
+    typedef std::variant<
+        TmplObject<this_type>,
+        TmplArray<this_type>,
+        ElementTypes...>
+        base_type;
+
+    HierarchicalDataTmpl() : base_type(nullptr) {}
+
     template <typename V>
-    HierarchicalData(const V& v) : base_type(v) {}
-    HierarchicalData(const HierarchicalData& other) : base_type(other) {}
-    HierarchicalData(HierarchicalData&& other) : base_type(std::move(other)) {}
-    ~HierarchicalData() = default;
+    HierarchicalDataTmpl(const V& v) : base_type(v) {}
+
+    HierarchicalDataTmpl(const this_type& other) : base_type(other) {}
+
+    HierarchicalDataTmpl(this_type&& other) : base_type(std::move(other)) {}
+
+    ~HierarchicalDataTmpl() = default;
 
     void swap(this_type& other) { base_type::swap(other); }
 
@@ -79,14 +78,15 @@ public:
     {
         this_type(other).swap(*this);
         return *this;
-    };
+    }
+
     void clear()
     {
-        if (index() == DataType::Array)
+        if (base_type::index() == DataType::Array)
         {
             std::get<DataType::Array>(*this).clear();
         }
-        else if (index() == DataType::Object)
+        else if (base_type::index() == DataType::Object)
         {
             std::get<DataType::Object>(*this).clear();
         }
@@ -94,11 +94,11 @@ public:
 
     size_t size() const
     {
-        if (index() <= DataType::Array)
+        if (base_type::index() == DataType::Array)
         {
             return std::get<DataType::Array>(*this).size();
         }
-        else if (index() <= DataType::Object)
+        else if (base_type::index() == DataType::Object)
         {
             return std::get<DataType::Object>(*this).size();
         }
@@ -110,18 +110,17 @@ public:
 
     bool has_a(const std::string& key) const
     {
-        return index() == DataType::Object && std::get<DataType::Object>(*this).find(key) != std::get<DataType::Object>(*this).end();
+        return base_type::index() == DataType::Object &&
+               std::get<DataType::Object>(*this).find(key) != std::get<DataType::Object>(*this).end();
     }
+    
     template <typename V>
-    bool operator==(const V& v) const
-    {
-        return *this == this_type(v);
-    }
+    bool operator==(const V& v) const { return *this == this_type(v); }
 
     template <typename V>
     this_type& operator=(const V& v)
     {
-        emplace<V>(v);
+        this->template emplace<V>(v);
         return *this;
     }
 
@@ -131,110 +130,139 @@ public:
     template <DataType V>
     auto as() const { return std::get<V>(*this); }
 
-    const this_type& at(const std::string& key) const
+    auto& as_array()
     {
-        if (index() != DataType::Object)
+        if (base_type::index() == DataType::Null)
         {
-            throw std::out_of_range(key);
+            base_type::template emplace<DataType::Array>();
         }
-
-        return std::get<DataType::Object>(*this).at(key);
+        if (base_type::index() != DataType::Array)
+        {
+            throw std::runtime_error(FILE_LINE_STAMP_STRING);
+        }
+        return std::get<DataType::Array>(*this);
     }
 
-    this_type& get(const std::string& key)
+    const auto& as_array() const
     {
-        if (index() == DataType::Null)
+        if (base_type::index() != DataType::Array)
         {
-            base_type::emplace<DataType::Object>();
+            throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
-        else if (index() != DataType::Object)
+        return std::get<DataType::Array>(*this);
+    }
+
+    auto& as_object()
+    {
+        if (base_type::index() == DataType::Null)
         {
-            throw std::out_of_range(key);
+            base_type::template emplace<DataType::Object>();
+        }
+        if (base_type::index() != DataType::Object)
+        {
+            throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
 
-        return std::get<DataType::Object>(*this)[key];
+        return std::get<DataType::Object>(*this);
     }
+
+    const auto& as_object() const
+    {
+        if (base_type::index() != DataType::Object)
+        {
+            throw std::runtime_error(FILE_LINE_STAMP_STRING);
+        }
+
+        return std::get<DataType::Object>(*this);
+    }
+
+    const this_type& at(const std::string& key) const { return as_object().at(key); }
+
+    this_type& get(const std::string& key) { return as_object()[key]; }
 
     void remove(const std::string& key)
     {
-        if (index() == DataType::Object)
+        if (base_type::index() == DataType::Object)
         {
-            std::get<DataType::Object>(*this).erase(key);
+            as_object().erase(key);
         }
     }
-    void resize(size_t s)
-    {
-        if (index() == DataType::Array)
-        {
-            std::get<DataType::Array>(*this).resize(s);
-        }
-    }
+
+    void resize(size_t s) { as_array().resize(s); }
+
     template <typename V>
     this_type& push_back()
     {
-        if (index() == DataType::Null)
-        {
-            base_type::emplace<DataType::Array>();
-        }
-        else if (index() != DataType::Object)
-        {
-            throw std::runtime_error("illegal type");
-        }
-        std::get<DataType::Array>(*this).push_back(this_type());
-        return std::get<DataType::Array>(*this).back();
+        auto& arr = as_array();
+        arr.push_back(this_type());
+        return arr.back();
     }
+
     void pop_back()
     {
-        if (index() == DataType::Array)
+        try
         {
-            std::get<DataType::Array>(*this).pop_back();
+            as_array().pop_back();
         }
-        else if (index() == DataType::Null)
+        catch (...)
         {
-            throw std::runtime_error("illegal type");
         }
     }
 
     this_type& item(int idx)
     {
-        if (index() != DataType::Array)
-        {
-            throw std::runtime_error("illegal type !");
-        }
-        auto& v = std::get<DataType::Array>(*this);
-        size_t size = v.size();
+        auto& arr = as_array();
+        size_t size = arr.size();
 
         if (size == 0)
         {
             throw std::out_of_range("");
         }
 
-        return v[(idx + size) % size];
+        return arr[(idx + size) % size];
     }
+
     const this_type& item(int idx) const
     {
-        if (index() != DataType::Array)
-        {
-            throw std::runtime_error("illegal type !");
-        }
-        const auto& v = std::get<DataType::Array>(*this);
-        size_t size = v.size();
+        const auto& arr = as_array();
+        size_t size = arr.size();
 
         if (size == 0)
         {
             throw std::out_of_range(FILE_LINE_STAMP_STRING);
         }
 
-        return v[(idx + size) % size];
+        return arr[(idx + size) % size];
     }
 
     this_type& operator[](const std::string& key) { return get(key); }
+
     const this_type& operator[](const std::string& key) const { return at(key); }
 
     this_type& operator[](int idx) { return item(idx); }
+
     const this_type& operator[](int idx) const { return item(idx); }
 };
 
+typedef HierarchicalDataTmpl<
+    ObjectContainer,       //Object
+    ArrayContainer,        //Array
+    std::nullptr_t,        //Null
+    block_type,            //Block
+    std::string,           //String,
+    bool,                  //Boolean,
+    int,                   //Integer,
+    long,                  //Long,
+    float,                 //Float,
+    double,                //Double,
+    std::complex<double>,  //Complex,
+    std::array<int, 3>,    //IntVec3,
+    std::array<long, 3>,   //LongVec3,
+    std::array<float, 3>,  //FloatVec3,
+    std::array<double, 3>, //DoubleVec3,
+    std::any               //Other
+    >
+    HierarchicalData;
 } // namespace sp
 
 #endif //SP_HIERACHICAL_DATA_H_
