@@ -1,6 +1,7 @@
 #ifndef SP_NODE_H_
 #define SP_NODE_H_
 #include "Entry.h"
+#include "utility/Logger.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -120,7 +121,22 @@ public:
     auto get_value() const { return std::get<V>(get_element()); }
 
     template <typename Entry::ElementType E>
-    auto get_value() const { return std::get<E>(get_element()); };
+    auto get_value() const
+    {
+        auto e = get_element();
+        if (e.index() == E)
+        {
+            return std::get<E>(get_element());
+        }
+        else if (e.index() == Entry::ElementType::String)
+        {
+            return std::get<E>(from_string(std::get<Entry::ElementType::String>(e), E));
+        }
+        else
+        {
+            throw std::runtime_error(std::string(FILE_LINE_STAMP_STRING) + "illegal data type!");
+        }
+    }
 
     void set_tensor(const Entry::tensor_t&);
 

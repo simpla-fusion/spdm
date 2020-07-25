@@ -41,8 +41,6 @@ Entry::NodeType EntryPlugin<entry_xml>::type() const { return NodeType(m_pimpl_.
 template <>
 bool EntryPlugin<entry_xml>::has_attribute(const std::string& name) const
 {
-    std::cout << FILE_LINE_STAMP << name << std::endl;
-
     return !m_pimpl_.m_node_->attribute(name.c_str()).empty();
 }
 
@@ -50,7 +48,6 @@ template <>
 Entry::element_t EntryPlugin<entry_xml>::get_attribute_raw(const std::string& name) const
 {
     Entry::element_t res;
-    std::cout << FILE_LINE_STAMP << name << std::endl;
     res.emplace<std::string>(m_pimpl_.m_node_->attribute(name.c_str()).value());
     return std::move(res);
 }
@@ -58,8 +55,6 @@ Entry::element_t EntryPlugin<entry_xml>::get_attribute_raw(const std::string& na
 template <>
 void EntryPlugin<entry_xml>::set_attribute_raw(const std::string& name, const Entry::element_t& value)
 {
-    std::cout << FILE_LINE_STAMP << name << ":" << to_string(value) << std::endl;
-
     m_pimpl_.m_node_->append_attribute(name.c_str()).set_value(to_string(value).c_str());
 }
 
@@ -85,13 +80,13 @@ std::string EntryPlugin<entry_xml>::name() const { return m_pimpl_.m_node_->name
 template <>
 void EntryPlugin<entry_xml>::set_element(const Entry::element_t& v)
 {
-    m_pimpl_.m_node_->set_value(to_string(v).c_str());
+    m_pimpl_.m_node_->text().set(to_string(v).c_str());
 }
 
 template <>
 Entry::element_t EntryPlugin<entry_xml>::get_element() const
 {
-    return Entry::element_t(std::string(m_pimpl_.m_node_->value()));
+    return Entry::element_t(std::string(m_pimpl_.m_node_->text().as_string()));
 }
 
 template <>
@@ -145,7 +140,7 @@ EntryPlugin<entry_xml>::insert(const std::string& name)
         n = m_pimpl_.m_node_->append_child(name.c_str());
     }
 
-    return std::make_shared<this_type>(std::move(n));
+    return std::make_shared<this_type>(n);
 }
 
 template <>

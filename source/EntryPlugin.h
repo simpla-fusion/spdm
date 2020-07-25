@@ -19,7 +19,6 @@ class EntryPlugin : public Entry
 public:
     typedef EntryPlugin<Impl> this_type;
 
-
     template <typename... Args>
     EntryPlugin(Args&&... args) : m_pimpl_(std::forward<Args>(args)...) {}
 
@@ -35,35 +34,35 @@ public:
 
     //----------------------------------------------------------------------------------------------------------
 
-    NodeType type() const override;
+    NodeType type() const override { return NodeType::Null; }
 
     std::string path() const override { return parent() == nullptr ? name() : parent()->path() + "/" + name(); }
 
-    std::string name() const override;
+    std::string name() const override { return ""; }
 
     //----------------------------------------------------------------------------------------------------------
     // attribute
-    bool has_attribute(const std::string& name) const override;
+    bool has_attribute(const std::string& name) const override { return false; }
 
-    element_t get_attribute_raw(const std::string& name) const override;
+    element_t get_attribute_raw(const std::string& name) const override { return element_t{}; }
 
-    void set_attribute_raw(const std::string& name, const element_t& value) override;
+    void set_attribute_raw(const std::string& name, const element_t& value) override {}
 
-    void remove_attribute(const std::string& name) override;
+    void remove_attribute(const std::string& name) override {}
 
     std::map<std::string, element_t> attributes() const override;
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-    void set_element(const element_t&) override;
-    element_t get_element() const override;
+    void set_element(const element_t&) override {}
+    element_t get_element() const override { return element_t{}; }
 
-    void set_tensor(const tensor_t&) override;
-    tensor_t get_tensor() const override;
+    void set_tensor(const tensor_t&) override {}
+    tensor_t get_tensor() const override { return tensor_t{nullptr, typeid(nullptr), {}}; }
 
-    void set_block(const block_t&) override;
-    block_t get_block() const override;
+    void set_block(const block_t&) override {}
+    block_t get_block() const override { return block_t{}; }
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
@@ -78,27 +77,27 @@ public:
 
     // container
 
-    std::shared_ptr<Entry> parent() const override;
+    std::shared_ptr<Entry> parent() const override { return nullptr; }
 
-    std::shared_ptr<Entry> first_child() const override;
+    std::shared_ptr<Entry> first_child() const override { return nullptr; }
 
     // as array
-    std::shared_ptr<Entry> push_back() override;
+    std::shared_ptr<Entry> push_back() override { return nullptr; }
 
-    std::shared_ptr<Entry> pop_back() override;
+    std::shared_ptr<Entry> pop_back() override { return nullptr; }
 
-    std::shared_ptr<Entry> item(int idx) const override;
+    std::shared_ptr<Entry> item(int idx) const override { return nullptr; }
 
     // as object
-    std::shared_ptr<Entry> insert(const std::string& key) override;
+    std::shared_ptr<Entry> insert(const std::string& key) override { return nullptr; }
 
-    std::shared_ptr<Entry> insert_r(const std::string& path) override;
+    std::shared_ptr<Entry> insert_r(const std::string& path) override { return nullptr; }
 
-    std::shared_ptr<Entry> find(const std::string& key) const override;
+    std::shared_ptr<Entry> find(const std::string& key) const override { return nullptr; }
 
-    std::shared_ptr<Entry> find_r(const std::string& path) const override;
+    std::shared_ptr<Entry> find_r(const std::string& path) const override { return nullptr; }
 
-    void remove(const std::string& path) override;
+    void remove(const std::string& path) override {}
 
 private:
     Impl m_pimpl_;
