@@ -252,11 +252,27 @@ private:
     data_type m_data_;
 };
 
+template <typename TNode, typename Enable = void>
+class Cursor
+{
+public:
+    typedef Cursor<TNode> cursor;
+    typedef TNode value_type;
+    typedef value_type& reference;
+    typedef value_type* pointer;
+
+    reference operator*() const { return TNode{}; }
+    pointer operator->() const { return nullptr; }
+    operator bool() const { return false; }
+    void next() const;
+};
+
 template <typename TNode>
 class HierarchicalTreeObjectPolicy
 {
 public:
     typedef TNode node_type;
+    typedef Cursor<TNode> cursor;
 
     HierarchicalTreeObjectPolicy(node_type* self){};
 
@@ -280,27 +296,19 @@ public:
     const node_type& at(const std::string& key) const { return m_data_.at(key); };
 
     template <typename... Args>
-    node_type* try_emplace(const std::string& key, Args&&... args) { return &m_data_.try_emplace(key, std::forward<Args>(args)...).first->second; }
+    cursor try_emplace(const std::string& key, Args&&... args) { return cursor(m_data_.try_emplace(key, std::forward<Args>(args)...).first); }
 
-    node_type* insert(const std::string& path) { return try_emplace(path); }
+    cursor insert(const std::string& path) { return cursor(try_emplace(path)); }
 
     void erase(const std::string& key) { m_data_.erase(key); }
 
     // class iterator;
 
     template <typename... Args>
-    node_type* find(const std::string& key, Args&&... args) const { return &m_data_.find(key)->second; }
+    cursor find(const std::string& key, Args&&... args) const { return cursor(m_data_.find(key)); }
 
     template <typename... Args>
-    node_type* find(const std::string& key, Args&&... args) { return &m_data_.find(key)->second; }
-
-    decltype(auto) begin() { return m_data_.begin(); }
-
-    decltype(auto) end() { return m_data_.end(); }
-
-    decltype(auto) begin() const { return m_data_.cbegin(); }
-
-    decltype(auto) end() const { return m_data_.cend(); }
+    cursor find(const std::string& key, Args&&... args) { return cursor(m_data_.find(key)); }
 
     // template <typename... Args>
     // const iterator find(const std::string&, Args&&... args) const;
