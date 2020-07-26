@@ -238,6 +238,10 @@ public:
 
     decltype(auto) operator[](int idx) const { return as_array()[idx]; }
 
+    decltype(auto) get_r(const std::string& path) { return as_object().insert(path); }
+
+    decltype(auto) get_r(const std::string& path) const { return as_object().at(path); }
+
 private:
     this_type* m_parent_;
     std::string m_name_;
@@ -255,38 +259,9 @@ private:
 
     const data_type& fetch() const { return const_cast<this_type*>(this)->fetch(); }
 
-    data_type fetch(const std::string& path)
-    {
-        if (m_data_.index() != NULL_TAG)
-        {
-        }
-        else if (m_parent_ == nullptr)
-        {
-            throw std::out_of_range(FILE_LINE_STAMP_STRING + ":" + path);
-        }
-        else
-        {
-            return m_parent_->fetch(m_name_ + "/" + path);
-        }
+    data_type fetch(const std::string& path) { return get_r(path).m_data_; }
 
-        return (*this)[path].m_data_;
-    }
-
-    const data_type& fetch(const std::string& path) const
-    {
-        if (m_data_.index() != NULL_TAG)
-        {
-        }
-        else if (m_parent_ == nullptr)
-        {
-            throw std::out_of_range(FILE_LINE_STAMP_STRING + ":" + path);
-        }
-        else
-        {
-            return m_parent_->fetch(m_name_ + "/" + path);
-        }
-        return this->at(path).m_data_;
-    }
+    const data_type& fetch(const std::string& path) const { return get_r(path).m_data_; }
 };
 
 template <typename TNode>
@@ -315,6 +290,8 @@ public:
 
     template <typename... Args>
     node_type& try_emplace(const std::string& key, Args&&... args) { return m_data_.try_emplace(key, std::forward<Args>(args)...).first->second; }
+
+    node_type& insert(const std::string& path) { return try_emplace(path); }
 
     int erase(const std::string& key) { m_data_.erase(key); }
 
