@@ -13,13 +13,122 @@
 #include <vector>
 namespace sp
 {
-
+class Entry;
 class Node;
+
+template <typename TNode>
+class NodeObjectPolicy
+{
+public:
+    typedef TNode node_type;
+
+    class iterator;
+
+    NodeObjectPolicy(const std::string&){};
+    NodeObjectPolicy();
+    NodeObjectPolicy(NodeObjectPolicy&&);
+    NodeObjectPolicy(const NodeObjectPolicy&);
+    ~NodeObjectPolicy();
+
+    void swap(NodeObjectPolicy& other) { std::swap(m_entry_, other.m_entry_); }
+
+    NodeObjectPolicy& operator=(NodeObjectPolicy const& other)
+    {
+        NodeObjectPolicy(other).swap(*this);
+        return *this;
+    }
+
+    size_t size() const;
+
+    void clear();
+
+    const node_type& at(const std::string& key) const;
+
+    template <typename... Args>
+    node_type& try_emplace(const std::string& key, Args&&... args) { return m_entry_->try_emplace(key, std::forward<Args>(args)...).first->second; }
+
+    node_type& insert(const std::string& path);
+
+    void erase(const std::string& key);
+
+    // class iterator;
+
+    const_iterator find(const std::string& key) const;
+
+    iterator find(const std::string& key);
+
+    iterator begin();
+
+    iterator end();
+
+    const_iterator cbegin() const;
+
+    const_iterator cend() const;
+
+    // template <typename... Args>
+    // const iterator find(const std::string&, Args&&... args) const;
+
+    // template <typename... Args>
+    // int erase(Args&&... args);
+
+private:
+    std::shared_ptr<Entry> m_entry_;
+};
+
+template <typename TNode>
+class NodeArrayPolicy
+{
+public:
+    typedef TNode node_type;
+
+    NodeArrayPolicy();
+    NodeArrayPolicy(NodeArrayPolicy&&);
+    NodeArrayPolicy(const NodeArrayPolicy&);
+    ~NodeArrayPolicy();
+
+    void swap(NodeArrayPolicy& other) { std::swap(m_entry_, other.m_entry_); }
+
+    NodeArrayPolicy& operator=(NodeArrayPolicy const& other)
+    {
+        NodeArrayPolicy(other).swap(*this);
+        return *this;
+    }
+
+    size_t size() const;
+
+    void resize(size_t s);
+
+    void clear();
+
+    template <typename... Args>
+    node_type& emplace_back(Args&&... args)
+    {
+        m_entry_->emplace_back(std::forward<Args>(args)...);
+        return m_entry_->back();
+    }
+
+    void pop_back();
+
+    node_type& at(int idx);
+
+    const node_type& at(int idx) const;
+
+    iterator begin();
+
+    iterator end();
+
+    const_iterator begin() const;
+
+    const_iterator end() const;
+
+private:
+    std::shared_ptr<Entry> m_entry_;
+};
 
 typedef HierarchicalTree<
     Node,
-    HierarchicalTreeObjectPolicy,                                //Object
-    HierarchicalTreeArrayPolicy,                                 //Array
+    NodeObjectPolicy,                                            //Object
+    NodeArrayPolicy,                                             //Array
     std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
     std::string,                                                 //String,
     bool,                                                        //Boolean,
@@ -66,6 +175,14 @@ public:
 
     using base_type::HierarchicalTree;
 
+    using base_type::erase;
+    using base_type::get_value;
+    using base_type::set_value;
+    using base_type::operator[];
+    using base_type::has_a;
+
+    Node(const std::string& backend) : base_type(nullptr, "", std::integral_constant<int, DataType::Object>(), backend) {}
+
     ~Node() = default;
 
     this_type& operator=(Node const& other)
@@ -73,6 +190,18 @@ public:
         this_type(other).swap(*this);
         return *this;
     }
+
+    // attributes
+
+    bool has_attribute(const std::string& name) const { return has_a("@" + name); }
+
+    void remove_attribute(const std::string& name) { erase("@" + name); }
+
+    template <typename V>
+    auto get_attribute(const std::string& name) { return this->operator[]("@" + name).get_value<V>(); };
+
+    template <typename V, typename U>
+    void set_attribute(const std::string& name, const U& value) { this->operator[]("@" + name).set_value<V>(value); }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);

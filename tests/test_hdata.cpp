@@ -3,7 +3,7 @@
 #include <iostream>
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
-
+using namespace std::literals;
 TEST_CASE("HData ", "[HierarchicalTree]")
 {
     sp::HierarchicalNode attr;
@@ -16,7 +16,7 @@ TEST_CASE("HData ", "[HierarchicalTree]")
 TEST_CASE("Object", "[HierarchicalTree]")
 {
     sp::HierarchicalNode node;
-    using namespace std::literals;
+    
 
     node["A"] = "1234"s;
 

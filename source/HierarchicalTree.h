@@ -200,7 +200,7 @@ public:
     auto find(Args&&... args) const { return as_object().find(std::forward<Args>(args)...); }
 
     template <typename... Args>
-    void erase(Args&&... args) { return as_object().erase(std::forward<Args>(args)...); }
+    void erase(Args&&... args) { as_object().erase(std::forward<Args>(args)...); }
 
     //------------------------------------------------------------------------------
     // as array
@@ -270,6 +270,7 @@ class HierarchicalTreeObjectPolicy
 public:
     typedef TNode node_type;
 
+    HierarchicalTreeObjectPolicy(const std::string&){};
     HierarchicalTreeObjectPolicy() = default;
     HierarchicalTreeObjectPolicy(HierarchicalTreeObjectPolicy&&) = default;
     HierarchicalTreeObjectPolicy(const HierarchicalTreeObjectPolicy&) = default;
@@ -293,12 +294,23 @@ public:
 
     node_type& insert(const std::string& path) { return try_emplace(path); }
 
-    int erase(const std::string& key) { m_data_.erase(key); }
+    void erase(const std::string& key) { m_data_.erase(key); }
 
     // class iterator;
 
-    // template <typename... Args>
-    // iterator find(const std::string&, Args&&... args);
+    template <typename... Args>
+    decltype(auto) find(const std::string& key, Args&&... args) const { return m_data_.find(key); }
+
+    template <typename... Args>
+    decltype(auto) find(const std::string& key, Args&&... args) { return m_data_.find(key); }
+
+    decltype(auto) begin() { return m_data_.begin(); }
+
+    decltype(auto) end() { return m_data_.end(); }
+
+    decltype(auto) begin() const { return m_data_.cbegin(); }
+
+    decltype(auto) end() const { return m_data_.cend(); }
 
     // template <typename... Args>
     // const iterator find(const std::string&, Args&&... args) const;
@@ -347,6 +359,14 @@ public:
     node_type& at(int idx) { return m_data_.at(idx); }
 
     const node_type& at(int idx) const { return m_data_.at(idx); }
+
+    decltype(auto) begin() { return m_data_.begin(); }
+
+    decltype(auto) end() { return m_data_.end(); }
+
+    decltype(auto) begin() const { return m_data_.cbegin(); }
+
+    decltype(auto) end() const { return m_data_.cend(); }
 
 private:
     std::vector<node_type> m_data_;
@@ -411,6 +431,8 @@ public:
         return *this;
     }
 };
+
+
 } // namespace sp
 
 #endif //SP_HIERACHICAL_DATA_H_

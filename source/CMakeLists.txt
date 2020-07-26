@@ -18,7 +18,7 @@ set(SPDB_INCLUDES
 
 
 set(SPDB_SOURCES
-  Entry.cpp
+  # Entry.cpp
   Node.cpp
   # DataBlock.cpp
   # XPath.cpp
@@ -30,6 +30,6 @@ set(SPDB_SOURCES
 
 add_library(spdb  STATIC  ${SPDB_INCLUDES} ${SPDB_SOURCES} )
 target_include_directories(spdb PRIVATE ../extern/)
-target_link_libraries(spdb spdb_plugins utility)
+# target_link_libraries(spdb spdb_plugins utility)
 
 install( TARGETS spdb  DESTINATION lib )

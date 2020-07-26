@@ -18,45 +18,114 @@ std::string join_path(const std::string& l, const std::string& r, Others&&... ot
 {
     return join_path(join_path(l, r), std::forward<Others>(others)...);
 }
+template <>
+class HierarchicalTreeObjectPolicy<Node>
+{
+public:
+    typedef Node node_type;
 
-std::string Node::path() const { return self()->path(); }
-std::string Node::name() const { return self()->name(); }
+    HierarchicalTreeObjectPolicy(const std::string&){};
+    HierarchicalTreeObjectPolicy() = default;
+    HierarchicalTreeObjectPolicy(HierarchicalTreeObjectPolicy&&) = default;
+    HierarchicalTreeObjectPolicy(const HierarchicalTreeObjectPolicy&) = default;
+    ~HierarchicalTreeObjectPolicy() = default;
 
-// metadata
-Entry::NodeType Node::type() const { return m_entry_ == nullptr ? Entry::NodeType::Null : m_entry_->type(); }
-bool Node::is_null() const { return type() == Entry::NodeType::Null; }
-bool Node::is_element() const { return type() == Entry::NodeType::Element; }
-bool Node::is_tensor() const { return type() == Entry::NodeType::Tensor; }
-bool Node::is_block() const { return type() == Entry::NodeType::Block; }
-bool Node::is_array() const { return type() == Entry::NodeType::Array; }
-bool Node::is_object() const { return type() == Entry::NodeType::Object; }
+    void swap(HierarchicalTreeObjectPolicy& other) { m_data_.swap(other.m_data_); }
 
-bool Node::is_root() const { return m_entry_ == nullptr || m_entry_->parent() == nullptr; }
-bool Node::is_leaf() const { return type() < Entry::NodeType::Array; };
+    HierarchicalTreeObjectPolicy& operator=(HierarchicalTreeObjectPolicy const& other)
+    {
+        HierarchicalTreeObjectPolicy(other).swap(*this);
+        return *this;
+    }
+    size_t size() const { return m_data_.size(); }
 
-// attributes
-bool Node::has_attribute(const std::string& name) const { return self()->has_attribute(name); }
+    void clear() { m_data_.clear(); }
 
-const Entry::element_t Node::get_attribute_raw(const std::string& name) const { return self()->get_attribute_raw(name); }
+    const node_type& at(const std::string& key) const { return m_data_.at(key); };
 
-void Node::set_attribute_raw(const std::string& name, const Entry::element_t& value) { self()->set_attribute_raw(name, value); }
+    template <typename... Args>
+    node_type& try_emplace(const std::string& key, Args&&... args) { return m_data_.try_emplace(key, std::forward<Args>(args)...).first->second; }
 
-void Node::remove_attribute(const std::string& name) { self()->remove_attribute(name); }
+    node_type& insert(const std::string& path) { return try_emplace(path); }
 
-std::map<std::string, Entry::element_t> Node::attributes() const { return self()->attributes(); }
+    void erase(const std::string& key) { m_data_.erase(key); }
 
-// as leaf
-void Node::set_element(const Entry::element_t& v) { self()->set_element(v); }
+    // class iterator;
 
-Entry::element_t Node::get_element() const { return self()->get_element(); }
+    template <typename... Args>
+    decltype(auto) find(const std::string& key, Args&&... args) const { return m_data_.find(key); }
 
-void Node::set_tensor(const Entry::tensor_t& v) { self()->set_tensor(v); }
+    template <typename... Args>
+    decltype(auto) find(const std::string& key, Args&&... args) { return m_data_.find(key); }
 
-Entry::tensor_t Node::get_tensor() const { return self()->get_tensor(); }
+    decltype(auto) begin() { return m_data_.begin(); }
 
-void Node::set_block(const Entry::block_t& v) { self()->set_block(v); }
+    decltype(auto) end() { return m_data_.end(); }
 
-Entry::block_t Node::get_block() const { return self()->get_block(); }
+    decltype(auto) begin() const { return m_data_.cbegin(); }
+
+    decltype(auto) end() const { return m_data_.cend(); }
+
+    // template <typename... Args>
+    // const iterator find(const std::string&, Args&&... args) const;
+
+    // template <typename... Args>
+    // int erase(Args&&... args);
+
+private:
+    std::map<std::string, node_type> m_data_;
+};
+
+template <>
+class HierarchicalTreeArrayPolicy<Node>
+{
+public:
+    typedef Node node_type;
+
+    HierarchicalTreeArrayPolicy() = default;
+    HierarchicalTreeArrayPolicy(HierarchicalTreeArrayPolicy&&) = default;
+    HierarchicalTreeArrayPolicy(const HierarchicalTreeArrayPolicy&) = default;
+    ~HierarchicalTreeArrayPolicy() = default;
+
+    void swap(HierarchicalTreeArrayPolicy& other) { m_data_.swap(other.m_data_); }
+
+    HierarchicalTreeArrayPolicy& operator=(HierarchicalTreeArrayPolicy const& other)
+    {
+        HierarchicalTreeArrayPolicy(other).swap(*this);
+        return *this;
+    }
+
+    size_t size() const { return m_data_.size(); }
+
+    void resize(size_t s) { m_data_.resize(s); }
+
+    void clear() { m_data_.clear(); }
+
+    template <typename... Args>
+    node_type& emplace_back(Args&&... args)
+    {
+        m_data_.emplace_back(std::forward<Args>(args)...);
+        return m_data_.back();
+    }
+
+    void pop_back() { m_data_.pop_back(); }
+
+    node_type& at(int idx) { return m_data_.at(idx); }
+
+    const node_type& at(int idx) const { return m_data_.at(idx); }
+
+    decltype(auto) begin() { return m_data_.begin(); }
+
+    decltype(auto) end() { return m_data_.end(); }
+
+    decltype(auto) begin() const { return m_data_.cbegin(); }
+
+    decltype(auto) end() const { return m_data_.cend(); }
+
+private:
+    std::vector<node_type> m_data_;
+};
+
 
 // as Tree
 // as container
