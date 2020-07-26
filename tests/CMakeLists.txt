@@ -14,7 +14,7 @@ set( TESTS
   #  test_iterator
   #  test_document
   test_hdata
-  #  test_node
+  test_node
   #  test_xml
   #  test_imas_east_magnetics
   #  test_imas_east_equilibrium
