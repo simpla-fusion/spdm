@@ -15,20 +15,29 @@ namespace sp
 {
 class Entry;
 class Node;
+template <typename TNode>
+class Cursor
+{
+public:
+    TNode operator*() const { return TNode{}; }
+    std::shared_ptr<TNode> operator->() const { return nullptr; }
+    operator bool() const { return false; }
+};
 
 template <typename TNode>
 class NodeObjectPolicy
 {
+    TNode* m_self_;
+
 public:
     typedef TNode node_type;
+    typedef Cursor<TNode> cursor;
 
-    class iterator;
-
-    NodeObjectPolicy(const std::string&){};
-    NodeObjectPolicy();
-    NodeObjectPolicy(NodeObjectPolicy&&);
-    NodeObjectPolicy(const NodeObjectPolicy&);
-    ~NodeObjectPolicy();
+    NodeObjectPolicy(TNode* self = nullptr) : m_self_(self){};
+    NodeObjectPolicy(const std::string& backend) {}
+    NodeObjectPolicy(NodeObjectPolicy&&) {}
+    NodeObjectPolicy(const NodeObjectPolicy&) {}
+    ~NodeObjectPolicy() = default;
 
     void swap(NodeObjectPolicy& other) { std::swap(m_entry_, other.m_entry_); }
 
@@ -38,32 +47,30 @@ public:
         return *this;
     }
 
-    size_t size() const;
+    size_t size() const { return 0; }
 
-    void clear();
+    void clear() {}
 
-    const node_type& at(const std::string& key) const;
+    bool has_a(const std::string& key) const { return !!find(key); }
+
+    node_type at(const std::string& key) const;
+
+    node_type operator[](const std::string& key) { return node_type(m_self_, key); }
+
+    node_type operator[](const std::string& key) const { return node_type(m_self_, key); }
 
     template <typename... Args>
-    node_type& try_emplace(const std::string& key, Args&&... args) { return m_entry_->try_emplace(key, std::forward<Args>(args)...).first->second; }
+    cursor try_emplace(const std::string& key, Args&&... args) { return cursor(); }
 
-    node_type& insert(const std::string& path);
+    cursor insert(const std::string& path) {}
 
-    void erase(const std::string& key);
+    void erase(const std::string& key) {}
 
     // class iterator;
 
-    const_iterator find(const std::string& key) const;
+    cursor find(const std::string& key) const { return cursor{}; }
 
-    iterator find(const std::string& key);
-
-    iterator begin();
-
-    iterator end();
-
-    const_iterator cbegin() const;
-
-    const_iterator cend() const;
+    cursor find(const std::string& key) { return cursor{}; }
 
     // template <typename... Args>
     // const iterator find(const std::string&, Args&&... args) const;
@@ -78,13 +85,16 @@ private:
 template <typename TNode>
 class NodeArrayPolicy
 {
+    TNode* m_self_;
+
 public:
     typedef TNode node_type;
+    typedef Cursor<TNode> cursor;
 
-    NodeArrayPolicy();
-    NodeArrayPolicy(NodeArrayPolicy&&);
-    NodeArrayPolicy(const NodeArrayPolicy&);
-    ~NodeArrayPolicy();
+    NodeArrayPolicy(node_type* self = nullptr) : m_self_(self){};
+    NodeArrayPolicy(NodeArrayPolicy&&) {}
+    NodeArrayPolicy(const NodeArrayPolicy&) {}
+    ~NodeArrayPolicy() = default;
 
     void swap(NodeArrayPolicy& other) { std::swap(m_entry_, other.m_entry_); }
 
@@ -94,32 +104,25 @@ public:
         return *this;
     }
 
-    size_t size() const;
+    size_t size() const { return 0; }
 
-    void resize(size_t s);
+    void resize(size_t s){};
 
-    void clear();
+    void clear() {}
 
     template <typename... Args>
-    node_type& emplace_back(Args&&... args)
+    cursor emplace_back(Args&&... args)
     {
-        m_entry_->emplace_back(std::forward<Args>(args)...);
-        return m_entry_->back();
+        // m_entry_->emplace_back(std::forward<Args>(args)...);
+        // return m_entry_->back();
+        return cursor{};
     }
 
-    void pop_back();
+    void pop_back() {}
 
-    node_type& at(int idx);
+    node_type at(int idx) { return node_type{}; }
 
-    const node_type& at(int idx) const;
-
-    iterator begin();
-
-    iterator end();
-
-    const_iterator begin() const;
-
-    const_iterator end() const;
+    node_type at(int idx) const { return node_type{}; }
 
 private:
     std::shared_ptr<Entry> m_entry_;
@@ -181,6 +184,8 @@ public:
     using base_type::operator[];
     using base_type::has_a;
 
+    Node(Node* parent, const std::string& name) : base_type(parent, name) {}
+
     Node(const std::string& backend) : base_type(nullptr, "", std::integral_constant<int, DataType::Object>(), backend) {}
 
     ~Node() = default;
@@ -202,6 +207,25 @@ public:
 
     template <typename V, typename U>
     void set_attribute(const std::string& name, const U& value) { this->operator[]("@" + name).set_value<V>(value); }
+
+    // private:
+    //     this_type* m_parent_;
+    //     std::string m_name_;
+    //     data_type& fetch()
+    //     {
+    //         if (m_data_.index() == NULL_TAG && m_parent_ != nullptr && m_name_ != "")
+    //         {
+    //             m_parent_->fetch(m_name_).swap(m_data_);
+    //         }
+
+    //         return m_data_;
+    //     }
+
+    //     const data_type& fetch() const { return const_cast<this_type*>(this)->fetch(); }
+
+    //     data_type fetch(const std::string& path) { return get_r(path).m_data_; }
+
+    //     const data_type& fetch(const std::string& path) const { return get_r(path).m_data_; }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);

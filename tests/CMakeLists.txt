@@ -10,28 +10,10 @@ include_directories(../source)
 include_directories(../extern)
 
 
-set( TESTS
-  #  test_iterator
-  #  test_document
-  test_hdata
-  test_node
-  #  test_xml
-  #  test_imas_east_magnetics
-  #  test_imas_east_equilibrium
-  # # test_imas_jet_tf
-  # test_imas_east_pf_active
-  #  test_imas_east_wall
-  # test_imas_jet_iron_core
-  # test_imas_jet_mse
-  # test_imas_jet_thomson_scattering
-  # test_imas_tcv_magnetics
-  # test_imas_tcv_pf_active
-  # test_imas_aug_magnetics
-  # test_imas_aug_pf_active
-)
+ 
+add_executable(test_node test_node.cpp )
+add_test( test_node test_node )
 
-foreach( TEST ${TESTS} )
-  add_executable(${TEST} ${TEST}.cpp )
-  target_link_libraries(${TEST} spdb)
-  add_test( ${TEST}  ${TEST} )
-endforeach()
+add_executable(test_hdata test_hdata.cpp )
+add_test( test_hdata test_hdata )
+ 
