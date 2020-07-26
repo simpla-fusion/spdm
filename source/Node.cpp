@@ -1,5 +1,5 @@
 #include "Node.h"
-#include "Entry.h"
+// #include "Entry.h"
 #include "utility/Factory.h"
 #include "utility/Logger.h"
 #include "utility/URL.h"
@@ -19,81 +19,8 @@ std::string join_path(const std::string& l, const std::string& r, Others&&... ot
     return join_path(join_path(l, r), std::forward<Others>(others)...);
 }
 
-Node::Node(const std::shared_ptr<Entry>& p, const std::string& path) : m_entry_(p), m_path_(path) {}
-
-Node::Node(const std::string& uri) : Node(Entry::create(uri), "") {}
-
-Node::Node(const Node& other) : m_path_(other.m_path_), m_entry_(other.m_entry_) {}
-
-Node::Node(Node&& other) : m_path_(other.m_path_), m_entry_(other.m_entry_)
-{
-    other.m_entry_.reset();
-    other.m_path_ = "";
-}
-
-Node::~Node() {}
-
-void Node::swap(this_type& other)
-{
-    std::swap(m_path_, other.m_path_);
-    std::swap(m_entry_, other.m_entry_);
-}
-
-Node& Node::operator=(this_type const& other)
-{
-    this_type(other).swap(*this);
-    return *this;
-}
-
-//
-
-std::shared_ptr<Entry> Node::self() const
-{
-    if (m_entry_ == nullptr)
-    {
-        throw std::out_of_range("try to access empty node.");
-    }
-    std::shared_ptr<Entry> p = m_entry_;
-
-    if (m_path_ != "")
-    {
-        p = m_entry_->find_r(m_path_);
-    }
-
-    if (p == nullptr)
-    {
-        throw std::out_of_range("Can not find node:" + m_path_);
-    }
-
-    return p;
-}
-
-std::shared_ptr<Entry> Node::self()
-{
-    if (m_entry_ == nullptr)
-    {
-        m_entry_ = Entry::create(m_path_);
-        m_path_ = "";
-    }
-    else if (m_path_ != "")
-    {
-        m_entry_ = m_entry_->insert_r(m_path_);
-        m_path_ = "";
-    }
-
-    if (m_entry_ == nullptr)
-    {
-        throw std::runtime_error("null entry!");
-    }
-
-    return m_entry_;
-}
-
 std::string Node::path() const { return self()->path(); }
-
 std::string Node::name() const { return self()->name(); }
-const Node& Node::value() const { return *this; }
-Node& Node::value() { return *this; }
 
 // metadata
 Entry::NodeType Node::type() const { return m_entry_ == nullptr ? Entry::NodeType::Null : m_entry_->type(); }

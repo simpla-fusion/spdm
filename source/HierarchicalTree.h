@@ -41,22 +41,18 @@ public:
         TypeList...>
         data_type;
 
-    HierarchicalTree(this_type* p = nullptr) : m_parent_(p), m_data_(nullptr) {}
+    HierarchicalTree(this_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
 
     template <int TAG, typename... Args>
-    HierarchicalTree(this_type* p, std::integral_constant<int, TAG>, Args&&... args)
-        : HierarchicalTree(p)
+    HierarchicalTree(this_type* p, const std::string& name, std::integral_constant<int, TAG>, Args&&... args)
+        : HierarchicalTree(p, name)
     {
         m_data_.template emplace<TAG>(std::forward<Args>(args)...);
     }
 
-    HierarchicalTree(this_type* p, const this_type& other) : HierarchicalTree(p, other.m_data_){};
+    HierarchicalTree(const this_type& other) : m_parent_(nullptr), m_data_(other.m_data_){};
 
-    HierarchicalTree(this_type* p, this_type&& other) : HierarchicalTree(p, std::move(other.m_data_)){};
-
-    HierarchicalTree(const this_type& other) : m_data_(other.m_data_){};
-
-    HierarchicalTree(this_type&& other) : m_data_(std::move(other.m_data_)){};
+    HierarchicalTree(this_type&& other) : m_parent_(nullptr), m_data_(std::move(other.m_data_)){};
 
     ~HierarchicalTree() = default;
 
@@ -70,21 +66,25 @@ public:
 
     const auto* parent() const { return m_parent_; }
 
-    auto type() const { return m_data_.index(); }
+    std::string path() const { return m_parent_ == nullptr ? m_name_ : m_parent_->path() + "/" + m_name_; }
+
+    std::string name() const { return m_name_; }
+
+    auto type() const { return fetch().index(); }
 
     bool is_root() const { return m_parent_ == nullptr; }
 
-    bool is_leaf() const { return m_data_.index() != OBJECT_TAG && m_data_.index() != ARRAY_TAG; }
+    bool is_leaf() const { return fetch().index() != OBJECT_TAG && fetch().index() != ARRAY_TAG; }
 
-    bool empty() const { return m_data_.index() == NULL_TAG; }
+    bool empty() const { return fetch().index() == NULL_TAG; }
 
     //---------------------------------------------------------------------------------
     // as leaf
 
-    bool is_element() const { return m_data_.index() > ARRAY_TAG; }
+    bool is_element() const { return fetch().index() > ARRAY_TAG; }
 
     template <typename V>
-    bool operator==(const V& v) const { return m_data_ == data_type(v); }
+    bool operator==(const V& v) const { return fetch() == data_type(v); }
 
     template <typename V>
     this_type& operator=(const V& v)
@@ -94,47 +94,47 @@ public:
     }
 
     template <typename V, typename... Args>
-    void set_value(Args&&... args) { m_data_.template emplace<V>(std::forward<Args>(args)...); }
+    void set_value(Args&&... args) { fetch().template emplace<V>(std::forward<Args>(args)...); }
 
     template <std::size_t V, typename... Args>
-    void set_value(Args&&... args) { m_data_.template emplace<V>(std::forward<Args>(args)...); }
+    void set_value(Args&&... args) { fetch().template emplace<V>(std::forward<Args>(args)...); }
 
     template <typename V>
-    decltype(auto) get_value() { return std::get<V>(m_data_); }
+    decltype(auto) get_value() { return std::get<V>(fetch()); }
 
     template <typename V>
-    decltype(auto) get_value() const { return std::get<V>(m_data_); }
+    decltype(auto) get_value() const { return std::get<V>(fetch()); }
 
     template <std::size_t TAG>
-    decltype(auto) get_value() { return std::get<TAG>(m_data_); }
+    decltype(auto) get_value() { return std::get<TAG>(fetch()); }
 
     template <std::size_t TAG>
-    decltype(auto) get_value() const { return std::get<TAG>(m_data_); }
+    decltype(auto) get_value() const { return std::get<TAG>(fetch()); }
 
     //-------------------------------------------------------------------------------
     // as tree node
 
     void clear()
     {
-        if (m_data_.index() == ARRAY_TAG)
+        if (fetch().index() == ARRAY_TAG)
         {
-            std::get<ARRAY_TAG>(m_data_).clear();
+            std::get<ARRAY_TAG>(fetch()).clear();
         }
-        else if (m_data_.index() == OBJECT_TAG)
+        else if (fetch().index() == OBJECT_TAG)
         {
-            std::get<OBJECT_TAG>(m_data_).clear();
+            std::get<OBJECT_TAG>(fetch()).clear();
         }
     }
 
     size_t size() const
     {
-        if (m_data_.index() == ARRAY_TAG)
+        if (fetch().index() == ARRAY_TAG)
         {
-            return std::get<ARRAY_TAG>(m_data_).size();
+            return std::get<ARRAY_TAG>(fetch()).size();
         }
-        else if (m_data_.index() == OBJECT_TAG)
+        else if (fetch().index() == OBJECT_TAG)
         {
-            return std::get<OBJECT_TAG>(m_data_).size();
+            return std::get<OBJECT_TAG>(fetch()).size();
         }
         else
         {
@@ -145,30 +145,30 @@ public:
     //------------------------------------------------------------------------------
     // as object
 
-    bool is_object() const { return m_data_.index() == OBJECT_TAG; }
+    bool is_object() const { return fetch().index() == OBJECT_TAG; }
 
     auto& as_object()
     {
-        if (m_data_.index() == NULL_TAG)
+        if (fetch().index() == NULL_TAG)
         {
-            m_data_.template emplace<OBJECT_TAG>();
+            fetch().template emplace<OBJECT_TAG>();
         }
-        if (m_data_.index() != OBJECT_TAG)
+        if (fetch().index() != OBJECT_TAG)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
 
-        return std::get<OBJECT_TAG>(m_data_);
+        return std::get<OBJECT_TAG>(fetch());
     }
 
     const auto& as_object() const
     {
-        if (m_data_.index() != OBJECT_TAG)
+        if (fetch().index() != OBJECT_TAG)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
 
-        return std::get<OBJECT_TAG>(m_data_);
+        return std::get<OBJECT_TAG>(fetch());
     }
 
     decltype(auto) at(const std::string& key) const { return as_object().at(key); }
@@ -181,7 +181,7 @@ public:
 
     void erase(const std::string& key)
     {
-        if (m_data_.index() == OBJECT_TAG)
+        if (fetch().index() == OBJECT_TAG)
         {
             as_object().erase(key);
         }
@@ -189,8 +189,8 @@ public:
 
     bool has_a(const std::string& key) const
     {
-        return m_data_.index() == OBJECT_TAG &&
-               std::get<OBJECT_TAG>(m_data_).find(key) != std::get<OBJECT_TAG>(m_data_).end();
+        return fetch().index() == OBJECT_TAG &&
+               std::get<OBJECT_TAG>(fetch()).find(key) != std::get<OBJECT_TAG>(fetch()).end();
     }
 
     template <typename... Args>
@@ -204,28 +204,28 @@ public:
 
     //------------------------------------------------------------------------------
     // as array
-    bool is_array() const { return m_data_.index() == ARRAY_TAG; }
+    bool is_array() const { return fetch().index() == ARRAY_TAG; }
 
     auto& as_array()
     {
-        if (m_data_.index() == NULL_TAG)
+        if (fetch().index() == NULL_TAG)
         {
-            m_data_.template emplace<ARRAY_TAG>();
+            fetch().template emplace<ARRAY_TAG>();
         }
-        if (m_data_.index() != ARRAY_TAG)
+        if (fetch().index() != ARRAY_TAG)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
-        return std::get<ARRAY_TAG>(m_data_);
+        return std::get<ARRAY_TAG>(fetch());
     }
 
     const auto& as_array() const
     {
-        if (m_data_.index() != ARRAY_TAG)
+        if (fetch().index() != ARRAY_TAG)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
-        return std::get<ARRAY_TAG>(m_data_);
+        return std::get<ARRAY_TAG>(fetch());
     }
 
     void resize(size_t s) { as_array().resize(s); }
@@ -240,7 +240,53 @@ public:
 
 private:
     this_type* m_parent_;
+    std::string m_name_;
     data_type m_data_;
+
+    data_type& fetch()
+    {
+        if (m_data_.index() == NULL_TAG && m_parent_ != nullptr && m_name_ != "")
+        {
+            m_parent_->fetch(m_name_).swap(m_data_);
+        }
+
+        return m_data_;
+    }
+
+    const data_type& fetch() const { return const_cast<this_type*>(this)->fetch(); }
+
+    data_type fetch(const std::string& path)
+    {
+        if (m_data_.index() != NULL_TAG)
+        {
+        }
+        else if (m_parent_ == nullptr)
+        {
+            throw std::out_of_range(FILE_LINE_STAMP_STRING + ":" + path);
+        }
+        else
+        {
+            return m_parent_->fetch(m_name_ + "/" + path);
+        }
+
+        return (*this)[path].m_data_;
+    }
+
+    const data_type& fetch(const std::string& path) const
+    {
+        if (m_data_.index() != NULL_TAG)
+        {
+        }
+        else if (m_parent_ == nullptr)
+        {
+            throw std::out_of_range(FILE_LINE_STAMP_STRING + ":" + path);
+        }
+        else
+        {
+            return m_parent_->fetch(m_name_ + "/" + path);
+        }
+        return this->at(path).m_data_;
+    }
 };
 
 template <typename TNode>
@@ -254,6 +300,13 @@ public:
     HierarchicalTreeObjectPolicy(const HierarchicalTreeObjectPolicy&) = default;
     ~HierarchicalTreeObjectPolicy() = default;
 
+    void swap(HierarchicalTreeObjectPolicy& other) { m_data_.swap(other.m_data_); }
+
+    HierarchicalTreeObjectPolicy& operator=(HierarchicalTreeObjectPolicy const& other)
+    {
+        HierarchicalTreeObjectPolicy(other).swap(*this);
+        return *this;
+    }
     size_t size() const { return m_data_.size(); }
 
     void clear() { m_data_.clear(); }
@@ -290,6 +343,14 @@ public:
     HierarchicalTreeArrayPolicy(HierarchicalTreeArrayPolicy&&) = default;
     HierarchicalTreeArrayPolicy(const HierarchicalTreeArrayPolicy&) = default;
     ~HierarchicalTreeArrayPolicy() = default;
+
+    void swap(HierarchicalTreeArrayPolicy& other) { m_data_.swap(other.m_data_); }
+
+    HierarchicalTreeArrayPolicy& operator=(HierarchicalTreeArrayPolicy const& other)
+    {
+        HierarchicalTreeArrayPolicy(other).swap(*this);
+        return *this;
+    }
 
     size_t size() const { return m_data_.size(); }
 

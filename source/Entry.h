@@ -1,6 +1,5 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
-#include "Attributes.h"
 #include <array>
 #include <complex>
 #include <functional>

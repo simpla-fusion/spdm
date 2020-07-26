@@ -41,6 +41,7 @@ class Node : public tree_type
 {
 public:
     typedef tree_type base_type;
+    typedef Node this_type;
 
     enum DataType
     {
@@ -63,11 +64,15 @@ public:
         Other
     };
 
-    template <typename... Args>
-    Node(Args&&... args)
-        : base_type(nullptr, std::integral_constant<int, base_type::OBJECT_TAG>(), std::forward<Args>(args)...) {}
+    using base_type::HierarchicalTree;
 
     ~Node() = default;
+
+    this_type& operator=(Node const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);
