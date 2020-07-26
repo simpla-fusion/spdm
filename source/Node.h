@@ -105,61 +105,11 @@ private:
     std::shared_ptr<Entry> m_entry_;
 };
 
-typedef HierarchicalTree<
-    Node,
-    NodeObjectHolder,                                            //Object
-    NodeArrayHolder,                                             //Array
-    std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-    std::string,                                                 //String,
-    bool,                                                        //Boolean,
-    int,                                                         //Integer,
-    long,                                                        //Long,
-    float,                                                       //Float,
-    double,                                                      //Double,
-    std::complex<double>,                                        //Complex,
-    std::array<int, 3>,                                          //IntVec3,
-    std::array<long, 3>,                                         //LongVec3,
-    std::array<float, 3>,                                        //FloatVec3,
-    std::array<double, 3>,                                       //DoubleVec3,
-    std::array<std::complex<double>, 3>,                         //ComplexVec3,
-    std::any                                                     //Other
-    >
-    tree_type;
-
-class Node : public tree_type
+class Node : public HierarchicalNode<Node, NodeObjectHolder, NodeArrayHolder>
 {
 public:
-    typedef tree_type base_type;
+    typedef HierarchicalNode<Node, NodeObjectHolder, NodeArrayHolder> base_type;
     typedef Node this_type;
-
-    enum DataType
-    {
-        Null,
-        Object,
-        Array,
-        Block,
-        String,
-        Bool,
-        Int,
-        Long,
-        Float,
-        Double,
-        Complex,
-        IntVec3,
-        LongVec3,
-        FloatVec3,
-        DoubleVec3,
-        ComplexVec3,
-        Other
-    };
-
-    using base_type::HierarchicalTree;
-
-    using base_type::erase;
-    using base_type::get_value;
-    using base_type::set_value;
-    using base_type::operator[];
-    using base_type::has_a;
 
     Node(Node* parent, const std::string& name) : base_type(parent, name) {}
 

@@ -18,13 +18,13 @@
 namespace sp
 {
 
-template <typename TNode, template <typename> class ObjectHolder>
-std::ostream& fancy_print(std::ostream& os, const HierarchicalTreeObject<TNode, ObjectHolder>& tree_object, int indent, int tab)
+template <typename TNode>
+std::ostream& fancy_print(std::ostream& os, const HierarchicalTreeObject<TNode>& tree_object, int indent, int tab)
 {
     return fancy_print(os, tree_object.data(), indent, tab);
 }
-template <typename TNode, template <typename> class ArrayHolder>
-std::ostream& fancy_print(std::ostream& os, const HierarchicalTreeArray<TNode, ArrayHolder>& tree_array, int indent, int tab)
+template <typename TNode>
+std::ostream& fancy_print(std::ostream& os, const HierarchicalTreeArray<TNode>& tree_array, int indent, int tab)
 {
     return fancy_print(os, tree_array.data(), indent, tab);
 }
