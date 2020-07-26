@@ -19,101 +19,134 @@ template <>
 struct cursor_traits<Node>
 {
     typedef Node value_type;
-    typedef Node reference;
-    typedef std::shared_ptr<Node> pointer;
+    typedef Node& reference;
+    typedef Node* pointer;
+    // typedef Node reference;
+    // typedef std::shared_ptr<Node> pointer;
     typedef ptrdiff_t difference_type;
 };
-template <typename TNode>
-class NodeObjectHolder
+
+template <>
+class HierarchicalTreeObject<Node>
 {
-    TNode* m_self_;
-
 public:
-    typedef TNode node_type;
-    typedef Cursor<TNode> cursor;
+    typedef Node node_type;
+    typedef HierarchicalTreeObject<node_type> this_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
 
-    NodeObjectHolder(TNode* self = nullptr) : m_self_(self){};
+    HierarchicalTreeObject(node_type* self){};
 
-    ~NodeObjectHolder() = default;
+    HierarchicalTreeObject(const std::string&){};
+    HierarchicalTreeObject() = default;
+    HierarchicalTreeObject(this_type&&) = default;
+    HierarchicalTreeObject(const this_type&) = default;
+    ~HierarchicalTreeObject() = default;
 
-    void swap(NodeObjectHolder& other) { std::swap(m_entry_, other.m_entry_); }
+    void swap(this_type& other) { m_data_.swap(other.m_data_); }
 
-    size_t size() const { return 0; }
+    this_type& operator=(this_type const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    }
+    size_t size() const { return m_data_.size(); }
 
-    size_t count(const std::string& key) const { return 0; }
+    void clear() { m_data_.clear(); }
 
-    void clear() {}
+    int count(const std::string& key) const { return m_data_.count(key); }
+
+    typename const_cursor::reference at(const std::string& key) const { return m_data_.at(key); };
+
+    cursor insert(const std::string& path) { return cursor(m_data_.try_emplace(path, m_self_, path).first); }
 
     template <typename... Args>
-    std::pair<cursor, bool> try_emplace(const std::string& key, Args&&... args) { return std::make_pair(cursor(), false); }
+    void erase(Args&&... args) { m_data_.erase(std::forward<Args>(args)...); }
 
-    cursor insert(const std::string& path) {}
+    template <typename... Args>
+    cursor find(Args&&... args) { return cursor(m_data_.find(std::forward<Args>(args)...)); }
 
-    void erase(const std::string& key) {}
+    template <typename... Args>
+    const_cursor find(Args&&... args) const { return cursor(m_data_.find(std::forward<Args>(args)...)); }
 
-    cursor find(const std::string& key) const { return cursor{}; }
+    auto& data() { return m_data_; }
 
-    cursor find(const std::string& key) { return cursor{}; }
+    const auto& data() const { return m_data_; }
 
 private:
-    std::shared_ptr<Entry> m_entry_;
+    std::map<std::string, node_type> m_data_;
+    node_type* m_self_;
 };
 
-template <typename TNode>
-class NodeArrayHolder
+template <>
+class HierarchicalTreeArray<Node>
 {
-    TNode* m_self_;
-
 public:
-    typedef TNode node_type;
-    typedef Cursor<TNode> cursor;
+    typedef Node node_type;
+    typedef HierarchicalTreeArray<node_type> this_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
 
-    NodeArrayHolder(node_type* self = nullptr) : m_self_(self){};
-    NodeArrayHolder(NodeArrayHolder&&) {}
-    NodeArrayHolder(const NodeArrayHolder&) {}
-    ~NodeArrayHolder() = default;
+    HierarchicalTreeArray(node_type* self){};
+    HierarchicalTreeArray() = default;
+    HierarchicalTreeArray(this_type&&) = default;
+    HierarchicalTreeArray(const this_type&) = default;
+    ~HierarchicalTreeArray() = default;
 
-    void swap(NodeArrayHolder& other) { std::swap(m_entry_, other.m_entry_); }
+    void swap(this_type& other) { m_data_.swap(other.m_data_); }
 
-    NodeArrayHolder& operator=(NodeArrayHolder const& other)
+    this_type& operator=(this_type const& other)
     {
-        NodeArrayHolder(other).swap(*this);
+        this_type(other).swap(*this);
         return *this;
     }
 
-    size_t size() const { return 0; }
+    size_t size() const { return m_data_.size(); }
 
-    void resize(size_t s){};
+    void resize(size_t s) { m_data_.resize(s); }
 
-    void clear() {}
+    void clear() { m_data_.clear(); }
 
     template <typename... Args>
     cursor emplace_back(Args&&... args)
     {
-        // m_entry_->emplace_back(std::forward<Args>(args)...);
-        // return m_entry_->back();
-        return cursor{};
+        m_data_.emplace_back(m_self_, std::forward<Args>(args)...);
+        return cursor(m_data_.rbegin());
     }
 
-    void pop_back() {}
+    cursor push_back() { return emplace_back(); }
 
-    node_type at(int idx) { return node_type{}; }
+    void pop_back() { m_data_.pop_back(); }
 
-    node_type at(int idx) const { return node_type{}; }
+    typename cursor::reference at(int idx) { return m_data_.at(idx); }
+
+    typename const_cursor::reference at(int idx) const { return m_data_.at(idx); }
+
+    auto& data() { return m_data_; }
+
+    const auto& data() const { return m_data_; }
 
 private:
-    std::shared_ptr<Entry> m_entry_;
+    std::vector<node_type> m_data_;
+    node_type* m_self_;
 };
 
-class Node : public HierarchicalNode<Node, NodeObjectHolder, NodeArrayHolder>
+class Node : public HierarchicalTreePreDefined<Node, HierarchicalTreeObject, HierarchicalTreeArray>
 {
 public:
-    typedef HierarchicalNode<Node, NodeObjectHolder, NodeArrayHolder> base_type;
+    typedef HierarchicalTreePreDefined<Node, HierarchicalTreeObject, HierarchicalTreeArray> base_type;
+
     typedef Node this_type;
+
+    typedef HierarchicalTreePreDefinedDataType DataType;
 
     Node(Node* parent, const std::string& name) : base_type(parent, name) {}
 
-    Node(const std::string& backend) : base_type(nullptr, "", std::integral_constant<int, DataType::Object>(), backend) {}
+    Node(const std::string& name) : Node(){}
+    //base_type(nullptr, "", std::integral_constant<int,DataType::Object>(), name) {}
+
+    template <typename... Args>
+    Node(Args&&... args) : base_type(std::forward<Args>(args)...) {}
 
     ~Node() = default;
 
@@ -125,7 +158,7 @@ public:
 
     // attributes
 
-    bool has_attribute(const std::string& name) const { return has_a("@" + name); }
+    bool has_attribute(const std::string& name) const { return count("@" + name) > 0; }
 
     void remove_attribute(const std::string& name) { erase("@" + name); }
 

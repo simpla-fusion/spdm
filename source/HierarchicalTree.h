@@ -362,8 +362,8 @@ private:
 };
 
 template <typename TNode,
-          template <typename> class ObjectHolder,
-          template <typename> class ArrayHolder>
+          template <typename> class ObjectHolder = HierarchicalTreeObject,
+          template <typename> class ArrayHolder = HierarchicalTreeArray>
 using HierarchicalTreePreDefined = HierarchicalTree<
     TNode,
     ObjectHolder,                                                //Object
@@ -384,6 +384,27 @@ using HierarchicalTreePreDefined = HierarchicalTree<
     std::any                                                     //Other
     >;
 
+enum HierarchicalTreePreDefinedDataType 
+{
+    Null,
+    Object,
+    Array,
+    Block,
+    String,
+    Bool,
+    Int,
+    Long,
+    Float,
+    Double,
+    Complex,
+    IntVec3,
+    LongVec3,
+    FloatVec3,
+    DoubleVec3,
+    ComplexVec3,
+    Other
+};
+
 template <template <typename> class ObjectHolder = HierarchicalTreeObject,
           template <typename> class ArrayHolder = HierarchicalTreeArray>
 class HierarchicalNode
@@ -391,27 +412,7 @@ class HierarchicalNode
 {
 public:
     typedef HierarchicalTreePreDefined<HierarchicalNode<ObjectHolder, ArrayHolder>, ObjectHolder, ArrayHolder> base_type;
-
-    enum DataType
-    {
-        Null,
-        Object,
-        Array,
-        Block,
-        String,
-        Bool,
-        Int,
-        Long,
-        Float,
-        Double,
-        Complex,
-        IntVec3,
-        LongVec3,
-        FloatVec3,
-        DoubleVec3,
-        ComplexVec3,
-        Other
-    };
+    typedef HierarchicalTreePreDefinedDataType DataType;
 
     template <typename... Args>
     HierarchicalNode(Args&&... args) : base_type(std::forward<Args>(args)...) {}
