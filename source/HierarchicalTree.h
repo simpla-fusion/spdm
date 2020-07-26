@@ -190,9 +190,9 @@ public:
         }
     }
 
-    bool has_a(const std::string& key) const
+    int count(const std::string& key) const
     {
-        return m_data_.index() == OBJECT_TAG && std::get<OBJECT_TAG>(m_data_).has_a(key);
+        return m_data_.index() == OBJECT_TAG && std::get<OBJECT_TAG>(m_data_).count(key);
     }
 
     template <typename... Args>
@@ -284,7 +284,7 @@ public:
 
     void clear() { m_data_.clear(); }
 
-    bool has_a(const std::string& key) const { return m_data_.count(key) > 0; }
+    int count(const std::string& key) const { return m_data_.count(key); }
 
     typename const_cursor::reference at(const std::string& key) const { return m_data_.at(key); };
 
