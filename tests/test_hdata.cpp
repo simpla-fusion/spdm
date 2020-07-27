@@ -1,4 +1,5 @@
 #include "HierarchicalTree.h"
+#include "HierarchicalTreeAlgorithm.h"
 #include "utility/Logger.h"
 #include <iostream>
 #define CATCH_CONFIG_MAIN
@@ -16,13 +17,16 @@ TEST_CASE("HData ", "[HierarchicalTree]")
 TEST_CASE("Object", "[HierarchicalTree]")
 {
     sp::HierarchicalNode node;
-    
 
     node["A"] = "1234"s;
 
     node["B"].template set_value<sp::HierarchicalNode::DataType::Float>(3.14);
 
-    REQUIRE(node.size() == 2);
+    node["C"] = std::array<int, 3>{1, 2, 3};
+
+    std::cout << node << std::endl;
+
+    REQUIRE(node.size() == 3);
 
     REQUIRE(node["A"].template get_value<sp::HierarchicalNode::DataType::String>() == "1234");
 
@@ -45,6 +49,8 @@ TEST_CASE("Array", "[HierarchicalTree]")
     node["C"][1] = (5);
 
     node["C"][0].set_value<double>(6.0);
+    
+    std::cout << node << std::endl;
 
     REQUIRE(node["C"].size() == 2);
 
