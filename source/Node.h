@@ -15,17 +15,16 @@ namespace sp
 {
 class Entry;
 class Node;
-template <typename TNode>
-class Cursor
+template <>
+struct cursor_traits<Node>
 {
-public:
-    TNode operator*() const { return TNode{}; }
-    std::shared_ptr<TNode> operator->() const { return nullptr; }
-    operator bool() const { return false; }
+    typedef Node value_type;
+    typedef Node reference;
+    typedef std::shared_ptr<Node> pointer;
+    typedef ptrdiff_t difference_type;
 };
-
 template <typename TNode>
-class NodeObjectPolicy
+class NodeObjectHolder
 {
     TNode* m_self_;
 
@@ -33,57 +32,35 @@ public:
     typedef TNode node_type;
     typedef Cursor<TNode> cursor;
 
-    NodeObjectPolicy(TNode* self = nullptr) : m_self_(self){};
-    NodeObjectPolicy(const std::string& backend) {}
-    NodeObjectPolicy(NodeObjectPolicy&&) {}
-    NodeObjectPolicy(const NodeObjectPolicy&) {}
-    ~NodeObjectPolicy() = default;
+    NodeObjectHolder(TNode* self = nullptr) : m_self_(self){};
 
-    void swap(NodeObjectPolicy& other) { std::swap(m_entry_, other.m_entry_); }
+    ~NodeObjectHolder() = default;
 
-    NodeObjectPolicy& operator=(NodeObjectPolicy const& other)
-    {
-        NodeObjectPolicy(other).swap(*this);
-        return *this;
-    }
+    void swap(NodeObjectHolder& other) { std::swap(m_entry_, other.m_entry_); }
 
     size_t size() const { return 0; }
 
+    size_t count(const std::string& key) const { return 0; }
+
     void clear() {}
 
-    bool has_a(const std::string& key) const { return !!find(key); }
-
-    node_type at(const std::string& key) const;
-
-    node_type operator[](const std::string& key) { return node_type(m_self_, key); }
-
-    node_type operator[](const std::string& key) const { return node_type(m_self_, key); }
-
     template <typename... Args>
-    cursor try_emplace(const std::string& key, Args&&... args) { return cursor(); }
+    std::pair<cursor, bool> try_emplace(const std::string& key, Args&&... args) { return std::make_pair(cursor(), false); }
 
     cursor insert(const std::string& path) {}
 
     void erase(const std::string& key) {}
 
-    // class iterator;
-
     cursor find(const std::string& key) const { return cursor{}; }
 
     cursor find(const std::string& key) { return cursor{}; }
-
-    // template <typename... Args>
-    // const iterator find(const std::string&, Args&&... args) const;
-
-    // template <typename... Args>
-    // int erase(Args&&... args);
 
 private:
     std::shared_ptr<Entry> m_entry_;
 };
 
 template <typename TNode>
-class NodeArrayPolicy
+class NodeArrayHolder
 {
     TNode* m_self_;
 
@@ -91,16 +68,16 @@ public:
     typedef TNode node_type;
     typedef Cursor<TNode> cursor;
 
-    NodeArrayPolicy(node_type* self = nullptr) : m_self_(self){};
-    NodeArrayPolicy(NodeArrayPolicy&&) {}
-    NodeArrayPolicy(const NodeArrayPolicy&) {}
-    ~NodeArrayPolicy() = default;
+    NodeArrayHolder(node_type* self = nullptr) : m_self_(self){};
+    NodeArrayHolder(NodeArrayHolder&&) {}
+    NodeArrayHolder(const NodeArrayHolder&) {}
+    ~NodeArrayHolder() = default;
 
-    void swap(NodeArrayPolicy& other) { std::swap(m_entry_, other.m_entry_); }
+    void swap(NodeArrayHolder& other) { std::swap(m_entry_, other.m_entry_); }
 
-    NodeArrayPolicy& operator=(NodeArrayPolicy const& other)
+    NodeArrayHolder& operator=(NodeArrayHolder const& other)
     {
-        NodeArrayPolicy(other).swap(*this);
+        NodeArrayHolder(other).swap(*this);
         return *this;
     }
 
@@ -130,8 +107,8 @@ private:
 
 typedef HierarchicalTree<
     Node,
-    NodeObjectPolicy,                                            //Object
-    NodeArrayPolicy,                                             //Array
+    NodeObjectHolder,                                            //Object
+    NodeArrayHolder,                                             //Array
     std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
     std::string,                                                 //String,
     bool,                                                        //Boolean,
@@ -231,134 +208,5 @@ public:
 std::ostream& operator<<(std::ostream& os, Node const& Node);
 
 } // namespace sp
-
-// class Node
-// {
-// private:
-//     std::string m_path_;
-
-// public:
-//     typedef Node this_type;
-//     typedef HierarchicalTree<EntryObject, EntryArray> base_type;
-
-//     class cursor;
-
-//     explicit Node(const std::string& uri = "");
-
-//     explicit Node(const std::shared_ptr<Entry>& p, const std::string& prefix = "");
-
-//     Node(const this_type&);
-
-//     Node(this_type&&);
-
-//     ~Node();
-
-//     void swap(this_type&);
-
-//     this_type& operator=(this_type const& other);
-
-//     bool operator==(this_type const& other) const;
-
-//     operator bool() const { return !is_null(); }
-
-//     void resolve();
-
-//     //
-
-//     std::string path() const;
-
-//     std::string name() const;
-
-//     const Node& value() const;
-
-//     Node& value();
-
-//     // attributes
-
-//     bool has_attribute(const std::string& name) const;
-
-//     const Entry::element_t get_attribute_raw(const std::string& name) const;
-
-//     void set_attribute_raw(const std::string& name, const Entry::element_t& value);
-
-//     void remove_attribute(const std::string& name);
-
-//     template <typename V>
-//     const V get_attribute(const std::string& name)
-//     {
-//         return std::get<V>(get_attribute_raw(name));
-//     };
-
-//     template <typename V, typename U>
-//     void set_attribute(const std::string& name, const U& value)
-//     {
-//         set_attribute_raw(name, Entry::element_t{V(value)});
-//     }
-
-//     std::map<std::string, Entry::element_t> attributes() const;
-
-//     //----------------------------------------------------------------------------------
-//     // level 0
-//     //
-//     // as leaf
-
-//     // as Tree
-//     // as container
-
-//     Node* parent() const;
-
-//     // as array
-
-//     //-------------------------------------------------------------------
-//     // level 1
-//     // xpath
-
-//     Node insert(const XPath&);
-
-//     cursor find(const XPath&) const;
-
-//     typedef std::function<bool(const Node&)> pred_fun;
-
-//     cursor find(const pred_fun&) const;
-
-//     int update(cursor&, const Node&);
-
-//     int remove(cursor&);
-// };
-
-// class Node::cursor
-// {
-// public:
-//     cursor();
-
-//     cursor(Entry*);
-
-//     cursor(const std::shared_ptr<Entry>&);
-
-//     cursor(const cursor&);
-
-//     cursor(cursor&&);
-
-//     ~cursor() = default;
-
-//     bool operator==(const cursor& other) const;
-
-//     bool operator!=(const cursor& other) const;
-
-//     operator bool() const { return !is_null(); }
-
-//     bool is_null() const;
-
-//     Node operator*();
-
-//     std::unique_ptr<Node> operator->();
-
-//     cursor& operator++();
-
-//     cursor operator++(int);
-
-// private:
-//     std::shared_ptr<Entry> m_entry_;
-// };
 
 #endif // SP_NODE_H_
