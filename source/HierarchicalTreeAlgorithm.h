@@ -1,6 +1,5 @@
-
-#ifndef SP_HIERACHICAL_TREE_ALGORITHM_H_
-#define SP_HIERACHICAL_TREE_ALGORITHM_H_
+#ifndef SP_HierarchicalTreeAlgorithm_h_
+#define SP_HierarchicalTreeAlgorithm_h_
 #include "HierarchicalTree.h"
 #include "utility/Logger.h"
 #include "utility/fancy_print.h"
@@ -101,4 +100,4 @@ std::ostream& operator<<(std::ostream& os, const HierarchicalTree<TNode, ObjectH
 // ptrdiff_t distance(const this_type& target) ; // lenght of shortest path to target
 } // namespace sp
 
-#endif //SP_HIERACHICAL_TREE_ALGORITHM_H_
+#endif //SP_HierarchicalTreeAlgorithm_h_

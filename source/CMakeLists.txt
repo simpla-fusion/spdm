@@ -9,7 +9,6 @@ set(SPDB_INCLUDES
   DataBlock.h
   Entry.h  
   Node.h
-  XPath.h
   Document.h
   Collection.h
   DataBase.h

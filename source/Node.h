@@ -32,8 +32,8 @@ class HierarchicalTreeObject<Node>
 public:
     typedef Node node_type;
     typedef HierarchicalTreeObject<node_type> this_type;
-    typedef Cursor<node_type> cursor;
-    typedef Cursor<const node_type> const_cursor;
+    typedef HierarchicalCursor<node_type> cursor;
+    typedef HierarchicalCursor<const node_type> const_cursor;
 
     HierarchicalTreeObject(node_type* self){};
 
@@ -84,8 +84,8 @@ class HierarchicalTreeArray<Node>
 public:
     typedef Node node_type;
     typedef HierarchicalTreeArray<node_type> this_type;
-    typedef Cursor<node_type> cursor;
-    typedef Cursor<const node_type> const_cursor;
+    typedef HierarchicalCursor<node_type> cursor;
+    typedef HierarchicalCursor<const node_type> const_cursor;
 
     HierarchicalTreeArray(node_type* self){};
     HierarchicalTreeArray() = default;
@@ -142,13 +142,15 @@ public:
 
     Node(Node* parent, const std::string& name) : base_type(parent, name) {}
 
-    Node(const std::string& name) : Node(){}
+    Node(const std::string& backend)
+        : base_type(nullptr, "", std::integral_constant<int, base_type::OBJECT_TAG>(), backend) {}
     //base_type(nullptr, "", std::integral_constant<int,DataType::Object>(), name) {}
 
     template <typename... Args>
     Node(Args&&... args) : base_type(std::forward<Args>(args)...) {}
 
     ~Node() = default;
+    
 
     this_type& operator=(Node const& other)
     {

@@ -1,1 +1,1 @@
-add_library(utility Logger.cpp URL.cpp)
+add_library(utility Logger.cpp Path.cpp)

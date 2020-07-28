@@ -1,27 +1,28 @@
-#ifndef SP_URL_H_
-#define SP_URL_H_
+#ifndef SP_Path_h_
+#define SP_Path_h_
+
+#include <algorithm>
+#include <any>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <stdlib.h>
 #include <string>
-#include <tuple>
 #include <variant>
+#include <vector>
 namespace sp
 {
-std::string urljoin(std::string const& base, std::string const& path);
-
-std::tuple<std::string /*scheme */,
-           std::string /*authority */,
-           std::string /*path*/,
-           std::string /*query*/,
-           std::string /*fragment */>
-urlparser(std::string const& url);
-
-/*
-     @ref: https://www.ietf.org/rfc/rfc3986.txt
-
+/**
+ *  - URL : @ref  https://www.ietf.org/rfc/rfc3986.txt
+ *  - JSON pointer  
+ *  - XPath
+ * 
 */
-class URI
+class Path
 {
 public:
-    typedef std::variant<std::string /* key or query*/, int /* index */, std ::tuple<int, int, int> /* slice */> segment_type;
+    typedef std::variant<std::string /* key or query*/, int /* index */, std ::tuple<int, int, int> /* slice */> segment;
 
     enum segment_type
     {
@@ -30,17 +31,19 @@ public:
         SLICE
     };
 
-    typedef URI this_type;
-    URI(const std::string&);
-    URI(const URI&);
-    URI(URI&&);
-    ~URI();
+    typedef Path this_type;
+    Path(const std::string&);
+    Path(const Path&);
+    Path(Path&&);
+    ~Path();
 
     template <typename FirstSegment, typename... Others>
-    URI(const URI& other, FirstSegment&& seg, Others&&... others) : URI(other) { append(std::forward<FirstSegment>(seg), std::forward<Others>(others)...); }
+    Path(const Path& other, FirstSegment&& seg, Others&&... others)
+        : Path(other) { append(std::forward<FirstSegment>(seg), std::forward<Others>(others)...); }
 
     template <typename FirstSegment, typename... Others>
-    URI(URI&& other, FirstSegment&& seg, Others&&... others) : URI(std::forward<URI>(other)) { append(std::forward<FirstSegment>(seg), std::forward<Others>(others)...); }
+    Path(Path&& other, FirstSegment&& seg, Others&&... others)
+        : Path(std::forward<Path>(other)) { append(std::forward<FirstSegment>(seg), std::forward<Others>(others)...); }
 
     void swap(this_type& other)
     {
@@ -57,7 +60,11 @@ public:
         return *this;
     }
 
-    std::string str();
+    void append(const std::string& path);
+    void append(int idx);
+    void append(int b, int e, int seq = 1);
+
+    std::string str() const;
 
     const std::string& scheme() const { return m_scheme_; }
     void scheme(const std::string& s) { m_scheme_ = s; }
@@ -71,20 +78,16 @@ public:
     const std::string& fragment() const { return m_fragment_; }
     void fragment(const std::string& s) { m_fragment_ = s; }
 
-    void append(const std::string& path);
-    void append(int idx);
-    void append(int b, int e, int seq = 1);
-
     template <typename Key>
-    this_type operator[](const Key& key) const { return URI(*this, key); }
+    this_type operator[](const Key& key) const { return Path(*this, key); }
 
-    this_type operator/(const std::string& key) const { return URI(*this, key); }
+    this_type operator/(const std::string& key) const { return Path(*this, key); }
 
     size_t size() const { return m_path_.size(); }
 
-    const auto& begin() const { return m_path_.begin(); }
+    auto begin() const { return m_path_.begin(); }
 
-    const auto& end() const { return m_path_.end(); }
+    auto end() const { return m_path_.end(); }
 
 private:
     std::string m_scheme_;
@@ -94,5 +97,7 @@ private:
     std::string m_fragment_;
 };
 
+inline Path operator"" _p(const char* s, std::size_t) { return Path(s); }
+
 } // namespace sp
-#endif //SP_URL_H_
+#endif //SP_Path_h_

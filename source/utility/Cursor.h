@@ -1,5 +1,5 @@
-#ifndef SP_CURSOR_H_
-#define SP_CURSOR_H_
+#ifndef SP_Cursor_h_
+#define SP_Cursor_h_
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -229,4 +229,4 @@ private:
 
 } // namespace sp
 
-#endif // SP_CURSOR_H_
+#endif // SP_Cursor_h_
