@@ -18,13 +18,112 @@
 namespace sp
 {
 
+template <typename TNode>
+class HierarchicalTreeObject
+{
+public:
+    typedef TNode node_type;
+    typedef HierarchicalTreeObject<node_type> this_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
+
+    HierarchicalTreeObject() = default;
+    HierarchicalTreeObject(this_type&&) = default;
+    HierarchicalTreeObject(const this_type&) = default;
+    ~HierarchicalTreeObject() = default;
+
+    void swap(this_type& other) { std::swap(m_data_, other.m_data_); }
+
+    this_type& operator=(this_type const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    }
+    
+    size_t size() const { return m_data_.size(); }
+
+    void clear() { m_data_.clear(); }
+
+    int count(const std::string& key) const { return m_data_.count(key); }
+
+    template <typename... Args>
+    cursor insert(const std::string& path, Args&&... args) { return cursor(m_data_.try_emplace(path, std::forward<Args>(args)...).first); }
+
+    template <typename... Args>
+    void remove(Args&&... args) { m_data_.erase(std::forward<Args>(args)...); }
+
+    template <typename... Args>
+    cursor find(Args&&... args) { return cursor(m_data_.find(std::forward<Args>(args)...)); }
+
+    template <typename... Args>
+    const_cursor find(Args&&... args) const { return cursor(m_data_.find(std::forward<Args>(args)...)); }
+
+    auto& data() { return m_data_; }
+
+    const auto& data() const { return m_data_; }
+
+private:
+    std::map<std::string, node_type> m_data_;
+};
+
+template <typename TNode>
+class HierarchicalTreeArray
+{
+public:
+    typedef TNode node_type;
+    typedef HierarchicalTreeArray<node_type> this_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
+
+    HierarchicalTreeArray() = default;
+    HierarchicalTreeArray(this_type&&) = default;
+    HierarchicalTreeArray(const this_type&) = default;
+    ~HierarchicalTreeArray() = default;
+
+    void swap(this_type& other) { m_data_.swap(other.m_data_); }
+
+    this_type& operator=(this_type const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    }
+
+    size_t size() const { return m_data_.size(); }
+
+    void resize(size_t n, node_type* parent = nullptr)
+    {
+        auto num = size();
+
+        return m_data_.resize(n, node_type(parent));
+    }
+
+    void clear() { m_data_.clear(); }
+
+    template <typename... Args>
+    cursor push_back(Args&&... args)
+    {
+        m_data_.emplace_back(std::forward<Args>(args)...);
+        return cursor(m_data_.rbegin());
+    }
+
+    void pop_back() { m_data_.pop_back(); }
+
+    typename cursor::reference at(int idx) { return m_data_.at(idx); }
+
+    typename const_cursor::reference at(int idx) const { return m_data_.at(idx); }
+
+    auto& data() { return m_data_; }
+
+    const auto& data() const { return m_data_; }
+
+private:
+    std::vector<node_type> m_data_;
+};
+
 /**
  * Hierarchical Tree Struct
 */
-template <typename TNode,
-          template <typename> class ObjectHolder,
-          template <typename> class ArrayHolder,
-          typename... TypeList>
+template <typename TNode, typename... TypeList>
 class HierarchicalTree
 {
 
@@ -35,7 +134,7 @@ public:
 
     static const std::size_t ARRAY_TAG = 2;
 
-    typedef HierarchicalTree<TNode, ObjectHolder, ArrayHolder, TypeList...> this_type;
+    typedef HierarchicalTree<TNode, TypeList...> this_type;
 
     typedef TNode node_type;
 
@@ -45,13 +144,13 @@ public:
 
     typedef std::variant<
         std::nullptr_t,
-        ObjectHolder<node_type>,
-        ArrayHolder<node_type>,
+        HierarchicalTreeObject<node_type>,
+        HierarchicalTreeArray<node_type>,
         TypeList...>
         data_type;
 
-    friend class ArrayHolder<node_type>;
-    friend class ObjectHolder<node_type>;
+    friend class HierarchicalTreeArray<node_type>;
+    friend class HierarchicalTreeObject<node_type>;
 
     HierarchicalTree(this_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
 
@@ -274,113 +373,8 @@ private:
 };
 
 template <typename TNode>
-class HierarchicalTreeObject
-{
-public:
-    typedef TNode node_type;
-    typedef HierarchicalTreeObject<node_type> this_type;
-    typedef Cursor<node_type> cursor;
-    typedef Cursor<const node_type> const_cursor;
-
-    HierarchicalTreeObject() = default;
-    HierarchicalTreeObject(this_type&&) = default;
-    HierarchicalTreeObject(const this_type&) = default;
-    ~HierarchicalTreeObject() = default;
-
-    void swap(this_type& other) { m_data_.swap(other.m_data_); }
-
-    this_type& operator=(this_type const& other)
-    {
-        this_type(other).swap(*this);
-        return *this;
-    }
-    size_t size() const { return m_data_.size(); }
-
-    void clear() { m_data_.clear(); }
-
-    int count(const std::string& key) const { return m_data_.count(key); }
-
-    template <typename... Args>
-    cursor insert(const std::string& path, Args&&... args) { return cursor(m_data_.try_emplace(path, std::forward<Args>(args)...).first); }
-
-    template <typename... Args>
-    void remove(Args&&... args) { m_data_.erase(std::forward<Args>(args)...); }
-
-    template <typename... Args>
-    cursor find(Args&&... args) { return cursor(m_data_.find(std::forward<Args>(args)...)); }
-
-    template <typename... Args>
-    const_cursor find(Args&&... args) const { return cursor(m_data_.find(std::forward<Args>(args)...)); }
-
-    auto& data() { return m_data_; }
-
-    const auto& data() const { return m_data_; }
-
-private:
-    std::map<std::string, node_type> m_data_;
-};
-
-template <typename TNode>
-class HierarchicalTreeArray
-{
-public:
-    typedef TNode node_type;
-    typedef HierarchicalTreeArray<node_type> this_type;
-    typedef Cursor<node_type> cursor;
-    typedef Cursor<const node_type> const_cursor;
-
-    HierarchicalTreeArray() = default;
-    HierarchicalTreeArray(this_type&&) = default;
-    HierarchicalTreeArray(const this_type&) = default;
-    ~HierarchicalTreeArray() = default;
-
-    void swap(this_type& other) { m_data_.swap(other.m_data_); }
-
-    this_type& operator=(this_type const& other)
-    {
-        this_type(other).swap(*this);
-        return *this;
-    }
-
-    size_t size() const { return m_data_.size(); }
-
-    void resize(size_t n, node_type* parent = nullptr)
-    {
-        auto num = size();
-
-        return m_data_.resize(n, node_type(parent));
-    }
-
-    void clear() { m_data_.clear(); }
-
-    template <typename... Args>
-    cursor push_back(Args&&... args)
-    {
-        m_data_.emplace_back(std::forward<Args>(args)...);
-        return cursor(m_data_.rbegin());
-    }
-
-    void pop_back() { m_data_.pop_back(); }
-
-    typename cursor::reference at(int idx) { return m_data_.at(idx); }
-
-    typename const_cursor::reference at(int idx) const { return m_data_.at(idx); }
-
-    auto& data() { return m_data_; }
-
-    const auto& data() const { return m_data_; }
-
-private:
-    std::vector<node_type> m_data_;
-};
-
-template <typename TNode,
-          template <typename> class ObjectHolder = HierarchicalTreeObject,
-          template <typename> class ArrayHolder = HierarchicalTreeArray>
 using HierarchicalTreePreDefined = HierarchicalTree<
     TNode,
-    ObjectHolder,                                                //Object
-    ArrayHolder,                                                 //Array
     std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
     std::string,                                                 //String,
     bool,                                                        //Boolean,
@@ -418,14 +412,12 @@ enum HierarchicalTreePreDefinedDataType
     Other
 };
 
-template <template <typename> class ObjectHolder = HierarchicalTreeObject,
-          template <typename> class ArrayHolder = HierarchicalTreeArray>
 class HierarchicalNode
-    : public HierarchicalTreePreDefined<HierarchicalNode<ObjectHolder, ArrayHolder>, ObjectHolder, ArrayHolder>
+    : public HierarchicalTreePreDefined<HierarchicalNode>
 {
 public:
-    typedef HierarchicalTreePreDefined<HierarchicalNode<ObjectHolder, ArrayHolder>, ObjectHolder, ArrayHolder> base_type;
-    typedef HierarchicalNode<ObjectHolder, ArrayHolder> this_type;
+    typedef HierarchicalTreePreDefined<HierarchicalNode> base_type;
+    typedef HierarchicalNode this_type;
     typedef HierarchicalTreePreDefinedDataType DataType;
 
     template <typename... Args>

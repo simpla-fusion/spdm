@@ -7,7 +7,7 @@
 using namespace std::literals;
 TEST_CASE("HData ", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode<> attr;
+    sp::HierarchicalNode attr;
 
     attr["A"] = 1234.5;
 
@@ -16,11 +16,11 @@ TEST_CASE("HData ", "[HierarchicalTree]")
 
 TEST_CASE("Object", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode<> node;
+    sp::HierarchicalNode node;
 
     node["A"] = "1234"s;
 
-    node["B"].template set_value<sp::HierarchicalNode<>::DataType::Float>(3.14);
+    node["B"].template set_value<sp::HierarchicalNode::DataType::Float>(3.14);
 
     node["C"] = std::array<int, 3>{1, 2, 3};
 
@@ -28,9 +28,9 @@ TEST_CASE("Object", "[HierarchicalTree]")
 
     REQUIRE(node.size() == 3);
 
-    REQUIRE(node["A"].template get_value<sp::HierarchicalNode<>::DataType::String>() == "1234");
+    REQUIRE(node["A"].template get_value<sp::HierarchicalNode::DataType::String>() == "1234");
 
-    REQUIRE(node["B"].template get_value<sp::HierarchicalNode<>::DataType::Float>() == 3.14f);
+    REQUIRE(node["B"].template get_value<sp::HierarchicalNode::DataType::Float>() == 3.14f);
 }
 // TEST_CASE("Path", "[HierarchicalTree]")
 // {
@@ -42,7 +42,7 @@ TEST_CASE("Object", "[HierarchicalTree]")
 // }
 TEST_CASE("Array", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode<> node;
+    sp::HierarchicalNode node;
 
     node["C"].resize(2);
 
@@ -54,6 +54,6 @@ TEST_CASE("Array", "[HierarchicalTree]")
 
     REQUIRE(node["C"].size() == 2);
 
-    REQUIRE(node["C"][1].get_value<sp::HierarchicalNode<>::DataType::Int>() == 5);
-    REQUIRE(node["C"][0].get_value<sp::HierarchicalNode<>::DataType::Double>() == 6.0);
+    REQUIRE(node["C"][1].get_value<sp::HierarchicalNode::DataType::Int>() == 5);
+    REQUIRE(node["C"][0].get_value<sp::HierarchicalNode::DataType::Double>() == 6.0);
 }

@@ -37,6 +37,7 @@ public:
         HierarchicalTreeObjectPolicy(other).swap(*this);
         return *this;
     }
+   
     size_t size() const { return m_data_.size(); }
 
     void clear() { m_data_.clear(); }

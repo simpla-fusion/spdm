@@ -28,11 +28,8 @@ std::ostream& fancy_print(std::ostream& os, const HierarchicalTreeArray<TNode>& 
     return fancy_print(os, tree_array.data(), indent, tab);
 }
 
-template <typename TNode,
-          template <typename> class ObjectHolder,
-          template <typename> class ArrayHolder,
-          typename... TypeList>
-std::ostream& fancy_print(std::ostream& os, const HierarchicalTree<TNode, ObjectHolder, ArrayHolder, TypeList...>& tree, int indent, int tab)
+template <typename TNode, typename... TypeList>
+std::ostream& fancy_print(std::ostream& os, const HierarchicalTree<TNode, TypeList...>& tree, int indent, int tab)
 {
     std::visit([&](auto&& v) { fancy_print(os, v, indent, tab); }, tree.data());
 
@@ -74,11 +71,8 @@ std::ostream& fancy_print(std::ostream& os, const HierarchicalTree<TNode, Object
 //     //    << "}";
 // }
 // return os;
-template <typename TNode,
-          template <typename> class ObjectHolder,
-          template <typename> class ArrayHolder,
-          typename... TypeList>
-std::ostream& operator<<(std::ostream& os, const HierarchicalTree<TNode, ObjectHolder, ArrayHolder, TypeList...>& tree)
+template <typename TNode, typename... TypeList>
+std::ostream& operator<<(std::ostream& os, const HierarchicalTree<TNode, TypeList...>& tree)
 {
     return fancy_print(os, tree, 0, 4);
 }
