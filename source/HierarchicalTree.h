@@ -2,8 +2,8 @@
 #ifndef SP_HierarchicalTree_h_
 #define SP_HierarchicalTree_h_
 #include "utility/Cursor.h"
-#include "utility/Path.h"
 #include "utility/Logger.h"
+#include "utility/Path.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -54,6 +54,13 @@ public:
     friend class ObjectHolder<node_type>;
 
     HierarchicalTree(this_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
+
+    template <int TAG, typename... Args>
+    HierarchicalTree(this_type* p, const std::string& name, std::integral_constant<int, TAG>, Args&&... args)
+        : m_name_(name), m_parent_(p), m_data_()
+    {
+        m_data_.template emplace<TAG>(std::forward<Args>(args)...);
+    }
 
     HierarchicalTree(const this_type& other) : m_parent_(nullptr), m_name_(""), m_data_(other.m_data_){};
 
