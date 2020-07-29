@@ -1,6 +1,5 @@
 #ifndef SP_NODE_H_
 #define SP_NODE_H_
-#include "Entry.h"
 #include "utility/Cursor.h"
 #include "utility/HierarchicalTree.h"
 #include "utility/Logger.h"
@@ -28,6 +27,8 @@ struct cursor_traits<V,
     typedef std::shared_ptr<Node> pointer;
     typedef ptrdiff_t difference_type;
 };
+
+class Entry;
 template <>
 struct node_traits<Node>
 {

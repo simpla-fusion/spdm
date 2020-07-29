@@ -20,21 +20,7 @@ namespace sp
 {
 
 class HierarchicalNode
-    : public HierarchicalTree<HierarchicalNode,
-                              std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-                              std::string,                                                 //String,
-                              bool,                                                        //Boolean,
-                              int,                                                         //Integer,
-                              long,                                                        //Long,
-                              float,                                                       //Float,
-                              double,                                                      //Double,
-                              std::complex<double>,                                        //Complex,
-                              std::array<int, 3>,                                          //IntVec3,
-                              std::array<long, 3>,                                         //LongVec3,
-                              std::array<float, 3>,                                        //FloatVec3,
-                              std::array<double, 3>,                                       //DoubleVec3,
-                              std::array<std::complex<double>, 3>,                         //ComplexVec3,
-                              std::any>
+    : public hierarchical_tree_warpper<HierarchicalNode, traits::tagged_types>::type
 {
 public:
     typedef HierarchicalNode this_type;
@@ -104,7 +90,7 @@ HierarchicalTreeObjectContainer<HierarchicalNode>::find(const Path& path) const 
 // Array
 
 template <>
-inline HierarchicalTreeArrayContainer<HierarchicalNode>::HierarchicalTreeArrayContainer(node_type* self, container* d) : m_self_(self), m_container_(d!=nullptr?d:new container) {}
+inline HierarchicalTreeArrayContainer<HierarchicalNode>::HierarchicalTreeArrayContainer(node_type* self, container* d) : m_self_(self), m_container_(d != nullptr ? d : new container) {}
 template <>
 inline HierarchicalTreeArrayContainer<HierarchicalNode>::HierarchicalTreeArrayContainer(this_type&& other) : this_type(nullptr, other.m_container_.release()) {}
 template <>

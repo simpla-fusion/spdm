@@ -869,7 +869,7 @@ struct type_tags_traits<Head, First, Others...>
 
 #define M_TAGGED_TYPE(_TAG_, ...)                  \
     template <typename _Head>                      \
-    struct type_tags_traits<_Head, __VA_ARGS__>     \
+    struct type_tags_traits<_Head, __VA_ARGS__>    \
     {                                              \
         struct tags : public _Head                 \
         {                                          \
@@ -895,6 +895,38 @@ M_TAGGED_TYPE(FloatVec3, std::array<float, 3>);                                 
 M_TAGGED_TYPE(DoubleVec3, std::array<double, 3>);                                  //DoubleVec3,
 M_TAGGED_TYPE(ComplexVec3, std::array<std::complex<double>, 3>);                   //ComplexVec3,
 M_TAGGED_TYPE(UNKNOWN, std::any);                                                  //Other
+
+namespace _detail
+{
+struct _head
+{
+    enum
+    {
+        Empty = 0,
+        Object = 1,
+        Array = 2,
+        _LAST_PLACE_HOLDER
+    };
+};
+} // namespace _detail
+template <typename... TypeList>
+using hierarchical_type_tags = typename traits::type_tags_traits<_head, TypeList...>::tags;
+
+typedef std::variant<std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
+                     std::string,                                                 //String,
+                     bool,                                                        //Boolean,
+                     int,                                                         //Integer,
+                     long,                                                        //Long,
+                     float,                                                       //Float,
+                     double,                                                      //Double,
+                     std::complex<double>,                                        //Complex,
+                     std::array<int, 3>,                                          //IntVec3,
+                     std::array<long, 3>,                                         //LongVec3,
+                     std::array<float, 3>,                                        //FloatVec3,
+                     std::array<double, 3>,                                       //DoubleVec3,
+                     std::array<std::complex<double>, 3>,                         //ComplexVec3,
+                     std::any>
+    tagged_types;
 
 } // namespace traits
 

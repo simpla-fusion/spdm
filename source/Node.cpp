@@ -53,11 +53,11 @@ public:
 
     bool not_equal(const base_type* other) const override { return !equal(other); }
 
-    difference_type distance(const base_type* other) const override
-    {
-        NOT_IMPLEMENTED;
-        return 0;
-    }
+    // difference_type distance(const base_type* other) const override
+    // {
+    //     NOT_IMPLEMENTED;
+    //     return 0;
+    // }
 
     reference get_reference() const override { return std::forward<Node>(make_node(m_entry_)); }
 

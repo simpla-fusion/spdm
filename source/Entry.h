@@ -36,44 +36,6 @@ public:
                        >
         block_t;
 
-    typedef std::variant<
-        std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-        std::string,                                                 //String,
-        bool,                                                        //Boolean,
-        int,                                                         //Integer,
-        long,                                                        //Long,
-        float,                                                       //Float,
-        double,                                                      //Double,
-        std::complex<double>,                                        //Complex,
-        std::array<int, 3>,                                          //IntVec3,
-        std::array<long, 3>,                                         //LongVec3,
-        std::array<float, 3>,                                        //FloatVec3,
-        std::array<double, 3>,                                       //DoubleVec3,
-        std::array<std::complex<double>, 3>,                         //ComplexVec3,
-        std::any                                                     //Other
-        >
-        HierarchicalTreePreDefinedDataUnion;
-
-    enum HierarchicalTreePreDefinedDataType
-    {
-        Null,
-        Object,
-        Array,
-        Block,
-        String,
-        Bool,
-        Int,
-        Long,
-        Float,
-        Double,
-        Complex,
-        IntVec3,
-        LongVec3,
-        FloatVec3,
-        DoubleVec3,
-        ComplexVec3,
-        Other
-    };
 
     Entry() = default;
 

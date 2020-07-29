@@ -65,18 +65,7 @@ public:
         TypeList...>
         type_union;
 
-    struct _head
-    {
-        enum
-        {
-            Empty = 0,
-            Object = 1,
-            Array = 2,
-            _LAST_PLACE_HOLDER
-        };
-    };
-
-    typedef typename traits::type_tags_traits<_head, TypeList...>::tags type_tags;
+    typedef typename traits::hierarchical_type_tags<TypeList...>::tags type_tags;
 
     friend class Array;
     friend class Object;
@@ -395,10 +384,11 @@ private:
 };
 
 template <typename TNode, typename TypeList>
-struct hierarchical_tree_warpper;
-
+struct hierarchical_tree;
+template <typename TNode, typename TypeList>
+using hierarchical_tree_t = typename hierarchical_tree<TNode, TypeList>::type;
 template <typename TNode, typename... TypeLists>
-struct hierarchical_tree_warpper<TNode, std::variant<TypeLists...>>
+struct hierarchical_tree<TNode, std::variant<TypeLists...>>
 {
     typedef HierarchicalTree<TNode, TypeLists...> type;
 };
