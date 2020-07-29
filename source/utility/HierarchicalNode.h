@@ -20,7 +20,7 @@ namespace sp
 {
 
 class HierarchicalNode
-    : public hierarchical_tree_warpper<HierarchicalNode, traits::tagged_types>::type
+    : public hierarchical_tree_t<HierarchicalNode, traits::pre_tagged_types>
 {
 public:
     typedef HierarchicalNode this_type;

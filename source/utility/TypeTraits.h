@@ -839,78 +839,110 @@ struct is_indexable : public std::integral_constant<
 {
 };
 
-template <typename... Others>
-struct type_tags_traits;
-
-template <typename Head>
-struct type_tags_traits<Head>
+namespace _detail
 {
-    typedef Head tags;
+
+struct _tags_head
+{
+    enum
+    {
+        _LAST_PLACE_HOLDER = 0
+    };
 };
 
-template <typename Head, typename T>
-struct type_tags_traits<Head, T>
+template <typename... T>
+struct _append_tag;
+
+template <typename _Head>
+struct _append_tag<_Head>
 {
-    struct tags : public Head
+    typedef _Head tags;
+};
+
+template <typename _Head, typename T>
+struct _append_tag<_Head, T>
+{
+    struct tags : public _Head
     {
         enum
         {
-            UNNAMED = Head::_LAST_PLACE_HOLDER,
+            UNNAMED = _Head::_LAST_PLACE_HOLDER,
             _LAST_PLACE_HOLDER
         };
     };
 };
 
-template <typename Head, typename First, typename... Others>
-struct type_tags_traits<Head, First, Others...>
+template <typename _Head, typename First, typename... Others>
+struct _append_tag<_Head, First, Others...>
 {
-    typedef typename type_tags_traits<typename type_tags_traits<Head, First>::tags, Others...>::tags tags;
+    typedef typename _append_tag<typename _append_tag<_Head, First>::tags, Others...>::tags tags;
+};
+} // namespace _detail
+
+template <typename... T>
+struct type_tags_traits
+{
+    typedef typename _detail::_append_tag<_detail::_tags_head, T...>::tags tags;
 };
 
-#define M_TAGGED_TYPE(_TAG_, ...)                  \
-    template <typename _Head>                      \
-    struct type_tags_traits<_Head, __VA_ARGS__>    \
-    {                                              \
-        struct tags : public _Head                 \
-        {                                          \
-            enum                                   \
-            {                                      \
-                _TAG_ = _Head::_LAST_PLACE_HOLDER, \
-                _LAST_PLACE_HOLDER                 \
-            };                                     \
-        };                                         \
+#define M_REGISITER_TYPE_TAG(_TAG_, ...)                        \
+    template <typename _Head>                                   \
+    struct sp::traits::_detail::_append_tag<_Head, __VA_ARGS__> \
+    {                                                           \
+        struct tags : public _Head                              \
+        {                                                       \
+            enum                                                \
+            {                                                   \
+                _TAG_ = _Head::_LAST_PLACE_HOLDER,              \
+                _LAST_PLACE_HOLDER                              \
+            };                                                  \
+        };                                                      \
     };
 
-M_TAGGED_TYPE(Block, std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>); //Block
-M_TAGGED_TYPE(String, std::string);                                                //String,
-M_TAGGED_TYPE(Bool, bool);                                                         //Boolean,
-M_TAGGED_TYPE(Int, int);                                                           //Integer,
-M_TAGGED_TYPE(Long, long);                                                         //Long,
-M_TAGGED_TYPE(Float, float);                                                       //Float,
-M_TAGGED_TYPE(Double, double);                                                     //Double,
-M_TAGGED_TYPE(Complex, std::complex<double>);                                      //Complex,
-M_TAGGED_TYPE(IntVec3, std::array<int, 3>);                                        //IntVec3,
-M_TAGGED_TYPE(LongVec3, std::array<long, 3>);                                      //LongVec3,
-M_TAGGED_TYPE(FloatVec3, std::array<float, 3>);                                    //FloatVec3,
-M_TAGGED_TYPE(DoubleVec3, std::array<double, 3>);                                  //DoubleVec3,
-M_TAGGED_TYPE(ComplexVec3, std::array<std::complex<double>, 3>);                   //ComplexVec3,
-M_TAGGED_TYPE(UNKNOWN, std::any);                                                  //Other
+M_REGISITER_TYPE_TAG(Empty, std::nullptr_t);                                              //Empty,
+M_REGISITER_TYPE_TAG(Block, std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>); //Block
+M_REGISITER_TYPE_TAG(String, std::string);                                                //String,
+M_REGISITER_TYPE_TAG(Bool, bool);                                                         //Boolean,
+M_REGISITER_TYPE_TAG(Int, int);                                                           //Integer,
+M_REGISITER_TYPE_TAG(Long, long);                                                         //Long,
+M_REGISITER_TYPE_TAG(Float, float);                                                       //Float,
+M_REGISITER_TYPE_TAG(Double, double);                                                     //Double,
+M_REGISITER_TYPE_TAG(Complex, std::complex<double>);                                      //Complex,
+M_REGISITER_TYPE_TAG(IntVec3, std::array<int, 3>);                                        //IntVec3,
+M_REGISITER_TYPE_TAG(LongVec3, std::array<long, 3>);                                      //LongVec3,
+M_REGISITER_TYPE_TAG(FloatVec3, std::array<float, 3>);                                    //FloatVec3,
+M_REGISITER_TYPE_TAG(DoubleVec3, std::array<double, 3>);                                  //DoubleVec3,
+M_REGISITER_TYPE_TAG(ComplexVec3, std::array<std::complex<double>, 3>);                   //ComplexVec3,
+M_REGISITER_TYPE_TAG(UNKNOWN, std::any);                                                  //Other
+
+#define M_REGISITER_TYPE_TAG_TEMPLATE(_TAG_, _TMPL_)                       \
+    template <typename _Head, typename... _PARAMETERS>                     \
+    struct sp::traits::_detail::_append_tag<_Head, _TMPL_<_PARAMETERS...>> \
+    {                                                                      \
+        struct tags : public _Head                                         \
+        {                                                                  \
+            enum                                                           \
+            {                                                              \
+                _TAG_ = _Head::_LAST_PLACE_HOLDER,                         \
+                _LAST_PLACE_HOLDER                                         \
+            };                                                             \
+        };                                                                 \
+    };
 
 namespace _detail
 {
-struct _head
+template <typename...>
+struct _type_tags;
+
+template <typename... TypeLists>
+struct _type_tags<std::variant<TypeLists...>>
 {
-    enum
-    {
-        Empty = 0,
-        Object = 1,
-        Array = 2,
-        _LAST_PLACE_HOLDER
-    };
+    typedef typename type_tags_traits<TypeLists...>::tags tags;
 };
 } // namespace _detail
-template <typename... TypeList>
-using hierarchical_type_tags = typename traits::type_tags_traits<_head, TypeList...>::tags;
+
+template <typename V>
+using type_tags = typename _detail::_type_tags<V>::tags;
 
 typedef std::variant<std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
                      std::string,                                                 //String,
@@ -926,7 +958,43 @@ typedef std::variant<std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>
                      std::array<double, 3>,                                       //DoubleVec3,
                      std::array<std::complex<double>, 3>,                         //ComplexVec3,
                      std::any>
-    tagged_types;
+    pre_tagged_types;
+
+template <typename...>
+struct concatenate;
+
+template <typename... TypeList>
+using concatenate_t = typename concatenate<TypeList...>::type;
+
+template <typename... First>
+struct concatenate<std::variant<First...>>
+{
+    typedef std::variant<First...> type;
+};
+
+template <typename... First, typename... Second>
+struct concatenate<std::variant<First...>, std::variant<Second...>>
+{
+    typedef std::variant<First..., Second...> type;
+};
+
+template <typename First, typename... Second>
+struct concatenate<First, std::variant<Second...>>
+{
+    typedef std::variant<First, Second...> type;
+};
+
+template <typename... First, typename Second>
+struct concatenate<std::variant<First...>, Second>
+{
+    typedef std::variant<First..., Second> type;
+};
+
+template <typename First, typename Second, typename... Others>
+struct concatenate<First, Second, Others...>
+{
+    typedef concatenate_t<std::variant<First, Second>, Others...> type;
+};
 
 } // namespace traits
 

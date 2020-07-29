@@ -12,30 +12,22 @@
 namespace sp
 {
 
+class EntryObject
+{
+};
+class EntryArray
+{
+};
+
 class Entry : public std::enable_shared_from_this<Entry>
 {
 public:
-    typedef std::variant<std::string,
-                         bool, long, double,
-                         std::complex<double>,
-                         std::array<int, 3>,
-                         std::array<double, 3>>
-        element_t;
-
-    typedef std::tuple<std::shared_ptr<void> /* data ponter*/,
-                       const std::type_info& /* type information */,
-                       std::vector<size_t> /* dimensions */>
-        tensor_t;
-
-    typedef std::tuple<std::shared_ptr<void> /* data ponter*/,
-                       std::string /* type description*/,
-                       std::vector<size_t> /* shapes */,
-                       std::vector<size_t> /* offset */,
-                       std::vector<size_t> /* strides */,
-                       std::vector<size_t> /* dimensions */
-                       >
-        block_t;
-
+    typedef traits::concatenate_t<std::nullptr_t,
+                                  EntryObject,
+                                  EntryArray,
+                                  traits::pre_tagged_types>
+        type_union;
+    typedef traits::type_tags<type_union> type_tags;
 
     Entry() = default;
 
@@ -66,25 +58,20 @@ public:
     // attribute
     virtual bool has_attribute(const std::string& name) const = 0;
 
-    virtual element_t get_attribute_raw(const std::string& name) const = 0;
+    virtual type_union get_attribute_raw(const std::string& name) const = 0;
 
-    virtual void set_attribute_raw(const std::string& name, const element_t& value) = 0;
+    virtual void set_attribute_raw(const std::string& name, const type_union& value) = 0;
 
     virtual void remove_attribute(const std::string& name) = 0;
 
-    virtual std::map<std::string, element_t> attributes() const = 0;
+    virtual std::map<std::string, type_union> attributes() const = 0;
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-    virtual void set_element(const element_t&) = 0;
-    virtual element_t get_element() const = 0;
+    virtual void set_value(const type_union&) = 0;
 
-    virtual void set_tensor(const tensor_t&) = 0;
-    virtual tensor_t get_tensor() const = 0;
-
-    virtual void set_block(const block_t&) = 0;
-    virtual block_t get_block() const = 0;
+    virtual type_union get_value() const = 0;
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
@@ -140,8 +127,8 @@ public:
 
     virtual std::shared_ptr<Entry> select(const Path& path) const { return nullptr; };
 };
-std::string to_string(Entry::element_t const& s);
-Entry::element_t from_string(const std::string& s, int idx = 0);
+std::string to_string(Entry::type_union const& s);
+Entry::type_union from_string(const std::string& s, int idx = 0);
 
 } // namespace sp
 

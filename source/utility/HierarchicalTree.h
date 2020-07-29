@@ -36,6 +36,9 @@ class HierarchicalTreeObjectContainer;
 template <typename TNode>
 class HierarchicalTreeArrayContainer;
 
+M_REGISITER_TYPE_TAG_TEMPLATE(Array, HierarchicalTreeArrayContainer)
+M_REGISITER_TYPE_TAG_TEMPLATE(Object, HierarchicalTreeObjectContainer)
+
 /**
  * Hierarchical Tree Struct
 */
@@ -65,7 +68,7 @@ public:
         TypeList...>
         type_union;
 
-    typedef typename traits::hierarchical_type_tags<TypeList...>::tags type_tags;
+    typedef traits::type_tags<type_union> type_tags;
 
     friend class Array;
     friend class Object;
