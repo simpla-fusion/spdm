@@ -35,13 +35,13 @@ struct CursorProxy
 
     virtual bool not_equal(const this_type* other) const { return !equal(other); }
 
-    virtual difference_type distance(const this_type* other) const { return std::distance(get_pointer(), other->get_pointer()); }
-
     virtual reference get_reference() const { return *get_pointer(); }
 
     virtual pointer get_pointer() const = 0;
 
     virtual void next() = 0;
+
+    // virtual difference_type distance(const this_type* other) const = 0;
 };
 
 template <typename U, typename V>

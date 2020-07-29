@@ -840,16 +840,16 @@ struct is_indexable : public std::integral_constant<
 };
 
 template <typename... Others>
-struct type_tag_traits;
+struct type_tags_traits;
 
 template <typename Head>
-struct type_tag_traits<Head>
+struct type_tags_traits<Head>
 {
     typedef Head tags;
 };
 
 template <typename Head, typename T>
-struct type_tag_traits<Head, T>
+struct type_tags_traits<Head, T>
 {
     struct tags : public Head
     {
@@ -862,14 +862,14 @@ struct type_tag_traits<Head, T>
 };
 
 template <typename Head, typename First, typename... Others>
-struct type_tag_traits<Head, First, Others...>
+struct type_tags_traits<Head, First, Others...>
 {
-    typedef typename type_tag_traits<typename type_tag_traits<Head, First>::tags, Others...>::tags tags;
+    typedef typename type_tags_traits<typename type_tags_traits<Head, First>::tags, Others...>::tags tags;
 };
 
 #define M_TAGGED_TYPE(_TAG_, ...)                  \
     template <typename _Head>                      \
-    struct type_tag_traits<_Head, __VA_ARGS__>     \
+    struct type_tags_traits<_Head, __VA_ARGS__>     \
     {                                              \
         struct tags : public _Head                 \
         {                                          \

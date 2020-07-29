@@ -16,26 +16,54 @@
 namespace sp
 {
 class Node;
+
+template <typename V>
+struct cursor_traits<V,
+                     std::enable_if_t<
+                         std::is_same_v<V, Node> ||
+                         std::is_same_v<V, const Node>>>
+{
+    typedef Node value_type;
+    typedef Node reference;
+    typedef std::shared_ptr<Node> pointer;
+    typedef ptrdiff_t difference_type;
+};
 template <>
 struct node_traits<Node>
 {
     typedef Node node_type;
     typedef Cursor<node_type> cursor;
     typedef Cursor<const node_type> const_cursor;
-    typedef node_type& reference;
-    typedef node_type* pointer;
+    typedef typename cursor::reference reference;
+    typedef typename cursor::pointer pointer;
     typedef Entry object_container;
     typedef Entry array_container;
 };
 
-class Node : public hierarchical_tree_wrapper<Node, Entry::type_union, Entry::type_tag>::type
+class Node : public HierarchicalTree<
+                 Node,
+                 std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
+                 std::string,                                                 //String,
+                 bool,                                                        //Boolean,
+                 int,                                                         //Integer,
+                 long,                                                        //Long,
+                 float,                                                       //Float,
+                 double,                                                      //Double,
+                 std::complex<double>,                                        //Complex,
+                 std::array<int, 3>,                                          //IntVec3,
+                 std::array<long, 3>,                                         //LongVec3,
+                 std::array<float, 3>,                                        //FloatVec3,
+                 std::array<double, 3>,                                       //DoubleVec3,
+                 std::array<std::complex<double>, 3>,                         //ComplexVec3,
+                 std::any>,
+             public std::enable_shared_from_this<Node>
 {
 public:
     typedef Node this_type;
 
-    typedef typename hierarchical_tree_wrapper<Node, Entry::type_union, Entry::type_tag>::type base_type;
+    typedef tree_type base_type;
 
-    typedef typename hierarchical_tree_wrapper<Node, Entry::type_union, Entry::type_tag>::type tag;
+    using typename tree_type::type_tags;
 
     Node(const std::string& backend);
 
@@ -68,11 +96,14 @@ public:
     auto get_attribute(const std::string& name) { return find("@" + name)->get_value<V>(); };
 
     template <typename V, typename U>
-    void set_attribute(const std::string& name, const U& value) { insert("@" + name, this)->template set_value<V>(value); }
+    void set_attribute(const std::string& name, const U& value) { insert("@" + name)->template set_value<V>(value); }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);
-
+// template <>
+// HierarchicalTreeObjectContainer<Node>;
+// template <>
+// HierarchicalTreeArrayContainer<Node>;
 } // namespace sp
 
 #endif // SP_NODE_H_

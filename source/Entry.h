@@ -146,13 +146,20 @@ public:
 
     // as array
 
+    virtual void resize(std::size_t num) = 0;
+
     virtual std::shared_ptr<Entry> push_back() = 0;
 
     virtual std::shared_ptr<Entry> pop_back() = 0;
 
-    virtual std::shared_ptr<Entry> item(int idx) const = 0;
+    virtual std::shared_ptr<const Entry> at(int idx) const = 0;
+
+    virtual std::shared_ptr<Entry> at(int idx) = 0;
 
     // as object
+
+    virtual std::size_t count(const std::string& name) = 0;
+
     virtual std::shared_ptr<Entry> insert(const std::string& path) = 0;
 
     virtual std::shared_ptr<Entry> insert(const Path& path) = 0;
@@ -161,9 +168,9 @@ public:
 
     virtual std::shared_ptr<Entry> find(const Path& path) const = 0;
 
-    virtual void remove(const std::string& path) = 0;
+    virtual void erase(const std::string& path) = 0;
 
-    virtual void remove(const Path& path) = 0;
+    virtual void erase(const Path& path) = 0;
 
     // level 1
 

@@ -25,7 +25,6 @@ struct node_traits
 {
     typedef TNode node_type;
     typedef Cursor<node_type> cursor;
-    typedef Cursor<const node_type> const_cursor;
     typedef node_type& reference;
     typedef node_type* pointer;
     typedef std::map<std::string, node_type> object_container;
@@ -51,9 +50,13 @@ public:
 
     typedef HierarchicalTree<node_type, TypeList...> tree_type;
 
+    typedef typename node_traits<node_type>::pointer pointer;
+
+    typedef typename node_traits<node_type>::reference reference;
+
     typedef typename node_traits<node_type>::cursor cursor;
 
-    typedef typename node_traits<node_type>::const_cursor const_cursor;
+    typedef typename node_traits<const node_type>::cursor const_cursor;
 
     typedef std::variant<
         std::nullptr_t,
@@ -73,19 +76,12 @@ public:
         };
     };
 
-    typedef typename traits::type_tag_traits<_head, TypeList...>::tags type_tag;
+    typedef typename traits::type_tags_traits<_head, TypeList...>::tags type_tags;
 
     friend class Array;
     friend class Object;
 
-    HierarchicalTree(this_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
-
-    template <int TAG, typename... Args>
-    HierarchicalTree(this_type* p, const std::string& name, std::integral_constant<int, TAG>, Args&&... args)
-        : m_name_(name), m_parent_(p), m_data_()
-    {
-        m_data_.template emplace<TAG>(std::forward<Args>(args)...);
-    }
+    HierarchicalTree(node_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
 
     HierarchicalTree(const this_type& other) : m_parent_(nullptr), m_name_(""), m_data_(other.m_data_){};
 
@@ -111,14 +107,14 @@ public:
 
     bool is_root() const { return m_parent_ == nullptr; }
 
-    bool is_leaf() const { return m_data_.index() != type_tag::Object && m_data_.index() != type_tag::Array; }
+    bool is_leaf() const { return m_data_.index() != type_tags::Object && m_data_.index() != type_tags::Array; }
 
-    bool empty() const { return m_data_.index() == type_tag::Empty; }
+    bool empty() const { return m_data_.index() == type_tags::Empty; }
 
     //---------------------------------------------------------------------------------
     // as leaf
 
-    bool is_element() const { return m_data_.index() > type_tag::Array; }
+    bool is_element() const { return m_data_.index() > type_tags::Array; }
 
     template <typename V>
     bool operator==(const V& v) const { return m_data_ == type_union(v); }
@@ -153,25 +149,25 @@ public:
 
     void clear()
     {
-        if (m_data_.index() == type_tag::Array)
+        if (m_data_.index() == type_tags::Array)
         {
-            std::get<type_tag::Array>(m_data_).clear();
+            std::get<type_tags::Array>(m_data_).clear();
         }
-        else if (m_data_.index() == type_tag::Object)
+        else if (m_data_.index() == type_tags::Object)
         {
-            std::get<type_tag::Object>(m_data_).clear();
+            std::get<type_tags::Object>(m_data_).clear();
         }
     }
 
     size_t size() const
     {
-        if (m_data_.index() == type_tag::Array)
+        if (m_data_.index() == type_tags::Array)
         {
-            return std::get<type_tag::Array>(m_data_).size();
+            return std::get<type_tags::Array>(m_data_).size();
         }
-        else if (m_data_.index() == type_tag::Object)
+        else if (m_data_.index() == type_tags::Object)
         {
-            return std::get<type_tag::Object>(m_data_).size();
+            return std::get<type_tags::Object>(m_data_).size();
         }
         else
         {
@@ -182,45 +178,43 @@ public:
     //------------------------------------------------------------------------------
     // as object
 
-    bool is_object() const { return m_data_.index() == type_tag::Object; }
+    bool is_object() const { return m_data_.index() == type_tags::Object; }
 
     decltype(auto) as_object()
     {
-        if (m_data_.index() == type_tag::Empty)
+        if (m_data_.index() == type_tags::Empty)
         {
             static_assert(std::is_base_of_v<this_type, node_type>);
 
-            m_data_.template emplace<type_tag::Object>();
+            m_data_.template emplace<type_tags::Object>(m_parent_);
         }
-        if (m_data_.index() != type_tag::Object)
+        if (m_data_.index() != type_tags::Object)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
 
-        return std::get<type_tag::Object>(m_data_);
+        return std::get<type_tags::Object>(m_data_);
     }
 
     decltype(auto) as_object() const
     {
-        if (m_data_.index() != type_tag::Object)
+        if (m_data_.index() != type_tags::Object)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
 
-        return std::get<type_tag::Object>(m_data_);
+        return std::get<type_tags::Object>(m_data_);
     }
 
-    auto insert(const std::string& key) { return as_object().insert(key, reinterpret_cast<node_type*>(this)); }
+    const reference at(const std::string& key) const { return *as_object().find(key); }
 
-    decltype(auto) at(const std::string& key) const { return *as_object().find(key); }
+    reference operator[](const std::string& key) { return *insert(key); }
 
-    decltype(auto) operator[](const std::string& key) { return *insert(key); }
-
-    decltype(auto) operator[](const std::string& key) const { return at(key); }
+    const reference operator[](const std::string& key) const { return at(key); }
 
     void erase(const std::string& key)
     {
-        if (m_data_.index() == type_tag::Object)
+        if (m_data_.index() == type_tags::Object)
         {
             as_object().erase(key);
         }
@@ -228,49 +222,55 @@ public:
 
     int count(const std::string& key) const
     {
-        return m_data_.index() == type_tag::Object && std::get<type_tag::Object>(m_data_).count(key);
+        return m_data_.index() == type_tags::Object && std::get<type_tags::Object>(m_data_).count(key);
     }
 
-    template <typename... Args>
-    auto insert(Args&&... args) { return as_object().insert(std::forward<Args>(args)...); }
+    cursor insert(const std::string& path) { return as_object().insert(path); }
 
-    template <typename... Args>
-    auto find(Args&&... args) const { return as_object().find(std::forward<Args>(args)...); }
+    cursor insert(const Path& path) { return as_object().insert(path); }
 
-    template <typename... Args>
-    void erase(Args&&... args) { as_object().erase(std::forward<Args>(args)...); }
+    cursor find(const std::string& path) { return as_object().insert(path); }
 
+    cursor find(const Path& path) { return as_object().find(path); }
+
+    const_cursor find(const std::string& path) const { return as_object().insert(path); }
+
+    const_cursor find(const Path& path) const { return as_object().find(path); }
+
+    void erase(const std::string& path) const { return as_object().erase(path); }
+
+    void erase(const Path& path) const { return as_object().erase(path); }
     //------------------------------------------------------------------------------
     // as array
-    bool is_array() const { return m_data_.index() == type_tag::Array; }
+    bool is_array() const { return m_data_.index() == type_tags::Array; }
 
     decltype(auto) as_array()
     {
-        if (m_data_.index() == type_tag::Empty)
+        if (m_data_.index() == type_tags::Empty)
         {
             static_assert(std::is_base_of_v<this_type, node_type>);
 
-            m_data_.template emplace<type_tag::Array>();
+            m_data_.template emplace<type_tags::Array>(reinterpret_cast<node_type*>(this));
         }
-        if (m_data_.index() != type_tag::Array)
+        if (m_data_.index() != type_tags::Array)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
-        return std::get<type_tag::Array>(m_data_);
+        return std::get<type_tags::Array>(m_data_);
     }
 
     decltype(auto) as_array() const
     {
-        if (m_data_.index() != type_tag::Array)
+        if (m_data_.index() != type_tags::Array)
         {
             throw std::runtime_error(FILE_LINE_STAMP_STRING);
         }
-        return std::get<type_tag::Array>(m_data_);
+        return std::get<type_tags::Array>(m_data_);
     }
 
-    void resize(size_t s) { as_array().resize(s, reinterpret_cast<node_type*>(this)); }
+    void resize(size_t s) { as_array().resize(s); }
 
-    auto push_back() { return as_array().emplace_back(dynamic_cast<node_type*>(this)); }
+    auto push_back() { return as_array().emplace_back(); }
 
     void pop_back() { as_array().pop_back(); }
 
@@ -280,10 +280,6 @@ public:
 
     //------------------------------------------------------------------------------------------
 
-    type_union& data() { return m_data_; }
-
-    const type_union& data() const { return m_data_; }
-
     decltype(auto) operator[](const Path& path) { return *as_object().find(path); }
 
     decltype(auto) operator[](const Path& path) const { return *as_object().find(path); }
@@ -292,8 +288,14 @@ public:
 
     auto select(const Path& path) const { return as_object().select(path); }
 
+    //------------------------------------------------------------------------------------------
+
+    type_union& data() { return m_data_; }
+
+    const type_union& data() const { return m_data_; }
+
 private:
-    this_type* m_parent_;
+    node_type* m_parent_;
     std::string m_name_;
     type_union m_data_;
 };
@@ -306,11 +308,10 @@ public:
     typedef HierarchicalTreeObjectContainer<node_type> this_type;
     typedef node_traits<node_type> traits_type;
     typedef typename node_traits<node_type>::cursor cursor;
-    typedef typename node_traits<node_type>::const_cursor const_cursor;
+    typedef typename node_traits<const node_type>::cursor const_cursor;
     typedef typename node_traits<node_type>::object_container container;
 
-    HierarchicalTreeObjectContainer(container* container);
-    HierarchicalTreeObjectContainer();
+    HierarchicalTreeObjectContainer(node_type* self = nullptr, container* container = nullptr);
     HierarchicalTreeObjectContainer(this_type&& other);
     HierarchicalTreeObjectContainer(const this_type& other);
     ~HierarchicalTreeObjectContainer();
@@ -329,9 +330,9 @@ public:
 
     int count(const std::string& key) const;
 
-    cursor insert(const std::string& path, node_type* self);
+    cursor insert(const std::string& path);
 
-    cursor insert(const Path& path, node_type* self);
+    cursor insert(const Path& path);
 
     void erase(const std::string& path);
 
@@ -347,6 +348,7 @@ public:
 
 private:
     std::unique_ptr<container> m_container_;
+    node_type* m_self_;
 };
 
 template <typename TNode>
@@ -357,11 +359,10 @@ public:
     typedef HierarchicalTreeArrayContainer<node_type> this_type;
     typedef node_traits<node_type> traits_type;
     typedef typename node_traits<node_type>::cursor cursor;
-    typedef typename node_traits<node_type>::const_cursor const_cursor;
+    typedef typename node_traits<const node_type>::cursor const_cursor;
     typedef typename node_traits<node_type>::array_container container;
 
-    HierarchicalTreeArrayContainer(container* container);
-    HierarchicalTreeArrayContainer();
+    HierarchicalTreeArrayContainer(node_type* self = nullptr, container* container = nullptr);
     HierarchicalTreeArrayContainer(this_type&& other);
     HierarchicalTreeArrayContainer(const this_type& other);
     ~HierarchicalTreeArrayContainer();
@@ -376,20 +377,30 @@ public:
 
     size_t size() const;
 
-    void resize(std::size_t num, node_type* self);
+    void resize(std::size_t num);
 
     void clear();
 
-    cursor push_back(node_type* self);
+    cursor push_back();
 
     void pop_back();
 
-    typename cursor::reference at(int idx);
+    typename node_traits<node_type>::reference at(int idx);
 
-    typename const_cursor::reference at(int idx) const;
+    typename node_traits<const node_type>::reference at(int idx) const;
 
 private:
     std::unique_ptr<container> m_container_;
+    node_type* m_self_;
+};
+
+template <typename TNode, typename TypeList>
+struct hierarchical_tree_warpper;
+
+template <typename TNode, typename... TypeLists>
+struct hierarchical_tree_warpper<TNode, std::variant<TypeLists...>>
+{
+    typedef HierarchicalTree<TNode, TypeLists...> type;
 };
 
 template <typename TNode, typename... TypeList>
@@ -397,6 +408,7 @@ std::ostream& fancy_print(std::ostream& os, const typename HierarchicalTree<TNod
 {
     return fancy_print(os, tree_object.data(), indent, tab);
 }
+
 template <typename TNode, typename... TypeList>
 std::ostream& fancy_print(std::ostream& os, const typename HierarchicalTree<TNode, TypeList...>::Array& tree_array, int indent, int tab)
 {
@@ -416,103 +428,6 @@ std::ostream& operator<<(std::ostream& os, const HierarchicalTree<TNode, TypeLis
 {
     return fancy_print(os, tree, 0, 4);
 }
-
-// enum
-// {
-//     Block = hierarchical_tree_type_traits<>::type_tag::_LAST_PLACE_HOLDER,
-//     String,
-//     Bool,
-//     Int,
-//     Long,
-//     Float,
-//     Double,
-//     Complex,
-//     IntVec3,
-//     LongVec3,
-//     FloatVec3,
-//     DoubleVec3,
-//     ComplexVec3,
-//     UNKNOWN,
-//     _LAST_PLACE_HOLDER
-// };
-
-// template <>
-// struct hierarchical_tree_type_traits<
-//     std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-//     std::string,                                                 //String,
-//     bool,                                                        //Boolean,
-//     int,                                                         //Integer,
-//     long,                                                        //Long,
-//     float,                                                       //Float,
-//     double,                                                      //Double,
-//     std::complex<double>,                                        //Complex,
-//     std::array<int, 3>,                                          //IntVec3,
-//     std::array<long, 3>,                                         //LongVec3,
-//     std::array<float, 3>,                                        //FloatVec3,
-//     std::array<double, 3>,                                       //DoubleVec3,
-//     std::array<std::complex<double>, 3>,                         //ComplexVec3,
-//     std::any                                                     //Other
-//     >
-
-// template <>
-// struct hierarchical_tree_type_traits<
-//     std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-//     std::string,                                                 //String,
-//     bool,                                                        //Boolean,
-//     int,                                                         //Integer,
-//     long,                                                        //Long,
-//     float,                                                       //Float,
-//     double,                                                      //Double,
-//     std::complex<double>,                                        //Complex,
-//     std::array<int, 3>,                                          //IntVec3,
-//     std::array<long, 3>,                                         //LongVec3,
-//     std::array<float, 3>,                                        //FloatVec3,
-//     std::array<double, 3>,                                       //DoubleVec3,
-//     std::array<std::complex<double>, 3>,                         //ComplexVec3,
-//     std::any                                                     //Other
-//     >
-// {
-//     typedef std::variant<std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-//                          std::string,                                                 //String,
-//                          bool,                                                        //Boolean,
-//                          int,                                                         //Integer,
-//                          long,                                                        //Long,
-//                          float,                                                       //Float,
-//                          double,                                                      //Double,
-//                          std::complex<double>,                                        //Complex,
-//                          std::array<int, 3>,                                          //IntVec3,
-//                          std::array<long, 3>,                                         //LongVec3,
-//                          std::array<float, 3>,                                        //FloatVec3,
-//                          std::array<double, 3>,                                       //DoubleVec3,
-//                          std::array<std::complex<double>, 3>,                         //ComplexVec3,
-//                          std::any                                                     //Other
-//                          >
-//         type_union;
-
-//     struct type_tag : public hierarchical_tree_type_traits<>::type_tag
-//     {
-
-//         enum
-//         {
-//             Block = hierarchical_tree_type_traits<>::type_tag::_LAST_PLACE_HOLDER,
-//             String,
-//             Bool,
-//             Int,
-//             Long,
-//             Float,
-//             Double,
-//             Complex,
-//             IntVec3,
-//             LongVec3,
-//             FloatVec3,
-//             DoubleVec3,
-//             ComplexVec3,
-//             UNKNOWN,
-//             _LAST_PLACE_HOLDER
-//         };
-//     };
-
-// };
 
 } // namespace sp
 
