@@ -1,5 +1,6 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
+#include "utility/Path.h"
 #include <array>
 #include <complex>
 #include <functional>
@@ -14,7 +15,6 @@ namespace sp
 class Entry : public std::enable_shared_from_this<Entry>
 {
 public:
-   
     typedef std::variant<std::string,
                          bool, long, double,
                          std::complex<double>,
@@ -36,6 +36,45 @@ public:
                        >
         block_t;
 
+    typedef std::variant<
+        std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
+        std::string,                                                 //String,
+        bool,                                                        //Boolean,
+        int,                                                         //Integer,
+        long,                                                        //Long,
+        float,                                                       //Float,
+        double,                                                      //Double,
+        std::complex<double>,                                        //Complex,
+        std::array<int, 3>,                                          //IntVec3,
+        std::array<long, 3>,                                         //LongVec3,
+        std::array<float, 3>,                                        //FloatVec3,
+        std::array<double, 3>,                                       //DoubleVec3,
+        std::array<std::complex<double>, 3>,                         //ComplexVec3,
+        std::any                                                     //Other
+        >
+        HierarchicalTreePreDefinedDataUnion;
+
+    enum HierarchicalTreePreDefinedDataType
+    {
+        Null,
+        Object,
+        Array,
+        Block,
+        String,
+        Bool,
+        Int,
+        Long,
+        Float,
+        Double,
+        Complex,
+        IntVec3,
+        LongVec3,
+        FloatVec3,
+        DoubleVec3,
+        ComplexVec3,
+        Other
+    };
+
     Entry() = default;
 
     Entry(const Entry& other) = default;
@@ -48,13 +87,13 @@ public:
 
     static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
-    virtual void init(const Attributes& ) = 0;
+    virtual std::unique_ptr<Entry> copy() const = 0;
 
-    virtual std::shared_ptr<Entry> copy() const = 0;
+    // virtual void init(const Attributes& ) = 0;
 
     //----------------------------------------------------------------------------------------------------------
 
-    virtual NodeType type() const = 0;
+    virtual std::size_t type() const = 0;
 
     virtual std::string path() const = 0;
 
@@ -97,6 +136,8 @@ public:
 
     virtual bool same_as(const Entry*) const = 0; // check
 
+    virtual void clear() = 0;
+
     // as tree node
 
     virtual std::shared_ptr<Entry> parent() const = 0;
@@ -114,19 +155,21 @@ public:
     // as object
     virtual std::shared_ptr<Entry> insert(const std::string& path) = 0;
 
-    virtual std::shared_ptr<Entry> insert_r(const std::string& path) = 0;
+    virtual std::shared_ptr<Entry> insert(const Path& path) = 0;
 
     virtual std::shared_ptr<Entry> find(const std::string& path) const = 0;
 
-    virtual std::shared_ptr<Entry> find_r(const std::string& path) const = 0;
+    virtual std::shared_ptr<Entry> find(const Path& path) const = 0;
 
     virtual void remove(const std::string& path) = 0;
+
+    virtual void remove(const Path& path) = 0;
 
     // level 1
 
     virtual std::shared_ptr<Entry> select(const std::string& path) const { return nullptr; };
 
-    // virtual std::shared_ptr<Entry::iterator> select(const XPath& path) const { return nullptr; };
+    virtual std::shared_ptr<Entry> select(const Path& path) const { return nullptr; };
 };
 std::string to_string(Entry::element_t const& s);
 Entry::element_t from_string(const std::string& s, int idx = 0);

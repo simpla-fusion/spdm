@@ -1,5 +1,4 @@
-#include "HierarchicalTree.h"
-#include "HierarchicalTreeAlgorithm.h"
+#include "utility/HierarchicalNode.h"
 #include "utility/Logger.h"
 #include "utility/Path.h"
 #include <iostream>
@@ -22,7 +21,7 @@ TEST_CASE("Object", "[HierarchicalTree]")
 
     node["A"] = "1234"s;
 
-    node["B"].template set_value<sp::HierarchicalNode::DataType::Float>(3.14);
+    node["B"].template set_value<sp::HierarchicalNode::type_tag::Float>(3.14);
 
     node["C"] = std::array<int, 3>{1, 2, 3};
 
@@ -30,9 +29,9 @@ TEST_CASE("Object", "[HierarchicalTree]")
 
     REQUIRE(node.size() == 3);
 
-    REQUIRE(node["A"].template get_value<sp::HierarchicalNode::DataType::String>() == "1234");
+    REQUIRE(node["A"].template get_value<sp::HierarchicalNode::type_tag::String>() == "1234");
 
-    REQUIRE(node["B"].template get_value<sp::HierarchicalNode::DataType::Float>() == 3.14f);
+    REQUIRE(node["B"].template get_value<sp::HierarchicalNode::type_tag::Float>() == 3.14f);
 }
 TEST_CASE("Array", "[HierarchicalTree]")
 {
@@ -46,8 +45,8 @@ TEST_CASE("Array", "[HierarchicalTree]")
 
     REQUIRE(node["C"].size() == 2);
 
-    REQUIRE(node["C"][1].get_value<sp::HierarchicalNode::DataType::Int>() == 5);
-    REQUIRE(node["C"][0].get_value<sp::HierarchicalNode::DataType::Double>() == 6.0);
+    REQUIRE(node["C"][1].get_value<sp::HierarchicalNode::type_tag::Int>() == 5);
+    REQUIRE(node["C"][0].get_value<sp::HierarchicalNode::type_tag::Double>() == 6.0);
 }
 
 TEST_CASE("Path", "[HierarchicalTree]")
@@ -56,5 +55,5 @@ TEST_CASE("Path", "[HierarchicalTree]")
 
     node["D/E/F"_p].template set_value<double>(1.2345);
 
-    REQUIRE(node["D"]["E"]["F"].template get_value<sp::HierarchicalNode::DataType::Double>() == 1.2345);
+    REQUIRE(node["D"]["E"]["F"].template get_value<sp::HierarchicalNode::type_tag::Double>() == 1.2345);
 }

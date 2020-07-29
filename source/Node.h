@@ -1,6 +1,8 @@
 #ifndef SP_NODE_H_
 #define SP_NODE_H_
-#include "HierarchicalTree.h"
+#include "Entry.h"
+#include "utility/Cursor.h"
+#include "utility/HierarchicalTree.h"
 #include "utility/Logger.h"
 #include <any>
 #include <array>
@@ -13,10 +15,9 @@
 #include <vector>
 namespace sp
 {
-class Entry;
 class Node;
 template <>
-struct cursor_traits<Node>
+struct node_traits<Node>
 {
     typedef Node node_type;
     typedef Cursor<node_type> cursor;
@@ -27,53 +28,47 @@ struct cursor_traits<Node>
     typedef Entry array_container;
 };
 
-class Node : public HierarchicalTreePreDefined<Node>
+class Node : public hierarchical_tree_wrapper<Node, Entry::type_union, Entry::type_tag>::type
 {
 public:
-    typedef HierarchicalTreePreDefined<Node> base_type;
-
     typedef Node this_type;
 
-    typedef HierarchicalTreePreDefinedDataType DataType;
+    typedef typename hierarchical_tree_wrapper<Node, Entry::type_union, Entry::type_tag>::type base_type;
 
-    Node(Node* parent = nullptr, const std::string& name = "");
+    typedef typename hierarchical_tree_wrapper<Node, Entry::type_union, Entry::type_tag>::type tag;
 
     Node(const std::string& backend);
 
+    Node(Node* parent = nullptr, const std::string& name = "");
+
+    Node(const this_type& other) : base_type(other){};
+
+    Node(this_type&& other) : base_type(std::move(other)){};
+
     ~Node() = default;
 
-    this_type& operator=(Node const& other);
+    void swap(this_type& other)
+    {
+        base_type::swap(other);
+    }
+
+    this_type& operator=(this_type const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    }
 
     // attributes
 
     bool has_attribute(const std::string& name) const { return count("@" + name) > 0; }
 
-    void remove_attribute(const std::string& name) { remove("@" + name); }
+    void erase_attribute(const std::string& name) { erase("@" + name); }
 
     template <typename V>
     auto get_attribute(const std::string& name) { return find("@" + name)->get_value<V>(); };
 
     template <typename V, typename U>
-    void set_attribute(const std::string& name, const U& value) { this->insert<V>("@" + name, value); }
-
-    // private:
-    //     this_type* m_parent_;
-    //     std::string m_name_;
-    //     data_type& fetch()
-    //     {
-    //         if (m_data_.index() == NULL_TAG && m_parent_ != nullptr && m_name_ != "")
-    //         {
-    //             m_parent_->fetch(m_name_).swap(m_data_);
-    //         }
-
-    //         return m_data_;
-    //     }
-
-    //     const data_type& fetch() const { return const_cast<this_type*>(this)->fetch(); }
-
-    //     data_type fetch(const std::string& path) { return get_r(path).m_data_; }
-
-    //     const data_type& fetch(const std::string& path) const { return get_r(path).m_data_; }
+    void set_attribute(const std::string& name, const U& value) { insert("@" + name, this)->template set_value<V>(value); }
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);

@@ -41,6 +41,7 @@ std::string urljoin(std::string const& prefix, std::string const& path)
     }
     return res;
 }
+
 std::tuple<std::string, std::string, std::string, std::string, std::string> urlparse(std::string const& url)
 {
     std::smatch m;
