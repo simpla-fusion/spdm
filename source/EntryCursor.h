@@ -2,6 +2,7 @@
 #define SP_ENTRY_CURSOR_H_
 #include "Entry.h"
 #include "EntryPlugin.h"
+#include "utility/Cursor.h"
 #include "utility/Logger.h"
 #include <any>
 #include <array>
@@ -15,75 +16,9 @@
 #include <vector>
 namespace sp
 {
-template <typename Plugin, typename IT, typename Enable = void>
-struct EntryCursorProxy;
 
-template <typename Plugin, typename IT>
-struct EntryCursorProxy<Plugin, IT,
-                        std::enable_if_t<std::is_same_v<
-                            std::pair<const std::string, std::shared_ptr<Entry>>,
-                            typename std::iterator_traits<IT>::value_type>>>
-{
-    typedef EntryCursorProxy<Plugin, IT> this_type;
-    typedef IT base_iterator;
-    typedef std::shared_ptr<Entry> pointer;
-
-    EntryCursorProxy(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie) {}
-
-    EntryCursorProxy(base_iterator&& ib, const base_iterator&& ie) : m_it_(std::move(ib)), m_ie_(std::move(ie)) {}
-
-    ~EntryCursorProxy() = default;
-
-    this_type copy() const { return this_type{m_it_, m_ie_}; }
-
-    pointer get_pointer() const { return m_it_ == m_ie_ ? nullptr : m_it_->second; }
-
-    void next()
-    {
-        if (m_it_ != m_ie_)
-        {
-            ++m_it_;
-        }
-    }
-
-    size_t size() const { return std::distance(m_it_, m_ie_); }
-
-    base_iterator m_it_, m_ie_;
-};
-template <typename Plugin, typename IT>
-struct EntryCursorProxy<Plugin, IT,
-                        std::enable_if_t<std::is_same_v<
-                            std::shared_ptr<Entry>,
-                            typename std::iterator_traits<IT>::value_type>>>
-{
-    typedef EntryCursorProxy<Plugin, IT> this_type;
-    typedef IT base_iterator;
-    typedef std::shared_ptr<Entry> pointer;
-
-    EntryCursorProxy(const base_iterator& ib, const base_iterator& ie) : m_it_(ib), m_ie_(ie) {}
-
-    EntryCursorProxy(base_iterator&& ib, const base_iterator&& ie) : m_it_(std::move(ib)), m_ie_(std::move(ie)) {}
-
-    ~EntryCursorProxy() = default;
-
-    this_type copy() const { return this_type{m_it_, m_ie_}; }
-
-    pointer get_pointer() const { return m_it_ == m_ie_ ? nullptr : *m_it_; }
-
-    void next()
-    {
-        if (m_it_ != m_ie_)
-        {
-            ++m_it_;
-        }
-    }
-
-    size_t size() const { return std::distance(m_it_, m_ie_); }
-
-    base_iterator m_it_, m_ie_;
-};
-template <typename... U>
-class EntryPlugin<EntryCursorProxy<U...>> : public Entry
+template <>
+class EntryPlugin<Cursor<Entry>> : public Entry
 {
 
 public:

@@ -1,6 +1,7 @@
 #ifndef SP_ENTRY_H_
 #define SP_ENTRY_H_
 #include "utility/Path.h"
+#include "utility/TypeTraits.h"
 #include <array>
 #include <complex>
 #include <functional>
@@ -19,6 +20,9 @@ class EntryArray
 {
 };
 
+M_REGISITER_TYPE_TAG(Object, EntryObject);
+M_REGISITER_TYPE_TAG(Array, EntryArray);
+
 class Entry : public std::enable_shared_from_this<Entry>
 {
 public:
@@ -27,6 +31,7 @@ public:
                                   EntryArray,
                                   traits::pre_tagged_types>
         type_union;
+
     typedef traits::type_tags<type_union> type_tags;
 
     Entry() = default;
@@ -127,7 +132,9 @@ public:
 
     virtual std::shared_ptr<Entry> select(const Path& path) const { return nullptr; };
 };
+
 std::string to_string(Entry::type_union const& s);
+
 Entry::type_union from_string(const std::string& s, int idx = 0);
 
 } // namespace sp

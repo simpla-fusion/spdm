@@ -879,6 +879,10 @@ struct _append_tag<_Head, First, Others...>
 };
 } // namespace _detail
 
+/**
+ *  TODO: (salmon 2020.07.29): check duplicate type 
+ * 
+*/
 template <typename... T>
 struct type_tags_traits
 {
@@ -960,41 +964,70 @@ typedef std::variant<std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>
                      std::any>
     pre_tagged_types;
 
-template <typename...>
-struct concatenate;
-
-template <typename... TypeList>
-using concatenate_t = typename concatenate<TypeList...>::type;
-
-template <typename... First>
-struct concatenate<std::variant<First...>>
+template <typename T>
+struct is_variant
 {
-    typedef std::variant<First...> type;
+    static const bool value = false;
 };
 
+template <typename... T>
+struct is_variant<std::variant<T...>>
+{
+    static const bool value = true;
+};
+
+// template <typename... First>
+// struct concatenate<std::variant<First...>>
+// {
+//     typedef std::variant<First...> type;
+// };
+
+namespace _detail
+{
+template <typename Frist, typename Second, typename Enable = void>
+struct concatenate_impl;
+
 template <typename... First, typename... Second>
-struct concatenate<std::variant<First...>, std::variant<Second...>>
+struct concatenate_impl<std::variant<First...>, std::variant<Second...>>
 {
     typedef std::variant<First..., Second...> type;
 };
 
+template <typename First, typename Second>
+struct concatenate_impl<First, Second, std::enable_if_t<!is_variant<First>::value && !is_variant<Second>::value>>
+{
+    typedef std::variant<First, Second> type;
+};
+
 template <typename First, typename... Second>
-struct concatenate<First, std::variant<Second...>>
+struct concatenate_impl<First, std::variant<Second...>, std::enable_if_t<!is_variant<First>::value>>
 {
     typedef std::variant<First, Second...> type;
 };
 
 template <typename... First, typename Second>
-struct concatenate<std::variant<First...>, Second>
+struct concatenate_impl<std::variant<First...>, Second, std::enable_if_t<!is_variant<Second>::value>>
 {
     typedef std::variant<First..., Second> type;
 };
+} // namespace _detail
 
+template <typename...>
+struct concatenate;
+
+template <typename First>
+struct concatenate<First>
+{
+    typedef First type;
+};
 template <typename First, typename Second, typename... Others>
 struct concatenate<First, Second, Others...>
 {
-    typedef concatenate_t<std::variant<First, Second>, Others...> type;
+    typedef typename concatenate<typename _detail::concatenate_impl<First, Second>::type, Others...>::type type;
 };
+
+template <typename... TypeList>
+using concatenate_t = typename concatenate<TypeList...>::type;
 
 } // namespace traits
 

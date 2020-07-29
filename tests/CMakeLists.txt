@@ -11,9 +11,9 @@ include_directories(../extern)
 
 
  
-add_executable(test_node test_node.cpp ../source/Node.cpp ../source/Entry.cpp )
+add_executable(test_node test_node.cpp  )
 add_test( test_node test_node )
-target_link_libraries(test_node utility  )
+target_link_libraries(test_node utility spdb )
 
 add_executable(test_hdata test_hdata.cpp )
 add_test( test_hdata test_hdata )

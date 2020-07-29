@@ -8,10 +8,10 @@ set(SPDB_PLUGINS_SOURCES
 )
 # find_package(PugiXML)
 # if(PugiXML_FOUND)
-  set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES} 
-        EntryXML.cpp
-        ../../extern/pugixml/pugixml.cpp
-  )
+  # set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES} 
+  #       EntryXML.cpp
+  #       ../../extern/pugixml/pugixml.cpp
+  # )
 # endif(PugiXML_FOUND)
 
 

@@ -390,6 +390,7 @@ template <typename TNode, typename TypeList>
 struct hierarchical_tree;
 template <typename TNode, typename TypeList>
 using hierarchical_tree_t = typename hierarchical_tree<TNode, TypeList>::type;
+
 template <typename TNode, typename... TypeLists>
 struct hierarchical_tree<TNode, std::variant<TypeLists...>>
 {

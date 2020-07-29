@@ -30,42 +30,40 @@ public:
 
     ~EntryPlugin() = default;
 
-     std::unique_ptr<Entry> copy() const = 0;
+    std::unique_ptr<Entry> copy() const override
+    {
+        return std::dynamic_pointer_cast<Entry>(std::make_shared<this_type>(*this));
+    };
 
-    //  void init(const Attributes& ) = 0;
+    //  void init(const Attributes& ) override;
 
     //----------------------------------------------------------------------------------------------------------
 
-     std::size_t type() const = 0;
+    std::size_t type() const override;
 
-     std::string path() const = 0;
+    std::string path() const override;
 
-     std::string name() const = 0;
+    std::string name() const override;
 
-    //  std::string name() const = 0;
+    //  std::string name() const override;
     //----------------------------------------------------------------------------------------------------------
     // attribute
-     bool has_attribute(const std::string& name) const = 0;
+    bool has_attribute(const std::string& name) const override;
 
-     element_t get_attribute_raw(const std::string& name) const = 0;
+    type_union get_attribute_raw(const std::string& name) const override;
 
-     void set_attribute_raw(const std::string& name, const element_t& value) = 0;
+    void set_attribute_raw(const std::string& name, const type_union& value) override;
 
-     void remove_attribute(const std::string& name) = 0;
+    void remove_attribute(const std::string& name) override;
 
-     std::map<std::string, element_t> attributes() const = 0;
+    std::map<std::string, type_union> attributes() const override;
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-     void set_element(const element_t&) = 0;
-     element_t get_element() const = 0;
+    void set_value(const type_union&) override;
 
-     void set_tensor(const tensor_t&) = 0;
-     tensor_t get_tensor() const = 0;
-
-     void set_block(const block_t&) = 0;
-     block_t get_block() const = 0;
+    type_union get_value() const override;
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
@@ -73,53 +71,53 @@ public:
 
     //as cursor
 
-     size_t size() const = 0;
+    size_t size() const override;
 
-     std::shared_ptr<Entry> next() const = 0; // traversal
+    std::shared_ptr<Entry> next() const override; // traversal
 
-     bool same_as(const Entry*) const = 0; // check
+    bool same_as(const Entry*) const override; // check
 
-     void clear() = 0;
+    void clear() override;
 
     // as tree node
 
-     std::shared_ptr<Entry> parent() const = 0;
+    std::shared_ptr<Entry> parent() const override;
 
-     std::shared_ptr<Entry> first_child() const = 0;
+    std::shared_ptr<Entry> first_child() const override;
 
     // as array
 
-     void resize(std::size_t num) = 0;
+    void resize(std::size_t num) override;
 
-     std::shared_ptr<Entry> push_back() = 0;
+    std::shared_ptr<Entry> push_back() override;
 
-     std::shared_ptr<Entry> pop_back() = 0;
+    std::shared_ptr<Entry> pop_back() override;
 
-     std::shared_ptr<const Entry> at(int idx) const = 0;
+    std::shared_ptr<const Entry> at(int idx) const override;
 
-     std::shared_ptr<Entry> at(int idx) = 0;
+    std::shared_ptr<Entry> at(int idx) override;
 
     // as object
 
-     std::size_t count(const std::string& name) = 0;
+    std::size_t count(const std::string& name) override;
 
-     std::shared_ptr<Entry> insert(const std::string& path) = 0;
+    std::shared_ptr<Entry> insert(const std::string& path) override;
 
-     std::shared_ptr<Entry> insert(const Path& path) = 0;
+    std::shared_ptr<Entry> insert(const Path& path) override;
 
-     std::shared_ptr<Entry> find(const std::string& path) const = 0;
+    std::shared_ptr<Entry> find(const std::string& path) const override;
 
-     std::shared_ptr<Entry> find(const Path& path) const = 0;
+    std::shared_ptr<Entry> find(const Path& path) const override;
 
-     void erase(const std::string& path) = 0;
+    void erase(const std::string& path) override;
 
-     void erase(const Path& path) = 0;
+    void erase(const Path& path) override;
 
     // level 1
 
-     std::shared_ptr<Entry> select(const std::string& path) const { return nullptr; };
+    std::shared_ptr<Entry> select(const std::string& path) const override { return nullptr; };
 
-     std::shared_ptr<Entry> select(const Path& path) const { return nullptr; };
+    std::shared_ptr<Entry> select(const Path& path) const override { return nullptr; };
 
 private:
     Impl m_pimpl_;
