@@ -52,7 +52,7 @@ public:
 };
 
 template <>
-inline HierarchicalTreeObjectContainer<HierarchicalNode>::HierarchicalTreeObjectContainer(node_type* self, container* container) : m_self_(self), m_container_(container) {}
+inline HierarchicalTreeObjectContainer<HierarchicalNode>::HierarchicalTreeObjectContainer(node_type* self, container* d) : m_self_(self), m_container_(d != nullptr ? d : new container) {}
 template <>
 inline HierarchicalTreeObjectContainer<HierarchicalNode>::HierarchicalTreeObjectContainer(this_type&& other) : this_type(other.m_self_, other.m_container_.release()) {}
 template <>
@@ -104,7 +104,7 @@ HierarchicalTreeObjectContainer<HierarchicalNode>::find(const Path& path) const 
 // Array
 
 template <>
-inline HierarchicalTreeArrayContainer<HierarchicalNode>::HierarchicalTreeArrayContainer(node_type* self, container* container) : m_self_(self), m_container_(container) {}
+inline HierarchicalTreeArrayContainer<HierarchicalNode>::HierarchicalTreeArrayContainer(node_type* self, container* d) : m_self_(self), m_container_(d!=nullptr?d:new container) {}
 template <>
 inline HierarchicalTreeArrayContainer<HierarchicalNode>::HierarchicalTreeArrayContainer(this_type&& other) : this_type(nullptr, other.m_container_.release()) {}
 template <>

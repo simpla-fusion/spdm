@@ -186,7 +186,7 @@ public:
         {
             static_assert(std::is_base_of_v<this_type, node_type>);
 
-            m_data_.template emplace<type_tags::Object>(m_parent_);
+            m_data_.template emplace<type_tags::Object>(reinterpret_cast<node_type*>(this));
         }
         if (m_data_.index() != type_tags::Object)
         {
@@ -311,7 +311,7 @@ public:
     typedef typename node_traits<const node_type>::cursor const_cursor;
     typedef typename node_traits<node_type>::object_container container;
 
-    HierarchicalTreeObjectContainer(node_type* self = nullptr, container* container = nullptr);
+    HierarchicalTreeObjectContainer(node_type* self = nullptr, container* d = nullptr);
     HierarchicalTreeObjectContainer(this_type&& other);
     HierarchicalTreeObjectContainer(const this_type& other);
     ~HierarchicalTreeObjectContainer();
