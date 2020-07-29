@@ -18,12 +18,13 @@ class Node;
 template <>
 struct cursor_traits<Node>
 {
-    typedef Node value_type;
-    typedef Node& reference;
-    typedef Node* pointer;
-    // typedef Node reference;
-    // typedef std::shared_ptr<Node> pointer;
-    typedef ptrdiff_t difference_type;
+    typedef Node node_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
+    typedef node_type& reference;
+    typedef node_type* pointer;
+    typedef Entry object_container;
+    typedef Entry array_container;
 };
 
 class Node : public HierarchicalTreePreDefined<Node>

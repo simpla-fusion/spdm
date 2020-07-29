@@ -122,9 +122,8 @@ protected:
 template <typename U, typename V>
 class CursorProxy<U, V,
                   std::enable_if_t<
-                      std::is_same_v<
-                          std::pair<const std::string, U>,
-                          typename std::iterator_traits<V>::value_type>>>
+                      std::is_same_v<std::pair<const std::string, U>, typename std::iterator_traits<V>::value_type> ||
+                      std::is_same_v<std::pair<const std::string, std::remove_const_t<U>>, typename std::iterator_traits<V>::value_type>>>
     : public CursorProxy<U>
 {
 public:

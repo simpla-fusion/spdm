@@ -18,7 +18,8 @@ set(SPDB_INCLUDES
 
 set(SPDB_SOURCES
   # Entry.cpp
-  Node.cpp
+  # Node.cpp
+  HierarchicalTree.cpp
   # DataBlock.cpp
   # XPath.cpp
   # Document.cpp

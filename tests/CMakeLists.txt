@@ -17,5 +17,5 @@ target_link_libraries(test_node utility  )
 
 add_executable(test_hdata test_hdata.cpp )
 add_test( test_hdata test_hdata )
-target_link_libraries(test_hdata utility  )
+target_link_libraries(test_hdata spdb utility  )
 
