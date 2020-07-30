@@ -51,9 +51,9 @@ public:
         HTContainerProxyObject<node_type, ObjectContainer>,
         HTContainerProxyArray<node_type, ArrayContainer>,
         TypeList...>
-        type_union;
+        element;
 
-    typedef traits::type_tags<type_union> type_tags;
+    typedef traits::type_tags<element> type_tags;
 
     HierarchicalTree(node_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
 
@@ -67,7 +67,7 @@ public:
 
     this_type& operator=(this_type const& other)
     {
-        type_union(other.m_data_).swap(m_data_);
+        element(other.m_data_).swap(m_data_);
         return *this;
     }
 
@@ -91,7 +91,7 @@ public:
     bool is_element() const { return m_data_.index() > type_tags::Array; }
 
     template <typename V>
-    bool operator==(const V& v) const { return m_data_ == type_union(v); }
+    bool operator==(const V& v) const { return m_data_ == element(v); }
 
     template <typename V>
     this_type& operator=(const V& v)
@@ -264,14 +264,14 @@ public:
 
     //------------------------------------------------------------------------------------------
 
-    type_union& data() { return m_data_; }
+    element& data() { return m_data_; }
 
-    const type_union& data() const { return m_data_; }
+    const element& data() const { return m_data_; }
 
 private:
     node_type* m_parent_;
     std::string m_name_;
-    type_union m_data_;
+    element m_data_;
 };
 
 template <typename TNode, typename Container>
@@ -285,10 +285,14 @@ public:
     typedef Cursor<node_type> cursor;
     typedef Cursor<const node_type> const_cursor;
 
-    HTContainerProxyObject(node_type* self = nullptr, container* d = nullptr);
+    HTContainerProxyObject(node_type* self = nullptr, const std::shared_ptr<container>& d = nullptr);
     HTContainerProxyObject(this_type&& other);
     HTContainerProxyObject(const this_type& other);
     ~HTContainerProxyObject();
+
+    std::shared_ptr<container> data() const { return m_container_; }
+
+    void data(const std::shared_ptr<container>& c) { m_container_ = c; }
 
     this_type& operator=(this_type const& other)
     {
@@ -321,7 +325,7 @@ public:
     const_cursor find(const Path& path) const;
 
 private:
-    std::unique_ptr<container> m_container_;
+    std::shared_ptr<container> m_container_;
     node_type* m_self_;
 };
 
@@ -335,10 +339,14 @@ public:
     typedef Cursor<node_type> cursor;
     typedef Cursor<const node_type> const_cursor;
 
-    HTContainerProxyArray(node_type* self = nullptr, container* container = nullptr);
+    HTContainerProxyArray(node_type* self = nullptr, const std::shared_ptr<container>& container = nullptr);
     HTContainerProxyArray(this_type&& other);
     HTContainerProxyArray(const this_type& other);
     ~HTContainerProxyArray();
+
+    std::shared_ptr<container> data() const { return m_container_; }
+
+    void data(const std::shared_ptr<container>& c) { m_container_ = c; }
 
     void swap(this_type& other) { std::swap(m_container_, other.m_container_); }
 
@@ -363,7 +371,7 @@ public:
     typename const_cursor::reference at(int idx) const;
 
 private:
-    std::unique_ptr<container> m_container_;
+    std::shared_ptr<container> m_container_;
     node_type* m_self_;
 };
 

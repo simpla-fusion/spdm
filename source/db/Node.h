@@ -42,7 +42,7 @@ public:
 
     typedef entry_wrapper<Node> base_type;
 
-    using typename base_type::type_union;
+    using typename base_type::element;
 
     using typename base_type::type_tags;
 

@@ -57,11 +57,11 @@ public:
 };
 using HTNodeObject = HTContainerProxyObject<HierarchicalNode, std::map<std::string, HierarchicalNode>>;
 template <>
-inline HTNodeObject::HTContainerProxyObject(node_type* self, container* d) : m_self_(self), m_container_(d != nullptr ? d : new container) {}
+inline HTNodeObject::HTContainerProxyObject(node_type* self, const std::shared_ptr<container>& d) : m_self_(self), m_container_(d != nullptr ? d : std::make_shared<container>()) {}
 template <>
-inline HTNodeObject::HTContainerProxyObject(this_type&& other) : this_type(other.m_self_, other.m_container_.release()) {}
+inline HTNodeObject::HTContainerProxyObject(this_type&& other) : this_type(other.m_self_, other.m_container_) {}
 template <>
-inline HTNodeObject::HTContainerProxyObject(const this_type& other) : this_type(nullptr, new container(*other.m_container_)) {}
+inline HTNodeObject::HTContainerProxyObject(const this_type& other) : this_type(nullptr, std::make_shared<container>(*other.m_container_)) {}
 
 template <>
 inline HTNodeObject::~HTContainerProxyObject() {}
@@ -110,11 +110,11 @@ HTNodeObject::find(const Path& path) const { return (find(path.str())); }
 using HTNodeArray = HTContainerProxyArray<HierarchicalNode, std::vector<HierarchicalNode>>;
 
 template <>
-inline HTNodeArray::HTContainerProxyArray(node_type* self, container* d) : m_self_(self), m_container_(d != nullptr ? d : new container) {}
+inline HTNodeArray::HTContainerProxyArray(node_type* self, const std::shared_ptr<container>& d) : m_self_(self), m_container_(d != nullptr ? d : std::make_shared<container>()) {}
 template <>
-inline HTNodeArray::HTContainerProxyArray(this_type&& other) : this_type(nullptr, other.m_container_.release()) {}
+inline HTNodeArray::HTContainerProxyArray(this_type&& other) : this_type(nullptr, other.m_container_) {}
 template <>
-inline HTNodeArray::HTContainerProxyArray(const this_type& other) : this_type(nullptr, new container(*other.m_container_)) {}
+inline HTNodeArray::HTContainerProxyArray(const this_type& other) : this_type(nullptr, std::make_shared<container>(*other.m_container_)) {}
 template <>
 inline HTNodeArray::~HTContainerProxyArray() {}
 

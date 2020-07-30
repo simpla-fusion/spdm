@@ -3,7 +3,7 @@
 #include "../utility/TypeTraits.h"
 namespace sp::db
 {
-std::unique_ptr<Entry> Entry::create(const std::string& request)
+std::shared_ptr<Entry> Entry::create(const std::string& request)
 {
 
     std::string schema = "memory";
@@ -40,7 +40,7 @@ std::unique_ptr<Entry> Entry::create(const std::string& request)
         RUNTIME_ERROR << "Can not parse schema " << schema << std::endl;
     }
 
-    auto res = Factory<Entry>::create(schema);
+    auto res = std::shared_ptr<Entry>(Factory<Entry>::create(schema).release());
 
     if (res == nullptr)
     {

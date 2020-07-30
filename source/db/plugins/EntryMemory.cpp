@@ -10,303 +10,220 @@ namespace sp::db
 struct entry_memory;
 
 template <>
-struct node_traits<entry_memory>
+struct cursor_traits<entry_memory>
 {
     typedef entry_memory node_type;
-    typedef Cursor<node_type> cursor;
     typedef node_type& reference;
     typedef node_type* pointer;
-    typedef std::map<std::string, node_type> object_container;
-    typedef std::vector<node_type> array_container;
+    typedef ptrdiff_t difference_type;
 };
 
 struct entry_memory
-    : public hierarchical_tree_t<entry_memory, Entry::element_type>
 {
-    typedef hierarchical_tree_t<entry_memory, Entry::element_type> base_type;
-
-    entry_memory(const std::shared_ptr<Entry>& p = nullptr, const std::string& n = "")
-        : base_type(nullptr), parent(p), name(n) {}
+    entry_memory() {}
     ~entry_memory() = default;
-    std::string name;
-    std::shared_ptr<Entry> parent;
+    std::map<std::string, Entry::element> m_data_;
 };
 
 template <>
-std::size_t EntryPlugin<entry_memory>::type() const { return m_pimpl_.data().index(); }
-// template <>
-// std::string EntryPlugin<entry_memory>::name() const { return ""; }
+std::size_t EntryPlugin<entry_memory>::type(const std::string& path) const
+{
+    auto cursor = find(path);
+    return (!cursor) ? type_tags::Empty : cursor->index();
+}
+
 //----------------------------------------------------------------------------------
 // level 0
-template <>
-std::string EntryPlugin<entry_memory>::name() const { return m_pimpl_.name; };
 
 // as leaf
 template <>
-void EntryPlugin<entry_memory>::set_value(const Entry::type_union& v)
+void EntryPlugin<entry_memory>::set_value(const std::string& path, const element& v)
 {
-    if (type() >= Entry::type_tags::Array)
+    auto c = insert(path);
+    if (c->index() > type_tags::Array)
     {
-        throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
+        c->swap(element(v));
     }
-
-    std::visit(v, [&](auto&& v) { m_pimpl_.data() = v; })
 }
 
 template <>
-Entry::type_union EntryPlugin<entry_memory>::get_value() const
-{
-    if (type() >= Entry::type_tags::Array)
-    {
-        throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not Element!");
-    }
-    Entry::type_union res;
-
-    std::visit(m_pimpl_.data(), [&](auto&& v) { res = v; });
-
-    return res;
-}
+EntryPlugin<entry_memory>::element
+EntryPlugin<entry_memory>::get_value(const std::string& path) const { return *find(path); }
 
 // as Tree
 // as object
 template <>
-std::shared_ptr<Entry>
+Entry::const_cursor
 EntryPlugin<entry_memory>::find(const std::string& name) const
 {
-    std::shared_ptr<Entry> res = nullptr;
-    if (type() == Entry::type_tags::Object)
-    {
-
-        auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
-        auto it = m.find(name);
-        if (it != m.end())
-        {
-            res = it->second;
-        }
-    }
-
-    return res;
+    return const_cursor(m_pimpl_->m_data_.find(name), m_pimpl_->m_data_.end());
 };
 
 template <>
-std::shared_ptr<Entry>
+Entry::const_cursor
 EntryPlugin<entry_memory>::find(const Path& xpath) const
 {
-    std::string path = xpath.str();
-    int pos = 0;
-    auto res = const_cast<EntryPlugin<entry_memory>*>(this)->shared_from_this();
+    // std::string path = xpath.str();
+    // int pos = 0;
+    // auto res = const_cast<EntryPlugin<entry_memory>*>(this)->shared_from_this();
 
-    while (res != nullptr && pos < path.size())
-    {
-        int end = path.find("/", pos);
-        if (end == std::string::npos)
-        {
-            end = path.size();
-        }
-        res = res->find(path.substr(pos, end - pos));
-        pos = end + 1;
-    }
-    return res;
+    // while (res != nullptr && pos < path.size())
+    // {
+    //     int end = path.find("/", pos);
+    //     if (end == std::string::npos)
+    //     {
+    //         end = path.size();
+    //     }
+    //     res = res->find(path.substr(pos, end - pos));
+    //     pos = end + 1;
+    // }
+    // return res;
+    return find(xpath.str());
 };
 
 template <>
-std::shared_ptr<Entry>
+Entry::cursor
 EntryPlugin<entry_memory>::insert(const std::string& name)
 {
-    std::shared_ptr<Entry> res = nullptr;
+    // Entry::cursor res = nullptr;
 
-    if (type() == Entry::type_tags::Empty)
-    {
-        m_pimpl_.emplace<Entry::type_tags::Object>();
-    }
+    // if (type() == Entry::type_tags::Empty)
+    // {
+    //     m_pimpl_.emplace<Entry::type_tags::Object>();
+    // }
 
-    if (type() == Entry::type_tags::Object)
-    {
-        auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
-        res = m.emplace(name, std::make_shared<this_type>(this->shared_from_this(), name)).first->second;
-    }
-    else
-    {
-        throw std::runtime_error("Can not insert node to non-object!");
-    }
+    // if (type() == Entry::type_tags::Object)
+    // {
+    //     auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
+    //     res = m.emplace(name, std::make_shared<this_type>(this->shared_from_this(), name)).first->second;
+    // }
+    // else
+    // {
+    //     throw std::runtime_error("Can not insert node to non-object!");
+    // }
 
-    return res;
+    return cursor(m_pimpl_->m_data_.try_emplace(name, this, name)->first);
 }
 
 template <>
-std::shared_ptr<Entry>
+Entry::cursor
 EntryPlugin<entry_memory>::insert(const Path& xpath)
 {
-    auto path = xpath.str();
+    // auto path = xpath.str();
 
-    int pos = 0;
-    std::shared_ptr<Entry> res = shared_from_this();
+    // int pos = 0;
+    // Entry::cursor res = shared_from_this();
 
-    while (res != nullptr && pos < path.size())
-    {
-        int end = path.find("/", pos);
-        if (end == std::string::npos)
-        {
-            end = path.size();
-        }
-        res = res->insert(path.substr(pos, end - pos));
-        pos = end + 1;
-    }
-    return res;
+    // while (res != nullptr && pos < path.size())
+    // {
+    //     int end = path.find("/", pos);
+    //     if (end == std::string::npos)
+    //     {
+    //         end = path.size();
+    //     }
+    //     res = res->insert(path.substr(pos, end - pos));
+    //     pos = end + 1;
+    // }
+    // return res;
+    return insert(xpath.str());
 }
 
 template <>
-void EntryPlugin<entry_memory>::erase(const std::string& name)
+void EntryPlugin<entry_memory>::erase(const std::string& name) { m_pimpl_->m_data_.erase(m_pimpl_->m_data_.find(name)); }
+
+template <>
+void EntryPlugin<entry_memory>::erase(const Path& xpath) { m_pimpl_->m_data_.erase(m_pimpl_->m_data_.find(xpath.str())); }
+
+template <>
+size_t EntryPlugin<entry_memory>::size() const { return m_pimpl_->m_data_.size(); }
+
+// template <>
+// Entry::cursor
+// EntryPlugin<entry_memory>::first_child() const
+// {
+//     Entry::cursor res{nullptr};
+//     if (type() == Entry::type_tags::Object)
+//     {
+//         auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
+
+//         res = make_iterator<entry_memory>(m.begin(), m.end());
+//     }
+//     else if (type() == Entry::type_tags::Array)
+//     {
+//         auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
+
+//         res = make_iterator<entry_memory>(m.begin(), m.end());
+//     }
+
+//     return res;
+// }
+struct entry_memory_array
 {
-    if (type() == Entry::type_tags::Object)
-    {
-        auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
-        auto it = m.find(name);
-        if (it != m.end())
-        {
-            m.erase(it);
-        }
-    }
-}
+    entry_memory_array() {}
+
+    ~entry_memory_array() = default;
+
+    std::vector<Entry::element> m_data_;
+};
+// as array
 
 template <>
-size_t EntryPlugin<entry_memory>::size() const
-{
-    size_t res = 0;
-    if (type() == Entry::type_tags::Object)
-    {
-        auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
-        res = m.size();
-    }
-    else if (type() == Entry::type_tags::Array)
-    {
-        auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
-        res = m.size();
-    }
-    return res;
-}
+Entry::cursor
+EntryPluginArray<entry_memory_array>::push_back() { return Entry::cursor(m_pimpl_->m_data_.emplace_back()); }
 
 template <>
-std::shared_ptr<Entry>
-EntryPlugin<entry_memory>::parent() const
-{
-    NOT_IMPLEMENTED;
-    return nullptr;
-}
+void EntryPluginArray<entry_memory_array>::pop_back() { m_pimpl_->m_data_.pop_back(); }
 
 template <>
-std::shared_ptr<Entry>
-EntryPlugin<entry_memory>::first_child() const
-{
-    std::shared_ptr<Entry> res{nullptr};
-    if (type() == Entry::type_tags::Object)
-    {
-        auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
-
-        res = make_iterator<entry_memory>(m.begin(), m.end());
-    }
-    else if (type() == Entry::type_tags::Array)
-    {
-        auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
-
-        res = make_iterator<entry_memory>(m.begin(), m.end());
-    }
-
-    return res;
-}
-
-// as arraytemplate <>
-template <>
-std::shared_ptr<Entry>
-EntryPlugin<entry_memory>::push_back()
-{
-    std::shared_ptr<Entry> res = nullptr;
-    if (type() == Entry::type_tags::Empty)
-    {
-        m_pimpl_.emplace<Entry::type_tags::Array>();
-    }
-    if (type() == Entry::type_tags::Array)
-    {
-        auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
-        m.emplace_back(std::make_shared<this_type>(this->shared_from_this(), ""));
-        res = *m.rbegin();
-    }
-
-    return res;
-}
+const Entry::element&
+EntryPluginArray<entry_memory_array>::at(int idx) const { return m_pimpl_->m_data_.at(idx); }
 
 template <>
-std::shared_ptr<Entry> EntryPlugin<entry_memory>::pop_back()
-{
-    std::shared_ptr<Entry> res = nullptr;
+Entry::element&
+EntryPluginArray<entry_memory_array>::at(int idx) { return m_pimpl_->m_data_.at(idx); }
 
-    if (type() == Entry::type_tags::Array)
-    {
-        auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
-        res = *m.rbegin();
-        m.pop_back();
-    }
+// // attributes
+// template <>
+// bool EntryPlugin<entry_memory>::has_attribute(const std::string& name) const { return find("@" + name) != nullptr; }
 
-    return res;
-}
+// template <>
+// Entry::element EntryPlugin<entry_memory>::get_attribute_raw(const std::string& name) const
+// {
+//     auto p = find("@" + name);
+//     if (!p)
+//     {
+//         throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find attribute '" + name + "'");
+//     }
+//     return p->get_value();
+// }
 
-template <>
-std::shared_ptr<Entry>
-EntryPlugin<entry_memory>::at(int idx) const
-{
-    std::shared_ptr<Entry> res = nullptr;
+// template <>
+// void EntryPlugin<entry_memory>::set_attribute_raw(const std::string& name, const Entry::element& value)
+// {
+//     insert("@" + name)->set_element(value);
+// }
 
-    if (type() == Entry::type_tags::Array)
-    {
-        auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
-        res = m[idx];
-    }
+// template <>
+// void EntryPlugin<entry_memory>::remove_attribute(const std::string& name) { remove("@" + name); }
 
-    return res;
-}
+// template <>
+// std::map<std::string, Entry::element> EntryPlugin<entry_memory>::attributes() const
+// {
+//     if (type() !=  type_tags::Object)
+//     {
+//         return std::map<std::string, Entry::element>{};
+//     }
 
-// attributes
-template <>
-bool EntryPlugin<entry_memory>::has_attribute(const std::string& name) const { return find("@" + name) != nullptr; }
-
-template <>
-Entry::type_union EntryPlugin<entry_memory>::get_attribute_raw(const std::string& name) const
-{
-    auto p = find("@" + name);
-    if (!p)
-    {
-        throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find attribute '" + name + "'");
-    }
-    return p->get_value();
-}
-
-template <>
-void EntryPlugin<entry_memory>::set_attribute_raw(const std::string& name, const Entry::type_union& value)
-{
-    insert("@" + name)->set_element(value);
-}
-
-template <>
-void EntryPlugin<entry_memory>::remove_attribute(const std::string& name) { remove("@" + name); }
-
-template <>
-std::map<std::string, Entry::type_union> EntryPlugin<entry_memory>::attributes() const
-{
-    if (type() != Entry::type_tags::Object)
-    {
-        return std::map<std::string, Entry::type_union>{};
-    }
-
-    std::map<std::string, Entry::type_union> res;
-    for (const auto& item : std::get<Entry::type_tags::Object>(m_pimpl_))
-    {
-        if (item.first[0] == '@')
-        {
-            res.emplace(item.first.substr(1, std::string::npos), item.second->get_value());
-        }
-    }
-    return std::move(res);
-}
+//     std::map<std::string, Entry::element> res;
+//     for (const auto& item : std::get<Entry::type_tags::Object>(m_pimpl_))
+//     {
+//         if (item.first[0] == '@')
+//         {
+//             res.emplace(item.first.substr(1, std::string::npos), item.second->get_value());
+//         }
+//     }
+//     return std::move(res);
+// }
 
 SP_REGISTER_ENTRY(memory, entry_memory);
 

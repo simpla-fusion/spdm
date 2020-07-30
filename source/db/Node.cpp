@@ -20,18 +20,32 @@ std::string join_path(const std::string& l, const std::string& r, Others&&... ot
     return join_path(join_path(l, r), std::forward<Others>(others)...);
 }
 
-Node&& make_node(const std::shared_ptr<Entry>& entry)
+Node&& make_node(const Entry::element& element)
 {
-    NOT_IMPLEMENTED;
-    return std::move(Node{});
+    Node res;
+
+    if (element.index() > Node::type_tags::Array)
+    {
+        // std::visit(element, [&](auto&& v) { res.data() = v; });
+    }
+    else if (element.index() == Node::type_tags::Array)
+    {
+        res.data().template emplace<Node::type_tags::Array>(nullptr, std::get<Node::type_tags::Array>(element));
+    }
+    else if (element.index() == Node::type_tags::Object)
+    {
+        res.data().template emplace<Node::type_tags::Object>(nullptr, std::get<Node::type_tags::Object>(element));
+    }
+
+    return std::move(res);
 }
 
 template <typename U, typename V>
 class CursorProxy<U,
                   std::unique_ptr<V>,
-                  std::enable_if_t<                                                            //
-                      (std::is_same_v<U, const Node> || std::is_same_v<U, Node>)&&             //
-                      (std::is_same_v<V, const EntryCursor> || std::is_same_v<V, EntryCursor>) //
+                  std::enable_if_t<                                                                //
+                      (std::is_same_v<U, const Node> || std::is_same_v<U, Node>)&&                 //
+                      (std::is_same_v<V, Cursor<const Entry>> || std::is_same_v<V, Cursor<Entry>>) //
                       >> : public CursorProxy<U>
 {
 public:
@@ -72,21 +86,21 @@ private:
 
 Node::Node(const std::string& backend) : base_type(nullptr, "")
 {
-    data().template emplace<type_tags::Object>(this, Entry::create(backend).release());
+    data().template emplace<type_tags::Object>(this, Entry::create(backend));
 };
 
 Node::Node(Node* parent, const std::string& name) : base_type(parent, name){};
 
 //--------------------------------------------------------------------------------------------------
 // Object
-using NodeObject = std::variant_alternative_t<Node::type_tags::Object, Node::type_union>;
+using NodeObject = std::variant_alternative_t<Node::type_tags::Object, Node::element>;
 
 template <>
-NodeObject::HTContainerProxyObject(node_type* self, container* container) : m_self_(self), m_container_(container) {}
+NodeObject::HTContainerProxyObject(node_type* self, const std::shared_ptr<container>& container) : m_self_(self), m_container_(container) {}
 template <>
-NodeObject::HTContainerProxyObject(this_type&& other) : HTContainerProxyObject(other.m_self_, other.m_container_.release()) {}
+NodeObject::HTContainerProxyObject(this_type&& other) : HTContainerProxyObject(other.m_self_, other.m_container_) {}
 template <>
-NodeObject::HTContainerProxyObject(const this_type& other) : HTContainerProxyObject(other.m_self_, other.m_container_->copy().release()) {}
+NodeObject::HTContainerProxyObject(const this_type& other) : HTContainerProxyObject(other.m_self_, other.m_container_->copy()) {}
 template <>
 NodeObject::~HTContainerProxyObject() {}
 
@@ -131,14 +145,14 @@ NodeObject::find(const Path& path) const { return const_cursor(m_container_->fin
 
 //-----------------------------------------------------------------------------------
 // Array
-using NodeArray = std::variant_alternative_t<Node::type_tags::Array, Node::type_union>;
+using NodeArray = std::variant_alternative_t<Node::type_tags::Array, Node::element>;
 
 template <>
-NodeArray::HTContainerProxyArray(node_type* self, container* container) : m_self_(self), m_container_(container) {}
+NodeArray::HTContainerProxyArray(node_type* self, const std::shared_ptr<container>& container) : m_self_(self), m_container_(container) {}
 template <>
-NodeArray::HTContainerProxyArray(this_type&& other) : HTContainerProxyArray(other.m_self_, other.m_container_.release()) {}
+NodeArray::HTContainerProxyArray(this_type&& other) : HTContainerProxyArray(other.m_self_, other.m_container_) {}
 template <>
-NodeArray::HTContainerProxyArray(const this_type& other) : HTContainerProxyArray(other.m_self_, other.m_container_->copy().release()) {}
+NodeArray::HTContainerProxyArray(const this_type& other) : HTContainerProxyArray(other.m_self_, other.m_container_->copy()) {}
 template <>
 NodeArray::~HTContainerProxyArray() {}
 
@@ -166,7 +180,7 @@ template <>
 typename Node::const_cursor::reference
 NodeArray::at(int idx) const { return make_node(m_container_->at(idx)); }
 
-// temp 
+// temp
 // //-------------------------------------------------------------------
 // // level 2
 // size_t Node::depth() const { return m_entry_ == nullptr ? 0 : parent().depth() + 1; }

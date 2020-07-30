@@ -17,7 +17,13 @@ template <typename Impl>
 class EntryPlugin : public Entry
 {
 public:
-    typedef traits::pre_tagged_types element_type;
+    using typename Entry::type_tags;
+
+    using typename Entry::element;
+
+    using typename Entry::cursor;
+
+    using typename Entry::const_cursor;
 
     EntryPlugin() = default;
 
@@ -27,20 +33,22 @@ public:
 
     ~EntryPlugin() = default;
 
-    static std::unique_ptr<Entry> create(const std::string& request = "");
+    static std::shared_ptr<Entry> create(const std::string& request = "");
 
     static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
-    std::unique_ptr<Entry> copy() const override;
+    std::shared_ptr<Entry> copy() const override { return std::shared_ptr<Entry>(new EntryPlugin(*this)); }
 
     //----------------------------------------------------------------------------------------------------------
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-    void set_value(const std::string& path, const element_type&) override;
+    void set_value(const std::string& path, const element&) override;
 
-    element_type get_value(const std::string& path) const override;
+    element get_value(const std::string& path) const override;
+
+    std::size_t type(const std::string& path) const override;
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
@@ -54,70 +62,72 @@ public:
 
     std::size_t count(const std::string& name) override;
 
-    std::unique_ptr<EntryCursor> insert(const std::string& path) override;
+    cursor insert(const std::string& path) override;
 
-    std::unique_ptr<EntryCursor> insert(const Path& path) override;
+    cursor insert(const Path& path) override;
 
-    std::unique_ptr<EntryCursor> find(const std::string& path) override;
+    cursor find(const std::string& path) override;
 
-    std::unique_ptr<EntryCursor> find(const Path& path) override;
+    cursor find(const Path& path) override;
 
-    std::unique_ptr<const EntryCursor> find(const std::string& path) const override;
+    const_cursor find(const std::string& path) const override;
 
-    std::unique_ptr<const EntryCursor> find(const Path& path) const override;
+    const_cursor find(const Path& path) const override;
 
-    void erase(const std::string& path) {}
+    void erase(const std::string& path) override {}
 
-    void erase(const Path& path) {}
+    void erase(const Path& path) override {}
 
-    std::unique_ptr<EntryCursor> first_child() override;
+    cursor first_child() override;
 
-    std::unique_ptr<const EntryCursor> first_child() const override;
+    const_cursor first_child() const override;
 
     // level 1
 
-    std::unique_ptr<EntryCursor> select(const std::string& path) override;
+    cursor select(const std::string& path) override;
 
-    std::unique_ptr<EntryCursor> select(const Path& path) override;
+    cursor select(const Path& path) override;
 
-    std::unique_ptr<const EntryCursor> select(const std::string& path) const override;
+    const_cursor select(const std::string& path) const override;
 
-    std::unique_ptr<const EntryCursor> select(const Path& path) const override;
+    const_cursor select(const Path& path) const override;
 
 private:
     std::unique_ptr<Impl> m_pimpl_;
 };
 
 template <typename Impl>
-class EntryArrayPlugin : EntryArray
+class EntryPluginArray : EntryArray
 {
 public:
-    ~EntryArrayPlugin() = default;
+    typedef Cursor<typename Entry::element> cursor;
 
-    std::unique_ptr<EntryArray> copy() const override;
-    ;
+    typedef Cursor<const typename Entry::element> const_cursor;
+
+    EntryPluginArray();
+
+    ~EntryPluginArray() = default;
 
     // as array
-    size_t size() const { return 0; }
 
-    void resize(std::size_t num){};
+    std::shared_ptr<EntryArray> copy() const override;
 
-    void clear(){};
+    size_t size() const override;
 
-    std::unique_ptr<EntryCursor> push_back() override;
-    ;
+    void resize(std::size_t num) override;
 
-    std::unique_ptr<EntryCursor> pop_back() override;
-    ;
+    void clear() override;
 
-    std::shared_ptr<const Entry> at(int idx) const override;
-    ;
+    Entry::cursor push_back() override;
 
-    std::shared_ptr<Entry> at(int idx) override;
-    ;
+    void pop_back() override;
+
+    Entry::element& at(int idx) override;
+
+    const Entry::element& at(int idx) const override;
 
 private:
-    std::unique_ptr<EntryArray> m_pimpl_;
+    std::unique_ptr<Impl> m_pimpl_;
 };
 
 #define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)       \
