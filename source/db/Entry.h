@@ -1,8 +1,8 @@
 #ifndef SPDB_ENTRY_H_
 #define SPDB_ENTRY_H_
-#include "HierarchicalTree.h"
 #include "../utility/Path.h"
 #include "../utility/TypeTraits.h"
+#include "HierarchicalTree.h"
 #include <array>
 #include <complex>
 #include <functional>
@@ -24,12 +24,10 @@ class EntryCursor
 {
 public:
     virtual ~EntryCursor() = default;
-    
+
     virtual void next() const = 0; // traversal
 
     virtual bool same_as(const EntryCursor*) const = 0; // check
-
-    virtual void clear() = 0;
 
     // as tree node
 
@@ -37,6 +35,7 @@ public:
 
     virtual std::shared_ptr<Entry> get() const = 0;
 };
+
 class Entry
 {
 public:
@@ -54,74 +53,87 @@ public:
 
     static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
-    virtual std::unique_ptr<Entry> copy() const = 0;
+    virtual std::unique_ptr<Entry> copy() const { return nullptr; }
 
     //----------------------------------------------------------------------------------------------------------
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-    virtual void set_value(const element_type&) = 0;
+    virtual void set_value(const element_type&) {}
 
-    virtual element_type get_value() const = 0;
+    virtual element_type get_value() const { return nullptr; }
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
 
-    virtual size_t size() const = 0;
+    virtual size_t size() const { return 0; }
 
-    virtual void clear() = 0;
+    virtual void clear() {}
 
     // as object
 
-    virtual std::size_t count(const std::string& name) = 0;
+    virtual std::size_t count(const std::string& name) { return 0; }
 
-    virtual std::unique_ptr<EntryCursor> insert(const std::string& path) = 0;
+    virtual std::unique_ptr<EntryCursor> insert(const std::string& path) { return nullptr; }
 
-    virtual std::unique_ptr<EntryCursor> insert(const Path& path) = 0;
+    virtual std::unique_ptr<EntryCursor> insert(const Path& path) { return nullptr; }
 
-    virtual std::unique_ptr<EntryCursor> find(const std::string& path) const = 0;
+    virtual std::unique_ptr<EntryCursor> find(const std::string& path) { return nullptr; }
 
-    virtual std::unique_ptr<EntryCursor> find(const Path& path) const = 0;
+    virtual std::unique_ptr<EntryCursor> find(const Path& path) { return nullptr; }
 
-    virtual void erase(const std::string& path) = 0;
+    virtual std::unique_ptr<const EntryCursor> find(const std::string& path) const { return nullptr; }
 
-    virtual void erase(const Path& path) = 0;
+    virtual std::unique_ptr<const EntryCursor> find(const Path& path) const { return nullptr; }
 
-    virtual std::unique_ptr<EntryCursor> first_child() const = 0;
+    virtual void erase(const std::string& path) {}
+
+    virtual void erase(const Path& path) {}
+
+    virtual std::unique_ptr<EntryCursor> first_child() { return nullptr; }
+
+    virtual std::unique_ptr<const EntryCursor> first_child() const { return nullptr; }
 
     // level 1
 
-    virtual std::unique_ptr<EntryCursor> select(const std::string& path) const = 0;
+    virtual std::unique_ptr<EntryCursor> select(const std::string& path) { return nullptr; }
 
-    virtual std::unique_ptr<EntryCursor> select(const Path& path) const = 0;
+    virtual std::unique_ptr<EntryCursor> select(const Path& path) { return nullptr; }
+
+    virtual std::unique_ptr<const EntryCursor> select(const std::string& path) const { return nullptr; }
+
+    virtual std::unique_ptr<const EntryCursor> select(const Path& path) const { return nullptr; }
 };
 
 class EntryArray
 {
 public:
-    virtual std::unique_ptr<EntryArray> copy() const = 0;
+    virtual ~EntryArray() = default;
+
+    virtual std::unique_ptr<EntryArray> copy() const { return nullptr; };
 
     // as array
-    virtual size_t size() const = 0;
+    virtual size_t size() const { return 0; }
 
-    virtual void resize(std::size_t num) = 0;
+    virtual void resize(std::size_t num){};
 
-    virtual void clear() = 0;
+    virtual void clear(){};
 
-    virtual std::shared_ptr<Entry> push_back() = 0;
+    virtual std::unique_ptr<EntryCursor> push_back() { return nullptr; };
 
-    virtual std::shared_ptr<Entry> pop_back() = 0;
+    virtual std::unique_ptr<EntryCursor> pop_back() { return nullptr; };
 
-    virtual std::shared_ptr<const Entry> at(int idx) const = 0;
+    virtual std::shared_ptr<const Entry> at(int idx) const { return nullptr; };
 
-    virtual std::shared_ptr<Entry> at(int idx) = 0;
+    virtual std::shared_ptr<Entry> at(int idx) { return nullptr; };
 };
 
 std::string to_string(Entry::element_type const& s);
 
 Entry::element_type from_string(const std::string& s, int idx = 0);
+
 } // namespace db
 } // namespace sp
 

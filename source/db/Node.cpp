@@ -1,10 +1,10 @@
 #include "Node.h"
-#include "Cursor.h"
-#include "Entry.h"
 #include "../utility/Factory.h"
 #include "../utility/Logger.h"
 #include "../utility/Path.h"
 #include "../utility/fancy_print.h"
+#include "Cursor.h"
+#include "Entry.h"
 #include <any>
 #include <array>
 #include <map>
@@ -26,14 +26,16 @@ Node&& make_node(const std::shared_ptr<Entry>& entry)
     return std::move(Node{});
 }
 
-template <typename U>
-class CursorProxy<U, EntryCursor,
-                  std::enable_if_t< //
-                      std::is_same_v<U, const Node> ||
-                      std::is_same_v<U, Node>>> : public CursorProxy<U>
+template <typename U, typename V>
+class CursorProxy<U,
+                  std::unique_ptr<V>,
+                  std::enable_if_t<                                                            //
+                      (std::is_same_v<U, const Node> || std::is_same_v<U, Node>)&&             //
+                      (std::is_same_v<V, const EntryCursor> || std::is_same_v<V, EntryCursor>) //
+                      >> : public CursorProxy<U>
 {
 public:
-    typedef CursorProxy<U, std::shared_ptr<EntryCursor>> this_type;
+    typedef CursorProxy<U, std::unique_ptr<V>> this_type;
 
     typedef CursorProxy<U> base_type;
 
@@ -43,7 +45,9 @@ public:
 
     using typename base_type::difference_type;
 
-    CursorProxy(EntryCursor* cursor) : m_cursor_(cursor) {}
+    CursorProxy(V* cursor) : m_cursor_(cursor) {}
+
+    CursorProxy(std::unique_ptr<V>&& cursor) : m_cursor_(cursor.release()) {}
 
     ~CursorProxy(){};
 
@@ -53,20 +57,14 @@ public:
 
     bool not_equal(const base_type* other) const override { return !equal(other); }
 
-    // difference_type distance(const base_type* other) const override
-    // {
-    //     NOT_IMPLEMENTED;
-    //     return 0;
-    // }
-
     reference get_reference() const override { return std::forward<Node>(make_node(m_cursor_->get())); }
 
-    pointer get_pointer() const override { return std::make_shared<Node>(std::forward<Node>(make_node(m_cursor_->get()))); }
+    pointer get_pointer() const override { return std::make_shared<Node>(make_node(m_cursor_->get())); }
 
     void next() override { m_cursor_->next(); }
 
 private:
-    std::unique_ptr<EntryCursor> m_cursor_;
+    std::unique_ptr<V> m_cursor_;
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -102,7 +100,7 @@ int HierarchicalTreeObjectContainer<Node>::count(const std::string& key) const {
 
 template <>
 HierarchicalTreeObjectContainer<Node>::cursor
-HierarchicalTreeObjectContainer<Node>::insert(const std::string& path) { return cursor(m_container_->insert(path)); }
+HierarchicalTreeObjectContainer<Node>::insert(const std::string& path) { return cursor(std::move(m_container_->insert(path))); }
 
 template <>
 HierarchicalTreeObjectContainer<Node>::cursor
@@ -160,11 +158,11 @@ void HierarchicalTreeArrayContainer<Node>::pop_back() { m_container_->pop_back()
 
 template <>
 typename node_traits<Node>::reference
-HierarchicalTreeArrayContainer<Node>::at(int idx) { return Node(); /*make_node(m_self_, "", m_container_->at(idx)); */ }
+HierarchicalTreeArrayContainer<Node>::at(int idx) { return make_node(m_container_->at(idx)); }
 
 template <>
 typename node_traits<const Node>::reference
-HierarchicalTreeArrayContainer<Node>::at(int idx) const { return std::move(make_node(m_container_->at(idx))); }
+HierarchicalTreeArrayContainer<Node>::at(int idx) const { return make_node(m_container_->at(idx)); }
 
 // template <>
 // class HierarchicalTreeObjectPolicy<Node>

@@ -1,9 +1,9 @@
 #ifndef SP_NODE_H_
 #define SP_NODE_H_
+#include "../utility/Logger.h"
 #include "Cursor.h"
 #include "Entry.h"
 #include "HierarchicalTree.h"
-#include "../utility/Logger.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -85,10 +85,7 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);
-// template <>
-// HierarchicalTreeObjectContainer<Node>;
-// template <>
-// HierarchicalTreeArrayContainer<Node>;
+ 
 } // namespace sp::db
 
 #endif // SP_NODE_H_

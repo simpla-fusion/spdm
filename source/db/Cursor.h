@@ -188,9 +188,9 @@ CursorProxy<U>* make_proxy(const V& ib, const V& ie)
     return new CursorProxy<U, V>(ib, ie);
 }
 template <typename U, typename V>
-CursorProxy<U>* make_proxy(const V& ib)
+CursorProxy<U>* make_proxy(V&& ib)
 {
-    return new CursorProxy<U, V>(ib);
+    return new CursorProxy<U, std::remove_reference_t<V>>(std::forward<V>(ib));
 }
 
 template <typename TNode>
