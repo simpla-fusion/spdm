@@ -1,9 +1,9 @@
 
 // #include "../EntryCursor.h"
+#include "../../utility/Factory.h"
+#include "../../utility/Logger.h"
 #include "../EntryPlugin.h"
 #include "../Node.h"
-#include "../utility/Factory.h"
-#include "../utility/Logger.h"
 #include <variant>
 namespace sp::db
 {
@@ -21,9 +21,9 @@ struct node_traits<entry_memory>
 };
 
 struct entry_memory
-    : public hierarchical_tree_t<entry_memory, traits::pop_front_t<3, Entry::type_union>>
+    : public hierarchical_tree_t<entry_memory, Entry::element_type>
 {
-    typedef tree_type base_type;
+    typedef hierarchical_tree_t<entry_memory, Entry::element_type> base_type;
 
     entry_memory(const std::shared_ptr<Entry>& p = nullptr, const std::string& n = "")
         : base_type(nullptr), parent(p), name(n) {}

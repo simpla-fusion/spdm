@@ -11,6 +11,7 @@
 #include <string>
 #include <type_traits>
 #include <variant>
+#include <vector>
 namespace sp
 {
 namespace traits
@@ -907,22 +908,6 @@ using type_tags = typename _detail::_type_tags<V>::tags;
 
 //**********************************************************************************************************************
 
-typedef std::variant<std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-                     std::string,                                                 //String,
-                     bool,                                                        //Boolean,
-                     int,                                                         //Integer,
-                     long,                                                        //Long,
-                     float,                                                       //Float,
-                     double,                                                      //Double,
-                     std::complex<double>,                                        //Complex,
-                     std::array<int, 3>,                                          //IntVec3,
-                     std::array<long, 3>,                                         //LongVec3,
-                     std::array<float, 3>,                                        //FloatVec3,
-                     std::array<double, 3>,                                       //DoubleVec3,
-                     std::array<std::complex<double>, 3>,                         //ComplexVec3,
-                     std::any>
-    pre_tagged_types;
-
 template <typename T>
 struct is_variant
 {
@@ -988,27 +973,69 @@ struct concatenate<First, Second, Others...>
 template <typename... TypeList>
 using concatenate_t = typename concatenate<TypeList...>::type;
 
-template <int N, typename...>
-struct pop_front;
+namespace _detail
+{
+template <class T, T...>
+struct make_integer_sequence_impl;
 
-template <int N, typename... T>
-using pop_front_t = typename pop_front<N, T...>::type;
+template <class T, T BEGIN, T END, T STEP>
+struct make_integer_sequence_impl<T, BEGIN, END, STEP>
+{
 
-template <typename T>
-struct pop_front<0, T>
-{
-    typedef T type;
+    template <typename V>
+    struct _idx_map;
+
+    template <T... I>
+    struct _idx_map<std::integer_sequence<T, I...>>
+    {
+        typedef std::index_sequence<(I * STEP + BEGIN)...> type;
+    };
+
+    typedef typename _idx_map<std::make_integer_sequence<T, (END - BEGIN) / STEP>>::type type;
 };
-template <int N>
-struct pop_front<N, std::variant<>>
+template <class T, T N>
+struct make_integer_sequence_impl<T, N>
 {
-    typedef std::variant<> type;
+    typedef typename make_integer_sequence_impl<T, 0, N, 1>::type type;
 };
-template <int N, typename First, typename... Others>
-struct pop_front<N, std::variant<First, Others...>>
+template <class T, T B, T E>
+struct make_integer_sequence_impl<T, B, E>
 {
-    typedef typename pop_front<N - 1, std::variant<Others...>>::type type;
+    typedef typename make_integer_sequence_impl<T, B, E, 1>::type type;
 };
+} // namespace _detail
+template <class T, T... I>
+using make_integer_sequence = typename _detail::make_integer_sequence_impl<T, I...>::type;
+
+template <std::size_t... I>
+using make_index_sequence = make_integer_sequence<std::size_t, I...>;
+
+template <typename...>
+struct select_variant;
+
+template <typename... T, std::size_t... I>
+struct select_variant<std::variant<T...>, std::index_sequence<I...>>
+{
+    typedef std::variant<std::variant_alternative_t<I, std::variant<T...>>...> type;
+};
+
+template <typename T, std::size_t... I>
+using select_variant_t = typename select_variant<T, make_index_sequence<I...>>::type;
+
+namespace _detail
+{
+template <template <typename...> class T0, typename TypeLists>
+struct template_copy_type_args_impl;
+template <template <typename...> class T0, template <typename...> class T1, typename... Types>
+struct template_copy_type_args_impl<T0, T1<Types...>>
+{
+    typedef T0<Types...> type;
+};
+} // namespace _detail
+
+template <template <typename...> class T0, template <typename...> class T1, typename... Types>
+using template_copy_type_args = typename _detail::template_copy_type_args_impl<T0, T1<Types...>>;
+
 } // namespace traits
 } // namespace sp
 

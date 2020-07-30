@@ -17,36 +17,41 @@ namespace sp::db
 {
 class Node;
 
-template <typename V>
-struct cursor_traits<V,
-                     std::enable_if_t<
-                         std::is_same_v<V, Node> ||
-                         std::is_same_v<V, const Node>>>
+template <>
+struct cursor_traits<Node>
 {
     typedef Node value_type;
     typedef Node reference;
     typedef std::shared_ptr<Node> pointer;
     typedef ptrdiff_t difference_type;
 };
-
+template <>
+struct cursor_traits<const Node>
+{
+    typedef const Node value_type;
+    typedef const Node reference;
+    typedef std::shared_ptr<const Node> pointer;
+    typedef ptrdiff_t difference_type;
+};
 template <>
 struct node_traits<Node>
 {
     typedef Node node_type;
     typedef Cursor<node_type> cursor;
-    typedef Cursor<const node_type> const_cursor;
     typedef typename cursor::reference reference;
     typedef typename cursor::pointer pointer;
     typedef Entry object_container;
     typedef EntryArray array_container;
 };
 
-class Node : public hierarchical_tree_t<Node, Entry::element_type>
+class Node : public entry_wrapper<Node>
 {
 public:
     typedef Node this_type;
 
-    typedef hierarchical_tree_t<Node, Entry::element_type> base_type;
+    typedef entry_wrapper<Node> base_type;
+
+    using typename base_type::type_union;
 
     using typename base_type::type_tags;
 
@@ -85,7 +90,7 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& os, Node const& Node);
- 
+
 } // namespace sp::db
 
 #endif // SP_NODE_H_

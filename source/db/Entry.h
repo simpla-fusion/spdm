@@ -18,7 +18,29 @@ namespace db
 
 class Entry;
 class EntryCursor;
-class EntryArray;
+
+class EntryArray
+{
+public:
+    virtual ~EntryArray() = default;
+
+    virtual std::unique_ptr<EntryArray> copy() const { return nullptr; };
+
+    // as array
+    virtual size_t size() const { return 0; }
+
+    virtual void resize(std::size_t num){};
+
+    virtual void clear(){};
+
+    virtual std::unique_ptr<EntryCursor> push_back() { return nullptr; };
+
+    virtual std::unique_ptr<EntryCursor> pop_back() { return nullptr; };
+
+    virtual std::shared_ptr<const Entry> at(int idx) const { return nullptr; };
+
+    virtual std::shared_ptr<Entry> at(int idx) { return nullptr; };
+};
 
 class EntryCursor
 {
@@ -39,7 +61,27 @@ public:
 class Entry
 {
 public:
-    typedef traits::pre_tagged_types element_type;
+    typedef std::variant<
+        std::nullptr_t,
+        Entry,
+        EntryArray,
+        std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
+        std::string,                                                 //String,
+        bool,                                                        //Boolean,
+        int,                                                         //Integer,
+        long,                                                        //Long,
+        float,                                                       //Float,
+        double,                                                      //Double,
+        std::complex<double>,                                        //Complex,
+        std::array<int, 3>,                                          //IntVec3,
+        std::array<long, 3>,                                         //LongVec3,
+        std::array<float, 3>,                                        //FloatVec3,
+        std::array<double, 3>,                                       //DoubleVec3,
+        std::array<std::complex<double>, 3>,                         //ComplexVec3,
+        std::any>
+        type_union;
+
+    typedef traits::type_tags<type_union> type_tags;
 
     Entry() = default;
 
@@ -56,13 +98,14 @@ public:
     virtual std::unique_ptr<Entry> copy() const { return nullptr; }
 
     //----------------------------------------------------------------------------------------------------------
+    virtual type_tags type(const std::string& path, const type_union&) const;
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-    virtual void set_value(const element_type&) {}
+    virtual void set_value(const std::string& path, const type_union&) {}
 
-    virtual element_type get_value() const { return nullptr; }
+    virtual type_union get_value(const std::string& path) const { return nullptr; }
 
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
@@ -107,32 +150,14 @@ public:
     virtual std::unique_ptr<const EntryCursor> select(const Path& path) const { return nullptr; }
 };
 
-class EntryArray
-{
-public:
-    virtual ~EntryArray() = default;
+std::string to_string(Entry::type_union const& s);
 
-    virtual std::unique_ptr<EntryArray> copy() const { return nullptr; };
+Entry::type_union from_string(const std::string& s, int idx = 0);
 
-    // as array
-    virtual size_t size() const { return 0; }
-
-    virtual void resize(std::size_t num){};
-
-    virtual void clear(){};
-
-    virtual std::unique_ptr<EntryCursor> push_back() { return nullptr; };
-
-    virtual std::unique_ptr<EntryCursor> pop_back() { return nullptr; };
-
-    virtual std::shared_ptr<const Entry> at(int idx) const { return nullptr; };
-
-    virtual std::shared_ptr<Entry> at(int idx) { return nullptr; };
-};
-
-std::string to_string(Entry::element_type const& s);
-
-Entry::element_type from_string(const std::string& s, int idx = 0);
+template <typename TNode>
+using entry_wrapper = hierarchical_tree_t<
+    TNode,
+    traits::select_variant_t<Entry::type_union, 3, std::variant_size_v<Entry::type_union>>>;
 
 } // namespace db
 } // namespace sp

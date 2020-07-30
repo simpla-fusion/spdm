@@ -21,55 +21,39 @@ namespace sp
 namespace db
 {
 
-template <typename TNode>
-struct node_traits
-{
-    typedef TNode node_type;
-    typedef Cursor<node_type> cursor;
-    typedef node_type& reference;
-    typedef node_type* pointer;
-    typedef std::map<std::string, node_type> object_container;
-    typedef std::vector<node_type> array_container;
-};
-
-template <typename TNode>
-class HierarchicalTreeObjectContainer;
-template <typename TNode>
-class HierarchicalTreeArrayContainer;
+template <typename TNode, typename Container>
+class HTContainerProxyObject;
+template <typename TNode, typename Container>
+class HTContainerProxyArray;
 
 /**
  * Hierarchical Tree Struct
 */
-template <typename TNode, typename... TypeList>
+template <typename TNode, typename ObjectContainer, typename ArrayContainer, typename... TypeList>
 class HierarchicalTree
 {
 
 public:
     typedef TNode node_type;
 
-    typedef HierarchicalTree<node_type, TypeList...> this_type;
+    typedef HierarchicalTree<node_type, ObjectContainer, ArrayContainer, TypeList...> this_type;
 
-    typedef HierarchicalTree<node_type, TypeList...> tree_type;
+    typedef Cursor<node_type> cursor;
 
-    typedef typename node_traits<node_type>::pointer pointer;
+    typedef Cursor<const node_type> const_cursor;
 
-    typedef typename node_traits<node_type>::reference reference;
+    typedef typename cursor::pointer pointer;
 
-    typedef typename node_traits<node_type>::cursor cursor;
-
-    typedef typename node_traits<const node_type>::cursor const_cursor;
+    typedef typename cursor::reference reference;
 
     typedef std::variant<
         std::nullptr_t,
-        HierarchicalTreeObjectContainer<node_type>,
-        HierarchicalTreeArrayContainer<node_type>,
+        HTContainerProxyObject<node_type, ObjectContainer>,
+        HTContainerProxyArray<node_type, ArrayContainer>,
         TypeList...>
         type_union;
 
     typedef traits::type_tags<type_union> type_tags;
-
-    friend class Array;
-    friend class Object;
 
     HierarchicalTree(node_type* p = nullptr, const std::string& name = "") : m_name_(name), m_parent_(p), m_data_(nullptr) {}
 
@@ -290,21 +274,21 @@ private:
     type_union m_data_;
 };
 
-template <typename TNode>
-class HierarchicalTreeObjectContainer
+template <typename TNode, typename Container>
+class HTContainerProxyObject
 {
 public:
     typedef TNode node_type;
-    typedef HierarchicalTreeObjectContainer<node_type> this_type;
-    typedef node_traits<node_type> traits_type;
-    typedef typename node_traits<node_type>::cursor cursor;
-    typedef typename node_traits<const node_type>::cursor const_cursor;
-    typedef typename node_traits<node_type>::object_container container;
+    typedef Container container;
 
-    HierarchicalTreeObjectContainer(node_type* self = nullptr, container* d = nullptr);
-    HierarchicalTreeObjectContainer(this_type&& other);
-    HierarchicalTreeObjectContainer(const this_type& other);
-    ~HierarchicalTreeObjectContainer();
+    typedef HTContainerProxyObject<node_type, container> this_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
+
+    HTContainerProxyObject(node_type* self = nullptr, container* d = nullptr);
+    HTContainerProxyObject(this_type&& other);
+    HTContainerProxyObject(const this_type& other);
+    ~HTContainerProxyObject();
 
     this_type& operator=(this_type const& other)
     {
@@ -341,21 +325,20 @@ private:
     node_type* m_self_;
 };
 
-template <typename TNode>
-class HierarchicalTreeArrayContainer
+template <typename TNode, typename Container>
+class HTContainerProxyArray
 {
 public:
     typedef TNode node_type;
-    typedef HierarchicalTreeArrayContainer<node_type> this_type;
-    typedef node_traits<node_type> traits_type;
-    typedef typename node_traits<node_type>::cursor cursor;
-    typedef typename node_traits<const node_type>::cursor const_cursor;
-    typedef typename node_traits<node_type>::array_container container;
+    typedef Container container;
+    typedef HTContainerProxyArray<node_type, container> this_type;
+    typedef Cursor<node_type> cursor;
+    typedef Cursor<const node_type> const_cursor;
 
-    HierarchicalTreeArrayContainer(node_type* self = nullptr, container* container = nullptr);
-    HierarchicalTreeArrayContainer(this_type&& other);
-    HierarchicalTreeArrayContainer(const this_type& other);
-    ~HierarchicalTreeArrayContainer();
+    HTContainerProxyArray(node_type* self = nullptr, container* container = nullptr);
+    HTContainerProxyArray(this_type&& other);
+    HTContainerProxyArray(const this_type& other);
+    ~HTContainerProxyArray();
 
     void swap(this_type& other) { std::swap(m_container_, other.m_container_); }
 
@@ -375,9 +358,9 @@ public:
 
     void pop_back();
 
-    typename node_traits<node_type>::reference at(int idx);
+    typename cursor::reference at(int idx);
 
-    typename node_traits<const node_type>::reference at(int idx) const;
+    typename const_cursor::reference at(int idx) const;
 
 private:
     std::unique_ptr<container> m_container_;
@@ -386,14 +369,14 @@ private:
 
 template <typename TNode, typename TypeList>
 struct hierarchical_tree;
-template <typename TNode, typename TypeList>
-using hierarchical_tree_t = typename hierarchical_tree<TNode, TypeList>::type;
 
 template <typename TNode, typename... TypeLists>
 struct hierarchical_tree<TNode, std::variant<TypeLists...>>
 {
     typedef HierarchicalTree<TNode, TypeLists...> type;
 };
+template <typename TNode, typename TypeList>
+using hierarchical_tree_t = typename hierarchical_tree<TNode, TypeList>::type;
 
 template <typename TNode, typename... TypeList>
 std::ostream& fancy_print(std::ostream& os, const typename HierarchicalTree<TNode, TypeList...>::Object& tree_object, int indent, int tab)
@@ -423,6 +406,6 @@ std::ostream& operator<<(std::ostream& os, const HierarchicalTree<TNode, TypeLis
 } // namespace db
 } // namespace sp
 
-M_REGISITER_TYPE_TAG_TEMPLATE(Array, sp::db::HierarchicalTreeArrayContainer)
-M_REGISITER_TYPE_TAG_TEMPLATE(Object, sp::db::HierarchicalTreeObjectContainer)
+M_REGISITER_TYPE_TAG_TEMPLATE(Array, sp::db::HTContainerProxyArray)
+M_REGISITER_TYPE_TAG_TEMPLATE(Object, sp::db::HTContainerProxyObject)
 #endif // SPDB_HierarchicalTree_h_
