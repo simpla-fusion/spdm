@@ -3,23 +3,37 @@
 #include "../EntryPlugin.h"
 #include "../Node.h"
 #include "../utility/Factory.h"
-#include "../utility/HierarchicalNode.h"
 #include "../utility/Logger.h"
 #include <variant>
-namespace sp
+namespace sp::db
 {
+struct entry_memory;
 
-struct entry_memory : public HierarchicalNode
+template <>
+struct node_traits<entry_memory>
 {
+    typedef entry_memory node_type;
+    typedef Cursor<node_type> cursor;
+    typedef node_type& reference;
+    typedef node_type* pointer;
+    typedef std::map<std::string, node_type> object_container;
+    typedef std::vector<node_type> array_container;
+};
+
+struct entry_memory
+    : public hierarchical_tree_t<entry_memory, traits::pop_front_t<3, Entry::type_union>>
+{
+    typedef tree_type base_type;
+
     entry_memory(const std::shared_ptr<Entry>& p = nullptr, const std::string& n = "")
-        : Entry::type_union(nullptr), parent(p), name(n) {}
+        : base_type(nullptr), parent(p), name(n) {}
     ~entry_memory() = default;
     std::string name;
     std::shared_ptr<Entry> parent;
 };
 
 template <>
-std::size_t EntryPlugin<entry_memory>::type() const { return m_pimpl_.index(); }
+std::size_t EntryPlugin<entry_memory>::type() const { return m_pimpl_.data().index(); }
 // template <>
 // std::string EntryPlugin<entry_memory>::name() const { return ""; }
 //----------------------------------------------------------------------------------
@@ -36,17 +50,21 @@ void EntryPlugin<entry_memory>::set_value(const Entry::type_union& v)
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "Set value failed!");
     }
 
-    Entry::type_union(v).swap(m_pimpl_);
+    std::visit(v, [&](auto&& v) { m_pimpl_.data() = v; })
 }
 
 template <>
 Entry::type_union EntryPlugin<entry_memory>::get_value() const
 {
-    if (type() > Entry::type_tags::Array)
+    if (type() >= Entry::type_tags::Array)
     {
         throw std::runtime_error(FILE_LINE_STAMP_STRING + "This is not Element!");
     }
-    return Entry::type_union(m_pimpl_);
+    Entry::type_union res;
+
+    std::visit(m_pimpl_.data(), [&](auto&& v) { res = v; });
+
+    return res;
 }
 
 // as Tree
@@ -292,4 +310,4 @@ std::map<std::string, Entry::type_union> EntryPlugin<entry_memory>::attributes()
 
 SP_REGISTER_ENTRY(memory, entry_memory);
 
-} // namespace sp
+} // namespace sp::db

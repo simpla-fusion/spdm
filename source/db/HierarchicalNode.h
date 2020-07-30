@@ -1,10 +1,10 @@
 
-#ifndef SP_HierarchicalNode_h_
-#define SP_HierarchicalNode_h_
+#ifndef SPDB_HierarchicalNode_h_
+#define SPDB_HierarchicalNode_h_
+#include "./utility/Logger.h"
+#include "./utility/Path.h"
+#include "Cursor.h"
 #include "HierarchicalTree.h"
-#include "utility/Cursor.h"
-#include "utility/Logger.h"
-#include "utility/Path.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -16,7 +16,7 @@
 #include <tuple>
 #include <variant>
 #include <vector>
-namespace sp
+namespace sp::db
 {
 
 class HierarchicalNode
@@ -125,6 +125,6 @@ HierarchicalTreeArrayContainer<HierarchicalNode>::at(int idx) { return m_contain
 template <>
 inline typename node_traits<const HierarchicalNode>::reference
 HierarchicalTreeArrayContainer<HierarchicalNode>::at(int idx) const { return m_container_->at(idx); }
-} // namespace sp
+} // namespace sp::db
 
-#endif // SP_HierarchicalNode_h_
+#endif // SPDB_HierarchicalNode_h_

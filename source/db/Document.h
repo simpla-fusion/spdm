@@ -1,11 +1,11 @@
-#ifndef SP_DOCUMENT_H_
-#define SP_DOCUMENT_H_
+#ifndef SPDB_DOCUMENT_H_
+#define SPDB_DOCUMENT_H_
 #include "Entry.h"
 #include <iostream>
 #include <memory>
 #include <string>
 
-namespace sp
+namespace sp::db
 {
 class Document
 {
@@ -61,6 +61,6 @@ private:
     std::unique_ptr<Entry> m_pimpl_;
 };
 
-} // namespace sp
+} // namespace sp::db
 
-#endif // SP_DOCUMENT_H_
+#endif // SPDB_DOCUMENT_H_

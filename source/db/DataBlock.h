@@ -1,5 +1,5 @@
-#ifndef SP_DATABLOCK_
-#define SP_DATABLOCK_
+#ifndef SPDB_DATABLOCK_
+#define SPDB_DATABLOCK_
 #include <memory>
 #include <vector>
 // #ifdef __cplusplus
@@ -33,7 +33,7 @@ typedef struct
 // }
 // #endif
 
-namespace sp
+namespace sp::db
 {
 class DataBlock
 {
@@ -56,5 +56,5 @@ private:
     std::vector<size_t> m_dims_;
     size_t m_element_size_ = 1;
 };
-} // namespace sp
-#endif // SP_DATABLOCK_
+} // namespace sp::db
+#endif // SPDB_DATABLOCK_

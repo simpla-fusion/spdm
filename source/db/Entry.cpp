@@ -1,6 +1,7 @@
 #include "Entry.h"
-#include "utility/Factory.h"
-namespace sp
+#include "../utility/Factory.h"
+#include "../utility/TypeTraits.h"
+namespace sp::db
 {
 std::unique_ptr<Entry> Entry::create(const std::string& request)
 {
@@ -63,4 +64,4 @@ bool Entry::add_creator(const std::string& c_id, const std::function<Entry*()>& 
     return Factory<Entry>::add(c_id, fun);
 };
 
-} // namespace sp
+} // namespace sp::db

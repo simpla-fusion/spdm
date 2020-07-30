@@ -1,4 +1,4 @@
-#ifndef SP_NODE_INTERFACE_H_
+#ifndef SPDB_NODE_INTERFACE_H_
 #define SP_NODE_INTERFACE_H_
 #ifdef __cplusplus
 extern "C" {

@@ -1,10 +1,10 @@
-#ifndef SP_Cursor_h_
-#define SP_Cursor_h_
+#ifndef SPDB_Cursor_h_
+#define SPDB_Cursor_h_
 #include <functional>
 #include <iterator>
 #include <memory>
 
-namespace sp
+namespace sp::db
 {
 template <typename U, typename Enable = void>
 struct cursor_traits
@@ -226,6 +226,6 @@ private:
     std::unique_ptr<CursorProxy<value_type>> m_proxy_;
 };
 
-} // namespace sp
+} // namespace sp::db
 
-#endif // SP_Cursor_h_
+#endif // SPDB_Cursor_h_

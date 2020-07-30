@@ -4,7 +4,7 @@
 #include "../utility/Factory.h"
 #include "../utility/Logger.h"
 #include <variant>
-namespace sp
+namespace sp::db
 {
 struct entry_json : public std::variant<nullptr_t,
                                        Entry::single_t,
@@ -350,4 +350,4 @@ std::map<std::string, Entry::single_t> EntryImplement<entry_json>::attributes() 
 
 SP_REGISTER_ENTRY(json, entry_json);
 
-} // namespace sp
+} // namespace sp::db

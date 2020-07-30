@@ -15,7 +15,7 @@
 #include <memory>
 #include <tuple>
 
-namespace sp
+namespace sp::db
 {
 
     template <unsigned int NDIM>
@@ -748,7 +748,7 @@ namespace sp
         void Initialize()
         {
             alloc();
-#ifndef SP_ARRAY_INITIALIZE_VALUE
+#ifndef SPDB_ARRAY_INITIALIZE_VALUE
 #elif SP_ARRAY_INITIALIZE_VALUE == SP_SNaN
             Fill(std::numeric_limits<V>::signaling_NaN());
 #elif SP_ARRAY_INITIALIZE_VALUE == SP_QNaN
@@ -1237,6 +1237,6 @@ namespace sp
 
 #undef _SP_DEFINE_BINARY_BOOLEAN_FUNCTION
 
-} // namespace sp
+} // namespace sp::db
 
 #endif // SIMPLA_SPDM_ARRAY_H

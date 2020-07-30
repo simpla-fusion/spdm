@@ -1,15 +1,15 @@
 #include "Node.h"
+#include "Cursor.h"
 #include "Entry.h"
-#include "utility/Cursor.h"
-#include "utility/Factory.h"
-#include "utility/Logger.h"
-#include "utility/Path.h"
-#include "utility/fancy_print.h"
+#include "../utility/Factory.h"
+#include "../utility/Logger.h"
+#include "../utility/Path.h"
+#include "../utility/fancy_print.h"
 #include <any>
 #include <array>
 #include <map>
 #include <vector>
-namespace sp
+namespace sp::db
 {
 template <typename... Others>
 std::string join_path(const std::string& l, const std::string& r) { return (l == "") ? r : l + "/" + r; }
@@ -27,13 +27,13 @@ Node&& make_node(const std::shared_ptr<Entry>& entry)
 }
 
 template <typename U>
-class CursorProxy<U, std::shared_ptr<Entry>,
+class CursorProxy<U, EntryCursor,
                   std::enable_if_t< //
                       std::is_same_v<U, const Node> ||
                       std::is_same_v<U, Node>>> : public CursorProxy<U>
 {
 public:
-    typedef CursorProxy<U, std::shared_ptr<Entry>> this_type;
+    typedef CursorProxy<U, std::shared_ptr<EntryCursor>> this_type;
 
     typedef CursorProxy<U> base_type;
 
@@ -43,7 +43,7 @@ public:
 
     using typename base_type::difference_type;
 
-    CursorProxy(const std::shared_ptr<Entry>& entry) : m_entry_(entry) {}
+    CursorProxy(EntryCursor* cursor) : m_cursor_(cursor) {}
 
     ~CursorProxy(){};
 
@@ -59,14 +59,14 @@ public:
     //     return 0;
     // }
 
-    reference get_reference() const override { return std::forward<Node>(make_node(m_entry_)); }
+    reference get_reference() const override { return std::forward<Node>(make_node(m_cursor_->get())); }
 
-    pointer get_pointer() const override { return std::make_shared<Node>(std::forward<Node>(make_node(m_entry_))); }
+    pointer get_pointer() const override { return std::make_shared<Node>(std::forward<Node>(make_node(m_cursor_->get()))); }
 
-    void next() override { m_entry_ = m_entry_->next(); }
+    void next() override { m_cursor_->next(); }
 
 private:
-    std::shared_ptr<sp::Entry> m_entry_;
+    std::unique_ptr<EntryCursor> m_cursor_;
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -442,4 +442,4 @@ HierarchicalTreeArrayContainer<Node>::at(int idx) const { return std::move(make_
 //     return std::move(res);
 // }
 
-} // namespace sp
+} // namespace sp::db

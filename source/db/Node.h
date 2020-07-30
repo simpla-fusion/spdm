@@ -1,8 +1,9 @@
 #ifndef SP_NODE_H_
 #define SP_NODE_H_
-#include "utility/Cursor.h"
-#include "utility/HierarchicalTree.h"
-#include "utility/Logger.h"
+#include "Cursor.h"
+#include "Entry.h"
+#include "HierarchicalTree.h"
+#include "../utility/Logger.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -12,7 +13,7 @@
 #include <ostream>
 #include <variant>
 #include <vector>
-namespace sp
+namespace sp::db
 {
 class Node;
 
@@ -28,7 +29,6 @@ struct cursor_traits<V,
     typedef ptrdiff_t difference_type;
 };
 
-class Entry;
 template <>
 struct node_traits<Node>
 {
@@ -38,33 +38,17 @@ struct node_traits<Node>
     typedef typename cursor::reference reference;
     typedef typename cursor::pointer pointer;
     typedef Entry object_container;
-    typedef Entry array_container;
+    typedef EntryArray array_container;
 };
 
-class Node : public HierarchicalTree<
-                 Node,
-                 std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-                 std::string,                                                 //String,
-                 bool,                                                        //Boolean,
-                 int,                                                         //Integer,
-                 long,                                                        //Long,
-                 float,                                                       //Float,
-                 double,                                                      //Double,
-                 std::complex<double>,                                        //Complex,
-                 std::array<int, 3>,                                          //IntVec3,
-                 std::array<long, 3>,                                         //LongVec3,
-                 std::array<float, 3>,                                        //FloatVec3,
-                 std::array<double, 3>,                                       //DoubleVec3,
-                 std::array<std::complex<double>, 3>,                         //ComplexVec3,
-                 std::any>,
-             public std::enable_shared_from_this<Node>
+class Node : public hierarchical_tree_t<Node, Entry::element_type>
 {
 public:
     typedef Node this_type;
 
-    typedef tree_type base_type;
+    typedef hierarchical_tree_t<Node, Entry::element_type> base_type;
 
-    using typename tree_type::type_tags;
+    using typename base_type::type_tags;
 
     Node(const std::string& backend);
 
@@ -105,6 +89,6 @@ std::ostream& operator<<(std::ostream& os, Node const& Node);
 // HierarchicalTreeObjectContainer<Node>;
 // template <>
 // HierarchicalTreeArrayContainer<Node>;
-} // namespace sp
+} // namespace sp::db
 
 #endif // SP_NODE_H_

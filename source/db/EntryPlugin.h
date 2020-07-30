@@ -1,5 +1,5 @@
-#ifndef SP_ENTRY_PLUGIN_H_
-#define SP_ENTRY_PLUGIN_H_
+#ifndef SPDB_ENTRY_PLUGIN_H_
+#define SPDB_ENTRY_PLUGIN_H_
 #include "Entry.h"
 #include <any>
 #include <array>
@@ -10,7 +10,7 @@
 #include <string>
 #include <variant>
 #include <vector>
-namespace sp
+namespace sp::db
 {
 template <typename Impl>
 class EntryPlugin : public Entry
@@ -124,12 +124,12 @@ private:
     static bool is_registered;
 };
 
-#define SP_REGISTER_ENTRY(_NAME_, _CLASS_)         \
+#define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)       \
     template <>                                    \
     bool sp::EntryPlugin<_CLASS_>::is_registered = \
         Entry::add_creator(                        \
             __STRING(_NAME_),                      \
             []() { return dynamic_cast<Entry*>(new EntryPlugin<_CLASS_>()); });
 
-} // namespace sp
-#endif // SP_ENTRY_PLUGIN_H_
+} // namespace sp::db
+#endif // SPDB_ENTRY_PLUGIN_H_

@@ -10,7 +10,7 @@ TEST_CASE("Create Node", "[SpDB]")
 {
     sp::logger::set_stdout_level(-1000);
 
-    using namespace sp;
+    using namespace sp::db;
     sp::Node node;
 
     node.set_attribute("A", std::string("a"));

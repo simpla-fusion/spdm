@@ -1,11 +1,10 @@
-
-#ifndef SP_HierarchicalTree_h_
-#define SP_HierarchicalTree_h_
+#ifndef SPDB_HierarchicalTree_h_
+#define SPDB_HierarchicalTree_h_
+#include "../utility/Logger.h"
+#include "../utility/Path.h"
+#include "../utility/TypeTraits.h"
+#include "../utility/fancy_print.h"
 #include "Cursor.h"
-#include "Logger.h"
-#include "Path.h"
-#include "TypeTraits.h"
-#include "fancy_print.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -18,6 +17,8 @@
 #include <variant>
 #include <vector>
 namespace sp
+{
+namespace db
 {
 
 template <typename TNode>
@@ -35,9 +36,6 @@ template <typename TNode>
 class HierarchicalTreeObjectContainer;
 template <typename TNode>
 class HierarchicalTreeArrayContainer;
-
-M_REGISITER_TYPE_TAG_TEMPLATE(Array, HierarchicalTreeArrayContainer)
-M_REGISITER_TYPE_TAG_TEMPLATE(Object, HierarchicalTreeObjectContainer)
 
 /**
  * Hierarchical Tree Struct
@@ -422,7 +420,9 @@ std::ostream& operator<<(std::ostream& os, const HierarchicalTree<TNode, TypeLis
 {
     return fancy_print(os, tree, 0, 4);
 }
-
+} // namespace db
 } // namespace sp
 
-#endif // SP_HierarchicalTree_h_
+M_REGISITER_TYPE_TAG_TEMPLATE(Array, sp::db::HierarchicalTreeArrayContainer)
+M_REGISITER_TYPE_TAG_TEMPLATE(Object, sp::db::HierarchicalTreeObjectContainer)
+#endif // SPDB_HierarchicalTree_h_

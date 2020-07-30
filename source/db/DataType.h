@@ -31,7 +31,7 @@ enum DataType
 #include <variant>
 #include <vector>
 
-namespace sp
+namespace sp::db
 {
 template <typename T,
           typename TObject = std::map<std::string, T>,

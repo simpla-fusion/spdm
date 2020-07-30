@@ -1,14 +1,14 @@
-#include "utility/HierarchicalNode.h"
+#include "db/HierarchicalNode.h"
 #include "utility/Logger.h"
 #include "utility/Path.h"
 #include <iostream>
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
 using namespace std::literals;
-using namespace sp;
+using namespace sp::literals;
 TEST_CASE("HData ", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode attr;
+    sp::db::HierarchicalNode attr;
 
     attr["A"] = 1234.5;
 
@@ -17,11 +17,11 @@ TEST_CASE("HData ", "[HierarchicalTree]")
 
 TEST_CASE("Object", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode node;
+    sp::db::HierarchicalNode node;
 
     node["A"] = "1234"s;
 
-    node["B"].template set_value<sp::HierarchicalNode::type_tags::Float>(3.14);
+    node["B"].template set_value<sp::db::HierarchicalNode::type_tags::Float>(3.14);
 
     node["C"] = std::array<int, 3>{1, 2, 3};
 
@@ -29,13 +29,13 @@ TEST_CASE("Object", "[HierarchicalTree]")
 
     REQUIRE(node.size() == 3);
 
-    REQUIRE(node["A"].template get_value<sp::HierarchicalNode::type_tags::String>() == "1234");
+    REQUIRE(node["A"].template get_value<sp::db::HierarchicalNode::type_tags::String>() == "1234");
 
-    REQUIRE(node["B"].template get_value<sp::HierarchicalNode::type_tags::Float>() == 3.14f);
+    REQUIRE(node["B"].template get_value<sp::db::HierarchicalNode::type_tags::Float>() == 3.14f);
 }
 TEST_CASE("Array", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode node;
+    sp::db::HierarchicalNode node;
 
     node["C"].resize(2);
 
@@ -45,15 +45,15 @@ TEST_CASE("Array", "[HierarchicalTree]")
 
     REQUIRE(node["C"].size() == 2);
 
-    REQUIRE(node["C"][1].get_value<sp::HierarchicalNode::type_tags::Int>() == 5);
-    REQUIRE(node["C"][0].get_value<sp::HierarchicalNode::type_tags::Double>() == 6.0);
+    REQUIRE(node["C"][1].get_value<sp::db::HierarchicalNode::type_tags::Int>() == 5);
+    REQUIRE(node["C"][0].get_value<sp::db::HierarchicalNode::type_tags::Double>() == 6.0);
 }
 
 TEST_CASE("Path", "[HierarchicalTree]")
 {
-    sp::HierarchicalNode node;
+    sp::db::HierarchicalNode node;
 
     node["D/E/F"_p].template set_value<double>(1.2345);
 
-    REQUIRE(node["D"]["E"]["F"].template get_value<sp::HierarchicalNode::type_tags::Double>() == 1.2345);
+    REQUIRE(node["D"]["E"]["F"].template get_value<sp::db::HierarchicalNode::type_tags::Double>() == 1.2345);
 }

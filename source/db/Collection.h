@@ -1,11 +1,11 @@
-#ifndef SP_COLLECTION_H_
-#define SP_COLLECTION_H_
+#ifndef SPDB_COLLECTION_H_
+#define SPDB_COLLECTION_H_
 #include "Entry.h"
 #include <iostream>
 #include <memory>
 #include <string>
 
-namespace sp
+namespace sp::db
 {
 class Collection
 {
@@ -25,6 +25,6 @@ private:
     std::unique_ptr<Entry> m_pimpl_;
 };
 
-} // namespace sp
+} // namespace sp::db
 
-#endif // SP_COLLECTION_H_
+#endif // SPDB_COLLECTION_H_

@@ -8,7 +8,7 @@
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
-    using namespace sp;
+    using namespace sp::db;
     sp::logger::set_stdout_level(-1000);
     VERBOSE << "hello world" << std::endl;
     sp::Entry entry("/workspaces/SpDB/tests/data/test.xml");

@@ -4,7 +4,7 @@
 #include "../utility/Logger.h"
 #include "pugixml/pugixml.hpp"
 #include <variant>
-namespace sp
+namespace sp::db
 {
 
 template <>
@@ -180,4 +180,4 @@ EntryPlugin<pugi::xml_node>::item(int idx) const
 
 SP_REGISTER_ENTRY(xml, pugi::xml_node);
 
-} // namespace sp
+} // namespace sp::db

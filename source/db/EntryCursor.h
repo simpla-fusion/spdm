@@ -1,5 +1,5 @@
-#ifndef SP_ENTRY_CURSOR_H_
-#define SP_ENTRY_CURSOR_H_
+#ifndef SPDB_ENTRY_CURSOR_H_
+#define SPDB_ENTRY_CURSOR_H_
 #include "Entry.h"
 #include "EntryPlugin.h"
 #include "utility/Cursor.h"
@@ -14,7 +14,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
-namespace sp
+namespace sp::db
 {
 
 template <>
@@ -153,5 +153,5 @@ std::shared_ptr<Entry> make_iterator(const IT& ib, const IT& ie, Args&&... args)
 {
     return std::make_shared<EntryPlugin<EntryCursorProxy<Plugin, IT>>>(ib, ie, std::forward<Args>(args)...);
 }
-} // namespace sp
-#endif // SP_ENTRY_CURSOR_H_
+} // namespace sp::db
+#endif // SPDB_ENTRY_CURSOR_H_

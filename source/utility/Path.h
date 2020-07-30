@@ -96,8 +96,9 @@ private:
     std::string m_query_;
     std::string m_fragment_;
 };
-
+namespace literals
+{
 inline Path operator"" _p(const char* s, std::size_t) { return Path(s); }
-
+} // namespace literals
 } // namespace sp
 #endif //SP_Path_h_

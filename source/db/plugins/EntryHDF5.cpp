@@ -4,14 +4,14 @@
 #include "../utility/Factory.h"
 #include "../utility/Logger.h"
 #include <variant>
-namespace sp
+namespace sp::db
 {
-struct entry_mdsplus : public std::variant<nullptr_t,
-                                           Entry::single_t,
-                                           Entry::tensor_t,
-                                           Entry::block_t,
-                                           std::vector<Entry>,
-                                           std::map<std::string, Entry>>
+struct entry_hdf5 : public std::variant<nullptr_t,
+                                        Entry::single_t,
+                                        Entry::tensor_t,
+                                        Entry::block_t,
+                                        std::vector<Entry>,
+                                        std::map<std::string, Entry>>
 {
     typedef std::variant<nullptr_t,
                          Entry::single_t,
@@ -24,30 +24,30 @@ struct entry_mdsplus : public std::variant<nullptr_t,
 };
 
 template <>
-EntryImplement<entry_mdsplus>::EntryImplement() : EntryInterface(), m_pimpl_(nullptr) { NOT_IMPLEMENTED; };
+EntryImplement<entry_hdf5>::EntryImplement() : EntryInterface(), m_pimpl_() { NOT_IMPLEMENTED; };
 
 template <>
-EntryImplement<entry_mdsplus>::EntryImplement(const EntryImplement& other) : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
+EntryImplement<entry_hdf5>::EntryImplement(const EntryImplement& other) : EntryInterface(other), m_pimpl_(other.m_pimpl_) {}
 
 template <>
-EntryImplement<entry_mdsplus>::EntryImplement(EntryImplement&& other) : EntryInterface(std::forward<EntryImplement>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
+EntryImplement<entry_hdf5>::EntryImplement(EntryImplement&& other) : EntryInterface(std::forward<EntryImplement>(other)), m_pimpl_(std::move(other.m_pimpl_)) {}
 
 template <>
-EntryImplement<entry_mdsplus>::~EntryImplement() = default;
+EntryImplement<entry_hdf5>::~EntryImplement() = default;
 template <>
-EntryInterface* EntryImplement<entry_mdsplus>::copy() const
+EntryInterface* EntryImplement<entry_hdf5>::copy() const
 {
     return new EntryImplement(*this);
 };
 
 template <>
-EntryInterface* EntryImplement<entry_mdsplus>::duplicate() const { return new EntryImplement<entry_mdsplus>(); }
+EntryInterface* EntryImplement<entry_hdf5>::duplicate() const { return new EntryImplement<entry_hdf5>(); }
 
 template <>
-Entry::Type EntryImplement<entry_mdsplus>::type() const { return Entry::Type(m_pimpl_.index()); }
+Entry::Type EntryImplement<entry_hdf5>::type() const { return Entry::Type(m_pimpl_.index()); }
 
 template <>
-int EntryImplement<entry_mdsplus>::fetch(const std::string& uri)
+int EntryImplement<entry_hdf5>::fetch(const std::string& uri)
 {
     NOT_IMPLEMENTED;
 }
@@ -56,7 +56,7 @@ int EntryImplement<entry_mdsplus>::fetch(const std::string& uri)
 //
 // as leaf
 template <>
-void EntryImplement<entry_mdsplus>::set_single(const Entry::single_t& v)
+void EntryImplement<entry_hdf5>::set_single(const Entry::single_t& v)
 {
     if (type() < Entry::Type::Array)
     {
@@ -68,7 +68,7 @@ void EntryImplement<entry_mdsplus>::set_single(const Entry::single_t& v)
     }
 }
 template <>
-Entry::single_t EntryImplement<entry_mdsplus>::get_single() const
+Entry::single_t EntryImplement<entry_hdf5>::get_single() const
 {
     if (type() != Entry::Type::Single)
     {
@@ -77,7 +77,7 @@ Entry::single_t EntryImplement<entry_mdsplus>::get_single() const
     return std::get<Entry::Type::Single>(m_pimpl_);
 }
 template <>
-void EntryImplement<entry_mdsplus>::set_tensor(const Entry::tensor_t& v)
+void EntryImplement<entry_hdf5>::set_tensor(const Entry::tensor_t& v)
 {
     if (type() < Entry::Type::Array)
     {
@@ -89,7 +89,7 @@ void EntryImplement<entry_mdsplus>::set_tensor(const Entry::tensor_t& v)
     }
 }
 template <>
-Entry::tensor_t EntryImplement<entry_mdsplus>::get_tensor() const
+Entry::tensor_t EntryImplement<entry_hdf5>::get_tensor() const
 {
     if (type() != Entry::Type::Tensor)
     {
@@ -98,7 +98,7 @@ Entry::tensor_t EntryImplement<entry_mdsplus>::get_tensor() const
     return std::get<Entry::Type::Tensor>(m_pimpl_);
 }
 template <>
-void EntryImplement<entry_mdsplus>::set_block(const Entry::block_t& v)
+void EntryImplement<entry_hdf5>::set_block(const Entry::block_t& v)
 {
     if (type() < Entry::Type::Array)
     {
@@ -110,7 +110,7 @@ void EntryImplement<entry_mdsplus>::set_block(const Entry::block_t& v)
     }
 }
 template <>
-Entry::block_t EntryImplement<entry_mdsplus>::get_block() const
+Entry::block_t EntryImplement<entry_hdf5>::get_block() const
 {
     if (type() != Entry::Type::Block)
     {
@@ -123,7 +123,7 @@ Entry::block_t EntryImplement<entry_mdsplus>::get_block() const
 
 // as object
 template <>
-const Entry* EntryImplement<entry_mdsplus>::find(const std::string& name) const
+const Entry* EntryImplement<entry_hdf5>::find(const std::string& name) const
 {
     try
     {
@@ -140,7 +140,7 @@ const Entry* EntryImplement<entry_mdsplus>::find(const std::string& name) const
     return nullptr;
 }
 template <>
-Entry* EntryImplement<entry_mdsplus>::find(const std::string& name)
+Entry* EntryImplement<entry_hdf5>::find(const std::string& name)
 {
     try
     {
@@ -157,7 +157,7 @@ Entry* EntryImplement<entry_mdsplus>::find(const std::string& name)
     return nullptr;
 }
 template <>
-Entry* EntryImplement<entry_mdsplus>::insert(const std::string& name)
+Entry* EntryImplement<entry_hdf5>::insert(const std::string& name)
 {
     if (type() == Entry::Type::Null)
     {
@@ -175,7 +175,7 @@ Entry* EntryImplement<entry_mdsplus>::insert(const std::string& name)
     }
 }
 template <>
-Entry EntryImplement<entry_mdsplus>::erase(const std::string& name)
+Entry EntryImplement<entry_hdf5>::erase(const std::string& name)
 {
     try
     {
@@ -197,13 +197,13 @@ Entry EntryImplement<entry_mdsplus>::erase(const std::string& name)
 
 // Entry::iterator parent() const  { return Entry::iterator(const_cast<Entry*>(m_parent_)); }
 template <>
-Entry::iterator EntryImplement<entry_mdsplus>::next() const
+Entry::iterator EntryImplement<entry_hdf5>::next() const
 {
     NOT_IMPLEMENTED;
     return Entry::iterator();
 };
 template <>
-Range<Iterator<Entry>> EntryImplement<entry_mdsplus>::items() const
+Range<Iterator<Entry>> EntryImplement<entry_hdf5>::items() const
 {
     if (type() == Entry::Type::Array)
     {
@@ -223,7 +223,7 @@ Range<Iterator<Entry>> EntryImplement<entry_mdsplus>::items() const
     return Entry::range{};
 }
 template <>
-Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_mdsplus>::children() const
+Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_hdf5>::children() const
 {
     if (type() == Entry::Type::Object)
     {
@@ -237,35 +237,35 @@ Range<Iterator<const std::pair<const std::string, Entry>>> EntryImplement<entry_
     return Range<Iterator<const std::pair<const std::string, Entry>>>{};
 }
 template <>
-size_t EntryImplement<entry_mdsplus>::size() const
+size_t EntryImplement<entry_hdf5>::size() const
 {
     NOT_IMPLEMENTED;
     return 0;
 }
 template <>
-Entry::range EntryImplement<entry_mdsplus>::find(const Entry::pred_fun& pred)
+Entry::range EntryImplement<entry_hdf5>::find(const Entry::pred_fun& pred)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-void EntryImplement<entry_mdsplus>::erase(const Entry::iterator& p)
+void EntryImplement<entry_hdf5>::erase(const Entry::iterator& p)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-void EntryImplement<entry_mdsplus>::erase_if(const Entry::pred_fun& p)
+void EntryImplement<entry_hdf5>::erase_if(const Entry::pred_fun& p)
 {
     NOT_IMPLEMENTED;
 }
 template <>
-void EntryImplement<entry_mdsplus>::erase_if(const Entry::range& r, const Entry::pred_fun& p)
+void EntryImplement<entry_hdf5>::erase_if(const Entry::range& r, const Entry::pred_fun& p)
 {
     NOT_IMPLEMENTED;
 }
 
 // as vector
 template <>
-Entry* EntryImplement<entry_mdsplus>::at(int idx)
+Entry* EntryImplement<entry_hdf5>::at(int idx)
 {
     try
     {
@@ -278,7 +278,7 @@ Entry* EntryImplement<entry_mdsplus>::at(int idx)
     };
 }
 template <>
-Entry* EntryImplement<entry_mdsplus>::push_back()
+Entry* EntryImplement<entry_hdf5>::push_back()
 {
     if (type() == Entry::Type::Null)
     {
@@ -296,7 +296,7 @@ Entry* EntryImplement<entry_mdsplus>::push_back()
     };
 }
 template <>
-Entry EntryImplement<entry_mdsplus>::pop_back()
+Entry EntryImplement<entry_hdf5>::pop_back()
 {
     try
     {
@@ -314,9 +314,9 @@ Entry EntryImplement<entry_mdsplus>::pop_back()
 
 // attributes
 template <>
-bool EntryImplement<entry_mdsplus>::has_attribute(const std::string& name) const { return !find("@" + name); }
+bool EntryImplement<entry_hdf5>::has_attribute(const std::string& name) const { return !find("@" + name); }
 template <>
-Entry::single_t EntryImplement<entry_mdsplus>::get_attribute_raw(const std::string& name) const
+Entry::single_t EntryImplement<entry_hdf5>::get_attribute_raw(const std::string& name) const
 {
     auto p = find("@" + name);
     if (!p)
@@ -326,11 +326,11 @@ Entry::single_t EntryImplement<entry_mdsplus>::get_attribute_raw(const std::stri
     return p->get_single();
 }
 template <>
-void EntryImplement<entry_mdsplus>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
+void EntryImplement<entry_hdf5>::set_attribute_raw(const std::string& name, const Entry::single_t& value) { insert("@" + name)->set_single(value); }
 template <>
-void EntryImplement<entry_mdsplus>::remove_attribute(const std::string& name) { erase("@" + name); }
+void EntryImplement<entry_hdf5>::remove_attribute(const std::string& name) { erase("@" + name); }
 template <>
-std::map<std::string, Entry::single_t> EntryImplement<entry_mdsplus>::attributes() const
+std::map<std::string, Entry::single_t> EntryImplement<entry_hdf5>::attributes() const
 {
     if (type() != Entry::Type::Object)
     {
@@ -348,6 +348,6 @@ std::map<std::string, Entry::single_t> EntryImplement<entry_mdsplus>::attributes
     return std::move(res);
 }
 
-SP_REGISTER_ENTRY(mdsplus, entry_mdsplus);
+SP_REGISTER_ENTRY(hdf5, entry_hdf5);
 
-} // namespace sp
+} // namespace sp::db

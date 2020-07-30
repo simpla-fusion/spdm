@@ -1,9 +1,9 @@
-#ifndef SP_DATABASE_H_
-#define SP_DATABASE_H_
+#ifndef SPDB_DATABASE_H_
+#define SPDB_DATABASE_H_
 #include "Collection.h"
 #include "Document.h"
 #include <vector>
-namespace sp
+namespace sp::db
 {
 class DataBase
 {
@@ -25,6 +25,6 @@ private:
     std::unique_ptr<pimpl_s> m_pimpl_;
 };
 
-} // namespace sp
+} // namespace sp::db
 
-#endif // SP_DATABASE_H_
+#endif // SPDB_DATABASE_H_
