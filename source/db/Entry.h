@@ -58,27 +58,30 @@ public:
     virtual std::shared_ptr<Entry> get() const = 0;
 };
 
+using element_types = std::variant<
+    std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
+    std::string,                                                 //String,
+    bool,                                                        //Boolean,
+    int,                                                         //Integer,
+    long,                                                        //Long,
+    float,                                                       //Float,
+    double,                                                      //Double,
+    std::complex<double>,                                        //Complex,
+    std::array<int, 3>,                                          //IntVec3,
+    std::array<long, 3>,                                         //LongVec3,
+    std::array<float, 3>,                                        //FloatVec3,
+    std::array<double, 3>,                                       //DoubleVec3,
+    std::array<std::complex<double>, 3>,                         //ComplexVec3,
+    std::any>;
+
 class Entry
 {
 public:
-    typedef std::variant<
+    typedef traits::concatenate_t<
         std::nullptr_t,
         Entry,
         EntryArray,
-        std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-        std::string,                                                 //String,
-        bool,                                                        //Boolean,
-        int,                                                         //Integer,
-        long,                                                        //Long,
-        float,                                                       //Float,
-        double,                                                      //Double,
-        std::complex<double>,                                        //Complex,
-        std::array<int, 3>,                                          //IntVec3,
-        std::array<long, 3>,                                         //LongVec3,
-        std::array<float, 3>,                                        //FloatVec3,
-        std::array<double, 3>,                                       //DoubleVec3,
-        std::array<std::complex<double>, 3>,                         //ComplexVec3,
-        std::any>
+        element_types>
         type_union;
 
     typedef traits::type_tags<type_union> type_tags;
@@ -155,9 +158,9 @@ std::string to_string(Entry::type_union const& s);
 Entry::type_union from_string(const std::string& s, int idx = 0);
 
 template <typename TNode>
-using entry_wrapper = hierarchical_tree_t<
-    TNode,
-    traits::select_variant_t<Entry::type_union, 3, std::variant_size_v<Entry::type_union>>>;
+using entry_wrapper = traits::template_copy_type_args<HierarchicalTree,
+                                                      traits::concatenate_t<std::variant<TNode, Entry, EntryArray>,
+                                                      element_types>>;
 
 } // namespace db
 } // namespace sp

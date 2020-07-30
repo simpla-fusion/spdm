@@ -79,90 +79,92 @@ Node::Node(Node* parent, const std::string& name) : base_type(parent, name){};
 
 //--------------------------------------------------------------------------------------------------
 // Object
+using NodeObject = std::variant_alternative_t<Node::type_tags::Object, Node::type_union>;
 
 template <>
-HierarchicalTreeObjectContainer<Node>::HierarchicalTreeObjectContainer(node_type* self, container* container) : m_self_(self), m_container_(container) {}
+NodeObject::HTContainerProxyObject(node_type* self, container* container) : m_self_(self), m_container_(container) {}
 template <>
-HierarchicalTreeObjectContainer<Node>::HierarchicalTreeObjectContainer(this_type&& other) : HierarchicalTreeObjectContainer(other.m_self_, other.m_container_.release()) {}
+NodeObject::HTContainerProxyObject(this_type&& other) : HTContainerProxyObject(other.m_self_, other.m_container_.release()) {}
 template <>
-HierarchicalTreeObjectContainer<Node>::HierarchicalTreeObjectContainer(const this_type& other) : HierarchicalTreeObjectContainer(other.m_self_, other.m_container_->copy().release()) {}
+NodeObject::HTContainerProxyObject(const this_type& other) : HTContainerProxyObject(other.m_self_, other.m_container_->copy().release()) {}
 template <>
-HierarchicalTreeObjectContainer<Node>::~HierarchicalTreeObjectContainer() {}
+NodeObject::~HTContainerProxyObject() {}
 
 template <>
-size_t HierarchicalTreeObjectContainer<Node>::size() const { return m_container_->size(); }
+size_t NodeObject::size() const { return m_container_->size(); }
 
 template <>
-void HierarchicalTreeObjectContainer<Node>::clear() { m_container_->clear(); }
+void NodeObject::clear() { m_container_->clear(); }
 
 template <>
-int HierarchicalTreeObjectContainer<Node>::count(const std::string& key) const { return m_container_->count(key); }
+int NodeObject::count(const std::string& key) const { return m_container_->count(key); }
 
 template <>
-HierarchicalTreeObjectContainer<Node>::cursor
-HierarchicalTreeObjectContainer<Node>::insert(const std::string& path) { return cursor(std::move(m_container_->insert(path))); }
+NodeObject::cursor
+NodeObject::insert(const std::string& path) { return cursor(std::move(m_container_->insert(path))); }
 
 template <>
-HierarchicalTreeObjectContainer<Node>::cursor
-HierarchicalTreeObjectContainer<Node>::insert(const Path& path) { return cursor(m_container_->insert(path)); }
+NodeObject::cursor
+NodeObject::insert(const Path& path) { return cursor(m_container_->insert(path)); }
 
 template <>
-void HierarchicalTreeObjectContainer<Node>::erase(const std::string& path) { m_container_->erase(path); }
+void NodeObject::erase(const std::string& path) { m_container_->erase(path); }
 
 template <>
-void HierarchicalTreeObjectContainer<Node>::erase(const Path& path) { erase(path.str()); }
+void NodeObject::erase(const Path& path) { erase(path.str()); }
 
 template <>
-HierarchicalTreeObjectContainer<Node>::cursor
-HierarchicalTreeObjectContainer<Node>::find(const std::string& path) { return cursor(m_container_->find(path)); }
+NodeObject::cursor
+NodeObject::find(const std::string& path) { return cursor(m_container_->find(path)); }
 
 template <>
-HierarchicalTreeObjectContainer<Node>::cursor
-HierarchicalTreeObjectContainer<Node>::find(const Path& path) { return cursor(m_container_->find(path)); }
+NodeObject::cursor
+NodeObject::find(const Path& path) { return cursor(m_container_->find(path)); }
 
 template <>
-HierarchicalTreeObjectContainer<Node>::const_cursor
-HierarchicalTreeObjectContainer<Node>::find(const std::string& path) const { return const_cursor(m_container_->find(path)); }
+NodeObject::const_cursor
+NodeObject::find(const std::string& path) const { return const_cursor(m_container_->find(path)); }
 
 template <>
-HierarchicalTreeObjectContainer<Node>::const_cursor
-HierarchicalTreeObjectContainer<Node>::find(const Path& path) const { return const_cursor(m_container_->find(path)); }
+NodeObject::const_cursor
+NodeObject::find(const Path& path) const { return const_cursor(m_container_->find(path)); }
 
 //-----------------------------------------------------------------------------------
 // Array
+using NodeArray = std::variant_alternative_t<Node::type_tags::Array, Node::type_union>;
 
 template <>
-HierarchicalTreeArrayContainer<Node>::HierarchicalTreeArrayContainer(node_type* self, container* container) : m_self_(self), m_container_(container) {}
+NodeArray::HTContainerProxyArray(node_type* self, container* container) : m_self_(self), m_container_(container) {}
 template <>
-HierarchicalTreeArrayContainer<Node>::HierarchicalTreeArrayContainer(this_type&& other) : HierarchicalTreeArrayContainer(other.m_self_, other.m_container_.release()) {}
+NodeArray::HTContainerProxyArray(this_type&& other) : HTContainerProxyArray(other.m_self_, other.m_container_.release()) {}
 template <>
-HierarchicalTreeArrayContainer<Node>::HierarchicalTreeArrayContainer(const this_type& other) : HierarchicalTreeArrayContainer(other.m_self_, other.m_container_->copy().release()) {}
+NodeArray::HTContainerProxyArray(const this_type& other) : HTContainerProxyArray(other.m_self_, other.m_container_->copy().release()) {}
 template <>
-HierarchicalTreeArrayContainer<Node>::~HierarchicalTreeArrayContainer() {}
+NodeArray::~HTContainerProxyArray() {}
 
 template <>
-size_t HierarchicalTreeArrayContainer<Node>::size() const { return m_container_->size(); }
+size_t NodeArray::size() const { return m_container_->size(); }
 
 template <>
-void HierarchicalTreeArrayContainer<Node>::resize(std::size_t num) { m_container_->resize(num); }
+void NodeArray::resize(std::size_t num) { m_container_->resize(num); }
 
 template <>
-void HierarchicalTreeArrayContainer<Node>::clear() { m_container_->clear(); }
+void NodeArray::clear() { m_container_->clear(); }
 
 template <>
-HierarchicalTreeArrayContainer<Node>::cursor
-HierarchicalTreeArrayContainer<Node>::push_back() { return cursor(m_container_->push_back()); }
+NodeArray::cursor
+NodeArray::push_back() { return cursor(m_container_->push_back()); }
 
 template <>
-void HierarchicalTreeArrayContainer<Node>::pop_back() { m_container_->pop_back(); }
+void NodeArray::pop_back() { m_container_->pop_back(); }
 
 template <>
-typename node_traits<Node>::reference
-HierarchicalTreeArrayContainer<Node>::at(int idx) { return make_node(m_container_->at(idx)); }
+typename Node::cursor::reference
+NodeArray::at(int idx) { return make_node(m_container_->at(idx)); }
 
 template <>
-typename node_traits<const Node>::reference
-HierarchicalTreeArrayContainer<Node>::at(int idx) const { return make_node(m_container_->at(idx)); }
+typename Node::const_cursor::reference
+NodeArray::at(int idx) const { return make_node(m_container_->at(idx)); }
 
 // template <>
 // class HierarchicalTreeObjectPolicy<Node>

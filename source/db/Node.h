@@ -33,16 +33,7 @@ struct cursor_traits<const Node>
     typedef std::shared_ptr<const Node> pointer;
     typedef ptrdiff_t difference_type;
 };
-template <>
-struct node_traits<Node>
-{
-    typedef Node node_type;
-    typedef Cursor<node_type> cursor;
-    typedef typename cursor::reference reference;
-    typedef typename cursor::pointer pointer;
-    typedef Entry object_container;
-    typedef EntryArray array_container;
-};
+ 
 
 class Node : public entry_wrapper<Node>
 {
