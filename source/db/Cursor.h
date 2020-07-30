@@ -15,7 +15,7 @@ struct cursor_traits
     typedef ptrdiff_t difference_type;
 };
 
-template <typename... V>
+template <typename V>
 class Cursor;
 
 template <typename U, typename V = U, typename Enable = void>
@@ -238,11 +238,11 @@ CursorProxy<U>* make_proxy(V&& ib)
     return new CursorProxy<U, std::remove_reference_t<V>>(std::forward<V>(ib));
 }
 
-template <typename TNode>
-class Cursor<TNode>
+template <typename T>
+class Cursor
 {
 public:
-    typedef TNode value_type;
+    typedef T value_type;
     typedef Cursor<value_type> cursor;
     typedef typename cursor_traits<value_type>::reference reference;
     typedef typename cursor_traits<value_type>::pointer pointer;
@@ -254,7 +254,9 @@ public:
     Cursor(Args&&... args) : m_proxy_(make_proxy<value_type>(std::forward<Args>(args)...)) {}
 
     Cursor(const Cursor& other) : m_proxy_(other.m_proxy_->copy()) {}
+
     Cursor(Cursor&& other) : m_proxy_(other.m_proxy_.release()) {}
+
     ~Cursor() = default;
 
     operator bool() const { return !m_proxy_->done(); }

@@ -17,6 +17,10 @@ template <typename Impl>
 class EntryPlugin : public Entry
 {
 public:
+    static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
+    
+    static std::shared_ptr<Entry> create(const std::string& request = "");
+
     using typename Entry::type_tags;
 
     using typename Entry::element;
@@ -25,17 +29,15 @@ public:
 
     using typename Entry::const_cursor;
 
+    typedef EntryPlugin<Impl> this_type;
+
     EntryPlugin() = default;
 
-    EntryPlugin(const EntryPlugin& other) = default;
+    EntryPlugin(const this_type& other) : m_pimpl_(new Impl(*other.m_pimpl_)) {}
 
-    EntryPlugin(EntryPlugin&& other) = default;
+    EntryPlugin(EntryPlugin&& other) : m_pimpl_(other.m_pimpl_->release()) {}
 
     ~EntryPlugin() = default;
-
-    static std::shared_ptr<Entry> create(const std::string& request = "");
-
-    static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
     std::shared_ptr<Entry> copy() const override { return std::shared_ptr<Entry>(new this_type(*this)); }
 
