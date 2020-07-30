@@ -37,7 +37,7 @@ public:
 
     static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
 
-    std::shared_ptr<Entry> copy() const override { return std::shared_ptr<Entry>(new EntryPlugin(*this)); }
+    std::shared_ptr<Entry> copy() const override { return std::shared_ptr<Entry>(new this_type(*this)); }
 
     //----------------------------------------------------------------------------------------------------------
 
@@ -94,6 +94,7 @@ public:
 
 private:
     std::unique_ptr<Impl> m_pimpl_;
+    static bool is_registered;
 };
 
 template <typename Impl>
@@ -130,11 +131,11 @@ private:
     std::unique_ptr<Impl> m_pimpl_;
 };
 
-#define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)       \
-    template <>                                    \
-    bool sp::EntryPlugin<_CLASS_>::is_registered = \
-        Entry::add_creator(                        \
-            __STRING(_NAME_),                      \
+#define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)             \
+    template <>                                          \
+    bool ::sp::db::EntryPlugin<_CLASS_>::is_registered = \
+        ::sp::db::Entry::add_creator(                    \
+            __STRING(_NAME_),                            \
             []() { return dynamic_cast<Entry*>(new EntryPlugin<_CLASS_>()); });
 
 } // namespace sp::db

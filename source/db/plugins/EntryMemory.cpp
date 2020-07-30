@@ -25,31 +25,6 @@ struct entry_memory
     std::map<std::string, Entry::element> m_data_;
 };
 
-template <>
-std::size_t EntryPlugin<entry_memory>::type(const std::string& path) const
-{
-    auto cursor = find(path);
-    return (!cursor) ? type_tags::Empty : cursor->index();
-}
-
-//----------------------------------------------------------------------------------
-// level 0
-
-// as leaf
-template <>
-void EntryPlugin<entry_memory>::set_value(const std::string& path, const element& v)
-{
-    auto c = insert(path);
-    if (c->index() > type_tags::Array)
-    {
-        c->swap(element(v));
-    }
-}
-
-template <>
-EntryPlugin<entry_memory>::element
-EntryPlugin<entry_memory>::get_value(const std::string& path) const { return *find(path); }
-
 // as Tree
 // as object
 template <>
@@ -58,6 +33,13 @@ EntryPlugin<entry_memory>::find(const std::string& name) const
 {
     return const_cursor(m_pimpl_->m_data_.find(name), m_pimpl_->m_data_.end());
 };
+
+template <>
+std::size_t EntryPlugin<entry_memory>::type(const std::string& path) const
+{
+    auto cursor = find(path);
+    return (!cursor) ? type_tags::Empty : cursor->index();
+}
 
 template <>
 Entry::const_cursor
@@ -102,7 +84,7 @@ EntryPlugin<entry_memory>::insert(const std::string& name)
     //     throw std::runtime_error("Can not insert node to non-object!");
     // }
 
-    return cursor(m_pimpl_->m_data_.try_emplace(name, this, name)->first);
+    return cursor(m_pimpl_->m_data_.try_emplace(name).first);
 }
 
 template <>
@@ -148,9 +130,9 @@ size_t EntryPlugin<entry_memory>::size() const { return m_pimpl_->m_data_.size()
 
 //         res = make_iterator<entry_memory>(m.begin(), m.end());
 //     }
-//     else if (type() == Entry::type_tags::Array)
+//     else if (type() == Entry::2)
 //     {
-//         auto& m = std::get<Entry::type_tags::Array>(m_pimpl_);
+//         auto& m = std::get<Entry::2>(m_pimpl_);
 
 //         res = make_iterator<entry_memory>(m.begin(), m.end());
 //     }
@@ -181,6 +163,24 @@ EntryPluginArray<entry_memory_array>::at(int idx) const { return m_pimpl_->m_dat
 template <>
 Entry::element&
 EntryPluginArray<entry_memory_array>::at(int idx) { return m_pimpl_->m_data_.at(idx); }
+
+//----------------------------------------------------------------------------------
+// level 0
+
+// as leaf
+template <>
+void EntryPlugin<entry_memory>::set_value(const std::string& path, const element& v)
+{
+    auto c = insert(path);
+    if (c->index() > 2)
+    {
+        element(v).swap(*c);
+    }
+}
+
+template <>
+EntryPlugin<entry_memory>::element
+EntryPlugin<entry_memory>::get_value(const std::string& path) const { return *find(path); }
 
 // // attributes
 // template <>
@@ -225,6 +225,6 @@ EntryPluginArray<entry_memory_array>::at(int idx) { return m_pimpl_->m_data_.at(
 //     return std::move(res);
 // }
 
-SP_REGISTER_ENTRY(memory, entry_memory);
+SPDB_REGISTER_ENTRY(memory, entry_memory);
 
 } // namespace sp::db

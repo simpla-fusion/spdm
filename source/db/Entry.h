@@ -155,5 +155,7 @@ using entry_wrapper = traits::template_copy_type_args<
 } // namespace sp
 
 M_REGISITER_TYPE_TAG(Object, sp::db::Entry);
+M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::Entry>);
 M_REGISITER_TYPE_TAG(Array, sp::db::EntryArray);
+M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
 #endif //SP_ENTRY_H_
