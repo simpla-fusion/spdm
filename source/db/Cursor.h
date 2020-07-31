@@ -6,6 +6,9 @@
 
 namespace sp::db
 {
+template <typename>
+class Cursor;
+
 template <typename U, typename Enable = void>
 struct cursor_traits
 {
@@ -21,7 +24,7 @@ struct CursorProxy;
 template <typename U>
 struct CursorProxy<U>
 {
-    typedef CursorProxy<U, V, Enable> this_type;
+    typedef CursorProxy<U> this_type;
 
     typedef U value_type;
     typedef typename cursor_traits<value_type>::reference reference;
@@ -50,43 +53,6 @@ struct CursorProxy<U>
 };
 
 template <typename U, typename V>
-class CursorProxy<U, V, std::enable_if_t<!std::is_same_v<U, V>>> : public CursorProxy<U>
-{
-public:
-    typedef CursorProxy<U> base_type;
-    typedef CursorProxy<U, V> this_type;
-
-    using typename base_type::difference_type;
-    using typename base_type::pointer;
-    using typename base_type::reference;
-    using typename base_type::value_type;
-
-    CursorProxy(CursorProxy<V>* it,
-                const std::function<reference(typename cursor_traits<V>::reference)>& r_map,
-                const std::function<pointer(typename cursor_traits<V>::pointer)>& p_map)
-        : m_it_(it), m_r_map_(r_map), m_p_map_(p_map) {}
-
-    CursorProxy(const this_type& other) : m_it_(other.m_it_->copy()), m_r_map_(other.m_r_map_), m_p_map_(other.m_p_map_) {}
-
-    CursorProxy(this_type&& other) : m_it_(other.m_it_->release()), m_r_map_(other.m_r_map_), m_p_map_(other.m_p_map_) {}
-
-    virtual ~CursorProxy() = default;
-
-    std::unique_ptr<CursorProxy<U>> copy() const override { return std::make_unique<this_type>(*this); }
-
-    pointer get_pointer() const override { return m_p_map_(m_it_->get_pointer()); }
-
-    reference get_reference() const override { return m_r_map_(m_it_->get_reference()); }
-
-    void next() override { m_it_->next(); }
-
-protected:
-    std::unique_ptr<CursorProxy<V>> m_it_;
-    std::function<reference(typename cursor_traits<V>::reference)> m_r_map_;
-    std::function<pointer(typename cursor_traits<V>::pointer)> m_p_map_;
-};
-
-template <typename U, typename V>
 class CursorProxy<U, V,
                   std::enable_if_t<                                              //
                       std::is_same_v<V, U*> ||                                   //
@@ -110,7 +76,9 @@ public:
 
     CursorProxy(const base_iterator& ib, const base_iterator& ie) : m_base_(ib), m_end_(std::distance(ib, ie)), m_pos_(0) {}
 
-    virtual ~CursorProxy() = default;
+    ~CursorProxy() = default;
+
+    bool done() const { return m_pos_ >= m_end_; }
 
     std::unique_ptr<CursorProxy<U>> copy() const override { return std::make_unique<this_type>(*this); }
 
@@ -130,7 +98,9 @@ protected:
 };
 
 template <typename U, typename V>
-class CursorProxy<U, V, std::enable_if_t<std::is_same_v<U, typename std::iterator_traits<V>::value_type>>>
+class CursorProxy<U, V,
+                  std::enable_if_t<std::is_same_v<typename cursor_traits<U>::pointer, typename std::iterator_traits<V>::pointer> || //
+                                   std::is_same_v<typename cursor_traits<std::remove_const_t<U>>::pointer, typename std::iterator_traits<V>::value_type>>>
     : public CursorProxy<U>
 {
 public:
@@ -145,57 +115,38 @@ public:
 
     CursorProxy(const iterator& ib, const iterator& ie) : m_it_(ib), m_ie_(ie) {}
 
-    CursorProxy(const iterator& ib) : CursorProxy(ib, ++iterator(ib)) {}
-
-    virtual ~CursorProxy() = default;
+    ~CursorProxy() = default;
 
     std::unique_ptr<CursorProxy<U>> copy() const override { return std::make_unique<this_type>(*this); }
 
-    pointer get_pointer() const override { return (m_it_ == m_ie_) ? nullptr : &get_reference(); }
+    bool done() const override { return m_it_ == m_ie_; }
 
-    reference get_reference() const override { return (*m_it_); }
+    pointer get_pointer() const override { return m_it_.operator->(); }
 
-    void next() override { ++m_it_; }
+    reference get_reference() const override { return *get_pointer(); }
+
+    void next() override
+    {
+        if (m_it_ != m_ie_)
+        {
+            ++m_it_;
+        }
+    }
 
 protected:
     iterator m_it_, m_ie_;
 };
 
 template <typename U, typename V>
-class CursorProxy<U, V,
-                  std::enable_if_t<
-                      std::is_same_v<std::pair<const std::string, U>, typename std::iterator_traits<V>::value_type> ||
-                      std::is_same_v<std::pair<const std::string, std::remove_const_t<U>>, typename std::iterator_traits<V>::value_type>>>
-    : public CursorProxy<U>
+struct CursorProxy<U, CursorProxy<V>,
+                   std::enable_if_t<std::is_same_v<U, V>>>
 {
-public:
-    typedef CursorProxy<U> base_type;
-    typedef CursorProxy<U, V> this_type;
-    typedef V iterator;
-
-    using typename base_type::difference_type;
-    using typename base_type::pointer;
-    using typename base_type::reference;
-    using typename base_type::value_type;
-
-    CursorProxy(const iterator& ib, const iterator& ie) : m_it_(ib), m_ie_(ie) {}
-
-    CursorProxy(const iterator& ib) : CursorProxy(ib, ++iterator(ib)) {}
-
-    virtual ~CursorProxy() = default;
-
-    std::unique_ptr<CursorProxy<U>> copy() const override { return std::make_unique<this_type>(*this); }
-
-    pointer get_pointer() const override { return (m_it_ == m_ie_) ? nullptr : &get_reference(); }
-
-    reference get_reference() const override { return m_it_->second; }
-
-    void next() override { ++m_it_; }
-
-protected:
-    iterator m_it_, m_ie_;
 };
-
+template <typename U, typename V>
+struct CursorProxy<U, CursorProxy<V>,
+                   std::enable_if_t<!std::is_same_v<U, V>>>
+{
+};
 // filter
 template <typename U>
 class CursorProxy<U, std::function<bool(const U&)>> : public CursorProxy<U>
@@ -251,9 +202,8 @@ template <typename U, typename V>
 class CursorProxy<const U, std::function<U(const V&)>> : public CursorProxy<const U>
 {
 public:
-    typedef U value_type;
     typedef CursorProxy<U> base_type;
-    typedef std::function < U(const V&) mapper_type;
+    typedef std::function<U(const V&)> mapper_type;
 
     typedef CursorProxy<const U, mapper_type> this_type;
 
@@ -262,14 +212,12 @@ public:
     using typename base_type::reference;
     using typename base_type::value_type;
 
-    CursorProxy(CursorProxy<const V>* it, const mapper_type filter)
-        : m_base_(it), m_mapper_(filter), m_value_(m_base_ == nullptr || m_base_->done() ? nullptr : new value_type(m_mapper_(*m_base_)))
-    {
-    }
+    CursorProxy(CursorProxy<const V>* it, const mapper_type mapper)
+        : m_base_(it), m_mapper_(mapper), m_value_(m_base_ == nullptr || m_base_->done() ? nullptr : new value_type(m_mapper_(*m_base_))) {}
 
-    CursorProxy(std::unique_ptr<CursorProxy<const U>>&& it, const filter_type filter) : CursorProxy(it.release(), filter) {}
+    CursorProxy(std::unique_ptr<CursorProxy<const U>>&& it, const mapper_type mapper) : CursorProxy(it.release(), mapper) {}
 
-    CursorProxy(const std::unique_ptr<CursorProxy<const U>>& it, const filter_type filter) : CursorProxy(it->copy().reslease(), filter) {}
+    CursorProxy(const std::unique_ptr<CursorProxy<const U>>& it, const mapper_type mapper) : CursorProxy(it->copy().reslease(), mapper) {}
 
     virtual ~CursorProxy() = default;
 
@@ -296,27 +244,21 @@ protected:
 };
 
 template <typename U, typename V>
-std::unique_ptr<CursorProxy<U>> make_proxy(const V& ib, const V& ie)
+CursorProxy<U>* make_proxy(const Cursor<V>& it, const std::function<U(const V&)>& mapper) { return new CursorProxy<U, std::function<U(const V&)>>(it.m_proxy_.release(), mapper); }
+
+template <typename U>
+CursorProxy<U>* make_proxy(const Cursor<U>& it, const std::function<bool(const U&)>& filter) { return new CursorProxy<U, std::function<bool(const U&)>>(it.m_proxy_.release(), filter); }
+
+template <typename U, typename V, typename... Others>
+CursorProxy<U>* make_proxy(V&& ib, const V&& ie, Others&&... others)
 {
-    return std::make_unique<CursorProxy<U, V>>(ib, ie);
+    return make_proxy(std::unique_ptr<CursorProxy<U>>(new CursorProxy<U, std::remove_reference_t<V>>(std::forward<V>(ib), std::forward<V>(ie))), std::forward<Others>(others)...);
 }
-template <typename U, typename V>
-std::unique_ptr<CursorProxy<U>> make_proxy(V&& ib)
+template <typename U, typename V, typename... Others>
+CursorProxy<U>* make_proxy(V&& ib, Others&&... others)
 {
-    return std::make_unique<CursorProxy<U, std::remove_reference_t<V>>>(std::forward<V>(ib));
+    return make_proxy(std::unique_ptr<CursorProxy<U>>(new CursorProxy<U, std::remove_reference_t<V>>(std::forward<V>(ib))), std::forward<Others>(others)...);
 }
-
-template <typename U>
-std::unique_ptr<CursorProxy<U>> make_proxy(Cursor<U>&& it) { return std::move(it.m_proxy_); }
-
-template <typename U>
-std::unique_ptr<CursorProxy<U>> make_proxy(const Cursor<U>& it) { return it.m_proxy_->copy(); }
-
-template <typename U>
-std::unique_ptr<CursorProxy<U>> make_proxy(std::unique_ptr<CursorProxy<U>>&& it, Args&&... args) { return std::move(it); }
-
-template <typename U, typename V, typename... Args>
-std::unique_ptr<CursorProxy<U>> make_proxy(std::unique_ptr<CursorProxy<V>>&& it, Args&&... args) { return std::make_unique<CursorProxy<U, V>>(it.release(), std::forward<Args>(args)...); }
 
 template <typename T>
 class Cursor

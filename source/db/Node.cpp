@@ -115,7 +115,10 @@ int NodeObject::count(const std::string& key) const { return m_container_->count
 
 template <>
 NodeObject::cursor
-NodeObject::insert(const std::string& path) { return cursor(std::move(m_container_->insert(path))); }
+NodeObject::insert(const std::string& path)
+{
+    return cursor(m_container_->insert(path), [](Entry::element const & e) { return Node{}; });
+}
 
 template <>
 NodeObject::cursor
