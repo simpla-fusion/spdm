@@ -45,7 +45,9 @@ public:
 
     using typename base_type::type_tags;
 
-    Node(const std::string& backend);
+    explicit Node(const std::string& backend);
+
+    explicit Node(const char* backend) : Node(std::string(backend)) {}
 
     Node(Node* parent = nullptr, const std::string& name = "");
 

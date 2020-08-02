@@ -120,7 +120,7 @@ std::size_t
 EntryPlugin<entry_memory>::type(const std::string& path) const
 {
     auto cursor = find(path);
-    return (!cursor) ? type_tags::Empty : cursor->index();
+    return (!cursor.done()) ? type_tags::Empty : cursor->index();
 };
 
 // as leaf node,  need node.type

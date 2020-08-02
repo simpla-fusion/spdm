@@ -292,7 +292,7 @@ public:
 
     bool done() const { return m_base_->done(); }
 
-    pointer get_pointer() const override { return m_pointer_.get(); }
+    pointer get_pointer() const override { return pointer(m_pointer_.get()); }
 
     reference get_reference() const override { return *m_pointer_; }
 
@@ -315,7 +315,7 @@ protected:
         }
         else
         {
-            m_pointer_.reset(new value_type(*m_base_));
+            m_pointer_.reset(new value_type(m_base_->get_reference()));
         }
     }
 };
@@ -369,22 +369,19 @@ public:
     typedef typename cursor_traits<value_type>::reference reference;
     typedef typename cursor_traits<value_type>::pointer pointer;
     // typedef typename cursor_traits<value_type>::difference_type difference_type;
+    Cursor(_detail::CursorProxy<value_type>* p) : m_proxy_(p) {}
+
+    Cursor(const Cursor& other) : Cursor(other.m_proxy_->copy().release()) {}
+
+    Cursor(Cursor&& other) : Cursor(other.m_proxy_.release()) {}
 
     template <typename IT>
     Cursor(const IT& ib, const IT& ie)
-        : m_proxy_(dynamic_cast<_detail::CursorProxy<value_type>*>(new _detail::CursorProxy<value_type, IT>(ib, ie))) {}
+        : Cursor(new _detail::CursorProxy<value_type, IT>(ib, ie)) {}
 
     template <typename V, typename... Args>
     Cursor(const Cursor<V>& other, Args&&... args)
-        : m_proxy_(new _detail::CursorProxyMapper<value_type, V>(
-              other.m_proxy_->copy().release(),
-              std::forward<Args>(args)...)) {}
-
-    Cursor(_detail::CursorProxy<value_type>* p) : m_proxy_(p) {}
-
-    Cursor(const Cursor& other) : m_proxy_(other.m_proxy_->copy().release()) {}
-
-    Cursor(Cursor&& other) : m_proxy_(other.m_proxy_.release()) {}
+        : Cursor(new _detail::CursorProxyMapper<value_type, V>(other.m_proxy_->copy().release(), std::forward<Args>(args)...)) {}
 
     ~Cursor() = default;
 
@@ -399,6 +396,8 @@ public:
     reference operator*() const { return m_proxy_->get_reference(); }
 
     pointer operator->() const { return m_proxy_->get_pointer(); }
+
+    bool done() const { return m_proxy_->done(); }
 
     bool next() { return m_proxy_->next(); }
 

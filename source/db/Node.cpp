@@ -50,18 +50,42 @@ Node::Node(const std::string& backend) : base_type(nullptr, "")
 
 Node::Node(Node* parent, const std::string& name) : base_type(parent, name){};
 
+namespace _detail
+{
+template <class... Ts>
+struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts>
+overloaded(Ts...)->overloaded<Ts...>;
+} // namespace _detail
+
+Node::Node(const Entry::element& ele)
+{
+    std::visit(_detail::overloaded{
+                   [&](const std::variant_alternative_t<type_tags::Array, Entry::element>& ele) {
+                       data().template emplace<type_tags::Array>(this, ele);
+                   },
+                   [&](const std::variant_alternative_t<type_tags::Object, Entry::element>& ele) {
+                       data().template emplace<type_tags::Object>(this, ele);
+                   },
+                   [&](auto&& ele) { element(ele).swap(data()); } //
+               },
+               ele);
+}
 //--------------------------------------------------------------------------------------------------
 // Object
 using NodeObject = std::variant_alternative_t<Node::type_tags::Object, Node::element>;
-
+template <>
+NodeObject::~HTContainerProxyObject() {}
 template <>
 NodeObject::HTContainerProxyObject(node_type* self, const std::shared_ptr<container>& container) : m_self_(self), m_container_(container) {}
 template <>
 NodeObject::HTContainerProxyObject(this_type&& other) : HTContainerProxyObject(other.m_self_, other.m_container_) {}
 template <>
 NodeObject::HTContainerProxyObject(const this_type& other) : HTContainerProxyObject(other.m_self_, other.m_container_->copy()) {}
-// template <>
-// NodeObject::~HTContainerProxyObject() {}
 
 template <>
 size_t NodeObject::size() const { return m_container_->size(); }
@@ -76,12 +100,12 @@ template <>
 NodeObject::cursor
 NodeObject::insert(const std::string& path)
 {
-    return make_cursor(m_container_->insert(path)).map<Node>();
+    return m_container_->insert(path).map<Node>();
 }
 
 template <>
 NodeObject::cursor
-NodeObject::insert(const Path& path) { return make_cursor(m_container_->insert(path)).map<Node>(); }
+NodeObject::insert(const Path& path) { return m_container_->insert(path).map<Node>(); }
 
 template <>
 void NodeObject::erase(const std::string& path) { m_container_->erase(path); }
@@ -91,32 +115,32 @@ void NodeObject::erase(const Path& path) { erase(path.str()); }
 
 template <>
 NodeObject::cursor
-NodeObject::find(const std::string& path) { return make_cursor(m_container_->find(path)).map<Node>(); }
+NodeObject::find(const std::string& path) { return m_container_->find(path).map<Node>(); }
 
 template <>
 NodeObject::cursor
-NodeObject::find(const Path& path) { return make_cursor(m_container_->find(path)).map<Node>(); }
+NodeObject::find(const Path& path) { return m_container_->find(path).map<Node>(); }
 
 template <>
 NodeObject::const_cursor
-NodeObject::find(const std::string& path) const { return make_cursor(m_container_->find(path)).map<const Node>(); }
+NodeObject::find(const std::string& path) const { return m_container_->find(path).map<const Node>(); }
 
 template <>
 NodeObject::const_cursor
-NodeObject::find(const Path& path) const { return make_cursor(m_container_->find(path)).map<const Node>(); }
+NodeObject::find(const Path& path) const { return m_container_->find(path).map<const Node>(); }
 
 //-----------------------------------------------------------------------------------
 // Array
 using NodeArray = std::variant_alternative_t<Node::type_tags::Array, Node::element>;
 
 template <>
+NodeArray::~HTContainerProxyArray() {}
+template <>
 NodeArray::HTContainerProxyArray(node_type* self, const std::shared_ptr<container>& container) : m_self_(self), m_container_(container) {}
 template <>
 NodeArray::HTContainerProxyArray(this_type&& other) : HTContainerProxyArray(other.m_self_, other.m_container_) {}
 template <>
 NodeArray::HTContainerProxyArray(const this_type& other) : HTContainerProxyArray(other.m_self_, other.m_container_->copy()) {}
-// template <>
-// NodeArray::~HTContainerProxyArray() {}
 
 template <>
 size_t NodeArray::size() const { return m_container_->size(); }
@@ -129,7 +153,7 @@ void NodeArray::clear() { m_container_->clear(); }
 
 template <>
 NodeArray::cursor
-NodeArray::push_back() { return make_cursor(m_container_->push_back()).map<Node>(); }
+NodeArray::push_back() { return m_container_->push_back().map<Node>(); }
 
 template <>
 void NodeArray::pop_back() { m_container_->pop_back(); }
