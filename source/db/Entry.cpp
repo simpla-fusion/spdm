@@ -3,6 +3,15 @@
 #include "../utility/TypeTraits.h"
 namespace sp::db
 {
+
+Entry::Entry() {}
+
+Entry::Entry(const Entry& other) {}
+
+Entry::Entry(Entry&& other) {}
+
+Entry::~Entry() {}
+
 std::shared_ptr<Entry> Entry::create(const std::string& request)
 {
 

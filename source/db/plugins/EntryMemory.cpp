@@ -61,23 +61,6 @@ template <>
 EntryPlugin<entry_memory>::cursor
 EntryPlugin<entry_memory>::insert(const std::string& name)
 {
-    // Entry::cursor res = nullptr;
-
-    // if (type() == Entry::type_tags::Empty)
-    // {
-    //     m_pimpl_.emplace<Entry::type_tags::Object>();
-    // }
-
-    // if (type() == Entry::type_tags::Object)
-    // {
-    //     auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
-    //     res = m.emplace(name, std::make_shared<this_type>(this->shared_from_this(), name)).first->second;
-    // }
-    // else
-    // {
-    //     throw std::runtime_error("Can not insert node to non-object!");
-    // }
-
     return make_cursor(m_pimpl_->try_emplace(name).first, m_pimpl_->end()).map<element>();
 }
 
@@ -144,7 +127,7 @@ EntryPlugin<entry_memory>::get_value(const std::string& path) const
     {
         throw std::out_of_range(path);
     }
-    return *it;
+    return it->second;
 };
 
 //----------------------------------------------------------------------------------------------------------
@@ -156,6 +139,14 @@ EntryPlugin<entry_memory>::first_child() { return make_cursor(m_pimpl_->begin(),
 template <>
 EntryPlugin<entry_memory>::const_cursor
 EntryPlugin<entry_memory>::first_child() const { return make_cursor(m_pimpl_->cbegin(), m_pimpl_->cend()).map<const element>(); }
+
+template <>
+EntryPlugin<entry_memory>::cursor
+EntryPlugin<entry_memory>::find(const std::string& path) { return make_cursor(m_pimpl_->find(path), m_pimpl_->end()).map<element>(); }
+
+template <>
+EntryPlugin<entry_memory>::cursor
+EntryPlugin<entry_memory>::find(const Path& path) { return find(path.str()); }
 
 template <>
 EntryPlugin<entry_memory>::cursor
@@ -204,7 +195,7 @@ Entry::cursor
 EntryPluginArray<entry_memory_array>::push_back()
 {
     m_pimpl_->emplace_back();
-    return make_cursor(m_pimpl_->rbegin(), ++m_pimpl_->rbegin()).map<Entry::element>([](auto&& v) { return v.second; });
+    return make_cursor(&*m_pimpl_->rbegin());//.map<Entry::element>([](auto&& v) -> Entry::element& { return v.second; });
 }
 
 template <>

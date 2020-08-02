@@ -36,14 +36,15 @@ using element_types = std::variant<
     int,         //Integer,
     long,        //Long,
     float,       //Float,
-    double,      //Double,
+    double       //,      //Double,
     // std::complex<double>,                                        //Complex,
     // std::array<int, 3>,                                          //IntVec3,
     // std::array<long, 3>,                                         //LongVec3,
     // std::array<float, 3>,                                        //FloatVec3,
     // std::array<double, 3>,                                       //DoubleVec3,
     // std::array<std::complex<double>, 3>,                         //ComplexVec3,
-    std::any>;
+    //std::any
+    >;
 
 class EntryArray;
 
@@ -58,13 +59,13 @@ public:
 
     typedef Cursor<const element> const_cursor;
 
-    Entry() = default;
+    Entry();
 
-    Entry(const Entry& other) = default;
+    Entry(const Entry& other);
 
-    Entry(Entry&& other) = default;
+    Entry(Entry&& other);
 
-    virtual ~Entry() = default;
+    virtual ~Entry();
 
     static std::shared_ptr<Entry> create(const std::string& request = "");
 
@@ -82,7 +83,7 @@ public:
     virtual element get_value(const std::string& path) const = 0;
 
     //----------------------------------------------------------------------------------------------------------
-    virtual std::size_t type(const std::string& path) const;
+    virtual std::size_t type(const std::string& path) const = 0;
 
     virtual size_t size() const = 0;
 
