@@ -33,7 +33,6 @@ struct cursor_traits<const Node>
     typedef std::shared_ptr<const Node> pointer;
     typedef ptrdiff_t difference_type;
 };
- 
 
 class Node : public entry_wrapper<Node>
 {
@@ -49,6 +48,8 @@ public:
     Node(const std::string& backend);
 
     Node(Node* parent = nullptr, const std::string& name = "");
+
+    Node(const Entry::element&);
 
     Node(const this_type& other) : base_type(other){};
 

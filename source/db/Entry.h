@@ -15,14 +15,27 @@ namespace sp
 {
 namespace db
 {
+class Entry;
+class EntryArray;
+} // namespace db
+} // namespace sp
+M_REGISITER_TYPE_TAG(Object, sp::db::Entry);
+M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::Entry>);
+M_REGISITER_TYPE_TAG(Array, sp::db::EntryArray);
+M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
+
+namespace sp
+{
+namespace db
+{
 
 using element_types = std::variant<
     // std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
     std::string, //String,
     bool,        //Boolean,
     int,         //Integer,
-    long,        //Long,
-    float,       //Float,
+    // long,        //Long,
+    // float,       //Float,
     double,      //Double,
     // std::complex<double>,                                        //Complex,
     // std::array<int, 3>,                                          //IntVec3,
@@ -152,9 +165,4 @@ using entry_wrapper = traits::template_copy_type_args<
 
 } // namespace db
 } // namespace sp
-
-M_REGISITER_TYPE_TAG(Object, sp::db::Entry);
-M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::Entry>);
-M_REGISITER_TYPE_TAG(Array, sp::db::EntryArray);
-M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
 #endif //SP_ENTRY_H_

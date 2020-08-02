@@ -20,7 +20,7 @@ std::string join_path(const std::string& l, const std::string& r, Others&&... ot
     return join_path(join_path(l, r), std::forward<Others>(others)...);
 }
 
-Node&& make_node(const Entry::element& element)
+Node make_node(const Entry::element& element)
 {
     Node res;
 
@@ -39,48 +39,7 @@ Node&& make_node(const Entry::element& element)
 
     return std::move(res);
 }
-
-template <typename U, typename V>
-class CursorProxy<U,
-                  std::unique_ptr<V>,
-                  std::enable_if_t<                                                                //
-                      (std::is_same_v<U, const Node> || std::is_same_v<U, Node>)&&                 //
-                      (std::is_same_v<V, Cursor<const Entry>> || std::is_same_v<V, Cursor<Entry>>) //
-                      >> : public CursorProxy<U>
-{
-public:
-    typedef CursorProxy<U, std::unique_ptr<V>> this_type;
-
-    typedef CursorProxy<U> base_type;
-
-    using typename base_type::pointer;
-
-    using typename base_type::reference;
-
-    using typename base_type::difference_type;
-
-    CursorProxy(V* cursor) : m_cursor_(cursor) {}
-
-    CursorProxy(std::unique_ptr<V>&& cursor) : m_cursor_(cursor.release()) {}
-
-    ~CursorProxy(){};
-
-    bool done() const override { return get_pointer() == nullptr; }
-
-    bool equal(const base_type* other) const override { return get_pointer() == other->get_pointer(); }
-
-    bool not_equal(const base_type* other) const override { return !equal(other); }
-
-    reference get_reference() const override { return std::forward<Node>(make_node(m_cursor_->get())); }
-
-    pointer get_pointer() const override { return std::make_shared<Node>(make_node(m_cursor_->get())); }
-
-    void next() override { m_cursor_->next(); }
-
-private:
-    std::unique_ptr<V> m_cursor_;
-};
-
+ 
 //--------------------------------------------------------------------------------------------------
 // Node
 
@@ -101,8 +60,8 @@ template <>
 NodeObject::HTContainerProxyObject(this_type&& other) : HTContainerProxyObject(other.m_self_, other.m_container_) {}
 template <>
 NodeObject::HTContainerProxyObject(const this_type& other) : HTContainerProxyObject(other.m_self_, other.m_container_->copy()) {}
-template <>
-NodeObject::~HTContainerProxyObject() {}
+// template <>
+// NodeObject::~HTContainerProxyObject() {}
 
 template <>
 size_t NodeObject::size() const { return m_container_->size(); }
@@ -117,7 +76,7 @@ template <>
 NodeObject::cursor
 NodeObject::insert(const std::string& path)
 {
-    return cursor(m_container_->insert(path), [](Entry::element const & e) { return Node{}; });
+    return cursor(m_container_->insert(path), [](const Entry::element& e) -> Node { return Node{}; });
 }
 
 template <>
@@ -156,8 +115,8 @@ template <>
 NodeArray::HTContainerProxyArray(this_type&& other) : HTContainerProxyArray(other.m_self_, other.m_container_) {}
 template <>
 NodeArray::HTContainerProxyArray(const this_type& other) : HTContainerProxyArray(other.m_self_, other.m_container_->copy()) {}
-template <>
-NodeArray::~HTContainerProxyArray() {}
+// template <>
+// NodeArray::~HTContainerProxyArray() {}
 
 template <>
 size_t NodeArray::size() const { return m_container_->size(); }

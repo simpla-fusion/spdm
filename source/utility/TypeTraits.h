@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <memory>
 namespace sp
 {
 namespace traits
@@ -843,6 +844,24 @@ struct is_indexable : public std::integral_constant<
 };
 //**********************************************************************************************************************
 
+template <typename U, typename V, typename Enable = void>
+struct is_iterator_of
+{
+    static const bool value = false;
+};
+
+template <typename U, typename V>
+struct is_iterator_of<U, V, std::enable_if_t<std::is_same_v<U, typename std::iterator_traits<V>::value_type> || //
+                                             std::is_same_v<std::remove_const_t<U>, typename std::iterator_traits<V>::value_type>>>
+{
+    static const bool value = true;
+};
+
+template <typename U, typename V>
+static const bool is_iterator_of_v = is_iterator_of<U, V>::value;
+
+//**********************************************************************************************************************
+
 template <typename... T>
 struct regisiter_type_tag;
 
@@ -1039,19 +1058,25 @@ using template_copy_type_args = typename _detail::template_copy_type_args_impl<T
 } // namespace traits
 } // namespace sp
 
-#define M_REGISITER_TYPE_TAG(_TAG_, ...)                        \
-    template <typename _Head>                                   \
-    struct ::sp::traits::regisiter_type_tag<_Head, __VA_ARGS__> \
-    {                                                           \
-        struct tags : public _Head                              \
-        {                                                       \
-            enum                                                \
-            {                                                   \
-                _TAG_ = _Head::_LAST_PLACE_HOLDER,              \
-                _LAST_PLACE_HOLDER                              \
-            };                                                  \
-        };                                                      \
-    };
+#define M_REGISITER_TYPE_TAG(_TAG_, ...)           \
+    namespace sp                                   \
+    {                                              \
+    namespace traits                               \
+    {                                              \
+    template <typename _Head>                      \
+    struct regisiter_type_tag<_Head, __VA_ARGS__>  \
+    {                                              \
+        struct tags : public _Head                 \
+        {                                          \
+            enum                                   \
+            {                                      \
+                _TAG_ = _Head::_LAST_PLACE_HOLDER, \
+                _LAST_PLACE_HOLDER                 \
+            };                                     \
+        };                                         \
+    };                                             \
+    }                                              \
+    }
 
 M_REGISITER_TYPE_TAG(Empty, std::nullptr_t);                                              //Empty,
 M_REGISITER_TYPE_TAG(Block, std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>); //Block
@@ -1069,18 +1094,24 @@ M_REGISITER_TYPE_TAG(DoubleVec3, std::array<double, 3>);                        
 M_REGISITER_TYPE_TAG(ComplexVec3, std::array<std::complex<double>, 3>);                   //ComplexVec3,
 M_REGISITER_TYPE_TAG(UNKNOWN, std::any);                                                  //Other
 
-#define M_REGISITER_TYPE_TAG_TEMPLATE(_TAG_, _TMPL_)                       \
-    template <typename _Head, typename... _PARAMETERS>                     \
-    struct ::sp::traits::regisiter_type_tag<_Head, _TMPL_<_PARAMETERS...>> \
-    {                                                                      \
-        struct tags : public _Head                                         \
-        {                                                                  \
-            enum                                                           \
-            {                                                              \
-                _TAG_ = _Head::_LAST_PLACE_HOLDER,                         \
-                _LAST_PLACE_HOLDER                                         \
-            };                                                             \
-        };                                                                 \
-    };
+#define M_REGISITER_TYPE_TAG_TEMPLATE(_TAG_, _TMPL_)         \
+    namespace sp                                             \
+    {                                                        \
+    namespace traits                                         \
+    {                                                        \
+    template <typename _Head, typename... _PARAMETERS>       \
+    struct regisiter_type_tag<_Head, _TMPL_<_PARAMETERS...>> \
+    {                                                        \
+        struct tags : public _Head                           \
+        {                                                    \
+            enum                                             \
+            {                                                \
+                _TAG_ = _Head::_LAST_PLACE_HOLDER,           \
+                _LAST_PLACE_HOLDER                           \
+            };                                               \
+        };                                                   \
+    };                                                       \
+    }                                                        \
+    }
 
 #endif // SP_TYPETRAITS_H_

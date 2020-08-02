@@ -29,14 +29,14 @@ void EntryPlugin<entry_memory>::clear() { m_pimpl_->clear(); }
 // function level 0
 
 template <>
-Entry::const_cursor
+EntryPlugin<entry_memory>::const_cursor
 EntryPlugin<entry_memory>::find(const std::string& name) const
 {
-    return const_cursor(m_pimpl_->find(name), m_pimpl_->end());
+    return make_cursor(m_pimpl_->find(name), m_pimpl_->end()).map<const element>();
 };
 
 template <>
-Entry::const_cursor
+EntryPlugin<entry_memory>::const_cursor
 EntryPlugin<entry_memory>::find(const Path& xpath) const
 {
     // std::string path = xpath.str();
@@ -58,7 +58,7 @@ EntryPlugin<entry_memory>::find(const Path& xpath) const
 };
 
 template <>
-Entry::cursor
+EntryPlugin<entry_memory>::cursor
 EntryPlugin<entry_memory>::insert(const std::string& name)
 {
     // Entry::cursor res = nullptr;
@@ -78,11 +78,11 @@ EntryPlugin<entry_memory>::insert(const std::string& name)
     //     throw std::runtime_error("Can not insert node to non-object!");
     // }
 
-    return cursor(m_pimpl_->try_emplace(name).first);
+    return make_cursor(m_pimpl_->try_emplace(name).first, m_pimpl_->end()).map<element>();
 }
 
 template <>
-Entry::cursor
+EntryPlugin<entry_memory>::cursor
 EntryPlugin<entry_memory>::insert(const Path& xpath)
 {
     // auto path = xpath.str();
@@ -150,22 +150,30 @@ EntryPlugin<entry_memory>::get_value(const std::string& path) const
 //----------------------------------------------------------------------------------------------------------
 // level 1
 template <>
-EntryPlugin<entry_memory>::cursor EntryPlugin<entry_memory>::first_child() { return cursor{m_pimpl_->begin(), m_pimpl_->end()}; }
+EntryPlugin<entry_memory>::cursor
+EntryPlugin<entry_memory>::first_child() { return make_cursor(m_pimpl_->begin(), m_pimpl_->end()).map<element>(); }
 
 template <>
-EntryPlugin<entry_memory>::const_cursor EntryPlugin<entry_memory>::first_child() const { return const_cursor{m_pimpl_->cbegin(), m_pimpl_->cend()}; }
+EntryPlugin<entry_memory>::const_cursor
+EntryPlugin<entry_memory>::first_child() const { return make_cursor(m_pimpl_->cbegin(), m_pimpl_->cend()).map<const element>(); }
 
 template <>
-EntryPlugin<entry_memory>::cursor EntryPlugin<entry_memory>::select(const std::string& path) { return cursor{m_pimpl_->find(path), m_pimpl_->end()}; }
+EntryPlugin<entry_memory>::cursor
+EntryPlugin<entry_memory>::select(const std::string& path) { return make_cursor(m_pimpl_->find(path), m_pimpl_->end()).map<element>(); }
 
 template <>
-EntryPlugin<entry_memory>::cursor EntryPlugin<entry_memory>::select(const Path& path) { return select(path.str()); }
+EntryPlugin<entry_memory>::cursor
+EntryPlugin<entry_memory>::select(const Path& path) { return select(path.str()); }
 
 template <>
-EntryPlugin<entry_memory>::const_cursor EntryPlugin<entry_memory>::select(const std::string& path) const { return cursor{m_pimpl_->find(path), m_pimpl_->cend()}; }
+EntryPlugin<entry_memory>::const_cursor EntryPlugin<entry_memory>::select(const std::string& path) const
+{
+    return make_cursor(m_pimpl_->find(path), m_pimpl_->end()).map<const element>();
+}
 
 template <>
-EntryPlugin<entry_memory>::const_cursor EntryPlugin<entry_memory>::select(const Path& path) const { return select(path.str()); }
+EntryPlugin<entry_memory>::const_cursor
+EntryPlugin<entry_memory>::select(const Path& path) const { return select(path.str()); }
 
 // template <>
 // Entry::cursor
@@ -196,7 +204,7 @@ Entry::cursor
 EntryPluginArray<entry_memory_array>::push_back()
 {
     m_pimpl_->emplace_back();
-    return Entry::cursor(m_pimpl_->rbegin());
+    return make_cursor(m_pimpl_->rbegin(), ++m_pimpl_->rbegin()).map<Entry::element>([](auto&& v) { return v.second; });
 }
 
 template <>

@@ -19,3 +19,7 @@ add_executable(test_hdata test_hdata.cpp )
 add_test( test_hdata test_hdata )
 target_link_libraries(test_hdata  utility  )
 
+add_executable(test_cursor test_cursor.cpp )
+add_test( test_cursor test_cursor )
+target_link_libraries(test_cursor  utility  )
+
