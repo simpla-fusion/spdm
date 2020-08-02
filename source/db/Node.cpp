@@ -39,7 +39,7 @@ Node make_node(const Entry::element& element)
 
     return std::move(res);
 }
- 
+
 //--------------------------------------------------------------------------------------------------
 // Node
 
@@ -76,12 +76,12 @@ template <>
 NodeObject::cursor
 NodeObject::insert(const std::string& path)
 {
-    return cursor(m_container_->insert(path), [](const Entry::element& e) -> Node { return Node{}; });
+    return make_cursor(m_container_->insert(path)).map<Node>();
 }
 
 template <>
 NodeObject::cursor
-NodeObject::insert(const Path& path) { return cursor(m_container_->insert(path)); }
+NodeObject::insert(const Path& path) { return make_cursor(m_container_->insert(path)).map<Node>(); }
 
 template <>
 void NodeObject::erase(const std::string& path) { m_container_->erase(path); }
@@ -91,19 +91,19 @@ void NodeObject::erase(const Path& path) { erase(path.str()); }
 
 template <>
 NodeObject::cursor
-NodeObject::find(const std::string& path) { return cursor(m_container_->find(path)); }
+NodeObject::find(const std::string& path) { return make_cursor(m_container_->find(path)).map<Node>(); }
 
 template <>
 NodeObject::cursor
-NodeObject::find(const Path& path) { return cursor(m_container_->find(path)); }
+NodeObject::find(const Path& path) { return make_cursor(m_container_->find(path)).map<Node>(); }
 
 template <>
 NodeObject::const_cursor
-NodeObject::find(const std::string& path) const { return const_cursor(m_container_->find(path)); }
+NodeObject::find(const std::string& path) const { return make_cursor(m_container_->find(path)).map<const Node>(); }
 
 template <>
 NodeObject::const_cursor
-NodeObject::find(const Path& path) const { return const_cursor(m_container_->find(path)); }
+NodeObject::find(const Path& path) const { return make_cursor(m_container_->find(path)).map<const Node>(); }
 
 //-----------------------------------------------------------------------------------
 // Array
@@ -129,7 +129,7 @@ void NodeArray::clear() { m_container_->clear(); }
 
 template <>
 NodeArray::cursor
-NodeArray::push_back() { return cursor(m_container_->push_back()); }
+NodeArray::push_back() { return make_cursor(m_container_->push_back()).map<Node>(); }
 
 template <>
 void NodeArray::pop_back() { m_container_->pop_back(); }

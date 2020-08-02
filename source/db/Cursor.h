@@ -88,7 +88,8 @@ public:
     typedef U value_type;
     typedef typename cursor_traits<value_type>::reference reference;
     typedef typename cursor_traits<value_type>::pointer pointer;
-    typedef typename cursor_traits<value_type>::difference_type difference_type;
+    // typedef typename cursor_traits<value_type>::difference_type difference_type;
+    typedef ptrdiff_t difference_type;
 
     CursorProxy(const base_iterator& ib, difference_type pos = 0) : m_base_(ib), m_end_(pos), m_pos_(0) {}
 
@@ -208,12 +209,70 @@ protected:
 
 // mapper
 template <typename U, typename V, typename Enable = void>
-class CursorProxyMapper : public CursorProxy<U>
+class CursorProxyMapper;
+
+// template <typename U, typename V>
+// class CursorProxyMapper<U, V, std::enable_if_t<!std::is_convertible_v<V, U>>> : public CursorProxy<U>
+// {
+// public:
+//     typedef CursorProxy<U> base_type;
+//     typedef std::function<U(const V&)> mapper_type;
+
+//     typedef CursorProxyMapper<U, V> this_type;
+
+//     // using typename base_type::difference_type;
+//     using typename base_type::pointer;
+//     using typename base_type::reference;
+//     using typename base_type::value_type;
+
+//     CursorProxyMapper(CursorProxy<V>* it, const mapper_type& mapper) : m_base_(it), m_mapper_(mapper), m_pointer_(nullptr) { update(); }
+
+//     CursorProxyMapper(CursorProxy<V>* it) : m_base_(it), m_mapper_(), m_pointer_(nullptr) { update(); }
+
+//     CursorProxyMapper(const this_type& other) : m_base_(other.m_base_->copy().release()), m_mapper_(other.m_mapper_) { update(); }
+
+//     CursorProxyMapper(this_type&& other) : m_base_(other.m_base_.release()), m_mapper_(other.m_mapper_) { update(); }
+
+//     virtual ~CursorProxyMapper(){};
+
+//     std::unique_ptr<base_type> copy() const { return std::unique_ptr<base_type>(new this_type(*this)); }
+
+//     bool done() const { return m_base_->done(); }
+
+//     pointer get_pointer() const override { return m_pointer_; }
+
+//     reference get_reference() const override { return *m_pointer_; }
+
+//     bool next() override
+//     {
+//         auto res = m_base_->next();
+//         update();
+//         return res;
+//     }
+
+// protected:
+//     std::unique_ptr<CursorProxy<V>> m_base_;
+//     mapper_type m_mapper_;
+//     pointer m_pointer_;
+
+//     void update()
+//     {
+//         if (m_base_ == nullptr || m_base_->done())
+//         {
+//             m_pointer_ = (nullptr);
+//         }
+//         else
+//         {
+//             // m_value_=(m_mapper_(*m_base_));
+//         }
+//     }
+// };
+
+template <typename U, typename V>
+class CursorProxyMapper<U, V, std::enable_if_t<std::is_convertible_v<V, U>>> : public CursorProxy<U>
 {
 public:
     typedef CursorProxy<U> base_type;
-    typedef std::function<U(const V&)> mapper_type;
-
     typedef CursorProxyMapper<U, V> this_type;
 
     // using typename base_type::difference_type;
@@ -221,13 +280,11 @@ public:
     using typename base_type::reference;
     using typename base_type::value_type;
 
-    CursorProxyMapper(CursorProxy<V>* it, const mapper_type& mapper) : m_base_(it), m_mapper_(mapper), m_pointer_(nullptr) { update(); }
+    CursorProxyMapper(CursorProxy<V>* it) : m_base_(it), m_pointer_(nullptr) { update(); }
 
-    CursorProxyMapper(CursorProxy<V>* it) : m_base_(it), m_mapper_([](auto&& v) { return value_type(v); }), m_pointer_(nullptr) { update(); }
+    CursorProxyMapper(const this_type& other) : m_base_(other.m_base_->copy().release()), m_pointer_(nullptr) { update(); }
 
-    CursorProxyMapper(const this_type& other) : m_base_(other.m_base_->copy().release()), m_mapper_(other.m_mapper_) { update(); }
-
-    CursorProxyMapper(this_type&& other) : m_base_(other.m_base_.release()), m_mapper_(other.m_mapper_) { update(); }
+    CursorProxyMapper(this_type&& other) : m_base_(other.m_base_.release()), m_pointer_(nullptr) { update(); }
 
     virtual ~CursorProxyMapper(){};
 
@@ -235,7 +292,7 @@ public:
 
     bool done() const { return m_base_->done(); }
 
-    pointer get_pointer() const override { return m_pointer_; }
+    pointer get_pointer() const override { return m_pointer_.get(); }
 
     reference get_reference() const override { return *m_pointer_; }
 
@@ -248,8 +305,7 @@ public:
 
 protected:
     std::unique_ptr<CursorProxy<V>> m_base_;
-    mapper_type m_mapper_;
-    pointer m_pointer_;
+    std::unique_ptr<value_type> m_pointer_;
 
     void update()
     {
@@ -259,7 +315,7 @@ protected:
         }
         else
         {
-            // m_value_=(m_mapper_(*m_base_));
+            m_pointer_.reset(new value_type(*m_base_));
         }
     }
 };
@@ -267,10 +323,8 @@ protected:
 template <typename U, typename V>
 class CursorProxyMapper<U, V,
                         std::enable_if_t<
-                            std::is_same_v<std::pair<const std::string, U>, typename std::iterator_traits<V>::value_type> || //
-                            std::is_same_v<std::pair<const std::string, std::remove_reference_t<U>>, typename std::iterator_traits<V>::value_type>>
-
-                        > : public CursorProxy<U>
+                            std::is_same_v<std::pair<const std::string, U>, V> || //
+                            std::is_same_v<std::pair<const std::string, std::remove_reference_t<U>>, V>>> : public CursorProxy<U>
 {
 public:
     typedef CursorProxy<U> base_type;
@@ -318,13 +372,13 @@ public:
 
     template <typename IT>
     Cursor(const IT& ib, const IT& ie)
-        : m_proxy_(
-              dynamic_cast<_detail::CursorProxy<value_type>*>(new _detail::CursorProxy<value_type, IT>(ib, ie))) {}
+        : m_proxy_(dynamic_cast<_detail::CursorProxy<value_type>*>(new _detail::CursorProxy<value_type, IT>(ib, ie))) {}
 
     template <typename V, typename... Args>
     Cursor(const Cursor<V>& other, Args&&... args)
-        : m_proxy_(dynamic_cast<_detail::CursorProxy<value_type>*>(
-              new _detail::CursorProxyMapper<value_type, V>(other.m_proxy_->copy().release(), std::forward<Args>(args)...))) {}
+        : m_proxy_(new _detail::CursorProxyMapper<value_type, V>(
+              other.m_proxy_->copy().release(),
+              std::forward<Args>(args)...)) {}
 
     Cursor(_detail::CursorProxy<value_type>* p) : m_proxy_(p) {}
 
@@ -334,7 +388,7 @@ public:
 
     ~Cursor() = default;
 
-    operator bool() const { return !m_proxy_->done(); }
+    // operator bool() const { return !m_proxy_->done(); }
 
     bool operator==(const cursor& other) const { return m_proxy_->equal(m_proxy_.get()); }
 
@@ -351,7 +405,7 @@ public:
     template <typename V, typename... Args>
     Cursor<V> map(const Args&&... args) const
     {
-        return Cursor<V>(new _detail::CursorProxyMapper<V, value_type>(m_proxy_->copy().release(), std::forward<Args>(args)...));
+        return Cursor<V>(*this, std::forward<Args>(args)...);
     }
 
     template <typename Filter>
