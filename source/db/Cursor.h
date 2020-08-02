@@ -55,17 +55,17 @@ struct CursorProxy<U>
 
     virtual std::unique_ptr<CursorProxy<U>> copy() const = 0;
 
-    virtual bool done() const { return get_pointer() == nullptr; }
-
-    virtual bool equal(const this_type* other) const { return get_pointer() == other->get_pointer(); }
-
-    virtual bool not_equal(const this_type* other) const { return !equal(other); }
-
-    virtual reference get_reference() const { return *get_pointer(); }
+    virtual reference get_reference() const = 0;
 
     virtual pointer get_pointer() const = 0;
 
     virtual bool next() = 0;
+
+    virtual bool done() const { return get_pointer() == nullptr; }
+
+    //  virtual bool equal(const this_type* other) const { return get_pointer() == other->get_pointer(); }
+
+    //     virtual bool not_equal(const this_type* other) const { return !equal(other); }
 
     // virtual difference_type distance(const this_type* other) const = 0;
 };
