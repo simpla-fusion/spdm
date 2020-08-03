@@ -14,44 +14,32 @@ namespace sp::db
 {
 
 template <typename Impl>
-class EntryPlugin : public Entry
+class EntryPluginObject : public EntryObject
 {
 public:
-    static bool add_creator(const std::string& c_id, const std::function<Entry*()>&);
-    
-    static std::shared_ptr<Entry> create(const std::string& request = "");
+    typedef EntryPluginObject<Impl> this_type;
+    typedef Entry::type_tags type_tags;
 
-    using typename Entry::type_tags;
+    static bool add_creator(const std::string& c_id, const std::function<EntryObject*()>&);
 
-    using typename Entry::element;
+    static std::shared_ptr<EntryObject> create(const std::string& request = "");
 
-    using typename Entry::cursor;
+    template <typename... Args>
+    EntryPluginObject(Args&&... args) : m_pimpl_(new Impl{std::forward<Args>(args)...}){};
 
-    using typename Entry::const_cursor;
+    EntryPluginObject(const this_type& other) : m_pimpl_(new Impl(*other.m_pimpl_)) {}
 
-    typedef EntryPlugin<Impl> this_type;
+    EntryPluginObject(EntryPluginObject&& other) : m_pimpl_(other.m_pimpl_->release()) {}
 
-    EntryPlugin() = default;
+    ~EntryPluginObject() = default;
 
-    EntryPlugin(const this_type& other) : m_pimpl_(new Impl(*other.m_pimpl_)) {}
-
-    EntryPlugin(EntryPlugin&& other) : m_pimpl_(other.m_pimpl_->release()) {}
-
-    ~EntryPlugin() = default;
-
-    std::shared_ptr<Entry> copy() const override { return std::shared_ptr<Entry>(new this_type(*this)); }
+    std::shared_ptr<EntryObject> copy() const override { return std::shared_ptr<EntryObject>(new this_type(*this)); }
 
     //----------------------------------------------------------------------------------------------------------
 
     //----------------------------------------------------------------------------------------------------------
     // as leaf node,  need node.type = Scalar || Block
     //----------------------------------------------------------------------------------------------------------
-    void set_value(const std::string& path, const element&) override;
-
-    element get_value(const std::string& path) const override;
-
-    std::size_t type(const std::string& path) const override;
-
     //----------------------------------------------------------------------------------------------------------
     // as Hierarchy tree node
     // function level 0
@@ -64,35 +52,35 @@ public:
 
     std::size_t count(const std::string& name) override;
 
-    cursor insert(const std::string& path) override;
+    Cursor<Entry> insert(const std::string& path) override;
 
-    cursor insert(const Path& path) override;
+    Cursor<Entry> insert(const Path& path) override;
 
-    cursor find(const std::string& path) override;
+    Cursor<Entry> find(const std::string& path) override;
 
-    cursor find(const Path& path) override;
+    Cursor<Entry> find(const Path& path) override;
 
-    const_cursor find(const std::string& path) const override;
+    Cursor<const Entry> find(const std::string& path) const override;
 
-    const_cursor find(const Path& path) const override;
+    Cursor<const Entry> find(const Path& path) const override;
 
     void erase(const std::string& path) override {}
 
     void erase(const Path& path) override {}
 
-    cursor first_child() override;
+    Cursor<Entry> first_child() override;
 
-    const_cursor first_child() const override;
+    Cursor<const Entry> first_child() const override;
 
     // level 1
 
-    cursor select(const std::string& path) override;
+    Cursor<Entry> select(const std::string& path) override;
 
-    cursor select(const Path& path) override;
+    Cursor<Entry> select(const Path& path) override;
 
-    const_cursor select(const std::string& path) const override;
+    Cursor<const Entry> select(const std::string& path) const override;
 
-    const_cursor select(const Path& path) const override;
+    Cursor<const Entry> select(const Path& path) const override;
 
 private:
     std::unique_ptr<Impl> m_pimpl_;
@@ -100,17 +88,17 @@ private:
 };
 
 template <typename Impl>
-class EntryPluginArray : EntryArray
+class EntryPluginArray : public EntryArray
 {
 public:
-    typedef Cursor<typename Entry::element> cursor;
+    typedef Entry::type_tags type_tags;
+    typedef EntryPluginArray<Impl> this_type;
 
-    typedef Cursor<const typename Entry::element> const_cursor;
-
-    EntryPluginArray();
-
+    EntryPluginArray() = default;
     ~EntryPluginArray() = default;
 
+    EntryPluginArray(const EntryPluginArray&) = delete;
+    EntryPluginArray(EntryPluginArray&&) = delete;
     // as array
 
     std::shared_ptr<EntryArray> copy() const override;
@@ -121,24 +109,22 @@ public:
 
     void clear() override;
 
-    Entry::cursor push_back() override;
+    Cursor<Entry> push_back() override;
 
     void pop_back() override;
 
-    Entry::element& at(int idx) override;
+    Entry& at(int idx) override;
 
-    const Entry::element& at(int idx) const override;
+    const Entry& at(int idx) const override;
 
 private:
     std::unique_ptr<Impl> m_pimpl_;
 };
 
-#define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)             \
-    template <>                                          \
-    bool ::sp::db::EntryPlugin<_CLASS_>::is_registered = \
-        ::sp::db::Entry::add_creator(                    \
-            __STRING(_NAME_),                            \
-            []() { return dynamic_cast<Entry*>(new EntryPlugin<_CLASS_>()); });
+#define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)                   \
+    template <>                                                \
+    bool ::sp::db::EntryPluginObject<_CLASS_>::is_registered = \
+        ::sp::db::EntryObject::add_creator(__STRING(_NAME_), []() { return dynamic_cast<Entry*>(new EntryPluginObject<_CLASS_>()); });
 
 } // namespace sp::db
 #endif // SPDB_ENTRY_PLUGIN_H_

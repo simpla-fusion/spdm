@@ -51,7 +51,7 @@ public:
 
     Node(Node* parent = nullptr, const std::string& name = "");
 
-    Node(const Entry::element&);
+    Node(const Entry&);
 
     Node(const this_type& other) : base_type(other){};
 

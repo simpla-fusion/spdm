@@ -20,7 +20,7 @@ std::string join_path(const std::string& l, const std::string& r, Others&&... ot
     return join_path(join_path(l, r), std::forward<Others>(others)...);
 }
 
-Node make_node(const Entry::element& element)
+Node make_node(const Entry& element)
 {
     Node res;
 
@@ -45,7 +45,9 @@ Node make_node(const Entry::element& element)
 
 Node::Node(const std::string& backend) : base_type(nullptr, "")
 {
-    data().template emplace<type_tags::Object>(this, Entry::create(backend));
+    std::cout << FILE_LINE_STAMP << backend << std::endl;
+
+    data().template emplace<type_tags::Object>(this, EntryObject::create(backend));
 };
 
 Node::Node(Node* parent, const std::string& name) : base_type(parent, name){};
@@ -62,13 +64,13 @@ template <class... Ts>
 overloaded(Ts...)->overloaded<Ts...>;
 } // namespace _detail
 
-Node::Node(const Entry::element& ele)
+Node::Node(const Entry& ele)
 {
     std::visit(_detail::overloaded{
-                   [&](const std::variant_alternative_t<type_tags::Array, Entry::element>& ele) {
+                   [&](const std::variant_alternative_t<type_tags::Array, Entry>& ele) {
                        data().template emplace<type_tags::Array>(this, ele);
                    },
-                   [&](const std::variant_alternative_t<type_tags::Object, Entry::element>& ele) {
+                   [&](const std::variant_alternative_t<type_tags::Object, Entry>& ele) {
                        data().template emplace<type_tags::Object>(this, ele);
                    },
                    [&](auto&& ele) { element(ele).swap(data()); } //

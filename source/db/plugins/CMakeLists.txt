@@ -1,10 +1,7 @@
 
 
 set(SPDB_PLUGINS_SOURCES
-  EntryMemory.cpp
-  
-
-  # EntryJSON.cpp
+  EntryJSON.cpp
 )
 # find_package(PugiXML)
 # if(PugiXML_FOUND)

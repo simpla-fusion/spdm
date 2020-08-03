@@ -1,6 +1,4 @@
-#include "Entry.h"
-#include "Node.h"
-#include "utility/Factory.h"
+#include "db/Entry.h"
 #include <iostream>
 
 #define CATCH_CONFIG_MAIN
@@ -11,17 +9,17 @@ TEST_CASE("Create Node", "[SpDB]")
     sp::logger::set_stdout_level(-1000);
 
     using namespace sp::db;
-    sp::Node node;
+    sp::db::Entry entry;
 
-    node.set_attribute("A", std::string("a"));
-    node.set_attribute("B", std::string("b"));
-    node["A"].set_value<std::string>("1234");
-    node["B"].set_value<std::string>("5678");
+    // entry.set_attribute("A", std::string("a"));
+    // entry.set_attribute("B", std::string("b"));
+    // entry["A"].set_value<std::string>("1234");
+    entry["B"].as<std::string>("5678");
 
-    node["C"][-1].set_value<int>(5);
-    node["C"][-1].set_value<float>(6.0);
+    entry["C"][-1].as<int>(5);
+    entry["C"][-1].as<float>(6.0);
 
-    std::cout << node << std::endl;
+    // std::cout << entry << std::endl;
 
     // std::cout << "====================================" << std::endl;
     // entry.as_table()["C"].as_array().push_back().as_scalar().set_value<std::string>("1234");
