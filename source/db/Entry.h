@@ -47,7 +47,14 @@ using element_types = std::variant<
     //std::any
     >;
 
-typedef traits::concatenate_t<std::variant<std::nullptr_t, std::shared_ptr<EntryObject>, std::shared_ptr<EntryArray>>, element_types> entry_base;
+typedef traits::template_copy_type_args<
+    HierarchicalTree,
+    traits::concatenate_t<
+        std::variant<Entry,
+                     EntryObject,
+                     EntryArray>,
+        element_types>>
+    entry_base;
 
 class EntryObject : std::enable_shared_from_this<EntryObject>
 {
