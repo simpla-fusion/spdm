@@ -20,8 +20,8 @@ TEST_CASE("Create Node", "[SpDB]")
     // entry["A"].set_value<std::string>("1234");
     entry["B"].as<std::string>("5678");
     entry["C"].as_array().resize(4);
-    entry["C"].push_back().as<int>(5);
-    entry["C"].push_back().as<float>(6.0);
+    entry["C"].as_array().push_back()->as<int>(5);
+    entry["C"].as_array().push_back()->as<float>(6.0);
 
     entry["C"][2] = 12344.56;
     using namespace std::complex_literals;

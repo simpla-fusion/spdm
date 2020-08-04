@@ -12,6 +12,22 @@ Entry::Entry() {}
 
 Entry::~Entry() {}
 
+Entry& Entry::fetch() { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
+
+const Entry& Entry::fetch() const { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
+
+void Entry::update()
+{
+    if (base_type::index() == type_tags::Reference)
+    {
+        std::get<type_tags::Reference>(*this)->update();
+    }
+}
+
+std::size_t Entry::type() const { return fetch().index(); }
+
+void Entry::clear() { base_type::emplace<std::nullptr_t>(nullptr); }
+
 DataBlock& Entry::as_block()
 {
     switch (base_type::index())
@@ -21,20 +37,24 @@ DataBlock& Entry::as_block()
         break;
     case type_tags::Block:
         break;
+    case type_tags::Reference:
+        std::get<type_tags::Reference>(*this)->as_block();
+        break;
     default:
         throw std::runtime_error("illegal type");
         break;
     }
-    return *std::get<type_tags::Block>(*this);
+    return *std::get<type_tags::Block>(fetch());
 }
 
 const DataBlock& Entry::as_block() const
 {
-    if (index() != type_tags::Block)
+
+    if (type() != type_tags::Block)
     {
         throw std::runtime_error("illegal type");
     }
-    return *std::get<type_tags::Block>(*this);
+    return *std::get<type_tags::Block>(fetch());
 }
 
 EntryObject& Entry::as_object()
@@ -46,36 +66,44 @@ EntryObject& Entry::as_object()
         break;
     case type_tags::Object:
         break;
+    case type_tags::Reference:
+        std::get<type_tags::Reference>(*this)->as_object();
+        break;
     default:
         throw std::runtime_error("illegal type");
         break;
     }
-    return *std::get<type_tags::Object>(*this);
+    return *std::get<type_tags::Object>(fetch());
 }
 
 const EntryObject& Entry::as_object() const
 {
-    if (index() != type_tags::Object)
+    if (type() != type_tags::Object)
     {
         throw std::runtime_error("illegal type");
     }
-    return *std::get<type_tags::Object>(*this);
+    return *std::get<type_tags::Object>(fetch());
 }
 
 EntryArray& Entry::as_array()
 {
-    switch (index())
+    switch (base_type::index())
     {
     case type_tags::Empty:
         emplace<type_tags::Array>(EntryArray::create(this));
         break;
     case type_tags::Array:
         break;
+
+    case type_tags::Reference:
+        std::get<type_tags::Reference>(*this)->as_array();
+        update();
+        break;
     default:
         throw std::runtime_error("illegal type");
         break;
     }
-    return *std::get<type_tags::Array>(*this);
+    return *std::get<type_tags::Array>(fetch());
 }
 
 const EntryArray& Entry::as_array() const
@@ -84,59 +112,14 @@ const EntryArray& Entry::as_array() const
     {
         throw std::runtime_error("illegal type");
     }
-    return *std::get<type_tags::Array>(*this);
+    return *std::get<type_tags::Array>(fetch());
 }
 
-Entry& Entry::insert(const std::string& path) { return as_object().insert(path); }
-Entry& Entry::insert(int idx) { return as_array().at(idx); }
+// Entry& Entry::insert(const std::string& path) { return as_object().insert(path); }
+// Entry& Entry::insert(int idx) { return as_array().at(idx); }
 
-const Entry& Entry::at(const std::string& path) const { return as_object().at(path); }
-const Entry& Entry::at(int idx) const { return as_array().at(idx); }
-
-Entry& Entry::insert(const XPath& path)
-{
-
-    Entry* p = this;
-    for (auto it = path.begin(); it != path.end(); ++it)
-    {
-        switch (it->index())
-        {
-        case XPath::type_tags::Key:
-            p = &(p->as_object().insert(std::get<XPath::type_tags::Key>(*it)));
-            break;
-        case XPath::type_tags::Index:
-            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
-            break;
-        default:
-            NOT_IMPLEMENTED;
-            break;
-        }
-    }
-    return *p;
-}
-
-const Entry& Entry::at(const XPath& path) const
-{
-
-    const Entry* p = this;
-    for (auto it = path.begin(); it != path.end(); ++it)
-    {
-        switch (it->index())
-        {
-        case XPath::type_tags::Key:
-            p = &p->as_object().at(std::get<XPath::type_tags::Key>(*it));
-            break;
-        case XPath::type_tags::Index:
-            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
-            break;
-        default:
-            NOT_IMPLEMENTED;
-            break;
-        }
-    }
-    return *p;
-    ;
-}
+// const Entry& Entry::at(const std::string& path) const { return as_object().at(path); }
+// const Entry& Entry::at(int idx) const { return as_array().at(idx); }
 
 //-----------------------------------------------------------------------------------------------------------
 EntryObject::EntryObject(Entry* s) : m_self_(s) {}
@@ -213,6 +196,53 @@ bool EntryObject::add_creator(const std::string& c_id, const std::function<Entry
     return Factory<EntryObject>::add(c_id, fun);
 };
 
+Cursor<Entry> EntryObject::insert(const XPath& path)
+{
+
+    Cursor<Entry> p = make_cursor<Entry>(m_self_);
+    for (auto it = path.begin(); it != path.end(); ++it)
+    {
+        switch (it->index())
+        {
+        case XPath::type_tags::Key:
+            p = p->as_object().insert(std::get<XPath::type_tags::Key>(*it));
+            break;
+        case XPath::type_tags::Index:
+            p = p->as_array().item(std::get<XPath::type_tags::Index>(*it));
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+    return p;
+}
+
+Cursor<const Entry> EntryObject::select(const XPath& path) const
+{
+
+    Cursor<const Entry> p = make_cursor<const Entry>(m_self_);
+    for (auto it = path.begin(); it != path.end(); ++it)
+    {
+        switch (it->index())
+        {
+        case XPath::type_tags::Key:
+            p = p->as_object().select(std::get<XPath::type_tags::Key>(*it));
+            break;
+        case XPath::type_tags::Index:
+            p = p->as_array().item(std::get<XPath::type_tags::Index>(*it));
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+    return p;
+    ;
+}
+
+void EntryObject::erase(const XPath& path) { NOT_IMPLEMENTED; }
+
 //-----------------------------------------------------------------------------------------------------------
 EntryArray::EntryArray(Entry* s) : m_self_(s) {}
 
@@ -260,21 +290,25 @@ public:
 
     std::size_t count(const std::string& name) override { return m_container_.count(name); }
 
-    Entry& insert(const std::string& path) override;
+    Cursor<Entry> insert(const std::string& path) override;
 
-    Entry& insert(const XPath& path) override;
+    Cursor<Entry> select(const std::string& path) override;
 
-    const Entry& at(const std::string& path) const override;
+    Cursor<const Entry> select(const std::string& path) const override;
 
-    const Entry& at(const XPath& path) const override;
+    // Cursor<Entry> insert(const XPath& path) override;
 
-    Cursor<Entry> find(const std::string& path) override;
+    // const Entry& at(const std::string& path) const override;
 
-    Cursor<Entry> find(const XPath& path) override;
+    // const Entry& at(const XPath& path) const override;
 
-    Cursor<const Entry> find(const std::string& path) const override;
+    // Cursor<Entry> find(const std::string& path) override;
 
-    Cursor<const Entry> find(const XPath& path) const override;
+    // Cursor<Entry> find(const XPath& path) override;
+
+    // Cursor<const Entry> find(const std::string& path) const override;
+
+    // Cursor<const Entry> find(const XPath& path) const override;
 
     void erase(const std::string& path) override {}
 
@@ -288,104 +322,18 @@ public:
 
     Cursor<std::pair<const std::string, Entry>> kv_items() const override;
 
-    // level 1
-
-    Cursor<Entry> select(const std::string& path) override;
-
-    Cursor<Entry> select(const XPath& path) override;
-
-    Cursor<const Entry> select(const std::string& path) const override;
-
-    Cursor<const Entry> select(const XPath& path) const override;
-
 private:
     std::map<std::string, Entry> m_container_;
 };
 
-// function level 0
+Cursor<Entry>
+EntryObjectDefault::insert(const std::string& name) { return make_cursor(&m_container_.try_emplace(name).first->second); }
+
+Cursor<Entry>
+EntryObjectDefault::select(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
 
 Cursor<const Entry>
-EntryObjectDefault::find(const std::string& name) const
-{
-    return make_cursor(m_container_.find(name), m_container_.end()).map<const Entry>();
-};
-
-Cursor<const Entry>
-EntryObjectDefault::find(const XPath& xpath) const
-{
-    // std::string path = xpath.str();
-    // int pos = 0;
-    // auto res = const_cast<EntryObjectDefault*>(this)->shared_from_this();
-
-    // while (res != nullptr && pos < path.size())
-    // {
-    //     int end = path.find("/", pos);
-    //     if (end == std::string::npos)
-    //     {
-    //         end = path.size();
-    //     }
-    //     res = res->find(path.substr(pos, end - pos));
-    //     pos = end + 1;
-    // }
-    // return res;
-    return find(xpath.str());
-};
-
-Entry&
-EntryObjectDefault::insert(const std::string& name) { return m_container_.try_emplace(name).first->second; }
-
-Entry&
-EntryObjectDefault::insert(const XPath& xpath)
-{
-    // auto path = xpath.str();
-
-    // int pos = 0;
-    // Cursor<Entry> res = shared_from_this();
-
-    // while (res != nullptr && pos < path.size())
-    // {
-    //     int end = path.find("/", pos);
-    //     if (end == std::string::npos)
-    //     {
-    //         end = path.size();
-    //     }
-    //     res = res->insert(path.substr(pos, end - pos));
-    //     pos = end + 1;
-    // }
-    // return res;
-    return insert(xpath.str());
-}
-
-const Entry&
-EntryObjectDefault::at(const std::string& name) const { return m_container_.at(name); }
-
-const Entry&
-EntryObjectDefault::at(const XPath& xpath) const
-{
-    // auto path = xpath.str();
-
-    // int pos = 0;
-    // Cursor<Entry> res = shared_from_this();
-
-    // while (res != nullptr && pos < path.size())
-    // {
-    //     int end = path.find("/", pos);
-    //     if (end == std::string::npos)
-    //     {
-    //         end = path.size();
-    //     }
-    //     res = res->insert(path.substr(pos, end - pos));
-    //     pos = end + 1;
-    // }
-    // return res;
-    return at(xpath.str());
-}
-
-//----------------------------------------------------------------------------------------------------------
-// child
-
-//----------------------------------------------------------------------------------------------------------
-// level 1
+EntryObjectDefault::select(const std::string& path) const { return make_cursor(m_container_.find(path), m_container_.end()).map<const Entry>(); }
 
 Cursor<Entry>
 EntryObjectDefault::children() { return make_cursor(m_container_.begin(), m_container_.end()).map<Entry>(); }
@@ -393,50 +341,10 @@ EntryObjectDefault::children() { return make_cursor(m_container_.begin(), m_cont
 Cursor<const Entry>
 EntryObjectDefault::children() const { return make_cursor(m_container_.cbegin(), m_container_.cend()).map<const Entry>(); }
 
-Cursor<Entry>
-EntryObjectDefault::find(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
-
-Cursor<Entry>
-EntryObjectDefault::find(const XPath& path) { return find(path.str()); }
-
 Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() { return make_cursor(m_container_.begin(), m_container_.end()); };
 
 Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() const { return make_cursor(m_container_.cbegin(), m_container_.cend()); };
 
-Cursor<Entry>
-EntryObjectDefault::select(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
-
-Cursor<Entry>
-EntryObjectDefault::select(const XPath& path) { return select(path.str()); }
-
-Cursor<const Entry> EntryObjectDefault::select(const std::string& path) const
-{
-    return make_cursor(m_container_.find(path), m_container_.end()).map<const Entry>();
-}
-
-Cursor<const Entry>
-EntryObjectDefault::select(const XPath& path) const { return select(path.str()); }
-
-//
-// Cursor<Entry>
-// EntryObjectDefault::children() const
-// {
-//     Cursor<Entry> res{nullptr};
-//     if (type() == Entry::type_tags::Object)
-//     {
-//         auto& m = std::get<Entry::type_tags::Object>(m_container_);
-
-//         res = make_iterator<entry_memory>(m.begin(), m.end());
-//     }
-//     else if (type() == Entry::2)
-//     {
-//         auto& m = std::get<Entry::2>(m_container_);
-
-//         res = make_iterator<entry_memory>(m.begin(), m.end());
-//     }
-
-//     return res;
-// }
 //--------------------------------------------------------------------------------
 
 class EntryArrayDefault : public EntryArray
@@ -466,13 +374,13 @@ public:
 
     Cursor<const Entry> children() const;
 
-    Entry& push_back() override;
+    Cursor<Entry> push_back() override;
 
     void pop_back() override;
 
-    Entry& at(int idx) override;
+    Cursor<Entry> item(int idx) override;
 
-    const Entry& at(int idx) const override;
+    Cursor<const Entry> item(int idx) const override;
 
 private:
     std::vector<Entry> m_container_;
@@ -484,15 +392,14 @@ Cursor<Entry> EntryArrayDefault::children() { return make_cursor(m_container_.be
 
 Cursor<const Entry> EntryArrayDefault::children() const { return make_cursor(m_container_.begin(), m_container_.end()).map<const Entry>(); }
 
-Entry& EntryArrayDefault::push_back() { return m_container_.emplace_back(); }
+Cursor<Entry> EntryArrayDefault::push_back() { return make_cursor(&m_container_.emplace_back()); }
 
 void EntryArrayDefault::pop_back() { m_container_.pop_back(); }
 
-const Entry&
-EntryArrayDefault::at(int idx) const { return m_container_.at(idx); }
+Cursor<const Entry> EntryArrayDefault::item(int idx) const { return make_cursor(&m_container_.at(idx)); }
 
-Entry&
-EntryArrayDefault::at(int idx) { return m_container_.at(idx); }
+Cursor<Entry> EntryArrayDefault::item(int idx) { return make_cursor(&m_container_.at(idx)); }
+
 } // namespace sp::db
 namespace sp::utility
 {

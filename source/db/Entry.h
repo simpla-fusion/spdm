@@ -19,9 +19,11 @@ class EntryObject;
 class EntryArray;
 
 } // namespace sp::db
-M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
+
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
+M_REGISITER_TYPE_TAG(Reference, std::shared_ptr<sp::db::Entry>);
+M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
 
 namespace sp::db
 {
@@ -32,7 +34,9 @@ class EntryObject : std::enable_shared_from_this<EntryObject>
 
 public:
     EntryObject(Entry* self);
+
     virtual ~EntryObject();
+
     EntryObject(const EntryObject&) = delete;
     EntryObject(EntryObject&&) = delete;
 
@@ -50,28 +54,33 @@ public:
 
     virtual void clear() = 0;
 
+    //------------------------------------------------------------------
     virtual std::size_t count(const std::string& name) = 0;
 
-    virtual Entry& insert(const std::string& path) = 0;
+    virtual Cursor<Entry> insert(const std::string& path) = 0;
 
-    virtual Entry& insert(const XPath& path) = 0;
+    virtual Cursor<Entry> select(const std::string& path) = 0;
 
-    virtual const Entry& at(const std::string& path) const = 0;
-
-    virtual const Entry& at(const XPath& path) const = 0;
-
-    virtual Cursor<Entry> find(const std::string& path) = 0;
-
-    virtual Cursor<Entry> find(const XPath& path) = 0;
-
-    virtual Cursor<const Entry> find(const std::string& path) const = 0;
-
-    virtual Cursor<const Entry> find(const XPath& path) const = 0;
+    virtual Cursor<const Entry> select(const std::string& path) const = 0;
 
     virtual void erase(const std::string& path) = 0;
 
-    virtual void erase(const XPath& path) = 0;
+    //------------------------------------------------------------------
+    virtual Cursor<Entry> insert(const XPath& path);
 
+    // virtual Cursor<Entry> select(const XPath& path);
+
+    virtual Cursor<const Entry> select(const XPath& path) const;
+
+    virtual void erase(const XPath& path);
+
+    template <typename P>
+    Entry& operator[](const P& path) { return *insert(path); }
+
+    template <typename P>
+    const Entry& operator[](const P& path) const { return *select(path); }
+
+    //------------------------------------------------------------------
     virtual Cursor<Entry> children() = 0;
 
     virtual Cursor<const Entry> children() const = 0;
@@ -79,22 +88,6 @@ public:
     virtual Cursor<std::pair<const std::string, Entry>> kv_items() = 0;
 
     virtual Cursor<std::pair<const std::string, Entry>> kv_items() const = 0;
-
-    // level 1
-
-    virtual Cursor<Entry> select(const std::string& path) = 0;
-
-    virtual Cursor<Entry> select(const XPath& path) = 0;
-
-    virtual Cursor<const Entry> select(const std::string& path) const = 0;
-
-    virtual Cursor<const Entry> select(const XPath& path) const = 0;
-
-    template <typename P>
-    Entry& operator[](const P& path) { return insert(path); }
-
-    template <typename P>
-    const Entry& operator[](const P& path) const { return at(path); }
 };
 
 class EntryArray : std::enable_shared_from_this<EntryArray>
@@ -126,22 +119,23 @@ public:
 
     virtual void clear() = 0;
 
-    virtual Entry& push_back() = 0;
+    virtual Cursor<Entry> push_back() = 0;
 
     virtual void pop_back() = 0;
 
-    virtual Entry& at(int idx) = 0;
+    virtual Cursor<Entry> item(int idx) = 0;
 
-    virtual const Entry& at(int idx) const = 0;
+    virtual Cursor<const Entry> item(int idx) const = 0;
 
-    Entry& operator[](int idx) { return at(idx); }
+    Entry& operator[](int idx) { return *item(idx); }
 
-    const Entry& operator[](int idx) const { return at(idx); }
+    const Entry& operator[](int idx) const { return *item(idx); }
 };
 
 typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,
                      std::shared_ptr<EntryArray>,
+                     std::shared_ptr<Entry>,             //Reference
                      std::shared_ptr<DataBlock>,         //Block
                      std::string,                        //String,
                      bool,                               //Boolean,
@@ -158,16 +152,14 @@ typedef std::variant<std::nullptr_t,
                      >
     entry_base;
 
-class Entry : public entry_base
+class Entry : public entry_base, public std::enable_shared_from_this<Entry>
 {
 public:
     typedef entry_base base_type;
     typedef traits::type_tags<entry_base> type_tags;
-    typedef Cursor<Entry> cursor;
-    typedef Cursor<const Entry> const_cursor;
 
     Entry();
-    ~Entry();
+    virtual ~Entry();
     Entry(const Entry& other) : base_type(other) {}
     Entry(Entry&& other) : base_type(std::move(other)) {}
 
@@ -210,73 +202,68 @@ public:
         return *this;
     }
 
-    std::size_t type() const { return base_type::index(); }
+    //---------------------------------------------------------------------
+    // for reference
 
-    void clear() { base_type::emplace<std::nullptr_t>(nullptr); }
+    Entry& fetch();
+
+    const Entry& fetch() const;
+
+    void update();
+
+    std::size_t type() const;
+
+    void clear();
+
+    //---------------------------------------------------------------------
 
     Cursor<Entry> children();
 
     Cursor<const Entry> children() const;
 
     template <typename V>
-    void as(const V& v) { base_type::emplace<V>(v); }
+    void as(const V& v)
+    {
+        fetch().emplace<V>(v);
+        update();
+    }
 
     template <typename V>
-    void as(V&& v) { base_type::emplace<V>(std::forward<V>(v)); }
+    void as(V&& v)
+    {
+        fetch().emplace<V>(std::forward<V>(v));
+        update();
+    }
 
     template <typename V>
-    V& as() { return std::get<V>(*this); }
+    V& as() { return std::get<V>(fetch()); }
 
     template <typename V>
-    const V& as() const { return std::get<V>(*this); }
+    const V& as() const { return std::get<V>(fetch()); }
 
     DataBlock& as_block();
-
     const DataBlock& as_block() const;
 
     EntryObject& as_object();
-
     const EntryObject& as_object() const;
 
     EntryArray& as_array();
-
     const EntryArray& as_array() const;
 
-    Entry& insert(const XPath& path);
-    Entry& insert(const std::string& key);
-    Entry& insert(int idx);
+    template <typename TIDX>
+    auto operator[](const TIDX& path) -> std::enable_if_t<!std::is_integral_v<TIDX>, Entry&> { return *as_object().insert(path); }
 
-    const Entry& at(const XPath& path) const;
-    const Entry& at(const std::string& key) const ;
-    const Entry& at(int idx) const ;
+    template <typename TIDX>
+    auto operator[](const TIDX& path) const -> std::enable_if_t<!std::is_integral_v<TIDX>, const Entry&> { return *as_object().select(path); }
 
-    Entry& push_back() { return as_array().push_back(); }
+    template <typename TIDX>
+    auto operator[](const TIDX& idx) -> std::enable_if_t<std::is_integral_v<TIDX>, Entry&> { return *as_array().item(idx); }
 
-    void pop_back() { as_array().pop_back(); }
-
-    void resize(size_t num) { as_array().resize(num); }
-
-    template <typename TPath>
-    Entry& operator[](const TPath& path) { return insert(path); }
-
-    template <typename TPath>
-    const Entry& operator[](const TPath& path) const { return at(path); }
+    template <typename TIDX>
+    auto operator[](const TIDX& idx) const -> std::enable_if_t<std::is_integral_v<TIDX>, const Entry&> { return *as_array().item(idx); }
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
-
-// std::string to_string(Entry const& s);
-
-// Entry from_string(const std::string& s, int idx = 0);
-
-// template <typename TNode>
-// using entry_wrapper = traits::template_copy_type_args<
-//     HierarchicalTree,
-//     traits::concatenate_t<
-//         std::variant<TNode,
-//                      EntryObject,
-//                      EntryArray>,
-//         element_types>>;
 
 } // namespace sp::db
 

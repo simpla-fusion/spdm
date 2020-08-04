@@ -208,7 +208,6 @@ protected:
 template <typename U, typename V, typename Enable = void>
 class CursorProxyMapper;
 
-
 template <typename U, typename V>
 class CursorProxyMapper<U, V,
                         std::enable_if_t<!std::is_convertible_v<V, U>>> : public CursorProxy<U>
@@ -325,6 +324,17 @@ public:
     ~Cursor() = default;
 
     // operator bool() const { return !m_proxy_->done(); }
+
+    void swap(cursor& other)
+    {
+        std::swap(m_proxy_, other.m_proxy_);
+    }
+
+    cursor operator=(const cursor& other) 
+    {
+        Cursor(other).swap(*this);
+        return *this;
+    }
 
     bool operator==(const cursor& other) const { return m_proxy_->equal(m_proxy_.get()); }
 
