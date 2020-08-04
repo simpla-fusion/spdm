@@ -1,8 +1,8 @@
 #ifndef SPDB_ENTRY_H_
 #define SPDB_ENTRY_H_
-#include "../utility/Path.h"
 #include "../utility/TypeTraits.h"
 #include "Cursor.h"
+#include "XPath.h"
 #include <array>
 #include <complex>
 #include <functional>
@@ -11,16 +11,14 @@
 #include <string>
 #include <variant>
 #include <vector>
-namespace sp
-{
-namespace db
+namespace sp::db
 {
 class DataBlock;
 class Entry;
 class EntryObject;
 class EntryArray;
-} // namespace db
-} // namespace sp
+
+} // namespace sp::db
 M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
@@ -56,23 +54,23 @@ public:
 
     virtual Entry& insert(const std::string& path) = 0;
 
-    virtual Entry& insert(const Path& path) = 0;
+    virtual Entry& insert(const XPath& path) = 0;
 
     virtual const Entry& at(const std::string& path) const = 0;
 
-    virtual const Entry& at(const Path& path) const = 0;
+    virtual const Entry& at(const XPath& path) const = 0;
 
     virtual Cursor<Entry> find(const std::string& path) = 0;
 
-    virtual Cursor<Entry> find(const Path& path) = 0;
+    virtual Cursor<Entry> find(const XPath& path) = 0;
 
     virtual Cursor<const Entry> find(const std::string& path) const = 0;
 
-    virtual Cursor<const Entry> find(const Path& path) const = 0;
+    virtual Cursor<const Entry> find(const XPath& path) const = 0;
 
     virtual void erase(const std::string& path) = 0;
 
-    virtual void erase(const Path& path) = 0;
+    virtual void erase(const XPath& path) = 0;
 
     virtual Cursor<Entry> children() = 0;
 
@@ -86,11 +84,11 @@ public:
 
     virtual Cursor<Entry> select(const std::string& path) = 0;
 
-    virtual Cursor<Entry> select(const Path& path) = 0;
+    virtual Cursor<Entry> select(const XPath& path) = 0;
 
     virtual Cursor<const Entry> select(const std::string& path) const = 0;
 
-    virtual Cursor<const Entry> select(const Path& path) const = 0;
+    virtual Cursor<const Entry> select(const XPath& path) const = 0;
 
     template <typename P>
     Entry& operator[](const P& path) { return insert(path); }
@@ -206,6 +204,12 @@ public:
         return *this;
     }
 
+    Entry& operator=(const char* v)
+    {
+        as<std::string>(v);
+        return *this;
+    }
+
     std::size_t type() const { return base_type::index(); }
 
     void clear() { base_type::emplace<std::nullptr_t>(nullptr); }
@@ -239,26 +243,24 @@ public:
     const EntryArray& as_array() const;
 
     Entry& insert(const XPath& path);
+    Entry& insert(const std::string& key);
+    Entry& insert(int idx);
 
-    const Entry& at(const XPath& path);
-
-    Entry& operator[](const XPath& path) { return insert(path); }
-
-    const Entry& operator[](const XPath& key) const { return at(path); }
-
-    Entry& operator[](const std::string& key) { return as_object()[key]; }
-
-    const Entry& operator[](const std::string& key) const { return as_object()[key]; }
-
-    Entry& operator[](int idx) { return as_array()[idx]; }
-
-    const Entry& operator[](int idx) const { return as_array()[idx]; }
+    const Entry& at(const XPath& path) const;
+    const Entry& at(const std::string& key) const ;
+    const Entry& at(int idx) const ;
 
     Entry& push_back() { return as_array().push_back(); }
 
     void pop_back() { as_array().pop_back(); }
 
     void resize(size_t num) { as_array().resize(num); }
+
+    template <typename TPath>
+    Entry& operator[](const TPath& path) { return insert(path); }
+
+    template <typename TPath>
+    const Entry& operator[](const TPath& path) const { return at(path); }
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

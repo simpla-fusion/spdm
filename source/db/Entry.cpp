@@ -87,9 +87,56 @@ const EntryArray& Entry::as_array() const
     return *std::get<type_tags::Array>(*this);
 }
 
-Entry& Entry::insert(const XPath& path) { return as_object().insert(path.str()); }
+Entry& Entry::insert(const std::string& path) { return as_object().insert(path); }
+Entry& Entry::insert(int idx) { return as_array().at(idx); }
 
-const Entry& Entry::at(const XPath& path) { return as_object().insert(path.str()); }
+const Entry& Entry::at(const std::string& path) const { return as_object().at(path); }
+const Entry& Entry::at(int idx) const { return as_array().at(idx); }
+
+Entry& Entry::insert(const XPath& path)
+{
+
+    Entry* p = this;
+    for (auto it = path.begin(); it != path.end(); ++it)
+    {
+        switch (it->index())
+        {
+        case XPath::type_tags::Key:
+            p = &(p->as_object().insert(std::get<XPath::type_tags::Key>(*it)));
+            break;
+        case XPath::type_tags::Index:
+            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+    return *p;
+}
+
+const Entry& Entry::at(const XPath& path) const
+{
+
+    const Entry* p = this;
+    for (auto it = path.begin(); it != path.end(); ++it)
+    {
+        switch (it->index())
+        {
+        case XPath::type_tags::Key:
+            p = &p->as_object().at(std::get<XPath::type_tags::Key>(*it));
+            break;
+        case XPath::type_tags::Index:
+            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+    return *p;
+    ;
+}
 
 //-----------------------------------------------------------------------------------------------------------
 EntryObject::EntryObject(Entry* s) : m_self_(s) {}
@@ -215,23 +262,23 @@ public:
 
     Entry& insert(const std::string& path) override;
 
-    Entry& insert(const Path& path) override;
+    Entry& insert(const XPath& path) override;
 
     const Entry& at(const std::string& path) const override;
 
-    const Entry& at(const Path& path) const override;
+    const Entry& at(const XPath& path) const override;
 
     Cursor<Entry> find(const std::string& path) override;
 
-    Cursor<Entry> find(const Path& path) override;
+    Cursor<Entry> find(const XPath& path) override;
 
     Cursor<const Entry> find(const std::string& path) const override;
 
-    Cursor<const Entry> find(const Path& path) const override;
+    Cursor<const Entry> find(const XPath& path) const override;
 
     void erase(const std::string& path) override {}
 
-    void erase(const Path& path) override {}
+    void erase(const XPath& path) override {}
 
     Cursor<Entry> children() override;
 
@@ -245,11 +292,11 @@ public:
 
     Cursor<Entry> select(const std::string& path) override;
 
-    Cursor<Entry> select(const Path& path) override;
+    Cursor<Entry> select(const XPath& path) override;
 
     Cursor<const Entry> select(const std::string& path) const override;
 
-    Cursor<const Entry> select(const Path& path) const override;
+    Cursor<const Entry> select(const XPath& path) const override;
 
 private:
     std::map<std::string, Entry> m_container_;
@@ -264,7 +311,7 @@ EntryObjectDefault::find(const std::string& name) const
 };
 
 Cursor<const Entry>
-EntryObjectDefault::find(const Path& xpath) const
+EntryObjectDefault::find(const XPath& xpath) const
 {
     // std::string path = xpath.str();
     // int pos = 0;
@@ -288,7 +335,7 @@ Entry&
 EntryObjectDefault::insert(const std::string& name) { return m_container_.try_emplace(name).first->second; }
 
 Entry&
-EntryObjectDefault::insert(const Path& xpath)
+EntryObjectDefault::insert(const XPath& xpath)
 {
     // auto path = xpath.str();
 
@@ -313,7 +360,7 @@ const Entry&
 EntryObjectDefault::at(const std::string& name) const { return m_container_.at(name); }
 
 const Entry&
-EntryObjectDefault::at(const Path& xpath) const
+EntryObjectDefault::at(const XPath& xpath) const
 {
     // auto path = xpath.str();
 
@@ -350,7 +397,7 @@ Cursor<Entry>
 EntryObjectDefault::find(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
 
 Cursor<Entry>
-EntryObjectDefault::find(const Path& path) { return find(path.str()); }
+EntryObjectDefault::find(const XPath& path) { return find(path.str()); }
 
 Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() { return make_cursor(m_container_.begin(), m_container_.end()); };
 
@@ -360,7 +407,7 @@ Cursor<Entry>
 EntryObjectDefault::select(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
 
 Cursor<Entry>
-EntryObjectDefault::select(const Path& path) { return select(path.str()); }
+EntryObjectDefault::select(const XPath& path) { return select(path.str()); }
 
 Cursor<const Entry> EntryObjectDefault::select(const std::string& path) const
 {
@@ -368,7 +415,7 @@ Cursor<const Entry> EntryObjectDefault::select(const std::string& path) const
 }
 
 Cursor<const Entry>
-EntryObjectDefault::select(const Path& path) const { return select(path.str()); }
+EntryObjectDefault::select(const XPath& path) const { return select(path.str()); }
 
 //
 // Cursor<Entry>

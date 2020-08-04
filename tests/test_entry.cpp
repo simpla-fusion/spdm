@@ -1,4 +1,5 @@
 #include "db/Entry.h"
+#include "db/XPath.h"
 #include "utility/Logger.h"
 #include <iostream>
 
@@ -7,6 +8,8 @@
 
 TEST_CASE("Create Node", "[SpDB]")
 {
+    using namespace sp::db::literals;
+
     sp::logger::set_stdout_level(-1000);
 
     using namespace sp::db;
@@ -23,6 +26,8 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["C"][2] = 12344.56;
     using namespace std::complex_literals;
     entry["C"][3] = 6.0 + 4.0i;
+
+    entry["D/E/F"_p] = "hello world!";
 
     std::cout << entry << std::endl;
 

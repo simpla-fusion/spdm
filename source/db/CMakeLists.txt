@@ -17,7 +17,7 @@ set(SPDB_INCLUDES
 set(SPDB_SOURCES
   Entry.cpp  
   DataBlock.cpp
-  # XPath.cpp
+  XPath.cpp
   # Document.cpp
   # Collection.cpp
   # DataBase.cpp
