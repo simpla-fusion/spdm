@@ -12,9 +12,34 @@ Entry::Entry() {}
 
 Entry::~Entry() {}
 
+DataBlock& Entry::as_block()
+{
+    switch (base_type::index())
+    {
+    case type_tags::Empty:
+        emplace<type_tags::Block>(std::make_shared<DataBlock>());
+        break;
+    case type_tags::Block:
+        break;
+    default:
+        throw std::runtime_error("illegal type");
+        break;
+    }
+    return *std::get<type_tags::Block>(*this);
+}
+
+const DataBlock& Entry::as_block() const
+{
+    if (index() != type_tags::Block)
+    {
+        throw std::runtime_error("illegal type");
+    }
+    return *std::get<type_tags::Block>(*this);
+}
+
 EntryObject& Entry::as_object()
 {
-    switch (index())
+    switch (base_type::index())
     {
     case type_tags::Empty:
         emplace<type_tags::Object>(EntryObject::create(this));
@@ -61,6 +86,10 @@ const EntryArray& Entry::as_array() const
     }
     return *std::get<type_tags::Array>(*this);
 }
+
+Entry& Entry::insert(const XPath& path) { return as_object().insert(path.str()); }
+
+const Entry& Entry::at(const XPath& path) { return as_object().insert(path.str()); }
 
 //-----------------------------------------------------------------------------------------------------------
 EntryObject::EntryObject(Entry* s) : m_self_(s) {}

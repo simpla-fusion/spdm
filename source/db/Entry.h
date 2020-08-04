@@ -226,6 +226,10 @@ public:
     template <typename V>
     const V& as() const { return std::get<V>(*this); }
 
+    DataBlock& as_block();
+
+    const DataBlock& as_block() const;
+
     EntryObject& as_object();
 
     const EntryObject& as_object() const;
@@ -233,6 +237,14 @@ public:
     EntryArray& as_array();
 
     const EntryArray& as_array() const;
+
+    Entry& insert(const XPath& path);
+
+    const Entry& at(const XPath& path);
+
+    Entry& operator[](const XPath& path) { return insert(path); }
+
+    const Entry& operator[](const XPath& key) const { return at(path); }
 
     Entry& operator[](const std::string& key) { return as_object()[key]; }
 

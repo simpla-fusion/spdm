@@ -7,7 +7,6 @@ add_subdirectory(plugins)
 set(SPDB_INCLUDES
   DataBlock.h
   Entry.h  
-  Node.h
   Document.h
   Collection.h
   DataBase.h
@@ -16,9 +15,8 @@ set(SPDB_INCLUDES
 
 
 set(SPDB_SOURCES
-  Entry.cpp
-  # Node.cpp
-  # DataBlock.cpp
+  Entry.cpp  
+  DataBlock.cpp
   # XPath.cpp
   # Document.cpp
   # Collection.cpp
