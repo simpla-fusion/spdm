@@ -196,53 +196,56 @@ bool EntryObject::add_creator(const std::string& c_id, const std::function<Entry
     return Factory<EntryObject>::add(c_id, fun);
 };
 
-Cursor<Entry> EntryObject::insert(const XPath& path)
+Entry& EntryObject::insert(const XPath& path)
 {
 
-    Cursor<Entry> p = make_cursor<Entry>(m_self_);
+    Entry* p = m_self_;
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())
         {
         case XPath::type_tags::Key:
-            p = p->as_object().insert(std::get<XPath::type_tags::Key>(*it));
+            p = &p->as_object().insert(std::get<XPath::type_tags::Key>(*it));
             break;
         case XPath::type_tags::Index:
-            p = p->as_array().item(std::get<XPath::type_tags::Index>(*it));
+            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
             break;
         default:
             NOT_IMPLEMENTED;
             break;
         }
     }
-    return p;
+    return *p;
 }
 
-Cursor<const Entry> EntryObject::select(const XPath& path) const
+const Entry& EntryObject::at(const XPath& path) const
 {
 
-    Cursor<const Entry> p = make_cursor<const Entry>(m_self_);
+    const Entry* p = m_self_;
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())
         {
         case XPath::type_tags::Key:
-            p = p->as_object().select(std::get<XPath::type_tags::Key>(*it));
+            p = &p->as_object().at(std::get<XPath::type_tags::Key>(*it));
             break;
         case XPath::type_tags::Index:
-            p = p->as_array().item(std::get<XPath::type_tags::Index>(*it));
+            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
             break;
         default:
             NOT_IMPLEMENTED;
             break;
         }
     }
-    return p;
+    return *p;
     ;
 }
 
 void EntryObject::erase(const XPath& path) { NOT_IMPLEMENTED; }
 
+Cursor<Entry> EntryObject::select(const XPath& path) { NOT_IMPLEMENTED; }
+
+Cursor<const Entry> EntryObject::select(const XPath& path) const { NOT_IMPLEMENTED; }
 //-----------------------------------------------------------------------------------------------------------
 EntryArray::EntryArray(Entry* s) : m_self_(s) {}
 
@@ -288,31 +291,23 @@ public:
 
     // as object
 
-    std::size_t count(const std::string& name) override { return m_container_.count(name); }
+    Entry& insert(const std::string& path) override;
 
-    Cursor<Entry> insert(const std::string& path) override;
+    // Entry& insert(const XPath& path) override;
 
-    Cursor<Entry> select(const std::string& path) override;
-
-    Cursor<const Entry> select(const std::string& path) const override;
-
-    // Cursor<Entry> insert(const XPath& path) override;
-
-    // const Entry& at(const std::string& path) const override;
+    const Entry& at(const std::string& path) const override;
 
     // const Entry& at(const XPath& path) const override;
 
-    // Cursor<Entry> find(const std::string& path) override;
+    void erase(const std::string& path) override;
 
-    // Cursor<Entry> find(const XPath& path) override;
+    // void erase(const XPath& path) override;
 
-    // Cursor<const Entry> find(const std::string& path) const override;
+    //------------------------------------------------------------------
 
-    // Cursor<const Entry> find(const XPath& path) const override;
+    // Cursor<Entry> select(const XPath& path) override;
 
-    void erase(const std::string& path) override {}
-
-    void erase(const XPath& path) override {}
+    // Cursor<const Entry> select(const XPath& path) const override;
 
     Cursor<Entry> children() override;
 
@@ -326,14 +321,15 @@ private:
     std::map<std::string, Entry> m_container_;
 };
 
-Cursor<Entry>
-EntryObjectDefault::insert(const std::string& name) { return make_cursor(&m_container_.try_emplace(name).first->second); }
+Entry&
+EntryObjectDefault::insert(const std::string& name) { return m_container_.try_emplace(name).first->second; }
 
-Cursor<Entry>
-EntryObjectDefault::select(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
+const Entry&
+EntryObjectDefault::at(const std::string& path) const { return m_container_.at(path); }
 
-Cursor<const Entry>
-EntryObjectDefault::select(const std::string& path) const { return make_cursor(m_container_.find(path), m_container_.end()).map<const Entry>(); }
+void EntryObjectDefault::erase(const std::string& path) {  m_container_.erase(m_container_.find(path)); }
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
 
 Cursor<Entry>
 EntryObjectDefault::children() { return make_cursor(m_container_.begin(), m_container_.end()).map<Entry>(); }
@@ -354,6 +350,7 @@ public:
     typedef EntryArrayDefault this_type;
 
     EntryArrayDefault(Entry* self) : EntryArray(self) {}
+
     ~EntryArrayDefault() = default;
 
     EntryArrayDefault(const this_type& other) : EntryArray(nullptr), m_container_(other.m_container_) {}
@@ -370,17 +367,21 @@ public:
 
     void resize(std::size_t num) override;
 
-    Cursor<Entry> children();
-
-    Cursor<const Entry> children() const;
-
-    Cursor<Entry> push_back() override;
+    Entry& push_back() override;
 
     void pop_back() override;
 
     Cursor<Entry> item(int idx) override;
 
     Cursor<const Entry> item(int idx) const override;
+
+    Entry& at(int idx) override;
+
+    const Entry& at(int idx) const override;
+
+    Cursor<Entry> children();
+
+    Cursor<const Entry> children() const;
 
 private:
     std::vector<Entry> m_container_;
@@ -392,9 +393,13 @@ Cursor<Entry> EntryArrayDefault::children() { return make_cursor(m_container_.be
 
 Cursor<const Entry> EntryArrayDefault::children() const { return make_cursor(m_container_.begin(), m_container_.end()).map<const Entry>(); }
 
-Cursor<Entry> EntryArrayDefault::push_back() { return make_cursor(&m_container_.emplace_back()); }
+Entry& EntryArrayDefault::push_back() { return m_container_.emplace_back(); }
 
 void EntryArrayDefault::pop_back() { m_container_.pop_back(); }
+
+const Entry& EntryArrayDefault::at(int idx) const { return m_container_.at(idx); }
+
+Entry& EntryArrayDefault::at(int idx) { return m_container_.at(idx); }
 
 Cursor<const Entry> EntryArrayDefault::item(int idx) const { return make_cursor(&m_container_.at(idx)); }
 

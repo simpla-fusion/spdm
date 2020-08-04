@@ -38,6 +38,7 @@ public:
     virtual ~EntryObject();
 
     EntryObject(const EntryObject&) = delete;
+
     EntryObject(EntryObject&&) = delete;
 
     static std::shared_ptr<EntryObject> create(Entry* self, const std::string& request = "");
@@ -55,32 +56,31 @@ public:
     virtual void clear() = 0;
 
     //------------------------------------------------------------------
-    virtual std::size_t count(const std::string& name) = 0;
 
-    virtual Cursor<Entry> insert(const std::string& path) = 0;
+    virtual Entry& insert(const std::string& path) = 0;
 
-    virtual Cursor<Entry> select(const std::string& path) = 0;
+    virtual Entry& insert(const XPath& path) ;
 
-    virtual Cursor<const Entry> select(const std::string& path) const = 0;
+    virtual const Entry& at(const std::string& path) const = 0;
+
+    virtual const Entry& at(const XPath& path) const ;
 
     virtual void erase(const std::string& path) = 0;
 
-    //------------------------------------------------------------------
-    virtual Cursor<Entry> insert(const XPath& path);
+    virtual void erase(const XPath& path) ;
 
-    // virtual Cursor<Entry> select(const XPath& path);
+    template <typename P>
+    decltype(auto) operator[](const P& path) { return insert(path); }
+
+    template <typename P>
+    decltype(auto) operator[](const P& path) const { return at(path); }
+
+    //------------------------------------------------------------------
+
+    virtual Cursor<Entry> select(const XPath& path);
 
     virtual Cursor<const Entry> select(const XPath& path) const;
 
-    virtual void erase(const XPath& path);
-
-    template <typename P>
-    Entry& operator[](const P& path) { return *insert(path); }
-
-    template <typename P>
-    const Entry& operator[](const P& path) const { return *select(path); }
-
-    //------------------------------------------------------------------
     virtual Cursor<Entry> children() = 0;
 
     virtual Cursor<const Entry> children() const = 0;
@@ -119,17 +119,21 @@ public:
 
     virtual void clear() = 0;
 
-    virtual Cursor<Entry> push_back() = 0;
+    virtual Entry& push_back() = 0;
 
     virtual void pop_back() = 0;
+
+    virtual Entry& at(int idx) = 0;
+
+    virtual const Entry& at(int idx) const = 0;
+
+    decltype(auto) operator[](int idx) { return at(idx); }
+
+    decltype(auto) operator[](int idx) const { return at(idx); }
 
     virtual Cursor<Entry> item(int idx) = 0;
 
     virtual Cursor<const Entry> item(int idx) const = 0;
-
-    Entry& operator[](int idx) { return *item(idx); }
-
-    const Entry& operator[](int idx) const { return *item(idx); }
 };
 
 typedef std::variant<std::nullptr_t,
@@ -250,17 +254,15 @@ public:
     EntryArray& as_array();
     const EntryArray& as_array() const;
 
-    template <typename TIDX>
-    auto operator[](const TIDX& path) -> std::enable_if_t<!std::is_integral_v<TIDX>, Entry&> { return *as_object().insert(path); }
+    decltype(auto) operator[](int idx) { return as_array().at(idx); }
+
+    decltype(auto) operator[](int idx) const { return as_array().at(idx); }
 
     template <typename TIDX>
-    auto operator[](const TIDX& path) const -> std::enable_if_t<!std::is_integral_v<TIDX>, const Entry&> { return *as_object().select(path); }
+    decltype(auto) operator[](const TIDX& path) { return as_object().insert(path); }
 
     template <typename TIDX>
-    auto operator[](const TIDX& idx) -> std::enable_if_t<std::is_integral_v<TIDX>, Entry&> { return *as_array().item(idx); }
-
-    template <typename TIDX>
-    auto operator[](const TIDX& idx) const -> std::enable_if_t<std::is_integral_v<TIDX>, const Entry&> { return *as_array().item(idx); }
+    decltype(auto) operator[](const TIDX& path) const { return as_object().at(path); }
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
