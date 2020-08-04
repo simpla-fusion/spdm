@@ -1,4 +1,5 @@
 #include "db/Entry.h"
+#include "utility/Logger.h"
 #include <iostream>
 
 #define CATCH_CONFIG_MAIN

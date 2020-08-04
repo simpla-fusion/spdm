@@ -1,16 +1,21 @@
 #include "Entry.h"
 #include "../utility/Factory.h"
 #include "../utility/TypeTraits.h"
-#include "EntryPlugin.h"
 namespace sp::db
 {
+class EntryArrayDefault;
+class EntryObjectDefault;
+//-----------------------------------------------------------------------------------------------------------
+Entry::Entry() {}
+
+Entry::~Entry() {}
 
 EntryObject& Entry::as_object()
 {
     switch (index())
     {
     case type_tags::Empty:
-        emplace<type_tags::Object>(EntryObject::create());
+        emplace<type_tags::Object>(EntryObject::create(this));
         break;
     case type_tags::Object:
         break;
@@ -35,7 +40,7 @@ EntryArray& Entry::as_array()
     switch (index())
     {
     case type_tags::Empty:
-        emplace<type_tags::Array>(EntryArray::create());
+        emplace<type_tags::Array>(EntryArray::create(this));
         break;
     case type_tags::Array:
         break;
@@ -56,10 +61,11 @@ const EntryArray& Entry::as_array() const
 }
 
 //-----------------------------------------------------------------------------------------------------------
+EntryObject::EntryObject(Entry* s) : m_self_(s) {}
 
 EntryObject::~EntryObject() {}
 
-std::shared_ptr<EntryObject> EntryObject::create(const std::string& request)
+std::shared_ptr<EntryObject> EntryObject::create(Entry* self, const std::string& request)
 {
 
     std::string schema = "";
@@ -92,7 +98,7 @@ std::shared_ptr<EntryObject> EntryObject::create(const std::string& request)
 
     if (schema == "")
     {
-        obj = std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryPluginObject<std::map<std::string, Entry>>>());
+        obj = std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(self));
     }
     else if (Factory<EntryObject>::has_creator(schema))
     {
@@ -116,7 +122,7 @@ std::shared_ptr<EntryObject> EntryObject::create(const std::string& request)
     // {
     //     res->fetch(request);
     // }
-
+    obj->self(self);
     return obj;
 }
 
@@ -126,49 +132,108 @@ bool EntryObject::add_creator(const std::string& c_id, const std::function<Entry
 };
 
 //-----------------------------------------------------------------------------------------------------------
+EntryArray::EntryArray(Entry* s) : m_self_(s) {}
 
 EntryArray::~EntryArray() {}
-std::shared_ptr<EntryArray> EntryArray::create(const std::string& request)
+
+std::shared_ptr<EntryArray> EntryArray::create(Entry* self, const std::string& request)
 {
-    return std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryPluginArray<std::vector<Entry>>>());
+    auto res = std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayDefault>(self));
+    res->self(self);
+    return res;
 };
 
 //-----------------------------------------------------------------------------------------------------------
 
-typedef std::map<std::string, Entry> entry_memory;
-
-template <>
-struct cursor_traits<entry_memory>
+class EntryObjectDefault : public EntryObject
 {
-    typedef entry_memory node_type;
-    typedef node_type& reference;
-    typedef node_type* pointer;
-    typedef ptrdiff_t difference_type;
-};
-//----------------------------------------------------------------------------------------------------------
-// as Hierarchy tree node
-template <>
-size_t EntryPluginObject<entry_memory>::size() const { return m_pimpl_->size(); }
+public:
+    typedef EntryObjectDefault this_type;
+    typedef Entry::type_tags type_tags;
 
-template <>
-void EntryPluginObject<entry_memory>::clear() { m_pimpl_->clear(); }
+    EntryObjectDefault(Entry* self) : EntryObject(self) {}
+
+    EntryObjectDefault(const this_type& other) : EntryObject(nullptr), m_container_(other.m_container_) {}
+
+    EntryObjectDefault(EntryObjectDefault&& other) : EntryObject(nullptr), m_container_(std::move(other.m_container_)) {}
+
+    ~EntryObjectDefault() = default;
+
+    std::shared_ptr<EntryObject> copy() const override { return std::shared_ptr<EntryObject>(new this_type(*this)); }
+
+    //----------------------------------------------------------------------------------------------------------
+
+    //----------------------------------------------------------------------------------------------------------
+    // as leaf node,  need node.type = Scalar || Block
+    //----------------------------------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------------
+    // as Hierarchy tree node
+    // function level 0
+
+    size_t size() const override { return m_container_.size(); }
+
+    void clear() override { m_container_.clear(); }
+
+    // as object
+
+    std::size_t count(const std::string& name) override { return m_container_.count(name); }
+
+    Entry& insert(const std::string& path) override;
+
+    Entry& insert(const Path& path) override;
+
+    const Entry& at(const std::string& path) const override;
+
+    const Entry& at(const Path& path) const override;
+
+    Cursor<Entry> find(const std::string& path) override;
+
+    Cursor<Entry> find(const Path& path) override;
+
+    Cursor<const Entry> find(const std::string& path) const override;
+
+    Cursor<const Entry> find(const Path& path) const override;
+
+    void erase(const std::string& path) override {}
+
+    void erase(const Path& path) override {}
+
+    Cursor<Entry> children() override;
+
+    Cursor<const Entry> children() const override;
+
+    Cursor<std::pair<const std::string, Entry>> kv_items() override;
+
+    Cursor<std::pair<const std::string, Entry>> kv_items() const override;
+
+    // level 1
+
+    Cursor<Entry> select(const std::string& path) override;
+
+    Cursor<Entry> select(const Path& path) override;
+
+    Cursor<const Entry> select(const std::string& path) const override;
+
+    Cursor<const Entry> select(const Path& path) const override;
+
+private:
+    std::map<std::string, Entry> m_container_;
+};
 
 // function level 0
 
-template <>
 Cursor<const Entry>
-EntryPluginObject<entry_memory>::find(const std::string& name) const
+EntryObjectDefault::find(const std::string& name) const
 {
-    return make_cursor(m_pimpl_->find(name), m_pimpl_->end()).map<const Entry>();
+    return make_cursor(m_container_.find(name), m_container_.end()).map<const Entry>();
 };
 
-template <>
 Cursor<const Entry>
-EntryPluginObject<entry_memory>::find(const Path& xpath) const
+EntryObjectDefault::find(const Path& xpath) const
 {
     // std::string path = xpath.str();
     // int pos = 0;
-    // auto res = const_cast<EntryPluginObject<entry_memory>*>(this)->shared_from_this();
+    // auto res = const_cast<EntryObjectDefault*>(this)->shared_from_this();
 
     // while (res != nullptr && pos < path.size())
     // {
@@ -184,16 +249,11 @@ EntryPluginObject<entry_memory>::find(const Path& xpath) const
     return find(xpath.str());
 };
 
-template <>
-Cursor<Entry>
-EntryPluginObject<entry_memory>::insert(const std::string& name)
-{
-    return make_cursor(m_pimpl_->try_emplace(name).first, m_pimpl_->end()).map<Entry>();
-}
+Entry&
+EntryObjectDefault::insert(const std::string& name) { return m_container_.try_emplace(name).first->second; }
 
-template <>
-Cursor<Entry>
-EntryPluginObject<entry_memory>::insert(const Path& xpath)
+Entry&
+EntryObjectDefault::insert(const Path& xpath)
 {
     // auto path = xpath.str();
 
@@ -214,110 +274,142 @@ EntryPluginObject<entry_memory>::insert(const Path& xpath)
     return insert(xpath.str());
 }
 
-template <>
-void EntryPluginObject<entry_memory>::erase(const std::string& name) { m_pimpl_->erase(m_pimpl_->find(name)); }
+const Entry&
+EntryObjectDefault::at(const std::string& name) const { return m_container_.at(name); }
 
-template <>
-void EntryPluginObject<entry_memory>::erase(const Path& xpath) { m_pimpl_->erase(m_pimpl_->find(xpath.str())); }
+const Entry&
+EntryObjectDefault::at(const Path& xpath) const
+{
+    // auto path = xpath.str();
+
+    // int pos = 0;
+    // Cursor<Entry> res = shared_from_this();
+
+    // while (res != nullptr && pos < path.size())
+    // {
+    //     int end = path.find("/", pos);
+    //     if (end == std::string::npos)
+    //     {
+    //         end = path.size();
+    //     }
+    //     res = res->insert(path.substr(pos, end - pos));
+    //     pos = end + 1;
+    // }
+    // return res;
+    return at(xpath.str());
+}
 
 //----------------------------------------------------------------------------------------------------------
 // child
-template <>
-std::size_t EntryPluginObject<entry_memory>::count(const std::string& name) { return m_pimpl_->count(name); }
 
 //----------------------------------------------------------------------------------------------------------
 // level 1
-template <>
-Cursor<Entry>
-EntryPluginObject<entry_memory>::first_child() { return make_cursor(m_pimpl_->begin(), m_pimpl_->end()).map<Entry>(); }
 
-template <>
+Cursor<Entry>
+EntryObjectDefault::children() { return make_cursor(m_container_.begin(), m_container_.end()).map<Entry>(); }
+
 Cursor<const Entry>
-EntryPluginObject<entry_memory>::first_child() const { return make_cursor(m_pimpl_->cbegin(), m_pimpl_->cend()).map<const Entry>(); }
+EntryObjectDefault::children() const { return make_cursor(m_container_.cbegin(), m_container_.cend()).map<const Entry>(); }
 
-template <>
 Cursor<Entry>
-EntryPluginObject<entry_memory>::find(const std::string& path) { return make_cursor(m_pimpl_->find(path), m_pimpl_->end()).map<Entry>(); }
+EntryObjectDefault::find(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
 
-template <>
 Cursor<Entry>
-EntryPluginObject<entry_memory>::find(const Path& path) { return find(path.str()); }
+EntryObjectDefault::find(const Path& path) { return find(path.str()); }
 
-template <>
+Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() { return make_cursor(m_container_.begin(), m_container_.end()); };
+
+Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() const { return make_cursor(m_container_.cbegin(), m_container_.cend()); };
+
 Cursor<Entry>
-EntryPluginObject<entry_memory>::select(const std::string& path) { return make_cursor(m_pimpl_->find(path), m_pimpl_->end()).map<Entry>(); }
+EntryObjectDefault::select(const std::string& path) { return make_cursor(m_container_.find(path), m_container_.end()).map<Entry>(); }
 
-template <>
 Cursor<Entry>
-EntryPluginObject<entry_memory>::select(const Path& path) { return select(path.str()); }
+EntryObjectDefault::select(const Path& path) { return select(path.str()); }
 
-template <>
-Cursor<const Entry> EntryPluginObject<entry_memory>::select(const std::string& path) const
+Cursor<const Entry> EntryObjectDefault::select(const std::string& path) const
 {
-    return make_cursor(m_pimpl_->find(path), m_pimpl_->end()).map<const Entry>();
+    return make_cursor(m_container_.find(path), m_container_.end()).map<const Entry>();
 }
 
-template <>
 Cursor<const Entry>
-EntryPluginObject<entry_memory>::select(const Path& path) const { return select(path.str()); }
+EntryObjectDefault::select(const Path& path) const { return select(path.str()); }
 
-// template <>
+//
 // Cursor<Entry>
-// EntryPluginObject<entry_memory>::first_child() const
+// EntryObjectDefault::children() const
 // {
 //     Cursor<Entry> res{nullptr};
 //     if (type() == Entry::type_tags::Object)
 //     {
-//         auto& m = std::get<Entry::type_tags::Object>(m_pimpl_);
+//         auto& m = std::get<Entry::type_tags::Object>(m_container_);
 
 //         res = make_iterator<entry_memory>(m.begin(), m.end());
 //     }
 //     else if (type() == Entry::2)
 //     {
-//         auto& m = std::get<Entry::2>(m_pimpl_);
+//         auto& m = std::get<Entry::2>(m_container_);
 
 //         res = make_iterator<entry_memory>(m.begin(), m.end());
 //     }
 
 //     return res;
 // }
-typedef std::vector<Entry> entry_memory_array;
+//--------------------------------------------------------------------------------
 
-// as array
-template <>
-std::shared_ptr<EntryArray> EntryPluginArray<entry_memory_array>::copy() const
+class EntryArrayDefault : public EntryArray
 {
-    auto res = std::make_shared<EntryPluginArray<entry_memory_array>>();
-    std::vector<Entry>(*m_pimpl_).swap(*res->m_pimpl_);
-    return std::dynamic_pointer_cast<EntryArray>(res);
+public:
+    typedef Entry::type_tags type_tags;
+    typedef EntryArrayDefault this_type;
+
+    EntryArrayDefault(Entry* self) : EntryArray(self) {}
+    ~EntryArrayDefault() = default;
+
+    EntryArrayDefault(const this_type& other) : EntryArray(nullptr), m_container_(other.m_container_) {}
+
+    EntryArrayDefault(EntryArrayDefault&& other) : EntryArray(nullptr), m_container_(std::move(other.m_container_)) {}
+
+    // as array
+
+    std::shared_ptr<EntryArray> copy() const override { return std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayDefault>(*this)); }
+
+    size_t size() const override { return m_container_.size(); }
+
+    void clear() override { m_container_.clear(); }
+
+    void resize(std::size_t num) override;
+
+    Cursor<Entry> children();
+
+    Cursor<const Entry> children() const;
+
+    Entry& push_back() override;
+
+    void pop_back() override;
+
+    Entry& at(int idx) override;
+
+    const Entry& at(int idx) const override;
+
+private:
+    std::vector<Entry> m_container_;
 };
 
-template <>
-size_t EntryPluginArray<entry_memory_array>::size() const { return m_pimpl_->size(); }
+void EntryArrayDefault::resize(std::size_t num) { m_container_.resize(num); }
 
-template <>
-void EntryPluginArray<entry_memory_array>::resize(std::size_t num) { m_pimpl_->resize(num); }
+Cursor<Entry> EntryArrayDefault::children() { return make_cursor(m_container_.begin(), m_container_.end()); }
 
-template <>
-void EntryPluginArray<entry_memory_array>::clear() { m_pimpl_->clear(); }
+Cursor<const Entry> EntryArrayDefault::children() const { return make_cursor(m_container_.begin(), m_container_.end()).map<const Entry>(); }
 
-template <>
-Cursor<Entry>
-EntryPluginArray<entry_memory_array>::push_back()
-{
-    m_pimpl_->emplace_back();
-    return make_cursor(&*m_pimpl_->rbegin()); //.map<Entry>([](auto&& v) -> Entry& { return v.second; });
-}
+Entry& EntryArrayDefault::push_back() { return m_container_.emplace_back(); }
 
-template <>
-void EntryPluginArray<entry_memory_array>::pop_back() { m_pimpl_->pop_back(); }
+void EntryArrayDefault::pop_back() { m_container_.pop_back(); }
 
-template <>
 const Entry&
-EntryPluginArray<entry_memory_array>::at(int idx) const { return m_pimpl_->at(idx); }
+EntryArrayDefault::at(int idx) const { return m_container_.at(idx); }
 
-template <>
 Entry&
-EntryPluginArray<entry_memory_array>::at(int idx) { return m_pimpl_->at(idx); }
+EntryArrayDefault::at(int idx) { return m_container_.at(idx); }
 
 } // namespace sp::db
