@@ -28,7 +28,7 @@ std::size_t Entry::type() const { return fetch().index(); }
 
 void Entry::clear() { base_type::emplace<std::nullptr_t>(nullptr); }
 
-DataBlock& Entry::as_block()
+std::shared_ptr<DataBlock> Entry::as_block()
 {
     switch (base_type::index())
     {
@@ -44,20 +44,20 @@ DataBlock& Entry::as_block()
         throw std::runtime_error("illegal type");
         break;
     }
-    return *std::get<type_tags::Block>(fetch());
+    return std::get<type_tags::Block>(fetch());
 }
 
-const DataBlock& Entry::as_block() const
+std::shared_ptr<const DataBlock> Entry::as_block() const
 {
 
     if (type() != type_tags::Block)
     {
         throw std::runtime_error("illegal type");
     }
-    return *std::get<type_tags::Block>(fetch());
+    return std::get<type_tags::Block>(fetch());
 }
 
-EntryObject& Entry::as_object()
+std::shared_ptr<EntryObject> Entry::as_object()
 {
     switch (base_type::index())
     {
@@ -73,19 +73,19 @@ EntryObject& Entry::as_object()
         throw std::runtime_error("illegal type");
         break;
     }
-    return *std::get<type_tags::Object>(fetch());
+    return std::get<type_tags::Object>(fetch());
 }
 
-const EntryObject& Entry::as_object() const
+std::shared_ptr<const EntryObject> Entry::as_object() const
 {
     if (type() != type_tags::Object)
     {
         throw std::runtime_error("illegal type");
     }
-    return *std::get<type_tags::Object>(fetch());
+    return std::get<type_tags::Object>(fetch());
 }
 
-EntryArray& Entry::as_array()
+std::shared_ptr<EntryArray> Entry::as_array()
 {
     switch (base_type::index())
     {
@@ -103,25 +103,19 @@ EntryArray& Entry::as_array()
         throw std::runtime_error("illegal type");
         break;
     }
-    return *std::get<type_tags::Array>(fetch());
+    return std::get<type_tags::Array>(fetch());
 }
 
-const EntryArray& Entry::as_array() const
+std::shared_ptr<const EntryArray> Entry::as_array() const
 {
     if (index() != type_tags::Array)
     {
         throw std::runtime_error("illegal type");
     }
-    return *std::get<type_tags::Array>(fetch());
+    return std::get<type_tags::Array>(fetch());
 }
 
-// Entry& Entry::insert(const std::string& path) { return as_object().insert(path); }
-// Entry& Entry::insert(int idx) { return as_array().at(idx); }
-
-// const Entry& Entry::at(const std::string& path) const { return as_object().at(path); }
-// const Entry& Entry::at(int idx) const { return as_array().at(idx); }
-
-//-----------------------------------------------------------------------------------------------------------
+//==========================================================================================
 EntryObject::EntryObject(Entry* s) : m_self_(s) {}
 
 EntryObject::~EntryObject() {}
@@ -196,57 +190,8 @@ bool EntryObject::add_creator(const std::string& c_id, const std::function<Entry
     return Factory<EntryObject>::add(c_id, fun);
 };
 
-Entry& EntryObject::insert(const XPath& path)
-{
+//==========================================================================================
 
-    Entry* p = m_self_;
-    for (auto it = path.begin(); it != path.end(); ++it)
-    {
-        switch (it->index())
-        {
-        case XPath::type_tags::Key:
-            p = &p->as_object().insert(std::get<XPath::type_tags::Key>(*it));
-            break;
-        case XPath::type_tags::Index:
-            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
-            break;
-        default:
-            NOT_IMPLEMENTED;
-            break;
-        }
-    }
-    return *p;
-}
-
-const Entry& EntryObject::at(const XPath& path) const
-{
-
-    const Entry* p = m_self_;
-    for (auto it = path.begin(); it != path.end(); ++it)
-    {
-        switch (it->index())
-        {
-        case XPath::type_tags::Key:
-            p = &p->as_object().at(std::get<XPath::type_tags::Key>(*it));
-            break;
-        case XPath::type_tags::Index:
-            p = &p->as_array().at(std::get<XPath::type_tags::Index>(*it));
-            break;
-        default:
-            NOT_IMPLEMENTED;
-            break;
-        }
-    }
-    return *p;
-    ;
-}
-
-void EntryObject::erase(const XPath& path) { NOT_IMPLEMENTED; }
-
-Cursor<Entry> EntryObject::select(const XPath& path) { NOT_IMPLEMENTED; }
-
-Cursor<const Entry> EntryObject::select(const XPath& path) const { NOT_IMPLEMENTED; }
-//-----------------------------------------------------------------------------------------------------------
 EntryArray::EntryArray(Entry* s) : m_self_(s) {}
 
 EntryArray::~EntryArray() {}
@@ -258,10 +203,12 @@ std::shared_ptr<EntryArray> EntryArray::create(Entry* self, const std::string& r
     return res;
 };
 
-//-----------------------------------------------------------------------------------------------------------
+//==========================================================================================
 
 class EntryObjectDefault : public EntryObject
 {
+    std::map<std::string, std::shared_ptr<Entry>> m_container_;
+
 public:
     typedef EntryObjectDefault this_type;
     typedef Entry::type_tags type_tags;
@@ -278,73 +225,154 @@ public:
 
     //----------------------------------------------------------------------------------------------------------
 
-    //----------------------------------------------------------------------------------------------------------
-    // as leaf node,  need node.type = Scalar || Block
-    //----------------------------------------------------------------------------------------------------------
-    //----------------------------------------------------------------------------------------------------------
-    // as Hierarchy tree node
-    // function level 0
+    size_t size() const override;
 
-    size_t size() const override { return m_container_.size(); }
-
-    void clear() override { m_container_.clear(); }
-
-    // as object
-
-    Entry& insert(const std::string& path) override;
-
-    // Entry& insert(const XPath& path) override;
-
-    const Entry& at(const std::string& path) const override;
-
-    // const Entry& at(const XPath& path) const override;
-
-    void erase(const std::string& path) override;
-
-    // void erase(const XPath& path) override;
+    void clear() override;
 
     //------------------------------------------------------------------
 
-    // Cursor<Entry> select(const XPath& path) override;
+    Cursor<Entry> select(const XPath& path) override;
 
-    // Cursor<const Entry> select(const XPath& path) const override;
+    Cursor<const Entry> select(const XPath& path) const override;
 
     Cursor<Entry> children() override;
 
     Cursor<const Entry> children() const override;
 
-    Cursor<std::pair<const std::string, Entry>> kv_items() override;
+    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() override;
 
-    Cursor<std::pair<const std::string, Entry>> kv_items() const override;
+    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const override;
 
-private:
-    std::map<std::string, Entry> m_container_;
+    //------------------------------------------------------------------
+
+    std::shared_ptr<Entry> insert(const std::string& path) override;
+
+    std::shared_ptr<Entry> insert(const XPath& path) override;
+
+    std::shared_ptr<const Entry> get(const std::string& path) const override;
+
+    std::shared_ptr<const Entry> get(const XPath& path) const override;
+
+    void erase(const std::string& path) override;
+
+    void erase(const XPath& path) override;
 };
 
-Entry&
-EntryObjectDefault::insert(const std::string& name) { return m_container_.try_emplace(name).first->second; }
+size_t EntryObjectDefault::size() const { return m_container_.size(); }
 
-const Entry&
-EntryObjectDefault::at(const std::string& path) const { return m_container_.at(path); }
+void EntryObjectDefault::clear() { m_container_.clear(); }
 
-void EntryObjectDefault::erase(const std::string& path) {  m_container_.erase(m_container_.find(path)); }
+std::shared_ptr<Entry>
+EntryObjectDefault::insert(const std::string& name)
+{
+    auto res = m_container_.try_emplace(name);
+    if (res.second)
+    {
+        res.first->second.reset(new Entry);
+    }
+    return res.first->second;
+}
+
+std::shared_ptr<Entry>
+EntryObjectDefault::insert(const XPath& path)
+{
+
+    Entry* p = self();
+    for (auto it = path.begin(); it != path.end(); ++it)
+    {
+        switch (it->index())
+        {
+        case XPath::type_tags::Key:
+            p = p->as_object()->insert(std::get<XPath::type_tags::Key>(*it)).get();
+            break;
+        case XPath::type_tags::Index:
+            p = p->as_array()->get(std::get<XPath::type_tags::Index>(*it)).get();
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+    return p->shared_from_this();
+}
+
+std::shared_ptr<const Entry>
+EntryObjectDefault::get(const std::string& path) const { return m_container_.at(path); }
+
+std::shared_ptr<const Entry>
+EntryObjectDefault::get(const XPath& path) const
+{
+
+    const Entry* p = self();
+    for (auto it = path.begin(); it != path.end(); ++it)
+    {
+        switch (it->index())
+        {
+        case XPath::type_tags::Key:
+            p = p->as_object()->get(std::get<XPath::type_tags::Key>(*it)).get();
+            break;
+        case XPath::type_tags::Index:
+            p = p->as_array()->get(std::get<XPath::type_tags::Index>(*it)).get();
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+    return p->shared_from_this();
+}
+
+void EntryObjectDefault::erase(const std::string& path) { m_container_.erase(m_container_.find(path)); }
+
+void EntryObjectDefault::erase(const XPath& path) { NOT_IMPLEMENTED; }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
 Cursor<Entry>
-EntryObjectDefault::children() { return make_cursor(m_container_.begin(), m_container_.end()).map<Entry>(); }
+EntryObjectDefault::select(const XPath& path)
+{
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
 
 Cursor<const Entry>
-EntryObjectDefault::children() const { return make_cursor(m_container_.cbegin(), m_container_.cend()).map<const Entry>(); }
+EntryObjectDefault::select(const XPath& path) const
+{
+    NOT_IMPLEMENTED;
+    return nullptr;
+}
 
-Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() { return make_cursor(m_container_.begin(), m_container_.end()); };
+Cursor<Entry>
+EntryObjectDefault::children()
+{
+    return make_cursor(m_container_.begin(), m_container_.end())
+        .map<Entry>([](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> Entry& { return *item.second; });
+}
 
-Cursor<std::pair<const std::string, Entry>> EntryObjectDefault::kv_items() const { return make_cursor(m_container_.cbegin(), m_container_.cend()); };
+Cursor<const Entry>
+EntryObjectDefault::children() const
+{
+    return make_cursor(m_container_.cbegin(), m_container_.cend())
+        .map<const Entry>([](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> const Entry& { return *item.second; });
+}
+
+Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> EntryObjectDefault::kv_items()
+{
+    return make_cursor(m_container_.begin(), m_container_.end());
+};
+
+Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> EntryObjectDefault::kv_items() const
+{
+    return make_cursor(m_container_.cbegin(), m_container_.cend());
+};
 
 //--------------------------------------------------------------------------------
 
 class EntryArrayDefault : public EntryArray
 {
+private:
+    std::vector<std::shared_ptr<Entry>> m_container_;
+
 public:
     typedef Entry::type_tags type_tags;
     typedef EntryArrayDefault this_type;
@@ -356,54 +384,78 @@ public:
     EntryArrayDefault(const this_type& other) : EntryArray(nullptr), m_container_(other.m_container_) {}
 
     EntryArrayDefault(EntryArrayDefault&& other) : EntryArray(nullptr), m_container_(std::move(other.m_container_)) {}
-
+    //--------------------------------------------------------------------------------------
     // as array
 
     std::shared_ptr<EntryArray> copy() const override { return std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayDefault>(*this)); }
 
-    size_t size() const override { return m_container_.size(); }
-
-    void clear() override { m_container_.clear(); }
+    size_t size() const override;
 
     void resize(std::size_t num) override;
 
-    Entry& push_back() override;
+    void clear() override;
+
+    Cursor<Entry> children() override;
+
+    Cursor<const Entry> children() const override;
+
+    //--------------------------------------------------------------------------------------
+    std::shared_ptr<Entry> push_back() override;
 
     void pop_back() override;
 
-    Cursor<Entry> item(int idx) override;
+    std::shared_ptr<Entry> get(int idx) override;
 
-    Cursor<const Entry> item(int idx) const override;
-
-    Entry& at(int idx) override;
-
-    const Entry& at(int idx) const override;
-
-    Cursor<Entry> children();
-
-    Cursor<const Entry> children() const;
-
-private:
-    std::vector<Entry> m_container_;
+    std::shared_ptr<const Entry> get(int idx) const override;
 };
 
-void EntryArrayDefault::resize(std::size_t num) { m_container_.resize(num); }
+size_t EntryArrayDefault::size() const { return m_container_.size(); }
 
-Cursor<Entry> EntryArrayDefault::children() { return make_cursor(m_container_.begin(), m_container_.end()); }
+void EntryArrayDefault::resize(std::size_t num)
+{
 
-Cursor<const Entry> EntryArrayDefault::children() const { return make_cursor(m_container_.begin(), m_container_.end()).map<const Entry>(); }
+    auto s = m_container_.size();
+    m_container_.resize(num);
+    for (int i = s; i < num; ++i)
+    {
+        if (m_container_[i] == nullptr)
+        {
+            m_container_[i].reset(new Entry);
+        }
+    }
+}
 
-Entry& EntryArrayDefault::push_back() { return m_container_.emplace_back(); }
+void EntryArrayDefault::clear() { m_container_.clear(); }
+
+Cursor<Entry> EntryArrayDefault::children()
+{
+    return make_cursor(m_container_.begin(), m_container_.end())
+        .map<Entry>([](const std::shared_ptr<Entry>& item) -> Entry& { return *item; });
+}
+
+Cursor<const Entry> EntryArrayDefault::children() const
+{
+    return make_cursor(m_container_.begin(), m_container_.end())
+        .map<const Entry>([](const std::shared_ptr<Entry>& item) -> const Entry& { return *item; });
+}
+
+//--------------------------------------------------------------------------------------
+
+std::shared_ptr<Entry> EntryArrayDefault::push_back()
+{
+    auto& p = m_container_.emplace_back();
+    if (p == nullptr)
+    {
+        p.reset(new Entry);
+    }
+    return p;
+}
 
 void EntryArrayDefault::pop_back() { m_container_.pop_back(); }
 
-const Entry& EntryArrayDefault::at(int idx) const { return m_container_.at(idx); }
+std::shared_ptr<const Entry> EntryArrayDefault::get(int idx) const { return m_container_.at(idx); }
 
-Entry& EntryArrayDefault::at(int idx) { return m_container_.at(idx); }
-
-Cursor<const Entry> EntryArrayDefault::item(int idx) const { return make_cursor(&m_container_.at(idx)); }
-
-Cursor<Entry> EntryArrayDefault::item(int idx) { return make_cursor(&m_container_.at(idx)); }
+std::shared_ptr<Entry> EntryArrayDefault::get(int idx) { return m_container_.at(idx); }
 
 } // namespace sp::db
 namespace sp::utility
@@ -431,7 +483,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::Entry& entry, int inde
                            os << std::endl
                               << std::setw(indent * tab) << " "
                               << "\"" << it->first << "\" : ";
-                           fancy_print(os, it->second, indent + 1, tab);
+                           fancy_print(os, *(it->second), indent + 1, tab);
                            os << ",";
                        }
                        os << std::endl

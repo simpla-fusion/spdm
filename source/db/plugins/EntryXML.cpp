@@ -1,5 +1,5 @@
+#include "../Cursor.h"
 #include "../Entry.h"
-#include "../EntryCursor.h"
 #include "../EntryPlugin.h"
 #include "../utility/Logger.h"
 #include "pugixml/pugixml.hpp"

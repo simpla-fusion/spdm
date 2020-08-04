@@ -49,6 +49,8 @@ public:
 
     void self(Entry* s) { m_self_ = s; }
 
+    //-------------------------------------------------------------------------------
+
     virtual std::shared_ptr<EntryObject> copy() const = 0;
 
     virtual size_t size() const = 0;
@@ -57,37 +59,37 @@ public:
 
     //------------------------------------------------------------------
 
-    virtual Entry& insert(const std::string& path) = 0;
+    virtual Cursor<Entry> select(const XPath& path) = 0;
 
-    virtual Entry& insert(const XPath& path) ;
-
-    virtual const Entry& at(const std::string& path) const = 0;
-
-    virtual const Entry& at(const XPath& path) const ;
-
-    virtual void erase(const std::string& path) = 0;
-
-    virtual void erase(const XPath& path) ;
-
-    template <typename P>
-    decltype(auto) operator[](const P& path) { return insert(path); }
-
-    template <typename P>
-    decltype(auto) operator[](const P& path) const { return at(path); }
-
-    //------------------------------------------------------------------
-
-    virtual Cursor<Entry> select(const XPath& path);
-
-    virtual Cursor<const Entry> select(const XPath& path) const;
+    virtual Cursor<const Entry> select(const XPath& path) const = 0;
 
     virtual Cursor<Entry> children() = 0;
 
     virtual Cursor<const Entry> children() const = 0;
 
-    virtual Cursor<std::pair<const std::string, Entry>> kv_items() = 0;
+    virtual Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() = 0;
 
-    virtual Cursor<std::pair<const std::string, Entry>> kv_items() const = 0;
+    virtual Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const = 0;
+
+    //------------------------------------------------------------------
+
+    virtual std::shared_ptr<Entry> insert(const std::string& path) = 0;
+
+    virtual std::shared_ptr<Entry> insert(const XPath& path) = 0;
+
+    virtual std::shared_ptr<const Entry> get(const std::string& path) const = 0;
+
+    virtual std::shared_ptr<const Entry> get(const XPath& path) const = 0;
+
+    virtual void erase(const std::string& path) = 0;
+
+    virtual void erase(const XPath& path) = 0;
+
+    template <typename P>
+    decltype(auto) operator[](const P& path) { return *insert(path); }
+
+    template <typename P>
+    decltype(auto) operator[](const P& path) const { return *get(path); }
 };
 
 class EntryArray : std::enable_shared_from_this<EntryArray>
@@ -99,6 +101,7 @@ public:
     virtual ~EntryArray();
 
     EntryArray(const EntryArray&) = delete;
+
     EntryArray(EntryArray&&) = delete;
 
     static std::shared_ptr<EntryArray> create(Entry*, const std::string& request = "");
@@ -108,6 +111,8 @@ public:
     Entry* self() const { return m_self_; }
 
     void self(Entry* s) { m_self_ = s; }
+
+    //-------------------------------------------------------------------------------
 
     virtual Cursor<Entry> children() = 0;
 
@@ -119,21 +124,19 @@ public:
 
     virtual void clear() = 0;
 
-    virtual Entry& push_back() = 0;
+    //-------------------------------------------------------------------------------
+
+    virtual std::shared_ptr<Entry> push_back() = 0;
 
     virtual void pop_back() = 0;
 
-    virtual Entry& at(int idx) = 0;
+    virtual std::shared_ptr<Entry> get(int idx) = 0;
 
-    virtual const Entry& at(int idx) const = 0;
+    virtual std::shared_ptr<const Entry> get(int idx) const = 0;
 
-    decltype(auto) operator[](int idx) { return at(idx); }
+    decltype(auto) operator[](int idx) { return *get(idx); }
 
-    decltype(auto) operator[](int idx) const { return at(idx); }
-
-    virtual Cursor<Entry> item(int idx) = 0;
-
-    virtual Cursor<const Entry> item(int idx) const = 0;
+    decltype(auto) operator[](int idx) const { return *get(idx); }
 };
 
 typedef std::variant<std::nullptr_t,
@@ -245,24 +248,24 @@ public:
     template <typename V>
     const V& as() const { return std::get<V>(fetch()); }
 
-    DataBlock& as_block();
-    const DataBlock& as_block() const;
+    std::shared_ptr<DataBlock> as_block();
+    std::shared_ptr<const DataBlock> as_block() const;
 
-    EntryObject& as_object();
-    const EntryObject& as_object() const;
+    std::shared_ptr<EntryObject> as_object();
+    std::shared_ptr<const EntryObject> as_object() const;
 
-    EntryArray& as_array();
-    const EntryArray& as_array() const;
+    std::shared_ptr<EntryArray> as_array();
+    std::shared_ptr<const EntryArray> as_array() const;
 
-    decltype(auto) operator[](int idx) { return as_array().at(idx); }
+    decltype(auto) operator[](int idx) { return *(as_array()->get(idx)); }
 
-    decltype(auto) operator[](int idx) const { return as_array().at(idx); }
-
-    template <typename TIDX>
-    decltype(auto) operator[](const TIDX& path) { return as_object().insert(path); }
+    decltype(auto) operator[](int idx) const { return *(as_array()->get(idx)); }
 
     template <typename TIDX>
-    decltype(auto) operator[](const TIDX& path) const { return as_object().at(path); }
+    decltype(auto) operator[](const TIDX& path) { return *(as_object()->insert(path)); }
+
+    template <typename TIDX>
+    decltype(auto) operator[](const TIDX& path) const { return *(as_object()->get(path)); }
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
