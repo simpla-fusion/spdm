@@ -1055,6 +1055,18 @@ struct template_copy_type_args_impl<T0, T1<Types...>>
 template <template <typename...> class T0, typename T1>
 using template_copy_type_args = typename _detail::template_copy_type_args_impl<T0, T1>::type;
 
+
+
+
+template <class... Ts>
+struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts>
+overloaded(Ts...)->overloaded<Ts...>;
+
 } // namespace traits
 } // namespace sp
 

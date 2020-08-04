@@ -263,6 +263,7 @@ std::ostream& fancy_print(std::ostream& os, T const& d, int indent, int tab, ENA
 }
 inline std::ostream& fancy_print(std::ostream& os, std::nullptr_t, int indent, int tab)
 {
+    os << "<none>";
     return os;
 }
 inline std::ostream& fancy_print(std::ostream& os, bool const& d, int indent, int tab)

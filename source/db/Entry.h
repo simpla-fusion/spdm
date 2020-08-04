@@ -15,11 +15,13 @@ namespace sp
 {
 namespace db
 {
+class DataBlock;
 class Entry;
 class EntryObject;
 class EntryArray;
 } // namespace db
 } // namespace sp
+M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
 
@@ -142,20 +144,19 @@ public:
 typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,
                      std::shared_ptr<EntryArray>,
-                     std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>, //Block
-                     std::string,                                                 //String,
-                     bool,                                                        //Boolean,
-                     int,                                                         //Integer,
-                     long,                                                        //Long,
-                     float,                                                       //Float,
-                     double                                                       //,      //Double,
-                     // std::complex<double>,                                        //Complex,
-                     // std::array<int, 3>,                                          //IntVec3,
-                     // std::array<long, 3>,                                         //LongVec3,
-                     // std::array<float, 3>,                                        //FloatVec3,
-                     // std::array<double, 3>,                                       //DoubleVec3,
-                     // std::array<std::complex<double>, 3>,                         //ComplexVec3,
-                     //std::any
+                     std::shared_ptr<DataBlock>,         //Block
+                     std::string,                        //String,
+                     bool,                               //Boolean,
+                     int,                                //Integer,
+                     long,                               //Long,
+                     float,                              //Float,
+                     double,                             //Double,
+                     std::complex<double>,               //Complex,
+                     std::array<int, 3>,                 //IntVec3,
+                     std::array<long, 3>,                //LongVec3,
+                     std::array<float, 3>,               //FloatVec3,
+                     std::array<double, 3>,              //DoubleVec3,
+                     std::array<std::complex<double>, 3> //ComplexVec3,
                      >
     entry_base;
 
@@ -247,7 +248,6 @@ public:
 
     void resize(size_t num) { as_array().resize(num); }
 };
-
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
