@@ -117,11 +117,7 @@ std::string XPath::str() const
     NOT_IMPLEMENTED;
     return "";
 }
-void XPath::append(const std::string& path)
-{
-    std::cout << FILE_LINE_STAMP << path << std::endl;
-    m_path_.emplace_back(path);
-}
+void XPath::append(const std::string& path) { m_path_.emplace_back(path); }
 void XPath::append(int idx) { m_path_.emplace_back(idx); }
 void XPath::append(int b, int e, int seq) { m_path_.emplace_back(std::make_tuple(b, e, seq)); }
 } // namespace sp::db
