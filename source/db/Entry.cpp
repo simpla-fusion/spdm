@@ -67,6 +67,10 @@ EntryObject::~EntryObject() {}
 
 std::shared_ptr<EntryObject> EntryObject::create(Entry* self, const std::string& request)
 {
+    if (request == "")
+    {
+        return std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(self));
+    }
 
     std::string schema = "";
 

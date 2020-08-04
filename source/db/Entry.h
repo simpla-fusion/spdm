@@ -240,6 +240,12 @@ public:
     Entry& operator[](int idx) { return as_array()[idx]; }
 
     const Entry& operator[](int idx) const { return as_array()[idx]; }
+
+    Entry& push_back() { return as_array().push_back(); }
+
+    void pop_back() { as_array().pop_back(); }
+
+    void resize(size_t num) { as_array().resize(num); }
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& Node);

@@ -16,9 +16,9 @@ TEST_CASE("Create Node", "[SpDB]")
     // entry.set_attribute("B", std::string("b"));
     // entry["A"].set_value<std::string>("1234");
     entry["B"].as<std::string>("5678");
-
-    entry["C"][-1].as<int>(5);
-    entry["C"][-1].as<float>(6.0);
+    // entry["C"].as_array().resize(4);
+    entry["C"].push_back().as<int>(5);
+    entry["C"].push_back().[1].as<float>(6.0);
 
     // std::cout << entry << std::endl;
 
