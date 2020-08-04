@@ -1,6 +1,7 @@
 #include "Entry.h"
 #include "../utility/Factory.h"
 #include "../utility/TypeTraits.h"
+#include "../utility/fancy_print.h"
 namespace sp::db
 {
 class EntryArrayDefault;
@@ -415,5 +416,67 @@ EntryArrayDefault::at(int idx) const { return m_container_.at(idx); }
 
 Entry&
 EntryArrayDefault::at(int idx) { return m_container_.at(idx); }
+} // namespace sp::db
+namespace sp::utility
+{
+namespace _detail
+{
+template <class... Ts>
+struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts>
+overloaded(Ts...)->overloaded<Ts...>;
+} // namespace _detail
+std::ostream& fancy_print(std::ostream& os, const sp::db::Entry& entry, int indent = 0, int tab = 4)
+{
+    std::visit(_detail::overloaded{
+                   [&](const std::variant_alternative_t<sp::db::Entry::type_tags::Array, sp::db::Entry::base_type>& ele) {
+                       os << "[";
+                       for (auto it = ele->children(); !it.done(); it.next())
+                       {
+                           os << std::endl
+                              << std::setw(indent * tab) << " ";
+                           fancy_print(os, *it, indent + 1, tab);
+                           os << ",";
+                       }
+                       os << std::endl
+                          << std::setw(indent * tab)
+                          << "]";
+                   },
+                   [&](const std::variant_alternative_t<sp::db::Entry::type_tags::Object, sp::db::Entry::base_type>& ele) {
+                       os << "{";
+                       for (auto it = ele->kv_items(); !it.done(); it.next())
+                       {
+                           os << std::endl
+                              << std::setw(indent * tab) << " "
+                              << "\"" << it->first << "\" : ";
+                           fancy_print(os, it->second, indent + 1, tab);
+                           os << ",";
+                       }
+                       os << std::endl
+                          << std::setw(indent * tab)
+                          << "}";
+                   },
+                   [&](auto&& ele) { fancy_print(os, ele, indent + 1, tab); } //
+               },
+               dynamic_cast<const sp::db::Entry::base_type&>(entry));
 
+    // if (entry.type() == Entry::NodeType::Element)
+    // {
+    //     os << to_string(entry.get_element());
+    // }
+    // else if (entry.type() == Entry::NodeType::Array)
+    // else if (entry.type() == Entry::NodeType::Object)
+    // {
+    //
+    // }
+    return os;
+}
+} // namespace sp::utility
+namespace sp::db
+{
+std::ostream& operator<<(std::ostream& os, Entry const& entry) { return sp::utility::fancy_print(os, entry, 0); }
 } // namespace sp::db

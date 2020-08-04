@@ -21,7 +21,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-namespace sp
+namespace sp::utility
 {
 #define ENABLE_IF(_COND_) std::enable_if_t<_COND_, void>* _p = nullptr
 
@@ -460,25 +460,25 @@ std::ostream& fancy_print_key_value(std::ostream& os, TI const& ib, TI const& ie
     return os;
 }
 
-} // namespace sp
+} // namespace sp::utility
 namespace std
 {
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::complex<T>& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename T1, typename T2>
 std::ostream& operator<<(std::ostream& os, std::pair<T1, T2> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename T1, typename T2>
 std::ostream& operator<<(std::ostream& os, std::map<T1, T2> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename TV, typename... Others>
@@ -497,43 +497,43 @@ std::istream& operator>>(std::istream& is, std::vector<TV, Others...>& a)
 template <typename U, typename... Others>
 std::ostream& operator<<(std::ostream& os, std::vector<U, Others...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename U, typename... Others>
 std::ostream& operator<<(std::ostream& os, std::list<U, Others...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename U, typename... Others>
 std::ostream& operator<<(std::ostream& os, std::set<U, Others...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename U, typename... Others>
 std::ostream& operator<<(std::ostream& os, std::multiset<U, Others...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename TX, typename TY, typename... Others>
 std::ostream& operator<<(std::ostream& os, std::map<TX, TY, Others...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename TX, typename TY, typename... Others>
 std::ostream& operator<<(std::ostream& os, std::multimap<TX, TY, Others...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 }
 
 template <typename T, typename... Args>
 std::ostream& operator<<(std::ostream& os, std::tuple<T, Args...> const& v)
 {
-    return sp::fancy_print(os, v, 0, 4);
+    return sp::utility::fancy_print(os, v, 0, 4);
 };
 } // namespace std
 

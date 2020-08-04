@@ -248,7 +248,8 @@ public:
     void resize(size_t num) { as_array().resize(num); }
 };
 
-std::ostream& operator<<(std::ostream& os, Entry const& Node);
+
+std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
 // std::string to_string(Entry const& s);
 
