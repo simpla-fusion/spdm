@@ -3,10 +3,14 @@
 #include "../utility/TypeTraits.h"
 #include "../utility/fancy_print.h"
 #include "DataBlock.h"
+#include "EntryPlugin.h"
 namespace sp::db
 {
-class EntryArrayDefault;
-class EntryObjectDefault;
+// class EntryArrayDefault;
+// class EntryObjectDefault;
+typedef EntryArrayPlugin<std::vector<std::shared_ptr<Entry>>> EntryArrayDefault;
+typedef EntryObjectPlugin<std::map<std::string, std::shared_ptr<Entry>>> EntryObjectDefault;
+
 //-----------------------------------------------------------------------------------------------------------
 Entry::Entry() {}
 
@@ -204,64 +208,11 @@ std::shared_ptr<EntryArray> EntryArray::create(Entry* self, const std::string& r
 };
 
 //==========================================================================================
-
-class EntryObjectDefault : public EntryObject
-{
-    std::map<std::string, std::shared_ptr<Entry>> m_container_;
-
-public:
-    typedef EntryObjectDefault this_type;
-    typedef Entry::type_tags type_tags;
-
-    EntryObjectDefault(Entry* self) : EntryObject(self) {}
-
-    EntryObjectDefault(const this_type& other) : EntryObject(nullptr), m_container_(other.m_container_) {}
-
-    EntryObjectDefault(EntryObjectDefault&& other) : EntryObject(nullptr), m_container_(std::move(other.m_container_)) {}
-
-    ~EntryObjectDefault() = default;
-
-    std::shared_ptr<EntryObject> copy() const override { return std::shared_ptr<EntryObject>(new this_type(*this)); }
-
-    //----------------------------------------------------------------------------------------------------------
-
-    size_t size() const override;
-
-    void clear() override;
-
-    //------------------------------------------------------------------
-
-    Cursor<Entry> select(const XPath& path) override;
-
-    Cursor<const Entry> select(const XPath& path) const override;
-
-    Cursor<Entry> children() override;
-
-    Cursor<const Entry> children() const override;
-
-    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() override;
-
-    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const override;
-
-    //------------------------------------------------------------------
-
-    std::shared_ptr<Entry> insert(const std::string& path) override;
-
-    std::shared_ptr<Entry> insert(const XPath& path) override;
-
-    std::shared_ptr<const Entry> get(const std::string& path) const override;
-
-    std::shared_ptr<const Entry> get(const XPath& path) const override;
-
-    void erase(const std::string& path) override;
-
-    void erase(const XPath& path) override;
-};
-
+template <>
 size_t EntryObjectDefault::size() const { return m_container_.size(); }
-
+template <>
 void EntryObjectDefault::clear() { m_container_.clear(); }
-
+template <>
 std::shared_ptr<Entry>
 EntryObjectDefault::insert(const std::string& name)
 {
@@ -272,7 +223,7 @@ EntryObjectDefault::insert(const std::string& name)
     }
     return res.first->second;
 }
-
+template <>
 std::shared_ptr<Entry>
 EntryObjectDefault::insert(const XPath& path)
 {
@@ -295,10 +246,10 @@ EntryObjectDefault::insert(const XPath& path)
     }
     return p->shared_from_this();
 }
-
+template <>
 std::shared_ptr<const Entry>
 EntryObjectDefault::get(const std::string& path) const { return m_container_.at(path); }
-
+template <>
 std::shared_ptr<const Entry>
 EntryObjectDefault::get(const XPath& path) const
 {
@@ -321,96 +272,58 @@ EntryObjectDefault::get(const XPath& path) const
     }
     return p->shared_from_this();
 }
-
+template <>
 void EntryObjectDefault::erase(const std::string& path) { m_container_.erase(m_container_.find(path)); }
-
+template <>
 void EntryObjectDefault::erase(const XPath& path) { NOT_IMPLEMENTED; }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-
+template <>
 Cursor<Entry>
 EntryObjectDefault::select(const XPath& path)
 {
     NOT_IMPLEMENTED;
     return nullptr;
 }
-
+template <>
 Cursor<const Entry>
 EntryObjectDefault::select(const XPath& path) const
 {
     NOT_IMPLEMENTED;
     return nullptr;
 }
-
+template <>
 Cursor<Entry>
 EntryObjectDefault::children()
 {
     return make_cursor(m_container_.begin(), m_container_.end())
         .map<Entry>([](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> Entry& { return *item.second; });
 }
-
+template <>
 Cursor<const Entry>
 EntryObjectDefault::children() const
 {
     return make_cursor(m_container_.cbegin(), m_container_.cend())
         .map<const Entry>([](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> const Entry& { return *item.second; });
 }
-
-Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> EntryObjectDefault::kv_items()
+template <>
+Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
+EntryObjectDefault::kv_items()
 {
     return make_cursor(m_container_.begin(), m_container_.end());
 };
-
-Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> EntryObjectDefault::kv_items() const
+template <>
+Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
+EntryObjectDefault::kv_items() const
 {
     return make_cursor(m_container_.cbegin(), m_container_.cend());
 };
 
 //--------------------------------------------------------------------------------
 
-class EntryArrayDefault : public EntryArray
-{
-private:
-    std::vector<std::shared_ptr<Entry>> m_container_;
-
-public:
-    typedef Entry::type_tags type_tags;
-    typedef EntryArrayDefault this_type;
-
-    EntryArrayDefault(Entry* self) : EntryArray(self) {}
-
-    ~EntryArrayDefault() = default;
-
-    EntryArrayDefault(const this_type& other) : EntryArray(nullptr), m_container_(other.m_container_) {}
-
-    EntryArrayDefault(EntryArrayDefault&& other) : EntryArray(nullptr), m_container_(std::move(other.m_container_)) {}
-    //--------------------------------------------------------------------------------------
-    // as array
-
-    std::shared_ptr<EntryArray> copy() const override { return std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayDefault>(*this)); }
-
-    size_t size() const override;
-
-    void resize(std::size_t num) override;
-
-    void clear() override;
-
-    Cursor<Entry> children() override;
-
-    Cursor<const Entry> children() const override;
-
-    //--------------------------------------------------------------------------------------
-    std::shared_ptr<Entry> push_back() override;
-
-    void pop_back() override;
-
-    std::shared_ptr<Entry> get(int idx) override;
-
-    std::shared_ptr<const Entry> get(int idx) const override;
-};
-
+template <>
 size_t EntryArrayDefault::size() const { return m_container_.size(); }
-
+template <>
 void EntryArrayDefault::resize(std::size_t num)
 {
 
@@ -424,24 +337,27 @@ void EntryArrayDefault::resize(std::size_t num)
         }
     }
 }
-
+template <>
 void EntryArrayDefault::clear() { m_container_.clear(); }
-
-Cursor<Entry> EntryArrayDefault::children()
+template <>
+Cursor<Entry>
+EntryArrayDefault::children()
 {
     return make_cursor(m_container_.begin(), m_container_.end())
         .map<Entry>([](const std::shared_ptr<Entry>& item) -> Entry& { return *item; });
 }
-
-Cursor<const Entry> EntryArrayDefault::children() const
+template <>
+Cursor<const Entry>
+EntryArrayDefault::children() const
 {
     return make_cursor(m_container_.begin(), m_container_.end())
         .map<const Entry>([](const std::shared_ptr<Entry>& item) -> const Entry& { return *item; });
 }
 
 //--------------------------------------------------------------------------------------
-
-std::shared_ptr<Entry> EntryArrayDefault::push_back()
+template <>
+std::shared_ptr<Entry>
+EntryArrayDefault::push_back()
 {
     auto& p = m_container_.emplace_back();
     if (p == nullptr)
@@ -450,12 +366,14 @@ std::shared_ptr<Entry> EntryArrayDefault::push_back()
     }
     return p;
 }
-
+template <>
 void EntryArrayDefault::pop_back() { m_container_.pop_back(); }
-
-std::shared_ptr<const Entry> EntryArrayDefault::get(int idx) const { return m_container_.at(idx); }
-
-std::shared_ptr<Entry> EntryArrayDefault::get(int idx) { return m_container_.at(idx); }
+template <>
+std::shared_ptr<const Entry>
+EntryArrayDefault::get(int idx) const { return m_container_.at(idx); }
+template <>
+std::shared_ptr<Entry>
+EntryArrayDefault::get(int idx) { return m_container_.at(idx); }
 
 } // namespace sp::db
 namespace sp::utility

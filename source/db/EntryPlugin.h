@@ -1,6 +1,7 @@
 #ifndef SPDB_ENTRY_PLUGIN_H_
 #define SPDB_ENTRY_PLUGIN_H_
 #include "Entry.h"
+#include "XPath.h"
 #include <any>
 #include <array>
 #include <complex>
@@ -13,95 +14,83 @@
 namespace sp::db
 {
 
-template <typename Impl>
-class EntryPluginObject : public EntryObject
+template <typename Containter>
+class EntryObjectPlugin : public EntryObject
 {
+private:
+    Containter m_container_;
+    static bool is_registered;
+
 public:
-    typedef EntryPluginObject<Impl> this_type;
+    typedef EntryObjectPlugin this_type;
     typedef Entry::type_tags type_tags;
 
-    static bool add_creator(const std::string& c_id, const std::function<EntryObject*()>&);
+    EntryObjectPlugin(Entry* self) : EntryObject(self) {}
 
-    static std::shared_ptr<EntryObject> create(const std::string& request = "");
+    EntryObjectPlugin(const this_type& other) : EntryObject(nullptr), m_container_(other.m_container_) {}
 
-    template <typename... Args>
-    EntryPluginObject(Args&&... args) : m_pimpl_(new Impl{std::forward<Args>(args)...}){};
+    EntryObjectPlugin(EntryObjectPlugin&& other) : EntryObject(nullptr), m_container_(std::move(other.m_container_)) {}
 
-    EntryPluginObject(const this_type& other) : m_pimpl_(new Impl(*other.m_pimpl_)) {}
-
-    EntryPluginObject(EntryPluginObject&& other) : m_pimpl_(other.m_pimpl_->release()) {}
-
-    ~EntryPluginObject() = default;
+    ~EntryObjectPlugin() = default;
 
     std::shared_ptr<EntryObject> copy() const override { return std::shared_ptr<EntryObject>(new this_type(*this)); }
 
     //----------------------------------------------------------------------------------------------------------
 
-    //----------------------------------------------------------------------------------------------------------
-    // as leaf node,  need node.type = Scalar || Block
-    //----------------------------------------------------------------------------------------------------------
-    //----------------------------------------------------------------------------------------------------------
-    // as Hierarchy tree node
-    // function level 0
-
     size_t size() const override;
 
     void clear() override;
 
-    // as object
+    //------------------------------------------------------------------
 
-    std::size_t count(const std::string& name) override;
+    Cursor<Entry> select(const XPath& path) override;
 
-    Cursor<Entry> insert(const std::string& path) override;
+    Cursor<const Entry> select(const XPath& path) const override;
 
-    Cursor<Entry> insert(const Path& path) override;
+    Cursor<Entry> children() override;
 
-    Cursor<Entry> find(const std::string& path) override;
+    Cursor<const Entry> children() const override;
 
-    Cursor<Entry> find(const Path& path) override;
+    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() override;
 
-    Cursor<const Entry> find(const std::string& path) const override;
+    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const override;
 
-    Cursor<const Entry> find(const Path& path) const override;
+    //------------------------------------------------------------------
 
-    void erase(const std::string& path) override {}
+    std::shared_ptr<Entry> insert(const std::string& path) override;
 
-    void erase(const Path& path) override {}
+    std::shared_ptr<Entry> insert(const XPath& path) override;
 
-    Cursor<Entry> first_child() override;
+    std::shared_ptr<const Entry> get(const std::string& path) const override;
 
-    Cursor<const Entry> first_child() const override;
+    std::shared_ptr<const Entry> get(const XPath& path) const override;
 
-    // level 1
+    void erase(const std::string& path) override;
 
-    Cursor<Entry> select(const std::string& path) override;
-
-    Cursor<Entry> select(const Path& path) override;
-
-    Cursor<const Entry> select(const std::string& path) const override;
-
-    Cursor<const Entry> select(const Path& path) const override;
-
-private:
-    std::unique_ptr<Impl> m_pimpl_;
-    static bool is_registered;
+    void erase(const XPath& path) override;
 };
 
-template <typename Impl>
-class EntryPluginArray : public EntryArray
+template <typename Container>
+class EntryArrayPlugin : public EntryArray
 {
+private:
+    Container m_container_;
+
 public:
     typedef Entry::type_tags type_tags;
-    typedef EntryPluginArray<Impl> this_type;
+    typedef EntryArrayPlugin this_type;
 
-    EntryPluginArray() = default;
-    ~EntryPluginArray() = default;
+    EntryArrayPlugin(Entry* self) : EntryArray(self) {}
 
-    EntryPluginArray(const EntryPluginArray&) = delete;
-    EntryPluginArray(EntryPluginArray&&) = delete;
+    ~EntryArrayPlugin() = default;
+
+    EntryArrayPlugin(const this_type& other) : EntryArray(nullptr), m_container_(other.m_container_) {}
+
+    EntryArrayPlugin(EntryArrayPlugin&& other) : EntryArray(nullptr), m_container_(std::move(other.m_container_)) {}
+    //--------------------------------------------------------------------------------------
     // as array
 
-    std::shared_ptr<EntryArray> copy() const override;
+    std::shared_ptr<EntryArray> copy() const override { return std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayPlugin>(*this)); }
 
     size_t size() const override;
 
@@ -109,22 +98,24 @@ public:
 
     void clear() override;
 
-    Cursor<Entry> push_back() override;
+    Cursor<Entry> children() override;
+
+    Cursor<const Entry> children() const override;
+
+    //--------------------------------------------------------------------------------------
+    std::shared_ptr<Entry> push_back() override;
 
     void pop_back() override;
 
-    Entry& at(int idx) override;
+    std::shared_ptr<Entry> get(int idx) override;
 
-    const Entry& at(int idx) const override;
-
-private:
-    std::unique_ptr<Impl> m_pimpl_;
+    std::shared_ptr<const Entry> get(int idx) const override;
 };
 
 #define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)                   \
     template <>                                                \
-    bool ::sp::db::EntryPluginObject<_CLASS_>::is_registered = \
-        ::sp::db::EntryObject::add_creator(__STRING(_NAME_), []() { return dynamic_cast<Entry*>(new EntryPluginObject<_CLASS_>()); });
+    bool ::sp::db::EntryObjectPlugin<_CLASS_>::is_registered = \
+        ::sp::db::EntryObject::add_creator(__STRING(_NAME_), []() { return dynamic_cast<Entry*>(new EntryObjectPlugin<_CLASS_>()); });
 
 } // namespace sp::db
 #endif // SPDB_ENTRY_PLUGIN_H_
