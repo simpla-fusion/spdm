@@ -7,6 +7,8 @@ set(SPDB_INCLUDES
   DataBlock.h
   Entry.h  
   Document.h
+  Schema.h
+  XPath.h
   Collection.h
   DataBase.h
 )
@@ -17,7 +19,8 @@ set(SPDB_SOURCES
   Entry.cpp  
   DataBlock.cpp
   XPath.cpp
-  # Document.cpp
+  Document.cpp
+  Schema.cpp
   # Collection.cpp
   # DataBase.cpp
 )

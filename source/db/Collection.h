@@ -20,6 +20,16 @@ public:
 
     Collection& operator=(Collection const&) = delete;
 
+    /**
+     *  CRUD operations 
+     *  erase => delete
+     *  
+    */
+    Entry create(const std::string& request);
+    Entry read(const std::string& request);
+    void update(const std::string& request, const Entry&);
+    void erase(const std::string& request);
+
 private:
     struct pimpl_s;
     std::unique_ptr<Entry> m_pimpl_;

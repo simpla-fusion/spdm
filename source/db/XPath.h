@@ -32,7 +32,7 @@ public:
     };
 
     typedef XPath this_type;
-    explicit XPath(const std::string&);
+    XPath(const std::string&);
     XPath(const XPath&);
     XPath(XPath&&);
     ~XPath();
@@ -47,7 +47,7 @@ public:
 
     void swap(this_type& other)
     {
-        std::swap(m_scheme_, other.m_scheme_);
+        std::swap(m_protocol_, other.m_protocol_);
         std::swap(m_authority_, other.m_authority_);
         std::swap(m_path_, other.m_path_);
         std::swap(m_query_, other.m_query_);
@@ -66,8 +66,10 @@ public:
 
     std::string str() const;
 
-    const std::string& scheme() const { return m_scheme_; }
-    void scheme(const std::string& s) { m_scheme_ = s; }
+    operator std::string() const { return str(); }
+
+    const std::string& protocol() const { return m_protocol_; }
+    void protocol(const std::string& s) { m_protocol_ = s; }
 
     const std::string& authority() const { return m_authority_; }
     void authority(const std::string& s) { m_authority_ = s; }
@@ -77,6 +79,9 @@ public:
 
     const std::string& fragment() const { return m_fragment_; }
     void fragment(const std::string& s) { m_fragment_ = s; }
+
+    std::string filename() const;
+    std::string extension() const;
 
     template <typename Key>
     this_type operator[](const Key& key) const { return XPath(*this, key); }
@@ -90,7 +95,7 @@ public:
     auto end() const { return m_path_.end(); }
 
 private:
-    std::string m_scheme_;
+    std::string m_protocol_;
     std::string m_authority_;
     std::vector<element> m_path_;
     std::string m_query_;

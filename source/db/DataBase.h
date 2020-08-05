@@ -20,6 +20,7 @@ public:
 
     Collection search(std::string const& query);
 
+
 private:
     struct pimpl_s;
     std::unique_ptr<pimpl_s> m_pimpl_;

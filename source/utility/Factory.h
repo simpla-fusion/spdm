@@ -12,8 +12,10 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <string>
-namespace sp
+
+namespace sp::utility
 {
 template <typename TObj, typename... Args>
 class Factory
@@ -25,6 +27,7 @@ public:
     struct ObjectFactory
     {
         std::map<std::string, std::function<TObj*(Args const&...)>> m_factory_;
+        std::map<std::string, std::regex> m_associate_;
     };
     static bool has_creator(std::string const& k)
     {
@@ -75,6 +78,17 @@ public:
         return add(k_hint.empty(), [](Args const&... args) { return U::create(args...); });
     };
 
+    template <typename... Others>
+    static int _sum(Others&&... args)
+    {
+        return sizeof...(Others);
+    }
+    template <typename... Others>
+    static int associate(std::string const& key, Others&&... args)
+    {
+        return _sum(Singleton<ObjectFactory>::instance().m_associate_.try_emplace(key, std::regex(std::forward<Others>(args))).second...);
+    }
+
 private:
     template <typename... U>
     static TObj* _try_create(std::integral_constant<bool, true> _, U&&... args)
@@ -111,7 +125,5 @@ public:
     }
 };
 
-
-
-} // namespace sp
+} // namespace sp::utility
 #endif // SIMPLA_FACTORY_H

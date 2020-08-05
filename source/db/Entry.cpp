@@ -81,7 +81,7 @@ std::shared_ptr<EntryObject> Entry::as_object()
     switch (base_type::index())
     {
     case type_tags::Empty:
-        emplace<type_tags::Object>(EntryObject::create(this));
+        emplace<type_tags::Object>(std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(this)));
         break;
     case type_tags::Object:
         break;
@@ -109,7 +109,7 @@ std::shared_ptr<EntryArray> Entry::as_array()
     switch (base_type::index())
     {
     case type_tags::Empty:
-        emplace<type_tags::Array>(EntryArray::create(this));
+        emplace<type_tags::Array>(std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayDefault>(this)));
         break;
     case type_tags::Array:
         break;
@@ -139,88 +139,11 @@ EntryObject::EntryObject(Entry* s) : m_self_(s) {}
 
 EntryObject::~EntryObject() {}
 
-std::shared_ptr<EntryObject> EntryObject::create(Entry* self, const std::string& request)
-{
-    if (request == "")
-    {
-        return std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(self));
-    }
-
-    std::string schema = "";
-
-    auto pos = request.find(":");
-
-    if (pos == std::string::npos)
-    {
-        pos = request.rfind('.');
-        if (pos != std::string::npos)
-        {
-            schema = request.substr(pos);
-        }
-        else
-        {
-            schema = request;
-        }
-    }
-    else
-    {
-        schema = request.substr(0, pos);
-    }
-
-    if (schema == "http" || schema == "https")
-    {
-        NOT_IMPLEMENTED;
-    }
-
-    std::shared_ptr<EntryObject> obj;
-
-    if (schema == "")
-    {
-        obj = std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(self));
-    }
-    else if (Factory<EntryObject>::has_creator(schema))
-    {
-        obj = std::shared_ptr<EntryObject>(Factory<EntryObject>::create(schema).release());
-    }
-    else
-    {
-        RUNTIME_ERROR << "Can not parse schema " << schema << std::endl;
-    }
-
-    if (obj == nullptr)
-    {
-        throw std::runtime_error("Can not create Entry for schema: " + schema);
-    }
-    else
-    {
-        VERBOSE << "load backend:" << schema << std::endl;
-    }
-
-    // if (schema != request)
-    // {
-    //     res->update(request);
-    // }
-    obj->self(self);
-    return obj;
-}
-
-bool EntryObject::add_creator(const std::string& c_id, const std::function<EntryObject*(Entry*)>& fun)
-{
-    return Factory<EntryObject, Entry*>::add(c_id, fun);
-};
-
 //==========================================================================================
 
 EntryArray::EntryArray(Entry* s) : m_self_(s) {}
 
 EntryArray::~EntryArray() {}
-
-std::shared_ptr<EntryArray> EntryArray::create(Entry* self, const std::string& request)
-{
-    auto res = std::dynamic_pointer_cast<EntryArray>(std::make_shared<EntryArrayDefault>(self));
-    res->self(self);
-    return res;
-};
 
 //==========================================================================================
 template <>
@@ -269,6 +192,7 @@ EntryObjectDefault::get(const XPath& path) const
 {
 
     const Entry* p = self();
+    
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())

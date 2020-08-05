@@ -66,7 +66,7 @@ XPath::XPath(const std::string& url)
         throw std::runtime_error("illegal request! " + url);
     }
 
-    m_scheme_ = m[2].str();
+    m_protocol_ = m[2].str();
     m_authority_ = m[4].str();
     m_query_ = m[7].str();
     m_fragment_ = m[9];
@@ -93,7 +93,7 @@ XPath::XPath(const std::string& url)
 }
 
 XPath::XPath(const XPath& other)
-    : m_scheme_(other.m_scheme_),
+    : m_protocol_(other.m_protocol_),
       m_authority_(other.m_authority_),
       m_path_(other.m_path_),
       m_query_(other.m_query_),
@@ -102,7 +102,7 @@ XPath::XPath(const XPath& other)
 }
 
 XPath::XPath(XPath&& other)
-    : m_scheme_(std::move(other.m_scheme_)),
+    : m_protocol_(std::move(other.m_protocol_)),
       m_authority_(std::move(other.m_authority_)),
       m_path_(std::move(other.m_path_)),
       m_query_(std::move(other.m_query_)),
@@ -111,6 +111,26 @@ XPath::XPath(XPath&& other)
 }
 
 XPath::~XPath() {}
+
+std::string XPath::filename() const
+{
+    return m_path_.size() > 0 ? std::get<type_tags::Key>(m_path_.back()) : "";
+}
+
+std::string XPath::extension() const
+{
+    auto fname = filename();
+
+    auto pos = fname.rfind('.');
+    if (pos != std::string::npos)
+    {
+        return fname.substr(pos);
+    }
+    else
+    {
+        return "";
+    }
+}
 
 std::string XPath::str() const
 {

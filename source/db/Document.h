@@ -1,12 +1,14 @@
 #ifndef SPDB_DOCUMENT_H_
 #define SPDB_DOCUMENT_H_
 #include "Entry.h"
+#include "Schema.h"
 #include <iostream>
 #include <memory>
 #include <string>
 
 namespace sp::db
 {
+
 class Document
 {
 public:
@@ -35,30 +37,43 @@ public:
 
     OID oid;
 
+    typedef Document this_type;
+
     Document();
-
+    Document(const std::string& uri);
+    Document(const Document&);
     Document(Document&&);
-
     ~Document();
 
-    Document(Document const&) = delete;
-    Document& operator=(Document const&) = delete;
+    void swap(Document& other);
 
-    void schema(Document const& schema);
-    const Document& schema();
-    void schema(const std::string& schema);
-    const std::string& schema_id();
+    Document& operator=(Document const& other)
+    {
+        this_type(other).swap(*this);
+        return *this;
+    };
 
-    const Entry& root() const;
-    Entry& root();
+    void load(const std::string&);
+    void save(const std::string&);
+    void load(const std::istream&);
+    void save(const std::ostream&);
 
-    int load(std::string const&);
-    int save(std::string const&);
-    int load(std::istream const&);
-    int save(std::ostream const&);
+    bool is_writable() const;
+    bool is_readable() const;
+
+    const Entry& root() const { return m_root_; }
+    Entry& root() { return m_root_; }
+
+    const Schema& schema() const;
+    Schema& schema();
+
+    bool validate(const XPath&) const;
+
+    bool check(const XPath&) const;
 
 private:
-    std::unique_ptr<Entry> m_pimpl_;
+    Entry m_root_;
+    Schema m_schema_;
 };
 
 } // namespace sp::db

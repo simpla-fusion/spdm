@@ -1,3 +1,4 @@
+#include "db/Document.h"
 #include "db/Entry.h"
 #include "utility/Factory.h"
 #include <iostream>
@@ -10,7 +11,9 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     using namespace sp::db;
     sp::logger::set_stdout_level(-1000);
     VERBOSE << "hello world" << std::endl;
-    sp::Entry entry("/workspaces/SpDB/tests/data/test.xml");
+
+    sp::db::Document doc("/workspaces/SpDB/tests/data/test.xml");
+    sp::db::Entry entry = doc.root();
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));
     // entry.set_attribute("B", std::string("b"));

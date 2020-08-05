@@ -41,15 +41,15 @@ public:
 
     EntryObject(EntryObject&&) = delete;
 
-    static std::shared_ptr<EntryObject> create(Entry* self, const std::string& request = "");
-
-    static bool add_creator(const std::string& c_id, const std::function<EntryObject*(Entry*)>&);
-
     Entry* self() const { return m_self_; }
 
     void self(Entry* s) { m_self_ = s; }
 
     //-------------------------------------------------------------------------------
+
+    virtual void fetch(const XPath&){};
+
+    virtual void update(const XPath&){};
 
     virtual std::shared_ptr<EntryObject> copy() const = 0;
 
@@ -280,7 +280,6 @@ public:
 
     template <typename TIDX>
     decltype(auto) operator[](const TIDX& path) const { return *(as_object()->get(path)); }
-
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
