@@ -6,19 +6,38 @@
 #include "EntryPlugin.h"
 namespace sp::db
 {
-// class EntryArrayDefault;
-// class EntryObjectDefault;
+
 typedef EntryArrayPlugin<std::vector<std::shared_ptr<Entry>>> EntryArrayDefault;
 typedef EntryObjectPlugin<std::map<std::string, std::shared_ptr<Entry>>> EntryObjectDefault;
 
 //-----------------------------------------------------------------------------------------------------------
-Entry::Entry() {}
+Entry::Entry(Entry* parent) : m_parent_(parent) {}
 
 Entry::~Entry() {}
 
-Entry& Entry::fetch() { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
+Entry::Entry(const Entry& other) : base_type(other), m_parent_(nullptr) {}
 
-const Entry& Entry::fetch() const { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
+Entry::Entry(Entry&& other) : base_type(std::move(other)), m_parent_(nullptr) {}
+
+void Entry::swap(Entry& other)
+{
+    base_type::swap(other);
+
+    if (type() == type_tags::Object)
+    {
+        std::get<type_tags::Object>(*this)->self(this);
+        std::get<type_tags::Object>(other)->self(&other);
+    }
+    else if (type() == type_tags::Array)
+    {
+        std::get<type_tags::Array>(*this)->self(this);
+        std::get<type_tags::Array>(other)->self(&other);
+    }
+}
+
+Entry& Entry::self() { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
+
+const Entry& Entry::self() const { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
 
 void Entry::update()
 {
@@ -27,10 +46,6 @@ void Entry::update()
         std::get<type_tags::Reference>(*this)->update();
     }
 }
-
-std::size_t Entry::type() const { return fetch().index(); }
-
-void Entry::clear() { base_type::emplace<std::nullptr_t>(nullptr); }
 
 std::shared_ptr<DataBlock> Entry::as_block()
 {
@@ -48,7 +63,7 @@ std::shared_ptr<DataBlock> Entry::as_block()
         throw std::runtime_error("illegal type");
         break;
     }
-    return std::get<type_tags::Block>(fetch());
+    return std::get<type_tags::Block>(self());
 }
 
 std::shared_ptr<const DataBlock> Entry::as_block() const
@@ -58,7 +73,7 @@ std::shared_ptr<const DataBlock> Entry::as_block() const
     {
         throw std::runtime_error("illegal type");
     }
-    return std::get<type_tags::Block>(fetch());
+    return std::get<type_tags::Block>(self());
 }
 
 std::shared_ptr<EntryObject> Entry::as_object()
@@ -77,7 +92,7 @@ std::shared_ptr<EntryObject> Entry::as_object()
         throw std::runtime_error("illegal type");
         break;
     }
-    return std::get<type_tags::Object>(fetch());
+    return std::get<type_tags::Object>(self());
 }
 
 std::shared_ptr<const EntryObject> Entry::as_object() const
@@ -86,7 +101,7 @@ std::shared_ptr<const EntryObject> Entry::as_object() const
     {
         throw std::runtime_error("illegal type");
     }
-    return std::get<type_tags::Object>(fetch());
+    return std::get<type_tags::Object>(self());
 }
 
 std::shared_ptr<EntryArray> Entry::as_array()
@@ -107,7 +122,7 @@ std::shared_ptr<EntryArray> Entry::as_array()
         throw std::runtime_error("illegal type");
         break;
     }
-    return std::get<type_tags::Array>(fetch());
+    return std::get<type_tags::Array>(self());
 }
 
 std::shared_ptr<const EntryArray> Entry::as_array() const
@@ -116,7 +131,7 @@ std::shared_ptr<const EntryArray> Entry::as_array() const
     {
         throw std::runtime_error("illegal type");
     }
-    return std::get<type_tags::Array>(fetch());
+    return std::get<type_tags::Array>(self());
 }
 
 //==========================================================================================
@@ -183,15 +198,15 @@ std::shared_ptr<EntryObject> EntryObject::create(Entry* self, const std::string&
 
     // if (schema != request)
     // {
-    //     res->fetch(request);
+    //     res->update(request);
     // }
     obj->self(self);
     return obj;
 }
 
-bool EntryObject::add_creator(const std::string& c_id, const std::function<EntryObject*()>& fun)
+bool EntryObject::add_creator(const std::string& c_id, const std::function<EntryObject*(Entry*)>& fun)
 {
-    return Factory<EntryObject>::add(c_id, fun);
+    return Factory<EntryObject, Entry*>::add(c_id, fun);
 };
 
 //==========================================================================================
@@ -219,7 +234,7 @@ EntryObjectDefault::insert(const std::string& name)
     auto res = m_container_.try_emplace(name);
     if (res.second)
     {
-        res.first->second.reset(new Entry);
+        res.first->second.reset(new Entry(self()));
     }
     return res.first->second;
 }
@@ -227,7 +242,6 @@ template <>
 std::shared_ptr<Entry>
 EntryObjectDefault::insert(const XPath& path)
 {
-
     Entry* p = self();
     for (auto it = path.begin(); it != path.end(); ++it)
     {
@@ -283,14 +297,14 @@ Cursor<Entry>
 EntryObjectDefault::select(const XPath& path)
 {
     NOT_IMPLEMENTED;
-    return nullptr;
+    return Cursor<Entry>{};
 }
 template <>
 Cursor<const Entry>
 EntryObjectDefault::select(const XPath& path) const
 {
     NOT_IMPLEMENTED;
-    return nullptr;
+    return Cursor<const Entry>{};
 }
 template <>
 Cursor<Entry>
@@ -333,7 +347,7 @@ void EntryArrayDefault::resize(std::size_t num)
     {
         if (m_container_[i] == nullptr)
         {
-            m_container_[i].reset(new Entry);
+            m_container_[i].reset(new Entry(self()));
         }
     }
 }
@@ -362,7 +376,7 @@ EntryArrayDefault::push_back()
     auto& p = m_container_.emplace_back();
     if (p == nullptr)
     {
-        p.reset(new Entry);
+        p.reset(new Entry(self()));
     }
     return p;
 }

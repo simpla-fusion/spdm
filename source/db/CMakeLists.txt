@@ -2,7 +2,6 @@
 # find_package( Boost  COMPONENTS regex )
 # find_package( NetCDF )
 
-add_subdirectory(plugins)
 
 set(SPDB_INCLUDES
   DataBlock.h

@@ -43,7 +43,7 @@ public:
 
     static std::shared_ptr<EntryObject> create(Entry* self, const std::string& request = "");
 
-    static bool add_creator(const std::string& c_id, const std::function<EntryObject*()>&);
+    static bool add_creator(const std::string& c_id, const std::function<EntryObject*(Entry*)>&);
 
     Entry* self() const { return m_self_; }
 
@@ -161,34 +161,18 @@ typedef std::variant<std::nullptr_t,
 
 class Entry : public entry_base, public std::enable_shared_from_this<Entry>
 {
+    Entry* m_parent_;
+
 public:
     typedef entry_base base_type;
     typedef traits::type_tags<entry_base> type_tags;
 
-    Entry();
-    virtual ~Entry();
-    Entry(const Entry& other) : base_type(other) {}
-    Entry(Entry&& other) : base_type(std::move(other)) {}
+    Entry(Entry* parent = nullptr);
+    ~Entry();
+    Entry(const Entry& other);
+    Entry(Entry&& other);
 
-    void swap(Entry& other)
-    {
-        base_type::swap(other);
-
-        bind_self();
-        other.bind_self();
-    }
-
-    void bind_self()
-    {
-        if (type() == type_tags::Object)
-        {
-            std::get<type_tags::Object>(*this)->self(this);
-        }
-        else if (type() == type_tags::Array)
-        {
-            std::get<type_tags::Array>(*this)->self(this);
-        }
-    }
+    void swap(Entry& other);
 
     Entry& operator=(const Entry& other)
     {
@@ -210,43 +194,47 @@ public:
     }
 
     //---------------------------------------------------------------------
-    // for reference
-
-    Entry& fetch();
-
-    const Entry& fetch() const;
-
-    void update();
-
-    std::size_t type() const;
-
-    void clear();
 
     //---------------------------------------------------------------------
+    // for reference
+
+    Entry* parent() const { return m_parent_; }
+
+    bool is_root() const { return m_parent_ == nullptr; }
+
+    Entry& self();
+
+    const Entry& self() const;
 
     Cursor<Entry> children();
 
     Cursor<const Entry> children() const;
 
+    std::size_t type() const { return self().index(); }
+
+    void clear() { base_type::emplace<std::nullptr_t>(nullptr); }
+
+    void update();
+
     template <typename V>
     void as(const V& v)
     {
-        fetch().emplace<V>(v);
+        self().emplace<V>(v);
         update();
     }
 
     template <typename V>
     void as(V&& v)
     {
-        fetch().emplace<V>(std::forward<V>(v));
+        self().emplace<V>(std::forward<V>(v));
         update();
     }
 
     template <typename V>
-    V& as() { return std::get<V>(fetch()); }
+    V& as() { return std::get<V>(self()); }
 
     template <typename V>
-    const V& as() const { return std::get<V>(fetch()); }
+    const V& as() const { return std::get<V>(self()); }
 
     std::shared_ptr<DataBlock> as_block();
     std::shared_ptr<const DataBlock> as_block() const;
@@ -257,6 +245,32 @@ public:
     std::shared_ptr<EntryArray> as_array();
     std::shared_ptr<const EntryArray> as_array() const;
 
+    std::size_t size() const
+    {
+        if (base_type::index() == type_tags::Array)
+        {
+            return as_array()->size();
+        }
+        else if (base_type::index() == type_tags::Object)
+        {
+            return as_object()->size();
+        }
+        else if (base_type::index() == type_tags::Reference)
+        {
+            return self().size();
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    void resize(std::size_t num) { as_array()->resize(num); }
+
+    std::shared_ptr<Entry> push_back() { return as_array()->push_back(); }
+
+    void pop_back() { as_array()->pop_back(); }
+
     decltype(auto) operator[](int idx) { return *(as_array()->get(idx)); }
 
     decltype(auto) operator[](int idx) const { return *(as_array()->get(idx)); }
@@ -266,6 +280,7 @@ public:
 
     template <typename TIDX>
     decltype(auto) operator[](const TIDX& path) const { return *(as_object()->get(path)); }
+
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

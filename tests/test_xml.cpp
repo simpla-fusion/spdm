@@ -1,5 +1,4 @@
-#include "Entry.h"
-#include "EntryInterface.h"
+#include "db/Entry.h"
 #include "utility/Factory.h"
 #include <iostream>
 
@@ -20,7 +19,6 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     // entry["C"][-1].set_value<int>(5);
     // entry["C"][-1].set_value<float>(6.0);
-
 
     std::cout << entry << std::endl;
 

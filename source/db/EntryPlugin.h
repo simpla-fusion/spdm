@@ -14,22 +14,26 @@
 namespace sp::db
 {
 
-template <typename Containter>
+template <typename Container>
 class EntryObjectPlugin : public EntryObject
 {
 private:
-    Containter m_container_;
+    Container m_container_;
     static bool is_registered;
 
 public:
-    typedef EntryObjectPlugin this_type;
+    typedef EntryObjectPlugin<Container> this_type;
     typedef Entry::type_tags type_tags;
 
     EntryObjectPlugin(Entry* self) : EntryObject(self) {}
 
+    EntryObjectPlugin(Entry* self, const Container& container) : EntryObject(self), m_container_(container) {}
+
+    EntryObjectPlugin(Entry* self, Container&& container) : EntryObject(self), m_container_(std::move(container)) {}
+
     EntryObjectPlugin(const this_type& other) : EntryObject(nullptr), m_container_(other.m_container_) {}
 
-    EntryObjectPlugin(EntryObjectPlugin&& other) : EntryObject(nullptr), m_container_(std::move(other.m_container_)) {}
+    EntryObjectPlugin(this_type&& other) : EntryObject(nullptr), m_container_(std::move(other.m_container_)) {}
 
     ~EntryObjectPlugin() = default;
 
@@ -115,7 +119,7 @@ public:
 #define SPDB_REGISTER_ENTRY(_NAME_, _CLASS_)                   \
     template <>                                                \
     bool ::sp::db::EntryObjectPlugin<_CLASS_>::is_registered = \
-        ::sp::db::EntryObject::add_creator(__STRING(_NAME_), []() { return dynamic_cast<Entry*>(new EntryObjectPlugin<_CLASS_>()); });
+        ::sp::db::EntryObject::add_creator(__STRING(_NAME_), [](Entry* s) { return dynamic_cast<EntryObject*>(new EntryObjectPlugin<_CLASS_>(s)); });
 
 } // namespace sp::db
 #endif // SPDB_ENTRY_PLUGIN_H_
