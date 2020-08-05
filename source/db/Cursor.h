@@ -1,5 +1,6 @@
 #ifndef SPDB_Cursor_h_
 #define SPDB_Cursor_h_
+#include "../utility/Logger.h"
 #include "../utility/TypeTraits.h"
 #include <functional>
 #include <iterator>
@@ -165,10 +166,10 @@ public:
     using typename base_type::reference;
     using typename base_type::value_type;
 
-    template <typename... Args>
-    CursorProxy(const iterator& ib, const iterator& ie, Args&&... args) : m_it_(ib), m_ie_(ie) {}
+    typedef typename std::iterator_traits<V>::value_type base_value_type;
+    typedef std::function<reference(const base_value_type&)> mapper_type;
 
-    CursorProxy(const iterator& ib) : m_it_(ib), m_ie_(ib) { ++m_ie_; }
+    CursorProxy(const iterator& ib, const iterator& ie, const mapper_type& mapper) : m_it_(ib), m_ie_(ie), m_mapper_(mapper) {}
 
     ~CursorProxy() = default;
 
@@ -176,9 +177,13 @@ public:
 
     bool done() const override { return m_it_ == m_ie_; }
 
-    pointer get_pointer() override { return pointer(&*m_it_); }
+    pointer get_pointer() override
+    {
+        NOT_IMPLEMENTED;
+        return pointer(nullptr);
+    }
 
-    reference get_reference() override { return reference(*m_it_); }
+    reference get_reference() override { return m_mapper_(*m_it_); }
 
     bool next() override
     {
@@ -191,6 +196,7 @@ public:
 
 protected:
     iterator m_it_, m_ie_;
+    mapper_type m_mapper_;
 };
 
 // filter
