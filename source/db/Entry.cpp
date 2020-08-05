@@ -310,27 +310,27 @@ template <>
 Cursor<Entry>
 EntryObjectDefault::children()
 {
-    return make_cursor(m_container_.begin(), m_container_.end())
-        .map<Entry>([](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> Entry& { return *item.second; });
+    return Cursor<Entry>(m_container_.begin(), m_container_.end(),
+                         [](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> Entry& { return *item.second; });
 }
 template <>
 Cursor<const Entry>
 EntryObjectDefault::children() const
 {
-    return make_cursor(m_container_.cbegin(), m_container_.cend())
-        .map<const Entry>([](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> const Entry& { return *item.second; });
+    return Cursor<const Entry>(m_container_.cbegin(), m_container_.cend(),
+                               [](const std::pair<const std::string&, std::shared_ptr<Entry>>& item) -> const Entry& { return *item.second; });
 }
 template <>
 Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
 EntryObjectDefault::kv_items()
 {
-    return make_cursor(m_container_.begin(), m_container_.end());
+    return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>(m_container_.begin(), m_container_.end());
 };
 template <>
 Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
 EntryObjectDefault::kv_items() const
 {
-    return make_cursor(m_container_.cbegin(), m_container_.cend());
+    return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>(m_container_.cbegin(), m_container_.cend());
 };
 
 //--------------------------------------------------------------------------------
@@ -357,15 +357,15 @@ template <>
 Cursor<Entry>
 EntryArrayDefault::children()
 {
-    return make_cursor(m_container_.begin(), m_container_.end())
-        .map<Entry>([](const std::shared_ptr<Entry>& item) -> Entry& { return *item; });
+    return Cursor<Entry>(m_container_.begin(), m_container_.end(),
+                         [](const std::shared_ptr<Entry>& item) -> Entry& { return *item; });
 }
 template <>
 Cursor<const Entry>
 EntryArrayDefault::children() const
 {
-    return make_cursor(m_container_.begin(), m_container_.end())
-        .map<const Entry>([](const std::shared_ptr<Entry>& item) -> const Entry& { return *item; });
+    return Cursor<const Entry>(m_container_.begin(), m_container_.end(),
+                               [](const std::shared_ptr<Entry>& item) -> const Entry& { return *item; });
 }
 
 //--------------------------------------------------------------------------------------
