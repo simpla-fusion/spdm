@@ -3,6 +3,7 @@
 #include "Entry.h"
 namespace sp::db
 {
+Document::OID::OID() : m_id_(reinterpret_cast<unsigned long>(this)) {}
 Document::Document() {}
 Document::Document(const std::string& uri) {}
 Document::Document(const Document&) {}

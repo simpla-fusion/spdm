@@ -16,13 +16,17 @@ public:
     {
     public:
         OID();
+        OID(unsigned long id) : m_id_(id) {}
+        OID(OID&& other) : m_id_(other.m_id_) { other.m_id_ = 0; }
+        OID(const OID& other) : m_id_(other.m_id_) {}
         ~OID() = default;
 
-        OID(unsigned long id);
-
-        OID(OID&&) = default;
-        OID(OID const&) = default;
-        OID& operator=(OID const&) = default;
+        void swap(OID& other) { std::swap(m_id_, other.m_id_); }
+        OID& operator=(OID const& other)
+        {
+            OID(other).swap(*this);
+            return *this;
+        };
 
         operator unsigned long() const { return m_id_; }
         unsigned long id() const { return m_id_; }
