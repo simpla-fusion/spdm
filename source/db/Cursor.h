@@ -52,15 +52,15 @@ struct CursorProxy<U>
 
     virtual ~CursorProxy() = default;
 
-    virtual std::unique_ptr<CursorProxy<U>> copy() const = 0;
+    virtual std::unique_ptr<CursorProxy<U>> copy() const { return std::make_unique<this_type>(*this); };
 
-    virtual reference get_reference() = 0;
+    virtual reference get_reference() { return *get_pointer(); }
 
-    virtual pointer get_pointer() = 0;
+    virtual pointer get_pointer() { return nullptr; }
 
-    virtual bool next() = 0;
+    virtual bool next() { return false; };
 
-    virtual bool done() const = 0;
+    virtual bool done() const { return true; };
 
     // virtual bool equal(const this_type* other) const { return get_pointer() == other->get_pointer(); }
 
@@ -356,7 +356,7 @@ public:
     typedef typename cursor_traits<value_type>::pointer pointer;
     // typedef typename cursor_traits<value_type>::difference_type difference_type;
 
-    explicit Cursor(CursorProxy<value_type>* p = nullptr) : m_proxy_(p) {}
+    explicit Cursor(CursorProxy<value_type>* p = nullptr) : m_proxy_(p != nullptr ? p : new CursorProxy<value_type>) {}
 
     template <typename U, typename... Args>
     Cursor(const U& it, Args&&... args) : m_proxy_(new CursorProxy<T, U>(it, std::forward<Args>(args)...)) {}

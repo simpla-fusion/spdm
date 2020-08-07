@@ -7,8 +7,13 @@
 #include <variant>
 namespace sp::db
 {
-typedef EntryObjectPlugin<pugi::xml_node> EntryObjectXML;
-typedef EntryArrayPlugin<pugi::xml_node> EntryArrayXML;
+struct xml_node
+{
+    std::shared_ptr<pugi::xml_document> document;
+    pugi::xml_node node;
+};
+typedef EntryObjectPlugin<xml_node> EntryObjectXML;
+typedef EntryArrayPlugin<xml_node> EntryArrayXML;
 
 std::shared_ptr<Entry> make_entry(const pugi::xml_node& node)
 {
@@ -118,6 +123,17 @@ protected:
 };
 
 //----------------------------------------------------------------------------------
+template <>
+void EntryObjectXML::fetch(const XPath& path)
+{
+    m_container_.document = std::make_shared<pugi::xml_document>();
+    m_container_.document->load_file(path.str().c_str());
+    m_container_.node = m_container_.document->root();
+};
+template <>
+void EntryObjectXML::update(const XPath& path){
+
+};
 
 template <>
 void EntryObjectXML::clear()
@@ -157,7 +173,7 @@ template <>
 std::shared_ptr<const Entry>
 EntryObjectXML::get(const std::string& name) const
 {
-    return make_entry(m_container_.child(name.c_str()));
+    return make_entry(m_container_.node.child(name.c_str()));
 };
 
 template <>
@@ -171,13 +187,13 @@ template <>
 std::shared_ptr<Entry>
 EntryObjectXML::insert(const std::string& name)
 {
-    auto n = m_container_.child(name.c_str());
+    auto n = m_container_.node.child(name.c_str());
     if (n.empty())
     {
-        n = m_container_.append_child(name.c_str());
+        n = m_container_.node.append_child(name.c_str());
     }
     auto res = std::make_shared<Entry>();
-    res->emplace<Entry::type_tags::Object>(std::dynamic_pointer_cast<EntryObject>(std::make_shared<this_type>(self(), n)));
+    res->emplace<Entry::type_tags::Object>(std::dynamic_pointer_cast<EntryObject>(std::make_shared<this_type>(self(), xml_node{nullptr, n})));
     return res;
 }
 
@@ -205,11 +221,11 @@ size_t EntryObjectXML::size() const
 
 template <>
 Cursor<const Entry>
-EntryObjectXML::children() const { return Cursor<const Entry>(m_container_.first_child()); }
+EntryObjectXML::children() const { return Cursor<const Entry>(m_container_.node.first_child()); }
 
 template <>
 Cursor<Entry>
-EntryObjectXML::children() { return Cursor<Entry>(m_container_.first_child()); }
+EntryObjectXML::children() { return Cursor<Entry>(m_container_.node.first_child()); }
 
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>
@@ -241,6 +257,6 @@ EntryArrayXML::get(int idx) const
     return nullptr;
 }
 
-SPDB_ENTRY_REGISTER(xml, pugi::xml_node);
-SPDB_ENTRY_ASSOCIATE(xml, pugi::xml_node, "[.*].xml");
+SPDB_ENTRY_REGISTER(xml, xml_node);
+SPDB_ENTRY_ASSOCIATE(xml, xml_node, "^(.*)\\.(xml|xls|xlsx)$");
 } // namespace sp::db

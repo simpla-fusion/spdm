@@ -52,6 +52,7 @@ public:
         std::swap(m_path_, other.m_path_);
         std::swap(m_query_, other.m_query_);
         std::swap(m_fragment_, other.m_fragment_);
+        std::swap(m_uri_, other.m_uri_);
     }
 
     this_type& operator=(const this_type& other)
@@ -100,6 +101,7 @@ private:
     std::vector<element> m_path_;
     std::string m_query_;
     std::string m_fragment_;
+    std::string m_uri_;
 };
 namespace literals
 {

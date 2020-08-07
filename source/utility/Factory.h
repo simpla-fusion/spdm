@@ -83,10 +83,12 @@ public:
     {
         return sizeof...(Others);
     }
-    template <typename... Others>
-    static int associate(std::string const& key, Others&&... args)
+    // template <typename... Others> Others&&... args
+    static int associate(std::string const& key, std::string const& pattern)
     {
-        return _sum(Singleton<ObjectFactory>::instance().m_associate_.try_emplace(key, std::regex(std::forward<Others>(args))).second...);
+        // std::cout << FILE_LINE_STAMP << pattern << std::endl;
+        Singleton<ObjectFactory>::instance().m_associate_.try_emplace(key, pattern);
+        return 1;
     }
 
 private:
@@ -119,8 +121,25 @@ public:
         }
         else
         {
-            VERBOSE << "Can not find Creator \"" << k << "\"" << std::endl;
+            for (auto const& item : Singleton<ObjectFactory>::instance().m_associate_)
+            {
+                if (std::regex_match(k, item.second))
+                {
+                    auto it = f.find(item.first);
+                    if (it != f.end())
+                    {
+                        // std::cout << FILE_LINE_STAMP << "Load plugin \"" << item.first << "\" for [" << k << "]" << std::endl;
+                        res = it->second(std::forward<U>(args)...);
+                        break;
+                    }
+                }
+            }
         }
+        if (res == nullptr)
+        {
+            VERBOSE << "Can not find plugin for \"" << k << "\"" << std::endl;
+        }
+
         return std::unique_ptr<TObj>(res);
     }
 };

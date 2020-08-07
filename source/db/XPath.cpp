@@ -58,7 +58,7 @@ std::tuple<std::string, std::string, std::string, std::string, std::string> urlp
     return std::make_tuple(scheme, authority, path, query, fragment);
 }
 
-XPath::XPath(const std::string& url)
+XPath::XPath(const std::string& url) : m_uri_(url)
 {
     std::smatch m;
     if (!std::regex_match(url, m, url_pattern))
@@ -113,9 +113,7 @@ XPath::XPath(XPath&& other)
 XPath::~XPath() {}
 
 std::string XPath::filename() const
-{
-    return m_path_.size() > 0 ? std::get<type_tags::Key>(m_path_.back()) : "";
-}
+{    return m_path_.size() > 0 ? std::get<type_tags::Key>(m_path_.back()) : "";}
 
 std::string XPath::extension() const
 {
@@ -132,11 +130,8 @@ std::string XPath::extension() const
     }
 }
 
-std::string XPath::str() const
-{
-    NOT_IMPLEMENTED;
-    return "";
-}
+std::string XPath::str() const { return m_uri_; }
+
 void XPath::append(const std::string& path) { m_path_.emplace_back(path); }
 void XPath::append(int idx) { m_path_.emplace_back(idx); }
 void XPath::append(int b, int e, int seq) { m_path_.emplace_back(std::make_tuple(b, e, seq)); }
