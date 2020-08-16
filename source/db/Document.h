@@ -66,10 +66,12 @@ public:
     bool is_readable() const;
 
     const Entry& root() const { return m_root_; }
+    
     Entry& root() { return m_root_; }
 
     const Schema& schema() const;
-    Schema& schema();
+
+    void schema(const Schema&);
 
     bool validate(const XPath&) const;
 

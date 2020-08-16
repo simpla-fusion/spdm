@@ -17,8 +17,8 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));
     // entry.set_attribute("B", std::string("b"));
-    // entry["A"].set_value<std::string>("1234");
-    // entry["B"].set_value<std::string>("5678");
+    entry["A"].as<std::string>("1234");
+    entry["B"].as<std::string>("5678");
 
     // entry["C"][-1].set_value<int>(5);
     // entry["C"][-1].set_value<float>(6.0);

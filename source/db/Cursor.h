@@ -54,7 +54,11 @@ struct CursorProxy<U>
 
     virtual std::unique_ptr<CursorProxy<U>> copy() const { return std::make_unique<this_type>(*this); };
 
-    virtual reference get_reference() { return *get_pointer(); }
+    virtual reference get_reference()
+    {
+        throw std::runtime_error("try to get reference from null object!");
+        return *get_pointer();
+    }
 
     virtual pointer get_pointer() { return nullptr; }
 

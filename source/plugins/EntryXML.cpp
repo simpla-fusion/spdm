@@ -126,9 +126,12 @@ protected:
 template <>
 void EntryObjectXML::fetch(const XPath& path)
 {
-    m_container_.document = std::make_shared<pugi::xml_document>();
-    m_container_.document->load_file(path.str().c_str());
-    m_container_.node = m_container_.document->root();
+    if (m_container_.document == nullptr)
+    {
+        m_container_.document = std::make_shared<pugi::xml_document>();
+        m_container_.document->load_file(path.str().c_str());
+        m_container_.node = m_container_.document->root();
+    }
 };
 template <>
 void EntryObjectXML::update(const XPath& path){

@@ -217,18 +217,10 @@ public:
     void update();
 
     template <typename V>
-    void as(const V& v)
-    {
-        self().emplace<V>(v);
-        update();
-    }
+    void as(const V& v) { self().emplace<V>(v); }
 
     template <typename V>
-    void as(V&& v)
-    {
-        self().emplace<V>(std::forward<V>(v));
-        update();
-    }
+    void as(V&& v) { self().emplace<V>(std::forward<V>(v)); }
 
     template <typename V>
     V& as() { return std::get<V>(self()); }
