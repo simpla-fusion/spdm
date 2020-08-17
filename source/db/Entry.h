@@ -69,7 +69,7 @@ public:
 
     virtual Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() = 0;
 
-    virtual Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const = 0;
+    virtual Cursor<const std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const = 0;
 
     //------------------------------------------------------------------
 

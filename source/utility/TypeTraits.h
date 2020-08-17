@@ -8,11 +8,11 @@
 #include <any>
 #include <array>
 #include <complex>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <variant>
 #include <vector>
-#include <memory>
 namespace sp
 {
 namespace traits
@@ -134,6 +134,40 @@ struct is_integral<V, U, Others...>
     : public std::integral_constant<bool, std::is_integral<V>::value && is_integral<U, Others...>::value>
 {
 };
+template <typename U>
+struct is_pointer : public std::is_pointer<U>
+{
+};
+template <typename U>
+struct is_pointer<std::shared_ptr<U>> : public std::true_type
+{
+};
+template <typename U>
+struct is_pointer<std::unique_ptr<U>> : public std::true_type
+{
+};
+template <typename U>
+inline constexpr bool is_pointer_v = is_pointer<U>::value;
+
+namespace _detail
+{
+
+template <typename T>
+struct is_complete_helper
+{
+    template <typename U>
+    static auto test(U*) -> std::integral_constant<bool, sizeof(U) == sizeof(U)>;
+    static auto test(...) -> std::false_type;
+    using type = decltype(test((T*)0));
+};
+} // namespace _detail
+template <typename T>
+struct is_complete : public _detail::is_complete_helper<T>::type
+{
+};
+
+template <class T>
+static constexpr bool is_complete_v = is_complete<T>::value;
 /**
  *  for Array
  */
@@ -1054,9 +1088,6 @@ struct template_copy_type_args_impl<T0, T1<Types...>>
 
 template <template <typename...> class T0, typename T1>
 using template_copy_type_args = typename _detail::template_copy_type_args_impl<T0, T1>::type;
-
-
-
 
 template <class... Ts>
 struct overloaded : Ts...

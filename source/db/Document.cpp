@@ -10,8 +10,8 @@ Document::Document(const Document& other) : m_root_(other.m_root_), m_schema_(ot
 Document::Document(Document&& other) : m_root_(std::move(other.m_root_)), m_schema_(std::move(other.m_schema_)) {}
 Document::~Document() {}
 
-void Document::swap(Document& other) { m_root_.swap(other.m_root_); }
+void Document::swap(Document& other) { std::swap(m_root_, other.m_root_); }
 
-void Document::load(const std::string& request) { m_root_.fetch(request); }
+void Document::load(const std::string& request) { m_root_->fetch(request); }
 
 } // namespace sp::db

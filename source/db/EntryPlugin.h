@@ -26,13 +26,13 @@ public:
     typedef EntryObjectPlugin<Container> this_type;
     typedef Entry::type_tags type_tags;
 
-    EntryObjectPlugin(Entry* self) : EntryObject(self) {}
+    EntryObjectPlugin(std::shared_ptr<Entry> self) : EntryObject(self) {}
 
-    EntryObjectPlugin(Entry* self, const XPath&) : EntryObject(self) {}
+    EntryObjectPlugin(std::shared_ptr<Entry> self, const XPath&) : EntryObject(self) {}
 
-    EntryObjectPlugin(Entry* self, const Container& container) : EntryObject(self), m_container_(container) {}
+    EntryObjectPlugin(std::shared_ptr<Entry> self, const Container& container) : EntryObject(self), m_container_(container) {}
 
-    EntryObjectPlugin(Entry* self, Container&& container) : EntryObject(self), m_container_(std::move(container)) {}
+    EntryObjectPlugin(std::shared_ptr<Entry> self, Container&& container) : EntryObject(self), m_container_(std::move(container)) {}
 
     EntryObjectPlugin(const this_type& other) : EntryObject(nullptr), m_container_(other.m_container_) {}
 
@@ -42,9 +42,9 @@ public:
 
     std::shared_ptr<EntryObject> copy() const override { return std::shared_ptr<EntryObject>(new this_type(*this)); }
 
-    void fetch(const XPath&){};
+    void fetch(const XPath&) override{};
 
-    void update(const XPath&){};
+    void update(const XPath&) override{};
 
     //----------------------------------------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ public:
 
     Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() override;
 
-    Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const override;
+    Cursor<const std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const override;
 
     //------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ public:
     typedef Entry::type_tags type_tags;
     typedef EntryArrayPlugin this_type;
 
-    EntryArrayPlugin(Entry* self) : EntryArray(self) {}
+    EntryArrayPlugin(std::shared_ptr<Entry> self) : EntryArray(self) {}
 
     ~EntryArrayPlugin() = default;
 
@@ -123,16 +123,18 @@ public:
     std::shared_ptr<const Entry> get(int idx) const override;
 };
 
-#define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)                                  \
-    template <>                                                               \
-    bool ::sp::db::EntryObjectPlugin<_CLASS_>::is_registered =                \
-        ::sp::utility::Factory<::sp::db::EntryObject, ::sp::db::Entry*>::add( \
-            __STRING(_NAME_),                                                 \
-            [](::sp::db::Entry* s) { return dynamic_cast<::sp::db::EntryObject*>(new ::sp::db::EntryObjectPlugin<_CLASS_>(s)); });
+#define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)                                                    \
+    template <>                                                                                 \
+    bool ::sp::db::EntryObjectPlugin<_CLASS_>::is_registered =                                  \
+        ::sp::utility::Factory<::sp::db::EntryObject, : std::shared_ptr<::sp::db::Entry>>::add( \
+            __STRING(_NAME_),                                                                   \
+            [](std::shared_ptr<::sp::db::Entry> s) { return dynamic_cast<::sp::db::EntryObject*>(new ::sp::db::EntryObjectPlugin<_CLASS_>(s)); });
 
 #define SPDB_ENTRY_ASSOCIATE(_NAME_, _CLASS_, ...)             \
     template <>                                                \
     int ::sp::db::EntryObjectPlugin<_CLASS_>::associated_num = \
-        ::sp::utility::Factory<::sp::db::EntryObject, ::sp::db::Entry*>::associate(__STRING(_NAME_), __VA_ARGS__);
+        ::sp::utility::Factory < ::sp::db::EntryObject,        \
+        std::shared_ptr<::sp::db::Entry>::associate(__STRING(_NAME_), __VA_ARGS__);
+
 } // namespace sp::db
 #endif // SPDB_ENTRY_PLUGIN_H_
