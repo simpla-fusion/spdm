@@ -10,13 +10,13 @@ namespace sp::db
 typedef EntryObjectPlugin<std::map<std::string, Entry>> EntryObjectDefault;
 
 //-----------------------------------------------------------------------------------------------------------
-Entry::Entry() {}
+Entry::Entry(Entry* parent) : m_parent_(parent) {}
 
 Entry::~Entry() {}
 
-Entry::Entry(const Entry& other) : base_type(other) {}
+Entry::Entry(const Entry& other) : base_type(other), m_parent_(other.m_parent_) {}
 
-Entry::Entry(Entry&& other) : base_type(std::move(other)) {}
+Entry::Entry(Entry&& other) : base_type(std::move(other)), m_parent_(other.m_parent_) {}
 
 void Entry::swap(Entry& other) { base_type::swap(other); }
 
@@ -24,7 +24,7 @@ void Entry::swap(Entry& other) { base_type::swap(other); }
 // {
 //     VERBOSE << request << std::endl;
 
-//     std::shared_ptr<EntryObject> obj = ::sp::utility::Factory<EntryObject, Entry>::create(request, this->shared_from_this());
+//     Entry* obj = ::sp::utility::Factory<EntryObject, Entry>::create(request, this->shared_from_this());
 
 //     if (obj == nullptr)
 //     {
@@ -53,10 +53,6 @@ void Entry::swap(Entry& other) { base_type::swap(other); }
 //     }
 // }
 
-bool Entry::is_root() const
-{
-    return type() == Entry::type_tags::Object && as_object().parent() == nullptr;
-}
 
 DataBlock& Entry::as_block()
 {
@@ -147,7 +143,7 @@ const EntryArray& Entry::as_array() const
 
 //==========================================================================================
 
-EntryObject::EntryObject(std::weak_ptr<EntryObject> parent) : m_self_(parent) {}
+EntryObject::EntryObject(Entry* parent) : m_self_(parent) {}
 
 EntryObject::~EntryObject() {}
 
@@ -155,7 +151,10 @@ EntryObject::~EntryObject() {}
 
 Cursor<Entry> EntryArray::children() { return Cursor<Entry>(m_container_.begin(), m_container_.end()); }
 
-Cursor<const Entry> EntryArray::children() const { return Cursor<const Entry>(m_container_.cbegin(), m_container_.cend()); 
+Cursor<const Entry> EntryArray::children() const
+{
+    return Cursor<const Entry>(m_container_.cbegin(), m_container_.cend());
+}
 void EntryArray::resize(std::size_t num) { m_container_.resize(num, Entry(parent())); }
 
 void EntryArray::clear() { m_container_.clear(); }
@@ -182,37 +181,29 @@ template <>
 void EntryObjectDefault::clear() { m_container_.clear(); }
 
 template <>
-Entry EntryObjectDefault::insert(const std::string& name)
-{
-    auto res = m_container_.try_emplace(name);
-    if (res.second)
-    {
-        res.first->second.reset(new Entry(self()));
-    }
-    return res.first->second;
-}
+Entry EntryObjectDefault::insert(const std::string& name) { return Entry(parent(), XPath(name)); }
 
 template <>
-Entry EntryObjectDefault::insert(const XPath& path)
-{
-    Entry p(self());
-    for (auto it = path.begin(); it != path.end(); ++it)
-    {
-        switch (it->index())
-        {
-        case XPath::type_tags::Key:
-            p.as_object().insert(std::get<XPath::type_tags::Key>(*it)).swap(p);
-            break;
-        case XPath::type_tags::Index:
-            p.as_array().get(std::get<XPath::type_tags::Index>(*it)).swap(p);
-            break;
-        default:
-            NOT_IMPLEMENTED;
-            break;
-        }
-    }
-    return std::move(p);
-}
+Entry EntryObjectDefault::insert(const XPath& path) { return Entry(parent(), path); }
+// {
+//     Entry p(self());
+//     for (auto it = path.begin(); it != path.end(); ++it)
+//     {
+//         switch (it->index())
+//         {
+//         case XPath::type_tags::Key:
+//             p.as_object().insert(std::get<XPath::type_tags::Key>(*it)).swap(p);
+//             break;
+//         case XPath::type_tags::Index:
+//             p.as_array().get(std::get<XPath::type_tags::Index>(*it)).swap(p);
+//             break;
+//         default:
+//             NOT_IMPLEMENTED;
+//             break;
+//         }
+//     }
+//     return std::move(p);
+// }
 
 template <>
 const Entry
