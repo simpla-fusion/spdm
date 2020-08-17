@@ -33,6 +33,7 @@ public:
 
     typedef XPath this_type;
     XPath(const std::string&);
+    XPath(const char*);
     XPath(const XPath&);
     XPath(XPath&&);
     ~XPath();

@@ -13,15 +13,16 @@ TEST_CASE("Create Node", "[SpDB]")
     sp::logger::set_stdout_level(-1000);
 
     using namespace sp::db;
+
     sp::db::Entry entry;
 
     // entry.set_attribute("A", std::string("a"));
     // entry.set_attribute("B", std::string("b"));
     // entry["A"].set_value<std::string>("1234");
     entry["B"].as<std::string>("5678");
-    entry["C"].as_array()->resize(4);
-    entry["C"].as_array()->push_back()->as<int>(5);
-    entry["C"].as_array()->push_back()->as<float>(6.0);
+    entry["C"].as_array().resize(4);
+    entry["C"].as_array().push_back().as<int>(5);
+    entry["C"].as_array().push_back().as<float>(6.0);
 
     entry["C"][2] = 12344.56;
     using namespace std::complex_literals;

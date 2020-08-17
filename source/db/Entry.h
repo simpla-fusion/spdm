@@ -13,27 +13,29 @@
 #include <vector>
 namespace sp::db
 {
-class DataBlock;
 class Entry;
 class EntryObject;
 class EntryArray;
+class EntryReference;
+class DataBlock;
 
 } // namespace sp::db
 
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
-M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
-M_REGISITER_TYPE_TAG(Reference, std::shared_ptr<sp::db::Entry>);
-M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
+M_REGISITER_TYPE_TAG(Array, sp::db::EntryArray);
+M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
+M_REGISITER_TYPE_TAG(Reference, sp::db::EntryReference);
 
 namespace sp::db
 {
 
-class EntryObject : std::enable_shared_from_this<EntryObject>
+class EntryObject : public std::enable_shared_from_this<EntryObject>
 {
-    std::weak_ptr<Entry> m_self_;
+    std::weak_ptr<EntryObject> m_parent_;
+    std::string m_name_;
 
 public:
-    EntryObject(std::shared_ptr<Entry> self);
+    EntryObject();
 
     virtual ~EntryObject();
 
@@ -41,17 +43,14 @@ public:
 
     EntryObject(EntryObject&&) = delete;
 
-    std::shared_ptr<Entry> self() const { return m_self_.lock(); }
-
-    void self(std::shared_ptr<Entry> s) { m_self_ = s; }
-
     //-------------------------------------------------------------------------------
+    std::shared_ptr<EntryObject> parent() const { return m_parent_.lock(); }
 
-    virtual void fetch(const XPath&){};
+    void parent(std::shared_ptr<EntryObject> p) { m_parent_ = p; }
 
-    virtual void update(const XPath&){};
+    std::string name() const { return m_name_; }
 
-    virtual std::shared_ptr<EntryObject> copy() const = 0;
+    virtual std::unique_ptr<EntryObject> copy() const = 0;
 
     virtual size_t size() const = 0;
 
@@ -67,83 +66,104 @@ public:
 
     virtual Cursor<const Entry> children() const = 0;
 
-    virtual Cursor<std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() = 0;
+    virtual Cursor<std::pair<const std::string, Entry>> kv_items() = 0;
 
-    virtual Cursor<const std::pair<const std::string, std::shared_ptr<Entry>>> kv_items() const = 0;
+    virtual Cursor<const std::pair<const std::string, Entry>> kv_items() const = 0;
 
     //------------------------------------------------------------------
 
-    virtual std::shared_ptr<Entry> insert(const std::string& path) = 0;
+    virtual Entry insert(const std::string& path) = 0;
 
-    virtual std::shared_ptr<Entry> insert(const XPath& path) = 0;
+    virtual Entry insert(const XPath& path) = 0;
 
-    virtual std::shared_ptr<const Entry> get(const std::string& path) const = 0;
+    virtual const Entry get(const std::string& path) const = 0;
 
-    virtual std::shared_ptr<const Entry> get(const XPath& path) const = 0;
+    virtual const Entry get(const XPath& path) const = 0;
 
     virtual void erase(const std::string& path) = 0;
 
     virtual void erase(const XPath& path) = 0;
 
-    template <typename P>
-    decltype(auto) operator[](const P& path) { return *insert(path); }
+    Entry operator[](const std::string& path) { return insert(path); }
 
-    template <typename P>
-    decltype(auto) operator[](const P& path) const { return *get(path); }
+    Entry operator[](const XPath& path) { return insert(path); }
+
+    const Entry operator[](const std::string& path) const { return get(path); }
+
+    const Entry operator[](const XPath& path) const { return get(path); }
 };
 
-class EntryArray : std::enable_shared_from_this<EntryArray>
+class EntryReference
 {
-    std::weak_ptr<Entry> m_self_;
+    std::shared_ptr<EntryObject> m_root_;
+    XPath m_path_;
 
 public:
-    EntryArray(std::shared_ptr<Entry> self);
-    virtual ~EntryArray();
+    EntryReference(std::shared_ptr<EntryObject> root, XPath const& path) : m_root_(root), m_path_(path) {}
+    EntryReference(const EntryReference& other) : m_root_(other.m_root_), m_path_(other.m_path_) {}
+    EntryReference(EntryReference&& other) : m_root_(other.m_root_), m_path_(other.m_path_) {}
+    ~EntryReference() = default;
+
+    void swap(EntryReference& other)
+    {
+        std::swap(m_root_, other.m_root_);
+        std::swap(m_path_, other.m_path_);
+    }
+
+    Entry fetch();
+    void push(Entry const&);
+};
+
+class EntryArray
+{
+    std::weak_ptr<EntryObject> m_parent_;
+    std::string m_name_;
+    std::vector<Entry> m_container_;
+
+public:
+    EntryArray(std::weak_ptr<EntryObject> parent) : m_parent_(parent) {}
+
+    ~EntryArray() = default;
 
     EntryArray(const EntryArray&) = delete;
 
     EntryArray(EntryArray&&) = delete;
 
-    static std::shared_ptr<EntryArray> create(std::shared_ptr<Entry>, const std::string& request = "");
+    //-------------------------------------------------------------------------------
+    std::shared_ptr<EntryObject> parent() { return m_parent_.lock(); }
 
-    virtual std::shared_ptr<EntryArray> copy() const = 0;
+    void parent(std::shared_ptr<EntryObject> p) { m_parent_ = p; }
 
-    std::shared_ptr<Entry> self() const { return m_self_.lock(); }
+    Cursor<Entry> children();
 
-    void self(std::shared_ptr<Entry> s) { m_self_ = s; }
+    Cursor<const Entry> children() const;
+
+    void resize(std::size_t num);
+
+    void clear() { m_container_.clear(); }
+
+    size_t size() const { return m_container_.size(); }
 
     //-------------------------------------------------------------------------------
 
-    virtual Cursor<Entry> children() = 0;
+    Entry& push_back();
 
-    virtual Cursor<const Entry> children() const = 0;
+    Entry pop_back();
 
-    virtual size_t size() const = 0;
+    Entry& get(int idx) { return m_container_[idx]; }
 
-    virtual void resize(std::size_t num) = 0;
+    const Entry& get(int idx) const { return m_container_[idx]; }
 
-    virtual void clear() = 0;
+    Entry& operator[](int idx) { return m_container_[idx]; }
 
-    //-------------------------------------------------------------------------------
-
-    virtual std::shared_ptr<Entry> push_back() = 0;
-
-    virtual void pop_back() = 0;
-
-    virtual std::shared_ptr<Entry> get(int idx) = 0;
-
-    virtual std::shared_ptr<const Entry> get(int idx) const = 0;
-
-    decltype(auto) operator[](int idx) { return *get(idx); }
-
-    decltype(auto) operator[](int idx) const { return *get(idx); }
+    const Entry& operator[](int idx) const { return m_container_[idx]; }
 };
 
 typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,
-                     std::shared_ptr<EntryArray>,
-                     std::shared_ptr<Entry>,             //Reference
-                     std::shared_ptr<DataBlock>,         //Block
+                     EntryArray,
+                     EntryReference,                     //Reference
+                     DataBlock,                          //Block
                      std::string,                        //String,
                      bool,                               //Boolean,
                      int,                                //Integer,
@@ -159,15 +179,15 @@ typedef std::variant<std::nullptr_t,
                      >
     entry_base;
 
-class Entry : public entry_base, public std::enable_shared_from_this<Entry>
+class Entry : public entry_base
 {
-    std::weak_ptr<Entry> m_parent_;
 
 public:
     typedef entry_base base_type;
     typedef traits::type_tags<entry_base> type_tags;
 
-    Entry(std::shared_ptr<Entry> parent = nullptr);
+    Entry();
+    Entry(std::weak_ptr<EntryObject> parent);
     ~Entry();
     Entry(const Entry& other);
     Entry(Entry&& other);
@@ -193,34 +213,30 @@ public:
         return *this;
     }
 
-    //---------------------------------------------------------------------
+    bool is_root() const;
 
     //---------------------------------------------------------------------
     // for reference
 
-    Entry& self();
+    // Entry& self();
 
-    const Entry& self() const;
+    // const Entry& self() const;
 
-    Entry& fetch(const std::string& request);
+    // void fetch(const std::string& request);
 
-    Entry& fetch(const XPath& request);
+    // void fetch(const XPath& request);
 
-    std::shared_ptr<Entry> parent() const { return m_parent_.lock(); }
+    // std::shared_ptr<EntryObject> parent() const { return m_parent_.lock(); }
 
-    void parent(std::shared_ptr<Entry> p) { m_parent_ = p; }
+    // void parent(std::weak_ptr<EntryObject> p) { m_parent_ = p; }
 
-    bool is_root() const { return m_parent_.expired(); }
+    // Cursor<Entry> children();
 
-    Cursor<Entry> children();
+    // Cursor<const Entry> children() const;
 
-    Cursor<const Entry> children() const;
-
-    std::size_t type() const { return self().index(); }
+    std::size_t type() const;
 
     void clear() { base_type::emplace<std::nullptr_t>(nullptr); }
-
-    void update();
 
     template <typename V>
     void as(const V& v) { self().emplace<V>(v); }
@@ -234,50 +250,28 @@ public:
     template <typename V>
     const V& as() const { return std::get<V>(self()); }
 
-    std::shared_ptr<DataBlock> as_block();
-    std::shared_ptr<const DataBlock> as_block() const;
+    DataBlock& as_block();
+    const DataBlock& as_block() const;
 
-    std::shared_ptr<EntryObject> as_object();
-    std::shared_ptr<const EntryObject> as_object() const;
+    EntryObject& as_object();
+    const EntryObject& as_object() const;
 
-    std::shared_ptr<EntryArray> as_array();
-    std::shared_ptr<const EntryArray> as_array() const;
+    EntryArray& as_array();
+    const EntryArray& as_array() const;
 
-    // std::size_t size() const
-    // {
-    //     if (base_type::index() == type_tags::Array)
-    //     {
-    //         return as_array()->size();
-    //     }
-    //     else if (base_type::index() == type_tags::Object)
-    //     {
-    //         return as_object()->size();
-    //     }
-    //     else if (base_type::index() == type_tags::Reference)
-    //     {
-    //         return self().size();
-    //     }
-    //     else
-    //     {
-    //         return 0;
-    //     }
-    // }
+    void resize(std::size_t num);
 
-    void resize(std::size_t num) { as_array()->resize(num); }
+    Entry push_back();
 
-    decltype(auto) push_back() { return as_array()->push_back(); }
+    Entry pop_back();
 
-    decltype(auto) pop_back() { return as_array()->pop_back(); }
+    Entry operator[](int idx);
 
-    decltype(auto) operator[](int idx) { return *(as_array()->get(idx)); }
+    Entry operator[](int idx) const;
 
-    decltype(auto) operator[](int idx) const { return *(as_array()->get(idx)); }
+    Entry operator[](const XPath& path);
 
-    template <typename TIDX>
-    decltype(auto) operator[](const TIDX& path) { return *(as_object()->insert(path)); }
-
-    template <typename TIDX>
-    decltype(auto) operator[](const TIDX& path) const { return *(as_object()->get(path)); }
+    Entry operator[](const XPath& path) const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

@@ -7,11 +7,10 @@
 namespace sp::db
 {
 
-typedef EntryArrayPlugin<std::vector<std::shared_ptr<Entry>>> EntryArrayDefault;
-typedef EntryObjectPlugin<std::map<std::string, std::shared_ptr<Entry>>> EntryObjectDefault;
+typedef EntryObjectPlugin<std::map<std::string, Entry>> EntryObjectDefault;
 
 //-----------------------------------------------------------------------------------------------------------
-Entry::Entry(std::shared_ptr<Entry> parent) : m_parent_(parent) {}
+Entry::Entry() {}
 
 Entry::~Entry() {}
 
@@ -19,65 +18,52 @@ Entry::Entry(const Entry& other) : base_type(other) {}
 
 Entry::Entry(Entry&& other) : base_type(std::move(other)) {}
 
-void Entry::swap(Entry& other)
-{
-    base_type::swap(other);
+void Entry::swap(Entry& other) { base_type::swap(other); }
 
-    if (type() == type_tags::Object)
-    {
-        std::get<type_tags::Object>(*this)->self(this->shared_from_this());
-        std::get<type_tags::Object>(other)->self(other.shared_from_this());
-    }
-    else if (type() == type_tags::Array)
-    {
-        std::get<type_tags::Array>(*this)->self(this->shared_from_this());
-        std::get<type_tags::Array>(other)->self(other.shared_from_this());
-    }
+// Entry& Entry::fetch(const std::string& request)
+// {
+//     VERBOSE << request << std::endl;
+
+//     std::shared_ptr<EntryObject> obj = ::sp::utility::Factory<EntryObject, Entry>::create(request, this->shared_from_this());
+
+//     if (obj == nullptr)
+//     {
+//         RUNTIME_ERROR << "Can not parse request " << request << std::endl;
+
+//         throw std::runtime_error("Can not create Entry for scheme: [" + request + "]");
+//     }
+//     else
+//     {
+//         obj->fetch(request);
+
+//         emplace<Entry::type_tags::Object>(obj);
+
+//         VERBOSE << "Load Entry Object plugin:" << request << std::endl;
+//     }
+//     return *this;
+// }
+
+// Entry& Entry::fetch(const XPath& request) { return fetch(request.str()); }
+
+// void Entry::update()
+// {
+//     if (base_type::index() == type_tags::Reference)
+//     {
+//         std::get<type_tags::Reference>(*this)->update();
+//     }
+// }
+
+bool Entry::is_root() const
+{
+    return type() == Entry::type_tags::Object && as_object().parent() == nullptr;
 }
 
-Entry& Entry::self() { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
-
-const Entry& Entry::self() const { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
-
-Entry& Entry::fetch(const std::string& request)
-{
-    VERBOSE << request << std::endl;
-
-    std::shared_ptr<EntryObject> obj = ::sp::utility::Factory<EntryObject, std::shared_ptr<Entry>>::create(request, this->shared_from_this());
-
-    if (obj == nullptr)
-    {
-        RUNTIME_ERROR << "Can not parse request " << request << std::endl;
-
-        throw std::runtime_error("Can not create Entry for scheme: [" + request + "]");
-    }
-    else
-    {
-        obj->fetch(request);
-
-        emplace<Entry::type_tags::Object>(obj);
-
-        VERBOSE << "Load Entry Object plugin:" << request << std::endl;
-    }
-    return *this;
-}
-
-Entry& Entry::fetch(const XPath& request) { return fetch(request.str()); }
-
-void Entry::update()
-{
-    if (base_type::index() == type_tags::Reference)
-    {
-        std::get<type_tags::Reference>(*this)->update();
-    }
-}
-
-std::shared_ptr<DataBlock> Entry::as_block()
+DataBlock& Entry::as_block()
 {
     switch (base_type::index())
     {
     case type_tags::Empty:
-        emplace<type_tags::Block>(std::make_shared<DataBlock>());
+        emplace<type_tags::Block>(DataBlock());
         break;
     case type_tags::Block:
         break;
@@ -88,10 +74,10 @@ std::shared_ptr<DataBlock> Entry::as_block()
         throw std::runtime_error("illegal type");
         break;
     }
-    return std::get<type_tags::Block>(self());
+    return std::get<type_tags::Block>(*this);
 }
 
-std::shared_ptr<const DataBlock> Entry::as_block() const
+const DataBlock& Entry::as_block() const
 {
 
     if (type() != type_tags::Block)
@@ -101,12 +87,12 @@ std::shared_ptr<const DataBlock> Entry::as_block() const
     return std::get<type_tags::Block>(self());
 }
 
-std::shared_ptr<EntryObject> Entry::as_object()
+EntryObject& Entry::as_object()
 {
     switch (base_type::index())
     {
     case type_tags::Empty:
-        emplace<type_tags::Object>(std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(this->shared_from_this())));
+        emplace<type_tags::Object>(std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>(this->weak_from_this())));
         break;
     case type_tags::Object:
         break;
@@ -120,7 +106,7 @@ std::shared_ptr<EntryObject> Entry::as_object()
     return std::get<type_tags::Object>(self());
 }
 
-std::shared_ptr<const EntryObject> Entry::as_object() const
+const EntryObject& Entry::as_object() const
 {
     if (type() != type_tags::Object)
     {
@@ -129,7 +115,7 @@ std::shared_ptr<const EntryObject> Entry::as_object() const
     return std::get<type_tags::Object>(self());
 }
 
-std::shared_ptr<EntryArray> Entry::as_array()
+EntryArray& Entry::as_array()
 {
     switch (base_type::index())
     {
@@ -150,7 +136,7 @@ std::shared_ptr<EntryArray> Entry::as_array()
     return std::get<type_tags::Array>(self());
 }
 
-std::shared_ptr<const EntryArray> Entry::as_array() const
+const EntryArray& Entry::as_array() const
 {
     if (index() != type_tags::Array)
     {
@@ -160,15 +146,33 @@ std::shared_ptr<const EntryArray> Entry::as_array() const
 }
 
 //==========================================================================================
-EntryObject::EntryObject(std::shared_ptr<Entry> s) : m_self_(s) {}
+
+EntryObject::EntryObject(std::weak_ptr<EntryObject> parent) : m_self_(parent) {}
 
 EntryObject::~EntryObject() {}
 
 //==========================================================================================
 
-EntryArray::EntryArray(std::shared_ptr<Entry> s) : m_self_(s) {}
+Cursor<Entry> EntryArray::children() { return Cursor<Entry>(m_container_.begin(), m_container_.end()); }
 
-EntryArray::~EntryArray() {}
+Cursor<const Entry> EntryArray::children() const { return Cursor<const Entry>(m_container_.cbegin(), m_container_.cend()); 
+void EntryArray::resize(std::size_t num) { m_container_.resize(num, Entry(parent())); }
+
+void EntryArray::clear() { m_container_.clear(); }
+
+Entry& EntryArray::push_back()
+{
+    m_container_.push_back(Entry(parent()));
+    return m_container_.back();
+}
+
+Entry EntryArray::pop_back()
+{
+    Entry res;
+    m_container_.back().swap(res);
+    m_container_.pop_back();
+    return std::move(res);
+}
 
 //==========================================================================================
 template <>
@@ -178,8 +182,7 @@ template <>
 void EntryObjectDefault::clear() { m_container_.clear(); }
 
 template <>
-std::shared_ptr<Entry>
-EntryObjectDefault::insert(const std::string& name)
+Entry EntryObjectDefault::insert(const std::string& name)
 {
     auto res = m_container_.try_emplace(name);
     if (res.second)
@@ -190,55 +193,54 @@ EntryObjectDefault::insert(const std::string& name)
 }
 
 template <>
-std::shared_ptr<Entry>
-EntryObjectDefault::insert(const XPath& path)
+Entry EntryObjectDefault::insert(const XPath& path)
 {
-    std::shared_ptr<Entry> p = self();
+    Entry p(self());
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())
         {
         case XPath::type_tags::Key:
-            p = p->as_object()->insert(std::get<XPath::type_tags::Key>(*it));
+            p.as_object().insert(std::get<XPath::type_tags::Key>(*it)).swap(p);
             break;
         case XPath::type_tags::Index:
-            p = p->as_array()->get(std::get<XPath::type_tags::Index>(*it));
+            p.as_array().get(std::get<XPath::type_tags::Index>(*it)).swap(p);
             break;
         default:
             NOT_IMPLEMENTED;
             break;
         }
     }
-    return p->shared_from_this();
+    return std::move(p);
 }
 
 template <>
-std::shared_ptr<const Entry>
+const Entry
 EntryObjectDefault::get(const std::string& path) const { return m_container_.at(path); }
 
 template <>
-std::shared_ptr<const Entry>
+const Entry
 EntryObjectDefault::get(const XPath& path) const
 {
 
-    std::shared_ptr<const Entry> p = self();
+    Entry p = *self();
 
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())
         {
         case XPath::type_tags::Key:
-            p = p->as_object()->get(std::get<XPath::type_tags::Key>(*it));
+            p = p.as_object().get(std::get<XPath::type_tags::Key>(*it));
             break;
         case XPath::type_tags::Index:
-            p = p->as_array()->get(std::get<XPath::type_tags::Index>(*it));
+            p = p.as_array().get(std::get<XPath::type_tags::Index>(*it));
             break;
         default:
             NOT_IMPLEMENTED;
             break;
         }
     }
-    return p->shared_from_this();
+    return std::move(p);
 }
 
 template <>
@@ -279,17 +281,17 @@ EntryObjectDefault::children() const
 }
 
 template <>
-Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
+Cursor<std::pair<const std::string, Entry>>
 EntryObjectDefault::kv_items()
 {
-    return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>(m_container_.begin(), m_container_.end());
+    return Cursor<std::pair<const std::string, Entry>>(m_container_.begin(), m_container_.end());
 };
 
 template <>
-Cursor<const std::pair<const std::string, std::shared_ptr<Entry>>>
+Cursor<const std::pair<const std::string, Entry>>
 EntryObjectDefault::kv_items() const
 {
-    return Cursor<const std::pair<const std::string, std::shared_ptr<Entry>>>(m_container_.cbegin(), m_container_.cend());
+    return Cursor<const std::pair<const std::string, Entry>>(m_container_.cbegin(), m_container_.cend());
 };
 
 //--------------------------------------------------------------------------------
@@ -320,7 +322,7 @@ Cursor<Entry>
 EntryArrayDefault::children()
 {
     return Cursor<Entry>(m_container_.begin(), m_container_.end(),
-                         [](const std::shared_ptr<Entry>& item) -> Entry& { return *item; });
+                         [](const Entry& item) -> Entry& { return *item; });
 }
 
 template <>
@@ -328,13 +330,12 @@ Cursor<const Entry>
 EntryArrayDefault::children() const
 {
     return Cursor<const Entry>(m_container_.begin(), m_container_.end(),
-                               [](const std::shared_ptr<Entry>& item) -> const Entry& { return *item; });
+                               [](const Entry& item) -> const Entry& { return *item; });
 }
 
 //--------------------------------------------------------------------------------------
 template <>
-std::shared_ptr<Entry>
-EntryArrayDefault::push_back()
+Entry EntryArrayDefault::push_back()
 {
     auto& p = m_container_.emplace_back();
     if (p == nullptr)
@@ -348,12 +349,11 @@ template <>
 void EntryArrayDefault::pop_back() { m_container_.pop_back(); }
 
 template <>
-std::shared_ptr<const Entry>
+const Entry
 EntryArrayDefault::get(int idx) const { return m_container_.at(idx); }
 
 template <>
-std::shared_ptr<Entry>
-EntryArrayDefault::get(int idx) { return m_container_.at(idx); }
+Entry EntryArrayDefault::get(int idx) { return m_container_.at(idx); }
 
 } // namespace sp::db
 namespace sp::utility
