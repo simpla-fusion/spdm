@@ -128,7 +128,7 @@ public:
                     auto it = f.find(item.first);
                     if (it != f.end())
                     {
-                        // std::cout << FILE_LINE_STAMP << "Load plugin \"" << item.first << "\" for [" << k << "]" << std::endl;
+                        VERBOSE << "Load  plugin \"" << item.first << "\" [" << k << "]" << std::endl;
                         res = it->second(std::forward<U>(args)...);
                         break;
                     }

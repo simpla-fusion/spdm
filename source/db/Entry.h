@@ -30,10 +30,10 @@ namespace sp::db
 
 class EntryObject : std::enable_shared_from_this<EntryObject>
 {
-    Entry* m_self_;
+    std::weak_ptr<Entry> m_self_;
 
 public:
-    EntryObject(Entry* self);
+    EntryObject(std::shared_ptr<Entry> self);
 
     virtual ~EntryObject();
 
@@ -41,9 +41,9 @@ public:
 
     EntryObject(EntryObject&&) = delete;
 
-    Entry* self() const { return m_self_; }
+    std::shared_ptr<Entry> self() const { return m_self_.lock(); }
 
-    void self(Entry* s) { m_self_ = s; }
+    void self(std::shared_ptr<Entry> s) { m_self_ = s; }
 
     //-------------------------------------------------------------------------------
 
@@ -94,23 +94,23 @@ public:
 
 class EntryArray : std::enable_shared_from_this<EntryArray>
 {
-    Entry* m_self_;
+    std::weak_ptr<Entry> m_self_;
 
 public:
-    EntryArray(Entry* self);
+    EntryArray(std::shared_ptr<Entry> self);
     virtual ~EntryArray();
 
     EntryArray(const EntryArray&) = delete;
 
     EntryArray(EntryArray&&) = delete;
 
-    static std::shared_ptr<EntryArray> create(Entry*, const std::string& request = "");
+    static std::shared_ptr<EntryArray> create(std::shared_ptr<Entry>, const std::string& request = "");
 
     virtual std::shared_ptr<EntryArray> copy() const = 0;
 
-    Entry* self() const { return m_self_; }
+    std::shared_ptr<Entry> self() const { return m_self_.lock(); }
 
-    void self(Entry* s) { m_self_ = s; }
+    void self(std::shared_ptr<Entry> s) { m_self_ = s; }
 
     //-------------------------------------------------------------------------------
 
@@ -161,13 +161,13 @@ typedef std::variant<std::nullptr_t,
 
 class Entry : public entry_base, public std::enable_shared_from_this<Entry>
 {
-    Entry* m_parent_;
+    std::weak_ptr<Entry> m_parent_;
 
 public:
     typedef entry_base base_type;
     typedef traits::type_tags<entry_base> type_tags;
 
-    Entry(Entry* parent = nullptr);
+    Entry(std::shared_ptr<Entry> parent = nullptr);
     ~Entry();
     Entry(const Entry& other);
     Entry(Entry&& other);
@@ -198,13 +198,19 @@ public:
     //---------------------------------------------------------------------
     // for reference
 
-    Entry* parent() const { return m_parent_; }
-
-    bool is_root() const { return m_parent_ == nullptr; }
-
     Entry& self();
 
     const Entry& self() const;
+
+    Entry& fetch(const std::string& request);
+
+    Entry& fetch(const XPath& request);
+
+    std::shared_ptr<Entry> parent() const { return m_parent_.lock(); }
+
+    void parent(std::shared_ptr<Entry> p) { m_parent_ = p; }
+
+    bool is_root() const { return m_parent_.expired(); }
 
     Cursor<Entry> children();
 
@@ -237,31 +243,31 @@ public:
     std::shared_ptr<EntryArray> as_array();
     std::shared_ptr<const EntryArray> as_array() const;
 
-    std::size_t size() const
-    {
-        if (base_type::index() == type_tags::Array)
-        {
-            return as_array()->size();
-        }
-        else if (base_type::index() == type_tags::Object)
-        {
-            return as_object()->size();
-        }
-        else if (base_type::index() == type_tags::Reference)
-        {
-            return self().size();
-        }
-        else
-        {
-            return 0;
-        }
-    }
+    // std::size_t size() const
+    // {
+    //     if (base_type::index() == type_tags::Array)
+    //     {
+    //         return as_array()->size();
+    //     }
+    //     else if (base_type::index() == type_tags::Object)
+    //     {
+    //         return as_object()->size();
+    //     }
+    //     else if (base_type::index() == type_tags::Reference)
+    //     {
+    //         return self().size();
+    //     }
+    //     else
+    //     {
+    //         return 0;
+    //     }
+    // }
 
     void resize(std::size_t num) { as_array()->resize(num); }
 
-    std::shared_ptr<Entry> push_back() { return as_array()->push_back(); }
+    decltype(auto) push_back() { return as_array()->push_back(); }
 
-    void pop_back() { as_array()->pop_back(); }
+    decltype(auto) pop_back() { return as_array()->pop_back(); }
 
     decltype(auto) operator[](int idx) { return *(as_array()->get(idx)); }
 

@@ -52,19 +52,15 @@ struct CursorProxy<U>
 
     virtual ~CursorProxy() = default;
 
-    virtual std::unique_ptr<CursorProxy<U>> copy() const { return std::make_unique<this_type>(*this); };
+    virtual std::unique_ptr<this_type> copy() const = 0;
 
-    virtual reference get_reference()
-    {
-        throw std::runtime_error("try to get reference from null object!");
-        return *get_pointer();
-    }
+    virtual bool next() = 0;
 
-    virtual pointer get_pointer() { return nullptr; }
+    virtual bool done() const = 0;
 
-    virtual bool next() { return false; };
+    virtual reference get_reference() = 0;
 
-    virtual bool done() const { return true; };
+    virtual pointer get_pointer() = 0;
 
     // virtual bool equal(const this_type* other) const { return get_pointer() == other->get_pointer(); }
 
@@ -100,9 +96,11 @@ public:
 
     bool done() const { return m_pos_ >= m_end_; }
 
-    std::unique_ptr<CursorProxy<U>> copy() const override { return std::make_unique<this_type>(*this); }
+    std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); }
 
     pointer get_pointer() override { return m_pos_ >= m_end_ ? nullptr : pointer(&(*m_base_) + m_pos_); }
+
+    reference get_reference() override { return *get_pointer(); }
 
     bool next() override
     {
@@ -157,6 +155,7 @@ public:
 protected:
     iterator m_it_, m_ie_;
 };
+
 template <typename U, typename V>
 class CursorProxy<U, V, std::enable_if_t<!std::is_convertible_v<typename std::iterator_traits<V>::value_type, U>>> : public CursorProxy<U>
 {

@@ -33,17 +33,17 @@ namespace sp
 namespace logger
 {
 
-void open_file(std::string const& file_name);
+int open_file(std::string const& file_name);
 
-void close();
+int close();
 
-void set_stdout_level(int l);
+int set_stdout_level(int l);
 
-void set_line_width(int lw);
+int set_line_width(int lw);
 
 int get_line_width();
 
-void set_mpi_comm(int rank = 0, int size = 1);
+int set_mpi_comm(int rank = 0, int size = 1);
 
 /**
          * @ingroup utility

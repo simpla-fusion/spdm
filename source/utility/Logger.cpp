@@ -36,24 +36,33 @@ struct LoggerStreams
     LoggerStreams(int level = LOG_INFORM) : m_std_out_level_(level), line_width_(DEFAULT_LINE_WIDTH) {}
     ~LoggerStreams() { close(); }
 
-    void init();
+    int init();
 
-    void close();
+    int close();
 
-    inline void open_file(std::string const& name)
+    int open_file(std::string const& name)
     {
         if (fs.is_open())
             fs.close();
         fs.open(name.c_str(), std::ios_base::trunc);
+        return 0;
     }
 
-    void push(int level, std::string const& msg);
+    int push(int level, std::string const& msg);
 
-    inline void set_stdout_level(int l) { m_std_out_level_ = l; }
+    int set_stdout_level(int l)
+    {
+        m_std_out_level_ = l;
+        return l;
+    }
 
     int get_line_width() const { return line_width_; }
 
-    void set_line_width(int lineWidth) { line_width_ = lineWidth; }
+    int set_line_width(int lineWidth)
+    {
+        line_width_ = lineWidth;
+        return lineWidth;
+    }
 
     static std::string time_stamp()
     {
@@ -67,16 +76,20 @@ struct LoggerStreams
 
 private:
 #ifndef NDEBUG
-    int m_std_out_level_ = -1000;
+    int m_std_out_level_ = 1000;
 #else
     int m_std_out_level_ = 0;
 #endif
     std::ofstream fs;
 };
 
-void LoggerStreams::init() { is_opened_ = true; }
+int LoggerStreams::init()
+{
+    is_opened_ = true;
+    return 0;
+}
 
-void LoggerStreams::close()
+int LoggerStreams::close()
 {
     if (is_opened_)
     {
@@ -91,12 +104,13 @@ void LoggerStreams::close()
         }
         is_opened_ = false;
     }
+    return 0;
 }
 
-void LoggerStreams::push(int level, std::string const& msg)
+int LoggerStreams::push(int level, std::string const& msg)
 {
     if (msg == "" || ((level == LOG_MESSAGE) && mpi_rank_ > 0))
-        return;
+        return 0;
 
     std::ostringstream prefix;
 
@@ -136,7 +150,7 @@ void LoggerStreams::push(int level, std::string const& msg)
         prefix << "[" << mpi_rank_ << "/" << mpi_size_ << "] ";
     }
 
-    if (level <= m_std_out_level_)
+    if (level >= m_std_out_level_)
     {
         switch (level)
         {
@@ -162,26 +176,28 @@ void LoggerStreams::push(int level, std::string const& msg)
         }
     }
 
-    if (!fs.good())
-        open_file("simpla.log");
-
-    fs << std::endl
-       << prefix.str() << msg << surfix;
+    if (fs.good())
+    {
+        fs << std::endl
+           << prefix.str() << msg << surfix;
+    }
+    return 0;
 }
 
-void open_file(std::string const& file_name) { return Singleton<LoggerStreams>::instance().open_file(file_name); }
+int open_file(std::string const& file_name) { return Singleton<LoggerStreams>::instance().open_file(file_name); }
 
-void close() { sp::Singleton<LoggerStreams>::instance().close(); }
+int close() { return sp::Singleton<LoggerStreams>::instance().close(); }
 
-void set_stdout_level(int l) { return Singleton<LoggerStreams>::instance().set_stdout_level(l); }
+int set_stdout_level(int l) { return Singleton<LoggerStreams>::instance().set_stdout_level(l); }
 
-void set_mpi_comm(int r, int s)
+int set_mpi_comm(int r, int s)
 {
     Singleton<LoggerStreams>::instance().mpi_rank_ = r;
     Singleton<LoggerStreams>::instance().mpi_size_ = s;
+    return 0;
 }
 
-void set_line_width(int lw) { return Singleton<LoggerStreams>::instance().set_line_width(lw); }
+int set_line_width(int lw) { return Singleton<LoggerStreams>::instance().set_line_width(lw); }
 
 int get_line_width() { return Singleton<LoggerStreams>::instance().get_line_width(); }
 

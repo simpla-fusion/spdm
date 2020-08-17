@@ -11,13 +11,13 @@ typedef EntryArrayPlugin<std::vector<std::shared_ptr<Entry>>> EntryArrayDefault;
 typedef EntryObjectPlugin<std::map<std::string, std::shared_ptr<Entry>>> EntryObjectDefault;
 
 //-----------------------------------------------------------------------------------------------------------
-Entry::Entry(Entry* parent) : m_parent_(parent) {}
+Entry::Entry(std::shared_ptr<Entry> parent) : m_parent_(parent) {}
 
 Entry::~Entry() {}
 
-Entry::Entry(const Entry& other) : base_type(other), m_parent_(nullptr) {}
+Entry::Entry(const Entry& other) : base_type(other) {}
 
-Entry::Entry(Entry&& other) : base_type(std::move(other)), m_parent_(nullptr) {}
+Entry::Entry(Entry&& other) : base_type(std::move(other)) {}
 
 void Entry::swap(Entry& other)
 {
@@ -38,6 +38,34 @@ void Entry::swap(Entry& other)
 Entry& Entry::self() { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
 
 const Entry& Entry::self() const { return base_type::index() == type_tags::Reference ? *std::get<type_tags::Reference>(*this) : *this; }
+
+Entry& Entry::fetch(const std::string& request)
+{
+
+    std::shared_ptr<EntryObject> obj;
+
+    VERBOSE << request << std::endl;
+
+    obj = ::sp::utility::Factory<EntryObject, Entry*>::create(request, &m_root_);
+
+    if (obj == nullptr)
+    {
+        RUNTIME_ERROR << "Can not parse request " << request << std::endl;
+
+        throw std::runtime_error("Can not create Entry for scheme: [" + request + "]");
+    }
+    else
+    {
+        obj->fetch(request);
+
+        m_root_.emplace<Entry::type_tags::Object>(obj);
+
+        VERBOSE << "Load Entry Object plugin:" << request << std::endl;
+    }
+    return *this;
+}
+
+Entry& Entry::fetch(const XPath& request) { return fetch(request.str()); }
 
 void Entry::update()
 {
@@ -135,13 +163,13 @@ std::shared_ptr<const EntryArray> Entry::as_array() const
 }
 
 //==========================================================================================
-EntryObject::EntryObject(Entry* s) : m_self_(s) {}
+EntryObject::EntryObject(std::shared_ptr<Entry> s) : m_self_(s) {}
 
 EntryObject::~EntryObject() {}
 
 //==========================================================================================
 
-EntryArray::EntryArray(Entry* s) : m_self_(s) {}
+EntryArray::EntryArray(std::shared_ptr<Entry> s) : m_self_(s) {}
 
 EntryArray::~EntryArray() {}
 
@@ -165,7 +193,7 @@ template <>
 std::shared_ptr<Entry>
 EntryObjectDefault::insert(const XPath& path)
 {
-    Entry* p = self();
+    auto p = self();
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())
@@ -191,8 +219,8 @@ std::shared_ptr<const Entry>
 EntryObjectDefault::get(const XPath& path) const
 {
 
-    const Entry* p = self();
-    
+    std::shared_ptr<const Entry> p = self();
+
     for (auto it = path.begin(); it != path.end(); ++it)
     {
         switch (it->index())

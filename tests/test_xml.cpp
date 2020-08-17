@@ -5,20 +5,20 @@
 
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
+ 
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
-    sp::logger::set_stdout_level(-1000);
-    VERBOSE << "hello world" << std::endl;
+    VERBOSE << "hello world";
 
     sp::db::Document doc("/workspaces/SpDB/tests/data/test.xml");
     sp::db::Entry entry = doc.root();
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));
     // entry.set_attribute("B", std::string("b"));
-    entry["A"].as<std::string>("1234");
-    entry["B"].as<std::string>("5678");
+    // entry["A"].as<std::string>("1234");
+    // entry["B"].as<std::string>("5678");
 
     // entry["C"][-1].set_value<int>(5);
     // entry["C"][-1].set_value<float>(6.0);
