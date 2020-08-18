@@ -1121,7 +1121,7 @@ overloaded(Ts...)->overloaded<Ts...>;
     }                                              \
     }
 
-M_REGISITER_TYPE_TAG(Empty, std::nullptr_t);                                              //Empty,
+M_REGISITER_TYPE_TAG(Null, std::nullptr_t);                                               //Empty,
 M_REGISITER_TYPE_TAG(Block, std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>); //Block
 M_REGISITER_TYPE_TAG(String, std::string);                                                //String,
 M_REGISITER_TYPE_TAG(Bool, bool);                                                         //Boolean,

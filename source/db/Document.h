@@ -65,9 +65,9 @@ public:
     bool is_writable() const;
     bool is_readable() const;
 
-    const Entry& root() const { return *m_root_; }
+    const Entry& root() const { return  m_root_; }
 
-    Entry& root() { return *m_root_; }
+    Entry& root() { return  m_root_; }
 
     const Schema& schema() const;
 
@@ -78,7 +78,7 @@ public:
     bool check(const XPath&) const;
 
 private:
-    std::shared_ptr<Entry> m_root_;
+    Entry m_root_;
     Schema m_schema_;
 };
 

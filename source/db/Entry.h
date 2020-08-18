@@ -2,6 +2,7 @@
 #define SPDB_ENTRY_H_
 #include "../utility/TypeTraits.h"
 #include "Cursor.h"
+#include "DataBlock.h"
 #include "XPath.h"
 #include <array>
 #include <complex>
@@ -37,38 +38,41 @@ class EntryObject
 public:
     EntryObject(Entry* holder = nullptr);
 
-    virtual ~EntryObject();
-
     EntryObject(const EntryObject&) = delete;
 
     EntryObject(EntryObject&&) = delete;
 
+    virtual ~EntryObject() = default;
+
     //-------------------------------------------------------------------------------
-    Entry* holder() const { return m_holder_; }
+    Entry* holder() const;
 
-    virtual std::unique_ptr<EntryObject> copy() const = 0;
+    virtual std::unique_ptr<EntryObject> copy() const;
 
-    virtual size_t size() const = 0;
+    virtual size_t size() const;
 
-    virtual void clear() = 0;
+    virtual void clear();
 
-    //------------------------------------------------------------------
+    virtual Cursor<Entry> children();
 
-    virtual Cursor<Entry> children() = 0;
+    virtual Cursor<const Entry> children() const;
 
-    virtual Cursor<const Entry> children() const = 0;
+    virtual Cursor<std::pair<const std::string, Entry>> kv_items();
 
-    virtual void insert(const std::string& path, const Entry&) = 0;
+    virtual Cursor<const std::pair<const std::string, Entry>> kv_items() const;
 
-    virtual Entry fetch(const std::string& path) const = 0;
+    virtual void insert(const XPath& path, const Entry&);
 
-    virtual void erase(const std::string& path) = 0;
+    virtual Entry query(const XPath& path) const;
 
-    virtual Cursor<Entry> select(const XPath& path) = 0;
+    virtual void remove(const XPath& path);
 
-    virtual Cursor<const Entry> select(const XPath& path) const = 0;
+    virtual void update(const EntryObject& patch);
+
+    Entry operator[](const XPath& path);
+
+    const Entry operator[](const XPath& path) const;
 };
-
 class EntryArray
 {
     Entry* m_holder_;
@@ -77,12 +81,21 @@ class EntryArray
 public:
     EntryArray(Entry* holder) : m_holder_(holder) {}
 
-    EntryArray(const EntryArray&);
+    EntryArray(const EntryArray& other) : m_holder_(nullptr), m_container_(other.m_container_) {}
 
-    EntryArray(EntryArray&&);
+    EntryArray(EntryArray&& other) : m_holder_(nullptr), m_container_(std::move(other.m_container_)) {}
 
     ~EntryArray() = default;
+
+    void swap(EntryArray& other) { m_container_.swap(other.m_container_); }
+
+    EntryArray& operator=(const EntryArray& other)
+    {
+        EntryArray(other).swap(*this);
+        return *this;
+    }
     //-------------------------------------------------------------------------------
+
     Entry* holder() const { return m_holder_; }
 
     Cursor<Entry> children();
@@ -91,9 +104,17 @@ public:
 
     void resize(std::size_t num);
 
-    void clear() { m_container_.clear(); }
+    void clear();
 
-    size_t size() const { return m_container_.size(); }
+    size_t size() const;
+
+    void insert(const XPath& path, const Entry&);
+
+    Entry query(const XPath& path) const;
+
+    void remove(const XPath& path);
+
+    void update(const EntryArray& patch);
 
     Entry& push_back();
 
@@ -130,18 +151,16 @@ typedef std::variant<std::nullptr_t,
 
 class Entry : public entry_base
 {
-    std::weak_ptr<EntryObject> m_parent_;
+    Entry* m_parent_;
 
 public:
     typedef entry_base base_type;
+
     typedef traits::type_tags<entry_base> type_tags;
 
-    Entry();
+    Entry(Entry* parent = nullptr);
 
-    Entry(const XPath& v);
-
-    template <typename V>
-    Entry(V const& v) { emplace<V>(v); }
+    Entry(Entry* parent, const XPath&);
 
     Entry(const Entry& other);
 
@@ -170,14 +189,45 @@ public:
         return *this;
     }
 
-    std::shared_ptr<EntryObject> parent() const { return m_parent_.lock(); }
+    Entry* parent() const { return m_parent_; }
 
-    bool is_root() const { return m_parent_.expired(); }
+    bool is_root() const { return m_parent_ == nullptr; }
 
-    //---------------------------------------------------------------------
-    std::size_t type() const { return index(); }
+    //-------------------------------------------------------------------------
+
+    std::size_t type() const { return base_type::index(); }
+
+    bool empty() const { return base_type::index() == type_tags::Null; }
 
     void clear() { base_type::emplace<std::nullptr_t>(nullptr); }
+
+    //-------------------------------------------------------------------------
+    // CRUD operation
+
+    Entry insert(const XPath& path);
+
+    void insert(const XPath& path, const Entry&);
+
+    Entry query(const XPath& path = XPath{}) const;
+
+    void remove(const XPath&);
+
+    void update(const Entry&);
+
+    void update(Entry&&);
+
+    //-------------------------------------------------------------------------
+
+    template <typename V, typename... Args>
+    void as(Args&&... args)
+    {
+        Entry v;
+        v.emplace<V>(std::forward<Args>(args)...);
+        update(std::move(v));
+    }
+
+    template <typename V>
+    V as() const { return std::get<V>(query()); }
 
     std::size_t size() const;
 
@@ -185,42 +235,24 @@ public:
 
     Cursor<const Entry> children() const;
 
-    template <typename V>
-    void as(const V& v) { self().emplace<V>(v); }
-
-    template <typename V>
-    void as(V&& v) { self().emplace<V>(std::forward<V>(v)); }
-
-    template <typename V>
-    V& as() { return std::get<V>(self()); }
-
-    template <typename V>
-    const V& as() const { return std::get<V>(self()); }
-
-    DataBlock& as_block();
-    const DataBlock& as_block() const;
-
     EntryObject& as_object();
     const EntryObject& as_object() const;
 
     EntryArray& as_array();
-
     const EntryArray& as_array() const;
+
+    Entry operator[](const XPath& path) const;
+
+    //-------------------------------------------------------------------------
 
     void resize(std::size_t num);
 
-    template <typename V>
-    void push_back(V&& v) { as_array().push_back().emplace<V>(v); }
+    Entry push_back();
+
+    template <typename V, typename... Args>
+    void emplace_back(Args&&... args) { as_array().push_back().as<V>(std::forward<Args>(args)...); }
 
     Entry pop_back();
-
-    Entry operator[](int idx);
-
-    Entry operator[](int idx) const;
-
-    Entry operator[](const XPath& path);
-
-    Entry operator[](const XPath& path) const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

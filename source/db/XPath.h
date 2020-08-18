@@ -22,7 +22,7 @@ namespace sp::db
 class XPath
 {
 public:
-    typedef std::variant<std::string /* key or query*/, int /* index */, std ::tuple<int, int, int> /* slice */> element;
+    typedef std::variant<std::string /* key or query*/, int /* index */, std ::tuple<int, int, int> /* slice */> segment;
 
     enum type_tags
     {
@@ -32,8 +32,12 @@ public:
     };
 
     typedef XPath this_type;
-    XPath(const std::string&);
+
+    XPath(const std::string& uri = "");
     XPath(const char*);
+    XPath(int);
+    XPath(int, int, int);
+
     XPath(const XPath&);
     XPath(XPath&&);
     ~XPath();
@@ -53,7 +57,6 @@ public:
         std::swap(m_path_, other.m_path_);
         std::swap(m_query_, other.m_query_);
         std::swap(m_fragment_, other.m_fragment_);
-        std::swap(m_uri_, other.m_uri_);
     }
 
     this_type& operator=(const this_type& other)
@@ -65,6 +68,8 @@ public:
     void append(const std::string& path);
     void append(int idx);
     void append(int b, int e, int seq = 1);
+
+    bool empty() const { return m_path_.size() == 0; }
 
     std::string str() const;
 
@@ -85,6 +90,9 @@ public:
     std::string filename() const;
     std::string extension() const;
 
+    template <typename... Args>
+    this_type join(Args&&... args) const { return this_type(*this, std::forward<Args>(args)...); }
+
     template <typename Key>
     this_type operator[](const Key& key) const { return XPath(*this, key); }
 
@@ -99,10 +107,9 @@ public:
 private:
     std::string m_protocol_;
     std::string m_authority_;
-    std::vector<element> m_path_;
+    std::vector<segment> m_path_;
     std::string m_query_;
     std::string m_fragment_;
-    std::string m_uri_;
 };
 namespace literals
 {

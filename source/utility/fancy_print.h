@@ -356,11 +356,11 @@ std::ostream& fancy_print(std::ostream& os, std::multimap<TX, TY, Others...> con
 //    return algebra::_detail::printNd_(os, v.m_data_, int_sequence<M...>());
 //}
 
-inline std::ostream& fancy_print(std::ostream& os, const std::any& d, int indent, int tab)
-{
-    os << std::any_cast<std::string>(d);
-    return os;
-}
+// inline std::ostream& fancy_print(std::ostream& os, const std::any& d, int indent, int tab)
+// {
+//     os << std::any_cast<std::string>(d);
+//     return os;
+// }
 template <typename T>
 std::ostream& fancy_print(std::ostream& os, const std::shared_ptr<T>& d, int indent, int tab)
 {

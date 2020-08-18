@@ -39,13 +39,18 @@ class DataBlock
 {
 public:
     DataBlock();
-    virtual ~DataBlock();
     DataBlock(std::shared_ptr<void> data, int element_size, int nd, size_t dimensions);
     DataBlock(DataBlock const&);
     DataBlock(DataBlock&&);
+    ~DataBlock();
 
     void swap(DataBlock& other);
 
+    DataBlock& operator=(const DataBlock& other)
+    {
+        DataBlock(other).swap(*this);
+        return *this;
+    }
     char* data();
     char const* data() const;
     size_t element_size() const;

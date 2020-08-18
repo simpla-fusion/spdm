@@ -26,13 +26,7 @@ public:
     typedef EntryObjectPlugin<Container> this_type;
     typedef Entry::type_tags type_tags;
 
-    EntryObjectPlugin(std::weak_ptr<Entry> self) : EntryObject(self) {}
-
-    EntryObjectPlugin(std::weak_ptr<Entry> self, const XPath&) : EntryObject(self) {}
-
-    EntryObjectPlugin(std::weak_ptr<Entry> self, const Container& container) : EntryObject(self), m_container_(container) {}
-
-    EntryObjectPlugin(std::weak_ptr<Entry> self, Container&& container) : EntryObject(self), m_container_(std::move(container)) {}
+    EntryObjectPlugin(Entry* self) : EntryObject(self) {}
 
     EntryObjectPlugin(const this_type& other) : EntryObject(nullptr), m_container_(other.m_container_) {}
 
@@ -42,21 +36,11 @@ public:
 
     std::unique_ptr<EntryObject> copy() const override { return std::unique_ptr<EntryObject>(new this_type(*this)); }
 
-    void fetch(const XPath&) override{};
-
-    void update(const XPath&) override{};
-
     //----------------------------------------------------------------------------------------------------------
 
     size_t size() const override;
 
     void clear() override;
-
-    //------------------------------------------------------------------
-
-    Cursor<Entry> select(const XPath& path) override;
-
-    Cursor<const Entry> select(const XPath& path) const override;
 
     Cursor<Entry> children() override;
 
@@ -66,21 +50,16 @@ public:
 
     Cursor<const std::pair<const std::string, Entry>> kv_items() const override;
 
-    //------------------------------------------------------------------
+    void insert(const XPath& path, const Entry&) override;
 
-    Entry insert(const std::string& path) override;
-
-    Entry insert(const XPath& path) override;
-
-    const Entry get(const std::string& path) const override;
-
-    const Entry get(const XPath& path) const override;
-
-    void erase(const std::string& path) override;
+    const Entry fetch(const XPath& path) const override;
 
     void erase(const XPath& path) override;
+
+    Cursor<Entry> select(const XPath& path) override;
+
+    Cursor<const Entry> select(const XPath& path) const override;
 };
- 
 
 #define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)                                                    \
     template <>                                                                                 \
