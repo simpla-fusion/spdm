@@ -44,33 +44,33 @@ Cursor<const std::pair<const std::string, Entry>> EntryObject::kv_items() const
     return Cursor<const std::pair<const std::string, Entry>>{};
 }
 
-// Cursor<Entry> EntryObject::select(const XPath& path)
+// Cursor<Entry> EntryObject::select(const Path& path)
 // {
 //     NOT_IMPLEMENTED;
 //     return Cursor<Entry>{};
 // }
 
-// Cursor<const Entry> EntryObject::select(const XPath& path) const
+// Cursor<const Entry> EntryObject::select(const Path& path) const
 // {
 //     NOT_IMPLEMENTED;
 //     return Cursor<const Entry>{};
 // }
 
-void EntryObject::insert(const XPath& path, const Entry&) { NOT_IMPLEMENTED; }
+void EntryObject::insert(const Path& path, const Entry& v) { NOT_IMPLEMENTED; }
 
-Entry EntryObject::query(const XPath& path) const
+Entry EntryObject::query(const Path& path) const
 {
     NOT_IMPLEMENTED;
     return Entry{};
 }
 
-void EntryObject::remove(const XPath& path) { NOT_IMPLEMENTED; }
+void EntryObject::remove(const Path& path) { NOT_IMPLEMENTED; }
 
 void EntryObject::update(const EntryObject& patch) { NOT_IMPLEMENTED; }
 
-Entry EntryObject::operator[](const XPath& path) { return Entry(m_holder_, path); }
+Entry EntryObject::operator[](const Path& path) { return Entry(m_holder_, path); }
 
-const Entry EntryObject::operator[](const XPath& path) const { return Entry(const_cast<Entry*>(m_holder_), path); }
+const Entry EntryObject::operator[](const Path& path) const { return Entry(const_cast<Entry*>(m_holder_), path); }
 
 //----------------------------------------------------------------------------------------------------
 class EntryObjectDefault : public EntryObject
@@ -120,44 +120,40 @@ public:
         return Cursor<const std::pair<const std::string, Entry>>(m_container_.cbegin(), m_container_.cend());
     }
 
-    // Cursor<Entry> select(const XPath& path) override;
+    // Cursor<Entry> select(const Path& path) override;
 
-    // Cursor<const Entry> select(const XPath& path) const override;
+    // Cursor<const Entry> select(const Path& path) const override;
 
-    void insert(const XPath& path, const Entry&) override;
+    void insert(const Path& path, const Entry&) override;
 
-    Entry query(const XPath& path) const override;
+    Entry query(const Path& path) const override;
 
-    void remove(const XPath& path) override;
+    void remove(const Path& path) override;
 
     void update(const EntryObject& patch) override;
 };
 
-void EntryObjectDefault::insert(const XPath& path, const Entry&)
+void EntryObjectDefault::insert(const Path& path, const Entry& v)
 {
+
+    auto it = path.begin();
+    auto ie = path.end();
+    if (it == ie || it->index() != Path::segment_tags::Key)
+    {
+        RUNTIME_ERROR << "Illegal path";
+    }
+    else
+    {
+
+        auto current = m_container_.try_emplace(std::get<Path::segment_tags::Key>(*it), holder()).first;
+        ++it;
+        current->second.insert(Path(it, ie), v);
+    }
 }
-// {
-//     Entry p(self());
-//     for (auto it = path.begin(); it != path.end(); ++it)
-//     {
-//         switch (it->index())
-//         {
-//         case XPath::type_tags::Key:
-//             p.as_object().insert(std::get<XPath::type_tags::Key>(*it)).swap(p);
-//             break;
-//         case XPath::type_tags::Index:
-//             p.as_array().get(std::get<XPath::type_tags::Index>(*it)).swap(p);
-//             break;
-//         default:
-//             NOT_IMPLEMENTED;
-//             break;
-//         }
-//     }
-//     return std::move(p);
-// }
+
 //---------------------------------------------------------------------------------------------------
 
-Entry EntryObjectDefault::query(const XPath& path) const
+Entry EntryObjectDefault::query(const Path& path) const
 {
 
     Entry p = *holder();
@@ -166,11 +162,11 @@ Entry EntryObjectDefault::query(const XPath& path) const
     // {
     //     switch (it->index())
     //     {
-    //     case XPath::type_tags::Key:
-    //         p = p.as_object().get(std::get<XPath::type_tags::Key>(*it));
+    //     case Path::type_tags::Key:
+    //         p = p.as_object().get(std::get<Path::type_tags::Key>(*it));
     //         break;
-    //     case XPath::type_tags::Index:
-    //         p = p.as_array().get(std::get<XPath::type_tags::Index>(*it));
+    //     case Path::type_tags::Index:
+    //         p = p.as_array().get(std::get<Path::type_tags::Index>(*it));
     //         break;
     //     default:
     //         NOT_IMPLEMENTED;
@@ -180,17 +176,19 @@ Entry EntryObjectDefault::query(const XPath& path) const
     return std::move(p);
 }
 
-void EntryObjectDefault::remove(const XPath& path) { m_container_.erase(m_container_.find(path)); }
+void EntryObjectDefault::remove(const Path& path) { m_container_.erase(m_container_.find(path.str())); }
+
+void EntryObjectDefault::update(const EntryObject& patch) { NOT_IMPLEMENTED; }
 
 // Cursor<Entry>
-// EntryObjectDefault::select(const XPath& path)
+// EntryObjectDefault::select(const Path& path)
 // {
 //     NOT_IMPLEMENTED;
 //     return Cursor<Entry>{};
 // }
 
 // Cursor<const Entry>
-// EntryObjectDefault::select(const XPath& path) const
+// EntryObjectDefault::select(const Path& path) const
 // {
 //     NOT_IMPLEMENTED;
 //     return Cursor<const Entry>{};
@@ -214,15 +212,17 @@ void EntryObjectDefault::remove(const XPath& path) { m_container_.erase(m_contai
 
 Entry::Entry(Entry* parent) : m_parent_(parent) {}
 
-Entry::~Entry() {}
+Entry::Entry(Entry* parent, const Path& path) : base_type(path), m_parent_(parent) {}
 
 Entry::Entry(const Entry& other) : base_type(other), m_parent_(other.m_parent_) {}
 
 Entry::Entry(Entry&& other) : base_type(std::move(other)), m_parent_(other.m_parent_) {}
 
+// Entry::~Entry() {}
+
 void Entry::swap(Entry& other) { base_type::swap(other); }
 
-Entry Entry::insert(const XPath& path)
+Entry Entry::insert(const Path& path)
 {
     /** NOTE: lazy access is not thread safe; */
 
@@ -236,18 +236,25 @@ Entry Entry::insert(const XPath& path)
     }
 }
 
-void Entry::insert(const XPath& path, const Entry& v)
+void Entry::insert(const Path& path, const Entry& v)
 {
-    std::visit(sp::traits::overloaded{
-                   [&](std::nullptr_t) { as_object().insert(path, v); },
-                   [&](std::variant_alternative_t<type_tags::Reference, base_type>& p) { Entry(parent(), p.join(path)).update(v); },
-                   [&](std::variant_alternative_t<type_tags::Object, base_type>& obj) { obj->insert(path, v); },
-                   [&](std::variant_alternative_t<type_tags::Array, base_type>& obj) { obj.insert(path, v); },
-                   [&](auto&& ele) { RUNTIME_ERROR << "Try to add child to leaf node"; }},
-               dynamic_cast<base_type&>(*this));
+    VERBOSE << path.str();
+    
+    if (path.empty())
+    {
+        Entry(v).swap(*this);
+    }
+    else if (path.begin()->index() == Path::segment_tags::Key)
+    {
+        as_object().insert(path, v);
+    }
+    else
+    {
+        as_array().insert(path, v);
+    }
 }
 
-Entry Entry::query(const XPath& path) const
+Entry Entry::query(const Path& path) const
 {
     Entry res;
 
@@ -276,9 +283,11 @@ Entry Entry::query(const XPath& path) const
     return std::move(res);
 }
 
-void Entry::remove(const XPath&) {}
+void Entry::remove(const Path&) {}
 
-void Entry::update(const Entry& v)
+void Entry::update(const Entry& v) { update(Entry(v)); }
+
+void Entry::update(Entry&& v)
 {
     if (index() != type_tags::Reference)
     {
@@ -352,11 +361,45 @@ const EntryArray& Entry::as_array() const
     return std::get<type_tags::Array>(*this);
 }
 
-Entry Entry::operator[](const XPath& path) const
+Entry Entry::operator[](const Path& path)
 {
-    return Entry{const_cast<Entry*>(this), path};
+    if (type() == type_tags::Reference)
+    {
+        return Entry{parent(), std::get<type_tags::Reference>(*this).join(path)};
+    }
+    else
+    {
+        return Entry{this, path};
+    }
 }
+
+const Entry Entry::operator[](const Path& path) const
+{
+    if (type() == type_tags::Reference)
+    {
+        return Entry{const_cast<Entry*>(parent()), std::get<type_tags::Reference>(*this).join(path)};
+    }
+    else
+    {
+        return Entry{const_cast<Entry*>(this), path};
+    }
+}
+
+void Entry::resize(std::size_t num) { as_array().resize(num); }
+
+Entry& Entry::push_back() { return as_array().push_back(); }
+
+Entry Entry::pop_back() { return as_array().pop_back(); }
+
 //==========================================================================================
+
+void EntryArray::insert(const Path& path, const Entry&) {}
+
+Entry EntryArray::query(const Path& path) const { return Entry{holder()}; }
+
+void EntryArray::remove(const Path& path) {}
+
+void EntryArray::update(const EntryArray& patch) {}
 
 void EntryArray::resize(std::size_t num) { m_container_.resize(num, Entry(holder())); }
 

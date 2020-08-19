@@ -1,21 +1,23 @@
 #include "XPath.h"
 #include "../utility/Logger.h"
+#include "../utility/TypeTraits.h"
 #include <regex>
 #include <string>
+
 namespace sp::db
 {
 
 /**
-     * https://www.ietf.org/rfc/rfc3986.txt
-     * 
-     *    scheme    = $2
-     *    authority = $4
-     *    path      = $5
-     *    query     = $7
-     *    fragment  = $9
-     * 
-     * 
-    */
+ * https://www.ietf.org/rfc/rfc3986.txt
+ * 
+ *    scheme    = $2
+ *    authority = $4
+ *    path      = $5
+ *    query     = $7
+ *    fragment  = $9
+ * 
+ * 
+*/
 static const std::regex url_pattern("(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
 
 static const std::regex xpath_pattern("([a-zA-Z_\\$][^/#\\[\\]]*)(\\[([^\\[\\]]*)\\])?");
@@ -30,21 +32,17 @@ std::string urljoin(std::string const& prefix, std::string const& path)
     else
     {
         auto pos = prefix.rfind('/');
-        if (pos != std::string::npos)
-        {
-            res = prefix.substr(0, pos) + "/" + path;
-        }
-        else
-        {
-            res = path;
-        }
+
+        res = (pos == std::string::npos) ? path : prefix.substr(0, pos) + "/" + path;
     }
     return res;
 }
 
-std::tuple<std::string, std::string, std::string, std::string, std::string> urlparse(std::string const& url)
+std::tuple<std::string, std::string, std::string, std::string, std::string>
+urlparse(std::string const& url)
 {
     std::smatch m;
+
     if (!std::regex_match(url, m, url_pattern))
     {
         throw std::runtime_error("illegal request! " + url);
@@ -58,21 +56,8 @@ std::tuple<std::string, std::string, std::string, std::string, std::string> urlp
     return std::make_tuple(scheme, authority, path, query, fragment);
 }
 
-XPath::XPath(const std::string& url)
+Path::Path(const std::string& path)
 {
-    std::smatch m;
-    if (!std::regex_match(url, m, url_pattern))
-    {
-        throw std::runtime_error("illegal request! " + url);
-    }
-
-    m_protocol_ = m[2].str();
-    m_authority_ = m[4].str();
-    m_query_ = m[7].str();
-    m_fragment_ = m[9];
-
-    std::string path = m[5].str();
-
     int pos = 0;
 
     do
@@ -92,53 +77,70 @@ XPath::XPath(const std::string& url)
     } while (pos != std::string::npos);
 }
 
-XPath::XPath(const XPath& other)
-    : m_protocol_(other.m_protocol_),
-      m_authority_(other.m_authority_),
-      m_path_(other.m_path_),
-      m_query_(other.m_query_),
-      m_fragment_(other.m_fragment_)
+Path::Path(const Path& other) : m_path_(other.m_path_) {}
+
+Path::Path(Path&& other) : m_path_(std::move(other.m_path_)) {}
+
+std::string Path::filename() const
 {
+    return m_path_.size() > 0 ? std::get<segment_tags::Key>(m_path_.back()) : "";
 }
 
-XPath::XPath(XPath&& other)
-    : m_protocol_(std::move(other.m_protocol_)),
-      m_authority_(std::move(other.m_authority_)),
-      m_path_(std::move(other.m_path_)),
-      m_query_(std::move(other.m_query_)),
-      m_fragment_(std::move(other.m_fragment_))
-{
-}
-
-XPath::~XPath() {}
-
-std::string XPath::filename() const
-{
-    return m_path_.size() > 0 ? std::get<type_tags::Key>(m_path_.back()) : "";
-}
-
-std::string XPath::extension() const
+std::string Path::extension() const
 {
     auto fname = filename();
-
     auto pos = fname.rfind('.');
-    if (pos != std::string::npos)
-    {
-        return fname.substr(pos);
-    }
-    else
-    {
-        return "";
-    }
+
+    return (pos == std::string::npos) ? "" : fname.substr(pos);
 }
 
-std::string XPath::str() const
+std::string Path::str() const
 {
-    NOT_IMPLEMENTED;
-    return "";
+    std::ostringstream os;
+
+    for (auto&& item : m_path_)
+    {
+        std::visit(
+            sp::traits::overloaded{
+                [&](std::nullptr_t) {},
+                [&](const std::string& seg) { os << "/" << seg; },
+                [&](int idx) { os << "[" << idx << "]"; },
+                [&](const std::tuple<int, int, int>& slice) { //
+                    os << "["
+                       << std::get<0>(slice) << ","
+                       << std::get<1>(slice) << ","
+                       << std::get<2>(slice)
+                       << "]";
+                } //
+            },
+            item);
+    }
+
+    return os.str();
 }
 
-void XPath::append(const std::string& path) { m_path_.emplace_back(path); }
-void XPath::append(int idx) { m_path_.emplace_back(idx); }
-void XPath::append(int b, int e, int seq) { m_path_.emplace_back(std::make_tuple(b, e, seq)); }
+Path Path::join(const Path& other) const
+{
+    Path res(*this);
+    res.m_path_.insert(m_path_.end(), other.m_path_.begin(), other.m_path_.end());
+    return std::move(res);
+}
+
+//--------------------------------------------------------------------------------
+
+URI::URI(const std::string& uri)
+{
+    std::smatch m;
+    if (!std::regex_match(uri, m, url_pattern))
+    {
+        throw std::runtime_error("illegal request! " + uri);
+    }
+
+    m_protocol_ = m[2].str();
+    m_authority_ = m[4].str();
+    m_query_ = m[7].str();
+    m_fragment_ = m[9];
+
+    Path(m[5].str()).swap(m_path_);
+}
 } // namespace sp::db

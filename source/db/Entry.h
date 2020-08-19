@@ -25,7 +25,7 @@ class DataBlock;
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, sp::db::EntryArray);
 M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
-M_REGISITER_TYPE_TAG(Reference, sp::db::XPath);
+M_REGISITER_TYPE_TAG(Reference, sp::db::Path);
 
 namespace sp::db
 {
@@ -61,18 +61,19 @@ public:
 
     virtual Cursor<const std::pair<const std::string, Entry>> kv_items() const;
 
-    virtual void insert(const XPath& path, const Entry&);
+    virtual void insert(const Path& path, const Entry&);
 
-    virtual Entry query(const XPath& path) const;
+    virtual Entry query(const Path& path) const;
 
-    virtual void remove(const XPath& path);
+    virtual void remove(const Path& path);
 
     virtual void update(const EntryObject& patch);
 
-    Entry operator[](const XPath& path);
+    Entry operator[](const Path& path);
 
-    const Entry operator[](const XPath& path) const;
+    const Entry operator[](const Path& path) const;
 };
+
 class EntryArray
 {
     Entry* m_holder_;
@@ -108,11 +109,11 @@ public:
 
     size_t size() const;
 
-    void insert(const XPath& path, const Entry&);
+    void insert(const Path& path, const Entry&);
 
-    Entry query(const XPath& path) const;
+    Entry query(const Path& path) const;
 
-    void remove(const XPath& path);
+    void remove(const Path& path);
 
     void update(const EntryArray& patch);
 
@@ -132,7 +133,7 @@ public:
 typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,
                      EntryArray,
-                     XPath,                              //Reference
+                     Path,                               //Reference
                      DataBlock,                          //Block
                      std::string,                        //String,
                      bool,                               //Boolean,
@@ -160,13 +161,13 @@ public:
 
     Entry(Entry* parent = nullptr);
 
-    Entry(Entry* parent, const XPath&);
+    Entry(Entry* parent, const Path&);
 
     Entry(const Entry& other);
 
     Entry(Entry&& other);
 
-    ~Entry();
+    ~Entry() = default;
 
     void swap(Entry& other);
 
@@ -204,13 +205,13 @@ public:
     //-------------------------------------------------------------------------
     // CRUD operation
 
-    Entry insert(const XPath& path);
+    Entry insert(const Path& path);
 
-    void insert(const XPath& path, const Entry&);
+    void insert(const Path& path, const Entry&);
 
-    Entry query(const XPath& path = XPath{}) const;
+    Entry query(const Path& path = Path{}) const;
 
-    void remove(const XPath&);
+    void remove(const Path&);
 
     void update(const Entry&);
 
@@ -241,13 +242,14 @@ public:
     EntryArray& as_array();
     const EntryArray& as_array() const;
 
-    Entry operator[](const XPath& path) const;
+    const Entry operator[](const Path& path) const;
+    Entry operator[](const Path& path);
 
     //-------------------------------------------------------------------------
 
     void resize(std::size_t num);
 
-    Entry push_back();
+    Entry& push_back();
 
     template <typename V, typename... Args>
     void emplace_back(Args&&... args) { as_array().push_back().as<V>(std::forward<Args>(args)...); }

@@ -12,6 +12,9 @@ Document::~Document() {}
 
 void Document::swap(Document& other) { std::swap(m_root_, other.m_root_); }
 
-void Document::load(const std::string& request) { m_root_.template emplace<XPath>(request); }
+void Document::load(const std::string& request)
+{
+    //  m_root_.template emplace<URI>(request);
+}
 
 } // namespace sp::db

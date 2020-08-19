@@ -17,12 +17,12 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["B"].as<std::string>("5678");
 
     entry["C"].resize(4);
-    entry["C"][2] = 12344.56;
-    entry["C"][3] = 6.0 + 4.0i;
-    entry["C"].push_back().as<int>(5);
-    entry["C"].push_back().as<float>(6.0);
+    // entry["C"][2] = 12344.56;
+    // entry["C"][3] = 6.0 + 4.0i;
+    // entry["C"].push_back().as<int>(5);
+    // entry["C"].push_back().as<float>(6.0);
 
-    entry["D/E/F"_p] = "hello world!";
+    // entry["D/E/F"_p] = "hello world!";
 
     std::cout << entry << std::endl;
 

@@ -9,7 +9,7 @@ public:
     Schema();
     ~Schema();
 
-    bool validate(const XPath&, const Entry&) const;
+    bool validate(const URI&, const Entry&) const;
 
 private:
     Entry m_root_;

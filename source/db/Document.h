@@ -73,9 +73,9 @@ public:
 
     void schema(const Schema&);
 
-    bool validate(const XPath&) const;
+    bool validate(const URI&) const;
 
-    bool check(const XPath&) const;
+    bool check(const URI&) const;
 
 private:
     Entry m_root_;
