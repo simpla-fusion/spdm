@@ -10,13 +10,14 @@ TEST_CASE("Create Node", "[SpDB]")
 {
     using namespace sp::db::literals;
     using namespace std::complex_literals;
+    using namespace std::string_literals;
 
     sp::db::Entry entry;
 
-    entry["A"].as<std::string>("1234");
-    entry["B"].as<std::string>("5678");
+    entry["A"s].as<std::string>("1234");
+    entry["B"s].as<std::string>("5678");
 
-    entry["C"].resize(4);
+    // entry["C"].resize(4);
     // entry["C"][2] = 12344.56;
     // entry["C"][3] = 6.0 + 4.0i;
     // entry["C"].push_back().as<int>(5);

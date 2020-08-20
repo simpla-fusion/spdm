@@ -341,26 +341,27 @@ public:
     typedef typename CursorProxy<value_type>::pointer pointer;
     typedef typename CursorProxy<value_type>::difference_type difference_type;
 
+
     template <typename... Args>
     Cursor(Args&&... args) : m_proxy_(_detail::make_cursor_proxy<value_type>(std::forward<Args>(args)...)) {}
 
-    Cursor(const Cursor& other) : Cursor(other.m_proxy_->copy().release()) {}
+    Cursor(const Cursor& other) : m_proxy_(other.m_proxy_->copy().release()) {}
 
-    Cursor(Cursor&& other) : Cursor(other.m_proxy_.release()) {}
+    Cursor(Cursor&& other) : m_proxy_(other.m_proxy_.release()) {}
 
     ~Cursor() = default;
 
-    void swap(cursor& other) { std::swap(m_proxy_, other.m_proxy_); }
+    void swap(this_type& other) { std::swap(m_proxy_, other.m_proxy_); }
 
-    cursor operator=(const cursor& other)
+    this_type operator=(const this_type& other)
     {
         Cursor(other).swap(*this);
         return *this;
     }
 
-    bool operator==(const cursor& other) const { return m_proxy_->equal(m_proxy_.get()); }
+    bool operator==(const this_type& other) const { return m_proxy_->equal(m_proxy_.get()); }
 
-    bool operator!=(const cursor& other) const { return m_proxy_->not_equal(m_proxy_.get()); }
+    bool operator!=(const this_type& other) const { return m_proxy_->not_equal(m_proxy_.get()); }
 
     // difference_type operator-(const cursor& other) const { return m_proxy_->distance(m_proxy_.get()); }
 
