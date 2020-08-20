@@ -30,7 +30,13 @@ Cursor<const Entry> EntryObject::children() const
     return Cursor<const Entry>{};
 }
 
-Entry EntryObject::insert(const Path& path, const Entry& v) { NOT_IMPLEMENTED; }
+Entry EntryObject::insert(const Path& path)
+{
+    NOT_IMPLEMENTED;
+    return Entry{};
+}
+
+void EntryObject::insert(const Path& path, const Entry& v) { insert(path).set_value(v); }
 
 Entry EntryObject::find(const Path& path) const
 {
@@ -42,7 +48,14 @@ void EntryObject::remove(const Path& path) { NOT_IMPLEMENTED; }
 
 void EntryObject::update(const EntryObject& patch) { NOT_IMPLEMENTED; }
 
+void EntryObject::merge(const EntryObject&) { NOT_IMPLEMENTED; }
+
+void EntryObject::patch(const EntryObject&) { NOT_IMPLEMENTED; }
+
+void EntryObject::emplace(const std::string& key, Entry&&) { NOT_IMPLEMENTED; }
+
 //----------------------------------------------------------------------------------------------------
+
 class EntryObjectDefault : public EntryObject
 {
 private:
@@ -54,7 +67,7 @@ public:
     typedef EntryObjectDefault this_type;
     typedef Entry::value_type_tags value_type_tags;
 
-    EntryObjectDefault() : EntryObject() {}
+    EntryObjectDefault() = default;
 
     EntryObjectDefault(const this_type& other) : m_container_(other.m_container_) {}
 
@@ -84,7 +97,7 @@ public:
 
     // Cursor<const Entry> select(const Path& path) const override;
 
-    Entry insert(const Path& path, const Entry&) override;
+    void insert(const Path& path, const Entry&) override;
 
     Entry find(const Path& path) const override;
 
@@ -93,7 +106,7 @@ public:
     void update(const EntryObject& patch) override;
 };
 
-Entry EntryObjectDefault::insert(const Path& path, const Entry& v)
+void EntryObjectDefault::insert(const Path& path, const Entry& v)
 {
 
     auto it = path.begin();
@@ -109,7 +122,6 @@ Entry EntryObjectDefault::insert(const Path& path, const Entry& v)
         ++it;
         // current->second.insert(Path(it, ie)).update(v);
     }
-    return Entry{};
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -143,14 +155,54 @@ void EntryObjectDefault::update(const EntryObject& patch) { NOT_IMPLEMENTED; }
 
 //==========================================================================================
 // EntryArray
+
 void EntryArray::resize(std::size_t num) { m_container_.resize(num); }
 
 size_t EntryArray::size() const { return m_container_.size(); }
 
 void EntryArray::clear() { m_container_.clear(); }
 
+Entry EntryArray::at(int idx) { return Entry(m_container_.at(idx)); }
+
+const Entry EntryArray::at(int idx) const { return Entry(m_container_.at(idx)); }
+
+Entry EntryArray::slice(int start, int stop, int step)
+{
+    NOT_IMPLEMENTED;
+    return Entry{};
+}
+
+const Entry EntryArray::slice(int start, int stop, int step) const
+{
+    NOT_IMPLEMENTED;
+    return Entry{};
+}
+
+Entry EntryArray::insert(const Path& path)
+{
+    NOT_IMPLEMENTED;
+    return Entry{};
+}
+
+Entry EntryArray::find(const Path& path) const
+{
+    NOT_IMPLEMENTED;
+    return Entry{};
+}
+
+void EntryArray::push_back(const Entry& v)
+{
+    NOT_IMPLEMENTED;
+}
+
+Entry EntryArray::push_back()
+{
+    NOT_IMPLEMENTED;
+    return Entry{};
+}
 void EntryArray::emplace_back(Entry&& v)
 {
+    NOT_IMPLEMENTED;
 }
 
 Entry EntryArray::pop_back()

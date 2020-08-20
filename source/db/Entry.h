@@ -36,7 +36,7 @@ typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,
                      std::shared_ptr<EntryArray>,
                      EntryReference,                     //Reference
-                    //  EntryItem,                          //Item
+                                                         //  EntryItem,                          //Item
                      DataBlock,                          //Block
                      bool,                               //Boolean,
                      int,                                //Integer,
@@ -57,7 +57,7 @@ class EntryObject
 {
 
 public:
-    EntryObject(Entry* holder = nullptr);
+    EntryObject() = default;
 
     EntryObject(const EntryObject&) = delete;
 
@@ -79,7 +79,7 @@ public:
 
     virtual Entry insert(const Path& path);
 
-    virtual Entry insert(const Path& path, const Entry& v);
+    virtual void insert(const Path& path, const Entry& v);
 
     virtual Entry find(const Path& path) const;
 
@@ -134,10 +134,6 @@ public:
 
     virtual size_t size() const;
 
-    virtual Entry push_back();
-
-    virtual Entry pop_back();
-
     virtual Entry at(int idx);
 
     virtual const Entry at(int idx) const;
@@ -149,6 +145,10 @@ public:
     virtual Entry insert(const Path& path);
 
     virtual Entry find(const Path& path) const;
+
+    virtual Entry push_back();
+
+    virtual Entry pop_back();
 
     virtual void push_back(const Entry& v);
 
