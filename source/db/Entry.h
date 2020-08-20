@@ -19,39 +19,57 @@ class EntryNode;
 class EntryObject;
 class EntryArray;
 class DataBlock;
-typedef std::pair<const std::string, Entry> EntryItem;
+
 typedef std::pair<std::weak_ptr<EntryObject>, Path> EntryReference;
+
+template <typename E>
+using EntryItem = std::pair<const std::string, E>;
+
 } // namespace sp::db
 
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
 M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
-// M_REGISITER_TYPE_TAG(Item, sp::db::EntryItem);
 M_REGISITER_TYPE_TAG(Reference, sp::db::EntryReference);
+// M_REGISITER_TYPE_TAG_TEMPLATE(Item, sp::db::EntryItem)
+namespace sp::traits
+{
+template <typename _Head, typename E>
+struct regisiter_type_tag<_Head, std::pair<const std::string, E>>
+{
+    struct tags : public _Head
+    {
+        enum
+        {
+            Item = _Head::_LAST_PLACE_HOLDER,
+            _LAST_PLACE_HOLDER
+        };
+    };
+};
+} // namespace sp::traits
 
 namespace sp::db
 {
 
-typedef std::variant<std::nullptr_t,
-                     std::shared_ptr<EntryObject>,
-                     std::shared_ptr<EntryArray>,
-                     EntryReference,                     //Reference
-                                                         //  EntryItem,                          //Item
-                     DataBlock,                          //Block
-                     bool,                               //Boolean,
-                     int,                                //Integer,
-                     long,                               //Long,
-                     float,                              //Float,
-                     double,                             //Double,
-                     std::string,                        //String,
-                     std::array<int, 3>,                 //IntVec3,
-                     std::array<long, 3>,                //LongVec3,
-                     std::array<float, 3>,               //FloatVec3,
-                     std::array<double, 3>,              //DoubleVec3,
-                     std::complex<double>,               //Complex,
-                     std::array<std::complex<double>, 3> //ComplexVec3,
-                     >
-    item_value;
+using entry_value_union = std::variant<std::nullptr_t,
+                                       std::shared_ptr<EntryObject>,
+                                       std::shared_ptr<EntryArray>,
+                                       EntryReference,                     //Reference
+                                                                           //    std::pair<const std::string, E>,    //Item
+                                       DataBlock,                          //Block
+                                       bool,                               //Boolean,
+                                       int,                                //Integer,
+                                       long,                               //Long,
+                                       float,                              //Float,
+                                       double,                             //Double,
+                                       std::string,                        //String,
+                                       std::array<int, 3>,                 //IntVec3,
+                                       std::array<long, 3>,                //LongVec3,
+                                       std::array<float, 3>,               //FloatVec3,
+                                       std::array<double, 3>,              //DoubleVec3,
+                                       std::complex<double>,               //Complex,
+                                       std::array<std::complex<double>, 3> //ComplexVec3,
+                                       >;
 
 class EntryObject
 {
@@ -161,13 +179,15 @@ public:
     }
 };
 
-class Entry : public item_value
+class Entry : public entry_value_union
 {
 
 public:
-    typedef item_value base_type;
+    typedef entry_value_union value_type;
 
-    typedef traits::type_tags<item_value> value_type_tags;
+    typedef traits::type_tags<value_type> value_type_tags;
+
+    typedef value_type base_type;
 
     template <typename... Args>
     Entry(Args&&... args) : base_type(std::forward<Args>(args)...) {}
