@@ -20,61 +20,82 @@ class EntryObject;
 class EntryArray;
 class DataBlock;
 
-typedef std::pair<std::weak_ptr<EntryObject>, Path> EntryReference;
-
-template <typename E>
-using EntryItem = std::pair<const std::string, E>;
+typedef std::pair<std::shared_ptr<Entry>, Path> EntryReference;
 
 } // namespace sp::db
 
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
-M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
+M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
 M_REGISITER_TYPE_TAG(Reference, sp::db::EntryReference);
-// M_REGISITER_TYPE_TAG_TEMPLATE(Item, sp::db::EntryItem)
-namespace sp::traits
-{
-template <typename _Head, typename E>
-struct regisiter_type_tag<_Head, std::pair<const std::string, E>>
-{
-    struct tags : public _Head
-    {
-        enum
-        {
-            Item = _Head::_LAST_PLACE_HOLDER,
-            _LAST_PLACE_HOLDER
-        };
-    };
-};
-} // namespace sp::traits
+// M_REGISITER_TYPE_TAG(Item, sp::db::EntryItem)
 
 namespace sp::db
 {
+typedef std::variant<std::nullptr_t,
+                     std::shared_ptr<EntryObject>,
+                     std::shared_ptr<EntryArray>,
+                     std::shared_ptr<DataBlock>,         //Block
+                     EntryReference,                     //Reference
+                     bool,                               //Boolean,
+                     int,                                //Integer,
+                     long,                               //Long,
+                     float,                              //Float,
+                     double,                             //Double,
+                     std::string,                        //String,
+                     std::array<int, 3>,                 //IntVec3,
+                     std::array<long, 3>,                //LongVec3,
+                     std::array<float, 3>,               //FloatVec3,
+                     std::array<double, 3>,              //DoubleVec3,
+                     std::complex<double>,               //Complex,
+                     std::array<std::complex<double>, 3> //ComplexVec3,
+                     >
+    entry_value_type;
+typedef traits::type_tags<entry_value_type> entry_value_type_tags;
 
-using entry_value_union = std::variant<std::nullptr_t,
-                                       std::shared_ptr<EntryObject>,
-                                       std::shared_ptr<EntryArray>,
-                                       EntryReference,                     //Reference
-                                                                           //    std::pair<const std::string, E>,    //Item
-                                       DataBlock,                          //Block
-                                       bool,                               //Boolean,
-                                       int,                                //Integer,
-                                       long,                               //Long,
-                                       float,                              //Float,
-                                       double,                             //Double,
-                                       std::string,                        //String,
-                                       std::array<int, 3>,                 //IntVec3,
-                                       std::array<long, 3>,                //LongVec3,
-                                       std::array<float, 3>,               //FloatVec3,
-                                       std::array<double, 3>,              //DoubleVec3,
-                                       std::complex<double>,               //Complex,
-                                       std::array<std::complex<double>, 3> //ComplexVec3,
-                                       >;
+class EntryNode : public std::enable_shared_from_this<EntryNode>
+{
+public:
+    EntryNode() = default;
 
-class EntryObject
+    virtual ~EntryNode() = default;
+
+    virtual std::unique_ptr<EntryNode> copy() const = 0;
+
+    virtual entry_value_type self();
+
+    virtual const entry_value_type self() const;
+
+    virtual size_t size() const = 0;
+
+    virtual void clear() = 0;
+
+    virtual Cursor<Entry> children() = 0;
+
+    virtual Cursor<const Entry> children() const = 0;
+
+    virtual void insert(const Path& path, entry_value_type&& v);
+
+    virtual Entry try_insert(const Path& path, entry_value_type&& v = entry_value_type{});
+
+    virtual const Entry find(const Path& path) const;
+
+    virtual void remove(const Path& path);
+
+    virtual void insert(const Path::PathSegment& key, entry_value_type&&) = 0;
+
+    virtual const Entry find(const Path::PathSegment& key) const = 0;
+
+    virtual void remove(const Path::PathSegment& path) = 0;
+};
+
+class EntryObject : public EntryNode
 {
 
 public:
+    using EntryNode::insert;
+    friend class Entry;
+
     EntryObject() = default;
 
     EntryObject(const EntryObject&) = delete;
@@ -85,44 +106,27 @@ public:
 
     //-------------------------------------------------------------------------------
 
-    virtual std::unique_ptr<EntryObject> copy() const;
+    virtual void merge(const EntryObject&) = 0;
 
-    virtual size_t size() const;
+    virtual void patch(const EntryObject&) = 0;
 
-    virtual void clear();
-
-    virtual Cursor<Entry> children();
-
-    virtual Cursor<const Entry> children() const;
-
-    virtual Entry insert(const Path& path);
-
-    virtual void insert(const Path& path, const Entry& v);
-
-    virtual Entry find(const Path& path) const;
-
-    virtual void remove(const Path& path);
-
-    virtual void merge(const EntryObject&);
-
-    virtual void patch(const EntryObject&);
-
-    virtual void update(const EntryObject&);
-
-    virtual void emplace(const std::string& key, Entry&&);
+    virtual void update(const EntryObject&) = 0;
 
     template <typename V, typename... Args>
     void emplace(const std::string& key, Args&&... args)
     {
-        emplace(key, Entry(std::in_place_type_t<V>(), std::forward<Args>(args)...));
+        insert(key, entry_value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...));
     }
 };
 
-class EntryArray
+class EntryArray : public EntryNode
 {
-    std::vector<Entry> m_container_;
+    std::vector<entry_value_type> m_container_;
 
 public:
+    friend class Entry;
+    using EntryNode::insert;
+
     EntryArray() {}
 
     EntryArray(const EntryArray& other) : m_container_(other.m_container_) {}
@@ -133,8 +137,6 @@ public:
 
     void swap(EntryArray& other) { m_container_.swap(other.m_container_); }
 
-    std::unique_ptr<EntryArray> copy() const;
-
     EntryArray& operator=(const EntryArray& other)
     {
         EntryArray(other).swap(*this);
@@ -142,15 +144,25 @@ public:
     }
     //-------------------------------------------------------------------------------
 
-    virtual Cursor<Entry> children();
+    virtual std::unique_ptr<EntryNode> copy() const override { return std::unique_ptr<EntryNode>(new EntryArray(*this)); };
 
-    virtual Cursor<const Entry> children() const;
+    virtual void clear() override;
 
-    virtual void clear();
+    virtual size_t size() const override;
+
+    virtual Cursor<Entry> children() override;
+
+    virtual Cursor<const Entry> children() const override;
+
+    virtual void insert(const Path::PathSegment& path, entry_value_type&& v) override;
+
+    virtual const Entry find(const Path::PathSegment& key) const override;
+
+    virtual void remove(const Path::PathSegment& key) override;
+
+    //-------------------------------------------------------------------------------
 
     virtual void resize(std::size_t num);
-
-    virtual size_t size() const;
 
     virtual Entry at(int idx);
 
@@ -159,10 +171,6 @@ public:
     virtual Entry slice(int start, int stop, int step);
 
     virtual const Entry slice(int start, int stop, int step) const;
-
-    virtual Entry insert(const Path& path);
-
-    virtual Entry find(const Path& path) const;
 
     virtual Entry push_back();
 
@@ -179,26 +187,24 @@ public:
     }
 };
 
-class Entry : public entry_value_union
+class Entry
 {
-
 public:
-    typedef entry_value_union value_type;
+    typedef entry_value_type value_type;
 
-    typedef traits::type_tags<value_type> value_type_tags;
+    typedef entry_value_type_tags value_type_tags;
 
-    typedef value_type base_type;
+    Entry();
 
-    template <typename... Args>
-    Entry(Args&&... args) : base_type(std::forward<Args>(args)...) {}
+    Entry(std::shared_ptr<EntryNode> p, const value_type&);
 
-    Entry(const Entry& other) : base_type(other) {}
+    Entry(const Entry& other) : m_value_(other.m_value_) {}
 
-    Entry(Entry&& other) : base_type(std::move(other)) {}
+    Entry(Entry&& other) : m_value_(std::move(other.m_value_)) {}
 
     ~Entry() = default;
 
-    void swap(Entry& other) { base_type::swap(other); }
+    void swap(Entry& other);
 
     Entry& operator=(const Entry& other)
     {
@@ -221,11 +227,11 @@ public:
 
     //-------------------------------------------------------------------------
 
-    std::size_t type() const { return base_type::index(); }
+    std::size_t type() const { return m_value_.index(); }
 
     bool is_null() const { return type() == value_type_tags::Null; }
 
-    void clear() { base_type::emplace<std::nullptr_t>(nullptr); }
+    void clear() { m_value_.emplace<std::nullptr_t>(nullptr); }
 
     bool empty() const { return size() == 0; }
 
@@ -235,19 +241,28 @@ public:
 
     Cursor<const Entry> children() const;
 
+    Entry insert(const Path& path);
+
+    Entry find(const Path& path) const;
+
     //-------------------------------------------------------------------------
+    value_type& value();
 
-    void set_value(Entry&&);
+    const value_type& value() const;
 
-    void set_value(const Entry& v) { set_value(Entry(v)); }
+    void set_value(value_type&&);
 
-    template <typename V, typename... Args>
-    void set_value(Args&&... args) { set_value(Entry(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
-
-    const Entry get_value() const;
+    void set_value(const value_type& v);
 
     template <typename V, typename... Args>
-    void as(Args&&... args) { set_value(Entry(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
+    void set_value(Args&&... args) { m_value_.emplace<V>(std::forward<Args>(args)...); }
+
+    value_type get_value();
+
+    value_type get_value() const;
+
+    template <typename V, typename... Args>
+    void as(Args&&... args) { set_value<V>(std::forward<Args>(args)...); }
 
     template <typename V>
     V as() const { return std::get<V>(get_value()); }
@@ -259,13 +274,8 @@ public:
 
     const EntryObject& as_object() const;
 
-    Entry insert(const Path& path);
-
     template <typename V, typename... Args>
     void emplace(const std::string& key, Args&&... args) { as_object().template emplace<V>(key, std::forward<Args>(args)...); }
-
-    template <typename... Args>
-    Entry find(Args&&... args) const { as_object().find(std::forward<Args>(args)...); }
 
     //-------------------------------------------------------------------------
     // as array
@@ -300,6 +310,9 @@ public:
 
     Entry operator[](const Path& path);
     const Entry operator[](const Path& path) const;
+
+private:
+    value_type m_value_;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

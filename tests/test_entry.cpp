@@ -25,6 +25,8 @@ TEST_CASE("Create Node", "[SpDB]")
 
     // entry["D/E/F"_p] = "hello world!";
 
+    VERBOSE << sizeof(sp::db::Entry);
+
     std::cout << entry << std::endl;
 
     // std::cout << "====================================" << std::endl;

@@ -41,15 +41,15 @@ public:
 
     Path(Path&& prefix);
 
-    Path(const std::string& path);
+    explicit Path(const std::string& path);
 
-    Path(const char* path) : Path(std::string(path)) {}
+    explicit Path(const char* path) : Path(std::string(path)) {}
 
-    Path(int idx) { m_path_.emplace_back(idx); }
+    explicit Path(int idx) { m_path_.emplace_back(idx); }
 
-    Path(int start, int stop, int step = 1) { m_path_.emplace_back(std::make_tuple(start, stop, step)); }
+    explicit Path(int start, int stop, int step = 1) { m_path_.emplace_back(std::make_tuple(start, stop, step)); }
 
-    Path(const std::vector<PathSegment>::const_iterator& b, const std::vector<PathSegment>::const_iterator& e) : m_path_(b, e) {}
+    explicit Path(const std::vector<PathSegment>::const_iterator& b, const std::vector<PathSegment>::const_iterator& e) : m_path_(b, e) {}
 
     ~Path() = default;
 
@@ -73,6 +73,10 @@ public:
     auto begin() const { return m_path_.begin(); }
 
     auto end() const { return m_path_.end(); }
+
+    Path prefix() const { return Path(m_path_.begin(), m_path_.end()); }
+
+    const PathSegment& last() const { return m_path_.back(); }
 
     std::string str() const;
 
