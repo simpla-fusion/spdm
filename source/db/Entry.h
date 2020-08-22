@@ -15,12 +15,12 @@
 namespace sp::db
 {
 class Entry;
-class EntryNode;
+class EntryContainer;
 class EntryObject;
 class EntryArray;
 class DataBlock;
 
-typedef std::pair<std::shared_ptr<Entry>, Path> EntryReference;
+typedef std::pair<std::shared_ptr<EntryContainer>, Path> EntryReference;
 
 } // namespace sp::db
 
@@ -53,26 +53,22 @@ typedef std::variant<std::nullptr_t,
     entry_value_type;
 typedef traits::type_tags<entry_value_type> entry_value_type_tags;
 
-class EntryNode : public std::enable_shared_from_this<EntryNode>
+class EntryContainer : public std::enable_shared_from_this<EntryContainer>
 {
 public:
-    EntryNode() = default;
+    EntryContainer() = default;
 
-    virtual ~EntryNode() = default;
+    virtual ~EntryContainer();
 
-    virtual std::unique_ptr<EntryNode> copy() const = 0;
+    // virtual std::unique_ptr<EntryContainer> copy() const = 0;
 
-    virtual entry_value_type self();
+    // virtual size_t size() const = 0;
 
-    virtual const entry_value_type self() const;
+    // virtual void clear() = 0;
 
-    virtual size_t size() const = 0;
+    // virtual Cursor<Entry> children() = 0;
 
-    virtual void clear() = 0;
-
-    virtual Cursor<Entry> children() = 0;
-
-    virtual Cursor<const Entry> children() const = 0;
+    // virtual Cursor<const Entry> children() const = 0;
 
     virtual void insert(const Path& path, entry_value_type&& v);
 
@@ -89,11 +85,13 @@ public:
     virtual void remove(const Path::PathSegment& path) = 0;
 };
 
-class EntryObject : public EntryNode
+class EntryObject : public EntryContainer
 {
 
 public:
-    using EntryNode::insert;
+    using EntryContainer::find;
+    using EntryContainer::insert;
+
     friend class Entry;
 
     EntryObject() = default;
@@ -102,9 +100,13 @@ public:
 
     EntryObject(EntryObject&&) = delete;
 
-    virtual ~EntryObject() = default;
+    virtual ~EntryObject();
 
-    //-------------------------------------------------------------------------------
+    virtual void insert(const Path::PathSegment& key, entry_value_type&&);
+
+    virtual const Entry find(const Path::PathSegment& key) const;
+
+    virtual void remove(const Path::PathSegment& path);
 
     virtual void merge(const EntryObject&) = 0;
 
@@ -119,15 +121,16 @@ public:
     }
 };
 
-class EntryArray : public EntryNode
+class EntryArray : public EntryContainer
 {
     std::vector<entry_value_type> m_container_;
 
 public:
     friend class Entry;
-    using EntryNode::insert;
+    using EntryContainer::find;
+    using EntryContainer::insert;
 
-    EntryArray() {}
+    EntryArray() = default;
 
     EntryArray(const EntryArray& other) : m_container_(other.m_container_) {}
 
@@ -144,7 +147,7 @@ public:
     }
     //-------------------------------------------------------------------------------
 
-    virtual std::unique_ptr<EntryNode> copy() const override { return std::unique_ptr<EntryNode>(new EntryArray(*this)); };
+    virtual std::unique_ptr<EntryContainer> copy() const override { return std::unique_ptr<EntryContainer>(new EntryArray(*this)); };
 
     virtual void clear() override;
 
@@ -196,7 +199,8 @@ public:
 
     Entry();
 
-    Entry(std::shared_ptr<EntryNode> p, const value_type&);
+    template <typename... Args>
+    Entry(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
 
     Entry(const Entry& other) : m_value_(other.m_value_) {}
 
