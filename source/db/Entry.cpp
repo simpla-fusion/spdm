@@ -62,7 +62,11 @@ entry_value_type find(entry_value_type self, const Path& path)
             break;
         }
     }
-    return found ? self : entry_value_type{};
+    if (!found)
+    {
+        throw std::out_of_range("Missing key:" + path.str());
+    }
+    return self;
 }
 
 entry_value_type insert(entry_value_type self, const Path& path, entry_value_type&& v)

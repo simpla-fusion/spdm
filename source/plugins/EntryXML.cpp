@@ -196,6 +196,7 @@ std::pair<std::shared_ptr<const EntryObject>, Path> EntryObjectXML::full_path() 
     NOT_IMPLEMENTED;
     return std::pair<std::shared_ptr<const EntryObject>, Path>{nullptr, Path{}};
 }
+
 template <>
 void EntryObjectXML::load(const std::string& uri)
 {
@@ -212,6 +213,7 @@ void EntryObjectXML::load(const std::string& uri)
     m_container_.path = uri + ":/";
     m_container_.node = m_container_.root;
 }
+
 template <>
 void EntryObjectXML::save(const std::string& url) const
 {
@@ -254,40 +256,6 @@ EntryObjectXML::children()
     return Cursor<entry_value_type>{};
 }
 
-// template <>
-// void EntryObjectXML::for_each(std::function<void(const std::string&, entry_value_type&)> const& visitor)
-// {
-//     entry_value_type entry;
-
-//     for (auto&& attr : m_container_.node->attributes())
-//     {
-//         entry_value_type v{std::string(attr.value())};
-//         visitor(std::string("@") + attr.name(), v);
-//     }
-
-//     for (auto&& node : m_container_.node->children())
-//     {
-//         if (node.type() == pugi::node_element)
-//         {
-//             entry_value_type entry{
-//                 std::shared_ptr<EntryObjectXML>(
-//                     new EntryObjectXML{
-//                         xml_node{
-//                             m_container_.root,
-//                             m_container_.path + "/" + node.name(),
-//                             std::make_shared<pugi::xml_node>(node)}})};
-
-//             visitor(node.name(), entry);
-//         }
-//         else
-//         {
-//             entry_value_type entry{std::string(node.value())};
-
-//             visitor(node.name(), entry);
-//         }
-//     }
-// }
-
 template <>
 void EntryObjectXML::for_each(std::function<void(const std::string&, const entry_value_type&)> const& visitor) const
 {
@@ -309,28 +277,28 @@ template <>
 entry_value_type EntryObjectXML::insert(const std::string& key, entry_value_type v)
 {
     entry_value_type res;
+    NOT_IMPLEMENTED;
     return std::move(res);
 }
+
 template <>
-entry_value_type EntryObjectXML::find(const std::string& key) const
+entry_value_type EntryObjectXML::find(const std::string& key) const { return make_entry(m_container_.node->child(key.c_str()), m_container_); }
+
+template <>
+void EntryObjectXML::update(const std::string& key, entry_value_type v) { NOT_IMPLEMENTED; }
+
+template <>
+void EntryObjectXML::remove(const std::string& path) { NOT_IMPLEMENTED; }
+
+template <>
+entry_value_type EntryObjectXML::insert(const Path& path, entry_value_type v)
 {
-
-    auto node = m_container_.node->child(key.c_str());
-
-    return make_entry(node, m_container_);
+    NOT_IMPLEMENTED;
+    return entry_value_type{};
 }
 
 template <>
-void EntryObjectXML::update(const std::string& key, entry_value_type v) {}
-
-template <>
-void EntryObjectXML::remove(const std::string& path) {}
-
-template <>
-entry_value_type EntryObjectXML::insert(const Path& path, entry_value_type v) { return EntryObject::insert(path, std::move(v)); }
-
-template <>
-void EntryObjectXML::update(const Path& path, entry_value_type v) { EntryObject::update(path, std::move(v)); }
+void EntryObjectXML::update(const Path& path, entry_value_type v) { NOT_IMPLEMENTED; }
 
 template <>
 entry_value_type EntryObjectXML::find(const Path& path) const
