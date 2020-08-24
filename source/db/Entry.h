@@ -20,7 +20,7 @@ class EntryObject;
 class EntryArray;
 class DataBlock;
 
-typedef std::pair<std::shared_ptr<EntryContainer>, Path> EntryReference;
+// typedef std::pair<std::shared_ptr<EntryContainer>, Path> EntryReference;
 // typedef std::pair<const std::string, Entry> EntryItem;
 
 } // namespace sp::db
@@ -28,7 +28,7 @@ typedef std::pair<std::shared_ptr<EntryContainer>, Path> EntryReference;
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
 M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
-M_REGISITER_TYPE_TAG(Reference, sp::db::EntryReference);
+// M_REGISITER_TYPE_TAG(Reference, sp::db::EntryReference);
 // M_REGISITER_TYPE_TAG(Item, sp::db::EntryItem)
 
 namespace sp::db
@@ -37,7 +37,6 @@ typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,
                      std::shared_ptr<EntryArray>,
                      std::shared_ptr<DataBlock>,         //Block
-                     EntryReference,                     //Reference
                      bool,                               //Boolean,
                      int,                                //Integer,
                      long,                               //Long,
@@ -81,13 +80,13 @@ public:
 
     virtual const EntryContainer* sub_container(const Path::Segment& key) const = 0;
 
-    virtual void insert(const Path::Segment& key, entry_value_type&&) = 0;
+    virtual void insert(const Path::Segment& key, const entry_value_type&) = 0;
 
     virtual const entry_value_type find(const Path::Segment& key) const = 0;
 
     virtual void remove(const Path::Segment& path) = 0;
 
-    virtual void insert(const Path& path, entry_value_type&& v);
+    virtual void insert(const Path& path, const entry_value_type& v);
 
     virtual const entry_value_type find(const Path& path) const;
 
@@ -120,7 +119,7 @@ public:
 
     virtual const EntryContainer* sub_container(const Path::Segment& key) const override;
 
-    virtual void insert(const Path::Segment& key, entry_value_type&&) override;
+    virtual void insert(const Path::Segment& key, const entry_value_type&) override;
 
     virtual const entry_value_type find(const Path::Segment& key) const override;
 
@@ -185,15 +184,15 @@ public:
 
     virtual const EntryContainer* sub_container(const Path::Segment& key) const override;
 
-    virtual void insert(const Path::Segment& path, entry_value_type&& v) override;
+    virtual void insert(const Path::Segment& path, const entry_value_type& v) override;
 
     virtual const entry_value_type find(const Path::Segment& key) const override;
 
     virtual void remove(const Path::Segment& key) override;
 
-    virtual entry_value_type at(int idx);
+    virtual entry_value_type& at(int idx);
 
-    virtual const entry_value_type at(int idx) const;
+    virtual const entry_value_type& at(int idx) const;
 
     virtual entry_value_type slice(int start, int stop, int step);
 
@@ -220,6 +219,9 @@ public:
 
 class Entry
 {
+    entry_value_type m_value_;
+    Path m_path_;
+
 public:
     typedef entry_value_type value_type;
 
@@ -227,18 +229,20 @@ public:
 
     Entry();
 
+    Entry(const entry_value_type& v, Path const& p) : m_value_(v), m_path_(p) {}
+
+    Entry(const Entry& other) : m_value_(other.m_value_), m_path_(other.m_path_) {}
+
+    Entry(Entry&& other) : m_value_(std::move(other.m_value_)), m_path_(std::move(other.m_path_)) {}
+
+    ~Entry() = default;
+
     // template <typename... Args>
     // Entry(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
 
     Entry(const value_type& v) : m_value_(v) {}
 
     Entry(value_type&& v) : m_value_(std::forward<value_type>(v)) {}
-
-    Entry(const Entry& other) : m_value_(other.m_value_) {}
-
-    Entry(Entry&& other) : m_value_(std::move(other.m_value_)) {}
-
-    ~Entry() = default;
 
     void swap(Entry& other);
 
@@ -251,13 +255,13 @@ public:
     template <typename V>
     Entry& operator=(const V& v)
     {
-        set_value<V>(v);
+        as<V>(v);
         return *this;
     }
 
     Entry& operator=(const char* v)
     {
-        set_value<std::string>(v);
+        as<std::string>(v);
         return *this;
     }
 
@@ -273,27 +277,20 @@ public:
 
     size_t size() const;
 
+    void resize(std::size_t num);
+
     Cursor<Entry> children();
 
     Cursor<const Entry> children() const;
 
-    // Entry insert(const Path& path);
-
-    // Entry find(const Path& path) const;
-
     //-------------------------------------------------------------------------
-
-    void set_value(value_type&&);
 
     void set_value(const value_type& v);
 
-    template <typename V, typename... Args>
-    void set_value(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
-
-    const value_type get_value() const;
+    entry_value_type get_value() const;
 
     template <typename V, typename... Args>
-    void as(Args&&... args) { set_value<V>(std::forward<Args>(args)...); }
+    void as(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
 
     template <typename V>
     V as() const { return std::get<V>(get_value()); }
@@ -305,26 +302,15 @@ public:
 
     const EntryObject& as_object() const;
 
-    template <typename V, typename... Args>
-    void emplace(const std::string& key, Args&&... args) { as_object().insert(key, value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
-
     //-------------------------------------------------------------------------
     // as array
     EntryArray& as_array();
 
     const EntryArray& as_array() const;
 
-    void resize(std::size_t num);
-
     Entry pop_back();
 
     Entry push_back();
-
-    template <typename... Args>
-    void push_back(Args&&... args) { as_array().push_back(std::forward<Args>(args)...); }
-
-    template <typename V, typename... Args>
-    void emplace_back(Args&&... args) { as_array().emplace<V>(std::forward<Args>(args)...); }
 
     //-------------------------------------------------------------------------
     // access
@@ -332,19 +318,19 @@ public:
     Entry at(const Path&);
     const Entry at(const Path&) const;
 
+    Entry at(const Path::Segment&);
+    const Entry at(const Path::Segment&) const;
+
     template <typename T>
-    inline Entry operator[](const T& idx) { return at(Path(idx)); }
+    inline Entry operator[](const T& idx) { return at(Path::Segment(idx)); }
     template <typename T>
-    inline const Entry operator[](const T& idx) const { return at(Path(idx)); }
+    inline const Entry operator[](const T& idx) const { return at(Path::Segment(idx)); }
 
-    inline Entry slice(int start, int stop, int step = 1) { return at(Path(start, stop, step)); }
-    inline const Entry slice(int start, int stop, int step = 1) const { return at(Path(start, stop, step)); }
+    inline Entry slice(int start, int stop, int step = 1) { return at(Path::Segment(std::make_tuple(start, stop, step))); }
+    inline const Entry slice(int start, int stop, int step = 1) const { return at(Path::Segment(std::make_tuple(start, stop, step))); }
 
-    inline Entry operator[](const Path& path) { return at(path); }
-    inline const Entry operator[](const Path& path) const { return at(path); }
-
-private:
-    value_type m_value_;
+    inline Entry operator[](const Path& path);
+    inline const Entry operator[](const Path& path) const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
