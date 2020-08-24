@@ -50,17 +50,27 @@ size_t EntryObject::size() const
 
 void EntryObject::clear() { NOT_IMPLEMENTED; }
 
-Cursor<Entry> EntryObject::children()
+Entry EntryObject::at(const Path& path) { return Entry{std::dynamic_pointer_cast<EntryObject>(shared_from_this()), path}; }
+
+Entry EntryObject::at(const Path& path) const { return const_cast<EntryObject*>(this)->at(path); }
+
+Cursor<entry_value_type> EntryObject::children()
 {
     NOT_IMPLEMENTED;
-    return Cursor<Entry>{};
+    return Cursor<entry_value_type>{};
 }
 
-Cursor<const Entry> EntryObject::children() const
+Cursor<const entry_value_type> EntryObject::children() const
 {
     NOT_IMPLEMENTED;
-    return Cursor<const Entry>{};
+    return Cursor<const entry_value_type>{};
 }
+
+void EntryObject::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const& visitor) { NOT_IMPLEMENTED; }
+
+void EntryObject::for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const& visitor) const { NOT_IMPLEMENTED; }
+//----------------------------------------------------------------------------------------------------
+
 EntryContainer* EntryObject::sub_container(const Path::Segment& key) { return nullptr; }
 
 const EntryContainer* EntryObject::sub_container(const Path::Segment& key) const { return nullptr; }
@@ -78,14 +88,6 @@ entry_value_type EntryObject::get_value(const Path::Segment& key) const
 
 void EntryObject::remove(const Path::Segment& path) { NOT_IMPLEMENTED; }
 
-Entry EntryObject::at(const Path& path)
-{
-    return Entry{std::dynamic_pointer_cast<EntryObject>(shared_from_this()), path};
-}
-Entry EntryObject::at(const Path& path) const
-{
-    return const_cast<EntryObject*>(this)->at(path);
-}
 //----------------------------------------------------------------------------------------------------
 
 class EntryObjectDefault : public EntryObject
@@ -115,13 +117,13 @@ public:
 
     void clear() override { return m_container_.clear(); }
 
-    Cursor<Entry> children() override;
+    Cursor<entry_value_type> children() override;
 
-    Cursor<const Entry> children() const override;
+    Cursor<const entry_value_type> children() const override;
 
-    void for_each(std::function<void(const std::string&, entry_value_type&)> const&) override;
+    void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) override;
 
-    void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const override;
+    void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const override;
 
     EntryContainer* sub_container(const Path::Segment& key) override;
 
@@ -140,32 +142,33 @@ public:
     void update(const EntryObject& patch) override;
 };
 
-Cursor<Entry> EntryObjectDefault::children()
+Cursor<entry_value_type> EntryObjectDefault::children()
 {
-    return Cursor<Entry>{};
+    return Cursor<entry_value_type>{};
 }
 
-Cursor<const Entry> EntryObjectDefault::children() const
+Cursor<const entry_value_type> EntryObjectDefault::children() const
 {
     NOT_IMPLEMENTED;
-    return Cursor<const Entry>{};
+    return Cursor<const entry_value_type>{};
 }
-void EntryObjectDefault::for_each(std::function<void(const std::string&, entry_value_type&)> const& visitor)
+void EntryObjectDefault::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const& visitor)
 {
 
     for (auto&& item : m_container_)
     {
-        visitor(item.first, item.second);
+        visitor(Path::Segment(item.first), item.second);
     }
 }
 
-void EntryObjectDefault::for_each(std::function<void(const std::string&, const entry_value_type&)> const& visitor) const
+void EntryObjectDefault::for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const& visitor) const
 {
     for (auto&& item : m_container_)
     {
-        visitor(item.first, item.second);
+        visitor(Path::Segment(item.first), item.second);
     }
 }
+
 EntryContainer* EntryObjectDefault::sub_container(const Path::Segment& key)
 {
     EntryContainer* res;
@@ -242,26 +245,35 @@ size_t EntryArray::size() const { return m_container_.size(); }
 
 void EntryArray::clear() { m_container_.clear(); }
 
-Cursor<Entry> EntryArray::children() { return Cursor<Entry>(); /*(m_container_.begin(), m_container_.end());*/ }
+Cursor<entry_value_type> EntryArray::children()
+{
+    NOT_IMPLEMENTED;
+    return Cursor<entry_value_type>(); /*(m_container_.begin(), m_container_.end());*/
+}
 
-Cursor<const Entry> EntryArray::children() const { return Cursor<const Entry>(); /*(m_container_.cbegin(), m_container_.cend());*/ }
+Cursor<const entry_value_type> EntryArray::children() const
+{
+    NOT_IMPLEMENTED;
+    return Cursor<const entry_value_type>(); /*(m_container_.cbegin(), m_container_.cend());*/
+}
 
 Entry EntryArray::at(const Path& path)
 {
     return Entry{std::dynamic_pointer_cast<EntryArray>(shared_from_this()), path};
 }
+
 Entry EntryArray::at(const Path& path) const
 {
     return const_cast<EntryArray*>(this)->at(path);
 }
 
-void EntryArray::for_each(std::function<void(int, entry_value_type&)> const& visitor)
+void EntryArray::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const& visitor)
 {
 
     NOT_IMPLEMENTED;
 }
 
-void EntryArray::for_each(std::function<void(int, const entry_value_type&)> const& visitor) const
+void EntryArray::for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const& visitor) const
 {
     NOT_IMPLEMENTED;
 }
@@ -294,9 +306,9 @@ void EntryArray::remove(const Path::Segment& path)
     NOT_IMPLEMENTED;
 }
 
-entry_value_type& EntryArray::at(int idx) { return (m_container_.at(idx)); }
+entry_value_type EntryArray::get_value(int idx) { return (m_container_.at(idx)); }
 
-const entry_value_type& EntryArray::at(int idx) const { return (m_container_.at(idx)); }
+entry_value_type EntryArray::get_value(int idx) const { return (m_container_.at(idx)); }
 
 entry_value_type EntryArray::slice(int start, int stop, int step)
 {
@@ -304,7 +316,7 @@ entry_value_type EntryArray::slice(int start, int stop, int step)
     return entry_value_type{};
 }
 
-const entry_value_type EntryArray::slice(int start, int stop, int step) const
+entry_value_type EntryArray::slice(int start, int stop, int step) const
 {
     NOT_IMPLEMENTED;
     return entry_value_type{};
@@ -348,29 +360,60 @@ size_t Entry::size() const
     return res;
 }
 
-Cursor<Entry> Entry::Entry::children()
-{
-    Cursor<Entry> res;
+Cursor<entry_value_type> Entry::Entry::children()
+{   NOT_IMPLEMENTED;
+    Cursor<entry_value_type> res;
 
-    std::visit(
-        sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
-            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
-            [&](auto&&) {}},
-        m_value_);
+    // std::visit(
+    //     sp::traits::overloaded{
+    //         [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
+    //         [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
+    //         [&](auto&&) {}},
+    //     m_value_);
     return std::move(res);
 }
 
-Cursor<const Entry> Entry::Entry::children() const
+Cursor<const entry_value_type> Entry::Entry::children() const
 {
-    Cursor<const Entry> res;
+    Cursor<const entry_value_type> res;
+    NOT_IMPLEMENTED;
+    // std::visit(
+    //     sp::traits::overloaded{
+    //         [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
+    //         [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
+    //         [&](auto&&) { NOT_IMPLEMENTED; }},
+    //     get_value());
+    return std::move(res);
+}
+void Entry::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) { NOT_IMPLEMENTED; }
 
+void Entry::for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const { NOT_IMPLEMENTED; }
+
+Entry Entry::at(const Path& path)
+{
+    Entry res;
     std::visit(
         sp::traits::overloaded{
-            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { std::dynamic_pointer_cast<const Entry>(object_p)->children().swap(res); },
-            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { std::dynamic_pointer_cast<const Entry>(array_p)->children().swap(res); },
-            [&](auto&&) { NOT_IMPLEMENTED; }},
+            [&](std::variant_alternative_t<value_type_tags::Null, value_type>& ref) { as_object().insert(path).swap(res); },
+            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { Entry{object_p, path}.swap(res); },
+            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { Entry{array_p, path}.swap(res); },
+            [&](std::variant_alternative_t<value_type_tags::Block, value_type>& blk_p) { NOT_IMPLEMENTED; },
+            [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
         get_value());
+
+    return std::move(res);
+}
+
+const Entry Entry::at(const Path& path) const
+{
+    Entry res;
+    std::visit(
+        sp::traits::overloaded{
+            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { entry_value_type(object_p).swap(res.m_value_);res.m_path_=path; },
+            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { entry_value_type(array_p).swap(res.m_value_);res.m_path_=path; },
+            [&](const std::variant_alternative_t<value_type_tags::Block, value_type>& blk_p) { NOT_IMPLEMENTED; },
+            [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
+        dynamic_cast<const value_type&>(m_value_));
     return std::move(res);
 }
 
@@ -502,35 +545,6 @@ Entry Entry::push_back() { return Entry(as_array().push_back()); }
 //             [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
 //         p);
 // }
-
-Entry Entry::at(const Path& path)
-{
-    Entry res;
-    std::visit(
-        sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Null, value_type>& ref) { as_object().insert(path).swap(res); },
-            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { Entry{object_p, path}.swap(res); },
-            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { Entry{array_p, path}.swap(res); },
-            [&](std::variant_alternative_t<value_type_tags::Block, value_type>& blk_p) { NOT_IMPLEMENTED; },
-            [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
-        get_value());
-
-    return std::move(res);
-}
-
-const Entry Entry::at(const Path& path) const
-{
-    Entry res;
-    std::visit(
-        sp::traits::overloaded{
-            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { entry_value_type(object_p).swap(res.m_value_);res.m_path_=path; },
-            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { entry_value_type(array_p).swap(res.m_value_);res.m_path_=path; },
-            [&](const std::variant_alternative_t<value_type_tags::Block, value_type>& blk_p) { NOT_IMPLEMENTED; },
-            [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
-        dynamic_cast<const value_type&>(m_value_));
-    return std::move(res);
-}
-
 } // namespace sp::db
 namespace sp::utility
 {
@@ -542,7 +556,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::entry_value_type& v, i
             [&](const std::variant_alternative_t<sp::db::Entry::value_type_tags::Array, sp::db::Entry::value_type>& array_p) {
                 os << "[";
 
-                array_p->for_each([&](int idx, sp::db::entry_value_type const& value) {
+                array_p->for_each([&](const sp::db::Path::Segment&, sp::db::entry_value_type const& value) {
                     os << std::endl
                        << std::setw(indent * tab) << " ";
                     fancy_print(os, value, indent + 1, tab);
@@ -557,9 +571,9 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::entry_value_type& v, i
                 os << "{";
 
                 object_p->for_each(
-                    [&](const std::string& key, sp::db::entry_value_type const& value) {
+                    [&](const sp::db::Path::Segment& key, sp::db::entry_value_type const& value) {
                         os << std::endl
-                           << std::setw(indent * tab) << " " << key << " : ";
+                           << std::setw(indent * tab) << " " << std::get<std::string>(key) << " : ";
                         fancy_print(os, value, indent + 1, tab);
                         os << ",";
                     });

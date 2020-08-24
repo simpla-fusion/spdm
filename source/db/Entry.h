@@ -28,14 +28,12 @@ class DataBlock;
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
 M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
-// M_REGISITER_TYPE_TAG(Reference, sp::db::EntryReference);
-// M_REGISITER_TYPE_TAG(Item, sp::db::EntryItem)
 
 namespace sp::db
 {
 typedef std::variant<std::nullptr_t,
-                     std::shared_ptr<EntryObject>,
-                     std::shared_ptr<EntryArray>,
+                     std::shared_ptr<EntryObject>,       //Object
+                     std::shared_ptr<EntryArray>,        //Array
                      std::shared_ptr<DataBlock>,         //Block
                      bool,                               //Boolean,
                      int,                                //Integer,
@@ -67,10 +65,21 @@ public:
     virtual size_t size() const = 0;
 
     virtual void clear() = 0;
+    //-------------------------------------------------------------------------------------------------------------
 
-    virtual Cursor<Entry> children() = 0;
+    virtual Entry at(const Path& path) = 0;
 
-    virtual Cursor<const Entry> children() const = 0;
+    virtual Entry at(const Path& path) const = 0;
+
+    virtual Cursor<entry_value_type> children() = 0;
+
+    virtual Cursor<const entry_value_type> children() const = 0;
+
+    virtual void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) = 0;
+
+    virtual void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const = 0;
+
+    //-------------------------------------------------------------------------------------------------------------
 
     virtual EntryContainer* sub_container(const Path::Segment& key) = 0;
 
@@ -82,9 +91,7 @@ public:
 
     virtual void remove(const Path::Segment& path) = 0;
 
-    virtual Entry at(const Path& path) = 0;
-
-    virtual Entry at(const Path& path) const = 0;
+    //-------------------------------------------------------------------------------------------------------------
 
     virtual Entry insert(const Path& path);
 
@@ -110,14 +117,20 @@ public:
     virtual size_t size() const override;
 
     virtual void clear() override;
-
-    virtual Cursor<Entry> children() override;
-
-    virtual Cursor<const Entry> children() const override;
-
+    //-------------------------------------------------------------------------------------------------------------
     virtual Entry at(const Path& path) override;
 
     virtual Entry at(const Path& path) const override;
+
+    virtual Cursor<entry_value_type> children() override;
+
+    virtual Cursor<const entry_value_type> children() const override;
+
+    virtual void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) override;
+
+    virtual void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const override;
+
+    //---------------------------------------------------------------------------------
 
     virtual EntryContainer* sub_container(const Path::Segment& key) override;
 
@@ -127,6 +140,8 @@ public:
 
     virtual entry_value_type get_value(const Path::Segment& key) const override;
 
+    //---------------------------------------------------------------------------------
+
     virtual void remove(const Path::Segment& path) override;
 
     virtual void merge(const EntryObject&) = 0;
@@ -134,10 +149,6 @@ public:
     virtual void patch(const EntryObject&) = 0;
 
     virtual void update(const EntryObject&) = 0;
-
-    virtual void for_each(std::function<void(const std::string&, entry_value_type&)> const&) = 0;
-
-    virtual void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const = 0;
 };
 
 class EntryArray : public EntryContainer
@@ -174,13 +185,23 @@ public:
 
     virtual void resize(std::size_t num);
 
-    virtual Cursor<Entry> children() override;
+    virtual Cursor<entry_value_type> children() override;
 
-    virtual Cursor<const Entry> children() const override;
+    virtual Cursor<const entry_value_type> children() const override;
+
+    virtual void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) override;
+
+    virtual void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const override;
 
     virtual Entry at(const Path& path) override;
 
     virtual Entry at(const Path& path) const override;
+
+    virtual Entry pop_back();
+
+    virtual Entry push_back();
+    //-------------------------------------------------------------------------------
+    virtual void remove(const Path::Segment& key) override;
 
     virtual EntryContainer* sub_container(const Path::Segment& key) override;
 
@@ -190,25 +211,13 @@ public:
 
     virtual entry_value_type get_value(const Path::Segment& key) const override;
 
-    virtual void remove(const Path::Segment& key) override;
+    virtual entry_value_type get_value(int idx);
 
-    virtual entry_value_type& at(int idx);
-
-    virtual const entry_value_type& at(int idx) const;
+    virtual entry_value_type get_value(int idx) const;
 
     virtual entry_value_type slice(int start, int stop, int step);
 
-    virtual const entry_value_type slice(int start, int stop, int step) const;
-
-    //-------------------------------------------------------------------------------
-
-    virtual void for_each(std::function<void(int, entry_value_type&)> const&);
-
-    virtual void for_each(std::function<void(int, const entry_value_type&)> const&) const;
-
-    virtual Entry pop_back();
-
-    virtual Entry push_back();
+    virtual entry_value_type slice(int start, int stop, int step) const;
 };
 
 class Entry
@@ -276,9 +285,19 @@ public:
 
     void resize(std::size_t num);
 
-    Cursor<Entry> children();
+    //-------------------------------------------------------------------------
 
-    Cursor<const Entry> children() const;
+    Cursor<entry_value_type> children();
+
+    Cursor<const entry_value_type> children() const;
+
+    void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&);
+
+    void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
+
+    Entry at(const Path&);
+
+    const Entry at(const Path&) const;
 
     //-------------------------------------------------------------------------
 
@@ -313,9 +332,6 @@ public:
 
     //-------------------------------------------------------------------------
     // access
-
-    Entry at(const Path&);
-    const Entry at(const Path&) const;
 
     // Entry at(const Path::Segment&);
     // const Entry at(const Path::Segment&) const;
