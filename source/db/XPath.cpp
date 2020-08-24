@@ -81,6 +81,10 @@ Path::Path(const Path& other) : m_path_(other.m_path_) {}
 
 Path::Path(Path&& other) : m_path_(std::move(other.m_path_)) {}
 
+Path::Path(const Segment& path) : m_path_{path} {}
+
+Path::Path(const Segment&& path) : m_path_{path} {}
+
 std::string Path::filename() const
 {
     return m_path_.size() > 0 ? std::get<segment_tags::Key>(m_path_.back()) : "";
