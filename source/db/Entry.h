@@ -72,21 +72,21 @@ public:
 
     virtual Cursor<const Entry> children() const = 0;
 
-    virtual entry_value_type at(const Path& path);
-
-    virtual const entry_value_type at(const Path& path) const;
-
     virtual EntryContainer* sub_container(const Path::Segment& key) = 0;
 
     virtual const EntryContainer* sub_container(const Path::Segment& key) const = 0;
 
-    virtual void insert(const Path::Segment& key, const entry_value_type&) = 0;
+    virtual void set_value(const Path::Segment& key, entry_value_type&& v = {}) = 0;
 
-    virtual const entry_value_type find(const Path::Segment& key) const = 0;
+    virtual entry_value_type get_value(const Path::Segment& key) const = 0;
 
     virtual void remove(const Path::Segment& path) = 0;
 
-    virtual void insert(const Path& path, const entry_value_type& v);
+    virtual Entry at(const Path& path) = 0;
+
+    virtual Entry at(const Path& path) const = 0;
+
+    virtual Entry insert(const Path& path);
 
     virtual const entry_value_type find(const Path& path) const;
 
@@ -115,13 +115,17 @@ public:
 
     virtual Cursor<const Entry> children() const override;
 
+    virtual Entry at(const Path& path) override;
+
+    virtual Entry at(const Path& path) const override;
+
     virtual EntryContainer* sub_container(const Path::Segment& key) override;
 
     virtual const EntryContainer* sub_container(const Path::Segment& key) const override;
 
-    virtual void insert(const Path::Segment& key, const entry_value_type&) override;
+    virtual void set_value(const Path::Segment& key, entry_value_type&& v = {}) override;
 
-    virtual const entry_value_type find(const Path::Segment& key) const override;
+    virtual entry_value_type get_value(const Path::Segment& key) const override;
 
     virtual void remove(const Path::Segment& path) override;
 
@@ -134,12 +138,6 @@ public:
     virtual void for_each(std::function<void(const std::string&, entry_value_type&)> const&) = 0;
 
     virtual void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const = 0;
-
-    template <typename V, typename... Args>
-    void emplace(const std::string& key, Args&&... args)
-    {
-        insert(key, entry_value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...));
-    }
 };
 
 class EntryArray : public EntryContainer
@@ -180,13 +178,17 @@ public:
 
     virtual Cursor<const Entry> children() const override;
 
+    virtual Entry at(const Path& path) override;
+
+    virtual Entry at(const Path& path) const override;
+
     virtual EntryContainer* sub_container(const Path::Segment& key) override;
 
     virtual const EntryContainer* sub_container(const Path::Segment& key) const override;
 
-    virtual void insert(const Path::Segment& path, const entry_value_type& v) override;
+    virtual void set_value(const Path::Segment& key, entry_value_type&& v = {}) override;
 
-    virtual const entry_value_type find(const Path::Segment& key) const override;
+    virtual entry_value_type get_value(const Path::Segment& key) const override;
 
     virtual void remove(const Path::Segment& key) override;
 
@@ -204,17 +206,9 @@ public:
 
     virtual void for_each(std::function<void(int, const entry_value_type&)> const&) const;
 
-    virtual entry_value_type pop_back();
+    virtual Entry pop_back();
 
-    virtual entry_value_type push_back();
-
-    virtual entry_value_type emplace_back(entry_value_type&&);
-
-    template <typename V, typename... Args>
-    void emplace(Args&&... args)
-    {
-        emplace_back(entry_value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...));
-    }
+    virtual Entry push_back();
 };
 
 class Entry
@@ -229,7 +223,10 @@ public:
 
     Entry();
 
-    Entry(const entry_value_type& v, Path const& p) : m_value_(v), m_path_(p) {}
+    template <typename T>
+    Entry(const T& v, Path const& p) : m_value_(v), m_path_(p) {}
+
+    Entry(const entry_value_type& v, Path const& p = {}) : m_value_(v), m_path_(p) {}
 
     Entry(const Entry& other) : m_value_(other.m_value_), m_path_(other.m_path_) {}
 
@@ -285,7 +282,9 @@ public:
 
     //-------------------------------------------------------------------------
 
-    void set_value(const value_type& v);
+    void set_value(value_type&& v);
+
+    void set_value(const value_type& v) { set_value(entry_value_type(v)); }
 
     entry_value_type get_value() const;
 
@@ -318,16 +317,16 @@ public:
     Entry at(const Path&);
     const Entry at(const Path&) const;
 
-    Entry at(const Path::Segment&);
-    const Entry at(const Path::Segment&) const;
+    // Entry at(const Path::Segment&);
+    // const Entry at(const Path::Segment&) const;
 
     template <typename T>
-    inline Entry operator[](const T& idx) { return at(Path::Segment(idx)); }
+    inline Entry operator[](const T& idx) { return at(Path(idx)); }
     template <typename T>
-    inline const Entry operator[](const T& idx) const { return at(Path::Segment(idx)); }
+    inline const Entry operator[](const T& idx) const { return at(Path(idx)); }
 
-    inline Entry slice(int start, int stop, int step = 1) { return at(Path::Segment(std::make_tuple(start, stop, step))); }
-    inline const Entry slice(int start, int stop, int step = 1) const { return at(Path::Segment(std::make_tuple(start, stop, step))); }
+    inline Entry slice(int start, int stop, int step = 1) { return at(Path(start, stop, step)); }
+    inline const Entry slice(int start, int stop, int step = 1) const { return at(Path(start, stop, step)); }
 
     inline Entry operator[](const Path& path);
     inline const Entry operator[](const Path& path) const;
