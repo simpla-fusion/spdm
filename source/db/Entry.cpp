@@ -495,46 +495,66 @@ entry_value_type Entry::get_value() const
 
 EntryObject& Entry::as_object()
 {
+    EntryObject* res;
 
     std::visit(
         sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& array_p) {},
-            [&](std::variant_alternative_t<value_type_tags::Null, value_type>&) { m_value_.emplace<value_type_tags::Object>(std::make_shared<EntryObjectDefault>()); },
+            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<value_type_tags::Null, value_type>&) {
+                m_value_.emplace<value_type_tags::Object>(std::make_shared<EntryObjectDefault>());
+                res = std::get<entry_value_type_tags::Object>(m_value_).get();
+            },
             [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Object!"; }},
         m_value_);
 
-    return *std::get<entry_value_type_tags::Object>(m_value_);
+    return *res;
 }
 
 const EntryObject& Entry::as_object() const
 {
-    if (m_value_.index() != value_type_tags::Object)
-    {
-        RUNTIME_ERROR << "Can not convert to Object!";
-    }
-    return *std::get<entry_value_type_tags::Object>(m_value_);
+    const EntryObject* res;
+
+    std::visit(
+        sp::traits::overloaded{
+            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
+            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Object!"; }},
+        m_value_);
+
+    return *res;
 }
 
 EntryArray& Entry::as_array()
 {
+    EntryArray* res;
+
     std::visit(
         sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) {},
-            [&](std::variant_alternative_t<value_type_tags::Null, value_type>&) { m_value_.emplace<value_type_tags::Array>(std::make_shared<EntryArray>()); },
+            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<value_type_tags::Null, value_type>&) {
+                m_value_.emplace<value_type_tags::Array>(std::make_shared<EntryArray>());
+                res = std::get<entry_value_type_tags::Array>(m_value_).get();
+            },
             [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Object!"; }},
         m_value_);
 
-    return *std::get<entry_value_type_tags::Array>(m_value_);
+    return *res;
 }
 
 const EntryArray& Entry::as_array() const
 {
-    if (m_value_.index() != value_type_tags::Array)
-    {
-        RUNTIME_ERROR << "Can not convert to Object!";
-    }
+    const EntryArray* res;
 
-    return *std::get<entry_value_type_tags::Array>(m_value_);
+    std::visit(
+        sp::traits::overloaded{
+            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
+            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Array!"; }},
+        m_value_);
+
+    return *res;
 }
 
 //-----------------------------------------------------------------------------------------------------------
