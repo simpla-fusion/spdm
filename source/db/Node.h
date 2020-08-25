@@ -58,11 +58,11 @@ public:
     NodeObject(const NodeObject&) = delete;
     NodeObject(NodeObject&&) = delete;
 
-    static std::shared_ptr<NodeObject> create(const std::string& url = "");
+    static std::shared_ptr<NodeObject> create(const tree_node_type& opt = {});
 
-    virtual void load(const std::string&) { NOT_IMPLEMENTED; }
+    virtual void load(const tree_node_type&) { NOT_IMPLEMENTED; }
 
-    virtual void save(const std::string&) const { NOT_IMPLEMENTED; }
+    virtual void save(const tree_node_type&) const { NOT_IMPLEMENTED; }
 
     virtual std::pair<std::shared_ptr<const NodeObject>, Path> full_path() const;
 
@@ -171,7 +171,7 @@ public:
     virtual tree_node_type pop_back();
 };
 
-std::ostream& operator<<(std::ostream& os, tree_node_type const& entry);
+std::ostream& operator<<(std::ostream& os, tree_node_type const& node);
 
 namespace literals
 {

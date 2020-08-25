@@ -43,11 +43,11 @@ public:
         return *this;
     }
 
-    static Entry create(const std::string&);
+    static Entry create(const tree_node_type&);
 
-    void load(const std::string&);
+    void load(const tree_node_type&);
 
-    void save(const std::string&) const;
+    void save(const tree_node_type&) const;
 
     //-------------------------------------------------------------------------
 
@@ -104,13 +104,13 @@ public:
     //-------------------------------------------------------------------------
     // access
     template <typename... Args>
-    Entry at(Args&&... args) & { return Entry{root().shared_from_this(), m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) & { return Entry{root().shared_from_this(), Path(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) && { return Entry{root().shared_from_this(), std::move(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) && { return Entry{root().shared_from_this(), Path(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) const& { return Entry{m_root_, m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) const& { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename T>
     inline Entry operator[](const T& idx) & { return at(idx); }

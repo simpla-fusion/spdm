@@ -36,28 +36,28 @@ void Entry::swap(Entry& other)
     std::swap(m_path_, other.m_path_);
 }
 
-Entry Entry::create(const std::string& url)
+Entry Entry::create(const tree_node_type& opt)
 {
-    return Entry{NodeObject::create(url), Path{}};
+    return Entry{NodeObject::create(opt), Path{}};
 }
 
-void Entry::load(const std::string& url)
+void Entry::load(const tree_node_type& opt)
 {
     if (m_root_ == nullptr)
     {
-        m_root_ = NodeObject::create(url);
+        m_root_ = NodeObject::create(opt);
     }
     else
     {
-        m_root_->load(url);
+        m_root_->load(opt);
     }
 }
 
-void Entry::save(const std::string& url) const
+void Entry::save(const tree_node_type& opt) const
 {
     if (m_root_ != nullptr)
     {
-        m_root_->save(Path(m_path_).join(url).str());
+        m_root_->save(opt);
     }
     else
     {
@@ -137,11 +137,11 @@ std::pair<std::shared_ptr<NodeObject>, Path> Entry::full_path()
 
 void Entry::set_value(tree_node_type v) { root().update(m_path_, std::move(v)); }
 
-tree_node_type Entry::get_value() const { return root().find(m_path_); }
+tree_node_type Entry::get_value() const{    return root().find(m_path_);}
 
-NodeObject& Entry::as_object() { return *std::get<tree_node_tags::Object>(root().insert(m_path_, tree_node_type{NodeObject::create()})); }
+NodeObject& Entry::as_object() { return m_path_.length() == 0 ? *m_root_ : *std::get<tree_node_tags::Object>(root().insert(m_path_, tree_node_type{NodeObject::create()})); }
 
-const NodeObject& Entry::as_object() const { return *std::const_pointer_cast<const NodeObject>(std::get<tree_node_tags::Object>(root().find(m_path_))); }
+const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? *m_root_ : *std::const_pointer_cast<const NodeObject>(std::get<tree_node_tags::Object>(root().find(m_path_))); }
 
 NodeArray& Entry::as_array() { return *std::get<tree_node_tags::Array>(root().insert(m_path_, tree_node_type{NodeArray::create()})); }
 
@@ -155,7 +155,7 @@ tree_node_type Entry::pop_back() { return as_array().pop_back(); }
 
 Entry Entry::push_back(tree_node_type v)
 {
-    auto a = as_array();
+    auto& a = as_array();
     a.push_back(std::move(v));
     return Entry{m_root_, Path(m_path_).join(a.size() - 1)};
 }

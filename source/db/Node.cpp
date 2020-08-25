@@ -145,9 +145,9 @@ public:
 
     std::unique_ptr<NodeObject> copy() const override { return std::unique_ptr<NodeObject>(new NodeObjectDefault(*this)); }
 
-    void load(const std::string&) override {}
+    void load(const tree_node_type&) override {}
 
-    void save(const std::string&) const override { NOT_IMPLEMENTED; }
+    void save(const tree_node_type&) const override { NOT_IMPLEMENTED; }
 
     size_t size() const override { return m_container_.size(); }
 
@@ -258,12 +258,12 @@ void update(tree_node_type self, Path path, tree_node_type v)
 
 tree_node_type find(tree_node_type self, Path path)
 {
-
     bool found = true;
     Path prefix;
 
     for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
     {
+
         prefix.append(*it);
 
         switch (self.index())
@@ -281,7 +281,7 @@ tree_node_type find(tree_node_type self, Path path)
     }
     if (!found)
     {
-        throw std::out_of_range("Can not find url:" + prefix.str());
+        throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find url:" + prefix.str());
     }
 
     return std::move(self);
@@ -340,7 +340,7 @@ tree_node_type NodeObjectDefault::find(Path path) const
         tree_node_type(m_container_.at(std::get<Path::segment_tags::Key>(*path.begin()))).swap(res);
         break;
     default:
-        _detail::find(tree_node_type{}, path).swap(res);
+        _detail::find(tree_node_type{std::dynamic_pointer_cast<NodeObject>(const_cast<NodeObjectDefault*>(this)->shared_from_this())}, path).swap(res);
     }
 
     return std::move(res);
@@ -379,25 +379,31 @@ void NodeObjectDefault::remove(Path path)
 
 //------------------------------------------------------------------
 
-std::shared_ptr<NodeObject> NodeObject::create(const std::string& url)
+std::shared_ptr<NodeObject> NodeObject::create(const tree_node_type& opt)
 {
     NodeObject* p = nullptr;
-    if (url != "")
+    if (opt.index() == tree_node_tags::String)
     {
-        p = ::sp::utility::Factory<::sp::db::NodeObject>::create(url).release();
+
+        std::string url = std::get<tree_node_tags::String>(opt);
+
+        if (url != "")
+        {
+            p = ::sp::utility::Factory<::sp::db::NodeObject>::create(url).release();
+        }
     }
-    else
+    else if (opt.index() == tree_node_tags::Null)
     {
-        p = dynamic_cast<NodeObject*>(new NodeObjectDefault());
+        p = new NodeObjectDefault();
     }
 
     if (p == nullptr)
     {
-        RUNTIME_ERROR << "Can not load plugin for url :" << url;
+        RUNTIME_ERROR << "Can not load plugin for url :" << opt;
     }
     else
     {
-        p->load(url);
+        p->load(opt);
     }
 
     return std::shared_ptr<NodeObject>(p);
@@ -447,7 +453,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::tree_node_type& v, int
             //    },                                                                                                                                                                    //
             [&](const std::variant_alternative_t<sp::db::tree_node_tags::Block, sp::db::tree_node_type>& blk_p) { fancy_print(os, "<DATA BLOCK>", indent + 1, tab); }, //
             [&](const std::variant_alternative_t<sp::db::tree_node_tags::Null, sp::db::tree_node_type>& ele) { fancy_print(os, nullptr, indent + 1, tab); },           //
-            [&](auto const& ele) { fancy_print(os, ele, indent + 1, tab); }                                                                                                       //
+            [&](auto const& ele) { fancy_print(os, ele, indent + 1, tab); }                                                                                            //
         },
         v);
 

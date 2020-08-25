@@ -22,7 +22,6 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["C"].resize(4);
 
     REQUIRE(entry["C"].as_array().size() == 4);
-
     REQUIRE(entry["C"].type() == sp::db::tree_node_tags::Array);
     REQUIRE(entry["C"].size() == 4);
 
@@ -47,21 +46,4 @@ TEST_CASE("Create Node", "[SpDB]")
     REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
 
     std::cout << entry << std::endl;
-
-    // std::cout << "====================================" << std::endl;
-    // entry.as_table()["C"].push_back().as_scalar().set_value<std::string>("1234");
-
-    // // entry.set_value<std::string>("1234");
-    // std::cout << entry << std::endl;
-
-    // // std::cout << "====================================" << std::endl;
-
-    // // entry.append().set_value<std::string>("4567");
-    // std::cout << "====================================" << std::endl;
-
-    // entry.as_array().push_back().as_scalar().set_value<std::string>("7890");
-
-    // std::cout << entry << std::endl;
-
-    // REQUIRE(entry.child("C").child(0).get_value<std::string>() == "1234");
 }
