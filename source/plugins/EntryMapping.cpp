@@ -4,57 +4,54 @@
 #include "../db/XPath.h"
 #include "../utility/Factory.h"
 #include "../utility/Logger.h"
-#include "pugixml/pugixml.hpp"
+
 #include <variant>
 namespace sp::db
 {
-struct xml_node
+struct mapping_node
 {
-    std::shared_ptr<pugi::xml_node> root;
-    std::string path;
-    std::shared_ptr<pugi::xml_node> node;
 };
 
-typedef NodePlugin<xml_node> NodePluginXML;
+typedef EntryObjectPlugin<mapping_node> EntryObjectMapping;
 
-tree_node_type make_entry(const pugi::xml_node& node, xml_node const& parent)
+entry_value_type make_entry(const pugi::mapping_node& node, mapping_node const& parent)
 {
     VERBOSE << "Type =" << node.type() << "  Text=" << node.text().as_string();
 
-    tree_node_type res;
+    entry_value_type res;
 
     if (node.empty())
     {
     }
     else if (node.type() == pugi::node_element && !node.text().empty())
     {
-        res.emplace<tree_node_type_tags::String>(node.text().as_string());
+        res.emplace<entry_value_type_tags::String>(node.text().as_string());
     }
     else
     {
-        tree_node_type{std::make_shared<NodePluginXML>(xml_node{parent.root,
-                                                                  parent.path + "/" + node.name(),
-                                                                  std::make_shared<pugi::xml_node>(node)})};
+        entry_value_type{std::make_shared<EntryObjectMapping>(mapping_node{parent.root,
+                                                                       parent.path + "/" + node.name(),
+                                                                       std::make_shared<pugi::mapping_node>(node)})};
     }
     return std::move(res);
 }
-tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& parent)
+entry_value_type make_entry(const pugi::xpath_node_set& nodes, mapping_node const& parent)
 {
-    tree_node_type res;
+    entry_value_type res;
 
     return std::move(res);
 }
 // template <>
-// class CursorProxy<Entry, pugi::xml_node> : public CursorProxy<Entry>
+// class CursorProxy<Entry, pugi::mapping_node> : public CursorProxy<Entry>
 // {
 // public:
 //     typedef CursorProxy<Entry> base_type;
-//     typedef CursorProxy<Entry, pugi::xml_node> this_type;
+//     typedef CursorProxy<Entry, pugi::mapping_node> this_type;
 //     // using typename base_type::difference_type;
 //     using typename base_type::pointer;
 //     using typename base_type::reference;
 //     using typename base_type::value_type;
-//     CursorProxy(const pugi::xml_node& obj) : m_base_(obj), m_pointer_(nullptr) { update(); }
+//     CursorProxy(const pugi::mapping_node& obj) : m_base_(obj), m_pointer_(nullptr) { update(); }
 //     CursorProxy(const this_type& other) : m_base_(other.m_base_), m_pointer_(nullptr) { update(); }
 //     CursorProxy(this_type&& other) : m_base_(std::move(other.m_base_)), m_pointer_(nullptr) { update(); }
 //     virtual ~CursorProxy(){};
@@ -68,7 +65,7 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 //         return m_base_.empty();
 //     }
 // protected:
-//     pugi::xml_node m_base_;
+//     pugi::mapping_node m_base_;
 //     std::shared_ptr<Entry> m_pointer_;
 //     void update()
 //     {
@@ -83,16 +80,16 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 //     }
 // };
 // template <>
-// class CursorProxy<const Entry, pugi::xml_node> : public CursorProxy<const Entry>
+// class CursorProxy<const Entry, pugi::mapping_node> : public CursorProxy<const Entry>
 // {
 // public:
 //     typedef CursorProxy<const Entry> base_type;
-//     typedef CursorProxy<const Entry, pugi::xml_node> this_type;
+//     typedef CursorProxy<const Entry, pugi::mapping_node> this_type;
 //     // using typename base_type::difference_type;
 //     using typename base_type::pointer;
 //     using typename base_type::reference;
 //     using typename base_type::value_type;
-//     CursorProxy(const pugi::xml_node& obj) : m_base_(obj), m_pointer_(nullptr) { update(); }
+//     CursorProxy(const pugi::mapping_node& obj) : m_base_(obj), m_pointer_(nullptr) { update(); }
 //     CursorProxy(const this_type& other) : m_base_(other.m_base_), m_pointer_(nullptr) { update(); }
 //     CursorProxy(this_type&& other) : m_base_(std::move(other.m_base_)), m_pointer_(nullptr) { update(); }
 //     virtual ~CursorProxy(){};
@@ -106,7 +103,7 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 //         return m_base_.empty();
 //     }
 // protected:
-//     pugi::xml_node m_base_;
+//     pugi::mapping_node m_base_;
 //     std::shared_ptr<Entry> m_pointer_;
 //     void update()
 //     {
@@ -122,18 +119,18 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 // };
 
 // template <>
-// void NodePluginXML::remove(Path const&)
+// void EntryObjectMapping::remove(Path const&)
 // {
 //     NOT_IMPLEMENTED;
 // }
 // template <>
 // class CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>,
-//                   pugi::xml_node_iterator> : public CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>>
+//                   pugi::mapping_node_iterator> : public CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>>
 // {
 // public:
 //     typedef CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>> base_type;
-//     typedef CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>, pugi::xml_node_iterator> this_type;
-//     typedef pugi::xml_node_iterator iterator;
+//     typedef CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>, pugi::mapping_node_iterator> this_type;
+//     typedef pugi::mapping_node_iterator iterator;
 //     using typename base_type::difference_type;
 //     using typename base_type::pointer;
 //     using typename base_type::reference;
@@ -156,14 +153,14 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 // };
 // template <>
 // Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
-// NodePluginXML::kv_items()
+// EntryObjectMapping::kv_items()
 // {
 //     NOT_IMPLEMENTED;
 //     return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>{};
 // }
 // template <>
 // Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
-// NodePluginXML::kv_items() const
+// EntryObjectMapping::kv_items() const
 // {
 //     NOT_IMPLEMENTED;
 //     return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>{};
@@ -172,56 +169,56 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 //----------------------------------------------------------------------------------
 
 template <>
-NodePluginXML::NodePlugin(const xml_node& container) : m_container_(container) {}
+EntryObjectMapping::EntryObjectPlugin(const mapping_node& container) : m_container_(container) {}
 
 template <>
-NodePluginXML::NodePlugin(xml_node&& container) : m_container_(std::move(container)) {}
+EntryObjectMapping::EntryObjectPlugin(mapping_node&& container) : m_container_(std::move(container)) {}
 
 template <>
-NodePluginXML::NodePlugin(const NodePlugin& other) : m_container_{other.m_container_} {}
+EntryObjectMapping::EntryObjectPlugin(const EntryObjectPlugin& other) : m_container_{other.m_container_} {}
 
 template <>
-NodePluginXML::NodePlugin(NodePlugin&& other) : m_container_{std::move(other.m_container_)} {}
+EntryObjectMapping::EntryObjectPlugin(EntryObjectPlugin&& other) : m_container_{std::move(other.m_container_)} {}
 
 template <>
-std::pair<std::shared_ptr<NodeObject>, Path> NodePluginXML::full_path()
+std::pair<std::shared_ptr<EntryObject>, Path> EntryObjectMapping::full_path()
 {
     NOT_IMPLEMENTED;
-    return std::pair<std::shared_ptr<NodePlugin>, Path>{nullptr, Path{}};
+    return std::pair<std::shared_ptr<EntryObject>, Path>{nullptr, Path{}};
 }
 
 template <>
-std::pair<std::shared_ptr<const NodeObject>, Path> NodePluginXML::full_path() const
+std::pair<std::shared_ptr<const EntryObject>, Path> EntryObjectMapping::full_path() const
 {
     NOT_IMPLEMENTED;
-    return std::pair<std::shared_ptr<const NodePlugin>, Path>{nullptr, Path{}};
+    return std::pair<std::shared_ptr<const EntryObject>, Path>{nullptr, Path{}};
 }
 
 template <>
-void NodePluginXML::load(const tree_node_type& opt)
+void EntryObjectMapping::load(const entry_value_type& opt)
 {
     auto uri = std::get<std::string>(opt);
 
-    VERBOSE << "Load XML document :" << uri;
+    VERBOSE << "Load Mapping document :" << uri;
 
-    auto* doc = new pugi::xml_document;
+    auto* doc = new pugi::mapping_document;
     auto result = doc->load_file(uri.c_str());
     if (!result)
     {
         RUNTIME_ERROR << result.description();
     }
 
-    m_container_.root = std::shared_ptr<pugi::xml_node>(doc);
+    m_container_.root = std::shared_ptr<pugi::mapping_node>(doc);
     m_container_.path = uri + ":/";
     m_container_.node = m_container_.root;
 }
 
 template <>
-void NodePluginXML::save(const tree_node_type& opt) const
+void EntryObjectMapping::save(const entry_value_type& opt) const
 {
     auto url = std::get<std::string>(opt);
 
-    auto result = reinterpret_cast<pugi::xml_document*>(m_container_.root.get())->save_file(url.c_str());
+    auto result = reinterpret_cast<pugi::mapping_document*>(m_container_.root.get())->save_file(url.c_str());
 
     if (!result)
     {
@@ -234,40 +231,40 @@ void NodePluginXML::save(const tree_node_type& opt) const
 }
 
 template <>
-size_t NodePluginXML::size() const { return std::distance(m_container_.node->children().begin(), m_container_.node->children().end()); }
+size_t EntryObjectMapping::size() const { return std::distance(m_container_.node->children().begin(), m_container_.node->children().end()); }
 
 template <>
-void NodePluginXML::clear() { NOT_IMPLEMENTED; }
+void EntryObjectMapping::clear() { NOT_IMPLEMENTED; }
 
 // template <>
-// Entry NodePluginXML::at(const Path& path) { return Entry{tree_node_type{shared_from_this()}, path}; }
+// Entry EntryObjectMapping::at(const Path& path) { return Entry{entry_value_type{shared_from_this()}, path}; }
 // template <>
-// Entry NodePluginXML::at(const Path& path) const { return Entry{tree_node_type{const_cast<NodePluginXML*>(this)->shared_from_this()}, path}; }
+// Entry EntryObjectMapping::at(const Path& path) const { return Entry{entry_value_type{const_cast<EntryObjectMapping*>(this)->shared_from_this()}, path}; }
 
 template <>
-Cursor<const tree_node_type>
-NodePluginXML::children() const
+Cursor<const entry_value_type>
+EntryObjectMapping::children() const
 {
     NOT_IMPLEMENTED;
-    return Cursor<const tree_node_type>{};
+    return Cursor<const entry_value_type>{};
 }
 
 template <>
-Cursor<tree_node_type>
-NodePluginXML::children()
+Cursor<entry_value_type>
+EntryObjectMapping::children()
 {
     NOT_IMPLEMENTED;
-    return Cursor<tree_node_type>{};
+    return Cursor<entry_value_type>{};
 }
 
 template <>
-void NodePluginXML::for_each(std::function<void(const std::string&, const tree_node_type&)> const& visitor) const
+void EntryObjectMapping::for_each(std::function<void(const std::string&, const entry_value_type&)> const& visitor) const
 {
-    tree_node_type entry;
+    entry_value_type entry;
 
     for (auto&& attr : m_container_.node->attributes())
     {
-        tree_node_type v{std::string(attr.value())};
+        entry_value_type v{std::string(attr.value())};
         visitor(std::string("@") + attr.name(), v);
     }
 
@@ -278,34 +275,34 @@ void NodePluginXML::for_each(std::function<void(const std::string&, const tree_n
 }
 
 template <>
-tree_node_type NodePluginXML::insert(const std::string& key, tree_node_type v)
+entry_value_type EntryObjectMapping::insert(const std::string& key, entry_value_type v)
 {
-    tree_node_type res;
+    entry_value_type res;
     NOT_IMPLEMENTED;
     return std::move(res);
 }
 
 template <>
-tree_node_type NodePluginXML::find(const std::string& key) const { return make_entry(m_container_.node->child(key.c_str()), m_container_); }
+entry_value_type EntryObjectMapping::find(const std::string& key) const { return make_entry(m_container_.node->child(key.c_str()), m_container_); }
 
 template <>
-void NodePluginXML::update(const std::string& key, tree_node_type v) { NOT_IMPLEMENTED; }
+void EntryObjectMapping::update(const std::string& key, entry_value_type v) { NOT_IMPLEMENTED; }
 
 template <>
-void NodePluginXML::remove(const std::string& path) { NOT_IMPLEMENTED; }
+void EntryObjectMapping::remove(const std::string& path) { NOT_IMPLEMENTED; }
 
 template <>
-tree_node_type NodePluginXML::insert(const Path& path, tree_node_type v)
+entry_value_type EntryObjectMapping::insert(const Path& path, entry_value_type v)
 {
     NOT_IMPLEMENTED;
-    return tree_node_type{};
+    return entry_value_type{};
 }
 
 template <>
-void NodePluginXML::update(const Path& path, tree_node_type v) { NOT_IMPLEMENTED; }
+void EntryObjectMapping::update(const Path& path, entry_value_type v) { NOT_IMPLEMENTED; }
 
 template <>
-tree_node_type NodePluginXML::find(const Path& path) const
+entry_value_type EntryObjectMapping::find(const Path& path) const
 {
     std::ostringstream os;
 
@@ -334,7 +331,7 @@ tree_node_type NodePluginXML::find(const Path& path) const
 
     auto node_set = m_container_.node->select_nodes(os.str().c_str());
 
-    tree_node_type res;
+    entry_value_type res;
 
     if (node_set.size() == 0)
     {
@@ -352,27 +349,27 @@ tree_node_type NodePluginXML::find(const Path& path) const
 }
 
 template <>
-void NodePluginXML::remove(const Path& path) { NodePlugin::remove(path); }
+void EntryObjectMapping::remove(const Path& path) { EntryObject::remove(path); }
 
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>
 // template <>
 // std::shared_ptr<Entry>
-// EntryArrayXML::push_back()
+// EntryArrayMapping::push_back()
 // {
 //     NOT_IMPLEMENTED;
 //     return nullptr;
 // }
 
 // template <>
-// void EntryArrayXML::pop_back()
+// void EntryArrayMapping::pop_back()
 // {
 //     NOT_IMPLEMENTED;
 // }
 
 // template <>
 // std::shared_ptr<Entry>
-// EntryArrayXML::get(int idx)
+// EntryArrayMapping::get(int idx)
 // {
 //     NOT_IMPLEMENTED;
 //     return nullptr;
@@ -380,12 +377,12 @@ void NodePluginXML::remove(const Path& path) { NodePlugin::remove(path); }
 
 // template <>
 // std::shared_ptr<const Entry>
-// EntryArrayXML::get(int idx) const
+// EntryArrayMapping::get(int idx) const
 // {
 //     NOT_IMPLEMENTED;
 //     return nullptr;
 // }
 
-SPDB_ENTRY_REGISTER(xml, xml_node);
-SPDB_ENTRY_ASSOCIATE(xml, xml_node, "^(.*)\\.(xml|xls|xlsx)$");
+SPDB_ENTRY_REGISTER(mapping, mapping_node);
+SPDB_ENTRY_ASSOCIATE(mapping, mapping_node, "^(mapping://)(.*)\\.$");
 } // namespace sp::db

@@ -15,7 +15,7 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["A"s].as<std::string>("1234");
     entry["B"s].as<std::string>("5678");
 
-    REQUIRE(entry.type() == sp::db::entry_value_type_tags::Object);
+    REQUIRE(entry.type() == sp::db::tree_node_tags::Object);
 
     REQUIRE(entry.as_object().size() == 2);
 
@@ -23,7 +23,7 @@ TEST_CASE("Create Node", "[SpDB]")
 
     REQUIRE(entry["C"].as_array().size() == 4);
 
-    REQUIRE(entry["C"].type() == sp::db::entry_value_type_tags::Array);
+    REQUIRE(entry["C"].type() == sp::db::tree_node_tags::Array);
     REQUIRE(entry["C"].size() == 4);
 
     entry["C"][2] = 12344.56;

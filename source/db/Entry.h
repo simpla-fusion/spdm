@@ -3,6 +3,7 @@
 #include "../utility/TypeTraits.h"
 #include "Cursor.h"
 #include "DataBlock.h"
+#include "Node.h"
 #include "XPath.h"
 #include <array>
 #include <complex>
@@ -12,188 +13,21 @@
 #include <string>
 #include <variant>
 #include <vector>
-namespace sp::db
-{
-class Entry;
-class EntryContainer;
-class EntryObject;
-class EntryArray;
-class DataBlock;
-
-// typedef std::pair<std::shared_ptr<EntryContainer>, Path> EntryReference;
-// typedef std::pair<const std::string, Entry> EntryItem;
-
-} // namespace sp::db
-
-M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::EntryObject>);
-M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::EntryArray>);
-M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
 
 namespace sp::db
 {
-
-typedef std::variant<std::nullptr_t,
-                     std::shared_ptr<EntryObject>,       //Object
-                     std::shared_ptr<EntryArray>,        //Array
-                     std::shared_ptr<DataBlock>,         //Block
-                     bool,                               //Boolean,
-                     int,                                //Integer,
-                     long,                               //Long,
-                     float,                              //Float,
-                     double,                             //Double,
-                     std::string,                        //String,
-                     std::array<int, 3>,                 //IntVec3,
-                     std::array<long, 3>,                //LongVec3,
-                     std::array<float, 3>,               //FloatVec3,
-                     std::array<double, 3>,              //DoubleVec3,
-                     std::complex<double>,               //Complex,
-                     std::array<std::complex<double>, 3> //ComplexVec3,
-                     >
-    entry_value_type;
-
-typedef traits::type_tags<entry_value_type> entry_value_type_tags;
-
-class EntryObject : public std::enable_shared_from_this<EntryObject>
-{
-
-public:
-    friend class Entry;
-
-    EntryObject() = default;
-    virtual ~EntryObject() = default;
-    EntryObject(const EntryObject&) = delete;
-    EntryObject(EntryObject&&) = delete;
-
-    static std::shared_ptr<EntryObject> create(const std::string& url = "");
-
-    virtual void load(const std::string&) { NOT_IMPLEMENTED; }
-
-    virtual void save(const std::string&) const { NOT_IMPLEMENTED; }
-
-    virtual std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
-
-    virtual std::pair<std::shared_ptr<EntryObject>, Path> full_path();
-
-    virtual std::unique_ptr<EntryObject> copy() const = 0;
-
-    virtual size_t size() const = 0;
-
-    virtual void clear() = 0;
-    //-------------------------------------------------------------------------------------------------------------
-    // as container
-
-    virtual Entry at(Path path) = 0;
-
-    virtual Entry at(Path path) const = 0;
-
-    virtual Cursor<entry_value_type> children() = 0;
-
-    virtual Cursor<const entry_value_type> children() const = 0;
-
-    // virtual void for_each(std::function<void(const std::string&, entry_value_type&)> const&) = 0;
-
-    virtual void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const = 0;
-
-    //------------------------------------------------------------------------------
-    // fundamental operation ： CRUD
-    /**
-     *  Create 
-     */
-    virtual entry_value_type insert(Path p, entry_value_type) = 0;
-    /**
-     * Modify
-     */
-    virtual void update(Path p, entry_value_type) = 0;
-    /**
-     * Retrieve
-     */
-    virtual entry_value_type find(Path path = {}) const = 0;
-    /**
-     *  Delete 
-     */
-    virtual void remove(Path path = {}) = 0;
-
-    //------------------------------------------------------------------------------
-    // advanced extension functions
-    virtual void merge(const EntryObject&);
-
-    virtual void patch(const EntryObject&);
-
-    virtual void update(const EntryObject&);
-
-    virtual bool compare(const entry_value_type& other) const;
-
-    virtual entry_value_type diff(const entry_value_type& other) const;
-};
-
-class EntryArray : public std::enable_shared_from_this<EntryArray>
-{
-    std::vector<entry_value_type> m_container_;
-
-public:
-    friend class Entry;
-
-    EntryArray() = default;
-
-    virtual ~EntryArray() = default;
-
-    EntryArray(const EntryArray& other) : m_container_(other.m_container_) {}
-
-    EntryArray(EntryArray&& other) : m_container_(std::move(other.m_container_)) {}
-
-    void swap(EntryArray& other) { m_container_.swap(other.m_container_); }
-
-    EntryArray& operator=(const EntryArray& other)
-    {
-        EntryArray(other).swap(*this);
-        return *this;
-    }
-
-    //-------------------------------------------------------------------------------
-    static std::shared_ptr<EntryArray> create(const std::string& backend = "");
-
-    virtual std::unique_ptr<EntryArray> copy() const { return std::unique_ptr<EntryArray>(new EntryArray(*this)); };
-
-    virtual void clear();
-
-    virtual size_t size() const;
-
-    virtual Cursor<entry_value_type> children();
-
-    virtual Cursor<const entry_value_type> children() const;
-
-    virtual void for_each(std::function<void(int, entry_value_type&)> const&);
-
-    virtual void for_each(std::function<void(int, const entry_value_type&)> const&) const;
-
-    virtual entry_value_type slice(int start, int stop, int step);
-
-    virtual entry_value_type slice(int start, int stop, int step) const;
-
-    virtual void resize(std::size_t num);
-
-    virtual entry_value_type& insert(int idx, entry_value_type);
-
-    virtual entry_value_type& at(int idx);
-
-    virtual const entry_value_type& at(int idx) const;
-
-    virtual entry_value_type& push_back(entry_value_type v = {});
-
-    virtual entry_value_type pop_back();
-};
 
 class Entry
 {
-    std::shared_ptr<EntryObject> m_root_;
+    std::shared_ptr<NodeObject> m_root_;
     Path m_path_;
 
 public:
-    typedef entry_value_type value_type;
+    typedef tree_node_type value_type;
 
-    typedef entry_value_type_tags value_type_tags;
+    typedef tree_node_tags value_type_tags;
 
-    Entry(std::shared_ptr<EntryObject> r = nullptr, Path p = {});
+    Entry(std::shared_ptr<NodeObject> r = nullptr, Path p = {});
 
     Entry(const Entry& other);
 
@@ -227,26 +61,26 @@ public:
 
     size_t size() const;
 
-    EntryObject& root();
+    NodeObject& root();
 
-    const EntryObject& root() const;
+    const NodeObject& root() const;
 
     const Path& path() const { return m_path_; }
 
-    std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
+    std::pair<std::shared_ptr<const NodeObject>, Path> full_path() const;
 
-    std::pair<std::shared_ptr<EntryObject>, Path> full_path();
+    std::pair<std::shared_ptr<NodeObject>, Path> full_path();
 
     //-------------------------------------------------------------------------
 
-    EntryObject& as_object();
-    const EntryObject& as_object() const;
+    NodeObject& as_object();
+    const NodeObject& as_object() const;
 
-    EntryArray& as_array();
-    const EntryArray& as_array() const;
+    NodeArray& as_array();
+    const NodeArray& as_array() const;
 
     void set_value(value_type v);
-    entry_value_type get_value() const;
+    tree_node_type get_value() const;
 
     template <typename V, typename First, typename... Others>
     void as(First&& first, Others&&... others) { set_value(value_type(std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...)); }
@@ -293,15 +127,15 @@ public:
 
     void resize(std::size_t num);
 
-    entry_value_type pop_back();
+    tree_node_type pop_back();
 
-    Entry push_back(entry_value_type v = {});
+    Entry push_back(tree_node_type v = {});
 
-    Cursor<entry_value_type> children();
+    Cursor<tree_node_type> children();
 
-    Cursor<const entry_value_type> children() const;
+    Cursor<const tree_node_type> children() const;
 
-    void for_each(std::function<void(const Path::Segment&, entry_value_type)> const&) const;
+    void for_each(std::function<void(const Path::Segment&, tree_node_type)> const&) const;
 
     //------------------------------------------------------------------------------------
 
@@ -312,13 +146,6 @@ private:
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
 
-std::ostream& operator<<(std::ostream& os, entry_value_type const& entry);
-
-namespace literals
-{
-using namespace std::complex_literals;
-using namespace std::string_literals;
-} // namespace literals
 } // namespace sp::db
 
 #endif //SP_ENTRY_H_

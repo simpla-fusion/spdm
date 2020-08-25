@@ -14,7 +14,7 @@
 namespace sp::db
 {
 template <typename Container>
-class EntryObjectPlugin : public EntryObject
+class NodePlugin : public NodeObject
 {
 private:
     Container m_container_;
@@ -23,26 +23,26 @@ private:
 
 public:
     friend class Entry;
-    typedef EntryObjectPlugin<Container> this_type;
+    typedef NodePlugin<Container> this_type;
 
-    EntryObjectPlugin() = default;
-    virtual ~EntryObjectPlugin() = default;
+    NodePlugin() = default;
+    virtual ~NodePlugin() = default;
 
-    EntryObjectPlugin(const Container&);
-    EntryObjectPlugin(Container&&);
+    NodePlugin(const Container&);
+    NodePlugin(Container&&);
 
-    EntryObjectPlugin(const this_type&);
-    EntryObjectPlugin(this_type&&);
+    NodePlugin(const this_type&);
+    NodePlugin(this_type&&);
 
-    std::unique_ptr<EntryObject> copy() const override { return std::unique_ptr<EntryObject>(new this_type(*this)); }
+    std::unique_ptr<NodeObject> copy() const override { return std::unique_ptr<NodeObject>(new this_type(*this)); }
 
     void load(const std::string&) override { NOT_IMPLEMENTED; }
 
     void save(const std::string&) const override { NOT_IMPLEMENTED; }
 
-    std::pair<std::shared_ptr<EntryObject>, Path> full_path() override { return EntryObject::full_path(); }
+    std::pair<std::shared_ptr<NodeObject>, Path> full_path() override { return NodeObject::full_path(); }
 
-    std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const override { return EntryObject::full_path(); }
+    std::pair<std::shared_ptr<const NodeObject>, Path> full_path() const override { return NodeObject::full_path(); }
 
     size_t size() const override;
 
@@ -95,28 +95,28 @@ public:
 
     //------------------------------------------------------------------------------
     // advanced extension functions
-    virtual void merge(const EntryObject& other) override { EntryObject::merge(other); }
+    virtual void merge(const NodeObject& other) override { NodeObject::merge(other); }
 
-    virtual void patch(const EntryObject& other) override { EntryObject::patch(other); }
+    virtual void patch(const NodeObject& other) override { NodeObject::patch(other); }
 
-    virtual void update(const EntryObject& other) override { EntryObject::update(other); }
+    virtual void update(const NodeObject& other) override { NodeObject::update(other); }
 
-    virtual bool compare(const entry_value_type& other) const override { return EntryObject::compare(other); }
+    virtual bool compare(const entry_value_type& other) const override { return NodeObject::compare(other); }
 
-    virtual entry_value_type diff(const entry_value_type& other) const override { return EntryObject::diff(other); }
+    virtual entry_value_type diff(const entry_value_type& other) const override { return NodeObject::diff(other); }
 };
 
 #define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)                   \
     template <>                                                \
-    bool ::sp::db::EntryObjectPlugin<_CLASS_>::is_registered = \
-        ::sp::utility::Factory<::sp::db::EntryObject>::add(    \
+    bool ::sp::db::NodePlugin<_CLASS_>::is_registered = \
+        ::sp::utility::Factory<::sp::db::NodeObject>::add(    \
             __STRING(_NAME_),                                  \
-            []() { return dynamic_cast<::sp::db::EntryObject*>(new ::sp::db::EntryObjectPlugin<_CLASS_>()); });
+            []() { return dynamic_cast<::sp::db::NodeObject*>(new ::sp::db::NodePlugin<_CLASS_>()); });
 
 #define SPDB_ENTRY_ASSOCIATE(_NAME_, _CLASS_, ...)             \
     template <>                                                \
-    int ::sp::db::EntryObjectPlugin<_CLASS_>::associated_num = \
-        ::sp::utility::Factory<::sp::db::EntryObject>::associate(__STRING(_NAME_), __VA_ARGS__);
+    int ::sp::db::NodePlugin<_CLASS_>::associated_num = \
+        ::sp::utility::Factory<::sp::db::NodeObject>::associate(__STRING(_NAME_), __VA_ARGS__);
 
 } // namespace sp::db
 #endif // SPDB_ENTRY_PLUGIN_H_
