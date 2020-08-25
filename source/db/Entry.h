@@ -148,7 +148,7 @@ public:
         EntryArray(other).swap(*this);
         return *this;
     }
-  
+
     //-------------------------------------------------------------------------------
     static std::shared_ptr<EntryArray> create(const std::string& backend = "");
 
@@ -157,8 +157,6 @@ public:
     virtual void clear();
 
     virtual size_t size() const;
-
-    virtual void resize(std::size_t num);
 
     virtual Cursor<entry_value_type> children();
 
@@ -172,28 +170,15 @@ public:
 
     virtual entry_value_type slice(int start, int stop, int step) const;
 
-    virtual entry_value_type insert(int idx, entry_value_type&&);
+    virtual void resize(std::size_t num);
 
-    virtual entry_value_type find(int idx) const;
+    virtual void insert(int idx, entry_value_type);
 
-    virtual void update(int idx, entry_value_type&&);
+    virtual entry_value_type at(int idx) const;
 
-    virtual void remove(int idx);
+    virtual void push_back(entry_value_type v = {});
 
-    //------------------------------------------------------------------------------
-    // CRUD operation
-
-    virtual Entry push_back(entry_value_type v = {});
-
-    virtual Entry pop_back();
-
-    virtual entry_value_type insert(Path p, entry_value_type);
-
-    virtual void update(Path p, entry_value_type);
-
-    virtual entry_value_type find(Path path = {}) const;
-
-    virtual void remove(Path path = {});
+    virtual entry_value_type pop_back();
 };
 
 class Entry
@@ -210,7 +195,7 @@ public:
 
     ~Entry() = default;
 
-    Entry(entry_value_type v, Path  p);
+    Entry(entry_value_type v, Path p);
 
     Entry(const Entry& other);
 

@@ -212,7 +212,7 @@ void update(entry_value_type self, Path path, entry_value_type v)
                 object_p->update(path.last(), std::move(v));
             },
             [&](std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) {
-                array_p->update(path.last(), std::move(v));
+                array_p->insert(std::get<Path::segment_tags::Index>(path.last()), std::move(v));
             },
             [&](std::variant_alternative_t<entry_value_type_tags::Block, entry_value_type>&) {
                 NOT_IMPLEMENTED;
@@ -338,8 +338,6 @@ std::shared_ptr<EntryObject> EntryObject::create(const std::string& uri)
 
 std::shared_ptr<EntryArray> EntryArray::create(const std::string& backend) { return std::make_shared<EntryArray>(); }
 
-void EntryArray::resize(std::size_t num) { m_container_.resize(num); }
-
 size_t EntryArray::size() const { return m_container_.size(); }
 
 void EntryArray::clear() { m_container_.clear(); }
@@ -366,13 +364,13 @@ Cursor<const entry_value_type> EntryArray::children() const
 //     return const_cast<EntryArray*>(this)->at(path);
 // }
 
-void EntryArray::for_each(std::function<void(int, entry_value_type&)> const& visitor)
-{
-    for (int i = 0, s = m_container_.size(); i < s; ++i)
-    {
-        visitor(i, m_container_[i]);
-    }
-}
+// void EntryArray::for_each(std::function<void(int, entry_value_type&)> const& visitor)
+// {
+//     for (int i = 0, s = m_container_.size(); i < s; ++i)
+//     {
+//         visitor(i, m_container_[i]);
+//     }
+// }
 
 void EntryArray::for_each(std::function<void(int, const entry_value_type&)> const& visitor) const
 {
@@ -381,22 +379,6 @@ void EntryArray::for_each(std::function<void(int, const entry_value_type&)> cons
         visitor(i, m_container_[i]);
     }
 }
-
-entry_value_type EntryArray::find(int idx) const { return m_container_.at(idx); }
-
-entry_value_type EntryArray::insert(int idx, entry_value_type&& v)
-{
-    if (m_container_[idx].index() == entry_value_type_tags::Null)
-    {
-        v.swap(m_container_[idx]);
-    }
-    return m_container_[idx];
-};
-
-void EntryArray::update(int idx, entry_value_type&& v) { m_container_[idx].swap(v); }
-
-void EntryArray::remove(int idx) { NOT_IMPLEMENTED; };
-
 entry_value_type EntryArray::slice(int start, int stop, int step)
 {
     NOT_IMPLEMENTED;
@@ -409,40 +391,26 @@ entry_value_type EntryArray::slice(int start, int stop, int step) const
     return entry_value_type{};
 }
 
-Entry EntryArray::push_back(entry_value_type v)
-{
-    m_container_.emplace_back(std::move(v));
+void EntryArray::resize(std::size_t num) { m_container_.resize(num); }
 
-    return Entry{std::dynamic_pointer_cast<EntryArray>(shared_from_this()), Path(m_container_.size() - 1)};
+void EntryArray::insert(int idx, entry_value_type v)
+{
+    if (m_container_[idx].index() == entry_value_type_tags::Null)
+    {
+        v.swap(m_container_[idx]);
+    }
 }
 
-Entry EntryArray::pop_back()
+entry_value_type EntryArray::at(int idx) const { return m_container_.at(idx); }
+
+void EntryArray::push_back(entry_value_type v) { m_container_.emplace_back(std::move(v)); }
+
+entry_value_type EntryArray::pop_back()
 {
     entry_value_type res(m_container_.back());
     m_container_.pop_back();
-    return Entry{res, Path{}};
+    return std::move(res);
 }
-
-entry_value_type EntryArray::insert(Path path, entry_value_type v)
-{
-
-    if (v.index() == entry_value_type_tags::Object && (std::get<entry_value_type_tags::Object>(v) == nullptr))
-    {
-        v.emplace<entry_value_type_tags::Object>(EntryObject::create());
-    }
-    else if (v.index() == entry_value_type_tags::Array && (std::get<entry_value_type_tags::Array>(v) == nullptr))
-    {
-        v.emplace<entry_value_type_tags::Array>(EntryArray::create());
-    }
-
-    return _detail::insert(entry_value_type{shared_from_this()}, path, std::move(v));
-}
-
-entry_value_type EntryArray::find(Path path) const { return _detail::find(entry_value_type{const_cast<EntryArray*>(this)->shared_from_this()}, path); }
-
-void EntryArray::update(Path path, entry_value_type v) { _detail::update(entry_value_type{shared_from_this()}, path, std::move(v)); }
-
-void EntryArray::remove(Path path) { _detail::remove(entry_value_type{shared_from_this()}, path); }
 
 //===========================================================================================================
 // Entry
