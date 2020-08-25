@@ -23,7 +23,7 @@ add_executable(test_cursor test_cursor.cpp )
 add_test( test_cursor test_cursor )
 target_link_libraries(test_cursor  utility  )
 
-add_executable(test_xml test_xml.cpp  ../source/plugins/EntryXML.cpp ../extern/pugixml/pugixml.cpp )
+add_executable(test_xml test_xml.cpp  ../source/plugins/PluginXML.cpp ../extern/pugixml/pugixml.cpp )
 add_test(test_xml test_xml )
 target_link_libraries(test_xml utility spdb  )
 
