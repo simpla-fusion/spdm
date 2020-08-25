@@ -81,10 +81,6 @@ public:
 
     //-------------------------------------------------------------------------------------------------------------
 
-    virtual EntryContainer* sub_container(const Path::Segment& key) = 0;
-
-    virtual const EntryContainer* sub_container(const Path::Segment& key) const = 0;
-
     virtual void set_value(const Path::Segment& key, entry_value_type&& v = {}) = 0;
 
     virtual entry_value_type get_value(const Path::Segment& key) const = 0;
@@ -92,6 +88,12 @@ public:
     virtual void remove(const Path::Segment& path) = 0;
 
     //-------------------------------------------------------------------------------------------------------------
+
+    virtual EntryContainer* insert_container(const Path::Segment& key) = 0;
+
+    virtual void set_value(const Path& path, entry_value_type&& v);
+
+    virtual entry_value_type get_value(const Path& key) const;
 
     virtual Entry insert(const Path& path);
 
@@ -105,7 +107,9 @@ class EntryObject : public EntryContainer
 
 public:
     using EntryContainer::find;
+    using EntryContainer::get_value;
     using EntryContainer::insert;
+    using EntryContainer::set_value;
 
     friend class Entry;
 
@@ -132,9 +136,7 @@ public:
 
     //---------------------------------------------------------------------------------
 
-    virtual EntryContainer* sub_container(const Path::Segment& key) override;
-
-    virtual const EntryContainer* sub_container(const Path::Segment& key) const override;
+    virtual EntryContainer* insert_container(const Path::Segment& key) override;
 
     virtual void set_value(const Path::Segment& key, entry_value_type&& v = {}) override;
 
@@ -158,7 +160,9 @@ class EntryArray : public EntryContainer
 public:
     friend class Entry;
     using EntryContainer::find;
+    using EntryContainer::get_value;
     using EntryContainer::insert;
+    using EntryContainer::set_value;
 
     EntryArray() = default;
 
@@ -203,9 +207,7 @@ public:
     //-------------------------------------------------------------------------------
     virtual void remove(const Path::Segment& key) override;
 
-    virtual EntryContainer* sub_container(const Path::Segment& key) override;
-
-    virtual const EntryContainer* sub_container(const Path::Segment& key) const override;
+    virtual EntryContainer* insert_container(const Path::Segment& key) override;
 
     virtual void set_value(const Path::Segment& key, entry_value_type&& v = {}) override;
 
@@ -348,6 +350,10 @@ public:
 
     inline Entry operator[](const Path& path);
     inline const Entry operator[](const Path& path) const;
+
+// private:
+//     std::pair<entry_value_type, Path::Segment> fetch();
+//     std::pair<const entry_value_type, Path::Segment> fetch() const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

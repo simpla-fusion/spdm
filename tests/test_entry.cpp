@@ -9,8 +9,6 @@
 TEST_CASE("Create Node", "[SpDB]")
 {
     using namespace sp::db::literals;
-    // using namespace std::complex_literals;
-    // using namespace std::string_literals;
 
     sp::db::Entry entry;
 
@@ -22,12 +20,16 @@ TEST_CASE("Create Node", "[SpDB]")
     REQUIRE(entry.size() == 2);
 
     entry["C"].resize(4);
+    
+    REQUIRE(entry["C"].size() == 4);
+
     entry["C"][2] = 12344.56;
     entry["C"][3] = 6.0 + 4.0i;
+
     entry["C"].push_back().as<int>(5);
     entry["C"].push_back().as<float>(6.0);
 
-    REQUIRE(entry["C"].size() == 2);
+    REQUIRE(entry["C"].size() == 6);
 
     // entry["D/E/F"_p] = "hello world!";
 
