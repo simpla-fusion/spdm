@@ -294,20 +294,25 @@ public:
 
     //-------------------------------------------------------------------------
     // access
+    template <typename... Args>
+    Entry at(Args&&... args) & { return Entry{root(), m_path_.join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) { return Entry{root(), m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) && { return Entry{root(), std::move(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) const { return Entry{root(), m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) const& { return Entry{root(), m_path_.join(std::forward<Args>(args)...)}; }
 
     template <typename T>
-    inline Entry operator[](const T& idx) { return at(idx); }
+    inline Entry operator[](const T& idx) & { return at(idx); }
     template <typename T>
-    inline Entry operator[](const T& idx) const { return at(idx); }
+    inline Entry operator[](const T& idx) && { return at(idx); }
+    template <typename T>
+    inline Entry operator[](const T& idx) const& { return at(idx); }
 
-    inline Entry slice(int start, int stop, int step = 1) { return at(std::make_tuple(start, stop, step)); }
-    inline Entry slice(int start, int stop, int step = 1) const { return at(std::make_tuple(start, stop, step)); }
+    inline Entry slice(int start, int stop, int step = 1) & { return at(std::make_tuple(start, stop, step)); }
+    inline Entry slice(int start, int stop, int step = 1) && { return at(std::make_tuple(start, stop, step)); }
+    inline Entry slice(int start, int stop, int step = 1) const& { return at(std::make_tuple(start, stop, step)); }
 
     //-------------------------------------------------------------------------
 
