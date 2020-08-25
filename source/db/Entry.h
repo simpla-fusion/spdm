@@ -91,6 +91,12 @@ public:
 
     virtual EntryContainer* insert_container(const Path::Segment& key) = 0;
 
+    virtual std::shared_ptr<EntryObject> as_object(const Path&);
+    virtual std::shared_ptr<const EntryObject> as_object(const Path&) const;
+
+    virtual std::shared_ptr<EntryArray> as_array(const Path&);
+    virtual std::shared_ptr<const EntryArray> as_array(const Path&) const;
+
     virtual void set_value(const Path& path, entry_value_type&& v);
 
     virtual entry_value_type get_value(const Path& key) const;
@@ -320,14 +326,11 @@ public:
     //-------------------------------------------------------------------------
     // as object
 
-    EntryObject& as_object();
+    std::shared_ptr<EntryObject> as_object();
+    std::shared_ptr<const EntryObject> as_object() const;
 
-    const EntryObject& as_object() const;
-
-    // as array
-    EntryArray& as_array();
-
-    const EntryArray& as_array() const;
+    std::shared_ptr<EntryArray> as_array();
+    std::shared_ptr<const EntryArray> as_array() const;
 
     //-------------------------------------------------------------------------
     // access
@@ -351,9 +354,9 @@ public:
     inline Entry operator[](const Path& path);
     inline const Entry operator[](const Path& path) const;
 
-// private:
-//     std::pair<entry_value_type, Path::Segment> fetch();
-//     std::pair<const entry_value_type, Path::Segment> fetch() const;
+    // private:
+    //     std::pair<entry_value_type, Path::Segment> fetch();
+    //     std::pair<const entry_value_type, Path::Segment> fetch() const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

@@ -79,6 +79,62 @@ void EntryContainer::remove(const Path& path)
     // find(path.prefix()).remove(path.last());
 }
 
+std::shared_ptr<EntryObject> EntryContainer::as_object(const Path& path)
+{
+    if (!path.empty())
+    {
+        std::shared_ptr<EntryObject> res;
+
+        NOT_IMPLEMENTED;
+    }
+    else
+    {
+        return std::dynamic_pointer_cast<EntryObject>(shared_from_this());
+    }
+}
+
+std::shared_ptr<const EntryObject> EntryContainer::as_object(const Path& path) const
+{
+    if (!path.empty())
+    {
+        std::shared_ptr<const EntryObject> res;
+
+        NOT_IMPLEMENTED;
+    }
+    else
+    {
+        return std::dynamic_pointer_cast<const EntryObject>(shared_from_this());
+    }
+}
+
+std::shared_ptr<EntryArray> EntryContainer::as_array(const Path& path)
+{
+    if (!path.empty())
+    {
+        std::shared_ptr<EntryArray> res;
+
+        NOT_IMPLEMENTED;
+    }
+    else
+    {
+        return std::dynamic_pointer_cast<EntryArray>(shared_from_this());
+    }
+}
+
+std::shared_ptr<const EntryArray> EntryContainer::as_array(const Path& path) const
+{
+    if (!path.empty())
+    {
+        std::shared_ptr<const EntryArray> res;
+
+        NOT_IMPLEMENTED;
+    }
+    else
+    {
+        return std::dynamic_pointer_cast<const EntryArray>(shared_from_this());
+    }
+}
+
 //----------------------------------------------------------------------------------------------------
 size_t EntryObject::size() const
 {
@@ -429,7 +485,7 @@ Entry Entry::at(const Path& path)
     Entry res;
     std::visit(
         sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Null, value_type>& ref) { as_object().insert(m_path_.join(path)).swap(res); },
+            [&](std::variant_alternative_t<value_type_tags::Null, value_type>& ref) { as_object()->insert(m_path_.join(path)).swap(res); },
             [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { Entry{object_p, m_path_.join(path)}.swap(res); },
             [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { Entry{array_p, m_path_.join(path)}.swap(res); },
             [&](std::variant_alternative_t<value_type_tags::Block, value_type>& blk_p) { NOT_IMPLEMENTED; },
@@ -493,86 +549,87 @@ entry_value_type Entry::get_value() const
     }
 }
 
-EntryObject& Entry::as_object()
+std::shared_ptr<EntryObject> Entry::as_object()
 {
-    EntryObject* res;
+    std::shared_ptr<EntryObject> res;
 
     std::visit(
         sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
-            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { res = object_p->as_object(m_path_); },
+            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { res = array_p->as_object(m_path_); },
             [&](std::variant_alternative_t<value_type_tags::Null, value_type>&) {
                 m_value_.emplace<value_type_tags::Object>(std::make_shared<EntryObjectDefault>());
-                res = std::get<entry_value_type_tags::Object>(m_value_).get();
+                res = std::get<entry_value_type_tags::Object>(m_value_);
             },
             [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Object!"; }},
         m_value_);
 
-    return *res;
+    return res;
 }
 
-const EntryObject& Entry::as_object() const
+std::shared_ptr<const EntryObject> Entry::as_object() const
 {
-    const EntryObject* res;
+    std::shared_ptr<const EntryObject> res;
 
     std::visit(
         sp::traits::overloaded{
-            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
-            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { res = object_p->as_object(m_path_); },
+            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { res = array_p->as_object(m_path_); },
             [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Object!"; }},
         m_value_);
 
-    return *res;
+    return res;
 }
 
-EntryArray& Entry::as_array()
+std::shared_ptr<EntryArray> Entry::as_array()
 {
-    EntryArray* res;
+
+    std::shared_ptr<EntryArray> res;
 
     std::visit(
         sp::traits::overloaded{
-            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
-            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { res = object_p->as_array(m_path_); },
+            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { res = array_p->as_array(m_path_); },
             [&](std::variant_alternative_t<value_type_tags::Null, value_type>&) {
                 m_value_.emplace<value_type_tags::Array>(std::make_shared<EntryArray>());
-                res = std::get<entry_value_type_tags::Array>(m_value_).get();
+                res = std::get<entry_value_type_tags::Array>(m_value_);
             },
             [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Object!"; }},
         m_value_);
 
-    return *res;
+    return res;
 }
 
-const EntryArray& Entry::as_array() const
+std::shared_ptr<const EntryArray> Entry::as_array() const
 {
-    const EntryArray* res;
+    std::shared_ptr<const EntryArray> res;
 
     std::visit(
         sp::traits::overloaded{
-            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { NOT_IMPLEMENTED; },
-            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { NOT_IMPLEMENTED; },
+            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { res = object_p->as_array(m_path_); },
+            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { res = array_p->as_array(m_path_); },
             [&](auto&& v) { RUNTIME_ERROR << "Can not convert to Array!"; }},
         m_value_);
 
-    return *res;
+    return res;
 }
 
 //-----------------------------------------------------------------------------------------------------------
 void Entry::resize(std::size_t num)
 {
-    as_array().resize(num);
+    as_array()->resize(num);
 }
 
-Entry Entry::pop_back() { return as_array().pop_back(); }
+Entry Entry::pop_back() { return as_array()->pop_back(); }
 
-Entry Entry::push_back() { return as_array().push_back(); }
+Entry Entry::push_back() { return as_array()->push_back(); }
 
 // Entry Entry::at(const Path::Segment& p)
 // {
 //     std::visit(
 //         sp::traits::overloaded{
-//             [&](std::string const& key) { as_object().insert(Path(p)).swap(res); },
-//             [&](int idx) { entry_value_type(as_array().at(idx)).swap(res.m_value_); },
+//             [&](std::string const& key) { as_object()->insert(Path(p)).swap(res); },
+//             [&](int idx) { entry_value_type(as_array()->at(idx)).swap(res.m_value_); },
 //             [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
 //         p);
 // }
@@ -581,8 +638,8 @@ Entry Entry::push_back() { return as_array().push_back(); }
 // {
 //     std::visit(
 //         sp::traits::overloaded{
-//             [&](std::string const& key) { as_object().get_value(p).swap(res.m_value_); },
-//             [&](int idx) { as_array().get_value(idx).swap(res.m_value_); },
+//             [&](std::string const& key) { as_object()->get_value(p).swap(res.m_value_); },
+//             [&](int idx) { as_array()->get_value(idx).swap(res.m_value_); },
 //             [&](auto&& v) { RUNTIME_ERROR << "illegal index type"; }},
 //         p);
 // }

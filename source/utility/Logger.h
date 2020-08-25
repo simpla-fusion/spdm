@@ -619,7 +619,7 @@ std::string make_msg(Others const&... others)
 class NotImplementedException : public std::logic_error
 {
 public:
-    NotImplementedException(std::string const& prefix = "") : std::logic_error{prefix + " Function  not yet implemented."} {}
+    NotImplementedException(std::string const& prefix = "") : std::logic_error{prefix + " Function is not implemented."} {}
 };
 
 #define NOT_IMPLEMENTED                                                              \
