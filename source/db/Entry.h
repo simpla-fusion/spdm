@@ -185,7 +185,7 @@ public:
 
 class Entry
 {
-    entry_value_type m_value_;
+    std::shared_ptr<EntryObject> m_root_;
     Path m_path_;
 
 public:
@@ -193,15 +193,13 @@ public:
 
     typedef entry_value_type_tags value_type_tags;
 
-    Entry() = default;
-
-    ~Entry() = default;
-
-    Entry(entry_value_type v, Path p);
+    Entry(std::shared_ptr<EntryObject> r = nullptr, Path p = {});
 
     Entry(const Entry& other);
 
     Entry(Entry&& other);
+
+    ~Entry() = default;
 
     void swap(Entry& other);
 
@@ -229,11 +227,11 @@ public:
 
     size_t size() const;
 
-    entry_value_type& root();
+    EntryObject& root();
 
-    const entry_value_type& root() const;
+    const EntryObject& root() const;
 
-    Path path() const { return m_path_; }
+    const Path& path() const { return m_path_; }
 
     std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
 
@@ -272,13 +270,13 @@ public:
     //-------------------------------------------------------------------------
     // access
     template <typename... Args>
-    Entry at(Args&&... args) & { return Entry{root(), m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) & { return Entry{root().shared_from_this(), m_path_.join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) && { return Entry{root(), std::move(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) && { return Entry{root().shared_from_this(), std::move(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) const& { return Entry{root(), m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) const& { return Entry{m_root_, m_path_.join(std::forward<Args>(args)...)}; }
 
     template <typename T>
     inline Entry operator[](const T& idx) & { return at(idx); }
@@ -295,7 +293,7 @@ public:
 
     void resize(std::size_t num);
 
-    Entry pop_back();
+    entry_value_type pop_back();
 
     Entry push_back(entry_value_type v = {});
 
@@ -303,23 +301,11 @@ public:
 
     Cursor<const entry_value_type> children() const;
 
-    void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&);
-
-    void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
+    void for_each(std::function<void(const Path::Segment&, entry_value_type)> const&) const;
 
     //------------------------------------------------------------------------------------
 
     bool operator==(const Entry& other) const;
-
-private:
-    //------------------------------------------------------------------------------
-    // fundamental operation ：
-
-    entry_value_type fetch(entry_value_type default_value = {});
-
-    entry_value_type fetch() const;
-
-    void assign(entry_value_type&& v);
 
 private:
 };
