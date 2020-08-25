@@ -17,6 +17,8 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["A"s].as<std::string>("1234");
     entry["B"s].as<std::string>("5678");
 
+    std::cout << entry << std::endl;
+
     REQUIRE(entry.size() == 2);
 
     entry["C"].resize(4);

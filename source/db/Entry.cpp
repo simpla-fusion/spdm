@@ -152,6 +152,7 @@ Cursor<const entry_value_type> EntryObjectDefault::children() const
     NOT_IMPLEMENTED;
     return Cursor<const entry_value_type>{};
 }
+
 void EntryObjectDefault::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const& visitor)
 {
 
@@ -361,7 +362,8 @@ size_t Entry::size() const
 }
 
 Cursor<entry_value_type> Entry::Entry::children()
-{   NOT_IMPLEMENTED;
+{
+    NOT_IMPLEMENTED;
     Cursor<entry_value_type> res;
 
     // std::visit(
@@ -385,6 +387,7 @@ Cursor<const entry_value_type> Entry::Entry::children() const
     //     get_value());
     return std::move(res);
 }
+
 void Entry::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) { NOT_IMPLEMENTED; }
 
 void Entry::for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const { NOT_IMPLEMENTED; }
@@ -520,11 +523,12 @@ const EntryArray& Entry::as_array() const
     return *res;
 }
 
+//-----------------------------------------------------------------------------------------------------------
 void Entry::resize(std::size_t num) { as_array().resize(num); }
 
-Entry Entry::pop_back() { return Entry(as_array().pop_back()); }
+Entry Entry::pop_back() { return as_array().pop_back(); }
 
-Entry Entry::push_back() { return Entry(as_array().push_back()); }
+Entry Entry::push_back() { return as_array().push_back(); }
 
 // Entry Entry::at(const Path::Segment& p)
 // {

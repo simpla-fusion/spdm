@@ -277,13 +277,13 @@ public:
 
     bool is_null() const { return type() == value_type_tags::Null; }
 
-    void clear() { m_value_.emplace<std::nullptr_t>(nullptr); }
-
     bool empty() const { return size() == 0; }
 
     size_t size() const;
 
     void resize(std::size_t num);
+
+    void clear() { m_value_.emplace<std::nullptr_t>(nullptr); }
 
     //-------------------------------------------------------------------------
 
@@ -295,20 +295,22 @@ public:
 
     void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
 
-    Entry at(const Path&);
-
-    const Entry at(const Path&) const;
+    //-------------------------------------------------------------------------
 
     //-------------------------------------------------------------------------
 
     void set_value(value_type&& v);
 
-    void set_value(const value_type& v) { set_value(entry_value_type(v)); }
+    template <typename V, typename... Args>
+    void set_value(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
+
+    template <typename V, typename... Args>
+    void as(Args&&... args) { set_value<V>(std::forward<Args>(args)...); }
 
     entry_value_type get_value() const;
 
-    template <typename V, typename... Args>
-    void as(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
+    template <typename V>
+    V get_value() const { return std::get<V>(get_value()); }
 
     template <typename V>
     V as() const { return std::get<V>(get_value()); }
@@ -320,21 +322,21 @@ public:
 
     const EntryObject& as_object() const;
 
-    //-------------------------------------------------------------------------
     // as array
     EntryArray& as_array();
 
     const EntryArray& as_array() const;
 
-    Entry pop_back();
-
-    Entry push_back();
-
     //-------------------------------------------------------------------------
     // access
 
-    // Entry at(const Path::Segment&);
-    // const Entry at(const Path::Segment&) const;
+    Entry at(const Path&);
+
+    const Entry at(const Path&) const;
+
+    Entry pop_back();
+
+    Entry push_back();
 
     template <typename T>
     inline Entry operator[](const T& idx) { return at(Path(idx)); }
