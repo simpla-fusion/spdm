@@ -172,11 +172,13 @@ public:
 
     virtual void resize(std::size_t num);
 
-    virtual void insert(int idx, entry_value_type);
+    virtual entry_value_type& insert(int idx, entry_value_type);
 
-    virtual entry_value_type at(int idx) const;
+    virtual entry_value_type& at(int idx);
 
-    virtual void push_back(entry_value_type v = {});
+    virtual const entry_value_type& at(int idx) const;
+
+    virtual entry_value_type& push_back(entry_value_type v = {});
 
     virtual entry_value_type pop_back();
 };
