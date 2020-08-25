@@ -30,6 +30,14 @@ std::pair<std::shared_ptr<NodeObject>, Path> NodeObject::full_path()
     return std::pair<std::shared_ptr<NodeObject>, Path>{shared_from_this(), {}};
 }
 
+tree_node_type NodeObject::insert(const std::string& path, tree_node_type v) { return insert(Path(path), std::move(v)); }
+
+void NodeObject::update(const std::string& path, tree_node_type v) { update(Path(path), std::move(v)); }
+
+tree_node_type NodeObject::find(const std::string& path) const { return find(Path(path)); }
+
+void NodeObject::remove(const std::string& path) { remove(Path(path)); }
+
 void NodeObject::merge(const NodeObject&) { NOT_IMPLEMENTED; }
 
 void NodeObject::patch(const NodeObject&) { NOT_IMPLEMENTED; }
@@ -381,16 +389,11 @@ void NodeObjectDefault::remove(Path path)
 
 std::shared_ptr<NodeObject> NodeObject::create(const tree_node_type& opt)
 {
+    VERBOSE << "Load plugin for url:" << opt;
     NodeObject* p = nullptr;
     if (opt.index() == tree_node_tags::String)
     {
-
-        std::string url = std::get<tree_node_tags::String>(opt);
-
-        if (url != "")
-        {
-            p = ::sp::utility::Factory<::sp::db::NodeObject>::create(url).release();
-        }
+        p = ::sp::utility::Factory<::sp::db::NodeObject>::create(std::get<tree_node_tags::String>(opt)).release();
     }
     else if (opt.index() == tree_node_tags::Null)
     {

@@ -49,6 +49,12 @@ public:
 
     void save(const tree_node_type&) const;
 
+    static Entry create(const char* c) { return create(tree_node_type{std::in_place_index_t<tree_node_tags::String>(), std::string(c)}); }
+
+    void load(const char* c) { load(tree_node_type{std::in_place_index_t<tree_node_tags::String>(), std::string(c)}); };
+
+    void save(const char* c) const { save(tree_node_type{std::in_place_index_t<tree_node_tags::String>(), std::string(c)}); };
+
     //-------------------------------------------------------------------------
 
     std::size_t type() const;
@@ -122,6 +128,12 @@ public:
     inline Entry slice(int start, int stop, int step = 1) & { return at(std::make_tuple(start, stop, step)); }
     inline Entry slice(int start, int stop, int step = 1) && { return at(std::make_tuple(start, stop, step)); }
     inline Entry slice(int start, int stop, int step = 1) const& { return at(std::make_tuple(start, stop, step)); }
+
+    template <typename V>
+    auto attribute(const std::string& name) const { return at("@" + name).as<V>(); }
+
+    template <typename V, typename... Args>
+    void attribute(const std::string& name, Args&&... args) { at("@" + name).as<V>(std::forward<Args>(args)...); }
 
     //-------------------------------------------------------------------------
 

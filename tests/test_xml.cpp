@@ -9,6 +9,7 @@
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
+    using namespace sp::db::literals;
 
     sp::db::Entry entry;
 

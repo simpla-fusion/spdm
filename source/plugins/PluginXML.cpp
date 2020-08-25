@@ -1,6 +1,7 @@
 #include "../db/Cursor.h"
 #include "../db/Entry.h"
-#include "../db/EntryPlugin.h"
+#include "../db/Node.h"
+#include "../db/NodePlugin.h"
 #include "../db/XPath.h"
 #include "../utility/Factory.h"
 #include "../utility/Logger.h"
@@ -28,13 +29,13 @@ tree_node_type make_entry(const pugi::xml_node& node, xml_node const& parent)
     }
     else if (node.type() == pugi::node_element && !node.text().empty())
     {
-        res.emplace<tree_node_type_tags::String>(node.text().as_string());
+        res.emplace<tree_node_tags::String>(node.text().as_string());
     }
     else
     {
         tree_node_type{std::make_shared<NodePluginXML>(xml_node{parent.root,
-                                                                  parent.path + "/" + node.name(),
-                                                                  std::make_shared<pugi::xml_node>(node)})};
+                                                                parent.path + "/" + node.name(),
+                                                                std::make_shared<pugi::xml_node>(node)})};
     }
     return std::move(res);
 }
@@ -240,9 +241,9 @@ template <>
 void NodePluginXML::clear() { NOT_IMPLEMENTED; }
 
 // template <>
-// Entry NodePluginXML::at(const Path& path) { return Entry{tree_node_type{shared_from_this()}, path}; }
+// Entry NodePluginXML::at(Path path) { return Entry{tree_node_type{shared_from_this()}, path}; }
 // template <>
-// Entry NodePluginXML::at(const Path& path) const { return Entry{tree_node_type{const_cast<NodePluginXML*>(this)->shared_from_this()}, path}; }
+// Entry NodePluginXML::at(Path path) const { return Entry{tree_node_type{const_cast<NodePluginXML*>(this)->shared_from_this()}, path}; }
 
 template <>
 Cursor<const tree_node_type>
@@ -278,34 +279,17 @@ void NodePluginXML::for_each(std::function<void(const std::string&, const tree_n
 }
 
 template <>
-tree_node_type NodePluginXML::insert(const std::string& key, tree_node_type v)
-{
-    tree_node_type res;
-    NOT_IMPLEMENTED;
-    return std::move(res);
-}
-
-template <>
-tree_node_type NodePluginXML::find(const std::string& key) const { return make_entry(m_container_.node->child(key.c_str()), m_container_); }
-
-template <>
-void NodePluginXML::update(const std::string& key, tree_node_type v) { NOT_IMPLEMENTED; }
-
-template <>
-void NodePluginXML::remove(const std::string& path) { NOT_IMPLEMENTED; }
-
-template <>
-tree_node_type NodePluginXML::insert(const Path& path, tree_node_type v)
+tree_node_type NodePluginXML::insert(Path path, tree_node_type v)
 {
     NOT_IMPLEMENTED;
     return tree_node_type{};
 }
 
 template <>
-void NodePluginXML::update(const Path& path, tree_node_type v) { NOT_IMPLEMENTED; }
+void NodePluginXML::update(Path path, tree_node_type v) { NOT_IMPLEMENTED; }
 
 template <>
-tree_node_type NodePluginXML::find(const Path& path) const
+tree_node_type NodePluginXML::find(Path path) const
 {
     std::ostringstream os;
 
@@ -352,7 +336,7 @@ tree_node_type NodePluginXML::find(const Path& path) const
 }
 
 template <>
-void NodePluginXML::remove(const Path& path) { NodePlugin::remove(path); }
+void NodePluginXML::remove(Path path) { NodePlugin::remove(path); }
 
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>

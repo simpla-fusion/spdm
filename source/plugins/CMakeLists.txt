@@ -1,8 +1,7 @@
 
 
 set(SPDB_PLUGINS_SOURCES
-  EntryMapping.cpp
-  EntryJSON.cpp
+  PluginMapping.cpp
 )
 # find_package(PugiXML)
 # if(PugiXML_FOUND)
