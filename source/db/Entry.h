@@ -69,6 +69,8 @@ public:
 
     virtual void clear() = 0;
     //-------------------------------------------------------------------------------------------------------------
+    // as container
+
     virtual Entry at(const Path& path) = 0;
 
     virtual Entry at(const Path& path) const = 0;
@@ -81,7 +83,8 @@ public:
 
     virtual void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const = 0;
 
-    //---------------------------------------------------------------------------------
+    // access children
+
     virtual Entry insert(const std::string&, entry_value_type&&) = 0;
 
     virtual void set_value(const std::string& key, entry_value_type&& v = {}) = 0;
@@ -90,23 +93,33 @@ public:
 
     virtual void remove(const std::string& path) = 0;
 
-    //---------------------------------------------------------------------------------
+    //------------------------------------------------------------------------------
+    // fundamental operation ：
+    /**
+     *  Create 
+     */
+    virtual Entry insert(const Path&, entry_value_type&&);
+    /**
+     * Modify
+     */
+    virtual void update(const Path&, entry_value_type&& v = {});
+    /**
+     * Retrieve
+     */
+    virtual entry_value_type find(const Path& key) const;
 
-    virtual Entry insert(const Path&, entry_value_type&&) = 0;
+    /**
+     *  Delete 
+     */
+    virtual void remove(const Path& path);
 
-    virtual void set_value(const Path& key, entry_value_type&& v) = 0;
+    //------------------------------------------------------------------------------
+    // advanced extension functions
+    virtual void merge(const EntryObject&);
 
-    virtual entry_value_type get_value(const Path& path) const = 0;
+    virtual void patch(const EntryObject&);
 
-    virtual void remove(const Path& path) = 0;
-
-    //---------------------------------------------------------------------------------
-
-    virtual void merge(const EntryObject&) = 0;
-
-    virtual void patch(const EntryObject&) = 0;
-
-    virtual void update(const EntryObject&) = 0;
+    virtual void update(const EntryObject&);
 };
 
 class EntryArray : public std::enable_shared_from_this<EntryArray>
@@ -156,7 +169,6 @@ public:
     virtual Entry pop_back();
 
     virtual Entry push_back();
-    //-------------------------------------------------------------------------------
 
     virtual entry_value_type slice(int start, int stop, int step);
 
@@ -166,12 +178,25 @@ public:
 
     virtual entry_value_type get_value(int idx) const;
 
+    //------------------------------------------------------------------------------
+    // CRUD operation
+
+    /**
+     *  Create 
+    */
     virtual Entry insert(const Path&, entry_value_type&&);
+    /**
+     * Modify
+    */
+    virtual void update(const Path&, entry_value_type&& v = {});
+    /**
+     * Retrieve
+     */
+    virtual entry_value_type find(const Path& key) const;
 
-    virtual void set_value(const Path&, entry_value_type&& v = {});
-
-    virtual entry_value_type get_value(const Path& key) const;
-
+    /**
+     *  Delete 
+    */
     virtual void remove(const Path& path);
 };
 
@@ -240,6 +265,11 @@ public:
 
     void clear() { m_value_.emplace<std::nullptr_t>(nullptr); }
 
+    entry_value_type& value() { return m_value_; }
+    const entry_value_type& value() const { return m_value_; }
+
+    Path& path() { return m_path_; }
+    const Path& path() const { return m_path_; }
     //-------------------------------------------------------------------------
 
     Cursor<entry_value_type> children();
@@ -296,10 +326,6 @@ public:
 
     inline Entry operator[](const Path& path);
     inline const Entry operator[](const Path& path) const;
-
-    // private:
-    //     std::pair<entry_value_type, Path::Segment> fetch();
-    //     std::pair<const entry_value_type, Path::Segment> fetch() const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
