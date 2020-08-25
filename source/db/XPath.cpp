@@ -56,15 +56,11 @@ urlparse(std::string const& url)
     return std::make_tuple(scheme, authority, path, query, fragment);
 }
 
-Path::Path(const std::string& path) : m_path_{path} {}
+Path::Path() : m_path_(new std::list<Segment>()) {}
 
-Path::Path(const Segment& path) : m_path_{path} {}
+Path::Path(const Path& other) : m_path_(new std::list<Segment>(*other.m_path_)) {}
 
-Path::Path(const Segment&& path) : m_path_{path} {}
-
-Path::Path(const Path& other) : m_path_(other.m_path_) {}
-
-Path::Path(Path&& other) : m_path_(std::move(other.m_path_)) {}
+Path::Path(Path&& other) : m_path_(other.m_path_.release()) {}
 
 Path Path::parse(const std::string& path)
 {
@@ -97,7 +93,7 @@ Path Path::parse(const std::string& path)
 
 std::string Path::filename() const
 {
-    return m_path_.size() > 0 ? std::get<segment_tags::Key>(m_path_.back()) : "";
+    return m_path_->size() > 0 ? std::get<segment_tags::Key>(m_path_->back()) : "";
 }
 
 std::string Path::extension() const
@@ -112,7 +108,7 @@ std::string Path::str() const
 {
     std::ostringstream os;
 
-    for (auto&& item : m_path_)
+    for (auto&& item : *m_path_)
     {
         std::visit(
             sp::traits::overloaded{
@@ -133,9 +129,18 @@ std::string Path::str() const
     return os.str();
 }
 
+Path Path::prefix() const
+{
+    Path res;
+
+    res.m_path_->insert(res.m_path_->end(), m_path_->begin(), --m_path_->end());
+
+    return std::move(res);
+}
+
 Path& Path::append(const Path& other)
 {
-    m_path_.insert(m_path_.end(), other.m_path_.begin(), other.m_path_.end());
+    m_path_->insert(m_path_->end(), other.m_path_->begin(), other.m_path_->end());
     return *this;
 }
 

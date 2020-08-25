@@ -39,3 +39,5 @@ target_link_libraries(test_json utility spdb  )
 add_executable(test_yaml test_yaml.cpp  ../source/plugins/EntryYAML.cpp   )
 add_test(test_yaml test_yaml )
 target_link_libraries(test_yaml utility spdb  )
+
+add_executable(test_path test_path.cpp    )

@@ -38,27 +38,16 @@ public:
 
     static Path parse(const std::string&);
 
-    Path() {}
+    Path();
+
+    ~Path() = default;
 
     Path(const Path& prefix);
 
     Path(Path&& prefix);
 
-    explicit Path(const Segment& path);
-
-    explicit Path(const Segment&& path);
-
-    explicit Path(const std::string& path);
-
-    explicit Path(const char* path) : Path(std::string(path)) {}
-
-    explicit Path(int idx) { m_path_.emplace_back(idx); }
-
-    explicit Path(int start, int stop, int step = 1) { m_path_.emplace_back(std::make_tuple(start, stop, step)); }
-
-    explicit Path(const std::list<Segment>::const_iterator& b, const std::list<Segment>::const_iterator& e) : m_path_(b, e) {}
-
-    ~Path() = default;
+    template <typename... Args>
+    explicit Path(Args&&... args) : Path() { append(std::forward<Args>(args)...); }
 
     Path& operator=(Path const& other)
     {
@@ -74,19 +63,19 @@ public:
     template <typename U>
     this_type operator/(const U& key) const { return join(*this, key); }
 
-    bool empty() const { return m_path_.size() == 0; }
+    bool empty() const { return m_path_->size() == 0; }
 
-    void clear() { m_path_.clear(); }
+    void clear() { m_path_->clear(); }
 
-    size_t size() const { return m_path_.size(); }
+    size_t size() const { return m_path_->size(); }
 
-    auto begin() const { return m_path_.begin(); }
+    auto begin() const { return m_path_->begin(); }
 
-    auto end() const { return m_path_.end(); }
+    auto end() const { return m_path_->end(); }
 
-    Path prefix() const { return Path(m_path_.begin(), --m_path_.end()); }
+    Path prefix() const;
 
-    const Segment& last() const { return m_path_.back(); }
+    const Segment& last() const { return m_path_->back(); }
 
     std::string str() const;
 
@@ -101,7 +90,7 @@ public:
     template <typename U>
     this_type& append(const U& seg)
     {
-        m_path_.emplace_back(seg);
+        m_path_->emplace_back(seg);
         return *this;
     }
 
@@ -111,8 +100,22 @@ public:
         return append(std::forward<First>(first)).append(std::forward<Second>(second), std::forward<Others>(others)...);
     }
 
+    template <typename... Components>
+    Path join(Components&&... comp) &&
+    {
+        append(std::forward<Components>(comp)...);
+        return std::move(*this);
+    }
+    template <typename... Components>
+    Path join(Components&&... comp) const&
+    {
+        Path res(*this);
+        res.append(std::forward<Components>(comp)...);
+        return std::move(res);
+    }
+
 private:
-    std::list<Segment> m_path_;
+    std::unique_ptr<std::list<Segment>> m_path_;
 };
 
 /**
