@@ -1,6 +1,7 @@
 
 
 set(SPDB_PLUGINS_SOURCES
+  EntryMapping.cpp
   EntryJSON.cpp
 )
 # find_package(PugiXML)

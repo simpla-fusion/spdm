@@ -198,8 +198,10 @@ std::pair<std::shared_ptr<const EntryObject>, Path> EntryObjectXML::full_path() 
 }
 
 template <>
-void EntryObjectXML::load(const std::string& uri)
+void EntryObjectXML::load(const entry_value_type& opt)
 {
+    auto uri = std::get<std::string>(opt);
+
     VERBOSE << "Load XML document :" << uri;
 
     auto* doc = new pugi::xml_document;
@@ -215,8 +217,10 @@ void EntryObjectXML::load(const std::string& uri)
 }
 
 template <>
-void EntryObjectXML::save(const std::string& url) const
+void EntryObjectXML::save(const entry_value_type& opt) const
 {
+    auto url = std::get<std::string>(opt);
+
     auto result = reinterpret_cast<pugi::xml_document*>(m_container_.root.get())->save_file(url.c_str());
 
     if (!result)

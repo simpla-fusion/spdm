@@ -82,9 +82,9 @@ public:
     //-------------------------------------------------------------------------------------------------------------
     // as container
 
-    virtual Entry at(const Path& path) = 0;
+    virtual Entry at(Path path) = 0;
 
-    virtual Entry at(const Path& path) const = 0;
+    virtual Entry at(Path path) const = 0;
 
     virtual Cursor<entry_value_type> children() = 0;
 
@@ -94,35 +94,24 @@ public:
 
     virtual void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const = 0;
 
-    // access children
-
-    virtual entry_value_type insert(const std::string&, entry_value_type) = 0;
-
-    virtual entry_value_type find(const std::string& key) const = 0;
-
-    virtual void update(const std::string& key, entry_value_type v = {}) = 0;
-
-    virtual void remove(const std::string& path) = 0;
-
     //------------------------------------------------------------------------------
-    // fundamental operation ：
+    // fundamental operation ： CRUD
     /**
      *  Create 
      */
-    virtual entry_value_type insert(const Path& p, entry_value_type);
+    virtual entry_value_type insert(Path p, entry_value_type) = 0;
     /**
      * Modify
      */
-    virtual void update(const Path& p, entry_value_type);
+    virtual void update(Path p, entry_value_type) = 0;
     /**
      * Retrieve
      */
-    virtual entry_value_type find(const Path& path = {}) const;
-
+    virtual entry_value_type find(Path path = {}) const = 0;
     /**
      *  Delete 
      */
-    virtual void remove(const Path& path = {});
+    virtual void remove(Path path = {}) = 0;
 
     //------------------------------------------------------------------------------
     // advanced extension functions
@@ -159,6 +148,7 @@ public:
         EntryArray(other).swap(*this);
         return *this;
     }
+  
     //-------------------------------------------------------------------------------
     static std::shared_ptr<EntryArray> create(const std::string& backend = "");
 
@@ -197,13 +187,13 @@ public:
 
     virtual Entry pop_back();
 
-    virtual entry_value_type insert(const Path& p, entry_value_type);
+    virtual entry_value_type insert(Path p, entry_value_type);
 
-    virtual void update(const Path& p, entry_value_type);
+    virtual void update(Path p, entry_value_type);
 
-    virtual entry_value_type find(const Path& path = {}) const;
+    virtual entry_value_type find(Path path = {}) const;
 
-    virtual void remove(const Path& path = {});
+    virtual void remove(Path path = {});
 };
 
 class Entry
@@ -220,7 +210,7 @@ public:
 
     ~Entry() = default;
 
-    Entry(entry_value_type v, Path const& p);
+    Entry(entry_value_type v, Path  p);
 
     Entry(const Entry& other);
 
@@ -256,7 +246,7 @@ public:
 
     const entry_value_type& root() const;
 
-    const Path& path() const { return m_path_; }
+    Path path() const { return m_path_; }
 
     std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
 

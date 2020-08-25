@@ -65,33 +65,33 @@ public:
 
     // access children
 
-    entry_value_type insert(const std::string&, entry_value_type) override;
+    // entry_value_type insert(const std::string&, entry_value_type) override;
 
-    entry_value_type find(const std::string& key) const override;
+    // entry_value_type find(const std::string& key) const override;
 
-    void update(const std::string& key, entry_value_type v) override;
+    // void update(const std::string& key, entry_value_type v) override;
 
-    void remove(const std::string& path) override;
+    // void remove(const std::string& path) override;
 
     //------------------------------------------------------------------------------
     // fundamental operation ：
     /**
      *  Create 
      */
-    entry_value_type insert(const Path& path, entry_value_type v) override { return EntryObject::insert(path, std::move(v)); }
+    entry_value_type insert(const Path& path, entry_value_type v) override;
     /**
      * Modify
      */
-    void update(const Path& path, entry_value_type v) override { EntryObject::update(path, std::move(v)); }
+    void update(const Path& path, entry_value_type v) override;
     /**
      * Retrieve
      */
-    entry_value_type find(const Path& path = {}) const override { return EntryObject::find(path); }
+    entry_value_type find(const Path& path = {}) const override;
 
     /**
      *  Delete 
      */
-    void remove(const Path& path = {}) override { EntryObject::remove(path); }
+    void remove(const Path& path = {}) override;
 
     //------------------------------------------------------------------------------
     // advanced extension functions

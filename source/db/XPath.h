@@ -47,7 +47,7 @@ public:
     Path(Path&& prefix);
 
     template <typename... Args>
-    explicit Path(Args&&... args) : Path() { append(std::forward<Args>(args)...); }
+    Path(Args&&... args) : Path() { append(std::forward<Args>(args)...); }
 
     Path& operator=(Path const& other)
     {
@@ -68,6 +68,8 @@ public:
     void clear() { m_path_->clear(); }
 
     size_t size() const { return m_path_->size(); }
+
+    size_t length() const { return m_path_->size(); }
 
     auto begin() const { return m_path_->begin(); }
 
