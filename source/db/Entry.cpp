@@ -100,7 +100,7 @@ NodeObject& Entry::as_object() { return m_path_.length() == 0 ? *m_root_ : *root
 
 const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? *m_root_ : *root().fetch(m_path_).as<Node::tags::Object>(); }
 
-NodeArray& Entry::as_array() { return *root().merge(m_path_, Node{NodeArray::create()}).as<Node::tags::Array>(); }
+NodeArray& Entry::as_array() { return *root().merge(m_path_, Node(NodeArray::create())).as<Node::tags::Array>(); }
 
 const NodeArray& Entry::as_array() const { return *root().fetch(m_path_).as<Node::tags::Array>(); }
 

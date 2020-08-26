@@ -36,36 +36,34 @@ TEST_CASE("NodeObject", "[SpDB]")
 
     sp::db::Node node({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
 
-    std::cout << node << std::endl;
+    auto& obj = node.as_object();
 
-    // auto& obj = node.as_object();
+    REQUIRE(obj.fetch(sp::db::Path::parse("B/b")).as<int>() == 1);
 
-    // REQUIRE(obj.fetch(sp::db::Path::parse("B/b"), {}).as<int>() == 1);
+    REQUIRE(obj.fetch(sp::db::Path::parse("B/c")).as<std::string>() == "hello world");
 
-    // REQUIRE(obj.fetch(sp::db::Path::parse("B/c"), {}).as<std::string>() == "hello world");
+    REQUIRE(obj.fetch(sp::db::Path::parse("B"), {{"$type", "1"}}).as<int>() == sp::db::Node::tags::Object);
 
-    // REQUIRE(obj.fetch(sp::db::Path::parse("B"), {{"$type", "1"}}).as<int>() == sp::db::Node::tags::Object);
+    REQUIRE(obj.fetch(sp::db::Path::parse("B"), {{"$size", "1"}}).as<int>() == 2);
 
-    // REQUIRE(obj.fetch(sp::db::Path::parse("B"), {{"$size", "1"}}).as<int>() == 2);
+    obj.update(sp::db::Path::parse("C/A"), "Hello world!");
 
-    // obj.update(sp::db::Path::parse("C/A"), "Hello world!");
+    REQUIRE(obj.fetch(sp::db::Path::parse("C/A")).as<std::string>() == "Hello world!");
 
-    // REQUIRE(obj.fetch(sp::db::Path::parse("C/A"), {}).as<std::string>() == "Hello world!");
+    REQUIRE(obj.merge(sp::db::Path::parse("C/A")).as<std::string>() == "Hello world!");
 
-    // REQUIRE(obj.merge(sp::db::Path::parse("C/A"), {}).as<std::string>() == "Hello world!");
+    REQUIRE(obj.merge(sp::db::Path::parse("C/B"), 3.1415926).as<double>() == 3.1415926);
 
-    // REQUIRE(obj.merge(sp::db::Path::parse("C/B"), 3.1415926).as<double>() == 3.1415926);
+    REQUIRE(obj.fetch(sp::db::Path::parse("C/B")).as<double>() == 3.1415926);
 
-    // REQUIRE(obj.fetch(sp::db::Path::parse("C/B"), {}).as<double>() == 3.1415926);
-
-    // std::cout << obj << std::endl;
+    VERBOSE << obj;
 }
 
 TEST_CASE("Entry", "[SpDB]")
 {
     sp::db::Entry entry({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
 
-    std::cout << entry.as_object() << std::endl;
+    VERBOSE << entry.as_object();
 
     REQUIRE(entry["B"]["b"].as<int>() == 1);
 
@@ -74,36 +72,36 @@ TEST_CASE("Entry", "[SpDB]")
     entry["A"s].as<std::string>("1234");
     entry["B"s].as<std::string>("5678");
 
-    // REQUIRE(entry.type() == sp::db::Node::tags::Object);
+    REQUIRE(entry.type() == sp::db::Node::tags::Object);
 
-    // REQUIRE(entry.as_object().size() == 2);
+    REQUIRE(entry.as_object().size() == 2);
 
-    // entry["C"].resize(4);
+    entry["C"].resize(4);
 
-    // REQUIRE(entry["C"].as_array().size() == 4);
-    // REQUIRE(entry["C"].type() == sp::db::Node::tags::Array);
-    // REQUIRE(entry["C"].size() == 4);
+    REQUIRE(entry["C"].as_array().size() == 4);
 
-    // entry["C"][2] = 12344.56;
-    // entry["C"][3] = 6.0 + 4.0i;
+    REQUIRE(entry["C"].type() == sp::db::Node::tags::Array);
+    REQUIRE(entry["C"].size() == 4);
 
-    // entry["C"].push_back().as<int>(135);
-    // entry["C"].push_back().as<float>(6.0);
-    // entry["C"].push_back().as<std::string>("3.1415926");
-    // std::cout << entry << std::endl;
+    entry["C"][2] = 12344.56;
+    entry["C"][3] = 6.0 + 4.0i;
 
-    // REQUIRE(entry["C"].size() == 7);
+    entry["C"].push_back().as<int>(135);
+    entry["C"].push_back().as<float>(6.0);
+    entry["C"].push_back().as<std::string>("3.1415926");
 
-    // REQUIRE(entry["C"][2].as<double>() == 12344.56);
-    // REQUIRE(entry["C"][2].as<int>() == 12344);
+    REQUIRE(entry["C"].size() == 7);
+
+    REQUIRE(entry["C"][2].as<double>() == 12344.56);
+    REQUIRE(entry["C"][2].as<int>() == 12344);
     // REQUIRE(entry["C"][4].as<std::string>() == "135");
     // REQUIRE(entry["C"][6].as<double>() == 3.1415926);
 
-    // std::string message = "hello world!";
+    std::string message = "hello world!";
 
-    // entry["D/E/F"_p] = message;
+    entry["D/E/F"_p] = message;
 
-    // REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
+    REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
 
-    // std::cout << entry << std::endl;
+    // VERBOSE << entry;
 }

@@ -72,17 +72,17 @@ template <>
 void NodeObjectDefault::update(const Path& path, const Node& patch, const Node& opt)
 {
 
-    Node self{std::in_place_index_t<Node::tags::Object>(), this->shared_from_this()};
+    Node self(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
 
-    for (auto it = path.begin(), ie = --path.end(); it != ie && self.type() != Node::tags::Null; ++it)
+    for (auto it = path.begin(), ie = --path.end(); it != ie && self.type(); ++it)
     {
         std::visit(
             sp::traits::overloaded{
                 [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                    object_p->insert_value(std::get<Path::segment_tags::Key>(*it), Node{NodeObject::create()}).swap(self);
+                    object_p->insert_value(std::get<Path::segment_tags::Key>(*it), NodeObject::create()).swap(self);
                 },
                 [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                    array_p->insert(std::get<Path::segment_tags::Index>(*it), Node{NodeObject::create()}).swap(self);
+                    array_p->insert(std::get<Path::segment_tags::Index>(*it), NodeObject::create()).swap(self);
                 },
                 [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
                 [&](auto&& v) { NOT_IMPLEMENTED; }},
@@ -106,7 +106,7 @@ void NodeObjectDefault::update(const Path& path, const Node& patch, const Node& 
 template <>
 Node NodeObjectDefault::merge(const Path& path, const Node& patch, const Node& opt)
 {
-    Node self{std::in_place_index_t<Node::tags::Object>(), this->shared_from_this()};
+    Node self(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
 
     for (auto it = path.begin(), ie = --path.end(); it != ie && self.type() != Node::tags::Null; ++it)
     {
@@ -141,15 +141,21 @@ Node NodeObjectDefault::merge(const Path& path, const Node& patch, const Node& o
 template <>
 Node NodeObjectDefault::fetch(const Path& path, const Node& projection, const Node& opt) const
 {
-    Node self{std::in_place_index_t<Node::tags::Object>(), const_cast<NodeObjectDefault*>(this)->shared_from_this()};
+    Node self(const_cast<NodeObjectDefault*>(this)->shared_from_this());
 
-    for (auto it = path.begin(), ie = path.end(); it != ie && self.type() != Node::tags::Null; ++it)
+    for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
     {
         std::visit(
             sp::traits::overloaded{
-                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) { object_p->find_value(std::get<Path::segment_tags::Key>(*it)).swap(self); },
-                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { array_p->at(std::get<Path::segment_tags::Index>(*it)).swap(self); },
-                [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { self.as<Node::tags::Block>(blk.slice(std::get<Path::segment_tags::Slice>(*it))); },
+                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
+                    object_p->find_value(std::get<Path::segment_tags::Key>(*it)).swap(self);
+                },
+                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
+                    array_p->at(std::get<Path::segment_tags::Index>(*it)).swap(self);
+                },
+                [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
+                    self.as<Node::tags::Block>(blk.slice(std::get<Path::segment_tags::Slice>(*it)));
+                },
                 [&](auto&& v) { self.as<Node::tags::Null>(nullptr); }},
             self.get_value());
     }
@@ -162,9 +168,10 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& projection, const No
     {
         auto res = std::make_shared<NodeObjectDefault>();
 
-        projection.as_object().for_each([&](const std::string& key, const Node& d) {
-            res->m_container_.emplace(key, fetch_op(self, key, d));
-        });
+        projection.as_object().for_each(
+            [&](const std::string& key, const Node& d) {
+                res->m_container_.emplace(key, fetch_op(self, key, d));
+            });
 
         if (projection.as_object().size() == 1)
         {
