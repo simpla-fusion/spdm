@@ -3,34 +3,37 @@
 #include "NodeOps.h"
 namespace sp::db
 {
-typedef NodePlugin<std::map<std::string, Node>> NodeBackendDefault;
+typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 
-std::shared_ptr<NodeBackend> NodeBackend::create(const NodeObject& opt)
+std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
 {
-    return std::dynamic_pointer_cast<NodeBackend>(std::make_shared<NodeBackendDefault>(opt));
+    return std::dynamic_pointer_cast<NodeObject>(std::make_shared<NodeObjectDefault>(opt));
 }
 
 template <>
-NodeBackendDefault::NodePlugin(const NodeObject& opt) {}
+NodeObjectDefault::NodePlugin(const Node& opt) {}
 
 template <>
-Cursor<Node> NodeBackendDefault::children()
+Cursor<Node> NodeObjectDefault::children()
 {
     NOT_IMPLEMENTED;
     return Cursor<Node>{};
 }
 
 template <>
-Cursor<const Node> NodeBackendDefault::children() const
+Cursor<const Node> NodeObjectDefault::children() const
 {
     NOT_IMPLEMENTED;
     return Cursor<const Node>{};
 }
 
 template <>
-size_t NodeBackendDefault::size() const { return m_container_.size(); }
+size_t NodeObjectDefault::size() const { return m_container_.size(); }
 
-// void NodeBackendDefault::for_each(std::function<void(const std::string&, Node&)> const& visitor)
+template <>
+bool NodeObjectDefault::empty() const { return m_container_.size() == 0; }
+
+// void NodeObjectDefault::for_each(std::function<void(const std::string&, Node&)> const& visitor)
 // {
 //     for (auto&& item : m_container_)
 //     {
@@ -38,7 +41,7 @@ size_t NodeBackendDefault::size() const { return m_container_.size(); }
 //     }
 // }
 template <>
-void NodeBackendDefault::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const
+void NodeObjectDefault::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const
 {
     for (auto&& item : m_container_)
     {
@@ -47,26 +50,26 @@ void NodeBackendDefault::for_each(std::function<void(const std::string&, const N
 }
 
 template <>
-bool NodeBackendDefault::contain(const std::string& name) const { return m_container_.find(name) != m_container_.end(); }
+bool NodeObjectDefault::contain(const std::string& name) const { return m_container_.find(name) != m_container_.end(); }
 
 template <>
-void NodeBackendDefault::update_value(const std::string& name, Node&& v) { m_container_[name].swap(v); }
+void NodeObjectDefault::update_value(const std::string& name, Node&& v) { m_container_[name].swap(v); }
 
 template <>
-Node NodeBackendDefault::insert_value(const std::string& name, Node&& v)
+Node NodeObjectDefault::insert_value(const std::string& name, Node&& v)
 {
     return Node{m_container_.emplace(name, std::move(v)).first->second};
 }
 
 template <>
-Node NodeBackendDefault::find_value(const std::string& name) const
+Node NodeObjectDefault::find_value(const std::string& name) const
 {
     auto it = m_container_.find(name);
     return it == m_container_.end() ? Node{} : Node{it->second};
 }
 
 template <>
-void NodeBackendDefault::update(const Path& path, const Node& patch, const NodeObject& opt)
+void NodeObjectDefault::update(const Path& path, const Node& patch, const Node& opt)
 {
 
     Node self{std::in_place_index_t<Node::tags::Object>(), this->shared_from_this()};
@@ -76,10 +79,10 @@ void NodeBackendDefault::update(const Path& path, const Node& patch, const NodeO
         std::visit(
             sp::traits::overloaded{
                 [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                    object_p.insert_value(std::get<Path::segment_tags::Key>(*it), NodeObject{std::make_shared<NodeBackendDefault>()}).swap(self);
+                    object_p->insert_value(std::get<Path::segment_tags::Key>(*it), Node{NodeObject::create()}).swap(self);
                 },
                 [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                    array_p.insert(std::get<Path::segment_tags::Index>(*it), NodeObject{std::make_shared<NodeBackendDefault>()}).swap(self);
+                    array_p->insert(std::get<Path::segment_tags::Index>(*it), Node{NodeObject::create()}).swap(self);
                 },
                 [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
                 [&](auto&& v) { NOT_IMPLEMENTED; }},
@@ -89,10 +92,10 @@ void NodeBackendDefault::update(const Path& path, const Node& patch, const NodeO
     std::visit(
         sp::traits::overloaded{
             [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                object_p.update_value(std::get<Path::segment_tags::Key>(path.last()), Node{patch});
+                object_p->update_value(std::get<Path::segment_tags::Key>(path.last()), Node{patch});
             },
             [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                Node{patch}.swap(array_p.at(std::get<Path::segment_tags::Index>(path.last())));
+                Node{patch}.swap(array_p->at(std::get<Path::segment_tags::Index>(path.last())));
             },
             [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
             [&](auto&& v) {  std::cerr<<path<<std::endl; 
@@ -101,7 +104,7 @@ void NodeBackendDefault::update(const Path& path, const Node& patch, const NodeO
 }
 
 template <>
-Node NodeBackendDefault::merge(const Path& path, const Node& patch, const NodeObject& opt)
+Node NodeObjectDefault::merge(const Path& path, const Node& patch, const Node& opt)
 {
     Node self{std::in_place_index_t<Node::tags::Object>(), this->shared_from_this()};
 
@@ -110,10 +113,10 @@ Node NodeBackendDefault::merge(const Path& path, const Node& patch, const NodeOb
         std::visit(
             sp::traits::overloaded{
                 [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                    object_p.insert_value(std::get<Path::segment_tags::Key>(*it), NodeObject{std::make_shared<NodeBackendDefault>()}).swap(self);
+                    object_p->insert_value(std::get<Path::segment_tags::Key>(*it), NodeObject::create()).swap(self);
                 },
                 [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                    array_p.insert(std::get<Path::segment_tags::Index>(*it), NodeObject{std::make_shared<NodeBackendDefault>()}).swap(self);
+                    array_p->insert(std::get<Path::segment_tags::Index>(*it), NodeObject::create()).swap(self);
                 },
                 [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
                 [&](auto&& v) { NOT_IMPLEMENTED; }},
@@ -123,10 +126,10 @@ Node NodeBackendDefault::merge(const Path& path, const Node& patch, const NodeOb
     std::visit(
         sp::traits::overloaded{
             [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                Node(object_p.insert_value(std::get<Path::segment_tags::Key>(path.last()), Node{patch})).swap(self);
+                Node(object_p->insert_value(std::get<Path::segment_tags::Key>(path.last()), Node{patch})).swap(self);
             },
             [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                Node(array_p.insert(std::get<Path::segment_tags::Index>(path.last()), Node{patch})).swap(self);
+                Node(array_p->insert(std::get<Path::segment_tags::Index>(path.last()), Node{patch})).swap(self);
             },
             [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
             [&](auto&& v) { NOT_IMPLEMENTED; }},
@@ -136,16 +139,16 @@ Node NodeBackendDefault::merge(const Path& path, const Node& patch, const NodeOb
 }
 
 template <>
-Node NodeBackendDefault::fetch(const Path& path, const Node& projection, const NodeObject& opt) const
+Node NodeObjectDefault::fetch(const Path& path, const Node& projection, const Node& opt) const
 {
-    Node self{std::in_place_index_t<Node::tags::Object>(), const_cast<NodeBackendDefault*>(this)->shared_from_this()};
+    Node self{std::in_place_index_t<Node::tags::Object>(), const_cast<NodeObjectDefault*>(this)->shared_from_this()};
 
     for (auto it = path.begin(), ie = path.end(); it != ie && self.type() != Node::tags::Null; ++it)
     {
         std::visit(
             sp::traits::overloaded{
-                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) { object_p.find_value(std::get<Path::segment_tags::Key>(*it)).swap(self); },
-                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { array_p.at(std::get<Path::segment_tags::Index>(*it)).swap(self); },
+                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) { object_p->find_value(std::get<Path::segment_tags::Key>(*it)).swap(self); },
+                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { array_p->at(std::get<Path::segment_tags::Index>(*it)).swap(self); },
                 [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { self.as<Node::tags::Block>(blk.slice(std::get<Path::segment_tags::Slice>(*it))); },
                 [&](auto&& v) { self.as<Node::tags::Null>(nullptr); }},
             self.get_value());
@@ -157,15 +160,15 @@ Node NodeBackendDefault::fetch(const Path& path, const Node& projection, const N
     }
     else if (projection.type() == Node::tags::Object)
     {
-        auto res = std::make_shared<NodeBackendDefault>();
+        auto res = std::make_shared<NodeObjectDefault>();
 
         projection.as_object().for_each([&](const std::string& key, const Node& d) {
-            res->container().emplace(key, fetch_op(self, key, d));
+            res->m_container_.emplace(key, fetch_op(self, key, d));
         });
 
         if (projection.as_object().size() == 1)
         {
-            Node(res->container().begin()->second).swap(self);
+            Node(res->m_container_.begin()->second).swap(self);
         }
         else
         {
@@ -176,7 +179,7 @@ Node NodeBackendDefault::fetch(const Path& path, const Node& projection, const N
     return std::move(self);
 }
 } // namespace sp::db
-// NodeObject NodeObject::create(const NodeObject& opt)
+// NodeObject NodeObject::create(const Node & opt)
 // {
 //     // VERBOSE << "Load plugin for url:" << opt;
 //     // NodeObject* p = nullptr;
@@ -186,7 +189,7 @@ Node NodeBackendDefault::fetch(const Path& path, const Node& projection, const N
 //     // }
 //     // else if (opt.index() == Node::tags::Null)
 //     // {
-//     //     p = new NodeBackendDefault();
+//     //     p = new NodeObjectDefault();
 //     // }
 
 //     // if (p == nullptr)

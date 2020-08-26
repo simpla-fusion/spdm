@@ -13,8 +13,8 @@ static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetc
          size_t res = 0;
          std::visit(
              sp::traits::overloaded{
-                 [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) { res = object_p.size(); },
-                 [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { res = array_p.size(); },
+                 [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) { res = object_p->size(); },
+                 [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { res = array_p->size(); },
                  [&](auto&& v) { res = 0; }},
              node.get_value());
          return Node(std::in_place_index_t<Node::tags::Int>(), res);

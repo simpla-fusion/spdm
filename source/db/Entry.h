@@ -19,7 +19,7 @@ namespace sp::db
 
 class Entry
 {
-    NodeObject m_root_;
+    std::shared_ptr<NodeObject> m_root_;
     Path m_path_;
 
 public:
@@ -27,7 +27,7 @@ public:
 
     Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p = {});
 
-    Entry(  NodeObject root, Path p = {});
+    Entry(std::shared_ptr<NodeObject> root, Path p = {});
 
     Entry(const Entry& other);
 
@@ -43,11 +43,11 @@ public:
         return *this;
     }
 
-    static Entry create(const NodeObject&);
+    static Entry create(const Node&);
 
-    void load(const NodeObject&);
+    void load(const Node&);
 
-    void save(const NodeObject&) const;
+    void save(const Node&) const;
 
     //-------------------------------------------------------------------------
 

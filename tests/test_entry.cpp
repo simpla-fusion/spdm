@@ -33,7 +33,9 @@ TEST_CASE("Node ", "[SpDB]")
 TEST_CASE("NodeObject", "[SpDB]")
 {
 
-    sp::db::NodeObject obj({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
+    sp::db::Node node({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
+
+    auto& obj = node.as_object();
 
     REQUIRE(obj.fetch(sp::db::Path::parse("B/b"), {}).as<int>() == 1);
 

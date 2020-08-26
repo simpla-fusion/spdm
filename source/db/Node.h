@@ -50,119 +50,6 @@ typedef std::variant<std::nullptr_t,
                      >
     node_value_type;
 
-class NodeObject : public std::enable_shared_from_this<NodeObject>
-{
-
-public:
-    NodeObject();
-
-    virtual ~NodeObject() = default;
-
-    NodeObject(const NodeObject&) = delete;
-
-    NodeObject(NodeObject&&) = delete;
-
-    // template <typename... Args>
-    // NodeObject(Args&&... args) {}
-
-    static std::shared_ptr<NodeObject> create(const NodeObject& opt);
-
-    virtual std::shared_ptr<NodeObject> copy() const = 0;
-
-    virtual void load(const NodeObject&);
-
-    virtual void save(const NodeObject&) const;
-
-    virtual bool is_same(const NodeObject&) const;
-
-    virtual bool is_valid() const;
-
-    virtual bool empty() const;
-
-    virtual size_t size() const;
-
-    virtual void clear();
-
-    virtual void reset();
-
-    virtual Cursor<Node> children();
-
-    virtual Cursor<const Node> children() const;
-
-    virtual void for_each(std::function<void(const std::string&, const Node&)> const&) const;
-
-    //----------------
-
-    virtual void update(const Path&, const Node&, const NodeObject& opt = {});
-
-    virtual Node merge(const Path&, const Node& patch, const NodeObject& opt = {});
-
-    virtual Node fetch(const Path&, const Node& projection, const NodeObject& opt = {}) const;
-
-    //----------------
-
-    virtual bool contain(const std::string& name) const;
-
-    virtual void update_value(const std::string& name, Node&& v);
-
-    virtual Node insert_value(const std::string& name, Node&& v);
-
-    virtual Node find_value(const std::string& name) const;
-};
-
-class NodeArray : public std::enable_shared_from_this<NodeArray>
-{
-    std::shared_ptr<std::vector<Node>> m_container_;
-
-public:
-    NodeArray()
-        : m_container_(std::make_shared<std::vector<Node>>()) {}
-
-    ~NodeArray() = default;
-
-    template <typename IT>
-    NodeArray(const IT& ib, const IT& ie)
-        : m_container_(std::make_shared<std::vector<Node>>(ib, ie)) {}
-
-    NodeArray(const NodeArray& other);
-
-    NodeArray(NodeArray&& other);
-
-    void swap(NodeArray& other);
-
-    NodeArray& operator=(const NodeArray& other);
-
-    void clear();
-
-    size_t size() const;
-
-    Cursor<Node> children();
-
-    Cursor<const Node> children() const;
-
-    void for_each(std::function<void(int, Node&)> const&);
-
-    void for_each(std::function<void(int, const Node&)> const&) const;
-
-    Node slice(int start, int stop, int step);
-
-    Node slice(int start, int stop, int step) const;
-
-    void resize(std::size_t num);
-
-    Node& insert(int idx, Node);
-
-    Node& update(int idx, Node);
-
-    Node& at(int idx);
-
-    const Node& at(int idx) const;
-
-    Node& push_back(Node v);
-
-    Node pop_back();
-};
-
 class Node
 {
 public:
@@ -230,6 +117,114 @@ private:
 template <typename... Args,
           std::enable_if_t<std::is_constructible<Node::value_type, Args...>::value, int>>
 Node::Node(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
+
+class NodeObject : public std::enable_shared_from_this<NodeObject>
+{
+
+public:
+    NodeObject() = default;
+
+    virtual ~NodeObject() = default;
+
+    NodeObject(const NodeObject&) = delete;
+
+    NodeObject(NodeObject&&) = delete;
+
+    static std::shared_ptr<NodeObject> create(const Node& opt = {});
+
+    virtual std::shared_ptr<NodeObject> copy() const = 0;
+
+    virtual void load(const Node&) = 0;
+
+    virtual void save(const Node&) const = 0;
+
+    virtual bool is_same(const NodeObject&) const = 0;
+
+    virtual bool empty() const = 0;
+
+    virtual size_t size() const = 0;
+
+    virtual void clear() = 0;
+
+    virtual Cursor<Node> children() = 0;
+
+    virtual Cursor<const Node> children() const = 0;
+
+    virtual void for_each(std::function<void(const std::string&, const Node&)> const&) const = 0;
+
+    //----------------
+
+    virtual void update(const Path&, const Node& = {}, const Node& opt = {}) = 0;
+
+    virtual Node merge(const Path&, const Node& patch = {}, const Node& opt = {}) = 0;
+
+    virtual Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const = 0;
+
+    //----------------
+
+    virtual bool contain(const std::string& name) const = 0;
+
+    virtual void update_value(const std::string& name, Node&& v) = 0;
+
+    virtual Node insert_value(const std::string& name, Node&& v) = 0;
+
+    virtual Node find_value(const std::string& name) const = 0;
+};
+
+class NodeArray : public std::enable_shared_from_this<NodeArray>
+{
+    std::shared_ptr<std::vector<Node>> m_container_;
+
+public:
+    NodeArray()
+        : m_container_(std::make_shared<std::vector<Node>>()) {}
+
+    virtual ~NodeArray() = default;
+
+    template <typename IT>
+    NodeArray(const IT& ib, const IT& ie)
+        : m_container_(std::make_shared<std::vector<Node>>(ib, ie)) {}
+
+    NodeArray(const NodeArray& other);
+
+    NodeArray(NodeArray&& other);
+
+    static std::shared_ptr<NodeArray> create(const Node& opt = {});
+
+    void swap(NodeArray& other);
+
+    NodeArray& operator=(const NodeArray& other);
+
+    void clear();
+
+    size_t size() const;
+
+    Cursor<Node> children();
+
+    Cursor<const Node> children() const;
+
+    void for_each(std::function<void(int, Node&)> const&);
+
+    void for_each(std::function<void(int, const Node&)> const&) const;
+
+    Node slice(int start, int stop, int step);
+
+    Node slice(int start, int stop, int step) const;
+
+    void resize(std::size_t num);
+
+    Node& insert(int idx, Node);
+
+    Node& update(int idx, Node);
+
+    Node& at(int idx);
+
+    const Node& at(int idx) const;
+
+    Node& push_back(Node v);
+
+    Node pop_back();
+};
 
 std::ostream& operator<<(std::ostream& os, Node const& node);
 std::ostream& operator<<(std::ostream& os, NodeObject const& node);

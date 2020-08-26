@@ -29,7 +29,7 @@ public:
 
     virtual ~NodePlugin() = default;
 
-    NodePlugin(const NodeObject& opt) { load(opt); };
+    NodePlugin(const Node& opt) { load(opt); };
 
     NodePlugin(const Container& container) : m_container_(container) {}
 
@@ -39,37 +39,61 @@ public:
 
     NodePlugin(this_type&& other) : m_container_(std::move(other.m_container_)) {}
 
-    std::shared_ptr<NodeBackend> copy() const override { return std::shared_ptr<NodeBackend>(new this_type(*this)); }
+    std::shared_ptr<NodeObject> copy() const override { return std::shared_ptr<NodeObject>(new this_type(*this)); }
 
-    void load(const NodeObject&) override { NOT_IMPLEMENTED; }
+    void load(const Node&) override { NOT_IMPLEMENTED; }
 
-    void save(const NodeObject&) const override { NOT_IMPLEMENTED; }
+    void save(const Node&) const override { NOT_IMPLEMENTED; }
 
-    Container& container() { return m_container_; }
+    bool is_same(const NodeObject&) const override
+    {
+        NOT_IMPLEMENTED;
+        return false;
+    }
 
-    const Container& container() const { return m_container_; }
+    bool empty() const override
+    {
+        NOT_IMPLEMENTED;
+        return false;
+    }
 
     size_t size() const override
     {
         NOT_IMPLEMENTED;
-        return container().size();
+        return 0;
     }
 
-    void clear() override { container().clear(); }
+    void clear() override { NOT_IMPLEMENTED; }
 
     Cursor<Node> children() override
     {
         NOT_IMPLEMENTED;
-        return Cursor<Node>{};
+        return {};
     }
 
     Cursor<const Node> children() const override
     {
         NOT_IMPLEMENTED;
-        return Cursor<const Node>{};
-    };
+        return {};
+    }
 
     void for_each(std::function<void(const std::string&, const Node&)> const&) const override { NOT_IMPLEMENTED; }
+
+    //----------------
+
+    void update(const Path&, const Node& = {}, const Node& opt = {}) override { NOT_IMPLEMENTED; }
+
+    Node merge(const Path&, const Node& patch = {}, const Node& opt = {}) override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
+
+    Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
 
     //----------------
 
@@ -79,10 +103,7 @@ public:
         return false;
     }
 
-    void update_value(const std::string& name, Node&& v) override
-    {
-        NOT_IMPLEMENTED;
-    }
+    void update_value(const std::string& name, Node&& v) override { NOT_IMPLEMENTED; }
 
     Node insert_value(const std::string& name, Node&& v) override
     {
@@ -91,22 +112,6 @@ public:
     }
 
     Node find_value(const std::string& name) const override
-    {
-        NOT_IMPLEMENTED;
-        return Node{};
-    }
-
-    //----------------
-
-    void update(const Path&, const Node&, const NodeObject& opt = {}) override { NOT_IMPLEMENTED; }
-
-    Node merge(const Path&, const Node& patch, const NodeObject& opt = {}) override
-    {
-        NOT_IMPLEMENTED;
-        return Node{};
-    }
-
-    Node fetch(const Path&, const Node& projection = {}, const NodeObject& opt = {}) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

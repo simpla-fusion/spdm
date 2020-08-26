@@ -21,95 +21,16 @@ std::ostream& operator<<(std::ostream& os, Node const& entry) { return sp::utili
 std::ostream& operator<<(std::ostream& os, NodeObject const& node) { return sp::utility::fancy_print(os, node, 0); }
 std::ostream& operator<<(std::ostream& os, NodeArray const& node) { return sp::utility::fancy_print(os, node, 0); }
 
-NodeObject::NodeObject() : m_backend_(nullptr) {}
-
-NodeObject::NodeObject(std::initializer_list<std::pair<std::string, Node>> init)
-{
-    for (auto&& item : init)
-    {
-        backend().update_value(item.first, Node(item.second));
-    }
-}
-
-NodeObject::NodeObject(std::shared_ptr<NodeBackend> backend) : m_backend_(backend) {}
-
-NodeObject::NodeObject(const NodeObject& other) : m_backend_(other.m_backend_) {}
-
-NodeObject::NodeObject(NodeObject&& other) : m_backend_(other.m_backend_) { other.m_backend_.reset(); };
-
-void NodeObject::swap(NodeObject& other) { std::swap(m_backend_, other.m_backend_); }
-
-NodeObject& NodeObject::operator=(const NodeObject& other)
-{
-    NodeObject(other).swap(*this);
-    return *this;
-}
-
-NodeBackend& NodeObject::backend()
-{
-    if (m_backend_ == nullptr)
-    {
-        m_backend_ = NodeBackend::create();
-    }
-    return *m_backend_;
-}
-
-const NodeBackend& NodeObject::backend() const
-{
-    if (m_backend_ == nullptr)
-    {
-        RUNTIME_ERROR << "Object is not initialized!" << std::endl;
-        throw std::out_of_range("");
-    }
-    return *m_backend_;
-}
-
-void NodeObject::load(const NodeObject& opt)
-{
-    if (m_backend_ == nullptr)
-    {
-        m_backend_ = NodeBackend::create(opt);
-    }
-    else
-    {
-        m_backend_->load(opt);
-    }
-}
-
-void NodeObject::save(const NodeObject&) const { NOT_IMPLEMENTED; }
-
-bool NodeObject::is_same(const NodeObject& other) const { return m_backend_.get() == other.m_backend_.get(); }
-
-bool NodeObject::is_valid() const { return m_backend_ != nullptr; }
-
-void NodeObject::reset() { m_backend_ = NodeBackend::create(); }
-
-size_t NodeObject::size() const { return backend().size(); }
-
-bool NodeObject::contain(const std::string& key) const { return backend().contain(key); }
-
-void NodeObject::clear() { backend().clear(); }
-
-void NodeObject::update(const Path& path, const Node& patch, const NodeObject& opt) { backend().update(path, patch, opt); }
-
-Node NodeObject::merge(const Path& path, const Node& patch, const NodeObject& opt) { return backend().merge(path, patch, opt); }
-
-Node NodeObject::fetch(const Path& path, const Node& projection = {}, const NodeObject& opt) const { return backend().fetch(path, projection, opt); }
-
-void NodeObject::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const { backend().for_each(visitor); }
-
-void NodeObject::update_value(const std::string& name, Node&& v) { backend().update_value(name, std::move(v)); }
-
-Node NodeObject::insert_value(const std::string& name, Node&& v) { return backend().insert_value(name, std::move(v)); }
-
-Node NodeObject::find_value(const std::string& name) const { return backend().find_value(name); }
 //==========================================================================================
 // NodeArray
+
 NodeArray::NodeArray(const NodeArray& other) : m_container_(other.m_container_) {}
 
 NodeArray::NodeArray(NodeArray&& other) : m_container_(std::move(other.m_container_)) {}
 
 void NodeArray::swap(NodeArray& other) { std::swap(m_container_, other.m_container_); }
+
+std::shared_ptr<NodeArray> NodeArray::create(const Node& opt) { return std::make_shared<NodeArray>(); }
 
 NodeArray& NodeArray::operator=(const NodeArray& other)
 {
@@ -205,16 +126,16 @@ Node::Node(std::initializer_list<Node> init)
     if (is_an_object)
     {
         m_value_.emplace<Node::tags::Object>();
-        auto& obj = std::get<Node::tags::Object>(m_value_);
+        auto& obj = *std::get<Node::tags::Object>(m_value_);
         for (auto& item : init)
         {
-            auto& array = std::get<tags::Array>(item.get_value());
+            auto& array = *std::get<tags::Array>(item.get_value());
             obj.update_value(array.at(0).as<tags::String>(), Node(array.at(1)));
         }
     }
     else if (init.size() > 0)
     {
-        m_value_.emplace<Node::tags::Array>(init.begin(), init.end());
+        m_value_.emplace<Node::tags::Array>(std::make_shared<NodeArray>(init.begin(), init.end()));
     }
 }
 
@@ -242,10 +163,10 @@ NodeArray& Node::as_array()
     {
         RUNTIME_ERROR << "illegal type";
     }
-    return std::get<tags::Array>(m_value_);
+    return *std::get<tags::Array>(m_value_);
 }
 
-const NodeArray& Node::as_array() const { return std::get<tags::Array>(m_value_); }
+const NodeArray& Node::as_array() const { return *std::get<tags::Array>(m_value_); }
 
 NodeObject& Node::as_object()
 {
@@ -257,10 +178,10 @@ NodeObject& Node::as_object()
     {
         RUNTIME_ERROR << "illegal type";
     }
-    return std::get<tags::Object>(m_value_);
+    return *std::get<tags::Object>(m_value_);
 }
 
-const NodeObject& Node::as_object() const { return std::get<tags::Object>(m_value_); }
+const NodeObject& Node::as_object() const { return *std::get<tags::Object>(m_value_); }
 } // namespace sp::db
 
 namespace sp::utility
