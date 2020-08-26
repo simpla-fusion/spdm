@@ -45,131 +45,29 @@ tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& par
 
     return std::move(res);
 }
-// template <>
-// class CursorProxy<Entry, pugi::xml_node> : public CursorProxy<Entry>
-// {
-// public:
-//     typedef CursorProxy<Entry> base_type;
-//     typedef CursorProxy<Entry, pugi::xml_node> this_type;
-//     // using typename base_type::difference_type;
-//     using typename base_type::pointer;
-//     using typename base_type::reference;
-//     using typename base_type::value_type;
-//     CursorProxy(const pugi::xml_node& obj) : m_base_(obj), m_pointer_(nullptr) { update(); }
-//     CursorProxy(const this_type& other) : m_base_(other.m_base_), m_pointer_(nullptr) { update(); }
-//     CursorProxy(this_type&& other) : m_base_(std::move(other.m_base_)), m_pointer_(nullptr) { update(); }
-//     virtual ~CursorProxy(){};
-//     std::unique_ptr<base_type> copy() const override { return std::unique_ptr<base_type>(new this_type(*this)); }
-//     bool done() const override { return m_base_.empty(); }
-//     pointer get_pointer() override { return pointer(m_pointer_.get()); }
-//     reference get_reference() override { return *m_pointer_; }
-//     bool next() override
-//     {
-//         m_base_ = m_base_.next_sibling();
-//         return m_base_.empty();
-//     }
-// protected:
-//     pugi::xml_node m_base_;
-//     std::shared_ptr<Entry> m_pointer_;
-//     void update()
-//     {
-//         if (m_base_.empty())
-//         {
-//             m_pointer_ = (nullptr);
-//         }
-//         else
-//         {
-//             m_pointer_ = make_entry(m_base_);
-//         }
-//     }
-// };
-// template <>
-// class CursorProxy<const Entry, pugi::xml_node> : public CursorProxy<const Entry>
-// {
-// public:
-//     typedef CursorProxy<const Entry> base_type;
-//     typedef CursorProxy<const Entry, pugi::xml_node> this_type;
-//     // using typename base_type::difference_type;
-//     using typename base_type::pointer;
-//     using typename base_type::reference;
-//     using typename base_type::value_type;
-//     CursorProxy(const pugi::xml_node& obj) : m_base_(obj), m_pointer_(nullptr) { update(); }
-//     CursorProxy(const this_type& other) : m_base_(other.m_base_), m_pointer_(nullptr) { update(); }
-//     CursorProxy(this_type&& other) : m_base_(std::move(other.m_base_)), m_pointer_(nullptr) { update(); }
-//     virtual ~CursorProxy(){};
-//     std::unique_ptr<base_type> copy() const override { return std::unique_ptr<base_type>(new this_type(*this)); }
-//     bool done() const override { return m_base_.empty(); }
-//     pointer get_pointer() override { return pointer(m_pointer_.get()); }
-//     reference get_reference() override { return *m_pointer_; }
-//     bool next() override
-//     {
-//         m_base_ = m_base_.next_sibling();
-//         return m_base_.empty();
-//     }
-// protected:
-//     pugi::xml_node m_base_;
-//     std::shared_ptr<Entry> m_pointer_;
-//     void update()
-//     {
-//         if (m_base_.empty())
-//         {
-//             m_pointer_ = (nullptr);
-//         }
-//         else
-//         {
-//             m_pointer_ = make_entry(m_base_);
-//         }
-//     }
-// };
 
-// template <>
-// void NodePluginXML::remove(Path const&)
-// {
-//     NOT_IMPLEMENTED;
-// }
-// template <>
-// class CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>,
-//                   pugi::xml_node_iterator> : public CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>>
-// {
-// public:
-//     typedef CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>> base_type;
-//     typedef CursorProxy<std::pair<const std::string, std::shared_ptr<Entry>>, pugi::xml_node_iterator> this_type;
-//     typedef pugi::xml_node_iterator iterator;
-//     using typename base_type::difference_type;
-//     using typename base_type::pointer;
-//     using typename base_type::reference;
-//     using typename base_type::value_type;
-//     CursorProxy(const iterator& ib, const iterator& ie) : m_it_(ib), m_ie_(ie) {}
-//     ~CursorProxy() = default;
-//     std::unique_ptr<base_type> copy() const override { return std::make_unique<this_type>(*this); }
-//     bool done() const override { return m_it_ == m_ie_; }
-//     reference get_reference() override { return m_mapper_(*m_it_); }
-//     bool next() override
-//     {
-//         if (m_it_ != m_ie_)
-//         {
-//             ++m_it_;
-//         }
-//         return !done();
-//     }
-// protected:
-//     iterator m_it_, m_ie_;
-// };
-// template <>
-// Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
-// NodePluginXML::kv_items()
-// {
-//     NOT_IMPLEMENTED;
-//     return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>{};
-// }
-// template <>
-// Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>
-// NodePluginXML::kv_items() const
-// {
-//     NOT_IMPLEMENTED;
-//     return Cursor<std::pair<const std::string, std::shared_ptr<Entry>>>{};
-// }
+std::string path_to_xpath(const Path& path)
+{
+    std::ostringstream os;
 
+    for (auto&& item : path)
+    {
+        switch (item.index())
+        {
+        case Path::segment_tags::Key:
+            os << "/" << std::get<Path::segment_tags::Key>(item);
+            break;
+        case Path::segment_tags::Index:
+            os << "[@id=" << std::get<Path::segment_tags::Index>(item) << "]";
+            break;
+        default:
+            NOT_IMPLEMENTED;
+            break;
+        }
+    }
+
+    return os.str();
+}
 //----------------------------------------------------------------------------------
 
 template <>
@@ -291,32 +189,8 @@ void NodePluginXML::update(Path path, tree_node_type v) { NOT_IMPLEMENTED; }
 template <>
 tree_node_type NodePluginXML::find(Path path) const
 {
-    std::ostringstream os;
 
-    for (auto&& item : path)
-    {
-        switch (item.index())
-        {
-        case Path::segment_tags::Key:
-            os << "/" << std::get<Path::segment_tags::Key>(item);
-            break;
-        case Path::segment_tags::Index:
-            os << "[@id=" << std::get<Path::segment_tags::Index>(item) << "]";
-            break;
-        default:
-            break;
-        }
-        // std::visit(
-        //     sp::traits::overloaded{
-        //         [&](std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) { os << "/" << key; },
-        //         [&](std::variant_alternative_t<Path::segment_tags::Index, Path::Segment>& idx) { os << "[@id=" << idx << "]"; },
-        //         [&](auto&&) {}},
-        //     item);
-    }
-
-    VERBOSE << "XPath=" << os.str();
-
-    auto node_set = m_container_.node->select_nodes(os.str().c_str());
+    auto node_set = m_container_.node->select_nodes(path_to_xpath(path).c_str());
 
     tree_node_type res;
 

@@ -83,7 +83,6 @@ public:
      * Retrieve
      */
     tree_node_type find(Path path = {}) const override;
-
     /**
      *  Delete 
      */

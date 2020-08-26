@@ -103,14 +103,6 @@ public:
      */
     virtual void remove(Path path = {}) = 0;
 
-    virtual tree_node_type insert(const std::string& p, tree_node_type);
-
-    virtual void update(const std::string& p, tree_node_type);
-
-    virtual tree_node_type find(const std::string& path = "") const;
-
-    virtual void remove(const std::string& path = "");
-
     //------------------------------------------------------------------------------
     // advanced extension functions
     virtual void merge(const NodeObject&);

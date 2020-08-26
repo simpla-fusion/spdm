@@ -16,11 +16,9 @@ equilibrium:
             z:
                 mdsplus: "VALUE_OF(\BDRY)[*,1,#]"
         profiles_2d:
-            -   @id: 0
-                psi:
+            -   psi:
                     @href: "mdsplus://202.127.22.24/east_fit#shot={shot}?VALUE_OF(\PSIRZ)[*,*,{itime}]"
-            -   @id: 1
-                psi:    
+            -   psi:    
                     mdsplus:
                         @host: "202.127.22.24" 
                         @tree: "east_fit"  

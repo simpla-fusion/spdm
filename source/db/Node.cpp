@@ -30,14 +30,6 @@ std::pair<std::shared_ptr<NodeObject>, Path> NodeObject::full_path()
     return std::pair<std::shared_ptr<NodeObject>, Path>{shared_from_this(), {}};
 }
 
-tree_node_type NodeObject::insert(const std::string& path, tree_node_type v) { return insert(Path(path), std::move(v)); }
-
-void NodeObject::update(const std::string& path, tree_node_type v) { update(Path(path), std::move(v)); }
-
-tree_node_type NodeObject::find(const std::string& path) const { return find(Path(path)); }
-
-void NodeObject::remove(const std::string& path) { remove(Path(path)); }
-
 void NodeObject::merge(const NodeObject&) { NOT_IMPLEMENTED; }
 
 void NodeObject::patch(const NodeObject&) { NOT_IMPLEMENTED; }
@@ -181,6 +173,7 @@ public:
     void update(Path, tree_node_type) override;
 
     void remove(Path) override;
+
 };
 
 Cursor<tree_node_type> NodeObjectDefault::children()
