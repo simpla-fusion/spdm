@@ -8,64 +8,85 @@ namespace sp::db
 
 namespace _detail
 {
+
 template <typename IT>
-entry_value_type insert(entry_value_type& self, entry_value_type v, IT it, IT ie)
+entry_value_type insert(entry_value_type& self, entry_value_type&& v, IT it, IT ie)
 {
 
-    // if (it == ie || it->index() != Path::segment_tags::Key)
-    // {
-    //     RUNTIME_ERROR << "illegal path";
-    // }
+    if (it == ie)
+    {
+        entry_value_type(v).swap(self);
+        return v;
+    }
+    else if (self.index() == entry_value_type_tags::Null)
+    {
+        std::visit(
+            sp::traits::overloaded{
+                [&](const std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) { self.emplace<entry_value_type_tags::Object>(EntryObject::create()); },
+                [&](const std::variant_alternative_t<Path::segment_tags::Index, Path::Segment>& idx) { self.emplace<entry_value_type_tags::Array>(EntryArray::create()); },
+                [&](auto&&) { NOT_IMPLEMENTED; }},
+            *it);
+    }
+    else if (self.index() > entry_value_type_tags::Array)
+    {
+        RUNTIME_ERROR << "illegal type";
+    }
 
-    // entry_value_type current{self};
+    entry_value_type* current = &self;
 
-    // auto key = *it;
-    // ++it;
-    // for (; it != ie; ++it)
-    // {
-    //     entry_value_type tmp;
-    //     std::visit(
-    //         sp::traits::overloaded{
-    //             [&](const std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) { tmp.emplace<entry_value_type_tags::Object>(nullptr); },
-    //             [&](int idx) { entry_value_type{EntryArray::create()}.swap(tmp); },
-    //             [&](auto&&) { NOT_IMPLEMENTED; }},
-    //         *it);
+    Path::Segment key = *it;
 
-    //     std::visit(
-    //         sp::traits::overloaded{
-    //             [&](const std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) {
-    //                 current = object_p->insert(std::get<Path::segment_tags::Key>(key), tmp);
-    //             },
-    //             [&](const std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) {
-    //                 auto idx = std::get<Path::segment_tags::Index>(key);
-    //             },
-    //             [&](auto&&) { NOT_IMPLEMENTED; }},
-    //         current);
+    while (it != ie)
+    {
+        entry_value_type tmp;
 
-    //     // if (current.index() == entry_value_type_tags::Object && key.index() == Path::segment_tags::Key)
-    //     // {
-    //     //     current = std::get<entry_value_type_tags::Object>(current)->insert(std::get<Path::segment_tags::Key>(seg), entry_value_type{});
-    //     // }
+        std::visit(
+            sp::traits::overloaded{
+                [&](const std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) { tmp.emplace<entry_value_type_tags::Object>(nullptr); },
+                [&](const std::variant_alternative_t<Path::segment_tags::Index, Path::Segment>& idx) { tmp.emplace<entry_value_type_tags::Array>(nullptr); },
+                [&](auto&&) { NOT_IMPLEMENTED; }},
+            *it);
 
-    //     std::visit(
-    //         sp::traits::overloaded{
-    //             [&](const std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) {
+        if (current->index() == entry_value_type_tags::Null)
+        {
+        }
 
-    //             },
-    //             [&](int idx) {},
-    //             [&](auto&&) { NOT_IMPLEMENTED; }
+        // std::visit(
+        //     sp::traits::overloaded{
+        //         [&](const std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) {
+        //             object_p->insert(std::get<Path::segment_tags::Key>(*it), entry_value_type{std::in_place_index_t<entry_value_type_tags::Object>()}).swap(*current);
+        //         },
+        //         [&](const std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) {
+        //             array_p->insert(std::get<Path::segment_tags::Index>(*it), entry_value_type{std::in_place_index_t<entry_value_type_tags::Array>()}).swap(*current);
+        //         },
+        //         [&](auto&&) { NOT_IMPLEMENTED; }},
+        //     *current);
 
-    //         },
-    //         *it);
-    //     key = *it;
-    // }
-    // v.swap(*current);
+        //     // if (current.index() == entry_value_type_tags::Object && key.index() == Path::segment_tags::Key)
+        //     // {
+        //     //     current = std::get<entry_value_type_tags::Object>(current)->insert(std::get<Path::segment_tags::Key>(seg), entry_value_type{});
+        //     // }
 
-    return entry_value_type{};
+        //     std::visit(
+        //         sp::traits::overloaded{
+        //             [&](const std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) {
+
+        //             },
+        //             [&](int idx) {},
+        //             [&](auto&&) { NOT_IMPLEMENTED; }
+
+        //         },
+        //         *it);
+        //     key = *it;
+    }
+
+    current->swap(v);
+
+    return entry_value_type(*current);
 }
 
 template <typename IT>
-void update(entry_value_type& self, entry_value_type v, IT it, IT ie)
+void update(entry_value_type& self, entry_value_type&& v, IT it, IT ie)
 {
     std::visit(
         sp::traits::overloaded{
@@ -118,10 +139,10 @@ entry_value_type find(const entry_value_type& self, IT it, IT ie)
     std::visit(
         sp::traits::overloaded{
             [&](const std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) {
-                entry_value_type(object_p->find(Path{it, ie}).value()).swap(res);
+                object_p->find(Path{it, ie}).swap(res);
             },
             [&](const std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) {
-                entry_value_type(array_p->find(Path{it, ie}).value()).swap(res);
+                array_p->find(Path{it, ie}).swap(res);
             },
             [&](auto&& v) {
                 if (it == ie)
@@ -138,10 +159,11 @@ entry_value_type find(const entry_value_type& self, IT it, IT ie)
     return std::move(res);
 }
 
-template <typename IT>
-Entry try_insert(entry_value_type root, entry_value_type v, IT ib, IT ie)
+template <int CONTAINER_IDX, typename IT>
+auto insert_container(entry_value_type& root, IT ib, IT ie)
 {
-
+    typedef std::variant_alternative_t<CONTAINER_IDX, entry_value_type> container_type;
+    container_type res;
     // Entry res;
 
     // Entry parent{root, path.prefix()};
@@ -162,38 +184,30 @@ Entry try_insert(entry_value_type root, entry_value_type v, IT ib, IT ie)
     //         [&](auto&&) { NOT_IMPLEMENTED; }},
     //     path.last());
 
-    return Entry{};
+    return res;
 }
 } // namespace _detail
 
 //----------------------------------------------------------------------------------------------------
-/**
- *  Create 
- */
-Entry EntryObject::insert(const Path& path, entry_value_type v)
+
+entry_value_type EntryObject::insert(const Path& path, entry_value_type v)
 {
     entry_value_type self{shared_from_this()};
-    return _detail::try_insert(self, std::move(v), path.begin(), path.end());
+    return _detail::insert(self, std::move(v), path.begin(), path.end());
 }
-/**
- * Modify
- */
+
+entry_value_type EntryObject::find(const Path& path) const
+{
+    entry_value_type self{const_cast<EntryObject*>(this)->shared_from_this()};
+    return _detail::find(self, path.begin(), path.end());
+}
+
 void EntryObject::update(const Path& path, entry_value_type v)
 {
     entry_value_type self{shared_from_this()};
     _detail::update(self, std::move(v), path.begin(), path.end());
 }
-/**
- * Retrieve
- */
-Entry EntryObject::find(const Path& path) const
-{
-    entry_value_type self{const_cast<EntryObject*>(this)->shared_from_this()};
-    return Entry{_detail::find(self, path.begin(), path.end()), Path{}};
-}
-/**
- *  Delete 
- */
+
 void EntryObject::remove(const Path& path)
 {
     entry_value_type self{const_cast<EntryObject*>(this)->shared_from_this()};
@@ -374,23 +388,21 @@ Entry EntryArray::pop_back()
     return Entry{res, Path{}};
 }
 
-Entry EntryArray::insert(const Path& path, entry_value_type v)
+entry_value_type EntryArray::insert(const Path& path, entry_value_type v)
 {
     entry_value_type self{shared_from_this()};
-    auto res = _detail::insert(self, std::move(v), path.begin(), path.end());
-    return Entry{};
+    return _detail::insert(self, std::move(v), path.begin(), path.end());
+}
+entry_value_type EntryArray::find(const Path& path) const
+{
+    entry_value_type self{const_cast<EntryArray*>(this)->shared_from_this()};
+    return _detail::find(self, path.begin(), path.end());
 }
 
 void EntryArray::update(const Path& path, entry_value_type v)
 {
     entry_value_type self{shared_from_this()};
     _detail::update(self, std::move(v), path.begin(), path.end());
-}
-
-Entry EntryArray::find(const Path& path) const
-{
-    entry_value_type self{const_cast<EntryArray*>(this)->shared_from_this()};
-    return Entry{_detail::find(self, path.begin(), path.end()), Path{}};
 }
 
 void EntryArray::remove(const Path& path)
@@ -404,7 +416,7 @@ void EntryArray::remove(const Path& path)
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
-Entry::Entry(entry_value_type v, Path const& p) : m_value_(std::move(v)), m_path_(p) {}
+Entry::Entry(entry_value_type v, const Path& p) : m_value_(std::move(v)), m_path_(p) {}
 
 Entry::Entry(const Entry& other) : m_value_(other.m_value_), m_path_(other.m_path_) {}
 
@@ -445,13 +457,13 @@ entry_value_type Entry::get_value() const { return _detail::find(m_value_, m_pat
 /**
  * TODO: check type of the return of insert
 */
-std::shared_ptr<EntryObject> Entry::as_object() { return std::get<entry_value_type_tags::Object>(_detail::insert(m_value_, entry_value_type(std::in_place_index_t<entry_value_type_tags::Object>(), nullptr), m_path_.begin(), m_path_.end())); }
+std::shared_ptr<EntryObject> Entry::as_object() { return std::get<entry_value_type_tags::Object>(insert(Path{}, entry_value_type{std::in_place_index_t<entry_value_type_tags::Object>()})); }
 
-std::shared_ptr<const EntryObject> Entry::as_object() const { return std::const_pointer_cast<const EntryObject>(std::get<entry_value_type_tags::Object>(_detail::find(m_value_, m_path_.begin(), m_path_.end()))); }
+std::shared_ptr<const EntryObject> Entry::as_object() const { return std::const_pointer_cast<const EntryObject>(std::get<entry_value_type_tags::Object>(find(Path{}))); }
 
-std::shared_ptr<EntryArray> Entry::as_array() { return std::get<entry_value_type_tags::Array>(_detail::insert(m_value_, entry_value_type(std::in_place_index_t<entry_value_type_tags::Array>(), nullptr), m_path_.begin(), m_path_.end())); }
+std::shared_ptr<EntryArray> Entry::as_array() { return std::get<entry_value_type_tags::Array>(insert(Path{}, entry_value_type{std::in_place_index_t<entry_value_type_tags::Array>()})); }
 
-std::shared_ptr<const EntryArray> Entry::as_array() const { return std::const_pointer_cast<const EntryArray>(std::get<entry_value_type_tags::Array>(_detail::find(m_value_, m_path_.begin(), m_path_.end()))); }
+std::shared_ptr<const EntryArray> Entry::as_array() const { return std::const_pointer_cast<const EntryArray>(std::get<entry_value_type_tags::Array>(find(Path{}))); }
 
 //-----------------------------------------------------------------------------------------------------------
 void Entry::resize(std::size_t num) { as_array()->resize(num); }
@@ -487,6 +499,89 @@ Cursor<const entry_value_type> Entry::Entry::children() const
 void Entry::for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&) { NOT_IMPLEMENTED; }
 
 void Entry::for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const { NOT_IMPLEMENTED; }
+
+entry_value_type Entry::insert(const Path& p, entry_value_type v)
+{
+    Path path = m_path_.join(p);
+
+    entry_value_type res;
+
+    std::visit(
+        sp::traits::overloaded{
+            [&](std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) { object_p->insert(path, std::move(v)).swap(res); },
+            [&](std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) { array_p->insert(path, std::move(v)).swap(res); },
+            [&](std::variant_alternative_t<entry_value_type_tags::Block, entry_value_type>& blk) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<entry_value_type_tags::Null, entry_value_type>&) { _detail::insert(m_value_, std::move(v), p.begin(), p.end()).swap(res); },
+            [&](auto&&) { RUNTIME_ERROR << "Try insert value to non-container entry!"; }},
+        m_value_);
+
+    return std::move(res);
+}
+
+entry_value_type Entry::find(const Path& p) const
+{
+    Path path = m_path_.join(p);
+
+    entry_value_type res;
+
+    std::visit(
+        sp::traits::overloaded{
+            [&](const std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) { object_p->find(path).swap(res); },
+            [&](const std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) { array_p->find(path).swap(res); },
+            [&](const std::variant_alternative_t<entry_value_type_tags::Block, entry_value_type>& blk) { NOT_IMPLEMENTED; },
+            [&](auto&&) {
+                if (path.empty())
+                {
+                    entry_value_type(m_value_).swap(res);
+                }
+                else
+                {
+                    RUNTIME_ERROR << "Try access non-container entry!";
+                }
+            }},
+        m_value_);
+
+    return std::move(res);
+}
+
+void Entry::update(const Path& p, entry_value_type v)
+{
+    Path path = m_path_.join(p);
+
+    std::visit(
+        sp::traits::overloaded{
+            [&](std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) { object_p->update(path, std::move(v)); },
+            [&](std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) { array_p->update(path, std::move(v)); },
+            [&](std::variant_alternative_t<entry_value_type_tags::Block, entry_value_type>& blk) { NOT_IMPLEMENTED; },
+            [&](std::variant_alternative_t<entry_value_type_tags::Null, entry_value_type>&) { _detail::update(m_value_, std::move(v), p.begin(), p.end()); },
+            [&](auto&&) {
+                if (path.empty())
+                {
+                    v.swap(m_value_);
+                }
+                else
+                {
+                    RUNTIME_ERROR << "Try to insert value to non-container entry!";
+                }
+            }
+
+        },
+        m_value_);
+}
+
+void Entry::remove(const Path& p)
+{
+    Path path = m_path_.join(p);
+    if (!path.empty())
+    {
+        std::visit(
+            sp::traits::overloaded{
+                [&](std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) { object_p->remove(path); },
+                [&](std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) { array_p->remove(path); },
+                [&](auto&&) {}},
+            m_value_);
+    }
+}
 
 } // namespace sp::db
 

@@ -100,7 +100,7 @@ public:
     /**
      *  Create 
      */
-    virtual Entry insert(const Path&, entry_value_type);
+    virtual entry_value_type insert(const Path&, entry_value_type);
     /**
      * Modify
      */
@@ -108,7 +108,7 @@ public:
     /**
      * Retrieve
      */
-    virtual Entry find(const Path& key) const;
+    virtual entry_value_type find(const Path& key) const;
 
     /**
      *  Delete 
@@ -182,15 +182,15 @@ public:
     /**
      *  Create 
     */
-    virtual Entry insert(const Path&, entry_value_type);
+    virtual entry_value_type insert(const Path&, entry_value_type);
+    /**
+     * Retrieve
+     */
+    virtual entry_value_type find(const Path& key) const;
     /**
      * Modify
     */
     virtual void update(const Path&, entry_value_type v = {});
-    /**
-     * Retrieve
-     */
-    virtual Entry find(const Path& key) const;
     /**
      *  Delete 
     */
@@ -310,6 +310,25 @@ public:
     void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&);
 
     void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
+
+    //------------------------------------------------------------------------------
+    // fundamental operation ：
+    /**
+     *  Create 
+     */
+    entry_value_type insert(const Path&, entry_value_type);
+    /**
+     * Retrieve
+     */
+    entry_value_type find(const Path& path) const;
+    /**
+     * Modify
+     */
+    void update(const Path&, entry_value_type v);
+    /**
+     *  Delete 
+     */
+    void remove(const Path& path);
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
