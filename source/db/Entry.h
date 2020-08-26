@@ -63,6 +63,8 @@ public:
     EntryObject(const EntryObject&) = delete;
     EntryObject(EntryObject&&) = delete;
 
+    static std::shared_ptr<EntryObject> create(const std::string& backend = "");
+
     virtual std::unique_ptr<EntryObject> copy() const = 0;
 
     virtual size_t size() const = 0;
@@ -85,9 +87,9 @@ public:
 
     // access children
 
-    virtual Entry insert(const std::string&, entry_value_type&&) = 0;
+    virtual entry_value_type insert(const std::string&, entry_value_type) = 0;
 
-    virtual void set_value(const std::string& key, entry_value_type&& v = {}) = 0;
+    virtual void set_value(const std::string& key, entry_value_type v = {}) = 0;
 
     virtual entry_value_type get_value(const std::string& key) const = 0;
 
@@ -98,11 +100,11 @@ public:
     /**
      *  Create 
      */
-    virtual Entry insert(const Path&, entry_value_type&&);
+    virtual Entry insert(const Path&, entry_value_type);
     /**
      * Modify
      */
-    virtual void update(const Path&, entry_value_type&& v = {});
+    virtual void update(const Path&, entry_value_type v = {});
     /**
      * Retrieve
      */
@@ -145,6 +147,7 @@ public:
         return *this;
     }
     //-------------------------------------------------------------------------------
+    static std::shared_ptr<EntryArray> create(const std::string& backend = "");
 
     virtual std::unique_ptr<EntryArray> copy() const { return std::unique_ptr<EntryArray>(new EntryArray(*this)); };
 
@@ -162,14 +165,6 @@ public:
 
     virtual void for_each(std::function<void(int, const entry_value_type&)> const&) const;
 
-    virtual Entry at(const Path& path);
-
-    virtual Entry at(const Path& path) const;
-
-    virtual Entry pop_back();
-
-    virtual Entry push_back();
-
     virtual entry_value_type slice(int start, int stop, int step);
 
     virtual entry_value_type slice(int start, int stop, int step) const;
@@ -181,19 +176,21 @@ public:
     //------------------------------------------------------------------------------
     // CRUD operation
 
+    virtual Entry pop_back();
+
+    virtual Entry push_back();
     /**
      *  Create 
     */
-    virtual Entry insert(const Path&, entry_value_type&&);
+    virtual Entry insert(const Path&, entry_value_type);
     /**
      * Modify
     */
-    virtual void update(const Path&, entry_value_type&& v = {});
+    virtual void update(const Path&, entry_value_type v = {});
     /**
      * Retrieve
      */
     virtual Entry find(const Path& key) const;
-
     /**
      *  Delete 
     */
@@ -254,8 +251,13 @@ public:
 
     //-------------------------------------------------------------------------
 
-    void set_value(value_type v);
+    std::shared_ptr<EntryObject> as_object();
+    std::shared_ptr<const EntryObject> as_object() const;
 
+    std::shared_ptr<EntryArray> as_array();
+    std::shared_ptr<const EntryArray> as_array() const;
+
+    void set_value(value_type v);
     entry_value_type get_value() const;
 
     template <typename V, typename... Args>
@@ -278,30 +280,20 @@ public:
     }
 
     //-------------------------------------------------------------------------
-    // as object
-
-    std::shared_ptr<EntryObject> as_object();
-    std::shared_ptr<const EntryObject> as_object() const;
-
-    std::shared_ptr<EntryArray> as_array();
-    std::shared_ptr<const EntryArray> as_array() const;
-
-    //-------------------------------------------------------------------------
     // access
 
-    Entry at(const Path&);
-    const Entry at(const Path&) const;
+    template <typename... Args>
+    Entry at(Args&&... args) { return Entry{m_value_, m_path_.join(std::forward<Args>(args)...)}; }
+    template <typename... Args>
+    const Entry at(Args&&... args) const { return Entry{m_value_, m_path_.join(std::forward<Args>(args)...)}; }
 
     template <typename T>
-    inline Entry operator[](const T& idx) { return at(Path(idx)); }
+    inline Entry operator[](const T& idx) { return at(idx); }
     template <typename T>
-    inline const Entry operator[](const T& idx) const { return at(Path(idx)); }
+    inline const Entry operator[](const T& idx) const { return at(idx); }
 
-    inline Entry slice(int start, int stop, int step = 1) { return at(Path(start, stop, step)); }
-    inline const Entry slice(int start, int stop, int step = 1) const { return at(Path(start, stop, step)); }
-
-    inline Entry operator[](const Path& path);
-    inline const Entry operator[](const Path& path) const;
+    inline Entry slice(int start, int stop, int step = 1) { return at(start, stop, step); }
+    inline const Entry slice(int start, int stop, int step = 1) const { return at(start, stop, step); }
 
     //-------------------------------------------------------------------------
 
