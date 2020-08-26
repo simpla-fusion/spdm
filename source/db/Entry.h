@@ -106,7 +106,7 @@ public:
     /**
      * Retrieve
      */
-    virtual entry_value_type find(const Path& key) const;
+    virtual Entry find(const Path& key) const;
 
     /**
      *  Delete 
@@ -192,7 +192,7 @@ public:
     /**
      * Retrieve
      */
-    virtual entry_value_type find(const Path& key) const;
+    virtual Entry find(const Path& key) const;
 
     /**
      *  Delete 
@@ -210,25 +210,15 @@ public:
 
     typedef entry_value_type_tags value_type_tags;
 
-    Entry();
-
-    template <typename T>
-    Entry(const T& v, Path const& p) : m_value_(v), m_path_(p) {}
-
-    Entry(const entry_value_type& v, Path const& p = {}) : m_value_(v), m_path_(p) {}
-
-    Entry(const Entry& other) : m_value_(other.m_value_), m_path_(other.m_path_) {}
-
-    Entry(Entry&& other) : m_value_(std::move(other.m_value_)), m_path_(std::move(other.m_path_)) {}
+    Entry() = default;
 
     ~Entry() = default;
 
-    // template <typename... Args>
-    // Entry(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
+    Entry(entry_value_type v, Path const& p);
 
-    Entry(const value_type& v) : m_value_(v) {}
+    Entry(const Entry& other);
 
-    Entry(value_type&& v) : m_value_(std::forward<value_type>(v)) {}
+    Entry(Entry&& other);
 
     void swap(Entry& other);
 
@@ -237,6 +227,42 @@ public:
         Entry(other).swap(*this);
         return *this;
     }
+
+    //-------------------------------------------------------------------------
+
+    std::size_t type() const { return m_value_.index(); }
+
+    void reset();
+
+    bool is_null() const;
+
+    bool empty() const;
+
+    size_t size() const;
+
+    entry_value_type& value() { return m_value_; }
+
+    void value(entry_value_type v) { v.swap(m_value_); }
+
+    const entry_value_type& value() const { return m_value_; }
+
+    Path& path() { return m_path_; }
+
+    void path(Path p) { p.swap(m_path_); }
+
+    const Path& path() const { return m_path_; }
+
+    //-------------------------------------------------------------------------
+
+    void set_value(value_type v);
+
+    entry_value_type get_value() const;
+
+    template <typename V, typename... Args>
+    void as(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
+
+    template <typename V>
+    V as() const { return std::get<V>(get_value()); }
 
     template <typename V>
     Entry& operator=(const V& v)
@@ -250,53 +276,6 @@ public:
         as<std::string>(v);
         return *this;
     }
-
-    //-------------------------------------------------------------------------
-
-    std::size_t type() const { return m_value_.index(); }
-
-    bool is_null() const { return type() == value_type_tags::Null; }
-
-    bool empty() const { return size() == 0; }
-
-    size_t size() const;
-
-    void resize(std::size_t num);
-
-    void clear() { m_value_.emplace<std::nullptr_t>(nullptr); }
-
-    entry_value_type& value() { return m_value_; }
-    const entry_value_type& value() const { return m_value_; }
-
-    Path& path() { return m_path_; }
-    const Path& path() const { return m_path_; }
-    //-------------------------------------------------------------------------
-
-    Cursor<entry_value_type> children();
-
-    Cursor<const entry_value_type> children() const;
-
-    void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&);
-
-    void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
-
-    //-------------------------------------------------------------------------
-
-    void set_value(value_type&& v);
-
-    template <typename V, typename... Args>
-    void set_value(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
-
-    template <typename V, typename... Args>
-    void as(Args&&... args) { set_value<V>(std::forward<Args>(args)...); }
-
-    entry_value_type get_value() const;
-
-    template <typename V>
-    V get_value() const { return std::get<V>(get_value()); }
-
-    template <typename V>
-    V as() const { return std::get<V>(get_value()); }
 
     //-------------------------------------------------------------------------
     // as object
@@ -313,9 +292,6 @@ public:
     Entry at(const Path&);
     const Entry at(const Path&) const;
 
-    Entry pop_back();
-    Entry push_back();
-
     template <typename T>
     inline Entry operator[](const T& idx) { return at(Path(idx)); }
     template <typename T>
@@ -326,6 +302,22 @@ public:
 
     inline Entry operator[](const Path& path);
     inline const Entry operator[](const Path& path) const;
+
+    //-------------------------------------------------------------------------
+
+    void resize(std::size_t num);
+
+    Entry pop_back();
+
+    Entry push_back();
+
+    Cursor<entry_value_type> children();
+
+    Cursor<const entry_value_type> children() const;
+
+    void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&);
+
+    void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
