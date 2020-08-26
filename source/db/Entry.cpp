@@ -573,6 +573,9 @@ void Entry::set_value(entry_value_type v) { _detail::update(m_value_, m_path_, s
 
 entry_value_type Entry::get_value() const { return _detail::find(m_value_, m_path_); }
 
+/**
+ * TODO: check type of the return of insert
+*/
 std::shared_ptr<EntryObject> Entry::as_object() { return std::get<entry_value_type_tags::Object>(_detail::insert(m_value_, m_path_, std::make_shared<EntryObjectDefault>())); }
 
 std::shared_ptr<const EntryObject> Entry::as_object() const { return std::const_pointer_cast<const EntryObject>(std::get<entry_value_type_tags::Object>(_detail::find(m_value_, m_path_))); }
@@ -590,28 +593,25 @@ Entry Entry::push_back() { return as_array()->push_back(); }
 
 Cursor<entry_value_type> Entry::Entry::children()
 {
-    NOT_IMPLEMENTED;
     Cursor<entry_value_type> res;
-
-    // std::visit(
-    //     sp::traits::overloaded{
-    //         [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
-    //         [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
-    //         [&](auto&&) {}},
-    //     m_value_);
+    std::visit(
+        sp::traits::overloaded{
+            [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
+            [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
+            [&](auto&&) { RUNTIME_ERROR << "illegal type!"; }},
+        _detail::insert(m_value_, m_path_, std::make_shared<EntryObjectDefault>()));
     return std::move(res);
 }
 
 Cursor<const entry_value_type> Entry::Entry::children() const
 {
     Cursor<const entry_value_type> res;
-    NOT_IMPLEMENTED;
-    // std::visit(
-    //     sp::traits::overloaded{
-    //         [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
-    //         [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
-    //         [&](auto&&) { NOT_IMPLEMENTED; }},
-    //     m_value_);
+    std::visit(
+        sp::traits::overloaded{
+            [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { std::const_pointer_cast<const EntryObject>(object_p)->children().swap(res); },
+            [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { std::const_pointer_cast<const EntryArray>(array_p)->children().swap(res); },
+            [&](auto&&) { RUNTIME_ERROR << "illegal type!"; }},
+        _detail::find(m_value_, m_path_));
     return std::move(res);
 }
 
