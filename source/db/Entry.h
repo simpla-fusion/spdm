@@ -179,9 +179,9 @@ public:
     //------------------------------------------------------------------------------
     // CRUD operation
 
-    virtual Entry pop_back();
+    virtual Entry push_back(entry_value_type v = {});
 
-    virtual Entry push_back();
+    virtual Entry pop_back();
 
     virtual entry_value_type insert(entry_value_type, const Path& p = {});
 
@@ -245,12 +245,15 @@ public:
     const Path& path() const { return m_path_; }
 
     //-------------------------------------------------------------------------
+    entry_value_type& root();
 
-    std::shared_ptr<EntryObject> as_object();
-    std::shared_ptr<const EntryObject> as_object() const;
+   const entry_value_type&  root() const;
 
-    std::shared_ptr<EntryArray> as_array();
-    std::shared_ptr<const EntryArray> as_array() const;
+    EntryObject& as_object();
+    const EntryObject& as_object() const;
+
+    EntryArray& as_array();
+    const EntryArray& as_array() const;
 
     void set_value(value_type v);
     entry_value_type get_value() const;
@@ -278,17 +281,18 @@ public:
     // access
 
     template <typename... Args>
-    Entry at(Args&&... args) { return Entry{m_value_, m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) { return Entry{root(), Path(std::forward<Args>(args)...)}; }
+
     template <typename... Args>
-    const Entry at(Args&&... args) const { return Entry{m_value_, m_path_.join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) const { return Entry{root(), Path(std::forward<Args>(args)...)}; }
 
     template <typename T>
     inline Entry operator[](const T& idx) { return at(idx); }
     template <typename T>
     inline const Entry operator[](const T& idx) const { return at(idx); }
 
-    inline Entry slice(int start, int stop, int step = 1) { return at(start, stop, step); }
-    inline const Entry slice(int start, int stop, int step = 1) const { return at(start, stop, step); }
+    inline Entry slice(int start, int stop, int step = 1) { return at(std::make_tuple(start, stop, step)); }
+    inline const Entry slice(int start, int stop, int step = 1) const { return at(std::make_tuple(start, stop, step)); }
 
     //-------------------------------------------------------------------------
 
@@ -296,7 +300,7 @@ public:
 
     Entry pop_back();
 
-    Entry push_back();
+    Entry push_back(entry_value_type v = {});
 
     Cursor<entry_value_type> children();
 
@@ -324,6 +328,8 @@ public:
      *  Delete 
      */
     void remove(const Path& path);
+
+private:
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);

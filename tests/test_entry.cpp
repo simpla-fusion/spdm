@@ -17,10 +17,12 @@ TEST_CASE("Create Node", "[SpDB]")
 
     std::cout << entry << std::endl;
 
-    REQUIRE(entry.size() == 2);
+    REQUIRE(entry.type() == sp::db::entry_value_type_tags::Object);
+
+    REQUIRE(entry.as_object().size() == 2);
 
     entry["C"].resize(4);
-    
+
     REQUIRE(entry["C"].size() == 4);
 
     entry["C"][2] = 12344.56;
