@@ -90,9 +90,9 @@ public:
 
     virtual entry_value_type insert(const std::string&, entry_value_type) = 0;
 
-    virtual void set_value(const std::string& key, entry_value_type v = {}) = 0;
+    virtual entry_value_type find(const std::string& key) const = 0;
 
-    virtual entry_value_type get_value(const std::string& key) const = 0;
+    virtual void update(const std::string& key, entry_value_type v = {}) = 0;
 
     virtual void remove(const std::string& path) = 0;
 
@@ -170,11 +170,13 @@ public:
 
     virtual entry_value_type slice(int start, int stop, int step) const;
 
-    virtual void set_value(int idx, entry_value_type&&);
-
-    virtual entry_value_type get_value(int idx) const;
-
     virtual entry_value_type insert(int idx, entry_value_type&&);
+
+    virtual entry_value_type find(int idx) const;
+
+    virtual void update(int idx, entry_value_type&&);
+
+    virtual void remove(int idx);
 
     //------------------------------------------------------------------------------
     // CRUD operation
@@ -222,7 +224,7 @@ public:
 
     //-------------------------------------------------------------------------
 
-    std::size_t type() const { return m_value_.index(); }
+    std::size_t type() const;
 
     void reset();
 
@@ -247,7 +249,7 @@ public:
     //-------------------------------------------------------------------------
     entry_value_type& root();
 
-   const entry_value_type&  root() const;
+    const entry_value_type& root() const;
 
     EntryObject& as_object();
     const EntryObject& as_object() const;
@@ -258,8 +260,8 @@ public:
     void set_value(value_type v);
     entry_value_type get_value() const;
 
-    template <typename V, typename... Args>
-    void as(Args&&... args) { set_value(value_type(std::in_place_type_t<V>(), std::forward<Args>(args)...)); }
+    template <typename V, typename First, typename... Others>
+    void as(First&& first, Others&&... others) { set_value(value_type(std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...)); }
 
     template <typename V>
     V as() const { return std::get<V>(get_value()); }
@@ -281,10 +283,10 @@ public:
     // access
 
     template <typename... Args>
-    Entry at(Args&&... args) { return Entry{root(), Path(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) { return Entry{root(), join(m_path_, std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) const { return Entry{root(), Path(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) const { return Entry{root(), join(m_path_, std::forward<Args>(args)...)}; }
 
     template <typename T>
     inline Entry operator[](const T& idx) { return at(idx); }
@@ -310,29 +312,22 @@ public:
 
     void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
 
+private:
     //------------------------------------------------------------------------------
     // fundamental operation ：
-    /**
-     *  Create 
-     */
-    entry_value_type insert(entry_value_type e = {}, const Path& path = {});
-    /**
-     * Retrieve
-     */
-    entry_value_type find(const Path& path = {}) const;
-    /**
-     * Modify
-     */
-    void update(entry_value_type v, const Path& path = {});
-    /**
-     *  Delete 
-     */
-    void remove(const Path& path);
+
+    entry_value_type fetch(entry_value_type default_value = {});
+
+    entry_value_type fetch() const;
+
+    void assign(entry_value_type&& v);
 
 private:
 };
 
 std::ostream& operator<<(std::ostream& os, Entry const& entry);
+
+std::ostream& operator<<(std::ostream& os, entry_value_type const& entry);
 
 namespace literals
 {

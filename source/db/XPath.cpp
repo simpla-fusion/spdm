@@ -56,8 +56,24 @@ urlparse(std::string const& url)
     return std::make_tuple(scheme, authority, path, query, fragment);
 }
 
-Path::Path(const std::string& path)
+Path::Path(const std::string& path) : m_path_{path} {}
+
+Path::Path(const Segment& path) : m_path_{path} {}
+
+Path::Path(const Segment&& path) : m_path_{path} {}
+
+Path::Path(const Path& other) : m_path_(other.m_path_) {}
+
+Path::Path(Path&& other) : m_path_(std::move(other.m_path_)) {}
+
+Path Path::parse(const std::string& path)
 {
+    /** 
+     *  TODO : parse uri ??
+     */
+
+    Path res;
+
     int pos = 0;
 
     do
@@ -66,24 +82,18 @@ Path::Path(const std::string& path)
 
         if (pend == std::string::npos)
         {
-            append(path.substr(pos));
+            res.append(path.substr(pos));
             pos = pend;
         }
         else
         {
-            append(path.substr(pos, pend - pos));
+            res.append(path.substr(pos, pend - pos));
             pos = pend + 1;
         }
     } while (pos != std::string::npos);
+
+    return std::move(res);
 }
-
-Path::Path(const Path& other) : m_path_(other.m_path_) {}
-
-Path::Path(Path&& other) : m_path_(std::move(other.m_path_)) {}
-
-Path::Path(const Segment& path) : m_path_{path} {}
-
-Path::Path(const Segment&& path) : m_path_{path} {}
 
 std::string Path::filename() const
 {
@@ -123,12 +133,16 @@ std::string Path::str() const
     return os.str();
 }
 
-Path Path::join(const Path& other) const
+Path& Path::append(const Path& other)
 {
-    Path res(*this);
-    res.m_path_.insert(m_path_.end(), other.m_path_.begin(), other.m_path_.end());
-    return std::move(res);
+    m_path_.insert(m_path_.end(), other.m_path_.begin(), other.m_path_.end());
+    return *this;
 }
+
+// Path& Path::append(const std::string& uri)
+// {
+//     return append(Path::parse(uri));
+// }
 
 //--------------------------------------------------------------------------------
 

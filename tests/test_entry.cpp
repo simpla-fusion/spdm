@@ -15,14 +15,15 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["A"s].as<std::string>("1234");
     entry["B"s].as<std::string>("5678");
 
-    std::cout << entry << std::endl;
-
     REQUIRE(entry.type() == sp::db::entry_value_type_tags::Object);
 
     REQUIRE(entry.as_object().size() == 2);
 
     entry["C"].resize(4);
 
+    REQUIRE(entry["C"].as_array().size() == 4);
+
+    REQUIRE(entry["C"].type() == sp::db::entry_value_type_tags::Array);
     REQUIRE(entry["C"].size() == 4);
 
     entry["C"][2] = 12344.56;
@@ -33,9 +34,11 @@ TEST_CASE("Create Node", "[SpDB]")
 
     REQUIRE(entry["C"].size() == 6);
 
-    // entry["D/E/F"_p] = "hello world!";
+    std::string message = "hello world!";
 
-    VERBOSE << sizeof(sp::db::Entry);
+    entry["D/E/F"_p] = message;
+
+    REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
 
     std::cout << entry << std::endl;
 

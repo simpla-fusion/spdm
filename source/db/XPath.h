@@ -36,6 +36,8 @@ public:
 
     typedef Path this_type;
 
+    static Path parse(const std::string&);
+
     Path() {}
 
     Path(const Path& prefix);
@@ -69,9 +71,12 @@ public:
     // template <typename Segment>
     // this_type operator[](const Segment& key) const { return this->join(key); }
 
-    // this_type operator/(const std::string& key) const { return this->join(key); }
+    template <typename U>
+    this_type operator/(const U& key) const { return join(*this, key); }
 
     bool empty() const { return m_path_.size() == 0; }
+
+    void clear() { m_path_.clear(); }
 
     size_t size() const { return m_path_.size(); }
 
@@ -89,28 +94,38 @@ public:
 
     std::string extension() const;
 
-    this_type& append() { return *this; }
+    this_type& append(const this_type& other);
 
-    template <typename FirstSegment, typename... Segments>
-    this_type& append(FirstSegment&& first_seg, Segments&&... segs)
+    // this_type& append(const std::string& uri);
+
+    template <typename U>
+    this_type& append(const U& seg)
     {
-        m_path_.emplace_back(std::forward<FirstSegment>(first_seg));
-        return append(std::forward<Segments>(segs)...);
+        m_path_.emplace_back(seg);
+        return *this;
     }
 
-    template <typename... Segments>
-    this_type join(Segments&&... segments) const
+    template <typename First, typename Second, typename... Others>
+    this_type& append(const First&& first, Second&& second, Others&&... others)
     {
-        this_type res(*this);
-        res.append(std::forward<Segments>(segments)...);
-        return std::move(res);
+        return append(std::forward<First>(first)).append(std::forward<Second>(second), std::forward<Others>(others)...);
     }
-
-    this_type join(const Path& other) const;
 
 private:
     std::list<Segment> m_path_;
 };
+
+/**
+ * @TODO: Python os.path.join , join("Document","/home") => "/home"  
+ * 
+*/
+template <typename... Components>
+Path join(const Path& path, Components&&... comp)
+{
+    Path res(path);
+    res.append(std::forward<Components>(comp)...);
+    return std::move(res);
+}
 
 /**
  *  - URL : @ref  https://www.ietf.org/rfc/rfc3986.txt
@@ -174,7 +189,7 @@ private:
 };
 namespace literals
 {
-inline Path operator"" _p(const char* s, std::size_t) { return Path(s); }
+inline Path operator"" _p(const char* s, std::size_t) { return Path::parse(s); }
 } // namespace literals
 } // namespace sp::db
 #endif //SPDB_XPath_h_
