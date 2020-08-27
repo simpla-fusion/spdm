@@ -31,6 +31,7 @@ M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
 
 namespace sp::db
 {
+
 typedef std::variant<std::nullptr_t,
                      std::shared_ptr<EntryObject>,       //Object
                      std::shared_ptr<EntryArray>,        //Array
@@ -100,20 +101,20 @@ public:
     /**
      *  Create 
      */
-    virtual entry_value_type insert(const Path&, entry_value_type);
+    virtual entry_value_type insert(entry_value_type, const Path& p = {});
     /**
      * Modify
      */
-    virtual void update(const Path&, entry_value_type v = {});
+    virtual void update(entry_value_type v, const Path& path = {});
     /**
      * Retrieve
      */
-    virtual entry_value_type find(const Path& key) const;
+    virtual entry_value_type find(const Path& path = {}) const;
 
     /**
      *  Delete 
      */
-    virtual void remove(const Path& path);
+    virtual void remove(const Path& path = {});
 
     //------------------------------------------------------------------------------
     // advanced extension functions
@@ -173,28 +174,22 @@ public:
 
     virtual entry_value_type get_value(int idx) const;
 
+    virtual entry_value_type insert(int idx, entry_value_type&&);
+
     //------------------------------------------------------------------------------
     // CRUD operation
 
     virtual Entry pop_back();
 
     virtual Entry push_back();
-    /**
-     *  Create 
-    */
-    virtual entry_value_type insert(const Path&, entry_value_type);
-    /**
-     * Retrieve
-     */
-    virtual entry_value_type find(const Path& key) const;
-    /**
-     * Modify
-    */
-    virtual void update(const Path&, entry_value_type v = {});
-    /**
-     *  Delete 
-    */
-    virtual void remove(const Path& path);
+
+    virtual entry_value_type insert(entry_value_type, const Path& p = {});
+
+    virtual void update(entry_value_type v, const Path& path = {});
+
+    virtual entry_value_type find(const Path& path = {}) const;
+
+    virtual void remove(const Path& path = {});
 };
 
 class Entry
@@ -316,15 +311,15 @@ public:
     /**
      *  Create 
      */
-    entry_value_type insert(const Path&, entry_value_type);
+    entry_value_type insert(entry_value_type e = {}, const Path& path = {});
     /**
      * Retrieve
      */
-    entry_value_type find(const Path& path) const;
+    entry_value_type find(const Path& path = {}) const;
     /**
      * Modify
      */
-    void update(const Path&, entry_value_type v);
+    void update(entry_value_type v, const Path& path = {});
     /**
      *  Delete 
      */

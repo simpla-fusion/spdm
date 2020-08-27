@@ -5,6 +5,7 @@
 #include <any>
 #include <functional>
 #include <iostream>
+#include <list>
 #include <map>
 #include <memory>
 #include <stdlib.h>
@@ -53,7 +54,7 @@ public:
 
     explicit Path(int start, int stop, int step = 1) { m_path_.emplace_back(std::make_tuple(start, stop, step)); }
 
-    explicit Path(const std::vector<Segment>::const_iterator& b, const std::vector<Segment>::const_iterator& e) : m_path_(b, e) {}
+    explicit Path(const std::list<Segment>::const_iterator& b, const std::list<Segment>::const_iterator& e) : m_path_(b, e) {}
 
     ~Path() = default;
 
@@ -65,10 +66,10 @@ public:
 
     void swap(Path& other) { std::swap(m_path_, other.m_path_); }
 
-    template <typename Segment>
-    this_type operator[](const Segment& key) const { return this->join(key); }
+    // template <typename Segment>
+    // this_type operator[](const Segment& key) const { return this->join(key); }
 
-    this_type operator/(const std::string& key) const { return this->join(key); }
+    // this_type operator/(const std::string& key) const { return this->join(key); }
 
     bool empty() const { return m_path_.size() == 0; }
 
@@ -78,7 +79,7 @@ public:
 
     auto end() const { return m_path_.end(); }
 
-    Path prefix() const { return Path(m_path_.begin(), m_path_.end()); }
+    Path prefix() const { return Path(m_path_.begin(), --m_path_.end()); }
 
     const Segment& last() const { return m_path_.back(); }
 
@@ -108,7 +109,7 @@ public:
     this_type join(const Path& other) const;
 
 private:
-    std::vector<Segment> m_path_;
+    std::list<Segment> m_path_;
 };
 
 /**
