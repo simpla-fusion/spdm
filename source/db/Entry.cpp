@@ -139,6 +139,17 @@ void remove(entry_value_type self, const Path& path)
 } // namespace _detail
 
 //----------------------------------------------------------------------------------------------------
+std::pair<std::shared_ptr<const EntryObject>, Path> EntryObject::full_path() const
+{
+    NOT_IMPLEMENTED;
+    return std::pair<std::shared_ptr<const EntryObject>, Path>{shared_from_this(), {}};
+}
+
+std::pair<std::shared_ptr<EntryObject>, Path> EntryObject::full_path()
+{
+    NOT_IMPLEMENTED;
+    return std::pair<std::shared_ptr<EntryObject>, Path>{shared_from_this(), {}};
+}
 
 entry_value_type EntryObject::insert(entry_value_type v, const Path& path) { return _detail::insert(entry_value_type{shared_from_this()}, std::move(v), path); }
 
@@ -153,6 +164,18 @@ void EntryObject::merge(const EntryObject&) { NOT_IMPLEMENTED; }
 void EntryObject::patch(const EntryObject&) { NOT_IMPLEMENTED; }
 
 void EntryObject::update(const EntryObject&) { NOT_IMPLEMENTED; }
+
+bool EntryObject::compare(const entry_value_type& other) const
+{
+    NOT_IMPLEMENTED;
+    return false;
+}
+
+entry_value_type EntryObject::diff(const entry_value_type& other) const
+{
+    NOT_IMPLEMENTED;
+    return entry_value_type{};
+}
 //----------------------------------------------------------------------------------------------------
 
 class EntryObjectDefault : public EntryObject
@@ -404,19 +427,11 @@ size_t Entry::size() const
     return res;
 }
 
-//-----------------------------------------------------------------------------------------------------------
-
-void Entry::set_value(entry_value_type v) { assign(std::move(v)); }
-
-entry_value_type Entry::get_value() const { return fetch(); }
-
-EntryObject& Entry::as_object() { return *std::get<entry_value_type_tags::Object>(fetch(entry_value_type{EntryObject::create()})); }
-
-const EntryObject& Entry::as_object() const { return *std::const_pointer_cast<const EntryObject>(std::get<entry_value_type_tags::Object>(fetch())); }
-
-EntryArray& Entry::as_array() { return *std::get<entry_value_type_tags::Array>(fetch(entry_value_type{EntryArray::create()})); }
-
-const EntryArray& Entry::as_array() const { return *std::const_pointer_cast<const EntryArray>(std::get<entry_value_type_tags::Array>(fetch())); }
+bool Entry::operator==(const Entry& other) const
+{
+    NOT_IMPLEMENTED;
+    return false;
+}
 
 entry_value_type& Entry::root()
 {
@@ -449,6 +464,33 @@ const entry_value_type& Entry::root() const
     }
     return m_value_;
 }
+
+std::pair<std::shared_ptr<const EntryObject>, Path> Entry::full_path() const
+{
+    NOT_IMPLEMENTED;
+    return std::pair<std::shared_ptr<const EntryObject>, Path>{};
+}
+
+std::pair<std::shared_ptr<EntryObject>, Path> Entry::full_path()
+{
+    NOT_IMPLEMENTED;
+    return std::pair<std::shared_ptr<EntryObject>, Path>{};
+}
+
+//-----------------------------------------------------------------------------------------------------------
+
+void Entry::set_value(entry_value_type v) { assign(std::move(v)); }
+
+entry_value_type Entry::get_value() const { return fetch(); }
+
+EntryObject& Entry::as_object() { return *std::get<entry_value_type_tags::Object>(fetch(entry_value_type{EntryObject::create()})); }
+
+const EntryObject& Entry::as_object() const { return *std::const_pointer_cast<const EntryObject>(std::get<entry_value_type_tags::Object>(fetch())); }
+
+EntryArray& Entry::as_array() { return *std::get<entry_value_type_tags::Array>(fetch(entry_value_type{EntryArray::create()})); }
+
+const EntryArray& Entry::as_array() const { return *std::const_pointer_cast<const EntryArray>(std::get<entry_value_type_tags::Array>(fetch())); }
+
 //-----------------------------------------------------------------------------------------------------------
 
 void Entry::resize(std::size_t num) { as_array().resize(num); }

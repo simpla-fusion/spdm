@@ -68,6 +68,10 @@ public:
 
     virtual std::unique_ptr<EntryObject> copy() const = 0;
 
+    virtual std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
+
+    virtual std::pair<std::shared_ptr<EntryObject>, Path> full_path();
+
     virtual size_t size() const = 0;
 
     virtual void clear() = 0;
@@ -123,6 +127,10 @@ public:
     virtual void patch(const EntryObject&);
 
     virtual void update(const EntryObject&);
+
+    virtual bool compare(const entry_value_type& other) const;
+
+    virtual entry_value_type diff(const entry_value_type& other) const;
 };
 
 class EntryArray : public std::enable_shared_from_this<EntryArray>
@@ -234,22 +242,17 @@ public:
 
     size_t size() const;
 
-    entry_value_type& value() { return m_value_; }
-
-    void value(entry_value_type v) { v.swap(m_value_); }
-
-    const entry_value_type& value() const { return m_value_; }
-
-    Path& path() { return m_path_; }
-
-    void path(Path p) { p.swap(m_path_); }
-
-    const Path& path() const { return m_path_; }
-
-    //-------------------------------------------------------------------------
     entry_value_type& root();
 
     const entry_value_type& root() const;
+
+    const Path& path() const { return m_path_; }
+
+    std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
+
+    std::pair<std::shared_ptr<EntryObject>, Path> full_path();
+
+    //-------------------------------------------------------------------------
 
     EntryObject& as_object();
     const EntryObject& as_object() const;
@@ -311,6 +314,10 @@ public:
     void for_each(std::function<void(const Path::Segment&, entry_value_type&)> const&);
 
     void for_each(std::function<void(const Path::Segment&, const entry_value_type&)> const&) const;
+
+    //------------------------------------------------------------------------------------
+
+    bool operator==(const Entry& other) const;
 
 private:
     //------------------------------------------------------------------------------
