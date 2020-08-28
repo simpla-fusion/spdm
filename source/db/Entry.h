@@ -64,13 +64,17 @@ public:
     EntryObject(const EntryObject&) = delete;
     EntryObject(EntryObject&&) = delete;
 
-    static std::shared_ptr<EntryObject> create(const std::string& backend = "");
+    static std::shared_ptr<EntryObject> create(const std::string& url = "");
 
-    virtual std::unique_ptr<EntryObject> copy() const = 0;
+    virtual void load(const std::string&) { NOT_IMPLEMENTED; }
+
+    virtual void save(const std::string&) const { NOT_IMPLEMENTED; }
 
     virtual std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const;
 
     virtual std::pair<std::shared_ptr<EntryObject>, Path> full_path();
+
+    virtual std::unique_ptr<EntryObject> copy() const = 0;
 
     virtual size_t size() const = 0;
 
@@ -86,7 +90,7 @@ public:
 
     virtual Cursor<const entry_value_type> children() const = 0;
 
-    virtual void for_each(std::function<void(const std::string&, entry_value_type&)> const&) = 0;
+    // virtual void for_each(std::function<void(const std::string&, entry_value_type&)> const&) = 0;
 
     virtual void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const = 0;
 
@@ -229,6 +233,12 @@ public:
         Entry(other).swap(*this);
         return *this;
     }
+
+    static Entry create(const std::string&);
+
+    void load(const std::string&);
+
+    void save(const std::string&) const;
 
     //-------------------------------------------------------------------------
 

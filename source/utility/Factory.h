@@ -24,9 +24,11 @@ public:
     Factory() = default;
     virtual ~Factory() = default;
 
+    typedef std::function<TObj*(Args const&...)> function_type;
+
     struct ObjectFactory
     {
-        std::map<std::string, std::function<TObj*(Args const&...)>> m_factory_;
+        std::map<std::string, function_type> m_factory_;
         std::map<std::string, std::regex> m_associate_;
     };
     static bool has_creator(std::string const& k)
@@ -83,10 +85,9 @@ public:
     {
         return sizeof...(Others);
     }
-    // template <typename... Others> Others&&... args
+
     static int associate(std::string const& key, std::string const& pattern)
     {
-        // std::cout << FILE_LINE_STAMP << pattern << std::endl;
         Singleton<ObjectFactory>::instance().m_associate_.try_emplace(key, pattern);
         return 1;
     }
@@ -107,14 +108,12 @@ public:
     template <typename... U>
     static std::unique_ptr<TObj> create(std::string const& k, U&&... args)
     {
-        if (k.empty())
-        {
-            return nullptr;
-        }
-        //        if (k.find("://") != std::string::npos) { return create_(ptr::DataTable(k), args...); }
-        auto const& f = Singleton<ObjectFactory>::instance().m_factory_;
         TObj* res = nullptr;
+
+        auto const& f = Singleton<ObjectFactory>::instance().m_factory_;
+
         auto it = f.find(k);
+        
         if (it != f.end())
         {
             res = it->second(std::forward<U>(args)...);
@@ -135,6 +134,16 @@ public:
                 }
             }
         }
+
+        if (res == nullptr)
+        {
+            auto it = f.find("");
+            if (it != f.end())
+            {
+                res = it->second(std::forward<U>(args)...);
+            }
+        }
+
         if (res == nullptr)
         {
             VERBOSE << "Can not find plugin for \"" << k << "\"" << std::endl;

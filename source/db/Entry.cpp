@@ -61,17 +61,6 @@ entry_value_type find(entry_value_type self, const Path& path)
             found = false;
             break;
         }
-
-        // std::visit(
-        //     sp::traits::overloaded{
-        //         [&](const std::variant_alternative_t<entry_value_type_tags::Object, entry_value_type>& object_p) {
-        //             auto tmp = object_p->find(std::get<Path::segment_tags::Key>(*it));
-        //             VERBOSE << tmp;
-        //             self.swap(tmp);
-        //         },
-        //         [&](const std::variant_alternative_t<entry_value_type_tags::Array, entry_value_type>& array_p) { array_p->find(std::get<Path::segment_tags::Index>(*it)).swap(self); },
-        //         [&](auto&& v) { NOT_IMPLEMENTED; }},
-        //     self);
     }
     return found ? self : entry_value_type{};
 }
@@ -209,7 +198,7 @@ public:
 
     Cursor<const entry_value_type> children() const override;
 
-    void for_each(std::function<void(const std::string&, entry_value_type&)> const&) override;
+    // void for_each(std::function<void(const std::string&, entry_value_type&)> const&) override;
 
     void for_each(std::function<void(const std::string&, const entry_value_type&)> const&) const override;
     //------------------------------------------------------------------
@@ -221,8 +210,6 @@ public:
     void update(const std::string&, entry_value_type) override;
 
     void remove(const std::string&) override;
-
-    //------------------------------------------------------------------
 };
 
 Entry EntryObjectDefault::at(const Path& path) { return Entry{entry_value_type{std::in_place_index_t<entry_value_type_tags::Object>(), std::dynamic_pointer_cast<EntryObject>(shared_from_this())}, path}; };
@@ -240,13 +227,13 @@ Cursor<const entry_value_type> EntryObjectDefault::children() const
     return Cursor<const entry_value_type>{};
 }
 
-void EntryObjectDefault::for_each(std::function<void(const std::string&, entry_value_type&)> const& visitor)
-{
-    for (auto&& item : m_container_)
-    {
-        visitor(item.first, item.second);
-    }
-}
+// void EntryObjectDefault::for_each(std::function<void(const std::string&, entry_value_type&)> const& visitor)
+// {
+//     for (auto&& item : m_container_)
+//     {
+//         visitor(item.first, item.second);
+//     }
+// }
 
 void EntryObjectDefault::for_each(std::function<void(const std::string&, const entry_value_type&)> const& visitor) const
 {
@@ -266,7 +253,25 @@ void EntryObjectDefault::remove(const std::string& key) { m_container_.erase(m_c
 
 //------------------------------------------------------------------
 
-std::shared_ptr<EntryObject> EntryObject::create(const std::string& backend) { return std::dynamic_pointer_cast<EntryObject>(std::make_shared<EntryObjectDefault>()); }
+std::shared_ptr<EntryObject> EntryObject::create(const std::string& uri)
+{
+    EntryObject* p = nullptr;
+    if (uri != "")
+    {
+        p = ::sp::utility::Factory<::sp::db::EntryObject>::create(uri).release();
+    }
+    if (p == nullptr)
+    {
+        p = dynamic_cast<EntryObject*>(new EntryObjectDefault());
+    }
+
+    if (p != nullptr)
+    {
+        p->load(uri);
+    }
+
+    return std::shared_ptr<EntryObject>(p);
+}
 
 //==========================================================================================
 // EntryArray
@@ -394,6 +399,25 @@ void Entry::swap(Entry& other)
 {
     std::swap(m_value_, other.m_value_);
     std::swap(m_path_, other.m_path_);
+}
+
+Entry Entry::create(const std::string& url) { return Entry{entry_value_type{EntryObject::create(url)}, Path{}}; }
+
+void Entry::load(const std::string& url)
+{
+    m_value_.emplace<entry_value_type_tags::Object>(EntryObject::create(url));
+}
+
+void Entry::save(const std::string& url) const
+{
+    if (m_value_.index() == entry_value_type_tags::Object)
+    {
+        std::get<entry_value_type_tags::Object>(m_value_)->save(url);
+    }
+    else
+    {
+        NOT_IMPLEMENTED;
+    }
 }
 
 std::size_t Entry::type() const { return fetch().index(); }
