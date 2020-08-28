@@ -78,11 +78,11 @@ public:
     /**
      *  Create 
      */
-    entry_value_type insert(const Path& p ,entry_value_type) override { return EntryObject::insert(std::move(v), path); }
+    entry_value_type insert(const Path& path, entry_value_type v) override { return EntryObject::insert(path, std::move(v)); }
     /**
      * Modify
      */
-    void update(const Path& p ,entry_value_type) override { EntryObject::update(std::move(v), path); }
+    void update(const Path& path, entry_value_type v) override { EntryObject::update(path, std::move(v)); }
     /**
      * Retrieve
      */

@@ -13,9 +13,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
-namespace sp
-{
-namespace traits
+namespace sp::traits
 {
 
 template <typename V>
@@ -106,6 +104,7 @@ template <typename V>
 using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<V>>;
 template <typename V>
 using remove_all_t = std::remove_pointer_t<std::remove_cv_t<std::remove_reference_t<V>>>;
+
 template <typename... V>
 struct is_integral;
 template <typename V>
@@ -168,6 +167,48 @@ struct is_complete : public _detail::is_complete_helper<T>::type
 
 template <class T>
 static constexpr bool is_complete_v = is_complete<T>::value;
+
+//------------------------------------------------------------------------------------------------
+
+template <typename V, typename U, typename Enable = void>
+struct type_convert;
+
+template <typename V, typename U>
+struct type_convert<V, U,
+                    std::enable_if_t<!std::is_same_v<V, U> && std::is_convertible_v<V, U>>>
+{
+    static V convert(const U& u) { return static_cast<V>(u); }
+};
+
+template <typename V>
+struct type_convert<V, V>
+{
+    static V convert(const V& u) { return u; }
+};
+template <typename U>
+struct type_convert<std::string, U, std::enable_if_t<!std::is_same_v<std::string, U>>>
+{
+    template <typename V>
+    static auto convert(const V& u) -> decltype(std::to_string(std::declval<V>()))
+    {
+        return std::to_string(u);
+    }
+    template <typename... Args>
+    static auto convert(Args&&...) -> std::string { return "N/A"; }
+};
+
+// template <>
+// struct type_convert<std::string, std::nullptr_t>
+// {
+//     static std::string convert(std::nullptr_t) { return "N/A"; }
+// };
+template <typename V, typename U>
+V convert(const U& u)
+{
+    return type_convert<V, U>::convert(u);
+}
+//------------------------------------------------------------------------------------------------
+
 /**
  *  for Array
  */
@@ -1098,8 +1139,7 @@ struct overloaded : Ts...
 template <class... Ts>
 overloaded(Ts...)->overloaded<Ts...>;
 
-} // namespace traits
-} // namespace sp
+} // namespace sp::traits
 
 #define M_REGISITER_TYPE_TAG(_TAG_, ...)           \
     namespace sp                                   \

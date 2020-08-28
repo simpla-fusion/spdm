@@ -109,11 +109,11 @@ public:
     /**
      *  Create 
      */
-    virtual entry_value_type insert(const Path& p ,entry_value_type);
+    virtual entry_value_type insert(const Path& p, entry_value_type);
     /**
      * Modify
      */
-    virtual void update(const Path& p ,entry_value_type);
+    virtual void update(const Path& p, entry_value_type);
     /**
      * Retrieve
      */
@@ -197,9 +197,9 @@ public:
 
     virtual Entry pop_back();
 
-    virtual entry_value_type insert(const Path& p ,entry_value_type);
+    virtual entry_value_type insert(const Path& p, entry_value_type);
 
-    virtual void update(const Path& p ,entry_value_type);
+    virtual void update(const Path& p, entry_value_type);
 
     virtual entry_value_type find(const Path& path = {}) const;
 
@@ -277,7 +277,18 @@ public:
     void as(First&& first, Others&&... others) { set_value(value_type(std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...)); }
 
     template <typename V>
-    V as() const { return std::get<V>(get_value()); }
+    V as() const
+    {
+        // return std::get<V>(get_value());
+
+        V res;
+        std::visit(
+            sp::traits::overloaded{
+                [&](const V& v) { res = v; },
+                [&](auto&& v) { res = sp::traits::convert<V>(v); }},
+            get_value());
+        return std::move(res);
+    }
 
     template <typename V>
     Entry& operator=(const V& v)

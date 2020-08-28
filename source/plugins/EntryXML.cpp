@@ -185,9 +185,10 @@ void EntryObjectXML::load(const std::string& uri)
     m_container_.path = uri + ":/";
     m_container_.node = m_container_.root;
 }
+template <>
 void EntryObjectXML::save(const std::string& url) const
 {
-    auto result = std::dynamic_pointer_cast<pugi::xml_document>(m_container_.root)->save_file(url.c_str());
+    auto result = reinterpret_cast<pugi::xml_document*>(m_container_.root.get())->save_file(url.c_str());
 
     if (!result)
     {
@@ -326,10 +327,10 @@ template <>
 void EntryObjectXML::remove(const std::string& path) {}
 
 template <>
-entry_value_type EntryObjectXML::insert(const Path& p ,entry_value_type) { return EntryObject::insert(std::move(v), path); }
+entry_value_type EntryObjectXML::insert(const Path& path, entry_value_type v) { return EntryObject::insert(path, std::move(v)); }
 
 template <>
-void EntryObjectXML::update(const Path& p ,entry_value_type) { EntryObject::update(std::move(v), path); }
+void EntryObjectXML::update(const Path& path, entry_value_type v) { EntryObject::update(path, std::move(v)); }
 
 template <>
 entry_value_type EntryObjectXML::find(const Path& path) const { return EntryObject::find(path); }
