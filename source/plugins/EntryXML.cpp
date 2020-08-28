@@ -17,6 +17,33 @@ struct xml_node
 
 typedef EntryObjectPlugin<xml_node> EntryObjectXML;
 
+entry_value_type make_entry(const pugi::xml_node& node, xml_node const& parent)
+{
+    VERBOSE << "Type =" << node.type() << "  Text=" << node.text().as_string();
+
+    entry_value_type res;
+
+    if (node.empty())
+    {
+    }
+    else if (node.type() == pugi::node_element && !node.text().empty())
+    {
+        res.emplace<entry_value_type_tags::String>(node.text().as_string());
+    }
+    else
+    {
+        entry_value_type{std::make_shared<EntryObjectXML>(xml_node{parent.root,
+                                                                   parent.path + "/" + node.name(),
+                                                                   std::make_shared<pugi::xml_node>(node)})};
+    }
+    return std::move(res);
+}
+entry_value_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& parent)
+{
+    entry_value_type res;
+
+    return std::move(res);
+}
 // template <>
 // class CursorProxy<Entry, pugi::xml_node> : public CursorProxy<Entry>
 // {
@@ -201,17 +228,10 @@ void EntryObjectXML::save(const std::string& url) const
 }
 
 template <>
-size_t EntryObjectXML::size() const
-{
-    NOT_IMPLEMENTED;
-    return 0;
-}
+size_t EntryObjectXML::size() const { return std::distance(m_container_.node->children().begin(), m_container_.node->children().end()); }
 
 template <>
-void EntryObjectXML::clear()
-{
-    NOT_IMPLEMENTED;
-}
+void EntryObjectXML::clear() { NOT_IMPLEMENTED; }
 
 // template <>
 // Entry EntryObjectXML::at(const Path& path) { return Entry{entry_value_type{shared_from_this()}, path}; }
@@ -281,43 +301,23 @@ void EntryObjectXML::for_each(std::function<void(const std::string&, const entry
 
     for (auto&& node : m_container_.node->children())
     {
-        if (node.type() == pugi::node_element && node)
-        {
-            visitor(node.name(),
-                    entry_value_type{
-                        std::shared_ptr<EntryObjectXML>(
-                            new EntryObjectXML{
-                                xml_node{
-                                    m_container_.root,
-                                    m_container_.path + "/" + node.name(),
-                                    std::make_shared<pugi::xml_node>(node)}})});
-        }
-        else
-        {
-            visitor(node.name(), entry_value_type{std::string(node.value())});
-        }
+        visitor(node.name(), make_entry(node, m_container_));
     }
 }
 
 template <>
 entry_value_type EntryObjectXML::insert(const std::string& key, entry_value_type v)
 {
-
     entry_value_type res;
-    // res->emplace<Entry::type_tags::Object>(std::dynamic_pointer_cast<EntryObject>(std::make_shared<this_type>(self(), xml_node{nullptr, n})));
     return std::move(res);
 }
 template <>
 entry_value_type EntryObjectXML::find(const std::string& key) const
 {
-    // NOT_IMPLEMENTED;
-    // if (m_container_.document == nullptr)
-    // {
-    //     m_container_.document = std::make_shared<pugi::xml_document>();
-    //     m_container_.document->load_file(path.str().c_str());
-    //     m_container_.node = m_container_.document->root();
-    // }
-    return entry_value_type{};
+
+    auto node = m_container_.node->child(key.c_str());
+
+    return make_entry(node, m_container_);
 }
 
 template <>
@@ -333,7 +333,51 @@ template <>
 void EntryObjectXML::update(const Path& path, entry_value_type v) { EntryObject::update(path, std::move(v)); }
 
 template <>
-entry_value_type EntryObjectXML::find(const Path& path) const { return EntryObject::find(path); }
+entry_value_type EntryObjectXML::find(const Path& path) const
+{
+    std::ostringstream os;
+
+    for (auto&& item : path)
+    {
+        switch (item.index())
+        {
+        case Path::segment_tags::Key:
+            os << "/" << std::get<Path::segment_tags::Key>(item);
+            break;
+        case Path::segment_tags::Index:
+            os << "[@id=" << std::get<Path::segment_tags::Index>(item) << "]";
+            break;
+        default:
+            break;
+        }
+        // std::visit(
+        //     sp::traits::overloaded{
+        //         [&](std::variant_alternative_t<Path::segment_tags::Key, Path::Segment>& key) { os << "/" << key; },
+        //         [&](std::variant_alternative_t<Path::segment_tags::Index, Path::Segment>& idx) { os << "[@id=" << idx << "]"; },
+        //         [&](auto&&) {}},
+        //     item);
+    }
+
+    VERBOSE << "XPath=" << os.str();
+
+    auto node_set = m_container_.node->select_nodes(os.str().c_str());
+
+    entry_value_type res;
+
+    if (node_set.size() == 0)
+    {
+    }
+    else if (node_set.size() == 1)
+    {
+        make_entry(node_set.begin()->node(), m_container_).swap(res);
+    }
+    else
+    {
+        make_entry(node_set, m_container_).swap(res);
+    }
+
+    return res;
+}
 
 template <>
 void EntryObjectXML::remove(const Path& path) { EntryObject::remove(path); }

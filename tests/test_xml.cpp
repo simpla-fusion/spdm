@@ -14,10 +14,11 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     entry.load("tests/data/test.xml");
 
-    std::cout << entry << std::endl;
+    // std::cout << entry << std::endl;
 
-    std::cout << entry["ids/timeslice"][1]["ne"].as<double>() << std::endl;
-    
+    std::cout << entry["ids/timeslice"][0]["ne"].as<double>() << std::endl;
+    std::cout << entry["ids/timeslice[@id=1]/ne"].as<double>() << std::endl;
+
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));
     // entry.set_attribute("B", std::string("b"));

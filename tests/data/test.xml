@@ -3,6 +3,7 @@
         <eq>
             <psi>mdsplus://1.2.3.4/east</psi>
         </eq>
+        <ne>12345</ne>
     </timeslice>
     <timeslice id="1">
         <eq>
