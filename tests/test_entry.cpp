@@ -29,10 +29,16 @@ TEST_CASE("Create Node", "[SpDB]")
     entry["C"][2] = 12344.56;
     entry["C"][3] = 6.0 + 4.0i;
 
-    entry["C"].push_back().as<int>(5);
+    entry["C"].push_back().as<int>(135);
     entry["C"].push_back().as<float>(6.0);
+    entry["C"].push_back().as<std::string>("3.1415926");
 
-    REQUIRE(entry["C"].size() == 6);
+    REQUIRE(entry["C"].size() == 7);
+
+    REQUIRE(entry["C"][2].as<double>() == 12344.56);
+    REQUIRE(entry["C"][2].as<int>() == 12344);
+    REQUIRE(entry["C"][4].as<std::string>() == "135");
+    REQUIRE(entry["C"][6].as<double>() == 3.1415926);
 
     std::string message = "hello world!";
 

@@ -277,18 +277,7 @@ public:
     void as(First&& first, Others&&... others) { set_value(value_type(std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...)); }
 
     template <typename V>
-    V as() const
-    {
-        // return std::get<V>(get_value());
-
-        V res;
-        std::visit(
-            sp::traits::overloaded{
-                [&](const V& v) { res = v; },
-                [&](auto&& v) { res = sp::traits::convert<V>(v); }},
-            get_value());
-        return std::move(res);
-    }
+    V as() const { return traits::convert<V>(get_value()); }
 
     template <typename V>
     Entry& operator=(const V& v)

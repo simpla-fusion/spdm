@@ -173,29 +173,45 @@ static constexpr bool is_complete_v = is_complete<T>::value;
 template <typename V, typename U, typename Enable = void>
 struct type_convert;
 
-template <typename V, typename U>
-struct type_convert<V, U,
-                    std::enable_if_t<!std::is_same_v<V, U> && std::is_convertible_v<V, U>>>
-{
-    static V convert(const U& u) { return static_cast<V>(u); }
-};
-
 template <typename V>
 struct type_convert<V, V>
 {
     static V convert(const V& u) { return u; }
 };
-template <typename U>
-struct type_convert<std::string, U, std::enable_if_t<!std::is_same_v<std::string, U>>>
-{
-    template <typename V>
-    static auto convert(const V& u) -> decltype(std::to_string(std::declval<V>()))
-    {
-        return std::to_string(u);
-    }
-    template <typename... Args>
-    static auto convert(Args&&...) -> std::string { return "N/A"; }
-};
+// template <typename V>
+// struct type_convert<V, std::nullptr_t, std::enable_if_t<!std::is_same_v<V, std::nullptr_t>>>
+// {
+//     static V convert(const std::nullptr_t& u) { return 0; }
+// };
+
+// template <typename V, typename U>
+// struct type_convert<V, U,
+//                     std::enable_if_t<!std::is_same_v<V, U> && std::is_constructible_v<V, U>>>
+// {
+//     static V convert(const U& u) { return static_cast<V>(u); }
+// };
+// template <typename V, typename U>
+// struct type_convert<V, U,
+//                     std::enable_if_t<!std::is_same_v<V, U> && !std::is_constructible_v<V, U>>>
+// {
+//     static V convert(const U& u) { return V{}; }
+// };
+// template <>
+// struct type_convert<std::string, std::nullptr_t>
+// {
+//     static auto convert(...) -> std::string { return "N/A"; }
+// };
+// template <typename U>
+// struct type_convert<std::string, U, std::enable_if_t<!std::is_same_v<std::string, U>>>
+// {
+//     template <typename V>
+//     static auto convert(const V& u) -> decltype(std::to_string(std::declval<V>()))
+//     {
+//         return std::to_string(u);
+//     }
+//     template <typename... Args>
+//     static auto convert(Args&&...) -> std::string { return "N/A"; }
+// };
 
 // template <>
 // struct type_convert<std::string, std::nullptr_t>
@@ -203,10 +219,65 @@ struct type_convert<std::string, U, std::enable_if_t<!std::is_same_v<std::string
 //     static std::string convert(std::nullptr_t) { return "N/A"; }
 // };
 template <typename V, typename U>
-V convert(const U& u)
+auto convert(const U& u) -> std::enable_if_t<std::is_same_v<U, V>, V> { return u; }
+
+template <typename V, typename U>
+auto convert(const U& u) -> std::enable_if_t<!std::is_same_v<V, U> && !std::is_same_v<V, std::string> && std::is_constructible_v<V, U>, V>
 {
-    return type_convert<V, U>::convert(u);
+    return static_cast<V>(u);
 }
+template <typename V, typename U>
+auto convert(const U& u) -> std::enable_if_t<!std::is_same_v<V, std::string> && !std::is_constructible_v<V, U>, V>
+{
+    return V{};
+}
+
+namespace _detail
+{
+
+template <typename V>
+auto to_string(const V& u) -> decltype(std::to_string(std::declval<V>()))
+{
+    return std::to_string(u);
+}
+template <typename... Args>
+auto to_string(Args&&...) -> std::string { return "N/A"; }
+
+} // namespace _detail
+
+template <typename V, typename U>
+auto convert(const U& u) -> std::enable_if_t<std::is_same_v<V, std::string> && !std::is_same_v<U, std::string>, std::string> { return _detail::to_string(u); }
+
+template <typename V>
+auto convert(const std::string& u) -> std::enable_if_t<!std::is_same_v<V, std::string>, V>
+{
+
+    V res;
+    std::istringstream is(u);
+    is >> res;
+    return res;
+}
+
+template <class... Ts>
+struct overloaded;
+
+template <typename V, typename... Others>
+V convert(const std::variant<Others...>& var)
+{
+    V res;
+    std::visit(
+        overloaded{
+            [&](const V& v) { res = v; },
+            [&](auto&& v) { res = convert<V>(v); }},
+        var);
+    return res;
+}
+
+// template <typename V, typename U>
+// auto convert(const U& u) -> std::enable_if_t<!std::is_same_v<V, std::string> && std::is_constructible_v<V, U>>
+// {
+//     return static_cast<V>(u);
+// }
 //------------------------------------------------------------------------------------------------
 
 /**
