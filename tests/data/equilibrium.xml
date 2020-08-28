@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<equilibrium>
+    <ids_properties>
+        <homogeneous_time value='0' />
+    </ids_properties>
+    <time>
+        <data:mdsplus >VALUE_OF(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME) </data:mdsplus>
+    </time>
+    <time_slice>
+        <!-- <Shape_of value="SHAPE(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" /> -->
+        <boundary>
+            <geometric_axis>
+                <r>
+                    <data:mdsplus>\RBCENT</data:mdsplus>
+                </r>
+                <!-- <z>\ZBCENT </z> -->
+            </geometric_axis>
+            <lcfs>
+                <r>
+                    <data:mdsplus> VALUE_OF(\BDRY)[*,0,#]</data:mdsplus>
+                </r>
+                <z>VALUE_OF(\BDRY)[*,1,#] </z>
+            </lcfs>
+        </boundary>
+        <global_quantities>
+            <magnetic_axis>
+                <r>Data(\RMAXIS)[ <ref path="time_slice:id"/> ] </r>
+                <z>Data(\ZMAXIS)[{time_slice:id}] </z>
+                <b_field_tor>Data(\BCENTR)[{time_slice:id}] </b_field_tor>
+            </magnetic_axis>
+            <psi_axis>Data(\SSIMAG)[#]</psi_axis>
+            <psi_axis>Data(\SSIBRY)[#]</psi_axis>
+            <ip>Data(\EFIT_MFILE:PLASMA)[#]</ip>
+        </global_quantities>
+        <!-- <coordinate_system>
+            <grid>
+                <dim1>\R </dim1>
+                <dim2>\Z </dim2>
+            </grid>
+        </coordinate_system> -->
+        <profiles_1d>
+            <f>VALUE_OF(\FPOL)[*,#]</f>
+            <pressure>VALUE_OF(\FPOL)[*,#]</pressure>
+            <f_df_dpsi>VALUE_OF(\FFPRIM)[*,#]</f_df_dpsi>
+            <dpressure_dpsi>VALUE_OF(\PPRIME)[*,#]</dpressure_dpsi>
+            <q>VALUE_OF(\QPSI)[*,#]</q>
+
+        </profiles_1d>
+        <profiles_2d id='0'>
+            <psi href="mdsplus://202.127.22.24/east_fit#shot={shot}?VALUE_OF(\PSIRZ)[*,*,{itime}]" />
+        </profiles_2d>
+        <profiles_2d id='1'>
+            <psi>
+                <data:mdsplus host="202.127.22.24" tree="east_fit" shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
+            </psi>
+            <r>
+                <data:mdsplus host="202.127.22.24" tree="east_fit" shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
+            </r>
+        </profiles_2d>
+        <profiles_2d id='2'>
+            <psi>
+                <data:mdsplus host="202.127.22.24" tree="east_fit" shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
+            </psi>
+            <r>
+                <data:mdsplus host="202.127.22.24" tree="east_fit" shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
+            </r>
+        </profiles_2d>
+    </time_slice>
+</equilibrium>
