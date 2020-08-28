@@ -109,11 +109,11 @@ public:
     /**
      *  Create 
      */
-    virtual entry_value_type insert(entry_value_type, const Path& p = {});
+    virtual entry_value_type insert(const Path& p ,entry_value_type);
     /**
      * Modify
      */
-    virtual void update(entry_value_type v, const Path& path = {});
+    virtual void update(const Path& p ,entry_value_type);
     /**
      * Retrieve
      */
@@ -197,9 +197,9 @@ public:
 
     virtual Entry pop_back();
 
-    virtual entry_value_type insert(entry_value_type, const Path& p = {});
+    virtual entry_value_type insert(const Path& p ,entry_value_type);
 
-    virtual void update(entry_value_type v, const Path& path = {});
+    virtual void update(const Path& p ,entry_value_type);
 
     virtual entry_value_type find(const Path& path = {}) const;
 

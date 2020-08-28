@@ -44,7 +44,6 @@ public:
 
     std::pair<std::shared_ptr<const EntryObject>, Path> full_path() const override { return EntryObject::full_path(); }
 
- 
     size_t size() const override;
 
     void clear() override;
@@ -70,7 +69,7 @@ public:
 
     entry_value_type find(const std::string& key) const override;
 
-    void update(const std::string& key, entry_value_type v = {}) override;
+    void update(const std::string& key, entry_value_type v) override;
 
     void remove(const std::string& path) override;
 
@@ -79,11 +78,11 @@ public:
     /**
      *  Create 
      */
-    entry_value_type insert(entry_value_type v, const Path& path = {}) override { return EntryObject::insert(std::move(v), path); }
+    entry_value_type insert(const Path& p ,entry_value_type) override { return EntryObject::insert(std::move(v), path); }
     /**
      * Modify
      */
-    void update(entry_value_type v, const Path& path = {}) override { EntryObject::update(std::move(v), path); }
+    void update(const Path& p ,entry_value_type) override { EntryObject::update(std::move(v), path); }
     /**
      * Retrieve
      */

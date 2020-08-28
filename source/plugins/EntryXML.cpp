@@ -280,7 +280,7 @@ void EntryObjectXML::for_each(std::function<void(const std::string&, const entry
 
     for (auto&& node : m_container_.node->children())
     {
-        if (node.type() == pugi::node_element)
+        if (node.type() == pugi::node_element && node)
         {
             visitor(node.name(),
                     entry_value_type{
@@ -326,10 +326,10 @@ template <>
 void EntryObjectXML::remove(const std::string& path) {}
 
 template <>
-entry_value_type EntryObjectXML::insert(entry_value_type v, const Path& path) { return EntryObject::insert(std::move(v), path); }
+entry_value_type EntryObjectXML::insert(const Path& p ,entry_value_type) { return EntryObject::insert(std::move(v), path); }
 
 template <>
-void EntryObjectXML::update(entry_value_type v, const Path& path) { EntryObject::update(std::move(v), path); }
+void EntryObjectXML::update(const Path& p ,entry_value_type) { EntryObject::update(std::move(v), path); }
 
 template <>
 entry_value_type EntryObjectXML::find(const Path& path) const { return EntryObject::find(path); }
