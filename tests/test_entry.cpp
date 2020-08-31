@@ -10,40 +10,40 @@ TEST_CASE("Create Node", "[SpDB]")
 {
     using namespace sp::db::literals;
 
-    sp::db::Entry node({{"A"s, {{"b", 1}, {"c", 2}}}});
+    sp::db::Entry entry({{"B"s, {{"b", 1}, {"c", 2}}}});
 
-    // entry["A"s].as<std::string>("1234");
-    // entry["B"s].as<std::string>("5678");
+    entry["A"s].as<std::string>("1234");
+    entry["B"s].as<std::string>("5678");
 
-    // REQUIRE(entry.type() == sp::db::Node::tags::Object);
+    REQUIRE(entry.type() == sp::db::Node::tags::Object);
 
-    // REQUIRE(entry.as_object().size() == 2);
+    REQUIRE(entry.as_object().size() == 2);
 
-    // entry["C"].resize(4);
+    entry["C"].resize(4);
 
-    // REQUIRE(entry["C"].as_array().size() == 4);
-    // REQUIRE(entry["C"].type() == sp::db::Node::tags::Array);
-    // REQUIRE(entry["C"].size() == 4);
+    REQUIRE(entry["C"].as_array().size() == 4);
+    REQUIRE(entry["C"].type() == sp::db::Node::tags::Array);
+    REQUIRE(entry["C"].size() == 4);
 
-    // entry["C"][2] = 12344.56;
-    // entry["C"][3] = 6.0 + 4.0i;
+    entry["C"][2] = 12344.56;
+    entry["C"][3] = 6.0 + 4.0i;
 
-    // entry["C"].push_back().as<int>(135);
-    // entry["C"].push_back().as<float>(6.0);
-    // entry["C"].push_back().as<std::string>("3.1415926");
+    entry["C"].push_back().as<int>(135);
+    entry["C"].push_back().as<float>(6.0);
+    entry["C"].push_back().as<std::string>("3.1415926");
 
-    // REQUIRE(entry["C"].size() == 7);
+    REQUIRE(entry["C"].size() == 7);
 
-    // REQUIRE(entry["C"][2].as<double>() == 12344.56);
-    // REQUIRE(entry["C"][2].as<int>() == 12344);
-    // REQUIRE(entry["C"][4].as<std::string>() == "135");
-    // REQUIRE(entry["C"][6].as<double>() == 3.1415926);
+    REQUIRE(entry["C"][2].as<double>() == 12344.56);
+    REQUIRE(entry["C"][2].as<int>() == 12344);
+    REQUIRE(entry["C"][4].as<std::string>() == "135");
+    REQUIRE(entry["C"][6].as<double>() == 3.1415926);
 
-    // std::string message = "hello world!";
+    std::string message = "hello world!";
 
-    // entry["D/E/F"_p] = message;
+    entry["D/E/F"_p] = message;
 
-    // REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
+    REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
 
-    std::cout << node.root() << std::endl;
+    std::cout << entry.root() << std::endl;
 }

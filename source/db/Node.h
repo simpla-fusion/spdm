@@ -192,6 +192,8 @@ public:
 
     Node(Node&& other);
 
+    size_t type() const;
+
     value_type& value();
 
     const value_type& value() const;

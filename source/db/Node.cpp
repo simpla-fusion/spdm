@@ -201,11 +201,14 @@ Node::Node(std::initializer_list<Node> init)
         m_value_.emplace<Node::tags::Array>(init.begin(), init.end());
     }
 }
+
 Node::Node(char const* c) : m_value_(std::string(c)) {}
 
 Node::Node(const Node& other) : m_value_(other.m_value_) {}
 
 Node::Node(Node&& other) : m_value_(std::move(other.m_value_)) {}
+
+size_t Node::type() const { return m_value_.index(); }
 
 Node::value_type& Node::value() { return m_value_; }
 
