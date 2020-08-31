@@ -47,7 +47,7 @@ public:
 
     virtual Node fetch(const Node&, const Node& opt) const = 0;
 
-    virtual Node fetch(const Node&, const Node& opt) = 0;
+    virtual Node fetch_or_insert(const Node&, const Node& opt) = 0;
 
     virtual void update(const Node&, const Node& opt) = 0;
 };
@@ -111,7 +111,11 @@ public:
 
     void update(const Node&, const Node& opt = {}) override { NOT_IMPLEMENTED; }
 
-    virtual Node fetch(const Node&, const Node& opt = {}) override { NOT_IMPLEMENTED; }
+    virtual Node fetch_or_insert(const Node&, const Node& opt = {}) override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
 
     Node fetch(const Node&, const Node& opt = {}) const override
     {

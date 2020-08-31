@@ -86,7 +86,7 @@ public:
 
     void update(Node);
 
-    Node fetch(const Node& data, Node opt);
+    Node fetch_or_insert(const Node& data, Node opt);
 
     Node fetch(const Node& data, Node opt) const;
 

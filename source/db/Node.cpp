@@ -80,7 +80,7 @@ Node NodeObject::fetch(const Node& data) const { return backend().fetch(data, nu
 
 void NodeObject::update(Node data) { backend().update(data, {}); }
 
-Node NodeObject::fetch(const Node& data, Node opt) { return backend().fetch(data, std::move(opt)); }
+Node NodeObject::fetch_or_insert(const Node& data, Node opt) { return backend().fetch_or_insert(data, std::move(opt)); }
 
 Node NodeObject::fetch(const Node& data, Node opt) const { return backend().fetch(data, std::move(opt)); }
 
