@@ -19,15 +19,15 @@ namespace sp::db
 
 class Entry
 {
-    std::shared_ptr<NodeObject> m_root_;
+    NodeObject m_root_;
     Path m_path_;
 
 public:
-    typedef tree_node_type value_type;
+    Entry() = default;
 
-    typedef tree_node_tags value_type_tags;
+    Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p = {});
 
-    Entry(std::shared_ptr<NodeObject> r = nullptr, Path p = {});
+    Entry(NodeObject init, Path p = {});
 
     Entry(const Entry& other);
 
@@ -43,17 +43,11 @@ public:
         return *this;
     }
 
-    static Entry create(const tree_node_type&);
+    static Entry create(const NodeObject&);
 
-    void load(const tree_node_type&);
+    void load(const NodeObject&);
 
-    void save(const tree_node_type&) const;
-
-    static Entry create(const char* c) { return create(tree_node_type{std::in_place_index_t<tree_node_tags::String>(), std::string(c)}); }
-
-    void load(const char* c) { load(tree_node_type{std::in_place_index_t<tree_node_tags::String>(), std::string(c)}); };
-
-    void save(const char* c) const { save(tree_node_type{std::in_place_index_t<tree_node_tags::String>(), std::string(c)}); };
+    void save(const NodeObject&) const;
 
     //-------------------------------------------------------------------------
 
@@ -73,9 +67,9 @@ public:
 
     const Path& path() const { return m_path_; }
 
-    std::pair<std::shared_ptr<const NodeObject>, Path> full_path() const;
+    std::pair<const NodeObject, Path> full_path() const;
 
-    std::pair<std::shared_ptr<NodeObject>, Path> full_path();
+    std::pair<NodeObject, Path> full_path();
 
     //-------------------------------------------------------------------------
 
@@ -85,14 +79,14 @@ public:
     NodeArray& as_array();
     const NodeArray& as_array() const;
 
-    void set_value(value_type v);
-    tree_node_type get_value() const;
+    void set_value(Node::value_type v);
+    Node get_value() const;
 
     template <typename V, typename First, typename... Others>
-    void as(First&& first, Others&&... others) { set_value(value_type(std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...)); }
+    void as(First&& first, Others&&... others) { set_value(Node::value_type{std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...}); }
 
     template <typename V>
-    V as() const { return traits::convert<V>(get_value()); }
+    V as() const { return traits::convert<V>(get_value().value()); }
 
     template <typename V>
     Entry& operator=(const V& v)
@@ -110,10 +104,10 @@ public:
     //-------------------------------------------------------------------------
     // access
     template <typename... Args>
-    Entry at(Args&&... args) & { return Entry{root().shared_from_this(), Path(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) & { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
-    Entry at(Args&&... args) && { return Entry{root().shared_from_this(), Path(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) && { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
 
     template <typename... Args>
     Entry at(Args&&... args) const& { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
@@ -139,17 +133,15 @@ public:
 
     void resize(std::size_t num);
 
-    tree_node_type pop_back();
+    Node pop_back();
 
-    Entry push_back(tree_node_type v = {});
+    Entry push_back(Node v = {});
 
-    Cursor<tree_node_type> children();
+    Cursor<Node> children();
 
-    Cursor<const tree_node_type> children() const;
+    Cursor<const Node> children() const;
 
-    void for_each(std::function<void(const Path::Segment&, tree_node_type)> const&) const;
-
-    //------------------------------------------------------------------------------------
+     //------------------------------------------------------------------------------------
 
     bool operator==(const Entry& other) const;
 

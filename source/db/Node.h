@@ -14,116 +14,96 @@
 #include <vector>
 namespace sp::db
 {
-
+class Node;
+class NodeBackend;
 class NodeObject;
 class NodeArray;
 class DataBlock;
 
 } // namespace sp::db
 
-M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::NodeObject>);
-M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::NodeArray>);
-M_REGISITER_TYPE_TAG(Block, std::shared_ptr<sp::db::DataBlock>);
+M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
+M_REGISITER_TYPE_TAG(Path, sp::db::Path);
+
+M_REGISITER_TYPE_TAG(Object, sp::db::NodeObject);
+M_REGISITER_TYPE_TAG(Array, sp::db::NodeArray);
 
 namespace sp::db
 {
 
-typedef std::variant<std::nullptr_t,
-                     std::shared_ptr<NodeObject>,        //Object
-                     std::shared_ptr<NodeArray>,         //Array
-                     std::shared_ptr<DataBlock>,         //Block
-                     bool,                               //Boolean,
-                     int,                                //Integer,
-                     long,                               //Long,
-                     float,                              //Float,
-                     double,                             //Double,
-                     std::string,                        //String,
-                     std::array<int, 3>,                 //IntVec3,
-                     std::array<long, 3>,                //LongVec3,
-                     std::array<float, 3>,               //FloatVec3,
-                     std::array<double, 3>,              //DoubleVec3,
-                     std::complex<double>,               //Complex,
-                     std::array<std::complex<double>, 3> //ComplexVec3,
-                     >
-    tree_node_type;
-
-typedef traits::type_tags<tree_node_type> tree_node_tags;
-
-class NodeObject : public std::enable_shared_from_this<NodeObject>
+class NodeObject
 {
+private:
+    std::shared_ptr<NodeBackend> m_backend_;
+    NodeBackend& backend();
+    const NodeBackend& backend() const;
 
 public:
-    NodeObject() = default;
-    virtual ~NodeObject() = default;
-    NodeObject(const NodeObject&) = delete;
-    NodeObject(NodeObject&&) = delete;
+    NodeObject();
 
-    static std::shared_ptr<NodeObject> create(const tree_node_type& opt = {});
+    ~NodeObject();
 
-    virtual void load(const tree_node_type&) { NOT_IMPLEMENTED; }
+    NodeObject(std::initializer_list<std::pair<std::string, Node>> init);
 
-    virtual void save(const tree_node_type&) const { NOT_IMPLEMENTED; }
+    NodeObject(const NodeObject&);
 
-    virtual std::pair<std::shared_ptr<const NodeObject>, Path> full_path() const;
+    NodeObject(NodeObject&&);
 
-    virtual std::pair<std::shared_ptr<NodeObject>, Path> full_path();
+    template <typename... Args>
+    NodeObject(Args&&... args) {}
 
-    virtual std::unique_ptr<NodeObject> copy() const = 0;
+    void swap(NodeObject& other) { std::swap(m_backend_, other.m_backend_); }
 
-    virtual size_t size() const = 0;
+    NodeObject& operator=(const NodeObject& other)
+    {
+        NodeObject(other).swap(*this);
+        return *this;
+    }
 
-    virtual void clear() = 0;
-    //-------------------------------------------------------------------------------------------------------------
-    // as container
+    static NodeObject create(const NodeObject& opt);
 
-    virtual Cursor<tree_node_type> children() = 0;
+    void load(const NodeObject&);
 
-    virtual Cursor<const tree_node_type> children() const = 0;
+    void save(const NodeObject&) const;
 
-    // virtual void for_each(std::function<void(const std::string&, tree_node_type&)> const&) = 0;
+    bool is_valid() const;
 
-    virtual void for_each(std::function<void(const std::string&, const tree_node_type&)> const&) const = 0;
+    bool empty() const;
 
-    //------------------------------------------------------------------------------
-    // fundamental operation ： CRUD
-    /**
-     *  Create 
-     */
-    virtual tree_node_type insert(Path p, tree_node_type) = 0;
-    /**
-     * Modify
-     */
-    virtual void update(Path p, tree_node_type) = 0;
-    /**
-     * Retrieve
-     */
-    virtual tree_node_type find(Path path = {}) const = 0;
-    /**
-     *  Delete 
-     */
-    virtual void remove(Path path = {}) = 0;
+    size_t size() const;
 
-    //------------------------------------------------------------------------------
-    // advanced extension functions
-    virtual void merge(const NodeObject&);
+    void clear();
 
-    virtual void patch(const NodeObject&);
+    void reset();
 
-    virtual void update(const NodeObject&);
+    Cursor<Node> children();
 
-    virtual bool compare(const tree_node_type& other) const;
+    Cursor<const Node> children() const;
 
-    virtual tree_node_type diff(const tree_node_type& other) const;
+    void for_each(std::function<void(const std::string&, const Node&)> const&) const;
+
+    Node fetch(const NodeObject& data, const NodeObject& opt = {});
+
+    Node fetch(const NodeObject& data, const NodeObject& opt = {}) const;
+
+    void update(NodeObject, const NodeObject& opt = {});
+
+    void set_value(const std::string& name, Node v);
+
+    Node get_value(const std::string& name) const;
 };
 
-class NodeArray : public std::enable_shared_from_this<NodeArray>
+class NodeArray
 {
-    std::vector<tree_node_type> m_container_;
+    std::vector<Node> m_container_;
 
 public:
     NodeArray() = default;
 
-    virtual ~NodeArray() = default;
+    ~NodeArray() = default;
+
+    template <typename IT>
+    NodeArray(const IT& ib, const IT& ie) : m_container_(ib, ie) {}
 
     NodeArray(const NodeArray& other) : m_container_(other.m_container_) {}
 
@@ -137,41 +117,99 @@ public:
         return *this;
     }
 
-    //-------------------------------------------------------------------------------
-    static std::shared_ptr<NodeArray> create(const std::string& backend = "");
+    void clear();
 
-    virtual std::unique_ptr<NodeArray> copy() const { return std::unique_ptr<NodeArray>(new NodeArray(*this)); };
+    size_t size() const;
 
-    virtual void clear();
+    Cursor<Node> children();
 
-    virtual size_t size() const;
+    Cursor<const Node> children() const;
 
-    virtual Cursor<tree_node_type> children();
+    void for_each(std::function<void(int, Node&)> const&);
 
-    virtual Cursor<const tree_node_type> children() const;
+    void for_each(std::function<void(int, const Node&)> const&) const;
 
-    virtual void for_each(std::function<void(int, tree_node_type&)> const&);
+    Node slice(int start, int stop, int step);
 
-    virtual void for_each(std::function<void(int, const tree_node_type&)> const&) const;
+    Node slice(int start, int stop, int step) const;
 
-    virtual tree_node_type slice(int start, int stop, int step);
+    void resize(std::size_t num);
 
-    virtual tree_node_type slice(int start, int stop, int step) const;
+    Node& insert(int idx, Node);
 
-    virtual void resize(std::size_t num);
+    Node& at(int idx);
 
-    virtual tree_node_type& insert(int idx, tree_node_type);
+    const Node& at(int idx) const;
 
-    virtual tree_node_type& at(int idx);
+    Node& push_back(Node v);
 
-    virtual const tree_node_type& at(int idx) const;
-
-    virtual tree_node_type& push_back(tree_node_type v = {});
-
-    virtual tree_node_type pop_back();
+    Node pop_back();
 };
 
-std::ostream& operator<<(std::ostream& os, tree_node_type const& node);
+class Node
+{
+
+public:
+    typedef std::variant<std::nullptr_t,
+                         NodeObject,                         //Object
+                         NodeArray,                          //Array
+                         DataBlock,                          //Block
+                         Path,                               //Path
+                         bool,                               //Boolean,
+                         int,                                //Integer,
+                         long,                               //Long,
+                         float,                              //Float,
+                         double,                             //Double,
+                         std::string,                        //String,
+                         std::array<int, 3>,                 //IntVec3,
+                         std::array<long, 3>,                //LongVec3,
+                         std::array<float, 3>,               //FloatVec3,
+                         std::array<double, 3>,              //DoubleVec3,
+                         std::complex<double>,               //Complex,
+                         std::array<std::complex<double>, 3> //ComplexVec3,
+                         >
+        value_type;
+
+    typedef traits::type_tags<value_type> tags;
+
+private:
+    value_type m_value_;
+
+public:
+    Node() = default;
+
+    template <typename... Args,
+              std::enable_if_t<std::is_constructible<value_type, Args...>::value, int> = 0>
+    Node(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
+
+    Node(char const* c) : m_value_(std::string(c)) {}
+
+    Node(std::initializer_list<Node> init);
+
+    Node(const Node& other) : m_value_(other.m_value_) {}
+
+    Node(Node&& other) : m_value_(std::move(other.m_value_)) {}
+
+    ~Node() = default;
+
+    value_type& value() { return m_value_; }
+
+    const value_type& value() const { return m_value_; }
+
+    void swap(Node& other) { std::swap(m_value_, other.m_value_); }
+
+    NodeArray& as_array() { return std::get<tags::Array>(m_value_); }
+
+    const NodeArray& as_array() const { return std::get<tags::Array>(m_value_); }
+
+    NodeObject& as_object() { return std::get<tags::Object>(m_value_); }
+
+    const NodeObject& as_object() const { return std::get<tags::Object>(m_value_); }
+};
+
+std::ostream& operator<<(std::ostream& os, Node const& node);
+std::ostream& operator<<(std::ostream& os, NodeObject const& node);
+std::ostream& operator<<(std::ostream& os, NodeArray const& node);
 
 namespace literals
 {

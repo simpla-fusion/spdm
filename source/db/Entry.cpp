@@ -22,9 +22,9 @@ std::ostream& operator<<(std::ostream& os, Entry const& entry) { return sp::util
 //===========================================================================================================
 // Entry
 
-//-----------------------------------------------------------------------------------------------------------
+Entry::Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p) : m_root_(init), m_path_(std::move(p)) {}
 
-Entry::Entry(std::shared_ptr<NodeObject> r, Path p) : m_root_(std::move(r)), m_path_(std::move(p)) {}
+Entry::Entry(NodeObject r, Path p) : m_root_(std::move(r)), m_path_(std::move(p)) {}
 
 Entry::Entry(const Entry& other) : m_root_(other.m_root_), m_path_(other.m_path_) {}
 
@@ -36,36 +36,15 @@ void Entry::swap(Entry& other)
     std::swap(m_path_, other.m_path_);
 }
 
-Entry Entry::create(const tree_node_type& opt)
-{
-    return Entry{NodeObject::create(opt), Path{}};
-}
+void Entry::load(const NodeObject& opt) { m_root_.load(opt); }
 
-void Entry::load(const tree_node_type& opt)
-{
-    if (m_root_ == nullptr)
-    {
-        m_root_ = NodeObject::create(opt);
-    }
-    else
-    {
-        m_root_->load(opt);
-    }
-}
+void Entry::save(const NodeObject& opt) const { m_root_.save(opt); }
 
-void Entry::save(const tree_node_type& opt) const
-{
-    if (m_root_ != nullptr)
-    {
-        m_root_->save(opt);
-    }
-    else
-    {
-        NOT_IMPLEMENTED;
-    }
-}
+NodeObject& Entry::root() { return m_root_; }
 
-std::size_t Entry::type() const { return root().find(m_path_).index(); }
+const NodeObject& Entry::root() const { return m_root_; }
+
+std::size_t Entry::type() const { return m_root_.fetch(m_path_).value().index(); }
 
 void Entry::reset()
 {
@@ -73,22 +52,22 @@ void Entry::reset()
     m_path_.clear();
 }
 
-bool Entry::is_null() const { return m_root_ == nullptr || type() == value_type_tags::Null; }
+bool Entry::is_null() const { return !m_root_.is_valid() || type() == Node::tags::Null; }
 
 bool Entry::empty() const { return is_null() || size() == 0; }
 
 size_t Entry::size() const
 {
     size_t res = 0;
-    auto tmp = root().find(m_path_);
+    auto tmp = m_root_.fetch(m_path_).value();
 
     switch (tmp.index())
     {
-    case tree_node_tags::Object:
-        res = std::get<tree_node_tags::Object>(tmp)->size();
+    case Node::tags::Object:
+        res = std::get<Node::tags::Object>(tmp).size();
         break;
-    case tree_node_tags::Array:
-        res = std::get<tree_node_tags::Array>(tmp)->size();
+    case Node::tags::Array:
+        res = std::get<Node::tags::Array>(tmp).size();
         break;
     default:
         res = 0;
@@ -102,92 +81,75 @@ bool Entry::operator==(const Entry& other) const
     return false;
 }
 
-NodeObject& Entry::root()
-{
-    if (m_root_ == nullptr)
-    {
-        m_root_ = NodeObject::create();
-    }
+// std::pair<std::shared_ptr<const NodeObject>, Path> Entry::full_path() const
+// {
+//     NOT_IMPLEMENTED;
+//     return std::pair<std::shared_ptr<const NodeObject>, Path>{};
+// }
 
-    return *m_root_;
-}
-
-const NodeObject& Entry::root() const
-{
-    if (m_root_ == nullptr)
-    {
-        RUNTIME_ERROR << "Root is not defined!";
-    }
-    return *m_root_;
-}
-
-std::pair<std::shared_ptr<const NodeObject>, Path> Entry::full_path() const
-{
-    NOT_IMPLEMENTED;
-    return std::pair<std::shared_ptr<const NodeObject>, Path>{};
-}
-
-std::pair<std::shared_ptr<NodeObject>, Path> Entry::full_path()
-{
-    NOT_IMPLEMENTED;
-    return std::pair<std::shared_ptr<NodeObject>, Path>{};
-}
+// std::pair<std::shared_ptr<NodeObject>, Path> Entry::full_path()
+// {
+//     NOT_IMPLEMENTED;
+//     return std::pair<std::shared_ptr<NodeObject>, Path>{};
+// }
 
 //-----------------------------------------------------------------------------------------------------------
+using namespace std::string_literals;
 
-void Entry::set_value(tree_node_type v) { root().update(m_path_, std::move(v)); }
+void Entry::set_value(Node::value_type v)
+{
+    m_root_.update(NodeObject{{"$set"s, {{"path", m_path_}, {"value", std::move(v)}}}});
+}
 
-tree_node_type Entry::get_value() const{    return root().find(m_path_);}
+Node Entry::get_value() const { return m_root_.fetch({"$path", m_path_}); }
 
-NodeObject& Entry::as_object() { return m_path_.length() == 0 ? *m_root_ : *std::get<tree_node_tags::Object>(root().insert(m_path_, tree_node_type{NodeObject::create()})); }
+NodeObject& Entry::as_object() { return m_path_.length() == 0 ? m_root_ : std::get<Node::tags::Object>(m_root_.fetch({m_path_, NodeObject{}}).value()); }
 
-const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? *m_root_ : *std::const_pointer_cast<const NodeObject>(std::get<tree_node_tags::Object>(root().find(m_path_))); }
+const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? m_root_ : std::get<Node::tags::Object>(m_root_.fetch(m_path_).value()); }
 
-NodeArray& Entry::as_array() { return *std::get<tree_node_tags::Array>(root().insert(m_path_, tree_node_type{NodeArray::create()})); }
+NodeArray& Entry::as_array() { return std::get<Node::tags::Array>(m_root_.fetch({m_path_, NodeArray{}}).value()); }
 
-const NodeArray& Entry::as_array() const { return *std::const_pointer_cast<const NodeArray>(std::get<tree_node_tags::Array>(root().find(m_path_))); }
+const NodeArray& Entry::as_array() const { return std::get<Node::tags::Array>(m_root_.fetch(m_path_).value()); }
 
 //-----------------------------------------------------------------------------------------------------------
 
 void Entry::resize(std::size_t num) { as_array().resize(num); }
 
-tree_node_type Entry::pop_back() { return as_array().pop_back(); }
+Node Entry::pop_back() { return as_array().pop_back(); }
 
-Entry Entry::push_back(tree_node_type v)
+Entry Entry::push_back(Node v)
 {
     auto& a = as_array();
     a.push_back(std::move(v));
     return Entry{m_root_, Path(m_path_).join(a.size() - 1)};
 }
 
-Cursor<tree_node_type> Entry::Entry::children()
+Cursor<Node> Entry::Entry::children()
 {
     NOT_IMPLEMENTED;
-    Cursor<tree_node_type> res;
+    Cursor<Node> res;
     // std::visit(
     //     sp::traits::overloaded{
-    //         [&](std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { object_p->children().swap(res); },
-    //         [&](std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { array_p->children().swap(res); },
+    //         [&](std::variant_alternative_t<Node::tags::Object, value_type>& object_p) { object_p->children().swap(res); },
+    //         [&](std::variant_alternative_t<Node::tags::Array, value_type>& array_p) { array_p->children().swap(res); },
     //         [&](auto&&) { RUNTIME_ERROR << "illegal type!"; }},
     //     fetch());
     return std::move(res);
 }
 
-Cursor<const tree_node_type> Entry::Entry::children() const
+Cursor<const Node> Entry::Entry::children() const
 {
     NOT_IMPLEMENTED;
-    Cursor<const tree_node_type> res;
+    Cursor<const Node> res;
     // std::visit(
     //     sp::traits::overloaded{
-    //         [&](const std::variant_alternative_t<value_type_tags::Object, value_type>& object_p) { std::const_pointer_cast<const NodeObject>(object_p)->children().swap(res); },
-    //         [&](const std::variant_alternative_t<value_type_tags::Array, value_type>& array_p) { std::const_pointer_cast<const NodeArray>(array_p)->children().swap(res); },
+    //         [&](const std::variant_alternative_t<Node::tags::Object, value_type>& object_p) { std::const_pointer_cast<const NodeObject>(object_p)->children().swap(res); },
+    //         [&](const std::variant_alternative_t<Node::tags::Array, value_type>& array_p) { std::const_pointer_cast<const NodeArray>(array_p)->children().swap(res); },
     //         [&](auto&&) { RUNTIME_ERROR << "illegal type!"; }},
     //     fetch());
     return std::move(res);
 }
 
-// void Entry::for_each(std::function<void(const Path::Segment&, tree_node_type&)> const&) { NOT_IMPLEMENTED; }
-
-void Entry::for_each(std::function<void(const Path::Segment&, tree_node_type)> const&) const { NOT_IMPLEMENTED; }
+// void Entry::for_each(std::function<void(const Path::Segment&, Node&)> const&) { NOT_IMPLEMENTED; }
 
 } // namespace sp::db

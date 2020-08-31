@@ -18,6 +18,7 @@ set(SPDB_INCLUDES
 
 set(SPDB_SOURCES
   Node.cpp
+  NodePlugin.cpp
   Entry.cpp  
   DataBlock.cpp
   XPath.cpp

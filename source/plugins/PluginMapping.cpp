@@ -9,6 +9,7 @@
 #include <variant>
 namespace sp::db
 {
+    
 struct proxy_node
 {
     Entry proxy;
