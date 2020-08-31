@@ -82,11 +82,15 @@ public:
 
     void for_each(std::function<void(const std::string&, const Node&)> const&) const;
 
-    Node fetch(const NodeObject& data, const NodeObject& opt = {});
+    Node fetch(const Node& data) const;
 
-    Node fetch(const NodeObject& data, const NodeObject& opt = {}) const;
+    void update(Node);
 
-    void update(NodeObject, const NodeObject& opt = {});
+    Node fetch(const Node& data, Node opt);
+
+    Node fetch(const Node& data, Node opt) const;
+
+    void update(Node, const Node& opt);
 
     void set_value(const std::string& name, Node v);
 
@@ -105,17 +109,13 @@ public:
     template <typename IT>
     NodeArray(const IT& ib, const IT& ie) : m_container_(ib, ie) {}
 
-    NodeArray(const NodeArray& other) : m_container_(other.m_container_) {}
+    NodeArray(const NodeArray& other);
 
-    NodeArray(NodeArray&& other) : m_container_(std::move(other.m_container_)) {}
+    NodeArray(NodeArray&& other);
 
-    void swap(NodeArray& other) { m_container_.swap(other.m_container_); }
+    void swap(NodeArray& other);
 
-    NodeArray& operator=(const NodeArray& other)
-    {
-        NodeArray(other).swap(*this);
-        return *this;
-    }
+    NodeArray& operator=(const NodeArray& other);
 
     void clear();
 
@@ -178,34 +178,44 @@ private:
 public:
     Node() = default;
 
+    ~Node() = default;
+
     template <typename... Args,
               std::enable_if_t<std::is_constructible<value_type, Args...>::value, int> = 0>
-    Node(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
+    Node(Args&&... args);
 
-    Node(char const* c) : m_value_(std::string(c)) {}
+    Node(char const* c);
 
     Node(std::initializer_list<Node> init);
 
-    Node(const Node& other) : m_value_(other.m_value_) {}
+    Node(const Node& other);
 
-    Node(Node&& other) : m_value_(std::move(other.m_value_)) {}
+    Node(Node&& other);
 
-    ~Node() = default;
+    value_type& value();
 
-    value_type& value() { return m_value_; }
+    const value_type& value() const;
 
-    const value_type& value() const { return m_value_; }
+    void swap(Node& other);
 
-    void swap(Node& other) { std::swap(m_value_, other.m_value_); }
+    NodeArray& as_array();
 
-    NodeArray& as_array() { return std::get<tags::Array>(m_value_); }
+    const NodeArray& as_array() const;
 
-    const NodeArray& as_array() const { return std::get<tags::Array>(m_value_); }
+    NodeObject& as_object();
 
-    NodeObject& as_object() { return std::get<tags::Object>(m_value_); }
+    const NodeObject& as_object() const;
 
-    const NodeObject& as_object() const { return std::get<tags::Object>(m_value_); }
+    template <int IDX>
+    decltype(auto) as() const { return std::get<IDX>(m_value_); }
+
+    template <int IDX>
+    decltype(auto) as() { return std::get<IDX>(m_value_); }
 };
+
+template <typename... Args,
+          std::enable_if_t<std::is_constructible<Node::value_type, Args...>::value, int>>
+Node::Node(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
 
 std::ostream& operator<<(std::ostream& os, Node const& node);
 std::ostream& operator<<(std::ostream& os, NodeObject const& node);

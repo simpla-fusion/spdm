@@ -76,11 +76,15 @@ size_t NodeObject::size() const { return m_backend_ == nullptr ? 0 : m_backend_-
 
 void NodeObject::clear() { backend().clear(); }
 
-Node NodeObject::fetch(const NodeObject& data, const NodeObject& opt) { return backend().fetch(data, opt); }
+Node NodeObject::fetch(const Node& data) const { return backend().fetch(data, nullptr); }
 
-Node NodeObject::fetch(const NodeObject& data, const NodeObject& opt) const { return backend().fetch(data, opt); }
+void NodeObject::update(Node data) { backend().update(data, {}); }
 
-void NodeObject::update(NodeObject data, const NodeObject& opt) { backend().update(data, opt); }
+Node NodeObject::fetch(const Node& data, Node opt) { return backend().fetch(data, std::move(opt)); }
+
+Node NodeObject::fetch(const Node& data, Node opt) const { return backend().fetch(data, std::move(opt)); }
+
+void NodeObject::update(Node data, const Node& opt) { backend().update(data, opt); }
 
 void NodeObject::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const { backend().for_each(visitor); }
 
@@ -89,6 +93,17 @@ void NodeObject::set_value(const std::string& name, Node v) { backend().set_valu
 Node NodeObject::get_value(const std::string& name) const { return backend().get_value(name); }
 //==========================================================================================
 // NodeArray
+NodeArray::NodeArray(const NodeArray& other) : m_container_(other.m_container_) {}
+
+NodeArray::NodeArray(NodeArray&& other) : m_container_(std::move(other.m_container_)) {}
+
+void NodeArray::swap(NodeArray& other) { m_container_.swap(other.m_container_); }
+
+NodeArray& NodeArray::operator=(const NodeArray& other)
+{
+    NodeArray(other).swap(*this);
+    return *this;
+}
 
 size_t NodeArray::size() const { return m_container_.size(); }
 
@@ -162,6 +177,8 @@ Node NodeArray::pop_back()
     return std::move(res);
 }
 
+//-----------------------------------------------------------------------------
+
 Node::Node(std::initializer_list<Node> init)
 {
     bool is_an_object = std::all_of(
@@ -184,7 +201,25 @@ Node::Node(std::initializer_list<Node> init)
         m_value_.emplace<Node::tags::Array>(init.begin(), init.end());
     }
 }
+Node::Node(char const* c) : m_value_(std::string(c)) {}
 
+Node::Node(const Node& other) : m_value_(other.m_value_) {}
+
+Node::Node(Node&& other) : m_value_(std::move(other.m_value_)) {}
+
+Node::value_type& Node::value() { return m_value_; }
+
+const Node::value_type& Node::value() const { return m_value_; }
+
+void Node::swap(Node& other) { std::swap(m_value_, other.m_value_); }
+
+NodeArray& Node::as_array() { return std::get<tags::Array>(m_value_); }
+
+const NodeArray& Node::as_array() const { return std::get<tags::Array>(m_value_); }
+
+NodeObject& Node::as_object() { return std::get<tags::Object>(m_value_); }
+
+const NodeObject& Node::as_object() const { return std::get<tags::Object>(m_value_); }
 } // namespace sp::db
 
 namespace sp::utility

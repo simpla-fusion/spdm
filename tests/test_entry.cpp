@@ -10,7 +10,7 @@ TEST_CASE("Create Node", "[SpDB]")
 {
     using namespace sp::db::literals;
 
-     sp::db::Entry node({{"A"s, {{"b", 1}, {"c", 2}}}});
+    sp::db::Entry node({{"A"s, {{"b", 1}, {"c", 2}}}});
 
     // entry["A"s].as<std::string>("1234");
     // entry["B"s].as<std::string>("5678");

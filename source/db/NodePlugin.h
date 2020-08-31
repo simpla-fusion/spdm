@@ -45,9 +45,11 @@ public:
 
     virtual Node get_value(const std::string& name) const = 0;
 
-    virtual Node fetch(const NodeObject&, const NodeObject& opt) const = 0;
+    virtual Node fetch(const Node&, const Node& opt) const = 0;
 
-    virtual void update(const NodeObject&, const NodeObject& opt) = 0;
+    virtual Node fetch(const Node&, const Node& opt) = 0;
+
+    virtual void update(const Node&, const Node& opt) = 0;
 };
 
 template <typename Container>
@@ -107,9 +109,11 @@ public:
         return Node{};
     };
 
-    void update(const NodeObject&, const NodeObject& opt = {}) override { NOT_IMPLEMENTED; }
+    void update(const Node&, const Node& opt = {}) override { NOT_IMPLEMENTED; }
 
-    Node fetch(const NodeObject&, const NodeObject& opt = {}) const override
+    virtual Node fetch(const Node&, const Node& opt = {}) override { NOT_IMPLEMENTED; }
+
+    Node fetch(const Node&, const Node& opt = {}) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

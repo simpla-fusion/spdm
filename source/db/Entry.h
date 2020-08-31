@@ -79,11 +79,11 @@ public:
     NodeArray& as_array();
     const NodeArray& as_array() const;
 
-    void set_value(Node::value_type v);
+    void set_value(Node v);
     Node get_value() const;
 
     template <typename V, typename First, typename... Others>
-    void as(First&& first, Others&&... others) { set_value(Node::value_type{std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...}); }
+    void as(First&& first, Others&&... others) { set_value(Node{std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...}); }
 
     template <typename V>
     V as() const { return traits::convert<V>(get_value().value()); }
@@ -141,7 +141,7 @@ public:
 
     Cursor<const Node> children() const;
 
-     //------------------------------------------------------------------------------------
+    //------------------------------------------------------------------------------------
 
     bool operator==(const Entry& other) const;
 

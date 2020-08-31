@@ -96,20 +96,17 @@ bool Entry::operator==(const Entry& other) const
 //-----------------------------------------------------------------------------------------------------------
 using namespace std::string_literals;
 
-void Entry::set_value(Node::value_type v)
-{
-    m_root_.update(NodeObject{{"$set"s, {{"path", m_path_}, {"value", std::move(v)}}}});
-}
+void Entry::set_value(Node v) { m_root_.update({m_path_, std::move(v)}); }
 
-Node Entry::get_value() const { return m_root_.fetch({"$path", m_path_}); }
+Node Entry::get_value() const { return m_root_.fetch(m_path_, {}); }
 
-NodeObject& Entry::as_object() { return m_path_.length() == 0 ? m_root_ : std::get<Node::tags::Object>(m_root_.fetch({m_path_, NodeObject{}}).value()); }
+NodeObject& Entry::as_object() { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_, NodeObject{}).as<Node::tags::Object>(); }
 
-const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? m_root_ : std::get<Node::tags::Object>(m_root_.fetch(m_path_).value()); }
+const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_).as<Node::tags::Object>(); }
 
-NodeArray& Entry::as_array() { return std::get<Node::tags::Array>(m_root_.fetch({m_path_, NodeArray{}}).value()); }
+NodeArray& Entry::as_array() { return m_root_.fetch(m_path_, NodeArray{}).as<Node::tags::Array>(); }
 
-const NodeArray& Entry::as_array() const { return std::get<Node::tags::Array>(m_root_.fetch(m_path_).value()); }
+const NodeArray& Entry::as_array() const { return m_root_.fetch(m_path_).as<Node::tags::Array>(); }
 
 //-----------------------------------------------------------------------------------------------------------
 
