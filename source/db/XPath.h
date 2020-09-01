@@ -97,7 +97,7 @@ public:
 
     this_type& append(const this_type& other);
 
-    // this_type& append(const std::string& uri);
+    this_type& append(const char* c) { return append(std::string(c)); }
 
     template <typename U>
     this_type& append(const U& seg)
@@ -107,9 +107,9 @@ public:
     }
 
     template <typename First, typename Second, typename... Others>
-    this_type& append(const First&& first, Second&& second, Others&&... others)
+    this_type& append(const First& first, Second&& second, Others&&... others)
     {
-        return append(std::forward<First>(first)).append(std::forward<Second>(second), std::forward<Others>(others)...);
+        return append(first).append(std::forward<Second>(second), std::forward<Others>(others)...);
     }
 
     template <typename... Components>
@@ -128,6 +128,12 @@ public:
 
 private:
     std::unique_ptr<std::list<Segment>> m_path_;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const Path& path)
+{
+    os << path.str();
+    return os;
 };
 
 /**

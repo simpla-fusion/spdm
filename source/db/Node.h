@@ -64,12 +64,14 @@ public:
 
     NodeObject(std::initializer_list<std::pair<std::string, Node>> init);
 
+    NodeObject(std::shared_ptr<NodeBackend>);
+
     NodeObject(const NodeObject&);
 
     NodeObject(NodeObject&&);
 
-    template <typename... Args>
-    NodeObject(Args&&... args) {}
+    // template <typename... Args>
+    // NodeObject(Args&&... args) {}
 
     static NodeObject create(const NodeObject& opt);
 
@@ -120,15 +122,17 @@ public:
 
 class NodeArray
 {
-    std::vector<Node> m_container_;
+    std::shared_ptr<std::vector<Node>> m_container_;
 
 public:
-    NodeArray() = default;
+    NodeArray()
+        : m_container_(std::make_shared<std::vector<Node>>()) {}
 
     ~NodeArray() = default;
 
     template <typename IT>
-    NodeArray(const IT& ib, const IT& ie) : m_container_(ib, ie) {}
+    NodeArray(const IT& ib, const IT& ie)
+        : m_container_(std::make_shared<std::vector<Node>>(ib, ie)) {}
 
     NodeArray(const NodeArray& other);
 
@@ -158,6 +162,8 @@ public:
 
     Node& insert(int idx, Node);
 
+    Node& update(int idx, Node);
+
     Node& at(int idx);
 
     const Node& at(int idx) const;
@@ -186,6 +192,8 @@ public:
 
     Node(std::initializer_list<Node> init);
 
+    Node(Node& other);
+
     Node(const Node& other);
 
     Node(Node&& other);
@@ -193,6 +201,8 @@ public:
     void swap(Node& other);
 
     size_t type() const;
+
+    void clear();
 
     NodeArray& as_array();
 
@@ -210,6 +220,9 @@ public:
 
     template <typename V, typename First, typename... Others>
     void as(First&& first, Others&&... others) { m_value_.emplace<V>(std::forward<First>(first), std::forward<Others>(others)...); }
+
+    template <int IDX, typename First, typename... Others>
+    void as(First&& first, Others&&... others) { m_value_.emplace<IDX>(std::forward<First>(first), std::forward<Others>(others)...); }
 
     template <typename V>
     V as() const { return traits::convert<V>(m_value_); }

@@ -1,5 +1,6 @@
 #ifndef SPDB_DATABLOCK_
 #define SPDB_DATABLOCK_
+
 #include <memory>
 #include <vector>
 // #ifdef __cplusplus
@@ -56,6 +57,15 @@ public:
     size_t element_size() const;
     size_t ndims() const;
     size_t const* dims() const;
+
+    DataBlock slice(const std::tuple<int, int, int>& slice)
+    {
+        return DataBlock{};
+    }
+    DataBlock slice(const std::tuple<int, int, int>& slice) const
+    {
+        return DataBlock{};
+    }
 
 private:
     std::shared_ptr<char> m_data_;

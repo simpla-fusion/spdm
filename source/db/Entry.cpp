@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream& os, Entry const& entry) { return sp::util
 
 Entry::Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p) : m_root_(init), m_path_(std::move(p)) {}
 
-Entry::Entry(NodeObject r, Path p) : m_root_(std::move(r)), m_path_(std::move(p)) {}
+Entry::Entry(NodeObject root, Path p) : m_root_(std::move(root)), m_path_(std::move(p)) {}
 
 Entry::Entry(const Entry& other) : m_root_(other.m_root_), m_path_(other.m_path_) {}
 
@@ -82,11 +82,11 @@ void Entry::set_value(const Node& v) { m_root_.update(m_path_, std::move(v)); }
 
 Node Entry::get_value() const { return m_root_.fetch(m_path_, {}); }
 
-NodeObject& Entry::as_object() { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_, NodeObject{}).as<Node::tags::Object>(); }
+NodeObject& Entry::as_object() { return m_path_.length() == 0 ? m_root_ : m_root_.merge(m_path_, NodeObject{}).as<Node::tags::Object>(); }
 
 const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_, {}).as<Node::tags::Object>(); }
 
-NodeArray& Entry::as_array() { return m_root_.fetch(m_path_, NodeArray{}).as<Node::tags::Array>(); }
+NodeArray& Entry::as_array() { return m_root_.merge(m_path_, NodeArray{}).as<Node::tags::Array>(); }
 
 const NodeArray& Entry::as_array() const { return m_root_.fetch(m_path_, {}).as<Node::tags::Array>(); }
 

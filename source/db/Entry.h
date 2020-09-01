@@ -27,7 +27,7 @@ public:
 
     Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p = {});
 
-    Entry(NodeObject init, Path p = {});
+    Entry(  NodeObject root, Path p = {});
 
     Entry(const Entry& other);
 
