@@ -82,9 +82,11 @@ bool NodeObject::is_same(const NodeObject& other) const { return m_backend_.get(
 
 bool NodeObject::is_valid() const { return m_backend_ != nullptr; }
 
-void NodeObject::reset() { m_backend_.reset(); }
+void NodeObject::reset() { m_backend_ = NodeBackend::create(); }
 
-size_t NodeObject::size() const { return m_backend_ == nullptr ? 0 : m_backend_->size(); }
+size_t NodeObject::size() const { return backend().size(); }
+
+bool NodeObject::contain(const std::string& key) const { return backend().contain(key); }
 
 void NodeObject::clear() { backend().clear(); }
 

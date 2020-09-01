@@ -1,5 +1,6 @@
 #include "NodePlugin.h"
 #include "../utility/Logger.h"
+#include "NodeOps.h"
 namespace sp::db
 {
 typedef NodePlugin<std::map<std::string, Node>> NodeBackendDefault;
@@ -25,6 +26,9 @@ Cursor<const Node> NodeBackendDefault::children() const
     NOT_IMPLEMENTED;
     return Cursor<const Node>{};
 }
+
+template <>
+size_t NodeBackendDefault::size() const { return m_container_.size(); }
 
 // void NodeBackendDefault::for_each(std::function<void(const std::string&, Node&)> const& visitor)
 // {
@@ -149,11 +153,24 @@ Node NodeBackendDefault::fetch(const Path& path, const Node& projection, const N
 
     if (self.type() == Node::tags::Null)
     {
-        Node(projection).swap(self);
+        NOT_IMPLEMENTED;
     }
     else if (projection.type() == Node::tags::Object)
     {
-        // NOT_IMPLEMENTED;
+        auto res = std::make_shared<NodeBackendDefault>();
+
+        projection.as_object().for_each([&](const std::string& key, const Node& d) {
+            res->container().emplace(key, fetch_op(self, key, d));
+        });
+
+        if (projection.as_object().size() == 1)
+        {
+            Node(res->container().begin()->second).swap(self);
+        }
+        else
+        {
+            Node(std::in_place_index_t<Node::tags::Object>(), res).swap(self);
+        }
     }
 
     return std::move(self);

@@ -14,7 +14,7 @@
 namespace sp::db
 {
 
-class NodeBackend:public std::enable_shared_from_this<NodeBackend>
+class NodeBackend : public std::enable_shared_from_this<NodeBackend>
 {
 
 public:
@@ -91,9 +91,13 @@ public:
 
     void save(const NodeObject&) const override { NOT_IMPLEMENTED; }
 
-    size_t size() const override { return m_container_.size(); }
+    Container& container() { return m_container_; }
 
-    void clear() override { m_container_.clear(); }
+    const Container& container() const { return m_container_; }
+
+    size_t size() const override {  NOT_IMPLEMENTED;return container().size(); }
+
+    void clear() override { container().clear(); }
 
     Cursor<Node> children() override
     {

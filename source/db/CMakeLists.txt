@@ -6,6 +6,8 @@
 set(SPDB_INCLUDES
   DataBlock.h
   Node.h
+  NodePlugin.h
+  NodeOps.h
   Entry.h  
   Document.h
   Schema.h
@@ -19,6 +21,7 @@ set(SPDB_INCLUDES
 set(SPDB_SOURCES
   Node.cpp
   NodePlugin.cpp
+  NodeOps.cpp
   Entry.cpp  
   DataBlock.cpp
   XPath.cpp
