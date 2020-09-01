@@ -41,15 +41,23 @@ public:
 
     virtual void for_each(std::function<void(const std::string&, const Node&)> const&) const = 0;
 
-    virtual void set_value(const std::string& name, Node v) = 0;
+    //----------------
 
-    virtual Node get_value(const std::string& name) const = 0;
+    virtual void update(const Path&, const Node&, const NodeObject& opt = {}) = 0;
 
-    virtual Node fetch(const Node&, const Node& opt) const = 0;
+    virtual Node merge(const Path&, const Node& patch, const NodeObject& opt = {}) = 0;
 
-    virtual Node fetch_or_insert(const Node&, const Node& opt) = 0;
+    virtual Node fetch(const Path&, const Node& projection = {}, const NodeObject& opt = {}) const = 0;
 
-    virtual void update(const Node&, const Node& opt) = 0;
+    //----------------
+
+    virtual bool contain(const std::string& name) const = 0;
+
+    virtual void update_value(const std::string& name, Node&& v) = 0;
+
+    virtual Node insert_value(const std::string& name, Node&& v) = 0;
+
+    virtual Node find_value(const std::string& name) const = 0;
 };
 
 template <typename Container>
@@ -101,23 +109,42 @@ public:
 
     void for_each(std::function<void(const std::string&, const Node&)> const&) const override { NOT_IMPLEMENTED; }
 
-    void set_value(const std::string& name, Node v) override { NOT_IMPLEMENTED; };
+    //----------------
 
-    Node get_value(const std::string& name) const override
+    bool contain(const std::string& name) const override
     {
         NOT_IMPLEMENTED;
-        return Node{};
-    };
+        return false;
+    }
 
-    void update(const Node&, const Node& opt = {}) override { NOT_IMPLEMENTED; }
+    void update_value(const std::string& name, Node&& v) override
+    {
+        NOT_IMPLEMENTED;
+    }
 
-    virtual Node fetch_or_insert(const Node&, const Node& opt = {}) override
+    Node insert_value(const std::string& name, Node&& v) override
     {
         NOT_IMPLEMENTED;
         return Node{};
     }
 
-    Node fetch(const Node&, const Node& opt = {}) const override
+    Node find_value(const std::string& name) const override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
+
+    //----------------
+
+    void update(const Path&, const Node&, const NodeObject& opt = {}) override { NOT_IMPLEMENTED; }
+
+    Node merge(const Path&, const Node& patch, const NodeObject& opt = {}) override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
+
+    Node fetch(const Path&, const Node& projection = {}, const NodeObject& opt = {}) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

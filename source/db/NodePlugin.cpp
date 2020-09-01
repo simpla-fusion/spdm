@@ -146,17 +146,38 @@ void NodeBackendDefault::for_each(std::function<void(const std::string&, const N
 // } // namespace _detail
 
 template <>
-void NodeBackendDefault::set_value(const std::string& name, Node v) { m_container_[name].swap(v); }
+bool NodeBackendDefault::contain(const std::string& name) const { return m_container_.find(name) != m_container_.end(); }
 
 template <>
-Node NodeBackendDefault::get_value(const std::string& name) const { return m_container_.at(name); }
+void NodeBackendDefault::update_value(const std::string& name, Node&& v) { m_container_[name].swap(v); }
 
 template <>
-void NodeBackendDefault::update(const Node& node, const Node& opt)
+Node NodeBackendDefault::insert_value(const std::string& name, Node&& v) { return m_container_.emplace(name, v).first->second; }
+
+template <>
+Node NodeBackendDefault::find_value(const std::string& name) const
+{
+    auto it = m_container_.find(name);
+    return it == m_container_.end() ? Node{} : it->second;
+}
+
+template <>
+void NodeBackendDefault::update(const Path& path, const Node& patch, const NodeObject& opt) { NOT_IMPLEMENTED; }
+
+template <>
+Node NodeBackendDefault::merge(const Path& path, const Node& patch, const NodeObject& opt)
 {
     NOT_IMPLEMENTED;
+    return Node{};
+}
 
-    switch (node.type())
+template <>
+Node NodeBackendDefault::fetch(const Path&, const Node& projection, const NodeObject& opt) const
+{
+
+    NOT_IMPLEMENTED;
+
+    switch (projection.type())
     {
     case Node::tags::Object:
         // node.as<Node::tags::Object>().for_each();
@@ -201,35 +222,9 @@ void NodeBackendDefault::update(const Node& node, const Node& opt)
     // default:
     //     _detail::remove(Node{std::dynamic_pointer_cast<NodeObject>(shared_from_this())}, path);
     // }
-}
-template <>
-Node NodeBackendDefault::fetch(const Node& data, const Node& opt) const
-{
-    NOT_IMPLEMENTED;
-
-    Node res;
-
-    // switch (path.length())
-    // {
-    // case 0:
-    //     Node{std::dynamic_pointer_cast<NodeObject>(const_cast<NodeBackendDefault*>(this)->shared_from_this())}.swap(res);
-    //     break;
-    // case 1:
-    //     Node(m_container_.at(std::get<Path::segment_tags::Key>(*path.begin()))).swap(res);
-    //     break;
-    // default:
-    //     _detail::find(Node{std::dynamic_pointer_cast<NodeObject>(const_cast<NodeBackendDefault*>(this)->shared_from_this())}, path).swap(res);
-    // }
-
-    return std::move(res);
+    return Node{};
 }
 
-template <>
-Node NodeBackendDefault::fetch_or_insert(const Node& data, const Node& opt)
-{
-    Node res;
-    return std::move(res);
-}
 //------------------------------------------------------------------
 
 // NodeObject NodeObject::create(const NodeObject& opt)

@@ -79,14 +79,14 @@ public:
     NodeArray& as_array();
     const NodeArray& as_array() const;
 
-    void set_value(Node v);
+    void set_value(const Node& v);
     Node get_value() const;
 
     template <typename V, typename First, typename... Others>
     void as(First&& first, Others&&... others) { set_value(Node{std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...}); }
 
     template <typename V>
-    V as() const { return traits::convert<V>(get_value().value()); }
+    V as() const { return get_value().as<V>(); }
 
     template <typename V>
     Entry& operator=(const V& v)

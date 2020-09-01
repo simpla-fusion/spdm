@@ -54,7 +54,17 @@ public:
         Path(other).swap(*this);
         return *this;
     }
+    bool operator==(Path const& other) const
+    {
+        bool same = m_path_->size() == other.m_path_->size();
 
+        for (auto ib0 = m_path_->begin(), ie0 = m_path_->end(), ib1 = other.m_path_->begin(), ie1 = other.m_path_->end();
+             ib0 != ie0 && same; ++ib0, ++ib1)
+        {
+            same = ib1 != ie1 && (*ib0 == *ib1);
+        }
+        return same;
+    }
     void swap(Path& other) { std::swap(m_path_, other.m_path_); }
 
     // template <typename Segment>

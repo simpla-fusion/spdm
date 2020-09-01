@@ -30,6 +30,25 @@ M_REGISITER_TYPE_TAG(Array, sp::db::NodeArray);
 
 namespace sp::db
 {
+typedef std::variant<std::nullptr_t,
+                     NodeObject,                         //Object
+                     NodeArray,                          //Array
+                     DataBlock,                          //Block
+                     Path,                               //Path
+                     bool,                               //Boolean,
+                     int,                                //Integer,
+                     long,                               //Long,
+                     float,                              //Float,
+                     double,                             //Double,
+                     std::string,                        //String,
+                     std::array<int, 3>,                 //IntVec3,
+                     std::array<long, 3>,                //LongVec3,
+                     std::array<float, 3>,               //FloatVec3,
+                     std::array<double, 3>,              //DoubleVec3,
+                     std::complex<double>,               //Complex,
+                     std::array<std::complex<double>, 3> //ComplexVec3,
+                     >
+    node_value_type;
 
 class NodeObject
 {
@@ -41,7 +60,7 @@ private:
 public:
     NodeObject();
 
-    ~NodeObject();
+    ~NodeObject() = default;
 
     NodeObject(std::initializer_list<std::pair<std::string, Node>> init);
 
@@ -52,19 +71,17 @@ public:
     template <typename... Args>
     NodeObject(Args&&... args) {}
 
-    void swap(NodeObject& other) { std::swap(m_backend_, other.m_backend_); }
-
-    NodeObject& operator=(const NodeObject& other)
-    {
-        NodeObject(other).swap(*this);
-        return *this;
-    }
-
     static NodeObject create(const NodeObject& opt);
+
+    void swap(NodeObject& other);
+
+    NodeObject& operator=(const NodeObject& other);
 
     void load(const NodeObject&);
 
     void save(const NodeObject&) const;
+
+    bool is_same(const NodeObject&) const;
 
     bool is_valid() const;
 
@@ -82,19 +99,23 @@ public:
 
     void for_each(std::function<void(const std::string&, const Node&)> const&) const;
 
-    Node fetch(const Node& data) const;
+    //----------------
 
-    void update(Node);
+    void update(const Path&, const Node&, const NodeObject& opt = {});
 
-    Node fetch_or_insert(const Node& data, Node opt);
+    Node merge(const Path&, const Node& patch, const NodeObject& opt = {});
 
-    Node fetch(const Node& data, Node opt) const;
+    Node fetch(const Path&, const Node& projection, const NodeObject& opt = {}) const;
 
-    void update(Node, const Node& opt);
+    //----------------
 
-    void set_value(const std::string& name, Node v);
+    bool contain(const std::string& name) const;
 
-    Node get_value(const std::string& name) const;
+    void update_value(const std::string& name, Node&& v);
+
+    Node insert_value(const std::string& name, Node&& v);
+
+    Node find_value(const std::string& name) const;
 };
 
 class NodeArray
@@ -148,34 +169,11 @@ public:
 
 class Node
 {
-
 public:
-    typedef std::variant<std::nullptr_t,
-                         NodeObject,                         //Object
-                         NodeArray,                          //Array
-                         DataBlock,                          //Block
-                         Path,                               //Path
-                         bool,                               //Boolean,
-                         int,                                //Integer,
-                         long,                               //Long,
-                         float,                              //Float,
-                         double,                             //Double,
-                         std::string,                        //String,
-                         std::array<int, 3>,                 //IntVec3,
-                         std::array<long, 3>,                //LongVec3,
-                         std::array<float, 3>,               //FloatVec3,
-                         std::array<double, 3>,              //DoubleVec3,
-                         std::complex<double>,               //Complex,
-                         std::array<std::complex<double>, 3> //ComplexVec3,
-                         >
-        value_type;
+    typedef node_value_type value_type;
 
     typedef traits::type_tags<value_type> tags;
 
-private:
-    value_type m_value_;
-
-public:
     Node() = default;
 
     ~Node() = default;
@@ -192,13 +190,9 @@ public:
 
     Node(Node&& other);
 
-    size_t type() const;
-
-    value_type& value();
-
-    const value_type& value() const;
-
     void swap(Node& other);
+
+    size_t type() const;
 
     NodeArray& as_array();
 
@@ -208,12 +202,27 @@ public:
 
     const NodeObject& as_object() const;
 
+    void set_value(value_type v) { m_value_.swap(v); }
+
+    value_type& get_value() { return m_value_; }
+
+    const value_type& get_value() const { return m_value_; }
+
+    template <typename V, typename First, typename... Others>
+    void as(First&& first, Others&&... others) { m_value_.emplace<V>(std::forward<First>(first), std::forward<Others>(others)...); }
+
+    template <typename V>
+    V as() const { return traits::convert<V>(m_value_); }
+
     template <int IDX>
     decltype(auto) as() const { return std::get<IDX>(m_value_); }
 
     template <int IDX>
     decltype(auto) as() { return std::get<IDX>(m_value_); }
-};
+
+private:
+    value_type m_value_;
+}; // namespace sp::db
 
 template <typename... Args,
           std::enable_if_t<std::is_constructible<Node::value_type, Args...>::value, int>>

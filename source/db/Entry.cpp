@@ -44,7 +44,7 @@ NodeObject& Entry::root() { return m_root_; }
 
 const NodeObject& Entry::root() const { return m_root_; }
 
-std::size_t Entry::type() const { return m_root_.fetch(m_path_).value().index(); }
+std::size_t Entry::type() const { return m_root_.fetch(m_path_, {{"$type", true}}).as<int>(); }
 
 void Entry::reset()
 {
@@ -56,29 +56,11 @@ bool Entry::is_null() const { return !m_root_.is_valid() || type() == Node::tags
 
 bool Entry::empty() const { return is_null() || size() == 0; }
 
-size_t Entry::size() const
-{
-    size_t res = 0;
-    auto tmp = m_root_.fetch(m_path_).value();
-
-    switch (tmp.index())
-    {
-    case Node::tags::Object:
-        res = std::get<Node::tags::Object>(tmp).size();
-        break;
-    case Node::tags::Array:
-        res = std::get<Node::tags::Array>(tmp).size();
-        break;
-    default:
-        res = 0;
-    }
-    return res;
-}
+size_t Entry::size() const { return m_root_.fetch(m_path_, {{"$size", true}}).as<size_t>(); }
 
 bool Entry::operator==(const Entry& other) const
 {
-    NOT_IMPLEMENTED;
-    return false;
+    return m_root_.is_same(other.m_root_) && m_path_ == other.m_path_;
 }
 
 // std::pair<std::shared_ptr<const NodeObject>, Path> Entry::full_path() const
@@ -96,17 +78,17 @@ bool Entry::operator==(const Entry& other) const
 //-----------------------------------------------------------------------------------------------------------
 using namespace std::string_literals;
 
-void Entry::set_value(Node v) { m_root_.update({m_path_, std::move(v)}); }
+void Entry::set_value(const Node& v) { m_root_.update(m_path_, std::move(v)); }
 
 Node Entry::get_value() const { return m_root_.fetch(m_path_, {}); }
 
 NodeObject& Entry::as_object() { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_, NodeObject{}).as<Node::tags::Object>(); }
 
-const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_).as<Node::tags::Object>(); }
+const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? m_root_ : m_root_.fetch(m_path_, {}).as<Node::tags::Object>(); }
 
 NodeArray& Entry::as_array() { return m_root_.fetch(m_path_, NodeArray{}).as<Node::tags::Array>(); }
 
-const NodeArray& Entry::as_array() const { return m_root_.fetch(m_path_).as<Node::tags::Array>(); }
+const NodeArray& Entry::as_array() const { return m_root_.fetch(m_path_, {}).as<Node::tags::Array>(); }
 
 //-----------------------------------------------------------------------------------------------------------
 
