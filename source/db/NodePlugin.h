@@ -14,54 +14,8 @@
 namespace sp::db
 {
 
-class NodeBackend : public std::enable_shared_from_this<NodeBackend>
-{
-
-public:
-    NodeBackend() = default;
-    virtual ~NodeBackend() = default;
-    NodeBackend(const NodeBackend&) = delete;
-    NodeBackend(NodeBackend&&) = delete;
-
-    static std::shared_ptr<NodeBackend> create(const NodeObject& opt = {});
-
-    virtual std::shared_ptr<NodeBackend> copy() const = 0;
-
-    virtual void load(const NodeObject&) = 0;
-
-    virtual void save(const NodeObject&) const = 0;
-
-    virtual size_t size() const = 0;
-
-    virtual void clear() = 0;
-
-    virtual Cursor<Node> children() = 0;
-
-    virtual Cursor<const Node> children() const = 0;
-
-    virtual void for_each(std::function<void(const std::string&, const Node&)> const&) const = 0;
-
-    //----------------
-
-    virtual void update(const Path&, const Node&, const NodeObject& opt = {}) = 0;
-
-    virtual Node merge(const Path&, const Node& patch, const NodeObject& opt = {}) = 0;
-
-    virtual Node fetch(const Path&, const Node& projection = {}, const NodeObject& opt = {}) const = 0;
-
-    //----------------
-
-    virtual bool contain(const std::string& name) const = 0;
-
-    virtual void update_value(const std::string& name, Node&& v) = 0;
-
-    virtual Node insert_value(const std::string& name, Node&& v) = 0;
-
-    virtual Node find_value(const std::string& name) const = 0;
-};
-
 template <typename Container>
-class NodePlugin : public NodeBackend
+class NodePlugin : public NodeObject
 {
 private:
     Container m_container_;
@@ -95,7 +49,11 @@ public:
 
     const Container& container() const { return m_container_; }
 
-    size_t size() const override {  NOT_IMPLEMENTED;return container().size(); }
+    size_t size() const override
+    {
+        NOT_IMPLEMENTED;
+        return container().size();
+    }
 
     void clear() override { container().clear(); }
 

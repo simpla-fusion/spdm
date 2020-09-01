@@ -25,14 +25,14 @@ class DataBlock;
 M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
 M_REGISITER_TYPE_TAG(Path, sp::db::Path);
 
-M_REGISITER_TYPE_TAG(Object, sp::db::NodeObject);
-M_REGISITER_TYPE_TAG(Array, sp::db::NodeArray);
+M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::NodeObject>);
+M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::NodeArray>);
 
 namespace sp::db
 {
 typedef std::variant<std::nullptr_t,
-                     NodeObject,                         //Object
-                     NodeArray,                          //Array
+                     std::shared_ptr<NodeObject>,        //Object
+                     std::shared_ptr<NodeArray>,         //Array
                      DataBlock,                          //Block
                      Path,                               //Path
                      bool,                               //Boolean,
@@ -50,77 +50,67 @@ typedef std::variant<std::nullptr_t,
                      >
     node_value_type;
 
-class NodeObject
+class NodeObject : public std::enable_shared_from_this<NodeObject>
 {
-private:
-    std::shared_ptr<NodeBackend> m_backend_;
-    NodeBackend& backend();
-    const NodeBackend& backend() const;
 
 public:
     NodeObject();
 
-    ~NodeObject() = default;
+    virtual ~NodeObject() = default;
 
-    NodeObject(std::initializer_list<std::pair<std::string, Node>> init);
+    NodeObject(const NodeObject&) = delete;
 
-    NodeObject(std::shared_ptr<NodeBackend>);
-
-    NodeObject(const NodeObject&);
-
-    NodeObject(NodeObject&&);
+    NodeObject(NodeObject&&) = delete;
 
     // template <typename... Args>
     // NodeObject(Args&&... args) {}
 
-    static NodeObject create(const NodeObject& opt);
+    static std::shared_ptr<NodeObject> create(const NodeObject& opt);
 
-    void swap(NodeObject& other);
+    virtual std::shared_ptr<NodeObject> copy() const = 0;
 
-    NodeObject& operator=(const NodeObject& other);
+    virtual void load(const NodeObject&);
 
-    void load(const NodeObject&);
+    virtual void save(const NodeObject&) const;
 
-    void save(const NodeObject&) const;
+    virtual bool is_same(const NodeObject&) const;
 
-    bool is_same(const NodeObject&) const;
+    virtual bool is_valid() const;
 
-    bool is_valid() const;
+    virtual bool empty() const;
 
-    bool empty() const;
+    virtual size_t size() const;
 
-    size_t size() const;
+    virtual void clear();
 
-    void clear();
+    virtual void reset();
 
-    void reset();
+    virtual Cursor<Node> children();
 
-    Cursor<Node> children();
+    virtual Cursor<const Node> children() const;
 
-    Cursor<const Node> children() const;
-
-    void for_each(std::function<void(const std::string&, const Node&)> const&) const;
+    virtual void for_each(std::function<void(const std::string&, const Node&)> const&) const;
 
     //----------------
 
-    void update(const Path&, const Node&, const NodeObject& opt = {});
+    virtual void update(const Path&, const Node&, const NodeObject& opt = {});
 
-    Node merge(const Path&, const Node& patch, const NodeObject& opt = {});
+    virtual Node merge(const Path&, const Node& patch, const NodeObject& opt = {});
 
-    Node fetch(const Path&, const Node& projection, const NodeObject& opt = {}) const;
+    virtual Node fetch(const Path&, const Node& projection, const NodeObject& opt = {}) const;
 
     //----------------
 
-    bool contain(const std::string& name) const;
+    virtual bool contain(const std::string& name) const;
 
-    void update_value(const std::string& name, Node&& v);
+    virtual void update_value(const std::string& name, Node&& v);
 
-    Node insert_value(const std::string& name, Node&& v);
+    virtual Node insert_value(const std::string& name, Node&& v);
 
-    Node find_value(const std::string& name) const;
+    virtual Node find_value(const std::string& name) const;
 };
 
-class NodeArray
+class NodeArray : public std::enable_shared_from_this<NodeArray>
 {
     std::shared_ptr<std::vector<Node>> m_container_;
 
