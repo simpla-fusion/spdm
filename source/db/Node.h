@@ -62,8 +62,8 @@ public:
     ~Node() = default;
 
     template <typename... Args,
-              std::enable_if_t<std::is_constructible<value_type, Args...>::value, int> = 0>
-    Node(Args&&... args);
+              std::enable_if_t<sizeof...(Args) != 0 && std::is_constructible<value_type, Args...>::value, int> = 0>
+    Node(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
 
     Node(char const* c);
 
@@ -123,10 +123,6 @@ private:
     value_type m_value_;
 }; // namespace sp::db
 
-template <typename... Args,
-          std::enable_if_t<std::is_constructible<Node::value_type, Args...>::value, int>>
-Node::Node(Args&&... args) : m_value_(std::forward<Args>(args)...) {}
-
 class NodeObject : public std::enable_shared_from_this<NodeObject>
 {
 
@@ -163,9 +159,7 @@ public:
 
     //----------------
 
-    virtual void update(const Path&, const Node& = {}, const Node& opt = {}) = 0;
-
-    virtual Node merge(const Path&, const Node& patch = {}, const Node& opt = {}) = 0;
+    virtual Node update(const Path&, const Node& = {}, const Node& opt = {}) = 0;
 
     virtual Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const = 0;
 

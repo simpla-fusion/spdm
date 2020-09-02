@@ -9,7 +9,7 @@ namespace sp::db
 
 static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetch_ops_map{
 
-    {"$size", [](const Node& node, const Node& opt) {
+    {"$count", [](const Node& node, const Node& opt) {
          size_t res = 0;
          std::visit(
              sp::traits::overloaded{

@@ -69,7 +69,7 @@ Node NodeObjectDefault::find_value(const std::string& name) const
 }
 
 template <>
-void NodeObjectDefault::update(const Path& path, const Node& patch, const Node& opt)
+Node NodeObjectDefault::update(const Path& path, const Node& patch, const Node& opt)
 {
 
     Node self(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
@@ -100,39 +100,6 @@ void NodeObjectDefault::update(const Path& path, const Node& patch, const Node& 
             [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
             [&](auto&& v) {  std::cerr<<path<<std::endl; 
             NOT_IMPLEMENTED; }},
-        self.get_value());
-}
-
-template <>
-Node NodeObjectDefault::merge(const Path& path, const Node& patch, const Node& opt)
-{
-    Node self(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
-
-    for (auto it = path.begin(), ie = --path.end(); it != ie && self.type() != Node::tags::Null; ++it)
-    {
-        std::visit(
-            sp::traits::overloaded{
-                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                    object_p->insert_value(std::get<Path::segment_tags::Key>(*it), NodeObject::create()).swap(self);
-                },
-                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                    array_p->insert(std::get<Path::segment_tags::Index>(*it), NodeObject::create()).swap(self);
-                },
-                [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
-                [&](auto&& v) { NOT_IMPLEMENTED; }},
-            self.get_value());
-    }
-
-    std::visit(
-        sp::traits::overloaded{
-            [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                Node(object_p->insert_value(std::get<Path::segment_tags::Key>(path.last()), Node{patch})).swap(self);
-            },
-            [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                Node(array_p->insert(std::get<Path::segment_tags::Index>(path.last()), Node{patch})).swap(self);
-            },
-            [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
-            [&](auto&& v) { NOT_IMPLEMENTED; }},
         self.get_value());
 
     return std::move(self);

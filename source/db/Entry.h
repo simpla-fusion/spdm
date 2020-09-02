@@ -27,7 +27,7 @@ public:
 
     Entry(std::initializer_list<Node> init, Path p = {});
 
-    Entry(const std::shared_ptr<NodeObject> &root, Path p = {});
+    Entry(const std::shared_ptr<NodeObject>& root, Path p = {});
 
     Entry(const Entry& other);
 
@@ -37,11 +37,7 @@ public:
 
     void swap(Entry& other);
 
-    Entry& operator=(const Entry& other)
-    {
-        Entry(other).swap(*this);
-        return *this;
-    }
+    Entry& operator=(const Entry& other);
 
     static Entry create(const Node&);
 
@@ -49,47 +45,42 @@ public:
 
     void save(const Node&) const;
 
-    //-------------------------------------------------------------------------
+    std::shared_ptr<NodeObject> root();
 
-    std::size_t type() const;
+    const std::shared_ptr<NodeObject> root() const;
+
+    Path& path() { return m_path_; }
+
+    const Path& path() const { return m_path_; }
 
     void reset();
+
+    //-------------------------------------------------------------------------
+
+    Node update(Node v);
+
+    Node fetch(Node projection = {}) const;
+
+    //-------------------------------------------------------------------------
+
+    bool operator==(const Entry& other) const { return same_as(other); }
+
+    bool same_as(const Entry& other) const;
+
+    size_t type() const;
 
     bool is_null() const;
 
     bool empty() const;
 
-    size_t size() const;
+    size_t count() const;
 
-    std::shared_ptr<NodeObject> root();
-
-    const std::shared_ptr<NodeObject> root() const;
-
-    const Path& path() const { return m_path_; }
-
-    std::pair<const NodeObject, Path> full_path() const;
-
-    std::pair<NodeObject, Path> full_path();
-
-    //-------------------------------------------------------------------------
-
-    NodeObject& as_object();
-    const NodeObject& as_object() const;
-
-    NodeArray& as_array();
-    const NodeArray& as_array() const;
-
-    void set_value(const Node& v);
-
-    Node get_value();
-
-    Node get_value() const;
-
-    template <typename V, typename First, typename... Others>
-    void as(First&& first, Others&&... others) { set_value(Node(std::in_place_type_t<V>(), std::forward<First>(first), std::forward<Others>(others)...)); }
+    template <typename V, typename... Others,
+              std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
+    void as(Others&&... others) { update(Node(std::in_place_type_t<V>(), std::forward<Others>(others)...)); }
 
     template <typename V>
-    V as() const { return get_value().as<V>(); }
+    auto as() const { return fetch().as<V>(); }
 
     template <typename V>
     Entry& operator=(const V& v)
@@ -110,7 +101,7 @@ public:
     Entry at(Args&&... args) & { return Entry(root(), Path(m_path_).join(std::forward<Args>(args)...)); }
 
     template <typename... Args>
-    Entry at(Args&&... args) && { return Entry(std::move(m_root_), Path(std::move(m_path_)).join(std::forward<Args>(args)...)); }
+    Entry at(Args&&... args) && { return Entry(std::move(root()), Path(std::move(m_path_)).join(std::forward<Args>(args)...)); }
 
     template <typename... Args>
     Entry at(Args&&... args) const& { return Entry(root(), Path(m_path_).join(std::forward<Args>(args)...)); }
@@ -134,7 +125,7 @@ public:
 
     //-------------------------------------------------------------------------
 
-    void resize(std::size_t num);
+    void resize(int num);
 
     Node pop_back();
 
@@ -143,10 +134,6 @@ public:
     Cursor<Node> children();
 
     Cursor<const Node> children() const;
-
-    //------------------------------------------------------------------------------------
-
-    bool operator==(const Entry& other) const;
 
 private:
 };

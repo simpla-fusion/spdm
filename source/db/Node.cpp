@@ -133,7 +133,11 @@ Node::Node(std::initializer_list<Node> init)
             obj.update_value(array.at(0).as<tags::String>(), Node(array.at(1)));
         }
     }
-    else if (init.size() > 0)
+    else if (init.size() == 1)
+    {
+        m_value_ = init.begin()->get_value();
+    }
+    else if (init.size() > 1)
     {
         m_value_.emplace<Node::tags::Array>(std::make_shared<NodeArray>(init.begin(), init.end()));
     }

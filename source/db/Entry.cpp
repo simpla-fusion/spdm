@@ -9,7 +9,7 @@ namespace sp::utility
 
 std::ostream& fancy_print(std::ostream& os, const sp::db::Entry& entry, int indent = 0, int tab = 4)
 {
-    os << std::setw(indent * tab) << " " << entry.get_value();
+    os << std::setw(indent * tab) << " " << entry.fetch();
     return os;
 }
 } // namespace sp::utility
@@ -34,6 +34,12 @@ void Entry::swap(Entry& other)
 {
     m_root_.swap(other.m_root_);
     m_path_.swap(other.m_path_);
+}
+
+Entry& Entry::operator=(const Entry& other)
+{
+    Entry(other).swap(*this);
+    return *this;
 }
 
 void Entry::load(const Node& opt)
@@ -65,91 +71,54 @@ const std::shared_ptr<NodeObject> Entry::root() const
     return m_root_;
 }
 
-std::size_t Entry::type() const { return root()->fetch(m_path_, {{"$type", true}}).as<int>(); }
-
 void Entry::reset()
 {
-    m_root_ = NodeObject::create();
+    m_root_ = nullptr;
     m_path_.clear();
 }
+//-------------------------------
+
+Node Entry::update(Node v) { return root()->update(m_path_, std::move(v)); }
+
+Node Entry::fetch(Node ops) const { return root()->fetch(m_path_, std::move(ops)); }
+//-------------------------------
+
+size_t Entry::type() const { return fetch({{"$type", 1}}).as<size_t>(); }
 
 bool Entry::is_null() const { return m_root_ == nullptr || type() == Node::tags::Null; }
 
-bool Entry::empty() const { return is_null() || size() == 0; }
+bool Entry::empty() const { return is_null() || count() == 0; }
 
-size_t Entry::size() const { return root()->fetch(m_path_, {{"$size", true}}, {}).as<size_t>(); }
+size_t Entry::count() const { return fetch({{"$count", 1}}).as<size_t>(); }
 
-bool Entry::operator==(const Entry& other) const
+bool Entry::same_as(const Entry& other) const
 {
     return m_root_ == other.m_root_ || root()->is_same(*other.m_root_) && m_path_ == other.m_path_;
 }
 
-// std::pair<std::shared_ptr<const NodeObject>, Path> Entry::full_path() const
-// {
-//     NOT_IMPLEMENTED;
-//     return std::pair<std::shared_ptr<const NodeObject>, Path>{};
-// }
-
-// std::pair<std::shared_ptr<NodeObject>, Path> Entry::full_path()
-// {
-//     NOT_IMPLEMENTED;
-//     return std::pair<std::shared_ptr<NodeObject>, Path>{};
-// }
-
 //-----------------------------------------------------------------------------------------------------------
 using namespace std::string_literals;
 
-void Entry::set_value(const Node& v) { root()->update(m_path_, std::move(v)); }
+void Entry::resize(int num) { update({{"$resize", num}}); }
 
-Node Entry::get_value() { return root()->merge(m_path_, Node(NodeObject::create())); }
-
-Node Entry::get_value() const { return root()->fetch(m_path_); }
-
-NodeObject& Entry::as_object() { return m_path_.length() == 0 ? *m_root_ : *root()->merge(m_path_, Node(NodeObject::create())).as<Node::tags::Object>(); }
-
-const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? *m_root_ : *root()->fetch(m_path_).as<Node::tags::Object>(); }
-
-NodeArray& Entry::as_array() { return *root()->merge(m_path_, NodeArray::create()).as<Node::tags::Array>(); }
-
-const NodeArray& Entry::as_array() const { return *root()->fetch(m_path_).as<Node::tags::Array>(); }
-
-//-----------------------------------------------------------------------------------------------------------
-
-void Entry::resize(std::size_t num) { as_array().resize(num); }
-
-Node Entry::pop_back() { return as_array().pop_back(); }
+Node Entry::pop_back() { return update({{"$pop_back", 1}}); }
 
 Entry Entry::push_back(Node v)
 {
-    auto& a = as_array();
-    a.push_back(std::move(v));
-    return Entry{m_root_, Path(m_path_).join(a.size() - 1)};
+    int idx = update({{"$push_back", std::move(v)}}).as<int>();
+    return Entry(m_root_, Path(m_path_).join(idx));
 }
 
 Cursor<Node> Entry::Entry::children()
 {
     NOT_IMPLEMENTED;
-    Cursor<Node> res;
-    // std::visit(
-    //     sp::traits::overloaded{
-    //         [&](std::variant_alternative_t<Node::tags::Object, value_type>& object_p) { object_p->children().swap(res); },
-    //         [&](std::variant_alternative_t<Node::tags::Array, value_type>& array_p) { array_p->children().swap(res); },
-    //         [&](auto&&) { RUNTIME_ERROR << "illegal type!"; }},
-    //     fetch());
-    return std::move(res);
+    return Cursor<Node>{};
 }
 
 Cursor<const Node> Entry::Entry::children() const
 {
     NOT_IMPLEMENTED;
-    Cursor<const Node> res;
-    // std::visit(
-    //     sp::traits::overloaded{
-    //         [&](const std::variant_alternative_t<Node::tags::Object, value_type>& object_p) { std::const_pointer_cast<const NodeObject>(object_p)->children().swap(res); },
-    //         [&](const std::variant_alternative_t<Node::tags::Array, value_type>& array_p) { std::const_pointer_cast<const NodeArray>(array_p)->children().swap(res); },
-    //         [&](auto&&) { RUNTIME_ERROR << "illegal type!"; }},
-    //     fetch());
-    return std::move(res);
+    return Cursor<const Node>{};
 }
 
 // void Entry::for_each(std::function<void(const Path::Segment&, Node&)> const&) { NOT_IMPLEMENTED; }

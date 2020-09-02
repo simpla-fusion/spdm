@@ -81,13 +81,7 @@ public:
 
     //----------------
 
-    void update(const Path&, const Node& = {}, const Node& opt = {}) override { NOT_IMPLEMENTED; }
-
-    Node merge(const Path&, const Node& patch = {}, const Node& opt = {}) override
-    {
-        NOT_IMPLEMENTED;
-        return Node{};
-    }
+    Node update(const Path&, const Node& = {}, const Node& opt = {}) override { NOT_IMPLEMENTED; return Node{}; }
 
     Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const override
     {
