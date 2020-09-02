@@ -12,8 +12,8 @@ TEST_CASE("Object", "[SpDB:Entry]")
 {
     sp::db::Entry entry({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
 
-    VERBOSE <<entry;
-    
+    VERBOSE << entry;
+
     REQUIRE(entry["B"]["b"].as<int>() == 1);
 
     REQUIRE(entry["B"]["c"].as<std::string>() == "hello world");
@@ -33,7 +33,6 @@ TEST_CASE("Path", "[SpDB:Array]")
     std::string message = "hello world!";
 
     entry["D/E/F"_p] = message;
-    VERBOSE << entry;
 
     REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
 

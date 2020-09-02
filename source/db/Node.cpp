@@ -156,7 +156,7 @@ NodeArray& Node::as_array()
 {
     if (m_value_.index() == tags::Null)
     {
-        m_value_.emplace<tags::Array>();
+        m_value_.emplace<tags::Array>(NodeArray::create());
     }
     else if (m_value_.index() != tags::Array)
     {

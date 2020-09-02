@@ -110,6 +110,14 @@ static std::map<std::string, std::function<Node(Node&, const Node&)>> update_ops
          }
          return Node(node);
      }},
+    {"$push_back", [](Node& node, const Node& opt) {
+         node.as_array().push_back(opt);
+         return Node(static_cast<int>(node.as_array().size()-1));
+     }},
+    {"$pop_back", [](Node& node, const Node& opt) {
+         node.as_array().pop_back();
+         return Node(static_cast<int>(node.as_array().size()-1));
+     }},
 
 }; // namespace sp::db
 
