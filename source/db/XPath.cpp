@@ -93,7 +93,7 @@ Path Path::parse(const std::string& path)
 
 std::string Path::filename() const
 {
-    return m_path_->size() > 0 ? std::get<segment_tags::Key>(m_path_->back()) : "";
+    return m_path_->size() > 0 ? std::get<tags::Key>(m_path_->back()) : "";
 }
 
 std::string Path::extension() const

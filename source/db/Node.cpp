@@ -171,7 +171,7 @@ NodeObject& Node::as_object()
 {
     if (m_value_.index() == tags::Null)
     {
-        m_value_.emplace<tags::Object>();
+        m_value_.emplace<tags::Object>(NodeObject::create());
     }
     else if (m_value_.index() != tags::Object)
     {

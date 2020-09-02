@@ -107,15 +107,18 @@ public:
     Entry at(Args&&... args) const& { return Entry(root(), Path(m_path_).join(std::forward<Args>(args)...)); }
 
     template <typename T>
-    inline Entry operator[](const T& idx) & { return at(idx); }
+    Entry operator[](const T& idx) & { return at(idx); }
     template <typename T>
-    inline Entry operator[](const T& idx) && { return at(idx); }
+    Entry operator[](const T& idx) && { return at(idx); }
     template <typename T>
-    inline Entry operator[](const T& idx) const& { return at(idx); }
+    Entry operator[](const T& idx) const& { return at(idx); }
 
-    inline Entry slice(int start, int stop, int step = 1) & { return at(std::make_tuple(start, stop, step)); }
-    inline Entry slice(int start, int stop, int step = 1) && { return at(std::make_tuple(start, stop, step)); }
-    inline Entry slice(int start, int stop, int step = 1) const& { return at(std::make_tuple(start, stop, step)); }
+    template <typename... Args>
+    Entry slice(Args&&... args) & { return at(Slice(std::forward<Args>(args)...)); }
+    template <typename... Args>
+    Entry slice(Args&&... args) && { return at(Slice(std::forward<Args>(args)...)); }
+    template <typename... Args>
+    Entry slice(Args&&... args) const& { return at(Slice(std::forward<Args>(args)...)); }
 
     template <typename V>
     auto attribute(const std::string& name) const { return at("@" + name).as<V>(); }

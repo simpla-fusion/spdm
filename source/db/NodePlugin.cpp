@@ -60,25 +60,6 @@ void NodeObjectDefault::for_each(std::function<void(const std::string&, const No
     }
 }
 
-// template <>
-// bool NodeObjectDefault::contain(const std::string& name) const { return m_container_.find(name) != m_container_.end(); }
-
-// template <>
-// void NodeObjectDefault::update_value(const std::string& name, Node&& v) { m_container_[name].swap(v); }
-
-// template <>
-// Node NodeObjectDefault::insert_value(const std::string& name, Node&& v)
-// {
-//     return Node{m_container_.emplace(name, std::move(v)).first->second};
-// }
-
-// template <>
-// Node NodeObjectDefault::find_value(const std::string& name) const
-// {
-//     auto it = m_container_.find(name);
-//     return it == m_container_.end() ? Node{} : Node{it->second};
-// }
-
 static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetch_ops_map{
 
     {"$count", [](const Node& node, const Node& opt) {
@@ -118,7 +99,17 @@ static std::map<std::string, std::function<Node(Node&, const Node&)>> update_ops
          node.as_array().resize(opt.as<int>());
          return Node{};
      }},
-    // {"$set", [](Node& node, const Node& opt) { return Node(std::in_place_index_t<Node::tags::Int>(), node.type()); }},
+    {"$set", [](Node& node, const Node& opt) {
+         Node(opt).swap(node);
+         return Node(node);
+     }},
+    {"$default", [](Node& node, const Node& opt) {
+         if (node.type() == Node::tags::Null)
+         {
+             Node(opt).swap(node);
+         }
+         return Node(node);
+     }},
 
 }; // namespace sp::db
 
@@ -148,16 +139,22 @@ Node NodeObjectDefault::update(const Path& path, const Node& ops, const Node& op
 
     for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
     {
+        if (it->index() > Path::tags::Index)
+        {
+            NOT_IMPLEMENTED;
+        }
         std::visit(
             sp::traits::overloaded{
                 [&](std::variant_alternative_t<Node::tags::Null, Node::value_type>&) {
-                    self = &dynamic_cast<NodeObjectDefault&>(self->as_object()).container()[std::get<Path::segment_tags::Key>(*it)];
+                    auto obj = std::make_shared<NodeObjectDefault>();
+                    self->value().emplace<Node::tags::Object>(obj);
+                    self = &(obj->container()[std::get<Path::tags::Key>(*it)]);
                 },
                 [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                    self = &std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container()[std::get<Path::segment_tags::Key>(*it)];
+                    self = &(std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container()[std::get<Path::tags::Key>(*it)]);
                 },
                 [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                    self = &array_p->at(std::get<Path::segment_tags::Index>(*it));
+                    self = &(array_p->at(std::get<Path::tags::Index>(*it)));
                 },
                 [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
                 [&](auto&& v) { NOT_IMPLEMENTED; }},
@@ -185,6 +182,11 @@ Node NodeObjectDefault::update(const Path& path, const Node& ops, const Node& op
             Node(std::in_place_index_t<Node::tags::Object>(), tmp).swap(res);
         }
     }
+    else
+    {
+        Node(ops).swap(*self);
+        Node(ops).swap(res);
+    }
     return std::move(res);
 }
 
@@ -193,19 +195,19 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
 {
     Node root(const_cast<NodeObjectDefault*>(this)->shared_from_this());
 
-    const Node* self = &root;
+    Node* self = &root;
 
     for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
     {
         std::visit(
             sp::traits::overloaded{
-                [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                    self = &std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container().at(std::get<Path::segment_tags::Key>(*it));
+                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
+                    self = &std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container().at(std::get<Path::tags::Key>(*it));
                 },
-                [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                    self = &array_p->at(std::get<Path::segment_tags::Index>(*it));
+                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
+                    self = &array_p->at(std::get<Path::tags::Index>(*it));
                 },
-                [&](const std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
+                [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
                     NOT_IMPLEMENTED;
                     self = nullptr;
                 },
@@ -215,9 +217,10 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
 
     Node res;
 
-    if (self != nullptr)
+    if (self == nullptr)
     {
-        NOT_IMPLEMENTED;
+        RUNTIME_ERROR << "Illegal path! " << path.str();
+        throw std::runtime_error("Illegal path! " + path.str());
     }
     else if (ops.type() == Node::tags::Object)
     {
@@ -233,6 +236,10 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
         {
             Node(std::in_place_index_t<Node::tags::Object>(), tmp).swap(res);
         }
+    }
+    else
+    {
+        Node(*self).swap(res);
     }
 
     return std::move(res);
@@ -275,7 +282,7 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
 //                 object_p->insert(path_seg, Node{std::in_place_index_t<Node::tags::Object>()}).swap(self);
 //             },
 //             [&](std::variant_alternative_t<Node::tags::Array, Node>& array_p) {
-//                 array_p->insert(std::get<Path::segment_tags::Index>(path_seg), Node{std::in_place_index_t<Node::tags::Object>()}).swap(self);
+//                 array_p->insert(std::get<Path::tags::Index>(path_seg), Node{std::in_place_index_t<Node::tags::Object>()}).swap(self);
 //             },
 //             [&](std::variant_alternative_t<Node::tags::Block, Node>&) {
 //                 NOT_IMPLEMENTED;
@@ -308,7 +315,7 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
 //                 object_p->update(path.last(), std::move(v));
 //             },
 //             [&](std::variant_alternative_t<Node::tags::Array, Node>& array_p) {
-//                 array_p->insert(std::get<Path::segment_tags::Index>(path.last()), std::move(v));
+//                 array_p->insert(std::get<Path::tags::Index>(path.last()), std::move(v));
 //             },
 //             [&](std::variant_alternative_t<Node::tags::Block, Node>&) {
 //                 NOT_IMPLEMENTED;
@@ -333,7 +340,7 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
 //             Node(std::get<Node::tags::Object>(self)->find(*it)).swap(self);
 //             break;
 //         case Node::tags::Array:
-//             Node(std::get<Node::tags::Array>(self)->at(std::get<Path::segment_tags::Index>(*it))).swap(self);
+//             Node(std::get<Node::tags::Array>(self)->at(std::get<Path::tags::Index>(*it))).swap(self);
 //             break;
 //         default:
 //             found = false;
@@ -358,7 +365,7 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& ops, const Node& opt
 //                 object_p->remove(path.last());
 //             },
 //             [&](std::variant_alternative_t<Node::tags::Array, Node>& array_p) {
-//                 array_p->at(std::get<Path::segment_tags::Index>(path.last())).emplace<Node::tags::Null>(nullptr);
+//                 array_p->at(std::get<Path::tags::Index>(path.last())).emplace<Node::tags::Null>(nullptr);
 //             },
 //             [&](std::variant_alternative_t<Node::tags::Block, Node>&) {
 //                 NOT_IMPLEMENTED;

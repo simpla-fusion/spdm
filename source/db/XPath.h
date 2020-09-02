@@ -14,24 +14,44 @@
 #include <vector>
 namespace sp::db
 {
+class SliceIndex : public std::tuple<int, int, int>
+{
+public:
+    SliceIndex(std::initializer_list<SliceIndex> init);
+
+    SliceIndex(int start, int stop = -1, int step = 1);
+
+    SliceIndex(const SliceIndex&) = default;
+
+    SliceIndex(SliceIndex&&) = default;
+
+    SliceIndex() = default;
+
+    ~SliceIndex() = default;
+};
+
+struct QueryIndex : public std::string
+{
+};
 
 class Path
 {
 public:
-    enum segment_tags
+    enum tags
     {
         Null,
         Key,
         Index,
-        Slice
+        Slice,
+        Query
     };
 
     typedef std::variant<
-        std::nullptr_t,
-        std::string /* key or query*/,
-        int /* index */,
-        std ::tuple<int, int, int> /* slice */
-        >
+        std::nullptr_t, //
+        std::string,    //  key or query
+        int,            //  index
+        SliceIndex,     //  slice
+        QueryIndex>
         Segment;
 
     typedef Path this_type;
