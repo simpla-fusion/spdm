@@ -224,7 +224,7 @@ auto convert(const U& u) -> std::enable_if_t<std::is_same_v<U, V>, V> { return u
 template <typename V, typename U>
 auto convert(const U& u) -> std::enable_if_t<!std::is_same_v<V, U> && !std::is_same_v<V, std::string> && std::is_constructible_v<V, U>, V>
 {
-    return static_cast<V>(u);
+    return V(u);
 }
 template <typename V, typename U>
 auto convert(const U& u) -> std::enable_if_t<!std::is_same_v<V, std::string> && !std::is_constructible_v<V, U>, V>
