@@ -38,6 +38,8 @@ TEST_CASE("NodeObject", "[SpDB]")
 {
 
     sp::db::Node node({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
+    
+    VERBOSE << node;
 
     auto& obj = node.as_object();
 
@@ -53,9 +55,7 @@ TEST_CASE("NodeObject", "[SpDB]")
 
     REQUIRE(obj.fetch(sp::db::Path::parse("C/A")).as<std::string>() == "Hello world!");
 
-    REQUIRE(obj.merge(sp::db::Path::parse("C/A")).as<std::string>() == "Hello world!");
-
-    REQUIRE(obj.merge(sp::db::Path::parse("C/B"), 3.1415926).as<double>() == 3.1415926);
+    REQUIRE(obj.update(sp::db::Path::parse("C/B"), 3.1415926).as<double>() == 3.1415926);
 
     REQUIRE(obj.fetch(sp::db::Path::parse("C/B")).as<double>() == 3.1415926);
 

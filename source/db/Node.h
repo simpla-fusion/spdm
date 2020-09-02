@@ -139,6 +139,8 @@ public:
 
     virtual std::shared_ptr<NodeObject> copy() const = 0;
 
+    virtual void init(const std::initializer_list<Node>&) = 0;
+
     virtual void load(const Node&) = 0;
 
     virtual void save(const Node&) const = 0;
@@ -146,8 +148,6 @@ public:
     virtual bool is_same(const NodeObject&) const = 0;
 
     virtual bool empty() const = 0;
-
-    virtual size_t size() const = 0;
 
     virtual void clear() = 0;
 
@@ -162,16 +162,6 @@ public:
     virtual Node update(const Path&, const Node& = {}, const Node& opt = {}) = 0;
 
     virtual Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const = 0;
-
-    //----------------
-
-    virtual bool contain(const std::string& name) const = 0;
-
-    virtual void update_value(const std::string& name, Node&& v) = 0;
-
-    virtual Node insert_value(const std::string& name, Node&& v) = 0;
-
-    virtual Node find_value(const std::string& name) const = 0;
 };
 
 class NodeArray : public std::enable_shared_from_this<NodeArray>

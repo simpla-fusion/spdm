@@ -41,9 +41,14 @@ public:
 
     std::shared_ptr<NodeObject> copy() const override { return std::shared_ptr<NodeObject>(new this_type(*this)); }
 
+    void init(const std::initializer_list<Node>&) override;
+
     void load(const Node&) override { NOT_IMPLEMENTED; }
 
     void save(const Node&) const override { NOT_IMPLEMENTED; }
+
+    Container& container() { return m_container_; }
+    const Container& container() const { return m_container_; }
 
     bool is_same(const NodeObject&) const override
     {
@@ -55,12 +60,6 @@ public:
     {
         NOT_IMPLEMENTED;
         return false;
-    }
-
-    size_t size() const override
-    {
-        NOT_IMPLEMENTED;
-        return 0;
     }
 
     void clear() override { NOT_IMPLEMENTED; }
@@ -81,31 +80,13 @@ public:
 
     //----------------
 
-    Node update(const Path&, const Node& = {}, const Node& opt = {}) override { NOT_IMPLEMENTED; return Node{}; }
+    Node update(const Path&, const Node& = {}, const Node& opt = {}) override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
 
     Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const override
-    {
-        NOT_IMPLEMENTED;
-        return Node{};
-    }
-
-    //----------------
-
-    bool contain(const std::string& name) const override
-    {
-        NOT_IMPLEMENTED;
-        return false;
-    }
-
-    void update_value(const std::string& name, Node&& v) override { NOT_IMPLEMENTED; }
-
-    Node insert_value(const std::string& name, Node&& v) override
-    {
-        NOT_IMPLEMENTED;
-        return Node{};
-    }
-
-    Node find_value(const std::string& name) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

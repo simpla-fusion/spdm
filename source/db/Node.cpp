@@ -126,12 +126,7 @@ Node::Node(std::initializer_list<Node> init)
     if (is_an_object)
     {
         m_value_.emplace<Node::tags::Object>(NodeObject::create());
-        auto& obj = *std::get<Node::tags::Object>(m_value_);
-        for (auto& item : init)
-        {
-            auto& array = *std::get<tags::Array>(item.value());
-            obj.update_value(array.at(0).as<tags::String>(), Node(array.at(1)));
-        }
+        std::get<Node::tags::Object>(m_value_)->init(init);
     }
     else if (init.size() == 1)
     {
