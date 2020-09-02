@@ -80,13 +80,13 @@ public:
 
     //----------------
 
-    Node update(const Path&, const Node& = {}, const Node& opt = {}) override
+    Node update(const Node&, const Node& = {}, const Node& opt = {}) override
     {
         NOT_IMPLEMENTED;
         return Node{};
     }
 
-    Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const override
+    Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

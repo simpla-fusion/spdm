@@ -159,9 +159,9 @@ public:
 
     //----------------
 
-    virtual Node update(const Path&, const Node& = {}, const Node& opt = {}) = 0;
+    virtual Node update(const Node&, const Node& = {}, const Node& opt = {}) = 0;
 
-    virtual Node fetch(const Path&, const Node& projection = {}, const Node& opt = {}) const = 0;
+    virtual Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) const = 0;
 };
 
 class NodeArray : public std::enable_shared_from_this<NodeArray>
