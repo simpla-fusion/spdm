@@ -89,11 +89,11 @@ public:
 
     const NodeObject& as_object() const;
 
-    void set_value(value_type v) { m_value_.swap(v); }
+    void value(value_type v) { m_value_.swap(v); }
 
-    value_type& get_value() { return m_value_; }
+    value_type& value() { return m_value_; }
 
-    const value_type& get_value() const { return m_value_; }
+    const value_type& value() const { return m_value_; }
 
     template <typename V, typename First, typename... Others>
     void as(First&& first, Others&&... others) { m_value_.emplace<V>(std::forward<First>(first), std::forward<Others>(others)...); }

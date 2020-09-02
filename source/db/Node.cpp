@@ -86,7 +86,7 @@ void NodeArray::resize(std::size_t num) { m_container_->resize(num); }
 
 Node& NodeArray::insert(int idx, Node v)
 {
-    if ((*m_container_)[idx].get_value().index() == Node::tags::Null)
+    if ((*m_container_)[idx].value().index() == Node::tags::Null)
     {
         (*m_container_)[idx].swap(v);
     }
@@ -109,7 +109,7 @@ Node& NodeArray::push_back(Node node)
 
 Node NodeArray::pop_back()
 {
-    Node res{m_container_->back().get_value()};
+    Node res{m_container_->back().value()};
     m_container_->pop_back();
     return std::move(res);
 }
@@ -121,7 +121,7 @@ Node::Node(std::initializer_list<Node> init)
     bool is_an_object = std::all_of(
         init.begin(), init.end(),
         [](auto&& item) {
-            return item.get_value().index() == tags::Array && item.as_array().size() == 2 && item.as_array().at(0).get_value().index() == tags::String;
+            return item.value().index() == tags::Array && item.as_array().size() == 2 && item.as_array().at(0).value().index() == tags::String;
         });
     if (is_an_object)
     {
@@ -129,13 +129,13 @@ Node::Node(std::initializer_list<Node> init)
         auto& obj = *std::get<Node::tags::Object>(m_value_);
         for (auto& item : init)
         {
-            auto& array = *std::get<tags::Array>(item.get_value());
+            auto& array = *std::get<tags::Array>(item.value());
             obj.update_value(array.at(0).as<tags::String>(), Node(array.at(1)));
         }
     }
     else if (init.size() == 1)
     {
-        m_value_ = init.begin()->get_value();
+        m_value_ = init.begin()->value();
     }
     else if (init.size() > 1)
     {
@@ -242,7 +242,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::Node& node, int indent
             [&](const std::variant_alternative_t<sp::db::Node::tags::Path, sp::db::Node::value_type>& path) { fancy_print(os, path.str(), indent + 1, tab); },
             [&](auto&& ele) { fancy_print(os, ele, indent + 1, tab); } //
         },
-        node.get_value());
+        node.value());
 
     return os;
 }

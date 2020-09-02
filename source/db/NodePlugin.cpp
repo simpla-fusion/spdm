@@ -86,7 +86,7 @@ Node NodeObjectDefault::update(const Path& path, const Node& patch, const Node& 
                 },
                 [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
                 [&](auto&& v) { NOT_IMPLEMENTED; }},
-            self.get_value());
+            self.value());
     }
 
     std::visit(
@@ -100,7 +100,7 @@ Node NodeObjectDefault::update(const Path& path, const Node& patch, const Node& 
             [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
             [&](auto&& v) {  std::cerr<<path<<std::endl; 
             NOT_IMPLEMENTED; }},
-        self.get_value());
+        self.value());
 
     return std::move(self);
 }
@@ -124,7 +124,7 @@ Node NodeObjectDefault::fetch(const Path& path, const Node& projection, const No
                     self.as<Node::tags::Block>(blk.slice(std::get<Path::segment_tags::Slice>(*it)));
                 },
                 [&](auto&& v) { self.as<Node::tags::Null>(nullptr); }},
-            self.get_value());
+            self.value());
     }
 
     if (self.type() == Node::tags::Null)
