@@ -25,9 +25,9 @@ class Entry
 public:
     Entry() = default;
 
-    Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p = {});
+    Entry(std::initializer_list<Node> init, Path p = {});
 
-    Entry(std::shared_ptr<NodeObject> root, Path p = {});
+    Entry(const std::shared_ptr<NodeObject> &root, Path p = {});
 
     Entry(const Entry& other);
 
@@ -61,9 +61,9 @@ public:
 
     size_t size() const;
 
-    NodeObject& root();
+    std::shared_ptr<NodeObject> root();
 
-    const NodeObject& root() const;
+    const std::shared_ptr<NodeObject> root() const;
 
     const Path& path() const { return m_path_; }
 
@@ -80,7 +80,9 @@ public:
     const NodeArray& as_array() const;
 
     void set_value(const Node& v);
-  
+
+    Node get_value();
+
     Node get_value() const;
 
     template <typename V, typename First, typename... Others>
@@ -105,13 +107,13 @@ public:
     //-------------------------------------------------------------------------
     // access
     template <typename... Args>
-    Entry at(Args&&... args) & { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) & { return Entry(root(), Path(m_path_).join(std::forward<Args>(args)...)); }
 
     template <typename... Args>
-    Entry at(Args&&... args) && { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) && { return Entry(std::move(m_root_), Path(std::move(m_path_)).join(std::forward<Args>(args)...)); }
 
     template <typename... Args>
-    Entry at(Args&&... args) const& { return Entry{m_root_, Path(m_path_).join(std::forward<Args>(args)...)}; }
+    Entry at(Args&&... args) const& { return Entry(root(), Path(m_path_).join(std::forward<Args>(args)...)); }
 
     template <typename T>
     inline Entry operator[](const T& idx) & { return at(idx); }

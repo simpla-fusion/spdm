@@ -3,7 +3,7 @@
 #include "../utility/TypeTraits.h"
 #include "../utility/fancy_print.h"
 #include "DataBlock.h"
-
+#include <cassert>
 namespace sp::utility
 {
 
@@ -22,16 +22,9 @@ std::ostream& operator<<(std::ostream& os, Entry const& entry) { return sp::util
 //===========================================================================================================
 // Entry
 
-Entry::Entry(std::initializer_list<std::pair<std::string, Node>> init, Path p) : m_root_(nullptr), m_path_(std::move(p))
-{
-    auto& obj = root();
-    for (auto&& item : init)
-    {
-        obj.update_value(item.first, Node(item.second));
-    }
-}
+Entry::Entry(std::initializer_list<Node> init, Path p) : m_root_(Node(init).as_object().shared_from_this()), m_path_(std::move(p)) {}
 
-Entry::Entry(std::shared_ptr<NodeObject> root, Path p) : m_root_(root), m_path_(std::move(p)) {}
+Entry::Entry(const std::shared_ptr<NodeObject>& r, Path p) : m_root_(r), m_path_(std::move(p)) {}
 
 Entry::Entry(const Entry& other) : m_root_(other.m_root_), m_path_(other.m_path_) {}
 
@@ -39,26 +32,40 @@ Entry::Entry(Entry&& other) : m_root_(std::move(other.m_root_)), m_path_(std::mo
 
 void Entry::swap(Entry& other)
 {
-    std::swap(m_root_, other.m_root_);
-    std::swap(m_path_, other.m_path_);
+    m_root_.swap(other.m_root_);
+    m_path_.swap(other.m_path_);
 }
 
-void Entry::load(const Node& opt) { m_root_ = NodeObject::create(opt); }
-
-void Entry::save(const Node& opt) const { root().save(opt); }
-
-NodeObject& Entry::root()
+void Entry::load(const Node& opt)
 {
     if (m_root_ == nullptr)
     {
-        m_root_ = NodeObject::create({});
+        m_root_ = NodeObject::create(opt);
     }
-    return *m_root_;
+    else
+    {
+        m_root_->load(opt);
+    }
 }
 
-const NodeObject& Entry::root() const { return *m_root_; }
+void Entry::save(const Node& opt) const { root()->save(opt); }
 
-std::size_t Entry::type() const { return root().fetch(m_path_, {{"$type", true}}).as<int>(); }
+std::shared_ptr<NodeObject> Entry::root()
+{
+    if (m_root_ == nullptr)
+    {
+        m_root_ = NodeObject::create();
+    }
+    return m_root_;
+}
+
+const std::shared_ptr<NodeObject> Entry::root() const
+{
+    assert(m_root_ != nullptr);
+    return m_root_;
+}
+
+std::size_t Entry::type() const { return root()->fetch(m_path_, {{"$type", true}}).as<int>(); }
 
 void Entry::reset()
 {
@@ -70,11 +77,11 @@ bool Entry::is_null() const { return m_root_ == nullptr || type() == Node::tags:
 
 bool Entry::empty() const { return is_null() || size() == 0; }
 
-size_t Entry::size() const { return root().fetch(m_path_, {{"$size", true}}, {}).as<size_t>(); }
+size_t Entry::size() const { return root()->fetch(m_path_, {{"$size", true}}, {}).as<size_t>(); }
 
 bool Entry::operator==(const Entry& other) const
 {
-    return m_root_ == other.m_root_ || root().is_same(*other.m_root_) && m_path_ == other.m_path_;
+    return m_root_ == other.m_root_ || root()->is_same(*other.m_root_) && m_path_ == other.m_path_;
 }
 
 // std::pair<std::shared_ptr<const NodeObject>, Path> Entry::full_path() const
@@ -92,17 +99,19 @@ bool Entry::operator==(const Entry& other) const
 //-----------------------------------------------------------------------------------------------------------
 using namespace std::string_literals;
 
-void Entry::set_value(const Node& v) { root().update(m_path_, std::move(v)); }
+void Entry::set_value(const Node& v) { root()->update(m_path_, std::move(v)); }
 
-Node Entry::get_value() const { return root().fetch(m_path_, {}); }
+Node Entry::get_value() { return root()->merge(m_path_, Node(NodeObject::create())); }
 
-NodeObject& Entry::as_object() { return m_path_.length() == 0 ? *m_root_ : *root().merge(m_path_, Node{NodeObject::create()}).as<Node::tags::Object>(); }
+Node Entry::get_value() const { return root()->fetch(m_path_); }
 
-const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? *m_root_ : *root().fetch(m_path_).as<Node::tags::Object>(); }
+NodeObject& Entry::as_object() { return m_path_.length() == 0 ? *m_root_ : *root()->merge(m_path_, Node(NodeObject::create())).as<Node::tags::Object>(); }
 
-NodeArray& Entry::as_array() { return *root().merge(m_path_, Node(NodeArray::create())).as<Node::tags::Array>(); }
+const NodeObject& Entry::as_object() const { return m_path_.length() == 0 ? *m_root_ : *root()->fetch(m_path_).as<Node::tags::Object>(); }
 
-const NodeArray& Entry::as_array() const { return *root().fetch(m_path_).as<Node::tags::Array>(); }
+NodeArray& Entry::as_array() { return *root()->merge(m_path_, NodeArray::create()).as<Node::tags::Array>(); }
+
+const NodeArray& Entry::as_array() const { return *root()->fetch(m_path_).as<Node::tags::Array>(); }
 
 //-----------------------------------------------------------------------------------------------------------
 

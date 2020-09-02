@@ -1,54 +1,63 @@
-#include "db/Node.h"
+#include "db/Entry.h"
+#include "db/XPath.h"
 #include "utility/Logger.h"
 #include <iostream>
+
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
-const char PLUGIN_NAME[] = "memory";
-using namespace std::literals;
-namespace spdb = sp::db;
 
-TEST_CASE("Attribute ", "[SpDB]")
+using namespace sp::db::literals;
+
+TEST_CASE("Node ", "[SpDB]")
 {
-    spdb::Node node(PLUGIN_NAME);
+    sp::db::Node node;
+    REQUIRE(node.type() == sp::db::Node::tags::Null);
 
-    node["A"].set_attribute<std::string>("A", "a");
+    node.as<int>(124);
+    REQUIRE(node.as<int>() == 124);
 
-    node["A"].set_attribute<double>("B", 12.345);
+    node.as<sp::db::Node::tags::String>("3.1415926");
+    REQUIRE(node.as<double>() == 3.1415926);
 
-    REQUIRE(node["A"].has_attribute("A") == true);
+    node.as<double>(3.1415926);
+    REQUIRE(node.as<int>() == 3);
 
-    REQUIRE(node["A"].has_attribute("C") == false);
+    node.clear();
+    REQUIRE(node.type() == sp::db::Node::tags::Null);
 
-    REQUIRE(node["A"].get_attribute<std::string>("A") == "a");
+    node.as_object();
+
+    REQUIRE(node.type() == sp::db::Node::tags::Object);
+
+    node.clear();
+    node.as_array();
+    REQUIRE(node.type() == sp::db::Node::tags::Array);
 }
-TEST_CASE("Object", "[SpDB]")
+
+TEST_CASE("NodeObject", "[SpDB]")
 {
-    spdb::Node node(PLUGIN_NAME);
 
-    node["A"].set_value<std::string>("1234");
+    sp::db::Node node({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
 
-    node["B"].set_value<spdb::Node::type_tags::Float>(3.14);
+    auto& obj = node.as_object();
 
-    node["D/E/F"].set_value<double>(1.2345);
+    REQUIRE(obj.fetch(sp::db::Path::parse("B/b")).as<int>() == 1);
 
-    REQUIRE(node.size() == 3);
+    REQUIRE(obj.fetch(sp::db::Path::parse("B/c")).as<std::string>() == "hello world");
 
-    REQUIRE(node["A"].get_value<spdb::Node::type_tags::String>() == "1234");
+    REQUIRE(obj.fetch(sp::db::Path::parse("B"), {{"$type", "1"}}).as<int>() == sp::db::Node::tags::Object);
 
-    REQUIRE(node["B"].get_value<spdb::Node::type_tags::Float>() == 3.14f);
+    REQUIRE(obj.fetch(sp::db::Path::parse("B"), {{"$size", "1"}}).as<int>() == 2);
 
-    REQUIRE(node["D"]["E"]["F"].get_value<spdb::Node::type_tags::Double>() == 1.2345);
-}
-TEST_CASE("Array", "[SpDB]")
-{
-    spdb::Node node(PLUGIN_NAME);
+    obj.update(sp::db::Path::parse("C/A"), "Hello world!");
 
-    node["C"][-1].set_value<spdb::Node::type_tags::Int>(5);
+    REQUIRE(obj.fetch(sp::db::Path::parse("C/A")).as<std::string>() == "Hello world!");
 
-    node["C"][-1].set_value<double>(6.0);
+    REQUIRE(obj.merge(sp::db::Path::parse("C/A")).as<std::string>() == "Hello world!");
 
-    REQUIRE(node["C"].size() == 2);
+    REQUIRE(obj.merge(sp::db::Path::parse("C/B"), 3.1415926).as<double>() == 3.1415926);
 
-    REQUIRE(node["C"][0].get_value<spdb::Node::type_tags::Int>() == 5);
-    REQUIRE(node["C"][1].get_value<spdb::Node::type_tags::Float>() == 6.0);
+    REQUIRE(obj.fetch(sp::db::Path::parse("C/B")).as<double>() == 3.1415926);
+
+    VERBOSE << obj;
 }

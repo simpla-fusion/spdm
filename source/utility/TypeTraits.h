@@ -251,25 +251,10 @@ auto convert(const U& u) -> std::enable_if_t<std::is_same_v<V, std::string> && !
 template <typename V>
 auto convert(const std::string& u) -> std::enable_if_t<!std::is_same_v<V, std::string>, V>
 {
-   
+
     V res;
     std::istringstream is(u);
     is >> res;
-    return res;
-}
-
-template <class... Ts>
-struct overloaded;
-
-template <typename V, typename... Others>
-V convert(const std::variant<Others...>& var)
-{
-    V res;
-    std::visit(
-        overloaded{
-            [&](const V& v) { res = v; },
-            [&](auto&& v) { res = convert<V>(v); }},
-        var);
     return res;
 }
 
@@ -1200,6 +1185,11 @@ struct template_copy_type_args_impl<T0, T1<Types...>>
 
 template <template <typename...> class T0, typename T1>
 using template_copy_type_args = typename _detail::template_copy_type_args_impl<T0, T1>::type;
+
+//-----------------------
+
+template <class... Ts>
+struct overloaded;
 
 template <class... Ts>
 struct overloaded : Ts...

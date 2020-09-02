@@ -9,6 +9,10 @@ enable_testing()
 include_directories(../source)
 include_directories(../extern)
 
+ 
+add_executable(test_node test_node.cpp  )
+add_test( test_node test_node )
+target_link_libraries(test_node utility spdb )
 
  
 add_executable(test_entry test_entry.cpp  )

@@ -46,7 +46,8 @@ public:
 
     Path(Path&& prefix);
 
-    template <typename... Args>
+    template <typename... Args,
+              std::enable_if_t<std::is_constructible_v<Segment, Args...>, int> = 0>
     Path(Args&&... args) : Path() { append(std::forward<Args>(args)...); }
 
     Path& operator=(Path const& other)

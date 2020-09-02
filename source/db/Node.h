@@ -102,7 +102,16 @@ public:
     void as(First&& first, Others&&... others) { m_value_.emplace<IDX>(std::forward<First>(first), std::forward<Others>(others)...); }
 
     template <typename V>
-    V as() const { return traits::convert<V>(m_value_); }
+    V as() const
+    {
+        V res;
+        std::visit(
+            sp::traits::overloaded{
+                [&](const V& v) { res = v; },
+                [&](auto const& v) { res = traits::convert<V>(v); }},
+            m_value_);
+        return res;
+    }
 
     template <int IDX>
     decltype(auto) as() const { return std::get<IDX>(m_value_); }
