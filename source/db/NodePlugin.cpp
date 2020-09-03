@@ -202,6 +202,7 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
         Node(ops).swap(*self);
         Node(ops).swap(res);
     }
+    
     return std::move(res);
 }
 
