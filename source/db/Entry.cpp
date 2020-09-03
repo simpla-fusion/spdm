@@ -21,6 +21,7 @@ std::ostream& operator<<(std::ostream& os, Entry const& entry) { return sp::util
 
 //===========================================================================================================
 // Entry
+Entry::Entry(const Node& opt) { load(opt); }
 
 Entry::Entry(std::initializer_list<Node> init, Path p) : m_root_(Node(init).as_object().shared_from_this()), m_path_(std::move(p)) {}
 

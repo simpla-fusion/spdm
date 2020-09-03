@@ -12,76 +12,12 @@ namespace sp::db
 struct xml_node
 {
     std::shared_ptr<pugi::xml_node> root;
-    std::string path;
-    std::shared_ptr<pugi::xml_node> node;
+    std::string path = "";
 };
 
 typedef NodePlugin<xml_node> NodePluginXML;
 
-Node make_node(const pugi::xml_node& node, xml_node const& parent)
-{
-    VERBOSE << "Type =" << node.type() << "  Text=" << node.text().as_string();
-
-    Node res;
-
-    if (node.empty())
-    {
-    }
-    else if (node.type() == pugi::node_element && !node.text().empty())
-    {
-        res.as<Node::tags::String>(node.text().as_string());
-    }
-    else
-    {
-        Node{std::make_shared<NodePluginXML>(xml_node{parent.root,
-                                                      parent.path + "/" + node.name(),
-                                                      std::make_shared<pugi::xml_node>(node)})};
-    }
-    return std::move(res);
-}
-
-Node make_node(const pugi::xpath_node_set& nodes, xml_node const& parent)
-{
-    Node res;
-
-    return std::move(res);
-}
-
-std::string path_to_xpath(const Path& path)
-{
-    std::ostringstream os;
-
-    for (auto&& item : path)
-    {
-        switch (item.index())
-        {
-        case Path::tags::Key:
-            os << "/" << std::get<Path::tags::Key>(item);
-            break;
-        case Path::tags::Index:
-            os << "[@id=" << std::get<Path::tags::Index>(item) << "]";
-            break;
-        default:
-            NOT_IMPLEMENTED;
-            break;
-        }
-    }
-
-    return os.str();
-}
 //----------------------------------------------------------------------------------
-
-template <>
-NodePluginXML::NodePlugin(const xml_node& container) : m_container_(container) {}
-
-template <>
-NodePluginXML::NodePlugin(xml_node&& container) : m_container_(std::move(container)) {}
-
-template <>
-NodePluginXML::NodePlugin(const NodePlugin& other) : m_container_{other.m_container_} {}
-
-template <>
-NodePluginXML::NodePlugin(NodePlugin&& other) : m_container_{std::move(other.m_container_)} {}
 
 template <>
 void NodePluginXML::load(const Node& opt)
@@ -98,8 +34,7 @@ void NodePluginXML::load(const Node& opt)
     }
 
     m_container_.root = std::shared_ptr<pugi::xml_node>(doc);
-    m_container_.path = uri + ":/";
-    m_container_.node = m_container_.root;
+    m_container_.path = "";
 }
 
 template <>
@@ -122,11 +57,6 @@ void NodePluginXML::save(const Node& opt) const
 template <>
 void NodePluginXML::clear() { NOT_IMPLEMENTED; }
 
-// template <>
-// Entry NodePluginXML::at(Path path) { return Entry{Node{shared_from_this()}, path}; }
-// template <>
-// Entry NodePluginXML::at(Path path) const { return Entry{Node{const_cast<NodePluginXML*>(this)->shared_from_this()}, path}; }
-
 template <>
 Cursor<const Node>
 NodePluginXML::children() const
@@ -142,21 +72,47 @@ NodePluginXML::children()
     NOT_IMPLEMENTED;
     return Cursor<Node>{};
 }
-
-template <>
-void NodePluginXML::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const
+Node make_node(const pugi::xml_node& n)
 {
-    Node entry;
+    Node res;
 
-    for (auto&& attr : m_container_.node->attributes())
+    if (std::distance(n.children().begin(), n.children().end()) <= 1)
     {
-        Node v{std::string(attr.value())};
-        visitor(std::string("@") + attr.name(), v);
+        res.as<Node::tags::String>(n.text().as_string());
     }
-
-    for (auto&& node : m_container_.node->children())
+    else
     {
-        visitor(node.name(), make_node(node, m_container_));
+        auto r = std::make_shared<NodePluginXML>();
+        r->container().root = std::make_shared<pugi::xml_node>(n);
+        r->container().path = "";
+        res.as<Node::tags::Object>(std::make_shared<NodePluginXML>(r));
+    }
+    return std::move(res);
+}
+
+Node make_node(const pugi::xpath_node_set& node_set)
+{
+    Node res;
+    if (std::distance(node_set.begin(), node_set.end()) == 1)
+    {
+        make_node(node_set.begin()->node()).swap(res);
+    }
+    else
+    {
+        auto array = NodeArray::create();
+        for (auto&& n : node_set)
+        {
+            array->push_back(n.node());
+        }
+    }
+    return std::move(res);
+}
+template <>
+void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const& visitor) const
+{
+    for (auto&& n : m_container_.root->select_nodes(m_container_.path.c_str()))
+    {
+        visitor(n.node().name(), make_node(n.node()));
     }
 }
 
@@ -168,10 +124,25 @@ Node NodePluginXML::update(const Node&, const Node&, const Node& opt)
 }
 
 template <>
-Node NodePluginXML::fetch(const Node&, const Node& projection, const Node& opt) const
+Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
-    NOT_IMPLEMENTED;
-    return Node{};
+
+    Node res;
+    std::visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
+                make_node(m_container_.root->select_nodes((m_container_.path + "/" + uri).c_str())).swap(res);
+            },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Path, sp::db::Node::value_type>& path) {
+                make_node(m_container_.root->select_nodes((m_container_.path + "/" + path.str()).c_str())).swap(res);
+            },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
+                NOT_IMPLEMENTED;
+            },
+            [&](auto&& ele) { NOT_IMPLEMENTED; } //
+        },
+        query.value());
+    return res;
 }
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>

@@ -155,7 +155,9 @@ public:
 
     virtual Cursor<const Node> children() const = 0;
 
-    virtual void for_each(std::function<void(const std::string&, const Node&)> const&) const = 0;
+    virtual void for_each(std::function<void(const Node&, Node&)> const&) = 0;
+
+    virtual void for_each(std::function<void(const Node&, const Node&)> const&) const = 0;
 
     //----------------
 
@@ -200,9 +202,9 @@ public:
 
     Cursor<const Node> children() const;
 
-    void for_each(std::function<void(int, Node&)> const&);
+    void for_each(std::function<void(const Node&, Node&)> const&);
 
-    void for_each(std::function<void(int, const Node&)> const&) const;
+    void for_each(std::function<void(const Node&, const Node&)> const&) const;
 
     Node slice(int start, int stop, int step);
 

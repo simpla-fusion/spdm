@@ -25,6 +25,8 @@ class Entry
 public:
     Entry() = default;
 
+    Entry(const Node & opt);
+
     Entry(std::initializer_list<Node> init, Path p = {});
 
     Entry(const std::shared_ptr<NodeObject>& root, Path p = {});

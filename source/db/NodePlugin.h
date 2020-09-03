@@ -48,6 +48,7 @@ public:
     void save(const Node&) const override { NOT_IMPLEMENTED; }
 
     Container& container() { return m_container_; }
+    
     const Container& container() const { return m_container_; }
 
     bool is_same(const NodeObject&) const override
@@ -75,8 +76,10 @@ public:
         NOT_IMPLEMENTED;
         return {};
     }
+    
+    void for_each(std::function<void(const Node&, Node&)> const&) override { NOT_IMPLEMENTED; }
 
-    void for_each(std::function<void(const std::string&, const Node&)> const&) const override { NOT_IMPLEMENTED; }
+    void for_each(std::function<void(const Node&, const Node&)> const&) const override { NOT_IMPLEMENTED; }
 
     //----------------
 

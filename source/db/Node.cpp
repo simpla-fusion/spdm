@@ -24,7 +24,7 @@ std::ostream& operator<<(std::ostream& os, NodeArray const& node) { return sp::u
 //==========================================================================================
 // NodeArray
 
-NodeArray::NodeArray(const Node&) : m_container_() {   }
+NodeArray::NodeArray(const Node&) : m_container_() {}
 
 NodeArray::NodeArray(const std::initializer_list<Node>& init) : m_container_(init.begin(), init.end()) {}
 
@@ -60,7 +60,7 @@ Cursor<const Node> NodeArray::children() const
     return Cursor<const Node>(); /*(m_container_.cbegin(), m_container_.cend());*/
 }
 
-void NodeArray::for_each(std::function<void(int, Node&)> const& visitor)
+void NodeArray::for_each(std::function<void(const Node&, Node&)> const& visitor)
 {
     for (int i = 0, s = m_container_.size(); i < s; ++i)
     {
@@ -68,7 +68,7 @@ void NodeArray::for_each(std::function<void(int, Node&)> const& visitor)
     }
 }
 
-void NodeArray::for_each(std::function<void(int, const Node&)> const& visitor) const
+void NodeArray::for_each(std::function<void(const Node&, const Node&)> const& visitor) const
 {
     for (int i = 0, s = m_container_.size(); i < s; ++i)
     {
@@ -195,10 +195,10 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::NodeObject& object_p, 
     os << "{";
 
     object_p.for_each(
-        [&](const sp::db::Path::Segment& key, sp::db::Node const& value) {
+        [&](const sp::db::Node& key, sp::db::Node const& value) {
             os << std::endl
                << std::setw(indent * tab) << " "
-               << "\"" << std::get<std::string>(key) << "\" : ";
+               << "\"" << key.as<sp::db::Node::tags::String>() << "\" : ";
             fancy_print(os, value, indent + 1, tab);
             os << ",";
         });
@@ -212,7 +212,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::NodeArray& array_p, in
 {
     os << "[";
 
-    array_p.for_each([&](const sp::db::Path::Segment&, sp::db::Node const& value) {
+    array_p.for_each([&](const sp::db::Node&, sp::db::Node const& value) {
         os << std::endl
            << std::setw(indent * tab) << " ";
         fancy_print(os, value, indent + 1, tab);

@@ -1,18 +1,38 @@
 #include "NodePlugin.h"
+#include "../utility/Factory.h"
 #include "../utility/Logger.h"
-
 namespace sp::db
 {
 typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 
 std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
 {
-    return std::dynamic_pointer_cast<NodeObject>(std::make_shared<NodeObjectDefault>(opt));
+    NodeObject* res = nullptr;
+    std::visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) { res = sp::utility::Factory<NodeObject>::create(uri).release(); },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {},
+            [&](auto&& ele) {} //
+        },
+        opt.value());
+
+    if (res == nullptr)
+    {
+        res = new NodeObjectDefault(opt);
+    }
+    else
+    {
+        res->load(opt);
+    }
+
+    return std::shared_ptr<NodeObject>(res);
 }
+
 std::shared_ptr<NodeObject> NodeObject::create(const std::initializer_list<Node>& init)
 {
     return std::dynamic_pointer_cast<NodeObject>(std::make_shared<NodeObjectDefault>(init));
 }
+
 template <>
 NodeObjectDefault::NodePlugin(const std::initializer_list<Node>& init) : m_container_()
 {
@@ -23,8 +43,6 @@ NodeObjectDefault::NodePlugin(const std::initializer_list<Node>& init) : m_conta
         Node(array.at(1)).swap(m_container_[array.at(0).as<Node::tags::String>()]);
     }
 }
-template <>
-NodeObjectDefault::NodePlugin(const Node& opt) {}
 
 template <>
 void NodeObjectDefault::load(const Node& opt) {}
@@ -43,21 +61,20 @@ Cursor<const Node> NodeObjectDefault::children() const
     return Cursor<const Node>{};
 }
 
-// template <>
-// size_t NodeObjectDefault::size() const { return m_container_.size(); }
-
 template <>
 bool NodeObjectDefault::empty() const { return m_container_.size() == 0; }
 
-// void NodeObjectDefault::for_each(std::function<void(const std::string&, Node&)> const& visitor)
-// {
-//     for (auto&& item : m_container_)
-//     {
-//         visitor(item.first, item.second);
-//     }
-// }
 template <>
-void NodeObjectDefault::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const
+void NodeObjectDefault::for_each(const std::function<void(const Node&, Node&)>& visitor)
+{
+    for (auto&& item : m_container_)
+    {
+        visitor(item.first, item.second);
+    }
+}
+
+template <>
+void NodeObjectDefault::for_each(const std::function<void(const Node&, const Node&)>& visitor) const
 {
     for (auto&& item : m_container_)
     {
@@ -194,7 +211,7 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
     {
         auto tmp = std::make_shared<NodeObjectDefault>();
 
-        ops.as_object().for_each([&](const std::string& key, const Node& d) { tmp->m_container_.emplace(key, update_op(*self, key, d)); });
+        ops.as_object().for_each([&](const Node& key, const Node& d) { tmp->m_container_.emplace(key.as<Node::tags::String>(), update_op(*self, key.as<Node::tags::String>(), d)); });
 
         if (tmp->container().size() == 1)
         {
@@ -258,7 +275,7 @@ Node NodeObjectDefault::fetch(const Node& query, const Node& ops, const Node& op
     {
         auto tmp = std::make_shared<NodeObjectDefault>();
 
-        ops.as_object().for_each([&](const std::string& key, const Node& d) { tmp->m_container_.emplace(key, fetch_op(*self, key, d)); });
+        ops.as_object().for_each([&](const Node& key, const Node& d) { tmp->m_container_.emplace(key.as<std::string>(), fetch_op(*self, key.as<std::string>(), d)); });
 
         if (tmp->container().size() == 1)
         {
@@ -276,134 +293,5 @@ Node NodeObjectDefault::fetch(const Node& query, const Node& ops, const Node& op
 
     return std::move(res);
 }
+
 } // namespace sp::db
-// NodeObject NodeObject::create(const Node & opt)
-// {
-//     // VERBOSE << "Load plugin for url:" << opt;
-//     // NodeObject* p = nullptr;
-//     // if (opt.index() == Node::tags::String)
-//     // {
-//     //     p = ::sp::utility::Factory<::sp::db::NodeObject>::create(std::get<Node::tags::String>(opt)).release();
-//     // }
-//     // else if (opt.index() == Node::tags::Null)
-//     // {
-//     //     p = new NodeObjectDefault();
-//     // }
-
-//     // if (p == nullptr)
-//     // {
-//     //     RUNTIME_ERROR << "Can not load plugin for url :" << opt;
-//     // }
-//     // else
-//     // {
-//     //     p->load(opt);
-//     // }
-
-//     // return std::shared_ptr<NodeObject>(p);
-// }
-
-// namespace _detail
-// {
-
-// Node insert(Node self, Path::Segment path_seg, Node v)
-// {
-
-//     std::visit(
-//         sp::traits::overloaded{
-//             [&](std::variant_alternative_t<Node::tags::Object, Node>& object_p) {
-//                 object_p->insert(path_seg, Node{std::in_place_index_t<Node::tags::Object>()}).swap(self);
-//             },
-//             [&](std::variant_alternative_t<Node::tags::Array, Node>& array_p) {
-//                 array_p->insert(std::get<Path::tags::Index>(path_seg), Node{std::in_place_index_t<Node::tags::Object>()}).swap(self);
-//             },
-//             [&](std::variant_alternative_t<Node::tags::Block, Node>&) {
-//                 NOT_IMPLEMENTED;
-//             },
-//             [&](auto&& v) { RUNTIME_ERROR << "Can not insert value to non-container object!"; }},
-//         self);
-
-//     return std::move(self);
-// }
-
-// Node insert(Node self, Path path, Node v)
-// {
-//     for (auto it = path.begin(), ie = --path.end(); it != ie; ++it)
-//     {
-//         insert(self, *it, Node{std::in_place_index_t<Node::tags::Object>()});
-//     }
-//     insert(self, path.last(), std::move(v)).swap(self);
-//     return self;
-// }
-// void update(Node self, Path path, Node v)
-// {
-//     for (auto it = path.begin(), ie = --path.end(); it != ie; ++it)
-//     {
-//         insert(self, *it, Node{std::in_place_index_t<Node::tags::Object>()}).swap(self);
-//     }
-
-//     std::visit(
-//         sp::traits::overloaded{
-//             [&](std::variant_alternative_t<Node::tags::Object, Node>& object_p) {
-//                 object_p->update(path.last(), std::move(v));
-//             },
-//             [&](std::variant_alternative_t<Node::tags::Array, Node>& array_p) {
-//                 array_p->insert(std::get<Path::tags::Index>(path.last()), std::move(v));
-//             },
-//             [&](std::variant_alternative_t<Node::tags::Block, Node>&) {
-//                 NOT_IMPLEMENTED;
-//             },
-//             [&](auto&& v) { RUNTIME_ERROR << "Can not insert value to non-container object!"; }},
-//         self);
-// }
-
-// Node find(Node self, Path path)
-// {
-//     bool found = true;
-//     Path prefix;
-
-//     for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
-//     {
-
-//         prefix.append(*it);
-
-//         switch (self.index())
-//         {
-//         case Node::tags::Object:
-//             Node(std::get<Node::tags::Object>(self)->find(*it)).swap(self);
-//             break;
-//         case Node::tags::Array:
-//             Node(std::get<Node::tags::Array>(self)->at(std::get<Path::tags::Index>(*it))).swap(self);
-//             break;
-//         default:
-//             found = false;
-//             break;
-//         }
-//     }
-//     if (!found)
-//     {
-//         throw std::out_of_range(FILE_LINE_STAMP_STRING + "Can not find url:" + prefix.str());
-//     }
-
-//     return std::move(self);
-// }
-
-// void remove(Node self, Path path)
-// {
-//     find(self, path.prefix()).swap(self);
-
-//     std::visit(
-//         sp::traits::overloaded{
-//             [&](std::variant_alternative_t<Node::tags::Object, Node>& object_p) {
-//                 object_p->remove(path.last());
-//             },
-//             [&](std::variant_alternative_t<Node::tags::Array, Node>& array_p) {
-//                 array_p->at(std::get<Path::tags::Index>(path.last())).emplace<Node::tags::Null>(nullptr);
-//             },
-//             [&](std::variant_alternative_t<Node::tags::Block, Node>&) {
-//                 NOT_IMPLEMENTED;
-//             },
-//             [&](auto&& v) { RUNTIME_ERROR << "Can not insert value to non-container object!"; }},
-//         self);
-// }
-
-// } // namespace _detail
