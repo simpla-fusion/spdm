@@ -220,7 +220,7 @@ public:
 
     const Node& at(int idx) const;
 
-    Node& push_back(Node v);
+    Node& push_back(Node v = {});
 
     Node pop_back();
 };

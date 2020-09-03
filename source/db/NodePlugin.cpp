@@ -20,7 +20,7 @@ std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
     {
         res = new NodeObjectDefault(opt);
     }
-    else
+    else if (opt.type() != Node::tags::Null)
     {
         res->load(opt);
     }

@@ -197,7 +197,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::NodeObject& object_p, 
     object_p.for_each(
         [&](const sp::db::Node& key, sp::db::Node const& value) {
             os << std::endl
-               << std::setw(indent * tab) << " "
+               << std::setw((indent + 1) * tab) << " "
                << "\"" << key.as<sp::db::Node::tags::String>() << "\" : ";
             fancy_print(os, value, indent + 1, tab);
             os << ",";
@@ -214,7 +214,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::NodeArray& array_p, in
 
     array_p.for_each([&](const sp::db::Node&, sp::db::Node const& value) {
         os << std::endl
-           << std::setw(indent * tab) << " ";
+           << std::setw((indent + 1) * tab) << " ";
         fancy_print(os, value, indent + 1, tab);
         os << ",";
     });
@@ -236,8 +236,8 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::Node& node, int indent
     std::visit(
         sp::traits::overloaded{
             [&](const std::variant_alternative_t<sp::db::Node::tags::Null, sp::db::Node::value_type>& ele) { os << "<NONE>"; },
-            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) { fancy_print(os, *object_p, indent + 1, tab); },
-            [&](const std::variant_alternative_t<sp::db::Node::tags::Array, sp::db::Node::value_type>& array_p) { fancy_print(os, *array_p, indent + 1, tab); },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) { fancy_print(os, *object_p, indent, tab); },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Array, sp::db::Node::value_type>& array_p) { fancy_print(os, *array_p, indent, tab); },
             [&](const std::variant_alternative_t<sp::db::Node::tags::Block, sp::db::Node::value_type>& blk) { fancy_print(os, blk, indent + 1, tab); },
             [&](const std::variant_alternative_t<sp::db::Node::tags::Path, sp::db::Node::value_type>& path) { fancy_print(os, path.str(), indent + 1, tab); },
             [&](auto&& ele) { fancy_print(os, ele, indent + 1, tab); } //
