@@ -9,20 +9,25 @@ std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
 {
     return std::dynamic_pointer_cast<NodeObject>(std::make_shared<NodeObjectDefault>(opt));
 }
-
+std::shared_ptr<NodeObject> NodeObject::create(const std::initializer_list<Node>& init)
+{
+    return std::dynamic_pointer_cast<NodeObject>(std::make_shared<NodeObjectDefault>(init));
+}
 template <>
-NodeObjectDefault::NodePlugin(const Node& opt) {}
-
-template <>
-void NodeObjectDefault::init(const std::initializer_list<Node>& init)
+NodeObjectDefault::NodePlugin(const std::initializer_list<Node>& init) : m_container_()
 {
     for (auto& item : init)
     {
-        auto& array = *std::get<Node::tags::Array>(item.value());
+        auto& array = *item.as<Node::tags::Array>();
 
         Node(array.at(1)).swap(m_container_[array.at(0).as<Node::tags::String>()]);
     }
 }
+template <>
+NodeObjectDefault::NodePlugin(const Node& opt) {}
+
+template <>
+void NodeObjectDefault::load(const Node& opt) {}
 
 template <>
 Cursor<Node> NodeObjectDefault::children()

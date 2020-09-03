@@ -18,30 +18,31 @@ struct xml_node
 
 typedef NodePlugin<xml_node> NodePluginXML;
 
-tree_node_type make_entry(const pugi::xml_node& node, xml_node const& parent)
+Node make_node(const pugi::xml_node& node, xml_node const& parent)
 {
     VERBOSE << "Type =" << node.type() << "  Text=" << node.text().as_string();
 
-    tree_node_type res;
+    Node res;
 
     if (node.empty())
     {
     }
     else if (node.type() == pugi::node_element && !node.text().empty())
     {
-        res.emplace<tree_node_tags::String>(node.text().as_string());
+        res.as<Node::tags::String>(node.text().as_string());
     }
     else
     {
-        tree_node_type{std::make_shared<NodePluginXML>(xml_node{parent.root,
-                                                                parent.path + "/" + node.name(),
-                                                                std::make_shared<pugi::xml_node>(node)})};
+        Node{std::make_shared<NodePluginXML>(xml_node{parent.root,
+                                                      parent.path + "/" + node.name(),
+                                                      std::make_shared<pugi::xml_node>(node)})};
     }
     return std::move(res);
 }
-tree_node_type make_entry(const pugi::xpath_node_set& nodes, xml_node const& parent)
+
+Node make_node(const pugi::xpath_node_set& nodes, xml_node const& parent)
 {
-    tree_node_type res;
+    Node res;
 
     return std::move(res);
 }
@@ -54,11 +55,11 @@ std::string path_to_xpath(const Path& path)
     {
         switch (item.index())
         {
-        case Path::segment_tags::Key:
-            os << "/" << std::get<Path::segment_tags::Key>(item);
+        case Path::tags::Key:
+            os << "/" << std::get<Path::tags::Key>(item);
             break;
-        case Path::segment_tags::Index:
-            os << "[@id=" << std::get<Path::segment_tags::Index>(item) << "]";
+        case Path::tags::Index:
+            os << "[@id=" << std::get<Path::tags::Index>(item) << "]";
             break;
         default:
             NOT_IMPLEMENTED;
@@ -83,23 +84,9 @@ template <>
 NodePluginXML::NodePlugin(NodePlugin&& other) : m_container_{std::move(other.m_container_)} {}
 
 template <>
-std::pair<std::shared_ptr<NodeObject>, Path> NodePluginXML::full_path()
+void NodePluginXML::load(const Node& opt)
 {
-    NOT_IMPLEMENTED;
-    return std::pair<std::shared_ptr<NodePlugin>, Path>{nullptr, Path{}};
-}
-
-template <>
-std::pair<std::shared_ptr<const NodeObject>, Path> NodePluginXML::full_path() const
-{
-    NOT_IMPLEMENTED;
-    return std::pair<std::shared_ptr<const NodePlugin>, Path>{nullptr, Path{}};
-}
-
-template <>
-void NodePluginXML::load(const tree_node_type& opt)
-{
-    auto uri = std::get<std::string>(opt);
+    auto uri = opt.as<std::string>();
 
     VERBOSE << "Load XML document :" << uri;
 
@@ -116,9 +103,9 @@ void NodePluginXML::load(const tree_node_type& opt)
 }
 
 template <>
-void NodePluginXML::save(const tree_node_type& opt) const
+void NodePluginXML::save(const Node& opt) const
 {
-    auto url = std::get<std::string>(opt);
+    auto url = opt.as<std::string>();
 
     auto result = reinterpret_cast<pugi::xml_document*>(m_container_.root.get())->save_file(url.c_str());
 
@@ -133,85 +120,59 @@ void NodePluginXML::save(const tree_node_type& opt) const
 }
 
 template <>
-size_t NodePluginXML::size() const { return std::distance(m_container_.node->children().begin(), m_container_.node->children().end()); }
-
-template <>
 void NodePluginXML::clear() { NOT_IMPLEMENTED; }
 
 // template <>
-// Entry NodePluginXML::at(Path path) { return Entry{tree_node_type{shared_from_this()}, path}; }
+// Entry NodePluginXML::at(Path path) { return Entry{Node{shared_from_this()}, path}; }
 // template <>
-// Entry NodePluginXML::at(Path path) const { return Entry{tree_node_type{const_cast<NodePluginXML*>(this)->shared_from_this()}, path}; }
+// Entry NodePluginXML::at(Path path) const { return Entry{Node{const_cast<NodePluginXML*>(this)->shared_from_this()}, path}; }
 
 template <>
-Cursor<const tree_node_type>
+Cursor<const Node>
 NodePluginXML::children() const
 {
     NOT_IMPLEMENTED;
-    return Cursor<const tree_node_type>{};
+    return Cursor<const Node>{};
 }
 
 template <>
-Cursor<tree_node_type>
+Cursor<Node>
 NodePluginXML::children()
 {
     NOT_IMPLEMENTED;
-    return Cursor<tree_node_type>{};
+    return Cursor<Node>{};
 }
 
 template <>
-void NodePluginXML::for_each(std::function<void(const std::string&, const tree_node_type&)> const& visitor) const
+void NodePluginXML::for_each(std::function<void(const std::string&, const Node&)> const& visitor) const
 {
-    tree_node_type entry;
+    Node entry;
 
     for (auto&& attr : m_container_.node->attributes())
     {
-        tree_node_type v{std::string(attr.value())};
+        Node v{std::string(attr.value())};
         visitor(std::string("@") + attr.name(), v);
     }
 
     for (auto&& node : m_container_.node->children())
     {
-        visitor(node.name(), make_entry(node, m_container_));
+        visitor(node.name(), make_node(node, m_container_));
     }
 }
 
 template <>
-tree_node_type NodePluginXML::insert(Path path, tree_node_type v)
+Node NodePluginXML::update(const Node&, const Node&, const Node& opt)
 {
     NOT_IMPLEMENTED;
-    return tree_node_type{};
+    return Node{};
 }
 
 template <>
-void NodePluginXML::update(Path path, tree_node_type v) { NOT_IMPLEMENTED; }
-
-template <>
-tree_node_type NodePluginXML::find(Path path) const
+Node NodePluginXML::fetch(const Node&, const Node& projection, const Node& opt) const
 {
-
-    auto node_set = m_container_.node->select_nodes(path_to_xpath(path).c_str());
-
-    tree_node_type res;
-
-    if (node_set.size() == 0)
-    {
-    }
-    else if (node_set.size() == 1)
-    {
-        make_entry(node_set.begin()->node(), m_container_).swap(res);
-    }
-    else
-    {
-        make_entry(node_set, m_container_).swap(res);
-    }
-
-    return res;
+    NOT_IMPLEMENTED;
+    return Node{};
 }
-
-template <>
-void NodePluginXML::remove(Path path) { NodePlugin::remove(path); }
-
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>
 // template <>

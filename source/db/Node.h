@@ -135,11 +135,11 @@ public:
 
     NodeObject(NodeObject&&) = delete;
 
+    static std::shared_ptr<NodeObject> create(const std::initializer_list<Node>& init);
+
     static std::shared_ptr<NodeObject> create(const Node& opt = {});
 
     virtual std::shared_ptr<NodeObject> copy() const = 0;
-
-    virtual void init(const std::initializer_list<Node>&) = 0;
 
     virtual void load(const Node&) = 0;
 
@@ -166,23 +166,27 @@ public:
 
 class NodeArray : public std::enable_shared_from_this<NodeArray>
 {
-    std::shared_ptr<std::vector<Node>> m_container_;
+    std::vector<Node> m_container_;
 
 public:
-    NodeArray()
-        : m_container_(std::make_shared<std::vector<Node>>()) {}
+    NodeArray() = default;
 
     virtual ~NodeArray() = default;
 
+    NodeArray(const Node&);
+
     template <typename IT>
-    NodeArray(const IT& ib, const IT& ie)
-        : m_container_(std::make_shared<std::vector<Node>>(ib, ie)) {}
+    NodeArray(const IT& ib, const IT& ie) : m_container_(ib, ie) {}
+
+    NodeArray(const std::initializer_list<Node>& init);
 
     NodeArray(const NodeArray& other);
 
     NodeArray(NodeArray&& other);
 
     static std::shared_ptr<NodeArray> create(const Node& opt = {});
+
+    static std::shared_ptr<NodeArray> create(const std::initializer_list<Node>& init);
 
     void swap(NodeArray& other);
 

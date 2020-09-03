@@ -24,13 +24,19 @@ std::ostream& operator<<(std::ostream& os, NodeArray const& node) { return sp::u
 //==========================================================================================
 // NodeArray
 
+NodeArray::NodeArray(const Node&) : m_container_() {   }
+
+NodeArray::NodeArray(const std::initializer_list<Node>& init) : m_container_(init.begin(), init.end()) {}
+
 NodeArray::NodeArray(const NodeArray& other) : m_container_(other.m_container_) {}
 
 NodeArray::NodeArray(NodeArray&& other) : m_container_(std::move(other.m_container_)) {}
 
 void NodeArray::swap(NodeArray& other) { std::swap(m_container_, other.m_container_); }
 
-std::shared_ptr<NodeArray> NodeArray::create(const Node& opt) { return std::make_shared<NodeArray>(); }
+std::shared_ptr<NodeArray> NodeArray::create(const Node& opt) { return std::make_shared<NodeArray>(opt); }
+
+std::shared_ptr<NodeArray> NodeArray::create(const std::initializer_list<Node>& init) { return std::make_shared<NodeArray>(init); }
 
 NodeArray& NodeArray::operator=(const NodeArray& other)
 {
@@ -38,9 +44,9 @@ NodeArray& NodeArray::operator=(const NodeArray& other)
     return *this;
 }
 
-size_t NodeArray::size() const { return m_container_->size(); }
+size_t NodeArray::size() const { return m_container_.size(); }
 
-void NodeArray::clear() { m_container_->clear(); }
+void NodeArray::clear() { m_container_.clear(); }
 
 Cursor<Node> NodeArray::children()
 {
@@ -56,17 +62,17 @@ Cursor<const Node> NodeArray::children() const
 
 void NodeArray::for_each(std::function<void(int, Node&)> const& visitor)
 {
-    for (int i = 0, s = m_container_->size(); i < s; ++i)
+    for (int i = 0, s = m_container_.size(); i < s; ++i)
     {
-        visitor(i, m_container_->at(i));
+        visitor(i, m_container_.at(i));
     }
 }
 
 void NodeArray::for_each(std::function<void(int, const Node&)> const& visitor) const
 {
-    for (int i = 0, s = m_container_->size(); i < s; ++i)
+    for (int i = 0, s = m_container_.size(); i < s; ++i)
     {
-        visitor(i, m_container_->at(i));
+        visitor(i, m_container_.at(i));
     }
 }
 
@@ -82,35 +88,35 @@ Node NodeArray::slice(int start, int stop, int step) const
     return Node{};
 }
 
-void NodeArray::resize(std::size_t num) { m_container_->resize(num); }
+void NodeArray::resize(std::size_t num) { m_container_.resize(num); }
 
 Node& NodeArray::insert(int idx, Node v)
 {
-    if ((*m_container_)[idx].value().index() == Node::tags::Null)
+    if (m_container_[idx].value().index() == Node::tags::Null)
     {
-        (*m_container_)[idx].swap(v);
+        m_container_[idx].swap(v);
     }
-    return (*m_container_)[idx];
+    return m_container_[idx];
 }
 Node& NodeArray::update(int idx, Node v)
 {
-    (*m_container_)[idx].swap(v);
-    return (*m_container_)[idx];
+    m_container_[idx].swap(v);
+    return m_container_[idx];
 }
-const Node& NodeArray::at(int idx) const { return m_container_->at(idx); }
+const Node& NodeArray::at(int idx) const { return m_container_.at(idx); }
 
-Node& NodeArray::at(int idx) { return m_container_->at(idx); }
+Node& NodeArray::at(int idx) { return m_container_.at(idx); }
 
 Node& NodeArray::push_back(Node node)
 {
-    m_container_->emplace_back(std::move(node));
-    return m_container_->back();
+    m_container_.emplace_back(std::move(node));
+    return m_container_.back();
 }
 
 Node NodeArray::pop_back()
 {
-    Node res{m_container_->back().value()};
-    m_container_->pop_back();
+    Node res{m_container_.back().value()};
+    m_container_.pop_back();
     return std::move(res);
 }
 
@@ -125,8 +131,7 @@ Node::Node(std::initializer_list<Node> init)
         });
     if (is_an_object)
     {
-        m_value_.emplace<Node::tags::Object>(NodeObject::create());
-        std::get<Node::tags::Object>(m_value_)->init(init);
+        m_value_.emplace<Node::tags::Object>(NodeObject::create(init));
     }
     else if (init.size() == 1)
     {
@@ -134,7 +139,7 @@ Node::Node(std::initializer_list<Node> init)
     }
     else if (init.size() > 1)
     {
-        m_value_.emplace<Node::tags::Array>(std::make_shared<NodeArray>(init.begin(), init.end()));
+        m_value_.emplace<Node::tags::Array>(NodeArray::create(init));
     }
 }
 

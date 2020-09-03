@@ -31,6 +31,8 @@ public:
 
     NodePlugin(const Node& opt) { load(opt); };
 
+    NodePlugin(const std::initializer_list<Node>& opt) { NOT_IMPLEMENTED; }
+
     NodePlugin(const Container& container) : m_container_(container) {}
 
     NodePlugin(Container&& container) : m_container_(std::move(container)) {}
@@ -40,8 +42,6 @@ public:
     NodePlugin(this_type&& other) : m_container_(std::move(other.m_container_)) {}
 
     std::shared_ptr<NodeObject> copy() const override { return std::shared_ptr<NodeObject>(new this_type(*this)); }
-
-    void init(const std::initializer_list<Node>&) override;
 
     void load(const Node&) override { NOT_IMPLEMENTED; }
 
@@ -93,17 +93,17 @@ public:
     }
 };
 
-#define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)                \
-    template <>                                             \
-    bool ::sp::db::NodePlugin<_CLASS_>::is_registered =     \
-        ::sp::utility::Factory<::sp::db::NodeBackend>::add( \
-            __STRING(_NAME_),                               \
-            []() { return dynamic_cast<::sp::db::NodeBackend*>(new ::sp::db::NodePlugin<_CLASS_>()); });
+#define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)               \
+    template <>                                            \
+    bool ::sp::db::NodePlugin<_CLASS_>::is_registered =    \
+        ::sp::utility::Factory<::sp::db::NodeObject>::add( \
+            __STRING(_NAME_),                              \
+            []() { return dynamic_cast<::sp::db::NodeObject*>(new ::sp::db::NodePlugin<_CLASS_>()); });
 
 #define SPDB_ENTRY_ASSOCIATE(_NAME_, _CLASS_, ...)      \
     template <>                                         \
     int ::sp::db::NodePlugin<_CLASS_>::associated_num = \
-        ::sp::utility::Factory<::sp::db::NodeBackend>::associate(__STRING(_NAME_), __VA_ARGS__);
+        ::sp::utility::Factory<::sp::db::NodeObject>::associate(__STRING(_NAME_), __VA_ARGS__);
 
 } // namespace sp::db
 #endif // SPDB_ENTRY_PLUGIN_H_
