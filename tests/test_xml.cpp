@@ -6,12 +6,31 @@
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
 
+const char* XML_CONTENT = R"XML(
+<ids>
+    <timeslice id="0">
+        <eq>
+            <psi>mdsplus://1.2.3.4/east</psi>
+            <q>mdsplus://1.2.3.4/east</q>
+
+        </eq>
+        <ne>12345</ne>
+    </timeslice>
+    <timeslice id="1">
+        <eq>
+            <psi>mdsplus://1.2.3.4/east</psi>
+
+        </eq>
+        <ne>12.34</ne>
+    </timeslice>
+</ids>)XML";
+
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
     using namespace sp::db::literals;
 
-    sp::db::Entry entry("tests/data/test.xml");
+    sp::db::Entry entry({{"schema", "xml"}, {"content", XML_CONTENT}});
 
     // std::cout << entry << std::endl;
 

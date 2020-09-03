@@ -107,6 +107,43 @@ Node make_node(const pugi::xml_node& n)
     return std::move(res);
 }
 
+std::string path_to_xpath(const Path& p)
+{
+    std::ostringstream os;
+    for (const auto& seg : p)
+    {
+        std::visit(
+            traits::overloaded{
+                [&](const std::variant_alternative_t<sp::db::Path::tags::Key, sp::db::Path::Segment>& key) {
+                    if (key[0] == '@')
+                    {
+                        os << "[" << key << "]";
+                    }
+                    else
+                    {
+                        os << "/" << key;
+                    }
+                },
+                [&](const std::variant_alternative_t<sp::db::Path::tags::Index, sp::db::Path::Segment>& idx) {
+                    if (idx < 0)
+                    {
+                        os << "[last()" << idx << "]";
+                    }
+                    else
+                    {
+                        /**
+                         * @NOTE:  according to W3C , pugi::xpath  first node is [1], 
+                         *    but in SpDB::Path first node is [0]
+                        */
+                        os << "[" << idx + 1 << "]";
+                    }
+                },
+                [&](auto&&) {}},
+            seg);
+    }
+    return os.str();
+}
+
 Node make_node(const pugi::xpath_node_set& node_set)
 {
     Node res;
@@ -146,21 +183,6 @@ void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const
             },
             [&](auto&&) {}},
         m_container_);
-}
-
-std::string path_to_xpath(const Path& p)
-{
-    std::ostringstream os;
-    for (const auto& seg : p)
-    {
-        std::visit(
-            traits::overloaded{
-                [&](const std::variant_alternative_t<sp::db::Path::tags::Key, sp::db::Path::Segment>& key) { os << "/" << key; },
-                [&](const std::variant_alternative_t<sp::db::Path::tags::Index, sp::db::Path::Segment>& idx) { os << "[@id=" << idx << "]"; },
-                [&](auto&&) {}},
-            seg);
-    }
-    return os.str();
 }
 
 template <>

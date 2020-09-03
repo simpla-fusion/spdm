@@ -8,11 +8,9 @@
 
 namespace sp::utility
 {
-
 std::ostream& fancy_print(std::ostream& os, const sp::db::Node& v, int indent = 0, int tab = 4);
 std::ostream& fancy_print(std::ostream& os, const sp::db::NodeObject& v, int indent = 0, int tab = 4);
 std::ostream& fancy_print(std::ostream& os, const sp::db::NodeArray& v, int indent = 0, int tab = 4);
-
 } // namespace sp::utility
 
 namespace sp::db
@@ -20,6 +18,39 @@ namespace sp::db
 std::ostream& operator<<(std::ostream& os, Node const& entry) { return sp::utility::fancy_print(os, entry, 0); }
 std::ostream& operator<<(std::ostream& os, NodeObject const& node) { return sp::utility::fancy_print(os, node, 0); }
 std::ostream& operator<<(std::ostream& os, NodeArray const& node) { return sp::utility::fancy_print(os, node, 0); }
+} // namespace sp::db
+
+namespace sp::db
+{
+//==========================================================================================
+// NodeObject
+
+typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
+
+std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
+{
+    NodeObject* res = nullptr;
+    std::visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
+                res = sp::utility::Factory<NodeObject>::create(uri).release();
+            },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {},
+            [&](auto&& ele) {} //
+        },
+        opt.value());
+
+    if (res == nullptr)
+    {
+        res = new NodeObjectDefault(opt);
+    }
+    else if (opt.type() != Node::tags::Null)
+    {
+        res->load(opt);
+    }
+
+    return std::shared_ptr<NodeObject>(res);
+}
 
 //==========================================================================================
 // NodeArray

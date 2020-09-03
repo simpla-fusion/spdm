@@ -5,34 +5,6 @@ namespace sp::db
 {
 typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 
-std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
-{
-    NodeObject* res = nullptr;
-    std::visit(
-        traits::overloaded{
-            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) { res = sp::utility::Factory<NodeObject>::create(uri).release(); },
-            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {},
-            [&](auto&& ele) {} //
-        },
-        opt.value());
-
-    if (res == nullptr)
-    {
-        res = new NodeObjectDefault(opt);
-    }
-    else if (opt.type() != Node::tags::Null)
-    {
-        res->load(opt);
-    }
-
-    return std::shared_ptr<NodeObject>(res);
-}
-
-std::shared_ptr<NodeObject> NodeObject::create(const std::initializer_list<Node>& init)
-{
-    return std::dynamic_pointer_cast<NodeObject>(std::make_shared<NodeObjectDefault>(init));
-}
-
 template <>
 NodeObjectDefault::NodePlugin(const std::initializer_list<Node>& init) : m_container_()
 {
@@ -205,13 +177,16 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
             throw std::runtime_error("Illegal path! " + path.str());
         }
     }
+
     Node res;
 
     if (ops.type() == Node::tags::Object)
     {
         auto tmp = std::make_shared<NodeObjectDefault>();
 
-        ops.as_object().for_each([&](const Node& key, const Node& d) { tmp->m_container_.emplace(key.as<Node::tags::String>(), update_op(*self, key.as<Node::tags::String>(), d)); });
+        ops.as_object().for_each([&](const Node& key, const Node& d) {
+            tmp->m_container_.emplace(key.as<Node::tags::String>(), update_op(*self, key.as<Node::tags::String>(), d));
+        });
 
         if (tmp->container().size() == 1)
         {
@@ -262,6 +237,7 @@ Node NodeObjectDefault::fetch(const Node& query, const Node& ops, const Node& op
                     [&](auto&& v) { self = nullptr; }},
                 self->value());
         }
+     
         if (self == nullptr)
         {
             RUNTIME_ERROR << "Illegal path! " << path.str();

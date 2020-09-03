@@ -135,8 +135,6 @@ public:
 
     NodeObject(NodeObject&&) = delete;
 
-    static std::shared_ptr<NodeObject> create(const std::initializer_list<Node>& init);
-
     static std::shared_ptr<NodeObject> create(const Node& opt = {});
 
     virtual std::shared_ptr<NodeObject> copy() const = 0;
