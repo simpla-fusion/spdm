@@ -13,8 +13,6 @@ std::shared_ptr<NodeObject> create_node_object(const Node& opt)
 
     NodeObject* res = nullptr;
 
- 
-
     std::string schema = "";
 
     std::visit(
@@ -111,6 +109,15 @@ Node NodeObjectDefault::find_child(const std::string& key) const
 
     auto it = m_container_.find(key);
     return it == m_container_.end() ? Node{} : Node{it->second};
+}
+template <>
+void NodeObjectDefault::remove_child(const std::string& key)
+{
+    auto it = m_container_.find(key);
+    if (it != m_container_.end())
+    {
+        m_container_.erase(it);
+    };
 }
 
 template <>

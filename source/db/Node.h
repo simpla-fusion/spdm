@@ -189,6 +189,8 @@ public:
     virtual Node insert_child(const std::string&, const Node&) = 0;
 
     virtual Node find_child(const std::string&) const = 0;
+
+    virtual void remove_child(const std::string&) = 0;
 };
 
 class NodeArray : public std::enable_shared_from_this<NodeArray>

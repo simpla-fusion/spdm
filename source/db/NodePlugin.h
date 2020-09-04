@@ -94,6 +94,7 @@ public:
         NOT_IMPLEMENTED;
         return Node{};
     }
+
     //----------------
 
     bool contain(const std::string&) const override { return false; }
@@ -111,6 +112,8 @@ public:
         NOT_IMPLEMENTED;
         return Node{};
     }
+
+    void remove_child(const std::string&) override { NOT_IMPLEMENTED; }
 }; // namespace sp::db
 
 std::shared_ptr<NodeObject> create_node_object(const Node& opt);
