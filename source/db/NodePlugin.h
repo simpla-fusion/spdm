@@ -43,7 +43,7 @@ public:
 
     std::shared_ptr<NodeObject> copy() const override { return std::shared_ptr<NodeObject>(new this_type(*this)); }
 
-    void load(const Node&) override { NOT_IMPLEMENTED; }
+    void load(const Node&) override {}
 
     void save(const Node&) const override { NOT_IMPLEMENTED; }
 
@@ -98,20 +98,22 @@ public:
 
     bool contain(const std::string&) const override { return false; }
 
-    void set_value(const std::string&, const Node&) override { NOT_IMPLEMENTED; }
+    void update_child(const std::string&, const Node&) override { NOT_IMPLEMENTED; }
 
-    Node insert_value(const std::string&, const Node&) override
+    Node insert_child(const std::string&, const Node&) override
     {
         NOT_IMPLEMENTED;
         return Node{};
     }
 
-    Node get_value(const std::string&) const override
+    Node find_child(const std::string&) const override
     {
         NOT_IMPLEMENTED;
         return Node{};
     }
 }; // namespace sp::db
+
+std::shared_ptr<NodeObject> create_node_object(const Node& opt);
 
 #define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)               \
     template <>                                            \

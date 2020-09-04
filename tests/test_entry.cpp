@@ -12,8 +12,6 @@ TEST_CASE("Object", "[SpDB:Entry]")
 {
     sp::db::Node opt{{"B"s, {{"b", 1}, {"c", "hello world"}}}};
 
-    VERBOSE << opt;
-    
     sp::db::Entry entry(opt);
 
     VERBOSE << entry;

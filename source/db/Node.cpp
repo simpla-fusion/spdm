@@ -23,6 +23,13 @@ std::ostream& operator<<(std::ostream& os, NodeArray const& node) { return sp::u
 namespace sp::db
 {
 //==========================================================================================
+// NodeObject
+std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
+{
+    return create_node_object(opt);
+}
+
+//==========================================================================================
 // NodeArray
 
 NodeArray::NodeArray(const Node&) : m_container_() {}
@@ -136,7 +143,7 @@ Node::Node(const std::initializer_list<Node>& init)
         {
             auto& array = item.as_array();
 
-            object_p.set_value(array.at(0).get_value<Node::tags::String>(), array.at(1));
+            object_p.update_child(array.at(0).get_value<Node::tags::String>(), array.at(1));
         }
     }
     else if (init.size() == 1)

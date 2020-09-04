@@ -119,7 +119,7 @@ public:
         typedef std::variant_alternative_t<IDX, value_type> res_type;
 
         res_type res;
-        
+
         std::visit(
             sp::traits::overloaded{
                 [&](std::variant_alternative_t<tags::Null, value_type>) {
@@ -182,11 +182,11 @@ public:
 
     virtual bool contain(const std::string&) const = 0;
 
-    virtual void set_value(const std::string&, const Node&) = 0;
+    virtual void update_child(const std::string&, const Node&) = 0;
 
-    virtual Node insert_value(const std::string&, const Node&) = 0;
+    virtual Node insert_child(const std::string&, const Node&) = 0;
 
-    virtual Node get_value(const std::string&) const = 0;
+    virtual Node find_child(const std::string&) const = 0;
 };
 
 class NodeArray : public std::enable_shared_from_this<NodeArray>

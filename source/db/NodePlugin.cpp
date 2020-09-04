@@ -8,8 +8,9 @@ typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 //==========================================================================================
 // NodeObject
 
-std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
+std::shared_ptr<NodeObject> create_node_object(const Node& opt)
 {
+
     NodeObject* res = nullptr;
 
     std::string schema = "";
@@ -18,7 +19,7 @@ std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
         traits::overloaded{
             [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) { schema = uri; },
             [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
-                schema = object_p->fetch("$schema").get_value<Node::tags::String>("");
+                schema = object_p->find_child("$schema").get_value<Node::tags::String>("");
             },
             [&](auto&& ele) {} //
         },
@@ -97,13 +98,18 @@ template <>
 bool NodeObjectDefault::contain(const std::string& key) const { return m_container_.find(key) != m_container_.end(); }
 
 template <>
-void NodeObjectDefault::set_value(const std::string& key, const Node& node) { Node(node).swap(m_container_[key]); }
+void NodeObjectDefault::update_child(const std::string& key, const Node& node) { Node(node).swap(m_container_[key]); }
 
 template <>
-Node NodeObjectDefault::insert_value(const std::string& key, const Node& node) { return m_container_.emplace(key, node).first->second; }
+Node NodeObjectDefault::insert_child(const std::string& key, const Node& node) { return m_container_.emplace(key, node).first->second; }
 
 template <>
-Node NodeObjectDefault::get_value(const std::string& key) const { return m_container_.at(key); }
+Node NodeObjectDefault::find_child(const std::string& key) const
+{
+
+    auto it = m_container_.find(key);
+    return it == m_container_.end() ? Node{} : Node{it->second};
+}
 
 template <>
 void NodeObjectDefault::for_each(const std::function<void(const Node&, const Node&)>& visitor) const
