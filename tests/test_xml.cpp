@@ -24,7 +24,7 @@ const char* XML_CONTENT = R"(```xml{
         <ne>12.34</ne>
     </timeslice>
 </ids>
-})";
+}```)";
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
@@ -39,7 +39,7 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
     std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
-    std::cout << entry["ids/timeslice"] << std::endl;
+    std::cout << entry["ids/timeslice[1]"] << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));

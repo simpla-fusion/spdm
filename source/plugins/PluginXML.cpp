@@ -40,7 +40,7 @@ void load_xml_from_string(pugi::xml_document* doc, std::string const& content)
     }
     else
     {
-        VERBOSE << "Load XML document :" << content.substr(std::min(50ul, content.size())) << "...";
+        VERBOSE << "Load XML document :" << content.substr(0,20) << "...";
     }
 }
 template <>
