@@ -6,7 +6,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
 
-const char* XML_CONTENT = R"XML(
+const char* XML_CONTENT = R"(```xml{
 <ids>
     <timeslice id="0">
         <eq>
@@ -23,19 +23,22 @@ const char* XML_CONTENT = R"XML(
         </eq>
         <ne>12.34</ne>
     </timeslice>
-</ids>)XML";
+</ids>
+})";
 
 TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
     using namespace sp::db::literals;
-    sp::db::Entry entry("tests/data/test.xml");
-    // sp::db::Entry entry({{"schema", "xml"}, {"content", XML_CONTENT}});
+
+    // sp::db::Entry entry("tests/data/test.xml");
+
+    sp::db::Entry entry({{"$schema", "xml"}, {"content", XML_CONTENT}});
 
     // std::cout << entry << std::endl;
 
-    std::cout << entry["ids/timeslice"][0]["ne"].as<double>() << std::endl;
-    std::cout << entry["ids/timeslice[@id=1]/ne"].as<double>() << std::endl;
+    std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
+    std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
     std::cout << entry["ids/timeslice"] << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;

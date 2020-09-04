@@ -13,6 +13,8 @@ std::shared_ptr<NodeObject> create_node_object(const Node& opt)
 
     NodeObject* res = nullptr;
 
+ 
+
     std::string schema = "";
 
     std::visit(
@@ -207,7 +209,7 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
         if (self == nullptr)
         {
             RUNTIME_ERROR << "Illegal path! " << path.str();
-            throw std::runtime_error("Illegal path! " + path.str());
+            // throw std::runtime_error("Illegal path! " + path.str());
         }
     }
 

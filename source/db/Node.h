@@ -79,6 +79,8 @@ public:
 
     size_t type() const;
 
+    bool is_null() const { return type() == tags::Null; }
+
     void clear();
 
     NodeArray& as_array();
