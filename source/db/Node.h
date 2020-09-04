@@ -67,7 +67,7 @@ public:
 
     Node(char const* c);
 
-    Node(std::initializer_list<Node> init);
+    Node(const std::initializer_list<Node>& init);
 
     Node(Node& other);
 
@@ -95,24 +95,40 @@ public:
 
     const value_type& value() const { return m_value_; }
 
-    template <typename V, typename First, typename... Others>
-    void as(First&& first, Others&&... others) { m_value_.emplace<V>(std::forward<First>(first), std::forward<Others>(others)...); }
+    template <typename V, typename... Others>
+    void set_value(Others&&... others) { m_value_.emplace<V>(std::forward<Others>(others)...); }
 
-    template <int IDX, typename First, typename... Others>
-    void as(First&& first, Others&&... others) { m_value_.emplace<IDX>(std::forward<First>(first), std::forward<Others>(others)...); }
+    template <int IDX, typename... Others>
+    void set_value(Others&&... others) { m_value_.emplace<IDX>(std::forward<Others>(others)...); }
 
-    template <typename V>
-    V as() const
+    template <typename V, typename... Args>
+    V get_value(Args&&... args) const
     {
         V res;
         std::visit(
             sp::traits::overloaded{
-                [&](const V& v) { res = v; },
-                [&](auto const& v) { res = traits::convert<V>(v); }},
+                [&](const std::variant_alternative_t<tags::Null, value_type>& ele) { res = V{std::forward<Args>(args)...}; },
+                [&](auto&& v) { res = traits::convert<V>(v); }},
             m_value_);
         return res;
     }
 
+    template <int IDX, typename... Args>
+    auto get_value(Args&&... args) const
+    {
+        typedef std::variant_alternative_t<IDX, value_type> res_type;
+
+        res_type res;
+        
+        std::visit(
+            sp::traits::overloaded{
+                [&](std::variant_alternative_t<tags::Null, value_type>) {
+                    res = res_type{std::forward<Args>(args)...};
+                },
+                [&](auto&& v) { res = traits::convert<res_type>(v); }},
+            m_value_);
+        return res;
+    }
     template <int IDX>
     decltype(auto) as() const { return std::get<IDX>(m_value_); }
 
@@ -162,6 +178,15 @@ public:
     virtual Node update(const Node&, const Node& = {}, const Node& opt = {}) = 0;
 
     virtual Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) const = 0;
+    //----------------
+
+    virtual bool contain(const std::string&) const = 0;
+
+    virtual void set_value(const std::string&, const Node&) = 0;
+
+    virtual Node insert_value(const std::string&, const Node&) = 0;
+
+    virtual Node get_value(const std::string&) const = 0;
 };
 
 class NodeArray : public std::enable_shared_from_this<NodeArray>
@@ -185,8 +210,6 @@ public:
     NodeArray(NodeArray&& other);
 
     static std::shared_ptr<NodeArray> create(const Node& opt = {});
-
-    static std::shared_ptr<NodeArray> create(const std::initializer_list<Node>& init);
 
     void swap(NodeArray& other);
 

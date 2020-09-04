@@ -48,7 +48,7 @@ public:
     void save(const Node&) const override { NOT_IMPLEMENTED; }
 
     Container& container() { return m_container_; }
-    
+
     const Container& container() const { return m_container_; }
 
     bool is_same(const NodeObject&) const override
@@ -76,7 +76,7 @@ public:
         NOT_IMPLEMENTED;
         return {};
     }
-    
+
     void for_each(std::function<void(const Node&, Node&)> const&) override { NOT_IMPLEMENTED; }
 
     void for_each(std::function<void(const Node&, const Node&)> const&) const override { NOT_IMPLEMENTED; }
@@ -94,7 +94,24 @@ public:
         NOT_IMPLEMENTED;
         return Node{};
     }
-};
+    //----------------
+
+    bool contain(const std::string&) const override { return false; }
+
+    void set_value(const std::string&, const Node&) override { NOT_IMPLEMENTED; }
+
+    Node insert_value(const std::string&, const Node&) override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
+
+    Node get_value(const std::string&) const override
+    {
+        NOT_IMPLEMENTED;
+        return Node{};
+    }
+}; // namespace sp::db
 
 #define SPDB_ENTRY_REGISTER(_NAME_, _CLASS_)               \
     template <>                                            \

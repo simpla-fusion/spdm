@@ -79,21 +79,21 @@ public:
 
     template <typename V, typename... Others,
               std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
-    void as(Others&&... others) { update(Node(std::in_place_type_t<V>(), std::forward<Others>(others)...)); }
+    void set_value(Others&&... others) { update(Node(std::in_place_type_t<V>(), std::forward<Others>(others)...)); }
 
     template <typename V>
-    auto as() const { return fetch().as<V>(); }
+    auto get_value() const { return fetch().get_value<V>(); }
 
     template <typename V>
     Entry& operator=(const V& v)
     {
-        as<V>(v);
+        set_value<V>(v);
         return *this;
     }
 
     Entry& operator=(const char* v)
     {
-        as<std::string>(v);
+        set_value<std::string>(v);
         return *this;
     }
 
@@ -123,10 +123,10 @@ public:
     Entry slice(Args&&... args) const& { return at(Slice(std::forward<Args>(args)...)); }
 
     template <typename V>
-    auto attribute(const std::string& name) const { return at("@" + name).as<V>(); }
+    auto attribute(const std::string& name) const { return at("@" + name).get_value<V>(); }
 
     template <typename V, typename... Args>
-    void attribute(const std::string& name, Args&&... args) { at("@" + name).as<V>(std::forward<Args>(args)...); }
+    void attribute(const std::string& name, Args&&... args) { at("@" + name).set_value<V>(std::forward<Args>(args)...); }
 
     //-------------------------------------------------------------------------
 

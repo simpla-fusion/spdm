@@ -23,36 +23,6 @@ std::ostream& operator<<(std::ostream& os, NodeArray const& node) { return sp::u
 namespace sp::db
 {
 //==========================================================================================
-// NodeObject
-
-typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
-
-std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
-{
-    NodeObject* res = nullptr;
-    std::visit(
-        traits::overloaded{
-            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
-                res = sp::utility::Factory<NodeObject>::create(uri).release();
-            },
-            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {},
-            [&](auto&& ele) {} //
-        },
-        opt.value());
-
-    if (res == nullptr)
-    {
-        res = new NodeObjectDefault(opt);
-    }
-    else if (opt.type() != Node::tags::Null)
-    {
-        res->load(opt);
-    }
-
-    return std::shared_ptr<NodeObject>(res);
-}
-
-//==========================================================================================
 // NodeArray
 
 NodeArray::NodeArray(const Node&) : m_container_() {}
@@ -66,8 +36,6 @@ NodeArray::NodeArray(NodeArray&& other) : m_container_(std::move(other.m_contain
 void NodeArray::swap(NodeArray& other) { std::swap(m_container_, other.m_container_); }
 
 std::shared_ptr<NodeArray> NodeArray::create(const Node& opt) { return std::make_shared<NodeArray>(opt); }
-
-std::shared_ptr<NodeArray> NodeArray::create(const std::initializer_list<Node>& init) { return std::make_shared<NodeArray>(init); }
 
 NodeArray& NodeArray::operator=(const NodeArray& other)
 {
@@ -153,16 +121,23 @@ Node NodeArray::pop_back()
 
 //-----------------------------------------------------------------------------
 
-Node::Node(std::initializer_list<Node> init)
+Node::Node(const std::initializer_list<Node>& init)
 {
     bool is_an_object = std::all_of(
         init.begin(), init.end(),
         [](auto&& item) {
-            return item.value().index() == tags::Array && item.as_array().size() == 2 && item.as_array().at(0).value().index() == tags::String;
+            return item.type() == tags::Array && item.as_array().size() == 2 && item.as_array().at(0).type() == tags::String;
         });
     if (is_an_object)
     {
-        m_value_.emplace<Node::tags::Object>(NodeObject::create(init));
+        auto& object_p = this->as_object();
+
+        for (auto& item : init)
+        {
+            auto& array = item.as_array();
+
+            object_p.set_value(array.at(0).get_value<Node::tags::String>(), array.at(1));
+        }
     }
     else if (init.size() == 1)
     {
@@ -170,7 +145,11 @@ Node::Node(std::initializer_list<Node> init)
     }
     else if (init.size() > 1)
     {
-        m_value_.emplace<Node::tags::Array>(NodeArray::create(init));
+        auto& array_p = this->as_array();
+        for (auto&& n : init)
+        {
+            array_p.push_back(n);
+        }
     }
 }
 
@@ -229,7 +208,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::NodeObject& object_p, 
         [&](const sp::db::Node& key, sp::db::Node const& value) {
             os << std::endl
                << std::setw((indent + 1) * tab) << " "
-               << "\"" << key.as<sp::db::Node::tags::String>() << "\" : ";
+               << "\"" << key.get_value<sp::db::Node::tags::String>() << "\" : ";
             fancy_print(os, value, indent + 1, tab);
             os << ",";
         });

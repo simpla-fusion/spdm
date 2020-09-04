@@ -29,8 +29,8 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
     using namespace sp::db::literals;
-
-    sp::db::Entry entry({{"schema", "xml"}, {"content", XML_CONTENT}});
+    sp::db::Entry entry("tests/data/test.xml");
+    // sp::db::Entry entry({{"schema", "xml"}, {"content", XML_CONTENT}});
 
     // std::cout << entry << std::endl;
 

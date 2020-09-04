@@ -10,16 +10,20 @@ using namespace sp::db::literals;
 
 TEST_CASE("Object", "[SpDB:Entry]")
 {
-    sp::db::Entry entry({{"B"s, {{"b", 1}, {"c", "hello world"}}}});
+    sp::db::Node opt{{"B"s, {{"b", 1}, {"c", "hello world"}}}};
+
+    VERBOSE << opt;
+    
+    sp::db::Entry entry(opt);
 
     VERBOSE << entry;
 
-    REQUIRE(entry["B"]["b"].as<int>() == 1);
+    REQUIRE(entry["B"]["b"].get_value<int>() == 1);
 
-    REQUIRE(entry["B"]["c"].as<std::string>() == "hello world");
+    REQUIRE(entry["B"]["c"].get_value<std::string>() == "hello world");
 
-    entry["A"s].as<std::string>("1234");
-    entry["B"s].as<std::string>("5678");
+    entry["A"s].set_value<std::string>("1234");
+    entry["B"s].set_value<std::string>("5678");
 
     REQUIRE(entry.type() == sp::db::Node::tags::Object);
 
@@ -34,7 +38,7 @@ TEST_CASE("Path", "[SpDB:Array]")
 
     entry["D/E/F"_p] = message;
 
-    REQUIRE(entry["D"]["E"]["F"].as<std::string>() == message);
+    REQUIRE(entry["D"]["E"]["F"].get_value<std::string>() == message);
 
     VERBOSE << entry;
 }
@@ -51,15 +55,15 @@ TEST_CASE("Array", "[SpDB:Entry]")
     entry["C"][2] = 12344.56;
     entry["C"][3] = 6.0 + 4.0i;
 
-    entry["C"].push_back().as<int>(135);
-    entry["C"].push_back().as<float>(6.0);
-    entry["C"].push_back().as<std::string>("3.1415926");
+    entry["C"].push_back().set_value<int>(135);
+    entry["C"].push_back().set_value<float>(6.0);
+    entry["C"].push_back().set_value<std::string>("3.1415926");
 
     REQUIRE(entry["C"].count() == 7);
 
-    REQUIRE(entry["C"][2].as<double>() == 12344.56);
-    REQUIRE(entry["C"][4].as<std::string>() == "135");
-    REQUIRE(entry["C"][6].as<double>() == 3.1415926);
+    REQUIRE(entry["C"][2].get_value<double>() == 12344.56);
+    REQUIRE(entry["C"][4].get_value<std::string>() == "135");
+    REQUIRE(entry["C"][6].get_value<double>() == 3.1415926);
 
     VERBOSE << entry;
 }

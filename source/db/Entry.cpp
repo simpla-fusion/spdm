@@ -84,13 +84,13 @@ Node Entry::update(Node v) { return root()->update(m_path_, std::move(v)); }
 Node Entry::fetch(Node ops) const { return root()->fetch(m_path_, std::move(ops)); }
 //-------------------------------
 
-size_t Entry::type() const { return fetch({{"$type", 1}}).as<size_t>(); }
+size_t Entry::type() const { return fetch({{"$type", 1}}).get_value<size_t>(); }
 
 bool Entry::is_null() const { return m_root_ == nullptr || type() == Node::tags::Null; }
 
 bool Entry::empty() const { return is_null() || count() == 0; }
 
-size_t Entry::count() const { return fetch({{"$count", 1}}).as<size_t>(); }
+size_t Entry::count() const { return fetch({{"$count", 1}}).get_value<size_t>(); }
 
 bool Entry::same_as(const Entry& other) const
 {
@@ -106,7 +106,7 @@ Node Entry::pop_back() { return update({{"$pop_back", 1}}); }
 
 Entry Entry::push_back(Node v)
 {
-    int idx = update({{"$push_back", std::move(v)}}).as<int>();
+    int idx = update({{"$push_back", std::move(v)}}).get_value<int>();
     return Entry(m_root_, Path(m_path_).join(idx));
 }
 

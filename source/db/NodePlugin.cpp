@@ -5,6 +5,40 @@ namespace sp::db
 {
 typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 
+//==========================================================================================
+// NodeObject
+
+std::shared_ptr<NodeObject> NodeObject::create(const Node& opt)
+{
+    NodeObject* res = nullptr;
+
+    std::string schema = "";
+
+    std::visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) { schema = uri; },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
+                schema = object_p->fetch("$schema").get_value<Node::tags::String>("");
+            },
+            [&](auto&& ele) {} //
+        },
+        opt.value());
+
+    if (schema != "")
+    {
+        res = sp::utility::Factory<NodeObject>::create(schema).release();
+    }
+
+    if (res == nullptr)
+    {
+        res = new NodeObjectDefault(opt);
+    }
+
+    res->load(opt);
+
+    return std::shared_ptr<NodeObject>(res);
+}
+
 template <>
 NodeObjectDefault::NodePlugin(const std::initializer_list<Node>& init) : m_container_()
 {
@@ -12,12 +46,27 @@ NodeObjectDefault::NodePlugin(const std::initializer_list<Node>& init) : m_conta
     {
         auto& array = *item.as<Node::tags::Array>();
 
-        Node(array.at(1)).swap(m_container_[array.at(0).as<Node::tags::String>()]);
+        Node(array.at(1)).swap(m_container_[array.at(0).get_value<Node::tags::String>()]);
     }
 }
 
 template <>
-void NodeObjectDefault::load(const Node& opt) {}
+void NodeObjectDefault::load(const Node& opt)
+{
+    std::visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
+                object_p->for_each([&](const Node& k, const Node& n) {
+                    Node(n).swap(m_container_[k.get_value<std::string>()]);
+                });
+            },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::Array, sp::db::Node::value_type>& array_p) {
+                // NOT_IMPLEMENTED;
+            },
+            [&](auto&& ele) {} //
+        },
+        opt.value());
+}
 
 template <>
 Cursor<Node> NodeObjectDefault::children()
@@ -44,6 +93,17 @@ void NodeObjectDefault::for_each(const std::function<void(const Node&, Node&)>& 
         visitor(item.first, item.second);
     }
 }
+template <>
+bool NodeObjectDefault::contain(const std::string& key) const { return m_container_.find(key) != m_container_.end(); }
+
+template <>
+void NodeObjectDefault::set_value(const std::string& key, const Node& node) { Node(node).swap(m_container_[key]); }
+
+template <>
+Node NodeObjectDefault::insert_value(const std::string& key, const Node& node) { return m_container_.emplace(key, node).first->second; }
+
+template <>
+Node NodeObjectDefault::get_value(const std::string& key) const { return m_container_.at(key); }
 
 template <>
 void NodeObjectDefault::for_each(const std::function<void(const Node&, const Node&)>& visitor) const
@@ -54,43 +114,10 @@ void NodeObjectDefault::for_each(const std::function<void(const Node&, const Nod
     }
 }
 
-static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetch_ops_map{
-
-    {"$count", [](const Node& node, const Node& opt) {
-         size_t res = 0;
-         std::visit(
-             sp::traits::overloaded{
-                 [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                     res = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container().size();
-                 },
-                 [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { res = array_p->size(); },
-                 [&](auto&& v) { res = 0; }},
-             node.value());
-         return Node(std::in_place_index_t<Node::tags::Int>(), res);
-     }},
-    {"$type", [](const Node& node, const Node& opt) { return Node(std::in_place_index_t<Node::tags::Int>(), node.type()); }},
-};
-
-Node fetch_op(const Node& node, const std::string& op, const Node& opt)
-{
-    Node res;
-    auto it = fetch_ops_map.find(op);
-    if (it != fetch_ops_map.end())
-    {
-        it->second(node, opt).swap(res);
-    }
-    else if (node.type() == Node::tags::Object)
-    {
-        Node(dynamic_cast<const NodeObjectDefault&>(node.as_object()).container().at(op)).swap(res);
-    }
-
-    return std::move(res);
-}
-
 static std::map<std::string, std::function<Node(Node&, const Node&)>> update_ops_map{
 
     {"$resize", [](Node& node, const Node& opt) {
-         node.as_array().resize(opt.as<int>());
+         node.as_array().resize(opt.get_value<int>());
          return Node{};
      }},
     {"$set", [](Node& node, const Node& opt) {
@@ -113,7 +140,7 @@ static std::map<std::string, std::function<Node(Node&, const Node&)>> update_ops
          return Node(static_cast<int>(node.as_array().size() - 1));
      }},
 
-}; // namespace sp::db
+};
 
 Node update_op(Node& node, const std::string& key, const Node& opt)
 {
@@ -185,7 +212,7 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
         auto tmp = std::make_shared<NodeObjectDefault>();
 
         ops.as_object().for_each([&](const Node& key, const Node& d) {
-            tmp->m_container_.emplace(key.as<Node::tags::String>(), update_op(*self, key.as<Node::tags::String>(), d));
+            tmp->m_container_.emplace(key.get_value<Node::tags::String>(), update_op(*self, key.get_value<Node::tags::String>(), d));
         });
 
         if (tmp->container().size() == 1)
@@ -202,7 +229,40 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
         Node(ops).swap(*self);
         Node(ops).swap(res);
     }
-    
+
+    return std::move(res);
+}
+
+static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetch_ops_map{
+
+    {"$count", [](const Node& node, const Node& opt) {
+         size_t res = 0;
+         std::visit(
+             sp::traits::overloaded{
+                 [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
+                     res = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container().size();
+                 },
+                 [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { res = array_p->size(); },
+                 [&](auto&& v) { res = 0; }},
+             node.value());
+         return Node(std::in_place_index_t<Node::tags::Int>(), res);
+     }},
+    {"$type", [](const Node& node, const Node& opt) { return Node(std::in_place_index_t<Node::tags::Int>(), node.type()); }},
+};
+
+Node fetch_op(const Node& node, const std::string& op, const Node& opt)
+{
+    Node res;
+    auto it = fetch_ops_map.find(op);
+    if (it != fetch_ops_map.end())
+    {
+        it->second(node, opt).swap(res);
+    }
+    else if (node.type() == Node::tags::Object)
+    {
+        Node(dynamic_cast<const NodeObjectDefault&>(node.as_object()).container().at(op)).swap(res);
+    }
+
     return std::move(res);
 }
 
@@ -213,20 +273,18 @@ Node NodeObjectDefault::fetch(const Node& query, const Node& ops, const Node& op
 
     Node* self = &root;
 
-    if (query.type() != Node::tags::Path)
-    {
-        NOT_IMPLEMENTED;
-    }
-    else
+    if (query.type() == Node::tags::Path)
     {
         auto path = query.as<Node::tags::Path>();
 
-        for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
+        for (auto it = path.begin(), ie = path.end(); it != ie && self != nullptr; ++it)
         {
             std::visit(
                 sp::traits::overloaded{
                     [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                        self = &std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container().at(std::get<Path::tags::Key>(*it));
+                        auto& obj = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container();
+                        auto k_it = obj.find(std::get<Path::tags::Key>(*it));
+                        self = k_it == obj.end() ? nullptr : &k_it->second;
                     },
                     [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
                         self = &array_p->at(std::get<Path::tags::Index>(*it));
@@ -238,21 +296,46 @@ Node NodeObjectDefault::fetch(const Node& query, const Node& ops, const Node& op
                     [&](auto&& v) { self = nullptr; }},
                 self->value());
         }
-     
+
         if (self == nullptr)
         {
             RUNTIME_ERROR << "Illegal path! " << path.str();
             throw std::runtime_error("Illegal path! " + path.str());
         }
     }
+    else if (query.type() == Node::tags::String)
+    {
+        auto key = self->as<Node::tags::String>();
+
+        std::visit(
+            sp::traits::overloaded{
+                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
+                    auto& obj = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container();
+                    auto it = obj.find(key);
+                    self = it == obj.end() ? nullptr : &it->second;
+                },
+
+                [&](auto&& v) { self = nullptr; }},
+            self->value());
+    }
+    else
+    {
+        self = nullptr;
+    }
 
     Node res;
-
-    if (ops.type() == Node::tags::Object)
+    if (self == nullptr)
+    {
+    }
+    else if (ops.type() == Node::tags::Object)
     {
         auto tmp = std::make_shared<NodeObjectDefault>();
 
-        ops.as_object().for_each([&](const Node& key, const Node& d) { tmp->m_container_.emplace(key.as<std::string>(), fetch_op(*self, key.as<std::string>(), d)); });
+        ops.as_object().for_each([&](const Node& key, const Node& d) {
+            tmp->m_container_.emplace(
+                key.get_value<std::string>(),
+                fetch_op(*self, key.get_value<std::string>(), d));
+        });
 
         if (tmp->container().size() == 1)
         {
