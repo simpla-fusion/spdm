@@ -11,14 +11,14 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     using namespace sp::db;
     using namespace sp::db::literals;
 
-    sp::db::Entry entry;
-
-    entry.load("mapping://mapper/EAST/imas/3");
+    auto mapper = sp::db::NodeObject::create("file://./mapper/EAST/imas/3");
+    sp::db::Entry entry{{"mapper", mapper},
+                        {"base", "mdsplus://./tests/data"}};
 
     // std::cout << entry << std::endl;
 
-    std::cout << entry["ids/timeslice"][0]["ne"].as<double>() << std::endl;
-    std::cout << entry["ids/timeslice[@id=1]/ne"].as<double>() << std::endl;
+    std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
+    std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));

@@ -45,6 +45,6 @@ target_link_libraries(test_xml utility spdb  )
 # target_link_libraries(test_yaml utility spdb  )
 
 
-add_executable(test_mapping test_mapping.cpp  ../source/plugins/PluginMapping.cpp   )
-add_test(test_mapping test_mapping )
-target_link_libraries(test_mapping utility spdb  )
+add_executable(test_proxy test_proxy.cpp  ../source/plugins/PluginProxy.cpp   )
+add_test(test_proxy test_proxy )
+target_link_libraries(test_proxy utility spdb  )

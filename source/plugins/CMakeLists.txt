@@ -1,7 +1,7 @@
 
 
 set(SPDB_PLUGINS_SOURCES
-  PluginMapping.cpp
+  PluginProxy.cpp
 )
 # find_package(PugiXML)
 # if(PugiXML_FOUND)
