@@ -104,11 +104,13 @@ Node& NodeArray::insert(int idx, Node v)
     }
     return m_container_[idx];
 }
+
 Node& NodeArray::update(int idx, Node v)
 {
     m_container_[idx].swap(v);
     return m_container_[idx];
 }
+
 const Node& NodeArray::at(int idx) const { return m_container_.at(idx); }
 
 Node& NodeArray::at(int idx) { return m_container_.at(idx); }
@@ -225,6 +227,7 @@ std::ostream& fancy_print(std::ostream& os, const sp::db::NodeObject& object_p, 
        << "}";
     return os;
 }
+
 std::ostream& fancy_print(std::ostream& os, const sp::db::NodeArray& array_p, int indent, int tab)
 {
     os << "[";

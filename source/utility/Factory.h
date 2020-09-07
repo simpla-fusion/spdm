@@ -113,7 +113,7 @@ public:
         auto const& f = Singleton<ObjectFactory>::instance().m_factory_;
 
         auto it = f.find(k);
-        
+
         if (it != f.end())
         {
             res = it->second(std::forward<U>(args)...);
@@ -135,19 +135,19 @@ public:
             }
         }
 
-        if (res == nullptr)
-        {
-            auto it = f.find("");
-            if (it != f.end())
-            {
-                res = it->second(std::forward<U>(args)...);
-            }
-        }
+        // if (res == nullptr)
+        // {
+        //     auto it = f.find("");
+        //     if (it != f.end())
+        //     {
+        //         res = it->second(std::forward<U>(args)...);
+        //     }
+        // }
 
-        if (res == nullptr)
-        {
-            VERBOSE << "Can not find plugin for \"" << k << "\"" << std::endl;
-        }
+        // if (res == nullptr)
+        // {
+        //     VERBOSE << "Can not find plugin for \"" << k << "\"" << std::endl;
+        // }
 
         return std::unique_ptr<TObj>(res);
     }

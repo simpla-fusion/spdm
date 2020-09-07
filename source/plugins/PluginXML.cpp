@@ -10,8 +10,11 @@
 namespace sp::db
 {
 
-typedef std::variant<pugi::xml_node, std::pair<std::shared_ptr<pugi::xml_node>, std::string>> xml_node;
-
+struct xml_node
+{
+    std::shared_ptr<pugi::xml_document> doc;
+    std::variant<pugi::xml_node, std::string> node;
+};
 typedef NodePlugin<xml_node> NodePluginXML;
 
 //----------------------------------------------------------------------------------
@@ -23,10 +26,11 @@ void load_xml_from_file(pugi::xml_document* doc, std::string const& path)
     if (!result)
     {
         RUNTIME_ERROR << result.description();
+        throw std::runtime_error("Can not load file: " + path);
     }
     else
     {
-        VERBOSE << "Load XML document :" << path;
+        VERBOSE << "Load XML document: " << path;
     }
 }
 
@@ -40,37 +44,107 @@ void load_xml_from_string(pugi::xml_document* doc, std::string const& content)
     }
     else
     {
-        VERBOSE << "Load XML document :" << content.substr(0,20) << "...";
+        VERBOSE << "Load XML document :" << content.substr(0, 20) << "...";
     }
 }
+
+std::string join_path(std::string const& prefix, std::string const& path)
+{
+    std::string res;
+    if (path[0] == '/')
+    {
+        res = path;
+    }
+    else
+    {
+        auto pos = prefix.rfind('/');
+        if (pos != std::string::npos)
+        {
+            res = prefix.substr(0, pos) + "/" + path;
+        }
+        else
+        {
+            res = path;
+        }
+    }
+    return res;
+}
+
+bool process_xinclude(pugi::xml_node& node, std::string const& prefix = "")
+{
+    for (pugi::xml_node child = node.first_child(); child;)
+    {
+
+        pugi::xml_node current = child;
+
+        child = child.next_sibling();
+
+        if (current.type() == pugi::node_element && (strcmp(current.name(), "xi:include") == 0))
+        {
+            pugi::xml_document external_doc;
+
+            std::string path = join_path(prefix, current.attribute("href").as_string());
+
+            auto result = external_doc.load_file(path.c_str(), pugi::parse_default | pugi::parse_pi); // for <?include?>
+
+            if (result)
+            {
+                VERBOSE << "Load xml file [" << path << "] (" << result.description() << ")";
+
+                node.insert_child_before(pugi::node_comment, current).set_value(path.c_str());
+
+                // copy the document above the include directive (this retains the original order!)
+                for (auto&& ic : external_doc.children())
+                {
+                    node.insert_copy_before(ic, current);
+                }
+                // remove the include node and move to the next child
+                node.remove_child(current);
+            }
+            else
+            {
+                VERBOSE << "Can not load external xml file: " << path;
+            }
+        }
+        else
+        {
+            process_xinclude(current, prefix);
+        }
+    }
+
+    return true;
+}
+
 template <>
 void NodePluginXML::load(const Node& opt)
 {
+    m_container_.doc = std::make_shared<pugi::xml_document>();
+    m_container_.node.emplace<std::string>("");
 
-    auto* doc = new pugi::xml_document;
-
-    m_container_.emplace<1>(std::make_pair(std::shared_ptr<pugi::xml_node>(doc), std::string("")));
+    std::string file_path = "";
 
     std::visit(
         traits::overloaded{
             [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) {
-                load_xml_from_file(doc, path.str());
+                file_path = path.str();
+                load_xml_from_file(m_container_.doc.get(), file_path);
             },
             [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& str) {
                 if (str.substr(7) == "```xml{")
                 {
-                    load_xml_from_string(doc, str.substr(7, str.size() - 1));
+                    load_xml_from_string(m_container_.doc.get(), str.substr(7, str.size() - 1));
                 }
                 else
                 {
-                    load_xml_from_file(doc, str);
+                    file_path = str;
+                    load_xml_from_file(m_container_.doc.get(), file_path);
                 }
             },
             [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& obj) {
                 auto content = obj->find_child("content");
                 if (!content.is_null())
                 {
-                    load_xml_from_string(doc, content.get_value<std::string>());
+                    load_xml_from_string(m_container_.doc.get(), content.get_value<std::string>());
                 }
                 else
                 {
@@ -82,6 +156,11 @@ void NodePluginXML::load(const Node& opt)
 
         },
         opt.value());
+
+    if (m_container_.doc != nullptr)
+    {
+        process_xinclude(*m_container_.doc, file_path);
+    }
 }
 
 template <>
@@ -119,36 +198,37 @@ NodePluginXML::children()
     NOT_IMPLEMENTED;
     return Cursor<Node>{};
 }
+
 const char* node_types[] =
     {
         "null", "document", "element", "pcdata", "cdata", "comment", "pi", "declaration"};
 
-Node make_node(const pugi::xml_node& n)
-{
-    Node res;
+// Node make_node(const pugi::xml_node& n)
+// {
+//     Node res;
 
-    // VERBOSE << n.path() << ":" << node_types[n.type()];
+//     // VERBOSE << n.path() << ":" << node_types[n.type()];
 
-    switch (std::distance(n.children().begin(), n.children().end()))
-    {
-    case 0:
-        break;
-    case 1:
-        if (n.first_child().type() == pugi::xml_node_type::node_pcdata)
-        {
-            res.set_value<Node::tags::String>(n.first_child().value());
-            break;
-        }
-    default:
-    {
-        auto r = std::make_shared<NodePluginXML>();
-        r->container().emplace<0>(n);
-        res.set_value<Node::tags::Object>(r);
-    }
-    }
+//     switch (std::distance(n.children().begin(), n.children().end()))
+//     {
+//     case 0:
+//         break;
+//     case 1:
+//         if (n.first_child().type() == pugi::xml_node_type::node_pcdata)
+//         {
+//             res.set_value<Node::tags::String>(n.first_child().value());
+//             break;
+//         }
+//     default:
+//     {
+//         auto r = std::make_shared<NodePluginXML>();
+//         r->container().emplace<0>(n);
+//         res.set_value<Node::tags::Object>(r);
+//     }
+//     }
 
-    return std::move(res);
-}
+//     return std::move(res);
+// }
 
 std::string path_to_xpath(const Path& p)
 {
@@ -187,45 +267,54 @@ std::string path_to_xpath(const Path& p)
     return os.str();
 }
 
-Node make_node(const pugi::xpath_node_set& node_set)
+Node make_node(std::shared_ptr<pugi::xml_document> doc, const pugi::xml_node& node)
 {
     Node res;
 
-    if (std::distance(node_set.begin(), node_set.end()) == 1)
+    switch (std::distance(node.children().begin(), node.children().end()))
     {
-        make_node(node_set.begin()->node()).swap(res);
-    }
-    else
-    {
-        auto array = NodeArray::create();
-        for (auto&& n : node_set)
+    case 0:
+        break;
+    case 1:
+        if (node.first_child().type() == pugi::xml_node_type::node_pcdata)
         {
-            array->push_back(make_node(n.node()));
+            res.set_value<Node::tags::String>(node.first_child().value());
+            break;
         }
-        res.set_value<Node::tags::Array>(array);
+    default:
+        res.set_value<Node::tags::Object>(std::make_shared<NodePluginXML>(xml_node{doc, node}));
     }
-    return std::move(res);
+    return res;
 }
-
 template <>
 void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const& visitor) const
 {
     std::visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<0, xml_node>& node) {
+            [&](const pugi::xml_node& node) {
                 for (auto&& n : node.children())
                 {
-                    visitor(n.name(), make_node(n));
+                    visitor(n.name(), make_node(m_container_.doc, n));
                 }
             },
-            [&](const std::variant_alternative_t<1, xml_node>& link) {
-                for (auto&& n : link.first->select_nodes(link.second.c_str()))
+            [&](const std::string& xpath) {
+                if (xpath == "")
                 {
-                    visitor(n.node().name(), make_node(n.node()));
+                    for (auto&& n : m_container_.doc->children())
+                    {
+                        visitor(n.name(), make_node(m_container_.doc, n));
+                    }
+                }
+                else
+                {
+                    for (auto&& n : m_container_.doc->select_nodes(xpath.c_str()))
+                    {
+                        visitor(n.node().name(), make_node(m_container_.doc, n.node()));
+                    }
                 }
             },
             [&](auto&&) {}},
-        m_container_);
+        m_container_.node);
 }
 
 template <>
@@ -235,6 +324,27 @@ Node NodePluginXML::update(const Node&, const Node&, const Node& opt)
     return Node{};
 }
 
+Node make_node(const xml_node& node, const std::string& xpath)
+{
+    auto node_set = node.doc->select_nodes(xpath.c_str());
+
+    Node res;
+
+    if (std::distance(node_set.begin(), node_set.end()) == 1)
+    {
+        Node{std::make_shared<NodePluginXML>(xml_node{node.doc, node_set.begin()->node()})}.swap(res);
+    }
+    else
+    {
+        auto array = NodeArray::create();
+        for (auto&& n : node_set)
+        {
+            array->push_back(Node{std::make_shared<NodePluginXML>(xml_node{node.doc, n.node()})});
+        }
+        res.set_value<Node::tags::Array>(array);
+    }
+    return std::move(res);
+}
 template <>
 Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
@@ -242,17 +352,17 @@ Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node&
     Node res;
     std::visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<0, xml_node>& node) {
+            [&](const pugi::xml_node& node) {
                 NOT_IMPLEMENTED;
             },
-            [&](const std::variant_alternative_t<1, xml_node>& link) {
+            [&](const std::string& path) {
                 std::visit(
                     traits::overloaded{
                         [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
-                            make_node(link.first->select_nodes((link.second + "/" + uri).c_str())).swap(res);
+                            make_node(m_container_, uri).swap(res);
                         },
                         [&](const std::variant_alternative_t<sp::db::Node::tags::Path, sp::db::Node::value_type>& path) {
-                            make_node(link.first->select_nodes((link.second + path_to_xpath(path)).c_str())).swap(res);
+                            make_node(m_container_, path_to_xpath(path)).swap(res);
                         },
                         [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
                             NOT_IMPLEMENTED;
@@ -262,10 +372,11 @@ Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node&
                     query.value());
             },
             [&](auto&&) {}},
-        m_container_);
+        m_container_.node);
 
     return res;
 }
+
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>
 // template <>

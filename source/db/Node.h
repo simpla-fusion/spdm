@@ -19,7 +19,9 @@ class NodeBackend;
 class NodeObject;
 class NodeArray;
 class DataBlock;
-
+class Custom
+{
+};
 } // namespace sp::db
 
 M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
@@ -27,26 +29,29 @@ M_REGISITER_TYPE_TAG(Path, sp::db::Path);
 
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::NodeObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::NodeArray>);
+M_REGISITER_TYPE_TAG(Custom, sp::db::Custom);
 
 namespace sp::db
 {
+
 typedef std::variant<std::nullptr_t,
-                     std::shared_ptr<NodeObject>,        //Object
-                     std::shared_ptr<NodeArray>,         //Array
-                     DataBlock,                          //Block
-                     Path,                               //Path
-                     bool,                               //Boolean,
-                     int,                                //Integer,
-                     long,                               //Long,
-                     float,                              //Float,
-                     double,                             //Double,
-                     std::string,                        //String,
-                     std::array<int, 3>,                 //IntVec3,
-                     std::array<long, 3>,                //LongVec3,
-                     std::array<float, 3>,               //FloatVec3,
-                     std::array<double, 3>,              //DoubleVec3,
-                     std::complex<double>,               //Complex,
-                     std::array<std::complex<double>, 3> //ComplexVec3,
+                     std::shared_ptr<NodeObject>, //Object
+                     std::shared_ptr<NodeArray>,  //Array
+                     DataBlock,                   //Block
+                     Path,                        //Path
+                     bool,                        //Boolean,
+                     int,                         //Integer,
+                     long,                        //Long,
+                     float,                       //Float,
+                     double,                      //Double,
+                     std::string                  //,                        //String,
+                                                  //  std::array<int, 3>,                 //IntVec3,
+                                                  //  std::array<long, 3>,                //LongVec3,
+                                                  //  std::array<float, 3>,               //FloatVec3,
+                                                  //  std::array<double, 3>,              //DoubleVec3,
+                                                  //  std::complex<double>,               //Complex,
+                                                  //  std::array<std::complex<double>, 3> //ComplexVec3,
+
                      >
     node_value_type;
 

@@ -45,6 +45,6 @@ target_link_libraries(test_xml utility spdb  )
 # target_link_libraries(test_yaml utility spdb  )
 
 
-add_executable(test_proxy test_proxy.cpp  ../source/plugins/PluginProxy.cpp   )
+add_executable(test_proxy test_proxy.cpp  ../source/plugins/PluginProxy.cpp ../source/plugins/PluginXML.cpp ../extern/pugixml/pugixml.cpp   )
 add_test(test_proxy test_proxy )
 target_link_libraries(test_proxy utility spdb  )

@@ -363,8 +363,6 @@ std::string make_msg(Others const&... others)
 
 #define RUNTIME_ERROR sp::logger::Logger(sp::logger::LOG_ERROR_RUNTIME) << FILE_LINE_STAMP
 
-#define RUNTIME_ERROR sp::logger::Logger(sp::logger::LOG_ERROR_RUNTIME) << FILE_LINE_STAMP
-
 #define LOGIC_ERROR sp::logger::Logger(sp::logger::LOG_ERROR_LOGICAL) << FILE_LINE_STAMP
 
 #define BAD_CAST sp::logger::Logger(sp::logger::LOG_ERROR_BAD_CAST) << FILE_LINE_STAMP

@@ -21,6 +21,7 @@ typedef NodePlugin<proxy_node> NodePluginProxy;
 template <>
 void NodePluginProxy::load(const Node& opt)
 {
+    VERBOSE << opt;
 }
 
 template <>
@@ -50,37 +51,39 @@ void NodePluginProxy::for_each(std::function<void(const Node&, const Node&)> con
 {
     NOT_IMPLEMENTED;
 }
-
+template <>
 Node NodePluginProxy::update(const Node& query, const Node& patch, const Node& opt)
 {
     return m_container_.source->update(m_container_.mapper->fetch(query), patch, opt);
 }
-
+template <>
 Node NodePluginProxy::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
-    return m_container_.source->fetch(m_container_.mapper->fetch(query), projection, opt);
+    auto path = m_container_.mapper->fetch(query);
+    VERBOSE << path;
+    return m_container_.source->fetch(path, projection, opt);
 }
+template <>
 bool NodePluginProxy::contain(const std::string& name) const
 {
     return m_container_.source->contain(m_container_.mapper->fetch(name).get_value<std::string>());
 }
-
+template <>
 void NodePluginProxy::update_child(const std::string& name, const Node& d)
 {
     return m_container_.source->update_child(m_container_.mapper->fetch(name).get_value<std::string>(), d);
 }
-
+template <>
 Node NodePluginProxy::insert_child(const std::string& name, const Node& d)
 {
     return m_container_.source->insert_child(m_container_.mapper->fetch(name).get_value<std::string>(), d);
 }
-
-Node NodePluginProxy::find_child(const std::string&name) const
+template <>
+Node NodePluginProxy::find_child(const std::string& name) const
 {
-      return m_container_.source->find_child(m_container_.mapper->fetch(name).get_value<std::string>() );
-
+    return m_container_.source->find_child(m_container_.mapper->fetch(name).get_value<std::string>());
 }
-
+template <>
 void NodePluginProxy::remove_child(const std::string&) { NOT_IMPLEMENTED; }
 
 SPDB_ENTRY_REGISTER(proxy, proxy_node);
