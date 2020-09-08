@@ -33,6 +33,7 @@ M_REGISITER_TYPE_TAG(Custom, sp::db::Custom);
 
 namespace sp::db
 {
+#define DEFAULT_SCHEMA_TAG "_schema"
 
 typedef std::variant<std::nullptr_t,
                      std::shared_ptr<NodeObject>, //Object
@@ -141,6 +142,12 @@ public:
 
     template <int IDX>
     decltype(auto) as() { return std::get<IDX>(m_value_); }
+
+    template <typename Visitor>
+    auto visit(Visitor const& visitor) { return std::visit(visitor, m_value_); }
+
+    template <typename Visitor>
+    auto visit(Visitor const& visitor) const { return std::visit(visitor, m_value_); }
 
 private:
     value_type m_value_;

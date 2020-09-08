@@ -199,9 +199,7 @@ NodePluginXML::children()
     return Cursor<Node>{};
 }
 
-const char* node_types[] =
-    {
-        "null", "document", "element", "pcdata", "cdata", "comment", "pi", "declaration"};
+const char* node_types[] = {"null", "document", "element", "pcdata", "cdata", "comment", "pi", "declaration"};
 
 // Node make_node(const pugi::xml_node& n)
 // {
@@ -267,7 +265,7 @@ std::string path_to_xpath(const Path& p)
     return os.str();
 }
 
-Node make_node(std::shared_ptr<pugi::xml_document> doc, const pugi::xml_node& node)
+Node make_node(const xml_node& holder, const pugi::xml_node& node)
 {
     Node res;
 
@@ -282,9 +280,34 @@ Node make_node(std::shared_ptr<pugi::xml_document> doc, const pugi::xml_node& no
             break;
         }
     default:
-        res.set_value<Node::tags::Object>(std::make_shared<NodePluginXML>(xml_node{doc, node}));
+        res.set_value<Node::tags::Object>(std::make_shared<NodePluginXML>(xml_node{holder.doc, node}));
     }
     return res;
+}
+
+Node make_node(const xml_node& holder, const std::string& xpath)
+{
+    auto node_set = holder.doc->select_nodes(xpath.c_str());
+
+    Node res;
+
+    switch (std::distance(node_set.begin(), node_set.end()))
+    {
+    case 0:
+        break;
+    case 1:
+        make_node(holder, node_set.begin()->node()).swap(res);
+        break;
+    default:
+        auto array = NodeArray::create();
+        for (auto&& n : node_set)
+        {
+            array->push_back(Node{std::make_shared<NodePluginXML>(xml_node{holder.doc, n.node()})});
+        }
+        res.set_value<Node::tags::Array>(array);
+        break;
+    }
+    return std::move(res);
 }
 template <>
 void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const& visitor) const
@@ -294,7 +317,7 @@ void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const
             [&](const pugi::xml_node& node) {
                 for (auto&& n : node.children())
                 {
-                    visitor(n.name(), make_node(m_container_.doc, n));
+                    visitor(n.name(), make_node(m_container_, n));
                 }
             },
             [&](const std::string& xpath) {
@@ -302,14 +325,14 @@ void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const
                 {
                     for (auto&& n : m_container_.doc->children())
                     {
-                        visitor(n.name(), make_node(m_container_.doc, n));
+                        visitor(n.name(), make_node(m_container_, n));
                     }
                 }
                 else
                 {
                     for (auto&& n : m_container_.doc->select_nodes(xpath.c_str()))
                     {
-                        visitor(n.node().name(), make_node(m_container_.doc, n.node()));
+                        visitor(n.node().name(), make_node(m_container_, n.node()));
                     }
                 }
             },
@@ -324,31 +347,9 @@ Node NodePluginXML::update(const Node&, const Node&, const Node& opt)
     return Node{};
 }
 
-Node make_node(const xml_node& node, const std::string& xpath)
-{
-    auto node_set = node.doc->select_nodes(xpath.c_str());
-
-    Node res;
-
-    if (std::distance(node_set.begin(), node_set.end()) == 1)
-    {
-        Node{std::make_shared<NodePluginXML>(xml_node{node.doc, node_set.begin()->node()})}.swap(res);
-    }
-    else
-    {
-        auto array = NodeArray::create();
-        for (auto&& n : node_set)
-        {
-            array->push_back(Node{std::make_shared<NodePluginXML>(xml_node{node.doc, n.node()})});
-        }
-        res.set_value<Node::tags::Array>(array);
-    }
-    return std::move(res);
-}
 template <>
 Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
-
     Node res;
     std::visit(
         traits::overloaded{
@@ -356,7 +357,7 @@ Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node&
                 NOT_IMPLEMENTED;
             },
             [&](const std::string& path) {
-                std::visit(
+                query.visit(
                     traits::overloaded{
                         [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
                             make_node(m_container_, uri).swap(res);
@@ -368,14 +369,16 @@ Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node&
                             NOT_IMPLEMENTED;
                         },
                         [&](auto&& ele) { NOT_IMPLEMENTED; } //
-                    },
-                    query.value());
+                    });
             },
             [&](auto&&) {}},
         m_container_.node);
 
     return res;
 }
+
+template <>
+Node NodePluginXML::find_child(const std::string& name) const { return fetch(name); }
 
 //-----------------------------------------------------------------------------------------------------
 // as arraytemplate <>

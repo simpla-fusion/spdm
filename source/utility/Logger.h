@@ -163,7 +163,7 @@ public:
      *
      */
 
-    int m_level_ = 10;
+    int m_level_ = -10000;
     int current_line_char_count_;
     bool endl_;
 };

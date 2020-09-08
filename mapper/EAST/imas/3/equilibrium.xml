@@ -10,9 +10,7 @@
         <!-- <Shape_of value="SHAPE(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" /> -->
         <boundary>
             <geometric_axis>
-                <r>
-                    <data:mdsplus>\RBCENT</data:mdsplus>
-                </r>
+                <r>\RBCENT</r>
                 <!-- <z>\ZBCENT </z> -->
             </geometric_axis>
             <lcfs>

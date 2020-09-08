@@ -76,7 +76,7 @@ struct LoggerStreams
 
 private:
 #ifndef NDEBUG
-    int m_std_out_level_ = 1000;
+    int m_std_out_level_ = -1000;
 #else
     int m_std_out_level_ = 0;
 #endif
@@ -150,7 +150,7 @@ int LoggerStreams::push(int level, std::string const& msg)
         prefix << "[" << mpi_rank_ << "/" << mpi_size_ << "] ";
     }
 
-    if (level >= m_std_out_level_)
+    // if (level >= m_std_out_level_)
     {
         switch (level)
         {

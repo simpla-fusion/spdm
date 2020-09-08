@@ -31,9 +31,8 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     using namespace sp::db;
     using namespace sp::db::literals;
 
-    // sp::db::Entry entry("tests/data/test.xml");
 
-    sp::db::Entry entry({{"$schema", "xml"}, {"content", XML_CONTENT}});
+    sp::db::Entry entry({{"_schema", "xml"}, {"content", XML_CONTENT}});
 
     // std::cout << entry << std::endl;
 
@@ -66,4 +65,13 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     // std::cout << entry << std::endl;
 
     // REQUIRE(entry.child("C").child(0).get_value<std::string>() == "1234");
+}
+
+TEST_CASE("XML Files", "[SpDB]")
+{
+    using namespace sp::db;
+    using namespace sp::db::literals;
+    sp::db::Entry entry{"mapper/EAST/imas/3/config.xml"};
+
+    VERBOSE << entry["mapping/equilibrium/time_slice"]["boundary"]["geometric_axis"]["r"].get_value<std::string>();
 }

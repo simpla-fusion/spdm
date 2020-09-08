@@ -1,6 +1,8 @@
 #include "NodePlugin.h"
 #include "../utility/Factory.h"
 #include "../utility/Logger.h"
+#include <cassert>
+
 namespace sp::db
 {
 typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
@@ -8,36 +10,42 @@ typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 //==========================================================================================
 // NodeObject
 
+
 std::shared_ptr<NodeObject> create_node_object(const Node& opt)
 {
+     std::shared_ptr<NodeObject> res = nullptr;
 
-    NodeObject* res = nullptr;
-
-    std::string schema = "";
-
-    std::visit(
+    opt.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) { schema = uri; },
+            [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
+                res = std::shared_ptr<NodeObject>(sp::utility::Factory<NodeObject>::create(uri).release());
+                if (res != nullptr)
+                {
+                    res->load(opt);
+                }
+            },
             [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
-                schema = object_p->find_child("$schema").get_value<Node::tags::String>("");
+                auto schema = object_p->find_child(DEFAULT_SCHEMA_TAG).get_value<Node::tags::String>("");
+                if (schema == "")
+                {
+                    res = object_p;
+                }
+                else
+                {
+                    res = std::shared_ptr<NodeObject>(sp::utility::Factory<NodeObject>::create(schema).release());
+                    res->load(opt);
+                }
             },
             [&](auto&& ele) {} //
-        },
-        opt.value());
-
-    if (schema != "")
-    {
-        res = sp::utility::Factory<NodeObject>::create(schema).release();
-    }
+        });
 
     if (res == nullptr)
     {
-        res = new NodeObjectDefault(opt);
+        res = std::make_shared<NodeObjectDefault>(opt);
+        res->load(opt);
     }
 
-    res->load(opt);
-
-    return std::shared_ptr<NodeObject>(res);
+    return res;
 }
 
 template <>
@@ -106,9 +114,8 @@ Node NodeObjectDefault::insert_child(const std::string& key, const Node& node) {
 template <>
 Node NodeObjectDefault::find_child(const std::string& key) const
 {
-
     auto it = m_container_.find(key);
-    return it == m_container_.end() ? Node{} : Node{it->second};
+    return it == m_container_.end() ? Node{} : Node(it->second);
 }
 template <>
 void NodeObjectDefault::remove_child(const std::string& key)
