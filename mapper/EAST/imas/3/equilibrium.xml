@@ -10,12 +10,12 @@
         <!-- <Shape_of value="SHAPE(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" /> -->
         <boundary>
             <geometric_axis>
-                <r>\RBCENT</r>
+                <r><mdsplus>\RBCENT</mdsplus></r>
                 <!-- <z>\ZBCENT </z> -->
             </geometric_axis>
             <lcfs>
                 <r>
-                    <data:mdsplus> VALUE_OF(\BDRY)[*,0,#]</data:mdsplus>
+                    <mdsplus> VALUE_OF(\BDRY)[*,0,#]</mdsplus>
                 </r>
                 <z>VALUE_OF(\BDRY)[*,1,#] </z>
             </lcfs>

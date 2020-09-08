@@ -67,38 +67,43 @@ void NodePluginProxy::for_each(std::function<void(const Node&, const Node&)> con
     // m_container_.data_source->for_each(visitor);
     NOT_IMPLEMENTED;
 }
+
 template <>
 Node NodePluginProxy::update(const Node& query, const Node& patch, const Node& opt)
 {
     return m_container_.data_source->update(m_container_.mapper->fetch(query), patch, opt);
 }
+
 template <>
 Node NodePluginProxy::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
-    auto request = m_container_.mapper->fetch(query);
-    VERBOSE << request;
-    return m_container_.data_source->fetch(request, projection, opt);
+    return m_container_.data_source->fetch(m_container_.mapper->fetch(query, projection), opt);
 }
+
 template <>
 bool NodePluginProxy::contain(const std::string& name) const
 {
     return m_container_.data_source->contain(m_container_.mapper->fetch(name).get_value<std::string>());
 }
+
 template <>
 void NodePluginProxy::update_child(const std::string& name, const Node& d)
 {
     return m_container_.data_source->update_child(m_container_.mapper->fetch(name).get_value<std::string>(), d);
 }
+
 template <>
 Node NodePluginProxy::insert_child(const std::string& name, const Node& d)
 {
     return m_container_.data_source->insert_child(m_container_.mapper->fetch(name).get_value<std::string>(), d);
 }
+
 template <>
 Node NodePluginProxy::find_child(const std::string& name) const
 {
     return m_container_.data_source->find_child(m_container_.mapper->fetch(name).get_value<std::string>());
 }
+
 template <>
 void NodePluginProxy::remove_child(const std::string& name)
 {

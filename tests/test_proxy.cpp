@@ -13,7 +13,12 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     sp::db::Entry entry{{"_schema", "proxy"},
                         {"mapper", sp::db::NodeObject::create("mapper/EAST/imas/3/config.xml")},
-                        {"data_source", ""}};
+                        {"data_source",
+                         {
+                             {"url", ""},
+                             
+
+                         }}};
 
     //std::cout << entry << std::endl;
 
