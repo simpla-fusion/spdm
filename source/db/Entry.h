@@ -25,7 +25,7 @@ class Entry
 public:
     Entry() = default;
 
-    Entry(const Node & opt);
+    Entry(const Node& opt);
 
     Entry(std::initializer_list<Node> init, Path p = {});
 
@@ -81,8 +81,15 @@ public:
               std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
     void set_value(Others&&... others) { update(Node(std::in_place_type_t<V>(), std::forward<Others>(others)...)); }
 
-    template <typename V>
-    auto get_value() const { return fetch().get_value<V>(); }
+    template <int IDX, typename... Others,
+              std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
+    void set_value(Others&&... others) { update(Node(std::in_place_index_t<IDX>(), std::forward<Others>(others)...)); }
+
+    template <typename V, typename... Args>
+    V get_value(Args&&... args) const { return fetch().get_value<V>(std::forward<Args>(args)...); }
+
+    template <int IDX, typename... Args>
+    auto get_value(Args&&... args) const { return fetch().get_value<IDX>(std::forward<Args>(args)...); }
 
     template <typename V>
     Entry& operator=(const V& v)
