@@ -3,30 +3,28 @@
 set(SPDB_PLUGINS_SOURCES
   PluginProxy.cpp
 )
-# find_package(PugiXML)
-# if(PugiXML_FOUND)
-  # set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES} 
-  #       EntryXML.cpp
-  #       ../../extern/pugixml/pugixml.cpp
-  # )
-# endif(PugiXML_FOUND)
 
 
 IF(BUILD_PLUGINS)
+  # find_package(PugiXML)
+  # if(PugiXML_FOUND)
+    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  PluginXML.cpp ../../extern/pugixml/pugixml.cpp )
+  # endif(PugiXML_FOUND)
+
   find_package( HDF5 )
   if(HDF5_FOUND)
-    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  EntryHDF5.cpp)
+    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  PluginHDF5.cpp)
   endif(HDF5_FOUND)
 
 
   find_package( NetCDF )
   if(NetCDF_FOUND)
-    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  EntryNetCDF.cpp)
+    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  PluginNetCDF.cpp)
   endif(NetCDF_FOUND)
 
   find_package( MDSplus )
   if(MDSplus_FOUND)
-    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  EntryMDSplus.cpp)
+    set(SPDB_PLUGINS_SOURCES ${SPDB_PLUGINS_SOURCES}  PluginMDSplus.cpp)
   endif(MDSplus_FOUND)
 ENDIF(BUILD_PLUGINS)
 

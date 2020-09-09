@@ -309,6 +309,7 @@ Node make_node(const xml_node& holder, const std::string& xpath)
     }
     return std::move(res);
 }
+
 template <>
 void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const& visitor) const
 {

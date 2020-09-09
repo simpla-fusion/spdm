@@ -78,6 +78,7 @@ hid_t H5NumberType(std::type_info const& t_info) {
     }
     return v_type;
 }
+
 std::shared_ptr<DataEntity> HDF5GetEntity(hid_t obj_id, bool is_attribute) {
     std::shared_ptr<DataEntity> res = nullptr;
     hid_t d_type, d_space;
@@ -232,6 +233,7 @@ void HDF5WriteArray(hid_t g_id, std::string const& key, std::shared_ptr<const Ar
     if (m_space != H5S_ALL) H5_ERROR(H5Sclose(m_space));
     if (f_space != H5S_ALL) H5_ERROR(H5Sclose(f_space));
 }
+
 size_type HDF5SetEntity(hid_t g_id, std::string const& key, std::shared_ptr<const DataEntity> const& entity) {
     ASSERT(g_id > 0);
 

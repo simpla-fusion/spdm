@@ -11,19 +11,24 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     using namespace sp::db;
     using namespace sp::db::literals;
 
-    sp::db::Entry entry{{"_schema", "proxy"},
-                        {"mapper", sp::db::NodeObject::create("mapper/EAST/imas/3/config.xml")},
-                        {"data_source",
-                         {
-                             {"url", ""},
-                             
+    sp::db::Entry entry{
 
-                         }}};
+        {"_schema", "proxy"},
+
+        {"mapper", sp::db::NodeObject::create("mapper/EAST/imas/3/config.xml")},
+
+        {"data_source",
+         {
+             {"_schema", "mdsplus"},
+             {"url", ""},
+         }}
+
+    };
 
     //std::cout << entry << std::endl;
 
     std::cout << entry["mapping/equilibrium/time_slice"]["boundary"]["geometric_axis"]["r"].get_value<std::string>("") << std::endl;
-    std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
+    std::cout << entry["ids/timeslice"].count() << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));

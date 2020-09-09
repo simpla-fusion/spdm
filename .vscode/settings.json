@@ -77,5 +77,6 @@
         "csignal": "cpp",
         "*.ipp": "cpp",
         "propagate_const": "cpp"
-    }
+    },
+    "python.pythonPath": "/bin/python3"
 }

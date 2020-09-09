@@ -40,7 +40,11 @@ class DataBlock
 {
 public:
     DataBlock();
-    DataBlock(std::shared_ptr<void> data, int element_size, int nd, size_t dimensions);
+
+    DataBlock(void* data, int element_size, int nd, const size_t* dimensions);
+
+    DataBlock(int nd, const TDIM* dimensions);
+
     DataBlock(DataBlock const&);
     DataBlock(DataBlock&&);
     ~DataBlock();
@@ -57,6 +61,11 @@ public:
     size_t element_size() const;
     size_t ndims() const;
     size_t const* dims() const;
+
+    template <typename U>
+    U* as();
+    template <typename U>
+    const U* as() const;
 
     DataBlock slice(const std::tuple<int, int, int>& slice)
     {
