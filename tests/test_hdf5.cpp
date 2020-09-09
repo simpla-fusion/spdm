@@ -1,4 +1,3 @@
-#include "db/Document.h"
 #include "db/Entry.h"
 #include "utility/Factory.h"
 #include <iostream>
@@ -10,14 +9,12 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
 
-    sp::db::Entry entry;
-
-    entry.load("tests/data/test.h5");
+    sp::db::Entry entry("tests/data/test.h5");
 
     // std::cout << entry << std::endl;
 
-    std::cout << entry["ids/timeslice"][0]["ne"].as<double>() << std::endl;
-    std::cout << entry["ids/timeslice[@id=1]/ne"].as<double>() << std::endl;
+    std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
+    std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));

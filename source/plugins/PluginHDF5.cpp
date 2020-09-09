@@ -271,6 +271,7 @@ Node HDF5GetValueT(hid_t attr_id, hid_t d_type, hid_t d_space, bool is_attribute
         break;
         case H5S_NULL:
         default:
+            break;
         }
     }
     else
@@ -372,7 +373,7 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
             H5_ERROR(H5Tset_size(m_type, sdims));
             H5_ERROR(H5Aread(obj_id, m_type, buffer));
             H5_ERROR(H5Tclose(m_type));
-            res.set_value<std::string>(buffer);
+            res.set_value<std::string>(static_cast<char*>(buffer));
         }
         break;
         case H5S_SIMPLE:
@@ -384,9 +385,10 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
             H5_ERROR(H5Tset_size(m_type, H5T_VARIABLE));
             H5_ERROR(H5Aread(obj_id, m_type, buffer));
             H5_ERROR(H5Tclose(m_type));
+            auto& array = res.as_array();
             for (int i = 0; i < num; ++i)
             {
-                res.push_back().set_value<std::string>(buffer[i]);
+                array.push_back().set_value<std::string>(static_cast<char*>(buffer[i]));
                 delete buffer[i];
             }
             delete[] buffer;
@@ -434,7 +436,7 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
     return res;
 }
 
-void HDF5WriteBlock(hid_t g_id, std::string const& key, DataBlock const& data)
+void HDF5WriteBlock(hid_t g_id, std::string const& key, DataBlock const& block)
 {
     bool is_exist = H5Lexists(g_id, key.c_str(), H5P_DEFAULT) != 0;
     //            H5Oexists_by_name(loc_id, key.c_str(), H5P_DEFAULT) != 0;
@@ -449,15 +451,15 @@ void HDF5WriteBlock(hid_t g_id, std::string const& key, DataBlock const& data)
         H5Ldelete(g_id, key.c_str(), H5P_DEFAULT);
         is_exist = false;
     }
-    int ndims = data->GetNDIMS();
+    int ndims = block.shape().size();
 
-    index_type inner_lower[ndims];
-    index_type inner_upper[ndims];
-    index_type outer_lower[ndims];
-    index_type outer_upper[ndims];
+    int inner_lower[ndims];
+    int inner_upper[ndims];
+    int outer_lower[ndims];
+    int outer_upper[ndims];
 
-    data->GetIndexBox(inner_lower, inner_upper);
-    data->GetShape(outer_lower, outer_upper);
+    // block.GetIndexBox(inner_lower, inner_upper);
+    // block.GetShape(outer_lower, outer_upper);
 
     hsize_t m_shape[ndims];
     hsize_t m_start[ndims];
@@ -465,7 +467,7 @@ void HDF5WriteBlock(hid_t g_id, std::string const& key, DataBlock const& data)
     hsize_t m_stride[ndims];
     hsize_t m_block[ndims];
 
-    if (data->isSlowFirst())
+    if (block.is_slow_first())
     {
         for (int i = 0; i < ndims; ++i)
         {
@@ -491,20 +493,20 @@ void HDF5WriteBlock(hid_t g_id, std::string const& key, DataBlock const& data)
     H5_ERROR(H5Sselect_hyperslab(m_space, H5S_SELECT_SET, &m_start[0], &m_stride[0], &m_count[0], &m_block[0]));
     hid_t f_space = H5Screate_simple(ndims, &m_count[0], nullptr);
     hid_t dset;
-    hid_t d_type = GetHDF5DataType(data->value_type_info());
+    hid_t d_type = GetHDF5DataType(block.value_type_info());
     H5_ERROR(dset = H5Dcreate(g_id, key.c_str(), d_type, f_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
-    H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, data->pointer()));
+    H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, block.data()));
 
     H5_ERROR(H5Dclose(dset));
     if (m_space != H5S_ALL) H5_ERROR(H5Sclose(m_space));
     if (f_space != H5S_ALL) H5_ERROR(H5Sclose(f_space));
 }
 
-size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
+size_t HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
 {
     ASSERT(g_id > 0);
 
-    size_type count = 0;
+    size_t count = 0;
     if (key.empty())
     {
     }
@@ -519,9 +521,9 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
 
     switch (node.type())
     {
-    case Node.tags.String:
+    case Node::tags::String:
     {
-        std::string s_str = p->value();
+        const std::string& s_str = node.get_value<std::string>();
         auto m_type = H5Tcopy(H5T_C_S1);
         H5_ERROR(H5Tset_size(m_type, s_str.size()));
         H5_ERROR(H5Tset_strpad(m_type, H5T_STR_NULLTERM));
@@ -533,7 +535,7 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
         H5_ERROR(H5Aclose(aid));
         ++count;
     }
-    case Node.tags.Array:
+    case Node::tags::Array:
     {
         std::vector<char const*> s_array;
         for (auto const& v : p->value())
@@ -554,8 +556,10 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
         //              << "  key =" << key << " = " << *p << std::endl;
     }
     break;
-    case Node.tags.Block:
+    case Node::tags::Block:
     {
+        auto& block = node.as<Node::tags::Block>();
+
         bool is_exist = H5Lexists(g_id, key.c_str(), H5P_DEFAULT) != 0;
         //            H5Oexists_by_name(loc_id, key.c_str(), H5P_DEFAULT) != 0;
         H5O_info_t g_info;
@@ -569,15 +573,15 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
             H5Ldelete(g_id, key.c_str(), H5P_DEFAULT);
             is_exist = false;
         }
-        static constexpr int ndims = 3; // p->GetNDIMS();
+        int ndims = block.shape().size(); // p->GetNDIMS();
 
-        index_type inner_lower[ndims];
-        index_type inner_upper[ndims];
-        index_type outer_lower[ndims];
-        index_type outer_upper[ndims];
+        int inner_lower[ndims];
+        int inner_upper[ndims];
+        int outer_lower[ndims];
+        int outer_upper[ndims];
 
-        p->GetIndexBox(inner_lower, inner_upper);
-        p->GetIndexBox(outer_lower, outer_upper);
+        // p->GetIndexBox(inner_lower, inner_upper);
+        // p->GetIndexBox(outer_lower, outer_upper);
 
         hsize_t m_shape[ndims];
         hsize_t m_start[ndims];
@@ -596,9 +600,9 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
         H5_ERROR(H5Sselect_hyperslab(m_space, H5S_SELECT_SET, &m_start[0], &m_stride[0], &m_count[0], &m_block[0]));
         hid_t f_space = H5Screate_simple(ndims, &m_count[0], nullptr);
         hid_t dset;
-        hid_t d_type = GetHDF5DataType(p->value_type_info());
+        hid_t d_type = GetHDF5DataType(block.value_type_info());
         H5_ERROR(dset = H5Dcreate(g_id, key.c_str(), d_type, f_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
-        H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, data));
+        H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, block.data()));
 
         H5_ERROR(H5Dclose(dset));
         if (m_space != H5S_ALL) H5_ERROR(H5Sclose(m_space));
@@ -611,13 +615,13 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
         hid_t d_type = -1;
         hid_t d_space;
         count = 1;
-        auto ndims = p->rank();
+        auto ndims = block.shape.size();
         if (ndims > 0)
         {
-            size_type d[ndims];
+            size_t d[ndims];
             hsize_t h5d[ndims];
-            entity->extents(d);
-            for (size_type i = 0; i < ndims; ++i)
+            node->extents(d);
+            for (size_t i = 0; i < ndims; ++i)
             {
                 h5d[i] = d[i];
                 count *= d[i];
@@ -632,33 +636,30 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
         if (false)
         {
         }
-#define DEC_TYPE(_T_, _H5_T_)                          \
-    else if (entity->value_type_info() == typeid(_T_)) \
-    {                                                  \
-        d_type = _H5_T_;                               \
-    }
+#define DEC_TYPE(_T_, _H5_T_) \
+    else if (node.type() == Node::tags::_T_) { d_type = _H5_T_; }
 
         DEC_TYPE(bool, H5T_NATIVE_HBOOL)
         DEC_TYPE(float, H5T_NATIVE_FLOAT)
         DEC_TYPE(double, H5T_NATIVE_DOUBLE)
         DEC_TYPE(int, H5T_NATIVE_INT)
-        DEC_TYPE(long, H5T_NATIVE_LONG)
-        DEC_TYPE(unsigned int, H5T_NATIVE_UINT)
-        DEC_TYPE(unsigned long, H5T_NATIVE_ULONG)
+        // DEC_TYPE(long, H5T_NATIVE_LONG)
+        // DEC_TYPE(unsigned int, H5T_NATIVE_UINT)
+        // DEC_TYPE(unsigned long, H5T_NATIVE_ULONG)
 #undef DEC_TYPE
 
         if (d_type != -1)
         {
             auto aid = H5Acreate(g_id, key.c_str(), d_type, d_space, H5P_DEFAULT, H5P_DEFAULT);
 
-            if (p->isContinue())
+            if (block.is_continue())
             {
-                H5_ERROR(H5Awrite(aid, d_type, p->GetPointer()));
+                H5_ERROR(H5Awrite(aid, d_type, block.data()));
             }
             else
             {
-                auto* ptr = operator new(p->GetAlignOf());
-                p->CopyOut(ptr);
+                auto* ptr = operator new(block.GetAlignOf());
+                block.CopyOut(ptr);
                 H5_ERROR(H5Awrite(aid, d_type, ptr));
                 operator delete(ptr);
             }
@@ -667,7 +668,7 @@ size_type HDF5SetValue(hid_t g_id, std::string const& key, const Node& node)
         else
         {
             FIXME << "Can not write hdf5 attribute! " << std::endl
-                  << key << " = " << *entity << std::endl;
+                  << key << " = " << node << std::endl;
         }
         H5_ERROR(H5Sclose(d_space));
 
@@ -686,8 +687,8 @@ hid_t H5GroupTryOpen(hid_t root, std::string const& url)
     }
 
     hid_t gid = root;
-    size_type begin = 0;
-    size_type end = 0;
+    size_t begin = 0;
+    size_t end = 0;
     while (begin != std::string::npos)
     {
         end = url.find('/', begin);
@@ -729,21 +730,21 @@ hid_t HDF5CreateOrOpenGroup(hid_t grp, std::string const& key)
     return res;
 }
 
-size_type HDF5Set(hid_t g_id, std::string const& key, Node node)
+size_t HDF5Set(hid_t g_id, std::string const& key, Node node)
 {
     if (node == nullptr)
     {
         return 0;
     }
 
-    size_type count = 0;
-    switch (node->type())
+    size_t count = 0;
+    switch (node.type())
     {
-    case DataEntry::DN_ARRAY:
-    case DataEntry::DN_TABLE:
+    case Node::tags::ARRAY:
+    case Node::tags::Object:
     {
         hid_t sub_gid = HDF5CreateOrOpenGroup(g_id, key);
-        node->Foreach([&](std::string k, auto const& n) { count += HDF5Set(sub_gid, k, n); });
+        node.foreach ([&](const Node& k, const Node& n) { count += HDF5Set(sub_gid, k.get_value<std::string>(), n); });
     }
     break;
     case DataEntry::DN_ENTITY:
@@ -755,13 +756,13 @@ size_type HDF5Set(hid_t g_id, std::string const& key, Node node)
     return count;
 }
 
-size_type HDF5Add(hid_t g_id, std::string const& key, Node node)
+size_t HDF5Add(hid_t g_id, std::string const& key, Node node)
 {
     if (node == nullptr)
     {
         return 0;
     }
-    size_type count = 0;
+    size_t count = 0;
     switch (node->type())
     {
     case DataEntry::DN_ARRAY:

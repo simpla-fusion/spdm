@@ -45,14 +45,13 @@ typedef std::variant<std::nullptr_t,
                      long,                        //Long,
                      float,                       //Float,
                      double,                      //Double,
-                     std::string                  //,                        //String,
+                     std::complex<double>,        //Complex,
                                                   //  std::array<int, 3>,                 //IntVec3,
                                                   //  std::array<long, 3>,                //LongVec3,
                                                   //  std::array<float, 3>,               //FloatVec3,
                                                   //  std::array<double, 3>,              //DoubleVec3,
-                                                  //  std::complex<double>,               //Complex,
                                                   //  std::array<std::complex<double>, 3> //ComplexVec3,
-
+                     std::string                  //String,
                      >
     node_value_type;
 
@@ -80,6 +79,18 @@ public:
     Node(const Node& other);
 
     Node(Node&& other);
+
+    Node& operator=(const Node& other)
+    {
+        Node(other).swap(*this);
+        return *this;
+    }
+
+    bool operator==(const Node& other) const
+    {
+        NOT_IMPLEMENTED;
+        return false;
+    }
 
     void swap(Node& other);
 
@@ -137,7 +148,7 @@ public:
             m_value_);
         return res;
     }
-   
+
     template <int IDX>
     decltype(auto) as() const { return std::get<IDX>(m_value_); }
 

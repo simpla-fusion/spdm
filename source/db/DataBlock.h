@@ -38,16 +38,20 @@ namespace sp::db
 {
 class DataBlock
 {
+    std::shared_ptr<void> m_data_;
+    std::vector<size_t> m_dimensions_;
+
 public:
-    DataBlock();
+    DataBlock() = default;
+    ~DataBlock() = default;
 
-    DataBlock(void* data, int element_size, int nd, const size_t* dimensions);
+    DataBlock(int nd, const size_t* dimensions, void* data = nullptr, int element_size = sizeof(double));
 
+    template <typename TDIM>
     DataBlock(int nd, const TDIM* dimensions);
 
     DataBlock(DataBlock const&);
     DataBlock(DataBlock&&);
-    ~DataBlock();
 
     void swap(DataBlock& other);
 
@@ -56,8 +60,22 @@ public:
         DataBlock(other).swap(*this);
         return *this;
     }
-    char* data();
-    char const* data() const;
+
+    std::type_info const& value_type_info() const;
+    bool is_slow_first() const;
+
+    template <typename TDim>
+    void reshape(int ndims, const TDim* dims)
+    {
+        std::vector<size_t>(dims, dims + ndims).swap(m_dimensions_);
+    }
+
+    const std::vector<size_t>& shape()const;
+
+    void* data();
+
+    const void* data() const;
+
     size_t element_size() const;
     size_t ndims() const;
     size_t const* dims() const;
@@ -75,11 +93,6 @@ public:
     {
         return DataBlock{};
     }
-
-private:
-    std::shared_ptr<char> m_data_;
-    std::vector<size_t> m_dims_;
-    size_t m_element_size_ = 1;
 };
 } // namespace sp::db
 #endif // SPDB_DATABLOCK_
