@@ -11,7 +11,7 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     sp::db::Entry entry({{"_schema", "hdf5"},
                          {"file", "test.h5"},
-                         {"path", "/a/b/c/d"},
+                         {"path", "/a/b/c/d/e"},
                          {"mode", "create"}});
 
     // entry["ids/timeslice"][0]["ne"] = 5;

@@ -125,37 +125,66 @@ void H5TypeDispatch(hid_t d_type, Args&&... args)
     }
 }
 
-hid_t HDF5CreateOrOpenGroup(hid_t grp, std::string const& key, bool create_if_not_exist = true);
-
-hid_t H5GroupTryOpen(hid_t root, std::string const& url, bool create_if_not_exist = true)
+std::pair<hid_t, std::string> H5GroupTryOpen(hid_t root, std::string const& url, bool create_if_not_exist = true)
 {
-    if (url[0] == '/')
-    {
-        return H5GroupTryOpen(root, url.substr(1));
-    }
-
     hid_t gid = root;
-    size_t begin = 0;
-    size_t end = 0;
-    while (begin != std::string::npos)
-    {
-        end = url.find('/', begin);
 
-        auto tid = HDF5CreateOrOpenGroup(gid, url.substr(begin, end), create_if_not_exist);
+    size_t begin = 0;
+
+    while (true)
+    {
+        size_t pos = url.find('/', begin);
+
+        if (pos == std::string::npos)
+        {
+            break;
+        }
+        else if (pos == begin)
+        {
+            ++begin;
+            continue;
+        }
+
+        auto key = url.substr(begin, pos - begin);
+
+        hid_t tid = 0;
+
+        if (H5Lexists(gid, key.c_str(), H5P_DEFAULT) > 0)
+        {
+            H5O_info_t o_info;
+            H5_ERROR(H5Oget_info_by_name(gid, key.c_str(), &o_info, H5P_DEFAULT));
+            if (o_info.type == H5O_TYPE_GROUP)
+            {
+                tid = H5Gopen(gid, key.c_str(), H5P_DEFAULT);
+            }
+            else
+            {
+                RUNTIME_ERROR << key << " is  a  dataset!";
+            }
+        }
+        else if (H5Aexists(gid, key.c_str()) > 0)
+        {
+            RUNTIME_ERROR << key << " is  an attribute!";
+        }
+        else
+        {
+            tid = H5Gcreate(gid, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        }
+
         if (gid != root)
         {
             H5Gclose(gid);
         }
         gid = tid;
-        begin = end == std::string::npos ? std::string::npos : end + 1;
+        begin = pos + 1;
     };
-    return gid;
+    return std::make_pair(gid, url.substr(begin));
 }
 
 hid_t HDF5CreateOrOpenGroup(hid_t grp, std::string const& key, bool create_if_not_exist)
 {
     VERBOSE << key;
-    
+
     hid_t res;
     if (H5Lexists(grp, key.c_str(), H5P_DEFAULT) > 0)
     {
@@ -726,10 +755,16 @@ struct hdf5_node
 {
     std::shared_ptr<hid_t> m_fid_;
     hid_t m_gid_ = 0;
+    std::string m_key_ = "";
 
     hdf5_node() : m_fid_(nullptr) {}
 
     ~hdf5_node() { close_group(); }
+
+    auto open_group(const std::string& gpath, bool create_if_not_exist = true)
+    {
+        return _detail::H5GroupTryOpen(m_gid_ == 0 ? *m_fid_ : m_gid_, gpath, create_if_not_exist);
+    }
 
     void open(const std::string& file, const std::string& grp = "/", std::string const& mode = "create")
     {
@@ -749,22 +784,27 @@ struct hdf5_node
             VERBOSE << "Create HDF5 file: " << file;
         }
 
-        m_gid_ = open_group(grp, mode == "create");
+        std::tie(m_gid_, m_key_) = open_group(grp, mode == "create");
     }
-    void close_all() { m_fid_.reset(); }
 
-    hid_t open_group(const std::string& gpath, bool create_if_not_exist = true)
-    {
-        VERBOSE << gpath;
-        return _detail::H5GroupTryOpen(m_gid_ == 0 ? *m_fid_ : m_gid_, gpath, create_if_not_exist);
-    }
+    void close_all() { m_fid_.reset(); }
 
     void close_group()
     {
-        // if (m_gid_ != 0)
-        // {
-        //     H5_ERROR(H5Gclose(m_gid_));
-        // }
+        if (m_gid_ != 0)
+        {
+            H5_ERROR(H5Gclose(m_gid_));
+        }
+    }
+
+    Node update(const std::string& path, const Node& data)
+    {
+    }
+
+    Node fetch(const std::string& path, Node const& projection) const
+    {
+        Node res;
+        return std::move(res);
     }
 };
 
@@ -776,10 +816,10 @@ void NodePluginHDF5::load(const Node& opt)
     opt.visit(
         traits::overloaded{
             [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) {
-                m_container_.open(path, "", "create");
+                m_container_.open(path, "/", "create");
             },
             [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) {
-                m_container_.open(path.str(), "", "create");
+                m_container_.open(path.str(), "/", "create");
             },
             [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
                 m_container_.open(object_p->find_child("file").get_value<std::string>("unnamed.h5"),
@@ -791,7 +831,7 @@ void NodePluginHDF5::load(const Node& opt)
 }
 
 template <>
-void NodePluginHDF5::save(const Node& url) const
+void NodePluginHDF5::save(const Node& node) const
 {
 }
 
@@ -823,15 +863,8 @@ Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt
 
     query.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) {
-                // make_node(m_container_, uri).swap(res);
-            },
-            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) {
-                // make_node(m_container_, path_to_xpath(path)).swap(res);
-            },
-            [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                NOT_IMPLEMENTED;
-            },
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) { m_container_.update(path, data).swap(res); },
+            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) { m_container_.update(path.str(), data).swap(res); },
             [&](auto&& ele) { NOT_IMPLEMENTED; } //
         });
 
@@ -842,7 +875,12 @@ template <>
 Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
     Node res;
-
+    query.visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) { m_container_.fetch(path, projection).swap(res); },
+            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) { m_container_.fetch(path.str(), projection).swap(res); },
+            [&](auto&& ele) { NOT_IMPLEMENTED; } //
+        });
     return res;
 }
 
