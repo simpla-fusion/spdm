@@ -1226,8 +1226,11 @@ M_REGISITER_TYPE_TAG(Null, std::nullptr_t);                                     
 M_REGISITER_TYPE_TAG(Block, std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>); //Block
 M_REGISITER_TYPE_TAG(String, std::string);                                                //String,
 M_REGISITER_TYPE_TAG(Bool, bool);                                                         //Boolean,
+M_REGISITER_TYPE_TAG(Char, char);                                                         //Char,
 M_REGISITER_TYPE_TAG(Int, int);                                                           //Integer,
+M_REGISITER_TYPE_TAG(UInt, unsigned int);                                                 //UInteger,
 M_REGISITER_TYPE_TAG(Long, long);                                                         //Long,
+M_REGISITER_TYPE_TAG(ULong, unsigned long);                                               //ULong,
 M_REGISITER_TYPE_TAG(Float, float);                                                       //Float,
 M_REGISITER_TYPE_TAG(Double, double);                                                     //Double,
 M_REGISITER_TYPE_TAG(Complex, std::complex<double>);                                      //Complex,

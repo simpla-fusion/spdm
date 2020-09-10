@@ -2,10 +2,10 @@
 // Created by salmon on 17-4-28.
 //
 
-#ifndef SIMPLA_EXPRESSIONTEMPLATE_H
-#define SIMPLA_EXPRESSIONTEMPLATE_H
+#ifndef SP_EXPRESSIONTEMPLATE_H
+#define SP_EXPRESSIONTEMPLATE_H
 
-#include "utility/TypeTraits.h"
+#include "TypeTraits.h"
 #include <cmath>
 #include <complex>
 #include <tuple>
@@ -639,4 +639,4 @@ namespace sp
 
 } // namespace sp
 
-#endif // SIMPLA_EXPRESSIONTEMPLATE_H
+#endif // SP_EXPRESSIONTEMPLATE_H

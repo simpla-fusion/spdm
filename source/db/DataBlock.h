@@ -1,38 +1,8 @@
-#ifndef SPDB_DATABLOCK_
-#define SPDB_DATABLOCK_
+#ifndef SP_DATABLOCK_H_
+#define SP_DATABLOCK_H_
 
 #include <memory>
 #include <vector>
-// #ifdef __cplusplus
-// extern "C"
-// {
-// #endif
-
-// #define SpObject_INTERFACE_HEAD ;
-
-//     typedef struct
-//     {
-//         SpObject_INTERFACE_HEAD;
-
-//     } SpObjectInterface;
-
-typedef struct
-{
-    // SpObject_INTERFACE_HEAD;
-
-    char* data;
-    unsigned int element_size;
-    int dtype;
-    int nd;
-    unsigned int* dimensions;
-    unsigned int* strides;
-    int flags;
-    char _[];
-} DataBlock;
-
-// #ifdef __cplusplus
-// }
-// #endif
 
 namespace sp::db
 {
@@ -61,8 +31,8 @@ public:
         return *this;
     }
 
-    std::type_info const& value_type_info() const;
-    bool is_slow_first() const;
+    std::type_info const& value_type_info() const { return typeid(double); }
+    bool is_slow_first() const { return true; }
 
     template <typename TDim>
     void reshape(int ndims, const TDim* dims)
@@ -70,11 +40,11 @@ public:
         std::vector<size_t>(dims, dims + ndims).swap(m_dimensions_);
     }
 
-    const std::vector<size_t>& shape()const;
+    const std::vector<size_t>& shape() const { return m_dimensions_; }
 
-    void* data();
+    void* data() { return m_data_.get(); }
 
-    const void* data() const;
+    const void* data() const { return m_data_.get(); }
 
     size_t element_size() const;
     size_t ndims() const;
@@ -95,4 +65,4 @@ public:
     }
 };
 } // namespace sp::db
-#endif // SPDB_DATABLOCK_
+#endif // SP_DATABLOCK_H_

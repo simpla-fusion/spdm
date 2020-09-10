@@ -2,19 +2,18 @@
 // Created by salmon on 16-12-28.
 //
 
-#ifndef SIMPLA_SPDM_ARRAY_H
-#define SIMPLA_SPDM_ARRAY_H
+#ifndef SP_ARRAY_H
+#define SP_ARRAY_H
 
-#include "../utility/ExpressionTemplate.h"
-#include "../utility/TypeTraits.h"
-#include "../utility/nTuple.h"
-#include "DataBlock.h"
+#include "ExpressionTemplate.h"
+#include "TypeTraits.h"
+#include "nTuple.h"
 #include <initializer_list>
 #include <limits>
 #include <memory>
 #include <tuple>
 
-namespace sp::db
+namespace sp
 {
 
 template <unsigned int NDIM>
@@ -44,40 +43,36 @@ public:
         m_strides_ = 1;
         m_offset_ = 0;
     }
+
     ~ZSFC() = default;
+
     template <typename I, unsigned int O>
-    ZSFC(nTupleBasic<I, O, ndim> d)
-    {
-        Reshape(d);
-    }
+    ZSFC(nTupleBasic<I, O, ndim> d) { reshape(d); }
 
     ZSFC(ZSFC const& other) : m_count_(other.m_count_), m_strides_(other.m_strides_), m_offset_(other.m_offset_) {}
 
-    ZSFC(ZSFC&& other)
-        : m_count_(std::move(other.m_count_)), m_strides_(std::move(other.m_strides_)), m_offset_(other.m_offset_) {}
+    ZSFC(ZSFC&& other) : m_count_(std::move(other.m_count_)), m_strides_(std::move(other.m_strides_)), m_offset_(other.m_offset_) {}
 
     void swap(this_type& other)
     {
-        utility::swap(m_count_, other.m_count_);
-        utility::swap(m_strides_, other.m_strides_);
-        utility::swap(m_offset_, other.m_offset_);
+        m_count_.swap(other.m_count_);
+        m_strides_.swap(other.m_strides_);
+        m_offset_.swap(other.m_offset_);
     }
 
     template <typename _UInt>
-    ZSFC(std::initializer_list<_UInt> const& d) : ZSFC()
-    {
-        Reshape(d);
-    }
+    ZSFC(std::initializer_list<_UInt> const& d) : ZSFC() { reshape(d); }
 
     template <typename _UInt>
-    void Reshape(std::initializer_list<_UInt> const& d, bool is_slow_first = true)
+    void reshape(std::initializer_list<_UInt> const& d, bool is_slow_first = true)
     {
         m_count_ = 1;
         m_count_ = d;
-        Reshape(m_count_, is_slow_first);
+        reshape(m_count_, is_slow_first);
     }
+
     template <typename D>
-    void Reshape(D d, bool is_slow_first = true)
+    void reshape(D d, bool is_slow_first = true)
     {
         m_count_ = d;
         if (is_slow_first)
@@ -98,20 +93,20 @@ public:
         }
     }
 
-    __host__ __device__ auto Slice() const { return this_type(*this); }
-    __host__ __device__ template <typename I>
-    size_type Slice(nTuple<I, ndim> const& s) const
-    {
-        return inner_product(m_strides_, s) + m_offset_;
-    }
-    __host__ __device__ template <typename... Args>
-    auto Slice(Args&&... args) const
+    auto slice() const { return this_type(*this); }
+
+    template <typename I>
+    size_type slice(nTuple<I, ndim> const& s) const { return inner_product(m_strides_, s) + m_offset_; }
+
+    template <typename... Args>
+    auto slice(Args&&... args) const
         -> std::enable_if_t<(ndim == sizeof...(Args) && traits::is_integral<Args...>::value), size_type>
     {
-        return Slice(nTuple<difference_type, ndim>{std::forward<Args>(args)...});
+        return slice(nTuple<difference_type, ndim>{std::forward<Args>(args)...});
     }
-    __host__ __device__ template <typename I>
-    auto Slice(I const& s) const -> std::enable_if_t<(ndim > 1 && std::is_integral<I>::value), ZSFC<ndim - 1>>
+
+    template <typename I>
+    auto slice(I const& s) const -> std::enable_if_t<(ndim > 1 && std::is_integral<I>::value), ZSFC<ndim - 1>>
     {
         ZSFC<ndim - 1> res;
         res.m_count_ = &m_count_[1];
@@ -119,20 +114,23 @@ public:
         res.m_offset_ += s * m_strides_[0];
         return res;
     }
-    __host__ __device__ template <typename I, unsigned int N>
-    auto Slice(nTuple<I, N> const& s) const -> std::enable_if_t<(N < ndim), ZSFC<ndim - N>>
+
+    template <typename I, unsigned int N>
+    auto slice(nTuple<I, N> const& s) const -> std::enable_if_t<(N < ndim), ZSFC<ndim - N>>
     {
         ZSFC<ndim - N> res;
         return res;
     }
-    __host__ __device__ template <typename I>
-    ZSFC<ndim> Slice(nTuple<I, ndim, 3> const& s) const
+
+    template <typename I>
+    ZSFC<ndim> slice(nTuple<I, ndim, 3> const& s) const
     {
         ZSFC<ndim> res;
         return std::move(res);
     }
-    __host__ __device__ template <typename T, typename... Args>
-    auto Slice(T const& first, Args&&... args) const -> std::enable_if_t<
+
+    template <typename T, typename... Args>
+    auto slice(T const& first, Args&&... args) const -> std::enable_if_t<
         (ndim > 1 && traits::sum<std::size_t, (traits::is_integral<Args>::value ? 1 : 0)...>::value < ndim),
         ZSFC<ndim - traits::sum<std::size_t, (traits::is_integral<Args>::value ? 1 : 0)...>::value>>
     {
@@ -141,14 +139,15 @@ public:
     }
 
     template <typename I>
-    __host__ __device__ auto Slice(std::initializer_list<I> const& list) const
+    auto slice(std::initializer_list<I> const& list) const
     {
         nTuple<difference_type, ndim> d;
         d = list;
-        return std::move(Slice(d));
+        return std::move(slice(d));
     }
+
     template <typename I>
-    __host__ __device__ auto Slice(std::initializer_list<std::initializer_list<I>> const& list) const
+    auto slice(std::initializer_list<std::initializer_list<I>> const& list) const
     {
         this_type res(*this);
         int s = 0;
@@ -168,9 +167,10 @@ public:
         return std::move(res);
     }
 
-    __host__ __device__ auto Shift() const { return this_type(*this); }
+    auto shift() const { return this_type(*this); }
+
     template <typename D>
-    __host__ __device__ auto Shift(D const& d) const
+    auto shift(D const& d) const
     {
         this_type res(*this);
         index_tuple s;
@@ -178,17 +178,23 @@ public:
         res.m_offset_ += inner_product(m_strides_, s);
         return std::move(res);
     }
+
     template <typename I>
-    __host__ __device__ auto Shift(std::initializer_list<I> const& list) const
+    auto shift(std::initializer_list<I> const& list) const
     {
         nTuple<difference_type, ndim> d;
         d = list;
-        return std::move(Shift(d));
+        return std::move(shift(d));
     }
+
     bool empty() const { return size() == 0; }
+
     size_type size() const { return static_cast<size_type>(product_t(m_count_)); }
+
     auto const& count() const { return m_count_; }
+
     auto const& stride() const { return m_strides_; }
+
     auto offset() const { return m_offset_; }
 
     struct iterator
@@ -219,29 +225,29 @@ public:
         void swap(iterator& other)
         {
             m_sfc_.swap(other.m_sfc_);
-            utility::swap(m_pos_, other.m_pos_);
-            utility::swap(m_strides_, other.m_strides_);
+            m_strides_.swap(other.m_strides_);
+            std::swap(m_pos_, other.m_pos_);
         }
         iterator& operator++()
         {
-            Next();
+            next();
             return *this;
         }
         iterator operator++(int)
         {
             iterator tmp(*this);
-            Next();
+            next();
             return tmp;
         }
         iterator& operator--()
         {
-            Prev();
+            prev();
             return *this;
         }
         iterator operator--(int)
         {
             iterator tmp(*this);
-            Prev();
+            prev();
             return tmp;
         }
         iterator operator+(difference_type n)
@@ -258,12 +264,12 @@ public:
         }
         iterator& operator+=(difference_type n)
         {
-            Next(n);
+            next(n);
             return *this;
         }
         iterator& operator-=(difference_type n)
         {
-            Prev(n);
+            prev(n);
             return *this;
         }
         bool operator==(iterator const& other) { return m_pos_ == other.m_pos_; }
@@ -275,25 +281,29 @@ public:
             res = ((m_pos_ / m_strides_) % m_sfc_.m_count_);
             return std::move(res);
         }
-        auto position() const { return m_sfc_.Slice(operator*()); }
+        auto position() const { return m_sfc_.slice(operator*()); }
         auto distance() const { return m_pos_; }
         auto distance(iterator const& other) const { return distance() - other.distance(); }
         auto operator-(iterator const& other) const { return distance(other); }
 
     private:
-        void Next(difference_type n = 1) { m_pos_ += n; }
-        void Prev(difference_type n = 1) { m_pos_ -= n; }
+        void next(difference_type n = 1) { m_pos_ += n; }
+        void prev(difference_type n = 1) { m_pos_ -= n; }
     };
+
     typedef this_type range_type;
 
     range_type range() const { return range_type(*this); }
+
     range_type index_range() const { return range_type(*this); }
+
     range_type operator&&(range_type const&) const { return *this; }
 
     iterator begin() const { return iterator{*this, 0}; }
-    iterator end() const { return iterator{*this, size()}; }
 
-}; // class ZFS
+    iterator end() const { return iterator{*this, size()}; }
+};
+
 template <unsigned int NDIM>
 constexpr unsigned int ZSFC<NDIM>::ndim;
 
@@ -321,34 +331,34 @@ auto reduce_range(TRange const& range, TReduction const& reduction, TFun const& 
     return res;
 }
 } // namespace utility
+
 template <typename...>
 class Expression;
-template <typename V, typename SFC>
-class ArrayImplement;
-#define ARRAY_BASIC_TEMPLATE_HEAD template <typename V, typename SFC>
-#define ARRAY_BASIC_TEMPLATE ArrayImplement<V, SFC>
+
+template <typename V, typename SFC = ZSFC<3>>
+class Array;
 
 namespace traits
 {
 
-ARRAY_BASIC_TEMPLATE_HEAD
-struct number_of_dimensions<ARRAY_BASIC_TEMPLATE> : public std::integral_constant<unsigned int, SFC::ndim>
+template <typename V, typename SFC>
+struct number_of_dimensions<Array<V, SFC>> : public std::integral_constant<unsigned int, SFC::ndim>
 {
 };
 
-ARRAY_BASIC_TEMPLATE_HEAD
-struct remove_all_dimensions<ARRAY_BASIC_TEMPLATE>
+template <typename V, typename SFC>
+struct remove_all_dimensions<Array<V, SFC>>
 {
     typedef V type;
 };
 
-ARRAY_BASIC_TEMPLATE_HEAD
-struct add_reference<ARRAY_BASIC_TEMPLATE>
+template <typename V, typename SFC>
+struct add_reference<Array<V, SFC>>
 {
-    typedef ARRAY_BASIC_TEMPLATE const& type;
+    typedef Array<V, SFC> const& type;
 };
-ARRAY_BASIC_TEMPLATE_HEAD
-struct remove_all_extents<ARRAY_BASIC_TEMPLATE>
+template <typename V, typename SFC>
+struct remove_all_extents<Array<V, SFC>>
 {
     typedef V type;
 };
@@ -370,8 +380,8 @@ struct is_array<V&> : public std::integral_constant<bool, is_array<V>::value>
 {
 };
 
-ARRAY_BASIC_TEMPLATE_HEAD
-struct is_array<ARRAY_BASIC_TEMPLATE> : public std::true_type
+template <typename V, typename SFC>
+struct is_array<Array<V, SFC>> : public std::true_type
 {
 };
 } // namespace traits
@@ -424,6 +434,7 @@ auto get_index_range(T0 const& expr, std::enable_if_t<traits::is_expression<T0>:
 }
 template <typename V, typename IDX, typename SFINAE = void>
 struct IndexedGetHelper;
+
 template <typename T, typename IDX>
 struct IndexedGetHelper<T, IDX, std::enable_if_t<!(traits::is_array<traits::remove_cvref_t<T>>::value || traits::is_expression<traits::remove_cvref_t<T>>::value)>>
 {
@@ -442,11 +453,10 @@ struct IndexedGetHelper<T, IDX, std::enable_if_t<traits::is_array<traits::remove
         return v[idx];
     }
 };
+
 template <typename TExpr, typename IDX>
-decltype(auto) get_idx(TExpr& expr, IDX const& idx)
-{
-    return IndexedGetHelper<traits::remove_cvref_t<TExpr>, IDX>::eval(expr, idx);
-}
+decltype(auto) get_idx(TExpr& expr, IDX const& idx) { return IndexedGetHelper<traits::remove_cvref_t<TExpr>, IDX>::eval(expr, idx); }
+
 template <typename T, typename IDX>
 struct IndexedGetHelper<T, IDX, std::enable_if_t<traits::is_expression<traits::remove_cvref_t<T>>::value>>
 {
@@ -464,6 +474,7 @@ struct IndexedGetHelper<T, IDX, std::enable_if_t<traits::is_expression<traits::r
 
 template <typename TReduction, typename TExpr, typename SFINAE>
 struct ReduceExpressionHelper;
+
 template <typename TReduction, typename TExpr>
 struct ReduceExpressionHelper<TReduction, TExpr, std::enable_if_t<(traits::rank<TExpr>::value == 0 && traits::number_of_dimensions<TExpr>::value > 0)>>
 {
@@ -477,6 +488,7 @@ struct ReduceExpressionHelper<TReduction, TExpr, std::enable_if_t<(traits::rank<
 
 template <typename TL, typename TR, typename SFINAE>
 struct EvaluateExpressionHelper;
+
 template <typename TLHS, typename TRHS>
 struct EvaluateExpressionHelper<TLHS, TRHS, std::enable_if_t<traits::is_array<TLHS>::value>>
 {
@@ -497,23 +509,28 @@ struct EvaluateExpressionHelper<TLHS, TRHS, std::enable_if_t<traits::is_array<TL
 template <typename V, typename SFC>
 auto make_array(std::shared_ptr<V> d, SFC sfc)
 {
-    return ArrayImplement<V, traits::remove_cvref_t<SFC>>(std::move(d), std::move(sfc));
+    return Array<V, traits::remove_cvref_t<SFC>>(std::move(d), std::move(sfc));
 };
 
 template <typename V, typename SFC>
-class ArrayImplement : public DataBlock
+class Array
 {
-    typedef ArrayImplement<V, SFC> this_type;
 
 public:
     typedef V value_type;
-    static constexpr value_type s_nan = std::numeric_limits<value_type>::signaling_NaN();
-    static value_type m_null_;
-
-    typedef ArrayImplement<V, SFC> array_type;
-    typedef ArrayImplement<std::add_const_t<V>, SFC> const_array_type;
 
     typedef SFC sfc_type;
+
+    typedef Array<V, SFC> this_type;
+
+    static constexpr value_type s_nan = std::numeric_limits<value_type>::signaling_NaN();
+
+    static value_type m_null_;
+
+    typedef Array<value_type, sfc_type> array_type;
+
+    typedef Array<std::add_const_t<value_type>, sfc_type> const_array_type;
+
     static constexpr unsigned int ndim = sfc_type::ndim;
 
 private:
@@ -521,68 +538,89 @@ private:
     sfc_type m_sfc_;
 
 public:
-    ArrayImplement() = default;
-    virtual ~ArrayImplement(){};
-    ArrayImplement(this_type const& other) : m_sfc_(other.m_sfc_), m_data_(other.m_data_) {}
-    ArrayImplement(this_type&& other) noexcept : m_sfc_(std::move(other.m_sfc_)), m_data_(std::move(other.m_data_)) {}
-    explicit ArrayImplement(sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
-    explicit ArrayImplement(sfc_type&& sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
+    Array() = default;
 
-    explicit ArrayImplement(std::shared_ptr<value_type> d, sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(std::move(d)) {}
+    ~Array() = default;
+
+    Array(this_type const& other) : m_sfc_(other.m_sfc_), m_data_(other.m_data_) {}
+
+    Array(this_type&& other) noexcept : m_sfc_(std::move(other.m_sfc_)), m_data_(std::move(other.m_data_)) {}
+
+    explicit Array(sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
+
+    explicit Array(sfc_type&& sfc) : m_sfc_(std::move(sfc)), m_data_(nullptr) {}
+
+    explicit Array(std::shared_ptr<value_type> d, sfc_type sfc) : m_sfc_(std::move(sfc)), m_data_(std::move(d)) {}
+
     template <typename... Args>
-    explicit ArrayImplement(Args&&... args) : m_sfc_(std::forward<Args>(args)...) {}
+    explicit Array(Args&&... args) : m_sfc_(std::forward<Args>(args)...) {}
+
     template <typename... Args>
-    explicit ArrayImplement(std::shared_ptr<value_type> d, Args&&... args)
-        : m_sfc_(std::forward<Args>(args)...), m_data_(std::move(d)) {}
+    explicit Array(std::shared_ptr<value_type> d, Args&&... args) : m_sfc_(std::forward<Args>(args)...), m_data_(std::move(d)) {}
 
     template <typename _UInt>
-    ArrayImplement(std::initializer_list<_UInt> const& d) : m_sfc_(d) {}
+    Array(std::initializer_list<_UInt> const& d) : m_sfc_(d) {}
 
-    ArrayImplement(this_type& other, tags::split) : m_sfc_(other.m_sfc_, tags::split()), m_data_(other.m_data_) {}
+    Array(this_type& other, tags::split) : m_sfc_(other.m_sfc_, tags::split()), m_data_(other.m_data_) {}
 
     void swap(this_type& other)
     {
-        utility::swap(m_data_, other.m_data_);
+        std::swap(m_data_, other.m_data_);
         m_sfc_.swap(other.m_sfc_);
     }
 
     auto split(unsigned int left = 1, unsigned int right = 1) { return this_type(*this, tags::split(left, right)); }
 
     auto duplicate() const { return new this_type(dynamic_cast<sfc_type const&>(*this)); }
+
     auto copy() const { return new this_type(*this); }
 
     auto index_range() const { return m_sfc_.range(); }
+
     auto size() const { return m_sfc_.size(); }
+
     auto size_in_byte() const { return m_sfc_.size() * sizeof(value_type); }
+
     auto value_size_in_byte() const { return sizeof(value_type); }
+
     auto empty() const { return m_sfc_.empty(); }
-    auto isAllocated() const { return m_data_ != nullptr; }
+
+    auto is_allocated() const { return m_data_ != nullptr; }
+
     void reset() { reset(nullptr); }
+
     template <typename... Args>
     void reset(std::shared_ptr<value_type> d, Args&&... args)
     {
         m_data_ = std::move(d);
-        m_sfc_.Reshape(std::forward<Args>(args)...);
+        m_sfc_.reshape(std::forward<Args>(args)...);
     }
+
     template <typename _UInt>
-    void Reshape(std::initializer_list<_UInt> const& d, bool is_slow_first = true)
+    void reshape(std::initializer_list<_UInt> const& d, bool is_slow_first = true)
     {
-        m_sfc_.Reshape(d, is_slow_first);
+        m_sfc_.reshape(d, is_slow_first);
     }
+
     template <typename D>
-    void Reshape(D d, bool is_slow_first = true)
+    void reshape(D d, bool is_slow_first = true)
     {
-        m_sfc_.Reshape(std::move(d), is_slow_first);
+        m_sfc_.reshape(std::move(d), is_slow_first);
     }
+
     auto data() { return m_data_; }
+
     auto data() const { return m_data_; }
+
     auto get() { return m_data_.get() + m_sfc_.offset(); }
+
     auto get() const { return m_data_.get() + m_sfc_.offset(); }
 
     auto const& sfc() const { return m_sfc_; }
+
     auto count() const { return m_sfc_.m_count_; }
 
-    void clear() { Fill(0); }
+    void clear() { fill(0); }
 
     this_type& operator=(this_type const& other)
     {
@@ -590,11 +628,13 @@ public:
         calculus::evaluate_expression(*this, other);
         return *this;
     }
+
     this_type& operator=(this_type&& other)
     {
         this_type(std::move(other)).swap(*this);
         return *this;
     }
+
     template <typename Other>
     this_type& operator=(Other const& other)
     {
@@ -602,161 +642,121 @@ public:
         calculus::evaluate_expression(*this, other);
         return (*this);
     }
+
     this_type& operator=(traits::make_nested_initializer_list<value_type, sfc_type::ndim> const& list)
     {
         alloc();
         calculus::evaluate_expression(*this, list);
         return *this;
     }
+
     template <typename S>
-    __host__ __device__ decltype(auto) get_v(S s, std::enable_if_t<std::is_integral<S>::value>* _p = nullptr)
+    decltype(auto) get_value(S s, std::enable_if_t<std::is_integral<S>::value>* _p = nullptr)
     {
         return m_data_.get()[s];
     }
+
     template <typename S>
-    __host__ __device__ decltype(auto) get_v(S s, std::enable_if_t<std::is_integral<S>::value>* _p = nullptr) const
+    decltype(auto) get_value(S s, std::enable_if_t<std::is_integral<S>::value>* _p = nullptr) const
     {
         return m_data_.get()[s];
     }
+
     template <typename S>
-    __host__ __device__ decltype(auto) get_v(
-        S&& s, std::enable_if_t<!std::is_integral<traits::remove_cvref_t<S>>::value>* _p = nullptr)
-    {
-        return make_array(m_data_, std::forward<S>(s));
-    }
-    template <typename S>
-    __host__ __device__ decltype(auto) get_v(
-        S&& s, std::enable_if_t<!std::is_integral<traits::remove_cvref_t<S>>::value>* _p = nullptr) const
+    decltype(auto) get_value(S&& s, std::enable_if_t<!std::is_integral<traits::remove_cvref_t<S>>::value>* _p = nullptr)
     {
         return make_array(m_data_, std::forward<S>(s));
     }
 
+    template <typename S>
+    decltype(auto) get_value(S&& s, std::enable_if_t<!std::is_integral<traits::remove_cvref_t<S>>::value>* _p = nullptr) const
+    {
+        return make_array(m_data_, std::forward<S>(s));
+    }
+
     template <typename... Args>
-    __host__ __device__ decltype(auto) get(Args&&... args)
-    {
-        return get_v(m_sfc_.Slice(std::forward<Args>(args)...));
-    }
+    decltype(auto) get_value(Args&&... args) { return get_value(m_sfc_.slice(std::forward<Args>(args)...)); }
+
     template <typename... Args>
-    __host__ __device__ decltype(auto) get(Args&&... args) const
-    {
-        return get_v(m_sfc_.Slice(std::forward<Args>(args)...));
-    }
+    decltype(auto) get_value(Args&&... args) const { return get_value(m_sfc_.slice(std::forward<Args>(args)...)); }
+
     template <typename... Args>
-    __host__ __device__ decltype(auto) operator()(Args&&... args)
-    {
-        return get_v(m_sfc_.Slice(std::forward<Args>(args)...));
-    }
+    decltype(auto) operator()(Args&&... args) { return get_value(m_sfc_.slice(std::forward<Args>(args)...)); }
+
     template <typename... Args>
-    __host__ __device__ decltype(auto) operator()(Args&&... args) const
-    {
-        return get_v(m_sfc_.Slice(std::forward<Args>(args)...));
-    }
+    decltype(auto) operator()(Args&&... args) const { return get_value(m_sfc_.slice(std::forward<Args>(args)...)); }
+
     template <typename I>
-    __host__ __device__ decltype(auto) operator[](std::initializer_list<I> const& s)
-    {
-        typename sfc_type::index_tuple idx = s;
-        return get_v(m_sfc_.Slice(idx));
-    }
+    decltype(auto) operator[](std::initializer_list<I> const& s) { return get_value(m_sfc_.slice(s)); }
+
     template <typename I>
-    __host__ __device__ decltype(auto) operator[](std::initializer_list<I> const& s) const
-    {
-        typename sfc_type::index_tuple idx = s;
-        return get_v(m_sfc_.Slice(idx));
-    }
+    decltype(auto) operator[](std::initializer_list<I> const& s) const { return get_value(m_sfc_.slice(s)); }
+
     template <typename I>
-    __host__ __device__ decltype(auto) operator[](std::initializer_list<std::initializer_list<I>> const& s)
-    {
-        return get_v(m_sfc_.Slice(s));
-    }
+    decltype(auto) operator[](std::initializer_list<std::initializer_list<I>> const& s) { return get_value(m_sfc_.slice(s)); }
+
     template <typename I>
-    __host__ __device__ decltype(auto) operator[](std::initializer_list<std::initializer_list<I>> const& s) const
-    {
-        return get_v(m_sfc_.Slice(s));
-    }
+    decltype(auto) operator[](std::initializer_list<std::initializer_list<I>> const& s) const { return get_value(m_sfc_.slice(s)); }
+
     template <typename IDX>
-    __host__ __device__ decltype(auto) operator[](IDX const& pos)
-    {
-        return get_v(m_sfc_.Slice(pos));
-    }
+    decltype(auto) operator[](IDX const& pos) { return get_value(m_sfc_.slice(pos)); }
+
     template <typename IDX>
-    __host__ __device__ decltype(auto) operator[](IDX const& pos) const
-    {
-        return get_v(m_sfc_.Slice(pos));
-    }
-    template <typename... Args>
-    __host__ __device__ decltype(auto) at(Args&&... args)
-    {
-        return get_v(m_sfc_.Slice_with_boundcheck(std::forward<Args>(args)...));
-    }
-    template <typename... Args>
-    __host__ __device__ decltype(auto) at(Args&&... args) const
-    {
-        return get_v(m_sfc_.Slice_with_boundcheck(std::forward<Args>(args)...));
-    }
+    decltype(auto) operator[](IDX const& pos) const { return get_value(m_sfc_.slice(pos)); }
 
-    __host__ __device__ auto Slice() { return this_type(m_data_, m_sfc_); }
-    __host__ __device__ auto Slice() const { return this_type(m_data_, m_sfc_); }
+    template <typename... Args>
+    decltype(auto) at(Args&&... args) { return get_value(m_sfc_.slice_with_boundcheck(std::forward<Args>(args)...)); }
+
+    template <typename... Args>
+    decltype(auto) at(Args&&... args) const { return get_value(m_sfc_.slice_with_boundcheck(std::forward<Args>(args)...)); }
+
+    auto slice() { return this_type(m_data_, m_sfc_); }
+
+    auto slice() const { return this_type(m_data_, m_sfc_); }
 
     template <typename I>
-    __host__ __device__ decltype(auto) Slice(std::initializer_list<I> const& s)
-    {
-        return get_v(m_sfc_.Slice(s));
-    }
-    template <typename I>
-    __host__ __device__ decltype(auto) Slice(std::initializer_list<I> const& s) const
-    {
-        return get_v(m_sfc_.Slice(s));
-    }
+    decltype(auto) slice(std::initializer_list<I> const& s) { return get_value(m_sfc_.slice(s)); }
 
     template <typename I>
-    __host__ __device__ decltype(auto) Slice(std::initializer_list<std::initializer_list<I>> const& s)
-    {
-        return get_v(m_sfc_.Slice(s));
-    }
+    decltype(auto) slice(std::initializer_list<I> const& s) const { return get_value(m_sfc_.slice(s)); }
+
     template <typename I>
-    __host__ __device__ decltype(auto) Slice(std::initializer_list<std::initializer_list<I>> const& s) const
-    {
-        return get_v(m_sfc_.Slice(s));
-    }
+    decltype(auto) slice(std::initializer_list<std::initializer_list<I>> const& s) { return get_value(m_sfc_.slice(s)); }
+
+    template <typename I>
+    decltype(auto) slice(std::initializer_list<std::initializer_list<I>> const& s) const { return get_value(m_sfc_.slice(s)); }
+
     template <typename... Args>
-    __host__ __device__ decltype(auto) Slice(Args&&... args)
-    {
-        return get_v(m_sfc_.Slice(std::forward<Args>(args)...));
-    }
-    template <typename... Args>
-    __host__ __device__ decltype(auto) Slice(Args&&... args) const
-    {
-        return get_v(m_sfc_.Slice(std::forward<Args>(args)...));
-    }
+    decltype(auto) slice(Args&&... args) { return get_value(m_sfc_.slice(std::forward<Args>(args)...)); }
 
-    __host__ __device__ auto Shift() { return make_array(m_data_, m_sfc_); }
-    __host__ __device__ auto Shift() const { return make_array(m_data_, m_sfc_); }
+    template <typename... Args>
+    decltype(auto) slice(Args&&... args) const { return get_value(m_sfc_.slice(std::forward<Args>(args)...)); }
+
+    auto shift() { return make_array(m_data_, m_sfc_); }
+
+    auto shift() const { return make_array(m_data_, m_sfc_); }
 
     template <typename I>
-    __host__ __device__ decltype(auto) Shift(std::initializer_list<I> const& d) const
-    {
-        return make_array(m_data_, m_sfc_.Shift(d));
-    }
-    template <typename... Args>
-    __host__ __device__ decltype(auto) Shift(Args&&... args) const
-    {
-        return make_array(m_data_, m_sfc_.Shift(std::forward<Args>(args)...));
-    }
+    decltype(auto) shift(std::initializer_list<I> const& d) const { return make_array(m_data_, m_sfc_.shift(d)); }
 
-    void Initialize()
+    template <typename... Args>
+    decltype(auto) shift(Args&&... args) const { return make_array(m_data_, m_sfc_.shift(std::forward<Args>(args)...)); }
+
+    void initialize()
     {
         alloc();
 #ifndef SPDB_ARRAY_INITIALIZE_VALUE
 #elif SP_ARRAY_INITIALIZE_VALUE == SP_SNaN
-        Fill(std::numeric_limits<V>::signaling_NaN());
+        fill(std::numeric_limits<V>::signaling_NaN());
 #elif SP_ARRAY_INITIALIZE_VALUE == SP_QNaN
-        Fill(std::numeric_limits<V>::quiet_NaN());
+        fill(std::numeric_limits<V>::quiet_NaN());
 #elif SP_ARRAY_INITIALIZE_VALUE == SP_DENORM_MIN
-        Fill(std::numeric_limits<V>::denorm_min());
+        fill(std::numeric_limits<V>::denorm_min());
 #else
-        Fill(0);
+        fill(0);
 #endif
     }
+
     void alloc()
     {
         if (m_data_ == nullptr)
@@ -765,13 +765,16 @@ public:
             m_data_ = std::shared_ptr<value_type>(new value_type[m_sfc_.size()]);
         }
     }
+
     void free() { m_data_.reset(); }
 
     static constexpr std::type_info const& value_type_info() { return typeid(value_type); };
 
-    void FillNaN() { Fill(std::numeric_limits<value_type>::signaling_NaN()); }
-    void FillZero() { Fill(0); }
-    void Fill(value_type v)
+    void fill_nan() { fill(std::numeric_limits<value_type>::signaling_NaN()); }
+
+    void fill_zero() { fill(0); }
+
+    void fill(value_type v)
     {
         alloc();
         for (auto& item : *this)
@@ -779,7 +782,8 @@ public:
             item = v;
         }
     }
-    void Fill(value_type v, value_type inc)
+
+    void fill(value_type v, value_type inc)
     {
         alloc();
         for (auto& item : *this)
@@ -822,6 +826,7 @@ public:
     };
 
     typedef IteratorBasic<value_type> iterator;
+    
     typedef IteratorBasic<const value_type> const_iterator;
 
     iterator begin()
@@ -829,28 +834,31 @@ public:
         alloc();
         return iterator(m_data_.get(), m_sfc_.begin());
     }
+
     iterator end()
     {
         alloc();
         return iterator(m_data_.get(), m_sfc_.end());
     }
+
     const_iterator begin() const
     {
-        assert(isAllocated());
+        assert(is_allocated());
         return const_iterator(m_data_.get(), m_sfc_.begin());
     }
+
     const_iterator end() const
     {
-        assert(isAllocated());
+        assert(is_allocated());
         return const_iterator(m_data_.get(), m_sfc_.end());
     }
-
-}; // class ArrayImplement<V, SFC>
+};
 
 template <typename V, unsigned int NDIM = 1>
-using ndArray = ArrayImplement<V, ZSFC<NDIM>>;
+using ndArray = Array<V, ZSFC<NDIM>>;
+
 template <typename V, unsigned int NDIM>
-using VecNdArray = nTuple<ArrayImplement<V, ZSFC<NDIM>>, 3>;
+using VecNdArray = nTuple<Array<V, ZSFC<NDIM>>, 3>;
 
 #define DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(_GLOBAL_FUN_, _MEMBER_FUN_NAME_)                                    \
     namespace detail                                                                                            \
@@ -1057,66 +1065,68 @@ using VecNdArray = nTuple<ArrayImplement<V, ZSFC<NDIM>>, 3>;
         return res;                                                                                                   \
     };
 
-DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(Reshape, Reshape)
-DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(Initialize, Initialize)
-DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(Fill, Fill)
-DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(GetByIdx, get)
-DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(Slice, Slice)
-DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(Shift, Shift)
+DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(reshape, reshape)
+DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(initialize, initialize)
+DEFINE_NTUPLE_FOREACH_MEMBER_METHOD(fill, fill)
+DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(get_by_idx, get)
+DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(slice, slice)
+DEFINE_NTUPLE_FOREACH_MEMBER_FUNCTION(shift, shift)
 
 template <typename... V>
-auto begin(ArrayImplement<V...>& a)
+auto begin(Array<V...>& a)
 {
     return a.begin();
 }
 template <typename... V>
-auto end(ArrayImplement<V...>& a)
+auto end(Array<V...>& a)
 {
     return a.end();
 }
 template <typename... V>
-auto begin(ArrayImplement<V...> const& a)
+auto begin(Array<V...> const& a)
 {
     return a.begin();
 }
 template <typename... V>
-auto end(ArrayImplement<V...> const& a)
+auto end(Array<V...> const& a)
 {
     return a.end();
 }
 
 namespace utility
 {
-ARRAY_BASIC_TEMPLATE_HEAD void swap(ARRAY_BASIC_TEMPLATE& lhs, ARRAY_BASIC_TEMPLATE& rhs) { lhs.swap(rhs); }
+template <typename V, typename SFC>
+void swap(Array<V, SFC>& lhs, Array<V, SFC>& rhs) { lhs.swap(rhs); }
+
 template <typename... T, typename V>
-V Fill(ArrayImplement<T...>& a, V start, V inc = 0)
+V fill(Array<T...>& a, V start, V inc = 0)
 {
     for (decltype(auto) item : a)
     {
-        start = Fill(item, start, inc);
+        start = fill(item, start, inc);
     }
     return start;
 }
 template <typename... T, typename V>
-V Fill(ArrayImplement<T...>&& a, V start, V inc = 0)
+V fill(Array<T...>&& a, V start, V inc = 0)
 {
     for (decltype(auto) item : a)
     {
-        start = Fill(item, start, inc);
+        start = fill(item, start, inc);
     }
     return start;
 }
 } // namespace utility
 
-ARRAY_BASIC_TEMPLATE_HEAD
-std::ostream& operator<<(std::ostream& os, ARRAY_BASIC_TEMPLATE const& v)
+template <typename V, typename SFC>
+std::ostream& operator<<(std::ostream& os, Array<V, SFC> const& v)
 {
     utility::FancyPrintP(os, v.begin(), v.ndim, &v.count()[0], 0, 4);
     return os;
 };
 
-ARRAY_BASIC_TEMPLATE_HEAD
-std::istream& operator>>(std::istream& is, ARRAY_BASIC_TEMPLATE& lhs)
+template <typename V, typename SFC>
+std::istream& operator>>(std::istream& is, Array<V, SFC>& lhs)
 {
     //    UNIMPLEMENTED;
     return is;
@@ -1182,15 +1192,15 @@ _SP_DEFINE_BINARY_FUNCTION(pow, pow)
 #undef _SP_DEFINE_UNARY_FUNCTION
 
 template <typename... TL>
-auto operator<<(ArrayImplement<TL...> const& lhs, unsigned int n)
+auto operator<<(Array<TL...> const& lhs, unsigned int n)
 {
-    return Expression<tags::bitwise_left_shift, ArrayImplement<TL...>, int>(lhs, n);
+    return Expression<tags::bitwise_left_shift, Array<TL...>, int>(lhs, n);
 };
 
 template <typename... TL>
-auto operator>>(ArrayImplement<TL...> const& lhs, unsigned int n)
+auto operator>>(Array<TL...> const& lhs, unsigned int n)
 {
-    return Expression<tags::bitwise_right_shifit, ArrayImplement<TL...>, int>(lhs, n);
+    return Expression<tags::bitwise_right_shifit, Array<TL...>, int>(lhs, n);
 };
 
 #define _SP_DEFINE_COMPOUND_OP(_TAG_, _FUN_)                                                 \
@@ -1235,6 +1245,6 @@ _SP_DEFINE_BINARY_BOOLEAN_FUNCTION(less, logical_and, operator<)
 
 #undef _SP_DEFINE_BINARY_BOOLEAN_FUNCTION
 
-} // namespace sp::db
+} // namespace sp
 
-#endif // SIMPLA_SPDM_ARRAY_H
+#endif // SP_ARRAY_H

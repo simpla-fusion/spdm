@@ -9,12 +9,16 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 {
     using namespace sp::db;
 
-    sp::db::Entry entry("tests/data/test.h5");
+    sp::db::Entry entry({{"_schema", "hdf5"},
+                         {"file", "test.h5"},
+                         {"path", "/a/b/c/d"},
+                         {"mode", "create"}});
+
+    // entry["ids/timeslice"][0]["ne"] = 5;
 
     // std::cout << entry << std::endl;
-
-    std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
-    std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
+    // std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
+    // std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;
     // entry.set_attribute("A", std::string("a"));
