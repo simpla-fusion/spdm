@@ -19,7 +19,8 @@ TEST_CASE("SpDocument Create", "[SpDB]")
     entry["ids/timeslice"][0]["rho"].set_value<double>(3.1414926);
 
     // std::cout << entry << std::endl;
-    // std::cout << entry["ids/timeslice"][0]["ne"].get_value<double>() << std::endl;
+    std::cout << entry["ids/timeslice"][0]["ne"].get_value<std::string>() << std::endl;
+
     // std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;
 
     // std::cout << Factory<EntryInterface, Entry*, const std::string&, Entry*>::counter << std::endl;

@@ -85,7 +85,7 @@ void H5TypeDispatch(hid_t d_type, Args&&... args)
     }
     else if (type_class == H5T_ARRAY)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_STRING)
     {
@@ -93,35 +93,35 @@ void H5TypeDispatch(hid_t d_type, Args&&... args)
     }
     else if (type_class == H5T_TIME)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_BITFIELD)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_REFERENCE)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_ENUM)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_VLEN)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_NO_CLASS)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_OPAQUE)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_COMPOUND)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
 }
 
@@ -342,19 +342,19 @@ hid_t H5NumberType(std::type_info const& t_info)
     return v_type;
 }
 
-Node HDF5GetValue(hid_t obj_id, bool is_attribute)
+Node HDF5GetValue(hid_t oid, bool is_attribute)
 {
     Node res = nullptr;
     hid_t d_type, d_space;
     if (is_attribute)
     {
-        d_type = H5Aget_type(obj_id);
-        d_space = H5Aget_space(obj_id);
+        d_type = H5Aget_type(oid);
+        d_space = H5Aget_space(oid);
     }
     else
     {
-        d_type = H5Dget_type(obj_id);
-        d_space = H5Dget_space(obj_id);
+        d_type = H5Dget_type(oid);
+        d_space = H5Dget_space(oid);
     }
 
     H5T_class_t type_class = H5Tget_class(d_type);
@@ -363,59 +363,59 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
     {
         // if (H5Tequal(d_type, H5T_NATIVE_HBOOL) > 0)
         // {
-        //     res = HDF5GetValueT<bool>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<bool>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_CHAR) > 0)
         // {
-        //     res = HDF5GetValueT<char>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<char>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_SHORT) > 0)
         // {
-        //     res = HDF5GetValueT<short>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<short>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_INT) > 0)
         // {
-        //     res = HDF5GetValueT<int>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<int>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_LONG) > 0)
         // {
-        //     res = HDF5GetValueT<double>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<double>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_LLONG) > 0)
         // {
-        //     res = HDF5GetValueT<long long>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<long long>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_UCHAR) > 0)
         // {
-        //     res = HDF5GetValueT<unsigned char>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<unsigned char>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_USHORT) > 0)
         // {
-        //     res = HDF5GetValueT<unsigned short>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<unsigned short>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_UINT) > 0)
         // {
-        //     res = HDF5GetValueT<unsigned int>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<unsigned int>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_ULONG) > 0)
         // {
-        //     res = HDF5GetValueT<unsigned long>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<unsigned long>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_ULLONG) > 0)
         // {
-        //     res = HDF5GetValueT<unsigned long long>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<unsigned long long>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_FLOAT) > 0)
         // {
-        //     res = HDF5GetValueT<float>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<float>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_DOUBLE) > 0)
         // {
-        //     res = HDF5GetValueT<double>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<double>(oid, d_type, d_space, is_attribute);
         // }
         // else if (H5Tequal(d_type, H5T_NATIVE_LDOUBLE) > 0)
         // {
-        //     res = HDF5GetValueT<long double>(obj_id, d_type, d_space, is_attribute);
+        //     res = HDF5GetValueT<long double>(oid, d_type, d_space, is_attribute);
         // }
     }
     else if (type_class == H5T_ARRAY)
@@ -432,7 +432,7 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
             char buffer[sdims + 1];
             auto m_type = H5Tcopy(H5T_C_S1);
             H5_ERROR(H5Tset_size(m_type, sdims));
-            H5_ERROR(H5Aread(obj_id, m_type, buffer));
+            H5_ERROR(H5Aread(oid, m_type, buffer));
             H5_ERROR(H5Tclose(m_type));
             res.set_value<std::string>(std::string(buffer));
         }
@@ -444,7 +444,7 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
             auto** buffer = new char*[num];
             auto m_type = H5Tcopy(H5T_C_S1);
             H5_ERROR(H5Tset_size(m_type, H5T_VARIABLE));
-            H5_ERROR(H5Aread(obj_id, m_type, buffer));
+            H5_ERROR(H5Aread(oid, m_type, buffer));
             H5_ERROR(H5Tclose(m_type));
             auto& array = res.as_array();
             for (int i = 0; i < num; ++i)
@@ -461,35 +461,35 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
     }
     else if (type_class == H5T_TIME)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_BITFIELD)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_REFERENCE)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_ENUM)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_VLEN)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_NO_CLASS)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_OPAQUE)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
     else if (type_class == H5T_COMPOUND)
     {
-        UNIMPLEMENTED;
+        NOT_IMPLEMENTED;
     }
 
     H5Tclose(d_type);
@@ -732,6 +732,161 @@ size_t H5Dwrite_safe(hid_t gid, const char* name, const DataBlock& blk)
     return 0;
 }
 
+Node H5Dread_safe(hid_t gid, const char* name)
+{
+    Node res;
+    hid_t oid = H5Aopen(gid, name, H5P_DEFAULT);
+    hid_t d_type = H5Aget_type(oid);
+    hid_t d_space = H5Aget_space(oid);
+
+    H5T_class_t type_class = H5Tget_class(d_type);
+    switch (type_class)
+    {
+    case H5T_INTEGER:
+    case H5T_FLOAT:
+    {
+    }
+    break;
+    default:
+        NOT_IMPLEMENTED;
+        break;
+    }
+
+    return std::move(res);
+}
+
+Node H5Aread_safe(hid_t gid, const char* name)
+{
+    Node res;
+
+    hid_t aid = H5Aopen(gid, name, H5P_DEFAULT);
+    hid_t d_type = H5Aget_type(aid);
+    hid_t d_space = H5Aget_space(aid);
+
+    H5T_class_t type_class = H5Tget_class(d_type);
+
+    switch (type_class)
+    {
+    case H5T_INTEGER:
+    case H5T_FLOAT:
+    {
+        // if (H5Tequal(d_type, H5T_NATIVE_HBOOL) > 0)
+        // {
+        //     res = HDF5GetValueT<bool>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_CHAR) > 0)
+        // {
+        //     res = HDF5GetValueT<char>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_SHORT) > 0)
+        // {
+        //     res = HDF5GetValueT<short>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_INT) > 0)
+        // {
+        //     res = HDF5GetValueT<int>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_LONG) > 0)
+        // {
+        //     res = HDF5GetValueT<double>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_LLONG) > 0)
+        // {
+        //     res = HDF5GetValueT<long long>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_UCHAR) > 0)
+        // {
+        //     res = HDF5GetValueT<unsigned char>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_USHORT) > 0)
+        // {
+        //     res = HDF5GetValueT<unsigned short>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_UINT) > 0)
+        // {
+        //     res = HDF5GetValueT<unsigned int>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_ULONG) > 0)
+        // {
+        //     res = HDF5GetValueT<unsigned long>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_ULLONG) > 0)
+        // {
+        //     res = HDF5GetValueT<unsigned long long>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_FLOAT) > 0)
+        // {
+        //     res = HDF5GetValueT<float>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_DOUBLE) > 0)
+        // {
+        //     res = HDF5GetValueT<double>(oid, d_type, d_space, is_attribute);
+        // }
+        // else if (H5Tequal(d_type, H5T_NATIVE_LDOUBLE) > 0)
+        // {
+        //     res = HDF5GetValueT<long double>(oid, d_type, d_space, is_attribute);
+        // }
+    }
+    break;
+    case H5T_STRING:
+    {
+        switch (H5Sget_simple_extent_type(d_space))
+        {
+        case H5S_SCALAR:
+        {
+            size_t sdims = H5Tget_size(d_type);
+            char buffer[sdims + 1];
+            auto m_type = H5Tcopy(H5T_C_S1);
+            H5_ERROR(H5Tset_size(m_type, sdims));
+            H5_ERROR(H5Aread(aid, m_type, buffer));
+            H5_ERROR(H5Tclose(m_type));
+            res.set_value<std::string>(std::string(buffer));
+        }
+        break;
+        case H5S_SIMPLE:
+        {
+            hsize_t num = 0;
+            H5_ERROR(H5Sget_simple_extent_dims(d_space, &num, nullptr));
+            auto** buffer = new char*[num];
+            auto m_type = H5Tcopy(H5T_C_S1);
+            H5_ERROR(H5Tset_size(m_type, H5T_VARIABLE));
+            H5_ERROR(H5Aread(aid, m_type, buffer));
+            H5_ERROR(H5Tclose(m_type));
+            auto& array = res.as_array();
+            for (int i = 0; i < num; ++i)
+            {
+                array.push_back().set_value<std::string>(buffer[i]);
+                delete buffer[i];
+            }
+            delete[] buffer;
+        }
+        break;
+        default:
+            break;
+        }
+    }
+    break;
+    case H5T_ARRAY:
+    case H5T_COMPOUND:
+    case H5T_REFERENCE:
+    case H5T_TIME:
+    case H5T_BITFIELD:
+    case H5T_ENUM:
+    case H5T_VLEN:
+    case H5T_NO_CLASS:
+    case H5T_OPAQUE:
+    default:
+        NOT_IMPLEMENTED;
+        break;
+    }
+
+    H5Tclose(d_type);
+    H5Sclose(d_space);
+    H5Aclose(aid);
+
+    return std::move(res);
+}
+
 } // namespace _detail
 
 struct hdf5_node
@@ -739,7 +894,7 @@ struct hdf5_node
     std::shared_ptr<hid_t> m_fid_;
     hid_t m_gid_ = -1;
 
-    hdf5_node() : m_fid_(nullptr) {}
+    hdf5_node(std::shared_ptr<hid_t> root = nullptr, hid_t gid = -1) : m_fid_(nullptr), m_gid_(gid) {}
 
     ~hdf5_node() { close_group(); }
 
@@ -775,43 +930,6 @@ struct hdf5_node
             H5_ERROR(H5Gclose(m_gid_));
             m_gid_ = -1;
         }
-    }
-
-    Node update(const std::string& dpath, const Node& data)
-    {
-        char path[dpath.size() + 1];
-
-        strcpy(path, dpath.c_str());
-
-        hid_t gid = 0;
-
-        Node res{};
-
-        auto pch = strrchr(path, '/');
-
-        if (pch != nullptr)
-        {
-            *pch = '\0';
-            ++pch;
-            H5_ERROR(gid = _detail::H5Gopen_safe(m_gid_, path));
-        }
-        else
-        {
-            pch = path;
-            gid = m_gid_;
-        }
-
-        H5_ERROR(_detail::H5write_safe(gid, pch, data));
-
-        if (gid != m_gid_) H5_ERROR(H5Gclose(gid));
-
-        return std::move(res);
-    }
-
-    Node fetch(const std::string& path, Node const& projection) const
-    {
-        Node res;
-        return std::move(res);
     }
 };
 
@@ -866,29 +984,35 @@ void NodePluginHDF5::for_each(std::function<void(const Node&, const Node&)> cons
 template <>
 Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt)
 {
-    const char* name;
+    std::string spath;
 
     query.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) {
-
-            },
-            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) {},
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& s) { spath = s; },
+            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& p) { spath = p.str(); },
             [&](auto&& ele) { NOT_IMPLEMENTED; } //
         });
 
     Node res;
 
-    hid_t gid;
+    char path[spath.size() + 1];
+
+    strcpy(path, spath.c_str());
+
+    hid_t gid = -1;
+
+    char* name = strrchr(path, '/');
 
     if (name != nullptr)
     {
-        H5_ERROR(gid = _detail::H5Gopen_safe(m_gid_, path));
+        *name = '\0';
+        ++name;
+        H5_ERROR(gid = _detail::H5Gopen_safe(m_container_.m_gid_, path));
     }
     else
     {
         name = path;
-        gid = m_gid_;
+        gid = m_container_.m_gid_;
     }
 
     ASSERT(gid > 0);
@@ -904,7 +1028,7 @@ Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt
         H5_ERROR(H5Adelete(gid, name));
     }
 
-    node.visit(
+    data.visit(
         traits::overloaded{
             [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& p_object) {
                 NOT_IMPLEMENTED;
@@ -946,11 +1070,11 @@ Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt
             },
             [&](auto&& v) {
                 typedef std::remove_const_t<std::remove_reference_t<decltype(v)>> T;
-                hid_t d_type = h5type_traits<T>::type();
-                hid_t d_space = h5type_traits<T>::space();
+                hid_t d_type = _detail::h5type_traits<T>::type();
+                hid_t d_space = _detail::h5type_traits<T>::space();
                 hid_t aid = 0;
                 H5_ERROR(aid = H5Acreate(gid, name, d_type, d_space, H5P_DEFAULT, H5P_DEFAULT));
-                H5_ERROR(H5Awrite(aid, d_type, h5type_traits<T>::data(v)));
+                H5_ERROR(H5Awrite(aid, d_type, _detail::h5type_traits<T>::data(v)));
                 H5_ERROR(H5Aclose(aid));
                 H5_ERROR(H5Sclose(d_space));
                 H5_ERROR(H5Tclose(d_type));
@@ -959,7 +1083,7 @@ Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt
 
         });
 
-    return count;
+    if (gid != m_container_.m_gid_) H5_ERROR(H5Gclose(gid));
 
     return res;
 }
@@ -967,13 +1091,66 @@ Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt
 template <>
 Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node& opt) const
 {
-    Node res;
+    std::string spath;
+
     query.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) { m_container_.fetch(path, projection).swap(res); },
-            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) { m_container_.fetch(path.str(), projection).swap(res); },
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& s) { spath = s; },
+            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& p) { spath = p.str(); },
             [&](auto&& ele) { NOT_IMPLEMENTED; } //
         });
+
+    Node res;
+
+    char path[spath.size() + 1];
+
+    strcpy(path, spath.c_str());
+
+    hid_t gid = -1;
+
+    char* name = strrchr(path, '/');
+
+    if (name != nullptr)
+    {
+        *name = '\0';
+        ++name;
+        H5_ERROR(gid = _detail::H5Gopen_safe(m_container_.m_gid_, path, false));
+    }
+    else
+    {
+        name = path;
+        gid = m_container_.m_gid_;
+    }
+
+    if (gid < 0)
+    {
+        RUNTIME_ERROR << "Can not find node: " << spath;
+    }
+
+    if (H5Lexists(gid, name, H5P_DEFAULT) > 0)
+    {
+        H5O_info_t o_info;
+
+        H5_ERROR(H5Oget_info_by_name(gid, name, &o_info, H5P_DEFAULT));
+
+        if (o_info.type == H5O_TYPE_GROUP)
+        {
+            res.set_value<Node::tags::Object>(std::make_shared<NodePluginHDF5>(m_container_.m_fid_, H5Gopen(gid, name, H5P_DEFAULT)));
+        }
+        else if (o_info.type == H5O_TYPE_DATASET)
+        {
+            _detail::H5Dread_safe(gid, name).swap(res);
+        }
+    }
+    else if (H5Aexists(gid, name) > 0)
+    {
+        _detail::H5Aread_safe(gid, name).swap(res);
+    }
+    else
+    {
+        RUNTIME_ERROR << "Can not find node: " << spath;
+    }
+
     return res;
 }
 

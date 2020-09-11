@@ -33,13 +33,12 @@ public:
 
     NodePlugin(const std::initializer_list<Node>& opt) { NOT_IMPLEMENTED; }
 
-    NodePlugin(const Container& container) : m_container_(container) {}
-
-    NodePlugin(Container&& container) : m_container_(std::move(container)) {}
-
     NodePlugin(const this_type& other) : m_container_(other.m_container_) {}
 
     NodePlugin(this_type&& other) : m_container_(std::move(other.m_container_)) {}
+
+    template <typename... Args>
+    NodePlugin(Args&&... args) : m_container_(std::forward<Args>(args)...) {}
 
     std::shared_ptr<NodeObject> copy() const override { return std::shared_ptr<NodeObject>(new this_type(*this)); }
 
