@@ -125,60 +125,47 @@ void H5TypeDispatch(hid_t d_type, Args&&... args)
     }
 }
 
-std::pair<hid_t, std::string> H5GroupTryOpen(hid_t root, std::string const& url, bool create_if_not_exist = true)
+hid_t H5Gopen_safe(hid_t root, char* path, bool create_if_not_exist = true)
 {
-    hid_t gid = root;
+    char* pch = strtok(path, "/");
 
-    size_t begin = 0;
+    hid_t last = root;
 
-    while (true)
+    while (pch != nullptr && last > 0)
     {
-        size_t pos = url.find('/', begin);
+        hid_t next = 0;
 
-        if (pos == std::string::npos)
-        {
-            break;
-        }
-        else if (pos == begin)
-        {
-            ++begin;
-            continue;
-        }
-
-        auto key = url.substr(begin, pos - begin);
-
-        hid_t tid = 0;
-
-        if (H5Lexists(gid, key.c_str(), H5P_DEFAULT) > 0)
+        if (H5Lexists(last, pch, H5P_DEFAULT) > 0)
         {
             H5O_info_t o_info;
-            H5_ERROR(H5Oget_info_by_name(gid, key.c_str(), &o_info, H5P_DEFAULT));
+            H5_ERROR(H5Oget_info_by_name(last, pch, &o_info, H5P_DEFAULT));
             if (o_info.type == H5O_TYPE_GROUP)
             {
-                tid = H5Gopen(gid, key.c_str(), H5P_DEFAULT);
+                next = H5Gopen(last, pch, H5P_DEFAULT);
             }
             else
             {
-                RUNTIME_ERROR << key << " is  a  dataset!";
+                RUNTIME_ERROR << pch << " is  a  dataset!";
             }
         }
-        else if (H5Aexists(gid, key.c_str()) > 0)
+        else if (H5Aexists(last, pch) > 0)
         {
-            RUNTIME_ERROR << key << " is  an attribute!";
+            RUNTIME_ERROR << pch << " is  an attribute!";
         }
-        else
+        else if (create_if_not_exist)
         {
-            tid = H5Gcreate(gid, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            next = H5Gcreate(last, pch, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         }
 
-        if (gid != root)
+        if (last != root)
         {
-            H5Gclose(gid);
+            H5Gclose(last);
         }
-        gid = tid;
-        begin = pos + 1;
-    };
-    return std::make_pair(gid, url.substr(begin));
+        last = next;
+        pch = strtok(NULL, "/");
+    }
+
+    return last;
 }
 
 hid_t HDF5CreateOrOpenGroup(hid_t grp, std::string const& key, bool create_if_not_exist)
@@ -510,19 +497,19 @@ Node HDF5GetValue(hid_t obj_id, bool is_attribute)
     return res;
 }
 
-void HDF5WriteArray(hid_t g_id, std::string const& key, const DataBlock& blk)
+void HDF5WriteArray(hid_t gid, std::string const& key, const DataBlock& blk)
 {
-    bool is_exist = H5Lexists(g_id, key.c_str(), H5P_DEFAULT) != 0;
+    bool is_exist = H5Lexists(gid, key.c_str(), H5P_DEFAULT) != 0;
     //            H5Oexists_by_name(loc_id, key.c_str(), H5P_DEFAULT) != 0;
     H5O_info_t g_info;
     if (is_exist)
     {
-        H5_ERROR(H5Oget_info_by_name(g_id, key.c_str(), &g_info, H5P_DEFAULT));
+        H5_ERROR(H5Oget_info_by_name(gid, key.c_str(), &g_info, H5P_DEFAULT));
     }
 
     if (is_exist && g_info.type != H5O_TYPE_DATASET)
     {
-        H5Ldelete(g_id, key.c_str(), H5P_DEFAULT);
+        H5Ldelete(gid, key.c_str(), H5P_DEFAULT);
         is_exist = false;
     }
     int ndims = blk.shape().size();
@@ -568,7 +555,7 @@ void HDF5WriteArray(hid_t g_id, std::string const& key, const DataBlock& blk)
     hid_t f_space = H5Screate_simple(ndims, &m_count[0], nullptr);
     hid_t dset;
     hid_t d_type = GetHDF5DataType(blk.value_type_info());
-    H5_ERROR(dset = H5Dcreate(g_id, key.c_str(), d_type, f_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
+    H5_ERROR(dset = H5Dcreate(gid, key.c_str(), d_type, f_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
     H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, blk.data()));
 
     H5_ERROR(H5Dclose(dset));
@@ -576,40 +563,72 @@ void HDF5WriteArray(hid_t g_id, std::string const& key, const DataBlock& blk)
     if (f_space != H5S_ALL) H5_ERROR(H5Sclose(f_space));
 }
 
-size_t HDF5SetValue(hid_t g_id, const std::string& key, const Node& node)
+template <typename T>
+struct h5type_traits
 {
-    ASSERT(g_id > 0);
+    static hid_t type()
+    {
+        NOT_IMPLEMENTED;
+        return H5Tcopy(H5T_OPAQUE);
+    }
+    static hid_t space() { return H5Screate(H5S_SCALAR); }
+    static const void* data(const T& v) { return &v; }
+};
+
+#define DEC_TYPE(_T_, _H5_T_) \
+    template <>               \
+    hid_t h5type_traits<_T_>::type() { return H5Tcopy(_H5_T_); }
+
+DEC_TYPE(bool, H5T_NATIVE_HBOOL)
+DEC_TYPE(float, H5T_NATIVE_FLOAT)
+DEC_TYPE(double, H5T_NATIVE_DOUBLE)
+DEC_TYPE(int, H5T_NATIVE_INT)
+DEC_TYPE(long, H5T_NATIVE_LONG)
+DEC_TYPE(unsigned int, H5T_NATIVE_UINT)
+DEC_TYPE(unsigned long, H5T_NATIVE_ULONG)
+#undef DEC_TYPE
+
+template <typename T, std::size_t N>
+struct h5type_traits<std::array<T, N>>
+{
+
+    static hid_t type()
+    {
+        return h5type_traits<T>::type();
+    }
+
+    static hid_t space()
+    {
+        hsize_t d = N;
+        return H5Screate_simple(1, &d, nullptr);
+    }
+
+    static void* data(const std::array<T, N>& d) { return d.data(); }
+};
+
+size_t H5write_safe(hid_t gid, const char* name, const Node& node)
+{
+    ASSERT(gid > 0);
 
     size_t count = 0;
-    if (key.empty())
+
+    if (H5Lexists(gid, name, H5P_DEFAULT) > 0)
     {
+        RUNTIME_ERROR << "Can not rewrite exist dataset/group! [" << name << "]";
     }
-    else if (H5Lexists(g_id, key.c_str(), H5P_DEFAULT) > 0)
+    else if (H5Aexists(gid, name) > 0)
     {
-        RUNTIME_ERROR << "Can not rewrite exist dataset/group! [" << key << "]" << std::endl;
-    }
-    else if (H5Aexists(g_id, key.c_str()) > 0)
-    {
-        H5_ERROR(H5Adelete(g_id, key.c_str()));
+        H5_ERROR(H5Adelete(gid, name));
     }
 
     node.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& s_str) {
-                auto m_type = H5Tcopy(H5T_C_S1);
-                H5_ERROR(H5Tset_size(m_type, s_str.size()));
-                H5_ERROR(H5Tset_strpad(m_type, H5T_STR_NULLTERM));
-                auto m_space = H5Screate(H5S_SCALAR);
-                auto aid = H5Acreate(g_id, key.c_str(), m_type, m_space, H5P_DEFAULT, H5P_DEFAULT);
-                H5_ERROR(H5Awrite(aid, m_type, s_str.c_str()));
-                H5_ERROR(H5Tclose(m_type));
-                H5_ERROR(H5Sclose(m_space));
-                H5_ERROR(H5Aclose(aid));
-                ++count;
+            [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& p_object) {
+                NOT_IMPLEMENTED;
             },
-            [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array) {
+            [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& p_array) {
                 std::vector<char const*> s_array;
-                array->for_each([&](const Node&, const Node& v) {
+                p_array->for_each([&](const Node&, const Node& v) {
                     s_array.push_back(v.as<Node::tags::String>().c_str());
                 });
 
@@ -617,130 +636,41 @@ size_t HDF5SetValue(hid_t g_id, const std::string& key, const Node& node)
                 auto m_space = H5Screate_simple(1, &s, nullptr);
                 auto m_type = H5Tcopy(H5T_C_S1);
                 H5_ERROR(H5Tset_size(m_type, H5T_VARIABLE));
-                auto aid = H5Acreate(g_id, key.c_str(), m_type, m_space, H5P_DEFAULT, H5P_DEFAULT);
+                auto aid = H5Acreate(gid, name, m_type, m_space, H5P_DEFAULT, H5P_DEFAULT);
                 H5_ERROR(H5Awrite(aid, m_type, &s_array[0]));
                 H5_ERROR(H5Tclose(m_type));
                 H5_ERROR(H5Sclose(m_space));
                 H5_ERROR(H5Aclose(aid));
                 count = s;
             },
-            [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>&) {
+            [&](const std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
                 NOT_IMPLEMENTED;
             },
-            [&](const std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
-                bool is_exist = H5Lexists(g_id, key.c_str(), H5P_DEFAULT) != 0;
-                //            H5Oexists_by_name(loc_id, key.c_str(), H5P_DEFAULT) != 0;
-                H5O_info_t g_info;
-                if (is_exist)
-                {
-                    H5_ERROR(H5Oget_info_by_name(g_id, key.c_str(), &g_info, H5P_DEFAULT));
-                }
-
-                if (is_exist && g_info.type != H5O_TYPE_DATASET)
-                {
-                    H5Ldelete(g_id, key.c_str(), H5P_DEFAULT);
-                    is_exist = false;
-                }
-
-                static constexpr int ndims = 3; // blk.GetNDIMS();
-
-                int inner_lower[ndims];
-                int inner_upper[ndims];
-                int outer_lower[ndims];
-                int outer_upper[ndims];
-
-                // blk.GetIndexBox(inner_lower, inner_upper);
-                // blk.GetIndexBox(outer_lower, outer_upper);
-
-                hsize_t m_shape[ndims];
-                hsize_t m_start[ndims];
-                hsize_t m_count[ndims];
-                hsize_t m_stride[ndims];
-                hsize_t m_block[ndims];
-                for (int i = 0; i < ndims; ++i)
-                {
-                    m_shape[i] = static_cast<hsize_t>(outer_upper[i] - outer_lower[i]);
-                    m_start[i] = static_cast<hsize_t>(inner_lower[i] - outer_lower[i]);
-                    m_count[i] = static_cast<hsize_t>(inner_upper[i] - inner_lower[i]);
-                    m_stride[i] = static_cast<hsize_t>(1);
-                    m_block[i] = static_cast<hsize_t>(1);
-                }
-                hid_t m_space = H5Screate_simple(ndims, &m_shape[0], nullptr);
-                H5_ERROR(H5Sselect_hyperslab(m_space, H5S_SELECT_SET, &m_start[0], &m_stride[0], &m_count[0], &m_block[0]));
-                hid_t f_space = H5Screate_simple(ndims, &m_count[0], nullptr);
-                hid_t dset;
-                hid_t d_type = GetHDF5DataType(blk.value_type_info());
-                H5_ERROR(dset = H5Dcreate(g_id, key.c_str(), d_type, f_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
-                H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, blk.data()));
-
-                H5_ERROR(H5Dclose(dset));
-                if (m_space != H5S_ALL) H5_ERROR(H5Sclose(m_space));
-                if (f_space != H5S_ALL) H5_ERROR(H5Sclose(f_space));
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& s_str) {
+                auto m_type = H5Tcopy(H5T_C_S1);
+                H5_ERROR(H5Tset_size(m_type, s_str.size()));
+                H5_ERROR(H5Tset_strpad(m_type, H5T_STR_NULLTERM));
+                auto m_space = H5Screate(H5S_SCALAR);
+                auto aid = H5Acreate(gid, name, m_type, m_space, H5P_DEFAULT, H5P_DEFAULT);
+                H5_ERROR(H5Awrite(aid, m_type, s_str.c_str()));
+                H5_ERROR(H5Tclose(m_type));
+                H5_ERROR(H5Sclose(m_space));
+                H5_ERROR(H5Aclose(aid));
                 ++count;
             },
-            [&](auto&& v) {
+            [&](const std::variant_alternative_t<Node::tags::Complex, Node::value_type>& complex) {
                 NOT_IMPLEMENTED;
-                //                 hid_t d_type = -1;
-                //                 hid_t d_space;
-                //                 count = 1;
-                //                 // auto ndims = v.shape().size();
-                //                 // if (ndims > 0)
-                //                 // {
-                //                 //     size_t d[ndims];
-                //                 //     hsize_t h5d[ndims];
-                //                 //     // entity->extents(d);
-                //                 //     for (size_t i = 0; i < ndims; ++i)
-                //                 //     {
-                //                 //         h5d[i] = d[i];
-                //                 //         count *= d[i];
-                //                 //     }
-                //                 //     d_space = H5Screate_simple(ndims, h5d, nullptr);
-                //                 // }
-                //                 // else
-                //                 // {
-                //                 //     d_space = H5Screate(H5S_SCALAR);
-                //                 // }
-
-                //                 if (false)
-                //                 {
-                //                 }
-                // #define DEC_TYPE(_T_, _H5_T_)                      \
-                //     else if (v.value_type_info() == typeid(_T_)) \
-                //     {                                              \
-                //         d_type = _H5_T_;                           \
-                //     }
-                //                 DEC_TYPE(bool, H5T_NATIVE_HBOOL)
-                //                 DEC_TYPE(float, H5T_NATIVE_FLOAT)
-                //                 DEC_TYPE(double, H5T_NATIVE_DOUBLE)
-                //                 DEC_TYPE(int, H5T_NATIVE_INT)
-                //                 DEC_TYPE(long, H5T_NATIVE_LONG)
-                //                 DEC_TYPE(unsigned int, H5T_NATIVE_UINT)
-                //                 DEC_TYPE(unsigned long, H5T_NATIVE_ULONG)
-                // #undef DEC_TYPE
-                //                 if (d_type != -1)
-                //                 {
-                //                     auto aid = H5Acreate(g_id, key.c_str(), d_type, d_space, H5P_DEFAULT, H5P_DEFAULT);
-                //                     if (blk.is_continue())
-                //                     {
-                //                         H5_ERROR(H5Awrite(aid, d_type, blk.data()));
-                //                     }
-                //                     else
-                //                     {
-                //                         NOT_IMPLEMENTED;
-                //                         // auto* ptr = operator new(blk.GetAlignOf());
-                //                         // blk.CopyOut(ptr);
-                //                         // H5_ERROR(H5Awrite(aid, d_type, ptr));
-                //                         // operator delete(ptr);
-                //                     }
-                //                     H5_ERROR(H5Aclose(aid));
-                //                 }
-                //                 else
-                //                 {
-                //                     FIXME << "Can not write hdf5 attribute! " << std::endl
-                //                           << key << " = " << node << std::endl;
-                //                 }
-                //                 H5_ERROR(H5Sclose(d_space));
-
+            },
+            [&](auto&& v) {
+                typedef std::remove_const_t<std::remove_reference_t<decltype(v)>> T;
+                hid_t d_type = h5type_traits<T>::type();
+                hid_t d_space = h5type_traits<T>::space();
+                hid_t aid = 0;
+                H5_ERROR(aid = H5Acreate(gid, name, d_type, d_space, H5P_DEFAULT, H5P_DEFAULT));
+                H5_ERROR(H5Awrite(aid, d_type, h5type_traits<T>::data(v)));
+                H5_ERROR(H5Aclose(aid));
+                H5_ERROR(H5Sclose(d_space));
+                H5_ERROR(H5Tclose(d_type));
                 ++count;
             }
 
@@ -749,24 +679,71 @@ size_t HDF5SetValue(hid_t g_id, const std::string& key, const Node& node)
     return count;
 }
 
+size_t H5Dwrite_safe(hid_t gid, const char* name, const DataBlock& blk)
+{
+    bool is_exist = H5Lexists(gid, name, H5P_DEFAULT) != 0;
+    //            H5Oexists_by_name(loc_id, name, H5P_DEFAULT) != 0;
+    H5O_info_t g_info;
+    if (is_exist)
+    {
+        H5_ERROR(H5Oget_info_by_name(gid, name, &g_info, H5P_DEFAULT));
+    }
+
+    if (is_exist && g_info.type != H5O_TYPE_DATASET)
+    {
+        H5Ldelete(gid, name, H5P_DEFAULT);
+        is_exist = false;
+    }
+
+    static constexpr int ndims = 3; // blk.GetNDIMS();
+
+    int inner_lower[ndims];
+    int inner_upper[ndims];
+    int outer_lower[ndims];
+    int outer_upper[ndims];
+
+    // blk.GetIndexBox(inner_lower, inner_upper);
+    // blk.GetIndexBox(outer_lower, outer_upper);
+
+    hsize_t m_shape[ndims];
+    hsize_t m_start[ndims];
+    hsize_t m_count[ndims];
+    hsize_t m_stride[ndims];
+    hsize_t m_block[ndims];
+    for (int i = 0; i < ndims; ++i)
+    {
+        m_shape[i] = static_cast<hsize_t>(outer_upper[i] - outer_lower[i]);
+        m_start[i] = static_cast<hsize_t>(inner_lower[i] - outer_lower[i]);
+        m_count[i] = static_cast<hsize_t>(inner_upper[i] - inner_lower[i]);
+        m_stride[i] = static_cast<hsize_t>(1);
+        m_block[i] = static_cast<hsize_t>(1);
+    }
+    hid_t m_space = H5Screate_simple(ndims, &m_shape[0], nullptr);
+    H5_ERROR(H5Sselect_hyperslab(m_space, H5S_SELECT_SET, &m_start[0], &m_stride[0], &m_count[0], &m_block[0]));
+    hid_t f_space = H5Screate_simple(ndims, &m_count[0], nullptr);
+    hid_t dset;
+    hid_t d_type = GetHDF5DataType(blk.value_type_info());
+    H5_ERROR(dset = H5Dcreate(gid, name, d_type, f_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
+    H5_ERROR(H5Dwrite(dset, d_type, m_space, f_space, H5P_DEFAULT, blk.data()));
+
+    H5_ERROR(H5Dclose(dset));
+    if (m_space != H5S_ALL) H5_ERROR(H5Sclose(m_space));
+    if (f_space != H5S_ALL) H5_ERROR(H5Sclose(f_space));
+    return 0;
+}
+
 } // namespace _detail
 
 struct hdf5_node
 {
     std::shared_ptr<hid_t> m_fid_;
-    hid_t m_gid_ = 0;
-    std::string m_key_ = "";
+    hid_t m_gid_ = -1;
 
     hdf5_node() : m_fid_(nullptr) {}
 
     ~hdf5_node() { close_group(); }
 
-    auto open_group(const std::string& gpath, bool create_if_not_exist = true)
-    {
-        return _detail::H5GroupTryOpen(m_gid_ == 0 ? *m_fid_ : m_gid_, gpath, create_if_not_exist);
-    }
-
-    void open(const std::string& file, const std::string& grp = "/", std::string const& mode = "create")
+    void open(const std::string& file, const std::string& gpath = "/", std::string const& mode = "create")
     {
         close_all();
         if (mode == "create")
@@ -784,21 +761,51 @@ struct hdf5_node
             VERBOSE << "Create HDF5 file: " << file;
         }
 
-        std::tie(m_gid_, m_key_) = open_group(grp, mode == "create");
+        char path[gpath.size() + 1];
+        strcpy(path, gpath.c_str());
+        m_gid_ = _detail::H5Gopen_safe(*m_fid_, path);
     }
 
     void close_all() { m_fid_.reset(); }
 
     void close_group()
     {
-        if (m_gid_ != 0)
+        if (m_gid_ > 0)
         {
             H5_ERROR(H5Gclose(m_gid_));
+            m_gid_ = -1;
         }
     }
 
-    Node update(const std::string& path, const Node& data)
+    Node update(const std::string& dpath, const Node& data)
     {
+        char path[dpath.size() + 1];
+
+        strcpy(path, dpath.c_str());
+
+        hid_t gid = 0;
+
+        Node res{};
+
+        auto pch = strrchr(path, '/');
+
+        if (pch != nullptr)
+        {
+            *pch = '\0';
+            ++pch;
+            H5_ERROR(gid = _detail::H5Gopen_safe(m_gid_, path));
+        }
+        else
+        {
+            pch = path;
+            gid = m_gid_;
+        }
+
+        H5_ERROR(_detail::H5write_safe(gid, pch, data));
+
+        if (gid != m_gid_) H5_ERROR(H5Gclose(gid));
+
+        return std::move(res);
     }
 
     Node fetch(const std::string& path, Node const& projection) const
@@ -859,14 +866,100 @@ void NodePluginHDF5::for_each(std::function<void(const Node&, const Node&)> cons
 template <>
 Node NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt)
 {
-    Node res;
+    const char* name;
 
     query.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) { m_container_.update(path, data).swap(res); },
-            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) { m_container_.update(path.str(), data).swap(res); },
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& path) {
+
+            },
+            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& path) {},
             [&](auto&& ele) { NOT_IMPLEMENTED; } //
         });
+
+    Node res;
+
+    hid_t gid;
+
+    if (name != nullptr)
+    {
+        H5_ERROR(gid = _detail::H5Gopen_safe(m_gid_, path));
+    }
+    else
+    {
+        name = path;
+        gid = m_gid_;
+    }
+
+    ASSERT(gid > 0);
+
+    size_t count = 0;
+
+    if (H5Lexists(gid, name, H5P_DEFAULT) > 0)
+    {
+        RUNTIME_ERROR << "Can not rewrite exist dataset/group! [" << name << "]";
+    }
+    else if (H5Aexists(gid, name) > 0)
+    {
+        H5_ERROR(H5Adelete(gid, name));
+    }
+
+    node.visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& p_object) {
+                NOT_IMPLEMENTED;
+            },
+            [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& p_array) {
+                std::vector<char const*> s_array;
+                p_array->for_each([&](const Node&, const Node& v) {
+                    s_array.push_back(v.as<Node::tags::String>().c_str());
+                });
+
+                hsize_t s = s_array.size();
+                auto m_space = H5Screate_simple(1, &s, nullptr);
+                auto m_type = H5Tcopy(H5T_C_S1);
+                H5_ERROR(H5Tset_size(m_type, H5T_VARIABLE));
+                auto aid = H5Acreate(gid, name, m_type, m_space, H5P_DEFAULT, H5P_DEFAULT);
+                H5_ERROR(H5Awrite(aid, m_type, &s_array[0]));
+                H5_ERROR(H5Tclose(m_type));
+                H5_ERROR(H5Sclose(m_space));
+                H5_ERROR(H5Aclose(aid));
+                count = s;
+            },
+            [&](const std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
+                NOT_IMPLEMENTED;
+            },
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& s_str) {
+                auto m_type = H5Tcopy(H5T_C_S1);
+                H5_ERROR(H5Tset_size(m_type, s_str.size()));
+                H5_ERROR(H5Tset_strpad(m_type, H5T_STR_NULLTERM));
+                auto m_space = H5Screate(H5S_SCALAR);
+                auto aid = H5Acreate(gid, name, m_type, m_space, H5P_DEFAULT, H5P_DEFAULT);
+                H5_ERROR(H5Awrite(aid, m_type, s_str.c_str()));
+                H5_ERROR(H5Tclose(m_type));
+                H5_ERROR(H5Sclose(m_space));
+                H5_ERROR(H5Aclose(aid));
+                ++count;
+            },
+            [&](const std::variant_alternative_t<Node::tags::Complex, Node::value_type>& complex) {
+                NOT_IMPLEMENTED;
+            },
+            [&](auto&& v) {
+                typedef std::remove_const_t<std::remove_reference_t<decltype(v)>> T;
+                hid_t d_type = h5type_traits<T>::type();
+                hid_t d_space = h5type_traits<T>::space();
+                hid_t aid = 0;
+                H5_ERROR(aid = H5Acreate(gid, name, d_type, d_space, H5P_DEFAULT, H5P_DEFAULT));
+                H5_ERROR(H5Awrite(aid, d_type, h5type_traits<T>::data(v)));
+                H5_ERROR(H5Aclose(aid));
+                H5_ERROR(H5Sclose(d_space));
+                H5_ERROR(H5Tclose(d_type));
+                ++count;
+            }
+
+        });
+
+    return count;
 
     return res;
 }
