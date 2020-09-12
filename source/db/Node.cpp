@@ -205,6 +205,19 @@ NodeObject& Node::as_object()
 }
 
 const NodeObject& Node::as_object() const { return *std::get<tags::Object>(m_value_); }
+
+Path Node::as_path() const
+{
+    Path path;
+    visit(
+        traits::overloaded{
+            [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& p) { Path(p).swap(path); },
+            [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& spath) { Path(spath).swap(path); },
+            [&](const std::variant_alternative_t<Node::tags::Int, Node::value_type>& idx) { Path{idx}.swap(path); },
+            [&](auto&& ele) { NOT_IMPLEMENTED; } //
+        });
+    return std::move(path);
+}
 } // namespace sp::db
 
 namespace sp::utility

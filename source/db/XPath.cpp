@@ -62,7 +62,7 @@ Path::Path(const Path& other) : m_path_(new std::list<Segment>(*other.m_path_)) 
 
 Path::Path(Path&& other) : m_path_(other.m_path_.release()) {}
 
-Path Path::parse(const std::string& path)
+Path Path::parse(const std::string& spath)
 {
     /** 
      *  TODO : parse uri ??
@@ -70,23 +70,35 @@ Path Path::parse(const std::string& path)
 
     Path res;
 
-    int pos = 0;
+    char path[spath.size() + 1];
+    
+    strcpy(path, spath.c_str());
 
-    do
+    char* pch = strtok(path, "/");
+
+    while (pch != nullptr)
     {
-        auto pend = path.find("/", pos);
+        res.append(std::string(pch));
+        pch = strtok(NULL, "/");
+    }
 
-        if (pend == std::string::npos)
-        {
-            res.append(path.substr(pos));
-            pos = pend;
-        }
-        else
-        {
-            res.append(path.substr(pos, pend - pos));
-            pos = pend + 1;
-        }
-    } while (pos != std::string::npos);
+    // int pos = 0;
+
+    // do
+    // {
+    //     auto pend = path.find("/", pos);
+
+    //     if (pend == std::string::npos)
+    //     {
+    //         res.append(path.substr(pos));
+    //         pos = pend;
+    //     }
+    //     else
+    //     {
+    //         res.append(path.substr(pos, pend - pos));
+    //         pos = pend + 1;
+    //     }
+    // } while (pos != std::string::npos);
 
     return std::move(res);
 }

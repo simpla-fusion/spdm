@@ -110,6 +110,8 @@ public:
 
     const NodeObject& as_object() const;
 
+    Path as_path() const;
+
     void value(value_type v) { m_value_.swap(v); }
 
     value_type& value() { return m_value_; }

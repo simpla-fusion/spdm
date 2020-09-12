@@ -28,6 +28,28 @@ public:
     SliceIndex() = default;
 
     ~SliceIndex() = default;
+
+    void swap(SliceIndex& other)
+    {
+        std::tuple<int, int, int>::swap(other);
+    }
+
+    SliceIndex& operator=(SliceIndex const& other)
+    {
+        SliceIndex(other).swap(*this);
+        return *this;
+    }
+
+    template <typename TFun>
+    void for_each(const TFun& fun) const
+    {
+        int start = 0, end = 1, step = 1;
+        std::tie(start, end, step) = *this;
+        for (int i = start; i != end; i += step)
+        {
+            fun(i);
+        }
+    }
 };
 
 struct QueryIndex : public std::string
@@ -94,6 +116,7 @@ public:
     template <typename U>
     this_type operator/(const U& key) const { return join(*this, key); }
 
+    bool is_absolute() const { return false; }
     bool empty() const { return m_path_->size() == 0; }
 
     void clear() { m_path_->clear(); }
