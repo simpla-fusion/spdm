@@ -82,7 +82,7 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
 
     Path::Segment item;
 
-    while (true)
+    while (it != ie)
     {
         Path::Segment(*it).swap(item);
 
@@ -96,7 +96,7 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
         std::visit(
             traits::overloaded{
                 [&](const std::variant_alternative_t<Path::tags::Key, Path::Segment>& key) {
-                    if (H5Lexists(last, key.c_str(), H5P_DEFAULT) >= 0)
+                    if (H5Lexists(last, key.c_str(), H5P_DEFAULT) > 0)
                     {
                         next = H5Oopen(last, key.c_str(), H5P_DEFAULT);
                     }
@@ -122,6 +122,7 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
         if (next < 0)
         {
             RUNTIME_ERROR << "Can not open/create object : " << prefix;
+            throw std::runtime_error("Can not open/create object " + prefix.str());
             break;
         }
 
@@ -140,7 +141,7 @@ void NodePluginHDF5::load(const Node& opt)
         delete p;
     });
     m_container_.oid = std::shared_ptr<hid_t>(new hid_t(-1), [&](hid_t* p) {
-        if (p != nullptr && *p >= 0) H5_ERROR(H5Oclose(*p));
+        if (p != nullptr && *p >= 0) H5_ERROR(H5Gclose(*p));
         delete p;
     });
 
