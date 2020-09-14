@@ -74,7 +74,6 @@ typedef NodePlugin<hdf5_node> NodePluginHDF5;
 std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool create_if_not_exists = true, bool only_open_prefix = true)
 {
     hid_t last = base;
-
     auto it = path.begin();
     auto ie = path.end();
 
@@ -110,7 +109,23 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
                     }
                 },
                 [&](const std::variant_alternative_t<Path::tags::Index, Path::Segment>& idx) {
-                    next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT);
+                    H5O_info_t oinfo;
+                    H5_ERROR(H5Oget_info(last, &oinfo, H5P_DEFAULT));
+
+                    if (oinfo.type == H5O_TYPE_GROUP)
+                    {
+                        // FIXME: CHECK number of object !!
+                        next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT);
+                    }
+                    else if (oinfo.type == H5O_TYPE_DATASET)
+                    {
+                        // @TODO: get slice of dataset
+                        NOT_IMPLEMENTED;
+                    }
+                    else
+                    {
+                        NOT_IMPLEMENTED;
+                    }
                 },
                 [&](const std::variant_alternative_t<Path::tags::Slice, Path::Segment>& slice) {
                     NOT_IMPLEMENTED;
