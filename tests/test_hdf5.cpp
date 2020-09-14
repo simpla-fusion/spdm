@@ -18,7 +18,11 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     // entry["ids/timeslice"].push_back()["ne"].set_value<std::string>("hello world 1");
     // // entry["ids/timeslice"].push_back()["ne"].set_value<std::string>("hello world 2");
-    entry["ids"]["timeslice"][0]["rho"].set_value<double>(3.1414926);
+    entry["ids"]["timeslice"][-1]["rho"].set_value<double>(3.1414926);
+    entry["ids"]["timeslice"][-1]["rho"].set_value<int>(4);
+
+    REQUIRE(entry["ids"]["timeslice"][0]["rho"].get_value<double>() == 3.1414926);
+    REQUIRE(entry["ids"]["timeslice"][1]["rho"].get_value<int>() == 4);
 
     // std::cout << entry << std::endl;
 

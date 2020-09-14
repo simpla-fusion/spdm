@@ -98,11 +98,11 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
                 [&](const std::variant_alternative_t<Path::tags::Key, Path::Segment>& key) {
                     if (H5Lexists(last, key.c_str(), H5P_DEFAULT) > 0)
                     {
-                        next = H5Oopen(last, key.c_str(), H5P_DEFAULT);
+                        H5_ERROR(next = H5Oopen(last, key.c_str(), H5P_DEFAULT));
                     }
                     else if (create_if_not_exists)
                     {
-                        next = H5Gcreate(last, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                        H5_ERROR(next = H5Gcreate(last, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
                     }
                     else
                     {
@@ -110,7 +110,50 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
                     }
                 },
                 [&](const std::variant_alternative_t<Path::tags::Index, Path::Segment>& idx) {
-                    next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT);
+                    H5O_info_t oinfo;
+                    H5_ERROR(H5Oget_info(last, &oinfo));
+                    if (oinfo.type == H5O_TYPE_GROUP)
+                    {
+                        hsize_t num = 0;
+                        H5_ERROR(H5Gget_num_objs(base, &num));
+                        if (idx < 0 && create_if_not_exists)
+                        {
+                            std::string key = std::to_string(num);
+                            while (H5Lexists(last, key.c_str(), H5P_DEFAULT) > 0)
+                            {
+                                ++num;
+                                key = std::to_string(num);
+                                // H5_ERROR(next = H5Oopen(last, key.c_str(), H5P_DEFAULT));
+                            }
+
+                            if (create_if_not_exists)
+                            {
+                                H5_ERROR(next = H5Gcreate(last, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
+                                H5_ERROR(H5Gflush(last));
+                            }
+                        }
+                        else if (idx < 0)
+                        {
+                            H5_ERROR(next = H5Oopen(last, std::to_string(num).c_str(), H5P_DEFAULT));
+                        }
+                        else if (idx < num)
+                        {
+                            H5_ERROR(next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT));
+                        }
+                        else
+                        {
+                            RUNTIME_ERROR << "OUT OF RANGE!" << idx << " >= " << num;
+                        }
+                    }
+                    else if (oinfo.type == H5O_TYPE_DATASET)
+                    {
+                        NOT_IMPLEMENTED;
+                        // TODO: slice
+                    }
+                    else
+                    {
+                        NOT_IMPLEMENTED;
+                    }
                 },
                 [&](const std::variant_alternative_t<Path::tags::Slice, Path::Segment>& slice) {
                     NOT_IMPLEMENTED;
@@ -398,6 +441,7 @@ void NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt
 
     if (oid != base) H5Oclose(oid);
 }
+
 Node h5_fetch_attribute(hid_t aid, const Node& projection, const Node& opt, bool insert_if_not_exist = true)
 {
     Node res;
