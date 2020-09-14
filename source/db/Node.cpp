@@ -93,21 +93,45 @@ Node NodeArray::slice(int start, int stop, int step) const
     NOT_IMPLEMENTED;
     return Node{};
 }
+bool NodeArray::is_simple() const
+{
+    auto type = value_type();
+
+    return type != Node::tags::Unknown && type != Node::tags::Object && type != Node::tags::Array && type != Node::tags::Block;
+}
+
+int NodeArray::value_type() const
+{
+    int type = Node::tags::Unknown;
+    for (auto const& item : m_container_)
+    {
+        if (type == Node::tags::Unknown)
+        {
+            type = item.type();
+        }
+        else if (type != item.type())
+        {
+            type = Node::tags::Unknown;
+            break;
+        }
+    }
+    return type;
+}
 
 void NodeArray::resize(std::size_t num) { m_container_.resize(num); }
 
-Node& NodeArray::insert(int idx, Node v)
+Node& NodeArray::insert(int idx, Node const& v)
 {
     if (m_container_[idx].value().index() == Node::tags::Null)
     {
-        m_container_[idx].swap(v);
+        Node(v).swap(m_container_[idx]);
     }
     return m_container_[idx];
 }
 
-Node& NodeArray::update(int idx, Node v)
+Node& NodeArray::update(int idx, Node const& v)
 {
-    m_container_[idx].swap(v);
+    Node(v).swap(m_container_[idx]);
     return m_container_[idx];
 }
 
@@ -115,7 +139,7 @@ const Node& NodeArray::at(int idx) const { return m_container_.at(idx); }
 
 Node& NodeArray::at(int idx) { return m_container_.at(idx); }
 
-Node& NodeArray::push_back(Node node)
+Node& NodeArray::push_back(Node const& node)
 {
     m_container_.emplace_back(std::move(node));
     return m_container_.back();
@@ -218,6 +242,7 @@ Path Node::as_path() const
         });
     return std::move(path);
 }
+
 } // namespace sp::db
 
 namespace sp::utility

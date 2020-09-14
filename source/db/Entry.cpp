@@ -80,9 +80,12 @@ void Entry::reset()
 }
 //-------------------------------
 
-Node Entry::update(Node v) { return root()->update(m_path_, std::move(v)); }
+void Entry::update(Node const& v) { root()->update(m_path_, v); }
 
-Node Entry::fetch(Node ops) const { return root()->fetch(m_path_, std::move(ops)); }
+Node Entry::fetch(Node const& ops) { return root()->fetch(m_path_, ops); }
+
+Node Entry::fetch(Node const& ops) const { return root()->fetch(m_path_, ops); }
+
 //-------------------------------
 
 size_t Entry::type() const { return fetch({{"$type", 1}}).get_value<size_t>(); }
@@ -103,11 +106,11 @@ using namespace std::string_literals;
 
 void Entry::resize(int num) { update({{"$resize", num}}); }
 
-Node Entry::pop_back() { return update({{"$pop_back", 1}}); }
+Node Entry::pop_back() { return fetch({{"$pop_back", 1}}); }
 
 Entry Entry::push_back(Node v)
 {
-    int idx = update({{"$push_back", std::move(v)}}).get_value<int>();
+    int idx = fetch({{"$push_back", std::move(v)}}).get_value<int>();
     return Entry(m_root_, Path(m_path_).join(idx));
 }
 

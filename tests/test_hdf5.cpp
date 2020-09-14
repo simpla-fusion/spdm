@@ -14,11 +14,14 @@ TEST_CASE("SpDocument Create", "[SpDB]")
                          {"path", "/a/b/c/d/e"},
                          {"mode", "create"}});
 
-    // entry["ids/timeslice"][0]["ne"].set_value<std::string>("hello world");
+    entry["ntime"].set_value<int>(10);
 
-    // entry["ids/timeslice"][0]["rho"].set_value<double>(3.1414926);
+    // entry["ids/timeslice"].push_back()["ne"].set_value<std::string>("hello world 1");
+    // // entry["ids/timeslice"].push_back()["ne"].set_value<std::string>("hello world 2");
+    entry["ids"]["timeslice"][0]["rho"].set_value<double>(3.1414926);
 
     // std::cout << entry << std::endl;
+
     // std::cout << entry["ids/timeslice"][0]["ne"].get_value<std::string>() << std::endl;
 
     // std::cout << entry["ids/timeslice[@id=1]/ne"].get_value<double>() << std::endl;

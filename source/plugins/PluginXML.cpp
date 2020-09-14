@@ -342,12 +342,39 @@ void NodePluginXML::for_each(std::function<void(const Node&, const Node&)> const
 }
 
 template <>
-Node NodePluginXML::update(const Node&, const Node&, const Node& opt)
+void NodePluginXML::update(const Node&, const Node&, const Node& opt)
 {
     NOT_IMPLEMENTED;
-    return Node{};
 }
+template <>
+Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node& opt)
+{
+    Node res;
+    std::visit(
+        traits::overloaded{
+            [&](const pugi::xml_node& node) {
+                NOT_IMPLEMENTED;
+            },
+            [&](const std::string& path) {
+                query.visit(
+                    traits::overloaded{
+                        [&](const std::variant_alternative_t<sp::db::Node::tags::String, sp::db::Node::value_type>& uri) {
+                            make_node(m_container_, uri).swap(res);
+                        },
+                        [&](const std::variant_alternative_t<sp::db::Node::tags::Path, sp::db::Node::value_type>& path) {
+                            make_node(m_container_, path_to_xpath(path)).swap(res);
+                        },
+                        [&](const std::variant_alternative_t<sp::db::Node::tags::Object, sp::db::Node::value_type>& object_p) {
+                            NOT_IMPLEMENTED;
+                        },
+                        [&](auto&& ele) { NOT_IMPLEMENTED; } //
+                    });
+            },
+            [&](auto&&) {}},
+        m_container_.node);
 
+    return res;
+}
 template <>
 Node NodePluginXML::fetch(const Node& query, const Node& projection, const Node& opt) const
 {

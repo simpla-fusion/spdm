@@ -18,7 +18,7 @@ class Node;
 class NodeObject;
 class NodeArray;
 class DataBlock;
-class Custom
+class Unknown
 {
 };
 } // namespace sp::db
@@ -27,7 +27,7 @@ M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::NodeObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::NodeArray>);
 M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
 M_REGISITER_TYPE_TAG(Path, sp::db::Path);
-M_REGISITER_TYPE_TAG(Custom, sp::db::Custom);
+M_REGISITER_TYPE_TAG(Unknown, sp::db::Unknown);
 
 namespace sp::db
 {
@@ -53,7 +53,7 @@ typedef std::variant<std::nullptr_t,
                                                   //std::array<float, 3>,               //FloatVec3,
                                                   //std::array<double, 3>,              //DoubleVec3,
                                                   //std::array<std::complex<double>, 3> //ComplexVec3,
-                     Custom                       //Custom
+                     Unknown                      //Unknown
                      >
     node_value_type;
 
@@ -205,7 +205,9 @@ public:
 
     //----------------
 
-    virtual Node update(const Node&, const Node& = {}, const Node& opt = {}) = 0;
+    virtual void update(const Node&, const Node& = {}, const Node& opt = {}) = 0;
+
+    virtual Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) = 0;
 
     virtual Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) const = 0;
     //----------------
@@ -255,6 +257,10 @@ public:
 
     Cursor<const Node> children() const;
 
+    bool is_simple() const;
+
+    int value_type() const;
+
     void for_each(std::function<void(const Node&, Node&)> const&);
 
     void for_each(std::function<void(const Node&, const Node&)> const&) const;
@@ -265,15 +271,15 @@ public:
 
     void resize(std::size_t num);
 
-    Node& insert(int idx, Node);
+    Node& insert(int idx, Node const&);
 
-    Node& update(int idx, Node);
+    Node& update(int idx, Node const&);
 
     Node& at(int idx);
 
     const Node& at(int idx) const;
 
-    Node& push_back(Node v = {});
+    Node& push_back(Node const& v = {});
 
     Node pop_back();
 };

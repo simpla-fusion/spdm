@@ -82,7 +82,9 @@ public:
 
     //----------------
 
-    Node update(const Node&, const Node& = {}, const Node& opt = {}) override
+    void update(const Node&, const Node& = {}, const Node& opt = {}) override { NOT_IMPLEMENTED; }
+
+    Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) override
     {
         NOT_IMPLEMENTED;
         return Node{};
@@ -93,7 +95,6 @@ public:
         NOT_IMPLEMENTED;
         return Node{};
     }
-
     //----------------
 
     bool contain(const std::string&) const override { return false; }

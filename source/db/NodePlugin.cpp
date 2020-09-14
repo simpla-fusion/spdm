@@ -10,10 +10,9 @@ typedef NodePlugin<std::map<std::string, Node>> NodeObjectDefault;
 //==========================================================================================
 // NodeObject
 
-
 std::shared_ptr<NodeObject> create_node_object(const Node& opt)
 {
-     std::shared_ptr<NodeObject> res = nullptr;
+    std::shared_ptr<NodeObject> res = nullptr;
 
     opt.visit(
         traits::overloaded{
@@ -181,7 +180,7 @@ Node update_op(Node& node, const std::string& key, const Node& opt)
 }
 
 template <>
-Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& opt)
+void NodeObjectDefault::update(const Node& query, const Node& ops, const Node& opt)
 {
 
     Node root(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
@@ -227,8 +226,6 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
         }
     }
 
-    Node res;
-
     if (ops.type() == Node::tags::Object)
     {
         auto tmp = std::make_shared<NodeObjectDefault>();
@@ -237,22 +234,19 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops, const Node& o
             tmp->m_container_.emplace(key.get_value<Node::tags::String>(), update_op(*self, key.get_value<Node::tags::String>(), d));
         });
 
-        if (tmp->container().size() == 1)
-        {
-            Node(tmp->container().begin()->second).swap(res);
-        }
-        else
-        {
-            Node(std::in_place_index_t<Node::tags::Object>(), tmp).swap(res);
-        }
+        // if (tmp->container().size() == 1)
+        // {
+        //     Node(tmp->container().begin()->second).swap(res);
+        // }
+        // else
+        // {
+        //     Node(std::in_place_index_t<Node::tags::Object>(), tmp).swap(res);
+        // }
     }
     else
     {
         Node(ops).swap(*self);
-        Node(ops).swap(res);
     }
-
-    return std::move(res);
 }
 
 static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetch_ops_map{
@@ -286,6 +280,13 @@ Node fetch_op(const Node& node, const std::string& op, const Node& opt)
     }
 
     return std::move(res);
+}
+
+template <>
+Node NodeObjectDefault::fetch(const Node&, const Node& projection, const Node& opt)
+{
+    NOT_IMPLEMENTED;
+    return Node{};
 }
 
 template <>
