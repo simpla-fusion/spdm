@@ -119,27 +119,30 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
 
                         H5_ERROR(H5Gget_info(last, &ginfo));
 
-                        if (idx < 0 && create_if_not_exists)
+                        if (idx < 0 && ginfo.nlinks > 0)
                         {
-                            int num = ginfo.nlinks;
-                            std::string key = std::to_string(num);
-                            while (H5Lexists(last, key.c_str(), H5P_DEFAULT) > 0)
-                            {
-                                ++num;
-                                key = std::to_string(num);
-                            }
+                            idx = (idx + ginfo.nlinks) % ginfo.nlinks;
+                        }
 
-                            if (create_if_not_exists)
-                            {
-                                H5_ERROR(next = H5Gcreate(last, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
-                                H5_ERROR(H5Gflush(last));
-                            }
-                        }
-                        else if (idx < 0 && ginfo.nlinks > 0)
-                        {
-                            H5_ERROR(next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, ginfo.nlinks - 1, H5P_DEFAULT));
-                        }
-                        else if (idx < ginfo.nlinks)
+                        // if (idx < 0 && create_if_not_exists)
+                        // {
+                        //     int num = ginfo.nlinks;
+                        //     std::string key = std::to_string(num);
+                        //     while (H5Lexists(last, key.c_str(), H5P_DEFAULT) > 0)
+                        //     {
+                        //         ++num;
+                        //         key = std::to_string(num);
+                        //     }
+
+                        //     H5_ERROR(next = H5Gcreate(last, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
+                        // }
+                        // else if (idx < 0 && ginfo.nlinks > 0)
+                        // {
+                        //     H5_ERROR(next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, ginfo.nlinks - 1, H5P_DEFAULT));
+                        // }
+                        // else 
+                        
+                        if (idx < ginfo.nlinks)
                         {
                             H5_ERROR(next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, static_cast<hsize_t>(idx), H5P_DEFAULT));
                         }
