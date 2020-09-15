@@ -67,7 +67,7 @@ std::shared_ptr<NodeObject> Entry::root()
     return m_root_;
 }
 
-const std::shared_ptr<NodeObject> Entry::root() const
+ std::shared_ptr<const NodeObject> Entry::root() const
 {
     assert(m_root_ != nullptr);
     return m_root_;
@@ -94,7 +94,7 @@ bool Entry::is_null() const { return m_root_ == nullptr || type() == Node::tags:
 
 bool Entry::empty() const { return is_null() || count() == 0; }
 
-size_t Entry::count() const { return fetch({{"$count", 1}}).get_value<size_t>(); }
+size_t Entry::count() const { return fetch({{"$count", 0}}).get_value<size_t>(size_t(0)); }
 
 bool Entry::same_as(const Entry& other) const
 {

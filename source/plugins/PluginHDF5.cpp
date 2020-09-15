@@ -71,7 +71,7 @@ struct hdf5_node
 
 typedef NodePlugin<hdf5_node> NodePluginHDF5;
 
-std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool create_if_not_exists = true, bool only_open_prefix = true)
+hid_t h5_open_group(hid_t base, const Path& path, bool create_if_not_exists = true)
 {
     hid_t last = base;
     auto it = path.begin();
@@ -88,7 +88,6 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
         prefix.append(item);
 
         ++it;
-        if (it == ie && only_open_prefix) break;
 
         hid_t next = -1;
 
@@ -108,7 +107,8 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
                         next = -1;
                     }
                 },
-                [&](const std::variant_alternative_t<Path::tags::Index, Path::Segment>& idx) {
+                [&](const std::variant_alternative_t<Path::tags::Index, Path::Segment>& i) {
+                    int idx = i;
                     H5O_info_t oinfo;
 
                     H5_ERROR(H5Oget_info(last, &oinfo));
@@ -124,24 +124,6 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
                             idx = (idx + ginfo.nlinks) % ginfo.nlinks;
                         }
 
-                        // if (idx < 0 && create_if_not_exists)
-                        // {
-                        //     int num = ginfo.nlinks;
-                        //     std::string key = std::to_string(num);
-                        //     while (H5Lexists(last, key.c_str(), H5P_DEFAULT) > 0)
-                        //     {
-                        //         ++num;
-                        //         key = std::to_string(num);
-                        //     }
-
-                        //     H5_ERROR(next = H5Gcreate(last, key.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT));
-                        // }
-                        // else if (idx < 0 && ginfo.nlinks > 0)
-                        // {
-                        //     H5_ERROR(next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, ginfo.nlinks - 1, H5P_DEFAULT));
-                        // }
-                        // else 
-                        
                         if (idx < ginfo.nlinks)
                         {
                             H5_ERROR(next = H5Oopen_by_idx(last, ".", H5_INDEX_NAME, H5_ITER_INC, static_cast<hsize_t>(idx), H5P_DEFAULT));
@@ -170,14 +152,13 @@ std::pair<hid_t, Path::Segment> h5_open_group(hid_t base, const Path& path, bool
 
         if (next < 0)
         {
-            RUNTIME_ERROR << "Can not open/create object : " << prefix;
-            break;
+            THROW_EXCEPTION_OUT_OF_RANGE(prefix);
         }
 
         last = next;
     }
 
-    return std::make_pair(last, item);
+    return last;
 }
 
 template <>
@@ -211,14 +192,14 @@ void NodePluginHDF5::load(const Node& opt)
     if (mode == "create")
     {
         H5_ERROR(*m_container_.fid = H5Fcreate(file_path.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT));
-        H5_ERROR(*m_container_.oid = h5_open_group(*m_container_.fid, Path::parse(group_path), true, false).first);
+        H5_ERROR(*m_container_.oid = h5_open_group(*m_container_.fid, Path::parse(group_path), true));
 
         VERBOSE << "Create HDF5 file: " << file_path << " : " << group_path;
     }
     else
     {
         H5_ERROR(*m_container_.fid = H5Fopen(file_path.c_str(), H5P_DEFAULT, H5P_DEFAULT));
-        H5_ERROR(*m_container_.oid = h5_open_group(*m_container_.fid, Path::parse(group_path), false, false).first);
+        H5_ERROR(*m_container_.oid = h5_open_group(*m_container_.fid, Path::parse(group_path), false));
         VERBOSE << "Open HDF5 file: " << file_path << " : " << group_path;
     }
 }
@@ -267,6 +248,7 @@ Node h5_update_attribute(hid_t gid, const std::string& name, const Node& data)
     data.visit(
         traits::overloaded{
             [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& p_object) {
+                VERBOSE << name;
                 NOT_IMPLEMENTED;
             },
             [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& p_array) {
@@ -319,7 +301,7 @@ Node h5_update_attribute(hid_t gid, const std::string& name, const Node& data)
     return std::move(res);
 }
 
-Node h5_update(hid_t gid, const Path::Segment& item, const NodeObject& obj, const Node& opt)
+Node h5_update(hid_t gid, const Path::Segment& item, const NodeObject& obj)
 {
     Node res;
 
@@ -332,9 +314,9 @@ Node h5_update(hid_t gid, const Path::Segment& item, const NodeObject& obj, cons
     }
     return res;
 }
-Node h5_update(hid_t gid, const Path::Segment& item, const NodeArray& data, const Node& opt) { NOT_IMPLEMENTED; }
-Node h5_update(hid_t gid, const Path::Segment& item, const DataBlock& data, const Node& opt) { NOT_IMPLEMENTED; }
-Node h5_update(hid_t gid, const Path::Segment& item, const Node& data, const Node& opt)
+Node h5_update(hid_t gid, const Path::Segment& item, const NodeArray& data) { NOT_IMPLEMENTED; }
+Node h5_update(hid_t gid, const Path::Segment& item, const DataBlock& data) { NOT_IMPLEMENTED; }
+Node h5_update(hid_t gid, const Path::Segment& item, const Node& data)
 {
 
     Node res;
@@ -415,39 +397,39 @@ Node h5_update(hid_t gid, const Path::Segment& item, const Node& data, const Nod
 }
 
 template <>
-void NodePluginHDF5::update(const Node& query, const Node& data, const Node& opt)
+void NodePluginHDF5::update(const Node& query, const Node& data)
 {
 
     auto path = query.as_path();
 
     hid_t base = path.is_absolute() ? *m_container_.fid : *m_container_.oid;
 
-    hid_t oid = -1;
-
-    Path::Segment item;
-
-    std::tie(oid, item) = h5_open_group(base, path, true);
+    hid_t oid = h5_open_group(base, path.prefix(), true);
 
     Node res;
 
     data.visit(
         traits::overloaded{
-            [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& p_object) { h5_update(oid, item, *p_object, opt); },
-            [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& p_array) { h5_update(oid, item, *p_array, opt); },
-            [&](const std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { h5_update(oid, item, blk, opt); },
+            [&](const std::variant_alternative_t<Node::tags::Object, Node::value_type>& p_object) { h5_update(oid, path.last(), *p_object); },
+            [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& p_array) { h5_update(oid, path.last(), *p_array); },
+            [&](const std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { h5_update(oid, path.last(), blk); },
             [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& p_object) { NOT_IMPLEMENTED; },
-            [&](auto&& v) { h5_update_attribute(oid, std::get<std::string>(item), v).swap(res); },
+            [&](auto&& v) { h5_update_attribute(oid, std::get<std::string>(path.last()), v).swap(res); },
         });
 
     if (oid != base) H5Oclose(oid);
 }
-Node h5_fetch_object(hid_t oid, const Node& projection, const Node& opt)
+
+Node h5_fetch_object(hid_t oid, const Node& projection, bool insert_if_not_exisit = false)
 {
+    Node res{};
+
     NOT_IMPLEMENTED;
-    return Node{};
+
+    return res;
 }
 
-Node h5_fetch_attribute(hid_t oid)
+Node h5_fetch_attribute(hid_t oid, const Node& projection)
 {
     Node res;
 
@@ -511,10 +493,6 @@ Node h5_fetch_attribute(hid_t oid)
     {
         NOT_IMPLEMENTED;
     }
-    else if (type_class == H5T_NO_CLASS)
-    {
-        NOT_IMPLEMENTED;
-    }
     else if (type_class == H5T_OPAQUE)
     {
         NOT_IMPLEMENTED;
@@ -523,26 +501,22 @@ Node h5_fetch_attribute(hid_t oid)
     {
         NOT_IMPLEMENTED;
     }
+    else if (type_class == H5T_NO_CLASS)
+    {
+        NOT_IMPLEMENTED;
+    }
 
     H5Tclose(d_type);
     H5Sclose(d_space);
+
     return res;
 }
 
-template <>
-Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node& opt)
+Node h5_fetch(hid_t base, const Path& path, const Node& projection, bool insert_if_not_exisit = false)
 {
     Node res;
 
-    auto path = query.as_path();
-
-    hid_t base = path.is_absolute() ? *m_container_.fid : *m_container_.oid;
-
-    hid_t gid = -1;
-
-    Path::Segment item;
-
-    std::tie(gid, item) = h5_open_group(base, path, true);
+    hid_t gid = h5_open_group(base, path.prefix(), insert_if_not_exisit);
 
     std::visit(
         traits::overloaded{
@@ -551,19 +525,23 @@ Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node
                 {
                     hid_t oid = -1;
                     H5_ERROR(oid = H5Oopen(gid, key.c_str(), H5P_DEFAULT));
-                    h5_fetch_object(oid, projection, opt).swap(res);
+                    h5_fetch_object(oid, projection, insert_if_not_exisit).swap(res);
                     H5_ERROR(H5Oclose(oid));
                 }
                 else if (H5Aexists(gid, key.c_str()) > 0)
                 {
                     hid_t aid = -1;
                     H5_ERROR(aid = H5Aopen(gid, key.c_str(), H5P_DEFAULT));
-                    h5_fetch_attribute(aid).swap(res);
+                    h5_fetch_attribute(aid, projection).swap(res);
                     H5_ERROR(H5Aclose(aid));
+                }
+                else if (insert_if_not_exisit)
+                {
+                    h5_update_attribute(gid, key, projection).swap(res);
                 }
                 else
                 {
-                    h5_update_attribute(gid, key, projection);
+                    Node(projection).swap(res);
                 }
             },
             [&](std::variant_alternative_t<Path::tags::Index, Path::Segment>& idx) {
@@ -573,7 +551,7 @@ Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node
                 {
                     hid_t oid = -1;
                     H5_ERROR(oid = H5Oopen_by_idx(gid, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT));
-                    h5_fetch_object(oid, projection, opt).swap(res);
+                    h5_fetch_object(oid, projection, insert_if_not_exisit).swap(res);
                     H5_ERROR(H5Oclose(oid));
                 }
                 else
@@ -586,84 +564,37 @@ Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node
                 slice.for_each([&](int idx) {
                     hid_t oid = -1;
                     H5_ERROR(oid = H5Oopen_by_idx(gid, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT));
-                    h5_fetch_object(oid, projection, opt).swap(array.push_back());
+                    h5_fetch_object(oid, projection, insert_if_not_exisit).swap(array.push_back());
                     H5_ERROR(H5Oclose(oid));
                 });
             },
-            [&](auto&& v) {
-                NOT_IMPLEMENTED;
-            }},
-        item);
+            [&](auto&& v) { NOT_IMPLEMENTED; }},
+        path.last());
 
     if (gid != base) H5Oclose(gid);
+
     return res;
 }
 
 template <>
-Node NodePluginHDF5::fetch(const Node& query, const Node& projection, const Node& opt) const
+Node NodePluginHDF5::fetch(const Node& query, const Node& projection)
 {
-    Node res;
 
     auto path = query.as_path();
 
     hid_t base = path.is_absolute() ? *m_container_.fid : *m_container_.oid;
 
-    hid_t gid = -1;
+    return h5_fetch(base, path, projection, true /*insert_if_not_exisit*/);
+}
 
-    Path::Segment item;
+template <>
+const Node NodePluginHDF5::fetch(const Node& query, const Node& projection) const
+{
+    auto path = query.as_path();
 
-    std::tie(gid, item) = h5_open_group(base, path, false);
+    hid_t base = path.is_absolute() ? *m_container_.fid : *m_container_.oid;
 
-    std::visit(
-        traits::overloaded{
-            [&](const std::variant_alternative_t<Path::tags::Key, Path::Segment>& key) {
-                if (H5Lexists(gid, key.c_str(), H5P_DEFAULT) > 0 && H5Oexists_by_name(gid, key.c_str(), H5P_DEFAULT) > 0)
-                {
-                    hid_t oid = -1;
-                    H5_ERROR(oid = H5Oopen(gid, key.c_str(), H5P_DEFAULT));
-                    h5_fetch_object(oid, projection, opt).swap(res);
-                    H5_ERROR(H5Oclose(oid));
-                }
-                else if (H5Aexists(gid, key.c_str()) > 0)
-                {
-                    hid_t aid = -1;
-                    H5_ERROR(aid = H5Aopen(gid, key.c_str(), H5P_DEFAULT));
-                    h5_fetch_attribute(aid).swap(res);
-                    H5_ERROR(H5Oclose(aid));
-                }
-            },
-            [&](const std::variant_alternative_t<Path::tags::Index, Path::Segment>& idx) {
-                H5G_info_t ginfo;
-
-                H5_ERROR(H5Gget_info(gid, &ginfo));
-
-                if (idx < ginfo.nlinks && idx >= 0)
-                {
-                    hid_t oid = -1;
-                    H5_ERROR(oid = H5Oopen_by_idx(gid, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT));
-                    h5_fetch_object(oid, projection, opt).swap(res);
-                    H5_ERROR(H5Oclose(oid));
-                }
-                else
-                {
-                    RUNTIME_ERROR << "index out of range! " << idx << ">= " << ginfo.nlinks;
-                }
-            },
-            [&](const std::variant_alternative_t<Path::tags::Slice, Path::Segment>& slice) {
-                auto& array = res.as_array();
-                slice.for_each([&](int idx) {
-                    hid_t oid = -1;
-                    H5_ERROR(oid = H5Oopen_by_idx(gid, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT));
-                    h5_fetch_object(oid, projection, opt).swap(array.push_back());
-                    H5_ERROR(H5Oclose(oid));
-                });
-            },
-            [&](auto const& seg) { NOT_IMPLEMENTED; }},
-        item);
-
-    if (gid != base) H5Oclose(gid);
-    VERBOSE << res;
-    return res;
+    return h5_fetch(base, path, projection, false /*insert_if_not_exisit*/);
 }
 
 SPDB_ENTRY_REGISTER(hdf5, hdf5_node);

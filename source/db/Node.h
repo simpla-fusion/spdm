@@ -200,11 +200,11 @@ public:
 
     //----------------
 
-    virtual void update(const Node&, const Node& = {}, const Node& opt = {}) = 0;
+    virtual void update(const Node&, const Node& = {}) = 0;
 
-    virtual Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) = 0;
+    virtual Node fetch(const Node&, const Node& projection = {}) = 0;
 
-    virtual Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) const = 0;
+    virtual const Node fetch(const Node&, const Node& projection = {}) const = 0;
     //----------------
 
     virtual bool contain(const std::string&) const = 0;

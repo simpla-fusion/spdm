@@ -82,15 +82,15 @@ public:
 
     //----------------
 
-    void update(const Node&, const Node& = {}, const Node& opt = {}) override { NOT_IMPLEMENTED; }
+    void update(const Node&, const Node& = {}) override { NOT_IMPLEMENTED; }
 
-    Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) override
+    Node fetch(const Node&, const Node& projection = {}) override
     {
         NOT_IMPLEMENTED;
         return Node{};
     }
 
-    Node fetch(const Node&, const Node& projection = {}, const Node& opt = {}) const override
+    const Node fetch(const Node&, const Node& projection = {}) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

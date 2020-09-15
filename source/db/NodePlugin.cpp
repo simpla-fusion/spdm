@@ -180,7 +180,7 @@ Node update_op(Node& node, const std::string& key, const Node& opt)
 }
 
 template <>
-void NodeObjectDefault::update(const Node& query, const Node& ops, const Node& opt)
+void NodeObjectDefault::update(const Node& query, const Node& ops)
 {
 
     Node root(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
@@ -283,14 +283,14 @@ Node fetch_op(const Node& node, const std::string& op, const Node& opt)
 }
 
 template <>
-Node NodeObjectDefault::fetch(const Node&, const Node& projection, const Node& opt)
+Node NodeObjectDefault::fetch(const Node& query, const Node& ops)
 {
     NOT_IMPLEMENTED;
     return Node{};
 }
 
 template <>
-Node NodeObjectDefault::fetch(const Node& query, const Node& ops, const Node& opt) const
+const Node NodeObjectDefault::fetch(const Node& query, const Node& ops) const
 {
     Node root(const_cast<NodeObjectDefault*>(this)->shared_from_this());
 

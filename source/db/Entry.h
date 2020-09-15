@@ -49,7 +49,7 @@ public:
 
     std::shared_ptr<NodeObject> root();
 
-    const std::shared_ptr<NodeObject> root() const;
+    std::shared_ptr<const NodeObject> root() const;
 
     Path& path() { return m_path_; }
 
