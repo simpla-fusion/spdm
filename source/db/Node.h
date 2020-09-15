@@ -200,9 +200,9 @@ public:
 
     //----------------
 
-    virtual Node update(const Node&, const Node& = {}) = 0;
+    virtual Node update(const Path&, const Node& = {}) = 0;
 
-    virtual const Node fetch(const Node&, const Node& projection = {}) const = 0;
+    virtual const Node fetch(const Path&, const Node& projection = {}) const = 0;
     //----------------
 
     virtual bool contain(const std::string&) const = 0;

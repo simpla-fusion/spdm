@@ -180,7 +180,7 @@ Node update_op(Node& node, const std::string& key, const Node& opt)
 }
 
 template <>
-Node NodeObjectDefault::update(const Node& query, const Node& ops)
+Node NodeObjectDefault::update(const Path& path, const Node& ops)
 {
     Node res;
 
@@ -188,43 +188,34 @@ Node NodeObjectDefault::update(const Node& query, const Node& ops)
 
     Node* self = &root;
 
-    if (query.type() != Node::tags::Path)
+    for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
     {
-        NOT_IMPLEMENTED;
+        if (it->index() > Path::tags::Index)
+        {
+            NOT_IMPLEMENTED;
+        }
+        std::visit(
+            sp::traits::overloaded{
+                [&](std::variant_alternative_t<Node::tags::Null, Node::value_type>&) {
+                    auto obj = std::make_shared<NodeObjectDefault>();
+                    self->value().emplace<Node::tags::Object>(obj);
+                    self = &(obj->container()[std::get<Path::tags::Key>(*it)]);
+                },
+                [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
+                    self = &(std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container()[std::get<Path::tags::Key>(*it)]);
+                },
+                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
+                    self = &(array_p->at(std::get<Path::tags::Index>(*it)));
+                },
+                [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
+                [&](auto&& v) { NOT_IMPLEMENTED; }},
+            self->value());
     }
-    else
+
+    if (self == nullptr)
     {
-        auto path = query.as<Node::tags::Path>();
-
-        for (auto it = path.begin(), ie = path.end(); it != ie; ++it)
-        {
-            if (it->index() > Path::tags::Index)
-            {
-                NOT_IMPLEMENTED;
-            }
-            std::visit(
-                sp::traits::overloaded{
-                    [&](std::variant_alternative_t<Node::tags::Null, Node::value_type>&) {
-                        auto obj = std::make_shared<NodeObjectDefault>();
-                        self->value().emplace<Node::tags::Object>(obj);
-                        self = &(obj->container()[std::get<Path::tags::Key>(*it)]);
-                    },
-                    [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                        self = &(std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container()[std::get<Path::tags::Key>(*it)]);
-                    },
-                    [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                        self = &(array_p->at(std::get<Path::tags::Index>(*it)));
-                    },
-                    [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) { NOT_IMPLEMENTED; },
-                    [&](auto&& v) { NOT_IMPLEMENTED; }},
-                self->value());
-        }
-
-        if (self == nullptr)
-        {
-            RUNTIME_ERROR << "Illegal path! " << path.str();
-            // throw std::runtime_error("Illegal path! " + path.str());
-        }
+        RUNTIME_ERROR << "Illegal path! " << path.str();
+        // throw std::runtime_error("Illegal path! " + path.str());
     }
 
     if (ops.type() == Node::tags::Object)
@@ -286,61 +277,57 @@ Node fetch_op(const Node& node, const std::string& op, const Node& opt)
 }
 
 template <>
-const Node NodeObjectDefault::fetch(const Node& query, const Node& ops) const
+const Node NodeObjectDefault::fetch(const Path& path, const Node& ops) const
 {
     Node root(const_cast<NodeObjectDefault*>(this)->shared_from_this());
 
     Node* self = &root;
 
-    if (query.type() == Node::tags::Path)
+    for (auto it = path.begin(), ie = path.end(); it != ie && self != nullptr; ++it)
     {
-        auto path = query.as<Node::tags::Path>();
-
-        for (auto it = path.begin(), ie = path.end(); it != ie && self != nullptr; ++it)
-        {
-            std::visit(
-                sp::traits::overloaded{
-                    [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
-                        auto& obj = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container();
-                        auto k_it = obj.find(std::get<Path::tags::Key>(*it));
-                        self = k_it == obj.end() ? nullptr : &k_it->second;
-                    },
-                    [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
-                        self = &array_p->at(std::get<Path::tags::Index>(*it));
-                    },
-                    [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
-                        NOT_IMPLEMENTED;
-                        self = nullptr;
-                    },
-                    [&](auto&& v) { self = nullptr; }},
-                self->value());
-        }
-
-        if (self == nullptr)
-        {
-            RUNTIME_ERROR << "Illegal path! " << path.str();
-            throw std::runtime_error("Illegal path! " + path.str());
-        }
-    }
-    else if (query.type() == Node::tags::String)
-    {
-        auto key = self->as<Node::tags::String>();
-
         std::visit(
             sp::traits::overloaded{
                 [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
                     auto& obj = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container();
-                    auto it = obj.find(key);
-                    self = it == obj.end() ? nullptr : &it->second;
+                    auto k_it = obj.find(std::get<Path::tags::Key>(*it));
+                    self = k_it == obj.end() ? nullptr : &k_it->second;
                 },
-
+                [&](std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) {
+                    self = &array_p->at(std::get<Path::tags::Index>(*it));
+                },
+                [&](std::variant_alternative_t<Node::tags::Block, Node::value_type>& blk) {
+                    NOT_IMPLEMENTED;
+                    self = nullptr;
+                },
                 [&](auto&& v) { self = nullptr; }},
             self->value());
     }
-    else
+
+    if (self == nullptr)
     {
-        self = nullptr;
+        RUNTIME_ERROR << "Illegal path! " << path.str();
+        throw std::runtime_error("Illegal path! " + path.str());
     }
+
+    // else if (query.type() == Node::tags::String)
+    // {
+    //     auto key = self->as<Node::tags::String>();
+
+    //     std::visit(
+    //         sp::traits::overloaded{
+    //             [&](std::variant_alternative_t<Node::tags::Object, Node::value_type>& object_p) {
+    //                 auto& obj = std::dynamic_pointer_cast<NodeObjectDefault>(object_p)->container();
+    //                 auto it = obj.find(key);
+    //                 self = it == obj.end() ? nullptr : &it->second;
+    //             },
+
+    //             [&](auto&& v) { self = nullptr; }},
+    //         self->value());
+    // }
+    // else
+    // {
+    //     self = nullptr;
+    // }
 
     Node res;
     if (self == nullptr)

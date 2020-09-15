@@ -71,7 +71,7 @@ Path Path::parse(const std::string& spath)
     Path res;
 
     char path[spath.size() + 1];
-    
+
     strcpy(path, spath.c_str());
 
     char* pch = strtok(path, "/");
@@ -133,8 +133,10 @@ std::string Path::str() const
                        << std::get<1>(slice) << ","
                        << std::get<2>(slice)
                        << "]";
-                } //
-            },
+                },
+                [&](const std::variant_alternative_t<tags::Query,Segment>& query) {
+                    os << "<QUERY>";
+                }},
             item);
     }
 

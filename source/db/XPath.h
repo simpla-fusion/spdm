@@ -52,8 +52,33 @@ public:
     }
 };
 
-struct QueryIndex : public std::string
+enum query_tags
 {
+    SP_QUERY_COUNT,
+    SP_QUERY_TYPE,
+    SP_QUERY_SHAPE,
+    SP_QUERY_RESIZE,
+    SP_QUERY_PUSH_BACK,
+    SP_QUERY_POP_BACK
+};
+struct QueryCmd
+{
+
+    QueryCmd(query_tags tag)
+    {
+    }
+    QueryCmd(QueryCmd const& other)
+    {
+    }
+    ~QueryCmd() = default;
+
+    void swap(QueryCmd& other) {}
+    QueryCmd& operator=(QueryCmd const& other)
+    {
+        QueryCmd(other).swap(*this);
+        return *this;
+    }
+    bool operator==(QueryCmd const& other) const { return false; }
 };
 
 class Path
@@ -73,7 +98,7 @@ public:
         std::string,    //  key or query
         int,            //  index
         SliceIndex,     //  slice
-        QueryIndex>
+        QueryCmd>
         Segment;
 
     typedef Path this_type;
@@ -87,6 +112,11 @@ public:
     Path(const Path& prefix);
 
     Path(Path&& prefix);
+
+    Path(query_tags tag) : Path()
+    {
+        m_path_->emplace_back(QueryCmd(tag));
+    }
 
     template <typename... Args,
               std::enable_if_t<std::is_constructible_v<Segment, Args...>, int> = 0>
