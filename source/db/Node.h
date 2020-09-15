@@ -200,9 +200,7 @@ public:
 
     //----------------
 
-    virtual void update(const Node&, const Node& = {}) = 0;
-
-    virtual Node fetch(const Node&, const Node& projection = {}) = 0;
+    virtual Node update(const Node&, const Node& = {}) = 0;
 
     virtual const Node fetch(const Node&, const Node& projection = {}) const = 0;
     //----------------

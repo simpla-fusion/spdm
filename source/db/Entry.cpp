@@ -67,7 +67,7 @@ std::shared_ptr<NodeObject> Entry::root()
     return m_root_;
 }
 
- std::shared_ptr<const NodeObject> Entry::root() const
+std::shared_ptr<const NodeObject> Entry::root() const
 {
     assert(m_root_ != nullptr);
     return m_root_;
@@ -80,9 +80,7 @@ void Entry::reset()
 }
 //-------------------------------
 
-void Entry::update(Node const& v) { root()->update(m_path_, v); }
-
-Node Entry::fetch(Node const& ops) { return root()->fetch(m_path_, ops); }
+Node Entry::update(Node const& v) { return root()->update(m_path_, v); }
 
 const Node Entry::fetch(Node const& ops) const { return root()->fetch(m_path_, ops); }
 
@@ -106,11 +104,11 @@ using namespace std::string_literals;
 
 void Entry::resize(int num) { update({{"$resize", num}}); }
 
-Node Entry::pop_back() { return fetch({{"$pop_back", 1}}); }
+Node Entry::pop_back() { return update({{"$pop_back", 1}}); }
 
 Entry Entry::push_back(Node v)
 {
-    int idx = fetch({{"$push_back", std::move(v)}}).get_value<int>();
+    int idx = update({{"$push_back", std::move(v)}}).get_value<int>();
     return Entry(m_root_, Path(m_path_).join(idx));
 }
 

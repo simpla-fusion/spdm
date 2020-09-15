@@ -59,9 +59,7 @@ public:
 
     //-------------------------------------------------------------------------
 
-    void update(Node const& v);
-
-    Node fetch(Node const& projection = {});
+    Node update(Node const& v);
 
     const Node fetch(Node const& projection = {}) const;
 

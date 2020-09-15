@@ -180,8 +180,9 @@ Node update_op(Node& node, const std::string& key, const Node& opt)
 }
 
 template <>
-void NodeObjectDefault::update(const Node& query, const Node& ops)
+Node NodeObjectDefault::update(const Node& query, const Node& ops)
 {
+    Node res;
 
     Node root(std::in_place_index_t<Node::tags::Object>(), this->shared_from_this());
 
@@ -247,6 +248,8 @@ void NodeObjectDefault::update(const Node& query, const Node& ops)
     {
         Node(ops).swap(*self);
     }
+
+    return *self;
 }
 
 static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetch_ops_map{
@@ -280,13 +283,6 @@ Node fetch_op(const Node& node, const std::string& op, const Node& opt)
     }
 
     return std::move(res);
-}
-
-template <>
-Node NodeObjectDefault::fetch(const Node& query, const Node& ops)
-{
-    NOT_IMPLEMENTED;
-    return Node{};
 }
 
 template <>
