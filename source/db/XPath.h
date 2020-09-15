@@ -129,7 +129,7 @@ public:
 
     auto end() const { return m_path_->end(); }
 
-    Path prefix() const;
+    const Path prefix() const;
 
     const Segment& last() const { return m_path_->back(); }
 

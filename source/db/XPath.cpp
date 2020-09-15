@@ -141,7 +141,7 @@ std::string Path::str() const
     return os.str();
 }
 
-Path Path::prefix() const
+const Path Path::prefix() const
 {
     Path res;
 
