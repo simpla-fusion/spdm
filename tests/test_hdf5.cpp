@@ -23,6 +23,8 @@ TEST_CASE("SpDocument Create", "[SpDB]")
 
     REQUIRE(entry["ids"]["timeslice"][0]["rho"].get_value<double>() == 3.1414926);
     REQUIRE(entry["ids"]["timeslice"][1]["rho"].get_value<int>() == 4);
+    
+    REQUIRE_THROWS_AS(entry["ids"]["timeslice"][2]["rho"].get_value<int>() == 0, std::out_of_range);
 
     // std::cout << entry << std::endl;
 

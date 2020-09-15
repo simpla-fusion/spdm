@@ -63,7 +63,7 @@ public:
 
     Node fetch(Node const& projection = {});
 
-    Node fetch(Node const& projection = {}) const;
+    const Node fetch(Node const& projection = {}) const;
 
     //-------------------------------------------------------------------------
 
@@ -86,6 +86,12 @@ public:
     template <int IDX, typename... Others,
               std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
     void set_value(Others&&... others) { update(Node(std::in_place_index_t<IDX>(), std::forward<Others>(others)...)); }
+
+    template <typename V, typename... Args>
+    V get_value(Args&&... args) { return fetch().get_value<V>(std::forward<Args>(args)...); }
+
+    template <int IDX, typename... Args>
+    auto get_value(Args&&... args) { return fetch().get_value<IDX>(std::forward<Args>(args)...); }
 
     template <typename V, typename... Args>
     V get_value(Args&&... args) const { return fetch().get_value<V>(std::forward<Args>(args)...); }

@@ -237,7 +237,7 @@ Path Node::as_path() const
         traits::overloaded{
             [&](const std::variant_alternative_t<Node::tags::Path, Node::value_type>& p) { Path(p).swap(path); },
             [&](const std::variant_alternative_t<Node::tags::String, Node::value_type>& spath) { Path(spath).swap(path); },
-            [&](const std::variant_alternative_t<Node::tags::Int, Node::value_type>& idx) { Path{idx}.swap(path); },
+            [&](const std::variant_alternative_t<Node::tags::Integer, Node::value_type>& idx) { Path{idx}.swap(path); },
             [&](auto&& ele) { NOT_IMPLEMENTED; } //
         });
     return std::move(path);

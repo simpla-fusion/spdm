@@ -40,12 +40,7 @@ typedef std::variant<std::nullptr_t,
                      Path,                        //Path
                      std::string,                 //String,
                      bool,                        //Boolean,
-                     char,                        //Char
                      int,                         //Integer,
-                     unsigned int,                //
-                     long,                        //Long,
-                     unsigned long,               //
-                     float,                       //Float,
                      double,                      //Double,
                      std::complex<double>,        //Complex,
                                                   //std::array<int, 3>,                 //IntVec3,

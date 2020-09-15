@@ -285,7 +285,7 @@ std::string make_msg(Others const&... others)
 #define FILE_LINE_STAMP_STRING \
     ("[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + ":0: " + std::string(__PRETTY_FUNCTION__) + "] ")
 #define MAKE_ERROR_MSG(...) \
-    sp::logger::make_msg("From [", (__FILE__), ":", (__LINE__), ":0: ", (__PRETTY_FUNCTION__), "] \t", __VA_ARGS__)
+    sp::logger::make_msg(" From [", (__FILE__), ":", (__LINE__), ":0: ", (__PRETTY_FUNCTION__), "] \t", __VA_ARGS__)
 
 // sp::logger::make_error_msg( (__FILE__),(__LINE__), (__PRETTY_FUNCTION__),__VA_ARGS__)
 
@@ -387,9 +387,11 @@ std::string make_msg(Others const&... others)
 ///<<"["<<__FILE__<<":"<<__LINE__<<":"<<
 ///(__PRETTY_FUNCTION__)<<"]:\n\t"<<(_MSG_);}throw(std::runtime_error("runtime error"));}
 //
-#define THROW_EXCEPTION_RUNTIME_ERROR(_MSG_) \
-    {                                        \
-        RUNTIME_ERROR << _MSG_ << std::endl; \
+#define THROW_EXCEPTION_RUNTIME_ERROR(...)                        \
+    {                                                             \
+        auto msg = MAKE_ERROR_MSG(__VA_ARGS__);                   \
+        sp::logger::Logger(sp::logger::LOG_ERROR_RUNTIME) << msg; \
+        throw std::runtime_error(msg);                            \
     }
 //
 ////#define THROW_EXCEPTION_LOGIC_ERROR(_MSG_)  {{logger::Logger(sp::logger::LOG_ERROR)
@@ -403,9 +405,11 @@ std::string make_msg(Others const&... others)
 ////#define THROW_EXCEPTION_OUT_OF_RANGE(_MSG_) { {logger::Logger(sp::logger::LOG_ERROR)
 ///<<"["<<__FILE__<<":"<<__LINE__<<":"<<
 ///(__PRETTY_FUNCTION__)<<"]:\n\t"<<(_MSG_);}throw(std::out_of_range("out of entity_id_range"));}
-#define THROW_EXCEPTION_OUT_OF_RANGE(_MSG_)  \
-    {                                        \
-        OUT_OF_RANGE << _MESG_ << std::endl; \
+#define THROW_EXCEPTION_OUT_OF_RANGE(...)                        \
+    {                                                            \
+        auto msg = MAKE_ERROR_MSG("OUT OF RANGE! ",__VA_ARGS__);                  \
+        sp::logger::Logger(sp::logger::LOG_ERROR_OUT_OF_RANGE) << msg; \
+        throw std::out_of_range(msg);                            \
     }
 //
 //#define THROW_EXCEPTION_BAD_ALLOC(_SIZE_, _error_)    sp::logger::Logger(sp::logger::LOG_ERROR)<<__FILE__<<"["<<__LINE__<<"]: "<< "Can not Serialize enough memory! [ "  \

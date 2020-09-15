@@ -84,7 +84,7 @@ void Entry::update(Node const& v) { root()->update(m_path_, v); }
 
 Node Entry::fetch(Node const& ops) { return root()->fetch(m_path_, ops); }
 
-Node Entry::fetch(Node const& ops) const { return root()->fetch(m_path_, ops); }
+const Node Entry::fetch(Node const& ops) const { return root()->fetch(m_path_, ops); }
 
 //-------------------------------
 

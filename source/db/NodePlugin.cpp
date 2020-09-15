@@ -261,9 +261,9 @@ static std::map<std::string, std::function<Node(const Node&, const Node&)>> fetc
                  [&](const std::variant_alternative_t<Node::tags::Array, Node::value_type>& array_p) { res = array_p->size(); },
                  [&](auto&& v) { res = 0; }},
              node.value());
-         return Node(std::in_place_index_t<Node::tags::Int>(), res);
+         return Node(std::in_place_index_t<Node::tags::Integer>(), res);
      }},
-    {"$type", [](const Node& node, const Node& opt) { return Node(std::in_place_index_t<Node::tags::Int>(), node.type()); }},
+    {"$type", [](const Node& node, const Node& opt) { return Node(std::in_place_index_t<Node::tags::Integer>(), node.type()); }},
 };
 
 Node fetch_op(const Node& node, const std::string& op, const Node& opt)
