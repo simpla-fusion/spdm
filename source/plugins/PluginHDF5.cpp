@@ -146,9 +146,7 @@ hid_t h5_open_group(hid_t base, const Path& path, bool create_if_not_exists = tr
                 [&](const std::variant_alternative_t<Path::tags::Slice, Path::Segment>& slice) {
                     NOT_IMPLEMENTED;
                 },
-                [&](const std::variant_alternative_t<Path::tags::Query, Path::Segment>& query) {
-                    NOT_IMPLEMENTED;
-                }},
+                [&](auto&&) { NOT_IMPLEMENTED; }},
             item);
 
         if (last != base) H5Oclose(last);
@@ -443,7 +441,7 @@ Node h5_update(hid_t gid, const std::string& key, const Node& data)
 }
 
 template <>
-Node NodePluginHDF5::update(const Path& path, const Node& data)
+Node NodePluginHDF5::update(const Path& path, int op, const Node& data)
 {
 
     hid_t base = path.is_absolute() ? *m_container_.fid : *m_container_.oid;
@@ -463,9 +461,6 @@ Node NodePluginHDF5::update(const Path& path, const Node& data)
             [&](const std::variant_alternative_t<Path::tags::Slice, Path::Segment>& slice) {
                 auto& array = res.as_array();
                 slice.for_each([&](int idx) { h5_update(gid, idx, data).swap(array.push_back()); });
-            },
-            [&](const std::variant_alternative_t<Path::tags::Query, Path::Segment>& query) {
-                NOT_IMPLEMENTED;
             },
             [&](auto&& v) { NOT_IMPLEMENTED; }},
         path.last());
@@ -618,7 +613,7 @@ Node h5_fetch(hid_t gid, const std::string& key, const Node& ops)
 }
 
 template <>
-const Node NodePluginHDF5::fetch(const Path& path, const Node& ops) const
+const Node NodePluginHDF5::fetch(const Path& path, int op, const Node& ops) const
 {
     hid_t base = path.is_absolute() ? *m_container_.fid : *m_container_.oid;
 
@@ -633,9 +628,6 @@ const Node NodePluginHDF5::fetch(const Path& path, const Node& ops) const
             [&](const std::variant_alternative_t<Path::tags::Slice, Path::Segment>& slice) {
                 auto& array = res.as_array();
                 slice.for_each([&](int idx) { h5_fetch(gid, idx, ops).swap(array.push_back()); });
-            },
-            [&](const std::variant_alternative_t<Path::tags::Query, Path::Segment>& query) {
-                NOT_IMPLEMENTED;
             },
             [&](auto&& v) {
                 h5_fetch(gid, v, ops).swap(res);

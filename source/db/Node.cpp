@@ -52,6 +52,8 @@ NodeArray& NodeArray::operator=(const NodeArray& other)
 
 size_t NodeArray::size() const { return m_container_.size(); }
 
+size_t NodeArray::count() const { return m_container_.size(); }
+
 void NodeArray::clear() { m_container_.clear(); }
 
 Cursor<Node> NodeArray::children()

@@ -59,9 +59,13 @@ public:
     bool empty() const override
     {
         NOT_IMPLEMENTED;
-        return false;
+        return count() = 0;
     }
-
+    size_t count() const override
+    {
+        NOT_IMPLEMENTED;
+        return 0;
+    }
     void clear() override { NOT_IMPLEMENTED; }
 
     Cursor<Node> children() override
@@ -82,9 +86,9 @@ public:
 
     //----------------
 
-    Node update(const Path&, const Node& = {}) override { NOT_IMPLEMENTED; }
+    Node update(const Path&, int op, const Node& = {}) override { NOT_IMPLEMENTED; }
 
-     const Node fetch(const Path&, const Node& projection = {}) const override
+    const Node fetch(const Path&, int op, const Node& projection = {}) const override
     {
         NOT_IMPLEMENTED;
         return Node{};

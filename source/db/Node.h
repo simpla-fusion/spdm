@@ -17,6 +17,7 @@ namespace sp::db
 class Node;
 class NodeObject;
 class NodeArray;
+class NodeFunction;
 class DataBlock;
 class Unknown
 {
@@ -25,6 +26,7 @@ class Unknown
 
 M_REGISITER_TYPE_TAG(Object, std::shared_ptr<sp::db::NodeObject>);
 M_REGISITER_TYPE_TAG(Array, std::shared_ptr<sp::db::NodeArray>);
+M_REGISITER_TYPE_TAG(Function, sp::db::NodeFunction);
 M_REGISITER_TYPE_TAG(Block, sp::db::DataBlock);
 M_REGISITER_TYPE_TAG(Path, sp::db::Path);
 M_REGISITER_TYPE_TAG(Unknown, sp::db::Unknown);
@@ -48,13 +50,30 @@ typedef std::variant<std::nullptr_t,
                                                   //std::array<float, 3>,               //FloatVec3,
                                                   //std::array<double, 3>,              //DoubleVec3,
                                                   //std::array<std::complex<double>, 3> //ComplexVec3,
-                     Unknown                      //Unknown
+                     Unknown                      // number of type, this must be the last
                      >
     node_value_type;
 
 class Node
 {
 public:
+    enum ops
+    {
+        Null = 0,
+        TYPE,
+        SHAPE,
+        RESIZE,
+        COUNT,
+        SET,
+        GET,
+        INSET,
+        DELETE,
+        PUSH_BACK,
+        POP_BACK,
+
+        OP_NUMBER // this must be the last
+    };
+
     typedef node_value_type value_type;
 
     typedef traits::type_tags<value_type> tags;
@@ -186,6 +205,8 @@ public:
 
     virtual bool is_same(const NodeObject&) const = 0;
 
+    virtual size_t count() const = 0;
+
     virtual bool empty() const = 0;
 
     virtual void clear() = 0;
@@ -200,9 +221,9 @@ public:
 
     //----------------
 
-    virtual Node update(const Path&, const Node& = {}) = 0;
+    virtual Node update(const Path&, int op, const Node& = {}) = 0;
 
-    virtual const Node fetch(const Path&, const Node& projection = {}) const = 0;
+    virtual const Node fetch(const Path&, int op, const Node& = {}) const = 0;
     //----------------
 
     virtual bool contain(const std::string&) const = 0;
@@ -245,6 +266,8 @@ public:
     void clear();
 
     size_t size() const;
+    
+    size_t count() const;
 
     Cursor<Node> children();
 

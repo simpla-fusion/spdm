@@ -59,9 +59,9 @@ public:
 
     //-------------------------------------------------------------------------
 
-    Node update(Path const& path = {}, Node const& v = {});
+    Node update(int op, Node const& args = {});
 
-    const Node fetch(Path const& path = {}, Node const& data = {}) const;
+    const Node fetch(int op=Node::ops::GET, Node const& args = {}) const;
 
     //-------------------------------------------------------------------------
 
@@ -79,11 +79,11 @@ public:
 
     template <typename V, typename... Others,
               std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
-    void set_value(Others&&... others) { update({}, Node(std::in_place_type_t<V>(), std::forward<Others>(others)...)); }
+    void set_value(Others&&... others) { update(Node::ops::SET, Node(std::in_place_type_t<V>(), std::forward<Others>(others)...)); }
 
     template <int IDX, typename... Others,
               std::enable_if_t<sizeof...(Others) != 0 && std::is_constructible_v<Node, Others...>, int> = 0>
-    void set_value(Others&&... others) { update({}, Node(std::in_place_index_t<IDX>(), std::forward<Others>(others)...)); }
+    void set_value(Others&&... others) { update(Node::ops::SET, Node(std::in_place_index_t<IDX>(), std::forward<Others>(others)...)); }
 
     template <typename V, typename... Args>
     V get_value(Args&&... args) { return fetch().get_value<V>(std::forward<Args>(args)...); }
@@ -112,6 +112,7 @@ public:
 
     //-------------------------------------------------------------------------
     // access
+
     template <typename... Args>
     Entry at(Args&&... args) & { return Entry(root(), Path(m_path_).join(std::forward<Args>(args)...)); }
 

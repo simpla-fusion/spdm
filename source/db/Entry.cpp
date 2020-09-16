@@ -80,19 +80,19 @@ void Entry::reset()
 }
 //-------------------------------
 
-Node Entry::update(Path const& p, Node const& v) { return root()->update(m_path_.join(p), v); }
+Node Entry::update(int op, Node const& args) { return root()->update(m_path_, op, args); }
 
-const Node Entry::fetch(Path const& path, Node const& v) const { return root()->fetch(m_path_.join(path), v); }
+const Node Entry::fetch(int op, Node const& args) const { return root()->fetch(m_path_, op, args); }
 
 //-------------------------------
 
-size_t Entry::type() const { return fetch(SP_QUERY_TYPE).get_value<size_t>(); }
+size_t Entry::type() const { return fetch(Node::ops::TYPE).get_value<size_t>(); }
 
 bool Entry::is_null() const { return m_root_ == nullptr || type() == Node::tags::Null; }
 
 bool Entry::empty() const { return is_null() || count() == 0; }
 
-size_t Entry::count() const { return fetch(SP_QUERY_COUNT).get_value<size_t>(size_t(0)); }
+size_t Entry::count() const { return fetch(Node::ops::COUNT).get_value<size_t>(size_t(0)); }
 
 bool Entry::same_as(const Entry& other) const
 {
@@ -102,13 +102,13 @@ bool Entry::same_as(const Entry& other) const
 //-----------------------------------------------------------------------------------------------------------
 using namespace std::string_literals;
 
-void Entry::resize(int num) { update(SP_QUERY_POP_BACK); }
+void Entry::resize(int num) { update(Node::ops::RESIZE, num); }
 
-Node Entry::pop_back() { return update(SP_QUERY_POP_BACK); }
+Node Entry::pop_back() { return update(Node::ops::POP_BACK); }
 
 Entry Entry::push_back(Node v)
 {
-    int idx = update(Path(SP_QUERY_PUSH_BACK), v).get_value<int>();
+    int idx = update(Node::ops::PUSH_BACK, v).get_value<int>();
     return Entry(m_root_, Path(m_path_).join(idx));
 }
 

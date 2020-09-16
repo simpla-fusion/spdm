@@ -134,9 +134,7 @@ std::string Path::str() const
                        << std::get<2>(slice)
                        << "]";
                 },
-                [&](const std::variant_alternative_t<tags::Query,Segment>& query) {
-                    os << "<QUERY>";
-                }},
+                [&](auto&&) {}},
             item);
     }
 

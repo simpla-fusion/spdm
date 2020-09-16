@@ -52,35 +52,6 @@ public:
     }
 };
 
-enum query_tags
-{
-    SP_QUERY_COUNT,
-    SP_QUERY_TYPE,
-    SP_QUERY_SHAPE,
-    SP_QUERY_RESIZE,
-    SP_QUERY_PUSH_BACK,
-    SP_QUERY_POP_BACK
-};
-struct QueryCmd
-{
-
-    QueryCmd(query_tags tag)
-    {
-    }
-    QueryCmd(QueryCmd const& other)
-    {
-    }
-    ~QueryCmd() = default;
-
-    void swap(QueryCmd& other) {}
-    QueryCmd& operator=(QueryCmd const& other)
-    {
-        QueryCmd(other).swap(*this);
-        return *this;
-    }
-    bool operator==(QueryCmd const& other) const { return false; }
-};
-
 class Path
 {
 public:
@@ -90,15 +61,15 @@ public:
         Key,
         Index,
         Slice,
-        Query
+        Function
     };
 
     typedef std::variant<
         std::nullptr_t, //
         std::string,    //  key or query
         int,            //  index
-        SliceIndex,     //  slice
-        QueryCmd>
+        SliceIndex      //  slice
+        >
         Segment;
 
     typedef Path this_type;
@@ -113,13 +84,7 @@ public:
 
     Path(Path&& prefix);
 
-    Path(query_tags tag) : Path()
-    {
-        m_path_->emplace_back(QueryCmd(tag));
-    }
-
-    template <typename... Args,
-              std::enable_if_t<std::is_constructible_v<Segment, Args...>, int> = 0>
+    template <typename... Args, std::enable_if_t<std::is_constructible_v<Segment, Args...>, int> = 0>
     Path(Args&&... args) : Path() { append(std::forward<Args>(args)...); }
 
     Path& operator=(Path const& other)
@@ -147,6 +112,7 @@ public:
     this_type operator/(const U& key) const { return join(*this, key); }
 
     bool is_absolute() const { return false; }
+
     bool empty() const { return m_path_->size() == 0; }
 
     void clear() { m_path_->clear(); }
@@ -192,6 +158,7 @@ public:
         append(std::forward<Components>(comp)...);
         return std::move(*this);
     }
+
     template <typename... Components>
     Path join(Components&&... comp) const&
     {
@@ -282,6 +249,7 @@ private:
     std::string m_fragment_;
     Path m_path_;
 };
+
 namespace literals
 {
 inline Path operator"" _p(const char* s, std::size_t) { return Path::parse(s); }
