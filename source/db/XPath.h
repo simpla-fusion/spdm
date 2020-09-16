@@ -60,8 +60,7 @@ public:
         Null,
         Key,
         Index,
-        Slice,
-        Function
+        Slice
     };
 
     typedef std::variant<

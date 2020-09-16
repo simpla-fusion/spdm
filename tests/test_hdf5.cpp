@@ -15,20 +15,14 @@ TEST_CASE("SpDocument Create", "[SpDB]")
                          {"mode", "create"}});
 
     entry["ntime"].set_value<int>(10);
-
-    // entry["ids/timeslice"].push_back()["ne"].set_value<std::string>("hello world 1");
-    // // entry["ids/timeslice"].push_back()["ne"].set_value<std::string>("hello world 2");
     entry["ids"]["timeslice"].resize(4);
-
     REQUIRE(entry["ids"]["timeslice"].count() == 4);
 
-    entry["ids"]["timeslice"].push_back()["rho"].set_value<double>(3.1414926);
-    entry["ids"]["timeslice"].push_back()["rho"].set_value<int>(4);
+    entry["ids"]["timeslice"][2]["rho"].set_value<double>(3.1414926);
+    entry["ids"]["timeslice"][3]["rho"].set_value<int>(4);
 
-    REQUIRE(entry["ids"]["timeslice"].count() == 6);
-
-    REQUIRE(entry["ids"]["timeslice"][4]["rho"].get_value<double>() == 3.1414926);
-    REQUIRE(entry["ids"]["timeslice"][5]["rho"].get_value<int>() == 4);
+    REQUIRE(entry["ids"]["timeslice"][2]["rho"].get_value<double>() == 3.1414926);
+    REQUIRE(entry["ids"]["timeslice"][3]["rho"].get_value<int>() == 4);
 
     REQUIRE_THROWS_AS(entry["ids"]["timeslice"][6]["rho"].get_value<int>() == 0, std::out_of_range);
 

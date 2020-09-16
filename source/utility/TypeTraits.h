@@ -1225,21 +1225,21 @@ overloaded(Ts...)->overloaded<Ts...>;
 M_REGISITER_TYPE_TAG(Null, std::nullptr_t);                                               //Empty,
 M_REGISITER_TYPE_TAG(Block, std::tuple<std::shared_ptr<void>, int, std::vector<size_t>>); //Block
 M_REGISITER_TYPE_TAG(String, std::string);                                                //String,
-M_REGISITER_TYPE_TAG(Boolean, bool);                                                         //Boolean,
+M_REGISITER_TYPE_TAG(Boolean, bool);                                                      //Boolean,
 // M_REGISITER_TYPE_TAG(Char, char);                                                         //Char,
-M_REGISITER_TYPE_TAG(Integer, int);                                                           //Integer,
+M_REGISITER_TYPE_TAG(Integer, int); //Integer,
 // M_REGISITER_TYPE_TAG(UInt, unsigned int);                                                 //UInteger,
 // M_REGISITER_TYPE_TAG(Long, long);                                                         //Long,
 // M_REGISITER_TYPE_TAG(ULong, unsigned long);                                               //ULong,
 // M_REGISITER_TYPE_TAG(Float, float);                                                       //Float,
-M_REGISITER_TYPE_TAG(Double, double);                                                     //Double,
-M_REGISITER_TYPE_TAG(Complex, std::complex<double>);                                      //Complex,
-M_REGISITER_TYPE_TAG(IntVec3, std::array<int, 3>);                                        //IntVec3,
-M_REGISITER_TYPE_TAG(LongVec3, std::array<long, 3>);                                      //LongVec3,
-M_REGISITER_TYPE_TAG(FloatVec3, std::array<float, 3>);                                    //FloatVec3,
-M_REGISITER_TYPE_TAG(DoubleVec3, std::array<double, 3>);                                  //DoubleVec3,
-M_REGISITER_TYPE_TAG(ComplexVec3, std::array<std::complex<double>, 3>);                   //ComplexVec3,
-M_REGISITER_TYPE_TAG(UNKNOWN, std::any);                                                  //Other
+M_REGISITER_TYPE_TAG(Float, double);                                    //Float,
+M_REGISITER_TYPE_TAG(Complex, std::complex<double>);                    //Complex,
+M_REGISITER_TYPE_TAG(IntVec3, std::array<int, 3>);                      //IntVec3,
+M_REGISITER_TYPE_TAG(LongVec3, std::array<long, 3>);                    //LongVec3,
+M_REGISITER_TYPE_TAG(FloatVec3, std::array<float, 3>);                  //FloatVec3,
+M_REGISITER_TYPE_TAG(DoubleVec3, std::array<double, 3>);                //DoubleVec3,
+M_REGISITER_TYPE_TAG(ComplexVec3, std::array<std::complex<double>, 3>); //ComplexVec3,
+M_REGISITER_TYPE_TAG(UNKNOWN, std::any);                                //Other
 
 #define M_REGISITER_TYPE_TAG_TEMPLATE(_TAG_, _TMPL_)         \
     namespace sp                                             \

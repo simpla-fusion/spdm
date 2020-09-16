@@ -54,7 +54,7 @@ TEST_CASE("Array", "[SpDB:Entry]")
     entry["C"][3] = 6.0 + 4.0i;
 
     entry["C"].push_back().set_value<int>(135);
-    entry["C"].push_back().set_value<sp::db::Node::tags::Double>(6.0);
+    entry["C"].push_back().set_value<sp::db::Node::tags::Float>(6.0);
     entry["C"].push_back().set_value<std::string>("3.1415926");
 
     REQUIRE(entry["C"].count() == 7);

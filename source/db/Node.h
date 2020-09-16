@@ -62,11 +62,12 @@ public:
         Null = 0,
         TYPE,
         SHAPE,
-        RESIZE,
         COUNT,
-        SET,
         GET,
-        INSET,
+
+        RESIZE,
+        SET,
+        INSERT,
         DELETE,
         PUSH_BACK,
         POP_BACK,
@@ -266,7 +267,7 @@ public:
     void clear();
 
     size_t size() const;
-    
+
     size_t count() const;
 
     Cursor<Node> children();

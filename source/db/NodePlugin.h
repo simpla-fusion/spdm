@@ -58,9 +58,9 @@ public:
 
     bool empty() const override
     {
-        NOT_IMPLEMENTED;
-        return count() = 0;
+        return count() == 0;
     }
+    
     size_t count() const override
     {
         NOT_IMPLEMENTED;
