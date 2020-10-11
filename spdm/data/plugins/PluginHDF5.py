@@ -9,6 +9,8 @@ from typing import (Dict, Any)
 from spdm.util.logger import logger
 from spdm.util.LazyProxy import LazyProxy
 
+SPDM_LIGHTDATA_MAX_LENGTH = 128
+
 
 class EntryHDF5Handler(LazyProxy.Handler):
 
@@ -16,11 +18,12 @@ class EntryHDF5Handler(LazyProxy.Handler):
         for p in path:
             if isinstance(p, str):
                 pass
-            elif p < 0:
-                p = f"_id_{len(grp)}"
-            else:
-                p = f"_id_{p}"
-            logger.debug(p)
+            elif isinstance(p, int):
+                if p < 0:
+                    num = len(grp)
+                    p = p % num
+                p = f"__id__{p}"
+
             grp = grp.require_group(p)
 
         return grp
@@ -46,7 +49,9 @@ class EntryHDF5Handler(LazyProxy.Handler):
             if array_value.dtype.type is numpy.object_:
                 grp = self.require_group(grp, path)
 
-                for idx,v in enumerate(value):
+                grp.attrs["__is_list__"] = True
+
+                for idx, v in enumerate(value):
                     self.put(grp, [idx], v)
 
             elif array_value.dtype.type is numpy.unicode_:
@@ -73,29 +78,58 @@ class EntryHDF5Handler(LazyProxy.Handler):
             # else:
             #     raise RuntimeError(f"Unsupported data type {type(value)}")
 
-    def get(self, obj, projection=None):
+    def get(self, obj, path=[], projection=None):
+        if obj is None:
+            raise RuntimeError("None group")
+
+        if isinstance(path, str):
+            path = path.split(LazyProxy.DELIMITER)
+        elif not isinstance(path, collections.abc.Sequence):
+            raise TypeError(f"Illegal path type {type(path)}! {path}")
+
+        for p in path:
+            if isinstance(p, str):
+                pass
+            elif isinstance(p, int):
+                if p < 0:
+                    num = len(grp)
+                    p = p % num
+                p = f"__id__{p}"
+
+            if p in obj:
+                obj = obj[p]
+            elif p in obj.attrs:
+                obj = obj.attrs[p]
+
         if projection is None:
             if isinstance(obj, h5py.Group):
-                return {**self.get(obj.attrs),
-                        **{k: self.get(obj[k]) for k in obj}}
+                if obj.attrs.get("__is_list__", False):
+                    res = [self.get(obj[k]) for k in obj]
+                else:
+                    res = {**self.get(obj.attrs), **{k: self.get(obj[k]) for k in obj}}
             elif isinstance(obj, h5py.AttributeManager):
-                return {k: self.get(obj[k]) for k in obj}
+                res = {k: self.get(obj[k]) for k in obj if not k.startswith("__")}
             else:
-                return obj
+                res = obj
         elif isinstance(projection, str):
             if isinstance(obj, h5py.Group):
-                return self.get(obj.attrs, projection) or self.get(obj.get(projection, None))
+                res = self.get(obj.attrs, projection) or self.get(obj.get(projection, None))
             elif isinstance(obj, h5py.AttributeManager):
-                return self.get(obj.get(projection, None))
+                res = self.get(obj.get(projection, None))
+
         elif isinstance(obj, h5py.Group):
-            return {**self.get(obj.attrs, projection),
-                    **{k: self.get(obj[k])
-                       for k, v in projection.items() if v > 0 and k in obj}}
+            logger.debug(obj.attrs)
+            if obj.attrs.get("__is_list__", False):
+                res = []
+            else:
+                res = {**self.get(obj.attrs, projection),
+                       **{k: self.get(obj[k]) for k, v in projection.items() if v > 0 and k in obj}}
         elif isinstance(obj, h5py.AttributeManager):
-            return {k: self.get(obj[k])
-                    for k, v in projection.items() if v > 0 and k in obj}
+            res = {k: self.get(obj[k]) for k, v in projection.items() if v > 0 and k in obj}
         else:
-            return obj
+            res = obj
+
+        return res
 
 
 class DocumentHDF5(Document):
@@ -106,7 +140,7 @@ class DocumentHDF5(Document):
         self._handler = EntryHDF5Handler()
         logger.debug(f"Open HDF5 File: {path} mode=\"{mode}\"")
 
-    @property
+    @ property
     def entry(self):
         return LazyProxy(self._file, handler=self._handler)
 

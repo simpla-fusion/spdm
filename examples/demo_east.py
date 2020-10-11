@@ -8,7 +8,10 @@ if __name__ == '__main__':
 
     entry = collection.create(shot=55555)
     # entry1 = collection.open(shot=55555)
-    entry.a.b.c = [{"e": 5}, {"d": 4}]
+    entry.a.b.c = [{"e": 5}, {"d": [1, 4, 3], "f":"hello world"}]
+    entry.a.b.__a = 5
+    logger.debug(entry.a.b.c)
+
     # pprint.pprint(collection)
     # a = entry.pf_active.coil[0].element[0].geometry.retangle.r
     # b = a.__fetch__()
