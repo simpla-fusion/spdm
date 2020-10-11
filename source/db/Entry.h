@@ -61,7 +61,7 @@ public:
 
     Node update(int op, Node const& args = {});
 
-    const Node fetch(int op=Node::ops::GET, Node const& args = {}) const;
+    const Node fetch(int op = Node::ops::GET, Node const& args = {}) const;
 
     //-------------------------------------------------------------------------
 

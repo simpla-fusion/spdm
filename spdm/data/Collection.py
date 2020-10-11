@@ -6,21 +6,15 @@ from typing import Any, Dict, List, NewType, Tuple
 
 import numpy
 
-from ..util.logger import logger
-from ..util.objectid import ObjectId, oid
-from ..util.utilities import getitem, setitem, whoami
+from spdm.util.logger import logger
+from spdm.util.utilities import whoami
+from spdm.util.LazyProxy import LazyProxy
+from .Document import Document
 
-DObject = Dict[str, Any]  # document object type
-
-
-InsertOneResult = collections.namedtuple(
-    "InsertOneResult", "inserted_id success")
-InsertManyResult = collections.namedtuple(
-    "InsertManyResult", "inserted_ids success")
-UpdateResult = collections.namedtuple(
-    "UpdateResult", "upserted_id success")
-DeleteResult = collections.namedtuple(
-    "DeleteResult", "deleted_id success")
+InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
+InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
+UpdateResult = collections.namedtuple("UpdateResult", "upserted_id success")
+DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 
 
 class Collection(object):
@@ -32,44 +26,40 @@ class Collection(object):
     def __init__(self, *args,  **kwargs):
         super().__init__()
 
-    def find_one(self, predicate: DObject, *args, **kwargs):
+    def create(self, *args, **kwargs):
+        return LazyProxy(self.insert_one(*args, **kwargs))
+
+    def open(self, *args, **kwargs):
+        return LazyProxy(self.find_one(*args, **kwargs))
+
+    def find_one(self, predicate=None, *args, **kwargs):
         raise NotImplementedError(whoami(self))
 
-    def find(self, predicate: DObject = None, projection: DObject = None,
-             *args, **kwargs):
+    def find(self, predicate: Document = None, projection: Document = None, *args, **kwargs):
         raise NotImplementedError(whoami(self))
 
-    def insert_one(self, document: DObject,
-                   *args, **kwargs) -> InsertOneResult:
+    def insert_one(self, document: Document, *args, **kwargs) -> InsertOneResult:
         raise NotImplementedError(whoami(self))
 
-    def insert_many(self, documents,
-                    *args, **kwargs) -> InsertManyResult:
+    def insert_many(self, documents, *args, **kwargs) -> InsertManyResult:
         return [self.insert_one(doc, *args, **kwargs) for doc in documents]
 
-    def replace_one(self, predicate: DObject, replacement: DObject,
-                    *args, **kwargs) -> UpdateResult:
+    def replace_one(self, predicate: Document, replacement: Document,  *args, **kwargs) -> UpdateResult:
         raise NotImplementedError(whoami(self))
 
-    def update_one(self, predicate: DObject, update: DObject,
-                   *args, **kwargs) -> UpdateResult:
+    def update_one(self, predicate: Document, update: Document,  *args, **kwargs) -> UpdateResult:
         raise NotImplementedError(whoami(self))
 
-    def update_many(self, predicate: DObject, updates: list,
-                    *args, **kwargs) -> UpdateResult:
-        return [self.update_one(predicate, update, *args, **kwargs)
-                for update in updates]
+    def update_many(self, predicate: Document, updates: list,  *args, **kwargs) -> UpdateResult:
+        return [self.update_one(predicate, update, *args, **kwargs) for update in updates]
 
-    def delete_one(self, predicate: DObject,
-                   *args, **kwargs) -> DeleteResult:
+    def delete_one(self, predicate: Document,  *args, **kwargs) -> DeleteResult:
         raise NotImplementedError(whoami(self))
 
-    def delete_many(self, predicate: DObject,
-                    *args, **kwargs) -> DeleteResult:
+    def delete_many(self, predicate: Document, *args, **kwargs) -> DeleteResult:
         raise NotImplementedError(whoami(self))
 
-    def count(self, predicate: DObject = None,
-              *args, **kwargs) -> int:
+    def count(self, predicate: Document = None,   *args, **kwargs) -> int:
         raise NotImplementedError(whoami(self))
 
     ######################################################################
