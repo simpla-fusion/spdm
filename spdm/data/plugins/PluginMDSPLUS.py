@@ -192,5 +192,17 @@ class MDSplusConnect:
             return MDSplusLocalCollection(tree_path, prefix=self._prefix)
 
 
- 
-__SP_EXPORT__ = MDSPlusCollection
+def connect_mdsplus(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):
+
+    path = pathlib.Path(getattr(uri, "path", uri))
+
+    return Collection(path, *args,
+                      filename_pattern=filename_pattern,
+                      document_factory=lambda fpath, mode: Document(
+                          root=h5py.File(fpath, mode=mode),
+                          handler=handler or MDSplusHandler()
+                      ),
+                      **kwargs)
+
+
+__SP_EXPORT__ = connect_mdsplus

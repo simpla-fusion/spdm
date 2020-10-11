@@ -2,6 +2,7 @@
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 import pathlib
+import collections
 from xml.etree import (ElementTree, ElementInclude)
 import numpy as np
 
@@ -14,26 +15,12 @@ class Handler(LazyProxy.Handler):
 
 
 class HandlerProxy(Handler):
-    def __init__(self, next_handler, mapping_file, *args, mapper=None, **kwargs):
+    def __init__(self, next_handler, mapping_files, *args, mapper=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._next_handler = next_handler
+        self._trees = self.load_mapping(mapping_files)
 
-        mapping_file = pathlib.Path(mapping_file)
-
-        self._root = ElementTree.parse(mapping_file).getroot()
-
-        for child in self._root.findall("{http://www.w3.org/2001/XInclude}include"):
-            fp = mapping_file.parent/child.attrib["href"]
-            try:
-                self._root.insert(0, ElementTree.parse(fp).getroot())
-            except ElementTree.ParseError as error:
-                raise RuntimeError(f"Parse Error in {fp}: {error}")
-
-            self._root.remove(child)
-
-        logger.debug(f"Loading mapping from {mapping_file}")
-
-        def default_mapper(path):
+        def default_mapper(xtree, path):
             xpath = ""
             for p in path:
                 if type(p) is int:
@@ -47,26 +34,60 @@ class HandlerProxy(Handler):
             if len(xpath) > 0 and xpath[0] == "/":
                 xpath = xpath[1:]
 
-            return self._root.find(xpath) if xpath != "" else None
+            return xtree.find(xpath) if xpath != "" else None
 
         if mapper is None:
             self._mapper = default_mapper
         else:
-            self._mapper = lambda p: mapper(self._root, p)
+            self._mapper = lambda xtree, path: mapper(xtree, path)
+
+    def load_mapping(self, path):
+
+        if isinstance(path, str):
+            return self.load_mapping(pathlib.Path(path))
+        elif isinstance(path, collections.abc.Sequence):
+            trees = []
+            for fp in path:
+                trees.extend(self.load_mapping(fp))
+            return trees
+        elif path.is_dir():
+            trees = []
+            for fp in path.glob("*.xml"):
+                trees.extend(self.load_mapping(fp))
+            return trees
+
+        root = ElementTree.parse(path).getroot()
+
+        # for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
+        #     fp = mapping_file.parent/child.attrib["href"]
+        #     try:
+        #         root.insert(0, ElementTree.parse(fp).getroot())
+        #     except ElementTree.ParseError as error:
+        #         raise RuntimeError(f"Parse Error in {fp}: {error}")
+
+        #     root.remove(child)
+
+        logger.debug(f"Loading mapping file from {path}")
+
+        return [root]
 
     def mapping(self, p):
-        obj = self._mapper(p)
+        obj = None
+        for tree in self._trees:
+            obj = self._mapper(tree, p)
+            if obj is not None:
+                break
+
         if obj is None or isinstance(obj, str):
             return obj, True
 
-        dtype = obj.attrib.get("dtype", "string")
+        dtype = obj.attrib.get("dtype", None)
+        res = None
         if dtype == "ref":
             return obj.text, True
-        elif len(obj.getchildren()) > 0:
-            return obj, False
-
-        res = None
-        if dtype == "string":
+        elif dtype is None:
+            res = obj
+        elif dtype == "string":
             res = obj.text.split(',')
         elif dtype == "int":
             res = [int(v) for v in obj.text.split(',')]
@@ -77,12 +98,11 @@ class HandlerProxy(Handler):
 
         dims = [int(v) for v in obj.attrib.get("dims", "").split(',') if v != '']
 
+        res = np.array(res)
         if len(dims) == 0 and len(res) == 1:
             res = res[0]
         elif len(dims) > 0:
             res = np.array(res).reshape(dims)
-        else:
-            res = np.array(res)
 
         return res, False
 

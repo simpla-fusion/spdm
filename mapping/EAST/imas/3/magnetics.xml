@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
+<mapping>
 <magnetics mds_tree="EAST" request_type="mdsplus" >
     <ids_properties>
         <homogeneous_time value_type="int">1</homogeneous_time>
@@ -1117,3 +1117,4 @@
         </flux>
     </flux_loop>
 </magnetics>
+</mapping>

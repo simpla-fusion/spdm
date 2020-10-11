@@ -4,7 +4,7 @@ from .PluginHDF5 import (connect_hdf5, HDF5Handler)
 from ..Handler import HandlerProxy
 
 
-def connect_imas_hdf5(uri, *args, mapping_file=None, **kwargs):
+def connect_imas_hdf5(uri, *args, mapping_files=None, **kwargs):
 
     def filename_pattern(p, d, mode=""):
         s = d.get("shot", 0)
@@ -25,9 +25,10 @@ def connect_imas_hdf5(uri, *args, mapping_file=None, **kwargs):
     else:
         path = path/"{shot:08}_{run}.h5"
 
-    logger.debug(mapping_file)
-    if isinstance(mapping_file, str) or isinstance(mapping_file, pathlib.Path):
-        handler = HandlerProxy(HDF5Handler(), mapping_file=mapping_file)
+    mapping_files=mapping_files or "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3"
+    logger.debug(mapping_files)
+    if isinstance(mapping_files, str) or isinstance(mapping_files, pathlib.Path):
+        handler = HandlerProxy(HDF5Handler(), mapping_files=mapping_files)
     else:
         handler = None
     return connect_hdf5(path, *args, filename_pattern=filename_pattern, handler=handler, ** kwargs)

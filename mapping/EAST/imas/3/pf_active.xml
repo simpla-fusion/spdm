@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?> 
+<mapping>
   <pf_active >
     <ids_properties>
-      <homogeneous_time value_type="int">1</homogeneous_time>
+      <homogeneous_time dtype="int">1</homogeneous_time>
     </ids_properties>
     <coil id='0'>
       <element id='0'>
@@ -15,9 +16,7 @@
         </geometry>
         <turns_with_sign>3</turns_with_sign>
       </element>
-      <current>
-        <data request_type="mdsplus" value="\PF1P" />
-      </current>
+      <current dtype="ref">\PF1P</current>
     </coil>
     <coil id='1'>
           <element id='0'>
@@ -215,3 +214,4 @@
           </element>
     </coil>    
   </pf_active>
+</mapping>

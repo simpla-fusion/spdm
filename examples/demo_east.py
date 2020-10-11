@@ -1,11 +1,9 @@
-from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.data import connect
 
 if __name__ == '__main__':
 
-    collection = connect("imas+hdf5:///home/salmon/workspace/output/east/test_",
-                         mapping_file="/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/config.xml")
+    collection = connect("imas+hdf5:///home/salmon/workspace/output/east_")
 
     entry = collection.create(shot=55555)
 
