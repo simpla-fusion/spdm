@@ -192,25 +192,5 @@ class MDSplusConnect:
             return MDSplusLocalCollection(tree_path, prefix=self._prefix)
 
 
-class PluginMDSPlus(Collection):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def create(self, *args, **kwargs) -> Document:
-        raise NotImplementedError()
-
-    def find_one(self, predicate: Document, *args, **kwargs):
-        raise NotImplementedError()
-
-    def update_one(self, predicate: Document, update: Document,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def delete_one(self, predicate: Document,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def count(self, predicate: Document = None,   *args, **kwargs) -> int:
-        raise NotImplementedError()
-
-
+ 
 __SP_EXPORT__ = MDSPlusCollection

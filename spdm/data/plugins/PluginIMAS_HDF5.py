@@ -1,6 +1,6 @@
 import pathlib
 from spdm.util.logger import logger
-from .PluginHDF5 import CollectionHDF5
+from .PluginHDF5 import connect_hdf5
 
 
 def connect_imas_hdf5(uri, *args, **kwargs):
@@ -17,14 +17,14 @@ def connect_imas_hdf5(uri, *args, **kwargs):
         else:
             return p.name.format(shot=s, run=str(r))
 
-    path = pathlib.Path(uri.path)
+    path = pathlib.Path(getattr(uri, "path", uri))
 
     if path.suffix == "" and not path.is_dir():
-        path = path.with_name(path.name+"{shot:08}_{run}.h5")
+        path=path.with_name(path.name+"{shot:08}_{run}.h5")
     else:
-        path = path/"{shot:08}_{run}.h5"
+        path=path/"{shot:08}_{run}.h5"
 
-    return CollectionHDF5(path, *args, filename_pattern=filename_pattern, **kwargs)
+    return connect_hdf5(path, *args, filename_pattern=filename_pattern, **kwargs)
 
 
-__SP_EXPORT__ = connect_imas_hdf5
+__SP_EXPORT__=connect_imas_hdf5

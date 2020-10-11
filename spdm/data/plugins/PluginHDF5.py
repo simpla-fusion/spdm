@@ -1,18 +1,17 @@
-from ..Collection import Collection
-from ..Entry import Entry
+from ..Collection import FileCollection
 from ..Document import Document
-import pathlib
+from ..Handler import Handler
 import h5py
 import numpy
 import collections
+import pathlib
 from typing import (Dict, Any)
 from spdm.util.logger import logger
-from spdm.util.LazyProxy import LazyProxy
 
 SPDM_LIGHTDATA_MAX_LENGTH = 128
 
 
-class EntryHDF5Handler(LazyProxy.Handler):
+class HDF5Handler(Handler):
 
     def require_group(self, grp, path):
         for p in path:
@@ -33,7 +32,7 @@ class EntryHDF5Handler(LazyProxy.Handler):
             raise RuntimeError("None group")
 
         if isinstance(path, str):
-            path = path.split(LazyProxy.DELIMITER)
+            path = path.split(Handler.DELIMITER)
         elif not isinstance(path, collections.abc.Sequence):
             raise TypeError(f"Illegal path type {type(path)}! {path}")
 
@@ -132,100 +131,17 @@ class EntryHDF5Handler(LazyProxy.Handler):
         return res
 
 
-class DocumentHDF5(Document):
-    def __init__(self, path, *args, mode="w", **kwargs):
-        super().__init__(None, *args, **kwargs)
-        self._mode = mode
-        self._file = h5py.File(path, mode=mode)
-        self._handler = EntryHDF5Handler()
-        logger.debug(f"Open HDF5 File: {path} mode=\"{mode}\"")
+def connect_hdf5(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):
 
-    @ property
-    def entry(self):
-        return LazyProxy(self._file, handler=self._handler)
+    path = pathlib.Path(getattr(uri, "path", uri))
 
-    def update(self, d: Dict[str, Any]):
-        return self._handler.put(self._file, [], d)
-
-    def fetch(self, proj: Dict[str, Any] = None):
-        return self._handler.get(self._file, proj)
-
-
-class CollectionHDF5(Collection):
-
-    def __init__(self, path, *args, filename_pattern=None, mode="rw",  **kwargs):
-        super().__init__(*args, **kwargs)
-        self._mode = mode
-
-        self._path = pathlib.Path(path).resolve().expanduser()
-
-        self._filename_pattern = filename_pattern
-
-        if not self._path.parent.exists():
-            if "w" not in mode:
-                raise RuntimeError(f"Can not make dir {self._path}")
-            else:
-                self._path.parent.mkdir()
-        elif not self._path.parent.is_dir():
-            raise NotADirectoryError(self._path.parent)
-
-        logger.debug(f"Open HDF5 Collection : {self._path}")
-
-    # mode in ["", auto_inc  , glob ]
-    def get_filename(self, d, mode=""):
-        if self._filename_pattern is not None:
-            fname = self._filename_pattern(self._path, d, mode)
-        elif mode == "auto_inc":
-            fnum = len(list(self._path.parent.glob(self._path.name.format(_id="*"))))
-            fname = (self._path.name or "{_id}.h5").format(_id=fnum)
-        elif mode == "glob":
-            fname = (self._path.name or "{_id}.h5").format(_id="*")
-        else:
-            try:
-                fname = (self._path.name or "{_id}.h5").format_map(d)
-            except KeyError:
-                fname = None
-
-        return fname
-
-    def insert_one(self, data=None,  **kwargs):
-        doc = DocumentHDF5(self._path.with_name(self.get_filename(data or kwargs, mode="auto_inc")), mode="w")
-        doc.update(data or kwargs)
-        return doc
-
-    def find_one(self, predicate=None, projection=None, **kwargs):
-        fname = self.get_filename(predicate or kwargs)
-        doc = None
-        if fname is not None:
-            doc = DocumentHDF5(self._path.with_name(fname), mode="r")
-        else:
-            for fp in self._path.parent.glob(self.get_filename(predicate or kwargs, mode="glob")):
-                if not fp.exists():
-                    continue
-                doc = DocumentHDF5(fp, mode="r")
-                if doc.check(predicate):
-                    break
-                else:
-                    doc = None
-
-        if projection is not None:
-            raise NotImplementedError()
-
-        return doc
-
-    def update_one(self, predicate, update,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def delete_one(self, predicate,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def count(self, predicate=None,   *args, **kwargs) -> int:
-        raise NotImplementedError()
-
-
-def connect_hdf5(uri, *args, **kwargs):
-
-    return CollectionHDF5(uri.path, *args, **kwargs)
+    return FileCollection(path, *args,
+                          filename_pattern=filename_pattern,
+                          document_factory=lambda fpath, mode: Document(
+                              root=h5py.File(fpath, mode=mode),
+                              handler=handler or HDF5Handler()
+                          ),
+                          **kwargs)
 
 
 __SP_EXPORT__ = connect_hdf5

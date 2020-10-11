@@ -1,18 +1,21 @@
 
 from spdm.util.LazyProxy import LazyProxy
+from typing import (Dict, List, Any)
 
 
 class Document(object):
-    def __init__(self, *args, schema=None, **kwargs):
+    def __init__(self, *args, schema=None, root=None, handler=None, **kwargs):
         self._schema = schema
+        self._root = root
+        self._handler = handler
 
     @property
     def root(self):
-        return NotImplemented
+        return self._root
 
     @property
     def entry(self):
-        return LazyProxy(self.root)
+        return LazyProxy(self.root, handler=self._handler)
 
     @property
     def schema(self):
@@ -24,26 +27,11 @@ class Document(object):
     def check(self, predication, **kwargs) -> bool:
         raise NotImplementedError()
 
-    def fetch(self, projection, **kwargs):
-        raise NotImplementedError()
+    def update(self, d: Dict[str, Any]):
+        return self._handler.put(self.root, [], d)
 
-    def update(self,  data, **kwargs):
-        raise NotImplementedError()
+    def fetch(self, proj: Dict[str, Any] = None):
+        return self._handler.get(self.root, proj)
 
-    def put(self, path, value):
-        raise NotImplementedError()
-
-    def get(self, path):
-        raise NotImplementedError()
-
-    def remove(self, path):
-        raise NotImplementedError()
-
-    def __setitem__(self, path, value):
-        return self.put(path, value)
-
-    def __getitem__(self, path):
-        return self.get(path)
-
-    def __delitem__(self, path):
-        return self.remove(path)
+    def dump(self):
+        return self._handler.dump(self.root)
