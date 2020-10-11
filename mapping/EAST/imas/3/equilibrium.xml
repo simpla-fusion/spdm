@@ -1,34 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <equilibrium>
-    <ids_properties>
-        <homogeneous_time value='0' />
-    </ids_properties>
-    <time>                                                  
-        <data:mdsplus>VALUE_OF(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)</data:mdsplus>
-    </time>
+    <ids_properties><homogeneous_time>0</homogeneous_time></ids_properties>
+    <time> VALUE_OF(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)</time>
     <time_slice>
         <!-- <Shape_of value="SHAPE(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" /> -->
         <boundary>
             <geometric_axis>
-                <r><mdsplus>\RBCENT</mdsplus></r>
-                <!-- <z>\ZBCENT </z> -->
+                <r>\RBCENT</r>
+                <z>\ZBCENT</z>
             </geometric_axis>
             <lcfs>
-                <r>
-                    <mdsplus> VALUE_OF(\BDRY)[*,0,#]</mdsplus>
-                </r>
-                <z>VALUE_OF(\BDRY)[*,1,#] </z>
+                <r>VALUE_OF(\BDRY)[*,0,{itime}]</r>
+                <z>VALUE_OF(\BDRY)[*,1,{itime}] </z>
             </lcfs>
         </boundary>
         <global_quantities>
             <magnetic_axis>
-                <r>Data(\RMAXIS)[{time_slice:id}] </r>
-                <z>Data(\ZMAXIS)[{time_slice:id}] </z>
-                <b_field_tor>Data(\BCENTR)[{time_slice:id}] </b_field_tor>
+                <r>Data(\RMAXIS)[{itime}] </r>
+                <z>Data(\ZMAXIS)[{itime}] </z>
+                <b_field_tor>Data(\BCENTR)[{itime}] </b_field_tor>
             </magnetic_axis>
-            <psi_axis>Data(\SSIMAG)[#]</psi_axis>
-            <psi_axis>Data(\SSIBRY)[#]</psi_axis>
-            <ip>Data(\EFIT_MFILE:PLASMA)[#]</ip>
+            <psi_axis>Data(\SSIMAG)[{itime}]</psi_axis>
+            <psi_axis>Data(\SSIBRY)[{itime}]</psi_axis>
+            <ip>Data(\EFIT_MFILE:PLASMA)[{itime}]</ip>
         </global_quantities>
         <!-- <coordinate_system>
             <grid>
@@ -37,31 +31,24 @@
             </grid>
         </coordinate_system> -->
         <profiles_1d>
-            <f>VALUE_OF(\FPOL)[*,#]</f>
-            <pressure>VALUE_OF(\FPOL)[*,#]</pressure>
-            <f_df_dpsi>VALUE_OF(\FFPRIM)[*,#]</f_df_dpsi>
-            <dpressure_dpsi>VALUE_OF(\PPRIME)[*,#]</dpressure_dpsi>
-            <q>VALUE_OF(\QPSI)[*,#]</q>
+            <f>VALUE_OF(\FPOL)[*,{itime}]</f>
+            <pressure>VALUE_OF(\FPOL)[*,{itime}]</pressure>
+            <f_df_dpsi>VALUE_OF(\FFPRIM)[*,{itime}]</f_df_dpsi>
+            <dpressure_dpsi>VALUE_OF(\PPRIME)[*,{itime}]</dpressure_dpsi>
+            <q>VALUE_OF(\QPSI)[*,{itime}]</q>
 
         </profiles_1d>
         <profiles_2d id='0'>
-            <psi  href="mdsplus://202.127.22.24/east_fit#shot={shot}?VALUE_OF(\PSIRZ)[*,*,{itime}]" />
+            <psi > mdsplus://202.127.22.24/east_fit{itime}shot={shot}?VALUE_OF(\PSIRZ)[*,*,{itime}] </psi>
         </profiles_2d>
         <profiles_2d id='1'>
-            <psi>
-                <data:mdsplus host="202.127.22.24" tree="east_fit"  shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
-            </psi>
-            <r>
-                <data:mdsplus host="202.127.22.24" tree="east_fit"  shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
-            </r>
+        <!-- <mdsplus host="202.127.22.24" tree="east_fit"  shot="{shot}"> -->
+            <psi> VALUE_OF(\PSIRZ)[*,*,{itime}] </psi>
+            <r>VALUE_OF(\PSIRZ)[*,*,{itime}]</r>
         </profiles_2d>
         <profiles_2d id='2'>
-            <psi>
-                <data:mdsplus host="202.127.22.24" tree="east_fit"  shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
-            </psi>
-            <r>
-                <data:mdsplus host="202.127.22.24" tree="east_fit"  shot="{shot}">VALUE_OF(\PSIRZ)[*,*,{itime}]</data:mdsplus>
-            </r>
+            <psi> VALUE_OF(\PSIRZ)[*,*,{itime}]</psi>
+            <r> VALUE_OF(\PSIRZ)[*,*,{itime}]</r>
         </profiles_2d>
     </time_slice>
 </equilibrium>

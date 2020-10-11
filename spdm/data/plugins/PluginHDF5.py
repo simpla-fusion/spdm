@@ -82,7 +82,7 @@ class HDF5Handler(Handler):
             raise RuntimeError("None group")
 
         if isinstance(path, str):
-            path = path.split(LazyProxy.DELIMITER)
+            path = path.split(Handler.DELIMITER)
         elif not isinstance(path, collections.abc.Sequence):
             raise TypeError(f"Illegal path type {type(path)}! {path}")
 
