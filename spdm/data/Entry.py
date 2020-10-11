@@ -1,7 +1,7 @@
 
 
 class Entry(object):
-    def __init__(self, *args, parent=None, **kwargs):
+    def __init__(self,  parent=None, *args, **kwargs):
         self._parent = parent
 
     @property

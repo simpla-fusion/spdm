@@ -8,7 +8,6 @@ import numpy
 
 from spdm.util.logger import logger
 from spdm.util.utilities import whoami
-from spdm.util.LazyProxy import LazyProxy
 from .Document import Document
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
@@ -27,10 +26,10 @@ class Collection(object):
         super().__init__()
 
     def create(self, *args, **kwargs):
-        return LazyProxy(self.insert_one(*args, **kwargs))
+        return self.insert_one(*args, **kwargs).entry
 
     def open(self, *args, **kwargs):
-        return LazyProxy(self.find_one(*args, **kwargs))
+        return self.find_one(*args, **kwargs).entry
 
     def find_one(self, predicate=None, *args, **kwargs):
         raise NotImplementedError(whoami(self))

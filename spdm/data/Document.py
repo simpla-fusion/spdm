@@ -1,25 +1,49 @@
 
-from .Entry import Entry
 from spdm.util.LazyProxy import LazyProxy
 
 
 class Document(object):
-    def __init__(self, *args, collection=None, **kwargs):
-        self._collection = collection
+    def __init__(self, *args, schema=None, **kwargs):
+        self._schema = schema
 
     @property
     def root(self):
-        return self._root
+        return NotImplemented
+
+    @property
+    def entry(self):
+        return LazyProxy(self.root)
 
     @property
     def schema(self):
         return self._schema
 
     def valid(self, schema=None):
-        return self.m_root_
+        return True
 
-    def fetch(self, path, **kwargs):
-        return None
+    def check(self, predication, **kwargs) -> bool:
+        raise NotImplementedError()
 
-    def update(self,  path, **kwargs):
-        return None
+    def fetch(self, projection, **kwargs):
+        raise NotImplementedError()
+
+    def update(self,  data, **kwargs):
+        raise NotImplementedError()
+
+    def put(self, path, value):
+        raise NotImplementedError()
+
+    def get(self, path):
+        raise NotImplementedError()
+
+    def remove(self, path):
+        raise NotImplementedError()
+
+    def __setitem__(self, path, value):
+        return self.put(path, value)
+
+    def __getitem__(self, path):
+        return self.get(path)
+
+    def __delitem__(self, path):
+        return self.remove(path)
