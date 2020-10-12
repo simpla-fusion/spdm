@@ -2,9 +2,19 @@
 <mapping>
   <wall>
     <ids_properties>
-      <homogeneous_time dtype="int">1</homogeneous_time>
+      
+      <comment>
+        from zhpluo@ipp.ac.cn
+        east_lim_130904_mod.data — Limiter data ([Z[m] R[m])
+      </comment>
+      <provider>Zhengping LUO zhpluo@ipp.ac.cn</provider>
+      <creation_date>2020-10-12</creation_date>
+
+      <!--  CONSTANT -->
+      <homogeneous_time dtype="int">2</homogeneous_time>
     </ids_properties>
-    <description_2d id='0'>
+
+    <description_2d >
       <type>
         <name>equilibrium</name>
         <index dtype='int'>1</index>
@@ -12,10 +22,11 @@
 
       <limiter>
         <type>
-          <name>equilibrium</name>
-          <index dtype='int'>1</index>
+          <name>limiter</name>
+          <index dtype='int'>0</index>
         </type>
-        <unit id='0'>
+        <unit>
+          <name>limiter</name>
           <closed dtype='int'>1</closed>
           <outline>
             <r dtype='float'>
@@ -34,6 +45,30 @@
           </outline>
         </unit>
       </limiter>
+      <vessel>
+          <name>EAST</name>
+          <identify>EAST</identify>
+          <annular>
+            <outline_inner>
+              <closed dtype='int'>1</closed>
+              <r dtype='float'></r>
+              <z dtype='float'></z>
+            </outline_inner>
+            <outline_outer>
+              <closed dtype='int'>1</closed>
+              <r dtype='float'></r>
+              <z dtype='float'></z>
+            </outline_outer>
+            <centreline>
+              <closed dtype='int'>1</closed>
+              <r dtype='float'></r>
+              <z dtype='float'></z>
+            </centreline>
+            <thickness dtype='float'></thickness>
+            <resistivity></resistivity>
+          </annular>
+      </vessel>
+
     </description_2d>
   </wall>
 </mapping>
