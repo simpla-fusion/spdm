@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping>
+<tf mds_tree="EFIT_EAST">
+  <ids_properties>
+    <homogeneous_time dtype="int">1</homogeneous_time>
+  </ids_properties>
+  <b_field_tor_vacuum_r>
+    <time dtype="ref">VALUE_OF(\GTIME) </time>
+    <data dtype="ref">VALUE_OF(\BCENTR) </data>
+  </b_field_tor_vacuum_r>
+</tf>
+</mapping>

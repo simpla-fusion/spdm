@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping>
+    <equilibrium>
+        <ids_properties>
+            <homogeneous_time dtype="int">0</homogeneous_time>
+        </ids_properties>
+        <time dtype="ref">VALUE_OF(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)</time>
+        <time_slice>
+            <!--<Shape_of value="SHAPE(\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" />-->
+            <boundary>
+                <geometric_axis>
+                    <r dtype="ref">\RBCENT</r>
+                    <z dtype="ref">\ZBCENT</z>
+                </geometric_axis>
+                <lcfs>
+                    <r dtype="ref">VALUE_OF(\BDRY)[*,0,{itime}]</r>
+                    <z dtype="ref">VALUE_OF(\BDRY)[*,1,{itime}]</z>
+                </lcfs>
+            </boundary>
+            <global_quantities>
+                <magnetic_axis>
+                    <r dtype="ref">Data(\RMAXIS)[{itime}]</r>
+                    <z dtype="ref">Data(\ZMAXIS)[{itime}]</z>
+                    <b_field_tor dtype="ref">Data(\BCENTR)[{itime}]</b_field_tor>
+                </magnetic_axis>
+                <psi_axis dtype="ref">Data(\SSIMAG)[{itime}]</psi_axis>
+                <psi_axis dtype="ref">Data(\SSIBRY)[{itime}]</psi_axis>
+                <ip dtype="ref">Data(\EFIT_MFILE:PLASMA)[{itime}]</ip>
+            </global_quantities>
+            <coordinate_system>
+                <grid>
+                    <dim1 dtype="ref">\R</dim1>
+                    <dim2 dtype="ref">\Z</dim2>
+                </grid>
+            </coordinate_system>
+            <profiles_1d>
+                <f dtype="ref">VALUE_OF(\FPOL)[*,{itime}]</f>
+                <pressure dtype="ref">VALUE_OF(\FPOL)[*,{itime}]</pressure>
+                <f_df_dpsi dtype="ref">VALUE_OF(\FFPRIM)[*,{itime}]</f_df_dpsi>
+                <dpressure_dpsi dtype="ref">VALUE_OF(\PPRIME)[*,{itime}]</dpressure_dpsi>
+                <q dtype="ref">VALUE_OF(\QPSI)[*,{itime}]</q>
+            </profiles_1d>
+            <profiles_2d id='0'>
+                <psi dtype="ref">VALUE_OF(\PSIRZ)[*,*,{itime}]</psi>
+            </profiles_2d>
+            <profiles_2d id='1'>
+                <!--<mdsplus host="202.127.22.24" tree="east_fit"  shot="{shot}">-->
+                <psi dtype="ref">VALUE_OF(\PSIRZ)[*,*,{itime}]</psi>
+                <r dtype="ref">VALUE_OF(\PSIRZ)[*,*,{itime}]</r>
+            </profiles_2d>
+            <profiles_2d id='2'>
+                <psi dtype="ref">VALUE_OF(\PSIRZ)[*,*,{itime}]</psi>
+                <r dtype="ref">VALUE_OF(\PSIRZ)[*,*,{itime}]</r>
+            </profiles_2d>
+        </time_slice>
+    </equilibrium>
+</mapping>

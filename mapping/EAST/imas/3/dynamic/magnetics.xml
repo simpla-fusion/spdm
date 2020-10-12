@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping>
+    <magnetics>
+        <ids_properties>
+            <homogeneous_time dtype="int">1</homogeneous_time>
+        </ids_properties>
+        <time dtype="ref">VALUE_OF(\EFIT_EAST::TOP:TIME)</time>
+
+        <b_field_tor_probe id='1' ><field><data dtype="ref">\HBP1T </data><time dtype="ref">TIME(\HBP1T )</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='2' ><field><data dtype="ref">\HBP2T </data><time dtype="ref">TIME(\HBP2T )</time></field></b_field_tor_probe>      
+        <b_field_tor_probe id='3' ><field><data dtype="ref">\HBP3T </data><time dtype="ref">TIME(\HBP3T )</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='4' ><field><data dtype="ref">\HBP4T </data><time dtype="ref">TIME(\HBP4T )</time></field></b_field_tor_probe>    
+        <b_field_tor_probe id='5' ><field><data dtype="ref">\HBP5T </data><time dtype="ref">TIME(\HBP5T )</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='6' ><field><data dtype="ref">\HBP6T </data><time dtype="ref">TIME(\HBP6T )</time></field></b_field_tor_probe>    
+        <b_field_tor_probe id='7' ><field><data dtype="ref">\HBP7T </data><time dtype="ref">TIME(\HBP7T )</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='8' ><field><data dtype="ref">\HBP8T </data><time dtype="ref">TIME(\HBP8T )</time></field></b_field_tor_probe>     
+        <b_field_tor_probe id='9' ><field><data dtype="ref">\HBP9T </data><time dtype="ref">TIME(\HBP9T )</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='10'><field><data dtype="ref">\HBP10T</data><time dtype="ref">TIME(\HBP10T)</time></field></b_field_tor_probe>     
+        <b_field_tor_probe id='11'><field><data dtype="ref">\HBP11T</data><time dtype="ref">TIME(\HBP11T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='12'><field><data dtype="ref">\HBP12T</data><time dtype="ref">TIME(\HBP12T)</time></field></b_field_tor_probe>   
+        <b_field_tor_probe id='13'><field><data dtype="ref">\HBP13T</data><time dtype="ref">TIME(\HBP13T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='14'><field><data dtype="ref">\HBP14T</data><time dtype="ref">TIME(\HBP14T)</time></field></b_field_tor_probe>   
+        <b_field_tor_probe id='15'><field><data dtype="ref">\HBP15T</data><time dtype="ref">TIME(\HBP15T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='16'><field><data dtype="ref">\HBP16T</data><time dtype="ref">TIME(\HBP16T)</time></field></b_field_tor_probe>   
+        <b_field_tor_probe id='17'><field><data dtype="ref">\HBP17T</data><time dtype="ref">TIME(\HBP17T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='18'><field><data dtype="ref">\HBP18T</data><time dtype="ref">TIME(\HBP18T)</time></field></b_field_tor_probe>   
+        <b_field_tor_probe id='19'><field><data dtype="ref">\HBP19T</data><time dtype="ref">TIME(\HBP19T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='20'><field><data dtype="ref">\HBP20T</data><time dtype="ref">TIME(\HBP20T)</time></field></b_field_tor_probe>    
+        <b_field_tor_probe id='21'><field><data dtype="ref">\HBP21T</data><time dtype="ref">TIME(\HBP21T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='22'><field><data dtype="ref">\HBP22T</data><time dtype="ref">TIME(\HBP22T)</time></field></b_field_tor_probe>      
+        <b_field_tor_probe id='23'><field><data dtype="ref">\HBP23T</data><time dtype="ref">TIME(\HBP23T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='24'><field><data dtype="ref">\HBP24T</data><time dtype="ref">TIME(\HBP24T)</time></field></b_field_tor_probe>      
+        <b_field_tor_probe id='25'><field><data dtype="ref">\HBP25T</data><time dtype="ref">TIME(\HBP25T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='26'><field><data dtype="ref">\HBP26T</data><time dtype="ref">TIME(\HBP26T)</time></field></b_field_tor_probe>      
+        <b_field_tor_probe id='27'><field><data dtype="ref">\HBP27T</data><time dtype="ref">TIME(\HBP27T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='28'><field><data dtype="ref">\HBP28T</data><time dtype="ref">TIME(\HBP28T)</time></field></b_field_tor_probe>        
+        <b_field_tor_probe id='29'><field><data dtype="ref">\HBP29T</data><time dtype="ref">TIME(\HBP29T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='30'><field><data dtype="ref">\HBP30T</data><time dtype="ref">TIME(\HBP30T)</time></field></b_field_tor_probe>        
+        <b_field_tor_probe id='31'><field><data dtype="ref">\HBP31T</data><time dtype="ref">TIME(\HBP31T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='32'><field><data dtype="ref">\HBP32T</data><time dtype="ref">TIME(\HBP32T)</time></field></b_field_tor_probe>       
+        <b_field_tor_probe id='33'><field><data dtype="ref">\HBP33T</data><time dtype="ref">TIME(\HBP33T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='34'><field><data dtype="ref">\HBP34T</data><time dtype="ref">TIME(\HBP34T)</time></field></b_field_tor_probe>        
+        <b_field_tor_probe id='35'><field><data dtype="ref">\HBP35T</data><time dtype="ref">TIME(\HBP35T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='36'><field><data dtype="ref">\HBP36T</data><time dtype="ref">TIME(\HBP36T)</time></field></b_field_tor_probe>        
+        <b_field_tor_probe id='37'><field><data dtype="ref">\HBP37T</data><time dtype="ref">TIME(\HBP37T)</time></field></b_field_tor_probe>
+        <b_field_tor_probe id='38'><field><data dtype="ref">\HBP38T</data><time dtype="ref">TIME(\HBP38T)</time></field></b_field_tor_probe>  
+
+
+
+        <b_field_pol_probe id='1' ><field><data dtype="ref">\HBP1N </data><time dtype="ref">TIME(\HBP1N )</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='2' ><field><data dtype="ref">\HBP2N </data><time dtype="ref">TIME(\HBP2N )</time></field></b_field_pol_probe>        
+        <b_field_pol_probe id='3' ><field><data dtype="ref">\HBP3N </data><time dtype="ref">TIME(\HBP3N )</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='4' ><field><data dtype="ref">\HBP4N </data><time dtype="ref">TIME(\HBP4N )</time></field></b_field_pol_probe>        
+        <b_field_pol_probe id='5' ><field><data dtype="ref">\HBP5N </data><time dtype="ref">TIME(\HBP5N )</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='6' ><field><data dtype="ref">\HBP6N </data><time dtype="ref">TIME(\HBP6N )</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='7' ><field><data dtype="ref">\HBP7N </data><time dtype="ref">TIME(\HBP7N )</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='8' ><field><data dtype="ref">\HBP8N </data><time dtype="ref">TIME(\HBP8N )</time></field></b_field_pol_probe>        
+        <b_field_pol_probe id='9' ><field><data dtype="ref">\HBP9N </data><time dtype="ref">TIME(\HBP9N )</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='10'><field><data dtype="ref">\HBP10N</data><time dtype="ref">TIME(\HBP10N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='11'><field><data dtype="ref">\HBP11N</data><time dtype="ref">TIME(\HBP11N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='12'><field><data dtype="ref">\HBP12N</data><time dtype="ref">TIME(\HBP12N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='13'><field><data dtype="ref">\HBP13N</data><time dtype="ref">TIME(\HBP13N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='14'><field><data dtype="ref">\HBP14N</data><time dtype="ref">TIME(\HBP14N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='15'><field><data dtype="ref">\HBP15N</data><time dtype="ref">TIME(\HBP15N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='16'><field><data dtype="ref">\HBP16N</data><time dtype="ref">TIME(\HBP16N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='17'><field><data dtype="ref">\HBP17N</data><time dtype="ref">TIME(\HBP17N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='18'><field><data dtype="ref">\HBP18N</data><time dtype="ref">TIME(\HBP18N)</time></field></b_field_pol_probe>        
+        <b_field_pol_probe id='19'><field><data dtype="ref">\HBP19N</data><time dtype="ref">TIME(\HBP19N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='20'><field><data dtype="ref">\HBP20N</data><time dtype="ref">TIME(\HBP20N)</time></field></b_field_pol_probe>      
+        <b_field_pol_probe id='21'><field><data dtype="ref">\HBP21N</data><time dtype="ref">TIME(\HBP21N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='22'><field><data dtype="ref">\HBP22N</data><time dtype="ref">TIME(\HBP22N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='23'><field><data dtype="ref">\HBP23N</data><time dtype="ref">TIME(\HBP23N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='24'><field><data dtype="ref">\HBP24N</data><time dtype="ref">TIME(\HBP24N)</time></field></b_field_pol_probe>        
+        <b_field_pol_probe id='25'><field><data dtype="ref">\HBP25N</data><time dtype="ref">TIME(\HBP25N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='26'><field><data dtype="ref">\HBP26N</data><time dtype="ref">TIME(\HBP26N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='27'><field><data dtype="ref">\HBP27N</data><time dtype="ref">TIME(\HBP27N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='28'><field><data dtype="ref">\HBP28N</data><time dtype="ref">TIME(\HBP28N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='29'><field><data dtype="ref">\HBP29N</data><time dtype="ref">TIME(\HBP29N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='30'><field><data dtype="ref">\HBP30N</data><time dtype="ref">TIME(\HBP30N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='31'><field><data dtype="ref">\HBP31N</data><time dtype="ref">TIME(\HBP31N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='32'><field><data dtype="ref">\HBP32N</data><time dtype="ref">TIME(\HBP32N)</time></field></b_field_pol_probe>      
+        <b_field_pol_probe id='33'><field><data dtype="ref">\HBP33N</data><time dtype="ref">TIME(\HBP33N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='34'><field><data dtype="ref">\HBP34N</data><time dtype="ref">TIME(\HBP34N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='35'><field><data dtype="ref">\HBP35N</data><time dtype="ref">TIME(\HBP35N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='36'><field><data dtype="ref">\HBP36N</data><time dtype="ref">TIME(\HBP36N)</time></field></b_field_pol_probe>       
+        <b_field_pol_probe id='37'><field><data dtype="ref">\HBP37N</data><time dtype="ref">TIME(\HBP37N)</time></field></b_field_pol_probe>
+        <b_field_pol_probe id='38'><field><data dtype="ref">\HBP38N</data><time dtype="ref">TIME(\HBP38N)</time></field></b_field_pol_probe>        
+                                                               
+                                                                      
+        <flux_loop id='1' ><flux><data dtype='ref'>\FL1A </data><time dtype="ref">TIME(\FL1A )</time></flux></flux_loop>
+        <flux_loop id='2' ><flux><data dtype='ref'>\FL2A </data><time dtype="ref">TIME(\FL2A )</time></flux></flux_loop>     
+        <flux_loop id='3' ><flux><data dtype='ref'>\FL3A </data><time dtype="ref">TIME(\FL3A )</time></flux></flux_loop>
+        <flux_loop id='4' ><flux><data dtype='ref'>\FL4A </data><time dtype="ref">TIME(\FL4A )</time></flux></flux_loop>       
+        <flux_loop id='5' ><flux><data dtype='ref'>\FL5A </data><time dtype="ref">TIME(\FL5A )</time></flux></flux_loop>
+        <flux_loop id='6' ><flux><data dtype='ref'>\FL6A </data><time dtype="ref">TIME(\FL6A )</time></flux></flux_loop>      
+        <flux_loop id='7' ><flux><data dtype='ref'>\FL7A </data><time dtype="ref">TIME(\FL7A )</time></flux></flux_loop>
+        <flux_loop id='8' ><flux><data dtype='ref'>\FL8A </data><time dtype="ref">TIME(\FL8A )</time></flux></flux_loop>      
+        <flux_loop id='9' ><flux><data dtype='ref'>\FL9A </data><time dtype="ref">TIME(\FL9A )</time></flux></flux_loop>
+        <flux_loop id='10'><flux><data dtype='ref'>\FL10A</data><time dtype="ref">TIME(\FL10A)</time></flux></flux_loop>      
+        <flux_loop id='11'><flux><data dtype='ref'>\FL11A</data><time dtype="ref">TIME(\FL11A)</time></flux></flux_loop>
+        <flux_loop id='12'><flux><data dtype='ref'>\FL12A</data><time dtype="ref">TIME(\FL12A)</time></flux></flux_loop>   
+        <flux_loop id='13'><flux><data dtype='ref'>\FL13A</data><time dtype="ref">TIME(\FL13A)</time></flux></flux_loop>
+        <flux_loop id='14'><flux><data dtype='ref'>\FL14A</data><time dtype="ref">TIME(\FL14A)</time></flux></flux_loop>    
+        <flux_loop id='15'><flux><data dtype='ref'>\FL15A</data><time dtype="ref">TIME(\FL15A)</time></flux></flux_loop>
+        <flux_loop id='16'><flux><data dtype='ref'>\FL16A</data><time dtype="ref">TIME(\FL16A)</time></flux></flux_loop>      
+        <flux_loop id='17'><flux><data dtype='ref'>\FL17A</data><time dtype="ref">TIME(\FL17A)</time></flux></flux_loop>
+        <flux_loop id='18'><flux><data dtype='ref'>\FL18A</data><time dtype="ref">TIME(\FL18A)</time></flux></flux_loop>      
+        <flux_loop id='19'><flux><data dtype='ref'>\FL19A</data><time dtype="ref">TIME(\FL19A)</time></flux></flux_loop>
+        <flux_loop id='20'><flux><data dtype='ref'>\FL20A</data><time dtype="ref">TIME(\FL20A)</time></flux></flux_loop>      
+        <flux_loop id='21'><flux><data dtype='ref'>\FL21A</data><time dtype="ref">TIME(\FL21A)</time></flux></flux_loop>
+        <flux_loop id='22'><flux><data dtype='ref'>\FL22A</data><time dtype="ref">TIME(\FL22A)</time></flux></flux_loop>      
+        <flux_loop id='23'><flux><data dtype='ref'>\FL23A</data><time dtype="ref">TIME(\FL23A)</time></flux></flux_loop>
+        <flux_loop id='24'><flux><data dtype='ref'>\FL24A</data><time dtype="ref">TIME(\FL24A)</time></flux></flux_loop>      
+        <flux_loop id='25'><flux><data dtype='ref'>\FL25A</data><time dtype="ref">TIME(\FL25A)</time></flux></flux_loop>
+        <flux_loop id='26'><flux><data dtype='ref'>\FL26A</data><time dtype="ref">TIME(\FL26A)</time></flux></flux_loop>     
+        <flux_loop id='27'><flux><data dtype='ref'>\FL27A</data><time dtype="ref">TIME(\FL27A)</time></flux></flux_loop>
+        <flux_loop id='28'><flux><data dtype='ref'>\FL28A</data><time dtype="ref">TIME(\FL28A)</time></flux></flux_loop>    
+        <flux_loop id='29'><flux><data dtype='ref'>\FL29A</data><time dtype="ref">TIME(\FL29A)</time></flux></flux_loop>
+        <flux_loop id='30'><flux><data dtype='ref'>\FL30A</data><time dtype="ref">TIME(\FL30A)</time></flux></flux_loop>    
+        <flux_loop id='31'><flux><data dtype='ref'>\FL31A</data><time dtype="ref">TIME(\FL31A)</time></flux></flux_loop>
+        <flux_loop id='32'><flux><data dtype='ref'>\FL32A</data><time dtype="ref">TIME(\FL32A)</time></flux></flux_loop>    
+        <flux_loop id='33'><flux><data dtype='ref'>\FL33A</data><time dtype="ref">TIME(\FL33A)</time></flux></flux_loop>
+        <flux_loop id='34'><flux><data dtype='ref'>\FL34A</data><time dtype="ref">TIME(\FL34A)</time></flux></flux_loop>     
+        <flux_loop id='35'><flux><data dtype='ref'>\FL35A</data><time dtype="ref">TIME(\FL35A)</time></flux></flux_loop>  
+  </magnetics>
+</mapping>

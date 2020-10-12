@@ -6,6 +6,8 @@ import collections
 from xml.etree import (ElementTree, ElementInclude)
 import numpy as np
 
+RefLinker = collections.namedtuple("RefLinker", "schema path")
+
 
 class Handler(LazyProxy.Handler):
     DELIMITER = LazyProxy.DELIMITER
@@ -42,7 +44,6 @@ class HandlerProxy(Handler):
             self._mapper = lambda xtree, path: mapper(xtree, path)
 
     def load_mapping(self, path):
-
         if isinstance(path, str):
             return self.load_mapping(pathlib.Path(path))
         elif isinstance(path, collections.abc.Sequence):
@@ -50,6 +51,8 @@ class HandlerProxy(Handler):
             for fp in path:
                 trees.extend(self.load_mapping(fp))
             return trees
+        elif not isinstance(path, pathlib.Path):
+            return []
         elif path.is_dir():
             trees = []
             for fp in path.glob("*.xml"):
@@ -64,7 +67,6 @@ class HandlerProxy(Handler):
         #         root.insert(0, ElementTree.parse(fp).getroot())
         #     except ElementTree.ParseError as error:
         #         raise RuntimeError(f"Parse Error in {fp}: {error}")
-
         #     root.remove(child)
 
         logger.debug(f"Loading mapping file from {path}")
@@ -78,50 +80,53 @@ class HandlerProxy(Handler):
             if obj is not None:
                 break
 
-        if obj is None or isinstance(obj, str):
-            return obj, True
+        if not isinstance(obj, ElementTree.Element):
+            return obj
 
         dtype = obj.attrib.get("dtype", None)
         res = None
-        if dtype == "ref":
-            return obj.text, True
-        elif dtype is None:
+        if dtype is None and len(obj) > 0:
             res = obj
-        elif dtype == "string":
-            res = obj.text.split(',')
-        elif dtype == "int":
-            res = [int(v) for v in obj.text.split(',')]
-        elif dtype == "float":
-            res = [float(v) for v in obj.text.split(',')]
+        elif dtype is None and len(obj) == 0:
+            res = obj.text
+        elif dtype == "ref":
+            res = RefLinker(obj.attrib.get("schema", None), obj.text)
         else:
-            raise NotImplementedError(f"Not supported dtype {dtype}!")
+            if dtype == "string":
+                res = obj.text.split(',')
+            elif dtype == "int":
+                res = [int(v) for v in obj.text.split(',')]
+            elif dtype == "float":
+                res = [float(v) for v in obj.text.split(',')]
+            else:
+                raise NotImplementedError(f"Not supported dtype {dtype}!")
 
-        dims = [int(v) for v in obj.attrib.get("dims", "").split(',') if v != '']
+            dims = [int(v) for v in obj.attrib.get("dims", "").split(',') if v != '']
 
-        res = np.array(res)
-        if len(dims) == 0 and len(res) == 1:
-            res = res[0]
-        elif len(dims) > 0:
-            res = np.array(res).reshape(dims)
+            res = np.array(res)
+            if len(dims) == 0 and len(res) == 1:
+                res = res[0]
+            elif len(dims) > 0:
+                res = np.array(res).reshape(dims)
 
-        return res, False
+        return res
 
     def put(self, grp, path, value, **kwargs):
-        target, is_ref = self.mapping(path)
+        target = self.mapping(path)
 
-        if is_ref and target is None:
+        if target is None:
             self._next_handler.put(grp, path, value, **kwargs)
-        elif is_ref and isinstance(target, str):
-            self._next_handler.put(grp, target, value, **kwargs)
+        elif isinstance(target, RefLinker):
+            self._next_handler.put(grp, target.path, value, **kwargs)
         else:
             logger.warning(f"Fixed value is not changeable: {path}")
 
     def get(self, grp, path=[], **kwargs):
-        target, is_ref = self.mapping(path)
+        target = self.mapping(path)
 
-        if is_ref and target is None:
+        if target is None:
             return self._next_handler.get(grp, path,  **kwargs)
-        elif is_ref and isinstance(target, str):
-            return self._next_handler.get(grp, target, **kwargs)
+        elif isinstance(target, RefLinker):
+            return self._next_handler.get(grp, target.path, **kwargs)
         else:
             return target
