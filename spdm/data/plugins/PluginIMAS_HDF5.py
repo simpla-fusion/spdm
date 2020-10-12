@@ -30,7 +30,6 @@ def connect_imas_hdf5(uri, *args, mapping_files=None, **kwargs):
     elif isinstance(mapping_files, str) or isinstance(mapping_files, pathlib.Path):
         mapping_files = [mapping_files]
 
-    mapping_files.extend(["/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static"])
     if mapping_files is not None:
         handler = HandlerProxy(HDF5Handler(), mapping_files=mapping_files)
     else:

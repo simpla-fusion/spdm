@@ -7,7 +7,7 @@
                     east_fl_150606.data — Flux loops (R[m] Z[m])
                     east_bp_150606.data — Magnetic probes (R[m], Z[m], Angle)
             </comment>
-            <provider>Zhengping LUO zhpluo@ipp.ac.cn</provider>
+            <provider>Zhenping LUO zhpluo@ipp.ac.cn</provider>
             <creation_date>2020-10-12</creation_date>
         </ids_properties>
         <b_field_tor_probe id='1' > <name>HBP1T </name>     <identifier>HBP1T </identifier> <position><r dtype='float'>1.289        </r> <z dtype='float'>0.0005  	    </z> </position>    <poloidal_angle dtype='float'>87.5283       </poloidal_angle>   </b_field_tor_probe>

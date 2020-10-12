@@ -10,51 +10,13 @@ import collections
 import pathlib
 from typing import (Dict, Any)
 from spdm.util.logger import logger
-
-
-class XMLHolder:
-    def __init__(self, files, *args, mode=mode, **kwargs):
-        self._trees = self.load_mapping(files)
-
-    @property
-    def trees(self):
-        return self._trees
-
-    def load_mapping(self, path):
-        if isinstance(path, str):
-            return self.load_mapping(pathlib.Path(path))
-        elif isinstance(path, collections.abc.Sequence):
-            trees = []
-            for fp in path:
-                trees.extend(self.load_mapping(fp))
-            return trees
-        elif path.is_dir():
-            trees = []
-            for fp in path.glob("*.XML"):
-                trees.extend(self.load_mapping(fp))
-            return trees
-
-        root = ElementTree.parse(path).getroot()
-
-        # for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
-        #     fp = mapping_file.parent/child.attrib["href"]
-        #     try:
-        #         root.insert(0, ElementTree.parse(fp).getroot())
-        #     except ElementTree.ParseError as error:
-        #         raise RuntimeError(f"Parse Error in {fp}: {error}")
-
-        #     root.remove(child)
-
-        logger.debug(f"Loading mapping file from {path}")
-
-        return [root]
-
+ 
 
 class XMLHandler(Handler):
-    def __init__(self, next_handler, mapping_files, *args, mapper=None, **kwargs):
+    def __init__(self,  *args, mapper=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        def default_mapper(xtree, path):
+        def default_mapper(path):
             xpath = ""
             for p in path:
                 if type(p) is int:
@@ -68,101 +30,127 @@ class XMLHandler(Handler):
             if len(xpath) > 0 and xpath[0] == "/":
                 xpath = xpath[1:]
 
-            return xtree.find(xpath) if xpath != "" else None
+            return xpath
 
         if mapper is None:
             self._mapper = default_mapper
         else:
-            self._mapper = lambda xtree, path: mapper(xtree, path)
+            self._mapper = lambda path: mapper(xtree, path)
 
-    def load_mapping(self, path):
-        logger.debug(path)
-        if isinstance(path, str):
-            return self.load_mapping(pathlib.Path(path))
-        elif isinstance(path, collections.abc.Sequence):
-            trees = []
-            for fp in path:
-                trees.extend(self.load_mapping(fp))
-            return trees
-        elif not isinstance(path, pathlib.Path):
-            return []
-        elif path.is_dir():
-            trees = []
-            for fp in path.glob("*.xml"):
-                trees.extend(self.load_mapping(fp))
-            return trees
-
-        root = ElementTree.parse(path).getroot()
-
-        # for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
-        #     fp = mapping_file.parent/child.attrib["href"]
-        #     try:
-        #         root.insert(0, ElementTree.parse(fp).getroot())
-        #     except ElementTree.ParseError as error:
-        #         raise RuntimeError(f"Parse Error in {fp}: {error}")
-
-        #     root.remove(child)
-
-        logger.debug(f"Loading mapping file from {path}")
-
-        return [root]
-
-    def put(self, grp, path, value, **kwargs):
-        raise NotADirectoryError()
-
-    def get(self, trees, path, **kwargs):
-        obj = None
-
-        if isinstance(trees, ElementTree.ElementTree):
+    def find(self, trees, path):
+        if not isinstance(trees, collections.abc.Sequence):
             trees = [trees]
-
+        xpath = self._mapper(path)
+        obj = None
         for tree in trees:
-            obj = self._mapper(tree, p)
+            obj = tree.find(xpath)
             if obj is not None:
                 break
+        return obj
 
+    def iterfind(self, trees, path):
+        xpath = self._mapper(path)
+        for tree in trees:
+            for child in tree.iterfind(xpath):
+                yield child
+
+    def convert(self, obj, lazy=True):
         if not isinstance(obj, ElementTree.Element):
             return obj
 
         dtype = obj.attrib.get("dtype", None)
         res = None
-        if dtype is None:
-            res = obj
+
+        if len(obj) > 0 and lazy:
+            res = LazyProxy(obj, handler=self)
+        elif len(obj) > 0:
+            d={child.tag: self.convert(child, True) for child in obj}
+            res = collections.namedtuple(obj.tag, d.keys())(**d)
+        elif dtype is None:
+            res = obj.text
         elif dtype == "ref":
-            return RefLinker(obj.attrib.get("schema", None), obj.text)
-        elif dtype == "string":
-            res = obj.text.split(',')
-        elif dtype == "int":
-            res = [int(v) for v in obj.text.split(',')]
-        elif dtype == "float":
-            res = [float(v) for v in obj.text.split(',')]
+            res = RefLinker(obj.attrib.get("schema", None), obj.text)
         else:
-            raise NotImplementedError(f"Not supported dtype {dtype}!")
+            if dtype == "string":
+                res = obj.text.split(',')
+            elif dtype == "int":
+                res = [int(v) for v in obj.text.split(',')]
+            elif dtype == "float":
+                res = [float(v) for v in obj.text.split(',')]
+            else:
+                raise NotImplementedError(f"Not supported dtype {dtype}!")
 
-        dims = [int(v) for v in obj.attrib.get("dims", "").split(',') if v != '']
+            dims = [int(v) for v in obj.attrib.get("dims", "").split(',') if v != '']
 
-        res = np.array(res)
-        if len(dims) == 0 and len(res) == 1:
-            res = res[0]
-        elif len(dims) > 0:
-            res = np.array(res).reshape(dims)
-
+            res = np.array(res)
+            if len(dims) == 0 and len(res) == 1:
+                res = res[0]
+            elif len(dims) > 0:
+                res = np.array(res).reshape(dims)
         return res
 
+    def put(self, grp, path, value, **kwargs):
+        raise NotADirectoryError()
 
-def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):
+    def get(self, trees, path, **kwargs):
+        return self.convert(self.find(trees, path))
 
-    path = pathlib.Path(getattr(uri, "path", uri))
+    def get_value(self, trees, path, *args, **kwargs):
+        return self.convert(self.find(trees, path), False)
 
-    Document(
-        root=XMLHolder(uri, mode=mode),
-        handler=XMLHandler()
-    )
-
-    return FileCollection(path, *args,
-                          filename_pattern=filename_pattern,
-                          document_factory=lambda fpath, mode:,
-                          **kwargs)
+    def iter(self, trees, path, **kwargs):
+        for child in self.iterfind(trees, path):
+            yield self.convert(child)
 
 
-__SP_EXPORT__ = connect_XML
+def load_mapping(path):
+    if isinstance(path, str):
+        return load_mapping(pathlib.Path(path))
+    elif isinstance(path, collections.abc.Sequence):
+        trees = []
+        for fp in path:
+            trees.extend(load_mapping(fp))
+        return trees
+    elif not isinstance(path, pathlib.Path):
+        return []
+    elif path.is_dir():
+        trees = []
+        for fp in path.glob("*.xml"):
+            trees.extend(load_mapping(fp))
+        return trees
+
+    root = ElementTree.parse(path).getroot()
+
+    logger.debug(f"Loading mapping file from {path}")
+
+    return [root]
+    # for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
+    #     fp = mapping_file.parent/child.attrib["href"]
+    #     try:
+    #         root.insert(0, ElementTree.parse(fp).getroot())
+    #     except ElementTree.ParseError as error:
+    #         raise RuntimeError(f"Parse Error in {fp}: {error}")
+
+    #     root.remove(child)
+
+
+def open_xml(path, mapper=None, **kwargs):
+    return Document(root=load_mapping(path), handler=XMLHandler(mapper=mapper))
+
+
+# def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):
+
+#     path = pathlib.Path(getattr(uri, "path", uri))
+
+#     Document(
+#         root=XMLHolder(uri, mode=mode),
+#         handler=XMLHandler()
+#     )
+
+#     return FileCollection(path, *args,
+#                           filename_pattern=filename_pattern,
+#                           document_factory=lambda fpath, mode:,
+#                           **kwargs)
+
+
+# __SP_EXPORT__ = connect_XML

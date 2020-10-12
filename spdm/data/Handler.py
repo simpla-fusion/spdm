@@ -22,7 +22,7 @@ class HandlerProxy(Handler):
         self._next_handler = next_handler
         self._trees = self.load_mapping(mapping_files)
 
-        def default_mapper(xtree, path):
+        def default_mapper(path):
             xpath = ""
             for p in path:
                 if type(p) is int:
@@ -36,12 +36,12 @@ class HandlerProxy(Handler):
             if len(xpath) > 0 and xpath[0] == "/":
                 xpath = xpath[1:]
 
-            return xtree.find(xpath) if xpath != "" else None
+            return xpath
 
-        if mapper is None:
-            self._mapper = default_mapper
-        else:
-            self._mapper = lambda xtree, path: mapper(xtree, path)
+        # if mapper is None:
+        self._mapper = default_mapper
+        # else:
+        #     self._mapper = lambda xtree, path: mapper(xtree, path)
 
     def load_mapping(self, path):
         if isinstance(path, str):
@@ -73,20 +73,20 @@ class HandlerProxy(Handler):
 
         return [root]
 
-    def mapping(self, p):
-        obj = None
-        for tree in self._trees:
-            obj = self._mapper(tree, p)
-            if obj is not None:
-                break
-
+    def convert(self, obj):
         if not isinstance(obj, ElementTree.Element):
             return obj
 
         dtype = obj.attrib.get("dtype", None)
         res = None
         if dtype is None and len(obj) > 0:
-            res = obj
+            res = {}
+            for child in obj:
+                if child.tag in res:
+                    raise NotImplementedError()
+                else:
+                    res[child.tag] = self.convert(child)
+
         elif dtype is None and len(obj) == 0:
             res = obj.text
         elif dtype == "ref":
@@ -109,10 +109,19 @@ class HandlerProxy(Handler):
             elif len(dims) > 0:
                 res = np.array(res).reshape(dims)
 
-        return res
+    def find(self, p):
+        obj = None
+        xpath = self._mapper(p)
+
+        for tree in self._trees:
+            obj = tree.find(xpath)
+            if obj is not None:
+                break
+
+        return obj
 
     def put(self, grp, path, value, **kwargs):
-        target = self.mapping(path)
+        target = self.convert(self.find(path))
 
         if target is None:
             self._next_handler.put(grp, path, value, **kwargs)
@@ -122,7 +131,7 @@ class HandlerProxy(Handler):
             logger.warning(f"Fixed value is not changeable: {path}")
 
     def get(self, grp, path=[], **kwargs):
-        target = self.mapping(path)
+        target = self.convert(self.find(path))
 
         if target is None:
             return self._next_handler.get(grp, path,  **kwargs)
@@ -130,3 +139,10 @@ class HandlerProxy(Handler):
             return self._next_handler.get(grp, target.path, **kwargs)
         else:
             return target
+
+    def iter(self, grp, path):
+        xpath = self._mapper(path)
+        for tree in self._trees:
+            for child in tree.iterfind(xpath):
+                logger.debug(child)
+                yield self.convert(child)
