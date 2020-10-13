@@ -18,8 +18,28 @@ class Collection(object):
     ''' Collection of documents
     '''
 
-    def __init__(self, *args,  **kwargs):
+    def __init__(self, *args, mode="rw",  id_pattern=None,  **kwargs):
         super().__init__()
+        self._mode = mode
+        self._id_pattern = id_pattern
+
+    @property
+    def mode(self):
+        return self._mode
+
+    # mode in ["", auto_inc  , glob ]
+    def guess_id(self, d, auto_inc=True):
+        fid = None
+        if callable(self._id_pattern):
+            fid = self._id_pattern(self, d, auto_inc)
+        elif isinstance(self._id_pattern, str):
+            fid = self._id_pattern.format_map(d)
+
+        return fid
+
+    def create_document(self, fid, mode):
+        logger.debug(f"Opend Document: {fpath} mode=\"{mode}\"")
+        raise NotImplementedError(whoami(self))
 
     def insert(self, *args, **kwargs):
         return self.insert_one(*args, **kwargs)
@@ -84,15 +104,25 @@ class Collection(object):
 
 class FileCollection(Collection):
 
-    def __init__(self, path, *args, filename_pattern=None, mode="rw", document_factory=None,  **kwargs):
+    def __init__(self, path, *args,
+                 file_extension=".dat",
+                 document_factory=None,
+                 **kwargs):
 
-        super().__init__(*args, **kwargs)
+        super().__init__(*args,  **kwargs)
 
-        self._mode = mode
+        if isinstance(path, str) and path.endswith("/"):
+            path = f"{path}/{{_id}}{file_extension}"
 
         self._path = pathlib.Path(path).resolve().expanduser()
 
-        self._filename_pattern = filename_pattern or "{_id}"
+        if self._path.suffix == '':
+            self._path = self._path.with_suffix(file_extension)
+
+        if "{_id}" not in self._path.stem:
+            self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
+
+        logger.debug(self._path)
 
         self._document_factory = document_factory
 
@@ -106,43 +136,33 @@ class FileCollection(Collection):
 
         logger.debug(f"Open Collection : {self._path}")
 
-    def create_document(self, fname, mode):
-        fpath = self._path.with_name(fname)
-        logger.debug(f"Opend Document: {fpath} mode=\"{mode}\"")
-        return self._document_factory(fpath, mode)
+    def guess_id(self, d, auto_inc=True):
+        fid = super().guess_id(d, auto_inc=auto_inc)
 
-    # mode in ["", auto_inc  , glob ]
-    def get_filename(self, d, mode=""):
-        fname = None
-        if callable(self._filename_pattern):
-            fname = self._filename_pattern(self._path, d, mode)
-        elif not isinstance(self._filename_pattern, str):
-            raise TypeError(self._filename_pattern)
-        elif mode == "glob":
-            fname = (self._path.name or self._filename_pattern).format(_id="*")
-        elif isinstance(d, collections.abc.Mapping) and "_id" in d:
-            fname = (self._path.name or self._filename_pattern).format_map(d)
-        elif mode == "auto_inc":
-            fnum = len(list(self._path.parent.glob(self._path.name.format(_id="*"))))
-            fname = (self._path.name or self._filename_pattern).format(_id=fnum)
-        else:
-            raise RuntimeError(f"Can not guess filename from {d}")
-              
+        if fid is None and auto_inc:
+            fid = self.count()
 
-        return fname
+        return fid
+
+    def create_document(self, fid, mode=None):
+        fname = self._path.name.format(_id=fid)
+        fpath = self._path.with_name(self._path.name.format(_id=fid))
+        logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.mode}\"")
+        return self._document_factory(fpath, mode or self.mode)
 
     def insert_one(self, data=None, *args,  **kwargs):
-        doc = self.create_document(self.get_filename(data or kwargs, mode="auto_inc"), mode="w")
+        doc = self.create_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
         doc.update(data or kwargs)
         return doc
 
     def find_one(self, predicate=None, projection=None, **kwargs):
-        fname = self.get_filename(predicate or kwargs)
+        fpath = self._path.with_name(self._path.name.format(_id=self.guess_id(predicate or kwargs)))
+
         doc = None
-        if fname is not None:
-            doc = self.create_document(fname, mode="r")
+        if fpath.exists():
+            doc = self.create_document(fpath)
         else:
-            for fp in self._path.parent.glob(self.get_filename(predicate or kwargs, mode="glob")):
+            for fp in self._path.parent.glob(self._path.name.format(_id="*")):
                 if not fp.exists():
                     continue
                 doc = self.create_document(fname, mode="r")
@@ -163,4 +183,8 @@ class FileCollection(Collection):
         raise NotImplementedError()
 
     def count(self, predicate=None,   *args, **kwargs) -> int:
-        raise NotImplementedError()
+
+        if predicate is None:
+            logger.warning("NOT IMPLEMENTED! count by predicate")
+
+        return len(list(self._path.parent.glob(self._path.name.format(_id="*"))))

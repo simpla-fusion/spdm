@@ -21,7 +21,7 @@ class HDF5Handler(Handler):
                 if p < 0:
                     num = len(grp)
                     p = p % num
-                p = f"__id__{p}"
+                p = f"__index__{p}"
 
             grp = grp.require_group(p)
 
@@ -95,7 +95,7 @@ class HDF5Handler(Handler):
                 if p < 0:
                     num = len(grp)
                     p = p % num
-                p = f"__id__{p}"
+                p = f"__index__{p}"
 
             prefix.append(p)
 
@@ -137,12 +137,12 @@ class HDF5Handler(Handler):
         return res
 
 
-def connect_hdf5(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):
+def connect_hdf5(uri, *args,  handler=None, **kwargs):
 
     path = pathlib.Path(getattr(uri, "path", uri))
 
     return FileCollection(path, *args,
-                          filename_pattern=filename_pattern,
+                          file_extension=".h5",
                           document_factory=lambda fpath, mode: Document(
                               root=h5py.File(fpath, mode=mode),
                               handler=handler or HDF5Handler()

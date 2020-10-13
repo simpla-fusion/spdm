@@ -1,21 +1,28 @@
-import pprint
 
-import numpy as np
-
-from spdm.data import io
+from spdm.data import connect
 from spdm.util.logger import logger
+import sys
+sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
-if __name__ == "__main__":
 
-    # c1 = io.connect("EAST/east_*.h5")
-    # collection.insert_one({"a": "Just a test", "b": 5})
-    c1 = io.connect("mdsplus://127.0.0.1/EAST")
+if __name__ == '__main__':
 
-    for i in range(10):
-        c1.insert_one(
-            {"device": {"name": "EAST", "shot": 555}, "num": i,
-             "data": np.random.rand(5, 6)})
+    db = connect("imas://",
+                 backend="hdf5:///home/salmon/workspace/output/east/test_",
+                 mapping_files="/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static"
+                 )
 
-    pprint.pprint([d["data"] for d in c1.find(
-        projection={"data": 1, "_id": 0})])
-    pprint.pprint([d for d in c1.find(projection="data")])
+    entry = db.insert(shot=55555).entry
+
+    logger.debug(entry.pf_active.coil[1].element[0].geometry.rectangle.r.__value__())
+    logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__())
+    logger.debug(type(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__()))
+
+    entry.pf_active.coil[0].element[0].geometry.retangle.r = 5
+
+    # pprint.pprint(collection)
+    # a = entry.pf_active.coil[0].element[0].geometry.retangle.r
+    # b = a.__fetch__()
+    # logger.debug(type(a))
+    # logger.debug(type(b))
