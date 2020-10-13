@@ -1,24 +1,30 @@
 
-from spdm.data import connect
-from spdm.util.logger import logger
+import os
+import MDSplus as mds
+# from spdm.data import connect
+# from spdm.util.logger import logger
 import sys
-sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
-sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+# sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+# sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
+os.environ['east_path'] = 'mds.ipp.ac.cn::/pcs_east'
 
 if __name__ == '__main__':
+    t = mds.Tree("east", 55555, mode="READONLY")
+    ip = t.getNode("\\ip")
+    # db = connect("imas://",
+    #              backend="mdsplus://202.127.22.24/east_fit",
+    #              mapping_files=["/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static",
+    #                             "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic"
+    #                             ])
 
-    db = connect("imas+hdf5:///home/salmon/workspace/output/east/test_",
-                 mapping_files="/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static")
+    # entry = db.insert(shot=55555).entry
 
-    entry = db.insert(shot=55555).entry
+    # logger.debug(entry.pf_active.coil[1].element[0].geometry.rectangle.r.__value__())
+    # logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__())
 
-    logger.debug(entry.pf_active.coil[1].element[0].geometry.rectangle.r.__value__())
-    logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__())
-    logger.debug(type(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__()))
-
-    entry.pf_active.coil[0].element[0].geometry.retangle.r = 5
-
+    # entry.pf_active.coil[0].element[0].geometry.retangle.r = 5
+    # logger.debug(entry.equilibrium.time_slice[0].profiles_2d[0].psi.__value__())
     # pprint.pprint(collection)
     # a = entry.pf_active.coil[0].element[0].geometry.retangle.r
     # b = a.__fetch__()

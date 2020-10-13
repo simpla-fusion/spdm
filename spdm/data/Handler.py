@@ -48,7 +48,8 @@ class HandlerProxy(Handler):
 
     def iter(self, grp, path):
         for obj in self._wrapper.iter(path):
-            if isinstance(obj, Linker):
-                yield self._handler.get(grp, obj.path, **kwargs)
-            else:
+            if not isinstance(obj, Linker):
                 yield obj
+            else:
+                for item in self._handler.iter(grp, obj.path, **kwargs):
+                    yield item

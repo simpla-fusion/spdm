@@ -1,4 +1,4 @@
-from ..Collection import (Collection, Document, InsertOneResult, UpdateResult)
+from ..Collection import (Collection, FileCollection)
 from ..Document import Document
 import collections
 import os
@@ -6,6 +6,7 @@ import pathlib
 import re
 import MDSplus as mds
 import numpy as np
+from spdm.util.urilib import urisplit
 
 
 # class MDSplusEntry(DataEntry):
@@ -74,42 +75,23 @@ import numpy as np
 #         # raise NotImplementedError(whoami(self))
 
 
-class MDSplusRemoteCollection(Collection):
-    def __init__(self, path, *args, netloc=None, **kwargs):
-        raise NotImplementedError(whoami(self))
+class MDSplusLocalCollection(FileCollection):
+    def __init__(self, uri, *args, netloc=None, **kwargs):
+        super().__init__(uri, *args,
+                         file_extension=".mds",
+                         file_factory=lambda fpath, mode: mds.tree(fpath, mode=mode),
+                         handler=MDSHandler(),
+                         **kwargs)
 
 
 class MDSPlusCollection(Collection):
-    '''
-    '''
-
-    def __init__(self, path, *args, session=None, prefix=None, mode="rw",
-                 file_mask=0o755, **kwargs):
-        self._session = session
-        self._mode = mode
-        self._count = 0
-
-        if prefix is None or prefix == "":
-            prefix = pathlib.Path.cwd()
-        elif isinstance(prefix, str):
-            prefix = pathlib.Path(prefix)
-        elif isinstance(prefix, os.PathLike):
-            prefix = prefix
-        else:
-            raise TypeError(
-                f"Only acccept str or os.PathLike not {type(prefix)}")
-        self._path = prefix/path
-        self._tree_name = self._path.stem
-        if 'w' in self._mode:
-            self._path.mkdir(mode=file_mask, parents=True, exist_ok=True)
-
-        if not self._path.is_dir():
-            raise OSError(f"Can not find path {self._path}")
-
-        os.environ[f"{self._tree_name.lower()}_path"] = str(self._path)
-
-    def __del__(self):
-        del os.environ[f"{self._tree_name.lower()}_path"]
+    def __init__(self, uri, *args,  **kwargs):
+        super().__init__(*args, handler=MDSHandler(), **kwargs)
+        if isinstance(uri, str):
+            uri = urisplit(uri)
+            
+        self._netloc = uri.authority
+        self._treename = uri.path
 
     def find_one(self, predicate: Document,  projection: Document = None, *args, **kwargs):
         shot = getitem(predicate, "shot", None) or getitem(predicate, "_id", None)
@@ -149,59 +131,25 @@ class MDSPlusCollection(Collection):
 
         return shot
 
-    def replace_one(self, predicate: Document, replacement: Document,
-                    *args, **kwargs) -> UpdateResult:
-        raise NotImplementedError(whoami(self))
 
-    def update_one(self, predicate: Document, update: Document,
-                   *args, **kwargs):
-        raise NotImplementedError(whoami(self))
-
-    def delete_one(self, predicate: Document,
-                   *args, **kwargs):
-        raise NotImplementedError(whoami(self))
-
-    def delete_many(self, predicate: Document,
-                    *args, **kwargs):
-        raise NotImplementedError(whoami(self))
-
-    def count(self, predicate: Document = None,
-              *args, **kwargs) -> int:
-        raise NotImplementedError(whoami(self))
+# class MDSplusConnect:
 
 
-class MDSplusConnect:
-    __plugin_spec__ = {
-        "name": "mdsplus"
-    }
+#     def open(self, tree_path, *args, **kwargs):
+#         tree_path = tree_path[re.search(r'[^/]', tree_path).start():]
 
-    def __init__(self, netloc=None, prefix=None, *args, **kwargs):
-        self._netloc = netloc
-        self._prefix = prefix
+#         if self._netloc is None:
+#             return MDSplusRemoteCollection(tree_path, prefix=self._prefix)
+#         else:
+#             return MDSplusLocalCollection(tree_path, prefix=self._prefix)
 
-    @classmethod
-    def connect(cls, url, *args, **kwargs):
-        return MDSplusConnect(url, *args, **kwargs)
+def connect_mdsplus(uri, *args, **kwargs):
+    authority = getattr(uri, "authority", None)
 
-    def open(self, tree_path, *args, **kwargs):
-        tree_path = tree_path[re.search(r'[^/]', tree_path).start():]
-
-        if self._netloc is None:
-            return MDSplusRemoteCollection(tree_path, prefix=self._prefix)
-        else:
-            return MDSplusLocalCollection(tree_path, prefix=self._prefix)
-
-
-def connect_mdsplus(uri, *args,handler=None, **kwargs):
-
-    path = pathlib.Path(getattr(uri, "path", uri))
-
-    return Collection(path, *args,
-                      document_factory=lambda fpath, mode: Document(
-                          root=h5py.File(fpath, mode=mode),
-                          handler=handler or MDSplusHandler()
-                      ),
-                      **kwargs)
+    if authority is None:
+        return MDSplusLocalCollection(uri, *args, **kwargs)
+    else:
+        return MDSPlusCollection(uri, *args, **kwargs)
 
 
 __SP_EXPORT__ = connect_mdsplus
