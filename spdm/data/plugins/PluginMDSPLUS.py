@@ -89,7 +89,7 @@ class MDSPlusCollection(Collection):
         super().__init__(*args, handler=MDSHandler(), **kwargs)
         if isinstance(uri, str):
             uri = urisplit(uri)
-            
+
         self._netloc = uri.authority
         self._treename = uri.path
 
@@ -121,8 +121,7 @@ class MDSPlusCollection(Collection):
             if res is not None:
                 yield res
 
-    def insert_one(self, document: Document,
-                   *args, **kwargs) -> InsertOneResult:
+    def insert_one(self, document: Document, *args, **kwargs):
         self._count += 1
 
         shot = int(document.get("shot", self._count))
