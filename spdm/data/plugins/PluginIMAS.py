@@ -20,11 +20,11 @@ def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
         return pattern.format(shot=s, run=str(r))
 
     if mapping_files is not None:
-        handler = HandlerProxy(HDF5Handler(), mapper=open_xml(mapping_files))
+        proxy = HandlerProxy(mapper=open_xml(mapping_files))
     else:
-        handler = None
+        proxy = None
 
-    return connect(backend, *args, id_pattern=id_pattern,  handler=handler, ** kwargs)
+    return connect(backend, *args, id_pattern=id_pattern,  handler=proxy, ** kwargs)
 
 
 __SP_EXPORT__ = connect_imas

@@ -8,8 +8,7 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 if __name__ == '__main__':
 
-    db = connect("imas://",
-                 backend="hdf5:///home/salmon/workspace/output/east/test_",
+    db = connect("imas+hdf5:///home/salmon/workspace/output/east/test_",
                  mapping_files="/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static"
                  )
 

@@ -17,18 +17,25 @@ class Handler(LazyProxy.Handler):
 
 
 class HandlerProxy(Handler):
-    def __init__(self, handler, mapper, *args,   **kwargs):
+    def __init__(self, mapper, *args, target=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._mapper = mapper
-        self._handler = handler
+        self._target = target
+
+    @property
+    def target(self):
+        return self._target
+
+    def set_target(self, t):
+        self._target = t
 
     def get(self, grp, path=[], *args, **kwargs):
         obj = self._mapper.get(path)
 
         if obj is None:
-            return self._handler.get(grp, path, *args, **kwargs)
+            return self._target.get(grp, path, *args, **kwargs)
         elif isinstance(obj, Linker):
-            return self._handler.get(grp, obj.path, *args, **kwargs)
+            return self._target.get(grp, obj.path, *args, **kwargs)
         else:
             return obj
 
@@ -36,15 +43,15 @@ class HandlerProxy(Handler):
         obj = self._mapper.get(path)
 
         if obj is None:
-            self._handler.put(grp, path, *args,  **kwargs)
+            self._target.put(grp, path, *args,  **kwargs)
         elif isinstance(obj,  Linker):
-            self._handler.put(grp, obj.path, *args, **kwargs)
+            self._target.put(grp, obj.path, *args, **kwargs)
         else:
             raise KeyError(f"Can not map path {path}")
 
     def iter(self, grp, path):
         for obj in self._mapper.iter(path):
             if isinstance(obj, Linker):
-                yield self._handler.get(grp, obj.path, **kwargs)
+                yield self._target.get(grp, obj.path, **kwargs)
             else:
                 yield obj

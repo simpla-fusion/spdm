@@ -1,6 +1,6 @@
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import Handler
+from ..Handler import (Handler, HandlerProxy)
 import h5py
 import numpy
 import collections
@@ -137,16 +137,15 @@ class HDF5Handler(Handler):
         return res
 
 
-def connect_hdf5(uri, *args,  handler=None, **kwargs):
+def connect_hdf5(uri, *args, **kwargs):
 
     path = pathlib.Path(getattr(uri, "path", uri))
 
     return FileCollection(path, *args,
                           file_extension=".h5",
-                          document_factory=lambda fpath, mode: Document(
+                          file_factory=lambda fpath, mode: Document(
                               root=h5py.File(fpath, mode=mode),
-                              handler=handler or HDF5Handler()
-                          ),
+                              handler=HDF5Handler()),
                           **kwargs)
 
 

@@ -106,7 +106,7 @@ class FileCollection(Collection):
 
     def __init__(self, path, *args,
                  file_extension=".dat",
-                 document_factory=None,
+                 file_factory=None,
                  **kwargs):
 
         super().__init__(*args,  **kwargs)
@@ -124,7 +124,7 @@ class FileCollection(Collection):
 
         logger.debug(self._path)
 
-        self._document_factory = document_factory
+        self._file_factory = file_factory
 
         if not self._path.parent.exists():
             if "w" not in mode:
@@ -148,7 +148,7 @@ class FileCollection(Collection):
         fname = self._path.name.format(_id=fid)
         fpath = self._path.with_name(self._path.name.format(_id=fid))
         logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.mode}\"")
-        return self._document_factory(fpath, mode or self.mode)
+        return self._file_factory(fpath, mode or self.mode)
 
     def insert_one(self, data=None, *args,  **kwargs):
         doc = self.create_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
