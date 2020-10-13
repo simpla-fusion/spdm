@@ -1,6 +1,8 @@
 import pathlib
 from spdm.util.logger import logger
 from .PluginHDF5 import (connect_hdf5, HDF5Handler)
+from .PluginXML import ( open_xml)
+
 from ..Handler import HandlerProxy
 
 
@@ -31,7 +33,7 @@ def connect_imas_hdf5(uri, *args, mapping_files=None, **kwargs):
         mapping_files = [mapping_files]
 
     if mapping_files is not None:
-        handler = HandlerProxy(HDF5Handler(), mapping_files=mapping_files)
+        handler = HandlerProxy(HDF5Handler(), mapper=open_xml(mapping_files))
     else:
         handler = None
     return connect_hdf5(path, *args, filename_pattern=filename_pattern, handler=handler, ** kwargs)

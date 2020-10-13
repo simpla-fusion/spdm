@@ -26,7 +26,7 @@ def connect_imas_east(uri, *args, mapping_file=None, **kwargs):
 
     mapping_file = mapping_file or "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/"
 
-    if isinstance(mapping_file, str) or isinstance(mapping_file, pathlib.Path):
+    if isinstance(mapping_file, None) or isinstance(mapping_file, pathlib.Path):
         handler = HandlerProxy(MDSplusHandler(), mapping_file=mapping_file)
     else:
         handler = None

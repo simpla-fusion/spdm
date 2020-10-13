@@ -86,6 +86,8 @@ class HDF5Handler(Handler):
         elif not isinstance(path, collections.abc.Sequence):
             raise TypeError(f"Illegal path type {type(path)}! {path}")
 
+        prefix = []
+
         for p in path:
             if isinstance(p, str):
                 pass
@@ -95,10 +97,14 @@ class HDF5Handler(Handler):
                     p = p % num
                 p = f"__id__{p}"
 
+            prefix.append(p)
+
             if p in obj:
                 obj = obj[p]
             elif p in obj.attrs:
                 obj = obj.attrs[p]
+            else:
+                raise KeyError(f"Can not find element at {'/'.join(prefix)} !")
 
         if projection is None:
             if isinstance(obj, h5py.Group):

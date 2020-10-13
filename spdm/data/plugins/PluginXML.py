@@ -3,7 +3,7 @@ from xml.etree import (ElementTree, ElementInclude)
 from spdm.util.LazyProxy import LazyProxy
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import Handler, RefLinker
+from ..Handler import Handler, Linker
 import h5py
 import numpy
 import collections
@@ -69,7 +69,7 @@ class XMLHandler(Handler):
         elif dtype is None:
             res = obj.text
         elif dtype == "ref":
-            res = RefLinker(obj.attrib.get("schema", None), obj.text)
+            res = Linker(obj.attrib.get("schema", None), obj.text)
         else:
             if dtype == "string":
                 res = obj.text.split(',')

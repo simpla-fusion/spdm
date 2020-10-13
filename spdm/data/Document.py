@@ -27,6 +27,16 @@ class Document(object):
     def check(self, predication, **kwargs) -> bool:
         raise NotImplementedError()
 
+    def put(self, p, v):
+        return self._handler.put(self.root, p, v)
+
+    def get(self, p):
+        return self._handler.get(self.root, p)
+
+    def iter(self, p):
+        for obj in self._handler.iter(self.root, p):
+            yield obj
+
     def update(self, d: Dict[str, Any]):
         return self._handler.put(self.root, [], d)
 

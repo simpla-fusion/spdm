@@ -21,11 +21,11 @@ class Collection(object):
     def __init__(self, *args,  **kwargs):
         super().__init__()
 
-    def create(self, *args, **kwargs):
-        return self.insert_one(*args, **kwargs).entry
+    def insert(self, *args, **kwargs):
+        return self.insert_one(*args, **kwargs)
 
     def open(self, *args, **kwargs):
-        return self.find_one(*args, **kwargs).entry
+        return self.find_one(*args, **kwargs)
 
     def find_one(self, predicate=None, *args, **kwargs):
         raise NotImplementedError(whoami(self))
@@ -54,7 +54,7 @@ class Collection(object):
     def delete_many(self, predicate, *args, **kwargs) -> DeleteResult:
         raise NotImplementedError(whoami(self))
 
-    def count(self, predicate=None,*args, **kwargs) -> int:
+    def count(self, predicate=None, *args, **kwargs) -> int:
         raise NotImplementedError(whoami(self))
 
     ######################################################################
@@ -85,7 +85,7 @@ class Collection(object):
 class FileCollection(Collection):
 
     def __init__(self, path, *args, filename_pattern=None, mode="rw", document_factory=None,  **kwargs):
-        
+
         super().__init__(*args, **kwargs)
 
         self._mode = mode
@@ -113,24 +113,25 @@ class FileCollection(Collection):
 
     # mode in ["", auto_inc  , glob ]
     def get_filename(self, d, mode=""):
+        fname = None
         if callable(self._filename_pattern):
             fname = self._filename_pattern(self._path, d, mode)
         elif not isinstance(self._filename_pattern, str):
             raise TypeError(self._filename_pattern)
+        elif mode == "glob":
+            fname = (self._path.name or self._filename_pattern).format(_id="*")
+        elif isinstance(d, collections.abc.Mapping) and "_id" in d:
+            fname = (self._path.name or self._filename_pattern).format_map(d)
         elif mode == "auto_inc":
             fnum = len(list(self._path.parent.glob(self._path.name.format(_id="*"))))
             fname = (self._path.name or self._filename_pattern).format(_id=fnum)
-        elif mode == "glob":
-            fname = (self._path.name or self._filename_pattern).format(_id="*")
         else:
-            try:
-                fname = (self._path.name or self._filename_pattern).format_map(d)
-            except KeyError:
-                fname = None
+            raise RuntimeError(f"Can not guess filename from {d}")
+              
 
         return fname
 
-    def insert_one(self, data=None,  **kwargs):
+    def insert_one(self, data=None, *args,  **kwargs):
         doc = self.create_document(self.get_filename(data or kwargs, mode="auto_inc"), mode="w")
         doc.update(data or kwargs)
         return doc
