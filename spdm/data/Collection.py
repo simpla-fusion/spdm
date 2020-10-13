@@ -18,14 +18,23 @@ class Collection(object):
     ''' Collection of documents
     '''
 
-    def __init__(self, *args, mode="rw",  id_pattern=None,  **kwargs):
+    def __init__(self, *args, mode="rw",  id_pattern=None, handler=None, handler_wrapper=None, **kwargs):
         super().__init__()
         self._mode = mode
         self._id_pattern = id_pattern
 
+        if handler_wrapper is not None:
+            self._handler = handler_wrapper(handler)
+        else:
+            self._handler = handler
+
     @property
     def mode(self):
         return self._mode
+
+    @property
+    def handler(self):
+        return self._handler
 
     # mode in ["", auto_inc  , glob ]
     def guess_id(self, d, auto_inc=True):
@@ -37,7 +46,7 @@ class Collection(object):
 
         return fid
 
-    def create_document(self, fid, mode):
+    def open_document(self, fid, mode):
         logger.debug(f"Opend Document: {fpath} mode=\"{mode}\"")
         raise NotImplementedError(whoami(self))
 
@@ -122,8 +131,6 @@ class FileCollection(Collection):
         if "{_id}" not in self._path.stem:
             self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
 
-        logger.debug(self._path)
-
         self._file_factory = file_factory
 
         if not self._path.parent.exists():
@@ -134,7 +141,7 @@ class FileCollection(Collection):
         elif not self._path.parent.is_dir():
             raise NotADirectoryError(self._path.parent)
 
-        logger.debug(f"Open Collection : {self._path}")
+        logger.debug(f"Open SpDB.Collection : {self._path}")
 
     def guess_id(self, d, auto_inc=True):
         fid = super().guess_id(d, auto_inc=auto_inc)
@@ -144,28 +151,30 @@ class FileCollection(Collection):
 
         return fid
 
-    def create_document(self, fid, mode=None):
-        fname = self._path.name.format(_id=fid)
-        fpath = self._path.with_name(self._path.name.format(_id=fid))
+    def guess_filepath(self, *args, **kwargs):
+        return self._path.with_name(self._path.name.format(_id=self.guess_id(*args, **kwargs)))
+
+    def open_document(self, fid, mode=None):
+        fpath = self.guess_filepath({"_id": fid})
         logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.mode}\"")
-        return self._file_factory(fpath, mode or self.mode)
+        return Document(root=self._file_factory(fpath, mode or self.mode), handler=self._handler)
 
     def insert_one(self, data=None, *args,  **kwargs):
-        doc = self.create_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
+        doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
         doc.update(data or kwargs)
         return doc
 
     def find_one(self, predicate=None, projection=None, **kwargs):
-        fpath = self._path.with_name(self._path.name.format(_id=self.guess_id(predicate or kwargs)))
+        fpath = self.guess_filepath(predicate or kwargs)
 
         doc = None
         if fpath.exists():
-            doc = self.create_document(fpath)
+            doc = self.open_document(fpath)
         else:
             for fp in self._path.parent.glob(self._path.name.format(_id="*")):
                 if not fp.exists():
                     continue
-                doc = self.create_document(fname, mode="r")
+                doc = self.open_document(fp, mode="r")
                 if doc.check(predicate):
                     break
                 else:

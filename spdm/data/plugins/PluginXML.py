@@ -103,29 +103,29 @@ class XMLHandler(Handler):
             yield self.convert(child)
 
 
-def load_mapping(path):
+def load_xml(path):
     if isinstance(path, str):
-        return load_mapping(pathlib.Path(path))
+        return load_xml(pathlib.Path(path))
     elif isinstance(path, collections.abc.Sequence):
         trees = []
         for fp in path:
-            trees.extend(load_mapping(fp))
+            trees.extend(load_xml(fp))
         return trees
     elif not isinstance(path, pathlib.Path):
         return []
     elif path.is_dir():
         trees = []
         for fp in path.glob("*.xml"):
-            trees.extend(load_mapping(fp))
+            trees.extend(load_xml(fp))
         return trees
 
     root = ElementTree.parse(path).getroot()
 
-    logger.debug(f"Loading mapping file from {path}")
+    logger.debug(f"Loading XML file from {path}")
 
     return [root]
     # for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
-    #     fp = mapping_file.parent/child.attrib["href"]
+    #     fp = xml_file.parent/child.attrib["href"]
     #     try:
     #         root.insert(0, ElementTree.parse(fp).getroot())
     #     except ElementTree.ParseError as error:
@@ -135,7 +135,7 @@ def load_mapping(path):
 
 
 def open_xml(path, mapper=None, **kwargs):
-    return Document(root=load_mapping(path), handler=XMLHandler(mapper=mapper))
+    return Document(root=load_xml(path), handler=XMLHandler(mapper=mapper))
 
 
 # def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):

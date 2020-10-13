@@ -143,9 +143,8 @@ def connect_hdf5(uri, *args, **kwargs):
 
     return FileCollection(path, *args,
                           file_extension=".h5",
-                          file_factory=lambda fpath, mode: Document(
-                              root=h5py.File(fpath, mode=mode),
-                              handler=HDF5Handler()),
+                          file_factory=lambda fpath, mode: h5py.File(fpath, mode=mode),
+                          handler=HDF5Handler(),
                           **kwargs)
 
 

@@ -19,6 +19,6 @@ def connect(uri, *args, **kwargs):
     if backend is None:
         raise ModuleNotFoundError(uri)
     
-    logger.info(f"Load SpDB Plugin: {plugin_name}")
+    logger.info(f"Load SpDB.Plugin: {plugin_name}")
     
     return backend(uri, *args, **kwargs)
