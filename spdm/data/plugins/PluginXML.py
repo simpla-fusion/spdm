@@ -72,69 +72,74 @@ class XMLHandler(Handler):
                 res = np.array(res).reshape(dims)
         return res
 
-    def find(self, trees, path):
-        if not isinstance(trees, collections.abc.Sequence):
-            trees = [trees]
+    def find(self, tree, path):
         path, query = self._mapper(path)
-        obj = None
-        for tree in trees:
-            obj = tree.find(path)
-            if obj is not None:
-                break
-        return obj, query
+        return tree.find(path), query
 
-    def put(self, grp, path, value, **kwargs):
+    def put(self, tree, path, value, **kwargs):
         raise NotImplementedError()
 
-    def get(self, trees, path, **kwargs):
-        return self.convert(*self.find(trees, path))
+    def get(self, tree, path, **kwargs):
+        return self.convert(*self.find(tree, path))
 
-    def get_value(self, trees, path, *args, **kwargs):
-        return self.convert(*self.find(trees, path), lazy=False)
+    def get_value(self, tree, path, *args, **kwargs):
+        return self.convert(*self.find(tree, path), lazy=False)
 
-    def iter(self, trees, path, **kwargs):
+    def iter(self, tree, path, **kwargs):
         path, query = self._mapper(path)
-        for tree in trees:
-            for child in tree.iterfind(path):
-                obj = self.convert(child, query)
-                if obj is not None:
-                    yield obj
+        for child in tree.iterfind(path):
+            obj = self.convert(child, query)
+            if obj is not None:
+                yield obj
+
+
+def merge_xml(first, second):
+    if second is None:
+        return
+
+    for child in second:
+        id = child.attrib.get("id", None)
+        if id is not None:
+            target = first.find(f"{child.tag}[@id='{id}']")
+        else:
+            target = first.find(child.tag)
+        if target is not None:
+            merge_xml(target, child)
+        else:
+            first.append(child)
 
 
 def load_xml(path):
     if isinstance(path, str):
-        return load_xml(pathlib.Path(path))
-    elif isinstance(path, collections.abc.Sequence):
-        trees = []
-        for fp in path:
-            trees.extend(load_xml(fp))
-        return trees
-    elif not isinstance(path, pathlib.Path):
-        return []
-    elif path.is_dir():
-        trees = []
-        for fp in path.glob("*.xml"):
-            trees.extend(load_xml(fp))
-        return trees
+        path = pathlib.Path(path)
+
+    if isinstance(path, collections.abc.Sequence):
+        root = load_xml(path[0])
+        for fp in path[1:]:
+            merge_xml(root, load_xml(fp))
+        return root
+    elif not isinstance(path, pathlib.Path) or not path.is_file():
+        raise FileNotFoundError(path)
+
     try:
         root = ElementTree.parse(path).getroot()
+        logger.debug(f"Loading XML file from {path}")
+
     except ElementTree.ParseError as msg:
         raise RuntimeError(f"ParseError: {path}: {msg}")
-    logger.debug(f"Loading XML file from {path}")
 
-    return [root]
-    # for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
-    #     fp = xml_file.parent/child.attrib["href"]
-    #     try:
-    #         root.insert(0, ElementTree.parse(fp).getroot())
-    #     except ElementTree.ParseError as error:
-    #         raise RuntimeError(f"Parse Error in {fp}: {error}")
+    for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
+        fp = path.parent/child.attrib["href"]
+        root.insert(0, load_xml(fp))
+        root.remove(child)
 
-    #     root.remove(child)
+    return root
 
 
 def open_xml(path, mapper=None, **kwargs):
-    return Document(root=load_xml(path), handler=XMLHandler(mapper=mapper))
+    xml_doc = load_xml(path)
+    ElementTree.ElementTree(xml_doc).write("tree.xml")
+    return Document(root=xml_doc, handler=XMLHandler(mapper=mapper))
 
 
 # def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):

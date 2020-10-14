@@ -96,9 +96,13 @@ class MDSplusHandler(Handler):
         if path is None:
             return None
         elif not isinstance(path, str):
-            raise NotImplementedError()
+            raise NotImplementedError(path)
         else:
             return holder.tree.tdiExecute(path).data()
+
+    def iter(self, holder, path, *args, **kwargs):
+        raise NotImplementedError(path)
+
 
 
 class MDSplusCollection(Collection):
