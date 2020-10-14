@@ -49,6 +49,8 @@ class XMLHandler(Handler):
             res = collections.namedtuple(obj.tag, d.keys())(**d)
         elif dtype is None:
             res = obj.text
+        elif dtype == "NONE":
+            res = None
         elif dtype == "ref":
             res = Linker(obj.attrib.get("schema", None), obj.text.format_map(query or {}))
         else:
@@ -94,7 +96,9 @@ class XMLHandler(Handler):
         path, query = self._mapper(path)
         for tree in trees:
             for child in tree.iterfind(path):
-                yield self.convert(child, query)
+                obj = self.convert(child, query)
+                if obj is not None:
+                    yield obj
 
 
 def load_xml(path):

@@ -147,25 +147,30 @@
             </profiles_1d>
 
             <profiles_2d>   
-                <r dtype="NONE"/>
+                <!-- <r dtype="NONE"/> -->
 
-                <z dtype="NONE"/>
+                <!-- <z dtype="NONE"/> -->
 
                 <psi dtype="ref">DATA(\PSIRZ)[*,*,{itime}]</psi>
 
-                <theta dtype="NONE"/>
+                <grid>
+                    <dim1 dtype="ref">DATA(\R)[*]</dim1>
+                    <dim2 dtype="ref">DATA(\Z)[*]</dim2>
+                </grid>
 
-                <phi dtype="NONE"/>
+                <!-- <theta dtype="NONE"/> -->
+
+                <!-- <phi dtype="NONE"/> -->
                 
-                <j_tor dtype="NONE"/>
+                <!-- <j_tor dtype="NONE"/> -->
 
-                <j_parallel dtype="NONE"/>
+                <!-- <j_parallel dtype="NONE"/> -->
 
-                <b_field_r dtype="NONE"/>
+                <!-- <b_field_r dtype="NONE"/> -->
 
-                <b_field_z dtype="NONE"/>
+                <!-- <b_field_z dtype="NONE"/> -->
 
-                <b_field_tor dtype="NONE"/>
+                <!-- <b_field_tor dtype="NONE"/> -->
 
             </profiles_2d>  
     

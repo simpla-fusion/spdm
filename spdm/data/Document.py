@@ -5,8 +5,6 @@ from typing import (Dict, List, Any)
 
 class Document(object):
     def __init__(self, *args, schema=None, root=None, handler=None, collection=None, **kwargs):
-        print(f"Init  {self.__class__.__name__} {root}")
-
         self._schema = schema
         self._root = root
         self._handler = handler
