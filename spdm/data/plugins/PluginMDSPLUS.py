@@ -78,16 +78,9 @@ from spdm.util.logger import logger
 #         # raise NotImplementedError(whoami(self))
 
 class MDSplusHolder(object):
-    def __init__(self, *args, **kwargs):
-        self._tree = mds.Tree(*args, **kwargs)
-
-    def __del__(self):
-        # logger.debug(f"Delete Tree")
-        print("delete MDSplusHolder")
-        try :
-            del self._tree
-        except AttributeError:
-            pass
+    def __init__(self, tree_name, fid, *args, mode="r", **kwargs):
+        self._tree = mds.Tree(tree_name, fid, mode="NORMAL")
+        logger.debug(f"Opend MDSTree: {tree_name} {fid} mode=\"{mode}\"")
 
     @property
     def tree(self):
@@ -128,10 +121,10 @@ class MDSplusCollection(Collection):
 
         logger.debug(f"Open MDSplus collection:[{os.environ[f'{self._tree_name}_path']}]")
 
-
     def open_document(self, fid, mode):
-        logger.debug(f"Opend MDSTree: {self._tree_name} {fid} mode=\"{mode}\"")
-        return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"), handler=self._handler)
+        return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"),
+                        handler=self._handler,
+                        collection=self)
 
     def insert_one(self, data=None, *args, **kwargs):
         doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
