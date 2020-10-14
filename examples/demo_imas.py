@@ -1,11 +1,11 @@
+import sys
+sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 import os
-# import MDSplus as mds
 from spdm.data import connect
 from spdm.util.logger import logger
-import sys
-# sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
-# sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+
 
 os.environ['east_path'] = 'mds.ipp.ac.cn::/pcs_east'
 
@@ -26,6 +26,7 @@ if __name__ == '__main__':
     # logger.debug(entry.magnetics.b_field_tor_probe[1].field.data.__value__())
     logger.debug(entry.equilibrium.time_slice[1].profiles_2d.psi.__value__())
 
+    pass
     # entry.pf_active.coil[0].element[0].geometry.retangle.r = 5
     # logger.debug(entry.equilibrium.time_slice[0].profiles_2d[0].psi.__value__())
     # pprint.pprint(collection)

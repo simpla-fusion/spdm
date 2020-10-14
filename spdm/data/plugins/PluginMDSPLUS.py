@@ -83,6 +83,7 @@ class MDSplusHolder(object):
 
     def __del__(self):
         # logger.debug(f"Delete Tree")
+        print("delete MDSplusHolder")
         try :
             del self._tree
         except AttributeError:
