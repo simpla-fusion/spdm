@@ -4,123 +4,123 @@
         <ids_properties>
             <homogeneous_time dtype="int">1</homogeneous_time>
         </ids_properties>
-        <time dtype="ref">DATA(TIME)</time>
+        
 
-        <b_field_tor_probe id='1' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  0, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='2' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  1, {itime}]</data> /field>    </b_field_tor_probe>      
-        <b_field_tor_probe id='3' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  2, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='4' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  3, {itime}]</data> /field>    </b_field_tor_probe>    
-        <b_field_tor_probe id='5' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  4, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='6' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  5, {itime}]</data> /field>    </b_field_tor_probe>    
-        <b_field_tor_probe id='7' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  6, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='8' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  7, {itime}]</data> /field>    </b_field_tor_probe>     
-        <b_field_tor_probe id='9' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  8, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='10'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[  9, {itime}]</data> /field>    </b_field_tor_probe>     
-        <b_field_tor_probe id='11'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 10, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='12'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 11, {itime}]</data> /field>    </b_field_tor_probe>   
-        <b_field_tor_probe id='13'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 12, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='14'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 13, {itime}]</data> /field>    </b_field_tor_probe>   
-        <b_field_tor_probe id='15'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 14, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='16'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 15, {itime}]</data> /field>    </b_field_tor_probe>   
-        <b_field_tor_probe id='17'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 16, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='18'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 17, {itime}]</data> /field>    </b_field_tor_probe>   
-        <b_field_tor_probe id='19'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 18, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='20'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 19, {itime}]</data> /field>    </b_field_tor_probe>    
-        <b_field_tor_probe id='21'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 20, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='22'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 21, {itime}]</data> /field>    </b_field_tor_probe>      
-        <b_field_tor_probe id='23'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 22, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='24'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 23, {itime}]</data> /field>    </b_field_tor_probe>      
-        <b_field_tor_probe id='25'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 24, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='26'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 25, {itime}]</data> /field>    </b_field_tor_probe>      
-        <b_field_tor_probe id='27'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 26, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='28'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 27, {itime}]</data> /field>    </b_field_tor_probe>        
-        <b_field_tor_probe id='29'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 28, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='30'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 29, {itime}]</data> /field>    </b_field_tor_probe>        
-        <b_field_tor_probe id='31'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 30, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='32'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 31, {itime}]</data> /field>    </b_field_tor_probe>       
-        <b_field_tor_probe id='33'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 32, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='34'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 33, {itime}]</data> /field>    </b_field_tor_probe>        
-        <b_field_tor_probe id='35'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 34, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='36'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 35, {itime}]</data> /field>    </b_field_tor_probe>        
-        <b_field_tor_probe id='37'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 36, {itime}]</data> /field>    </b_field_tor_probe>
-        <b_field_tor_probe id='38'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 37, {itime}]</data> /field>    </b_field_tor_probe>  
+        <b_field_tor_probe id='1' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  0, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='2' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  1, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>      
+        <b_field_tor_probe id='3' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  2, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='4' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  3, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>    
+        <b_field_tor_probe id='5' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  4, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='6' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  5, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>    
+        <b_field_tor_probe id='7' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  6, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='8' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  7, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>     
+        <b_field_tor_probe id='9' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  8, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='10'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[  9, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>     
+        <b_field_tor_probe id='11'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 10, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='12'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 11, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>   
+        <b_field_tor_probe id='13'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 12, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='14'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 13, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>   
+        <b_field_tor_probe id='15'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 14, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='16'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 15, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>   
+        <b_field_tor_probe id='17'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 16, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='18'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 17, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>   
+        <b_field_tor_probe id='19'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 18, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='20'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 19, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>    
+        <b_field_tor_probe id='21'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 20, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='22'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 21, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>      
+        <b_field_tor_probe id='23'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 22, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='24'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 23, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>      
+        <b_field_tor_probe id='25'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 24, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='26'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 25, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>      
+        <b_field_tor_probe id='27'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 26, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='28'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 27, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>        
+        <b_field_tor_probe id='29'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 28, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='30'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 29, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>        
+        <b_field_tor_probe id='31'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 30, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='32'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 31, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>       
+        <b_field_tor_probe id='33'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 32, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='34'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 33, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>        
+        <b_field_tor_probe id='35'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 34, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='36'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 35, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>        
+        <b_field_tor_probe id='37'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 36, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>
+        <b_field_tor_probe id='38'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 37, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_tor_probe>  
 
 
 
-        <b_field_pol_probe id='1' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 38, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='2' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 39, {itime}]</data> /field>    </b_field_pol_probe>        
-        <b_field_pol_probe id='3' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 40, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='4' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 41, {itime}]</data> /field>    </b_field_pol_probe>        
-        <b_field_pol_probe id='5' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 42, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='6' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 43, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='7' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 44, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='8' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 45, {itime}]</data> /field>    </b_field_pol_probe>        
-        <b_field_pol_probe id='9' > <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 46, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='10'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 47, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='11'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 48, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='12'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 49, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='13'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 50, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='14'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 51, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='15'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 52, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='16'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 53, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='17'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 54, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='18'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 55, {itime}]</data> /field>    </b_field_pol_probe>        
-        <b_field_pol_probe id='19'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 56, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='20'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 57, {itime}]</data> /field>    </b_field_pol_probe>      
-        <b_field_pol_probe id='21'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 58, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='22'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 59, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='23'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 60, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='24'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 61, {itime}]</data> /field>    </b_field_pol_probe>        
-        <b_field_pol_probe id='25'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 62, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='26'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 63, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='27'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 64, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='28'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 65, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='29'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 66, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='30'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 67, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='31'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 68, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='32'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 69, {itime}]</data> /field>    </b_field_pol_probe>      
-        <b_field_pol_probe id='33'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 70, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='34'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 71, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='35'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 72, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='36'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 73, {itime}]</data> /field>    </b_field_pol_probe>       
-        <b_field_pol_probe id='37'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 74, {itime}]</data> /field>    </b_field_pol_probe>
-        <b_field_pol_probe id='38'> <field> <data dtype="ref">DATA(\\EFIT_MFILE:CMPR2)[ 75, {itime}]</data> /field>    </b_field_pol_probe>        
+        <b_field_pol_probe id='1' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 38, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='2' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 39, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>        
+        <b_field_pol_probe id='3' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 40, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='4' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 41, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>        
+        <b_field_pol_probe id='5' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 42, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='6' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 43, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='7' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 44, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='8' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 45, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>        
+        <b_field_pol_probe id='9' > <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 46, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='10'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 47, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='11'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 48, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='12'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 49, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='13'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 50, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='14'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 51, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='15'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 52, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='16'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 53, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='17'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 54, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='18'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 55, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>        
+        <b_field_pol_probe id='19'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 56, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='20'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 57, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>      
+        <b_field_pol_probe id='21'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 58, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='22'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 59, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='23'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 60, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='24'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 61, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>        
+        <b_field_pol_probe id='25'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 62, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='26'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 63, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='27'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 64, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='28'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 65, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='29'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 66, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='30'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 67, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='31'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 68, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='32'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 69, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>      
+        <b_field_pol_probe id='33'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 70, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='34'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 71, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='35'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 72, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='36'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 73, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>       
+        <b_field_pol_probe id='37'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 74, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>
+        <b_field_pol_probe id='38'> <field> <data dtype="ref">DATA(\EFIT_MFILE:CMPR2)[ 75, *]</data>  <time dtype="ref">DATA(\TIME)</time> </field>    </b_field_pol_probe>        
                                                                
                                                                       
-        <flux_loop         id='1' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  0, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='2' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  1, {itime}]</data> </flux>   </flux_loop>     
-        <flux_loop         id='3' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  2, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='4' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  3, {itime}]</data> </flux>   </flux_loop>       
-        <flux_loop         id='5' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  4, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='6' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  5, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='7' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  6, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='8' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  7, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='9' > <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  8, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='10'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[  9, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='11'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 10, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='12'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 11, {itime}]</data> </flux>   </flux_loop>   
-        <flux_loop         id='13'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 12, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='14'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 13, {itime}]</data> </flux>   </flux_loop>    
-        <flux_loop         id='15'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 14, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='16'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 15, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='17'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 16, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='18'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 17, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='19'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 18, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='20'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 19, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='21'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 20, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='22'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 21, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='23'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 22, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='24'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 23, {itime}]</data> </flux>   </flux_loop>      
-        <flux_loop         id='25'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 24, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='26'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 25, {itime}]</data> </flux>   </flux_loop>     
-        <flux_loop         id='27'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 26, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='28'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 27, {itime}]</data> </flux>   </flux_loop>    
-        <flux_loop         id='29'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 28, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='30'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 29, {itime}]</data> </flux>   </flux_loop>    
-        <flux_loop         id='31'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 30, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='32'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 31, {itime}]</data> </flux>   </flux_loop>    
-        <flux_loop         id='33'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 32, {itime}]</data> </flux>   </flux_loop>
-        <flux_loop         id='34'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 33, {itime}]</data> </flux>   </flux_loop>     
-        <flux_loop         id='35'> <flux>  <data dtype='ref'>DATA(\\EFIT_MFILE:CMPR2)[ 34, {itime}]</data> </flux>   </flux_loop>  
+        <flux_loop         id='1' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  0, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='2' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  1, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>     
+        <flux_loop         id='3' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  2, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='4' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  3, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>       
+        <flux_loop         id='5' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  4, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='6' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  5, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='7' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  6, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='8' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  7, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='9' > <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  8, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='10'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[  9, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='11'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 10, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='12'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 11, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>   
+        <flux_loop         id='13'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 12, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='14'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 13, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>    
+        <flux_loop         id='15'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 14, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='16'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 15, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='17'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 16, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='18'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 17, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='19'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 18, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='20'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 19, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='21'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 20, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='22'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 21, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='23'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 22, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='24'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 23, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>      
+        <flux_loop         id='25'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 24, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='26'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 25, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>     
+        <flux_loop         id='27'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 26, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='28'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 27, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>    
+        <flux_loop         id='29'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 28, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='30'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 29, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>    
+        <flux_loop         id='31'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 30, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='32'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 31, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>    
+        <flux_loop         id='33'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 32, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>
+        <flux_loop         id='34'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 33, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>     
+        <flux_loop         id='35'> <flux>  <data dtype='ref'>DATA(\EFIT_MFILE:CMPR2)[ 34, *]</data>  <time dtype="ref">DATA(\TIME)</time> </flux>   </flux_loop>  
   </magnetics>
 </mapping>

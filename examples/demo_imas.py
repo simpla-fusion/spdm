@@ -22,6 +22,8 @@ if __name__ == '__main__':
 
     logger.debug(entry.pf_active.coil[1].element[0].geometry.rectangle.r.__value__())
     logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__())
+    # logger.debug(entry.magnetics.b_field_tor_probe[1].field.data.__value__())
+    logger.debug(entry.equilibrium.time_slice[1].global_quantities.beta_pol.__value__())
 
     entry.pf_active.coil[0].element[0].geometry.retangle.r = 5
     # logger.debug(entry.equilibrium.time_slice[0].profiles_2d[0].psi.__value__())

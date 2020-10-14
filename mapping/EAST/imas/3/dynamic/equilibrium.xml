@@ -4,32 +4,32 @@
         <ids_properties>
             <homogeneous_time dtype="int">0</homogeneous_time>
         </ids_properties>
-        <time dtype="ref">DATA(\\TIME)</time>
+        <time dtype="ref">DATA(\TIME)</time>
         <time_slice>
             <!--<Shape_of value="SHAPE(\\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" />-->
             <boundary>
                 <type>1</type>
                 <outline>
-                    <r dtype="ref">DATA(\\BDRY)[0, 0: DATA(\\NBDRY)[{itime}]-1,{itime}]</r>
-                    <z dtype="ref">DATA(\\BDRY)[1, 0: DATA(\\NBDRY)[{itime}]-1,{itime}]</z>
+                    <r dtype="ref">DATA(\BDRY)[0, 0: DATA(\NBDRY)[{itime}]-1,{itime}]</r>
+                    <z dtype="ref">DATA(\BDRY)[1, 0: DATA(\NBDRY)[{itime}]-1,{itime}]</z>
                 </outline>
                 <psi_norm dtype="NONE">??</psi_norm>
-                <psi dtype="ref">DATA(\\SSIBRY)</psi>
+                <psi dtype="ref">DATA(\SSIBRY)</psi>
 
                 <geometric_axis>
-                    <r dtype='ref'>DATA(\\RSURF[*,{itime}])</r>
-                    <z dtype='ref'>DATA(\\ZSURF[*,{itime}])</z>
+                    <r dtype='ref'>DATA(\RSURF[*,{itime}])</r>
+                    <z dtype='ref'>DATA(\ZSURF[*,{itime}])</z>
                 </geometric_axis>
 
                 <minor_radius dtype="NONE">??</minor_radius>
 
-                <elongation dtype='ref'>DATA(\\KAPPA[{itime}])</elongation>
+                <elongation dtype='ref'>DATA(\KAPPA[{itime}])</elongation>
                 <elongation_upper dtype="NONE">??</elongation_upper>
                 <elongation_lower dtype="NONE">??</elongation_lower>
 
                 <triangularity dtype="NONE">??</triangularity>
-                <triangularity_lower dtype='ref'>DATA(\\TRIBOT[{itime}])</triangularity_lower>
-                <triangularity_upper dtype='ref'>DATA(\\TRITOP[{itime}])</triangularity_upper>
+                <triangularity_lower dtype='ref'>DATA(\TRIBOT[{itime}])</triangularity_lower>
+                <triangularity_upper dtype='ref'>DATA(\TRITOP[{itime}])</triangularity_upper>
 
                 <x_point>
                     <r dtype="NONE">??</r>
@@ -57,47 +57,47 @@
                         they are redundant with grid/dim1 and dim2.</description>
                 </grid_type> 
                 <grid>
-                    <dim1 dtype="ref">\R</dim1>
-                    <dim2 dtype="ref">\Z</dim2>
+                    <dim1 dtype="ref">DIM_OF(\R,0)</dim1>
+                    <dim2 dtype="ref">DIM_OF(\R,1)</dim2>
                 </grid>
-                <r dtype="ref">DATA(\\R)</r>
-                <z dtype="ref">DATA(\\Z)</z>
+                <r dtype="ref">DATA(\R)</r>
+                <z dtype="ref">DATA(\Z)</z>
             </coordinate_system>                
 
             <global_quantities>
-                <beta_pol dtype="ref">DATA(\\BETAP)</beta_pol>
-                <beta_tor dtype="ref">DATA(\\BETAT)</beta_tor>
-                <beta_normal dtype="ref">DATA(\\BETAN)</beta_normal>
+                <beta_pol dtype="ref">DATA(\BETAP[{itime}])</beta_pol>
+                <beta_tor dtype="ref">DATA(\BETAT[{itime}])</beta_tor>
+                <beta_normal dtype="ref">DATA(\BETAN[{itime}])</beta_normal>
 
-                <ip dtype="ref">DATA(\\EFIT_MFILE:PLASMA)[{itime}]</ip>
+                <ip dtype="ref">DATA(\EFIT_MFILE:PLASMA)[{itime}]</ip>
 
-                <li_3 dtype="ref">DATA(\\LI)[{itime}]</li_3>
+                <li_3 dtype="ref">DATA(\LI)[{itime}]</li_3>
 
-                <volume>DATA(\\VOLUME)[{itime}]</volume>
+                <volume>DATA(\VOLUME)[{itime}]</volume>
 
                 <!-- <area dtype="NONE">??</area> -->
                 <!-- <surface dtype="NONE">??</surface> -->
                 <!-- <length_pol dtype="NONE">??</length_pol> -->
 
             
-                <psi_axis dtype="ref">DATA(\\SSIMAG)[{itime}]</psi_axis>
+                <psi_axis dtype="ref">DATA(\SSIMAG)[{itime}]</psi_axis>
 
-                <psi_boundary dtype="ref">DATA(\\SSIBRY)[{itime}]</psi_boundary>
+                <psi_boundary dtype="ref">DATA(\SSIBRY)[{itime}]</psi_boundary>
 
                 <magnetic_axis>
-                    <r dtype="ref">DATA(\\RMAXIS)[{itime}]</r>
-                    <z dtype="ref">DATA(\\ZMAXIS)[{itime}]</z>
-                    <b_field_tor dtype="ref">DATA(\\BCENTR)[{itime}]</b_field_tor>
+                    <r dtype="ref">DATA(\RMAXIS)[{itime}]</r>
+                    <z dtype="ref">DATA(\ZMAXIS)[{itime}]</z>
+                    <b_field_tor dtype="ref">DATA(\BCENTR)[{itime}]</b_field_tor>
                 </magnetic_axis>
 
-                <q_axis dtype="ref">DATA(\\Q0)[{itime}]</q_axis>
-                <q_95 dtype="ref">DATA(\\Q95)[{itime}]</q_95>
+                <q_axis dtype="ref">DATA(\Q0)[{itime}]</q_axis>
+                <q_95 dtype="ref">DATA(\Q95)[{itime}]</q_95>
                 <q_min>
-                    <value dtype="ref">DATA(\\QL)[{itime}]</value>
-                    <rho_tor_norm  dtype="ref">DATA(\\AMINOR)[{itime}]</rho_tor_norm> <!-- need comment -->
+                    <value dtype="ref">DATA(\QL)[{itime}]</value>
+                    <rho_tor_norm  dtype="ref">DATA(\AMINOR)[{itime}]</rho_tor_norm> <!-- need comment -->
                 </q_min>
 
-                <energy_mhd dtype="ref">DATA(\\WMHD)[{itime}]</energy_mhd>
+                <energy_mhd dtype="ref">DATA(\WMHD)[{itime}]</energy_mhd>
             </global_quantities>
 
             <profiles_1d>
@@ -105,14 +105,14 @@
                 <!-- <phi dtype="NONE">??</phi> -->
                 <!-- <pressure dtype="NONE">??</pressure> -->
 
-                <f dtype="ref">DATA(\\FPOL)[*,{itime}]</f>
-                <dpressure_dpsi dtype="ref">DATA(\\PPRIME)[*,{itime}]</dpressure_dpsi>
-                <f_df_dpsi dtype="ref">DATA(\\FFPRIM)[*,{itime}]</f_df_dpsi>
+                <f dtype="ref">DATA(\FPOL)[*,{itime}]</f>
+                <dpressure_dpsi dtype="ref">DATA(\PPRIME)[*,{itime}]</dpressure_dpsi>
+                <f_df_dpsi dtype="ref">DATA(\FFPRIM)[*,{itime}]</f_df_dpsi>
 
                 <!-- <j_tor dtype="NONE">???</j_tor> -->
                 <!-- <j_parallel dtype="NONE">???</j_parallel> -->
 
-                <q dtype="ref">DATA(\\QPSI)[*,{itime}]</q>
+                <q dtype="ref">DATA(\QPSI)[*,{itime}]</q>
 
                 <!-- <geometric_axis>
                     <r dtype="NONE" /> 
@@ -130,7 +130,7 @@
                 <!-- <triangularity_upper dtype="NONE" />  -->
                 <!-- <triangularity_lower dtype="NONE" />  -->
 
-                <volume dtype="ref">DATA(\\VOLUME)[*,{itime}]</volume>   
+                <volume dtype="ref">DATA(\VOLUME)[*,{itime}]</volume>   
                 <!-- <rho_volume_norm dtype="NONE" />  -->
                 <!-- <dvolume_dpsi dtype="NONE" />  -->
                 <!-- <dvolume_drho_tor dtype="NONE" />  -->
@@ -148,10 +148,10 @@
 
             <profiles_2d>   
                 <r dtype="NONE"/>
-                
+
                 <z dtype="NONE"/>
 
-                <psi dtype="ref">DATA(\\PSIRZ)[*,*,{itime}]</psi>
+                <psi dtype="ref">DATA(\PSIRZ)[*,*,{itime}]</psi>
 
                 <theta dtype="NONE"/>
 

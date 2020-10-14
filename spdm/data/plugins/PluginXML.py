@@ -10,7 +10,7 @@ import collections
 import pathlib
 from typing import (Dict, Any)
 from spdm.util.logger import logger
- 
+
 
 class XMLHandler(Handler):
     def __init__(self,  *args, mapper=None, **kwargs):
@@ -26,35 +26,16 @@ class XMLHandler(Handler):
                 else:
                     # TODO: handle slice
                     raise TypeError(f"Illegal path type! {type(p)} {path}")
+                prev = p
 
             if len(xpath) > 0 and xpath[0] == "/":
                 xpath = xpath[1:]
 
-            return xpath
+            return xpath, {}
 
-        if mapper is None:
-            self._mapper = default_mapper
-        else:
-            self._mapper = lambda path: mapper(xtree, path)
+        self._mapper = mapper or default_mapper
 
-    def find(self, trees, path):
-        if not isinstance(trees, collections.abc.Sequence):
-            trees = [trees]
-        xpath = self._mapper(path)
-        obj = None
-        for tree in trees:
-            obj = tree.find(xpath)
-            if obj is not None:
-                break
-        return obj
-
-    def iterfind(self, trees, path):
-        xpath = self._mapper(path)
-        for tree in trees:
-            for child in tree.iterfind(xpath):
-                yield child
-
-    def convert(self, obj, lazy=True):
+    def convert(self, obj, query={}, lazy=True):
         if not isinstance(obj, ElementTree.Element):
             return obj
 
@@ -64,12 +45,12 @@ class XMLHandler(Handler):
         if len(obj) > 0 and lazy:
             res = LazyProxy(obj, handler=self)
         elif len(obj) > 0:
-            d={child.tag: self.convert(child, True) for child in obj}
+            d = {child.tag: self.convert(child, True) for child in obj}
             res = collections.namedtuple(obj.tag, d.keys())(**d)
         elif dtype is None:
             res = obj.text
         elif dtype == "ref":
-            res = Linker(obj.attrib.get("schema", None), obj.text)
+            res = Linker(obj.attrib.get("schema", None), obj.text.format_map(query or {}))
         else:
             if dtype == "string":
                 res = obj.text.split(',')
@@ -89,18 +70,31 @@ class XMLHandler(Handler):
                 res = np.array(res).reshape(dims)
         return res
 
+    def find(self, trees, path):
+        if not isinstance(trees, collections.abc.Sequence):
+            trees = [trees]
+        path, query = self._mapper(path)
+        obj = None
+        for tree in trees:
+            obj = tree.find(path)
+            if obj is not None:
+                break
+        return obj, query
+
     def put(self, grp, path, value, **kwargs):
-        raise NotADirectoryError()
+        raise NotImplementedError()
 
     def get(self, trees, path, **kwargs):
-        return self.convert(self.find(trees, path))
+        return self.convert(*self.find(trees, path))
 
     def get_value(self, trees, path, *args, **kwargs):
-        return self.convert(self.find(trees, path), False)
+        return self.convert(*self.find(trees, path), lazy=False)
 
     def iter(self, trees, path, **kwargs):
-        for child in self.iterfind(trees, path):
-            yield self.convert(child)
+        path, query = self._mapper(path)
+        for tree in trees:
+            for child in tree.iterfind(path):
+                yield self.convert(child, query)
 
 
 def load_xml(path):
@@ -118,9 +112,10 @@ def load_xml(path):
         for fp in path.glob("*.xml"):
             trees.extend(load_xml(fp))
         return trees
-
-    root = ElementTree.parse(path).getroot()
-
+    try:
+        root = ElementTree.parse(path).getroot()
+    except ElementTree.ParseError as msg:
+        raise RuntimeError(f"ParseError: {path}: {msg}")
     logger.debug(f"Loading XML file from {path}")
 
     return [root]

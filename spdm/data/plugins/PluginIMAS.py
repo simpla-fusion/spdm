@@ -19,8 +19,32 @@ def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
 
         return pattern.format(shot=s, run=str(r))
 
+    def uri_mapper(path):
+        xpath = ""
+        query = {}
+        prev = None
+        for p in path:
+            if type(p) is int and prev == "time_slice":
+                query["itime"] = p
+            elif type(p) is int:
+                xpath += f"[{p+1}]"
+            elif isinstance(p, str):
+                xpath += f"/{p}"
+            else:
+                # TODO: handle slice
+                raise TypeError(f"Illegal path type! {type(p)} {path}")
+            prev = p
+
+        if len(xpath) > 0 and xpath[0] == "/":
+            xpath = xpath[1:]
+
+        return xpath, query
+
     if mapping_files is not None:
-        def wrapper(handler, wrapper=open_xml(mapping_files)): return HandlerProxy(handler, wrapper=wrapper)
+        wrapper_doc = open_xml(mapping_files, mapper=uri_mapper)
+
+        def wrapper(handler, wrapper=wrapper_doc):
+            return HandlerProxy(handler, wrapper=wrapper)
     else:
         wrapper = None
 
