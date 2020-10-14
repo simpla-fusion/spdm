@@ -62,8 +62,8 @@ class Collection(object):
     def find(self, predicate=None, projection=None, *args, **kwargs):
         raise NotImplementedError(whoami(self))
 
-    def insert_one(self, document, *args, **kwargs) -> InsertOneResult:
-        raise NotImplementedError(whoami(self))
+    def insert_one(self, data=None, *args, **kwargs) -> InsertOneResult:
+        raise NotImplementedError()
 
     def insert_many(self, documents, *args, **kwargs) -> InsertManyResult:
         return [self.insert_one(doc, *args, **kwargs) for doc in documents]

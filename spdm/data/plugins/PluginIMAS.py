@@ -5,6 +5,7 @@ from .PluginXML import (open_xml)
 
 from ..Handler import HandlerProxy
 from ..connect import connect
+from spdm.util.logger import logger
 
 
 def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
@@ -14,10 +15,7 @@ def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
         s = d.get("shot", 0)
         r = d.get("run", None)
 
-        if r is None and auto_inc:
-            r = collect.count(shot=s)
-
-        return pattern.format(shot=s, run=str(r))
+        return s
 
     def uri_mapper(path):
         xpath = ""

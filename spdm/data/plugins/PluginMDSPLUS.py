@@ -1,5 +1,7 @@
 from ..Collection import (Collection, FileCollection)
 from ..Document import Document
+from ..Handler import (Handler, HandlerProxy)
+
 import collections
 import os
 import pathlib
@@ -7,6 +9,7 @@ import re
 import MDSplus as mds
 import numpy as np
 from spdm.util.urilib import urisplit
+from spdm.util.logger import logger
 
 
 # class MDSplusEntry(DataEntry):
@@ -74,61 +77,119 @@ from spdm.util.urilib import urisplit
 #         return self._tree.dir()
 #         # raise NotImplementedError(whoami(self))
 
+class MDSplusHolder(object):
+    def __init__(self, *args, **kwargs):
+        self._tree = mds.Tree(*args, **kwargs)
 
-class MDSplusLocalCollection(FileCollection):
-    def __init__(self, uri, *args, netloc=None, **kwargs):
-        super().__init__(uri, *args,
-                         file_extension=".mds",
-                         file_factory=lambda fpath, mode: mds.tree(fpath, mode=mode),
-                         handler=MDSHandler(),
-                         **kwargs)
+    def __del__(self):
+        # logger.debug(f"Delete Tree")
+        try :
+            del self._tree
+        except AttributeError:
+            pass
+
+    @property
+    def tree(self):
+        return self._tree
 
 
-class MDSPlusCollection(Collection):
+class MDSplusHandler(Handler):
+
+    def put(self, holder, path, value, **kwargs):
+        raise NotImplementedError()
+
+    def get(self, holder, path=None, projection=None):
+        if path is None:
+            return None
+        elif not isinstance(path, str):
+            raise NotImplementedError()
+        else:
+            return holder.tree.tdiExecute(path).data()
+
+
+class MDSplusCollection(Collection):
     def __init__(self, uri, *args,  **kwargs):
-        super().__init__(*args, handler=MDSHandler(), **kwargs)
+        super().__init__(*args, handler=MDSplusHandler(), **kwargs)
+
         if isinstance(uri, str):
             uri = urisplit(uri)
 
-        self._netloc = uri.authority
-        self._treename = uri.path
+        authority = getattr(uri, "authority", None)
 
-    def find_one(self, predicate: Document,  projection: Document = None, *args, **kwargs):
-        shot = getitem(predicate, "shot", None) or getitem(predicate, "_id", None)
-        if shot is not None:
-            return MDSplusEntry(self._tree_name, shot, mode="r") .fetch(projection)
+        path = pathlib.Path(getattr(uri, "path", None)).resolve().expanduser()
+
+        self._tree_name = path.stem
+
+        if authority == "":
+            os.environ[f"{self._tree_name}_path"] = path.as_posix()
         else:
-            for shot in self._foreach_shot():
-                res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(
-                    projection, predicate)
-                if res is not None:
-                    return res
-        return None
+            os.environ[f"{self._tree_name}_path"] = f"{authority}:{path.as_posix()}"
 
-    def _foreach_shot(self):
-        f_prefix = f"{self._tree_name.lower()}_"
-        f_prefix_l = len(f_prefix)
-        glob = f"{f_prefix}*.tree"
-        for fp in self._path.glob(glob):
-            yield fp.stem[f_prefix_l:]
+        logger.debug(f"Open MDSplus collection:[{os.environ[f'{self._tree_name}_path']}]")
 
-    def find(self, predicate: Document = None, projection: Document = None, *args, **kwargs):
 
-        for shot in self._foreach_shot():
-            res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(projection, predicate)
-            logger.debug(res)
+    def open_document(self, fid, mode):
+        logger.debug(f"Opend MDSTree: {self._tree_name} {fid} mode=\"{mode}\"")
+        return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"), handler=self._handler)
 
-            if res is not None:
-                yield res
+    def insert_one(self, data=None, *args, **kwargs):
+        doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
+        doc.update(data or kwargs)
+        return doc
 
-    def insert_one(self, document: Document, *args, **kwargs):
-        self._count += 1
+    def find_one(self, predicate=None, projection=None, *args, **kwargs):
+        fid = self.guess_id(predicate or kwargs)
 
-        shot = int(document.get("shot", self._count))
+        doc = None
+        if fid is not None:
+            doc = self.open_document(fid, mode="r")
+        else:
+            raise NotImplementedError()
 
-        MDSplusEntry(self._tree_name, shot, mode="x").update(document)
+        if projection is not None:
+            raise NotImplementedError()
 
-        return shot
+        return doc
+
+    def count(self, predicate=None, *args, **kwargs) -> int:
+        return 0
+
+    # def find_one(self, predicate: Document,  projection: Document = None, *args, **kwargs):
+    #     shot = getitem(predicate, "shot", None) or getitem(predicate, "_id", None)
+    #     if shot is not None:
+    #         return MDSplusEntry(self._tree_name, shot, mode="r") .fetch(projection)
+    #     else:
+    #         for shot in self._foreach_shot():
+    #             res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(
+    #                 projection, predicate)
+    #             if res is not None:
+    #                 return res
+    #     return None
+
+    # def _foreach_shot(self):
+    #     f_prefix = f"{self._tree_name.lower()}_"
+    #     f_prefix_l = len(f_prefix)
+    #     glob = f"{f_prefix}*.tree"
+    #     for fp in self._path.glob(glob):
+    #         yield fp.stem[f_prefix_l:]
+
+    # def find(self, predicate: Document = None, projection: Document = None, *args, **kwargs):
+
+    #     for shot in self._foreach_shot():
+    #         res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(projection, predicate)
+    #         logger.debug(res)
+
+    #         if res is not None:
+    #             yield res
+
+    # def insert_one(self, document: Document, *args, **kwargs):
+    #     self._count += 1
+
+    #     shot = int(document.get("shot", self._count))
+
+    #     MDSplusEntry(self._tree_name, shot, mode="x").update(document)
+
+    #     return shot
 
 
 # class MDSplusConnect:
@@ -142,13 +203,4 @@ class MDSPlusCollection(Collection):
 #         else:
 #             return MDSplusLocalCollection(tree_path, prefix=self._prefix)
 
-def connect_mdsplus(uri, *args, **kwargs):
-    authority = getattr(uri, "authority", None)
-
-    if authority is None:
-        return MDSplusLocalCollection(uri, *args, **kwargs)
-    else:
-        return MDSPlusCollection(uri, *args, **kwargs)
-
-
-__SP_EXPORT__ = connect_mdsplus
+__SP_EXPORT__ = MDSplusCollection
