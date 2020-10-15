@@ -1,6 +1,6 @@
 from ..Collection import (Collection, FileCollection)
 from ..Document import Document
-from ..Handler import (Handler, HandlerProxy)
+from ..Handler import (Holder, Handler, HandlerProxy)
 
 import collections
 import os
@@ -77,14 +77,10 @@ from spdm.util.logger import logger
 #         return self._tree.dir()
 #         # raise NotImplementedError(whoami(self))
 
-class MDSplusHolder(object):
+class MDSplusHolder(Holder):
     def __init__(self, tree_name, fid, *args, mode="r", **kwargs):
-        self._tree = mds.Tree(tree_name, fid, mode="NORMAL")
         logger.debug(f"Opend MDSTree: {tree_name} {fid} mode=\"{mode}\"")
-
-    @property
-    def tree(self):
-        return self._tree
+        super().__init__(mds.Tree(tree_name, fid, mode="NORMAL"))
 
 
 class MDSplusHandler(Handler):
@@ -98,16 +94,14 @@ class MDSplusHandler(Handler):
         elif not isinstance(path, str):
             raise NotImplementedError(path)
         else:
-            return holder.tree.tdiExecute(path).data()
+            return holder.data.tdiExecute(path).data()
 
     def iter(self, holder, path, *args, **kwargs):
         raise NotImplementedError(path)
 
 
-
 class MDSplusCollection(Collection):
     def __init__(self, uri, *args,  **kwargs):
-        super().__init__(*args, handler=MDSplusHandler(), **kwargs)
 
         if isinstance(uri, str):
             uri = urisplit(uri)
@@ -123,7 +117,7 @@ class MDSplusCollection(Collection):
         else:
             os.environ[f"{self._tree_name}_path"] = f"{authority}:{path.as_posix()}"
 
-        logger.debug(f"Open MDSplus collection:[{os.environ[f'{self._tree_name}_path']}]")
+        super().__init__(os.environ[f'{self._tree_name}_path'], *args, handler=MDSplusHandler(), **kwargs)
 
     def open_document(self, fid, mode):
         return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"),

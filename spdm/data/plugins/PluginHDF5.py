@@ -1,6 +1,6 @@
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import (Handler, HandlerProxy)
+from ..Handler import (Holder, Handler, HandlerProxy)
 import h5py
 import numpy
 import collections
@@ -9,6 +9,13 @@ from typing import (Dict, Any)
 from spdm.util.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 128
+
+
+class HDF5Holder(Holder):
+    def __init__(self, uri,   *args, **kwargs):
+        if not isinstance(obj, h5py.Group):
+            obj = h5py.File(uri, *args, **kwargs)
+        super().__init__(obj)
 
 
 class HDF5Handler(Handler):
@@ -27,7 +34,8 @@ class HDF5Handler(Handler):
 
         return grp
 
-    def put(self, grp, path, value, **kwargs):
+    def put(self, holder: HDF5Holder, path, value, **kwargs):
+        grp = holder.data
         if grp is None:
             raise RuntimeError("None group")
 
@@ -77,7 +85,8 @@ class HDF5Handler(Handler):
             # else:
             #     raise RuntimeError(f"Unsupported data type {type(value)}")
 
-    def get(self, obj, path=[], projection=None):
+    def get(self, holder: HDF5Holder, path=[], projection=None):
+        obj = holder.data
         if obj is None:
             raise RuntimeError("None group")
 
@@ -143,7 +152,7 @@ def connect_hdf5(uri, *args, **kwargs):
 
     return FileCollection(path, *args,
                           file_extension=".h5",
-                          file_factory=lambda fpath, mode: h5py.File(fpath, mode=mode),
+                          file_factory=HDF5Holder,
                           handler=HDF5Handler(),
                           **kwargs)
 

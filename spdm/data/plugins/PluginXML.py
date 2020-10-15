@@ -3,13 +3,65 @@ from xml.etree import (ElementTree, ElementInclude)
 from spdm.util.LazyProxy import LazyProxy
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import Handler, Linker
+from ..Handler import (Holder, Handler, Linker)
 import h5py
 import numpy
 import collections
 import pathlib
 from typing import (Dict, Any)
 from spdm.util.logger import logger
+
+
+def merge_xml(first, second):
+    if first is None or second is None or first.tag != second.tag:
+        return
+
+    for child in second:
+        id = child.attrib.get("id", None)
+        if id is not None:
+            target = first.find(f"{child.tag}[@id='{id}']")
+        else:
+            target = first.find(child.tag)
+        if target is not None:
+            merge_xml(target, child)
+        else:
+            first.append(child)
+
+
+def load_xml(path, *args,  mode="r", **kwargs):
+    # TODO: add handler non-local request ,like http://a.b.c.d/babalal.xml
+    if isinstance(path, str):
+        # o = urisplit(uri)
+        path = pathlib.Path(path)
+
+    if isinstance(path, collections.abc.Sequence):
+        root = load_xml(path[0], mode=mode)
+        for fp in path[1:]:
+            merge_xml(root, load_xml(fp, mode=mode))
+        return root
+    elif not isinstance(path, pathlib.Path) or not path.is_file():
+        raise FileNotFoundError(path)
+
+    try:
+        root = ElementTree.parse(path).getroot()
+        logger.debug(f"Loading XML file from {path}")
+
+    except ElementTree.ParseError as msg:
+        raise RuntimeError(f"ParseError: {path}: {msg}")
+
+    for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
+        fp = path.parent/child.attrib["href"]
+        root.insert(0, load_xml(fp))
+        root.remove(child)
+    return root
+
+
+class XMLHolder(Holder):
+    def __init__(self, obj,  *args,  **kwargs):
+        if not isinstance(obj, ElementTree.Element):
+            obj = load_xml(obj, *args,  **kwargs)
+
+        super().__init__(obj)
 
 
 class XMLHandler(Handler):
@@ -43,7 +95,7 @@ class XMLHandler(Handler):
         res = None
 
         if len(obj) > 0 and lazy:
-            res = LazyProxy(obj, handler=self)
+            res = LazyProxy(XMLHolder(obj), handler=self)
         elif len(obj) > 0:
             d = {child.tag: self.convert(child, True) for child in obj}
             res = collections.namedtuple(obj.tag, d.keys())(**d)
@@ -72,20 +124,21 @@ class XMLHandler(Handler):
                 res = np.array(res).reshape(dims)
         return res
 
-    def find(self, tree, path):
+    def find(self, holder, path):
         path, query = self._mapper(path)
-        return tree.find(path), query
+        return holder.data.find(path), query
 
-    def put(self, tree, path, value, **kwargs):
+    def put(self, holder, path, value, **kwargs):
         raise NotImplementedError()
 
-    def get(self, tree, path, **kwargs):
-        return self.convert(*self.find(tree, path))
+    def get(self, holder, path, **kwargs):
+        return self.convert(*self.find(holder, path))
 
-    def get_value(self, tree, path, *args, **kwargs):
-        return self.convert(*self.find(tree, path), lazy=False)
+    def get_value(self, holder, path, *args, **kwargs):
+        return self.convert(*self.find(holder, path), lazy=False)
 
-    def iter(self, tree, path, **kwargs):
+    def iter(self, holder, path, **kwargs):
+        tree = holder.data
         path, query = self._mapper(path)
         for child in tree.iterfind(path):
             obj = self.convert(child, query)
@@ -93,53 +146,8 @@ class XMLHandler(Handler):
                 yield obj
 
 
-def merge_xml(first, second):
-    if second is None:
-        return
-
-    for child in second:
-        id = child.attrib.get("id", None)
-        if id is not None:
-            target = first.find(f"{child.tag}[@id='{id}']")
-        else:
-            target = first.find(child.tag)
-        if target is not None:
-            merge_xml(target, child)
-        else:
-            first.append(child)
-
-
-def load_xml(path):
-    if isinstance(path, str):
-        path = pathlib.Path(path)
-
-    if isinstance(path, collections.abc.Sequence):
-        root = load_xml(path[0])
-        for fp in path[1:]:
-            merge_xml(root, load_xml(fp))
-        return root
-    elif not isinstance(path, pathlib.Path) or not path.is_file():
-        raise FileNotFoundError(path)
-
-    try:
-        root = ElementTree.parse(path).getroot()
-        logger.debug(f"Loading XML file from {path}")
-
-    except ElementTree.ParseError as msg:
-        raise RuntimeError(f"ParseError: {path}: {msg}")
-
-    for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
-        fp = path.parent/child.attrib["href"]
-        root.insert(0, load_xml(fp))
-        root.remove(child)
-
-    return root
-
-
 def open_xml(path, mapper=None, **kwargs):
-    xml_doc = load_xml(path)
-    ElementTree.ElementTree(xml_doc).write("tree.xml")
-    return Document(root=xml_doc, handler=XMLHandler(mapper=mapper))
+    return Document(root=XMLHolder(path), handler=XMLHandler(mapper=mapper))
 
 
 # def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):

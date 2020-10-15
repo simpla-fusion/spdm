@@ -18,8 +18,15 @@ class Collection(object):
     ''' Collection of documents
     '''
 
-    def __init__(self, *args, mode="rw",  id_pattern=None, handler=None, handler_wrapper=None, **kwargs):
+    def __init__(self, uri=None, *args, mode="rw",
+                 id_pattern=None,
+                 handler=None,
+                 handler_wrapper=None,
+                 **kwargs):
         super().__init__()
+
+        logger.debug(f"Open {self.__class__.__name__} : {uri}")
+
         self._mode = mode
         self._id_pattern = id_pattern
 
@@ -118,7 +125,7 @@ class FileCollection(Collection):
                  file_factory=None,
                  **kwargs):
 
-        super().__init__(*args,  **kwargs)
+        super().__init__(path, *args,  **kwargs)
 
         if isinstance(path, str) and path.endswith("/"):
             path = f"{path}/{{_id}}{file_extension}"
@@ -140,8 +147,6 @@ class FileCollection(Collection):
                 self._path.parent.mkdir()
         elif not self._path.parent.is_dir():
             raise NotADirectoryError(self._path.parent)
-
-        logger.debug(f"Open SpDB.Collection : {self._path}")
 
     def guess_id(self, d, auto_inc=True):
         fid = super().guess_id(d, auto_inc=auto_inc)

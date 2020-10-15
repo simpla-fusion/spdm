@@ -9,6 +9,16 @@ import numpy as np
 Linker = collections.namedtuple("Linker", "schema path")
 
 
+class Holder(object):
+    def __init__(self, data, *args, mode=None, **kargs):
+        super().__init__()
+        self._data = data
+
+    @property
+    def data(self):
+        return self._data
+
+
 class Handler(LazyProxy.Handler):
     DELIMITER = LazyProxy.DELIMITER
 
