@@ -1,6 +1,5 @@
 import numpy as np
 from xml.etree import (ElementTree, ElementInclude)
-from spdm.util.LazyProxy import LazyProxy
 from ..Collection import FileCollection
 from ..Document import Document
 from ..Handler import (Holder, Handler,   Request)
@@ -95,7 +94,7 @@ class XMLHandler(Handler):
         res = None
 
         if len(obj) > 0 and lazy:
-            res = LazyProxy(XMLHolder(obj), handler=self)
+            res = XMLHolder(obj)
         elif len(obj) > 0:
             d = {child.tag: self.convert(child, True) for child in obj}
             res = collections.namedtuple(obj.tag, d.keys())(**d)
@@ -126,7 +125,10 @@ class XMLHandler(Handler):
 
     def find(self, holder, path, *args, **kwargs):
         path, query, fragment = self.request(path, *args, **kwargs)
-        return holder.data.find(path), query, fragment
+        if path == '':
+            return holder.data, query, fragment
+        else:
+            return holder.data.find(path), query, fragment
 
     def put(self, holder, path, value, *args, **kwargs):
         raise NotImplementedError()

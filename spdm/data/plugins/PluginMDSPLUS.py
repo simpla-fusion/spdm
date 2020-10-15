@@ -89,7 +89,6 @@ class MDSplusHandler(Handler):
         raise NotImplementedError()
 
     def get(self, holder, path, projection=None, *args, **kwargs):
-        logger.debug(path)
         if path is None:
             return None
         elif not isinstance(path, str):

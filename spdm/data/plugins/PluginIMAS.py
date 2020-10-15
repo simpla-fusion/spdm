@@ -1,4 +1,5 @@
 import pathlib
+import collections
 from spdm.util.logger import logger
 from .PluginHDF5 import (connect_hdf5, HDF5Handler)
 from .PluginXML import (XMLHolder, XMLHandler)
@@ -6,6 +7,7 @@ from ..Document import Document
 from ..Handler import (Request, Handler)
 from ..connect import connect
 from spdm.util.logger import logger
+from spdm.util.LazyProxy import LazyProxy
 
 
 class IMASHandler(Handler):
@@ -21,60 +23,80 @@ class IMASHandler(Handler):
         prev = None
         for p in path:
             if prev == "time_slice":
-                query["itime"] = p
-
+                if isinstance(p, slice) or type(p) is int:
+                    query["itime"] = p
+                else:
+                    raise KeyError(xpath+[p])
             else:
                 xpath.append(p)
             prev = p
-
-        if len(xpath) > 0 and xpath[0] == "/":
-            xpath = xpath[1:]
+        logger.debug(xpath)
         return Request(xpath, query, fragment)
 
     def put(self, holder, path, value, *args,  **kwargs):
-        obj = self._xml_handler.get(self._xml_holder, **self.request(path, *args, **kwargs)._asdict())
+        req = self._xml_handler.get(self._xml_holder, **self.request(path, *args, **kwargs)._asdict())
+
         if isinstance(obj, Request):
-            xpath, query, fragment = obj
-            xpath = xpath.format_map(query)
-            return self._target.put(holder, xpath, value)
-        elif obj is not None:
+
+            xpath, query, fragment = req
+            if isinstance(query, collections.abc.Mapping):
+                return self._target.put(holder,  xpath.format_map(query),  value)
+            elif isinstance(query, collections.abc.Iterable):
+                return [self._target.put(holder, xpath.format_map(q), value) for q in query]
+            else:
+                return self._target.put(holder,  xpath, value)
+        elif req is not None:
             raise RuntimeError(f"Can not write to non-empty entry! {path}")
         else:
             return self._target.put(holder, path, value, *args, **kwargs)
 
     def get(self, holder, path, projection=None, *args, **kwargs):
-        path, query, fragment = self.request(path, *args, **kwargs)
-        obj = self._xml_handler.get(self._xml_holder, path, query=query, fragment=fragment)
-        logger.debug(path)
+        req = self._xml_handler.get(self._xml_holder, **self.request(path, *args, **kwargs)._asdict())
 
-        if isinstance(obj, Request):
-            xpath, query, fragment = obj
-            xpath = xpath.format_map(query)
-            return self._target.get(holder,  xpath,  projection=projection)
-        elif obj is None:
+        if isinstance(req, Request):
+            xpath, query, fragment = req
+            if isinstance(query, collections.abc.Mapping):
+                return self._target.get(holder,  xpath.format_map(query),  projection=projection)
+            elif isinstance(query, collections.abc.Iterable):
+                return [self._target.get(holder, xpath.format_map(q),  projection=projection) for q in query]
+            else:
+                return self._target.get(holder,  xpath,  projection=projection)
+        elif req is None:
             return self._target.get(holder,  path,  projection=projection,  *args, **kwargs)
         elif projection is None:
-            return obj
+            return req
         else:
             raise NotImplementedError()
 
     def iter(self, holder, path, *args, **kwargs):
-        xpath, query, fragment = self.request(path, *args, **kwargs)
-        count = 0
-        if len(query) == 0:
-            for item in self._xml_handler.iter(self._xml_holder, xpath):
-                count = count+1
-                if isinstance(item, Request):
-                    yield self._target.get(**item._asdict())
-                else:
-                    yield item
-        else:
-            item = self._xml_handler.get(self._xml_holder, xpath)
-            if item is not None:
-                raise NotImplementedError()
+        req = self._xml_handler.get(self._xml_holder, **self.request(path, *args, **kwargs)._asdict())
 
-        if count == 0:
-            yield from self._target.iter(holder, path, *args, **kwargs)
+        for item in self._xml_handler.iter(self._xml_holder, path):
+            if isinstance(item, XMLHolder):
+                yield LazyProxy(item, handler=self._xml_handler)
+            else:
+                yield item
+        # else:
+        #     spath = self._xml_handler.request(path)
+
+        #     def r_iter(spath, query):
+        #         if len(query) == 0:
+        #             return
+
+        #         k, v = query[0]
+        #         if not isinstance(v, slice):
+        #             yield from spath.format_map({k: v}, query[1:])
+        #         else:
+        #             logger.debug(v)
+
+        #             for i in range(v.start, v.stop, v.step or 1):
+        #                 yield spath.format_map({k: i}, query[1:])
+
+        #     for p in r_iter(spath, list(query.items())):
+        #         logger.debug(p)
+
+            # if count == 0:
+            #     yield from self._target.iter(holder, path, *args, **kwargs)
 
 
 def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):

@@ -6,7 +6,6 @@
     <time dtype="ref">DATA(\TIME)</time>
     
     <time_slice id="*">
-        <!--<Shape_of value="SHAPE(\\EFIT_EAST::TOP.RESULTS.GEQDSK:GTIME)[0]" />-->
         <boundary>
             <type>1</type>
             <outline>
@@ -31,7 +30,7 @@
             <triangularity_lower dtype='ref'>DATA(\TRIBOT[{itime}])</triangularity_lower>
             <triangularity_upper dtype='ref'>DATA(\TRITOP[{itime}])</triangularity_upper>
 
-            <x_point>
+            <!-- <x_point>
                 <r dtype="NONE">??</r>
                 <z dtype="NONE">??</z>
             </x_point>
@@ -44,7 +43,7 @@
             <active_limiter_point>
                 <r dtype="NONE">??</r>
                 <z dtype="NONE">??</z>
-            </active_limiter_point>
+            </active_limiter_point> -->
 
         </boundary>
 
