@@ -22,6 +22,7 @@ class IMASHandler(Handler):
         for p in path:
             if prev == "time_slice":
                 query["itime"] = p
+
             else:
                 xpath.append(p)
             prev = p
@@ -32,21 +33,24 @@ class IMASHandler(Handler):
 
     def put(self, holder, path, value, *args,  **kwargs):
         obj = self._xml_handler.get(self._xml_holder, **self.request(path, *args, **kwargs)._asdict())
-
         if isinstance(obj, Request):
-            path, query, fragment = obj
-            return self._target.put(holder, path, value,  query=query, fragment=fragment)
+            xpath, query, fragment = obj
+            xpath = xpath.format_map(query)
+            return self._target.put(holder, xpath, value)
         elif obj is not None:
             raise RuntimeError(f"Can not write to non-empty entry! {path}")
         else:
             return self._target.put(holder, path, value, *args, **kwargs)
 
     def get(self, holder, path, projection=None, *args, **kwargs):
-        obj = self._xml_handler.get(self._xml_holder, **self.request(path, *args, **kwargs)._asdict())
+        path, query, fragment = self.request(path, *args, **kwargs)
+        obj = self._xml_handler.get(self._xml_holder, path, query=query, fragment=fragment)
+        logger.debug(path)
 
         if isinstance(obj, Request):
-            path, query, fragment = obj
-            return self._target.get(holder,  path,  projection=projection, query=query, fragment=fragment)
+            xpath, query, fragment = obj
+            xpath = xpath.format_map(query)
+            return self._target.get(holder,  xpath,  projection=projection)
         elif obj is None:
             return self._target.get(holder,  path,  projection=projection,  *args, **kwargs)
         elif projection is None:
@@ -55,17 +59,22 @@ class IMASHandler(Handler):
             raise NotImplementedError()
 
     def iter(self, holder, path, *args, **kwargs):
-
-        try:
-            for item in self._xml_handler.iter(self._xml_holder, **self.request(path, *args, **kwargs)._asdict()):
+        xpath, query, fragment = self.request(path, *args, **kwargs)
+        count = 0
+        if len(query) == 0:
+            for item in self._xml_handler.iter(self._xml_holder, xpath):
+                count = count+1
                 if isinstance(item, Request):
-                    spath, query, fragment = item
-                    yield self._target.get(spath, query=query, fragment=fragment)
+                    yield self._target.get(**item._asdict())
                 else:
                     yield item
-        except StopIteration:
-            pass
-            # yield from self._target.iter(path, *args, **kwargs)
+        else:
+            item = self._xml_handler.get(self._xml_holder, xpath)
+            if item is not None:
+                raise NotImplementedError()
+
+        if count == 0:
+            yield from self._target.iter(holder, path, *args, **kwargs)
 
 
 def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
