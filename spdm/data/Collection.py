@@ -21,7 +21,7 @@ class Collection(object):
     def __init__(self, uri=None, *args, mode="rw",
                  id_pattern=None,
                  handler=None,
-                 handler_wrapper=None,
+                 handler_proxy=None,
                  **kwargs):
         super().__init__()
 
@@ -30,8 +30,8 @@ class Collection(object):
         self._mode = mode
         self._id_pattern = id_pattern
 
-        if handler_wrapper is not None:
-            self._handler = handler_wrapper(handler)
+        if handler_proxy is not None:
+            self._handler = handler_proxy(handler)
         else:
             self._handler = handler
 

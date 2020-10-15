@@ -1,6 +1,6 @@
 from ..Collection import (Collection, FileCollection)
 from ..Document import Document
-from ..Handler import (Holder, Handler, HandlerProxy)
+from ..Handler import (Holder, Handler)
 
 import collections
 import os
@@ -85,10 +85,10 @@ class MDSplusHolder(Holder):
 
 class MDSplusHandler(Handler):
 
-    def put(self, holder, path, value, **kwargs):
+    def put(self, holder, path, value, *args, **kwargs):
         raise NotImplementedError()
 
-    def get(self, holder, path=None, projection=None):
+    def get(self, holder, path=None, projection=None, *args, **kwargs):
         if path is None:
             return None
         elif not isinstance(path, str):
@@ -184,16 +184,5 @@ class MDSplusCollection(Collection):
 
     #     return shot
 
-
-# class MDSplusConnect:
-
-
-#     def open(self, tree_path, *args, **kwargs):
-#         tree_path = tree_path[re.search(r'[^/]', tree_path).start():]
-
-#         if self._netloc is None:
-#             return MDSplusRemoteCollection(tree_path, prefix=self._prefix)
-#         else:
-#             return MDSplusLocalCollection(tree_path, prefix=self._prefix)
 
 __SP_EXPORT__ = MDSplusCollection

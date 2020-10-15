@@ -6,7 +6,6 @@ import collections
 from xml.etree import (ElementTree, ElementInclude)
 import numpy as np
 
-Linker = collections.namedtuple("Linker", "schema path")
 Request = collections.namedtuple("Request", "path query fragment")
 
 
@@ -39,11 +38,6 @@ class Handler(LazyProxy.Handler):
         return Request(path, query, fragment)
 
 
-class HandlerProxy(Handler):
-    def __init__(self, target, proxy, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._proxy = wrapper
-        self._target = target
+ 
 
-    def request(self, path, query={}, fragment=None):
-        return self._target.request(**self._proxy.request(path, query, fragment))
+

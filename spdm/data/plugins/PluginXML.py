@@ -3,7 +3,7 @@ from xml.etree import (ElementTree, ElementInclude)
 from spdm.util.LazyProxy import LazyProxy
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import (Holder, Handler, Linker, Request)
+from ..Handler import (Holder, Handler,   Request)
 import h5py
 import numpy
 import collections
@@ -104,7 +104,7 @@ class XMLHandler(Handler):
         elif dtype == "NONE":
             res = None
         elif dtype == "ref":
-            res = Linker(obj.attrib.get("schema", None), obj.text.format_map(query or {}))
+            res = Request(obj.text.format_map(query or {}), {}, None)
         else:
             if dtype == "string":
                 res = obj.text.split(',')
@@ -139,10 +139,7 @@ class XMLHandler(Handler):
 
     def iter(self, holder, path, *args, **kwargs):
         tree = holder.data
-        request = self.request(path, *args, **kwargs)
-
-        logger.debug(request)
-
+        path, query, fragment = self.request(path, *args, **kwargs)
         for child in tree.iterfind(path):
             yield self.convert(child)
 

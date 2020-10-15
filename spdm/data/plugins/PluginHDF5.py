@@ -1,6 +1,6 @@
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import (Holder, Handler, HandlerProxy)
+from ..Handler import (Holder, Handler)
 import h5py
 import numpy
 import collections
