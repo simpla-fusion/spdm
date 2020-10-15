@@ -9,6 +9,7 @@ import collections
 import pathlib
 from typing import (Dict, Any)
 from spdm.util.logger import logger
+from spdm.util.LazyProxy import LazyProxy
 
 
 def merge_xml(first, second):
@@ -67,7 +68,7 @@ class XMLHandler(Handler):
     def __init__(self,  *args,   **kwargs):
         super().__init__(*args, **kwargs)
 
-    def request(self, path, query={}, fragment=None):
+    def request(self, path):
         xpath = ""
         for p in path:
             if type(p) is int:
@@ -80,13 +81,12 @@ class XMLHandler(Handler):
                 # TODO: handle slice
                 raise TypeError(f"Illegal path type! {type(p)} {path}")
             prev = p
-
-        if len(xpath) > 0 and xpath[0] == "/":
+        if xpath[0] == '/':
             xpath = xpath[1:]
 
-        return Request(xpath, query, fragment)
+        return xpath
 
-    def convert(self, obj, query={}, fargment=None, lazy=True):
+    def _convert(self, obj, query={},  lazy=True):
         if not isinstance(obj, ElementTree.Element):
             return obj
 
@@ -94,16 +94,16 @@ class XMLHandler(Handler):
         res = None
 
         if len(obj) > 0 and lazy:
-            res = XMLHolder(obj)
+            res = LazyProxy(XMLHolder(obj), handler=self)
         elif len(obj) > 0:
-            d = {child.tag: self.convert(child, True) for child in obj}
+            d = {child.tag: self._convert(child, True) for child in obj}
             res = collections.namedtuple(obj.tag, d.keys())(**d)
         elif dtype is None:
             res = obj.text
         elif dtype == "NONE":
             res = None
         elif dtype == "ref":
-            res = Request(obj.text.format_map(query or {}), {}, None)
+            res = Request(obj.text, query or {})
         else:
             if dtype == "string":
                 res = obj.text.split(',')
@@ -123,27 +123,27 @@ class XMLHandler(Handler):
                 res = np.array(res).reshape(dims)
         return res
 
-    def find(self, holder, path, *args, **kwargs):
-        path, query, fragment = self.request(path, *args, **kwargs)
-        if path == '':
-            return holder.data, query, fragment
-        else:
-            return holder.data.find(path), query, fragment
+    def _fetch(self, holder, path, query={}, lazy=True):
+        return self._convert(holder.data.find(self.request(path)), query, lazy=lazy)
 
-    def put(self, holder, path, value, *args, **kwargs):
+    def _push(self, holder, path, value, query={}):
         raise NotImplementedError()
 
+    def put(self, holder, path, value, *args, **kwargs):
+        return Request(path).apply(lambda p, q, v=value, s=self, h=holder: s._push(h, p, v, q))
+
     def get(self, holder, path, *args, **kwargs):
-        return self.convert(*self.find(holder,  path, *args, **kwargs))
+        
+        return Request(path).apply(lambda p, q, s=self, h=holder: s._fetch(h, p, q))
 
     def get_value(self, holder, path, *args, **kwargs):
-        return self.convert(*self.find(holder, path, *args, **kwargs), lazy=False)
+        return Request(path).apply(lambda p, q, s=self, h=holder: s._fetch(h, p, q, lazy=False))
 
     def iter(self, holder, path, *args, **kwargs):
         tree = holder.data
-        path, query, fragment = self.request(path, *args, **kwargs)
-        for child in tree.iterfind(path):
-            yield self.convert(child)
+        for path, query in Request(path):
+            for child in tree.iterfind(self.request(path)):
+                yield self._convert(child, query)
 
 
 def open_xml(path, *args,  **kwargs):

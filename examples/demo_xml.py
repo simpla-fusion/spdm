@@ -21,7 +21,9 @@ if __name__ == '__main__':
                  ]).entry
 
     logger.debug(entry.pf_active.coil[0].element[0].geometry.rectangle.__value__())
-
+    for coil in entry.pf_active.coil:
+        rect=coil.element[0].geometry.rectangle.__value__()
+        logger.debug(rect)
     # fg=plt.figure()
 
     # for coil in entry.pf_active.coil:
