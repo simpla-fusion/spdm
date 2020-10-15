@@ -97,6 +97,7 @@ class MDSplusHandler(Handler):
             return holder.data.tdiExecute(path).data()
 
     def iter(self, holder, path, *args, **kwargs):
+        logger.debug(path)
         raise NotImplementedError(path)
 
 

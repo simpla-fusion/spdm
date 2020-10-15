@@ -3,7 +3,7 @@ from xml.etree import (ElementTree, ElementInclude)
 from spdm.util.LazyProxy import LazyProxy
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import (Holder, Handler, Linker)
+from ..Handler import (Holder, Handler, Linker, Request)
 import h5py
 import numpy
 import collections
@@ -65,29 +65,29 @@ class XMLHolder(Holder):
 
 
 class XMLHandler(Handler):
-    def __init__(self,  *args, mapper=None, **kwargs):
+    def __init__(self,  *args,   **kwargs):
         super().__init__(*args, **kwargs)
 
-        def default_mapper(path):
-            xpath = ""
-            for p in path:
-                if type(p) is int:
-                    xpath += f"[{p+1}]"
-                elif isinstance(p, str):
-                    xpath += f"/{p}"
-                else:
-                    # TODO: handle slice
-                    raise TypeError(f"Illegal path type! {type(p)} {path}")
-                prev = p
+    def request(self, path, query={}, fragment=None):
+        xpath = ""
+        for p in path:
+            if type(p) is int:
+                xpath += f"[{p+1}]"
+            elif isinstance(p, str) and p[0] == '@':
+                xpath += f"[{p}]"
+            elif isinstance(p, str):
+                xpath += f"/{p}"
+            else:
+                # TODO: handle slice
+                raise TypeError(f"Illegal path type! {type(p)} {path}")
+            prev = p
 
-            if len(xpath) > 0 and xpath[0] == "/":
-                xpath = xpath[1:]
+        if len(xpath) > 0 and xpath[0] == "/":
+            xpath = xpath[1:]
 
-            return xpath, {}
+        return Request(xpath, query, fragment)
 
-        self._mapper = mapper or default_mapper
-
-    def convert(self, obj, query={}, lazy=True):
+    def convert(self, obj, query={}, fargment=None, lazy=True):
         if not isinstance(obj, ElementTree.Element):
             return obj
 
@@ -124,30 +124,31 @@ class XMLHandler(Handler):
                 res = np.array(res).reshape(dims)
         return res
 
-    def find(self, holder, path):
-        path, query = self._mapper(path)
-        return holder.data.find(path), query
+    def find(self, holder, path, *args, **kwargs):
+        path, query, fragment = self.request(path, *args, **kwargs)
+        return holder.data.find(path), query, fragment
 
-    def put(self, holder, path, value, **kwargs):
+    def put(self, holder, path, value, *args, **kwargs):
         raise NotImplementedError()
 
-    def get(self, holder, path, **kwargs):
-        return self.convert(*self.find(holder, path))
+    def get(self, holder, path, *args, **kwargs):
+        return self.convert(*self.find(holder,  path, *args, **kwargs))
 
     def get_value(self, holder, path, *args, **kwargs):
-        return self.convert(*self.find(holder, path), lazy=False)
+        return self.convert(*self.find(holder, path, *args, **kwargs), lazy=False)
 
-    def iter(self, holder, path, **kwargs):
+    def iter(self, holder, path, *args, **kwargs):
         tree = holder.data
-        path, query = self._mapper(path)
+        request = self.request(path, *args, **kwargs)
+
+        logger.debug(request)
+
         for child in tree.iterfind(path):
-            obj = self.convert(child, query)
-            if obj is not None:
-                yield obj
+            yield self.convert(child)
 
 
-def open_xml(path, mapper=None, **kwargs):
-    return Document(root=XMLHolder(path), handler=XMLHandler(mapper=mapper))
+def open_xml(path, *args,  **kwargs):
+    return Document(root=XMLHolder(path), handler=XMLHandler(*args,  **kwargs))
 
 
 # def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):

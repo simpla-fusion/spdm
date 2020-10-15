@@ -7,6 +7,12 @@ from xml.etree import (ElementTree, ElementInclude)
 import numpy as np
 
 Linker = collections.namedtuple("Linker", "schema path")
+Request = collections.namedtuple("Request", "path query fragment")
+
+
+class Iterator(object):
+    def __iter__(self):
+        raise NotImplementedError()
 
 
 class Holder(object):
@@ -25,41 +31,19 @@ class Handler(LazyProxy.Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def request(self, path, query={}, fragment=None):
+        if isinstance(path, str):
+            path = path.split(Handler.DELIMITER)
+        # elif not isinstance(path, collections.abc.Sequence):
+        #     raise TypeError(f"Illegal path type {type(path)}! {path}")
+        return Request(path, query, fragment)
+
 
 class HandlerProxy(Handler):
-    def __init__(self, handler, wrapper, *args, **kwargs):
+    def __init__(self, target, proxy, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._wrapper = wrapper
-        self._handler = handler
+        self._proxy = wrapper
+        self._target = target
 
-    @property
-    def handler(self):
-        return self._handler
-
-    def get(self, grp, path=[], *args, **kwargs):
-        obj = self._wrapper.get(path)
-
-        if obj is None:
-            return self._handler.get(grp, path, *args, **kwargs)
-        elif isinstance(obj, Linker):
-            return self._handler.get(grp, obj.path, *args, **kwargs)
-        else:
-            return obj
-
-    def put(self, grp, path,  *args, **kwargs):
-        obj = self._wrapper.get(path)
-
-        if obj is None:
-            self._handler.put(grp, path, *args,  **kwargs)
-        elif isinstance(obj,  Linker):
-            self._handler.put(grp, obj.path, *args, **kwargs)
-        else:
-            raise KeyError(f"Can not map path {path}")
-
-    def iter(self, grp, path):
-        for obj in self._wrapper.iter(path):
-            if not isinstance(obj, Linker):
-                yield obj
-            else:
-                for item in self._handler.iter(grp, obj.path, **kwargs):
-                    yield item
+    def request(self, path, query={}, fragment=None):
+        return self._target.request(**self._proxy.request(path, query, fragment))

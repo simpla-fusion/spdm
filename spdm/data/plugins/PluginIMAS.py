@@ -1,11 +1,34 @@
 import pathlib
 from spdm.util.logger import logger
 from .PluginHDF5 import (connect_hdf5, HDF5Handler)
-from .PluginXML import (open_xml)
-
-from ..Handler import HandlerProxy
+from .PluginXML import (XMLHolder, XMLHandler)
+from ..Document import Document
+from ..Handler import HandlerProxy, Request
 from ..connect import connect
 from spdm.util.logger import logger
+
+
+class IMASHandler(Handler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._mapping = XMLHolder(mapping_files)
+        self._xml_handler = IMASHandler()
+
+    def request(self, path, query={}, fragment=None):
+        xpath = []
+        query = {}
+        prev = None
+        for p in path:
+            if prev == "time_slice":
+                query["itime"] = p
+            else:
+                xpath.append(p)
+            prev = p
+
+        if len(xpath) > 0 and xpath[0] == "/":
+            xpath = xpath[1:]
+
+        return super().request(xpath, query, fragment)
 
 
 def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
@@ -17,36 +40,15 @@ def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
 
         return s
 
-    def uri_mapper(path):
-        xpath = ""
-        query = {}
-        prev = None
-        for p in path:
-            if type(p) is int and prev == "time_slice":
-                query["itime"] = p
-            elif type(p) is int:
-                xpath += f"[{p+1}]"
-            elif isinstance(p, str):
-                xpath += f"/{p}"
-            else:
-                # TODO: handle slice
-                raise TypeError(f"Illegal path type! {type(p)} {path}")
-            prev = p
-
-        if len(xpath) > 0 and xpath[0] == "/":
-            xpath = xpath[1:]
-
-        return xpath, query
-
     if mapping_files is not None:
-        wrapper_doc = open_xml(mapping_files, mapper=uri_mapper)
+        wrapper_doc = Document(root=XMLHolder(mapping_files), handler=IMASHandler())
 
-        def wrapper(handler, wrapper=wrapper_doc):
-            return HandlerProxy(handler, wrapper=wrapper)
+        def wrapper(target, proxy=wrapper_doc):
+            return HandlerProxy(target, proxy=wrapper)
     else:
         wrapper = None
 
-    return connect(backend, *args, id_pattern=id_pattern, handler_wrapper=wrapper,  ** kwargs)
+    return connect(backend, *args, id_pattern=id_pattern, handler_proxy=wrapper,  ** kwargs)
 
 
 __SP_EXPORT__ = connect_imas

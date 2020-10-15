@@ -12,9 +12,9 @@ SPDM_LIGHTDATA_MAX_LENGTH = 128
 
 
 class HDF5Holder(Holder):
-    def __init__(self, uri,   *args, **kwargs):
+    def __init__(self, obj,  *args, **kwargs):
         if not isinstance(obj, h5py.Group):
-            obj = h5py.File(uri, *args, **kwargs)
+            obj = h5py.File(obj, *args, **kwargs)
         super().__init__(obj)
 
 
@@ -34,15 +34,13 @@ class HDF5Handler(Handler):
 
         return grp
 
-    def put(self, holder: HDF5Holder, path, value, **kwargs):
+    def put(self, holder: HDF5Holder, path, value, *args, **kwargs):
         grp = holder.data
+
+        path, query, fragment = self.request(path, *args, **kwargs)
+
         if grp is None:
             raise RuntimeError("None group")
-
-        if isinstance(path, str):
-            path = path.split(Handler.DELIMITER)
-        elif not isinstance(path, collections.abc.Sequence):
-            raise TypeError(f"Illegal path type {type(path)}! {path}")
 
         if isinstance(value, collections.abc.Mapping):
             grp = self.require_group(grp, path)
@@ -85,8 +83,11 @@ class HDF5Handler(Handler):
             # else:
             #     raise RuntimeError(f"Unsupported data type {type(value)}")
 
-    def get(self, holder: HDF5Holder, path=[], projection=None):
+    def get(self, holder: HDF5Holder, path=[], projection=None, *args, **kwargs):
         obj = holder.data
+
+        path, query, fragment = self.request(path, *args, **kwargs)
+
         if obj is None:
             raise RuntimeError("None group")
 
@@ -132,7 +133,6 @@ class HDF5Handler(Handler):
                 res = self.get(obj.get(projection, None))
 
         elif isinstance(obj, h5py.Group):
-            logger.debug(obj.attrs)
             if obj.attrs.get("__is_list__", False):
                 res = []
             else:
