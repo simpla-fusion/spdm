@@ -1,15 +1,13 @@
-import numpy as np
-from xml.etree import (ElementTree, ElementInclude)
-from ..Collection import FileCollection
-from ..Document import Document
-from ..Handler import (Holder, Handler,   Request)
-import h5py
-import numpy
 import collections
 import pathlib
-from typing import (Dict, Any)
-from spdm.util.logger import logger
+from xml.etree import ElementInclude, ElementTree
+
+import numpy as np
 from spdm.util.LazyProxy import LazyProxy
+from spdm.util.logger import logger
+
+from ..Document import Document
+from ..Handler import Handler, Holder, Request
 
 
 def merge_xml(first, second):
