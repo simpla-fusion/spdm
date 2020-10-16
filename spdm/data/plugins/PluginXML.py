@@ -4,10 +4,9 @@ import pathlib
 import numpy as np
 
 try:
-    from lxml.etree import _Element as XMLElement
     from lxml.etree import ParseError as XMLParseError
     from lxml.etree import XPath as XPath
-
+    from lxml.etree import _Element as XMLElement
     from lxml.etree import parse as parse_xml
     _HAS_LXML = True
 except ImportError:
@@ -20,9 +19,10 @@ except ImportError:
 
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
+from spdm.util.PathTraverser import PathTraverser
 
 from ..Document import Document
-from ..Handler import Handler, Holder, Request
+from ..Handler import Handler, Holder
 
 
 def merge_xml(first, second):
@@ -157,19 +157,19 @@ class XMLHandler(Handler):
 
     def put(self, holder, path, value, *args, **kwargs):
         if not only_one:
-            return Request(path).apply(lambda p,  v=value, s=self, h=holder: s._push(h, p, v))
+            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=holder: s._push(h, p, v))
         else:
             raise NotImplementedError()
 
     def get(self, holder, path, *args, only_one=False, **kwargs):
         if not only_one:
-            return Request(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
+            return PathTraverser(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
         else:
             return self._convert(self.xpath(path).evaluate(holder.data), path=path, **kwargs)
 
     def get_value(self, holder, path, *args,  only_one=False, **kwargs):
         if not only_one:
-            return Request(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
+            return PathTraverser(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
         else:
             obj = self.xpath(path).evaluate(holder.data)
             if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
@@ -179,7 +179,7 @@ class XMLHandler(Handler):
 
     def iter(self, holder, path, *args, **kwargs):
         tree = holder.data
-        for req in Request(path):
+        for req in PathTraverser(path):
             for child in self.xpath(req).evaluate(tree):
                 yield self._convert(child, path=req)
 

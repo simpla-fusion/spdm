@@ -35,18 +35,13 @@ if __name__ == '__main__':
         rect = coil.element[0].geometry.rectangle.__value__()
         plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z-rect.height/2.0), rect.width, rect.height, fill=False))
 
-    for psi in entry.equilibrium.time_slice[0:10].profiles_2d[0].psi:
-        logger.debug(psi.__value__())
-
-    psi = entry.equilibrium.time_slice[0:10].profiles_2d[0].psi.__value__()
-    logger.debug(len(psi))
-    # plt.contour(
-    #     time_slice.profiles_2d[0].grid.dim1.__value__(),
-    #     time_slice.profiles_2d[0].grid.dim2.__value__(),
-    #     time_slice.profiles_2d[0].psi.__value__(),
-    #     levels=30, linewidths=0.4
-    # )
-
+    for time_slice in entry.equilibrium.time_slice[0:10]:
+        plt.contour(
+            time_slice.profiles_2d[0].grid.dim1.__value__(),
+            time_slice.profiles_2d[0].grid.dim2.__value__(),
+            time_slice.profiles_2d[0].psi.__value__(),
+            levels=30, linewidths=0.4
+        )
     plt.axis('scaled')
     plt.savefig("imas_east.png")
 

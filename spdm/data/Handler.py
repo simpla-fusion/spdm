@@ -4,8 +4,7 @@ import pathlib
 import collections
 from xml.etree import (ElementTree, ElementInclude)
 import numpy as np
-from .Request import Request
-
+ 
 
 class Iterator(object):
     def __iter__(self):

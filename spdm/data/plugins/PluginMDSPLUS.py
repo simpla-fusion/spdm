@@ -92,7 +92,10 @@ class MDSplusHandler(Handler):
         if isinstance(path, collections.abc.Mapping):
             path = path.get("@text", None)
         if isinstance(path, str) and len(path) > 0:
-            res = holder.data.tdiExecute(path)
+            try:
+                res = holder.data.tdiExecute(path)
+            except mds.mdsExceptions.TdiSYNTAX as error:
+                raise SyntaxError(f"MDSplus TDI syntax error [{path}]! {error}")
             return res.data()
         else:
             return None
