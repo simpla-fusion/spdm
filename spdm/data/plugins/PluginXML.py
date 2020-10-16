@@ -113,12 +113,16 @@ class XMLHandler(Handler):
             else:
                 res = np.array(res)
         else:
-            d = {child.tag: self._convert(child, query=query, lazy=lazy) for child in element}
+            res = {child.tag: self._convert(child, query=query, lazy=lazy) for child in element}
             if len(element.attrib) > 0:
-                d[f"attr_"] = element.attrib
-            d["text_"] = element.text
-            res = collections.namedtuple(element.tag, d.keys())(**d)
+                res[f"@attribute"] = element.attrib
 
+            text = element.text.strip() if element.text is not None else None
+            if text is not None:
+                try:
+                    res["@text"] = text.format_map(query)
+                except KeyError:
+                    res["@text"] = text
         return res
 
     def put(self, holder, path, value, *args, **kwargs):
@@ -139,7 +143,9 @@ class XMLHandler(Handler):
             return Request(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
         else:
             xpath, query = self.request(path)
-            return self._convert(holder.data.find(xpath), query, lazy=False, **kwargs)
+            res = self._convert(holder.data.find(xpath), query, lazy=False, **kwargs)
+            logger.debug((path, res))
+            return res
 
     def iter(self, holder, path, *args, **kwargs):
         tree = holder.data

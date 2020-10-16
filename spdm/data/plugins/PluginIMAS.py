@@ -51,9 +51,8 @@ class IMASHandler(Handler):
             return Request(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
         else:
             res = self._xml_handler.get_value(self._xml_holder, path, *args, **kwargs)
-            if  isinstance(res, tuple) and  hasattr(res, '_asdict') and hasattr(res, '_fields'):           
 
-                logger.debug((res,type(res)))
+            logger.debug((res, type(res)))
 
             # if isinstance(req, collections.abc.Mapping):
             #     logger.debug(req.path)
