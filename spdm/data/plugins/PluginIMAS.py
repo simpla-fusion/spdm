@@ -13,12 +13,16 @@ from spdm.util.LazyProxy import LazyProxy
 class IMASHandler(Handler):
     def __init__(self, target, *args, mapping=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if isinstance(mapping, LazyProxy):
+            self._xml_holder = mapping.__object__
+            self._xml_handler = mapping.__handler__
+        elif isinstance(mapping, XMLHolder):
+            self._xml_holder = mapping
+            self._xml_handler = XMLHandler()
+        else:
+            self._xml_holder = XMLHolder(mapping)
+            self._xml_handler = XMLHandler()
 
-        if not isinstance(mapping, XMLHolder):
-            mapping = XMLHolder(mapping)
-
-        self._xml_holder = mapping
-        self._xml_handler = XMLHandler()
         self._target = target
 
     def put(self, holder, path, value, *args, is_raw_path=False,   **kwargs):
@@ -39,25 +43,25 @@ class IMASHandler(Handler):
         if not is_raw_path:
             return Request(path).apply(lambda p: self.get(holder, p,  is_raw_path=True, **kwargs))
         else:
-            res = self._xml_handler.get_value(self._xml_holder, path, *args, **kwargs)
+            req = self._xml_handler.get_value(self._xml_holder, path, *args, **kwargs)
 
-            if isinstance(res, str):
-                res = self._target.get(holder, res, *args, is_raw_path=True,  **kwargs)
-            elif isinstance(res, collections.abc.Sequence):
-                raise NotImplementedError()
-            if isinstance(res, collections.abc.Mapping):
-                res = self._target.get(holder, res, *args,   **kwargs)
-            elif res is None:
+            if req is None:
                 res = self._target.get(holder, path,  *args,  **kwargs)
+            elif isinstance(req, collections.abc.Mapping):
+                m_req = req.get("{http://hpc.ipp.ac.cn/SpDB}mdsplus", None)
+                if m_req is None:
+                    res = req
+                else:
+                    res = self._target.get(holder, m_req, *args, **kwargs)
+            else:
+                res = req
 
             return res
 
     def iter(self, holder, path, *args, **kwargs):
-        req = self._xml_handler.get(self._xml_holder,  path, *args, **kwargs)
-
         for item in self._xml_handler.iter(self._xml_holder, path):
-            if isinstance(item, XMLHolder):
-                yield LazyProxy(item, handler=self._xml_handler)
+            if isinstance(item, LazyProxy) or isinstance(item, XMLHolder):
+                yield LazyProxy(holder, handler=IMASHandler(self._target, mapping=item))
             else:
                 yield item
         # else:

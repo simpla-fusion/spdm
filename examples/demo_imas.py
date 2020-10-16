@@ -1,11 +1,13 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from spdm.util.logger import logger
-from spdm.data import connect
 import sys
 sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from spdm.util.logger import logger
+from spdm.data import connect
 
 if __name__ == '__main__':
     db = connect("imas://",
@@ -35,8 +37,8 @@ if __name__ == '__main__':
         rect = coil.element[0].geometry.rectangle.__value__()
         plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z-rect.height/2.0), rect.width, rect.height, fill=False))
 
-    for time_slice in entry.equilibrium.time_slice[1:10]:
-        logger.debug(time_slice.profiles_2d[0].grid.dim1.__value__())
+    for psi in entry.equilibrium.time_slice[0:10].profiles_2d[0].psi:
+        logger.debug(psi.__value__())
         # plt.contour(
         #     time_slice.profiles_2d[0].grid.dim1.__value__(),
         #     time_slice.profiles_2d[0].grid.dim2.__value__(),

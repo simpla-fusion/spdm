@@ -89,18 +89,14 @@ class MDSplusHandler(Handler):
         raise NotImplementedError()
 
     def get(self, holder, path, *args, projection=None,  **kwargs):
-
-        if isinstance(path, collections.abc.Mapping):
-            path = path.get("{http://hpc.ipp.ac.cn/SpDB}mdsplus", path)
-
         if isinstance(path, collections.abc.Mapping):
             path = path.get("@text", None)
-        if path is None:
-            return None
-        elif not isinstance(path, str):
-            raise NotImplementedError(path)
+        if isinstance(path, str) and len(path) > 0:
+            res = holder.data.tdiExecute(path)
+            return res.data()
         else:
-            return holder.data.tdiExecute(path).data()
+            return None
+            # raise NotImplementedError(path)
 
     def iter(self, holder, path, *args, **kwargs):
         raise NotImplementedError(path)
