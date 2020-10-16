@@ -1,8 +1,23 @@
 import collections
 import pathlib
-from xml.etree import ElementInclude, ElementTree
 
 import numpy as np
+
+try:
+    from lxml.etree import _Element as XMLElement
+    from lxml.etree import ParseError as XMLParseError
+    from lxml.etree import XPath as XPath
+
+    from lxml.etree import parse as parse_xml
+    _HAS_LXML = True
+except ImportError:
+    from xml.etree.ElementTree import Element as XMLElement
+    from xml.etree.ElementTree import ParseError as XMLParseError
+    from xml.etree.ElementTree import parse as parse_xml
+    XPath = str
+    _HAS_LXML = False
+
+
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
@@ -41,10 +56,10 @@ def load_xml(path, *args,  mode="r", **kwargs):
         raise FileNotFoundError(path)
 
     try:
-        root = ElementTree.parse(path).getroot()
+        root = parse_xml(path.as_posix()).getroot()
         logger.debug(f"Loading XML file from {path}")
 
-    except ElementTree.ParseError as msg:
+    except XMLParseError as msg:
         raise RuntimeError(f"ParseError: {path}: {msg}")
 
     for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
@@ -56,7 +71,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 class XMLHolder(Holder):
     def __init__(self, element,  *args,  **kwargs):
-        if not isinstance(element, ElementTree.Element):
+        if not isinstance(element, XMLElement):
             element = load_xml(element, *args,  **kwargs)
 
         super().__init__(element)
@@ -67,10 +82,14 @@ class XMLHandler(Handler):
         super().__init__(*args, **kwargs)
 
     def request(self, path):
-        xpath = ""
+
+        xpath = "."
+        query = {}
+        prev = None
         for p in path:
             if type(p) is int:
-                xpath += f"[{p+1}]"
+                xpath += f"[ @id='{p}' or position()= {p+1} or @id='*']"
+                query[f"{prev}#id"] = p
             elif isinstance(p, str) and p[0] == '@':
                 xpath += f"[{p}]"
             elif isinstance(p, str):
@@ -79,12 +98,14 @@ class XMLHandler(Handler):
                 # TODO: handle slice
                 raise TypeError(f"Illegal path type! {type(p)} {path}")
             prev = p
-        if xpath[0] == '/':
-            xpath = xpath[1:]
-        return xpath, {}
+
+        if _HAS_LXML:
+            xpath = XPath(xpath)
+        return xpath, query
 
     def _convert(self, element, query={},  lazy=True, projection=None,):
-        if not isinstance(element, ElementTree.Element):
+
+        if not isinstance(element, XMLElement):
             return element
 
         res = None
@@ -112,8 +133,8 @@ class XMLHandler(Handler):
                 res = np.array(res)
         else:
             res = {child.tag: self._convert(child, query=query, lazy=lazy) for child in element}
-            if len(element.attrib) > 0:
-                res[f"@attribute"] = element.attrib
+            for k, v in element.attrib.items():
+                res[f"@{k}"] = v
 
             text = element.text.strip() if element.text is not None else None
             if text is not None:
@@ -134,22 +155,20 @@ class XMLHandler(Handler):
             return Request(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
         else:
             xpath, query = self.request(path)
-            return self._convert(holder.data.find(xpath), query, **kwargs)
+            return self._convert(xpath.evaluate(holder.data), query, **kwargs)
 
     def get_value(self, holder, path, *args,  only_one=False, **kwargs):
         if not only_one:
             return Request(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
         else:
             xpath, query = self.request(path)
-            res = self._convert(holder.data.find(xpath), query, lazy=False, **kwargs)
-            logger.debug((path, res))
-            return res
+            return self._convert(xpath.evaluate(holder.data)[0], query, lazy=False, **kwargs)
 
     def iter(self, holder, path, *args, **kwargs):
         tree = holder.data
         for req in Request(path):
             spath, query = self.request(req)
-            for child in tree.iterfind(spath):
+            for child in spath.evaluate(tree):
                 yield self._convert(child, query)
 
 

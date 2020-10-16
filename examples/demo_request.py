@@ -1,7 +1,6 @@
 from spdm.data.Request import Request
 from spdm.util.logger import logger
 
-
 if __name__ == '__main__':
 
     req = Request(["a", slice(None, None, None), "b", slice(1, 10, 2)])

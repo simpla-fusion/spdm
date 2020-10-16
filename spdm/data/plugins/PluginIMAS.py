@@ -15,61 +15,59 @@ class IMASHandler(Handler):
         super().__init__(*args, **kwargs)
         self._xml_holder = XMLHolder(mapping_files)
 
-        class _Handler(XMLHandler):
-            def request(self, path):
-                xpath = []
-                prev = None
-                for p in path:
-                    if prev == "time_slice":
-                        xpath.append("@id='*'")
-                    else:
-                        xpath.append(p)
-                    prev = p
-                return super().request(xpath)
+        # class _Handler(XMLHandler):
+        #     def request(self, path):
+        #         xpath = []
+        #         prev = None
+        #         for p in path:
+        #             if prev == "time_slice":
+        #                 xpath.append("@id='*'")
+        #             else:
+        #                 xpath.append(p)
+        #             prev = p
+        #         return super().request(xpath)
 
-        self._xml_handler = _Handler()
+        self._xml_handler = XMLHandler()
 
         self._target = target
 
-    def put(self, holder, path, value, *args,  **kwargs):
-        req = self._xml_handler.get(self._xml_holder, path, *args, **kwargs)
-        if isinstance(obj, Request):
-            xpath, query, fragment = req
-            if isinstance(query, collections.abc.Mapping):
-                return self._target.put(holder,  xpath.format_map(query),  value)
-            elif isinstance(query, collections.abc.Iterable):
-                return [self._target.put(holder, xpath.format_map(q), value) for q in query]
-            else:
-                return self._target.put(holder,  xpath, value)
-        elif req is not None:
-            raise RuntimeError(f"Can not write to non-empty entry! {path}")
+    def put(self, holder, path, value, *args, is_raw_path=False,   **kwargs):
+        if not is_raw_path:
+            return Request(path).apply(lambda p: self.get(holder, p, is_raw_path=True, **kwargs))
         else:
-            return self._target.put(holder, path, value, *args, **kwargs)
+            req = self._xml_handler.get(self._xml_holder, path, *args, **kwargs)
+            if isinstance(req, str):
+                self._target.put(holder, req, value, is_raw_path=True)
+            elif isinstance(res, collections.abc.Sequence):
+                raise NotImplementedError()
+            elif isinstance(res, collections.abc.Mapping):
+                raise NotImplementedError()
 
-    def get(self, holder, path, *args, projection=None, only_one=False,  **kwargs):
-        if not only_one:
-            return Request(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
+                # xpath, query, fragment=req
+                # if isinstance(query, collections.abc.Mapping):
+                #     return self._target.put(holder,  xpath.format_map(query),  value)
+                # elif isinstance(query, collections.abc.Iterable):
+                #     return [self._target.put(holder, xpath.format_map(q), value) for q in query]
+                # else:
+                #     return self._target.put(holder,  xpath, value)
+            elif req is not None:
+                raise RuntimeError(f"Can not write to non-empty entry! {path}")
+
+    def get(self, holder, path, *args,  is_raw_path=False,  **kwargs):
+        if not is_raw_path:
+            return Request(path).apply(lambda p: self.get(holder, p,  is_raw_path=True, **kwargs))
         else:
             res = self._xml_handler.get_value(self._xml_holder, path, *args, **kwargs)
 
-            logger.debug((res, type(res)))
+            if isinstance(res, str):
+                res = self._target.get(holder, res, *args, is_raw_path=True,  **kwargs)
+            elif isinstance(res, collections.abc.Sequence):
+                raise NotImplementedError()
+            if isinstance(res, collections.abc.Mapping):
+                res = self._target.get(holder, res, *args,   **kwargs)
+            elif res is None:
+                res = self._target.get(holder, path,  *args,  **kwargs)
 
-            # if isinstance(req, collections.abc.Mapping):
-            #     logger.debug(req.path)
-            #     return req.apply(lambda p, s=self._target, h=holder: s.get(h, p))
-            #     # if isinstance(query, collections.abc.Mapping):
-            #     #     return self._target.get(holder,  xpath.format_map(query),  projection=projection)
-            #     # elif isinstance(query, collections.abc.Iterable):
-            #     #     return [self._target.get(holder, xpath.format_map(q),  projection=projection) for q in query]
-            #     # else:
-            #     #     return self._target.get(holder,  xpath,  projection=projection)
-            # elif req is None:
-            #     logger.debug(req)
-            #     return self._target.get(holder,  path,  *args,  projection=projection, **kwargs)
-            # elif projection is not None:
-            #     raise NotImplementedError()
-            # else:
-            #     return req
             return res
 
     def iter(self, holder, path, *args, **kwargs):
