@@ -1,13 +1,11 @@
+from spdm.data import connect
+from spdm.util.logger import logger
+import matplotlib.pyplot as plt
+import numpy as np
 import sys
 sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-from spdm.util.logger import logger
-from spdm.data import connect
 
 if __name__ == '__main__':
     db = connect("imas://",
@@ -39,12 +37,15 @@ if __name__ == '__main__':
 
     for psi in entry.equilibrium.time_slice[0:10].profiles_2d[0].psi:
         logger.debug(psi.__value__())
-        # plt.contour(
-        #     time_slice.profiles_2d[0].grid.dim1.__value__(),
-        #     time_slice.profiles_2d[0].grid.dim2.__value__(),
-        #     time_slice.profiles_2d[0].psi.__value__(),
-        #     levels=30, linewidths=0.4
-        # )
+
+    psi = entry.equilibrium.time_slice[0:10].profiles_2d[0].psi.__value__()
+    logger.debug(len(psi))
+    # plt.contour(
+    #     time_slice.profiles_2d[0].grid.dim1.__value__(),
+    #     time_slice.profiles_2d[0].grid.dim2.__value__(),
+    #     time_slice.profiles_2d[0].psi.__value__(),
+    #     levels=30, linewidths=0.4
+    # )
 
     plt.axis('scaled')
     plt.savefig("imas_east.png")
