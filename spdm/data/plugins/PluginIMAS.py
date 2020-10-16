@@ -11,24 +11,14 @@ from spdm.util.LazyProxy import LazyProxy
 
 
 class IMASHandler(Handler):
-    def __init__(self, target, *args, mapping_files=None, **kwargs):
+    def __init__(self, target, *args, mapping=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._xml_holder = XMLHolder(mapping_files)
 
-        # class _Handler(XMLHandler):
-        #     def request(self, path):
-        #         xpath = []
-        #         prev = None
-        #         for p in path:
-        #             if prev == "time_slice":
-        #                 xpath.append("@id='*'")
-        #             else:
-        #                 xpath.append(p)
-        #             prev = p
-        #         return super().request(xpath)
+        if not isinstance(mapping, XMLHolder):
+            mapping = XMLHolder(mapping)
 
+        self._xml_holder = mapping
         self._xml_handler = XMLHandler()
-
         self._target = target
 
     def put(self, holder, path, value, *args, is_raw_path=False,   **kwargs):
@@ -42,14 +32,6 @@ class IMASHandler(Handler):
                 raise NotImplementedError()
             elif isinstance(res, collections.abc.Mapping):
                 raise NotImplementedError()
-
-                # xpath, query, fragment=req
-                # if isinstance(query, collections.abc.Mapping):
-                #     return self._target.put(holder,  xpath.format_map(query),  value)
-                # elif isinstance(query, collections.abc.Iterable):
-                #     return [self._target.put(holder, xpath.format_map(q), value) for q in query]
-                # else:
-                #     return self._target.put(holder,  xpath, value)
             elif req is not None:
                 raise RuntimeError(f"Can not write to non-empty entry! {path}")
 
@@ -101,7 +83,7 @@ class IMASHandler(Handler):
             #     yield from self._target.iter(holder, path, *args, **kwargs)
 
 
-def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
+def connect_imas(uri, *args, mapping=None, backend="HDF5", **kwargs):
 
     def id_pattern(collect, d, auto_inc=False):
         pattern = "{shot:08}_{run}"
@@ -110,9 +92,9 @@ def connect_imas(uri, *args, mapping_files=None, backend="HDF5", **kwargs):
 
         return s
 
-    if mapping_files is not None:
-        def wrapper(target, mfiles=mapping_files):
-            return IMASHandler(target, mapping_files=mfiles)
+    if mapping is not None:
+        def wrapper(target, mfiles=mapping):
+            return IMASHandler(target, mapping=mfiles)
     else:
         wrapper = None
 

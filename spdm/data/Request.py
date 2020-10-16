@@ -10,7 +10,7 @@ class Request:
 
     @property
     def is_multiple(self):
-        return functools.reduce(lambda a, b: a and b, [isinstance(p, slice) for p in self._path])
+        return len(self._path) > 0 and functools.reduce(lambda a, b: a and b, [isinstance(p, slice) for p in self._path], True)
 
     def append(self, seg):
         self._path.append(seg)
@@ -50,7 +50,7 @@ class Request:
 
     def apply(self, visitor):
         res = self.traverse(visitor, [], 0)
-        return res if not self.is_multiple else res[0]
+        return res[0] if self.is_multiple else res
 
     def iter_traverse(self, prev=[], idx=0):
         if idx >= len(self._path):
