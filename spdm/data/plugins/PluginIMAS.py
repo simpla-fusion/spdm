@@ -14,7 +14,21 @@ class IMASHandler(Handler):
     def __init__(self, target, *args, mapping_files=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._xml_holder = XMLHolder(mapping_files)
-        self._xml_handler = XMLHandler()
+
+        class _Handler(XMLHandler):
+            def request(self, path):
+                xpath = []
+                prev = None
+                for p in path:
+                    if prev == "time_slice":
+                        xpath.append("@id='*'")
+                    else:
+                        xpath.append(p)
+                    prev = p
+                return super().request(xpath)
+
+        self._xml_handler = _Handler()
+
         self._target = target
 
     def put(self, holder, path, value, *args,  **kwargs):
@@ -32,24 +46,32 @@ class IMASHandler(Handler):
         else:
             return self._target.put(holder, path, value, *args, **kwargs)
 
-    def get(self, holder, path, *args, projection=None,  **kwargs):
-        req = self._xml_handler.get(self._xml_holder, path, *args, **kwargs)
-        logger.debug(path)
-        if isinstance(req, Request):
-            xpath, query, fragment = req
-            if isinstance(query, collections.abc.Mapping):
-                return self._target.get(holder,  xpath.format_map(query),  projection=projection)
-            elif isinstance(query, collections.abc.Iterable):
-                return [self._target.get(holder, xpath.format_map(q),  projection=projection) for q in query]
-            else:
-                return self._target.get(holder,  xpath,  projection=projection)
-        elif req is None:
-            logger.debug(req)
-            return self._target.get(holder,  path,  *args,  projection=projection, **kwargs)
-        elif projection is not None:
-            raise NotImplementedError()
+    def get(self, holder, path, *args, projection=None, only_one=False,  **kwargs):
+        if not only_one:
+            return Request(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
         else:
-            return req
+            res = self._xml_handler.get_value(self._xml_holder, path, *args, **kwargs)
+            if  isinstance(res, tuple) and  hasattr(res, '_asdict') and hasattr(res, '_fields'):           
+
+                logger.debug((res,type(res)))
+
+            # if isinstance(req, collections.abc.Mapping):
+            #     logger.debug(req.path)
+            #     return req.apply(lambda p, s=self._target, h=holder: s.get(h, p))
+            #     # if isinstance(query, collections.abc.Mapping):
+            #     #     return self._target.get(holder,  xpath.format_map(query),  projection=projection)
+            #     # elif isinstance(query, collections.abc.Iterable):
+            #     #     return [self._target.get(holder, xpath.format_map(q),  projection=projection) for q in query]
+            #     # else:
+            #     #     return self._target.get(holder,  xpath,  projection=projection)
+            # elif req is None:
+            #     logger.debug(req)
+            #     return self._target.get(holder,  path,  *args,  projection=projection, **kwargs)
+            # elif projection is not None:
+            #     raise NotImplementedError()
+            # else:
+            #     return req
+            return res
 
     def iter(self, holder, path, *args, **kwargs):
         req = self._xml_handler.get(self._xml_holder,  path, *args, **kwargs)

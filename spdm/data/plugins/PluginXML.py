@@ -57,11 +57,11 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLHolder(Holder):
-    def __init__(self, obj,  *args,  **kwargs):
-        if not isinstance(obj, ElementTree.Element):
-            obj = load_xml(obj, *args,  **kwargs)
+    def __init__(self, element,  *args,  **kwargs):
+        if not isinstance(element, ElementTree.Element):
+            element = load_xml(element, *args,  **kwargs)
 
-        super().__init__(obj)
+        super().__init__(element)
 
 
 class XMLHandler(Handler):
@@ -83,66 +83,69 @@ class XMLHandler(Handler):
             prev = p
         if xpath[0] == '/':
             xpath = xpath[1:]
+        return xpath, {}
 
-        return xpath
+    def _convert(self, element, query={},  lazy=True, projection=None,):
+        if not isinstance(element, ElementTree.Element):
+            return element
 
-    def _convert(self, obj, query={},  lazy=True):
-        if not isinstance(obj, ElementTree.Element):
-            return obj
-
-        dtype = obj.attrib.get("dtype", None)
         res = None
 
-        if len(obj) > 0 and lazy:
-            res = LazyProxy(XMLHolder(obj), handler=self)
-        elif len(obj) > 0:
-            d = {child.tag: self._convert(child, True) for child in obj}
-            res = collections.namedtuple(obj.tag, d.keys())(**d)
-        elif dtype is None:
-            res = obj.text
-        elif dtype == "NONE":
-            res = None
-        elif dtype == "ref":
-            res = Request(obj.text, query or {})
-        else:
-            if dtype == "string":
-                res = obj.text.split(',')
+        if len(element) > 0 and lazy:
+            res = LazyProxy(XMLHolder(element), handler=self)
+        elif "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
+            dtype = element.attrib.get("dtype", None)
+
+            if dtype == "string" or dtype is None:
+                res = [element.text]
             elif dtype == "int":
-                res = [int(v) for v in obj.text.split(',')]
+                res = [int(v) for v in element.text.split(',')]
             elif dtype == "float":
-                res = [float(v) for v in obj.text.split(',')]
+                res = [float(v) for v in element.text.split(',')]
             else:
                 raise NotImplementedError(f"Not supported dtype {dtype}!")
 
-            dims = [int(v) for v in obj.attrib.get("dims", "").split(',') if v != '']
-
-            res = np.array(res)
+            dims = [int(v) for v in element.attrib.get("dims", "").split(',') if v != '']
             if len(dims) == 0 and len(res) == 1:
                 res = res[0]
-            elif len(dims) > 0:
+            elif len(dims) > 0 and len(res) != 0:
                 res = np.array(res).reshape(dims)
+            else:
+                res = np.array(res)
+        else:
+            d = {child.tag: self._convert(child, query=query, lazy=lazy) for child in element}
+            if len(element.attrib) > 0:
+                d[f"attr_"] = element.attrib
+            d["text_"] = element.text
+            res = collections.namedtuple(element.tag, d.keys())(**d)
+
         return res
 
-    def _fetch(self, holder, path, query={}, lazy=True):
-        return self._convert(holder.data.find(self.request(path)), query, lazy=lazy)
-
-    def _push(self, holder, path, value, query={}):
-        raise NotImplementedError()
-
     def put(self, holder, path, value, *args, **kwargs):
-        return Request(path).apply(lambda p, q, v=value, s=self, h=holder: s._push(h, p, v, q))
+        if not only_one:
+            return Request(path).apply(lambda p,  v=value, s=self, h=holder: s._push(h, p, v))
+        else:
+            raise NotImplementedError()
 
-    def get(self, holder, path, *args, **kwargs):
-        
-        return Request(path).apply(lambda p, q, s=self, h=holder: s._fetch(h, p, q))
+    def get(self, holder, path, *args, only_one=False, **kwargs):
+        if not only_one:
+            return Request(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
+        else:
+            xpath, query = self.request(path)
+            return self._convert(holder.data.find(xpath), query, **kwargs)
 
-    def get_value(self, holder, path, *args, **kwargs):
-        return Request(path).apply(lambda p, q, s=self, h=holder: s._fetch(h, p, q, lazy=False))
+    def get_value(self, holder, path, *args,  only_one=False, **kwargs):
+        if not only_one:
+            return Request(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
+        else:
+            xpath, query = self.request(path)
+            return self._convert(holder.data.find(xpath), query, lazy=False, **kwargs)
 
     def iter(self, holder, path, *args, **kwargs):
         tree = holder.data
-        for path, query in Request(path):
-            for child in tree.iterfind(self.request(path)):
+        for req in Request(path):
+            spath, query = self.request(req)
+            for child in tree.iterfind(spath):
                 yield self._convert(child, query)
 
 
