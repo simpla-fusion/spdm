@@ -1,22 +1,22 @@
 
-from spdm.util.LazyProxy import LazyProxy
 from typing import (Dict, List, Any)
 
+from .Node import Node
 
-class Document(object):
-    def __init__(self, *args, schema=None, root=None, handler=None, collection=None, **kwargs):
+
+class Document(Node):
+
+    @staticmethod
+    def __new__(cls, desc, *args, **kwargs):
+        if cls is not Document:
+            return super(Document, cls).__new__(desc, *args, **kwargs)
+
+        return cls
+
+    def __init__(self, *args, collection=None, schema=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._schema = schema
-        self._root = root
-        self._handler = handler
         self._collection = collection
-
-    @property
-    def root(self):
-        return self._root
-
-    @property
-    def entry(self):
-        return LazyProxy(self.root, handler=self._handler)
 
     @property
     def schema(self):

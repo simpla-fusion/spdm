@@ -4,16 +4,16 @@ import pathlib
 import numpy as np
 
 try:
-    from lxml.etree import ParseError as XMLParseError
-    from lxml.etree import XPath as XPath
-    from lxml.etree import _Element as XMLElement
+    from lxml.etree import ParseError as _XMLParseError
+    from lxml.etree import XPath as _XPath
+    from lxml.etree import _Element as _XMLElement
     from lxml.etree import parse as parse_xml
     _HAS_LXML = True
 except ImportError:
-    from xml.etree.ElementTree import Element as XMLElement
-    from xml.etree.ElementTree import ParseError as XMLParseError
+    from xml.etree.ElementTree import Element as _XMLElement
+    from xml.etree.ElementTree import ParseError as _XMLParseError
     from xml.etree.ElementTree import parse as parse_xml
-    XPath = str
+    _XPath = str
     _HAS_LXML = False
 
 
@@ -21,6 +21,7 @@ from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
+from ..Collection import Collection, FileCollection
 from ..Document import Document
 from ..Handler import Handler, Holder
 
@@ -59,7 +60,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
         root = parse_xml(path.as_posix()).getroot()
         logger.debug(f"Loading XML file from {path}")
 
-    except XMLParseError as msg:
+    except _XMLParseError as msg:
         raise RuntimeError(f"ParseError: {path}: {msg}")
 
     for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
@@ -67,14 +68,6 @@ def load_xml(path, *args,  mode="r", **kwargs):
         root.insert(0, load_xml(fp))
         root.remove(child)
     return root
-
-
-class XMLHolder(Holder):
-    def __init__(self, element,  *args,  **kwargs):
-        if not isinstance(element, XMLElement):
-            element = load_xml(element, *args,  **kwargs)
-
-        super().__init__(element)
 
 
 class XMLHandler(Handler):
@@ -101,11 +94,11 @@ class XMLHandler(Handler):
             prev = p
 
         if _HAS_LXML:
-            res = XPath(res)
+            res = _XPath(res)
         return res
 
     def _convert(self, element, query={}, path=[],  lazy=True, projection=None,):
-        if not isinstance(element, XMLElement):
+        if not isinstance(element, _XMLElement):
             return element
         res = None
 
@@ -184,23 +177,35 @@ class XMLHandler(Handler):
                 yield self._convert(child, path=req)
 
 
-def open_xml(path, *args,  **kwargs):
-    return Document(root=XMLHolder(path), handler=XMLHandler(*args,  **kwargs))
+class XMLNode(Node):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
-# def connect_xml(uri, *args, filename_pattern="{_id}.h5", handler=None, **kwargs):
+class XMLDocument(Document):
+    def __init__(self, root, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not isinstance(path, _XMLElement):
+            root = load_xml(root, *args,  **kwargs)
+        self._root = root
 
-#     path = pathlib.Path(getattr(uri, "path", uri))
+    @property
+    def root(self):
+        return XMLNode(self._root)
 
-#     Document(
-#         root=XMLHolder(uri, mode=mode),
-#         handler=XMLHandler()
-#     )
-
-#     return FileCollection(path, *args,
-#                           filename_pattern=filename_pattern,
-#                           document_factory=lambda fpath, mode:,
-#                           **kwargs)
+    @property
+    def entry(self):
+        return self.root.entry
 
 
-# __SP_EXPORT__ = connect_XML
+class XMLCollection(FileCollection):
+
+    DOCUMENT_CLASS = XMLDocument
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+
+ __SP_EXPORT__ = XMLCollection
+

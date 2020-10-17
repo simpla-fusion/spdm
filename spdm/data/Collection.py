@@ -1,11 +1,15 @@
 import collections
+import pathlib
 import re
 import urllib
-import pathlib
 from typing import Any, Dict, List, NewType, Tuple
+
 import numpy
+import inspect
 from spdm.util.logger import logger
-from spdm.util.utilities import whoami
+from spdm.util.sp_export import sp_find_module
+from spdm.util.urilib import urisplit
+
 from .Document import Document
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
@@ -17,21 +21,52 @@ DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 class Collection(object):
     ''' Collection of documents
     '''
+    DOCUMENT_CLASS = Document
 
-    def __init__(self, uri=None, *args, mode="rw",
-                 id_pattern=None,
+    @staticmethod
+    def __new__(cls, desc, *args, **kwargs):
+        if cls is not Collection:
+            return super(Collection, cls).__new__(desc, *args, **kwargs)
+
+        if isinstance(desc, str):
+            desc = urisplit(desc)
+
+        schema = getattr(desc, "schema", None)
+
+        if schema is None:
+            raise ValueError(f"Illegal description! {desc}")
+
+        plugin_name = f"{__package__}.plugins.Plugin{schema.replace('+', '_').upper()}"
+
+        try:
+            n_cls = sp_find_module(plugin_name)
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                f"Can not load 'Collection' plugin for {plugin_name}! [{suffix}]")
+        else:
+            if not (inspect.isclass(n_cls) and issubclass(n_cls, Collection)):
+                raise TypeError(
+                    f"Can not find 'Collection' plugin for {plugin_name} !")
+        finally:
+            logger.info(f"Load Plugin: {n_cls.__name__}")
+
+        return object.__new__(n_cls)
+
+    def __init__(self, uri, *args,
+                 mode="rw",
+                 id_hasher=None,
                  handler=None,
-                 handler_proxy=None,
+                 request_proxy=None,
                  **kwargs):
         super().__init__()
 
         logger.debug(f"Open {self.__class__.__name__} : {uri}")
 
         self._mode = mode
-        self._id_pattern = id_pattern
+        self._id_hasher = id_hasher
 
-        if handler_proxy is not None:
-            self._handler = handler_proxy(handler)
+        if request_proxy is not None:
+            self._handler = request_proxy(handler)
         else:
             self._handler = handler
 
@@ -40,34 +75,43 @@ class Collection(object):
         return self._mode
 
     @property
+    def is_writable(self):
+        return "w" in self._mode
+
+    @property
     def handler(self):
         return self._handler
 
     # mode in ["", auto_inc  , glob ]
     def guess_id(self, d, auto_inc=True):
         fid = None
-        if callable(self._id_pattern):
-            fid = self._id_pattern(self, d, auto_inc)
-        elif isinstance(self._id_pattern, str):
-            fid = self._id_pattern.format_map(d)
+        if callable(self._id_hasher):
+            fid = self._id_hasher(self, d, auto_inc)
+        elif isinstance(self._id_hasher, str):
+            fid = self._id_hasher.format_map(d)
 
         return fid
 
     def open_document(self, fid, mode):
         logger.debug(f"Opend Document: {fpath} mode=\"{mode}\"")
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def insert(self, *args, **kwargs):
         return self.insert_one(*args, **kwargs)
 
-    def open(self, *args, **kwargs):
-        return self.find_one(*args, **kwargs)
+    def open(self, *args, mode="rw", **kwargs):
+        if "w" in mode and self.is_writable:
+            return self.insert_one(*args, **kwargs)
+        elif "w" not in mode:
+            return self.find_one(*args, **kwargs)
+        else:
+            raise RuntimeWarning("Collection is not writable!")
 
     def find_one(self, predicate=None, *args, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def find(self, predicate=None, projection=None, *args, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def insert_one(self, data=None, *args, **kwargs) -> InsertOneResult:
         raise NotImplementedError()
@@ -76,46 +120,46 @@ class Collection(object):
         return [self.insert_one(doc, *args, **kwargs) for doc in documents]
 
     def replace_one(self, predicate, replacement,  *args, **kwargs) -> UpdateResult:
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def update_one(self, predicate, update,  *args, **kwargs) -> UpdateResult:
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def update_many(self, predicate, updates: list,  *args, **kwargs) -> UpdateResult:
         return [self.update_one(predicate, update, *args, **kwargs) for update in updates]
 
     def delete_one(self, predicate,  *args, **kwargs) -> DeleteResult:
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def delete_many(self, predicate, *args, **kwargs) -> DeleteResult:
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def count(self, predicate=None, *args, **kwargs) -> int:
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     ######################################################################
     # TODO(salmon, 2019.07.01) support index
 
     def create_indexes(self, indexes: List[str], session=None, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def create_index(self, keys: List[str], session=None, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def ensure_index(self, key_or_list, cache_for=300, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def drop_indexes(self, session=None, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def drop_index(self, index_or_name, session=None, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def reindex(self, session=None, **kwargs):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
     def list_indexes(self, session=None):
-        raise NotImplementedError(whoami(self))
+        raise NotImplementedError()
 
 
 class FileCollection(Collection):

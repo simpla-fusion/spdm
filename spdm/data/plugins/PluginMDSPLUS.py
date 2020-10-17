@@ -1,16 +1,16 @@
-from ..Collection import (Collection, FileCollection)
-from ..Document import Document
-from ..Handler import (Holder, Handler)
-
 import collections
 import os
 import pathlib
 import re
+
 import MDSplus as mds
 import numpy as np
-from spdm.util.urilib import urisplit
 from spdm.util.logger import logger
+from spdm.util.urilib import urisplit
 
+from ..Collection import Collection, FileCollection
+from ..Document import Document
+from ..Handler import Handler, Holder
 
 # class MDSplusEntry(DataEntry):
 #     def __init__(self, tree_name, shot, mode="rw", *args, **kwargs):

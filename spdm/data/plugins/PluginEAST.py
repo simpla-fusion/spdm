@@ -3,7 +3,7 @@ from spdm.util.logger import logger
 from ..Handler import HandlerProxy
 
 
-def connect_east(uri, *args, mapping_file=None, **kwargs):
+def connect_east(uri, *args, mapping=None, **kwargs):
 
     path = getattr(uri, "path", uri)
     mapping_files = ["/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static",

@@ -13,7 +13,7 @@ from ..Document import Document
 from ..Collection import Collection
 
 
-class IMASHandler(Handler):
+class MappingHandler(Handler):
     def __init__(self, target, *args, mapping=None, **kwargs):
         super().__init__(*args, **kwargs)
         if isinstance(mapping, LazyProxy):
@@ -46,7 +46,7 @@ class IMASHandler(Handler):
         if item is None:
             return None
         elif isinstance(item, LazyProxy) or isinstance(item, XMLHolder):
-            return LazyProxy(holder, handler=IMASHandler(self._target, mapping=item))
+            return LazyProxy(holder, handler=MappingHandler(self._target, mapping=item))
         elif isinstance(item, collections.abc.Mapping) and "{http://hpc.ipp.ac.cn/SpDB}mdsplus" in item:
             return self._target.get(holder, item["{http://hpc.ipp.ac.cn/SpDB}mdsplus"], *args, **kwargs)
         else:
@@ -65,41 +65,35 @@ class IMASHandler(Handler):
     def iter(self, holder, path, *args, **kwargs):
         for item in self._xml_handler.iter(self._xml_holder, path):
             yield self._fetch_from_xml(holder, item, *args, **kwargs)
-   
 
 
-class IMASCollection(Collection):
-    def __init__(self, uri, *args, data_source=None, mapping=None,  **kwargs):
+class MappingCollection(Collection):
+    def __init__(self, uri, *args, source=None, mapping=None,  **kwargs):
 
-        super().__init__()
+        super().__init__(uri, *args, **kwargs)
 
-        eself._data_source = data_source or {}
+        if not isinstance(source, Collection):
+            self._source = Collection.create(source)
 
-    def add_data_source(self, d):
-        pass
+        self._xml_holder = XMLHolder(mapping)
+        self._xml_handler = XMLHandler()
 
-    def open_document(self, fid, mode):
-        return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"),
-                        handler=self._handler,
-                        collection=self)
+    def _do_wrap(self, doc):
+        return Document(root=src._root,
+                        handler=MappingHandler(
+                            src._handler,
+                            xml_holder=self._xml_holder
+                            xml_handler=self._xml_handler
+                        )
+                        )
 
+    def insert_one(self, pred=None, *args, **kwargs):
+        return self._do_wrap(self._source.insert_one(_id=self._id_hasher(pred or kwargs)))
 
-def connect_imas(uri, *args, mapping=None, backend="HDF5", **kwargs):
-
-    def id_hasher(collect, d, auto_inc=False):
-        pattern = "{shot:08}_{run}"
-        s = d.get("shot", 0)
-        r = d.get("run", None)
-
-        return s
-
-    if mapping is not None:
-        def wrapper(target, mfiles=mapping):
-            return IMASHandler(target, mapping=mfiles)
-    else:
-        wrapper = None
-
-    return connect(backend, *args, id_hasher=id_hasher, request_proxy=wrapper,  ** kwargs)
+    def find_one(self, pred=None, *args, **kwargs):
+        return self._do_wrap(self._source.find_one(_id=self._id_hasher(pred or kwargs)))
 
 
-__SP_EXPORT__ = connect_imas
+
+
+__SP_EXPORT__ = MappingCollection
