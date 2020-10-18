@@ -1,6 +1,6 @@
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Handler import (Holder, Handler)
+from ..Node import (Holder, Node)
 import h5py
 import numpy
 import collections
@@ -14,11 +14,13 @@ SPDM_LIGHTDATA_MAX_LENGTH = 128
 class HDF5Holder(Holder):
     def __init__(self, obj,  *args, **kwargs):
         if not isinstance(obj, h5py.Group):
-            obj = h5py.File(obj, *args, **kwargs)
         super().__init__(obj)
 
 
-class HDF5Handler(Handler):
+class HDF5Node(Node):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def require_group(self, grp, path):
         for p in path:
@@ -34,8 +36,8 @@ class HDF5Handler(Handler):
 
         return grp
 
-    def put(self, holder: HDF5Holder, path, value, *args, **kwargs):
-        grp = holder.data
+    def put(self, path, value, *args, **kwargs):
+        grp = self.holder
 
         path, query, fragment = self.request(path, *args, **kwargs)
 
@@ -83,8 +85,8 @@ class HDF5Handler(Handler):
             # else:
             #     raise RuntimeError(f"Unsupported data type {type(value)}")
 
-    def get(self, holder: HDF5Holder, path=[], projection=None, *args, **kwargs):
-        obj = holder.data
+    def get(self, path=[], projection=None, *args, **kwargs):
+        obj = self.holder
 
         path, query, fragment = self.request(path, *args, **kwargs)
 
@@ -92,7 +94,7 @@ class HDF5Handler(Handler):
             raise RuntimeError("None group")
 
         if isinstance(path, str):
-            path = path.split(Handler.DELIMITER)
+            path = path.split(Node.DELIMITER)
         elif not isinstance(path, collections.abc.Sequence):
             raise TypeError(f"Illegal path type {type(path)}! {path}")
 
@@ -145,6 +147,18 @@ class HDF5Handler(Handler):
 
         return res
 
+    def iter(self,  path, *args, **kwargs):
+        for spath in PathTraverser(path):
+            pass
+        raise NotImplementedError()
+
+
+class HDF5Document(Document):
+    def __init__(self, root, *args, mode="r", **kwargs):
+        if not isinstance(root, Node):
+            root = HDF5Node(h5py.File(root, *args, **kwargs))
+        super().__init__(root, *args, **kwargs)
+
 
 def connect_hdf5(uri, *args, **kwargs):
 
@@ -153,7 +167,7 @@ def connect_hdf5(uri, *args, **kwargs):
     return FileCollection(path, *args,
                           file_extension=".h5",
                           file_factory=HDF5Holder,
-                          handler=HDF5Handler(),
+                          handler=HDF5Node(),
                           **kwargs)
 
 

@@ -292,9 +292,18 @@ def load_geqdsk(uri):
 
 class GEQdskDocument(Document):
     def __init__(self, path, *args, mode="r", **kwargs):
-        if "r" in mode:
+        self._path = path
+
+        if "r" in mode and self._path is not None:
             super().__init__(load_geqdsk(path), *args, **kwargs)
         else:
             super().__init__({}, *args, **kwargs)
 
-        self._path = path
+    def load(self, p):
+        with open(p or self._path, mode="r"):
+            sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), self.root.holder)
+
+    def save(self, p):
+        geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.holder)
+        with open(p or self._path, mode="w"):
+            sp_write_geqdsk(geqdsk, fp)
