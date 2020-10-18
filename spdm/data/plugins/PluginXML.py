@@ -18,7 +18,6 @@ except ImportError:
     _HAS_LXML = False
 
 
-from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
@@ -72,9 +71,11 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLNode(Node):
-    def __init__(self, holder,  *args,    **kwargs):
+    def __init__(self, holder,  *args, prefix=None, envs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._holder = holder
+        self._prefix = prefix or []
+        self._envs = envs or {}
 
     def xpath(self, path):
         res = "."

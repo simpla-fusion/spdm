@@ -32,6 +32,7 @@ associations = {
 
     "mongo": "MongoDB",
     "mongodb": "MongoDB",
+    "gfile": "GEQdsk"
 }
 
 

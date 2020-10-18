@@ -21,8 +21,8 @@ if __name__ == '__main__':
     #                     "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic/config.xml"
     #                 ])
     db = Collection(
-        "EAST://"
-        # "EAST:///home/salmon/public_data/efit_east", tree_name="efit_east"
+        # "EAST://"
+        "EAST:///home/salmon/public_data/efit_east", tree_name="efit_east"
     )
 
     entry = db.open(shot=55555).entry

@@ -30,8 +30,7 @@ class Document(Node):
         super().__init__(*args, **kwargs)
         self._schema = schema
         self._collection = collection
-        assert(isinstance(root, Node))
-        self._root = root
+        self._root = root if isinstance(root, Node) else Node(root or {})
 
     @property
     def root(self):
@@ -47,6 +46,9 @@ class Document(Node):
 
     def valid(self, schema=None):
         return True
+
+    def flush(self):  # dump data from memory to storage (file or database)
+        raise NotImplementedError()
 
     def check(self, predication, **kwargs) -> bool:
         raise NotImplementedError()
