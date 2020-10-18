@@ -49,7 +49,7 @@ class Collection(object):
         logger.debug(f"Open {self.__class__.__name__} : {uri}")
 
         self._mode = mode
-        self._id_hasher = id_hasher
+        self._id_hasher = id_hasher or "{_id}"
 
         if request_proxy is not None:
             self._handler = request_proxy(handler)

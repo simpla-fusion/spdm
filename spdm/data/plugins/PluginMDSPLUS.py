@@ -78,12 +78,6 @@ from ..Node import Handler, Node
 #         # raise NotImplementedError(whoami(self))
 
 
-class MdsplusDocument(Document):
-    def __init__(self, tree_name, fid, *args, mode="r", **kwargs):
-        logger.debug(f"Opend MDSTree: {tree_name} {fid} mode=\"{mode}\"")
-        super().__init__(mds.Tree(tree_name, fid, mode="NORMAL"))
-
-
 class MdsplusHandler(Handler):
 
     def put(self, holder, path, value, *args, **kwargs):
@@ -107,7 +101,10 @@ class MdsplusHandler(Handler):
 
 
 class MdsplusDocument(Document):
-    pass
+    def __init__(self, tree_name, fid, *args, mode="r", **kwargs):
+        fid = int(fid)
+        logger.debug(f"Opend MDSTree: {tree_name} {fid} mode=\"{mode}\"")
+        super().__init__(mds.Tree(tree_name, fid, mode="NORMAL"), handler=MdsplusHandler())
 
 
 class MdsplusCollection(Collection):
@@ -130,8 +127,7 @@ class MdsplusCollection(Collection):
         super().__init__(os.environ[f'{self._tree_name}_path'], *args, handler=MdsplusHandler(), **kwargs)
 
     def open_document(self, fid, mode):
-        return MdsplusDocument(self._tree_name, fid, mode="NORMAL",
-                               handler=self._handler)
+        return MdsplusDocument(self._tree_name, fid, mode="NORMAL",  handler=self._handler)
 
     def insert_one(self, data=None, *args, **kwargs):
         doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")

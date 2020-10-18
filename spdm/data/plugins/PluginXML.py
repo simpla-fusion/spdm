@@ -105,7 +105,7 @@ class XMLHandler(Handler):
         res = None
 
         if len(element) > 0 and lazy:
-            res = LazyProxy(element, handler=XMLHandler(
+            res = LazyProxy(Holder(element), handler=XMLHandler(
                 prefix=self._prefix+path,
                 envs={**query, **self._envs}))
         elif "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
@@ -160,13 +160,13 @@ class XMLHandler(Handler):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
         else:
-            return self._convert(self.xpath(path).evaluate(holder), path=path, **kwargs)
+            return self._convert(self.xpath(path).evaluate(holder.data), path=path, **kwargs)
 
     def get_value(self, holder, path, *args,  only_one=False, **kwargs):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
         else:
-            obj = self.xpath(path).evaluate(holder)
+            obj = self.xpath(path).evaluate(holder.data)
             if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
                 obj = obj[0]
 
@@ -174,26 +174,23 @@ class XMLHandler(Handler):
 
     def iter(self, holder, path, *args, **kwargs):
         for req in PathTraverser(path):
-            for child in self.xpath(req).evaluate(holder):
+            for child in self.xpath(req).evaluate(holder.data):
                 yield self._convert(child, path=req)
 
 
 class XmlDocument(Document):
-    def __init__(self, path=[], *args, others=[], **kwargs):
-
+    def __init__(self,  path=[], *args,   **kwargs):
         if isinstance(path, str):
             path = [path]
 
-        if others is not None:
-            path.extend(others)
-
-        holder = load_xml(path, *args,  **kwargs)
+        if isinstance(path, collections.abc.Sequence):
+            holder = Holder(load_xml(path, *args,  **kwargs))
+        elif isinstance(path, Holder):
+            holder = path
+        else:
+            raise TypeError(path)
 
         super().__init__(holder, *args, handler=XMLHandler(), ** kwargs)
-
-    @property
-    def root(self):
-        return Node(self.holder, handler=self.handler)
 
 
 class XmlCollection(FileCollection):
