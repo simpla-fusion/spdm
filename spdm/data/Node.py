@@ -8,7 +8,6 @@ class Node(object):
         self._holder = holder
         self._prefix = prefix or []
         self._envs = envs or {}
-        logger.debug((self._prefix, self._envs))
 
     @property
     def holder(self):
@@ -26,14 +25,14 @@ class Node(object):
     def entry(self):
         return LazyProxy(self, handler=self.__class__)
 
-    def put(self, p, v):
+    def put(self, path, v, *args, **kwargs):
         raise NotImplementedError()
 
-    def get(self, p):
+    def get(self, path, *args, **kwargs):
         raise NotImplementedError()
 
-    def get_value(self, *args, **kwargs):
-        return self.get(*args, **kwargs)
+    def get_value(self, path, *args, **kwargs):
+        return self.get(path, *args, **kwargs)
 
-    def iter(self, *args, **kwargs):
+    def iter(self, path,  *args, **kwargs):
         raise NotImplementedError()

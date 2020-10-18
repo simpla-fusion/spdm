@@ -28,6 +28,7 @@ class Document(Node):
         super().__init__(*args, **kwargs)
         self._schema = schema
         self._collection = collection
+        assert(isinstance(root, Node))
         self._root = root
 
     @property
@@ -36,7 +37,7 @@ class Document(Node):
 
     @property
     def entry(self):
-        return self._root.entry
+        return self.root.entry
 
     @property
     def schema(self):

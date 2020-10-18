@@ -88,8 +88,7 @@ class XMLNode(Node):
             else:
                 # TODO: handle slice
                 raise TypeError(f"Illegal path type! {type(p)} {path}")
-
-        logger.debug(res)
+       
         if _HAS_LXML:
             res = _XPath(res)
         return res
