@@ -34,19 +34,22 @@ class MappingNode(Node):
                 raise RuntimeError(f"Can not write to non-empty entry! {path}")
 
     def _fetch(self,  item, *args, **kwargs):
+        res = None
         if item is None:
-            return None
+            pass
         elif isinstance(item, LazyProxy):
-            return MappingNode(self._holder, mapping=item.__object__).entry
+            res = MappingNode(self._holder, mapping=item.__object__).entry
         # elif isinstance(item, Node):
         #     logger.debug(item.holder.data)
         #     return LazyProxy(holder, handler=MappingNode(self._target, mapping=Node(item, handler=self._mapping.handler)))
-        elif isinstance(item, collections.abc.Mapping) and "{http://hpc.ipp.ac.cn/SpDB}mdsplus" in item:
+        elif isinstance(item, collections.abc.Mapping) and "{http://hpc.ipp.ac.cn/SpDB}data" in item:
             if self._holder is None:
                 raise RuntimeError()
-            return self._holder.get(item["{http://hpc.ipp.ac.cn/SpDB}mdsplus"], *args, **kwargs)
+            res = self._holder.get(item["{http://hpc.ipp.ac.cn/SpDB}data"], *args, **kwargs)
         else:
-            return item
+            res = item
+
+        return res
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
         if not is_raw_path:
@@ -65,7 +68,9 @@ class MappingNode(Node):
 class MappingDocument(Document):
 
     def __init__(self, root, *args, mapping=None, **kwargs):
-        if not isinstance(root, Node):
+        if isinstance(root, Document):
+            root = root.root
+        elif not isinstance(root, Node):
             root = MappingNode(root)
         super().__init__(root, *args, ** kwargs)
         self._mapping = mapping

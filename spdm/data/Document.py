@@ -21,10 +21,12 @@ class Document(Node):
         else:
             n_cls = find_plugin(desc,
                                 pattern=f"{__package__}.plugins.Plugin{{name}}",
-                                fragment="{name}Document")
+                                fragment="Document")
             return object.__new__(n_cls)
 
     def __init__(self, root=None, *args, collection=None, schema=None, **kwargs):
+        logger.debug(f"Opend {self.__class__.__name__}")
+
         super().__init__(*args, **kwargs)
         self._schema = schema
         self._collection = collection

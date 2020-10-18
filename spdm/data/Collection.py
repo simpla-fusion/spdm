@@ -34,7 +34,7 @@ class Collection(object):
 
         n_cls = find_plugin(desc,
                             pattern=f"{__package__}.plugins.Plugin{{name}}",
-                            fragment="{name}Collection")
+                            fragment="Collection")
 
         return object.__new__(n_cls)
 

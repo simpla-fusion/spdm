@@ -1,15 +1,38 @@
 import pathlib
+import os
 from spdm.util.logger import logger
-from ..Handler import HandlerProxy
+from spdm.util.urilib import urisplit
+
+from .PluginMapping import MappingCollection
 
 
-def connect_east(uri, *args, mapping=None, **kwargs):
+class EASTCollection(MappingCollection):
+    DEVICE_NAME = "east"
 
-    path = getattr(uri, "path", uri)
-    mapping_files = ["/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static",
-                     "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic"]
+    def __init__(self, uri, *args, mapping=None, tree_name=None, **kwargs):
+        if isinstance(uri, str):
+            uri = urisplit(uri)
 
-    return connect("imas://", backend=f"hdf5://{uri.path}", * args,   ** kwargs)
+        tree_name = tree_name or EASTCollection.DEVICE_NAME
+
+        authority = getattr(uri, "authority", "")
+
+        path = getattr(uri, "path", None) or pathlib.Path.home()/f"public_data/{tree_name}/imas/3"
+
+        source = f"mdsplus://{authority}{path}#{tree_name}"
+
+        if mapping is None:
+            mapping = []
+
+        EAST_MAPPING_DIR = os.environ.get(
+            "EAST_MAPPING_DIR", None
+            #  (pathlib.Path(__file__)/"../../../../mapping/EAST").resolve()
+        )
+
+        mapping.extend([f"{EAST_MAPPING_DIR}/imas/3/static/config.xml",
+                        f"{EAST_MAPPING_DIR}/imas/3/dynamic/config.xml"])
+
+        super().__init__(uri, source=source,  id_hasher="{shot}", mapping=mapping)
 
 
-__SP_EXPORT__ = connect_imas_east
+__SP_EXPORT__ = EASTCollection

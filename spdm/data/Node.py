@@ -26,13 +26,13 @@ class Node(object):
         return LazyProxy(self, handler=self.__class__)
 
     def put(self, path, v, *args, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError(self.__class__.__name__)
 
     def get(self, path, *args, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError(self.__class__.__name__)
 
     def get_value(self, path, *args, **kwargs):
         return self.get(path, *args, **kwargs)
 
     def iter(self, path,  *args, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError(self.__class__.__name__)

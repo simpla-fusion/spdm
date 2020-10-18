@@ -53,11 +53,15 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
         raise ValueError(f"illegal plugin description! [{desc}]")
 
     pname = associations.get(plugin_name, plugin_name)
-    fname = (fragment or "").format(name=pname)
-    plugin = sp_find_module(pattern.format(name=pname), fragment=fname)
+
+    if isinstance(pname, str):
+        fname = f"{pname}{fragment}" if fragment is not None else None
+        plugin = sp_find_module(pattern.format(name=pname), fragment=fname)
+    elif callable(pname):
+        plugin = pname(fragment)
 
     if plugin is None:
-        raise ModuleNotFoundError(f"Can not find plugin {pname}#{fname}!  [{desc}]")
+        raise ModuleNotFoundError(f"Can not find plugin {plugin_name}#{fragment}!  [{desc}]")
     else:
         logger.info(f"Load Plugin: {plugin.__name__}")
 

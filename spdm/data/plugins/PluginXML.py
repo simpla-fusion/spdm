@@ -88,18 +88,18 @@ class XMLNode(Node):
             else:
                 # TODO: handle slice
                 raise TypeError(f"Illegal path type! {type(p)} {path}")
-       
+
         if _HAS_LXML:
             res = _XPath(res)
         return res
 
-    def _convert(self, element, prefix=None, envs=None,  lazy=True, projection=None,):
+    def _convert(self, element, path=[], envs={},  lazy=True, projection=None,):
         if not isinstance(element, _XMLElement):
             return element
         res = None
 
         if len(element) > 0 and lazy:
-            res = XMLNode(element, prefix=prefix, envs=envs).entry
+            res = XMLNode(element, prefix=self._prefix+path, envs={**envs, **self._envs}).entry
         elif "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
@@ -120,13 +120,19 @@ class XMLNode(Node):
             else:
                 res = np.array(res)
         else:
-            res = {child.tag: self._convert(child, lazy=lazy) for child in element}
+            res = {child.tag: self._convert(child, path=path+[child.tag], lazy=lazy) for child in element}
             for k, v in element.attrib.items():
                 res[f"@{k}"] = v
 
             text = element.text.strip() if element.text is not None else None
             if text is not None and len(text) != 0:
-                res["@text"] = text
+                query = {}
+                prev = None
+                for p in self._prefix+path:
+                    if type(p) is int:
+                        query[f"{prev}#id"] = p
+                    prev = p
+                res["@text"] = text.format(**query, **envs)
         return res
 
     def put(self,  path, value, *args, **kwargs):
@@ -139,7 +145,7 @@ class XMLNode(Node):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
-            return self._convert(self.xpath(path).evaluate(self._holder), **kwargs)
+            return self._convert(self.xpath(path).evaluate(self._holder), path=path, **kwargs)
 
     def get_value(self,  path, *args,  only_one=False, **kwargs):
         if not only_one:
@@ -148,13 +154,12 @@ class XMLNode(Node):
             obj = self.xpath(path).evaluate(self._holder)
             if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
                 obj = obj[0]
-
-            return self._convert(obj, lazy=False, **kwargs)
+            return self._convert(obj, lazy=False, path=path, **kwargs)
 
     def iter(self,  path, *args, **kwargs):
         for spath in PathTraverser(path):
             for child in self.xpath(spath).evaluate(self._holder):
-                yield self._convert(child)
+                yield self._convert(child, path=spath)
 
 
 class XMLDocument(Document):

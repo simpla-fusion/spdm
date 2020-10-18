@@ -15,36 +15,41 @@ from ..Node import Node
 
 class MDSplusNode(Node):
 
-    def put(self,  path, value, *args, **kwargs):
-        raise NotImplementedError()
-
-    def get(self,  path, *args, projection=None,  **kwargs):
+    def get(self, path, *args, projection=None,  **kwargs):
         if isinstance(path, collections.abc.Mapping):
             path = path.get("@text", None)
         res = None
         if isinstance(path, str) and len(path) > 0:
             try:
-                res = holder.data.tdiExecute(path)
+                res = self.holder.tdiExecute(path)
             except mds.mdsExceptions.TdiSYNTAX as error:
                 raise SyntaxError(f"MDSplus TDI syntax error [{path}]! {error}")
             res = res.data()
-
         return res
-        # raise NotImplementedError(path)
+
+    def put(self,  path, value, *args, **kwargs):
+        raise NotImplementedError()
 
     def iter(self,  path, *args, **kwargs):
         raise NotImplementedError(path)
 
 
 class MDSplusDocument(Document):
-    def __init__(self, tree_name, fid, *args, mode="r", **kwargs):
-        fid = int(fid)
-        logger.debug(f"Opend MDSTree: {tree_name} {fid} mode=\"{mode}\"")
-        super().__init__(MDSplusNode(mds.Tree(tree_name, fid, mode="NORMAL"), *args, **kwargs))
+    def __init__(self, tree_name, shot, *args, mode="r", **kwargs):
+        try:
+            shot = int(shot)
+            logger.debug(f"Opend MDSTree: {tree_name} {shot} mode=\"{mode}\"")
+            tree = mds.Tree(tree_name, shot, mode="NORMAL")
+        except mds.mdsExceptions.TreeFOPENR as error:
+            tree_path = os.environ[f"{tree_name}_path"]
+            raise FileNotFoundError(
+                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} \n {error}")
+
+        super().__init__(MDSplusNode(tree), *args, **kwargs)
 
 
 class MDSplusCollection(Collection):
-    def __init__(self, uri, *args,  **kwargs):
+    def __init__(self, uri, *args, tree_name=None,  **kwargs):
 
         if isinstance(uri, str):
             uri = urisplit(uri)
@@ -53,14 +58,14 @@ class MDSplusCollection(Collection):
 
         path = pathlib.Path(getattr(uri, "path", None)).resolve().expanduser()
 
-        self._tree_name = path.stem
+        self._tree_name = tree_name or getattr(uri, "fragment", "unnamed")
 
         if authority == "":
             os.environ[f"{self._tree_name}_path"] = path.as_posix()
         else:
             os.environ[f"{self._tree_name}_path"] = f"{authority}:{path.as_posix()}"
 
-        super().__init__(os.environ[f'{self._tree_name}_path'], *args, handler=MDSplusNode(), **kwargs)
+        super().__init__(uri, *args, **kwargs)
 
     def open_document(self, fid, mode):
         return MDSplusDocument(self._tree_name, fid, mode="NORMAL",  handler=self._handler)
