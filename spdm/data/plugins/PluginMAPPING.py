@@ -1,6 +1,3 @@
-from .PluginXML import XMLHandler, XMLHolder
-from .PluginHDF5 import HDF5Handler, connect_hdf5
-from ..Handler import Handler
 import collections
 import pathlib
 
@@ -8,24 +5,27 @@ from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ..connect import connect
-from ..Document import Document
 from ..Collection import Collection
+from ..Document import Document
+from ..Node import Node, Handler
 
 
 class MappingHandler(Handler):
     def __init__(self, target, *args, mapping=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if isinstance(mapping, LazyProxy):
-            self._xml_holder = mapping.__object__
-            self._xml_handler = mapping.__handler__
-        elif isinstance(mapping, XMLHolder):
-            self._xml_holder = mapping
-            self._xml_handler = XMLHandler()
+        # if isinstance(mapping, LazyProxy):
+        #     self._xml_holder = mapping.__object__
+        #     self._xml_handler = mapping.__handler__
+        # elif isinstance(mapping, XMLHolder):
+        #     self._xml_holder = mapping
+        #     self._xml_handler = XMLHandler()
+        # else:
+        #     self._xml_holder = XMLHolder(mapping)
+        #     self._xml_handler = XMLHandler()
+        if not isinstance(mapping, Node):
+            self._mapping = Document(mapping)
         else:
-            self._xml_holder = XMLHolder(mapping)
-            self._xml_handler = XMLHandler()
-
+            self._mapping = mapping
         self._target = target
 
     def put(self, holder, path, value, *args, is_raw_path=False,   **kwargs):
@@ -72,28 +72,24 @@ class MappingCollection(Collection):
 
         super().__init__(uri, *args, **kwargs)
 
+        if not isinstance(mapping, Node):
+            self._mapping = Document(mapping, format_type="xml")
+        else:
+            self._mapping = mapping
+
         if not isinstance(source, Collection):
-            self._source = Collection.create(source)
+            self._source = Collection(source)
+        else:
+            self._source = source
 
-        self._xml_holder = XMLHolder(mapping)
-        self._xml_handler = XMLHandler()
-
-    def _do_wrap(self, doc):
-        return Document(root=src._root,
-                        handler=MappingHandler(
-                            src._handler,
-                            xml_holder=self._xml_holder
-                            xml_handler=self._xml_handler
-                        )
-                        )
+    def _do_wrap(self, src):
+        return Document(src.holder,  handler=MappingHandler(src.handler, mapping=self._mapping))
 
     def insert_one(self, pred=None, *args, **kwargs):
-        return self._do_wrap(self._source.insert_one(_id=self._id_hasher(pred or kwargs)))
+        return self._do_wrap(self._source.insert_one(_id=self.guess_id(pred or kwargs)))
 
     def find_one(self, pred=None, *args, **kwargs):
-        return self._do_wrap(self._source.find_one(_id=self._id_hasher(pred or kwargs)))
-
-
+        return self._do_wrap(self._source.find_one(_id=self.guess_id(pred or kwargs)))
 
 
 __SP_EXPORT__ = MappingCollection

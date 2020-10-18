@@ -45,7 +45,6 @@ def merge_xml(first, second):
 
 
 def load_xml(path, *args,  mode="r", **kwargs):
-    logger.debug(path)
     # TODO: add handler non-local request ,like http://a.b.c.d/babalal.xml
     if isinstance(path, str):
         # o = urisplit(uri)
@@ -179,7 +178,7 @@ class XMLHandler(Handler):
                 yield self._convert(child, path=req)
 
 
-class XMLDocument(Document):
+class XmlDocument(Document):
     def __init__(self, path=[], *args, others=[], **kwargs):
 
         if isinstance(path, str):
@@ -197,6 +196,7 @@ class XMLDocument(Document):
         return Node(self.holder, handler=self.handler)
 
 
-class XMLCollection(FileCollection):
+class XmlCollection(FileCollection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        raise NotImplementedError()

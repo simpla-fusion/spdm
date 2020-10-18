@@ -1,16 +1,17 @@
 import collections
+import inspect
 import pathlib
 import re
 import urllib
 from typing import Any, Dict, List, NewType, Tuple
 
 import numpy
-import inspect
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urisplit
 
 from .Document import Document
+from .Plugin import find_plugin
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
@@ -24,11 +25,16 @@ class Collection(object):
     DOCUMENT_CLASS = Document
 
     @staticmethod
-    def __new__(cls, desc, *args, **kwargs):
+    def __new__(cls, desc=None, *args, backend=None, **kwargs):
         if cls is not Collection:
             return super(Collection, cls).__new__(desc, *args, **kwargs)
 
-        n_cls = sp_find_plugin(desc, pattern=f"{__package__}.plugins.Plugin{{name}}")
+        if backend is not None:
+            desc = f"{backend}://"
+
+        n_cls = find_plugin(desc,
+                            pattern=f"{__package__}.plugins.Plugin{{name}}",
+                            fragment="{name}Collection")
 
         return object.__new__(n_cls)
 

@@ -9,9 +9,8 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 if __name__ == '__main__':
     db = Collection("mapping://",
-                    source={
-                        "uri": "mdsplus:///home/salmon/public_data/efit_east",
-                        "id_hasher": "{shot}"},  #
+                    source="mdsplus:///home/salmon/public_data/efit_east",
+                    id_hasher="{shot}",  #
                     mapping=[
                         "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static/config.xml",
                         "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic/config.xml"

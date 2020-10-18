@@ -15,11 +15,10 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 
 if __name__ == '__main__':
-    entry = Document("/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static/config.xml",
-                     others=[
-                         #  "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static/config.xml",
-                         "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic/config.xml"
-                     ]).entry
+    entry = Document([
+        "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static/config.xml",
+        "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic/config.xml"
+    ], format_type="XML").entry
 
     for coil in entry.pf_active.coil:
         rect = coil.element[0].geometry.rectangle.__value__()

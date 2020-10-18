@@ -10,9 +10,9 @@ from spdm.util.urilib import urisplit
 
 from ..Collection import Collection, FileCollection
 from ..Document import Document
-from ..Handler import Handler, Holder
+from ..Node import Handler, Node
 
-# class MDSplusEntry(DataEntry):
+# class MdsplusEntry(DataEntry):
 #     def __init__(self, tree_name, shot, mode="rw", *args, **kwargs):
 #         self._tree_name = tree_name
 #         self._shot = shot
@@ -77,13 +77,14 @@ from ..Handler import Handler, Holder
 #         return self._tree.dir()
 #         # raise NotImplementedError(whoami(self))
 
-class MDSplusHolder(Holder):
+
+class MdsplusDocument(Document):
     def __init__(self, tree_name, fid, *args, mode="r", **kwargs):
         logger.debug(f"Opend MDSTree: {tree_name} {fid} mode=\"{mode}\"")
         super().__init__(mds.Tree(tree_name, fid, mode="NORMAL"))
 
 
-class MDSplusHandler(Handler):
+class MdsplusHandler(Handler):
 
     def put(self, holder, path, value, *args, **kwargs):
         raise NotImplementedError()
@@ -95,7 +96,7 @@ class MDSplusHandler(Handler):
             try:
                 res = holder.data.tdiExecute(path)
             except mds.mdsExceptions.TdiSYNTAX as error:
-                raise SyntaxError(f"MDSplus TDI syntax error [{path}]! {error}")
+                raise SyntaxError(f"Mdsplus TDI syntax error [{path}]! {error}")
             return res.data()
         else:
             return None
@@ -105,7 +106,11 @@ class MDSplusHandler(Handler):
         raise NotImplementedError(path)
 
 
-class MDSplusCollection(Collection):
+class MdsplusDocument(Document):
+    pass
+
+
+class MdsplusCollection(Collection):
     def __init__(self, uri, *args,  **kwargs):
 
         if isinstance(uri, str):
@@ -122,16 +127,15 @@ class MDSplusCollection(Collection):
         else:
             os.environ[f"{self._tree_name}_path"] = f"{authority}:{path.as_posix()}"
 
-        super().__init__(os.environ[f'{self._tree_name}_path'], *args, handler=MDSplusHandler(), **kwargs)
+        super().__init__(os.environ[f'{self._tree_name}_path'], *args, handler=MdsplusHandler(), **kwargs)
 
     def open_document(self, fid, mode):
-        return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"),
-                        handler=self._handler,
-                        collection=self)
+        return MdsplusDocument(self._tree_name, fid, mode="NORMAL",
+                               handler=self._handler)
 
     def insert_one(self, data=None, *args, **kwargs):
         doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
-        doc.update(data or kwargs)
+        # doc.update(data or kwargs)
         return doc
 
     def find_one(self, predicate=None, projection=None, *args, **kwargs):
@@ -154,10 +158,10 @@ class MDSplusCollection(Collection):
     # def find_one(self, predicate: Document,  projection: Document = None, *args, **kwargs):
     #     shot = getitem(predicate, "shot", None) or getitem(predicate, "_id", None)
     #     if shot is not None:
-    #         return MDSplusEntry(self._tree_name, shot, mode="r") .fetch(projection)
+    #         return MdsplusEntry(self._tree_name, shot, mode="r") .fetch(projection)
     #     else:
     #         for shot in self._foreach_shot():
-    #             res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(
+    #             res = MdsplusEntry(self._tree_name, shot, mode="r").fetch_if(
     #                 projection, predicate)
     #             if res is not None:
     #                 return res
@@ -173,7 +177,7 @@ class MDSplusCollection(Collection):
     # def find(self, predicate: Document = None, projection: Document = None, *args, **kwargs):
 
     #     for shot in self._foreach_shot():
-    #         res = MDSplusEntry(self._tree_name, shot, mode="r").fetch_if(projection, predicate)
+    #         res = MdsplusEntry(self._tree_name, shot, mode="r").fetch_if(projection, predicate)
     #         logger.debug(res)
 
     #         if res is not None:
@@ -184,9 +188,9 @@ class MDSplusCollection(Collection):
 
     #     shot = int(document.get("shot", self._count))
 
-    #     MDSplusEntry(self._tree_name, shot, mode="x").update(document)
+    #     MdsplusEntry(self._tree_name, shot, mode="x").update(document)
 
     #     return shot
 
 
-__SP_EXPORT__ = MDSplusCollection
+__SP_EXPORT__ = MdsplusCollection

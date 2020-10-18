@@ -9,9 +9,12 @@ from .Plugin import find_plugin
 class Document(Node):
 
     @staticmethod
-    def __new__(cls, desc, *args, **kwargs):
+    def __new__(cls, desc, *args, format_type=None, **kwargs):
         if cls is not Document:
-            return super(Document, cls).__new__(desc, *args, **kwargs)
+            return super(Document, cls).__new__(cls)
+
+        if format_type is not None:
+            desc = f"{format_type}://"
 
         n_cls = find_plugin(desc,
                             pattern=f"{__package__}.plugins.Plugin{{name}}",
