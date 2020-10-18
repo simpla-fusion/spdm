@@ -22,7 +22,6 @@ from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ..Plugin import plugin_spec
 from ..Collection import Collection, FileCollection
 from ..Document import Document
 from ..Node import Node, Handler, Holder
@@ -178,7 +177,7 @@ class XMLHandler(Handler):
                 yield self._convert(child, path=req)
 
 
-class XmlDocument(Document):
+class XMLDocument(Document):
     def __init__(self,  path=[], *args,   **kwargs):
         if isinstance(path, str):
             path = [path]
@@ -193,7 +192,7 @@ class XmlDocument(Document):
         super().__init__(holder, *args, handler=XMLHandler(), ** kwargs)
 
 
-class XmlCollection(FileCollection):
+class XMLCollection(FileCollection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         raise NotImplementedError()

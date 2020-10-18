@@ -11,7 +11,7 @@ import numpy as np
 
 
 if __name__ == '__main__':
-    db = Collection("mapping://",
+    db = Collection("Mapping://",
                     source="mdsplus:///home/salmon/public_data/efit_east",
                     id_hasher="{shot}",  #
                     mapping=[
