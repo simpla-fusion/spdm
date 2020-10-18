@@ -24,7 +24,7 @@ from spdm.util.PathTraverser import PathTraverser
 
 from ..Collection import Collection, FileCollection
 from ..Document import Document
-from ..Node import Node, Handler, Holder
+from ..Node import Node
 
 
 def merge_xml(first, second):
@@ -71,17 +71,13 @@ def load_xml(path, *args,  mode="r", **kwargs):
     return root
 
 
-class XMLHandler(Handler):
-    def __init__(self,  *args, envs=None, prefix=None,  **kwargs):
+class XMLNode(Node):
+    def __init__(self, holder,  *args,    **kwargs):
         super().__init__(*args, **kwargs)
-        self._envs = envs or {}
-        self._prefix = prefix or []
+        self._holder = holder
 
     def xpath(self, path):
         res = "."
-        query = {}
-        prefix = self._prefix
-        prev = prefix[-1] if len(prefix) > 0 else None
         for p in path:
             if type(p) is int:
                 res += f"[ @id='{p}' or position()= {p+1} or @id='*']"
@@ -92,21 +88,19 @@ class XMLHandler(Handler):
             else:
                 # TODO: handle slice
                 raise TypeError(f"Illegal path type! {type(p)} {path}")
-            prev = p
 
+        logger.debug(res)
         if _HAS_LXML:
             res = _XPath(res)
         return res
 
-    def _convert(self, element, query={}, path=[],  lazy=True, projection=None,):
+    def _convert(self, element, prefix=None, envs=None,  lazy=True, projection=None,):
         if not isinstance(element, _XMLElement):
             return element
         res = None
 
         if len(element) > 0 and lazy:
-            res = LazyProxy(Holder(element), handler=XMLHandler(
-                prefix=self._prefix+path,
-                envs={**query, **self._envs}))
+            res = XMLNode(element, prefix=prefix, envs=envs).entry
         elif "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
@@ -127,54 +121,41 @@ class XMLHandler(Handler):
             else:
                 res = np.array(res)
         else:
-            res = {child.tag: self._convert(child, query=query, lazy=lazy) for child in element}
+            res = {child.tag: self._convert(child, lazy=lazy) for child in element}
             for k, v in element.attrib.items():
                 res[f"@{k}"] = v
 
             text = element.text.strip() if element.text is not None else None
-            if text is None or len(text) == 0:
-                pass
-            elif "{" in text:
-                try:
-                    q = {}
-                    prev = None
-                    for p in (self._prefix + path):
-                        if type(p) is int:
-                            q[f"{prev}#id"] = p
-                        prev = p
-                    res["@text"] = text.format(**q, **query, **self._envs)
-                except KeyError:
-                    res["@text"] = text
-            else:
+            if text is not None and len(text) != 0:
                 res["@text"] = text
         return res
 
-    def put(self, holder, path, value, *args, **kwargs):
+    def put(self,  path, value, *args, **kwargs):
         if not only_one:
             return PathTraverser(path).apply(lambda p,  v=value, s=self, h=holder: s._push(h, p, v))
         else:
             raise NotImplementedError()
 
-    def get(self, holder, path, *args, only_one=False, **kwargs):
+    def get(self,  path, *args, only_one=False, **kwargs):
         if not only_one:
-            return PathTraverser(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
+            return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
-            return self._convert(self.xpath(path).evaluate(holder.data), path=path, **kwargs)
+            return self._convert(self.xpath(path).evaluate(self._holder), **kwargs)
 
-    def get_value(self, holder, path, *args,  only_one=False, **kwargs):
+    def get_value(self,  path, *args,  only_one=False, **kwargs):
         if not only_one:
-            return PathTraverser(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
+            return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
         else:
-            obj = self.xpath(path).evaluate(holder.data)
+            obj = self.xpath(path).evaluate(self._holder)
             if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
                 obj = obj[0]
 
-            return self._convert(obj, path=path, lazy=False, **kwargs)
+            return self._convert(obj, lazy=False, **kwargs)
 
-    def iter(self, holder, path, *args, **kwargs):
-        for req in PathTraverser(path):
-            for child in self.xpath(req).evaluate(holder.data):
-                yield self._convert(child, path=req)
+    def iter(self,  path, *args, **kwargs):
+        for spath in PathTraverser(path):
+            for child in self.xpath(spath).evaluate(self._holder):
+                yield self._convert(child)
 
 
 class XMLDocument(Document):
@@ -183,13 +164,13 @@ class XMLDocument(Document):
             path = [path]
 
         if isinstance(path, collections.abc.Sequence):
-            holder = Holder(load_xml(path, *args,  **kwargs))
-        elif isinstance(path, Holder):
-            holder = path
+            root = XMLNode(load_xml(path, *args,  **kwargs))
+        elif isinstance(path, Node):
+            root = path
         else:
             raise TypeError(path)
 
-        super().__init__(holder, *args, handler=XMLHandler(), ** kwargs)
+        super().__init__(root, *args,  ** kwargs)
 
 
 class XMLCollection(FileCollection):

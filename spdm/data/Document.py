@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 from spdm.util.logger import logger
 
-from .Node import Node, Holder, Handler
+from .Node import Node
 from .Plugin import find_plugin
 
 
@@ -10,7 +10,7 @@ class Document(Node):
 
     @staticmethod
     def __new__(cls, desc=None, *args, format_type=None, **kwargs):
-        if cls is not Document or isinstance(desc, Holder):
+        if cls is not Document or isinstance(desc, Node):
             return super(Document, cls).__new__(cls)
 
         if format_type is not None:
@@ -24,10 +24,19 @@ class Document(Node):
                                 fragment="{name}Document")
             return object.__new__(n_cls)
 
-    def __init__(self, *args, collection=None, schema=None, **kwargs):
+    def __init__(self, root=None, *args, collection=None, schema=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._schema = schema
         self._collection = collection
+        self._root = root
+
+    @property
+    def root(self):
+        return self._root
+
+    @property
+    def entry(self):
+        return self._root.entry
 
     @property
     def schema(self):

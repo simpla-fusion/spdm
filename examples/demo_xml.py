@@ -1,12 +1,13 @@
 import sys
+sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+
 
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data import Document
 from spdm.util.logger import logger
 
-sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
-sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 
 # import os
@@ -20,14 +21,7 @@ if __name__ == '__main__':
         "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic/config.xml"
     ], format_type="XML").entry
 
-    for coil in entry.pf_active.coil:
-        rect = coil.element[0].geometry.rectangle.__value__()
     fg = plt.figure()
-
-    for coil in entry.pf_active.coil:
-        rect = coil.element[0].geometry.rectangle.__value__()
-        logger.debug(rect)
-        plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z-rect.height/2.0), rect.width, rect.height, fill=False))
 
     plt.gca().add_patch(plt.Polygon(np.array([entry.wall.description_2d.vessel.annular.outline_outer.r.__value__(),
                                               entry.wall.description_2d.vessel.annular.outline_outer.z.__value__()]).transpose([1, 0]),
@@ -40,6 +34,11 @@ if __name__ == '__main__':
     plt.gca().add_patch(plt.Polygon(np.array([entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__(),
                                               entry.wall.description_2d[0].limiter.unit[0].outline.z.__value__()]).transpose([1, 0]),
                                     fill=False, closed=True))
+
+    for coil in entry.pf_active.coil:
+        rect = coil.element[0].geometry.rectangle.__value__()
+        logger.debug(rect)
+        plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z-rect.height/2.0), rect.width, rect.height, fill=False))
 
     # logger.debug([time_slice.profiles_2d[0].boundary.type.__value__()
     #               for time_slice in entry.equilibrium.time_slice[1:10]])
