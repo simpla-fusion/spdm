@@ -46,9 +46,10 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
         if o.schema not in [None, 'local', 'file']:
             plugin_name = o.schema
         else:
-            plugin_name = file_associations.get(pathlib.Path(o.path).suffix, None)
-            if plugin_name[0] == '.':
-                plugin_name = plugin_name[1:]
+            suffix = pathlib.Path(o.path).suffix
+            if suffix[0] == '.':
+                suffix = suffix[1:]
+            plugin_name = associations.get(suffix, None)
 
     if plugin_name is None:
         raise ValueError(f"illegal plugin description! [{desc}]")

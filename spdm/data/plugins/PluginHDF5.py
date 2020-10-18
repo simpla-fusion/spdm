@@ -145,9 +145,13 @@ class HDF5Node(Node):
 
 class HDF5Document(Document):
     def __init__(self, root, *args, mode="r", **kwargs):
+        logger.debug(root)
         if not isinstance(root, Node):
-            root = HDF5Node(h5py.File(root, *args, **kwargs))
-        super().__init__(root, *args, **kwargs)
+            try:
+                root = HDF5Node(h5py.File(root,  mode=mode))
+            except OSError as error:
+                raise FileExistsError(f"Can not open file {root}!")
+        super().__init__(root, *args, mode=mode, **kwargs)
 
 
 class HDF5Collection(FileCollection):
