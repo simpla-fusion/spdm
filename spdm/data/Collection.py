@@ -28,27 +28,7 @@ class Collection(object):
         if cls is not Collection:
             return super(Collection, cls).__new__(desc, *args, **kwargs)
 
-        if isinstance(desc, str):
-            desc = urisplit(desc)
-
-        schema = getattr(desc, "schema", None)
-
-        if schema is None:
-            raise ValueError(f"Illegal description! {desc}")
-
-        plugin_name = f"{__package__}.plugins.Plugin{schema.replace('+', '_').upper()}"
-
-        try:
-            n_cls = sp_find_module(plugin_name)
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError(
-                f"Can not load 'Collection' plugin for {plugin_name}! [{suffix}]")
-        else:
-            if not (inspect.isclass(n_cls) and issubclass(n_cls, Collection)):
-                raise TypeError(
-                    f"Can not find 'Collection' plugin for {plugin_name} !")
-        finally:
-            logger.info(f"Load Plugin: {n_cls.__name__}")
+        n_cls = sp_find_plugin(desc, pattern=f"{__package__}.plugins.Plugin{{name}}")
 
         return object.__new__(n_cls)
 

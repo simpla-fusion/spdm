@@ -1,7 +1,9 @@
+from typing import Any, Dict, List
 
-from typing import (Dict, List, Any)
+from spdm.util.logger import logger
 
 from .Node import Node
+from .Plugin import find_plugin
 
 
 class Document(Node):
@@ -11,7 +13,10 @@ class Document(Node):
         if cls is not Document:
             return super(Document, cls).__new__(desc, *args, **kwargs)
 
-        return cls
+        n_cls = find_plugin(desc,
+                            pattern=f"{__package__}.plugins.Plugin{{name}}",
+                            fragment="{name}Document")
+        return object.__new__(n_cls)
 
     def __init__(self, *args, collection=None, schema=None, **kwargs):
         super().__init__(*args, **kwargs)

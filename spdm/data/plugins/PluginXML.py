@@ -3,6 +3,7 @@ import pathlib
 
 import numpy as np
 
+
 try:
     from lxml.etree import ParseError as _XMLParseError
     from lxml.etree import XPath as _XPath
@@ -21,9 +22,10 @@ from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
+from ..Plugin import plugin_spec
 from ..Collection import Collection, FileCollection
 from ..Document import Document
-from ..Handler import Handler, Holder
+from ..Node import Node, Handler, Holder
 
 
 def merge_xml(first, second):
@@ -43,6 +45,7 @@ def merge_xml(first, second):
 
 
 def load_xml(path, *args,  mode="r", **kwargs):
+    logger.debug(path)
     # TODO: add handler non-local request ,like http://a.b.c.d/babalal.xml
     if isinstance(path, str):
         # o = urisplit(uri)
@@ -103,7 +106,7 @@ class XMLHandler(Handler):
         res = None
 
         if len(element) > 0 and lazy:
-            res = LazyProxy(XMLHolder(element), handler=XMLHandler(
+            res = LazyProxy(element, handler=XMLHandler(
                 prefix=self._prefix+path,
                 envs={**query, **self._envs}))
         elif "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
@@ -158,54 +161,42 @@ class XMLHandler(Handler):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(holder, p, only_one=True, **kwargs))
         else:
-            return self._convert(self.xpath(path).evaluate(holder.data), path=path, **kwargs)
+            return self._convert(self.xpath(path).evaluate(holder), path=path, **kwargs)
 
     def get_value(self, holder, path, *args,  only_one=False, **kwargs):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(holder, p, only_one=True, **kwargs))
         else:
-            obj = self.xpath(path).evaluate(holder.data)
+            obj = self.xpath(path).evaluate(holder)
             if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
                 obj = obj[0]
 
             return self._convert(obj, path=path, lazy=False, **kwargs)
 
     def iter(self, holder, path, *args, **kwargs):
-        tree = holder.data
         for req in PathTraverser(path):
-            for child in self.xpath(req).evaluate(tree):
+            for child in self.xpath(req).evaluate(holder):
                 yield self._convert(child, path=req)
 
 
-class XMLNode(Node):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
 class XMLDocument(Document):
-    def __init__(self, root, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not isinstance(path, _XMLElement):
-            root = load_xml(root, *args,  **kwargs)
-        self._root = root
+    def __init__(self, path=[], *args, others=[], **kwargs):
+
+        if isinstance(path, str):
+            path = [path]
+
+        if others is not None:
+            path.extend(others)
+
+        holder = load_xml(path, *args,  **kwargs)
+
+        super().__init__(holder, *args, handler=XMLHandler(), ** kwargs)
 
     @property
     def root(self):
-        return XMLNode(self._root)
-
-    @property
-    def entry(self):
-        return self.root.entry
+        return Node(self.holder, handler=self.handler)
 
 
 class XMLCollection(FileCollection):
-
-    DOCUMENT_CLASS = XMLDocument
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-
-
- __SP_EXPORT__ = XMLCollection
-
