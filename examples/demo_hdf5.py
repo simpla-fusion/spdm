@@ -3,12 +3,12 @@ sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 from spdm.util.logger import logger
-from spdm.data import connect
+from spdm.data import Collection
 
 
 if __name__ == '__main__':
 
-    db = connect("hdf5:///home/salmon/workspace/output/east/test_")
+    db = Collection("hdf5:///home/salmon/workspace/output/east/test_")
 
     entry = db.insert().entry
 

@@ -54,10 +54,10 @@ class Document(Node):
         raise NotImplementedError()
 
     def update(self, d: Dict[str, Any]):
-        return self._handler.put(self.root, [], d)
+        return self.root.put([], d)
 
     def fetch(self, proj: Dict[str, Any] = None):
-        return self._handler.get(self.root, proj)
+        return self.root.get(proj)
 
     def dump(self):
-        return self._handler.dump(self.root)
+        return self.root.dump()

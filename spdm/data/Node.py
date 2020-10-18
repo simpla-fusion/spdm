@@ -26,6 +26,8 @@ class Node(object):
 
     def put(self,  path, value, *args, **kwargs):
         obj = self._holder
+        if len(path) == 0:
+            return obj
         for p in path[:-1]:
             if type(p) is str and hasattr(obj, p):
                 obj = getattr(obj, p)

@@ -74,7 +74,13 @@ class Collection(object):
         if callable(self._id_hasher):
             fid = self._id_hasher(self, d, auto_inc)
         elif isinstance(self._id_hasher, str):
-            fid = self._id_hasher.format_map(d)
+            try:
+                fid = self._id_hasher.format_map(d)
+            except KeyError:
+                if auto_inc:
+                    fid = self._id_hasher.format(_id=self.count())
+                else:
+                    raise RuntimeError(f"Can not get id from {d}!")
 
         return fid
 
@@ -150,17 +156,24 @@ class Collection(object):
 
 class FileCollection(Collection):
 
-    def __init__(self, path, *args,
+    def __init__(self, uri, *args,
                  file_extension=".dat",
                  file_factory=None,
                  **kwargs):
 
-        super().__init__(path, *args,  **kwargs)
+        super().__init__(uri, *args, **kwargs)
 
-        if isinstance(path, str) and path.endswith("/"):
-            path = f"{path}/{{_id}}{file_extension}"
+        if isinstance(uri, str):
+            uri = urisplit(uri)
+
+        path = getattr(uri, "path", ".")
+
+        if isinstance(path, str) and not path.endswith(file_extension):
+            path = f"{path}{{_id}}{file_extension}"
 
         self._path = pathlib.Path(path).resolve().expanduser()
+
+        logger.debug(self._path)
 
         if self._path.suffix == '':
             self._path = self._path.with_suffix(file_extension)
@@ -168,15 +181,15 @@ class FileCollection(Collection):
         if "{_id}" not in self._path.stem:
             self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
 
-        self._file_factory = file_factory
-
         if not self._path.parent.exists():
-            if "w" not in mode:
+            if "w" not in self._mode:
                 raise RuntimeError(f"Can not make dir {self._path}")
             else:
                 self._path.parent.mkdir()
         elif not self._path.parent.is_dir():
             raise NotADirectoryError(self._path.parent)
+
+        self._file_factory = file_factory
 
     def guess_id(self, d, auto_inc=True):
         fid = super().guess_id(d, auto_inc=auto_inc)

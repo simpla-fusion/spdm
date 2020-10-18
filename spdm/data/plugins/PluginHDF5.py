@@ -1,6 +1,6 @@
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Node import (Holder, Node)
+from ..Node import Node
 import h5py
 import numpy
 import collections
@@ -9,12 +9,6 @@ from typing import (Dict, Any)
 from spdm.util.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 128
-
-
-class HDF5Holder(Holder):
-    def __init__(self, obj,  *args, **kwargs):
-        if not isinstance(obj, h5py.Group):
-        super().__init__(obj)
 
 
 class HDF5Node(Node):
@@ -38,8 +32,6 @@ class HDF5Node(Node):
 
     def put(self, path, value, *args, **kwargs):
         grp = self.holder
-
-        path, query, fragment = self.request(path, *args, **kwargs)
 
         if grp is None:
             raise RuntimeError("None group")
@@ -87,8 +79,6 @@ class HDF5Node(Node):
 
     def get(self, path=[], projection=None, *args, **kwargs):
         obj = self.holder
-
-        path, query, fragment = self.request(path, *args, **kwargs)
 
         if obj is None:
             raise RuntimeError("None group")
@@ -160,15 +150,12 @@ class HDF5Document(Document):
         super().__init__(root, *args, **kwargs)
 
 
-def connect_hdf5(uri, *args, **kwargs):
-
-    path = pathlib.Path(getattr(uri, "path", uri))
-
-    return FileCollection(path, *args,
-                          file_extension=".h5",
-                          file_factory=HDF5Holder,
-                          handler=HDF5Node(),
-                          **kwargs)
+class HDF5Collection(FileCollection):
+    def __init__(self, uri, *args, **kwargs):
+        super().__init__(uri, *args,
+                         file_extension=".h5",
+                         file_factory=lambda *a, **k: HDF5Document(*a, **k),
+                         ** kwargs)
 
 
-__SP_EXPORT__ = connect_hdf5
+__SP_EXPORT__ = HDF5Collection
