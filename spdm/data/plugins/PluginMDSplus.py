@@ -45,7 +45,7 @@ class MDSplusDocument(Document):
             raise FileNotFoundError(
                 f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} \n {error}")
 
-        super().__init__(MDSplusNode(tree), *args, **kwargs)
+        super().__init__(tree_name, *args, root=MDSplusNode(tree), ** kwargs)
 
 
 class MDSplusCollection(Collection):

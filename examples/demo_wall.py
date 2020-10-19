@@ -2,8 +2,8 @@ import os
 import pathlib
 import sys
 import pprint
-# sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
-# sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -60,8 +60,9 @@ if __name__ == '__main__':
     plt.axis('scaled')
     plt.savefig("imas_east.png")
 
-    doc = Document("/home/salmon/workspace/output/east/test_a.h5", mode="w")
+    doc = Document("/home/salmon/workspace/output/east/test_a.json", mode="w")
     doc.copy(entry.wall)
+    doc.save()
     logger.debug("DONE")
 
     # for time_slice in entry.equilibrium.time_slice[:].boundary:

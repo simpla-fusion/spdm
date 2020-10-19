@@ -67,12 +67,12 @@ class MappingNode(Node):
 
 class MappingDocument(Document):
 
-    def __init__(self, root, *args, mapping=None, **kwargs):
+    def __init__(self, *args, root=None, mapping=None, **kwargs):
         if isinstance(root, Document):
             root = root.root
         elif not isinstance(root, Node):
             root = MappingNode(root)
-        super().__init__(root, *args, ** kwargs)
+        super().__init__(*args, root=root, ** kwargs)
         self._mapping = mapping
 
     @property
@@ -97,11 +97,11 @@ class MappingCollection(Collection):
 
     def insert_one(self, pred=None, *args, **kwargs):
         doc = self._source.insert_one(_id=self.guess_id(pred or kwargs))
-        return MappingDocument(doc, mapping=self._mapping)
+        return MappingDocument(pred, root=doc, mapping=self._mapping)
 
     def find_one(self, pred=None, *args, **kwargs):
         doc = self._source.find_one(_id=self.guess_id(pred or kwargs))
-        return MappingDocument(doc, mapping=self._mapping)
+        return MappingDocument(pred, root=doc, mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

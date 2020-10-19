@@ -25,7 +25,9 @@ associations = {
     "xml": "XML",
 
     "json": "JSON",
+
     "yaml": "YAML",
+    
     "txt": "TXT",
     "csv": "CSV",
     "numpy": "NumPy",

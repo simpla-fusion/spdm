@@ -9,6 +9,8 @@ try:
     from lxml.etree import XPath as _XPath
     from lxml.etree import _Element as _XMLElement
     from lxml.etree import parse as parse_xml
+    from lxml.etree import Comment as _XMLComment
+
     _HAS_LXML = True
 except ImportError:
     from xml.etree.ElementTree import Element as _XMLElement
@@ -46,9 +48,9 @@ def load_xml(path, *args,  mode="r", **kwargs):
     # TODO: add handler non-local request ,like http://a.b.c.d/babalal.xml
     if isinstance(path, str):
         # o = urisplit(uri)
-        path = pathlib.Path(path)
+        path = [pathlib.Path(path)]
 
-    if isinstance(path, collections.abc.Sequence):
+    if isinstance(path, collections.abc.Sequence) and len(path) > 0:
         root = load_xml(path[0], mode=mode)
         for fp in path[1:]:
             merge_xml(root, load_xml(fp, mode=mode))
@@ -121,7 +123,8 @@ class XMLNode(Node):
             else:
                 res = np.array(res)
         else:
-            res = {child.tag: self._convert(child, path=path+[child.tag], lazy=lazy) for child in element}
+            res = {child.tag: self._convert(child, path=path+[child.tag], lazy=lazy)
+                   for child in element if child.tag is not _XMLComment}
             for k, v in element.attrib.items():
                 res[f"@{k}"] = v
 
@@ -160,11 +163,12 @@ class XMLNode(Node):
     def iter(self,  path, *args, **kwargs):
         for spath in PathTraverser(path):
             for child in self.xpath(spath).evaluate(self._holder):
-                yield self._convert(child, path=spath)
+                if child.tag is not _XMLComment:
+                    yield self._convert(child, path=spath)
 
 
 class XMLDocument(Document):
-    def __init__(self,  path=[], *args,   **kwargs):
+    def __init__(self, path=[], *args,   **kwargs):
         if isinstance(path, str):
             path = [path]
 
@@ -175,7 +179,7 @@ class XMLDocument(Document):
         else:
             raise TypeError(path)
 
-        super().__init__(root, *args,  ** kwargs)
+        super().__init__(path, *args,  root=root, ** kwargs)
 
 
 class XMLCollection(FileCollection):

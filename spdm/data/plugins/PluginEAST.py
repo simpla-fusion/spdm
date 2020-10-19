@@ -25,8 +25,8 @@ class EASTCollection(MappingCollection):
             mapping = []
 
         EAST_MAPPING_DIR = os.environ.get(
-            "EAST_MAPPING_DIR", None
-            #  (pathlib.Path(__file__)/"../../../../mapping/EAST").resolve()
+            "EAST_MAPPING_DIR",
+            (pathlib.Path(__file__)/"../../../../mapping/EAST").resolve()
         )
 
         mapping.extend([f"{EAST_MAPPING_DIR}/imas/3/static/config.xml",

@@ -37,8 +37,7 @@ def h5_put_value(grp, path, value):
     if isinstance(value, collections.abc.Mapping):
         grp = h5_require_group(grp, path)
         for k, v in value.items():
-            if isinstance(k, str) or type(k) is int:
-                h5_put_value(grp, [k], v)
+            h5_put_value(grp, [k], v)
     elif len(path) == 0:
         raise KeyError(f"Empty path!")
     else:
@@ -150,20 +149,36 @@ class HDF5Node(Node):
         return h5_get_value(self.holder, path, projection=projection)
 
     def iter(self,  path, *args, **kwargs):
-        for spath in PathTraverser(path):
-            pass
         raise NotImplementedError()
 
 
 class HDF5Document(Document):
-    def __init__(self, root, *args, mode="r", **kwargs):
-        if not isinstance(root, Node):
-            try:
-                logger.debug(f"Open HDF5 File {root}")
-                root = HDF5Node(h5py.File(root,  mode=mode))
-            except OSError as error:
-                raise FileExistsError(f"Can not open file {root}!")
-        super().__init__(root, *args, mode=mode, **kwargs)
+    def __init__(self, path, *args, mode="r", **kwargs):
+        super().__init__(path, *args, mode=mode, **kwargs)
+        self._path = None
+        if self._path is not None:
+            self.load(path)
+
+    def load(self,  path=None, *args, mode=None, **kwargs):
+        if path == self._path and self.root._holder is not None:
+            return
+
+        self._path = path or self._path
+        try:
+            logger.debug(f"Open HDF5 File {self._path}")
+            self._root = HDF5Node(h5py.File(self._path,  mode=mode or self.mode or "r"))
+        except OSError as error:
+            raise FileExistsError(f"Can not open file {self._path}! {error}")
+
+    def save(self,   path=None, *args, mode=None, **kwargs):
+        if (path is None or path == self._path) and isinstance(self.root._holder, h5py.File):
+            self.root._holder.flush()
+        elif isinstance(self.root._holder, collections.abc.Mapping):
+            d = self.root._holder
+            self.load(path, mode=mode or "w")
+            self.copy(d)
+        else:
+            raise NotImplementedError()
 
 
 class HDF5Collection(FileCollection):

@@ -9,7 +9,7 @@ from .Plugin import find_plugin
 class Document(Node):
 
     @staticmethod
-    def __new__(cls, desc=None, *args, format_type=None, **kwargs):
+    def __new__(cls, desc=None, *args, format_type=None,  **kwargs):
         if cls is not Document or isinstance(desc, Node):
             return super(Document, cls).__new__(cls)
 
@@ -24,12 +24,14 @@ class Document(Node):
                                 fragment="Document")
             return object.__new__(n_cls)
 
-    def __init__(self, root=None, *args, collection=None, schema=None, **kwargs):
-        logger.debug(f"Opend {self.__class__.__name__} ")
+    def __init__(self, desc=None, *args, root=None, collection=None, schema=None, mode="rw", **kwargs):
         super().__init__(*args, **kwargs)
+        logger.debug(f"Opend {self.__class__.__name__} {desc} ")
+
         self._schema = schema
         self._collection = collection
-        self._root = root if isinstance(root, Node) else Node(root or {})
+        self._root = root if root is not None else Node(root or {})
+        self._mode = mode
 
     @property
     def root(self):
@@ -43,11 +45,21 @@ class Document(Node):
     def schema(self):
         return self._schema
 
+    @property
+    def mode(self):
+        return self._mode
+
     def copy(self, other):
         if isinstance(other, Document):
             return self.root.copy(other.root)
         else:
             return self.root.copy(other)
+
+    def load(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def save(self,  *args, **kwargs):
+        raise NotImplementedError()
 
     def valid(self, schema=None):
         return True

@@ -78,13 +78,13 @@
                 -1.2820000,  -1.2164000,  -1.1292000,  -1.0223000,  -0.8973500,  -0.7567100,  -0.6028000,  -0.4382800,  -0.2660800,  -0.0892160                
             </z>
           </outline_outer>
-          <centreline>
+          <!-- <centreline>
             <closed dtype='int'>1</closed>
             <r dtype='float'></r>
             <z dtype='float'></z>
           </centreline>
           <thickness dtype='float'></thickness>
-          <resistivity dtype='float'></resistivity>
+          <resistivity dtype='float'></resistivity> -->
         </annular>
     </vessel>
 

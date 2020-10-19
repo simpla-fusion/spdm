@@ -25,7 +25,6 @@ __plugin_spec__ = {
 #         # Let the base class default method raise the TypeError
 #         return json.JSONEncoder.default(self, obj)
 
-
 class JSONEntry(FileEntry):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,7 +36,7 @@ class JSONEntry(FileEntry):
 
     def write(self, d, *args, **kwargs):
         with self.open(mode="w") as fid:
-            json.dump(d, fid)
+            json.dump(d, fid, cls=NumpyEncoder)
 
 
 __SP_EXPORT__ = JSONEntry

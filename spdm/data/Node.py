@@ -33,15 +33,15 @@ class Node(object):
             other = other.__real_value__()
         elif isinstance(other, Node):
             other = other.entry.__real_value__()
-        logger.debug(other)
+
         if isinstance(other, collections.abc.Mapping):
             for k, v in other.items():
                 self._holder[k] = v
         elif isinstance(other, collections.abc.Sequence):
-            logger.debug(other)
             self._holder.extend(other)
         else:
             raise ValueError(f"Can not copy {type(other)}!")
+
 
     def put(self,  path, value, *args, **kwargs):
         obj = self._holder
