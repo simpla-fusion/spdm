@@ -20,9 +20,28 @@ class Node(object):
     def envs(self):
         return self._envs
 
-    @property
-    def entry(self):
+    def get_entry(self):
         return LazyProxy(self, handler=self.__class__)
+
+    def set_entry(self, other):
+        return self.copy(other)
+
+    entry = property(get_entry, set_entry, None, "entry point of the node")
+
+    def copy(self, other):
+        if isinstance(other, LazyProxy):
+            other = other.__real_value__()
+        elif isinstance(other, Node):
+            other = other.entry.__real_value__()
+        logger.debug(other)
+        if isinstance(other, collections.abc.Mapping):
+            for k, v in other.items():
+                self._holder[k] = v
+        elif isinstance(other, collections.abc.Sequence):
+            logger.debug(other)
+            self._holder.extend(other)
+        else:
+            raise ValueError(f"Can not copy {type(other)}!")
 
     def put(self,  path, value, *args, **kwargs):
         obj = self._holder

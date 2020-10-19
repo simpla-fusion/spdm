@@ -25,8 +25,7 @@ class Document(Node):
             return object.__new__(n_cls)
 
     def __init__(self, root=None, *args, collection=None, schema=None, **kwargs):
-        logger.debug(f"Opend {self.__class__.__name__}")
-
+        logger.debug(f"Opend {self.__class__.__name__} ")
         super().__init__(*args, **kwargs)
         self._schema = schema
         self._collection = collection
@@ -43,6 +42,12 @@ class Document(Node):
     @property
     def schema(self):
         return self._schema
+
+    def copy(self, other):
+        if isinstance(other, Document):
+            return self.root.copy(other.root)
+        else:
+            return self.root.copy(other)
 
     def valid(self, schema=None):
         return True

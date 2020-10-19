@@ -13,7 +13,7 @@ class EASTCollection(MappingCollection):
         if isinstance(uri, str):
             uri = urisplit(uri)
 
-        tree_name = tree_name or EASTCollection.DEVICE_NAME
+        tree_name = tree_name or uri.fragment or EASTCollection.DEVICE_NAME
 
         authority = getattr(uri, "authority", "")
 

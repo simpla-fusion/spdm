@@ -101,7 +101,7 @@ class XMLNode(Node):
 
         if len(element) > 0 and lazy:
             res = XMLNode(element, prefix=self._prefix+path, envs={**envs, **self._envs}).entry
-        elif "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
+        elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
             if dtype == "string" or dtype is None:
