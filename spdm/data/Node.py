@@ -6,19 +6,11 @@ import collections
 class Node(object):
     def __init__(self, holder=None, *args,   **kwargs):
         super().__init__()
-        self._holder = holder or {}
+        self._holder = holder if holder is not None else None
 
     @property
     def holder(self):
         return self._holder
-
-    @property
-    def prefix(self):
-        return self._prefix
-
-    @property
-    def envs(self):
-        return self._envs
 
     def get_entry(self):
         return LazyProxy(self, handler=self.__class__)
@@ -41,7 +33,6 @@ class Node(object):
             self._holder.extend(other)
         else:
             raise ValueError(f"Can not copy {type(other)}!")
-
 
     def put(self,  path, value, *args, **kwargs):
         obj = self._holder

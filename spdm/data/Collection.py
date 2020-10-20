@@ -85,7 +85,7 @@ class Collection(object):
         return fid
 
     def open_document(self, fid, mode):
-        logger.debug(f"Opend Document: {fpath} mode=\"{mode}\"")
+        logger.debug(f"Opend Document: {fid} mode=\"{mode}\"")
         raise NotImplementedError()
 
     def insert(self, *args, **kwargs):

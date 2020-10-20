@@ -96,12 +96,14 @@ class MappingCollection(Collection):
             self._source = source
 
     def insert_one(self, pred=None, *args, **kwargs):
-        doc = self._source.insert_one(_id=self.guess_id(pred or kwargs))
-        return MappingDocument(pred, root=doc, mapping=self._mapping)
+        oid = self.guess_id(pred or kwargs)
+        doc = self._source.insert_one(_id=oid)
+        return MappingDocument(oid, root=doc, mapping=self._mapping)
 
     def find_one(self, pred=None, *args, **kwargs):
-        doc = self._source.find_one(_id=self.guess_id(pred or kwargs))
-        return MappingDocument(pred, root=doc, mapping=self._mapping)
+        oid = self.guess_id(pred or kwargs)
+        doc = self._source.find_one(_id=oid)
+        return MappingDocument(oid, root=doc, mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

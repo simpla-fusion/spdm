@@ -1,7 +1,7 @@
 import pathlib
 import os
 from spdm.util.logger import logger
-from spdm.util.urilib import urisplit
+from spdm.util.urilib import urisplit, uriunsplit
 
 from .PluginMapping import MappingCollection
 
@@ -13,13 +13,9 @@ class EASTCollection(MappingCollection):
         if isinstance(uri, str):
             uri = urisplit(uri)
 
-        tree_name = tree_name or uri.fragment or EASTCollection.DEVICE_NAME
+        path = getattr(uri, "path", None) or pathlib.Path.home()/f"public_data/~t/imas/3"
 
-        authority = getattr(uri, "authority", "")
-
-        path = getattr(uri, "path", None) or pathlib.Path.home()/f"public_data/{tree_name}/imas/3"
-
-        source = f"mdsplus://{authority}{path}#{tree_name}"
+        source = uriunsplit("mdsplus", uri.authority, path, None, uri.fragment)
 
         if mapping is None:
             mapping = []

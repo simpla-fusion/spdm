@@ -1,15 +1,17 @@
 import os
 import pathlib
-import sys
 import pprint
-sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
-sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+
+sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+
 from spdm.data.Collection import Collection, Document
 from spdm.util.logger import logger
-
 os.environ["EAST_MAPPING_DIR"] = (pathlib.Path(__file__)/"../../mapping/EAST").resolve().as_posix()
 
 if __name__ == '__main__':
@@ -20,7 +22,7 @@ if __name__ == '__main__':
     #                     "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/static/config.xml",
     #                     "/home/salmon/workspace/SpDev/SpDB/mapping/EAST/imas/3/dynamic/config.xml"
     #                 ])
-    db = Collection("EAST:///home/salmon/public_data/efit_east#efit_east")
+    db = Collection("EAST:///home/salmon/public_data/~t/#efit_east")
 
     entry = db.open(shot=55555).entry
 
@@ -60,9 +62,9 @@ if __name__ == '__main__':
     plt.axis('scaled')
     plt.savefig("imas_east.png")
 
-    doc = Document("/home/salmon/workspace/output/east/test_a.json", mode="w")
-    doc.copy(entry.wall)
-    doc.save()
+    # doc = Document("/home/salmon/workspace/output/east/test_a.json", mode="w")
+    # doc.copy(entry.wall)
+    # doc.save()
     logger.debug("DONE")
 
     # for time_slice in entry.equilibrium.time_slice[:].boundary:

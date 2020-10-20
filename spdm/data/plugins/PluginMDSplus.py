@@ -6,8 +6,8 @@ import re
 import MDSplus as mds
 import numpy as np
 from spdm.util.logger import logger
-from spdm.util.urilib import urisplit
-
+from spdm.util.urilib import urisplit, uriunsplit
+from spdm.util.dict_util import DefaultDict
 from ..Collection import Collection, FileCollection
 from ..Document import Document
 from ..Node import Node
@@ -15,13 +15,17 @@ from ..Node import Node
 
 class MDSplusNode(Node):
 
+    def __init__(self, holder, *args, **kwargs):
+        super().__init__(holder, *args, **kwargs)
+
     def get(self, path, *args, projection=None,  **kwargs):
         if isinstance(path, collections.abc.Mapping):
+            tree_name = path.get("@tree_name", None)
             path = path.get("@text", None)
         res = None
         if isinstance(path, str) and len(path) > 0:
             try:
-                res = self.holder.tdiExecute(path)
+                res = self.holder[tree_name].tdiExecute(path)
             except mds.mdsExceptions.TdiSYNTAX as error:
                 raise SyntaxError(f"MDSplus TDI syntax error [{path}]! {error}")
             res = res.data()
@@ -34,44 +38,81 @@ class MDSplusNode(Node):
         raise NotImplementedError(path)
 
 
-class MDSplusDocument(Document):
-    def __init__(self, tree_name, shot, *args, mode="r", **kwargs):
-        try:
-            shot = int(shot)
-            logger.debug(f"Opend MDSTree: {tree_name} {shot} mode=\"{mode}\"")
-            tree = mds.Tree(tree_name, shot, mode="NORMAL")
-        except mds.mdsExceptions.TreeFOPENR as error:
-            tree_path = os.environ[f"{tree_name}_path"]
-            raise FileNotFoundError(
-                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} \n {error}")
+def open_mdstree(tree_name, shot,  mode="NORMAL"):
+    try:
+        shot = int(shot)
+        assert(tree_name is not None)
+        logger.debug(f"Opend MDSTree: {tree_name} {shot} mode=\"{mode}\"")
+        tree = mds.Tree(tree_name, shot, mode)
+    except mds.mdsExceptions.TreeFOPENR as error:
+        tree_path = os.environ.get(f"{tree_name}_path", None)
+        raise FileNotFoundError(
+            f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} \n {error}")
+    return tree
 
-        super().__init__(tree_name, *args, root=MDSplusNode(tree), ** kwargs)
+
+class MDSplusDocument(Document):
+    MDS_MODE = {
+        "r": "READONLY",
+        "rw": "NORMAL",
+        "w": "NORMAL",
+        "w+": "EDIT",
+        "x": "NEW"
+    }
+
+    def __init__(self, shot, *args, mode="r", tree_name=None,  **kwargs):
+        mds_mode = MDSplusDocument.MDS_MODE.get(mode, "NORMAL")
+
+        self._trees = DefaultDict(lambda t, s=shot, m=mds_mode: open_mdstree(t, s, mode=m))
+
+        if tree_name is not None:
+            self._trees[None] = self._trees[tree_name]
+
+        super().__init__(shot, *args, root=MDSplusNode(self._trees, tree_name=tree_name), mode=mode, ** kwargs)
 
 
 class MDSplusCollection(Collection):
-    def __init__(self, uri, *args, tree_name=None,  **kwargs):
+    def __init__(self, uri, *args, tree_path=None,  **kwargs):
+        super().__init__(uri, *args, **kwargs)
 
         if isinstance(uri, str):
             uri = urisplit(uri)
 
-        authority = getattr(uri, "authority", None)
-
-        path = pathlib.Path(getattr(uri, "path", None)).resolve().expanduser()
-
-        self._tree_name = tree_name or getattr(uri, "fragment", "unnamed")
-
-        if authority == "":
-            os.environ[f"{self._tree_name}_path"] = path.as_posix()
+        schema = getattr(uri, "schema", "file").split('+')
+        authority = getattr(uri, "authority", '')
+        path = getattr(uri, "path", "")
+        fragment = getattr(uri, "fragment", None)
+        self._default_tree_name = fragment
+        if len(schema) == 0:
+            schema = None
+        elif len(schema) == 1:
+            schema = schema[0] if schema[0] != "mdsplus" else None
+        elif len(schema) == 2:
+            assert(schema[0].lower() == "mdsplus")
+            schema = schema[1]
         else:
-            os.environ[f"{self._tree_name}_path"] = f"{authority}:{path.as_posix()}"
+            raise NotImplementedError(schema)
 
-        super().__init__(uri, *args, **kwargs)
+        self.add_tree(fragment, uriunsplit(schema, authority, path))
 
-    def open_document(self, fid, mode):
-        return MDSplusDocument(self._tree_name, fid, mode="NORMAL",  handler=self._handler)
+    # def __del__(self):
+    #     for tree_name in self._trees:
+    #         del os.environ[f"{tree_name}_path"]
+
+    def add_tree(self, tree_name, tree_path):
+        if (tree_name is None or not tree_path.endswith(tree_name)) and "~t" not in tree_path:
+            tree_path = f"{tree_path}/~t/"
+        if tree_name is not None:
+            os.environ[f"{tree_name}_path"] = tree_path
+        else:
+            os.environ["default_tree_path"] = tree_path
+
+    def open_document(self, fid, mode, tree_name=None):
+        return MDSplusDocument(fid, tree_name=tree_name or self._default_tree_name, mode=mode)
 
     def insert_one(self, data=None, *args, **kwargs):
-        doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
+        oid = self.guess_id(data or kwargs, auto_inc=True)
+        doc = self.open_document(oid, mode="w")
         # doc.update(data or kwargs)
         return doc
 
