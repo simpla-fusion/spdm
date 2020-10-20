@@ -177,7 +177,7 @@
 
             <!-- <z dtype="NONE"/> -->
 
-            <psi><spdb:data protocol="mdsplus" tree="EAST_EFIT">DATA(\PSIRZ)[*,*,{time_slice#id}]</spdb:data></psi>
+            <psi><spdb:data protocol="mdsplus">DATA(\PSIRZ)[*,*,{time_slice#id}]</spdb:data></psi>
 
             <grid>
                 <dim1><spdb:data protocol="mdsplus">DATA(\R)[*]</spdb:data></dim1>

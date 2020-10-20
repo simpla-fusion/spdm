@@ -48,6 +48,9 @@ def open_mdstree(tree_name, shot,  mode="NORMAL"):
         tree_path = os.environ.get(f"{tree_name}_path", None)
         raise FileNotFoundError(
             f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} \n {error}")
+    except mds.mdsExceptions.TreeNOPATH as error:
+        raise FileNotFoundError(
+            f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}   \n {error}")
     return tree
 
 
@@ -72,7 +75,7 @@ class MDSplusDocument(Document):
 
 
 class MDSplusCollection(Collection):
-    def __init__(self, uri, *args, tree_path=None,  **kwargs):
+    def __init__(self, uri, *args, default_tree_name=None,  **kwargs):
         super().__init__(uri, *args, **kwargs)
 
         if isinstance(uri, str):
@@ -82,7 +85,9 @@ class MDSplusCollection(Collection):
         authority = getattr(uri, "authority", '')
         path = getattr(uri, "path", "")
         fragment = getattr(uri, "fragment", None)
-        self._default_tree_name = fragment
+
+        self._default_tree_name = default_tree_name or fragment
+
         if len(schema) == 0:
             schema = None
         elif len(schema) == 1:

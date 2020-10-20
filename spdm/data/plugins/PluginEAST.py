@@ -1,21 +1,24 @@
-import pathlib
 import os
+import pathlib
+
 from spdm.util.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
 
+from ..Collection import Collection
 from .PluginMapping import MappingCollection
 
 
 class EASTCollection(MappingCollection):
     DEVICE_NAME = "east"
 
-    def __init__(self, uri, *args, mapping=None, tree_name=None, **kwargs):
+    def __init__(self, uri, *args, mapping=None,   **kwargs):
         if isinstance(uri, str):
             uri = urisplit(uri)
 
         path = getattr(uri, "path", None) or pathlib.Path.home()/f"public_data/~t/imas/3"
 
-        source = uriunsplit("mdsplus", uri.authority, path, None, uri.fragment)
+        source = Collection(uriunsplit("mdsplus", uri.authority, path, None, uri.fragment),
+                            *args, **kwargs)
 
         if mapping is None:
             mapping = []
