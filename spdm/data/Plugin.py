@@ -27,7 +27,7 @@ associations = {
     "json": "JSON",
 
     "yaml": "YAML",
-    
+
     "txt": "TXT",
     "csv": "CSV",
     "numpy": "NumPy",
@@ -40,18 +40,21 @@ associations = {
 
 def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
 
-    plugin_name = None
+    schema = ""
+
     if isinstance(desc, collections.abc.Mapping):
-        plugin_name = desc.get("schema", None)
+        schema = desc.get("schema", "")
     elif isinstance(desc, str):
         o = urisplit(desc)
         if o.schema not in [None, 'local', 'file']:
-            plugin_name = o.schema
+            schema = o.schema
         else:
             suffix = pathlib.Path(o.path).suffix
             if suffix[0] == '.':
                 suffix = suffix[1:]
-            plugin_name = associations.get(suffix, None)
+            schema = associations.get(suffix, None)
+
+    plugin_name = schema.split('+')[0]
 
     if plugin_name is None:
         raise ValueError(f"illegal plugin description! [{desc}]")
@@ -59,8 +62,12 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
     pname = associations.get(plugin_name, plugin_name)
 
     if isinstance(pname, str):
-        fname = f"{pname}{fragment}" if fragment is not None else None
-        plugin = sp_find_module(pattern.format(name=pname), fragment=fname)
+        def _load_mod(n):
+            return sp_find_module(pattern.format(name=n), fragment=f"{n}{fragment}" if fragment is not None else None)
+
+        plugin = _load_mod(pname) or _load_mod(pname.capitalize()) or \
+            _load_mod(pname.upper()) or _load_mod(pname.lower())
+
     elif callable(pname):
         plugin = pname(fragment)
 
