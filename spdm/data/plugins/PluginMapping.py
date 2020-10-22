@@ -13,7 +13,6 @@ from ..Node import Node
 class MappingNode(Node):
     def __init__(self, *args, mapping=None, **kwargs):
         super().__init__(*args, **kwargs)
-
         if isinstance(mapping, Node):
             self._mapping = mapping
         else:
@@ -84,6 +83,8 @@ class MappingCollection(Collection):
     def __init__(self, uri, *args, source=None, mapping=None,  **kwargs):
 
         super().__init__(uri, *args, **kwargs)
+        
+        logger.debug(mapping)
 
         if not isinstance(mapping, Node):
             self._mapping = Document(mapping, format_type="xml").root

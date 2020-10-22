@@ -29,8 +29,12 @@ from ..Node import Node
 
 
 def merge_xml(first, second):
-    if first is None or second is None or first.tag != second.tag:
-        return
+    if first is None:
+        raise ValueError(f"Try merge to None Tree!")
+    elif second is None:
+        return first
+    elif first.tag != second.tag:
+        raise ValueError(f"Try to merge tree to different tag! {first.tag}<={second.tag}")
 
     for child in second:
         id = child.attrib.get("id", None)
@@ -46,29 +50,33 @@ def merge_xml(first, second):
 
 def load_xml(path, *args,  mode="r", **kwargs):
     # TODO: add handler non-local request ,like http://a.b.c.d/babalal.xml
-    if isinstance(path, str):
-        # o = urisplit(uri)
-        path = [pathlib.Path(path)]
 
-    if isinstance(path, collections.abc.Sequence) and len(path) > 0:
-        root = load_xml(path[0], mode=mode)
-        for fp in path[1:]:
-            merge_xml(root, load_xml(fp, mode=mode))
+    if type(path) is list:
+        root = None
+        for fp in path:
+            if root is None:
+                root = load_xml(fp, mode=mode)
+            else:
+                merge_xml(root, load_xml(fp, mode=mode))
+        logger.debug(root)
         return root
-    elif not isinstance(path, pathlib.Path) or not path.is_file():
-        raise FileNotFoundError(path)
+    elif isinstance(path, str):
+        path = pathlib.Path(path)
 
+    root = None
     try:
-        root = parse_xml(path.as_posix()).getroot()
-        logger.debug(f"Loading XML file from {path}")
+        if path.exists() and path.is_file():
+            root = parse_xml(path.as_posix()).getroot()
+            logger.debug(f"Loading XML file from {path}")
 
     except _XMLParseError as msg:
         raise RuntimeError(f"ParseError: {path}: {msg}")
 
-    for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
-        fp = path.parent/child.attrib["href"]
-        root.insert(0, load_xml(fp))
-        root.remove(child)
+    if root is not None:
+        for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
+            fp = path.parent/child.attrib["href"]
+            root.insert(0, load_xml(fp))
+            root.remove(child)
     return root
 
 
@@ -139,7 +147,7 @@ class XMLNode(Node):
                 res["@text"] = text.format(**query, **envs)
         return res
 
-    def put(self,  path, value, *args, **kwargs):
+    def put(self,  path, value, *args, only_one=False, **kwargs):
         if not only_one:
             return PathTraverser(path).apply(lambda p,  v=value, s=self, h=holder: s._push(h, p, v))
         else:
@@ -169,11 +177,14 @@ class XMLNode(Node):
 
 class XMLDocument(Document):
     def __init__(self, path=[], *args,   **kwargs):
+        assert(path is not None)
+        logger.debug(path)
         if isinstance(path, str):
             path = [path]
 
         if isinstance(path, collections.abc.Sequence):
-            root = XMLNode(load_xml(path, *args,  **kwargs))
+            tree = load_xml(path, *args,  **kwargs)
+            root = XMLNode(tree)
         elif isinstance(path, Node):
             root = path
         else:
