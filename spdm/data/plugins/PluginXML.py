@@ -117,9 +117,9 @@ class XMLNode(Node):
             if dtype == "string" or dtype is None:
                 res = [element.text]
             elif dtype == "int":
-                res = [int(v) for v in element.text.split(',')]
+                res = [int(v.strip()) for v in element.text.strip(',').split(',')  ]
             elif dtype == "float":
-                res = [float(v) for v in element.text.split(',')]
+                res = [float(v.strip()) for v in element.text.strip(',').split(',') ]
             else:
                 raise NotImplementedError(f"Not supported dtype {dtype}!")
 
