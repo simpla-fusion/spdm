@@ -12,13 +12,13 @@ class Node(object):
     def holder(self):
         return self._holder
 
-    def get_entry(self):
+    @property
+    def entry(self):
         return LazyProxy(self, handler=self.__class__)
 
-    def set_entry(self, other):
+    @entry.setter
+    def entry(self, other):
         return self.copy(other)
-
-    entry = property(get_entry, set_entry, None, "entry point of the node")
 
     def copy(self, other):
         if isinstance(other, LazyProxy):
@@ -120,7 +120,12 @@ class Node(object):
 
     def call(self,   path, *args, **kwargs):
         obj = self.get(path)
-        return obj(*args, **kwargs)
+        if callable(obj):
+            return obj(*args, **kwargs)
+        elif len(args)+len(kwargs) == 0:
+            return obj
+        else:
+            raise TypeError(f"'{type(obj)}' is not callable")
 
     def push_back(self, path, v=None):
         parent = self.insert(path, [])
@@ -142,3 +147,7 @@ class Node(object):
 
     def iter(self, path, *args, **kwargs):
         yield from self.get(path, *args, **kwargs)
+
+
+def is_entry(obj):
+    return isinstance(obj, LazyProxy) and isinstance(obj.__object__, Node)

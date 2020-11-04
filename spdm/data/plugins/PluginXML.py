@@ -58,7 +58,6 @@ def load_xml(path, *args,  mode="r", **kwargs):
                 root = load_xml(fp, mode=mode)
             else:
                 merge_xml(root, load_xml(fp, mode=mode))
-        logger.debug(root)
         return root
     elif isinstance(path, str):
         path = pathlib.Path(path)

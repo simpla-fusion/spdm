@@ -2,7 +2,7 @@ import collections
 import pathlib
 
 from spdm.util.sp_export import sp_find_module
-from spdm.util.urilib import urisplit
+from spdm.util.urilib import urisplit, URISplitResult
 from spdm.util.logger import logger
 
 associations = {
@@ -44,8 +44,15 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
 
     if isinstance(desc, collections.abc.Mapping):
         schema = desc.get("schema", "")
-    elif isinstance(desc, str):
-        o = urisplit(desc)
+
+    else:
+        if isinstance(desc, str):
+            o = urisplit(desc)
+        elif isinstance(desc, URISplitResult):
+            o = desc
+        else:
+            raise TypeError(f"Illegal uri type! {desc}")
+        
         if o.schema not in [None, 'local', 'file']:
             schema = o.schema
         else:
