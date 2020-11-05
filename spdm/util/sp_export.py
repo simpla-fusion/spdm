@@ -6,9 +6,10 @@ import os
 import pathlib
 import sys
 import pkgutil
-from spdm.global_constant import SP_EXPORT_KEYWORD
 from .logger import logger
 from .utilities import getattr_r
+
+SP_EXPORT_KEYWORD = "__SP_EXPORT__"
 
 
 def export(fn):

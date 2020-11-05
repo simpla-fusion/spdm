@@ -5,8 +5,8 @@ import pathlib
 import pprint
 import os
 import sys
-from ..global_constant import SP_DEFAULT_OUTPUT_DIR, SP_PACKAGE_NAME
 
+SP_DEFAULT_OUTPUT_DIR = pathlib.Path("~/spdm_log").expanduser()
 SP_DEFAULT_OUTPUT_DIR.mkdir(mode=0o755, exist_ok=True)
 
 logging.basicConfig(level=logging.ERROR,
