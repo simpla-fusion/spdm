@@ -3,10 +3,19 @@ import pprint
 import copy
 
 
+class _NEXT_TAG_:
+    pass
+
+
+_next_ = _NEXT_TAG_()
+_last_ = -1
+
+
 class AttributeTree:
     def __init__(self, data=None, *args,  default_factory=None, **kwargs):
         super().__init__()
-        self.__dict__['__data__'] = data or {}  # collections.defaultdict(default_factory or self.__class__)
+        # collections.defaultdict(default_factory or self.__class__)
+        self.__dict__['__data__'] = data if data is not None else NotImplemented
         self.__dict__['__default_factory__'] = default_factory or AttributeTree
 
     def __missing__(self, key):
@@ -35,7 +44,6 @@ class AttributeTree:
 
     def __getattr__(self, key):
         # res = getattr(self, key)
-
         if key.startswith('_'):
             res = self.__dict__[key]
         else:
@@ -47,24 +55,26 @@ class AttributeTree:
 
     def __getitem__(self, key):
         if isinstance(key, str):
-            res = self.__data__.get(key, None)
+            res = self.__as_object__().__getitem__(key)
+        elif key is _next_:
+            res = self.__push_back__()
         elif type(key) in (int, slice, tuple):
-            if not isinstance(self.__data__, Mapping):
-                pass
-            elif len(self.__data__) > 0:
-                raise KeyError(f"Object is not indexable! '{key}'")
-            else:
-                self.__dict__["__data__"] = []
-            res = self.__data__[key]
+            res = self.__as_array__()[key]
 
-        return res if res is not None else self.__missing__(key)
+        return res if res is not NotImplemented else self.__missing__(key)
 
     def __setitem__(self, key, value):
-        if not isinstance(value, Mapping):
-            self.__data__[key] = value
-        else:
+        if isinstance(value, Mapping):
             self.__delitem__(key)
             self.__getitem__(key).__update__(value)
+        elif isinstance(key, str):
+            self.__as_object__().__setitem__(key, value)
+        elif type(key) in (int, slice, tuple):
+            self.__as_array__()[key] = value
+        elif key is _next_:
+            self.__push_back__(value)
+        else:
+            raise TypeError(f"Illegal key type! {type(key)}")
 
     def __delitem__(self, key):
         try:
@@ -91,16 +101,28 @@ class AttributeTree:
             for v in self.__data__:
                 yield v
 
-    def _as_array(self):
-        if not isinstance(self.__data__, list):
-            if len(self.__data__) > 0:
-                raise IndexError(f"Can push data to 'Object' {self.__data__} ")
-            else:
-                self.__dict__['__data__'] = list()
+    def __as_object__(self):
+        if isinstance(self.__data__, collections.abc.Mapping):
+            pass
+        elif self.__data__ is NotImplemented:
+            self.__data__ = self.__default_factory__()
+        else:
+            raise TypeError(f"Can not create 'object': node is not empty! ")
+
+        return self.__data__
+
+    def __as_array__(self):
+        if isinstance(self.__data__, list):
+            pass
+        elif self.__data__ is NotImplemented:
+            self.__dict__['__data__'] = list()
+        else:
+            raise TypeError(f"Can not create 'list': node is not empty! ")
+
         return self.__data__
 
     def __push_back__(self, value=None):
-        self._as_array().append(value or self.__default_factory__())
+        self.__as_array__().append(value or self.__default_factory__())
         idx = len(self.__data__)-1
         return idx, self.__data__[idx]
 
@@ -113,11 +135,12 @@ class AttributeTree:
         if not isinstance(self.__data__, Mapping) or not isinstance(other, Mapping):
             raise TypeError(f"Not supported operator! update({type(self.__data__)},{type(other)})")
         else:
+            obj = self.__as_object__()
             for k, v in other.items():
-                if k in self.__data__ and isinstance(self.__data__[k], AttributeTree):
-                    self.__data__[k].__update__(v)
+                if k in obj and isinstance(obj[k], AttributeTree):
+                    obj[k].__update__(v)
                 elif v is not None:
-                    self.__setitem__(k, v)
+                    obj[k] = v
 
     def __or__(self, other):
         if not isinstance(other, self.__class__):

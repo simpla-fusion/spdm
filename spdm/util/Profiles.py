@@ -6,6 +6,7 @@ import inspect
 import numpy as np
 import pprint
 from .AttributeTree import AttributeTree
+from .Interpolate import Interpolate1D, Interpolate2D, InterpolateND
 # from .logger import logger
 
 
@@ -36,7 +37,7 @@ class Profiles(AttributeTree):
                 return lambda *args, _self=self, _fun=obj, **kwargs, : _fun(_self, *args, **kwargs)
             else:
                 obj = super().__getitem__(key)
-                return lambda *args,  _obj = obj, _dims=self.__dimensions__, _fun = self.__interpolator__, **kwargs, : _fun(_dims, _obj, *args, **kwargs)
+                return self.__interpolator__(self.dimensions, obj)
 
     def __setitem__(self, key, value):
         if value is None:
@@ -47,43 +48,23 @@ class Profiles(AttributeTree):
         else:
             super().__setitem__(key, value)
 
-    #     return res
-    # if isinstance(dims, np.ndarray):
-    #     if len(dims.shape) == 1:
-    #         self._grid = dims
-    #         self._grid_shape = dims.shape[0]
-    #         self._axis_rank = 1
-    #     else:
-    #         self._grid = [x for x in dims]
-    #         self._grid_shape = dims.shape[1:]
-    #         self._axis_rank = dims.shape[0]
-    # elif not isinstance(dims, list):
-    #     raise TypeError(f"Illegal dimensions type {type(dims)}! ( only support list or numpy.ndarray)")
-    # elif all([type(p) is int for p in dims]):
-    #     self._grid = np.array(dims)
-    #     self._grid_shape = len(dims)
-    #     self._axis_rank = 1
-    # elif all([isinstance(p, np.ndarray) for p in dims]):
-    #     self._grid = dims
-    #     self._grid_shape = dims[0].shape
-    #     self._axis_rank = len(dims)
 
-    # @property
-    # def __dimensions__(self):
-    #     return self.__dimensions__
+class Profiles1D(Profiles):
 
-    # def __missing__(self, key):
-    #     super().__setitem__(key, np.zeros(shape=self._dimensions))
-    #     # return super().setdefault(key, np.zeros(shape=self._dimensions))
-    #     return super().__getitem__(key)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, interpolator=Interpolate1D, **kwargs)
 
 
-# class EqProfiles2DFreeGS(Profiles):
+class Profiles2D(Profiles):
 
-#     def __init__(self, backend, dims=None, *args, **kwargs):
-#         super().__init__(dims or [129, 129], **kwargs)
-#         self._backend = backend
-#         pprint.pprint(self.__dict__)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, interpolator=Interpolate2D, **kwargs)
+
+
+class ProfilesND(Profiles):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, interpolator=InterpolateND, **kwargs)
 
 
 if __name__ == "__main__":
