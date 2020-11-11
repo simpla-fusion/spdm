@@ -1,6 +1,7 @@
-from collections.abc import Mapping
-import pprint
+import collections
 import copy
+import pprint
+from collections.abc import Mapping
 
 
 class _NEXT_TAG_:
@@ -23,12 +24,13 @@ class AttributeTree:
 
     def __repr__(self):
         #     return f"<{self.__class__.__name__}>"
-
         # def __str__(self):
-        if isinstance(self.__data__, list):
-            return pprint.pformat(self.__data__)
-        else:
+        if isinstance(self.__data__, collections.abc.Mapping):
             return pprint.pformat({k: v for k, v in self.__data__.items()})
+        elif self.__data__ is NotImplemented:
+            return "<N/A>"
+        else:
+            return pprint.pformat(self.__data__)
 
     def __copy__(self):
         return AttributeTree(copy.copy(self.__data__))
@@ -55,12 +57,13 @@ class AttributeTree:
 
     def __getitem__(self, key):
         if isinstance(key, str):
-            res = self.__as_object__().__getitem__(key)
+            res = self.__as_object__().get(key, NotImplemented)
         elif key is _next_:
             res = self.__push_back__()
         elif type(key) in (int, slice, tuple):
             res = self.__as_array__()[key]
-
+        else:
+            raise TypeError(f"Illegal key type! {type(key)}")
         return res if res is not NotImplemented else self.__missing__(key)
 
     def __setitem__(self, key, value):
@@ -77,10 +80,11 @@ class AttributeTree:
             raise TypeError(f"Illegal key type! {type(key)}")
 
     def __delitem__(self, key):
-        try:
-            del self.__data__[key]
-        except KeyError:
-            pass
+        if isinstance(self.__data__, collections.abc.Mapping) or isinstance(self.__data__, collections.abc.Sequence):
+            try:
+                del self.__data__[key]
+            except KeyError:
+                pass
 
     def __contain__(self, key):
         if isinstance(key, str):
@@ -105,10 +109,9 @@ class AttributeTree:
         if isinstance(self.__data__, collections.abc.Mapping):
             pass
         elif self.__data__ is NotImplemented:
-            self.__data__ = self.__default_factory__()
+            self.__data__ = {}
         else:
             raise TypeError(f"Can not create 'object': node is not empty! ")
-
         return self.__data__
 
     def __as_array__(self):
@@ -132,6 +135,7 @@ class AttributeTree:
         self.__data__.pop()
 
     def __update__(self, other):
+        self.__as_object__()
         if not isinstance(self.__data__, Mapping) or not isinstance(other, Mapping):
             raise TypeError(f"Not supported operator! update({type(self.__data__)},{type(other)})")
         else:
@@ -186,6 +190,7 @@ if __name__ == "__main__":
     # pprint.pprint(a)
 
     pprint.pprint(a.g.h)
+    pprint.pprint(a.g.h.w)
 
     a.g.h |= {"y": 5, "z": {"x": 6}}
 
