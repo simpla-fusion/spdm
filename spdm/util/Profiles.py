@@ -15,11 +15,37 @@ class Profiles(AttributeTree):
 
         dims likes [0,1,2,3,4,5]    or [  [0,1,2,3,4,5]  ]
     """
+    @staticmethod
+    def create_dims(d):
+        if isinstance(d, list):
+            dims = [Profiles.create_dims(dim) for dim in d]
+            shape = [len(v) for v in dims]
+            return shape, dims
+        elif isinstance(d, int):
+            return [d], np.linspace(0, 1, d)
+        elif isinstance(d, tuple):
+            x0, x1, num = d
+            return [num], np.linspace(x0, x1, num)
+        elif isinstance(d, np.ndarray):
+            return d.shape, d
+        else:
+            raise TypeError(f"Illegal dimension type! {type(d)}")
 
-    def __init__(self,  dims, *args, interpolator=None, ** kwargs):
-        self.__interpolator__ = interpolator or (lambda x0, y0, x1: x1)
-        self.__dimensions__ = dims if isinstance(dims, np.ndarray) else np.array(dims)
-        super().__init__(*args, default_factory=lambda _s=self.__dimensions__.shape: np.zeros(shape=_s), ** kwargs)
+    def __init__(self,  dims=None, *args, interpolator=None, ** kwargs):
+        if dims is None:
+            dims = 129
+        self.__shape__, self.__dimensions__ = Profiles.create_dims(dims)
+
+        if len(self.__shape__) == 1:
+            self.__mgrid__ = [self.__dimensions__]
+            self.__interpolator__ = interpolator or Interpolate1D
+        elif len(self.__dime__shape__nsions__) == 2:
+            self.__mgrid__ = np.meshgrid(self.__dimensions__[0], self.__dimensions__[1], indexing='ij')
+            self.__interpolator__ = interpolator or Interpolate2D
+        else:
+            raise NotImplementedError()
+
+        super().__init__(*args, default_factory=lambda _s=self.__shape__: np.zeros(shape=_s), ** kwargs)
 
     def copy(self):
         return Profiles(self.__dimensions__, interpolator=self.__interpolator__)
@@ -28,16 +54,21 @@ class Profiles(AttributeTree):
     def dimensions(self):
         return self.__dimensions__
 
+    @property
+    def grid(self):
+        return self.__mgrid__
+
     def __getitem__(self, key):
         if self.__class__ is not Profiles:
             obj = getattr(self.__class__, key, None)
-            if isinstance(obj, property):
-                return getattr(obj, "fget")(self)
-            elif inspect.isfunction(obj):
-                return lambda *args, _self=self, _fun=obj, **kwargs, : _fun(_self, *args, **kwargs)
-            else:
-                obj = super().__getitem__(key)
-                return self.__interpolator__(self.dimensions, obj)
+
+        if isinstance(obj, property):
+            return getattr(obj, "fget")(self)
+        elif inspect.isfunction(obj):
+            return lambda *args, _self=self, _fun=obj, **kwargs, : _fun(_self, *args, **kwargs)
+        else:
+            obj = super().__getitem__(key)
+            return self.__interpolator__(*self.grid, obj)
 
     def __setitem__(self, key, value):
         if value is None:
@@ -47,24 +78,6 @@ class Profiles(AttributeTree):
             self.__data__.setdefault(key, self.copy()).__update__(value)
         else:
             super().__setitem__(key, value)
-
-
-class Profiles1D(Profiles):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, interpolator=Interpolate1D, **kwargs)
-
-
-class Profiles2D(Profiles):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, interpolator=Interpolate2D, **kwargs)
-
-
-class ProfilesND(Profiles):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, interpolator=InterpolateND, **kwargs)
 
 
 if __name__ == "__main__":

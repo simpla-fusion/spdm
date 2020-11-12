@@ -1,4 +1,4 @@
-from scipy import interpolate as interp
+from scipy.interpolate import RectBivariateSpline, UnivariateSpline
 from spdm.util.sp_export import sp_find_module
 from spdm.util.logger import logger
 
@@ -12,31 +12,44 @@ class Interpolate(object):
         else:
             return object.__new__(cls)
 
-    def __init__(self, y,  x, *args, copy=False, k=3, **kwargs):
-        self._x = x
-        self._y = y
+    def __init__(self,   *args,   **kwargs):
+        pass
 
 
 class Interpolate1D(Interpolate):
-    def __init__(self, y,  x, *args, copy=False, k=3, **kwargs):
-        super().__init__(y, x, *args, **kwargs)
-
-    def fun(self, *args, copy=False, k=3, **kwargs):
-        return interp.UnivariateSpline(self._x, self._y, *args, k=k, **kwargs)
+    def __init__(self, x, y, *args, k=3, copy=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fun = UnivariateSpline(x,  y, *args,   copy=copy, **kwargs)
 
     def __call__(self, x=None, *args, **kwargs):
         if x is None:
-            return self._y, self._x
+            return self._fun
         else:
-            return self.fun(*args, **kwargs)(x)
+            return self._fun(x)
 
-    def derivate(self, n=1, *args, **kwargs):
-        return self.fun(*args, **kwargs).derivative(n)
+    def derivate(self, *args, n=1, **kwargs):
+        return self._fun.derivative(n)
 
 
 class Interpolate2D(Interpolate):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+    def __init__(self,  x, y, z, *args,  **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fun = RectBivariateSpline(x,  y,  z, *args,  **kwargs)
+
+    def __call__(self, x=None, y=None, grid=False, **kwargs):
+        if x is None or y is None:
+            return self._fun
+        else:
+            return self._fun(x, y, grid=grid, **kwargs)
+
+    def derivate(self, x, y, * args, dx=1, dy=1, **kwargs):
+        return self._fun(x, y, * args, dx=dx, dy=dy, **kwargs)
+
+    def dx(self, x, y, dx=1, grid=False, **kwargs):
+        return self._fun(x, y,   dx=dx, grid=grid, **kwargs)
+
+    def dy(self, x, y, dy=1, grid=False, **kwargs):
+        return self._fun(x, y,   dy=dy, grid=grid, **kwargs)
 
 
 class InterpolateND(Interpolate):
@@ -76,13 +89,14 @@ def interpolate(y, x, *args, **kwargs):
 
 
 def derivate(y, x=None, *args, **kwargs):
-    if not isinstance(y, Interpolate1D):
-        y = Interpolate1D(x, y)
-        return y.derivate(*args, **kwargs)(x)
+    if isinstance(y, Interpolate1D):
+        pass
     elif x is not None:
-        return y.derivate(*args, **kwargs)(x)
+        y = Interpolate1D(x, y)
     else:
-        return y.derivate(*args, **kwargs)()
+        raise TypeError(f"y={type(y)} x={type(x)}")
+
+    return y.derivate(*args, **kwargs)
 
 
 def integral(y, x, *args, **kwargs):
