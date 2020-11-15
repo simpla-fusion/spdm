@@ -56,9 +56,9 @@ class Interpolate(object):
 
 
 class Interpolate1D(Interpolate):
-    def __init__(self, x, y, *args, k=3, copy=False, **kwargs):
+    def __init__(self, x, y, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._fun = UnivariateSpline(x,  y, *args,   copy=copy, **kwargs)
+        self._fun = UnivariateSpline(x,  y, *args,  **kwargs)
 
     def __call__(self, x=None, *args, **kwargs):
         if x is None:
@@ -68,6 +68,9 @@ class Interpolate1D(Interpolate):
 
     def derivate(self, *args, n=1, **kwargs):
         return self._fun.derivative(n)
+
+    def integral(self, *args,  **kwargs):
+        return self._fun.integral(*args, **kwargs)
 
 
 class Interpolate2D(Interpolate):
@@ -79,28 +82,26 @@ class Interpolate2D(Interpolate):
         if (isinstance(x, list) or len(x.shape) == 1) and \
             (isinstance(y, list) or len(y.shape) == 1) and \
                 (hasattr(z, 'shape') and len(z.shape) == 2):
-            self._fun = RectBivariateSpline(x,  y,  z, *args,  **kwargs)
+
+            self._fun = RectBivariateSpline(x,  y,  z, *args, **kwargs)
         else:
             raise NotImplementedError()
 
-    def __call__(self, x=None, y=None, grid=False, **kwargs):
-        if x is None or y is None:
-            return self._fun
-        else:
-            return self._fun(x, y, grid=grid, **kwargs)
+    def __call__(self, x, y, **kwargs):
+        return self._fun(x, y, grid=False, **kwargs)
 
     @property
     def mesh_coordinates(self):
         return np.meshgrid(self.dim_x, self.dim_y)
 
     def derivate(self, x, y, * args, dx=1, dy=1, **kwargs):
-        return self._fun(x, y, * args, dx=dx, dy=dy, **kwargs)
+        return self._fun(x, y, * args, dx=dx, dy=dy, grid=False, **kwargs)
 
-    def dx(self, x, y, dx=1, grid=False, **kwargs):
-        return self._fun(x, y,   dx=dx, grid=grid, **kwargs)
+    def dx(self, x, y, dx=1,  **kwargs):
+        return self._fun(x, y,   dx=dx, grid=False, **kwargs)
 
-    def dy(self, x, y, dy=1, grid=False, **kwargs):
-        return self._fun(x, y,   dy=dy, grid=grid, **kwargs)
+    def dy(self, x, y, dy=1, **kwargs):
+        return self._fun(x, y,   dy=dy, grid=False, **kwargs)
 
     def _find_critical(self, *args, **kwargs):
         pass
@@ -170,7 +171,7 @@ def find_root1d(fun, x0=None, x1=None,  bracket=[0, 1], fprime=None):
     return sol
 
 
-def find_root2d(fun, value, line=None, box=None):
+def find_root2d(fun,   line=None, box=None):
     if line is not None:
         p0, p1 = line
         # vx = p1[0]-p0[0]
@@ -180,18 +181,16 @@ def find_root2d(fun, value, line=None, box=None):
         # vy /= vr
         # v = [vx, vy]
 
-        def f(r, x0=p0, x1=p1, fun=fun, value=value):
-            return fun((1.0-r)*x0[0]+r*x1[0], (1.0-r)*x0[1]+r*x1[1])-value
+        def f(r, x0=p0, x1=p1, fun=fun):
+            return fun((1.0-r)*x0[0]+r*x1[0], (1.0-r)*x0[1]+r*x1[1])
 
         def fprime(r, x0=p0, x1=p1, fun=fun):
             x = (1.0-r)*x0[0]+r*x1[0]
             y = (1.0-r)*x0[1]+r*x1[1]
             df = fun(x, y, dx=1, grid=False)*(x1[0]-x0[0])+fun(x, y, dy=1, grid=False)*(x1[1]-x0[1])
             return df
-        v0 = fun(*p0)
-        v1 = fun(*p1)
 
-        sol = find_root1d(f, x0=(value-v0)/(v1-v0),
+        sol = find_root1d(f, x0=0.01,
                           fprime=fprime,
                           bracket=[0.01, 1.0])
 
@@ -201,13 +200,11 @@ def find_root2d(fun, value, line=None, box=None):
         raise NotImplementedError()
 
 
-def find_root(fun, value, *args, **kwargs):
+def find_root(fun,   *args, **kwargs):
     if isinstance(fun, Interpolate1D):
-        return find_root1d(fun, value, *args, **kwargs)
-
+        return find_root1d(fun,  *args, **kwargs)
     elif isinstance(fun, Interpolate2D):
-        return find_root2d(fun, value, *args, **kwargs)
-
+        return find_root2d(fun,  *args, **kwargs)
     else:
         raise NotImplementedError()
 
@@ -216,15 +213,16 @@ def find_critical(fun2d, *args, **kwargs):
     if not isinstance(fun2d, Interpolate2D):
         raise NotImplementedError()
     X, Y = fun2d.mesh_coordinates
-    fxy2 = -fun2d(X, Y, dx=1, grid=False)**2-fun2d(X, Y, dy=1, grid=False)**2
+
+    fxy2 = -fun2d(X, Y, dx=1)**2-fun2d(X, Y, dy=1)**2
     span = 3
     for ix, iy in find_peaks_2d_image(fxy2[span:-span, span:-span]):
         ix += span
         iy += span
-        x = X[ix, iy]
-        y = Y[ix, iy]
+        x = float(X[ix, iy])
+        y = float(Y[ix, iy])
 
-        if abs(fxy2[ix+span, iy+span]) > 1.0e-5:
+        if abs(fxy2[ix+span, iy+span]) > 1.0e-5:  # FIXME: replace magnetic number
             xmin = X[ix, iy-1]
             xmax = X[ix, iy+1]
             ymin = Y[ix-1, iy]
@@ -242,7 +240,7 @@ def find_critical(fun2d, *args, **kwargs):
                 fyy = fun(r[0], r[1], dy=2)
                 fxy = fun(r[0], r[1], dy=1, dx=1)
 
-                return [[fxy, fyy], [fxx, fxy]]
+                return [[fxy, fyy], [fxx, fxy]]  # FIXME: not sure, need double check
 
             try:
                 x1, y1 = fsolve(f, [x, y], args=fun2d, fprime=fprime)

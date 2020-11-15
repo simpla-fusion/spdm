@@ -2,6 +2,7 @@ import collections
 import copy
 import pprint
 from collections.abc import Mapping
+import functools
 
 
 class _NEXT_TAG_:
@@ -21,7 +22,7 @@ class AttributeTree:
         self.__update__(data)
 
     def __missing__(self, key):
-        return self.__data__.setdefault(key, self.__default_factory__())
+        return self.__as_object__().setdefault(key, self.__default_factory__())
 
     def __repr__(self):
         # if isinstance(self.__data__, collections.abc.Mapping):
@@ -58,8 +59,16 @@ class AttributeTree:
     def __getitem__(self, key):
         res = NotImplemented
         try:
+
             if isinstance(key, str):
-                res = self.__as_object__().get(key, NotImplemented)
+                res = getattr(self.__class__, key, NotImplemented)
+                if res is NotImplemented:
+                    res = self.__as_object__().get(key, NotImplemented)
+                elif isinstance(res, property):
+                    res = getattr(res, "fget")(self)
+                elif isinstance(res, functools.cached_property):
+                    res = res.__get__(self)                    
+                                    
             elif key is _next_:
                 _, res = self.__push_back__()
             elif type(key) in (int, slice, tuple):
