@@ -24,9 +24,10 @@ class Document(Node):
                                 fragment="Document")
             return object.__new__(n_cls)
 
-    def __init__(self, desc=None, *args, root=None, collection=None, schema=None, mode="rw", **kwargs):
+    def __init__(self, desc=None, *args, fid=None, root=None, collection=None, schema=None, mode="rw", **kwargs):
         super().__init__(*args, **kwargs)
-        logger.debug(f"Opend {self.__class__.__name__} {desc} ")
+        logger.debug(f"Opend {self.__class__.__name__} fid={fid} ")
+        self._fid = fid
         self._schema = schema
         self._collection = collection
         self._root = root if root is not None else Node(root or {})

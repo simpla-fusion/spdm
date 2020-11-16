@@ -5,9 +5,11 @@ import re
 
 import MDSplus as mds
 import numpy as np
+from spdm.util.AttributeTree import AttributeTree
+from spdm.util.dict_util import DefaultDict
 from spdm.util.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
-from spdm.util.dict_util import DefaultDict
+
 from ..Collection import Collection, FileCollection
 from ..Document import Document
 from ..Node import Node
@@ -39,10 +41,11 @@ class MDSplusNode(Node):
 
 
 def open_mdstree(tree_name, shot,  mode="NORMAL"):
+    if tree_name is None:
+        raise ValueError(f"Treename is empty!")
     try:
         shot = int(shot)
-        assert(tree_name is not None)
-        logger.debug(f"Opend MDSTree: {tree_name} {shot} mode=\"{mode}\"")
+        logger.debug(f"Opend MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\"")
         tree = mds.Tree(tree_name, shot, mode)
     except mds.mdsExceptions.TreeFOPENR as error:
         tree_path = os.environ.get(f"{tree_name}_path", None)
@@ -63,30 +66,37 @@ class MDSplusDocument(Document):
         "x": "NEW"
     }
 
-    def __init__(self, shot, *args, mode="r", tree_name=None,  **kwargs):
+    def __init__(self, desc=None, *args, fid=None,  mode="r", tree_name=None,  **kwargs):
         mds_mode = MDSplusDocument.MDS_MODE.get(mode, "NORMAL")
 
-        self._trees = DefaultDict(lambda t, s=shot, m=mds_mode: open_mdstree(t, s, mode=m))
+        self._trees = DefaultDict(lambda t, s=fid, m=mds_mode: open_mdstree(t, s, mode=m))
 
         if tree_name is not None:
             self._trees[None] = self._trees[tree_name]
 
-        super().__init__(shot, *args, root=MDSplusNode(self._trees, tree_name=tree_name), mode=mode, ** kwargs)
+        super().__init__(desc, *args, fid=fid,
+                         root=MDSplusNode(self._trees, tree_name=tree_name),
+                         mode=mode, ** kwargs)
 
 
 class MDSplusCollection(Collection):
-    def __init__(self, uri, *args, default_tree_name=None,  **kwargs):
-        super().__init__(uri, *args, **kwargs)
+    def __init__(self, desc, *args,  tree_name=None,  **kwargs):
+        super().__init__(desc, *args, **kwargs)
 
-        if isinstance(uri, str):
-            uri = urisplit(uri)
+        if isinstance(desc, str):
+            desc = urisplit(desc)
+        elif not isinstance(desc, AttributeTree):
+            desc = AttributeTree(desc)
 
-        schema = (uri.schema or "file").split('+')
-        authority = uri.authority or ''
-        path = uri.path or ""
-        fragment = uri.fragment or None
+        schema = (desc.schema or "file").split('+')
+        authority = desc.authority or ''
+        path = desc.path or ""
+        fid = desc.fragment.shot or None
 
-        self._default_tree_name = default_tree_name or fragment
+        if tree_name is None:
+            tree_name = desc.query.tree_name or None
+
+        self._default_tree_name = tree_name
 
         if len(schema) == 0:
             schema = None
@@ -98,7 +108,7 @@ class MDSplusCollection(Collection):
         else:
             raise NotImplementedError(schema)
 
-        self.add_tree(fragment, uriunsplit(schema, authority, path))
+        self.add_tree(tree_name, uriunsplit(schema, authority, path))
 
     # def __del__(self):
     #     for tree_name in self._trees:
@@ -113,17 +123,16 @@ class MDSplusCollection(Collection):
             os.environ["default_tree_path"] = tree_path
 
     def open_document(self, fid, mode, tree_name=None):
-        return MDSplusDocument(fid, tree_name=tree_name or self._default_tree_name, mode=mode)
+        return MDSplusDocument(fid=fid, mode=mode, tree_name=tree_name or self._default_tree_name)
 
-    def insert_one(self, data=None, *args, **kwargs):
-        oid = self.guess_id(data or kwargs, auto_inc=True)
+    def insert_one(self, *args,  query=None, **kwargs):
+        oid = self.guess_id(collections.ChainMap((query or {}), kwargs), auto_inc=True)
         doc = self.open_document(oid, mode="w")
         # doc.update(data or kwargs)
         return doc
 
-    def find_one(self, predicate=None, projection=None, *args, **kwargs):
-        fid = self.guess_id(predicate or kwargs)
-
+    def find_one(self, *args, query=None, projection=None,  **kwargs):
+        fid = self.guess_id(query or kwargs)
         doc = None
         if fid is not None:
             doc = self.open_document(fid, mode="r")

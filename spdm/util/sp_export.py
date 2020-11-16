@@ -72,7 +72,7 @@ def sp_find_module(path, fragment=None):
         # raise ModuleNotFoundError(f"{path}#{fragment}")
         mod = None
     if mod is not None:
-        logger.debug(f"{path}#{fragment}")
+        logger.debug(f"Found module : {path}#{fragment}")
     else:
         logger.debug(f"Can not find module {path}#{fragment}")
         raise ModuleNotFoundError(f"Can not find module {path}#{fragment}")

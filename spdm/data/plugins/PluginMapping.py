@@ -25,9 +25,9 @@ class MappingNode(Node):
             req = self._mapping.handler.get(self._mapping.holder, path, *args, **kwargs)
             if isinstance(req, str):
                 self._target.put(req, value, is_raw_path=True)
-            elif isinstance(res, collections.abc.Sequence):
+            elif isinstance(req, collections.abc.Sequence):
                 raise NotImplementedError()
-            elif isinstance(res, collections.abc.Mapping):
+            elif isinstance(req, collections.abc.Mapping):
                 raise NotImplementedError()
             elif req is not None:
                 raise RuntimeError(f"Can not write to non-empty entry! {path}")
@@ -81,10 +81,7 @@ class MappingDocument(Document):
 
 class MappingCollection(Collection):
     def __init__(self, uri, *args, source=None, mapping=None,  **kwargs):
-
         super().__init__(uri, *args, **kwargs)
-        
-        logger.debug(mapping)
 
         if not isinstance(mapping, Node):
             self._mapping = Document(mapping, format_type="xml").root
@@ -96,15 +93,15 @@ class MappingCollection(Collection):
         else:
             self._source = source
 
-    def insert_one(self, pred=None, *args, **kwargs):
-        oid = self.guess_id(pred or kwargs)
+    def insert_one(self, *args,  query=None, **kwargs):
+        oid = self.guess_id(query or kwargs)
         doc = self._source.insert_one(_id=oid)
-        return MappingDocument(oid, root=doc, mapping=self._mapping)
+        return MappingDocument(fid=oid, root=doc, mapping=self._mapping)
 
-    def find_one(self, pred=None, *args, **kwargs):
-        oid = self.guess_id(pred or kwargs)
+    def find_one(self,   *args, query=None,  **kwargs):
+        oid = self.guess_id(query or kwargs)
         doc = self._source.find_one(_id=oid)
-        return MappingDocument(oid, root=doc, mapping=self._mapping)
+        return MappingDocument(fid=oid, root=doc, mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

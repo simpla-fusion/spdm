@@ -6,6 +6,7 @@ import urllib
 from typing import Any, Dict, List, NewType, Tuple
 
 import numpy
+from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urisplit
@@ -29,13 +30,19 @@ class Collection(object):
         if cls is not Collection:
             return super(Collection, cls).__new__(desc, *args, **kwargs)
 
-        if backend is not None:
-            desc = f"{backend}://"
+        if isinstance(desc, str):
+            desc = urisplit(desc)
+        elif not isinstance(desc, AttributeTree):
+            desc = AttributeTree(desc)
 
-        n_cls = find_plugin(desc,
-                            pattern=f"{__package__}.plugins.Plugin{{name}}",
-                            fragment="Collection")
+        plugin_name = backend or desc.schema or ""
 
+        if plugin_name is not None:
+            n_cls = find_plugin(f"{plugin_name}://",
+                                pattern=f"{__package__}.plugins.Plugin{{name}}",
+                                fragment="Collection")
+        else:
+            n_cls = cls
         return object.__new__(n_cls)
 
     def __init__(self, uri, *args,

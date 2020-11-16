@@ -1,5 +1,7 @@
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
+from spdm.util.AttributeTree import AttributeTree
+
 import collections
 
 
@@ -76,6 +78,9 @@ class Node(object):
                     raise KeyError(path)
                 except TypeError:
                     raise KeyError(path)
+        if isinstance(obj, collections.abc.Mapping):
+            obj = AttributeTree(obj)
+        
         return obj
 
     def insert(self, path, v, *args, **kwargs):
@@ -121,11 +126,15 @@ class Node(object):
     def call(self,   path, *args, **kwargs):
         obj = self.get(path)
         if callable(obj):
-            return obj(*args, **kwargs)
+            res = obj(*args, **kwargs)
         elif len(args)+len(kwargs) == 0:
-            return obj
+            res = obj
         else:
             raise TypeError(f"'{type(obj)}' is not callable")
+
+        if isinstance(res, collections.abc.Mapping):
+            res = AttributeTree(res)
+        return res
 
     def push_back(self, path, v=None):
         parent = self.insert(path, [])

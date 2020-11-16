@@ -20,10 +20,15 @@ _rfc3986 = re.compile(
 def urisplit(uri):
     if uri is None:
         uri = ""
-    return AttributeTree(_rfc3986.match(uri).groupdict())
+    res = AttributeTree(_rfc3986.match(uri).groupdict())
+    if isinstance(res.query, str):
+        res.query = dict([tuple(item.split("=")) for item in res.query.split(',')])
+    if isinstance(res.fragment, str):
+        res.fragment = dict([tuple(item.split("=")) for item in res.fragment.split(',')])
+    return res
 
 
-def uriunsplit( schema , authority=None, path=None,  query=None, fragment=None):
+def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
 
     return "".join([
         schema+"://" if schema is not None else "",
