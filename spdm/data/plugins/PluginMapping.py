@@ -4,7 +4,7 @@ import pathlib
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
-
+from spdm.util.AttributeTree import AttributeTree
 from ..Collection import Collection
 from ..Document import Document
 from ..Node import Node
@@ -41,12 +41,19 @@ class MappingNode(Node):
         # elif isinstance(item, Node):
         #     logger.debug(item.holder.data)
         #     return LazyProxy(holder, handler=MappingNode(self._target, mapping=Node(item, handler=self._mapping.handler)))
-        elif isinstance(item, collections.abc.Mapping) and "{http://hpc.ipp.ac.cn/SpDB}data" in item:
+        elif isinstance(item, list):
+            res = [self._fetch(v) for v in item]
+        elif not isinstance(item, collections.abc.Mapping):
+            res = item
+        elif "{http://hpc.ipp.ac.cn/SpDB}data" in item:
             if self._holder is None:
                 raise RuntimeError()
             res = self._holder.get(item["{http://hpc.ipp.ac.cn/SpDB}data"], *args, **kwargs)
         else:
-            res = item
+            res = {k: self._fetch(v) for k, v in item.items()}
+
+        if isinstance(res, collections.abc.Mapping):
+            res = AttributeTree(res)
 
         return res
 
@@ -56,7 +63,6 @@ class MappingNode(Node):
         else:
             item = self._mapping.get_value(path, *args, **kwargs)
             res = self._fetch(item)
-
         return res
 
     def iter(self,  path, *args, **kwargs):

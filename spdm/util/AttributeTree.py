@@ -19,7 +19,7 @@ class AttributeTree:
         self.__dict__['__data__'] = NotImplemented
         self.__dict__['__default_factory__'] = default_factory or AttributeTree
 
-        self.__update__(data)
+        self.__update__(collections.ChainMap(data or {}, kwargs))
 
     def __missing__(self, key):
         return self.__as_object__().setdefault(key, self.__default_factory__())
@@ -67,8 +67,8 @@ class AttributeTree:
                 elif isinstance(res, property):
                     res = getattr(res, "fget")(self)
                 elif isinstance(res, functools.cached_property):
-                    res = res.__get__(self)                    
-                                    
+                    res = res.__get__(self)
+
             elif key is _next_:
                 _, res = self.__push_back__()
             elif type(key) in (int, slice, tuple):
@@ -143,7 +143,7 @@ class AttributeTree:
     def __as_array__(self):
         if isinstance(self.__data__, list):
             pass
-        elif self.__data__ is NotImplemented:
+        elif self.__data__ is NotImplemented or len(self.__data__) == 0:
             self.__data__ = list()
         else:
             raise TypeError(f"Can not create 'list': node is not empty! ")

@@ -84,8 +84,7 @@ class XMLNode(Node):
         super().__init__(*args, **kwargs)
         self._holder = holder
         self._prefix = prefix or []
-        logger.debug(self.envs)
-
+        
     def xpath(self, path):
         res = "."
         for p in path:

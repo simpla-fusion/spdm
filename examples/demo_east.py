@@ -15,7 +15,7 @@ if __name__ == '__main__':
     # logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r())
     # logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r())
 
-    logger.debug(entry.equilibrium.vacuum_toroidal_field.r0())
-    logger.debug(entry.equilibrium.vacuum_toroidal_field.b0())
-    logger.debug(type(entry.equilibrium.time_slice.profiles_1d.psi()))
+    # logger.debug(entry.equilibrium.vacuum_toroidal_field.r0())
+    # logger.debug(entry.equilibrium.vacuum_toroidal_field.b0())
+    logger.debug(entry.equilibrium.time_slice.profiles_1d())
     # logger.debug(entry.equilibrium.time_slice.profiles_1d.dpressure_dpsi())
