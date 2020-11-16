@@ -83,15 +83,10 @@ class MDSplusCollection(Collection):
     def __init__(self, desc, *args,  tree_name=None,  **kwargs):
         super().__init__(desc, *args, **kwargs)
 
-        if isinstance(desc, str):
-            desc = urisplit(desc)
-        elif not isinstance(desc, AttributeTree):
-            desc = AttributeTree(desc)
-
-        schema = (desc.schema or "file").split('+')
-        authority = desc.authority or ''
-        path = desc.path or ""
-        fid = desc.fragment.shot or None
+        schema = (self.envs.schema or "file").split('+')
+        authority = self.envs.authority or ''
+        path = self.envs.path or ""
+        fid = self.envs.fragment.shot or None
 
         if tree_name is None:
             tree_name = desc.query.tree_name or None

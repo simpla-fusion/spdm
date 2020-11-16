@@ -15,12 +15,12 @@ def open_entry(desc, *args, **kwargs):
     # else:
     #     raise TypeError(f"Illegal uri type! {desc}")
     if kwargs is not None and len(kwargs) > 0:
-        desc.query |= kwargs
+        desc.fragment |= kwargs
 
     if desc.schema is not None:
-        holder = Collection(desc, envs=desc.query)
+        holder = Collection(desc)
     else:
-        holder = Document(desc, envs=desc.query)
+        holder = Document(desc)
 
     if not desc.fragment:
         return holder.entry

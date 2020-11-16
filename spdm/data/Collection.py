@@ -45,7 +45,8 @@ class Collection(object):
             n_cls = cls
         return object.__new__(n_cls)
 
-    def __init__(self, uri, *args,
+    def __init__(self, desc=None,
+                 *args,
                  mode="rw",
                  id_hasher=None,
                  handler=None,
@@ -53,7 +54,13 @@ class Collection(object):
                  **kwargs):
         super().__init__()
 
-        logger.debug(f"Open {self.__class__.__name__} : {uri}")
+        if isinstance(desc, str):
+            self._envs = urisplit(desc)
+        elif not isinstance(desc, AttributeTree):
+            self._envs = AttributeTree(desc)
+        else:
+            self._envs = desc
+        logger.debug(f"Open {self.__class__.__name__} : {self._envs.schema}://{self._envs.authorize}/{self._envs.path}")
 
         self._mode = mode
         self._id_hasher = id_hasher or "{_id}"
@@ -62,6 +69,10 @@ class Collection(object):
             self._handler = request_proxy(handler)
         else:
             self._handler = handler
+
+    @property
+    def envs(self):
+        return self._envs
 
     @property
     def mode(self):
@@ -212,7 +223,7 @@ class FileCollection(Collection):
     def open_document(self, fid, mode=None):
         fpath = self.guess_filepath({"_id": fid})
         logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.mode}\"")
-        return Document(root=self._file_factory(fpath, mode or self.mode), handler=self._handler)
+        return Document(root=self._file_factory(fpath, mode or self.mode), envs=self.envs, handler=self._handler)
 
     def insert_one(self, data=None, *args,  **kwargs):
         doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")

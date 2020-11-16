@@ -84,24 +84,24 @@ class MappingCollection(Collection):
         super().__init__(uri, *args, **kwargs)
 
         if not isinstance(mapping, Node):
-            self._mapping = Document(mapping, format_type="xml").root
+            self._mapping = Document(mapping, envs=self.envs, format_type="xml").root
         else:
             self._mapping = mapping
 
         if not isinstance(source, Collection):
-            self._source = Collection(source)
+            self._source = Collection(source, envs=self.envs)
         else:
             self._source = source
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(query or kwargs)
         doc = self._source.insert_one(_id=oid)
-        return MappingDocument(fid=oid, root=doc, mapping=self._mapping)
+        return MappingDocument(fid=oid, root=doc, envs=self.envs, mapping=self._mapping)
 
     def find_one(self,   *args, query=None,  **kwargs):
         oid = self.guess_id(query or kwargs)
         doc = self._source.find_one(_id=oid)
-        return MappingDocument(fid=oid, root=doc, mapping=self._mapping)
+        return MappingDocument(fid=oid, root=doc, envs=self.envs, mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

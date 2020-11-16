@@ -80,11 +80,11 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLNode(Node):
-    def __init__(self, holder,  *args, prefix=None, envs=None, **kwargs):
+    def __init__(self, holder,  *args, prefix=None,   **kwargs):
         super().__init__(*args, **kwargs)
         self._holder = holder
         self._prefix = prefix or []
-        self._envs = envs or {}
+        logger.debug(self.envs)
 
     def xpath(self, path):
         res = "."
@@ -103,22 +103,22 @@ class XMLNode(Node):
             res = _XPath(res)
         return res
 
-    def _convert(self, element, path=[], envs={},  lazy=True, projection=None,):
+    def _convert(self, element, path=[],   lazy=True, projection=None,):
         if not isinstance(element, _XMLElement):
             return element
         res = None
 
         if len(element) > 0 and lazy:
-            res = XMLNode(element, prefix=self._prefix+path, envs={**envs, **self._envs}).entry
+            res = XMLNode(element, prefix=self._prefix+path, envs=self.envs).entry
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
             if dtype == "string" or dtype is None:
                 res = [element.text]
             elif dtype == "int":
-                res = [int(v.strip()) for v in element.text.strip(',').split(',')  ]
+                res = [int(v.strip()) for v in element.text.strip(',').split(',')]
             elif dtype == "float":
-                res = [float(v.strip()) for v in element.text.strip(',').split(',') ]
+                res = [float(v.strip()) for v in element.text.strip(',').split(',')]
             else:
                 raise NotImplementedError(f"Not supported dtype {dtype}!")
 
@@ -141,9 +141,14 @@ class XMLNode(Node):
                 prev = None
                 for p in self._prefix+path:
                     if type(p) is int:
-                        query[f"{prev}#id"] = p
+                        query[f"{prev}"] = p
                     prev = p
-                res["@text"] = text.format(**query, **envs)
+
+                if not self.envs.fragment:
+                    fstr = query
+                else:
+                    fstr = collections.ChainMap(query, self.envs.fragment.__data__, self.envs.query.__data__ or {})
+                res["@text"] = text.format_map(fstr)
         return res
 
     def put(self,  path, value, *args, only_one=False, **kwargs):
@@ -175,21 +180,22 @@ class XMLNode(Node):
 
 
 class XMLDocument(Document):
-    def __init__(self, path=[], *args,   **kwargs):
+    def __init__(self, path=[], *args, envs=None,  **kwargs):
         assert(path is not None)
-        logger.debug(path)
+
         if isinstance(path, str):
             path = [path]
 
         if isinstance(path, collections.abc.Sequence):
             tree = load_xml(path, *args,  **kwargs)
-            root = XMLNode(tree)
+            root = XMLNode(tree, envs=envs)
+
         elif isinstance(path, Node):
             root = path
         else:
             raise TypeError(path)
 
-        super().__init__(path, *args,  root=root, ** kwargs)
+        super().__init__(path, *args,  root=root, envs=envs, ** kwargs)
 
 
 class XMLCollection(FileCollection):

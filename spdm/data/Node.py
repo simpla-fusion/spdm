@@ -6,9 +6,14 @@ import collections
 
 
 class Node(object):
-    def __init__(self, holder=None, *args,   **kwargs):
+    def __init__(self, holder=None, *args, envs=None, **kwargs):
         super().__init__()
         self._holder = holder if holder is not None else None
+        self._envs = AttributeTree(envs or {}) if not isinstance(envs, AttributeTree) else envs
+
+    @property
+    def envs(self):
+        return self._envs
 
     @property
     def holder(self):
@@ -80,7 +85,7 @@ class Node(object):
                     raise KeyError(path)
         if isinstance(obj, collections.abc.Mapping):
             obj = AttributeTree(obj)
-        
+
         return obj
 
     def insert(self, path, v, *args, **kwargs):
