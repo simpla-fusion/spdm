@@ -81,10 +81,10 @@ class MDSplusCollection(Collection):
         if isinstance(uri, str):
             uri = urisplit(uri)
 
-        schema = getattr(uri, "schema", "file").split('+')
-        authority = getattr(uri, "authority", '')
-        path = getattr(uri, "path", "")
-        fragment = getattr(uri, "fragment", None)
+        schema = (uri.schema or "file").split('+')
+        authority = uri.authority or ''
+        path = uri.path or ""
+        fragment = uri.fragment or None
 
         self._default_tree_name = default_tree_name or fragment
 

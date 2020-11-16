@@ -18,7 +18,7 @@ from .io import glob, read, write
 from .logger import logger
 from .Multimap import Multimap
 from .sp_export import sp_find_module, sp_pkg_data_path
-from .urilib import (URISplitResult, getvalue_r, uridefrag, urijoin, urisplit,
+from .urilib import (getvalue_r, uridefrag, urijoin, urisplit,
                      uriunsplit)
 
 # from spdm.global_constant import SP_BASE_URI, self._encode, SP_REMOTE_SCHEMA_CACHE

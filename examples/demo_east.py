@@ -1,24 +1,20 @@
-from spdm.util.logger import logger
-from spdm.data import connect
+
 import sys
-sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
+sys.path.append("/home/salmon/workspace/freegs/")
+sys.path.append("/home/salmon/workspace/fytok/python")
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 
 if __name__ == '__main__':
+    from spdm.util.logger import logger
+    from spdm.data.Entry import open_entry
 
-    db = connect("imas://", backend="hdf5:///home/salmon/workspace/output/east/test_")
+    entry = open_entry("east+mdsplus:///home/salmon/public_data/~t/?default_tree_name=efit_east#shot=55555", itime=100)
 
-    entry = db.insert(shot=55555).entry
+    # logger.debug(entry.pf_active.coil[1].element[0].geometry.rectangle.r())
+    # logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r())
+    # logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r())
+    logger.debug(entry.equilibrium.time_slice[10].profiles_1d.f_df_dpsi())
 
-    logger.debug(entry.pf_active.coil[1].element[0].geometry.rectangle.r.__value__())
-    logger.debug(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__())
-    logger.debug(type(entry.wall.description_2d[0].limiter.unit[0].outline.r.__value__()))
 
-    entry.pf_active.coil[0].element[0].geometry.retangle.r = 5
-
-    # pprint.pprint(collection)
-    # a = entry.pf_active.coil[0].element[0].geometry.retangle.r
-    # b = a.__fetch__()
-    # logger.debug(type(a))
-    # logger.debug(type(b))
+ 

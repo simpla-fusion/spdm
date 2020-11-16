@@ -2,8 +2,9 @@ import collections
 import pathlib
 
 from spdm.util.sp_export import sp_find_module
-from spdm.util.urilib import urisplit, URISplitResult
+from spdm.util.urilib import urisplit
 from spdm.util.logger import logger
+from spdm.util.AttributeTree import AttributeTree
 
 associations = {
     "mapping": "Mapping",
@@ -40,28 +41,22 @@ associations = {
 
 def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
 
-    schema = ""
+    if isinstance(desc, str):
+        desc = urisplit(desc)
+    elif not isinstance(desc, AttributeTree):
+        desc = AttributeTree(desc)
 
-    if isinstance(desc, collections.abc.Mapping):
-        schema = desc.get("schema", "")
+    plugin_name = ""
 
+    if desc.schema not in [None, 'local', 'file']:
+        plugin_name = desc.schema
     else:
-        if isinstance(desc, str):
-            o = urisplit(desc)
-        elif isinstance(desc, URISplitResult):
-            o = desc
-        else:
-            raise TypeError(f"Illegal uri type! {desc}")
-        
-        if o.schema not in [None, 'local', 'file']:
-            schema = o.schema
-        else:
-            suffix = pathlib.Path(o.path).suffix
-            if suffix[0] == '.':
-                suffix = suffix[1:]
-            schema = associations.get(suffix, None)
+        suffix = pathlib.Path(desc.path).suffix
+        if suffix[0] == '.':
+            suffix = suffix[1:]
+        plugin_name = associations.get(suffix, None)
 
-    plugin_name = schema.split('+')[0]
+    plugin_name = plugin_name.split('+')[0]
 
     if plugin_name is None:
         raise ValueError(f"illegal plugin description! [{desc}]")
@@ -70,7 +65,13 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
 
     if isinstance(pname, str):
         def _load_mod(n):
-            return sp_find_module(pattern.format(name=n), fragment=f"{n}{fragment}" if fragment is not None else None)
+            try:
+                mod = sp_find_module(pattern.format(
+                    name=n), fragment=f"{n}{fragment}" if fragment is not None else None)
+            except ModuleNotFoundError:
+                mod = None
+            finally:
+                return mod
 
         plugin = _load_mod(pname) or _load_mod(pname.capitalize()) or \
             _load_mod(pname.upper()) or _load_mod(pname.lower())

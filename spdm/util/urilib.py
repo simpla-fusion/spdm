@@ -6,25 +6,24 @@ Feature:
  TODO (salmon.20190919): support  quoting
 """
 
-import re
 import collections
-from .logger import logger
 import pathlib
+import re
+
+from .AttributeTree import AttributeTree
+from .logger import logger
 
 _rfc3986 = re.compile(
     r"^((?P<schema>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
 
-URISplitResult = collections.namedtuple("URISplitResult", "schema authority path query fragment ")
-
-
 def urisplit(uri):
     if uri is None:
         uri = ""
-    return URISplitResult(**_rfc3986.match(uri).groupdict())
+    return AttributeTree(_rfc3986.match(uri).groupdict())
 
 
-def uriunsplit(schema, authority, path,  query=None, fragment=None):
+def uriunsplit( schema , authority=None, path=None,  query=None, fragment=None):
 
     return "".join([
         schema+"://" if schema is not None else "",
@@ -36,8 +35,8 @@ def uriunsplit(schema, authority, path,  query=None, fragment=None):
 
 
 def urijoin(base, uri):
-    o0 = urisplit(base) if not isinstance(base, URISplitResult) else base
-    o1 = urisplit(uri) if not isinstance(uri, URISplitResult) else uri
+    o0 = urisplit(base) if not isinstance(base, AttributeTree) else base
+    o1 = urisplit(uri) if not isinstance(uri, AttributeTree) else uri
     if o1.schema is not None and o1.schema != o0.schema:
         return uri
     elif o1.authority is not None and o1.authority != o0.authority:
@@ -55,12 +54,12 @@ def urijoin(base, uri):
         else:
             path = o0.path[:o0.path.rfind('/')]+"/"+o1.path
 
-    return uriunsplit(URISplitResult(schema, authority, path, o1.query, o1.fragment))
+    return uriunsplit(schema, authority, path, o1.query, o1.fragment)
 
 
 def uridefrag(uri):
     o = urisplit(uri)
-    return uriunsplit(URISplitResult(o.schema, o.authority, o.path, None, None)), o.fragment
+    return uriunsplit(o.schema, o.authority, o.path, None, None), o.fragment
 
 
 _r_path_item = re.compile(

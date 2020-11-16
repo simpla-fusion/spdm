@@ -1,13 +1,15 @@
+from spdm.util.AttributeTree import AttributeTree
+from spdm.util.logger import logger
+from spdm.util.urilib import urisplit
+
 from .Collection import Collection
 from .Document import Document
-from spdm.util.urilib import urisplit, URISplitResult
-from spdm.util.logger import logger
 
 
 def open_entry(desc, *args, **kwargs):
     if isinstance(desc, str):
         desc = urisplit(desc)
-    elif isinstance(desc, URISplitResult):
+    elif isinstance(desc, AttributeTree):
         pass
     else:
         raise TypeError(f"Illegal uri type! {desc}")
