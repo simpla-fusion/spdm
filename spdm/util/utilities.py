@@ -222,3 +222,7 @@ def compile_regex_pattern(pattern):
 
 def as_namedtuple(d: dict, name=""):
     return collections.namedtuple(name, d.keys())(d.values())
+
+
+def first_not_empty(*args):
+    return next(x for x in args if len(x) > 0)

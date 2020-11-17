@@ -229,8 +229,8 @@ def find_critical(fun2d, *args, **kwargs):
             ymax = Y[ix+1, iy]
 
             def f(r, fun):
-              #  if r[0] < xmin or r[0] > xmax or r[1] < ymin or r[1] > ymax:
-              #       raise RuntimeError("out of range")
+                if r[0] < xmin or r[0] > xmax or r[1] < ymin or r[1] > ymax:
+                    raise RuntimeError("out of range")
                 fx = fun(r[0], r[1], dx=1)
                 fy = fun(r[0], r[1], dy=1)
                 return fx, fy
@@ -242,13 +242,13 @@ def find_critical(fun2d, *args, **kwargs):
 
                 return [[fxx, fxy], [fxy, fyy]]  # FIXME: not sure, need double check
 
-            # try:
-            #     x1, y1 = fsolve(f, [x, y], args=fun2d, fprime=fprime)
-            # except RuntimeError:
-            #     continue
-            # else:
-            #     x = x1
-            #     y = y1
+            try:
+                x1, y1 = fsolve(f, [x, y], args=fun2d, fprime=fprime)
+            except RuntimeError:
+                continue
+            else:
+                x = x1
+                y = y1
 
         # D = fxx * fyy - (fxy)^2
         D = fun2d(x, y, dx=2) * fun2d(x, y, dy=2) - (fun2d(x, y,  dx=1, dy=1))**2

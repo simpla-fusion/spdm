@@ -19,7 +19,8 @@ class AttributeTree:
         self.__dict__['__data__'] = NotImplemented
         self.__dict__['__default_factory__'] = default_factory or AttributeTree
 
-        self.__update__(collections.ChainMap(data or {}, kwargs))
+        self.__update__(data)
+        self.__update__(kwargs)
 
     def __missing__(self, key):
         return self.__as_object__().setdefault(key, self.__default_factory__())
@@ -58,23 +59,22 @@ class AttributeTree:
 
     def __getitem__(self, key):
         res = NotImplemented
-        try:
+        if isinstance(key, str):
+            res = getattr(self.__class__, key, NotImplemented)
+            if res is NotImplemented:
+                res = self.__as_object__().get(key, NotImplemented)
+            elif isinstance(res, property):
+                res = getattr(res, "fget")(self)
+            elif isinstance(res, functools.cached_property):
+                res = res.__get__(self)
 
-            if isinstance(key, str):
-                res = getattr(self.__class__, key, NotImplemented)
-                if res is NotImplemented:
-                    res = self.__as_object__().get(key, NotImplemented)
-                elif isinstance(res, property):
-                    res = getattr(res, "fget")(self)
-                elif isinstance(res, functools.cached_property):
-                    res = res.__get__(self)
-
-            elif key is _next_:
-                _, res = self.__push_back__()
-            elif type(key) in (int, slice, tuple):
-                res = self.__as_array__()[key]
-        except TypeError:
-            raise KeyError(key)
+        elif key is _next_:
+            _, res = self.__push_back__()
+        elif type(key) in (int, slice, tuple):
+            res = self.__as_array__()[key]
+        #    try: except TypeError as error:
+            
+        #     raise KeyError(f"Can not find key '{key}'! error:{error}")
 
         return res if res is not NotImplemented else self.__missing__(key)
 
@@ -161,15 +161,20 @@ class AttributeTree:
         self.__data__.pop()
 
     def __update__(self, other):
-        if isinstance(other, AttributeTree):
-            other = other.__data__
-
         if other is None or other is NotImplemented:
             return
-        elif not isinstance(other, Mapping):
+        elif isinstance(other, AttributeTree):
+            other = other.__data__
+        elif isinstance(other, collections.abc.Mapping):
+            obj = self.__as_object__()
+        elif isinstance(other, collections.abc.Sequence):
+            obj = self.__as_array__()
+        else:
             raise TypeError(f"Not supported operator! update({type(self.__data__)},{type(other)})")
 
-        obj = self.__as_object__()
+        if len(other) == 0:
+            return
+
         for k, v in other.items():
             if k in obj and isinstance(obj[k], AttributeTree):
                 obj[k].__update__(v)

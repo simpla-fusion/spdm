@@ -33,8 +33,15 @@ class MDSplusNode(Node):
             # except mds.mdsExceptions.TdiINV_SIZE as error:
             #     raise SyntaxError(f"MDSplus TDI syntax error [{path}]! {error}")
             res = res.data()
-        if isinstance(res, np.ndarray) and len(res.shape) > 1:
-            res = res.transpose(1, 0)
+        if not isinstance(res, np.ndarray):
+            pass
+        elif len(res.shape) == 2:
+            if res.shape[1] == 1:
+                res = res[:, 0]
+            elif res.shape[0] == 1:
+                res = res[0]
+            else:
+                res = res.transpose(1, 0)
         return res
 
     def put(self,  path, value, *args, **kwargs):
