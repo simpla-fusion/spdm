@@ -226,3 +226,6 @@ def as_namedtuple(d: dict, name=""):
 
 def first_not_empty(*args):
     return next(x for x in args if len(x) > 0)
+
+
+

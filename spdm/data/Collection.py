@@ -9,7 +9,7 @@ import numpy
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
-from spdm.util.urilib import urisplit
+from spdm.util.urilib import urisplit,uriunsplit
 
 from .Document import Document
 from .Plugin import find_plugin
@@ -60,7 +60,8 @@ class Collection(object):
             self._envs = AttributeTree(desc)
         else:
             self._envs = desc
-        logger.debug(f"Open {self.__class__.__name__} : {self._envs.schema}://{self._envs.authorize}/{self._envs.path}")
+        logger.debug(
+            f"Open {self.__class__.__name__} :  {uriunsplit(self._envs.schema,self._envs.authorize,self._envs.path)}")
 
         self._mode = mode
         self._id_hasher = id_hasher or "{_id}"

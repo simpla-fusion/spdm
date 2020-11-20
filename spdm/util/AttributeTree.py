@@ -55,11 +55,18 @@ class AttributeTree:
         return res
 
     def __delattr__(self, key):
-        return self.__data__.__delitem__(key)
+        if key in self.__dict__:
+            del self.__dict__[key]
+        elif isinstance(self.__data__, collections.abc.Mapping) and key in self.__data__:
+            del self.__data__[key]
 
     def __getitem__(self, key):
         res = NotImplemented
-        if isinstance(key, str):
+        if isinstance(key, list):
+            res = self
+            for k in key:
+                res = res.__getitem__(k)
+        elif isinstance(key, str):
             res = getattr(self.__class__, key, NotImplemented)
             if res is NotImplemented:
                 res = self.__as_object__().get(key, NotImplemented)
@@ -73,7 +80,7 @@ class AttributeTree:
         elif type(key) in (int, slice, tuple):
             res = self.__as_array__()[key]
         #    try: except TypeError as error:
-            
+
         #     raise KeyError(f"Can not find key '{key}'! error:{error}")
 
         return res if res is not NotImplemented else self.__missing__(key)
@@ -166,24 +173,31 @@ class AttributeTree:
         elif isinstance(other, AttributeTree):
             other = other.__data__
         elif isinstance(other, collections.abc.Mapping):
+            if len(other) == 0 and isinstance(self.__data__, list):
+                return
             obj = self.__as_object__()
+            for k, v in other.items():
+                if k in obj and isinstance(obj[k], AttributeTree):
+                    obj[k].__update__(v)
+                elif v is None:
+                    pass
+                elif isinstance(v, AttributeTree) and v.__data__ is NotImplemented:
+                    pass
+                else:
+                    obj[k] = v
         elif isinstance(other, collections.abc.Sequence):
+            if len(other) == 0 and self.__data__ is not NotImplemented:
+                return
             obj = self.__as_array__()
+            for v in other:
+                if isinstance(v, AttributeTree):
+                    obj.append(v)
+                elif isinstance(v, collections.abc.Mapping) or isinstance(v, collections.abc.Sequence):
+                    obj.append(AttributeTree(v))
+                else:
+                    obj.append(v)
         else:
             raise TypeError(f"Not supported operator! update({type(self.__data__)},{type(other)})")
-
-        if len(other) == 0:
-            return
-
-        for k, v in other.items():
-            if k in obj and isinstance(obj[k], AttributeTree):
-                obj[k].__update__(v)
-            elif v is None:
-                pass
-            elif isinstance(v, AttributeTree) and v.__data__ is NotImplemented:
-                pass
-            else:
-                obj[k] = v
 
     def __or__(self, other):
         if not isinstance(other, self.__class__):

@@ -7,41 +7,6 @@ from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 
 
-def find_peaks_2d_image(image):
-    """
-    Takes an image and detect the peaks usingthe local maximum filter.
-    Returns a boolean mask of the peaks (i.e. 1 when
-    the pixel's value is the neighborhood maximum, 0 otherwise)
-    """
-
-    # define an 8-connected neighborhood
-    neighborhood = generate_binary_structure(2, 2)
-
-    # apply the local maximum filter; all pixel of maximal value
-    # in their neighborhood are set to 1
-    local_max = maximum_filter(image, footprint=neighborhood) == image
-    # local_max is a mask that contains the peaks we are
-    # looking for, but also the background.
-    # In order to isolate the peaks we must remove the background from the mask.
-
-    # we create the mask of the background
-    background = (image == 0)
-
-    # a little technicality: we must erode the background in order to
-    # successfully subtract it form local_max, otherwise a line will
-    # appear along the background border (artifact of the local maximum filter)
-    eroded_background = binary_erosion(background, structure=neighborhood, border_value=1)
-
-    # we obtain the final mask, containing only peaks,
-    # by removing the background from the local_max mask (xor operation)
-    detected_peaks = local_max ^ eroded_background
-
-    idxs = np.where(detected_peaks)
-
-    for n in range(len(idxs[0])):
-        yield idxs[0][n], idxs[1][n]
-
-
 class Interpolate(object):
 
     @classmethod
@@ -88,20 +53,20 @@ class Interpolate2D(Interpolate):
             raise NotImplementedError()
 
     def __call__(self, x, y, **kwargs):
-        return self._fun(x, y, grid=False, **kwargs)
+        return self._fun(x, y, **kwargs)
 
     @property
     def mesh_coordinates(self):
         return np.meshgrid(self.dim_x, self.dim_y)
 
     def derivate(self, x, y, * args, dx=1, dy=1, **kwargs):
-        return self._fun(x, y, * args, dx=dx, dy=dy, grid=False, **kwargs)
+        return self._fun(x, y, * args, dx=dx, dy=dy, **kwargs)
 
     def dx(self, x, y, dx=1,  **kwargs):
-        return self._fun(x, y,   dx=dx, grid=False, **kwargs)
+        return self._fun(x, y,   dx=dx, **kwargs)
 
     def dy(self, x, y, dy=1, **kwargs):
-        return self._fun(x, y,   dy=dy, grid=False, **kwargs)
+        return self._fun(x, y,   dy=dy, **kwargs)
 
     def _find_critical(self, *args, **kwargs):
         pass
@@ -187,7 +152,7 @@ def find_root2d(fun,   line=None, box=None):
         def fprime(r, x0=p0, x1=p1, fun=fun):
             x = (1.0-r)*x0[0]+r*x1[0]
             y = (1.0-r)*x0[1]+r*x1[1]
-            df = fun(x, y, dx=1, grid=False)*(x1[0]-x0[0])+fun(x, y, dy=1, grid=False)*(x1[1]-x0[1])
+            df = fun(x, y, dx=1)*(x1[0]-x0[0])+fun(x, y, dy=1)*(x1[1]-x0[1])
             return df
 
         sol = find_root1d(f, x0=0.01,
@@ -209,13 +174,46 @@ def find_root(fun,   *args, **kwargs):
         raise NotImplementedError()
 
 
-def find_critical(fun2d, *args, **kwargs):
-    if not isinstance(fun2d, Interpolate2D):
-        raise NotImplementedError()
-    X, Y = fun2d.mesh_coordinates
+def find_peaks_2d_image(image):
+    """
+    Takes an image and detect the peaks usingthe local maximum filter.
+    Returns a boolean mask of the peaks (i.e. 1 when
+    the pixel's value is the neighborhood maximum, 0 otherwise)
+    """
+
+    # define an 8-connected neighborhood
+    neighborhood = generate_binary_structure(2, 2)
+
+    # apply the local maximum filter; all pixel of maximal value
+    # in their neighborhood are set to 1
+    local_max = maximum_filter(image, footprint=neighborhood) == image
+    # local_max is a mask that contains the peaks we are
+    # looking for, but also the background.
+    # In order to isolate the peaks we must remove the background from the mask.
+
+    # we create the mask of the background
+    background = (image == 0)
+
+    # a little technicality: we must erode the background in order to
+    # successfully subtract it form local_max, otherwise a line will
+    # appear along the background border (artifact of the local maximum filter)
+    eroded_background = binary_erosion(background, structure=neighborhood, border_value=1)
+
+    # we obtain the final mask, containing only peaks,
+    # by removing the background from the local_max mask (xor operation)
+    detected_peaks = local_max ^ eroded_background
+
+    idxs = np.where(detected_peaks)
+
+    for n in range(len(idxs[0])):
+        yield idxs[0][n], idxs[1][n]
+
+
+def find_critical(fun2d, X, Y, * args, **kwargs):
 
     fxy2 = fun2d(X, Y, dx=1)**2+fun2d(X, Y, dy=1)**2
-    span = 3
+
+    span = 1
     for ix, iy in find_peaks_2d_image(-fxy2[span:-span, span:-span]):
         ix += span
         iy += span
@@ -223,28 +221,29 @@ def find_critical(fun2d, *args, **kwargs):
         y = float(Y[ix, iy])
 
         if abs(fxy2[ix+span, iy+span]) > 1.0e-5:  # FIXME: replace magnetic number
-            xmin = X[ix, iy-1]
-            xmax = X[ix, iy+1]
-            ymin = Y[ix-1, iy]
-            ymax = Y[ix+1, iy]
+            xmin = X[ix-1, iy]
+            xmax = X[ix+1, iy]
+            ymin = Y[ix, iy-1]
+            ymax = Y[ix, iy+1]
 
-            def f(r, fun):
+            def f(r):
                 if r[0] < xmin or r[0] > xmax or r[1] < ymin or r[1] > ymax:
-                    raise RuntimeError("out of range")
-                fx = fun(r[0], r[1], dx=1)
-                fy = fun(r[0], r[1], dy=1)
+                    raise LookupError(r)
+                fx = fun2d(r[0], r[1], dx=1)
+                fy = fun2d(r[0], r[1], dy=1)
+
                 return fx, fy
 
-            def fprime(r, fun):
-                fxx = fun(r[0], r[1], dx=2)
-                fyy = fun(r[0], r[1], dy=2)
-                fxy = fun(r[0], r[1], dy=1, dx=1)
+            def fprime(r):
+                fxx = fun2d(r[0], r[1], dx=2)
+                fyy = fun2d(r[0], r[1], dy=2)
+                fxy = fun2d(r[0], r[1], dy=1, dx=1)
 
                 return [[fxx, fxy], [fxy, fyy]]  # FIXME: not sure, need double check
 
             try:
-                x1, y1 = fsolve(f, [x, y], args=fun2d, fprime=fprime)
-            except RuntimeError:
+                x1, y1 = fsolve(f, [x, y],   fprime=fprime)
+            except LookupError:
                 continue
             else:
                 x = x1
