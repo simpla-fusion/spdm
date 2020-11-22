@@ -14,10 +14,11 @@ _last_ = -1
 
 
 class AttributeTree:
-    def __init__(self, data=None, *args,  default_factory=None, **kwargs):
+    def __init__(self, data=None, *args,  default_factory=None, default_factory_array=None, **kwargs):
         super().__init__()
         self.__dict__['__data__'] = NotImplemented
         self.__dict__['__default_factory__'] = default_factory or AttributeTree
+        self.__dict__['__default_factory_array__'] = default_factory_array or self.__default_factory__
 
         self.__update__(data)
         self.__update__(kwargs)
@@ -76,7 +77,7 @@ class AttributeTree:
                 res = res.__get__(self)
 
         elif key is _next_:
-            _, res = self.__push_back__()
+            res = self.__push_back__()
         elif type(key) in (int, slice, tuple):
             res = self.__as_array__()[key]
         #    try: except TypeError as error:
@@ -158,9 +159,8 @@ class AttributeTree:
         return self.__data__
 
     def __push_back__(self, value=None):
-        self.__as_array__().append(value or self.__default_factory__())
-        idx = len(self.__data__)-1
-        return idx, self.__data__[idx]
+        self.__as_array__().append(value or self.__default_factory_array__())
+        return self.__data__[-1]
 
     def __pop_back__(self):
         if not isinstance(self.__data__, list):
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     # pprint.pprint(a.b.f)
     a.foo()
 
-    _, d = a.b.f.__push_back__()
+    d = a.b.f.__push_back__()
     d.text = "hellow world"
     a.b.f.__push_back__(5)
 

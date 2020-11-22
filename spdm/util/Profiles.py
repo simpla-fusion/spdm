@@ -85,7 +85,7 @@ if __name__ == "__main__":
     a.b = {}
     a.b.c = 5
 
-    # _, d = a.b.f.__push_back__()
+    # d = a.b.f.__push_back__()
     # d.text = "hellow world"
     pprint.pprint(a)
     pprint.pprint(a.b.d.shape)
