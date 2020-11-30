@@ -1,99 +1,213 @@
 
 import collections
-from copy import copy
-import inspect
+import copy
+import numbers
+from functools import cached_property, lru_cache
 
 import numpy as np
-import pprint
-from .AttributeTree import AttributeTree
-from .Interpolate import Interpolate1D, Interpolate2D, InterpolateND
-# from .logger import logger
+import scipy
+from scipy import constants
+from scipy.interpolate import RectBivariateSpline, UnivariateSpline
+from spdm.util.AttributeTree import AttributeTree, _last_, _next_
+from spdm.util.LazyProxy import LazyProxy
+from spdm.util.logger import logger
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Profiles(AttributeTree):
-    """ Collection of '''profile'''s with common '''dimension'''.
-
-        dims likes [0,1,2,3,4,5]    or [  [0,1,2,3,4,5]  ]
+    """ Collection of profiles with same x-axis
     """
-    @staticmethod
-    def create_dims(d):
-        if isinstance(d, list):
-            dims = [Profiles.create_dims(dim) for dim in d]
-            shape = [len(v) for v in dims]
-            return shape, dims
-        elif isinstance(d, int):
-            return [d], np.linspace(0, 1, d)
-        elif isinstance(d, tuple):
-            x0, x1, num = d
-            return [num], np.linspace(x0, x1, num)
-        elif isinstance(d, np.ndarray):
-            return d.shape, d
+
+    def __init__(self, cache, *args, x_axis=129, default_npoints=129, parent=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if isinstance(cache, LazyProxy) or isinstance(cache, AttributeTree):
+            pass
         else:
-            raise TypeError(f"Illegal dimension type! {type(d)}")
+            cache = AttributeTree(cache)
 
-    def __init__(self,  dims=None, *args, interpolator=None, ** kwargs):
-        if dims is None:
-            dims = 129
-        self.__shape__, self.__dimensions__ = Profiles.create_dims(dims)
+        self.__dict__["_cache"] = cache
 
-        if len(self.__shape__) == 1:
-            self.__mgrid__ = [self.__dimensions__]
-            self.__interpolator__ = interpolator or Interpolate1D
-        elif len(self.__dime__shape__nsions__) == 2:
-            self.__mgrid__ = np.meshgrid(self.__dimensions__[0], self.__dimensions__[1], indexing='ij')
-            self.__interpolator__ = interpolator or Interpolate2D
+        if isinstance(x_axis, str):
+            x_axis = self.cache(x_axis)
+
+        if type(x_axis) is int:
+            x_axis = np.linspace(0.0, 1.0, x_axis)
+
+        if isinstance(x_axis, np.ndarray) and len(x_axis) > 0:
+            pass
         else:
-            raise NotImplementedError()
+            x_axis = np.linspace(0.0, 1.0, default_npoints)
 
-        super().__init__(*args, default_factory=lambda _s=self.__shape__: np.zeros(shape=_s), ** kwargs)
+        self.__dict__["_x_axis"] = x_axis
 
-    def copy(self):
-        return Profiles(self.__dimensions__, interpolator=self.__interpolator__)
+    def __missing__(self, key):
+        d = self._cache[key]
+        if isinstance(d, LazyProxy):
+            d = d()
 
-    @property
-    def dimensions(self):
-        return self.__dimensions__
+        if isinstance(d, np.ndarray):
+            pass
+        elif callable(d):
+            d = d(self._x_axis)
+        elif isinstance(d, numbers.Number):
+            d = np.full(self._x_axis.shape, float(d))
+        elif d is (NotImplemented, None, [], {}):
+            d = np.full(self._x_axis.shape, np.nan)
 
-    @property
-    def grid(self):
-        return self.__mgrid__
+        return d
 
-    def __getitem__(self, key):
-        if self.__class__ is not Profiles:
-            obj = getattr(self.__class__, key, None)
+    @lru_cache
+    def cache(self, key):
+        res = self._cache[key.split(".")]
+        if isinstance(res, LazyProxy):
+            res = res()
+        return res
 
-        if isinstance(obj, property):
-            return getattr(obj, "fget")(self)
-        elif inspect.isfunction(obj):
-            return lambda *args, _self=self, _fun=obj, **kwargs, : _fun(_self, *args, **kwargs)
+    @lru_cache
+    def _interpolate_item(self, key):
+        y = self.__getitem__(key)
+        if not isinstance(y, np.ndarray) and y in (None, [], {}):
+            raise LookupError(key)
+        return self.interpolate(y)
+
+    def interpolate(self, func, **kwargs):
+        if isinstance(func, str):
+            return self._interpolate_item(func)
+        elif isinstance(func, collections.abc.Sequence):
+            return {k: self.interpolate(k, **kwargs) for k in func}
+        elif isinstance(func, np.ndarray) and func.shape[0] == self._x_axis.shape[0]:
+            return UnivariateSpline(self._x_axis, func, **kwargs)
+        elif callable(func):
+            return func
         else:
-            obj = super().__getitem__(key)
-            return self.__interpolator__(*self.grid, obj)
+            raise ValueError(f"Cannot create interploate! {func}")
 
-    def __setitem__(self, key, value):
-        if value is None:
-            value = np.zeros(shape=self.dimensions.shape)
+    def integral(self, func, start=None, stop=None):
+        func = self.interpolate(func)
+        if start is None:
+            start = self._x_axis[0]
+        if stop is None:
+            stop = self._x_axis[-1]
 
-        if isinstance(value, collections.abc.Mapping):
-            self.__data__.setdefault(key, self.copy()).__update__(value)
+        if not isinstance(start, np.ndarray) and not isinstance(stop, np.ndarray):
+            return func.integral(start, stop)
+        elif (isinstance(start, np.ndarray) or isinstance(start, collections.abc.Sequence)):
+            return np.array([func.integral(x, stop) for x in start])
+        elif (isinstance(stop, np.ndarray) or isinstance(stop, collections.abc.Sequence)):
+            return np.array([func.integral(start, x) for x in stop])
         else:
-            super().__setitem__(key, value)
+            raise TypeError(f"{type(start)},{type(stop)}")
 
+    @lru_cache
+    def _derivative(self, key):
+        return self._interpolate_item(key).derivative()(self._x_axis)
 
-if __name__ == "__main__":
-    a = Profiles(np.linspace(0, 1, 10))
-    a.b = {}
-    a.b.c = 5
+    def derivative(self, func,   **kwargs):
+        if isinstance(func, str):
+            return self._derivative(func)
+        elif isinstance(func, collections.abc.Sequence):
+            return {k: self.derivative(k, **kwargs) for k in func}
+        else:
+            return self.interpolate(func).derivative(**kwargs)(self._x_axis)
 
-    # d = a.b.f.__push_back__()
-    # d.text = "hellow world"
-    pprint.pprint(a)
-    pprint.pprint(a.b.d.shape)
-    pprint.pprint(a.dimensions)
+    @lru_cache
+    def mapping(self, x_axis, key):
+        if isinstance(x_axis, str):
+            x_axis = self.__getitem__(x_axis)
+        y = self.__getitem__(key)
+        if not isinstance(y, np.ndarray):
+            raise LookupError(f"{key}")
 
-    # pprint.pprint(a.b.c.dimensions)
-    # a.dimensions.fill(0)
-    # pprint.pprint(a.dimensions)
+        return UnivariateSpline(x_axis, y)
 
-    # pprint.pprint(a.b.c.dimensions)
-    # pprint.pprint(a.b.e.__dimensions__)
+    def _fetch_profile(self, desc, prefix=[]):
+        if isinstance(desc, str):
+            path = desc
+            opts = {"label": desc}
+        elif isinstance(desc, collections.abc.Mapping):
+            path = desc.get("name", None)
+            opts = desc.get("opts", {})
+        elif isinstance(desc, tuple):
+            path, opts = desc
+        elif isinstance(desc, AttributeTree):
+            path = desc.data
+            opts = desc.opts
+        else:
+            raise TypeError(f"Illegal profile type! {desc}")
+
+        if isinstance(opts, str):
+            opts = {"label": opts}
+
+        if prefix is None:
+            prefix = []
+        elif isinstance(prefix, str):
+            prefix = prefix.split(".")
+
+        if isinstance(path, str):
+            path = path.split(".")
+
+        path = prefix+path
+
+        if isinstance(path, np.ndarray):
+            data = path
+        else:
+            data = self[path]
+
+        # else:
+        #     raise TypeError(f"Illegal data type! {prefix} {type(data)}")
+
+        return data, opts
+
+    def plot(self, profiles, axis=None, x_axis=None, prefix=None):
+        if isinstance(profiles, str):
+            profiles = profiles.split(",")
+        elif not isinstance(profiles, collections.abc.Sequence):
+            profiles = [profiles]
+
+        if prefix is None:
+            prefix = []
+        elif isinstance(prefix, str):
+            prefix = prefix.split(".")
+        elif not isinstance(prefix, collections.abc.Sequence):
+            prefix = [prefix]
+
+        x_axis, x_axis_opts = self._fetch_profile(x_axis, prefix=prefix)
+
+        fig = None
+        if isinstance(axis, collections.abc.Sequence):
+            pass
+        elif axis is None:
+            fig, axis = plt.subplots(ncols=1, nrows=len(profiles), sharex=True)
+        elif len(profiles) == 1:
+            axis = [axis]
+        else:
+            raise RuntimeError(f"Too much profiles!")
+
+        for idx, data in enumerate(profiles):
+            ylabel = None
+            opts = {}
+            if isinstance(data, tuple):
+                data, ylabel = data
+
+            if not isinstance(data, list):
+                data = [data]
+
+            for d in data:
+                value, opts = self._fetch_profile(d,  prefix=prefix)
+
+                if value is not NotImplemented and value is not None and len(value) > 0:
+                    axis[idx].plot(x_axis, value, **opts)
+                else:
+                    logger.error(f"Can not find profile '{d}'")
+
+            axis[idx].legend(fontsize=6)
+
+            if ylabel:
+                axis[idx].set_ylabel(ylabel, fontsize=6).set_rotation(0)
+            axis[idx].labelsize = "media"
+            axis[idx].tick_params(labelsize=6)
+
+        axis[-1].set_xlabel(x_axis_opts.get("label", ""),  fontsize=6)
+
+        return axis, fig

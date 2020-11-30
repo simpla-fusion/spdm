@@ -16,21 +16,21 @@ _last_ = -1
 class AttributeTree:
     def __init__(self, data=None, *args,  default_factory=None, default_factory_array=None, **kwargs):
         super().__init__()
-        self.__dict__['__data__'] = NotImplemented
-        self.__dict__['__default_factory__'] = default_factory or AttributeTree
+        self.__dict__['__data__'] = None
+        self.__dict__['__default_factory__'] = default_factory or (lambda key: AttributeTree())
         self.__dict__['__default_factory_array__'] = default_factory_array or self.__default_factory__
 
         self.__update__(data)
         self.__update__(kwargs)
 
     def __missing__(self, key):
-        return self.__as_object__().setdefault(key, self.__default_factory__())
+        return self.__as_object__().setdefault(key, self.__default_factory__(key))
 
     def __repr__(self):
         # if isinstance(self.__data__, collections.abc.Mapping):
         #     return pprint.pformat(self.__data__)
 
-        if self.__data__ is NotImplemented:
+        if self.__data__ is None:
             return "<N/A>"
         else:
             return pprint.pformat(self.__data__)
@@ -62,15 +62,15 @@ class AttributeTree:
             del self.__data__[key]
 
     def __getitem__(self, key):
-        res = NotImplemented
+        res = None
         if isinstance(key, list):
             res = self
             for k in key:
                 res = res.__getitem__(k)
         elif isinstance(key, str):
-            res = getattr(self.__class__, key, NotImplemented)
-            if res is NotImplemented:
-                res = self.__as_object__().get(key, NotImplemented)
+            res = getattr(self.__class__, key, None)
+            if res is None:
+                res = self.__as_object__().get(key, None)
             elif isinstance(res, property):
                 res = getattr(res, "fget")(self)
             elif isinstance(res, functools.cached_property):
@@ -84,7 +84,7 @@ class AttributeTree:
 
         #     raise KeyError(f"Can not find key '{key}'! error:{error}")
 
-        return res if res is not NotImplemented else self.__missing__(key)
+        return res if res is not None else self.__missing__(key)
 
     def __setitem__(self, key, value):
         if key is _next_:
@@ -109,7 +109,7 @@ class AttributeTree:
                 pass
 
     def __contain__(self, key):
-        if self.__data__ is NotImplemented:
+        if self.__data__ is None:
             return False
         elif isinstance(key, str):
             return key in self.__data__
@@ -119,13 +119,13 @@ class AttributeTree:
             raise KeyError(key)
 
     def __len__(self):
-        if self.__data__ is NotImplemented:
+        if self.__data__ is None:
             return 0
         else:
             return len(self.__data__)
 
     def __iter__(self):
-        if self.__data__ is NotImplemented:
+        if self.__data__ is None:
             return
         elif isinstance(self.__data__,  Mapping):
             for k, v in self.__data__.items():
@@ -142,7 +142,7 @@ class AttributeTree:
     def __as_object__(self):
         if isinstance(self.__data__, collections.abc.Mapping):
             pass
-        elif self.__data__ is NotImplemented:
+        elif self.__data__ is None:
             self.__data__ = dict()
         else:
             raise TypeError(f"Can not create 'object': node is not empty! {type(self.__data__)}")
@@ -151,7 +151,7 @@ class AttributeTree:
     def __as_array__(self):
         if isinstance(self.__data__, list):
             pass
-        elif self.__data__ is NotImplemented or len(self.__data__) == 0:
+        elif self.__data__ is None or len(self.__data__) == 0:
             self.__data__ = list()
         else:
             raise TypeError(f"Can not create 'list': node is not empty! ")
@@ -168,7 +168,7 @@ class AttributeTree:
         self.__data__.pop()
 
     def __update__(self, other):
-        if other is None or other is NotImplemented:
+        if other is None :
             return
         elif isinstance(other, AttributeTree):
             other = other.__data__
@@ -181,12 +181,12 @@ class AttributeTree:
                     obj[k].__update__(v)
                 elif v is None:
                     pass
-                elif isinstance(v, AttributeTree) and v.__data__ is NotImplemented:
+                elif isinstance(v, AttributeTree) and v.__data__ is None:
                     pass
                 else:
                     obj[k] = v
         elif isinstance(other, collections.abc.Sequence):
-            if len(other) == 0 and self.__data__ is not NotImplemented:
+            if len(other) == 0 and self.__data__ is not None:
                 return
             obj = self.__as_array__()
             for v in other:
@@ -201,14 +201,14 @@ class AttributeTree:
 
     def __or__(self, other):
         if not isinstance(other, self.__class__):
-            return NotImplemented
+            return None
         new = self.__class__(self)
         new.__update__(other)
         return new
 
     def __ror__(self, other):
         if not isinstance(other, dict):
-            return NotImplemented
+            return None
         new = self.__class__(self)
         new.__update__(self)
         return new
@@ -218,7 +218,7 @@ class AttributeTree:
         return self
 
     def __bool__(self):
-        return self.__data__ is not NotImplemented and len(self.__data__) > 0
+        return self.__data__ is not None and len(self.__data__) > 0
 
 
 class Foo(AttributeTree):
