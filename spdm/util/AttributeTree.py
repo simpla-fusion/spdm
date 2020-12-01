@@ -18,7 +18,10 @@ class AttributeTree:
         super().__init__()
         self.__dict__['__data__'] = None
         self.__dict__['__default_factory__'] = default_factory or (lambda key: AttributeTree())
-        self.__dict__['__default_factory_array__'] = default_factory_array or self.__default_factory__
+        if callable(default_factory_array):
+            self.__dict__['__default_factory_array__'] = default_factory_array
+        else:
+            self.__dict__['__default_factory_array__'] = AttributeTree
 
         self.__update__(data)
         self.__update__(kwargs)
@@ -79,16 +82,16 @@ class AttributeTree:
         elif key is _next_:
             res = self.__push_back__()
         elif type(key) in (int, slice, tuple):
-            res = self.__as_array__()[key]
-        #    try: except TypeError as error:
-
-        #     raise KeyError(f"Can not find key '{key}'! error:{error}")
+            try:
+                res = self.__as_array__()[key]
+            except Exception as error:
+                raise KeyError(f"Can not insert key '{key}'! error:{error} {self.__data__}")
 
         return res if res is not None else self.__missing__(key)
 
     def __setitem__(self, key, value):
         if key is _next_:
-            self.__push_back__(value)
+            self.__push_back__().__update__(value)
         elif isinstance(value, Mapping):
             self.__delitem__(key)
             self.__getitem__(key).__update__(value)
@@ -168,11 +171,12 @@ class AttributeTree:
         self.__data__.pop()
 
     def __update__(self, other):
-        if other is None :
+        if other is None:
             return
         elif isinstance(other, AttributeTree):
             other = other.__data__
-        elif isinstance(other, collections.abc.Mapping):
+        
+        if isinstance(other, collections.abc.Mapping):
             if len(other) == 0 and isinstance(self.__data__, list):
                 return
             obj = self.__as_object__()

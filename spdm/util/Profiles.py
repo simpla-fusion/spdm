@@ -53,9 +53,20 @@ class Profiles(AttributeTree):
         elif isinstance(d, numbers.Number):
             d = np.full(self._x_axis.shape, float(d))
         elif d is (NotImplemented, None, [], {}):
-            d = np.full(self._x_axis.shape, np.nan)
+            d = np.zeros(self._x_axis.shape)
 
         return d
+
+    def __setitem__(self, key, value):
+        if isinstance(value, np.ndarray) and value.shape == self._x_axis.shape:
+            pass
+        elif callable(value):
+            value = np.array([value(x) for x in self._x_axis])
+        elif type(value) in (int, float):
+            value = np.full(self._x_axis.shape, value)
+        else:
+            raise TypeError(f"{type(value)}")
+        super().__setitem__(key, value)
 
     @lru_cache
     def cache(self, key):
@@ -74,10 +85,10 @@ class Profiles(AttributeTree):
     def interpolate(self, func, **kwargs):
         if isinstance(func, str):
             return self._interpolate_item(func)
-        elif isinstance(func, collections.abc.Sequence):
-            return {k: self.interpolate(k, **kwargs) for k in func}
         elif isinstance(func, np.ndarray) and func.shape[0] == self._x_axis.shape[0]:
             return UnivariateSpline(self._x_axis, func, **kwargs)
+        elif isinstance(func, collections.abc.Sequence):
+            return {k: self.interpolate(k, **kwargs) for k in func}
         elif callable(func):
             return func
         else:
@@ -117,7 +128,7 @@ class Profiles(AttributeTree):
             x_axis = self.__getitem__(x_axis)
         y = self.__getitem__(key)
         if not isinstance(y, np.ndarray):
-            raise LookupError(f"{key}")
+            raise LookupError(f"'{key}'")
 
         return UnivariateSpline(x_axis, y)
 
