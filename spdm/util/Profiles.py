@@ -15,58 +15,157 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def make_x_axis(x_axis=None, default_npoints=129):
+    if not isinstance(x_axis, np.ndarray) and not x_axis:
+        x_axis = default_npoints
+
+    if isinstance(x_axis, int):
+        res = np.linspace(0.0, 1.0, x_axis)
+    elif isinstance(x_axis, np.ndarray):
+        res = x_axis
+    elif isinstance(x_axis, collections.abc.Sequence):
+        res = np.array(x_axis)
+    else:
+        raise TypeError(f"Illegal x_axis type! Need 'int' or 'ndarray', not {type(x_axis)}.")
+
+    return res
+
+
+class Profile(np.ndarray):
+    @staticmethod
+    def __new__(cls,   x_axis=None, value=None, *args,   **kwargs):
+        if cls is not Profile:
+            return super(Profile, cls).__new__(cls)
+        if isinstance(x_axis, np.ndarray):
+            shape = x_axis.shape
+        else:
+            shape = [x_axis]
+
+        return super(Profile, cls).__new__(cls, shape)
+
+    def __init__(self, x_axis=None, value=None, *args, unit=None, description=None, **kwargs):
+        super().__init__()
+        self._x_axis = make_x_axis(x_axis)
+        self._description = description
+        self._unit = unit
+
+        if value is not None:
+            self.assign(value)
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def x_axis(self):
+        return self._x_axis
+
+    def assign(self, other):
+        if isinstance(other, Profile) and hasattr(other, "_x_axis"):
+            self._x_axis = other._x_axis
+            self.resize(self._x_axis.size, refcheck=False)
+            self.reshape(self._x_axis.shape)
+            self[:] = other[:]
+        elif isinstance(other, np.ndarray):
+            if self.shape != self._x_axis.shape:
+                self.resize(self._x_axis.size, refcheck=False)
+                self.reshape(self._x_axis.shape)
+            self[:] = other
+        elif isinstance(other, (int, float)):
+            self.fill(other)
+        elif callable(other):
+            try:
+                v = other(self._x_axis)
+            except Exception:
+                v = np.array([other(x) for x in self._x_axis])
+            finally:
+                self[:] = v
+        elif not other:
+            self.fill(0)
+        else:
+            raise ValueError(f"Illegal profiles! {type(other)}")
+
+    def interpolate(self):
+        return UnivariateSpline(self._x_axis, self)
+
+    def __call__(self, *args, **kwargs):
+        return self.interpolate()(*args, **kwargs)
+
+    @property
+    def derivative(self):
+        return Profile(self._x_axis, self.interpolate().derivative()(self._x_axis))
+
+    def integral(self,   start=None, stop=None):
+        func = self.interpolate()
+        if start is None:
+            start = self._x_axis[0]
+        if stop is None:
+            stop = self._x_axis[-1]
+
+        if not isinstance(start, np.ndarray) and not isinstance(stop, np.ndarray):
+            return func.integral(start, stop)
+        elif (isinstance(start, np.ndarray) or isinstance(start, collections.abc.Sequence)):
+            return np.array([func.integral(x, stop) for x in start])
+        elif (isinstance(stop, np.ndarray) or isinstance(stop, collections.abc.Sequence)):
+            return np.array([func.integral(start, x) for x in stop])
+        else:
+            raise TypeError(f"{type(start)},{type(stop)}")
+
+    def __iadd__(self, other):
+        if isinstance(other, Profile) and self.shape != other.shape:
+            super().__iadd__(other.interpolate()(self._x_axis))
+        else:
+            super().__iadd__(other)
+        return self
+
+
 class Profiles(AttributeTree):
     """ Collection of profiles with same x-axis
     """
 
-    def __init__(self, cache, *args, x_axis=129, default_npoints=129, parent=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, cache=None, *args,  x_axis=None,  parent=None, **kwargs):
+        super().__init__(**kwargs)
         if isinstance(cache, LazyProxy) or isinstance(cache, AttributeTree):
-            pass
+            self.__dict__["_cache"] = cache
         else:
-            cache = AttributeTree(cache)
-
-        self.__dict__["_cache"] = cache
+            self.__dict__["_cache"] = AttributeTree(cache)
 
         if isinstance(x_axis, str):
-            x_axis = self.cache(x_axis)
+            x_axis = self._cache[x_axis]
 
-        if type(x_axis) is int:
-            x_axis = np.linspace(0.0, 1.0, x_axis)
+        self.__dict__["_x_axis"] = make_x_axis(x_axis)
 
-        if isinstance(x_axis, np.ndarray) and len(x_axis) > 0:
-            pass
+    def _create(self, d=None, name=None):
+        if isinstance(d, Profile):
+            return d
         else:
-            x_axis = np.linspace(0.0, 1.0, default_npoints)
-
-        self.__dict__["_x_axis"] = x_axis
+            return Profile(self._x_axis, d, description={"name": name})
 
     def __missing__(self, key):
         d = self._cache[key]
         if isinstance(d, LazyProxy):
             d = d()
-
-        if isinstance(d, np.ndarray):
-            pass
-        elif callable(d):
-            d = d(self._x_axis)
-        elif isinstance(d, numbers.Number):
-            d = np.full(self._x_axis.shape, float(d))
-        elif d is (NotImplemented, None, [], {}):
-            d = np.zeros(self._x_axis.shape)
-
-        return d
+        if d in (None, [], {}, NotImplemented) or len(d) == 0:
+            return None
+        else:
+            return self.__as_object__().setdefault(key, self._create(d, name=key))
 
     def __setitem__(self, key, value):
-        if isinstance(value, np.ndarray) and value.shape == self._x_axis.shape:
-            pass
-        elif callable(value):
-            value = np.array([value(x) for x in self._x_axis])
-        elif type(value) in (int, float):
-            value = np.full(self._x_axis.shape, value)
+        v = self.__getitem__(key)
+        if isinstance(v, Profile):
+            v.assign(value)
+        elif v is None and isinstance(value, Profile):
+            self.__as_object__()[key] = value
+        elif v is None:
+            self.__as_object__()[key] = self._create(value, name=key)
+        elif isinstance(v, np.ndarray):
+            v[:] = value
         else:
-            raise TypeError(f"{type(value)}")
-        super().__setitem__(key, value)
+            raise KeyError(f"Can not assign value to {key}: {type(v)}!")
 
     @lru_cache
     def cache(self, key):
@@ -112,25 +211,43 @@ class Profiles(AttributeTree):
 
     @lru_cache
     def _derivative(self, key):
-        return self._interpolate_item(key).derivative()(self._x_axis)
+        return self._interpolate_item(key).derivative()
 
-    def derivative(self, func,   **kwargs):
-        if isinstance(func, str):
+    def derivative_func(self, func, x_axis=None,  **kwargs):
+        if isinstance(func, str) and x_axis is None:
             return self._derivative(func)
-        elif isinstance(func, collections.abc.Sequence):
-            return {k: self.derivative(k, **kwargs) for k in func}
-        else:
-            return self.interpolate(func).derivative(**kwargs)(self._x_axis)
 
-    @lru_cache
-    def mapping(self, x_axis, key):
+        elif x_axis is None:
+            return self.interpolate(func).derivative(**kwargs)
+        else:
+            return self.mapping(x_axis, func).derivative(**kwargs)
+
+    def derivative(self, *args, **kwargs):
+        return self.derivative_func(*args, **kwargs)(self._x_axis)
+
+    def dln(self, *args, **kwargs):
+        r"""
+            .. math:: d\ln f=\frac{df}{f}
+
+        """
+        return self.derivative/self
+
+    def mapping(self, x_axis, y, new_x_axis=None):
         if isinstance(x_axis, str):
             x_axis = self.__getitem__(x_axis)
-        y = self.__getitem__(key)
-        if not isinstance(y, np.ndarray):
-            raise LookupError(f"'{key}'")
 
-        return UnivariateSpline(x_axis, y)
+        if isinstance(y, str):
+            y = self.__getitem__(y)
+
+        if not isinstance(y, np.ndarray):
+            return None
+        elif y.shape != x_axis.shape:
+            raise RuntimeError(f"x,y length is not same! { x_axis.shape }!={y.shape} ")
+
+        res = Profile(x_axis, y)
+        if new_x_axis is not None:
+            res = Profile(new_x_axis, res(new_x_axis))
+        return res
 
     def _fetch_profile(self, desc, prefix=[]):
         if isinstance(desc, str):

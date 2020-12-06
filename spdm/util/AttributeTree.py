@@ -68,8 +68,19 @@ class AttributeTree:
         res = None
         if isinstance(key, list):
             res = self
+
             for k in key:
-                res = res.__getitem__(k)
+                v = getattr(res, k, None)
+                if v is None:
+                    try:
+                        v = res.__getitem__(k)
+                    except Exception as error:
+                        raise error
+                    else:
+                        res = v
+                else:
+                    res = v
+
         elif isinstance(key, str):
             res = getattr(self.__class__, key, None)
             if res is None:
@@ -78,7 +89,6 @@ class AttributeTree:
                 res = getattr(res, "fget")(self)
             elif isinstance(res, functools.cached_property):
                 res = res.__get__(self)
-
         elif key is _next_:
             res = self.__push_back__()
         elif type(key) in (int, slice, tuple):
@@ -175,7 +185,7 @@ class AttributeTree:
             return
         elif isinstance(other, AttributeTree):
             other = other.__data__
-        
+
         if isinstance(other, collections.abc.Mapping):
             if len(other) == 0 and isinstance(self.__data__, list):
                 return
