@@ -66,15 +66,16 @@ class Profile(np.ndarray):
 
     def assign(self, other):
         if isinstance(other, Profile) and hasattr(other, "_x_axis"):
-            self._x_axis = other._x_axis
-            self.resize(self._x_axis.size, refcheck=False)
-            self.reshape(self._x_axis.shape)
-            self[:] = other[:]
+            # self._x_axis = other._x_axis
+            # self.resize(self._x_axis.size, refcheck=False)
+            # self.reshape(self._x_axis.shape)
+            np.copyto(self, other(self._x_axis))
+
         elif isinstance(other, np.ndarray):
             if self.shape != self._x_axis.shape:
                 self.resize(self._x_axis.size, refcheck=False)
                 self.reshape(self._x_axis.shape)
-            self[:] = other
+            np.copyto(self, other)
         elif isinstance(other, (int, float)):
             self.fill(other)
         elif callable(other):
@@ -83,24 +84,26 @@ class Profile(np.ndarray):
             except Exception:
                 v = np.array([other(x) for x in self._x_axis])
             finally:
-                self[:] = v
+                np.copyto(self, v)
+
         elif not other:
             self.fill(0)
         else:
             raise ValueError(f"Illegal profiles! {type(other)}")
 
-    def interpolate(self):
+    @property
+    def _interpolate_func(self):
         return UnivariateSpline(self._x_axis, self)
 
     def __call__(self, *args, **kwargs):
-        return self.interpolate()(*args, **kwargs)
+        return self._interpolate_func(*args, **kwargs)
 
     @property
     def derivative(self):
-        return Profile(self._x_axis, self.interpolate().derivative()(self._x_axis))
+        return Profile(self._x_axis, self._interpolate_func.derivative()(self._x_axis))
 
     def integral(self,   start=None, stop=None):
-        func = self.interpolate()
+        func = self._interpolate_func
         if start is None:
             start = self._x_axis[0]
         if stop is None:
@@ -115,12 +118,12 @@ class Profile(np.ndarray):
         else:
             raise TypeError(f"{type(start)},{type(stop)}")
 
-    def __iadd__(self, other):
-        if isinstance(other, Profile) and self.shape != other.shape:
-            super().__iadd__(other.interpolate()(self._x_axis))
-        else:
-            super().__iadd__(other)
-        return self
+    # def __iadd__(self, other):
+    #     if isinstance(other, Profile) and self.shape != other.shape:
+    #         super().__iadd__(other.interpolate()(self._x_axis))
+    #     else:
+    #         super().__iadd__(other)
+    #     return self
 
 
 class Profiles(AttributeTree):
@@ -155,15 +158,16 @@ class Profiles(AttributeTree):
             return self.__as_object__().setdefault(key, self._create(d, name=key))
 
     def __setitem__(self, key, value):
-        v = self.__getitem__(key)
-        if isinstance(v, Profile):
-            v.assign(value)
-        elif v is None and isinstance(value, Profile):
+        if isinstance(value, Profile) and hasattr(value, "_x_axis"):
             self.__as_object__()[key] = value
-        elif v is None:
+            return
+        v = self.__getitem__(key)
+        if v is None:
             self.__as_object__()[key] = self._create(value, name=key)
+        elif isinstance(v, Profile):
+            v.assign(value)
         elif isinstance(v, np.ndarray):
-            v[:] = value
+            v[:] = value[:]
         else:
             raise KeyError(f"Can not assign value to {key}: {type(v)}!")
 

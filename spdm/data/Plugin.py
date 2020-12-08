@@ -56,7 +56,10 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
             suffix = suffix[1:]
         plugin_name = associations.get(suffix, None)
 
-    plugin_name = plugin_name.split('+')[0]
+    if len(plugin_name) > 0:
+        plugin_name = plugin_name.split('+')[0]
+    else:
+        plugin_name = None
 
     if plugin_name is None:
         raise ValueError(f"illegal plugin description! [{desc}]")
