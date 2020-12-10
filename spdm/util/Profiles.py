@@ -3,7 +3,8 @@ import collections
 import copy
 import numbers
 from functools import cached_property, lru_cache
-
+import inspect
+import types
 import numpy as np
 import scipy
 from scipy import constants
@@ -32,25 +33,99 @@ def make_x_axis(x_axis=None, default_npoints=129):
 
 
 class Profile(np.ndarray):
-    @staticmethod
-    def __new__(cls,   x_axis=None, value=None, *args,   **kwargs):
+
+    def __new__(cls,  value=None,  x_axis=None,  *args,   **kwargs):
         if cls is not Profile:
             return super(Profile, cls).__new__(cls)
         if isinstance(x_axis, np.ndarray):
             shape = x_axis.shape
-        else:
+        elif isinstance(x_axis, int):
             shape = [x_axis]
+        elif isinstance(x_axis, collections.abc.Sequence):
+            shape = x_axis
+        elif isinstance(value, np.ndarray):
+            shape = value.shape
+        elif isinstance(value, collections.abc.Sequence):
+            shape = [len(value)]
+        else:
+            shape = [0]
 
-        return super(Profile, cls).__new__(cls, shape)
+        obj = super(Profile, cls).__new__(cls, shape)
+        obj._x_axis = make_x_axis(x_axis)
+        return obj
 
-    def __init__(self, x_axis=None, value=None, *args, unit=None, description=None, **kwargs):
-        super().__init__()
-        self._x_axis = make_x_axis(x_axis)
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self._x_axis = getattr(obj, '_x_axis', None)
+        self._description = {}
+        self._unit = None
+
+    def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
+        args = []
+        in_no = []
+        x_axis = None
+        for i, input_ in enumerate(inputs):
+            if isinstance(input_, Profile):
+                if x_axis is None:
+                    x_axis = getattr(input_, "_x_axis", None)
+                in_no.append(i)
+                args.append(input_.view(np.ndarray))
+            else:
+                args.append(input_)
+
+        outputs = out
+        out_no = []
+        if outputs:
+            out_args = []
+            for j, output in enumerate(outputs):
+                if isinstance(output, Profile):
+                    out_no.append(j)
+                    out_args.append(output.view(np.ndarray))
+                else:
+                    out_args.append(output)
+            kwargs['out'] = tuple(out_args)
+        else:
+            outputs = (None,) * ufunc.nout
+
+        info = {}
+        if in_no:
+            info['inputs'] = in_no
+        if out_no:
+            info['outputs'] = out_no
+
+        # results = super(Profile, self).__array_ufunc__(ufunc, method, *args, **kwargs)
+
+        results = getattr(ufunc, method)(*args, **kwargs)
+
+        if results is NotImplemented:
+            return NotImplemented
+
+        if method == 'at':
+            if isinstance(inputs[0], Profile):
+                inputs[0].info = info
+            return
+
+        if ufunc.nout == 1:
+            results = (results,)
+
+        results = tuple((np.asarray(result).view(Profile) if output is None else output)
+                        for result, output in zip(results, outputs))
+        if results and isinstance(results[0], Profile):
+            results[0]._x_axis = x_axis
+        return results[0] if len(results) == 1 else results
+
+    def __init__(self,  value=None, x_axis=None,  *args, unit=None, description=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._description = description
         self._unit = unit
+        self.assign(value)
 
-        if value is not None:
-            self.assign(value)
+    def __getitem__(self, idx):
+        res = super().__getitem__(idx)
+        if isinstance(res, Profile):
+            res._x_axis = self._x_axis[idx]
+        return res
 
     @property
     def description(self):
@@ -65,7 +140,7 @@ class Profile(np.ndarray):
         return self._x_axis
 
     def assign(self, other):
-        if isinstance(other, Profile) and hasattr(other, "_x_axis"):
+        if isinstance(other, Profile) and getattr(other, "_x_axis", None) is not self._x_axis:
             # self._x_axis = other._x_axis
             # self.resize(self._x_axis.size, refcheck=False)
             # self.reshape(self._x_axis.shape)
@@ -78,7 +153,7 @@ class Profile(np.ndarray):
             np.copyto(self, other)
         elif isinstance(other, (int, float)):
             self.fill(other)
-        elif callable(other):
+        elif callable(other) or isinstance(other, types.BuiltinFunctionType):
             try:
                 v = other(self._x_axis)
             except Exception:
@@ -100,7 +175,7 @@ class Profile(np.ndarray):
 
     @property
     def derivative(self):
-        return Profile(self._x_axis, self._interpolate_func.derivative()(self._x_axis))
+        return Profile(self._interpolate_func.derivative()(self._x_axis), x_axis=self._x_axis)
 
     def integral(self,   start=None, stop=None):
         func = self._interpolate_func
@@ -117,13 +192,6 @@ class Profile(np.ndarray):
             return np.array([func.integral(start, x) for x in stop])
         else:
             raise TypeError(f"{type(start)},{type(stop)}")
-
-    # def __iadd__(self, other):
-    #     if isinstance(other, Profile) and self.shape != other.shape:
-    #         super().__iadd__(other.interpolate()(self._x_axis))
-    #     else:
-    #         super().__iadd__(other)
-    #     return self
 
 
 class Profiles(AttributeTree):
@@ -143,10 +211,11 @@ class Profiles(AttributeTree):
         self.__dict__["_x_axis"] = make_x_axis(x_axis)
 
     def _create(self, d=None, name=None):
-        if isinstance(d, Profile):
-            return d
+        if isinstance(d, Profile) and not hasattr(d, "_x_axis"):
+            d._x_axis = self._x_axis
         else:
-            return Profile(self._x_axis, d, description={"name": name})
+            d = Profile(d, x_axis=self._x_axis, description={"name": name})
+        return d
 
     def __missing__(self, key):
         d = self._cache[key]
@@ -177,6 +246,15 @@ class Profiles(AttributeTree):
         if isinstance(res, LazyProxy):
             res = res()
         return res
+
+    def _as_profile(self, y, new_axis=None, **kwargs):
+        if not isinstance(y, Profile) or new_axis is not None:
+            y = Profile(y, x_axis=new_axis, **kwargs)
+
+        if not hasattr(y, "_x_axis"):
+            y._x_axis = self._x_axis
+
+        return y
 
     @lru_cache
     def _interpolate_item(self, key):
@@ -215,16 +293,16 @@ class Profiles(AttributeTree):
 
     @lru_cache
     def _derivative(self, key):
-        return self._interpolate_item(key).derivative()
+        return self._as_profile(self._interpolate_item(key).derivative())
 
     def derivative_func(self, func, x_axis=None,  **kwargs):
         if isinstance(func, str) and x_axis is None:
-            return self._derivative(func)
-
+            res = self._derivative(func)
         elif x_axis is None:
-            return self.interpolate(func).derivative(**kwargs)
+            res = self.interpolate(func).derivative(**kwargs)
         else:
-            return self.mapping(x_axis, func).derivative(**kwargs)
+            res = self.mapping(x_axis, func).derivative(**kwargs)
+        return self._as_profile(res)
 
     def derivative(self, *args, **kwargs):
         return self.derivative_func(*args, **kwargs)(self._x_axis)
@@ -232,11 +310,10 @@ class Profiles(AttributeTree):
     def dln(self, *args, **kwargs):
         r"""
             .. math:: d\ln f=\frac{df}{f}
-
         """
         return self.derivative/self
 
-    def mapping(self, x_axis, y, new_x_axis=None):
+    def mapping(self, x_axis, y, new_axis=None):
         if isinstance(x_axis, str):
             x_axis = self.__getitem__(x_axis)
 
@@ -248,10 +325,7 @@ class Profiles(AttributeTree):
         elif y.shape != x_axis.shape:
             raise RuntimeError(f"x,y length is not same! { x_axis.shape }!={y.shape} ")
 
-        res = Profile(x_axis, y)
-        if new_x_axis is not None:
-            res = Profile(new_x_axis, res(new_x_axis))
-        return res
+        return self._as_profile(y, new_axis)
 
     def _fetch_profile(self, desc, prefix=[]):
         if isinstance(desc, str):
