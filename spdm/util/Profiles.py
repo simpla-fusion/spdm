@@ -9,14 +9,13 @@ from functools import cached_property, lru_cache
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-import scipy.misc
+import scipy.constants
 import scipy.integrate
-
-from scipy import constants
+import scipy.misc
 from scipy.interpolate import RectBivariateSpline, UnivariateSpline, interp1d
-from spdm.util.logger import logger
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.LazyProxy import LazyProxy
+from spdm.util.logger import logger
 
 
 class Profile(np.ndarray):
@@ -62,7 +61,10 @@ class Profile(np.ndarray):
             del self.dln
 
     def iter_over(self, axis):
-        if axis is self._axis:
+        if self.is_constant:
+            for x in axis.flat:
+                yield self.item()
+        elif axis is self._axis:
             yield from self.flat
         elif isinstance(axis, np.ndarray):
             for x in axis.flat:
@@ -213,10 +215,11 @@ class Profile(np.ndarray):
 
 
 class ProfileExpression(Profile):
-    def __init__(self, ufunc, method, *args, func_args=None, func_kwargs=None, **kwargs):
+    def __init__(self, ufunc, method=None, *args, func_args=None, func_kwargs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._ufunc = ufunc
         self._method = method
+        self._op = getattr(ufunc, method) if method is not None else ufunc
         self._args = []
 
         for arg in (func_args or []):
@@ -249,16 +252,24 @@ class ProfileExpression(Profile):
         elif self.is_constant:
             return self.value
         else:
-            value_it = self.iter_over(x_axis)
             res = np.ndarray(x_axis.shape)
-            with np.nditer(res, op_flags=['readwrite']) as it:
-                for x in it:
-                    v = next(value_it)
-                    try:
-                        x[...] = v
-                    except Exception as error:
-                        logger.error(v)
-                        raise error
+
+            for idx, v in enumerate(self.iter_over(x_axis)):
+                if isinstance(v, Profile):
+                    logger.debug(v)
+                    v = v.value
+                try:
+                    res[idx] = v
+                except Exception as error:
+                    logger.debug(v)
+                    raise error
+            # with np.nditer(res, op_flags=['readwrite']) as it:
+            #     for x in it:
+            #         v = next(value_it)
+            #         try:
+            #             x[...] = v
+            #         except Exception as error:
+            #             raise error
 
             res = res.view(Profile)
             res._axis = x_axis
@@ -272,9 +283,15 @@ class ProfileExpression(Profile):
         return res
 
     def __getitem__(self, idx):
+
         return self.eval(self._axis[idx])
 
     def eval(self, x):
+        if isinstance(x, (np.ndarray, collections.abc.Sequence)):
+            pass
+        else:
+            x = [x]
+
         # args = [(arg(x) if callable(arg) else arg) for arg in self._args]
         args = []
         for arg in self._args:
@@ -286,7 +303,9 @@ class ProfileExpression(Profile):
                 logger.error(arg)
                 raise ValueError(self)
 
-        return getattr(self._ufunc, self._method)(*args, **self._kwargs)
+        [v for v in self.iter_over(x)]
+
+        return self._op(*args, **self._kwargs)
 
     def iter_over(self, axis):
         args_it = []
@@ -295,8 +314,28 @@ class ProfileExpression(Profile):
                 args_it.append((arg.iter_over(axis), True))
             else:
                 args_it.append((arg, False))
+
         for _ in np.nditer(axis):
-            yield getattr(self._ufunc, self._method)(* [(next(arg) if iterable else arg) for arg, iterable in args_it], **self._kwargs)
+            s_args = []
+            for arg, iterable in args_it:
+                if iterable:
+                    s_args.append(next(arg))
+                else:
+                    s_args.append(arg)
+
+            if self._method is not None:
+                res = getattr(self._ufunc, self._method)(*s_args, **self._kwargs)
+            else:
+                res = self._ufunc(self._axis)
+
+            if isinstance(res, ProfileExpression):
+                res = res.value
+                logger.debug(s_args)
+                logger.debug([s for s in map(type, s_args)])
+                logger.debug((self._ufunc, self._method))
+
+            yield res
+            # yield self._op(* [(next(arg) if iterable else arg) for arg, iterable in args_it], **self._kwargs)
 
     def __iter__(self):
         yield from self.iter_over(self._axis)
@@ -387,7 +426,7 @@ class ProfileExpression(Profile):
         # return res[0] if len(res) == 1 else res
 
 
-def _profile_new_(cls, value=None, *args, axis=None, description=None,  **kwargs):
+def _profile_new_(cls, *args, axis=None, description=None,  **kwargs):
 
     if isinstance(axis, Profile):
         axis = axis.value
@@ -404,7 +443,7 @@ def _profile_new_(cls, value=None, *args, axis=None, description=None,  **kwargs
 
     shape = axis.shape if axis is not None else ()
 
-    if len(args) == 0 or isinstance(args[0],  (np.ndarray, int, float)):
+    if len(args) == 0 or args[0] is None or isinstance(args[0],  (np.ndarray, int, float)):
         pass
     else:
         cls = ProfileExpression
