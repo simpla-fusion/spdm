@@ -1,35 +1,37 @@
-
 import sys
-
 import numpy as np
+import timeit
 
-sys.path.append("/home/salmon/workspace/freegs/")
-sys.path.append("/home/salmon/workspace/fytok/python")
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 if __name__ == "__main__":
     from spdm.util.logger import logger
     from spdm.util.Profiles import Profile, Profiles
 
-    # axis = np.linspace(0, 1.0, 128)
-    # a = Profile(np.sqrt, axis, description={"name": "a"})
-    # logger.debug("#########################################")
-    # # b = Profile(np.sqrt, axis)
+    npoints = 100
 
-    # c = a[1:5]
-    # # logger.debug(c.description)
-    # # logger.debug(type(c))
-    # logger.debug(c._axis is axis)
-    # logger.debug(c._axis == axis[1:5])
-    npoints = 11
-    x0 = np.linspace(0, 1.0, npoints)
-    x1 = np.linspace(0, 1.0, npoints)
+    x_axis = np.linspace(0, 1.0, npoints)
 
-    rho_b = 0.95
+    x, y, z = np.random.rand(3, npoints)
 
-    def D(r): return np.piecewise(r, [r < rho_b, r >= rho_b], [lambda x: (0.5 + (x**3)), 0.1])
+    X = x.view(Profile)
 
-    a = Profile(D, axis=x0)
-    b = Profile(np.linspace(0, 5, npoints), axis=x1)
-    b += a
-    logger.debug(b)
+    X._axis = x_axis
+    Y = y.view(Profile)
+    Y._axis = x_axis
+    Z = z.view(Profile)
+    Z._axis = x_axis
+
+    r = x + (y**2 + (z*x + 1)*3)
+    R = X + (Y**2 + (Z*X + 1)*3)
+
+    logger.debug(R.description)
+
+    logger.debug(all(r == R))
+
+    time0 = timeit.timeit(lambda: x + (y**2 + (z*x + 1)*3), number=100)
+    time1 = timeit.timeit(lambda: R.evaluate(), number=100)
+
+    logger.debug((time0, time1))
+    
+    logger.debug(R.derivative)
