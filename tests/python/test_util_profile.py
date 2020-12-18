@@ -3,7 +3,7 @@ import sys
 import unittest
 
 import numpy as np
-
+import scipy.integrate
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 npoints = 129
@@ -52,8 +52,29 @@ class TestProfile(unittest.TestCase):
 
         R = Y**2 + Z/2.0
         self.assertEqual(type(R), ProfileExpression)
-       
         self.assertTrue(all(R[:] == r[:]))
+
+        R1 = - 2.0 * (1+Y)
+        
+        self.assertEqual(type(R1), ProfileExpression)
+        
+        self.assertTrue(all(R1[:] == -2.0*(y+1)))
+
+    def test_profile_integral(self):
+
+        x = np.linspace(0, 10, npoints)
+        y = np.random.rand(npoints)
+        z = scipy.integrate.cumtrapz(y, x, initial=0.0)
+
+        Y = Profile(y, axis=x)
+        Z = Y.integral
+
+        self.assertTrue(all(Z.value == z[:]))
+
+        Y1 = Y*2
+        Z1 = Y1.integral
+        z1 = scipy.integrate.cumtrapz(y*2, x, initial=0.0)
+        self.assertTrue(all(Z1.value == z1[:]))
 
     def test_profiles_setitem(self):
 
@@ -75,16 +96,13 @@ class TestProfile(unittest.TestCase):
 
         ps = Profiles(axis=x)
         y = func(x)
-        r = y+1.2345
+        r = np.sqrt(y+1.2345)
 
         Y = Profile(func, axis=x)
 
-        ps["a"] = Y+1.2345
+        ps["a"] = np.sqrt(Y+1.2345)
 
         self.assertTrue(type(Y + 1.2345), ProfileExpression)
-        logger.debug(Y)
-        logger.debug(ps.a[:])
-        logger.debug(r[:])
         self.assertTrue(all(ps.a[:] == r[:]))
 
 

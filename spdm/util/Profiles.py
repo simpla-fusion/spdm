@@ -28,6 +28,9 @@ class Profile(np.ndarray):
     def __init__(self,  value=None, *args, axis=None, description=None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if isinstance(value, Profile):
+            value = value(self._axis).view(np.ndarray)
+
         if isinstance(value, (np.ndarray, int, float)):
             self.copy(value)
 
@@ -92,9 +95,7 @@ class Profile(np.ndarray):
     def __call__(self, x_axis=None, *args, **kwargs):
         if x_axis is self._axis or x_axis is None:
             return self
-
         res = self.as_function(x_axis)
-
         if isinstance(res, Profile):
             if not hasattr(res, "_axis"):
                 res._axis = x_axis
@@ -131,16 +132,18 @@ class Profile(np.ndarray):
         r"""
             .. math:: d\ln f=\frac{df}{f}
         """
-        return Profile(self.derivative.value/self.value, axis=self._axis)
+        data = np.ndarray(self._axis.shape)
+        data[1:] = self.derivative.value[1:]/self.value[1:]
+        data[0] = 2*data[1]-data[2]
+        return Profile(data, axis=self._axis)
 
     @cached_property
     def integral(self):
-        value = scipy.integrate.cumtrapz(self.axis, self.value, initial=0.0)
-        return Profile(value, axis=self.axis)
+        return Profile(scipy.integrate.cumtrapz(self.value, self.axis, initial=0.0), axis=self.axis)
 
     @cached_property
     def inv_integral(self):
-        value = scipy.integrate.cumtrapz(self.axis[::-1], self.value[::-1], initial=0.0)[::-1]
+        value = scipy.integrate.cumtrapz(self.value[::-1], self.axis[::-1], initial=0.0)[::-1]
         return Profile(value, axis=self.axis)
 
         # if isinstance(start, np.ndarray) and isinstance(stop, np.ndarray):
@@ -237,14 +240,6 @@ class ProfileFunction(Profile):
 
 class ProfileExpression(Profile):
 
-    @staticmethod
-    def enable(flag=True):
-        if flag:
-            Profile.__array_ufunc__ = lambda s, ufunc, method, *args, **kwargs: ProfileExpression(
-                ufunc, method, func_args=args, func_kwargs=kwargs)
-        elif hasattr(Profile, "__array_ufunc__"):
-            del Profile.__array_ufunc__
-
     def __init__(self, ufunc, method, *args, func_args=None, func_kwargs=None, axis=None, **kwargs):
         self._ufunc = ufunc
         self._method = method
@@ -273,13 +268,17 @@ class ProfileExpression(Profile):
         args = []
         for arg in self._args:
             if isinstance(arg,  Profile):
-                args.append(arg(x_axis))
+                data = arg(x_axis)
             else:
-                args.append(arg)
+                data = arg
+            if isinstance(data, Profile):
+                args.append(data.view(np.ndarray))
+            else:
+                args.append(data)
 
         res = getattr(self._ufunc, self._method)(*args, **self._kwargs)
 
-        if isinstance(res, np.ndarray):
+        if isinstance(res, np.ndarray) and not isinstance(res, Profile):
             res = res.view(Profile)
             res._axis = x_axis
 
@@ -287,16 +286,39 @@ class ProfileExpression(Profile):
 
     def __getitem__(self, idx):
         args = []
+        if not hasattr(self, "_args"):
+            return self.view(np.ndarray)[idx]
+
         for arg in self._args:
-            if isinstance(arg, (Profile, np.ndarray)):
-                args.append(arg[idx].view(np.ndarray))
-            else:
+            if not isinstance(arg,  np.ndarray):
                 args.append(arg)
+            elif not isinstance(arg, Profile):
+                args.append(arg[idx])
+            elif arg.axis is self.axis:
+                args.append(arg[idx])
+            else:
+                data = arg(self._axis[idx])
+                if isinstance(data, np.ndarray):
+                    args.append(data.view(np.ndarray))
+                else:
+                    args.append(data)
 
         return getattr(self._ufunc, self._method)(*args, **self._kwargs)
 
-    def __setitem__(self, *args):
-        raise NotImplementedError
+    def __setitem__(self, idx, value):
+        if self.shape != self._axis.shape:
+            self.evaluate()
+        self.view(np.ndarray)[idx] = value
+
+    def evaluate(self):
+        if self.shape != self._axis.shape:
+            self.resize(self._axis.size, refcheck=False)
+            self.reshape(self._axis.shape)
+        np.copyto(self, self[:])
+
+    @ property
+    def value(self):
+        return self[:]
 
 
 def _profile_new_(cls, *args, axis=None, description=None,  **kwargs):
@@ -332,7 +354,8 @@ def _profile_new_(cls, *args, axis=None, description=None,  **kwargs):
 
 
 Profile.__new__ = _profile_new_
-ProfileExpression.enable()
+Profile.__array_ufunc__ = lambda s, ufunc, method, *args, **kwargs: ProfileExpression(
+    ufunc, method, func_args=args, func_kwargs=kwargs)
 
 
 class Profiles(AttributeTree):
@@ -368,21 +391,24 @@ class Profiles(AttributeTree):
             return self.__as_object__().setdefault(key, self._create(d, name=key))
 
     def __setitem__(self, key, value):
-        v = self.__getitem__(key)
-        if v is None:
-            self.__as_object__()[key] = Profile(value, axis=self._axis,  description={"name": key})
-        elif isinstance(v, Profile):
-            if isinstance(value, (np.ndarray, int, float)):
-                v.copy(value)
-            elif callable(value):
-                ufunc = np.vectorize(value)
-                v.copy(ufunc(self._axis))
-            else:
-                raise ValueError(value)
+        if isinstance(value, Profile):
+            self.__as_object__()[key] = value(self._axis)
         else:
-            raise KeyError(f"Can not assign value to {key}: {type(v)}!")
+            self.__as_object__()[key] = Profile(value, axis=self._axis,  description={"name": key})
+        # v = self.__getitem__(key)
+        # if v is None:
+        # elif isinstance(v, Profile):
+        #     if isinstance(value, (np.ndarray, int, float)):
+        #         v.copy(value)
+        #     elif callable(value):
+        #         ufunc = np.vectorize(value)
+        #         v.copy(ufunc(self._axis))
+        #     else:
+        #         raise ValueError(value)
+        # else:
+        #     raise KeyError(f"Can not assign value to {key}: {type(v)}!")
 
-    @lru_cache
+    @ lru_cache
     def cache(self, key):
         res = self._cache[key.split(".")]
         if isinstance(res, LazyProxy):
