@@ -19,11 +19,88 @@ from spdm.util.logger import logger
 
 
 class Profile(np.ndarray):
+
+    @staticmethod
+    def __new__(cls, *args, axis=None, description=None,  **kwargs):
+        if isinstance(axis, Profile):
+            axis = axis.value
+        elif axis is None:
+            pass
+        elif isinstance(axis, np.ndarray):
+            pass
+        elif isinstance(axis, int):
+            axis = np.linspace(0.0, 1.0, axis)
+        elif isinstance(axis, collections.abc.Sequence):
+            axis = np.array(axis)
+
+        else:
+            raise ValueError(f"Illegal axis! {axis}")
+
+        if cls is ProfileExpression:
+            for arg in kwargs.get("func_args", []):
+                if isinstance(arg, Profile) and axis is None:
+                    axis = arg.axis
+
+        shape = axis.shape if axis is not None else ()
+
+        if len(args) == 0:
+            pass
+        elif isinstance(args[0],  (np.ndarray, int, float)) or not args[0]:
+            pass
+        elif cls is ProfileExpression:
+            pass
+
+        elif callable(args[0]) or isinstance(args[0], np.ufunc):
+            cls = ProfileFunction
+        # else:
+        #     raise TypeError(f"illegal value {type(args[0])} {args[0]}")
+
+        obj = super(Profile, cls).__new__(cls, shape)
+        obj._axis = axis
+        obj._description = AttributeTree(description)
+        return obj
+
     def __array_finalize__(self, obj):
         if obj is None:
             return
         self._axis = getattr(obj, '_axis', None)
         self._description = getattr(obj, '_description', None) or AttributeTree()
+
+    def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
+        if any([isinstance(arg, ProfileFunction) for arg in inputs]):
+            def op(*args, _holder=self,  _ufunc=ufunc, _method=method, **kwargs):
+                res = super(Profile, _holder).__array_ufunc__(_ufunc, _method, *args, out=out, **kwargs)
+                if res is NotImplemented:
+                    res = getattr(_ufunc, _method)(*args,  **kwargs)
+                    if res is NotImplemented:
+                        raise RuntimeError((_holder, _ufunc, _method))
+                return res
+
+            return ProfileExpression(op, func_args=inputs, func_kwargs=kwargs)
+
+        x_axis = self._axis
+
+        args = []
+        for arg in inputs:
+            if isinstance(arg,  Profile):
+                data = arg(x_axis)
+            else:
+                data = arg
+            if isinstance(data, Profile):
+                args.append(data.view(np.ndarray))
+            else:
+                args.append(data)
+
+        res = super(Profile, self).__array_ufunc__(ufunc, method, *args, **kwargs)
+
+        if isinstance(res, np.ndarray) and res.shape != () and (any(np.isnan(res)) or any(np.isinf(res))):
+            raise ValueError(res)
+
+        if isinstance(res, np.ndarray) and not isinstance(res, Profile):
+            res = res.view(Profile)
+            res._axis = x_axis
+            # return super(Profile, self).__array_ufunc__(ufunc, method, *args, out=out, **kwargs)
+        return res
 
     def __init__(self,  value=None, *args, axis=None, description=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,6 +110,13 @@ class Profile(np.ndarray):
 
         if isinstance(value, (np.ndarray, int, float)):
             self.copy(value)
+
+    def __repr__(self):
+        desc = getattr(self, "_description", None)
+        if desc is not None:
+            return f"<{self.__class__.__name__} name='{ desc.name}'>"
+        else:
+            return super().__repr__()
 
     @property
     def is_constant(self):
@@ -73,7 +157,7 @@ class Profile(np.ndarray):
         axis = self._axis.view(np.ndarray)
         data = self.value
         try:
-            res = UnivariateSpline(axis, data)
+            res = interp1d(axis, data, kind=self.description.interpolator or 'linear')
         except Exception as error:
             logger.debug((error, axis, data))
             raise error
@@ -127,15 +211,18 @@ class Profile(np.ndarray):
     def derivative(self):
         return Profile(np.gradient(self.value)/np.gradient(self._axis), axis=self._axis)
 
-    @cached_property
-    def dln(self, *args, **kwargs):
-        r"""
-            .. math:: d\ln f=\frac{df}{f}
-        """
-        data = np.ndarray(self._axis.shape)
-        data[1:] = self.derivative.value[1:]/self.value[1:]
-        data[0] = 2*data[1]-data[2]
-        return Profile(data, axis=self._axis)
+    # @cached_property
+    # def dln(self, *args, **kwargs):
+    #     r"""
+    #         .. math:: d\ln f=\frac{df}{f}
+    #     """
+    #     data = np.ndarray(self._axis.shape)
+    #     data[1:] = self.derivative.value[1:]/self.value[1:]
+    #     data[0] = 2*data[1]-data[2]
+    #     if any(np.isnan(data)) or any(self.value == 0):
+    #         logger.error(self.value)
+    #         raise ValueError(data)
+    #     return Profile(data, axis=self._axis)
 
     @cached_property
     def integral(self):
@@ -181,9 +268,10 @@ class ProfileFunction(Profile):
     def __init__(self, ufunc,   *args,  **kwargs):
         super().__init__(*args, **kwargs)
 
-        if not isinstance(ufunc, np.ufunc):
+        if not callable(ufunc):
+            raise TypeError(type(ufunc))
+        elif not isinstance(ufunc, np.ufunc):
             ufunc = np.vectorize(ufunc)
-
         self._ufunc = ufunc
 
     def __call__(self, x=None):
@@ -229,38 +317,28 @@ class ProfileFunction(Profile):
 
     @cached_property
     def integral(self):
-        value = scipy.integrate.cumtrapz(self.axis, self.value, initial=0.0)
-        return Profile(value, axis=self.axis)
+        data = scipy.integrate.cumtrapz(self[:], self.axis[:], initial=0.0)
+        return Profile(data, axis=self.axis)
 
     @cached_property
     def inv_integral(self):
-        value = scipy.integrate.cumtrapz(self.axis[::-1], self.value[::-1], initial=0.0)[::-1]
+        value = scipy.integrate.cumtrapz(self[::-1], self.axis[::-1], initial=0.0)[::-1]
         return Profile(value, axis=self.axis)
 
 
 class ProfileExpression(Profile):
 
-    def __init__(self, ufunc, method, *args, func_args=None, func_kwargs=None, axis=None, **kwargs):
-        self._ufunc = ufunc
-        self._method = method
-        self._args = []
-
-        for arg in (func_args or []):
-            if isinstance(arg, Profile) and axis is None:
-                axis = arg.axis
-            self._args.append(arg)
-
+    def __init__(self,    func,   *args, func_args=None, func_kwargs=None,  **kwargs):
+        self._func = func
+        self._args = func_args or []
         self._kwargs = func_kwargs or {}
-
         super().__init__(*args, **kwargs)
-
-        self._axis = axis
 
     def __str__(self):
         return self.__repr__()
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} ufunc={self._ufunc} method={self._method}>"
+        return f"<{self.__class__.__name__} ufunc={self._func}  >"
 
     def __call__(self, x_axis=None):
         if x_axis is None:
@@ -276,7 +354,10 @@ class ProfileExpression(Profile):
             else:
                 args.append(data)
 
-        res = getattr(self._ufunc, self._method)(*args, **self._kwargs)
+        res = self._func(*args, **self._kwargs)
+
+        if isinstance(res, np.ndarray) and res.shape != () and (any(np.isnan(res)) or any(np.isinf(res))):
+            raise ValueError(res)
 
         if isinstance(res, np.ndarray) and not isinstance(res, Profile):
             res = res.view(Profile)
@@ -303,7 +384,7 @@ class ProfileExpression(Profile):
                 else:
                     args.append(data)
 
-        return getattr(self._ufunc, self._method)(*args, **self._kwargs)
+        return self._func(*args, **self._kwargs)
 
     def __setitem__(self, idx, value):
         if self.shape != self._axis.shape:
@@ -319,43 +400,6 @@ class ProfileExpression(Profile):
     @ property
     def value(self):
         return self[:]
-
-
-def _profile_new_(cls, *args, axis=None, description=None,  **kwargs):
-
-    if isinstance(axis, Profile):
-        axis = axis.value
-    elif axis is None:
-        pass
-    elif isinstance(axis, np.ndarray):
-        pass
-    elif isinstance(axis, int):
-        axis = np.linspace(0.0, 1.0, axis)
-    elif isinstance(axis, collections.abc.Sequence):
-        axis = np.array(axis)
-    else:
-        raise ValueError(f"Illegal axis! {axis}")
-
-    shape = axis.shape if axis is not None else ()
-
-    if len(args) == 0 or args[0] is None or isinstance(args[0],  (np.ndarray, int, float)):
-        pass
-    elif not args[0]:
-        pass
-    elif len(args) == 1 and (callable(args[0]) or isinstance(args[0], np.ufunc)):
-        cls = ProfileFunction
-    # else:
-    #     raise TypeError(f"illegal value {type(args[0])} {args[0]}")
-
-    obj = super(Profile, cls).__new__(cls, shape)
-    obj._axis = axis
-    obj._description = AttributeTree(description)
-    return obj
-
-
-Profile.__new__ = _profile_new_
-Profile.__array_ufunc__ = lambda s, ufunc, method, *args, **kwargs: ProfileExpression(
-    ufunc, method, func_args=args, func_kwargs=kwargs)
 
 
 class Profiles(AttributeTree):

@@ -47,29 +47,31 @@ class TestProfile(unittest.TestCase):
 
         r = y**2 + z/2.0
 
-        Y = Profile(y, axis=x)
-        Z = Profile(z, axis=x)
+        Y = Profile(y, axis=x, description={"name": "Y"})
+        Z = Profile(z, axis=x, description={"name": "Z"})
 
         R = Y**2 + Z/2.0
-        self.assertEqual(type(R), ProfileExpression)
+        self.assertEqual(type(R), Profile)
         self.assertTrue(all(R[:] == r[:]))
 
-        R1 = - 2.0 * (1+Y)
-        
-        self.assertEqual(type(R1), ProfileExpression)
-        
-        self.assertTrue(all(R1[:] == -2.0*(y+1)))
+        R1 = np.float64(-2.0) * (Y + 1)
+
+        self.assertEqual(type(R1), Profile)
+
+        self.assertTrue(all(R1[:] == -2.0*(y+1.0)))
 
     def test_profile_integral(self):
 
         x = np.linspace(0, 10, npoints)
-        y = np.random.rand(npoints)
+        y = np.sin(x)  # np.random.rand(npoints)
         z = scipy.integrate.cumtrapz(y, x, initial=0.0)
 
-        Y = Profile(y, axis=x)
+        Y = Profile(np.sin, axis=x)
         Z = Y.integral
 
-        self.assertTrue(all(Z.value == z[:]))
+        logger.debug((Z[:]==z[:]))
+        self.assertTrue(all(Y[:] == y[:]))
+        self.assertTrue(all(Z[:] == z[:]))
 
         Y1 = Y*2
         Z1 = Y1.integral
