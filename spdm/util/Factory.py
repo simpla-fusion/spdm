@@ -9,6 +9,7 @@ from .logger import logger
 from .sp_export import sp_find_module
 from .urilib import urijoin, urisplit
 from .utilities import iteritems, whoami
+from .SpObject import SpObject
 
 
 class Factory(object):
@@ -38,7 +39,7 @@ class Factory(object):
 
     def create(self, desc, *args, _resolver=None, **kwargs):
         """ Create a new instance """
-        n_cls = self.new_class(desc, _resolver=_resolver)
+        n_cls = self.new_class(desc,  resolver=_resolver)
         if not n_cls:
             raise RuntimeError(f"Create cls failed! {desc}")
         return n_cls(*args, **kwargs)
@@ -83,10 +84,9 @@ class Factory(object):
         h = getattr(self, f"_handle_{o.schema}", None) or self._handlers.get(o.schema, None)
         if h is None:
             raise LookupError(f"Can nod handle {uri}")
-
         return h(uri, *args, **kwargs)
 
-    def _handle_PyObject(self, uri, desc, *args,  **kwargs):
+    def _handle_PyObject(self, uri, desc, *args, resolver=None, ** kwargs):
         o = urisplit(uri)
         assert(o.schema == 'PyObject')
         if o.authority is None or o.authority == '':
@@ -94,8 +94,10 @@ class Factory(object):
         else:
             fragment = '/'+o.fragment if o.fragment is not None else ''
             handler = sp_find_module(o.authority, f"{o.path}{fragment}")
-        
-        if inspect.isclass(handler) and hasattr(handler, "new_class"):
+
+        if issubclass(handler, SpObject):
+            n_cls = handler.new_class(desc, *args,  factory=self, resolver=self._default_resolver, **kwargs)
+        elif inspect.isclass(handler) and hasattr(handler, "new_class"):
             n_cls = handler.new_class(desc, *args, _factory=self, **kwargs)
         elif not inspect.isclass(handler) and callable(handler):
             n_cls = handler(desc, *args, _factory=self, **kwargs)

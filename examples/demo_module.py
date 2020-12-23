@@ -16,8 +16,7 @@ if __name__ == "__main__":
 
     module.load_configure("/home/salmon/workspace/SpDev/SpDB/examples/data/configure.yaml")
 
-    module.factory.add_alias("/actors/", "PyObject:///spdm/util/*#{fragment}")
-
+    # module.factory.add_alias("/actors/", "PyObject:///spdm/actors/*#{fragment}")
 
     genray = module.create("/modules/physics/genray")
 

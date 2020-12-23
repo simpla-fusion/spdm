@@ -9,11 +9,10 @@ from pathlib import Path
 from string import Template
 from typing import List
 
-
 from spdm.util.logger import logger
 from spdm.util.Signature import Signature
-
-from .SpObject import SpObject
+from spdm.util.SpObject import SpObject
+from spdm.util.AttributeTree import AttributeTree
 
 
 class LocalCommand(SpObject):
@@ -42,7 +41,7 @@ class LocalCommand(SpObject):
 
     def __init__(self, *args, **kwargs):
         # super().__init__(*args, **kwargs)
-        logger.debug((args, kwargs, self.__class__._schema))
+        logger.debug((self.__class__._schema))
         pass
 
     def preprocess(self,  cache, envs):
@@ -73,9 +72,6 @@ class LocalCommand(SpObject):
         patch["local_vars"]["command"] = command
 
         return patch
-
-    def postprocess(self,  cache, envs):
-        return None
 
     def run(self,  cache, envs):
         command = cache.get_r([self.id, "local_vars", "command"], None)

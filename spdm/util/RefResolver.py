@@ -21,6 +21,7 @@ from .sp_export import sp_find_module, sp_pkg_data_path
 from .urilib import (getvalue_r, uridefrag, urijoin, urisplit,
                      uriunsplit)
 
+from .AttributeTree import AttributeTree
 # from spdm.global_constant import SP_BASE_URI, self._encode, SP_REMOTE_SCHEMA_CACHE
 
 
@@ -193,7 +194,7 @@ class RefResolver(object):
             value basing on $schema in document
         """
         fragment = None
-        if isinstance(doc, collections.abc.Mapping):
+        if isinstance(doc, (collections.abc.Mapping, AttributeTree)):
             new_doc = copy(doc)
         elif isinstance(doc, str):
             s = doc.rsplit("#")
