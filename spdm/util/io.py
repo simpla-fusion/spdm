@@ -1,3 +1,4 @@
+import collections
 import json
 import pathlib
 from urllib.request import urlopen
@@ -5,9 +6,10 @@ from urllib.request import urlopen
 import requests
 import yaml
 
+from .logger import logger
 from .sp_export import sp_pkg_data_path
 from .SpURI import urisplit
-
+from .utilities import deep_update_dict
 FAIL_SAFE = None
 ENABLE_REMOTE = False
 
@@ -32,11 +34,11 @@ def write(path, content, force=True):
     #     raise NotImplementedError(f"Can not write {path}")
 
 
-def read(uri):
+def _read(uri, **kwargs):
     content = None
     o = urisplit(uri)
     if o.schema in [None, 'file', 'local']:
-        p = pathlib.Path(o.path)
+        p = pathlib.Path(o.path).expanduser()
         if p.exists() and p.suffix in (".json", ".yaml", None):
             with p.open() as fid:
                 content = yaml.load(fid, Loader=yaml.FullLoader)
@@ -55,6 +57,18 @@ def read(uri):
     return content
 
 
+def read(path, **kwargs):
+    if isinstance(path, (str, pathlib.Path)):
+        path = [path]
+    elif not isinstance(path, collections.abc.Sequence):
+        raise TypeError(f"Type of path should be a string, Path or list of string/Path!")
+    content = {}
+    for p in path:
+        deep_update_dict(content, _read(p))
+
+    return content
+
+
 def glob(n_uri):
 
     o = urisplit(n_uri)
@@ -67,9 +81,10 @@ def glob(n_uri):
             o.authority or __package__.split('.', 1)[0], prefix)]
 
     for p in path_list:
-        for f in pathlib.Path(p).rglob(f"**{suffix}"):
+        p = pathlib.Path(p)
+        for f in p.rglob(f"**/*{suffix}"):
             fp = f.as_posix()
-            name = fp[len(p):len(fp)-len(suffix)]
+            name = fp[len(p.as_posix()):len(fp)-len(suffix)]
             yield name, f
 
     if len(path_list) == 0 and FAIL_SAFE is not None:

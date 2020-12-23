@@ -68,7 +68,6 @@ class AttributeTree:
         res = None
         if isinstance(key, list):
             res = self
-
             for k in key:
                 v = getattr(res, k, None)
                 if v is None:
@@ -80,7 +79,6 @@ class AttributeTree:
                         res = v
                 else:
                     res = v
-
         elif isinstance(key, str):
             res = getattr(self.__class__, key, None)
             if res is None:
@@ -191,10 +189,8 @@ class AttributeTree:
                 return
             obj = self.__as_object__()
             for k, v in other.items():
-                if k in obj and isinstance(obj[k], AttributeTree):
-                    obj[k].__update__(v)
-                elif v is None:
-                    pass
+                if isinstance(v, collections.abc.Mapping):
+                    self.__missing__(k).__update__(v)
                 elif isinstance(v, AttributeTree) and v.__data__ is None:
                     pass
                 else:

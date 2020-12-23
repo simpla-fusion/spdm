@@ -9,6 +9,9 @@ import sys
 SP_DEFAULT_OUTPUT_DIR = pathlib.Path("~/spdm_log").expanduser()
 SP_DEFAULT_OUTPUT_DIR.mkdir(mode=0o755, exist_ok=True)
 
+std_handler = logging.StreamHandler(stream=sys.stdout)
+
+
 logging.basicConfig(level=logging.ERROR,
                     format=(
                         '%(asctime)s %(levelname)s [%(name)s] '

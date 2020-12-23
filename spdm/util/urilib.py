@@ -21,10 +21,15 @@ def urisplit(uri):
     if uri is None:
         uri = ""
     res = AttributeTree(_rfc3986.match(uri).groupdict())
-    if isinstance(res.query, str):
+    if isinstance(res.query, str) and res.query != "":
+        print(f"'{type(res.query)}'")
         res.query = dict([tuple(item.split("=")) for item in res.query.split(',')])
     if isinstance(res.fragment, str):
-        res.fragment = dict([tuple(item.split("=")) for item in res.fragment.split(',')])
+        fragments = res.fragment.split(',')
+        if len(fragments) == 1:
+            res.fragment = fragments[0]
+        elif len(fragments) > 1:
+            res.fragment = dict([tuple(item.split("=")) for item in fragments])
     return res
 
 
@@ -34,8 +39,8 @@ def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
         schema+"://" if schema is not None else "",
         (authority or "").strip('/'),
         path or "",
-        "?"+query if query is not None else "",
-        "#"+fragment if fragment is not None else ""
+        "?"+str(query) if query is not None else "",
+        "#"+str(fragment) if fragment is not None else ""
     ])
 
 

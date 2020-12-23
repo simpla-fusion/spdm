@@ -28,10 +28,10 @@ class Alias:
 
         if not isinstance(s, re.Pattern):
             if '*' in s:
-                s = s.replace('*', "(?P<_path_>[^?#]*)")
+                s = s.replace('*', "(?P<_path_>[^?#]*)")+"(#(?P<fragment>.*))?"
 
             if '(' not in s:
-                re_s = re.compile(f"{s}(?P<_path_>[^?#]*)")
+                re_s = re.compile(f"{s}(?P<_path_>[^?#]*)(#(?P<fragment>.*))?")
             else:
                 re_s = re.compile(s)
 
@@ -49,7 +49,7 @@ class Alias:
 
         for s in keys:
             if s is None:
-                    continue
+                continue
             for pattern, target in self._mmap:
                 if isinstance(pattern, re.Pattern):
                     m = pattern.match(s)

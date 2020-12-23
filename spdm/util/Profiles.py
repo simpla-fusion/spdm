@@ -209,7 +209,9 @@ class Profile(np.ndarray):
 
     @cached_property
     def derivative(self):
-        return Profile(np.gradient(self.value)/np.gradient(self._axis), axis=self._axis)
+        # value = UnivariateSpline(self._axis, self.value).derivative()(self._axis)
+        # return Profile(value[:], axis=self._axis)
+        return Profile(np.gradient(self[:])/np.gradient(self._axis[:]), axis=self._axis)
 
     # @cached_property
     # def dln(self, *args, **kwargs):

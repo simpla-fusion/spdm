@@ -6,13 +6,14 @@ import subprocess
 import traceback
 import uuid
 
+from . import io
 from .Factory import Factory
-from .io import read, write
 from .LazyProxy import LazyProxy
 from .logger import logger
 from .RefResolver import RefResolver
 from .sp_export import sp_find_module
-from .SpURI import urisplit, URISplitResult
+from .SpURI import URISplitResult, urisplit
+from .utilities import deep_update_dict
 
 
 class ModuleManager:
@@ -23,43 +24,37 @@ class ModuleManager:
         self._prefix = prefix or __package__.split('.')[0]
         self._suffix = suffix or ""
 
-    def load_configure(self, path=None, **kwargs):
-        if isinstance(path, (str, pathlib.Path)):
-            path = [path]
-        elif not isinstance(path, collections.abc.Sequence):
-            raise TypeError(
-                f"Type of path should be a string or  list of string!")
-
-        conf = {}
-        path.reverse()
-        for p in path:
-            merge_dict(conf, read(p))
-
-        return conf
+    def load_configure(self, path, **kwargs):
+        return self.configure(io.read(path))
 
     def save_configure(self, path):
         raise NotImplementedError()
 
     def configure(self, conf=None, **kwargs):
-        pkg_name = __package__.split('.', 1)[0]
-        if conf is None:
+        conf_path = [
+            *os.environ.get(f"{self._prefix.upper}_CONFIGURE_PATH", "").split(':'),
+            f"pkgdata://{self._prefix}/../configure.yaml"
+        ]
 
-            conf = self.load_configure(
-                [f"pkgdata://{pkg_name}/../configure.yaml"])
-        elif isinstance(self, collections.abc.Sequence):
-            conf = self.load_configure(conf)
-        elif not isinstance(conf, collections.abc.Mapping):
-            raise TypeError(
-                f"configure should be dict, string or list of string")
+        if isinstance(conf, str):
+            conf_path.append(conf)
+            conf = {}
+        elif isinstance(conf, collections.abc.Sequence):
+            conf_path.extend(conf)
+            conf = {}
+        elif isinstance(conf, collections.abc.Mapping):
+            pass
+        else:
+            raise TypeError(f"configure should be dict, string or list of string")
 
-        other_conf = kwargs.get("configure", None) \
-            or conf.get("configure", None)
+        sys_conf = io.read(conf_path) if conf_path is not None else {}
 
-        f_conf = collections.ChainMap(kwargs, conf, other_conf or {})
+        # TODO:  list in dict should be appended not overwrited .
+        f_conf = collections.ChainMap(kwargs, conf, sys_conf)
 
         self._resolver = RefResolver(**f_conf.get("resolver", {}))
 
-        self._factory = Factory(**f_conf.get("factory", {}))
+        self._factory = Factory(**f_conf.get("factory", {}), default_resolver=self._resolver)
 
         repo_prefix = self._prefix.upper()
 
@@ -104,7 +99,7 @@ class ModuleManager:
     def factory(self):
         return self._factory
 
-    def find_module(self, desc, version=None):
+    def find_desc(self, desc, version=None):
         if type(desc) is str:
             return self._resolver.fetch(f"{desc.replace('.', '/')}/{version or ''}")
         else:
@@ -119,7 +114,12 @@ class ModuleManager:
         return n_cls
 
     def create(self, desc, *args, **kwargs):
-        return self._factory.create(desc, *args, **kwargs)
+        desc_ = self.find_desc(desc)
+
+        if not desc_:
+            raise LookupError(f"Can not find description! {desc}")
+        
+        return self._factory.create(desc_, *args, _resolver=self._resolver, **kwargs)
 
     def glob(self, prefix=None):
         return self._resolver.glob(prefix or "/modules/")
@@ -154,7 +154,7 @@ class ModuleManager:
         """
 
         if isinstance(spec, (str, pathlib.Path, URISplitResult, collections.abc.Sequence)):
-            spec = read(spec)
+            spec = io.read(spec)
 
         if isinstance(spec, collections.abc.Mapping):
             return self.install_spec(spec, *args, **kwargs)
@@ -181,7 +181,8 @@ class ModuleManager:
         eb_file["homepage"] = annotation.get("homepage", "")
         eb_file["description"] = annotation.get("description", "")
 
-        eb_file["toolchain"]["version"]=eb_file["toolchain"]["version"].fomat(FY_TOOLCHAIN_VERSION=os.environ.get("FY_TOOLCHAIN_VERSION"))
+        eb_file["toolchain"]["version"] = eb_file["toolchain"]["version"].fomat(
+            FY_TOOLCHAIN_VERSION=os.environ.get("FY_TOOLCHAIN_VERSION"))
 
         from env_modules_python import module
 

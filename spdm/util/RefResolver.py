@@ -14,7 +14,7 @@ from copy import copy
 import jsonschema
 
 from .Alias import Alias
-from .io import glob, read, write
+from . import io
 from .logger import logger
 from .Multimap import Multimap
 from .sp_export import sp_find_module, sp_pkg_data_path
@@ -154,9 +154,16 @@ class RefResolver(object):
         if schema is not None:
             validator = self._validator.get(schema, None)
             if validator is None:
-                schema = self.fetch(schema, no_validate=True)
-                validator = _DefaultValidatingValidator(schema, resolver=self)
-                self._validator[schema["$id"]] = validator
+                try:
+                    schema = self.fetch(schema, no_validate=True)
+                except Exception:
+                    logger.error(f"Can not find schema : {schema}")
+                else:
+                    if not schema or schema.get("$id", None) is None:
+                        pass
+                    else:
+                        validator = _DefaultValidatingValidator(schema, resolver=self)
+                        self._validator[schema["$id"]] = validator
 
             if validator is not None:
                 validator.validate(doc)
@@ -170,9 +177,11 @@ class RefResolver(object):
             return new_doc
 
         for a_uri in self._alias.match(uri):
-            new_doc = read(a_uri)
+            new_doc = io.read(a_uri)
 
-            if new_doc is not None:
+            if not new_doc:
+                pass
+            else:
                 new_doc["$id"] = uri
                 self._cache[uri] = new_doc
                 break
@@ -212,7 +221,7 @@ class RefResolver(object):
         mod_prefix = self.normalize_uri(f"{mod or ''}%_PATH_%")
 
         for n_uri in self._alias.match(mod_prefix):
-            for p, f in glob(n_uri):
+            for p, f in io.glob(n_uri):
                 yield p, f
 
     ##########################################################################

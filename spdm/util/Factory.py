@@ -15,33 +15,42 @@ class Factory(object):
     """ Convert schema to class
     """
 
-    def __init__(self, *args, default_handler=None, alias=None, ** kwargs):
+    def __init__(self, *args, default_handler=None, alias=None, default_resolver=None, ** kwargs):
         super().__init__()
         self._alias = Alias(glob_pattern_char="*")
         self._handlers = {}
         self._cache = {}
         self._alias.append_many(alias)
+        self._default_resolver = default_resolver
 
     @property
     def alias(self):
         return self._alias
 
+    def add_alias(self, s, t):
+        if self._default_resolver is not None:
+            s = self._default_resolver.normalize_uri(s)
+        self._alias.append(s, t)
+
     @property
     def cache(self):
         return self._cache
 
-    def handle(self, uri, *args, **kwargs):
-        o = urisplit(uri)
-        h = getattr(self, f"_handle_{o.schema}",
-                    None) or self._handlers.get(o.schema, None)
-
-        return h(uri, *args, **kwargs) if h is not None else None
+    def create(self, desc, *args, _resolver=None, **kwargs):
+        """ Create a new instance """
+        n_cls = self.new_class(desc, _resolver=_resolver)
+        if not n_cls:
+            raise RuntimeError(f"Create cls failed! {desc}")
+        return n_cls(*args, **kwargs)
 
     def new_class(self, desc, *args, _resolver=None, **kwargs):
         """ Create a new class from description
             Parameters:
                 desc: description of class
         """
+        if _resolver is None:
+            _resolver = self._default_resolver
+
         if type(desc) is str:
             c_id = desc if _resolver is None else _resolver.normalize_uri(desc)
             n_cls = self._cache.get(c_id, None)
@@ -60,8 +69,7 @@ class Factory(object):
         for h_req in self._alias.match(desc.get("$id", None),
                                        desc.get("$base", None),
                                        desc.get("$schema", None)):
-            n_cls = self.handle(h_req, desc, *args,
-                                _resolver=_resolver, **kwargs)
+            n_cls = self.handle(h_req, desc, *args, _resolver=_resolver, **kwargs)
             if n_cls is not None:
                 break
 
@@ -70,9 +78,13 @@ class Factory(object):
 
         return n_cls
 
-    def create(self, desc, *args, **kwargs):
-        """ Create a new instance """
-        return self.new_class(desc)(*args, **kwargs)
+    def handle(self, uri, *args, **kwargs):
+        o = urisplit(uri)
+        h = getattr(self, f"_handle_{o.schema}", None) or self._handlers.get(o.schema, None)
+        if h is None:
+            raise LookupError(f"Can nod handle {uri}")
+
+        return h(uri, *args, **kwargs)
 
     def _handle_PyObject(self, uri, desc, *args,  **kwargs):
         o = urisplit(uri)
@@ -82,10 +94,10 @@ class Factory(object):
         else:
             fragment = '/'+o.fragment if o.fragment is not None else ''
             handler = sp_find_module(o.authority, f"{o.path}{fragment}")
-
+        
         if inspect.isclass(handler) and hasattr(handler, "new_class"):
             n_cls = handler.new_class(desc, *args, _factory=self, **kwargs)
-        elif callable(handler):
+        elif not inspect.isclass(handler) and callable(handler):
             n_cls = handler(desc, *args, _factory=self, **kwargs)
 
         return n_cls
