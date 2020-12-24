@@ -19,11 +19,10 @@ from .dict_util import tree_apply_recursive
 
 
 class ModuleRepository:
-    def __init__(self, *args, repo_prefix=None,  envs=None,  configure_file_suffix="/fy_module.yaml", **kwargs):
-        self._resolver = None
+    def __init__(self, *args, repo_prefix=None,  envs=None,  file_suffix="/fy_module.yaml", **kwargs):
         self._factory = None
         self._repo_prefix = repo_prefix or __package__.split('.')[0]
-        self._configure_file_suffix = configure_file_suffix
+        self._file_suffix = file_suffix
         self._envs = envs or {}
 
     def load_configure(self, path, **kwargs):
@@ -54,9 +53,7 @@ class ModuleRepository:
         # TODO:  list in dict should be appended not overwrited .
         f_conf = collections.ChainMap(kwargs, conf, sys_conf)
 
-        self._resolver = RefResolver(**f_conf.get("resolver", {}))
-
-        self._factory = Factory(**f_conf.get("factory", {}), default_resolver=self._resolver)
+        self._factory = Factory(**f_conf.get("factory", {}), resolver=RefResolver(**f_conf.get("resolver", {})))
 
         repo_prefix = self._repo_prefix.upper()
 
@@ -83,15 +80,15 @@ class ModuleRepository:
         self._build_dir = self._home_dir / \
             f_conf.get(f"{repo_prefix}_BUILD_DIR", "build")
 
-        self._resolver.alias.append(
-            self._resolver.normalize_uri("/modules/*"),
-            self._modules_dir.as_posix()+f"/*{self._configure_file_suffix}")
+        self.resolver.alias.append(
+            self.resolver.normalize_uri("/modules/*"),
+            self._modules_dir.as_posix()+f"/*{self._file_suffix}")
 
         self._conf = f_conf
 
     @property
     def resolver(self):
-        return self._resolver
+        return self._factory.resolver
 
     @property
     def factory(self):
@@ -118,19 +115,19 @@ class ModuleRepository:
 
         """
         if type(desc) is not str:
-            res = self._resolver.fetch(collections.ChainMap(
+            res = self.resolver.fetch(collections.ChainMap(
                 {"version": version, "tag_suffix": tag_suffix}, kwargs, desc))
         else:
             path = desc
             res = None
             if tag_suffix is not None:
-                res = self._resolver.fetch(f"{path}/{version or 'default'}-{tag_suffix}")
+                res = self.resolver.fetch(f"{path}/{version or 'default'}-{tag_suffix}")
             elif version is not None:
-                res = self._resolver.fetch(f"{path}/{version}")
+                res = self.resolver.fetch(f"{path}/{version}")
             else:
-                res = self._resolver.fetch(f"{path}/default")
+                res = self.resolver.fetch(f"{path}/default")
                 if not res:
-                    res = self._resolver.fetch(path)
+                    res = self.resolver.fetch(path)
 
         # if res is not None and not isinstance(res, AttributeTree):
         #     res = AttributeTree(res)
@@ -149,7 +146,7 @@ class ModuleRepository:
             raise LookupError(f"Can not find description! {desc}")
 
         try:
-            n_cls = self._factory.new_class(desc_, _resolver=self._resolver)
+            n_cls = self._factory.new_class(desc_)
         except Exception:
             raise ValueError(f"Can not make module {desc}! \n { traceback.format_exc()}")
 
@@ -164,7 +161,7 @@ class ModuleRepository:
         return n_cls(*args, **kwargs)
 
     def glob(self, prefix=None):
-        return self._resolver.glob(prefix or "/modules/")
+        return self.resolver.glob(prefix or "/modules/")
 
     def install_spec(self, spec, no_build=False, force=False, **kwargs):
         ver = spec.get("version", "0.0.0")
@@ -210,7 +207,7 @@ class ModuleRepository:
         if isinstance(path, pathlib.Path) and path.is_dir():
             return self.build_repo(path, *args, **kwargs)
 
-        spec = self._resolver.fetch(path)
+        spec = self.resolver.fetch(path)
 
         annotation = spec.get("annotation", {})
 

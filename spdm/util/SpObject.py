@@ -21,22 +21,22 @@ class SpObject(object):
     """
 
     @classmethod
-    def new_class(cls,  desc=None, *args, factory=None, resolver=None, ** kwargs):
+    def new_class(cls,  desc=None, *args, factory=None,   ** kwargs):
 
-        schema = AttributeTree(getattr(cls, "_schema", {}))
+        description = AttributeTree(getattr(cls, "_description", {}))
 
         if desc is None and len(kwargs) == 0:
             return cls
         elif isinstance(desc, str):
             desc = {"$id": desc}
 
-        schema.__update__(desc)
-        schema.__update__(kwargs)
+        description.__update__(desc)
+        description.__update__(kwargs)
 
-        if resolver is not None:
-            schema = resolver.fetch(schema)
+        if factory is not None:
+            description = factory.resolver.fetch(description)
 
-        base_class = schema["$base_class"]
+        base_class = description["$base_class"]
         if not base_class:
             base_class = cls
         elif factory is not None:
@@ -44,11 +44,11 @@ class SpObject(object):
         else:
             base_class = cls
 
-        o = urisplit(schema["$id"] or f"{base_class.__name__}_{uuid.uuid1().hex}")
+        o = urisplit(description["$id"] or f"{base_class.__name__}_{uuid.uuid1().hex}")
         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
         path = re.sub('[-\/\.]', '_', o.path)
         n_cls_name = f"{n_cls_name}{path}"
-        n_cls = type(n_cls_name, (base_class,), {"_schema": schema})
+        n_cls = type(n_cls_name, (base_class,), {"_description": description})
 
         return n_cls
 

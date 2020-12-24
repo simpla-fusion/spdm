@@ -93,4 +93,5 @@ class SpModuleLocal(SpObject):
                 }
 
     def __call__(self, *args, **kwargs):
+        logger.debug(f"Execute module {self.__class__.__name__}")
         return NotImplemented
