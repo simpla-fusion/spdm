@@ -10,6 +10,7 @@ from .sp_export import sp_find_module
 from .urilib import urijoin, urisplit
 from .utilities import iteritems, whoami
 from .SpObject import SpObject
+from .AttributeTree import AttributeTree
 
 
 class Factory(object):
@@ -53,7 +54,7 @@ class Factory(object):
             _resolver = self._default_resolver
 
         if type(desc) is str:
-            c_id = desc if _resolver is None else _resolver.normalize_uri(desc)
+            c_id = _resolver.normalize_uri(desc)
             n_cls = self._cache.get(c_id, None)
             if n_cls is not None:
                 return n_cls
@@ -61,15 +62,17 @@ class Factory(object):
         if _resolver is not None:
             desc = _resolver.fetch(desc)
 
-        if not isinstance(desc, collections.abc.Mapping):
+        if not isinstance(desc, (collections.abc.Mapping)):
             raise ValueError(f"Can not resolve schema {desc}!")
 
         n_cls = None
 
+        keys = [desc.get("$id", None),
+                desc.get("$base", None),
+                desc.get("$schema", None)]
+
         # search handler
-        for h_req in self._alias.match(desc.get("$id", None),
-                                       desc.get("$base", None),
-                                       desc.get("$schema", None)):
+        for h_req in self._alias.match(*[_resolver.normalize_uri(k) for k in keys if k is not None]):
             n_cls = self.handle(h_req, desc, *args, _resolver=_resolver, **kwargs)
             if n_cls is not None:
                 break

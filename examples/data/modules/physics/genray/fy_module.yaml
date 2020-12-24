@@ -1,6 +1,6 @@
 $schema: https://fusionyun.org/schemas/draft-00/flow/Actor
 $id: https://fusionyun.org/modules/actors/physics/genray
-$base: /actors/SpModule#SpModuleLocal
+$base: /modules/actors/SpModule#SpModuleLocal
 
 annotation:
   version: 0.0.1

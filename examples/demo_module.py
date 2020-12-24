@@ -10,13 +10,13 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 if __name__ == "__main__":
 
     from spdm.util.logger import logger
-    from spdm.util.ModuleManager import ModuleManager
+    from spdm.util.ModuleRepository import ModuleRepository
 
-    module = ModuleManager()
+    module = ModuleRepository()
 
     module.load_configure("/home/salmon/workspace/SpDev/SpDB/examples/data/configure.yaml")
 
-    # module.factory.add_alias("/actors/", "PyObject:///spdm/actors/*#{fragment}")
+    module.factory.add_alias("/actors/", "PyObject:///spdm/actors/*#{fragment}")
 
     genray = module.create("/modules/physics/genray", version="10.8", tag_suffix="foss-2019", workingdir="./")
 

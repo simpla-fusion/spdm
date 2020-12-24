@@ -118,7 +118,7 @@ class RefResolver(object):
 
     def normalize_uri(self, uri):
         if uri is None:
-            uri = ""
+            uri = None
         elif type(uri) is str:
             pass
         elif isinstance(uri, collections.abc.Sequence):
