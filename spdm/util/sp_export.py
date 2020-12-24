@@ -100,8 +100,11 @@ def sp_pkg_data_path(pkg, rpath):
     elif hasattr(pkg, "__file__"):  # check normal package
         plist = [pkg.__file__]
         yield pkgutil.get_data(pkg, rpath)
-    else:
-        raise ModuleNotFoundError(f"Module '{pkg}' is not loaded!")
+    # else:
+    #     # raise ModuleNotFoundError(f"Module '{pkg}' is not loaded!")
+    #     # return
+    #     plist = []
+    
     for p in plist:
         np = pathlib.Path(p)/rpath
         if np.exists():

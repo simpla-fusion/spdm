@@ -184,6 +184,7 @@ class RefResolver(object):
                 pass
             else:
                 new_doc["$id"] = uri
+                new_doc["$source_uri"] = a_uri
                 self._cache[uri] = new_doc
                 break
 

@@ -27,10 +27,18 @@ class SpModuleLocal(SpObject):
                       {"name": "STDERR"},
                       {"name": "OUTPUT_DIR"},
                       ],
+
+        "prescript":  [
+            "module purge",
+            "module load {mod_path}/{version}{tag_suffix}"
+        ],
+
         "run": {
-            "exec_cmd": "",
-            "arguments": ""
-        }
+            "exec_cmd": "${EBROOTGENRAY}/bin/xgenray",
+            "arguments": "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} ",
+        },
+
+        "postscript": "module purge"
     }
 
     script_call = {

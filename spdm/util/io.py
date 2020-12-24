@@ -44,11 +44,15 @@ def _read(uri, **kwargs):
                 content = yaml.load(fid, Loader=yaml.FullLoader)
 
     elif o.schema in ['pkgdata']:
-        for p in sp_pkg_data_path(o.authority or __package__.split('.')[0], o.path[1:]):
-            if p.exists() and p.suffix in (".json", ".yaml", ''):
-                with p.open() as fid:
-                    content = yaml.load(fid, Loader=yaml.FullLoader)
-                    break
+        pkg = o.authority or __package__.split('.')[0]
+        if not pkg:
+            pass
+        else:
+            for p in sp_pkg_data_path(pkg, o.path[1:]):
+                if p.exists() and p.suffix in (".json", ".yaml", ''):
+                    with p.open() as fid:
+                        content = yaml.load(fid, Loader=yaml.FullLoader)
+                        break
     elif o.schema in ['http', 'https'] and ENABLE_REMOTE:
         content = requests.get(uri).json()
 

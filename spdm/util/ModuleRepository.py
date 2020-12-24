@@ -15,15 +15,24 @@ from .sp_export import sp_find_module
 from .SpURI import URISplitResult, urisplit
 from .utilities import deep_update_dict
 from .AttributeTree import AttributeTree
-from .dict_util import tree_apply_recursive
+from .dict_util import format_string_recursive
 
 
 class ModuleRepository:
-    def __init__(self, *args, repo_prefix=None,  envs=None,  file_suffix="/fy_module.yaml", **kwargs):
+    def __init__(self, *args, repo_name=None, repo_tag=None,  envs=None, module_file_suffix=None, **kwargs):
         self._factory = None
-        self._repo_prefix = repo_prefix or __package__.split('.')[0]
-        self._file_suffix = file_suffix
+        self._repo_name = repo_name or __package__.split('.')[0]
+        self._repo_tag = repo_tag or self._repo_name[:2]
+        self._module_file_suffix = module_file_suffix or f"/{self._repo_tag.lower()}_module.yaml"
         self._envs = envs or {}
+
+        logger.debug(f"Open module repository '{self._repo_name} ({self._repo_tag})'")
+
+        self.configure([p for p in [
+            *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(':'),
+            *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(':'),
+            f"pkgdata://{self._repo_name}/configure.yaml"
+        ] if not not p])
 
     def load_configure(self, path, **kwargs):
         return self.configure(io.read(path))
@@ -32,11 +41,8 @@ class ModuleRepository:
         io.write(path, self._envs)
 
     def configure(self, conf=None, **kwargs):
-        conf_path = [
-            *os.environ.get(f"{self._repo_prefix.upper}_CONFIGURE_PATH", "").split(':'),
-            f"pkgdata://{self._repo_prefix}/../configure.yaml"
-        ]
-
+        logger.debug(conf)
+        conf_path = []
         if isinstance(conf, str):
             conf_path.append(conf)
             conf = {}
@@ -48,49 +54,47 @@ class ModuleRepository:
         else:
             raise TypeError(f"configure should be dict, string or list of string")
 
-        sys_conf = io.read(conf_path) if conf_path is not None else {}
+        sys_conf = {} if not conf_path else io.read(conf_path)
 
         # TODO:  list in dict should be appended not overwrited .
         f_conf = collections.ChainMap(kwargs, conf, sys_conf)
 
         self._factory = Factory(**f_conf.get("factory", {}), resolver=RefResolver(**f_conf.get("resolver", {})))
 
-        repo_prefix = self._repo_prefix.upper()
-
         self._home_dir = f_conf.get("home_dir", None) or \
-            os.environ.get(f"{repo_prefix}_HOME_DIR", None)
+            os.environ.get(f"{self._repo_tag.upper()}_HOME_DIR", None)
 
         if self._home_dir is not None:
             self._home_dir = pathlib.Path(self._home_dir)
         else:
-            self._home_dir = pathlib.Path.home()/f".{self._repo_prefix.lower()}"
+            self._home_dir = pathlib.Path.home()/f".{self._repo_name.lower()}"
 
         self._modules_dir = self._home_dir / \
-            f_conf.get(f"{repo_prefix}_MODULES_DIR", "modules")
+            f_conf.get(f"{self._repo_tag.upper()}_MODULES_DIR", "modules")
 
         self._env_modules_dir = self._home_dir / \
-            f_conf.get(f"{repo_prefix}_ENV_MODULEFILES_DIR", "env_modulefiles")
+            f_conf.get(f"{self._repo_tag.upper()}_ENV_MODULEFILES_DIR", "env_modulefiles")
 
         self._software_dir = self._home_dir / \
-            f_conf.get(f"{repo_prefix}_SOFTWARE_DIR", "software")
+            f_conf.get(f"{self._repo_tag.upper()}_SOFTWARE_DIR", "software")
 
         self._sources_dir = self._home_dir / \
-            f_conf.get(f"{repo_prefix}_SOURCES_DIR", "source")
+            f_conf.get(f"{self._repo_tag.upper()}_SOURCES_DIR", "source")
 
         self._build_dir = self._home_dir / \
-            f_conf.get(f"{repo_prefix}_BUILD_DIR", "build")
+            f_conf.get(f"{self._repo_tag.upper()}_BUILD_DIR", "build")
 
         self.resolver.alias.append(
             self.resolver.normalize_uri("/modules/*"),
-            self._modules_dir.as_posix()+f"/*{self._file_suffix}")
+            self._modules_dir.as_posix()+f"/*{self._module_file_suffix}")
 
         self._conf = f_conf
 
-    @property
+    @ property
     def resolver(self):
         return self._factory.resolver
 
-    @property
+    @ property
     def factory(self):
         return self._factory
 
@@ -99,7 +103,7 @@ class ModuleRepository:
 
         Format of searching path
 
-            <desc>/<version>-<tag_suffix> 
+            <desc>/<version>-<tag_suffix>
 
             file link:
                 <repo_path>/physics/genray/10.8.1   -> <repo_path>/physics/genray/10.8.1-foss-2019
@@ -119,27 +123,26 @@ class ModuleRepository:
                 {"version": version, "tag_suffix": tag_suffix}, kwargs, desc))
         else:
             path = desc
-            res = None
-            if tag_suffix is not None:
-                res = self.resolver.fetch(f"{path}/{version or 'default'}-{tag_suffix}")
-            elif version is not None:
-                res = self.resolver.fetch(f"{path}/{version}")
-            else:
-                res = self.resolver.fetch(f"{path}/default")
-                if not res:
-                    res = self.resolver.fetch(path)
+            res = self.resolver.fetch(f"{path}/{version or 'default'}{tag_suffix or ''}")
+            if not res:
+                res = self.resolver.fetch(path)
 
         # if res is not None and not isinstance(res, AttributeTree):
         #     res = AttributeTree(res)
 
         if isinstance(res, collections.abc.Mapping) and expand_template:
+            modulefile_path = pathlib.Path(res.get("$source_uri", ""))
+
+            doc_vars = {k: v for k, v in res.items() if k.startswith('$') and isinstance(v, str)}
             envs = collections.ChainMap({
-                "version": version,
-                "tag_suffix": tag_suffix,
-                "mod_path": path
-            }, kwargs, self._envs)
-            
-            tree_apply_recursive(res, lambda s, _envs=envs: s.format_map(_envs), str)
+                "version": version or "",
+                "tag_suffix": tag_suffix or "",
+                "mod_name": path,
+                f"{self._repo_tag.upper()}_MODULEFILE_ROOT": modulefile_path.parent,
+                f"{self._repo_tag.upper()}_MODULEFILE_ROOT": modulefile_path
+            }, kwargs, doc_vars, self._envs)
+
+            format_string_recursive(res,  envs)
 
         return res
 

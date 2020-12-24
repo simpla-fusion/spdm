@@ -69,7 +69,7 @@ class Factory(object):
         n_cls = None
 
         keys = [desc.get("$id", None),
-                desc.get("$base", None),
+                desc.get("$base_class", None),
                 desc.get("$schema", None)]
 
         # search handler

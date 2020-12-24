@@ -21,7 +21,7 @@ class SpObject(object):
     """
 
     @classmethod
-    def new_class(cls,  desc=None, *args, factory=None,   ** kwargs):
+    def new_class(cls,  desc=None, *args, ** kwargs):
 
         description = AttributeTree(getattr(cls, "_description", {}))
 
@@ -33,22 +33,23 @@ class SpObject(object):
         description.__update__(desc)
         description.__update__(kwargs)
 
-        if factory is not None:
-            description = factory.resolver.fetch(description)
+        # if factory is not None:
+        #     description = factory.resolver.fetch(description)
 
+        # if not base_class:
+        #     base_class = cls
+        # elif factory is not None:
+        #     base_class = factory.new_class(base_class)
+        # else:
+        #     base_class = cls
+       
         base_class = description["$base_class"]
-        if not base_class:
-            base_class = cls
-        elif factory is not None:
-            base_class = factory.find_class(base_class)
-        else:
-            base_class = cls
 
-        o = urisplit(description["$id"] or f"{base_class.__name__}_{uuid.uuid1().hex}")
+        o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
         path = re.sub('[-\/\.]', '_', o.path)
         n_cls_name = f"{n_cls_name}{path}"
-        n_cls = type(n_cls_name, (base_class,), {"_description": description})
+        n_cls = type(n_cls_name, (cls,), {"_description": description})
 
         return n_cls
 
