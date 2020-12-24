@@ -35,8 +35,6 @@ class SpObject(object):
         if resolver is not None:
             schema = resolver.fetch(schema)
 
-        logger.debug(schema)
-
         base_class = schema["$base_class"]
         if not base_class:
             base_class = cls
@@ -85,11 +83,11 @@ class SpObject(object):
 
         return cls(*args, **kwargs)
 
-    def __init__(self,  *, name=None, label=None, parent=None, attributes=None):
+    def __init__(self,  *, name=None, label=None, parent=None, attributes=None, **kwargs):
         super().__init__()
         self._uuid = uuid.uuid1()
         self._parent = parent
-        self._attributes = AttributeTree(attributes)
+        self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
         self._name = name
         self._label = label
 
@@ -117,7 +115,7 @@ class SpObject(object):
 
     @property
     def attributes(self):
-        return self._attributes.entry
+        return self._attributes
 
     @property
     def name(self):

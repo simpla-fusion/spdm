@@ -69,14 +69,12 @@ def sp_find_module(path, fragment=None):
     elif hasattr(mod, SP_EXPORT_KEYWORD):
         mod = getattr(getattr(mod, SP_EXPORT_KEYWORD), fragment, None)
     else:
-        # raise ModuleNotFoundError(f"{path}#{fragment}")
         mod = None
-        
-    if mod is not None:
-        logger.debug(f"Found module : {path}{'#'+fragment if fragment is not None else ''}")
-    else:
-        logger.debug(f"Can not find module {path}#{fragment}")
+
+    if mod is None:
         raise ModuleNotFoundError(f"Can not find module {path}#{fragment}")
+    else:
+        logger.debug(f"Found module : {path}{'#'+fragment if fragment is not None else ''}")
     return mod
 
 

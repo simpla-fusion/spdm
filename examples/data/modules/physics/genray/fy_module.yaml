@@ -1,9 +1,9 @@
 $schema: https://fusionyun.org/schemas/draft-00/flow/Actor
 $id: https://fusionyun.org/modules/actors/physics/genray
-$base: /actors/LocalCommand#LocalCommand
+$base: /actors/SpModule#SpModuleLocal
 
 annotation:
-  version: 0.0.0
+  version: 0.0.1
   label: Genray
   contributors:
     - Salmon
@@ -43,10 +43,12 @@ build:
   #     ('netCDF', '4.6.2'),
   #     ('MDSplus', '>7.83.0'),
   # ]
-
+  eb : Genray/10.8
 run:
-  exec_cmd: "{MODULE_DIR}/bin/xgenray"
-  arguments: "-i {equilibrium} -c {config_nc} -n {number_of_steps}"
+  module : "{mod_name}/{version}-{toolchain}"
+  # module load genray/{version}-{toolchain}
+  exec_cmd : "${EBROOTGENRAY}/bin/xgenray"
+  arguments : "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} "
 
 in_ports:
   - name: equilibrium # This is a copy of eqdsk file

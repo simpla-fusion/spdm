@@ -9,10 +9,10 @@ from pathlib import Path
 from string import Template
 from typing import List
 
-from spdm.util.logger import logger
-from spdm.util.Signature import Signature
-from spdm.util.SpObject import SpObject
-from spdm.util.AttributeTree import AttributeTree
+from ..util.logger import logger
+from ..util.Signature import Signature
+from ..util.SpObject import SpObject
+from ..util.AttributeTree import AttributeTree
 
 
 class LocalCommand(SpObject):
@@ -39,16 +39,13 @@ class LocalCommand(SpObject):
         ".csh": "tcsh"
     }
 
-    def __init__(self, *args, **kwargs):
-        # super().__init__(*args, **kwargs)
-        logger.debug((self.__class__._schema))
-        pass
+    def __init__(self, *args, parameters=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._parameter = parameters or {}
 
     def preprocess(self,  cache, envs):
-        patch = AttributeTree(super().initialize(cache, envs))
 
-        exec_cmd = pathlib.Path(self._schema.get(
-            "exec_cmd", "").format_map(envs))
+        exec_cmd = pathlib.Path(self._schema.get("exec_cmd", "").format_map(envs))
 
         if not exec_cmd.exists():
             raise FileExistsError(exec_cmd)
@@ -60,7 +57,6 @@ class LocalCommand(SpObject):
         else:
             raise TypeError(f"File '{exec_cmd}'  is not executable!")
 
-        _args, _kwargs = self.fetch_deps(cache)
         try:
             arguments = self._schema.get("arguments", "").format_map(envs)
         except KeyError as key:
@@ -69,12 +65,11 @@ class LocalCommand(SpObject):
 
         command.extend(shlex.split(arguments))
 
-        patch["local_vars"]["command"] = command
-
         return patch
 
-    def run(self,  cache, envs):
+    def run(self,  cache, _envs):
         command = cache.get_r([self.id, "local_vars", "command"], None)
+        #  module purge; module load genray/10.8-foss-2019 ; ${EBROOTGENRAY}/bin/xgenray -i ..../. ; module purge
         try:
             exit_status = subprocess.run(
                 command,

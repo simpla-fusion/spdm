@@ -14,26 +14,26 @@ from .RefResolver import RefResolver
 from .sp_export import sp_find_module
 from .SpURI import URISplitResult, urisplit
 from .utilities import deep_update_dict
+from .AttributeTree import AttributeTree
 
 
 class ModuleManager:
-    def __init__(self, *args, prefix=None, suffix=".yaml", envs=None, **kwargs):
+    def __init__(self, *args, repo_prefix=None,  envs=None, **kwargs):
         self._resolver = None
         self._factory = None
-        self._dirs = {}
-        self._prefix = prefix or __package__.split('.')[0]
-        self._suffix = suffix or ""
+        self._repo_prefix = repo_prefix or __package__.split('.')[0]
+        self._envs = envs or {}
 
     def load_configure(self, path, **kwargs):
         return self.configure(io.read(path))
 
     def save_configure(self, path):
-        raise NotImplementedError()
+        io.write(path, self._envs)
 
     def configure(self, conf=None, **kwargs):
         conf_path = [
-            *os.environ.get(f"{self._prefix.upper}_CONFIGURE_PATH", "").split(':'),
-            f"pkgdata://{self._prefix}/../configure.yaml"
+            *os.environ.get(f"{self._repo_prefix.upper}_CONFIGURE_PATH", "").split(':'),
+            f"pkgdata://{self._repo_prefix}/../configure.yaml"
         ]
 
         if isinstance(conf, str):
@@ -56,7 +56,7 @@ class ModuleManager:
 
         self._factory = Factory(**f_conf.get("factory", {}), default_resolver=self._resolver)
 
-        repo_prefix = self._prefix.upper()
+        repo_prefix = self._repo_prefix.upper()
 
         self._home_dir = f_conf.get("home_dir", None) or \
             os.environ.get(f"{repo_prefix}_HOME_DIR", None)
@@ -64,7 +64,7 @@ class ModuleManager:
         if self._home_dir is not None:
             self._home_dir = pathlib.Path(self._home_dir)
         else:
-            self._home_dir = pathlib.Path.home()/f".{self._prefix.lower()}"
+            self._home_dir = pathlib.Path.home()/f".{self._repo_prefix.lower()}"
 
         self._modules_dir = self._home_dir / \
             f_conf.get(f"{repo_prefix}_MODULES_DIR", "modules")
@@ -88,10 +88,6 @@ class ModuleManager:
         self._conf = f_conf
 
     @property
-    def dirs(self):
-        return self._dirs
-
-    @property
     def resolver(self):
         return self._resolver
 
@@ -99,27 +95,71 @@ class ModuleManager:
     def factory(self):
         return self._factory
 
-    def find_desc(self, desc, version=None):
-        if type(desc) is str:
-            return self._resolver.fetch(f"{desc.replace('.', '/')}/{version or ''}")
+    def find_description(self, desc, *args, version=None, tag_suffix=None, expand_template=True, **kwargs):
+        """
+
+        Format of searching path
+
+            <desc>/<version>-<tag_suffix> 
+
+            file link:
+                <repo_path>/physics/genray/10.8.1   -> <repo_path>/physics/genray/10.8.1-foss-2019
+                <repo_path>/physics/genray/10.8     -> <repo_path>/physics/genray/10.8.1-foss-2019
+                <repo_path>/physics/genray/10       -> <repo_path>/physics/genray/10.8.1-foss-2019
+                <repo_path>/physics/genray/default  -> <repo_path>/physics/genray/10.8.1-foss-2019
+
+        Example:
+                <repo_path>/physics/genray/10.8-foss-2019
+                <repo_path>/physics/genray/10.8
+                <repo_path>/physics/genray/default
+                <repo_path>/physics/genray/
+
+        """
+        if type(desc) is not str:
+            res = self._resolver.fetch(collections.ChainMap(
+                {"version": version, "tag_suffix": tag_suffix}, kwargs, desc))
         else:
-            return self._resolver({**desc, "version": version})
+            path = desc
+            res = None
+            if tag_suffix is not None:
+                res = self._resolver.fetch(f"{path}/{version or 'default'}-{tag_suffix}")
+            elif version is not None:
+                res = self._resolver.fetch(f"{path}/{version}")
+            else:
+                res = self._resolver.fetch(f"{path}/default")
+                if not res:
+                    res = self._resolver.fetch(path)
 
-    def new_class(self, desc):
-        try:
-            n_cls = self._factory.new_class(desc, _resolver=self._resolver)
-        except Exception:
-            raise ValueError(
-                f"Can not make module {desc}! \n { traceback.format_exc()}")
-        return n_cls
+        if res is not None and not isinstance(res, AttributeTree):
+            res = AttributeTree(res)
 
-    def create(self, desc, *args, **kwargs):
-        desc_ = self.find_desc(desc)
+        if isinstance(res, AttributeTree) and expand_template:
+            envs = collections.ChainMap({}, self._envs)
+            res.__apply_rescursive__(lambda s: s.format_map(envs), str)
+
+        return res
+
+    def new_class(self, desc, *args, **kwargs):
+
+        desc_ = self.find_description(desc, *args, **kwargs)
 
         if not desc_:
             raise LookupError(f"Can not find description! {desc}")
-        
-        return self._factory.create(desc_, *args, _resolver=self._resolver, **kwargs)
+
+        try:
+            n_cls = self._factory.new_class(desc_, _resolver=self._resolver)
+        except Exception:
+            raise ValueError(f"Can not make module {desc}! \n { traceback.format_exc()}")
+
+        return n_cls
+
+    def create(self, desc, *args, version=None, tag_suffix=None, **kwargs):
+        n_cls = self.new_class(desc, version=version, tag_suffix=tag_suffix)
+
+        if not n_cls:
+            raise RuntimeError(f"Can not create object {desc} {n_cls}")
+
+        return n_cls(*args, **kwargs)
 
     def glob(self, prefix=None):
         return self._resolver.glob(prefix or "/modules/")
@@ -127,9 +167,7 @@ class ModuleManager:
     def install_spec(self, spec, no_build=False, force=False, **kwargs):
         ver = spec.get("version", "0.0.0")
 
-        mid = spec.get("$id", None) or \
-            kwargs.get("id", None) or \
-            f"unkown/unamed_{uuid.uuid1().hex()}"
+        mid = spec.get("$id", None) or kwargs.get("id", None) or f"unkown/unamed_{uuid.uuid1().hex()}"
 
         spec["$id"] = mid
 

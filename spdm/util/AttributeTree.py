@@ -44,6 +44,36 @@ class AttributeTree:
     def __deepcopy__(self, memo=None):
         return AttributeTree(copy.deepcopy(self.__data__, memo))
 
+    def __apply_recursive__(self, visitor, types=None):
+        def traversal(obj, _op=visitor, _types=types):
+            if _types is not None and isinstance(obj, _types):
+                try:
+                    res = _op(obj)
+                except Exception:
+                    res = None
+                    flag = False
+                else:
+                    flag = True
+                return res, flag
+            elif isinstance(obj, AttributeTree):
+                obj = obj.__data__
+
+            if not isinstance(obj, str) and isinstance(obj, collections.abc.Sequence):
+                for idx, v in enumerate(obj):
+                    new_v, changed = traversal(v, _op, _types)
+                    if changed:
+                        obj[idx] = new_v
+            elif isinstance(obj, collections.abc.Mapping):
+                for idx, v in obj.items():
+                    new_v, changed = traversal(v, _op, _types)
+                    if changed:
+                        obj[idx] = new_v
+            return obj, False
+
+        res, changed = traversal(self.__data__, visitor, types)
+        if changed:
+            self.__data__ = res
+
     def __setattr__(self, key, value):
         if key.startswith('_'):
             self.__dict__[key] = value

@@ -189,7 +189,7 @@ class RefResolver(object):
 
         return new_doc
 
-    def fetch(self, doc, no_validate=False) -> dict:
+    def fetch(self, doc, no_validate=True) -> dict:
         """ fetch document from source, then validate and fill default
             value basing on $schema in document
         """
@@ -207,10 +207,10 @@ class RefResolver(object):
         else:
             new_doc = None
 
-        if new_doc is None:
-            raise RuntimeError(f"Can not fetch doc {doc}")
-
-        if not no_validate and self._enable_validate and "$schema" in new_doc:
+        if not new_doc:
+            # raise LookupError(f"Can not fetch doc {doc}")
+            return None
+        elif not no_validate and self._enable_validate and "$schema" in new_doc:
             self.validate(new_doc)
 
         return new_doc if fragment is None else getvalue_r(new_doc, fragment)

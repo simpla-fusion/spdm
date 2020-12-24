@@ -20,7 +20,7 @@ resolver:
   base_uri: https://fusionyun.org/schema/draft-00
   prefetch: "pkgdata://spdm/schemas/"
   alias:
-    - [/modules/*, "/home/salmon/workspace/SpDev/SpDB/examples/data/modules/*fy_module.yaml"]
+    - [/modules/*, "/home/salmon/workspace/SpDev/SpDB/examples/data/modules/*/fy_module.yaml"]
     - [/modules/*, "/fuyun/modules/*/fy_module.yaml"]
 
 factory:
