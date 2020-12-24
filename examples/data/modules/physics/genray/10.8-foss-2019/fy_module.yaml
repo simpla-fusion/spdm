@@ -3,7 +3,7 @@ $id: https://fusionyun.org/modules/actors/physics/genray
 $base: /actors/SpModule#SpModuleLocal
 
 annotation:
-  version: 0.0.1
+  version: "{version}"
   label: Genray
   contributors:
     - Salmon
@@ -16,11 +16,11 @@ annotation:
   license: GPL
 
 build:
-  toolchain :
+  toolchain:
       version: "{FY_TOOLCHAIN_VERSION}"
       name: gompi
 
-  toolchainopts :
+  toolchainopts:
       pic: True
 
   # sources :
@@ -43,12 +43,12 @@ build:
   #     ('netCDF', '4.6.2'),
   #     ('MDSplus', '>7.83.0'),
   # ]
-  eb : Genray/10.8
+  eb: Genray/{version}
+
 run:
-  module : "{mod_name}/{version}-{toolchain}"
-  # module load genray/{version}-{toolchain}
-  exec_cmd : "${EBROOTGENRAY}/bin/xgenray"
-  arguments : "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} "
+  module: "{mod_name}/{version}-{tag_suffix}"
+  exec_cmd: "${EBROOTGENRAY}/bin/xgenray"
+  arguments: "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} "
 
 in_ports:
   - name: equilibrium # This is a copy of eqdsk file

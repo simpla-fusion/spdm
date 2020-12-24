@@ -19,7 +19,7 @@ class SpModuleLocal(SpObject):
     """Call subprocess/shell command
     {PKG_PREFIX}/bin/xgenray -i {INPUT_FILE} -o {OUTPUT_DIR}
     """
-    _schema = {
+    _description = {
         "in_ports": [{"name": "args", "kind": "VAR_POSITIONAL"},
                      {"name": "kwargs", "kind": "VAR_KEYWORD"}],
         "out_ports": [{"name": "RETURNCODE"},
@@ -45,7 +45,7 @@ class SpModuleLocal(SpObject):
 
     def preprocess(self,  cache, envs):
 
-        exec_cmd = pathlib.Path(self._schema.get("exec_cmd", "").format_map(envs))
+        exec_cmd = pathlib.Path(self._description.get("exec_cmd", "").format_map(envs))
 
         if not exec_cmd.exists():
             raise FileExistsError(exec_cmd)
@@ -58,7 +58,7 @@ class SpModuleLocal(SpObject):
             raise TypeError(f"File '{exec_cmd}'  is not executable!")
 
         try:
-            arguments = self._schema.get("arguments", "").format_map(envs)
+            arguments = self._description.get("arguments", "").format_map(envs)
         except KeyError as key:
             raise KeyError(
                 f"Missing argument {key} in arguments [ {self.__class__.arguments} ]")

@@ -12,6 +12,7 @@ class TestAttributeTree(unittest.TestCase):
             "name": "WAAA",
             "age": 12
         }
+
         d = AttributeTree({
             "a": [
                 "hello world {name}!",
@@ -26,8 +27,7 @@ class TestAttributeTree(unittest.TestCase):
                 }
             }
         })
-
-        d.__apply_recursive__(lambda s: s.format_map(envs), str)
+        d, _ = tree_apply_recursive(d, lambda s: s.format_map(envs), str)
 
         self.assertEqual(d.a[0], "hello world {name}!".format_map(envs))
         self.assertEqual(d.a[1], "hello world2 {name}!".format_map(envs))
@@ -37,10 +37,37 @@ class TestAttributeTree(unittest.TestCase):
 
         self.assertEqual(d.a[2:6],  [1, 2, 3, 4])
 
+    def test_attribute_format(self):
+        d = AttributeTree({
+            'annotation': {'contributors': ['Salmon'],
+                           'description': '\\n Just a demo \\n multiline string example\\n',
+                           'homepage': 'http://funyun.com/demo.html',
+                           'label': 'Genray',
+                           'license': 'GPL',
+                           'version': '{version}'},
+            'build': {'eb': 'Genray/{version}',
+                      'toolchain': {'name': 'gompi', 'version': '{FY_TOOLCHAIN_VERSION}'},
+                      'toolchainopts': {'pic': True}},
+
+            'run': {'arguments': '-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT}',
+                    'exec_cmd': '${EBROOTGENRAY}/bin/xgenray',
+                    'module': '{mod_path}/{version}-{tag_suffix}'}}
+        )
+        envs = {
+            "version": '10.8',
+            "tag_suffix": "foss-2019",
+        }
+        format_string_recursive(d,  envs)
+
+        self.assertEqual(d.run.module,  '{mod_path}/10.8-foss-2019')
+        self.assertEqual(d.run.arguments,  '-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT}')
+        self.assertEqual(d.annotation.version,  '10.8')
+
 
 if __name__ == '__main__':
     sys.path.append("/home/salmon/workspace/SpDev/SpDB")
     from spdm.util.AttributeTree import AttributeTree
     from spdm.util.logger import logger
+    from spdm.util.dict_util import format_string_recursive, tree_apply_recursive
 
     unittest.main()

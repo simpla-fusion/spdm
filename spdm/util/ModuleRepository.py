@@ -133,7 +133,12 @@ class ModuleRepository:
         #     res = AttributeTree(res)
 
         if isinstance(res, collections.abc.Mapping) and expand_template:
-            envs = collections.ChainMap({}, self._envs)
+            envs = collections.ChainMap({
+                "version": version,
+                "tag_suffix": tag_suffix,
+                "mod_path": path
+            }, kwargs, self._envs)
+            
             tree_apply_recursive(res, lambda s, _envs=envs: s.format_map(_envs), str)
 
         return res
