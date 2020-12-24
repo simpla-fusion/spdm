@@ -23,6 +23,6 @@ if __name__ == "__main__":
     output0 = genray(num_of_steps=1)
 
     # output2 = cql3d(num_of_steps=1, equilibrium=output0.eq)
-    logger.debug(output0)
+    logger.debug(type(genray))
 
     logger.debug(pprint.pformat([p for p in module.glob()]))

@@ -1,13 +1,14 @@
 import collections
 import copy
 import inspect
+import re
 import uuid
 from enum import Enum, Flag, auto, unique
 
+from .AttributeTree import AttributeTree
 from .logger import logger
 from .sp_export import sp_find_module
 from .urilib import urisplit
-from .AttributeTree import AttributeTree
 
 
 class SpObject(object):
@@ -45,7 +46,8 @@ class SpObject(object):
 
         o = urisplit(schema["$id"] or f"{base_class.__name__}_{uuid.uuid1().hex}")
         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
-        n_cls_name = f"{n_cls_name}{o.path.replace('/','_')}"
+        path = re.sub('[-\/\.]', '_', o.path)
+        n_cls_name = f"{n_cls_name}{path}"
         n_cls = type(n_cls_name, (base_class,), {"_schema": schema})
 
         return n_cls
