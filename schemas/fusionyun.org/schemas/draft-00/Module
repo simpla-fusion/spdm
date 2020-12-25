@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Module",
+  "default": {},
+  "allOf": [
+    {
+      "$ref": "SpObject"
+    },
+    {
+      "properties": {
+        "$base_class": {
+          "type": "string",
+          "format": "uri-reference",
+          "$comment": "module path of class",
+          "default": {}
+        }
+      }
+    }
+  ],
+  "required": [
+    "$base_class"
+  ]
+}

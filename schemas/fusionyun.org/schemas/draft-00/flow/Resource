@@ -1,0 +1,29 @@
+{
+    "$id": "Resource",
+    "type": "object",
+    "allOf": [
+        {
+            "$ref": "Node"
+        },
+        {
+            "properties": {
+                "uri": {
+                    "type": "string",
+                    "format": "uri-reference"
+                }
+            },
+            "mode": {
+                "type": [
+                    "string",
+                    "integer"
+                ]
+            },
+            "schema": {
+                "type": [
+                    "string",
+                    "object"
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+{
+    "$id": "FileType/binary",
+    "allOf": [
+        {
+            "$ref": "#File"
+        },
+        {
+            "properties": {
+                "file_type": {
+                    "const": "binary",
+                    "default": "binary"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "$id": "FileType/geqdsk",
+    "type": "object",
+    "default": {},
+    "allOf": [
+        {
+            "$ref": "#File"
+        },
+        {
+            "properties": {
+                "file_type": {
+                    "const": "geqdsk"
+                }
+            }
+        }
+    ]
+}

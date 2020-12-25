@@ -1,0 +1,94 @@
+{
+    "$id": "Annotation",
+    "type": "object",
+    "default": {},
+    "properties": {
+        "title": {
+            "type": "string"
+        },
+        "name": {
+            "$ref": "definitions#ModulePath"
+        },
+        "deprecated": {
+            "type": "boolean",
+            "default": false
+        },
+        "description": {
+            "type": "string"
+        },
+        "contact": {
+            "$ref": "definitions#Contact"
+        },
+        "contributors": {
+            "type": "array",
+            "items": {
+                "$ref": "definitions#Contact"
+            }
+        },
+        "license": {
+            "$ref": "definitions#License",
+            "default": {
+                "type": "MIT"
+            }
+        },
+        "version": {
+            "$ref": "definitions#Version"
+        },
+        "hash": {
+            "$ref": "definitions#Hash"
+        },
+        "homepage": {
+            "type": "string",
+            "format": "url"
+        },
+        "bugs": {
+            "$ref": "definitions#Contact"
+        },
+        "bundleDependencies": {
+            "type": "boolean",
+            "default": false
+        },
+        "dependencies": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z0-9_]+$": {
+                    "$ref": "definitions#ModulePath"
+                }
+            },
+            "additionalProperties": false
+        },
+        "main": {
+            "type": "object"
+        },
+        "repository": {
+            "$ref": "definitions#Repository"
+        },
+        "scripts": {
+            "$comment": "UNIMPLEMENTED",
+            "type": "object"
+        },
+        "buildScripts": {
+            "$comment": "UNIMPLEMENTED",
+            "type": "object"
+        },
+        "modulePath": {
+            "type": "string",
+            "format": "uri-reference",
+            "default": "."
+        },
+        "create_time": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "reference": {
+            "type": "array",
+            "items": {
+                "$ref": "definitions#Reference"
+            }
+        },
+        "document": {
+            "type": "string",
+            "format": "uri"
+        }
+    }
+}

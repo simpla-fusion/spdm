@@ -1,0 +1,46 @@
+{
+  "$id": "NdArray",
+  "type": "object",
+  "properties": {
+    "nd": {
+      "type": "integer"
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "strides": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "flags": {
+      "type": "integer"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "boolean",
+        "int64",
+        "int32",
+        "double",
+        "float"
+      ]
+    },
+    "base": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "type": "string",
+          "format": "base64"
+        }
+      ]
+    }
+  }
+}

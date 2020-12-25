@@ -1,0 +1,33 @@
+{
+    "$id": "resources/Database",
+    "type": "object",
+    "default": {},
+    "allOf": [
+        {
+            "$ref": "../Resource"
+        },
+        {
+            "properties": {
+                "metedata": {
+                    "properties": {
+                        "__class__": {
+                            "constant": "Database",
+                            "default": "Database"
+                        }
+                    },
+                    "default": {}
+                },
+                "mode": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ]
+                },
+                "template": {
+                    "type": "string",
+                    "format": "uri-reference"
+                }
+            }
+        }
+    ]
+}

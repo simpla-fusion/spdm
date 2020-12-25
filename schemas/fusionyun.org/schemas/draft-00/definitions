@@ -1,0 +1,144 @@
+{
+  "$schema": "schema",
+  "PrimaryType": {
+    "type": [
+      "null",
+      "boolean",
+      "integer",
+      "number",
+      "string",
+      "array",
+      "object"
+    ]
+  },
+  "Contact": {
+    "anyOf": [
+      {
+        "type": "string"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      }
+    ],
+    "additionalProperties": false
+  },
+  "License": {
+    "anyOf": [
+      {
+        "enum": [
+          "GPL",
+          "LGPL",
+          "MIT",
+          "BSD",
+          "Apache"
+        ]
+      },
+      {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri-reference"
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "Reference": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "authors": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "name"
+        }
+      },
+      "journal": {
+        "type": "string"
+      },
+      "year": {
+        "type": "integer"
+      },
+      "volume": {
+        "type": "integer"
+      },
+      "page": {
+        "type": "integer"
+      }
+    }
+  },
+  "Schema": {
+    "$ref": "http://json-schema.org/draft-07/schema"
+  },
+  "Repository": {
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "git",
+          "svn"
+        ]
+      },
+      "url": {
+        "type": "string",
+        "format": "url"
+      }
+    }
+  },
+  "Person": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "url": {
+        "type": "string",
+        "format": "uri-reference"
+      },
+      "email": {
+        "type": "string",
+        "format": "email"
+      }
+    },
+    "patternProperties": {
+      "^x-": {}
+    },
+    "additionalProperties": false
+  },
+  "ModulePath": {
+    "type": "string",
+    "format": "url-reference"
+  },
+  "Version": {
+    "type": "string",
+    "pattern": "^(\\d+\\.)?(\\d+\\.)?(\\*|\\d+)$"
+  },
+  "Hash": {
+    "type": "string"
+  }
+}

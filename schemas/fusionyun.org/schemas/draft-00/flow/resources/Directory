@@ -1,0 +1,13 @@
+{
+    "$id": "resources/Directory",
+    "type": "object",
+    "default": {},
+    "allOf": [
+        {
+            "$ref": "../Resource"
+        },
+        {
+
+        }
+    ]
+}

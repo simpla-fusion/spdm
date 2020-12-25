@@ -1,0 +1,31 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://fusionyun.org/schemas/draft-00/schema#",
+    "title": "FuYun core schema meta-schema",
+    "oneOf": [
+        {
+            "$ref": "flow/Node"
+        },
+        {
+            "$ref": "flow/Edge"
+        },
+        {
+            "$ref": "flow/Actor"
+        },
+        {
+            "$ref": "flow/Graph"
+        },
+        {
+            "$ref": "Module"
+        },
+        {
+            "$ref": "Mapping"
+        },
+        {
+            "$ref": "SpObject"
+        },
+        {
+            "$ref": "PyObject"
+        }
+    ]
+}

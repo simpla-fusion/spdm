@@ -1,0 +1,25 @@
+{
+    "$id": "Metadata",
+    "type": "object",
+    "default": {},
+    "properties": {
+        "@class": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$"
+        }
+    },
+    "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_]*$": {
+            "type": [
+                "array",
+                "boolean",
+                "integer",
+                "null",
+                "number",
+                "object",
+                "string"
+            ]
+        }
+    },
+    "additionalProperties": false
+}

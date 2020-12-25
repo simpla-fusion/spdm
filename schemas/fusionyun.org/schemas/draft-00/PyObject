@@ -1,0 +1,23 @@
+{
+    "$id": "PyObject",
+    "type": "object",
+    "default": {},
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "format": "uri"
+        },
+        "path": {
+            "type": "string",
+            "format": "uri"
+        },
+        "name": {
+            "type": "string",
+            "default": "unknown"
+        }
+    },
+    "required": [
+        "path",
+        "name"
+    ]
+}

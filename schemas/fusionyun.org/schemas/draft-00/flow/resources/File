@@ -1,0 +1,23 @@
+{
+    "$id": "File",
+    "type": "object",
+    "default": {},
+    "allOf": [
+        {
+            "$ref": "../Resource"
+        },
+        {
+            "properties": {
+                "format": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z][a-zA-Z_]*$",
+                    "default": "text"
+                },
+                "template": {
+                    "type": "string",
+                    "format": "uri-reference"
+                }
+            }
+        }
+    ]
+}

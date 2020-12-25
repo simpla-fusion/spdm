@@ -1,0 +1,40 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "Node",
+    "type": "object",
+    "allOf": [
+        {
+            "$ref": "../SpObject"
+        },
+        {
+            "properties": {
+                "in_ports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "Port"
+                    },
+                    "additionalItems": false
+                },
+                "out_ports": {
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "$ref": "Port"
+                            },
+                            "additionalItems": false
+                        },
+                        {
+                            "type": "object"
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "required": [
+        "$schema",
+        "in_ports"
+    ],
+    "default": true
+}

@@ -1,0 +1,30 @@
+{
+    "$id": "SpObject",
+    "type": "object",
+    "default": {},
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "format": "uri",
+            "$comment": "specify the handler in factory",
+            "default": "SpObject"
+        },
+
+        "annotation": {
+            "$ref": "Annotation",
+            "$comment": "Information about the 'class'.",
+            "default": {}
+        },
+
+        "name": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9_]+"
+        },
+        "uuid": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "$schema"
+    ]
+}

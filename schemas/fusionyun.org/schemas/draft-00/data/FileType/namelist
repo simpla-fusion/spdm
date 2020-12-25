@@ -1,0 +1,16 @@
+{
+    "allOf": [
+        {
+            "$ref": "../File"
+        },
+        {
+            "properties": {
+                "file_type": {
+                    "const": "namelist",
+                    "default": "namelist"
+                }
+            }
+        }
+    ],
+    "default": {}
+}
