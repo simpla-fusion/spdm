@@ -47,6 +47,7 @@ build:
   #     ('MDSplus', '>7.83.0'),
   # ]
   eb: Genray/{version}
+
 prescript:
   - module use /fuyun/modules/
   - module purge
@@ -61,33 +62,27 @@ postscript:
 
 in_ports:
   - name: equilibrium # This is a copy of eqdsk file
-    type: resources/file
-    format: geqdsk
-    template: "{FY_MODULEFILE_ROOT}/../template/g063982.04800"
-    mode: w
+    type: file/geqdsk
+    default: "{FY_MODULEFILE_ROOT}/../template/g063982.04800"
 
-  - name: num_of_steps
+  - name: number_of_steps
     type: integer
     default: 1
 
   - name: dt
     default: 0.1
-    type: number
+    type: float
     $comment: Inputs the data for all NAMELISTs used in the code.
 
-  - name: config_inc
-    type: resources/file
-    format: namelist
-    mode: w
-    template: "{FY_MODULEFILE_ROOT}/../template/genray.in"
+  - name: config
+    type: file/namelist
+    template: "{FY_MODULEFILE_DIR}/../template/genray.in"
 
 out_ports:
   - name: out_nc
-    type: resources/file
-    format: netCDF
+    type: file/netcdf
     path: genray_EAST.nc
 
   - name: out_eq
-    type: resources/file
-    format: GEqDsk
+    type: file/geqdsk
     path: geqdsk

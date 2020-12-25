@@ -43,14 +43,16 @@ class SpObject(object):
         #     base_class = factory.new_class(base_class)
         # else:
         #     base_class = cls
-
-        base_class = description["$base_class"]
+        # base_class = description["$base_class"]
 
         o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
-        path = re.sub('[-\/\.]', '_', o.path)
+
+        path = re.sub(r'[-\/\.]', '_', o.path)
+        
         n_cls_name = f"{n_cls_name}{path}"
-        n_cls = type(n_cls_name, (cls,), {"_description": description})
+        
+        n_cls = type(n_cls_name, (cls,), {"_description": AttributeTree(description)})
 
         return n_cls
 
@@ -119,12 +121,12 @@ class SpObject(object):
         self.preprocess()
 
         error_msg = None
-        try:
-            res = self.execute(*args, **kwargs)
-        except Exception as error:
-            error_msg = error
-            logger.error(f"{error}")
-            res = None
+        # try:
+        res = self.execute(*args, **kwargs)
+        # except Exception as error:
+        #     error_msg = error
+        #     logger.error(f"{error}")
+        #     res = None
 
         self.postprocess()
 

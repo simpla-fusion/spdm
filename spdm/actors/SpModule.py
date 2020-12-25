@@ -13,6 +13,7 @@ from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
 from ..util.AttributeTree import AttributeTree
+from ..data.DataObject import DataObject
 
 LMOD_EXEC = "/usr/share/lmod/lmod/libexec/lmod"
 
@@ -21,27 +22,28 @@ class SpModuleLocal(SpObject):
     """Call subprocess/shell command
     {PKG_PREFIX}/bin/xgenray -i {INPUT_FILE} -o {OUTPUT_DIR}
     """
-    _description = AttributeTree({
-        "in_ports": [{"name": "args", "kind": "VAR_POSITIONAL"},
-                     {"name": "kwargs", "kind": "VAR_KEYWORD"}],
-        "out_ports": [{"name": "RETURNCODE"},
-                      {"name": "STDOUT"},
-                      {"name": "STDERR"},
-                      {"name": "OUTPUT_DIR"},
-                      ],
+    _description = AttributeTree()
+    # {
+    #     "in_ports": [{"name": "args", "kind": "VAR_POSITIONAL"},
+    #                  {"name": "kwargs", "kind": "VAR_KEYWORD"}],
+    #     "out_ports": [{"name": "RETURNCODE"},
+    #                   {"name": "STDOUT"},
+    #                   {"name": "STDERR"},
+    #                   {"name": "OUTPUT_DIR"},
+    #                   ],
 
-        "prescript":  [
-            "module purge",
-            "module load {mod_path}/{version}{tag_suffix}"
-        ],
+    #     "prescript":  [
+    #         "module purge",
+    #         "module load {mod_path}/{version}{tag_suffix}"
+    #     ],
 
-        "run": {
-            "exec_file": "${EBROOTGENRAY}/bin/xgenray",
-            "arguments": "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} ",
-        },
+    #     "run": {
+    #         "exec_file": "${EBROOTGENRAY}/bin/xgenray",
+    #         "arguments": "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} ",
+    #     },
 
-        "postscript": "module purge"
-    })
+    #     "postscript": "module purge"
+    # })
 
     script_call = {
         ".py": sys.executable,
@@ -53,9 +55,14 @@ class SpModuleLocal(SpObject):
         super().__init__()
         self._parameter = parameters or {}
         self._only_module_command = only_module_command
+        self._working_dir = pathlib.Path(f"./{self.__class__.__name__}")
 
     def __del(self):
         super().__del__()
+
+    @property
+    def working_dir(self):
+        return self._working_dir
 
     def _execute_module_command(self, *args):
         logger.debug(f"MODULE CMD: module {' '.join(args)}")
@@ -133,14 +140,25 @@ class SpModuleLocal(SpObject):
         else:
             raise TypeError(f"File '{exec_file}'  is not executable!")
 
-        inputs = {
-            "WORKING_DIR": "./"
+        mod_envs = {
+            "WORKING_DIR": self.working_dir,
+            "INPUT_DIR": self.working_dir/"inputs",
+            "OUTPUT_DIR": self.working_dir/"outputs"
         }
+
+        inputs = {}
+
+        for p_in in self._description.in_ports:
+            p_name = str(p_in["name"])
+            if p_name == "VAR_ARGS":
+                inputs[p_name] = DataObject(p_in, args, working_dir=mod_envs["INPUT_DIR"])
+            else:
+                inputs[p_name] = DataObject(p_in, kwargs.get(p_name, None), working_dir=mod_envs["INPUT_DIR"])
 
         cmd_arguments = str(self._description.run.arguments)
 
         try:
-            arguments = cmd_arguments.format_map(collections.ChainMap(inputs, os.environ))
+            arguments = cmd_arguments.format_map(collections.ChainMap(inputs, mod_envs, os.environ))
         except KeyError as key:
             raise KeyError(f"Missing argument {key} ! [ {cmd_arguments} ]")
 
@@ -164,11 +182,12 @@ class SpModuleLocal(SpObject):
                    STDERR:[{error.stderr}]""")
             raise error
 
-        outputs = {}
+        outputs = {"RETURNCODE": exit_status.returncode,
+                   "STDOUT": exit_status.stdout,
+                   "STDERR": exit_status.stderr, }
 
-        return AttributeTree(
-            RETURNCODE=exit_status.returncode,
-            STDOUT=exit_status.stdout,
-            STDERR=exit_status.stderr,
-            **outputs
-        )
+        for p_out in self._description.out_ports:
+            p_name = str(p_out["name"])
+            outputs[p_name] = DataObject(p_out,  working_dir=mod_envs["OUTPUT_DIR"])
+
+        return AttributeTree(outputs)

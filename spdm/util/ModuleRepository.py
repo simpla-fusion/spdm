@@ -138,8 +138,8 @@ class ModuleRepository:
                 "version": version or "",
                 "tag": tag or "",
                 "module_path": path,
-                f"{self._repo_tag.upper()}_MODULEFILE_ROOT": modulefile_path.parent,
-                f"{self._repo_tag.upper()}_MODULEFILE_ROOT": modulefile_path
+                f"{self._repo_tag.upper()}_MODULEFILE_DIR": modulefile_path.parent,
+                f"{self._repo_tag.upper()}_MODULEFILE_PATH": modulefile_path
             }, kwargs, doc_vars, self._envs)
 
             format_string_recursive(res,  envs)
