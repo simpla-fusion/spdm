@@ -1,0 +1,80 @@
+$schema: https://fusionyun.org/schemas/draft-00/flow/Actor
+$id: https://fusionyun.org/modules/actors/physics/genray
+$base: /modules/actors/SpModule#SpModuleLocal
+
+annotation:
+  version: 0.0.1
+  label: Genray
+  contributors:
+    - Salmon
+
+  homepage: http://funyun.com/demo.html
+  description: \n
+        Just a demo \n
+        multiline string example\n
+        # just a test
+  license: GPL
+
+build:
+  toolchain :
+      version: "{FY_TOOLCHAIN_VERSION}"
+      name: gompi
+
+  toolchainopts :
+      pic: True
+
+  # sources :
+  #     - filename : 'installer-'+local_installer+'.tar.gz'
+  #       git_config :
+  #         url : 'ssh://git@git.iter.org/imas'
+  #         repo_name : 'installer'
+  #         tag : local_installer
+
+  # builddependencies :
+  #   - ['libxslt', '1.1.33']
+
+  # dependencies : [
+  #     ('Java', local_javaver, '', True),
+  #     ('Python', local_pyver),
+  #     ('UDA', '2.2.6', '-Python-%(pyver)s',  toolchain),
+  #     ('Boost', '>1.71.0,<1.80.0'),
+  #     ('Blitz++', '1.0.2'),
+  #     ('HDF5', '1.10.5'),
+  #     ('netCDF', '4.6.2'),
+  #     ('MDSplus', '>7.83.0'),
+  # ]
+  eb : Genray/10.8
+run:
+  module : "{mod_name}/{version}-{toolchain}"
+  # module load genray/{version}-{toolchain}
+  exec_cmd : "${EBROOTGENRAY}/bin/xgenray"
+  arguments : "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} "
+
+in_ports:
+  - name: equilibrium # This is a copy of eqdsk file
+    annotation:
+      type: resources/file
+      format: geqdsk
+      template: MODULE_DIR/templates/g063982.04800
+      mode: w
+
+  - name: num_of_steps
+    annotation: integer
+    default: 1
+
+  - name: dt
+    default: 0.1
+    annotation:
+      type: number
+      $comment: Inputs the data for all NAMELISTs used in the code.
+
+  - name: config_inc
+    annotation:
+      type: flow/resources/file
+      format: namelist
+      mode: w
+      template: MODULE_DIR/templates/genray.in
+# out_ports:
+#   - name: output
+#     annotation:
+#       type: resources/Directory

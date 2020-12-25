@@ -14,12 +14,14 @@ from ..util.Signature import Signature
 from ..util.SpObject import SpObject
 from ..util.AttributeTree import AttributeTree
 
+LMOD_EXEC = "/usr/share/lmod/lmod/libexec/lmod"
+
 
 class SpModuleLocal(SpObject):
     """Call subprocess/shell command
     {PKG_PREFIX}/bin/xgenray -i {INPUT_FILE} -o {OUTPUT_DIR}
     """
-    _description = {
+    _description = AttributeTree({
         "in_ports": [{"name": "args", "kind": "VAR_POSITIONAL"},
                      {"name": "kwargs", "kind": "VAR_KEYWORD"}],
         "out_ports": [{"name": "RETURNCODE"},
@@ -34,12 +36,12 @@ class SpModuleLocal(SpObject):
         ],
 
         "run": {
-            "exec_cmd": "${EBROOTGENRAY}/bin/xgenray",
+            "exec_file": "${EBROOTGENRAY}/bin/xgenray",
             "arguments": "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} ",
         },
 
         "postscript": "module purge"
-    }
+    })
 
     script_call = {
         ".py": sys.executable,
@@ -47,41 +49,109 @@ class SpModuleLocal(SpObject):
         ".csh": "tcsh"
     }
 
-    def __init__(self, *args, parameters=None, **kwargs):
+    def __init__(self, *args, parameters=None, only_module_command=True, **kwargs):
         super().__init__()
         self._parameter = parameters or {}
+        self._only_module_command = only_module_command
 
-    def preprocess(self,  cache, envs):
+    def __del(self):
+        super().__del__()
 
-        exec_cmd = pathlib.Path(self._description.get("exec_cmd", "").format_map(envs))
+    def _execute_module_command(self, *args):
+        logger.debug(f"MODULE CMD: module {' '.join(args)}")
+        py_commands = os.popen(f"{LMOD_EXEC} python {' '.join(args)}  ").read()
+        res = exec(py_commands)
+        return res
 
-        if not exec_cmd.exists():
-            raise FileExistsError(exec_cmd)
-        elif exec_cmd.suffix in SpModuleLocal.script_call.keys():
-            command = [SpModuleLocal.script_call[exec_cmd.suffix],
-                       exec_cmd.as_posix()]
-        elif os.access(exec_cmd, os.X_OK):
-            command = [exec_cmd.as_posix()]
+    def _execute_process(self, cmd):
+        res = os.popen(cmd).read()
+        logger.debug(f"SHELL CMD: {cmd} : {res}")
+        return res
+
+    def _execute_object(self, cmd):
+        return NotImplemented
+
+    def _execute_script(self, cmds):
+        if cmds is None:
+            return None
+        elif isinstance(cmds, collections.abc.Sequence) and not isinstance(cmds, str):
+            pass
         else:
-            raise TypeError(f"File '{exec_cmd}'  is not executable!")
+            cmds = [cmds]
+
+        res = None
+
+        for cmd in cmds:
+            if isinstance(cmd, collections.abc.Mapping):
+                res = self._execute_object(cmd)
+            elif isinstance(cmd, str):
+                if cmd.startswith("module "):
+                    res = self._execute_module_command(cmd[len("module "):])
+                elif not self._only_module_command:
+                    res = self._execute_process(cmd)
+                else:
+                    raise RuntimeError(f"Illegal command! [{cmd}] Only 'module' command is allowed.")
+            elif isinstance(cmd, collections.abc.Sequence):
+                res = self._execute_script(cmd)
+            else:
+                raise NotImplementedError(cmd)
+
+        return res
+
+    def preprocess(self):
+        super().preprocess()
+        self._execute_script(self._description.prescript)
+
+    def postprocess(self):
+        self._execute_script(self._description.postscript)
+        super().postprocess()
+
+    def execute(self,  *args, envs=None, **kwargs):
+        # super().execute(*args, **kwargs)
+        module_name = str(self._description.annotation.name)
+
+        module_root = pathlib.Path(os.environ.get(f"EBROOT{module_name.upper()}",)).expanduser()
+
+        exec_file = module_root / str(self._description.run.exec_file)
+
+        exec_file.resolve()
 
         try:
-            arguments = self._description.get("arguments", "").format_map(envs)
+            exec_file.relative_to(module_root)
+        except ValueError:
+            logger.error(f"Try to call external programs [{exec_file}]! module_root={module_root}")
+            raise RuntimeError(f"It is forbidden to call external programs! [{exec_file}]!  module_root={module_root}")
+
+        command = [exec_file]
+
+        if not exec_file.exists():
+            raise FileExistsError(exec_file)
+        elif exec_file.suffix in SpModuleLocal.script_call.keys():
+            command = [SpModuleLocal.script_call[exec_file.suffix], exec_file.as_posix()]
+        elif os.access(exec_file, os.X_OK):
+            command = [exec_file.as_posix()]
+        else:
+            raise TypeError(f"File '{exec_file}'  is not executable!")
+
+        inputs = {
+            "WORKING_DIR": "./"
+        }
+
+        cmd_arguments = str(self._description.run.arguments)
+
+        try:
+            arguments = cmd_arguments.format_map(collections.ChainMap(inputs, os.environ))
         except KeyError as key:
-            raise KeyError(
-                f"Missing argument {key} in arguments [ {self.__class__.arguments} ]")
+            raise KeyError(f"Missing argument {key} ! [ {cmd_arguments} ]")
 
         command.extend(shlex.split(arguments))
 
-        return patch
+        logger.debug(command)
 
-    def run(self,  cache, _envs):
-        command = cache.get_r([self.id, "local_vars", "command"], None)
-        #  module purge; module load genray/10.8-foss-2019 ; ${EBROOTGENRAY}/bin/xgenray -i ..../. ; module purge
         try:
             exit_status = subprocess.run(
                 command,
-                env=_envs,
+                env=envs,
                 capture_output=True,
                 check=True,
                 shell=False,
@@ -94,12 +164,11 @@ class SpModuleLocal(SpObject):
                    STDERR:[{error.stderr}]""")
             raise error
 
-        return {"RETURNCODE": exit_status.returncode,
-                "STDOUT": exit_status.stdout,
-                "STDERR": exit_status.stderr,
-                "OUTPUT_DIR": pathlib.Path(_envs.get("WORKING_DIR"))
-                }
+        outputs = {}
 
-    def __call__(self, *args, **kwargs):
-        logger.debug(f"Execute module {self.__class__.__name__}")
-        return NotImplemented
+        return AttributeTree(
+            RETURNCODE=exit_status.returncode,
+            STDOUT=exit_status.stdout,
+            STDERR=exit_status.stderr,
+            **outputs
+        )

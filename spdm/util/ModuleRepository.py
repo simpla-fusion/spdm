@@ -98,12 +98,12 @@ class ModuleRepository:
     def factory(self):
         return self._factory
 
-    def find_description(self, desc, *args, version=None, tag_suffix=None, expand_template=True, **kwargs):
+    def find_description(self, desc, *args, version=None, tag=None, expand_template=True, **kwargs):
         """
 
         Format of searching path
 
-            <desc>/<version>-<tag_suffix>
+            <desc>/<version>-<tag>
 
             file link:
                 <repo_path>/physics/genray/10.8.1   -> <repo_path>/physics/genray/10.8.1-foss-2019
@@ -120,10 +120,10 @@ class ModuleRepository:
         """
         if type(desc) is not str:
             res = self.resolver.fetch(collections.ChainMap(
-                {"version": version, "tag_suffix": tag_suffix}, kwargs, desc))
+                {"version": version, "tag": tag}, kwargs, desc))
         else:
             path = desc
-            res = self.resolver.fetch(f"{path}/{version or 'default'}{tag_suffix or ''}")
+            res = self.resolver.fetch(f"{path}/{version or 'default'}{tag or ''}")
             if not res:
                 res = self.resolver.fetch(path)
 
@@ -136,8 +136,8 @@ class ModuleRepository:
             doc_vars = {k: v for k, v in res.items() if k.startswith('$') and isinstance(v, str)}
             envs = collections.ChainMap({
                 "version": version or "",
-                "tag_suffix": tag_suffix or "",
-                "mod_name": path,
+                "tag": tag or "",
+                "module_path": path,
                 f"{self._repo_tag.upper()}_MODULEFILE_ROOT": modulefile_path.parent,
                 f"{self._repo_tag.upper()}_MODULEFILE_ROOT": modulefile_path
             }, kwargs, doc_vars, self._envs)
@@ -160,8 +160,8 @@ class ModuleRepository:
 
         return n_cls
 
-    def create(self, desc, *args, version=None, tag_suffix=None, **kwargs):
-        n_cls = self.new_class(desc, version=version, tag_suffix=tag_suffix)
+    def create(self, desc, *args, version=None, tag=None, **kwargs):
+        n_cls = self.new_class(desc, version=version, tag=tag)
 
         if not n_cls:
             raise RuntimeError(f"Can not create object {desc} {n_cls}")

@@ -190,7 +190,14 @@ class AttributeTree:
             obj = self.__as_object__()
             for k, v in other.items():
                 if isinstance(v, collections.abc.Mapping):
-                    self.__missing__(k).__update__(v)
+                    d = self.__missing__(k)
+                    if isinstance(d, AttributeTree):
+                        d.__update__(v)
+                    elif isinstance(d, collections.abc.Sequence):
+                        if isinstance(v, collections.abc.Sequence) and not isinstance(v, str):
+                            d.extend(v)
+                        else:
+                            d.append(v)
                 elif isinstance(v, AttributeTree) and v.__data__ is None:
                     pass
                 else:

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://fusionyun.org/schemas/draft-00/flow/Actor",
+  "$base_class": "/nodes/actors/SpModuleLocal",
+  "$id": "Demo",
+  "annotation": {
+    "class_name": "Demo",
+    "version": "0.0.01",
+    "label": "DEMO",
+    "contributors": [
+      "Salmon "
+    ],
+    "homepage": "http://funyun.com/demo.html",
+    "description": "Just a demo",
+    "license": "GPL",
+    "requirements": {}
+  },
+  "metadata": {
+    "exec_cmd": "{FY_PKG_DIR}/physics/demo/{version}/demo.py",
+    "arguments": " {equilibrium} "
+  },
+  "in_ports": [
+    {
+      "$comment": " This is a copy of eqdsk file",
+      "name": "equilibrium",
+      "type": "flow/resources/file",
+      "metadata": {
+        "uri": "equilib.gfile",
+        "file_type": "geqdsk",
+        "template": "/home/salmon/workspace/spdm/examples/data/schemas/modules/actors/physics/genray/templates/g063982.04800",
+        "mode": "w"
+      }
+    },
+    {
+      "name": "num_of_steps",
+      "type": "integer",
+      "default": 1
+    },
+    {
+      "name": "dt",
+      "type": "number",
+      "default": 0.1
+    },
+    {
+      "$comment": " Inputs the data for all NAMELISTs used in the code.",
+      "name": "config_inc",
+      "type": "flow/resources/file",
+      "metadata": {
+        "file_type": "namelist",
+        "uri": "genray.in",
+        "mode": "w",
+        "template": "/home/salmon/workspace/spdm/examples/data/schemas/modules/actors/physics/genray/templates/genray.in"
+      }
+    },
+    {
+      "name": "con1",
+      "description": " some input data from the eqdsk file ",
+      "type": "spdm.data.io#Connection"
+    },
+    {
+      "name": "3d.dat",
+      "description": "output data along all the rays for CQL3D code ",
+      "type": "spdm.data.io#Connection"
+    },
+    {
+      "name": "genray.npy",
+      "description": "output data for plotting the rays under XDRAW",
+      "type": "spdm.data.io#Connection"
+    },
+    {
+      "name": "onetwo.bin",
+      "description": "for plotting power and CD radial profiles ",
+      "type": "spdm.data.io#Connection"
+    }
+  ]
+
+}

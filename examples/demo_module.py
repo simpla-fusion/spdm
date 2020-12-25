@@ -19,14 +19,13 @@ if __name__ == "__main__":
 
     module.factory.add_alias("/actors/", "PyObject:///spdm/actors/*#{fragment}")
 
-    logger.debug(pprint.pformat(module.factory.alias._mmap))
-    logger.debug(pprint.pformat(module.resolver.alias._mmap))
-
-    genray = module.create("/modules/physics/genray", version="10.8", tag_suffix="-foss-2019", workingdir="./")
+    genray = module.create("physics/genray", version="201213", tag="-gompi-2019b", workingdir="./")
 
     output0 = genray(num_of_steps=1)
 
     # output2 = cql3d(num_of_steps=1, equilibrium=output0.eq)
-    logger.debug((genray._description))
+    # logger.debug((genray._description))
 
-    logger.debug(pprint.pformat([p for p in module.glob()]))
+    # logger.debug(pprint.pformat([p for p in module.glob()]))
+
+    logger.debug("Done")

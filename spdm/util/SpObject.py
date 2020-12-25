@@ -2,6 +2,7 @@ import collections
 import copy
 import inspect
 import re
+import traceback
 import uuid
 from enum import Enum, Flag, auto, unique
 
@@ -42,7 +43,7 @@ class SpObject(object):
         #     base_class = factory.new_class(base_class)
         # else:
         #     base_class = cls
-       
+
         base_class = description["$base_class"]
 
         o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
@@ -86,19 +87,51 @@ class SpObject(object):
 
         return cls(*args, **kwargs)
 
-    def __init__(self,  *, name=None, label=None, parent=None, attributes=None, **kwargs):
+    def __init__(self,  *, name=None, uid=None, label=None, parent=None, attributes=None, **kwargs):
         super().__init__()
-        self._uuid = uuid.uuid1()
+        self._uuid = uid or uuid.uuid1()
         self._parent = parent
         self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
         self._name = name
         self._label = label
+        logger.debug(f"Initialize: {self.__class__.__name__} ")
 
     def __del__(self):
-        # p = getattr(self, "_parent", None)
-        # if p is not None:
-        #     p.remove_child(self)
-        pass
+        logger.debug(f"Finialize: {self.__class__.__name__} ")
+
+    # def __del__(self):
+    #     # p = getattr(self, "_parent", None)
+    #     # if p is not None:
+    #     #     p.remove_child(self)
+    #     pass
+
+    def preprocess(self):
+        logger.debug(f"Preprocess: {self.__class__.__name__}")
+
+    def postprocess(self):
+        logger.debug(f"Postprocess: {self.__class__.__name__}")
+
+    def execute(self, *args, **kwargs):
+        logger.debug(f"Execute: {self.__class__.__name__}")
+        return None
+
+    def __call__(self, *args, **kwargs):
+        self.preprocess()
+
+        error_msg = None
+        try:
+            res = self.execute(*args, **kwargs)
+        except Exception as error:
+            error_msg = error
+            logger.error(f"{error}")
+            res = None
+
+        self.postprocess()
+
+        # if error_msg is not None:
+        #     raise error_msg
+
+        return res
 
     def __hash__(self):
         return self._uuid.int
