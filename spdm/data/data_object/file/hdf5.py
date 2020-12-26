@@ -11,7 +11,7 @@ from typing import Any, Dict
 import h5py
 import numpy
 
-from spdm.data.DataEntry import DataEntry
+from ..File import File
 from spdm.util.logger import logger
 from spdm.util.utilities import whoami
 
@@ -22,9 +22,9 @@ __plugin_spec__ = {
 }
 
 
-class HDF5Entry(DataEntry):
-    def __init__(self, fp, *args, mode="w", **kwargs):
-        super().__init__(None, *args, **kwargs)
+class FileHDF5(File):
+    def __init__(self, desc, value=None, *args, mode="w", **kwargs):
+        super().__init__(desc, value, *args, **kwargs)
         if isinstance(fp, str):
             pos = fp.rfind("#")
             self._file_path = pathlib.Path(fp[:pos])
@@ -134,8 +134,8 @@ class HDF5Entry(DataEntry):
 
 
 def load(fp):
-    return HDF5Entry(fp, mode="r")
+    return FileHDF5(fp, mode="r")
 
 
 def save(fp, data: collections.abc.Mapping):
-    return HDF5Entry(fp, mode="w").update(data)
+    return FileHDF5(fp, mode="w").update(data)

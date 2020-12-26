@@ -14,6 +14,7 @@ import netCDF4 as netCDF4
 from spdm.util.logger import logger
 from spdm.util.utilities import whoami
 from spdm.util.LazyProxy import LazyProxy
+from ..File import File
 
 __plugin_spec__ = {
     "name": "netcdf",
@@ -22,19 +23,19 @@ __plugin_spec__ = {
 }
 
 
-class NetCDFEntry(object):
-    def __init__(self, fp=None, *args, mode="r", **kwargs):
-        super().__init__()
-        if isinstance(fp, str):
-            self._file_path = pathlib.Path(fp)
-        elif isinstance(fp, os.PathLike):
-            self._file_path = fp
-        else:
-            raise TypeError(
-                f"expected str, bytes or os.PathLike, not {type(fp)}")
+class FileNetCDF(File):
+    def __init__(self, desc, value=None, *args, mode="r", **kwargs):
+        super().__init__(desc, value, *args,   **kwargs)
+        # if isinstance(fp, str):
+        #     self._file_path = pathlib.Path(fp)
+        # elif isinstance(fp, os.PathLike):
+        #     self._file_path = fp
+        # else:
+        #     raise TypeError(
+        #         f"expected str, bytes or os.PathLike, not {type(fp)}")
 
-        self._grp = netCDF4.Dataset(self._file_path, mode)
-        self._mode = mode
+        # self._grp = netCDF4.Dataset(self._file_path, mode)
+        # self._mode = mode
 
     def read(self, path):
         if isinstance(path, str):
@@ -186,14 +187,16 @@ _plugin_spec__ = {
 }
 
 
-def connect(*args, **kwargs):
-    return NetCDFEntry(*args, **kwargs)
+# def connect(*args, **kwargs):
+#     return NetCDFEntry(*args, **kwargs)
 
 
-def read(fid, *args, **kwargs) -> Dict[str, Any]:
-    conn = NetCDFEntry(fid, *args, **kwargs)
-    return ReadablePointer(conn.read)
+# def read(fid, *args, **kwargs) -> Dict[str, Any]:
+#     conn = NetCDFEntry(fid, *args, **kwargs)
+#     return ReadablePointer(conn.read)
 
 
-def write(fid, data: Dict[str, Any], *args, **kwargs):
-    return NetCDFEntry(fid,  *args, template=None, **kwargs).write(data)
+# def write(fid, data: Dict[str, Any], *args, **kwargs):
+#     return NetCDFEntry(fid,  *args, template=None, **kwargs).write(data)
+
+__SP_EXPORT__ = FileNetCDF

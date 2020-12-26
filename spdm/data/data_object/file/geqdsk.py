@@ -2,11 +2,12 @@ import collections
 import pathlib
 import pprint
 
-import numpy as np
+from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 
-from ..Document import Document
-from ..Node import Node
+import numpy as np
+
+from ..File import File
 
 
 def sp_read_geqdsk(file):
@@ -281,23 +282,22 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
 
 def load_geqdsk(uri):
 
-    root = Node()
-    eq = root.entry.equilibrium.time_slice.__push_back__()
+    eq = AttributeTree()
 
     with open(uri) as fp:
         sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
 
-    return root.holder
+    return eq
 
 
-class GEQdskDocument(Document):
+class FileGEQdsk(File):
     def __init__(self, path, *args, mode="r", **kwargs):
         self._path = path
 
-        if "r" in mode and self._path is not None:
-            super().__init__(load_geqdsk(path), *args, **kwargs)
-        else:
-            super().__init__({}, *args, **kwargs)
+        # if "r" in mode and self._path is not None:
+        #     super().__init__(load_geqdsk(path), *args, **kwargs)
+        # else:
+        #     super().__init__({}, *args, **kwargs)
 
     def load(self, p):
         with open(p or self._path, mode="r") as fp:
@@ -307,3 +307,6 @@ class GEQdskDocument(Document):
         geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.holder)
         with open(p or self._path, mode="w") as fp:
             sp_write_geqdsk(geqdsk, fp)
+
+
+__SP_EXPORT__ = FileGEQdsk

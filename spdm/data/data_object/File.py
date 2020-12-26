@@ -1,18 +1,20 @@
 import contextlib
 import io
 import pathlib
+import shutil
 import tempfile
 import uuid
-import shutil
-from spdm.data.DataEntry import DataEntry
-from spdm.util.SpURI import SpURI, urisplit
 
 
-class FileEntry(DataEntry):
+from ...util.logger import logger
+from ..DataObject import DataObject
+
+
+class File(DataObject):
     """ Default entry for file-like object
     """
 
-    def __init__(self, path, *args,
+    def __init__(self,  desc, value=None, *args,
                  mode='r',
                  buffering=-1,
                  encoding=None,
@@ -124,4 +126,4 @@ class FileEntry(DataEntry):
         self.write(old_d)
 
 
-__SP_EXPORT__ = FileEntry
+__SP_EXPORT__ = File

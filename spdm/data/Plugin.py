@@ -43,6 +43,7 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
 
     if isinstance(desc, str):
         desc = urisplit(desc)
+        logger.debug(desc)
     elif not isinstance(desc, AttributeTree):
         desc = AttributeTree(desc)
 
@@ -52,16 +53,17 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
         plugin_name = desc.schema
     else:
         suffix = pathlib.Path(desc.path).suffix
-        if suffix[0] == '.':
-            suffix = suffix[1:]
-        plugin_name = associations.get(suffix, None)
+        if not suffix:
+            plugin_name = desc.path
+        else:
+            if suffix[0] == '.':
+                suffix = suffix[1:]
+            plugin_name = associations.get(suffix, None)
 
     if len(plugin_name) > 0:
         plugin_name = plugin_name.split('+')[0]
-    else:
-        plugin_name = None
 
-    if plugin_name is None:
+    if not plugin_name:
         raise ValueError(f"illegal plugin description! [{desc}]")
 
     pname = associations.get(plugin_name, plugin_name)
@@ -69,8 +71,8 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
     if isinstance(pname, str):
         def _load_mod(n):
             try:
-                mod = sp_find_module(pattern.format(
-                    name=n), fragment=f"{n}{fragment}" if fragment is not None else None)
+                mod = sp_find_module(pattern.format(name=n),
+                                     fragment=f"{n}{fragment}" if fragment is not None else n)
             except ModuleNotFoundError:
                 mod = None
             finally:

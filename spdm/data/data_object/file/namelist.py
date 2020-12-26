@@ -6,12 +6,9 @@ import shutil
 from typing import Any, Dict
 
 import f90nml
-
-from spdm.data.DataEntry import DataEntry
 from spdm.util.logger import logger
-from spdm.util.SpURI import SpURI
-from spdm.util.urilib import setitem_by_path
-from spdm.util.utilities import as_file_fun
+
+from ..File import File
 
 __plugin_spec__ = {
     "name": "namelist",
@@ -21,10 +18,11 @@ __plugin_spec__ = {
 }
 
 
-class NamelistEntry(DataEntry):
+class FileNamelist(File):
 
     def read(self, fid, *args, **kwargs) -> Dict[str, Any]:
         return f90nml.read(fid).todict(complex_tuple=True)
+
     def normalize_r(self, prefix, nobj):
         if isinstance(nobj, str):
             return nobj
@@ -36,6 +34,7 @@ class NamelistEntry(DataEntry):
             return str(nobj)
         else:
             return nobj
+
     def write(self,  d: Dict[str, Any], *args, template=None, **kwargs):
         # d = d or {}
 
@@ -53,4 +52,4 @@ class NamelistEntry(DataEntry):
         pass
 
 
-__SP_EXPORT__ = NamelistEntry
+__SP_EXPORT__ = FileNamelist

@@ -72,7 +72,7 @@ def sp_find_module(path, fragment=None):
         mod = None
 
     if mod is None:
-        raise ModuleNotFoundError(f"Can not find module {path}#{fragment}")
+        raise ModuleNotFoundError(f"Can not find module {path}{ '#'+fragment if fragment is not None else ''}")
     else:
         logger.debug(f"Found module : {path}{'#'+fragment if fragment is not None else ''}")
     return mod
@@ -104,7 +104,7 @@ def sp_pkg_data_path(pkg, rpath):
     #     # raise ModuleNotFoundError(f"Module '{pkg}' is not loaded!")
     #     # return
     #     plist = []
-    
+
     for p in plist:
         np = pathlib.Path(p)/rpath
         if np.exists():
