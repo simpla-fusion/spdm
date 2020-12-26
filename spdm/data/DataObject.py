@@ -17,7 +17,7 @@ class DataObject(object):
     @staticmethod
     def __new__(cls,  desc, value=None, *args, **kwargs):
         if cls is not DataObject:
-            return super(cls, DataObject).__new__(desc, value, *args, **kwargs)
+            return super(DataObject,cls).__new__(cls)
 
         if isinstance(desc, str):
             desc = {"schema": desc}

@@ -26,21 +26,20 @@ class File(DataObject):
                  dir=None,
                  ** kwargs):
 
-        if isinstance(dir, str):
-            dir = pathlib.Path(dir)
-        if path is None:
-            path = f"{prefix or ''}{uuid.uuid1().hex()}{suffix or ''}"
-        if isinstance(path, SpURI):
-            path = dir/path.path
-        if isinstance(path, str):
-            if dir is None:
-                path = pathlib.Path(path)
-            else:
-                path = dir/path
+        # if isinstance(dir, str):
+        #     dir = pathlib.Path(dir)
+        # if path is None:
+        #     path = f"{prefix or ''}{uuid.uuid1().hex()}{suffix or ''}"
+        # if isinstance(path, SpURI):
+        #     path = dir/path.path
+        # if isinstance(path, str):
+        #     if dir is None:
+        #         path = pathlib.Path(path)
+        #     else:
+        #         path = dir/path
 
-        if not isinstance(path, pathlib.Path):
-            raise TypeError(
-                f"Entry is not file-like or string or Path! {type(path)}")
+        # if not isinstance(path, pathlib.Path):
+        #     raise TypeError(f"Entry is not file-like or string or Path! {type(path)}")
 
         # if is_temp or (entry is None):
         #     entry = tempfile.TemporaryFile(
@@ -62,7 +61,7 @@ class File(DataObject):
         #     pass
         # else:
 
-        super().__init__(path, *args, ** kwargs)
+        super().__init__(desc, *args, ** kwargs)
 
         self._mode = mode
         self._buffering = buffering
