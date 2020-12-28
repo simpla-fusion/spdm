@@ -2,16 +2,17 @@ import collections
 import os
 import pathlib
 import re
+from functools import cached_property
 
-import MDSplus as mds
 import numpy as np
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.dict_util import DefaultDict
 from spdm.util.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
 
+import MDSplus as mds
+
 from ..Collection import Collection
-from .LocalFile import FileCollection
 from ..Document import Document
 from ..Node import Node
 
@@ -52,85 +53,85 @@ class MDSplusNode(Node):
         raise NotImplementedError(path)
 
 
-def open_mdstree(tree_name, shot,  mode="NORMAL"):
+def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
     if tree_name is None:
         raise ValueError(f"Treename is empty!")
     try:
         shot = int(shot)
-        logger.debug(f"Opend MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\"")
-        tree = mds.Tree(tree_name, shot, mode)
+        logger.debug(f"Opend MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
+        tree = mds.Tree(tree_name, shot, mode=mode, path=path)
     except mds.mdsExceptions.TreeFOPENR as error:
-        tree_path = os.environ.get(f"{tree_name}_path", None)
+        # tree_path = os.environ.get(f"{tree_name}_path", None)
         raise FileNotFoundError(
-            f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} \n {error}")
+            f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={path} mode={mode} \n {error}")
     except mds.mdsExceptions.TreeNOPATH as error:
         raise FileNotFoundError(
-            f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}   \n {error}")
+            f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
     return tree
 
 
 class MDSplusDocument(Document):
     MDS_MODE = {
-        "r": "READONLY",
-        "rw": "NORMAL",
-        "w": "NORMAL",
-        "w+": "EDIT",
-        "x": "NEW"
+        "r": "ReadOnly",
+        "rw": "Normal",
+        "w": "Normal",
+        "w+": "Edit",
+        "x": "New"
     }
 
-    def __init__(self, desc=None, *args, fid=None,  mode="r", tree_name=None,  **kwargs):
-        mds_mode = MDSplusDocument.MDS_MODE.get(mode, "NORMAL")
+    def __init__(self, desc, *args, tree_name=None, **kwargs):
+        super().__init__(desc, *args, ** kwargs)
 
-        self._trees = DefaultDict(lambda t, s=fid, m=mds_mode: open_mdstree(t, s, mode=m))
+        mds_mode = MDSplusDocument.MDS_MODE.get(self.description.mode, "NORMAL")
 
-        if tree_name is not None:
+        self._trees = DefaultDict(lambda t, s=self.description.fid, m=mds_mode,
+                                  p=str(self.description.path): open_mdstree(t, s, mode=m, path=p))
+
+        if tree_name is None:
+            tree_name = str(self.description.tree_name)
+        if not tree_name:
+            pass
+        else:
             self._trees[None] = self._trees[tree_name]
 
-        super().__init__(desc, *args, fid=fid,
-                         root=MDSplusNode(self._trees, tree_name=tree_name),
-                         mode=mode, ** kwargs)
+    @property
+    def root(self):
+        return MDSplusNode(self._trees)
 
 
 class MDSplusCollection(Collection):
     def __init__(self, desc, *args,  tree_name=None,  **kwargs):
         super().__init__(desc, *args, **kwargs)
 
-        schema = (self.envs.schema or "file").split('+')
-        authority = self.envs.authority or ''
-        path = self.envs.path or ""
-        fid = self.envs.fragment.shot or None
+        self._default_tree_name = tree_name or self.description.query.tree_name
 
-        if tree_name is None:
-            tree_name = desc.query.tree_name or None
+        # schema = self.description.schema.lower()
+        # authority = self.description.authority or ''
+        # path = self.description.path or ""
+        # # fid = self.description.fragment.shot or None
 
-        self._default_tree_name = tree_name
+        # if tree_name is None:
+        #     tree_name = self.description.query.tree_name or None
 
-        if len(schema) == 0:
-            schema = None
-        elif len(schema) == 1:
-            schema = schema[0] if schema[0] != "mdsplus" else None
-        elif len(schema) == 2:
-            assert(schema[0].lower() == "mdsplus")
-            schema = schema[1]
-        else:
-            raise NotImplementedError(schema)
+        # self._default_tree_name = tree_name
 
-        self.add_tree(tree_name, uriunsplit(schema, authority, path))
+        # if schema != "mdsplus":
+        #     raise NotImplementedError(schema)
+
+        # # self._path = uriunsplit(schema, "" if not authority else authority, path)
+        # if not authority:
+        #     self._path = path
+        # else:
+        #     self._path = uriunsplit("mdsplus", str(authority), path)
+
+        # self.add_tree(tree_name, uriunsplit(schema, "" if not authority else authority, path))
 
     # def __del__(self):
     #     for tree_name in self._trees:
     #         del os.environ[f"{tree_name}_path"]
 
-    def add_tree(self, tree_name, tree_path):
-        if (tree_name is None or not tree_path.endswith(tree_name)) and "~t" not in tree_path:
-            tree_path = f"{tree_path}/~t/"
-        if tree_name is not None:
-            os.environ[f"{tree_name}_path"] = tree_path
-        else:
-            os.environ["default_tree_path"] = tree_path
-
-    def open_document(self, fid, mode, tree_name=None):
-        return MDSplusDocument(fid=fid, mode=mode, tree_name=tree_name or self._default_tree_name)
+    def open_document(self, fid, mode="r", tree_name=None):
+        return MDSplusDocument(self.description, fid=fid, mode=mode, tree_name=tree_name or self._default_tree_name)
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(collections.ChainMap((query or {}), kwargs), auto_inc=True)

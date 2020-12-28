@@ -67,8 +67,8 @@ class FileCollection(Collection):
 
     def open_document(self, fid, mode=None):
         fpath = self.guess_filepath({"_id": fid})
-        logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.mode}\"")
-        return Document(root=self._file_factory(fpath, mode or self.mode), fid=fid, envs=self.envs, handler=self._handler)
+        logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.description.mode}\"")
+        return Document(root=self._file_factory(fpath, mode or self.description.mode), fid=fid, envs=self.envs, handler=self._handler)
 
     def insert_one(self, data=None, *args,  **kwargs):
         doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")

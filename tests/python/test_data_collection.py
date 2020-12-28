@@ -3,8 +3,6 @@ import pprint
 import sys
 import unittest
 
-from spdm.data.Collection import Collection
-from spdm.util.logger import logger
 
 
 class TestFileCollection(unittest.TestCase):
@@ -19,4 +17,9 @@ class TestFileCollection(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    sys.path.append("/home/salmon/workspace/fytok/python")
+    sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+
+    from spdm.data.Collection import Collection
+    from spdm.util.logger import logger
     unittest.main()

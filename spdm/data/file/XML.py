@@ -80,9 +80,9 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLNode(Node):
-    def __init__(self, *args, envs=None, **kwargs):
+    def __init__(self, *args, prefix=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._envs = AttributeTree(envs)
+        self._prefix = prefix or []
 
     def xpath(self, path):
         res = "."
@@ -102,14 +102,12 @@ class XMLNode(Node):
         return res
 
     def _convert(self, element, path=[],   lazy=True, projection=None,):
-        # if not isinstance(element, str) and isinstance(element, collections.abc.Sequence):
-        #     return [self._convert(e, path=path, lazy=lazy, projection=projection) for e in element]
-        # if not isinstance(element, _XMLElement):
-        #     return element
+        if isinstance(element, collections.abc.Sequence):
+            return [self._convert(e, path=path, lazy=lazy, projection=property) for e in element]
         res = None
 
         if len(element) > 0 and lazy:
-            res = XMLNode(element, prefix=self._prefix+path, envs=self._envs).entry
+            res = XMLNode(element, prefix=self._prefix+path).entry
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 

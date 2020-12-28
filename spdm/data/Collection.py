@@ -4,7 +4,7 @@ import pathlib
 import re
 import urllib
 from typing import Any, Dict, List, NewType, Tuple
-
+from functools import cached_property
 import numpy
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
@@ -66,6 +66,7 @@ class Collection(object):
                  id_hasher=None,
                  handler=None,
                  request_proxy=None,
+                 envs=None,
                  **kwargs):
         super().__init__()
 
@@ -76,7 +77,7 @@ class Collection(object):
         else:
             self._desc = desc
         logger.debug(
-            f"Open {self.__class__.__name__} :  {uriunsplit(self._desc.schema,self._desc.authorize,self._desc.path)}")
+            f"Open {self.__class__.__name__} :  {uriunsplit(str(self._desc.schema),str(self._desc.authorize or ''),str(self._desc.path))}")
 
         self._id_hasher = id_hasher or "{_id}"
 
@@ -85,9 +86,15 @@ class Collection(object):
         else:
             self._handler = handler
 
+        self._envs = collections.ChainMap(kwargs, envs or {})
+
     @property
     def description(self):
         return self._desc
+
+    @cached_property
+    def envs(self):
+        return AttributeTree(self._envs)
 
     @property
     def is_writable(self):
@@ -120,7 +127,7 @@ class Collection(object):
     def insert(self, *args, **kwargs):
         return self.insert_one(*args, **kwargs)
 
-    def open(self, *args, mode="rw", **kwargs):
+    def open(self, *args, mode="r", **kwargs):
         if "w" in mode and self.is_writable:
             return self.insert_one(*args, **kwargs)
         elif "w" not in mode:

@@ -138,7 +138,7 @@ class AttributeTree:
     def __iter__(self):
         if self.__data__ is None:
             return
-        elif isinstance(self.__data__,  Mapping):
+        elif isinstance(self.__data__,  collections.abc.Mapping):
             for k, v in self.__data__.items():
                 if isinstance(v, collections.abc.Mapping):
                     v = AttributeTree(v)
@@ -149,6 +149,23 @@ class AttributeTree:
                 if isinstance(v, collections.abc.Mapping):
                     v = AttributeTree(v)
                 yield v
+
+    def __as_native__(self):
+        if isinstance(self.__data__, collections.abc. Mapping):
+            res = {}
+            for k, v in self.__data__.items():
+                if isinstance(v, AttributeTree):
+                    res[k] = v.__as_native__()
+                else:
+                    res[k] = v
+        else:
+            res = []
+            for v in self.__data__:
+                if isinstance(AttributeTree):
+                    res.append(v.__as_native__())
+                else:
+                    res.append(v)
+        return res
 
     def __as_object__(self):
         if isinstance(self.__data__, collections.abc.Mapping):

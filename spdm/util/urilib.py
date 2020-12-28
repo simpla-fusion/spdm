@@ -23,7 +23,7 @@ def urisplit(uri):
     res = AttributeTree(_rfc3986.match(uri).groupdict())
     if isinstance(res.query, str) and res.query != "":
         print(f"'{type(res.query)}'")
-        res.query = dict([tuple(item.split("=")) for item in res.query.split(',')])
+        res.query = dict([tuple(item.split("=")) for item in str(res.query).split(',')])
     if isinstance(res.fragment, str):
         fragments = res.fragment.split(',')
         if len(fragments) == 1:

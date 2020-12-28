@@ -5,7 +5,7 @@ import pathlib
 import numpy
 from spdm.util.logger import logger
 
-from ...File import File
+from ..File import File
 
 __plugin_spec__ = {
     "name": "json",

@@ -8,22 +8,27 @@ from spdm.util.AttributeTree import AttributeTree
 from ..Collection import Collection
 from ..Document import Document
 from ..Node import Node
+from spdm.util.dict_util import format_string_recursive
 
 
 class MappingNode(Node):
-    def __init__(self, hodler, *args, mapping=None, **kwargs):
+    def __init__(self, hodler, *args, mapping=None, envs=None, **kwargs):
         super().__init__(hodler, *args, **kwargs)
         if isinstance(mapping, Node):
             self._mapping = mapping
         else:
             raise TypeError(mapping)
 
+        self._envs = envs or {}
+
     def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
         if not is_raw_path:
             return PathTraverser(path).apply(lambda p: self.get(p, is_raw_path=True, **kwargs))
         else:
             req = self._mapping.handler.get(self._mapping.holder, path, *args, **kwargs)
+
             if isinstance(req, str):
+                req = format_string_recursive(req, self._envs)
                 self._target.put(req, value, is_raw_path=True)
             elif isinstance(req, collections.abc.Sequence):
                 raise NotImplementedError()
@@ -48,7 +53,10 @@ class MappingNode(Node):
         elif "{http://hpc.ipp.ac.cn/SpDB}data" in item:
             if self._holder is None:
                 raise RuntimeError()
-            res = self._holder.get(item["{http://hpc.ipp.ac.cn/SpDB}data"], *args, **kwargs)
+            req = item["{http://hpc.ipp.ac.cn/SpDB}data"]
+
+            req = format_string_recursive(req, self._envs)
+            res = self._holder.get(req, *args, **kwargs)
         else:
             res = {k: self._fetch(v) for k, v in item.items()}
 
@@ -71,14 +79,19 @@ class MappingNode(Node):
 
 
 class MappingDocument(Document):
-    def __init__(self, target, *args,  mapping=None, **kwargs):
-        super().__init__(target, *args, **kwargs)
+    def __init__(self, desc, *args, target=None,  mapping=None, envs=None, **kwargs):
+        super().__init__(desc, *args, **kwargs)
         if not isinstance(mapping, Document):
             self._mapping = Document(mapping)
+        else:
+            self._mapping = mapping
+        self._target = target
+
+        self._envs = envs or {}
 
     @property
     def root(self):
-        return MappingNode(super()._holder, mapping=self._mapping)
+        return MappingNode(self._target.root, mapping=self._mapping.root, envs=self._envs)
 
 
 class MappingCollection(Collection):
@@ -91,19 +104,19 @@ class MappingCollection(Collection):
             self._mapping = mapping
 
         if not isinstance(target, Collection):
-            self._target = Collection(target, envs=self.envs)
+            self._target = Collection(target)
         else:
             self._target = target
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(query or kwargs)
         doc = self._target.insert_one(_id=oid)
-        return MappingDocument(doc, envs=self.envs, fid=oid, mapping=self._mapping)
+        return MappingDocument(doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid, mapping=self._mapping)
 
     def find_one(self,   *args, query=None,  **kwargs):
         oid = self.guess_id(query or kwargs)
         doc = self._target.find_one(_id=oid)
-        return MappingDocument(doc, envs=self.envs, fid=oid,   mapping=self._mapping)
+        return MappingDocument({}, target=doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid,   mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

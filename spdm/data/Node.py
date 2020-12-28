@@ -6,11 +6,9 @@ import collections
 
 
 class Node(object):
-    def __init__(self, holder,  prefix=None, *args, request_proxy=None, parent=None, envs=None, **kwargs):
+    def __init__(self, holder,    *args, parent=None,  **kwargs):
         super().__init__()
         self._holder = holder
-        self._prefix = prefix or []
-        self._request_proxy = request_proxy
         self._parent = parent
 
     @property
@@ -45,8 +43,6 @@ class Node(object):
 
     def put(self,  path, value, *args, **kwargs):
         obj = self._holder
-        if self._request_proxy:
-            path = self._request_proxy(self._prefix + path)
 
         if len(path) == 0:
             return obj
@@ -78,8 +74,6 @@ class Node(object):
 
     def get(self, path, *args, **kwargs):
         obj = self._holder
-        if self._request_proxy:
-            path = self._request_proxy(self._prefix + path)
 
         for p in path:
             if type(p) is str and hasattr(obj, p):
@@ -99,8 +93,6 @@ class Node(object):
         return obj
 
     def insert(self, path, v, *args, **kwargs):
-        if self._request_proxy:
-            path = self._request_proxy(self._prefix + path)
 
         try:
             parent = self.get(path[:-1])
@@ -124,8 +116,6 @@ class Node(object):
         return self.get(path, *args, **kwargs)
 
     def delete(self, path, *args, **kwargs):
-        if self._request_proxy:
-            path = self._request_proxy(self._prefix + path)
 
         if len(path) > 1:
             obj = self.get(path[:-1], *args, **kwargs)

@@ -55,10 +55,13 @@ def tree_apply_recursive(obj, op, types=None):
 
 def format_string_recursive(obj, mapping=None):
 
+    if isinstance(mapping, AttributeTree):
+        mapping = mapping.__as_native__()
+
     class DefaultDict(dict):
         def __missing__(self, key):
             return '{'+key+'}'
 
     d = DefaultDict(mapping)
-
-    tree_apply_recursive(obj, lambda s, _envs=d: s.format_map(d), str)
+    res, _ = tree_apply_recursive(obj, lambda s, _envs=d: s.format_map(d), str)
+    return res

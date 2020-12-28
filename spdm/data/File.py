@@ -9,11 +9,10 @@ import uuid
 import collections
 from ..util.logger import logger
 from ..util.urilib import urisplit
-from .DataObject import DataObject
 from .Document import Document
 
 
-class File(DataObject):
+class File(Document):
     """ Default entry for file-like object
     """
 
@@ -34,7 +33,10 @@ class File(DataObject):
         "numpy": f"{__package__}.file.NumPy",
 
 
-        "gfile": "GEQdsk"
+        "gfile": f"{__package__}.file.GEQdsk",
+
+        "mdsplus": f"{__package__}.db.MDSplus#MDSplusDocument",
+
     }
 
     @staticmethod

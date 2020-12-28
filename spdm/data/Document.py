@@ -1,26 +1,30 @@
-from typing import Any, Dict, List
 import collections
-from spdm.util.logger import logger
+from typing import Any, Dict, List
+
 from spdm.util.AttributeTree import AttributeTree
+from spdm.util.logger import logger
 
-from .Node import Node
 from .DataObject import DataObject
+from .Node import Node
 
 
-class Document(object):
+class Document(DataObject):
 
-    def __init__(self, desc, *args,  request_proxy=None, parent=None, **kwargs):
-        super().__init__()
-        if isinstance(desc, DataObject):
-            self._holder = desc
-            self._desc = AttributeTree(schema=self._holder.__class__.__name__)
-        else:
-            self._desc = AttributeTree(collections.ChainMap(desc or {},   kwargs))
-            self._holder = DataObject(desc,*args, **kwargs)
+    def __init__(self, desc, *args,  parent=None, fid=None, mode=None, **kwargs):
+        super().__init__(desc, *args,   **kwargs)
+        if fid is not None:
+            self.description.fid = fid
+        if mode is not None:
+            self.description.mode = mode
+        # if isinstance(desc, DataObject):
+        #     self._holder = desc
+        #     self._desc = AttributeTree(schema=self._holder.__class__.__name__)
+        # else:
+        #     self._desc = AttributeTree(collections.ChainMap(desc or {},   kwargs))
+        #     self._holder = DataObject(desc, *args, **kwargs)
 
         self._parent = parent
-        self._request_proxy = request_proxy
-        logger.debug(f"Opend Document type='{self._holder.__class__.__name__}' fid={self._desc.fid} ")
+        logger.debug(f"Opend Document type='{self.__class__.__name__}' fid={self.description.fid} ")
 
     @property
     def holder(self):
@@ -29,14 +33,14 @@ class Document(object):
     @property
     def root(self):
         r_node = getattr(self._holder, "root", self._holder)
-        if isinstance(r_node, Node) and not self._request_proxy:
+        if isinstance(r_node, Node):
             return r_node
         else:
-            return Node(r_node,  request_proxy=self._request_proxy)
+            return Node(r_node)
 
     @property
-    def description(self):
-        return self._desc
+    def entry(self):
+        return self.root.entry
 
     def copy(self, other):
         if isinstance(other, Document):
