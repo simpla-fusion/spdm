@@ -1,31 +1,88 @@
+import inspect
+from spdm.util.sp_export import sp_find_module
 import contextlib
 import io
 import pathlib
 import shutil
 import tempfile
 import uuid
-
-
-from ...util.logger import logger
-from ..DataObject import DataObject
+import collections
+from ..util.logger import logger
+from ..util.urilib import urisplit
+from .DataObject import DataObject
+from .Document import Document
 
 
 class File(DataObject):
     """ Default entry for file-like object
     """
 
-    def __init__(self,  desc, value=None, *args,
-                 mode='r',
-                 buffering=-1,
-                 encoding=None,
-                 errors=None,
-                 newline=None,
-                 is_temp=False,
-                 suffix=".yaml",
-                 prefix=None,
-                 dir=None,
-                 ** kwargs):
+    associations = {
+        "bin": f"{__package__}.file.Binary",
+        "h5": f"{__package__}.file.HDF5",
+        "hdf5": f"{__package__}.file.HDF5",
+        "nc": f"{__package__}.file.NetCDF",
+        "netcdf": f"{__package__}.file.NetCDF",
 
+        "namelist": f"{__package__}.file.NameList",
+        "nml": f"{__package__}.file.NameList",
+        "xml": f"{__package__}.file.XML",
+        "json": f"{__package__}.file.JSON",
+        "yaml": f"{__package__}.file.YAML",
+        "txt": f"{__package__}.file.TXT",
+        "csv": f"{__package__}.file.CSV",
+        "numpy": f"{__package__}.file.NumPy",
+
+
+        "gfile": "GEQdsk"
+    }
+
+    @staticmethod
+    def __new__(cls, desc, *args, file_format=None, **kwargs):
+        if cls is not File:
+            return object.__new__(cls)
+            # return super(File, cls).__new__(cls, path, *args, **kwargs)
+
+        if isinstance(desc, collections.abc.Mapping):
+            path = desc.get("path", None)
+            file_format = file_format or desc.get("file_format", None)
+        elif isinstance(desc, (str, pathlib.PosixPath)):
+            path = desc
+        else:
+            raise TypeError(f"{type(desc)}")
+
+        if file_format is not None:
+            pass
+        elif isinstance(path, (str, pathlib.PosixPath)):
+            path = pathlib.Path(path)
+            file_format = path.suffix[1:]
+        else:
+            raise ValueError(f"'file_format' is not defined!")
+
+        n_cls = File.associations.get(file_format.lower(), f"{__package__}.file.{file_format}")
+
+        if isinstance(n_cls, str):
+            n_cls = sp_find_module(n_cls)
+
+        if inspect.isclass(n_cls):
+            res = object.__new__(n_cls)
+        elif callable(n_cls):
+            res = n_cls(path, *args, schema=file_format, **kwargs)
+        else:
+            raise RuntimeError(f"Illegal schema! {file_format} {n_cls} {path}")
+
+        return res
+
+    def __init__(self,  desc, value=None, *args, working_dir=None,  ** kwargs):
+        #  mode='r',
+        #  buffering=-1,
+        #  encoding=None,
+        #  errors=None,
+        #  newline=None,
+        #  is_temp=False,
+        #  suffix=".yaml",
+        #  prefix=None,
+        #  dir=None,
         # if isinstance(dir, str):
         #     dir = pathlib.Path(dir)
         # if path is None:
@@ -63,23 +120,25 @@ class File(DataObject):
 
         super().__init__(desc, *args, ** kwargs)
 
-        self._mode = mode
-        self._buffering = buffering
-        self._encoding = encoding
-        self._errors = errors
-        self._newline = newline
+        path = self.description.path
+
+        if working_dir is None:
+            working_dir = pathlib.Path.cwd()
+        else:
+            working_dir = pathlib.Path(working_dir)
+        self._path = pathlib.Path(path) if isinstance(path, str) else working_dir
 
     def flush(self, *args, **kwargs):
         pass
 
     def copy(self, path=None):
         if path is None:
-            path = f"{self._uri.path.stem}_copy{self._uri.path.suffix}"
+            path = f"{self._path.stem}_copy{self._path.suffix}"
         elif isinstance(path, str):
             path = pathlib.Path(path)
-            if path.is_dir() and path != self._uri.path.parent:
-                path = path/self._uri.path.name
-        shutil.copy(self._uri, path.as_posix())
+            if path.is_dir() and path != self._path.parent:
+                path = path/self._path.name
+        shutil.copy(self._path, path.as_posix())
         res = self.__class__(path)
         res._mode = self._mode
         res._buffering = self._buffering

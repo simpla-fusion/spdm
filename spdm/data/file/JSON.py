@@ -2,11 +2,10 @@
 import json
 import pathlib
 
+import numpy
 from spdm.util.logger import logger
 
-import numpy
-
-from ..File import File
+from ...File import File
 
 __plugin_spec__ = {
     "name": "json",
@@ -24,7 +23,7 @@ __plugin_spec__ = {
 #         # Let the base class default method raise the TypeError
 #         return json.JSONEncoder.default(self, obj)
 
-class FileJSON(File):
+class JSONFile(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -38,4 +37,4 @@ class FileJSON(File):
             json.dump(d, fid, cls=NumpyEncoder)
 
 
-__SP_EXPORT__ = FileJSON
+__SP_EXPORT__ = JSONFile

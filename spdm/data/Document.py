@@ -1,53 +1,42 @@
 from typing import Any, Dict, List
-
+import collections
 from spdm.util.logger import logger
+from spdm.util.AttributeTree import AttributeTree
 
 from .Node import Node
-from .Plugin import find_plugin
+from .DataObject import DataObject
 
 
-class Document(Node):
+class Document(object):
 
-    @staticmethod
-    def __new__(cls, desc=None, *args, format_type=None,  **kwargs):
-        if cls is not Document or isinstance(desc, Node):
-            return super(Document, cls).__new__(cls)
-
-        if format_type is not None:
-            desc = f"{format_type}://"
-
-        if desc is None:
-            return super(Document, cls).__new__(cls)
+    def __init__(self, desc, *args,  request_proxy=None, parent=None, **kwargs):
+        super().__init__()
+        if isinstance(desc, DataObject):
+            self._holder = desc
+            self._desc = AttributeTree(schema=self._holder.__class__.__name__)
         else:
-            n_cls = find_plugin(desc,
-                                pattern=f"{__package__}.plugins.Plugin{{name}}",
-                                fragment="Document")
-            return object.__new__(n_cls)
+            self._desc = AttributeTree(collections.ChainMap(desc or {},   kwargs))
+            self._holder = DataObject(desc,*args, **kwargs)
 
-    def __init__(self, desc=None, *args, fid=None, root=None, collection=None, schema=None, mode="rw", **kwargs):
-        super().__init__(*args, **kwargs)
-        logger.debug(f"Opend {self.__class__.__name__} fid={fid} ")
-        self._fid = fid
-        self._schema = schema
-        self._collection = collection
-        self._root = root if root is not None else Node(root or {})
-        self._mode = mode
+        self._parent = parent
+        self._request_proxy = request_proxy
+        logger.debug(f"Opend Document type='{self._holder.__class__.__name__}' fid={self._desc.fid} ")
+
+    @property
+    def holder(self):
+        return self._holder
 
     @property
     def root(self):
-        return self._root
+        r_node = getattr(self._holder, "root", self._holder)
+        if isinstance(r_node, Node) and not self._request_proxy:
+            return r_node
+        else:
+            return Node(r_node,  request_proxy=self._request_proxy)
 
     @property
-    def entry(self):
-        return self.root.entry
-
-    @property
-    def schema(self):
-        return self._schema
-
-    @property
-    def mode(self):
-        return self._mode
+    def description(self):
+        return self._desc
 
     def copy(self, other):
         if isinstance(other, Document):
@@ -56,25 +45,26 @@ class Document(Node):
             return self.root.copy(other)
 
     def load(self, *args, **kwargs):
-        raise NotImplementedError()
+        self._holder = DataObject(*args, **kwargs)
+        self._desc = AttributeTree(schema=self._holder.__class__.__name__)
 
     def save(self,  *args, **kwargs):
-        raise NotImplementedError()
+        return self._holder.save(*args, **kwargs)
 
-    def valid(self, schema=None):
-        return True
+    def validate(self, schema=None):
+        return self._holder.validate(schema)
 
-    def flush(self):  # dump data from memory to storage (file or database)
-        raise NotImplementedError()
+    def flush(self):
+        return self._holder.flush()
 
     def check(self, predication, **kwargs) -> bool:
-        raise NotImplementedError()
+        return self._holder.check(predication, **kwargs)
 
     def update(self, d: Dict[str, Any]):
-        return self.root.put([], d)
+        return self._holder.put([], d)
 
     def fetch(self, proj: Dict[str, Any] = None):
-        return self.root.get(proj)
+        return self._holder.get(proj)
 
     def dump(self):
-        return self.root.dump()
+        return self._holder.dump()

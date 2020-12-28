@@ -9,10 +9,9 @@ import numpy
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
-from spdm.util.urilib import urisplit,uriunsplit
+from spdm.util.urilib import urisplit, uriunsplit
 
 from .Document import Document
-from .Plugin import find_plugin
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
@@ -25,29 +24,45 @@ class Collection(object):
     '''
     DOCUMENT_CLASS = Document
 
+    associations = {
+        "mapping": f"{__package__}.db.Mapping",
+        "local": f"{__package__}.db.LocalFile",
+
+        "mds": f"{__package__}.db.MDSplus",
+        "mdsplus": f"{__package__}.db.MDSplus",
+
+        "mongo": f"{__package__}.db.MongoDB",
+        "mongodb": f"{__package__}.db.MongoDB",
+    }
+
     @staticmethod
-    def __new__(cls, desc=None, *args, backend=None, **kwargs):
+    def __new__(cls, desc=None, *args, schema=None, **kwargs):
         if cls is not Collection:
-            return super(Collection, cls).__new__(desc, *args, **kwargs)
+            return object.__new__(cls)
+            # return super(Collection, cls).__new__(desc, *args, **kwargs)
 
         if isinstance(desc, str):
             desc = urisplit(desc)
         elif not isinstance(desc, AttributeTree):
             desc = AttributeTree(desc)
 
-        plugin_name = backend or desc.schema or ""
+        schema = (schema or desc.schema or "local").split("+")[0]
 
-        if plugin_name is not None:
-            n_cls = find_plugin(f"{plugin_name}://",
-                                pattern=f"{__package__}.plugins.Plugin{{name}}",
-                                fragment="Collection")
+        n_cls = Collection.associations.get(schema.lower(), f"{__package__}.db.{schema}")
+
+        if isinstance(n_cls, str):
+            n_cls = sp_find_module(n_cls)
+
+        if inspect.isclass(n_cls):
+            res = object.__new__(n_cls)
+        elif callable(n_cls):
+            res = n_cls()
         else:
-            n_cls = cls
-        return object.__new__(n_cls)
+            raise RuntimeError(f"Illegal schema! {schema} {n_cls} {desc}")
 
-    def __init__(self, desc=None,
-                 *args,
-                 mode="rw",
+        return res
+
+    def __init__(self, desc, *args,
                  id_hasher=None,
                  handler=None,
                  request_proxy=None,
@@ -55,15 +70,14 @@ class Collection(object):
         super().__init__()
 
         if isinstance(desc, str):
-            self._envs = urisplit(desc)
+            self._desc = urisplit(desc)
         elif not isinstance(desc, AttributeTree):
-            self._envs = AttributeTree(desc)
+            self._desc = AttributeTree(desc)
         else:
-            self._envs = desc
+            self._desc = desc
         logger.debug(
-            f"Open {self.__class__.__name__} :  {uriunsplit(self._envs.schema,self._envs.authorize,self._envs.path)}")
+            f"Open {self.__class__.__name__} :  {uriunsplit(self._desc.schema,self._desc.authorize,self._desc.path)}")
 
-        self._mode = mode
         self._id_hasher = id_hasher or "{_id}"
 
         if request_proxy is not None:
@@ -72,16 +86,12 @@ class Collection(object):
             self._handler = handler
 
     @property
-    def envs(self):
-        return self._envs
-
-    @property
-    def mode(self):
-        return self._mode
+    def description(self):
+        return self._desc
 
     @property
     def is_writable(self):
-        return "w" in self._mode
+        return "w" in self.description.mode
 
     @property
     def handler(self):
@@ -171,96 +181,3 @@ class Collection(object):
 
     def list_indexes(self, session=None):
         raise NotImplementedError()
-
-
-class FileCollection(Collection):
-
-    def __init__(self, uri, *args,
-                 file_extension=".dat",
-                 file_factory=None,
-                 **kwargs):
-
-        super().__init__(uri, *args, **kwargs)
-
-        if isinstance(uri, str):
-            uri = urisplit(uri)
-
-        path = getattr(uri, "path", ".")
-
-        if isinstance(path, str) and not path.endswith(file_extension):
-            path = f"{path}{{_id}}{file_extension}"
-
-        self._path = pathlib.Path(path).resolve().expanduser()
-
-        logger.debug(self._path)
-
-        if self._path.suffix == '':
-            self._path = self._path.with_suffix(file_extension)
-
-        if "{_id}" not in self._path.stem:
-            self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
-
-        if not self._path.parent.exists():
-            if "w" not in self._mode:
-                raise RuntimeError(f"Can not make dir {self._path}")
-            else:
-                self._path.parent.mkdir()
-        elif not self._path.parent.is_dir():
-            raise NotADirectoryError(self._path.parent)
-
-        self._file_factory = file_factory
-
-    def guess_id(self, d, auto_inc=True):
-        fid = super().guess_id(d, auto_inc=auto_inc)
-
-        if fid is None and auto_inc:
-            fid = self.count()
-
-        return fid
-
-    def guess_filepath(self, *args, **kwargs):
-        return self._path.with_name(self._path.name.format(_id=self.guess_id(*args, **kwargs)))
-
-    def open_document(self, fid, mode=None):
-        fpath = self.guess_filepath({"_id": fid})
-        logger.debug(f"Opend Document: {fpath} mode=\"{ mode or self.mode}\"")
-        return Document(root=self._file_factory(fpath, mode or self.mode), envs=self.envs, handler=self._handler)
-
-    def insert_one(self, data=None, *args,  **kwargs):
-        doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
-        doc.update(data or kwargs)
-        return doc
-
-    def find_one(self, predicate=None, projection=None, **kwargs):
-        fpath = self.guess_filepath(predicate or kwargs)
-
-        doc = None
-        if fpath.exists():
-            doc = self.open_document(fpath)
-        else:
-            for fp in self._path.parent.glob(self._path.name.format(_id="*")):
-                if not fp.exists():
-                    continue
-                doc = self.open_document(fp, mode="r")
-                if doc.check(predicate):
-                    break
-                else:
-                    doc = None
-
-        if projection is not None:
-            raise NotImplementedError()
-
-        return doc
-
-    def update_one(self, predicate, update,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def delete_one(self, predicate,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def count(self, predicate=None,   *args, **kwargs) -> int:
-
-        if predicate is None:
-            logger.warning("NOT IMPLEMENTED! count by predicate")
-
-        return len(list(self._path.parent.glob(self._path.name.format(_id="*"))))

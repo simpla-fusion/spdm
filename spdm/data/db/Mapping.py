@@ -11,8 +11,8 @@ from ..Node import Node
 
 
 class MappingNode(Node):
-    def __init__(self, *args, mapping=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, hodler, *args, mapping=None, **kwargs):
+        super().__init__(hodler, *args, **kwargs)
         if isinstance(mapping, Node):
             self._mapping = mapping
         else:
@@ -59,55 +59,51 @@ class MappingNode(Node):
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
         if not is_raw_path:
-            res = PathTraverser(path).apply(lambda p: self.get(p,  is_raw_path=True, **kwargs))
+            res = PathTraverser(path).apply(lambda p, _s=self: _s.get(p,  is_raw_path=True, **kwargs))
         else:
-            item = self._mapping.get_value(path, *args, **kwargs)
-            res = self._fetch(item)
+            target_path = self._mapping.get_value(path, *args, **kwargs)
+            res = self._fetch(target_path)
         return res
 
     def iter(self,  path, *args, **kwargs):
-        for item in self._mapping.iter(path, *args, **kwargs):
-            yield self._fetch(item)
+        for target_path in self._mapping.iter(path, *args, **kwargs):
+            yield self._fetch(target_path)
 
 
 class MappingDocument(Document):
-
-    def __init__(self, *args, root=None, mapping=None, **kwargs):
-        if isinstance(root, Document):
-            root = root.root
-        elif not isinstance(root, Node):
-            root = MappingNode(root)
-        super().__init__(*args, root=root, ** kwargs)
-        self._mapping = mapping
+    def __init__(self, target, *args,  mapping=None, **kwargs):
+        super().__init__(target, *args, **kwargs)
+        if not isinstance(mapping, Document):
+            self._mapping = Document(mapping)
 
     @property
     def root(self):
-        return MappingNode(super().root, mapping=self._mapping)
+        return MappingNode(super()._holder, mapping=self._mapping)
 
 
 class MappingCollection(Collection):
-    def __init__(self, uri, *args, source=None, mapping=None,  **kwargs):
-        super().__init__(uri, *args, **kwargs)
+    def __init__(self, desc, *args, target=None, mapping=None,  **kwargs):
+        super().__init__(desc, *args, **kwargs)
 
-        if not isinstance(mapping, Node):
-            self._mapping = Document(mapping, envs=self.envs, format_type="xml").root
+        if not isinstance(mapping, Document):
+            self._mapping = Document(mapping, envs=self.envs)
         else:
             self._mapping = mapping
 
-        if not isinstance(source, Collection):
-            self._source = Collection(source, envs=self.envs)
+        if not isinstance(target, Collection):
+            self._target = Collection(target, envs=self.envs)
         else:
-            self._source = source
+            self._target = target
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(query or kwargs)
-        doc = self._source.insert_one(_id=oid)
-        return MappingDocument(fid=oid, root=doc, envs=self.envs, mapping=self._mapping)
+        doc = self._target.insert_one(_id=oid)
+        return MappingDocument(doc, envs=self.envs, fid=oid, mapping=self._mapping)
 
     def find_one(self,   *args, query=None,  **kwargs):
         oid = self.guess_id(query or kwargs)
-        doc = self._source.find_one(_id=oid)
-        return MappingDocument(fid=oid, root=doc, envs=self.envs, mapping=self._mapping)
+        doc = self._target.find_one(_id=oid)
+        return MappingDocument(doc, envs=self.envs, fid=oid,   mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

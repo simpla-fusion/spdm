@@ -6,22 +6,24 @@ import collections
 
 
 class Node(object):
-    def __init__(self, holder=None, *args, envs=None, **kwargs):
+    def __init__(self, holder,  prefix=None, *args, request_proxy=None, parent=None, envs=None, **kwargs):
         super().__init__()
-        self._holder = holder if holder is not None else None
-        self._envs = AttributeTree(envs or {}) if not isinstance(envs, AttributeTree) else envs
-
-    @property
-    def envs(self):
-        return self._envs
+        self._holder = holder
+        self._prefix = prefix or []
+        self._request_proxy = request_proxy
+        self._parent = parent
 
     @property
     def holder(self):
         return self._holder
 
     @property
+    def parent(self):
+        return self._parent
+
+    @property
     def entry(self):
-        return LazyProxy(self, handler=self.__class__)
+        return LazyProxy(self,  handler=self.__class__)
 
     @entry.setter
     def entry(self, other):
@@ -43,6 +45,9 @@ class Node(object):
 
     def put(self,  path, value, *args, **kwargs):
         obj = self._holder
+        if self._request_proxy:
+            path = self._request_proxy(self._prefix + path)
+
         if len(path) == 0:
             return obj
         for p in path[:-1]:
@@ -73,22 +78,30 @@ class Node(object):
 
     def get(self, path, *args, **kwargs):
         obj = self._holder
+        if self._request_proxy:
+            path = self._request_proxy(self._prefix + path)
+
         for p in path:
             if type(p) is str and hasattr(obj, p):
                 obj = getattr(obj, p)
-            else:
+            elif obj is not None:
                 try:
                     obj = obj[p]
                 except IndexError:
                     raise KeyError(path)
                 except TypeError:
                     raise KeyError(path)
+            else:
+                raise ValueError(path)
         if isinstance(obj, collections.abc.Mapping):
             obj = AttributeTree(obj)
 
         return obj
 
     def insert(self, path, v, *args, **kwargs):
+        if self._request_proxy:
+            path = self._request_proxy(self._prefix + path)
+
         try:
             parent = self.get(path[:-1])
         except KeyError:
@@ -111,6 +124,9 @@ class Node(object):
         return self.get(path, *args, **kwargs)
 
     def delete(self, path, *args, **kwargs):
+        if self._request_proxy:
+            path = self._request_proxy(self._prefix + path)
+
         if len(path) > 1:
             obj = self.get(path[:-1], *args, **kwargs)
         else:
@@ -129,6 +145,7 @@ class Node(object):
         return v in obj
 
     def call(self,   path, *args, **kwargs):
+
         obj = self.get(path)
         if callable(obj):
             res = obj(*args, **kwargs)

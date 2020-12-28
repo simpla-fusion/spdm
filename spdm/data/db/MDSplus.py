@@ -10,7 +10,8 @@ from spdm.util.dict_util import DefaultDict
 from spdm.util.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
 
-from ..Collection import Collection, FileCollection
+from ..Collection import Collection
+from .LocalFile import FileCollection
 from ..Document import Document
 from ..Node import Node
 

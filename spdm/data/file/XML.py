@@ -2,14 +2,20 @@ import collections
 import pathlib
 
 import numpy as np
+from spdm.util.AttributeTree import AttributeTree
+from spdm.util.logger import logger
+from spdm.util.PathTraverser import PathTraverser
 
+from ..Document import Document
+from ..File import File
+from ..Node import Node
 
 try:
+    from lxml.etree import Comment as _XMLComment
     from lxml.etree import ParseError as _XMLParseError
     from lxml.etree import XPath as _XPath
     from lxml.etree import _Element as _XMLElement
     from lxml.etree import parse as parse_xml
-    from lxml.etree import Comment as _XMLComment
 
     _HAS_LXML = True
 except ImportError:
@@ -18,14 +24,6 @@ except ImportError:
     from xml.etree.ElementTree import parse as parse_xml
     _XPath = str
     _HAS_LXML = False
-
-
-from spdm.util.logger import logger
-from spdm.util.PathTraverser import PathTraverser
-
-from ..Collection import Collection, FileCollection
-from ..Document import Document
-from ..Node import Node
 
 
 def merge_xml(first, second):
@@ -37,9 +35,11 @@ def merge_xml(first, second):
         raise ValueError(f"Try to merge tree to different tag! {first.tag}<={second.tag}")
 
     for child in second:
-        id = child.attrib.get("id", None)
-        if id is not None:
-            target = first.find(f"{child.tag}[@id='{id}']")
+        if child.tag is _XMLComment:
+            continue
+        eid = child.attrib.get("id", None)
+        if eid is not None:
+            target = first.find(f"{child.tag}[@id='{eid}']")
         else:
             target = first.find(child.tag)
         if target is not None:
@@ -80,11 +80,10 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLNode(Node):
-    def __init__(self, holder,  *args, prefix=None,   **kwargs):
+    def __init__(self, *args, envs=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._holder = holder
-        self._prefix = prefix or []
-        
+        self._envs = AttributeTree(envs)
+
     def xpath(self, path):
         res = "."
         for p in path:
@@ -103,12 +102,14 @@ class XMLNode(Node):
         return res
 
     def _convert(self, element, path=[],   lazy=True, projection=None,):
-        if not isinstance(element, _XMLElement):
-            return element
+        # if not isinstance(element, str) and isinstance(element, collections.abc.Sequence):
+        #     return [self._convert(e, path=path, lazy=lazy, projection=projection) for e in element]
+        # if not isinstance(element, _XMLElement):
+        #     return element
         res = None
 
         if len(element) > 0 and lazy:
-            res = XMLNode(element, prefix=self._prefix+path, envs=self.envs).entry
+            res = XMLNode(element, prefix=self._prefix+path, envs=self._envs).entry
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
@@ -143,16 +144,17 @@ class XMLNode(Node):
                         query[f"{prev}"] = p
                     prev = p
 
-                if not self.envs.fragment:
-                    fstr = query
-                else:
-                    fstr = collections.ChainMap(query, self.envs.fragment.__data__, self.envs.query.__data__ or {})
-                res["@text"] = text.format_map(fstr)
+                # if not self._envs.fragment:
+                #     fstr = query
+                # else:
+                #     fstr = collections.ChainMap(query, self.envs.fragment.__data__, self.envs.query.__data__ or {})
+                # format_string_recursive(text, fstr)  # text.format_map(fstr)
+                res["@text"] = text
         return res
 
     def put(self,  path, value, *args, only_one=False, **kwargs):
         if not only_one:
-            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=holder: s._push(h, p, v))
+            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._holder: s._push(h, p, v))
         else:
             raise NotImplementedError()
 
@@ -178,26 +180,31 @@ class XMLNode(Node):
                     yield self._convert(child, path=spath)
 
 
-class XMLDocument(Document):
-    def __init__(self, path=[], *args, envs=None,  **kwargs):
-        assert(path is not None)
+class XMLFile(File):
+    def __init__(self, desc={}, *args, envs=None,  **kwargs):
+        super().__init__(desc, *args, ** kwargs)
 
-        if isinstance(path, str):
-            path = [path]
+        path = []
+        if isinstance(desc, collections.abc.Mapping):
+            path = desc.get("path", [])
+        elif isinstance(desc, AttributeTree):
+            path = desc.path or []
+        elif isinstance(desc, str):
+            path = [desc]
+        elif isinstance(desc, collections.abc.Sequence):
+            path = desc
 
         if isinstance(path, collections.abc.Sequence):
-            tree = load_xml(path, *args,  **kwargs)
-            root = XMLNode(tree, envs=envs)
-
-        elif isinstance(path, Node):
-            root = path
+            self._tree = load_xml(path, *args,  **kwargs)
         else:
-            raise TypeError(path)
+            self._tree = NotImplemented
+            raise TypeError(desc)
 
-        super().__init__(path, *args,  root=root, envs=envs, ** kwargs)
+        self._envs = envs
+
+    @property
+    def root(self):
+        return XMLNode(self._tree, parent=self, envs=self._envs)
 
 
-class XMLCollection(FileCollection):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        raise NotImplementedError()
+__SP_EXPORT__ = XMLFile

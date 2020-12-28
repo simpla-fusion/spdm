@@ -8,6 +8,9 @@ from spdm.util.AttributeTree import AttributeTree
 
 associations = {
     "mapping": "Mapping",
+    "local": "LocalFile",
+    "mongo": "MongoDB",
+    "mongodb": "MongoDB",
 
     "bin": "Binary",
 
@@ -33,8 +36,7 @@ associations = {
     "csv": "CSV",
     "numpy": "NumPy",
 
-    "mongo": "MongoDB",
-    "mongodb": "MongoDB",
+    
     "gfile": "GEQdsk"
 }
 
