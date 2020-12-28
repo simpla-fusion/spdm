@@ -75,7 +75,7 @@ in_ports:
     $comment: Inputs the data for all NAMELISTs used in the code.
 
   - name: config
-    schema: file/namelist
+    schema: file/NAMELIST
     template: "{FY_MODULEFILE_DIR}/../template/genray.in"
 
 out_ports:
