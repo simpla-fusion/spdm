@@ -98,7 +98,7 @@ class Collection(object):
 
     @property
     def is_writable(self):
-        return "w" in self.description.mode
+        return "w" in self.metadata.mode
 
     @property
     def handler(self):

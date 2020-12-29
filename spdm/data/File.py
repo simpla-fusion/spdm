@@ -76,59 +76,38 @@ class File(Document):
         return res
 
     def __init__(self,  desc, value=None, *args, working_dir=None,  ** kwargs):
-        #  mode='r',
-        #  buffering=-1,
-        #  encoding=None,
-        #  errors=None,
-        #  newline=None,
-        #  is_temp=False,
-        #  suffix=".yaml",
-        #  prefix=None,
-        #  dir=None,
-        # if isinstance(dir, str):
-        #     dir = pathlib.Path(dir)
-        # if path is None:
-        #     path = f"{prefix or ''}{uuid.uuid1().hex()}{suffix or ''}"
-        # if isinstance(path, SpURI):
-        #     path = dir/path.path
-        # if isinstance(path, str):
-        #     if dir is None:
-        #         path = pathlib.Path(path)
-        #     else:
-        #         path = dir/path
-
-        # if not isinstance(path, pathlib.Path):
-        #     raise TypeError(f"Entry is not file-like or string or Path! {type(path)}")
-
-        # if is_temp or (entry is None):
-        #     entry = tempfile.TemporaryFile(
-        #         mode=mode,
-        #         buffering=buffering,
-        #         encoding=encoding,
-        #         newline=newline,
-        #         suffix=suffix,
-        #         prefix=prefix,
-        #         dir=dir)
-
-        #     entry = entry.open(
-        #         mode=mode,
-        #         buffering=buffering,
-        #         encoding=encoding,
-        #         errors=errors,
-        #         newline=newline)
-        # elif isinstance(entry, io.IOBase):
-        #     pass
-        # else:
-
         super().__init__(desc, *args, ** kwargs)
 
-        path = self.description.path
+        path = self.metadata.path
 
         if working_dir is None:
             working_dir = pathlib.Path.cwd()
         else:
             working_dir = pathlib.Path(working_dir)
-        self._path = pathlib.Path(path) if isinstance(path, str) else working_dir
+
+        if not path:
+            # raise ValueError(f"Empty path!")
+            self._path = working_dir/self.metadata.name
+        elif isinstance(path, str):
+            self._path = working_dir/path
+        elif isinstance(path, pathlib.PosixPath):
+            self._path = path
+        else:
+            self._path = working_dir
+
+        if self.is_writable:
+            self.update(value or self.metadata.default)
+
+    def __repr__(self):
+        return self._path.as_posix()
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def is_writable(self):
+        return "w" in self.metadata.mode or "x" in self.metadata.mode
 
     def flush(self, *args, **kwargs):
         pass
@@ -152,10 +131,10 @@ class File(Document):
 
     @contextlib.contextmanager
     def open(self, mode=None, buffering=None, encoding=None, newline=None):
-        if isinstance(self._uri, pathlib.Path):
-            path = self._uri
+        if isinstance(self._path, pathlib.Path):
+            path = self._path
         else:
-            o = urisplit(self._uri)
+            o = urisplit(self._path)
             path = pathlib.Path(o.path)
         try:
             fid = path.open(
@@ -168,7 +147,6 @@ class File(Document):
         finally:
             yield fid
             if fid is not None:
-
                 fid.close()
 
     def read(self, *args, **kwargs):

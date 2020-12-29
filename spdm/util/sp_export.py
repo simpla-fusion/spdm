@@ -55,7 +55,11 @@ def sp_find_module(path, fragment=None):
     if not isinstance(path, str) and isinstance(path, collections.abc.Sequence):
         path = ".".join(path)
 
-    path = path.strip('/.').replace('/', '.')
+    o = path.strip('/.').replace('/', '.').split('#')
+
+    path = o[0]
+    if fragment is None and len(o) > 1:
+        fragment = o[1]
 
     mod = _sp_find_module(path)
     # if mod is None:
@@ -63,7 +67,7 @@ def sp_find_module(path, fragment=None):
     if not isinstance(mod, object):
         raise ModuleNotFoundError(f"{path}")
     if fragment is None:
-        mod = getattr(mod, SP_EXPORT_KEYWORD, mod)
+        mod = getattr(mod, SP_EXPORT_KEYWORD, None) or getattr(mod, path.split('.')[-1], None) or mod
     elif hasattr(mod, fragment):
         mod = getattr(mod, fragment)
     elif hasattr(mod, SP_EXPORT_KEYWORD):
@@ -71,10 +75,10 @@ def sp_find_module(path, fragment=None):
     else:
         mod = None
 
-    if mod is None:
-        raise ModuleNotFoundError(f"Can not find module {path}{ '#'+fragment if fragment is not None else ''}")
-    else:
-        logger.debug(f"Found module : {path}{'#'+fragment if fragment is not None else ''}")
+    # if mod is None:
+    #     raise ModuleNotFoundError(f"Can not find module {path}{ '#'+fragment if fragment is not None else ''}")
+    # else:
+        # logger.debug(f"Found module : {path}{'#'+fragment if fragment is not None else ''}")
     return mod
 
 

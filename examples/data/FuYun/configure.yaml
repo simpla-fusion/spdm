@@ -30,4 +30,7 @@ factory:
   alias:
     # - ["https://fusionyun.org/schemas/draft-00/flow/", "PyObject:///spdm/flow/"]
     # - ["https://fusionyun.org/flow/nodes/", "PyObject:///spdm/flow/nodes/"]
-    - ["https://fusionyun.org/actors/", "PyObject:///spdm/actors/*#{fragment}"]
+    # - ["https://fusionyun.org/", "PyObject:///spdm/*#{fragment}"]
+    - ["https://fusionyun.org/", "SpModule:///*#{fragment}"]
+  module_prefix:
+    - spdm.data

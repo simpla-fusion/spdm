@@ -18,32 +18,66 @@ from ..data.DataObject import DataObject
 LMOD_EXEC = "/usr/share/lmod/lmod/libexec/lmod"
 
 
-class SpModuleLocal(SpObject):
+class SpModule(SpObject):
+    def __init__(self, *args, **kwargs):
+        super().__init__(name=self.__class__.__name__,
+                         label=self.metadata.annotation.label,
+                         attributes=kwargs)
+
+        self._output = None
+        self._input = AttributeTree()
+
+        # self._parameter = parameters or {}
+        # # self._only_module_command = only_module_command
+        # self._working_dir = pathlib.Path(f"./{self.__class__.__name__}")
+
+    def __del__(self):
+        super().__del__()
+
+    @property
+    def input(self):
+        return self._input
+
+    @property
+    def output(self):
+        if self._output is None:
+            self._output = AttributeTree(self.run())
+        return self._output
+
+    def preprocess(self):
+        logger.debug(f"Preprocess: {self.__class__.__name__}")
+
+    def postprocess(self):
+        logger.debug(f"Postprocess: {self.__class__.__name__}")
+
+    def execute(self, *args, **kwargs):
+        logger.debug(f"Execute: {self.__class__.__name__}")
+        return None
+
+    def run(self):
+        self.preprocess()
+
+        error_msg = None
+
+        try:
+            res = self.execute()
+        except Exception as error:
+            error_msg = error
+            logger.error(f"{error}")
+            res = None
+
+        self.postprocess()
+
+        if error_msg is not None:
+            raise error_msg
+
+        return res
+
+
+class SpModuleLocal(SpModule):
     """Call subprocess/shell command
     {PKG_PREFIX}/bin/xgenray -i {INPUT_FILE} -o {OUTPUT_DIR}
     """
-    _description = AttributeTree()
-    # {
-    #     "in_ports": [{"name": "args", "kind": "VAR_POSITIONAL"},
-    #                  {"name": "kwargs", "kind": "VAR_KEYWORD"}],
-    #     "out_ports": [{"name": "RETURNCODE"},
-    #                   {"name": "STDOUT"},
-    #                   {"name": "STDERR"},
-    #                   {"name": "OUTPUT_DIR"},
-    #                   ],
-
-    #     "prescript":  [
-    #         "module purge",
-    #         "module load {mod_path}/{version}{tag_suffix}"
-    #     ],
-
-    #     "run": {
-    #         "exec_file": "${EBROOTGENRAY}/bin/xgenray",
-    #         "arguments": "-i {equilibrium} -c {config} -n {number_of_steps} -o {OUTPUT} ",
-    #     },
-
-    #     "postscript": "module purge"
-    # })
 
     script_call = {
         ".py": sys.executable,
@@ -51,18 +85,27 @@ class SpModuleLocal(SpObject):
         ".csh": "tcsh"
     }
 
-    def __init__(self, *args, parameters=None, only_module_command=True, **kwargs):
-        super().__init__()
-        self._parameter = parameters or {}
-        self._only_module_command = only_module_command
-        self._working_dir = pathlib.Path(f"./{self.__class__.__name__}")
+    def __init__(self, *args, working_dir=None, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def __del(self):
-        super().__del__()
+        if working_dir is not None:
+            self._working_dir = pathlib.Path(working_dir)
+        else:
+            self._working_dir = pathlib.Path.cwd()
+
+        self._working_dir /= f"{self.__class__.__name__}_{self.uuid}"
 
     @property
     def working_dir(self):
         return self._working_dir
+
+    @property
+    def input_dir(self):
+        return self.working_dir/"inputs"
+
+    @property
+    def output_dir(self):
+        return self.working_dir/"outputs"
 
     def _execute_module_command(self, *args):
         logger.debug(f"MODULE CMD: module {' '.join(args)}")
@@ -100,6 +143,8 @@ class SpModuleLocal(SpObject):
                     raise RuntimeError(f"Illegal command! [{cmd}] Only 'module' command is allowed.")
             elif isinstance(cmd, collections.abc.Sequence):
                 res = self._execute_script(cmd)
+            elif not cmd:
+                res = None
             else:
                 raise NotImplementedError(cmd)
 
@@ -107,19 +152,19 @@ class SpModuleLocal(SpObject):
 
     def preprocess(self):
         super().preprocess()
-        self._execute_script(self._description.prescript)
+        self._execute_script(self.metadata.prescript)
 
     def postprocess(self):
-        self._execute_script(self._description.postscript)
+        self._execute_script(self.metadata.postscript)
         super().postprocess()
 
     def execute(self,  *args, envs=None, **kwargs):
         # super().execute(*args, **kwargs)
-        module_name = str(self._description.annotation.name)
+        module_name = str(self.metadata.annotation.name)
 
-        module_root = pathlib.Path(os.environ.get(f"EBROOT{module_name.upper()}",)).expanduser()
-
-        exec_file = module_root / str(self._description.run.exec_file)
+        module_root = pathlib.Path(os.environ.get(f"EBROOT{module_name.upper()}", "./")).expanduser()
+        
+        exec_file = module_root / str(self.metadata.run.exec_file)
 
         exec_file.resolve()
 
@@ -142,20 +187,21 @@ class SpModuleLocal(SpObject):
 
         mod_envs = {
             "WORKING_DIR": self.working_dir,
-            "INPUT_DIR": self.working_dir/"inputs",
-            "OUTPUT_DIR": self.working_dir/"outputs"
+            "INPUT_DIR": self.input_dir,
+            "OUTPUT_DIR": self.output_dir
         }
 
         inputs = {}
 
-        for p_in in self._description.in_ports:
+        for p_in in self.metadata.in_ports:
+            
             p_name = str(p_in["name"])
             if p_name == "VAR_ARGS":
-                inputs[p_name] = DataObject(p_in, args, working_dir=mod_envs["INPUT_DIR"])
+                inputs[p_name] = DataObject(p_in, args, working_dir=self.input_dir)
             else:
-                inputs[p_name] = DataObject(p_in, kwargs.get(p_name, None), working_dir=mod_envs["INPUT_DIR"])
+                inputs[p_name] = DataObject(p_in, kwargs.get(p_name, None), working_dir=self.input_dir)
 
-        cmd_arguments = str(self._description.run.arguments)
+        cmd_arguments = str(self.metadata.run.arguments)
 
         try:
             arguments = cmd_arguments.format_map(collections.ChainMap(inputs, mod_envs, os.environ))
@@ -186,8 +232,8 @@ class SpModuleLocal(SpObject):
                    "STDOUT": exit_status.stdout,
                    "STDERR": exit_status.stderr, }
 
-        for p_out in self._description.out_ports:
+        for p_out in self.metadata.out_ports:
             p_name = str(p_out["name"])
-            outputs[p_name] = DataObject(p_out,  working_dir=mod_envs["OUTPUT_DIR"])
+            outputs[p_name] = DataObject(p_out,  working_dir=self.output_dir)
 
         return AttributeTree(outputs)

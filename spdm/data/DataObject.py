@@ -7,6 +7,7 @@ import numpy as np
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
+from spdm.util.SpObject import SpObject
 
 from .Node import Node
 
@@ -18,30 +19,26 @@ def load_ndarray(desc, value, *args, **kwargs):
         return NotImplemented
 
 
-class DataObject(object):
+class DataObject(SpObject):
 
     @staticmethod
-    def __new__(cls,  desc, value=None, *args, **kwargs):
-        if cls is not DataObject and cls.__name__ not in ('Document', 'Collection'):
-            return super(DataObject, cls).__new__(cls)
+    def __new__(cls,  metadata, value=None, *args, **kwargs):
+        if cls is not DataObject:
+            return super().__new__(metadata, value=None, *args, **kwargs)
 
-        if isinstance(desc, str):
-            desc = {"schema": desc}
-        elif isinstance(desc, pathlib.PosixPath):
-            desc = {"schema": "local", "path": desc}
-        elif isinstance(desc, collections.abc.Sequence):
-            desc = {"schema": ".".join(desc)}
+        if isinstance(metadata, str):
+            metadata = {"$schema": metadata}
+        elif isinstance(metadata, pathlib.PosixPath):
+            metadata = {"$schema": "local", "path": metadata}
+        elif isinstance(metadata, collections.abc.Sequence):
+            metadata = {"$schema": ".".join(metadata)}
 
-        if not isinstance(desc, (AttributeTree)):
-            desc = AttributeTree(desc)
-            # raise TypeError(f"Illegal type! 'desc' {type(desc)}")
+        d_schema = metadata.get("$schema", "string")
 
-        d_schema = desc.schema or "string"
-
-        desc["schema"] = d_schema
+        metadata["$schema"] = d_schema
 
         if value is None:
-            value = desc.default or None
+            value = metadata.get("default", None)
 
         if d_schema == "integer":
             n_obj = int(value)
@@ -50,49 +47,43 @@ class DataObject(object):
         elif d_schema == "string":
             n_obj = str(value)
         elif d_schema == "ndarray":
-            n_obj = load_ndarray(desc, value, *args, **kwargs)
+            n_obj = load_ndarray(metadata, value, *args, **kwargs)
         else:
-            mod_path = f"{__package__}.{d_schema.replace('/','.')}"
-
-            n_cls = sp_find_module(mod_path)
-
-            if inspect.isclass(n_cls):
-                n_obj = object.__new__(n_cls)
-            elif callable(n_cls):
-                n_obj = n_cls(desc, value, *args, **kwargs)
-            else:
-                raise ValueError(f"Illegal DataObject maker! {type(n_cls)}")
+            # mod_path = f"{__package__}.{d_schema.replace('/','.')}"
+            n_obj = SpObject.__new__(cls, metadata)
 
         return n_obj
 
-    def __init__(self, desc, value=None, *args, **kwargs):
-        self._description = AttributeTree(desc)
+    def __init__(self, metadata, value=None, *args, **kwargs):
+        self._metadata = AttributeTree(metadata)
+        self._metadata |= kwargs
+
         if value is not None:
             self.update(value)
 
     def serialize(self):
         return NotImplemented
 
-    @classmethod
+    @ classmethod
     def deserialize(cls, desc):
         return DataObject.__new__(cls, desc)
 
     def __repr__(self):
-        return pprint.pformat(self.description)
+        return pprint.pformat(self.metadata)
 
-    @property
-    def description(self):
-        return self._description
+    @ property
+    def metadata(self):
+        return self._metadata
 
-    @property
+    @ property
     def root(self):
         return Node(self)
 
-    @property
+    @ property
     def entry(self):
         return self.root.entry
 
-    @property
+    @ property
     def value(self):
         return NotImplemented
 

@@ -301,10 +301,10 @@ class FileGEQdsk(File):
 
     def load(self, p):
         with open(p or self._path, mode="r") as fp:
-            sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), self.root.holder)
+            sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), self.root.entry)
 
     def save(self, p):
-        geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.holder)
+        geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.entry)
         with open(p or self._path, mode="w") as fp:
             sp_write_geqdsk(geqdsk, fp)
 

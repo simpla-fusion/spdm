@@ -1,6 +1,5 @@
-$schema: https://fusionyun.org/schemas/actors/SpModuleLocal
-$id: https://fusionyun.org/modules/actors/physics/genray/{version}{tag}
-$base_class: /actors/SpModule#SpModuleLocal
+$schema: SpModule#SpModuleLocal
+$id: /actors/physics/genray/{version}{tag}
 
 annotation:
   name: genray
@@ -51,7 +50,7 @@ build:
 prescript:
   - module use /fuyun/modules/
   - module purge
-  - module load {module_path}/{version}{tag}
+  - module load {module_path}
 
 run:
   exec_file: "bin/xgenray"
@@ -63,7 +62,7 @@ postscript:
 in_ports:
   - name: equilibrium # This is a copy of eqdsk file
     schema: file/geqdsk
-    default: "{FY_MODULEFILE_ROOT}/../template/g063982.04800"
+    default: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
 
   - name: number_of_steps
     schema: integer
@@ -77,6 +76,12 @@ in_ports:
   - name: config
     schema: file/NAMELIST
     template: "{FY_MODULEFILE_DIR}/../template/genray.in"
+    path: config.nml
+    # default:
+    #   tokamak.eqdskin: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
+    #   genr.partner: "{FY_MODULEFILE_DIR}/../template/genray_profs_in.nc"
+    #   genr.outdata: "outputs"
+    #   ecocone.gzone: 1
 
 out_ports:
   - name: out_nc
@@ -85,4 +90,4 @@ out_ports:
 
   - name: out_eq
     schema: file/geqdsk
-    path: geqdsk
+    path: genray_output.gfile

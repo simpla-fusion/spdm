@@ -3,127 +3,138 @@ import copy
 import functools
 import inspect
 import pprint
-
+import os
+import re
+from functools import lru_cache
 from .Alias import Alias
+from .AttributeTree import AttributeTree
 from .logger import logger
 from .sp_export import sp_find_module
+from .SpObject import SpObject
 from .urilib import urijoin, urisplit
 from .utilities import iteritems, whoami
-from .SpObject import SpObject
-from .AttributeTree import AttributeTree
+from .dict_util import format_string_recursive
 
 
 class Factory(object):
     """ Convert schema to class
     """
 
-    def __init__(self, *args, default_handler=None, alias=None, resolver=None, ** kwargs):
+    def __init__(self, *args, module_prefix=None, resolver=None, handlers=None, ** kwargs):
         super().__init__()
-        self._alias = Alias(glob_pattern_char="*")
-        self._handlers = {}
-        self._cache = {}
-        self._alias.append_many(alias)
         self._resolver = resolver
+        self._cache = {}
+        self._handlers = {self._resolver.normalize_uri(k): v for k, v in handlers or {}}
 
-    @property
-    def alias(self):
-        return self._alias
+        if module_prefix is None:
+            module_prefix = []
+        elif isinstance(module_prefix, str):
+            module_prefix = [module_prefix]
 
-    def add_alias(self, s, t):
-        if self._resolver is not None:
-            s = self._resolver.normalize_uri(s)
-        self._alias.append(s, t)
+        self._module_prefix = [*module_prefix, f"{__package__}", ""]
 
     @property
     def resolver(self):
+        assert(self._resolver is not None)
         return self._resolver
 
+    def insert_handler(self, k, v=None):
+        if v is None and hasattr(k, "__class__"):
+            v = k
+            k = k.__class__.__name__
+
+        self._handlers[self._resolver.normalize_uri(k)] = v
+
+    def find_handler(self, k):
+        return self._handlers.get(self._resolver.normalize_uri(k), None)
+
+    def remove_handler(self, k):
+        k = self._resolver.normalize_uri(k)
+        if k in self._handlers:
+            del self._handlers[k]
+
     @property
-    def cache(self):
-        return self._cache
+    def handlers(self):
+        return self._handlers
 
-    def create(self, desc, *args, **kwargs):
-        """ Create a new instance """
-        n_cls = self.new_class(desc)
-        if not n_cls:
-            raise RuntimeError(f"Create cls failed! {desc}")
-        return n_cls(*args, **kwargs)
-
-    def new_class(self, desc, *args, **kwargs):
-        """ Create a new class from description
+    def create(self, metadata=None, *args, **kwargs):
+        """ Create a new class from metadata
             Parameters:
-                desc: description of class
+                metadata: metadata of class
         """
+        if isinstance(metadata, collections.abc.Sequence):
+            metadata = {"$id": ".".join(metadata)}
 
-        if type(desc) is str:
-            c_id = self. _resolver.normalize_uri(desc)
-            n_cls = self._cache.get(c_id, None)
-            if n_cls is not None:
-                return n_cls
+        if isinstance(metadata, str):
+            metadata = {"$id": metadata}
 
-        desc = self._resolver.fetch(desc)
+        metadata = collections.ChainMap(metadata or {}, kwargs)
 
-        if not isinstance(desc, (collections.abc.Mapping)):
-            raise ValueError(f"Can not resolve schema {desc}!")
+        cls_id = metadata.get("$id", "")
 
-        n_cls = None
+        if self._resolver is not None:
+            cls_id = self._resolver.normalize_uri(cls_id)
+            metadata["$id"] = cls_id
 
-        keys = [desc.get("$id", None),
-                desc.get("$base_class", None),
-                desc.get("$schema", None)]
-
-        # search handler
-        for h_req in self._alias.match(*[self._resolver.normalize_uri(k) for k in keys if k is not None]):
-            n_cls = self.handle(h_req, desc, *args, **kwargs)
-            if n_cls is not None:
-                break
+        n_cls = self._cache.get(cls_id, None)
 
         if n_cls is not None:
-            self._cache[desc["$id"]] = n_cls
+            return n_cls
 
-        return n_cls
+        metadata = self._resolver.fetch(metadata)
 
-    def handle(self, uri, *args, **kwargs):
-        o = urisplit(uri)
-        h = getattr(self, f"_handle_{o.schema}", None) or self._handlers.get(o.schema, None)
-        if h is None:
-            raise LookupError(f"Can nod handle {uri}")
-        return h(uri, *args, **kwargs)
+        schema_id = metadata.get("$schema", "")
 
-    def _handle_PyObject(self, uri, desc, *args,  ** kwargs):
-        o = urisplit(uri)
-        assert(o.schema == 'PyObject')
-        if o.authority is None or o.authority == '':
-            handler = sp_find_module(o.path, o.fragment)
-        else:
-            fragment = '/'+o.fragment if o.fragment is not None else ''
-            handler = sp_find_module(o.authority, f"{o.path}{fragment}")
+        n_cls = self._handlers.get(schema_id, None)
 
-        if issubclass(handler, SpObject):
-            n_cls = handler.new_class(desc, *args,  factory=self,  **kwargs)
-        elif inspect.isclass(handler) and hasattr(handler, "new_class"):
-            n_cls = handler.new_class(desc, *args, factory=self,  **kwargs)
-        elif not inspect.isclass(handler) and callable(handler):
-            n_cls = handler(desc, *args, _factory=self, **kwargs)
+        if n_cls is None:
+            mod_path = self._resolver.remove_prefix(schema_id).replace('/', '.')
 
-        return n_cls
+            for prefix in self._module_prefix:
+                n_cls = sp_find_module(mod_path if not prefix else f"{prefix}.{mod_path}")
+                if n_cls is not None:
+                    break
+            if n_cls is None:
+                raise LookupError(f"Can not find module {schema_id}!")
 
-    def _handle_SpModule(self, uri, desc,    **kwargs):
-        # handler_path = schema.get('$schema')
-        # handler = None
-        # if handler_path is not None:
-        #     o = urisplit(handler_path)
-        #     handler = sp_find_module(o.path, o.fragment)
-        # if handler is None:
-        #     raise ModuleNotFoundError(f"Can't find handler {schema}")
-        # n_class = None
-        # if hasattr(handler, "new_class"):
-        #     n_class = handler.new_class(
-        #         schema=schema, factory=factory, **kwargs)
-        # elif callable(handler):
-        #     n_class = handler(schema=schema, factory=factory, **kwargs)
-        # return n_class
-        raise NotImplementedError()
+        if inspect.isclass(n_cls):
+            n_cls_name = self._resolver.remove_prefix(cls_id)
+            n_cls_name = re.sub(r'[-\/\.\:]', '_', n_cls_name)
+            n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
+            n_cls = type(n_cls_name, (n_cls,), {"_metadata": {**metadata}})
+
+        return self._cache.setdefault(cls_id, n_cls)
+
+    # def create(self, *args, ** kwargs):
+    #     # key starts with '_' are resevered for classmethod new_class
+    #     c_kwargs = {}
+    #     o_kwargs = {}
+    #     for k, v in kwargs.items():
+    #         if k.startswith("_"):
+    #             c_kwargs[k[1:]] = v
+    #         else:
+    #             o_kwargs[k] = v
+
+    #     return self._create_from((args, o_kwargs), **c_kwargs)
+
+    # def _create_from(self, init_args=None, *_args, **_kwargs):
+    #     if len(_args) > 0 or len(_kwargs) > 0:
+    #         cls = cls.new_class(*_args, **_kwargs)
+
+    #     args = []
+    #     kwargs = {}
+    #     if init_args is None:
+    #         pass
+    #     elif isinstance(init_args, collections.abc.Mapping):
+    #         kwargs = init_args
+    #     elif isinstance(init_args, list):
+    #         args = init_args
+    #     elif isinstance(init_args, tuple):
+    #         args, kwargs = init_args
+    #     else:
+    #         args = [init_args]
+
+    #     return cls(*args, **kwargs)
 
     # def expand(self, spec, level_of_expanding=0):
     #     if isinstance(spec, collections.abc.Mapping) and "$schema" in spec:

@@ -5,6 +5,7 @@ import re
 import traceback
 import uuid
 from enum import Enum, Flag, auto, unique
+from functools import cached_property
 
 from .AttributeTree import AttributeTree
 from .logger import logger
@@ -20,6 +21,7 @@ class SpObject(object):
             parent      : parent node
             name        : short string
     """
+    _metadata = {}
 
     @classmethod
     def new_class(cls,  desc=None, *args, ** kwargs):
@@ -49,9 +51,9 @@ class SpObject(object):
         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
 
         path = re.sub(r'[-\/\.]', '_', o.path)
-        
+
         n_cls_name = f"{n_cls_name}{path}"
-        
+
         n_cls = type(n_cls_name, (cls,), {"_description": AttributeTree(description)})
 
         return n_cls
@@ -107,33 +109,9 @@ class SpObject(object):
     #     #     p.remove_child(self)
     #     pass
 
-    def preprocess(self):
-        logger.debug(f"Preprocess: {self.__class__.__name__}")
-
-    def postprocess(self):
-        logger.debug(f"Postprocess: {self.__class__.__name__}")
-
-    def execute(self, *args, **kwargs):
-        logger.debug(f"Execute: {self.__class__.__name__}")
-        return None
-
-    def __call__(self, *args, **kwargs):
-        self.preprocess()
-
-        error_msg = None
-        # try:
-        res = self.execute(*args, **kwargs)
-        # except Exception as error:
-        #     error_msg = error
-        #     logger.error(f"{error}")
-        #     res = None
-
-        self.postprocess()
-
-        # if error_msg is not None:
-        #     raise error_msg
-
-        return res
+    @cached_property
+    def metadata(self):
+        return AttributeTree(self.__class__._metadata)
 
     def __hash__(self):
         return self._uuid.int

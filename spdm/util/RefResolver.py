@@ -13,16 +13,14 @@ from copy import copy
 
 import jsonschema
 
-from .Alias import Alias
 from . import io
+from .Alias import Alias
+from .AttributeTree import AttributeTree
+from .dict_util import format_string_recursive
 from .logger import logger
 from .Multimap import Multimap
-from .sp_export import sp_find_module, sp_pkg_data_path
-from .urilib import (getvalue_r, uridefrag, urijoin, urisplit,
-                     uriunsplit)
-
-from .AttributeTree import AttributeTree
-# from spdm.global_constant import SP_BASE_URI, self._encode, SP_REMOTE_SCHEMA_CACHE
+from .sp_export import sp_pkg_data_path
+from .urilib import getvalue_r, uridefrag, urijoin, urisplit, uriunsplit
 
 
 def _extend_with_default(validator_class):
@@ -35,9 +33,7 @@ def _extend_with_default(validator_class):
                     and hasattr(instance, "setdefault"):
                 instance.setdefault(p, subschema["default"])
 
-        for error in validate_properties(
-            validator, properties, instance, schema,
-        ):
+        for error in validate_properties(validator, properties, instance, schema,):
             yield error
 
     return jsonschema.validators.extend(
@@ -73,6 +69,7 @@ class RefResolver(object):
                  prefetch=None,
                  enable_remote=False,
                  enable_validate=True,
+                 enable_envs_template=True,
                  default_file_ext='yaml',
                  default_schema="http://json-schema.org/draft-07/schema#",
                  alias=None,
@@ -88,6 +85,7 @@ class RefResolver(object):
         self._default_schema = urijoin(base_uri, default_schema)
         self._enable_remote = enable_remote
         self._enable_validate = enable_validate
+        self._enable_envs_template = enable_envs_template
         if prefetch is not None:
             # if not isinstance(prefetch, pathlib.Path):
             #     prefetch = pathlib.Path(prefetch)
@@ -150,24 +148,29 @@ class RefResolver(object):
             if nid not in doc:
                 continue
             doc[nid] = self.normalize_uri(doc[nid])
+
         schema = doc.get("$schema", None)
+        if isinstance(schema, str):
+            schema_id = schema
+            schema = {"$id": schema_id}
+        elif isinstance(schema, collections.abc.Mapping):
+            schema_id = schema.get("$id", None)
+        else:
+            schema_id = None
+            schema = {"$id": schema_id}
 
-        if schema is not None:
-            validator = self._validator.get(schema, None)
-            if validator is None:
-                try:
-                    schema = self.fetch(schema, no_validate=True)
-                except Exception:
-                    logger.error(f"Can not find schema : {schema}")
-                else:
-                    if not schema or schema.get("$id", None) is None:
-                        pass
-                    else:
-                        validator = _DefaultValidatingValidator(schema, resolver=self)
-                        self._validator[schema["$id"]] = validator
+        validator = self._validator.get(schema_id, None)
+        if validator is None:
+            try:
+                schema = self.fetch(schema, no_validate=True)
+            except Exception:
+                logger.error(f"Can not find schema : {schema}")
+            else:
+                validator = _DefaultValidatingValidator(schema, resolver=self)
+                self._validator[schema["$id"]] = validator
 
-            if validator is not None:
-                validator.validate(doc)
+        if validator is not None:
+            validator.validate(doc)
 
         return doc
 
@@ -184,37 +187,30 @@ class RefResolver(object):
                 pass
             else:
                 new_doc["$id"] = uri
-                new_doc["$source_uri"] = a_uri
+                new_doc["$source_file"] = a_uri
                 self._cache[uri] = new_doc
                 break
 
         return new_doc
 
-    def fetch(self, doc, no_validate=True) -> dict:
+    def fetch(self, doc, no_validate=False) -> dict:
         """ fetch document from source, then validate and fill default
             value basing on $schema in document
         """
-        fragment = None
-        if isinstance(doc, (collections.abc.Mapping, AttributeTree)):
-            new_doc = copy(doc)
-        elif isinstance(doc, str):
-            s = doc.rsplit("#")
-            uri = s[0]
-            if len(s) > 1:
-                fragment = s[1]
-            new_doc = self._do_fetch(uri)
-        elif isinstance(doc, collections.abc.Sequence):
+
+        if isinstance(doc, (str, collections.abc.Sequence)):
             new_doc = self._do_fetch(doc)
+        elif isinstance(doc, collections.abc.Mapping):
+            new_doc = copy(doc)
         else:
-            new_doc = None
+            raise TypeError(type(doc))
 
-        if not new_doc:
-            # raise LookupError(f"Can not fetch doc {doc}")
-            return None
-        elif not no_validate and self._enable_validate and "$schema" in new_doc:
-            self.validate(new_doc)
+        if isinstance(new_doc, collections.abc.Mapping):
+            # new_doc["$schema"] = self.normalize_uri(new_doc.get("$schema", ""))
+            if not no_validate and self._enable_validate:
+                self.validate(new_doc)
 
-        return new_doc if fragment is None else getvalue_r(new_doc, fragment)
+        return new_doc
 
     def clear_cache(self):
         self._cache.clear()  # pylint: disable= no-member

@@ -157,7 +157,7 @@ class Profile(np.ndarray):
         axis = self._axis.view(np.ndarray)
         data = self.value
         try:
-            res = interp1d(axis, data, kind=self.description.interpolator or 'linear')
+            res = interp1d(axis, data, kind=self.metadata.interpolator or 'linear')
         except Exception as error:
             logger.debug((error, axis, data))
             raise error
@@ -191,7 +191,7 @@ class Profile(np.ndarray):
             else:
                 res = res.view(Profile)
                 res._axis = x_axis
-                res._description = self.description
+                res._description = self.metadata
 
         return res
 

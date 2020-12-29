@@ -41,7 +41,6 @@ class ModuleRepository:
         io.write(path, self._envs)
 
     def configure(self, conf=None, **kwargs):
-        logger.debug(conf)
         conf_path = []
         if isinstance(conf, str):
             conf_path.append(conf)
@@ -98,13 +97,10 @@ class ModuleRepository:
     def factory(self):
         return self._factory
 
-    def find_description(self, desc, *args, version=None, tag=None, expand_template=True, **kwargs):
+    def resolve_metadata(self, metadata, *args, expand_template=True, envs=None, version=None, tag=None, ** kwargs):
         """
-
         Format of searching path
-
             <desc>/<version>-<tag>
-
             file link:
                 <repo_path>/physics/genray/10.8.1   -> <repo_path>/physics/genray/10.8.1-foss-2019
                 <repo_path>/physics/genray/10.8     -> <repo_path>/physics/genray/10.8.1-foss-2019
@@ -118,55 +114,44 @@ class ModuleRepository:
                 <repo_path>/physics/genray/
 
         """
-        if type(desc) is not str:
-            res = self.resolver.fetch(collections.ChainMap(
-                {"version": version, "tag": tag}, kwargs, desc))
-        else:
-            path = desc
-            res = self.resolver.fetch(f"{path}/{version or 'default'}{tag or ''}")
-            if not res:
-                res = self.resolver.fetch(path)
+        if isinstance(metadata, str):
+            metadata = f"{metadata}/{version or 'default'}{tag}"
 
-        # if res is not None and not isinstance(res, AttributeTree):
-        #     res = AttributeTree(res)
+        n_metadata = self.resolver.fetch(metadata, envs)
 
-        if isinstance(res, collections.abc.Mapping) and expand_template:
-            modulefile_path = pathlib.Path(res.get("$source_uri", ""))
+        if not n_metadata:
+            raise LookupError(f"Can not find module {metadata}!")
 
-            doc_vars = {k: v for k, v in res.items() if k.startswith('$') and isinstance(v, str)}
-            envs = collections.ChainMap({
-                "version": version or "",
-                "tag": tag or "",
-                "module_path": path,
-                f"{self._repo_tag.upper()}_MODULEFILE_DIR": modulefile_path.parent,
-                f"{self._repo_tag.upper()}_MODULEFILE_PATH": modulefile_path
-            }, kwargs, doc_vars, self._envs)
+        if isinstance(n_metadata, (collections.abc.Mapping, collections.abc.Sequence)) and expand_template:
 
-            format_string_recursive(res,  envs)
+            modulefile_path = pathlib.Path(n_metadata.get("$source_file", ""))
 
-        return res
+            doc_vars = {k: v for k, v in n_metadata.items() if k.startswith('$') and isinstance(v, str)}
 
-    def new_class(self, desc, *args, **kwargs):
+            envs = collections.ChainMap(
+                {
+                    "version": version,
+                    "tag": tag,
+                    "module_path": self.resolver.remove_prefix(n_metadata.get("$id", "")),
+                    f"{self._repo_tag.upper()}_MODULEFILE_DIR": modulefile_path.parent,
+                    f"{self._repo_tag.upper()}_MODULEFILE_PATH": modulefile_path
+                },
+                doc_vars,
+                envs or {},
+                kwargs,
+                self._envs)
 
-        desc_ = self.find_description(desc, *args, **kwargs)
+            format_string_recursive(n_metadata, envs)
+        return n_metadata
 
-        if not desc_:
-            raise LookupError(f"Can not find description! {desc}")
+    def new_class(self, metadata, *args, **kwargs):
 
-        try:
-            n_cls = self._factory.new_class(desc_)
-        except Exception:
-            raise ValueError(f"Can not make module {desc}! \n { traceback.format_exc()}")
+        n_cls = self._factory.create(self.resolve_metadata(metadata, *args, **kwargs))
+
+        if n_cls is None:
+            raise ValueError(f"Can not make module {metadata}!")
 
         return n_cls
-
-    def create(self, desc, *args, version=None, tag=None, **kwargs):
-        n_cls = self.new_class(desc, version=version, tag=tag)
-
-        if not n_cls:
-            raise RuntimeError(f"Can not create object {desc} {n_cls}")
-
-        return n_cls(*args, **kwargs)
 
     def glob(self, prefix=None):
         return self.resolver.glob(prefix or "/modules/")
