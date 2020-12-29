@@ -19,6 +19,9 @@ __plugin_spec__ = {
 
 
 class FileNamelist(File):
+    def __init__(self, metadata, value=None, *args, **kwargs):
+        super().__init__(metadata, value=None, *args, **kwargs)
+        logger.debug(value)
 
     def read(self, fid, *args, **kwargs) -> Dict[str, Any]:
         return f90nml.read(fid).todict(complex_tuple=True)

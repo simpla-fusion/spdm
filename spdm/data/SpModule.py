@@ -9,40 +9,63 @@ from pathlib import Path
 from string import Template
 from typing import List
 
+from ..data.DataObject import DataObject
+from ..util.dict_util import format_string_recursive
+from ..util.AttributeTree import AttributeTree
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
-from ..util.AttributeTree import AttributeTree
-from ..data.DataObject import DataObject
-
-LMOD_EXEC = "/usr/share/lmod/lmod/libexec/lmod"
 
 
 class SpModule(SpObject):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, envs=None, **kwargs):
         super().__init__(name=self.__class__.__name__,
                          label=self.metadata.annotation.label,
                          attributes=kwargs)
 
-        self._output = None
-        self._input = AttributeTree()
-
-        # self._parameter = parameters or {}
-        # # self._only_module_command = only_module_command
-        # self._working_dir = pathlib.Path(f"./{self.__class__.__name__}")
+        self._envs = envs or {}
+        self._args = args
+        self._kwargs = kwargs
+        self._inputs = None
+        self._outputs = None
 
     def __del__(self):
         super().__del__()
 
     @property
-    def input(self):
-        return self._input
+    def envs(self):
+        return collections.ChainMap(self._envs, self._metadata,  os.environ)
 
     @property
-    def output(self):
-        if self._output is None:
-            self._output = AttributeTree(self.run())
-        return self._output
+    def inputs(self):
+        if self._inputs is not None:
+            return self._inputs
+        self._inputs = {}
+        for p_in in self.metadata.in_ports:
+            format_string_recursive(p_in, self.envs)
+            p_name = str(p_in["name"])
+            if p_name == "VAR_ARGS":
+
+                self._inputs[p_name] = DataObject(p_in,
+                                                  [DataObject(arg, envs=self.envs) for arg in self._args],
+                                                  working_dir=self.envs.get("INTPUT_DIR", "./"))
+            else:
+                value = self._kwargs.get(p_name, None)
+                if value is not None:
+                    value =DataObject(value, envs=self.envs)
+                else:
+                    value = p_in.get("default", None)
+                self._inputs[p_name] = DataObject(p_in,
+                                                  value,
+                                                  working_dir=self.envs.get("INPUT_DIR", "./"))
+
+        return self._inputs
+
+    @ property
+    def outputs(self):
+        if self._outputs is None:
+            self._outputs = AttributeTree(self.run())
+        return self._outputs
 
     def preprocess(self):
         logger.debug(f"Preprocess: {self.__class__.__name__}")
@@ -50,7 +73,7 @@ class SpModule(SpObject):
     def postprocess(self):
         logger.debug(f"Postprocess: {self.__class__.__name__}")
 
-    def execute(self, *args, **kwargs):
+    def execute(self):
         logger.debug(f"Execute: {self.__class__.__name__}")
         return None
 
@@ -59,12 +82,12 @@ class SpModule(SpObject):
 
         error_msg = None
 
-        try:
-            res = self.execute()
-        except Exception as error:
-            error_msg = error
-            logger.error(f"{error}")
-            res = None
+        # try:
+        res = self.execute()
+        # except Exception as error:
+        #     error_msg = error
+        #     logger.error(f"{error}")
+        #     res = None
 
         self.postprocess()
 
@@ -89,27 +112,26 @@ class SpModuleLocal(SpModule):
         super().__init__(*args, **kwargs)
 
         if working_dir is not None:
-            self._working_dir = pathlib.Path(working_dir)
+            working_dir = pathlib.Path(working_dir)
         else:
-            self._working_dir = pathlib.Path.cwd()
+            working_dir = pathlib.Path.cwd()
 
-        self._working_dir /= f"{self.__class__.__name__}_{self.uuid}"
+        count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
 
-    @property
-    def working_dir(self):
-        return self._working_dir
+        working_dir /= f"{self.__class__.__name__}_{count}"
 
-    @property
-    def input_dir(self):
-        return self.working_dir/"inputs"
+        self._envs["WORKING_DIR"] = working_dir
+        self._envs["INPUT_DIR"] = working_dir/"inputs"
+        self._envs["OUTPUT_DIR"] = working_dir/"outputs"
 
-    @property
-    def output_dir(self):
-        return self.working_dir/"outputs"
+        logger.debug(f"Initialize: {self.__class__.__name__} ")
+
+    def __del__(self):
+        logger.debug(f"Finialize: {self.__class__.__name__} ")
 
     def _execute_module_command(self, *args):
         logger.debug(f"MODULE CMD: module {' '.join(args)}")
-        py_commands = os.popen(f"{LMOD_EXEC} python {' '.join(args)}  ").read()
+        py_commands = os.popen(f"{os.environ['LMOD_CMD']} python {' '.join(args)}  ").read()
         res = exec(py_commands)
         return res
 
@@ -158,12 +180,12 @@ class SpModuleLocal(SpModule):
         self._execute_script(self.metadata.postscript)
         super().postprocess()
 
-    def execute(self,  *args, envs=None, **kwargs):
+    def execute(self):
         # super().execute(*args, **kwargs)
         module_name = str(self.metadata.annotation.name)
 
         module_root = pathlib.Path(os.environ.get(f"EBROOT{module_name.upper()}", "./")).expanduser()
-        
+
         exec_file = module_root / str(self.metadata.run.exec_file)
 
         exec_file.resolve()
@@ -185,26 +207,10 @@ class SpModuleLocal(SpModule):
         else:
             raise TypeError(f"File '{exec_file}'  is not executable!")
 
-        mod_envs = {
-            "WORKING_DIR": self.working_dir,
-            "INPUT_DIR": self.input_dir,
-            "OUTPUT_DIR": self.output_dir
-        }
-
-        inputs = {}
-
-        for p_in in self.metadata.in_ports:
-            
-            p_name = str(p_in["name"])
-            if p_name == "VAR_ARGS":
-                inputs[p_name] = DataObject(p_in, args, working_dir=self.input_dir)
-            else:
-                inputs[p_name] = DataObject(p_in, kwargs.get(p_name, None), working_dir=self.input_dir)
-
         cmd_arguments = str(self.metadata.run.arguments)
 
         try:
-            arguments = cmd_arguments.format_map(collections.ChainMap(inputs, mod_envs, os.environ))
+            arguments = cmd_arguments.format_map(collections.ChainMap(self.inputs, self.envs))
         except KeyError as key:
             raise KeyError(f"Missing argument {key} ! [ {cmd_arguments} ]")
 
@@ -215,7 +221,7 @@ class SpModuleLocal(SpModule):
         try:
             exit_status = subprocess.run(
                 command,
-                env=envs,
+                env=self._envs,
                 capture_output=True,
                 check=True,
                 shell=False,
@@ -234,6 +240,6 @@ class SpModuleLocal(SpModule):
 
         for p_out in self.metadata.out_ports:
             p_name = str(p_out["name"])
-            outputs[p_name] = DataObject(p_out,  working_dir=self.output_dir)
+            outputs[p_name] = DataObject(p_out,  working_dir=self.envs.get("OUTPUT_DIR", "./"))
 
         return AttributeTree(outputs)

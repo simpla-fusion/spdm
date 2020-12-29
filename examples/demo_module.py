@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     from spdm.util.logger import logger
     from spdm.util.ModuleRepository import ModuleRepository
-    from spdm.data.File import File
+    from spdm.data.DataObject import DataObject
     from spdm.data.SpModule import SpModule
 
     os.environ["FUYUN_CONFIGURE_PATH"] = "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/configure.yaml"
@@ -24,15 +24,15 @@ if __name__ == "__main__":
     Genray = module.new_class("physics/genray", version="201213", tag="-gompi-2019b", workingdir="./")
 
     cfg = {
-        "tokamak.eqdskin": "{FY_MODULEFILE_DIR}/../templates/g063982.04800",
-        "genr.partner": "{FY_MODULEFILE_DIR}/../templates/genray_profs_in.nc",
+        "tokamak.eqdskin": {"$schema": "file.GEQdsk", "path": "{FY_MODULEFILE_DIR}/../templates/g063982.04800"},
+        "genr.partner":  {"$schema": "file.NETCDF", "path": "{FY_MODULEFILE_DIR}/../templates/genray_profs_in.nc"},
         "genr.outdata": "{OUTPUT_DIR}",
         "ecocone.gzone": 1
     }
 
     genray = Genray(num_of_steps=1, config=cfg)
 
-    logger.debug(genray.output.STDOUT)
+    logger.debug(genray.outputs.STDOUT)
 
     # out_nc = genray_out.out_nc
     # out_eq = genray_out.out_eq

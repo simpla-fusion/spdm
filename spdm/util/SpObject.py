@@ -98,10 +98,7 @@ class SpObject(object):
         self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
         self._name = name
         self._label = label
-        logger.debug(f"Initialize: {self.__class__.__name__} ")
-
-    def __del__(self):
-        logger.debug(f"Finialize: {self.__class__.__name__} ")
+   
 
     # def __del__(self):
     #     # p = getattr(self, "_parent", None)

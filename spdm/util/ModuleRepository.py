@@ -142,6 +142,9 @@ class ModuleRepository:
                 self._envs)
 
             format_string_recursive(n_metadata, envs)
+
+        n_metadata[f"{self._repo_tag.upper()}_MODULEFILE_DIR"] = modulefile_path.parent
+        n_metadata[f"{self._repo_tag.upper()}_MODULEFILE_PATH"] = modulefile_path
         return n_metadata
 
     def new_class(self, metadata, *args, **kwargs):

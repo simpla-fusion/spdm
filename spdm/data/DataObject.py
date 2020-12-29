@@ -33,7 +33,7 @@ class DataObject(SpObject):
         elif isinstance(metadata, collections.abc.Sequence):
             metadata = {"$schema": ".".join(metadata)}
 
-        d_schema = metadata.get("$schema", "string")
+        d_schema = metadata.get("$schema", "string").replace("/",".")
 
         metadata["$schema"] = d_schema
 
@@ -49,14 +49,16 @@ class DataObject(SpObject):
         elif d_schema == "ndarray":
             n_obj = load_ndarray(metadata, value, *args, **kwargs)
         else:
-            # mod_path = f"{__package__}.{d_schema.replace('/','.')}"
-            n_obj = SpObject.__new__(cls, metadata)
-
+            n_cls = sp_find_module(f"{__package__}.{d_schema}")
+            if n_cls is None:
+                raise ModuleNotFoundError(f"{__package__}.{d_schema}")
+            n_obj = SpObject.__new__(n_cls)
         return n_obj
 
     def __init__(self, metadata, value=None, *args, **kwargs):
-        self._metadata = AttributeTree(metadata)
-        self._metadata |= kwargs
+        if isinstance(metadata, str):
+            metadata = {"$schema": metadata}
+        super().__init__(*args, attributes=metadata, **kwargs)
 
         if value is not None:
             self.update(value)
@@ -70,10 +72,6 @@ class DataObject(SpObject):
 
     def __repr__(self):
         return pprint.pformat(self.metadata)
-
-    @ property
-    def metadata(self):
-        return self._metadata
 
     @ property
     def root(self):

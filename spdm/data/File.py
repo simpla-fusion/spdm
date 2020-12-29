@@ -39,61 +39,60 @@ class File(Document):
 
     }
 
-    @staticmethod
-    def __new__(cls, desc, *args, file_format=None, **kwargs):
-        if cls is not File:
-            return object.__new__(cls)
-            # return super(File, cls).__new__(cls, path, *args, **kwargs)
+    # @staticmethod
+    # def __new__(cls, desc, *args, file_format=None, **kwargs):
+    #     if cls is not File:
+    #         return object.__new__(cls)
+    #         # return super(File, cls).__new__(cls, path, *args, **kwargs)
 
-        if isinstance(desc, collections.abc.Mapping):
-            path = desc.get("path", None)
-            file_format = file_format or desc.get("file_format", None)
-        elif isinstance(desc, (str, pathlib.PosixPath)):
-            path = desc
-        else:
-            raise TypeError(f"{type(desc)}")
+    #     if isinstance(desc, collections.abc.Mapping):
+    #         path = desc.get("path", None)
+    #         file_format = file_format or desc.get("file_format", None)
+    #     elif isinstance(desc, (str, pathlib.PosixPath)):
+    #         path = desc
+    #     else:
+    #         raise TypeError(f"{type(desc)}")
 
-        if file_format is not None:
-            pass
-        elif isinstance(path, (str, pathlib.PosixPath)):
-            path = pathlib.Path(path)
-            file_format = path.suffix[1:]
-        else:
-            raise ValueError(f"'file_format' is not defined!")
+    #     if file_format is not None:
+    #         pass
+    #     elif isinstance(path, (str, pathlib.PosixPath)):
+    #         path = pathlib.Path(path)
+    #         file_format = path.suffix[1:]
+    #     else:
+    #         raise ValueError(f"'file_format' is not defined!")
 
-        n_cls = File.associations.get(file_format.lower(), f"{__package__}.file.{file_format}")
+    #     n_cls = File.associations.get(file_format.lower(), f"{__package__}.file.{file_format}")
 
-        if isinstance(n_cls, str):
-            n_cls = sp_find_module(n_cls)
+    #     if isinstance(n_cls, str):
+    #         n_cls = sp_find_module(n_cls)
 
-        if inspect.isclass(n_cls):
-            res = object.__new__(n_cls)
-        elif callable(n_cls):
-            res = n_cls(path, *args, schema=file_format, **kwargs)
-        else:
-            raise RuntimeError(f"Illegal schema! {file_format} {n_cls} {path}")
+    #     if inspect.isclass(n_cls):
+    #         res = object.__new__(n_cls)
+    #     elif callable(n_cls):
+    #         res = n_cls(path, *args, schema=file_format, **kwargs)
+    #     else:
+    #         raise RuntimeError(f"Illegal schema! {file_format} {n_cls} {path}")
 
-        return res
+    #     return res
 
-    def __init__(self,  desc, value=None, *args, working_dir=None,  ** kwargs):
+    def __init__(self,  desc, value=None, *args, working_dir=None, envs=None,  ** kwargs):
         super().__init__(desc, *args, ** kwargs)
-
-        path = self.metadata.path
-
+        if isinstance(desc, str):
+            desc = {"$schema": desc}
         if working_dir is None:
             working_dir = pathlib.Path.cwd()
         else:
             working_dir = pathlib.Path(working_dir)
 
-        if not path:
-            # raise ValueError(f"Empty path!")
-            self._path = working_dir/self.metadata.name
-        elif isinstance(path, str):
-            self._path = working_dir/path
-        elif isinstance(path, pathlib.PosixPath):
-            self._path = path
+        if isinstance(value, (pathlib.PosixPath, str)):
+            self._path = working_dir/value
+            value = None
         else:
-            self._path = working_dir
+            path = desc.get("path", None) or desc.get("default", None) or str(self.metadata.default)
+            self._path = working_dir/path
+
+        if not self._path:
+            raise ValueError(f"File name is not defined!")
 
         if self.is_writable:
             self.update(value or self.metadata.default)
