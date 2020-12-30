@@ -61,11 +61,11 @@ postscript:
 
 in_ports:
   - name: equilibrium # This is a copy of eqdsk file
-    $schema: file/GEQdsk
+    $schema: file/geqdsk
     default: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
 
   - name: number_of_steps
-    schema: integer
+    $schema: integer
     default: 1
 
   - name: dt
@@ -74,7 +74,7 @@ in_ports:
     $comment: Inputs the data for all NAMELISTs used in the code.
 
   - name: config
-    $schema: file/NAMELIST
+    $schema: file/namelist
     template: "{FY_MODULEFILE_DIR}/../template/genray.in"
     path: config.nml
     # default:
@@ -85,9 +85,9 @@ in_ports:
 
 out_ports:
   - name: out_nc
-    schema: file/netcdf
+    $schema: file/netcdf
     path: genray_EAST.nc
 
   - name: out_eq
-    schema: file/geqdsk
+    $schema: file/geqdsk
     path: genray_output.gfile

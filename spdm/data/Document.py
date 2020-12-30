@@ -10,22 +10,12 @@ from .Node import Node
 
 class Document(DataObject):
 
-    def __init__(self, desc, *args,  parent=None, **kwargs):
-        super().__init__(desc, *args,   **kwargs)
-        # if fid is not None:
-        #     self.metadata.fid = fid
-        # if mode is not None:
-        #     self.metadata.mode = mode
-        # if isinstance(desc, DataObject):
-        #     self._holder = desc
-        #     self._desc = AttributeTree(schema=self._holder.__class__.__name__)
-        # else:
-        #     self._desc = AttributeTree(collections.ChainMap(desc or {},   kwargs))
-        #     self._holder = DataObject(desc, *args, **kwargs)
-
-        self._parent = parent
+    def __init__(self, data=None,  *args,  **kwargs):
+        self._holder = None
+        super().__init__(data, *args,   **kwargs)
+        
         logger.debug(
-            f"Opend Document type='{self.__class__.__name__}' fid='{self.metadata.fid or self.metadata.path}' ")
+            f"Opend Document type='{self.__class__.__name__}' path='{self.metadata.oid or self.metadata.path or self.metadata['$schema'].path}' ")
 
     @property
     def holder(self):

@@ -15,36 +15,6 @@ from .Document import Document
 class File(Document):
     """ Default entry for file-like object
     """
-
-    associations = {
-        "bin": f"{__package__}.file.Binary",
-        "h5": f"{__package__}.file.HDF5",
-        "hdf5": f"{__package__}.file.HDF5",
-        "nc": f"{__package__}.file.NetCDF",
-        "netcdf": f"{__package__}.file.NetCDF",
-
-        "namelist": f"{__package__}.file.NameList",
-        "nml": f"{__package__}.file.NameList",
-        "xml": f"{__package__}.file.XML",
-        "json": f"{__package__}.file.JSON",
-        "yaml": f"{__package__}.file.YAML",
-        "txt": f"{__package__}.file.TXT",
-        "csv": f"{__package__}.file.CSV",
-        "numpy": f"{__package__}.file.NumPy",
-
-
-        "gfile": f"{__package__}.file.GEQdsk",
-
-        "mdsplus": f"{__package__}.db.MDSplus#MDSplusDocument",
-
-    }
-
-    # @staticmethod
-    # def __new__(cls, desc, *args, file_format=None, **kwargs):
-    #     if cls is not File:
-    #         return object.__new__(cls)
-    #         # return super(File, cls).__new__(cls, path, *args, **kwargs)
-
     #     if isinstance(desc, collections.abc.Mapping):
     #         path = desc.get("path", None)
     #         file_format = file_format or desc.get("file_format", None)
@@ -75,30 +45,31 @@ class File(Document):
 
     #     return res
 
-    def __init__(self,  desc, value=None, *args, working_dir=None, envs=None,  ** kwargs):
-        super().__init__(desc, *args, ** kwargs)
-        if isinstance(desc, str):
-            desc = {"$schema": desc}
+    def __init__(self,  data=None, *args, metadata=None, working_dir=None, envs=None,  ** kwargs):
+        super().__init__(data, *args, metadata=metadata, envs=envs, working_dir=working_dir, ** kwargs)
+
         if working_dir is None:
             working_dir = pathlib.Path.cwd()
         else:
             working_dir = pathlib.Path(working_dir)
 
-        if isinstance(value, (pathlib.PosixPath, str)):
-            self._path = working_dir/value
-            value = None
+        if isinstance(data, (pathlib.PosixPath, str)):
+            self._path = working_dir/data
+            data = None
         else:
-            path = desc.get("path", None) or desc.get("default", None) or str(self.metadata.default)
+            schema = self.metadata["$schema"]
+            path = schema.path or ""
             self._path = working_dir/path
 
         if not self._path:
-            raise ValueError(f"File name is not defined!")
+            raise ValueError(f"File path is not defined!")
 
         if self.is_writable:
-            self.update(value or self.metadata.default)
+            self.update(data or self.metadata.default)
 
+    @property
     def __repr__(self):
-        return self._path.as_posix()
+        return str(self._path)
 
     @property
     def path(self):
@@ -158,6 +129,8 @@ class File(Document):
             fid.write(d, *args, **kwargs)
 
     def update(self, d, *args, **kwargs):
+        if d is None:
+            return
         old_d = self.read()
         old_d.update(d)
         self.write(old_d)

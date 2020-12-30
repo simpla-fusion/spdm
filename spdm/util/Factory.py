@@ -100,7 +100,7 @@ class Factory(object):
         if inspect.isclass(n_cls):
             n_cls_name = self._resolver.remove_prefix(cls_id)
             n_cls_name = re.sub(r'[-\/\.\:]', '_', n_cls_name)
-            n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
+            # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
             n_cls = type(n_cls_name, (n_cls,), {"_metadata": {**metadata}})
 
         return self._cache.setdefault(cls_id, n_cls)
@@ -165,3 +165,70 @@ class Factory(object):
     #         raise error
     #     else:
     #         logger.info(f"Validate schema '{spec.get('$schema')}' ")
+#  @classmethod
+#     def new_class(cls,  desc=None, *args, ** kwargs):
+
+#         description = AttributeTree(getattr(cls, "_description", {}))
+
+#         if desc is None and len(kwargs) == 0:
+#             return cls
+#         elif isinstance(desc, str):
+#             desc = {"$id": desc}
+
+#         description.__update__(desc)
+#         description.__update__(kwargs)
+
+#         # if factory is not None:
+#         #     description = factory.resolver.fetch(description)
+
+#         # if not base_class:
+#         #     base_class = cls
+#         # elif factory is not None:
+#         #     base_class = factory.new_class(base_class)
+#         # else:
+#         #     base_class = cls
+#         # base_class = description["$base_class"]
+
+#         o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
+#         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
+
+#         path = re.sub(r'[-\/\.]', '_', o.path)
+
+#         n_cls_name = f"{n_cls_name}{path}"
+
+#         n_cls = type(n_cls_name, (cls,), {"_description": AttributeTree(description)})
+
+#         return n_cls
+
+#     @classmethod
+#     def create(cls, *args,  ** kwargs):
+#         # key starts with '_' are resevered for classmethod new_class
+#         c_kwargs = {}
+#         o_kwargs = {}
+#         for k, v in kwargs.items():
+#             if k.startswith("_"):
+#                 c_kwargs[k[1:]] = v
+#             else:
+#                 o_kwargs[k] = v
+
+#         return cls._create_from((args, o_kwargs), **c_kwargs)
+
+#     @classmethod
+#     def _create_from(cls, init_args=None, *_args, **_kwargs):
+#         if len(_args) > 0 or len(_kwargs) > 0:
+#             cls = cls.new_class(*_args, **_kwargs)
+
+#         args = []
+#         kwargs = {}
+#         if init_args is None:
+#             pass
+#         elif isinstance(init_args, collections.abc.Mapping):
+#             kwargs = init_args
+#         elif isinstance(init_args, list):
+#             args = init_args
+#         elif isinstance(init_args, tuple):
+#             args, kwargs = init_args
+#         else:
+#             args = [init_args]
+
+#         return cls(*args, **kwargs)

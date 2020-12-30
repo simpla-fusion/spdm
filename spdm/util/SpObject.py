@@ -4,13 +4,13 @@ import inspect
 import re
 import traceback
 import uuid
-from enum import Enum, Flag, auto, unique
 from functools import cached_property
+
+import numpy as np
 
 from .AttributeTree import AttributeTree
 from .logger import logger
 from .sp_export import sp_find_module
-from .urilib import urisplit
 
 
 class SpObject(object):
@@ -21,151 +21,71 @@ class SpObject(object):
             parent      : parent node
             name        : short string
     """
-    _metadata = {}
+    _default_prefix = ".".join(__package__.split('.')[:-1])
 
-    @classmethod
-    def new_class(cls,  desc=None, *args, ** kwargs):
+    _metadata = {"$schema": "SpObject"}
 
-        description = AttributeTree(getattr(cls, "_description", {}))
+    _schema_map = {
+        "integer": int,
+        "float": float,
+        "string": str,
+        "ndarray": np.ndarray
+    }
 
-        if desc is None and len(kwargs) == 0:
-            return cls
-        elif isinstance(desc, str):
-            desc = {"$id": desc}
+    @staticmethod
+    def __new__(cls, data=None, *args, metadata=None, **kwargs):
+        # if cls is not SpObject:
+        #     return object.__new__(cls)
 
-        description.__update__(desc)
-        description.__update__(kwargs)
+        if isinstance(metadata, str):
+            metadata = {"$schema": metadata}
+        elif not isinstance(metadata, collections.abc.Mapping):
+            raise TypeError(type(metadata))
 
-        # if factory is not None:
-        #     description = factory.resolver.fetch(description)
+        schema = metadata.get("$schema", None)
 
-        # if not base_class:
-        #     base_class = cls
-        # elif factory is not None:
-        #     base_class = factory.new_class(base_class)
-        # else:
-        #     base_class = cls
-        # base_class = description["$base_class"]
-
-        o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
-        n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
-
-        path = re.sub(r'[-\/\.]', '_', o.path)
-
-        n_cls_name = f"{n_cls_name}{path}"
-
-        n_cls = type(n_cls_name, (cls,), {"_description": AttributeTree(description)})
-
-        return n_cls
-
-    @classmethod
-    def create(cls, *args,  ** kwargs):
-        # key starts with '_' are resevered for classmethod new_class
-        c_kwargs = {}
-        o_kwargs = {}
-        for k, v in kwargs.items():
-            if k.startswith("_"):
-                c_kwargs[k[1:]] = v
-            else:
-                o_kwargs[k] = v
-
-        return cls._create_from((args, o_kwargs), **c_kwargs)
-
-    @classmethod
-    def _create_from(cls, init_args=None, *_args, **_kwargs):
-        if len(_args) > 0 or len(_kwargs) > 0:
-            cls = cls.new_class(*_args, **_kwargs)
-
-        args = []
-        kwargs = {}
-        if init_args is None:
-            pass
-        elif isinstance(init_args, collections.abc.Mapping):
-            kwargs = init_args
-        elif isinstance(init_args, list):
-            args = init_args
-        elif isinstance(init_args, tuple):
-            args, kwargs = init_args
+        if isinstance(schema, str):
+            schema_id = schema
+            schema = {"$id": schema_id}
+        elif isinstance(schema, collections.abc.Mapping):
+            schema_id = schema.get("$id", None)
         else:
-            args = [init_args]
+            raise TypeError(type(schema))
 
-        return cls(*args, **kwargs)
+        n_cls = SpObject._schema_map.get(schema_id, None)
 
-    def __init__(self,  *, name=None, uid=None, label=None, parent=None, attributes=None, **kwargs):
+        if n_cls is None:
+            if schema_id.startswith("."):
+                schema_id = f"{SpObject._default_prefix}{schema_id}"
+
+            n_cls = sp_find_module(schema_id)
+            if n_cls is None:
+                raise ModuleNotFoundError(f"{schema_id}")
+            n_cls_name = re.sub(r'[-\/\.\:]', '_', schema_id)
+            # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
+            n_cls = type(n_cls_name, (n_cls,), {"_metadata": metadata})
+
+        if inspect.isclass(n_cls):
+            # assert(issubclass(n_cls, cls))
+
+            if n_cls in (int, float, str):
+                return n_cls.__new__(n_cls, data or 0)
+            else:
+                return object.__new__(n_cls)
+        elif callable(n_cls):
+            return n_cls(data, *args, metadata=metadata, **kwargs)
+        else:
+            raise RuntimeError(f"Illegal SpObject type! {type(n_cls)}")
+
+    def __init__(self,  *,  oid=None,  parent=None, attributes=None, metadata=None, **kwargs):
         super().__init__()
-        self._uuid = uid or uuid.uuid1()
+        self._oid = oid or uuid.uuid1()
         self._parent = parent
         self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
-        self._name = name
-        self._label = label
-   
 
     # def __del__(self):
-    #     # p = getattr(self, "_parent", None)
-    #     # if p is not None:
-    #     #     p.remove_child(self)
-    #     pass
-
-    @cached_property
-    def metadata(self):
-        return AttributeTree(self.__class__._metadata)
-
-    def __hash__(self):
-        return self._uuid.int
-
-    ##############################################################
-    @property
-    def parent(self):
-        return self._parent
-
-    @property
-    def is_root(self):
-        return self._parent is None
-
-    @property
-    def rank(self):
-        return self._parent.rank+1 if self._parent is not None else 0
-
-    @property
-    def attributes(self):
-        return self._attributes
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def kind(self):
-        return self.__class__.__name__
-
-    @property
-    def full_name(self):
-        if self._parent is not None:
-            return f"{self._parent.full_name}.{self._name}"
-        else:
-            return self._name
-
-    def shorten_name(self, num=2):
-        s = self.full_name.split('.')
-        if len(s) <= num:
-            return '.'.join(s)
-        else:
-            return f"{s[0]}...{'.'.join(s[-(num-1):])}"
-
-    @property
-    def uuid(self):
-        return self._uuid
-
-    @property
-    def id(self):
-        return self._uuid.int
-
-    @property
-    def label(self):
-        return self._label
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} path=\"{self.full_name}\"   />"
+    #     if hasattr(self._parent, "remove_child"):
+    #         self._parent.remove_child(self)
 
     @classmethod
     def deserialize(cls, spec: collections.abc.Mapping):
@@ -176,9 +96,9 @@ class SpObject(object):
         return cls(**spec)
 
     def serialize(self):
-        return {"$schema": "SpObject",
-                "$class": f"{self.__class__.__module__}.{self.__class__.__name__}",
-                "annotation": {"label": self.label},
+        return {"$schema": self.metadata["$schema"],
+                "$id":  self.metadata["$id"] or f"{self.__class__.__module__}.{self.__class__.__name__}",
+                "attributes": self._attributes,
                 "metadata": {}}
 
     @classmethod
@@ -188,8 +108,68 @@ class SpObject(object):
     def to_json(self):
         return self.serialize()
 
+    @cached_property
+    def metadata(self):
+        return AttributeTree(self.__class__._metadata)
+
+    @property
+    def attributes(self):
+        return self._attributes
+
+    def __hash__(self):
+        return self._oid.int
+
+    ##############################################################
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def children(self):
+        return []
+
+    def remove_child(self, child):
+        pass
+
+    def insert_child(self, child, name=None, *args, **kwargs):
+        raise NotImplementedError
+
+    @property
+    def is_root(self):
+        return self._parent is None
+
+    @property
+    def rank(self):
+        return self._parent.rank+1 if self._parent is not None else 0
+
+    @property
+    def kind(self):
+        return self.__class__.__name__
+
+    @property
+    def full_name(self):
+        if self._parent is not None:
+            return f"{self._parent.full_name}.{self.attributes.name}"
+        else:
+            return self.attributes.name
+
+    def shorten_name(self, num=2):
+        s = self.full_name.split('.')
+        if len(s) <= num:
+            return '.'.join(s)
+        else:
+            return f"{s[0]}...{'.'.join(s[-(num-1):])}"
+
+    @property
+    def oid(self):
+        return self._oid
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} path=\"{self.full_name}\"    />"
+
     ######################################################
     # algorithm
+
     def find_shortest_path(self, s, t):
         return []
 

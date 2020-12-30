@@ -18,8 +18,17 @@ from ..util.SpObject import SpObject
 
 
 class SpModule(SpObject):
-    def __init__(self, *args, envs=None, **kwargs):
-        super().__init__(name=self.__class__.__name__,
+
+    @staticmethod
+    def __new__(cls, *args, **kwargs):
+        if cls is not SpModule:
+            return object.__new__(cls)
+        else:
+            return SpObject.__new__(cls, *args, **kwargs)
+
+    def __init__(self, *args, envs=None, metadata=None, **kwargs):
+        super().__init__(metadata=metadata,
+                         name=self.__class__.__name__,
                          label=self.metadata.annotation.label,
                          attributes=kwargs)
 
@@ -34,7 +43,7 @@ class SpModule(SpObject):
 
     @property
     def envs(self):
-        return collections.ChainMap(self._envs, self._metadata,  os.environ)
+        return collections.ChainMap(self._envs, self._metadata  )
 
     @property
     def inputs(self):
@@ -46,17 +55,16 @@ class SpModule(SpObject):
             p_name = str(p_in["name"])
             if p_name == "VAR_ARGS":
 
-                self._inputs[p_name] = DataObject(p_in,
-                                                  [DataObject(arg, envs=self.envs) for arg in self._args],
+                self._inputs[p_name] = DataObject([DataObject(arg, envs=self.envs) for arg in self._args],
+                                                  metadata=p_in,
                                                   working_dir=self.envs.get("INTPUT_DIR", "./"))
             else:
-                value = self._kwargs.get(p_name, None)
-                if value is not None:
-                    value =DataObject(value, envs=self.envs)
-                else:
-                    value = p_in.get("default", None)
-                self._inputs[p_name] = DataObject(p_in,
-                                                  value,
+                data = self._kwargs.get(p_name, None)
+                # if data is None:
+                #     data = DataObject(data, envs=self.envs)
+                # else:
+                #     data = p_in.get("default", None)
+                self._inputs[p_name] = DataObject(data, metadata=p_in,
                                                   working_dir=self.envs.get("INPUT_DIR", "./"))
 
         return self._inputs
@@ -210,7 +218,8 @@ class SpModuleLocal(SpModule):
         cmd_arguments = str(self.metadata.run.arguments)
 
         try:
-            arguments = cmd_arguments.format_map(collections.ChainMap(self.inputs, self.envs))
+            envs = collections.ChainMap(self.inputs, self.envs)
+            arguments = cmd_arguments.format_map(envs)
         except KeyError as key:
             raise KeyError(f"Missing argument {key} ! [ {cmd_arguments} ]")
 
