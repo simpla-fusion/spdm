@@ -1,21 +1,22 @@
-import functools
 import collections
-import matplotlib.pyplot as plt
-import numpy as np
-import sys
+import functools
 import os
 import pprint
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 
 if __name__ == "__main__":
 
-    from spdm.util.logger import logger
-    from spdm.util.ModuleRepository import ModuleRepository
     from spdm.data.DataObject import DataObject
     from spdm.data.File import File
-
-    from spdm.data.SpModule import SpModule
+    from spdm.flow.ModuleRepository import ModuleRepository
+    from spdm.flow.SpModule import SpModule
+    from spdm.util.logger import logger
 
     os.environ["FUYUN_CONFIGURE_PATH"] = "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/configure.yaml"
 
@@ -23,16 +24,16 @@ if __name__ == "__main__":
 
     module.factory.insert_handler("SpModule", SpModule)
 
-    Genray = module.new_class("physics/genray", version="201213", tag="-gompi-2019b", workingdir="./")
-    logger.debug(Genray)
+    Genray = module.new_class("physics/genray", version="201213", tag="-gompi-2019b")
+
     cfg = {
-        "tokamak.eqdskin": File({"$schema": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../templates/g063982.04800"}),
+        "tokamak.eqdskin": {"$schema": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../templates/g063982.04800"},
         "genr.partner":  {"$schema": "file.netcdf", "path": "{FY_MODULEFILE_DIR}/../templates/genray_profs_in.nc"},
         "genr.outdata": "{OUTPUT_DIR}",
         "ecocone.gzone": 1
     }
 
-    genray = Genray(num_of_steps=1, dt=0.001)  # , config=cfg
+    genray = Genray(num_of_steps=1, dt=0.001, confgi=cfg)
 
     logger.debug(genray.outputs().STDOUT)
 

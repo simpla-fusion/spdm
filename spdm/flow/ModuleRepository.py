@@ -6,16 +6,16 @@ import subprocess
 import traceback
 import uuid
 
-from . import io
-from .Factory import Factory
-from .LazyProxy import LazyProxy
-from .logger import logger
-from .RefResolver import RefResolver
-from .sp_export import sp_find_module
-from .SpURI import URISplitResult, urisplit
-from .utilities import deep_update_dict
-from .AttributeTree import AttributeTree
-from .dict_util import format_string_recursive
+from ..util import io
+from ..util.Factory import Factory
+from ..util.LazyProxy import LazyProxy
+from ..util.logger import logger
+from ..util.RefResolver import RefResolver
+from ..util.sp_export import sp_find_module
+from ..util.SpURI import URISplitResult, urisplit
+from ..util.utilities import deep_update_dict
+from ..util.AttributeTree import AttributeTree
+from ..util.dict_util import format_string_recursive
 
 
 class ModuleRepository:
@@ -58,7 +58,8 @@ class ModuleRepository:
         # TODO:  list in dict should be appended not overwrited .
         f_conf = collections.ChainMap(kwargs, conf, sys_conf)
 
-        self._factory = Factory(**f_conf.get("factory", {}), resolver=RefResolver(**f_conf.get("resolver", {})))
+        self._factory = Factory(**collections.ChainMap(f_conf.get("factory", {}), {"module_prefix": f"{__package__}"}),
+                                resolver=RefResolver(**f_conf.get("resolver", {})))
 
         self._home_dir = f_conf.get("home_dir", None) or \
             os.environ.get(f"{self._repo_tag.upper()}_HOME_DIR", None)
