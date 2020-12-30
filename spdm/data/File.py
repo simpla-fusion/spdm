@@ -45,30 +45,26 @@ class File(Document):
 
     #     return res
 
-    def __init__(self,  data=None, *args, metadata=None, working_dir=None, envs=None,  ** kwargs):
-        super().__init__(data, *args, metadata=metadata, envs=envs, working_dir=working_dir, ** kwargs)
+    def __init__(self,  data=None, *args,   working_dir=None,   ** kwargs):
+        super().__init__(data, *args,   working_dir=working_dir, ** kwargs)
 
         if working_dir is None:
             working_dir = pathlib.Path.cwd()
         else:
             working_dir = pathlib.Path(working_dir)
 
-        if isinstance(data, (pathlib.PosixPath, str)):
-            self._path = working_dir/data
-            data = None
-        else:
-            schema = self.metadata["$schema"]
-            path = schema.path or ""
-            self._path = working_dir/path
+        file_path = self.metadata.path or self.metadata.schema.path
 
-        if not self._path:
-            raise ValueError(f"File path is not defined!")
+        if not file_path:
+            file_path = ""
 
-        if self.is_writable:
-            self.update(data or self.metadata.default)
+        self._path = working_dir/str(file_path)
 
-    @property
+
     def __repr__(self):
+        return str(self._path)
+
+    def __str__(self):
         return str(self._path)
 
     @property

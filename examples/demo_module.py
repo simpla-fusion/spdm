@@ -32,9 +32,9 @@ if __name__ == "__main__":
         "ecocone.gzone": 1
     }
 
-    genray = Genray(num_of_steps=1, config=cfg)
+    genray = Genray(num_of_steps=1, dt=0.001)  # , config=cfg
 
-    logger.debug(genray.outputs.STDOUT)
+    logger.debug(genray.outputs().STDOUT)
 
     # out_nc = genray_out.out_nc
     # out_eq = genray_out.out_eq

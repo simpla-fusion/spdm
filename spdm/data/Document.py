@@ -13,9 +13,6 @@ class Document(DataObject):
     def __init__(self, data=None,  *args,  **kwargs):
         self._holder = None
         super().__init__(data, *args,   **kwargs)
-        
-        logger.debug(
-            f"Opend Document type='{self.__class__.__name__}' path='{self.metadata.oid or self.metadata.path or self.metadata['$schema'].path}' ")
 
     @property
     def holder(self):

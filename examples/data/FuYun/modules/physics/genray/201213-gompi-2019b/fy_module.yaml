@@ -54,15 +54,15 @@ prescript:
 
 run:
   exec_file: "bin/xgenray"
-  arguments: "-n {number_of_steps} -i {equilibrium} -c {config}  -o {OUTPUT_DIR} "
+  arguments: "-n {number_of_steps}   -c {config}  -o {OUTPUT_DIR} "
 
 postscript:
   - module purge
 
 in_ports:
-  - name: equilibrium # This is a copy of eqdsk file
-    $schema: file/geqdsk
-    default: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
+  # - name: equilibrium # This is a copy of eqdsk file
+  #   $schema: file/geqdsk
+  #   path: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
 
   - name: number_of_steps
     $schema: integer
@@ -77,11 +77,11 @@ in_ports:
     $schema: file/namelist
     template: "{FY_MODULEFILE_DIR}/../template/genray.in"
     path: config.nml
-    # default:
-    #   tokamak.eqdskin: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
-    #   genr.partner: "{FY_MODULEFILE_DIR}/../template/genray_profs_in.nc"
-    #   genr.outdata: "outputs"
-    #   ecocone.gzone: 1
+    default:
+      tokamak.eqdskin: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
+      genr.partner: "{FY_MODULEFILE_DIR}/../template/genray_profs_in.nc"
+      genr.outdata: "outputs"
+      ecocone.gzone: 1
 
 out_ports:
   - name: out_nc

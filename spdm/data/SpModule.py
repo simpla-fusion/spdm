@@ -43,9 +43,8 @@ class SpModule(SpObject):
 
     @property
     def envs(self):
-        return collections.ChainMap(self._envs, self._metadata  )
+        return collections.ChainMap(self._envs, self._metadata)
 
-    @property
     def inputs(self):
         if self._inputs is not None:
             return self._inputs
@@ -60,16 +59,13 @@ class SpModule(SpObject):
                                                   working_dir=self.envs.get("INTPUT_DIR", "./"))
             else:
                 data = self._kwargs.get(p_name, None)
-                # if data is None:
-                #     data = DataObject(data, envs=self.envs)
-                # else:
-                #     data = p_in.get("default", None)
+                if data is None:
+                    data = p_in.get("default", None) or p_in.get("$schema", {}).get("default", None)
                 self._inputs[p_name] = DataObject(data, metadata=p_in,
                                                   working_dir=self.envs.get("INPUT_DIR", "./"))
 
         return self._inputs
 
-    @ property
     def outputs(self):
         if self._outputs is None:
             self._outputs = AttributeTree(self.run())
@@ -218,7 +214,7 @@ class SpModuleLocal(SpModule):
         cmd_arguments = str(self.metadata.run.arguments)
 
         try:
-            envs = collections.ChainMap(self.inputs, self.envs)
+            envs = collections.ChainMap(self.inputs(), self.envs)
             arguments = cmd_arguments.format_map(envs)
         except KeyError as key:
             raise KeyError(f"Missing argument {key} ! [ {cmd_arguments} ]")

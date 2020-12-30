@@ -40,6 +40,11 @@ class DataObject(SpObject):
         "file.geqdsk": ".data.file.GEQdsk",
         "file.gfile": ".data.file.GEQdsk",
         "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+
+        "integer": int,
+        "float": float,
+        "string": str,
+        "ndarray": np.ndarray
     }
 
     @staticmethod
@@ -72,58 +77,24 @@ class DataObject(SpObject):
         if not schema_id.startswith("."):
             schema_id = DataObject.associations.get(schema_id.lower(), schema_id)
 
-        schema["$id"] = schema_id
+        if schema_id in (int, float, str):
+            if data is None:
+                data = metadata.get("default", None) or schema.get("default", 0)
+            return schema_id(data)
+        elif inspect.isclass(schema_id):
+            return object.__new__(schema_id)
+        else:
+            schema["$id"] = schema_id
 
-        metadata["$schema"] = schema
+            metadata["$schema"] = schema
 
-        return SpObject.__new__(cls, data, *args, metadata=metadata, **kwargs)
+            return SpObject.__new__(cls, data, *args, metadata=metadata, **kwargs)
 
-    # @staticmethod
-    # def __new__(cls,  data=None, *args, schema=None, **kwargs):
-    #     if cls is not DataObject:
-    #         return object.__new__(cls)
-
-    #     if isinstance(data, collections.abc.Mapping):
-    #         schema = data.get("$schema", schema)
-
-    #     if isinstance(schema, collections.abc.Mapping):
-    #         schema_id = schema.get("$id", None)
-    #         if data is None:
-    #             data = schema.get("general_file", None)
-    #     elif isinstance(schema, str):
-    #         schema_id = schema
-    #         schema = {"$id": schema_id}
-    #     else:
-    #         schema_id = None
-
-    #     if schema_id == "integer":
-    #         n_obj = int(data)
-    #     elif schema_id == "float":
-    #         n_obj = float(data)
-    #     elif schema_id == "string":
-    #         n_obj = str(data)
-    #     elif schema_id == "ndarray":
-    #         n_obj = load_ndarray(data, *args, schema=schema, **kwargs)
-    #     elif schema is not None:
-    #         n_cls = sp_find_module(f"{__package__}.{schema_id}")
-    #         if n_cls is None:
-    #             raise ModuleNotFoundError(f"{__package__}.{schema_id}")
-    #         n_cls_name = re.sub(r'[-\/\.\:]', '_', schema_id)
-    #         n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
-    #         n_cls = type(n_cls_name, (n_cls,), {"_metadata": {"schema": schema}})
-    #         n_obj = SpObject.__new__(n_cls)
-    #     elif isinstance(data, collections.abc.Mapping):
-    #         n_obj = {k: DataObject(v) for k, v in data.items()}
-    #     elif isinstance(data, list):
-    #         n_obj = [DataObject(v) for v in data]
-    #     else:
-    #         logger.warning(f"Unknonw data type '{type(data)}'!")
-    #         n_obj = data
-    #     return n_obj
-
-    def __init__(self, data, *args,  metadata=None,  **kwargs):
+    def __init__(self, data=None, *args,  metadata=None,  **kwargs):
         super().__init__(*args, metadata=metadata,  **kwargs)
-        # self.update(data)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}>"
 
     def serialize(self):
         return NotImplemented
@@ -131,9 +102,6 @@ class DataObject(SpObject):
     @classmethod
     def deserialize(cls, desc):
         return DataObject.__new__(cls, desc)
-
-    # def __repr__(self):
-    #     return pprint.pformat(self.metadata)
 
     @property
     def root(self):

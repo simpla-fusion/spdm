@@ -25,13 +25,6 @@ class SpObject(object):
 
     _metadata = {"$schema": "SpObject"}
 
-    _schema_map = {
-        "integer": int,
-        "float": float,
-        "string": str,
-        "ndarray": np.ndarray
-    }
-
     @staticmethod
     def __new__(cls, data=None, *args, metadata=None, **kwargs):
         # if cls is not SpObject:
@@ -52,26 +45,19 @@ class SpObject(object):
         else:
             raise TypeError(type(schema))
 
-        n_cls = SpObject._schema_map.get(schema_id, None)
+        if schema_id.startswith("."):
+            schema_id = f"{SpObject._default_prefix}{schema_id}"
+
+        n_cls = sp_find_module(schema_id)
 
         if n_cls is None:
-            if schema_id.startswith("."):
-                schema_id = f"{SpObject._default_prefix}{schema_id}"
-
-            n_cls = sp_find_module(schema_id)
-            if n_cls is None:
-                raise ModuleNotFoundError(f"{schema_id}")
-            n_cls_name = re.sub(r'[-\/\.\:]', '_', schema_id)
-            # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
-            n_cls = type(n_cls_name, (n_cls,), {"_metadata": metadata})
+            raise ModuleNotFoundError(f"{schema_id}")
+        n_cls_name = re.sub(r'[-\/\.\:]', '_', schema_id)
+        # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
+        n_cls = type(n_cls_name, (n_cls,), {"_metadata": metadata})
 
         if inspect.isclass(n_cls):
-            # assert(issubclass(n_cls, cls))
-
-            if n_cls in (int, float, str):
-                return n_cls.__new__(n_cls, data or 0)
-            else:
-                return object.__new__(n_cls)
+            return object.__new__(n_cls)
         elif callable(n_cls):
             return n_cls(data, *args, metadata=metadata, **kwargs)
         else:
@@ -149,9 +135,9 @@ class SpObject(object):
     @property
     def full_name(self):
         if self._parent is not None:
-            return f"{self._parent.full_name}.{self.attributes.name}"
+            return f"{self._parent.full_name}.{str(self.attributes.name)}"
         else:
-            return self.attributes.name
+            return str(self.attributes.name)
 
     def shorten_name(self, num=2):
         s = self.full_name.split('.')
@@ -165,7 +151,10 @@ class SpObject(object):
         return self._oid
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} path=\"{self.full_name}\"    />"
+        return f"<{self.__class__.__name__}   />"
+
+    def __str__(self):
+        return f"<{self.__class__.__name__}   />"
 
     ######################################################
     # algorithm
