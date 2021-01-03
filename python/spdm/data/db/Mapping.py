@@ -12,8 +12,8 @@ from spdm.util.dict_util import format_string_recursive
 
 
 class MappingNode(Node):
-    def __init__(self, hodler, *args, mapping=None, envs=None, **kwargs):
-        super().__init__(hodler, *args, **kwargs)
+    def __init__(self, holder, *args, mapping=None, envs=None, **kwargs):
+        super().__init__(holder, *args, **kwargs)
         if isinstance(mapping, Node):
             self._mapping = mapping
         else:
@@ -50,10 +50,10 @@ class MappingNode(Node):
             res = [self._fetch(v) for v in item]
         elif not isinstance(item, collections.abc.Mapping):
             res = item
-        elif "{http://hpc.ipp.ac.cn/SpDB}data" in item:
+        elif "{http://fusionyun.org/schema/}data" in item:
             if self._holder is None:
                 raise RuntimeError()
-            req = item["{http://hpc.ipp.ac.cn/SpDB}data"]
+            req = item["{http://fusionyun.org/schema/}data"]
 
             req = format_string_recursive(req, self._envs)
             res = self._holder.get(req, *args, **kwargs)
@@ -82,16 +82,16 @@ class MappingDocument(Document):
     def __init__(self, target=None, *args,   mapping=None, envs=None, **kwargs):
         super().__init__(*args, **kwargs)
         if not isinstance(mapping, Document):
-            self._mapping = Document(mapping)
+            self._mapping = Document(mapping).root
         else:
-            self._mapping = mapping
+            self._mapping = mapping.root
         self._target = target
 
         self._envs = envs or {}
 
     @property
     def root(self):
-        return MappingNode(self._target.root, mapping=self._mapping.root, envs=self._envs)
+        return MappingNode(self._target.root, mapping=self._mapping, envs=self._envs)
 
 
 class MappingCollection(Collection):

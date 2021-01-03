@@ -47,8 +47,8 @@ class IMASHandler(Handler):
             return None
         elif isinstance(item, LazyProxy) or isinstance(item, XMLHolder):
             return LazyProxy(holder, handler=IMASHandler(self._target, mapping=item))
-        elif isinstance(item, collections.abc.Mapping) and "{http://hpc.ipp.ac.cn/SpDB}mdsplus" in item:
-            return self._target.get(holder, item["{http://hpc.ipp.ac.cn/SpDB}mdsplus"], *args, **kwargs)
+        elif isinstance(item, collections.abc.Mapping) and "{http://fusionyun.org/schema/}mdsplus" in item:
+            return self._target.get(holder, item["{http://fusionyun.org/schema/}mdsplus"], *args, **kwargs)
         else:
             return item
 

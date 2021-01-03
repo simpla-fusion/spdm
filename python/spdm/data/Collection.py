@@ -34,7 +34,7 @@ class Collection(object):
         "mongo": f"{__package__}.db.MongoDB",
         "mongodb": f"{__package__}.db.MongoDB",
     }
-    metadata=AttributeTree()
+    metadata = AttributeTree()
 
     @staticmethod
     def __new__(cls, desc=None, *args, schema=None, **kwargs):
@@ -44,10 +44,11 @@ class Collection(object):
 
         if isinstance(desc, str):
             desc = urisplit(desc)
-        elif not isinstance(desc, AttributeTree):
-            desc = AttributeTree(desc)
 
-        schema = (schema or desc.schema or "local").split("+")[0]
+        if isinstance(desc, AttributeTree):
+            desc = desc.__as_native__()
+
+        schema = (schema or desc.get("schema", "local")).split("+")[0]
 
         n_cls = Collection.associations.get(schema.lower(), f"{__package__}.db.{schema}")
 
@@ -72,20 +73,19 @@ class Collection(object):
         super().__init__()
 
         if isinstance(desc, str):
-            self._desc = urisplit(desc)
-        elif not isinstance(desc, AttributeTree):
+            desc = urisplit(desc)
+
+        if not isinstance(desc, AttributeTree):
             self._desc = AttributeTree(desc)
-        else:
-            self._desc = desc
-        logger.debug(
-            f"Open {self.__class__.__name__} :  {uriunsplit(str(self._desc.schema),str(self._desc.authorize or ''),str(self._desc.path))}")
+
+        logger.debug(f"Open {self.__class__.__name__} :  {desc}")
 
         self._id_hasher = id_hasher or "{_id}"
 
-        if request_proxy is not None:
-            self._handler = request_proxy(handler)
-        else:
-            self._handler = handler
+        # if request_proxy is not None:
+        #     self._handler = request_proxy(handler)
+        # else:
+        #     self._handler = handler
 
         self._envs = collections.ChainMap(kwargs, envs or {})
 

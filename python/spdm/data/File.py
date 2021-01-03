@@ -66,7 +66,7 @@ class File(Document):
         if file_format.startswith("."):
             file_format = "file"+file_format
         logger.debug(file_format)
-        n_cls = File.associations.get(file_format, file_format)
+        n_cls = File.associations.get(file_format.lower(), file_format)
 
         _metadata = collections.ChainMap({"$class": n_cls}, _metadata or {})
 
@@ -96,7 +96,7 @@ class File(Document):
 
     @property
     def is_writable(self):
-        return "w" in self.metadata.mode or "x" in self.metadata.mode
+        return "w" in self.mode or "x" in self.mode
 
     def flush(self, *args, **kwargs):
         pass

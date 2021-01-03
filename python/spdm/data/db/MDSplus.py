@@ -79,13 +79,13 @@ class MDSplusDocument(Document):
         "x": "New"
     }
 
-    def __init__(self, desc, *args, tree_name=None, **kwargs):
-        super().__init__(desc, *args, ** kwargs)
+    def __init__(self, desc, *args, tree_name=None, path=None, **kwargs):
+        super().__init__(desc, *args, path=path, ** kwargs)
 
-        mds_mode = MDSplusDocument.MDS_MODE.get(self.metadata.mode, "NORMAL")
+        mds_mode = MDSplusDocument.MDS_MODE.get(self.mode, "NORMAL")
 
-        self._trees = DefaultDict(lambda t, s=self.metadata.fid, m=mds_mode,
-                                  p=str(self.metadata.path): open_mdstree(t, s, mode=m, path=p))
+        self._trees = DefaultDict(lambda t, s=self.fid, m=mds_mode,
+                                  p=str(self.path): open_mdstree(t, s, mode=m, path=p))
 
         if tree_name is None:
             tree_name = str(self.metadata.tree_name)
@@ -103,8 +103,8 @@ class MDSplusCollection(Collection):
     def __init__(self, desc, *args,  tree_name=None,  **kwargs):
         super().__init__(desc, *args, **kwargs)
 
-        self._default_tree_name = tree_name or self.metadata.query.tree_name
-
+        self._default_tree_name = tree_name or self._desc.query.tree_name
+        self._path = self._desc.path or pathlib.Path.cwd()
         # schema = self.metadata.schema.lower()
         # authority = self.metadata.authority or ''
         # path = self.metadata.path or ""
@@ -131,7 +131,7 @@ class MDSplusCollection(Collection):
     #         del os.environ[f"{tree_name}_path"]
 
     def open_document(self, fid, mode="r", tree_name=None):
-        return MDSplusDocument(self.metadata, fid=fid, mode=mode, tree_name=tree_name or self._default_tree_name)
+        return MDSplusDocument(self.metadata, fid=fid, mode=mode, path=self._path, tree_name=tree_name or self._default_tree_name)
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(collections.ChainMap((query or {}), kwargs), auto_inc=True)

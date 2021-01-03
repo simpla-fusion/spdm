@@ -6,11 +6,16 @@ from ..util.logger import logger
 from .Node import Node
 from .DataObject import DataObject
 
+import pathlib
+
 
 class Document(DataObject):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, fid=None, mode="r", path=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._mode = mode
+        self._fid = fid
+        self._path = path or pathlib.Path.cwd()
 
     def copy(self, other):
         if isinstance(other, Document):
@@ -25,6 +30,18 @@ class Document(DataObject):
     @property
     def entry(self):
         return self.root.entry
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def fid(self):
+        return self._fid
+
+    @property
+    def mode(self):
+        return self._mode
 
     def validate(self, schema=None):
         raise NotImplementedError()

@@ -84,7 +84,6 @@ class XMLNode(Node):
     def __init__(self, data, *args, prefix=None, **kwargs):
         super().__init__(data, *args, **kwargs)
         self._prefix = prefix or []
-        
 
     def xpath(self, path):
         res = "."
@@ -101,6 +100,8 @@ class XMLNode(Node):
 
         if _HAS_LXML:
             res = _XPath(res)
+        else:
+            raise NotImplementedError()
         return res
 
     def _convert(self, element, path=[],   lazy=True, projection=None,):
