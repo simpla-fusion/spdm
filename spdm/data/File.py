@@ -10,17 +10,15 @@ import uuid
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
 from ..util.urilib import urisplit
+from .DataObject import DataObject
 from .Document import Document
 
 
 class File(Document):
     """ Default entry for file-like object
     """
-    extensions = {
 
-    }
-
-    file_associations = {
+    associations = {
         "file.general": ".data.file.GeneralFile",
         "file.bin": ".data.file.Binary",
         "file.h5": ".data.file.HDF5",
@@ -42,49 +40,49 @@ class File(Document):
     }
 
     @staticmethod
-    def __new__(cls, data=None,  *args, metadata=None, **kwargs):
-        if cls is not File and metadata is None:
+    def __new__(cls, data=None,  *args, _metadata=None, file_format=None, **kwargs):
+        if cls is not File and _metadata is None:
             return object.__new__(cls)
 
-        if isinstance(metadata, str):
-            metadata = io.read(metadata)
-        elif metadata is None:
-            metadata = {}
-        elif not isinstance(metadata, collections.abc.Mapping):
-            raise TypeError(f"{type(metadata)} is not a 'dict'!")
+        if file_format is not None:
+            pass
+        elif isinstance(_metadata, str):
+            file_format = _metadata
+        elif isinstance(_metadata, collections.abc.Mapping):
+            file_format = _metadata.get("$class", None) or _metadata.get("$schema", None)
+            # raise TypeError(f"{type(_metadata)} is not a 'dict'!")
 
-        if isinstance(data, str) and "$class" not in metadata:
+        if file_format is None and isinstance(data, str):
             o = urisplit(data)
-            if o.schema not in (None, 'local', 'file'):
-                raise NotImplementedError("TODO: fetch remote file!")
-            else:
-                metadata.setdefault("$class", pathlib.Path(o.path).suffix)
 
-        n_cls = metadata.get("$class", ".general")
+            if o.schema in (None, 'local', 'file'):
+                file_format = pathlib.Path(o.path).suffix
 
-        if isinstance(n_cls, str):
-            if n_cls.startswith("."):
-                n_cls = "file"+n_cls
-            n_cls = File.associations.get(n_cls, n_cls)
+        if not isinstance(file_format, str):
+            raise ValueError(f"File format is not defined! {file_format}")
 
-            metadata = collections.ChainMap({"$class": n_cls}, metadata or {})
+        file_format = file_format.replace('/', '.')
 
-        return Document.__new__(data, *args, metadata=metadata, **kwargs)
+        if file_format.startswith("."):
+            file_format = "file"+file_format
+        logger.debug(file_format)
+        n_cls = File.associations.get(file_format, file_format)
 
-    def __init__(self,  data=None, *args,   working_dir=None,   ** kwargs):
-        super().__init__(data, *args,   working_dir=working_dir, ** kwargs)
+        _metadata = collections.ChainMap({"$class": n_cls}, _metadata or {})
 
-        if working_dir is None:
-            working_dir = pathlib.Path.cwd()
+        return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
+
+    def __init__(self,  data=None, *args,  path=None,   ** kwargs):
+        super().__init__(*args,   ** kwargs)
+
+        if path is None:
+            self._path = pathlib.Path.cwd()
+        elif isinstance(path, str):
+            self._path = pathlib.Path.cwd()/path
+        elif isinstance(path, collections.abc.Sequence):
+            self._path = [pathlib.Path.cwd()/p for p in path]
         else:
-            working_dir = pathlib.Path(working_dir)
-
-        file_path = self.metadata.path or self.metadata.schema.path
-
-        if not file_path:
-            file_path = ""
-
-        self._path = working_dir/str(file_path)
+            raise TypeError(type(path))
 
     def __repr__(self):
         return str(self._path)
@@ -92,11 +90,11 @@ class File(Document):
     def __str__(self):
         return str(self._path)
 
-    @ property
+    @property
     def path(self):
         return self._path
 
-    @ property
+    @property
     def is_writable(self):
         return "w" in self.metadata.mode or "x" in self.metadata.mode
 
@@ -120,7 +118,7 @@ class File(Document):
         res._schema = self._schema
         return res
 
-    @ contextlib.contextmanager
+    @contextlib.contextmanager
     def open(self, mode=None, buffering=None, encoding=None, newline=None):
         if isinstance(self._path, pathlib.Path):
             path = self._path

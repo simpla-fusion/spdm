@@ -31,16 +31,16 @@ class SpObject(object):
     _metadata = {"$class": "SpObject"}
 
     @staticmethod
-    def __new__(cls, data=None, *args, metadata=None, **kwargs):
-        if cls is not SpObject and metadata is None:
+    def __new__(cls, data=None, *args, _metadata=None, **kwargs):
+        if cls is not SpObject and _metadata is None:
             return object.__new__(cls)
 
-        if isinstance(metadata, str):
-            metadata = {"$schema": metadata}
-        elif not isinstance(metadata, collections.abc.Mapping):
-            raise TypeError(type(metadata))
+        if isinstance(_metadata, str):
+            _metadata = {"$schema": _metadata}
+        elif not isinstance(_metadata, collections.abc.Mapping):
+            raise TypeError(type(_metadata))
 
-        n_cls = metadata.get("$class", None) or metadata.get("$schema", None)
+        n_cls = _metadata.get("$class", None) or _metadata.get("$schema", None)
 
         n_cls_name = None
 
@@ -53,11 +53,12 @@ class SpObject(object):
         if inspect.isclass(n_cls):
             pass
         elif callable(n_cls):
-            return n_cls(data, args, metadata=metadata, **kwargs)
+            return n_cls(data, args, _metadata=_metadata, **kwargs)
         else:
-            raise ModuleNotFoundError(f"{metadata}")
+            raise ModuleNotFoundError(f"{_metadata}")
 
-        n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": metadata})
+        n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}",
+                     (n_cls,), {"_metadata": AttributeTree(_metadata)})
 
         return object.__new__(n_cls)
 
@@ -82,7 +83,7 @@ class SpObject(object):
 
     def __init__(self,  *,   attributes=None, **kwargs):
         super().__init__()
-        self._oid =   uuid.uuid1()
+        self._oid = uuid.uuid1()
         self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
         self._parent = None
         self._children = None
@@ -97,10 +98,6 @@ class SpObject(object):
 
     def to_json(self):
         return self.serialize()
-
-    # @cached_property
-    # def metadata(self):
-    #     return AttributeTree(self.__class__._metadata)
 
     @property
     def attributes(self):

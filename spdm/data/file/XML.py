@@ -22,6 +22,7 @@ except ImportError:
     from xml.etree.ElementTree import Element as _XMLElement
     from xml.etree.ElementTree import ParseError as _XMLParseError
     from xml.etree.ElementTree import parse as parse_xml
+    from xml.etree.ElementTree import Comment as _XMLComment
     _XPath = str
     _HAS_LXML = False
 
@@ -80,9 +81,10 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLNode(Node):
-    def __init__(self, *args, prefix=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, data, *args, prefix=None, **kwargs):
+        super().__init__(data, *args, **kwargs)
         self._prefix = prefix or []
+        
 
     def xpath(self, path):
         res = "."
@@ -179,26 +181,15 @@ class XMLNode(Node):
 
 
 class XMLFile(File):
-    def __init__(self, desc={}, *args, envs=None,  **kwargs):
-        super().__init__(desc, *args, ** kwargs)
+    def __init__(self, data=None, *args, envs=None, mode=None,  **kwargs):
+        super().__init__(*args, ** kwargs)
 
-        path = []
-        if isinstance(desc, collections.abc.Mapping):
-            path = desc.get("path", [])
-        elif isinstance(desc, AttributeTree):
-            path = desc.path or []
-        elif isinstance(desc, str):
-            path = [desc]
-        elif isinstance(desc, collections.abc.Sequence):
-            path = desc
-
-        if isinstance(path, collections.abc.Sequence):
-            self._tree = load_xml(path, *args,  **kwargs)
-        else:
-            self._tree = NotImplemented
-            raise TypeError(desc)
+        self._tree = load_xml(self.path, mode=mode)
 
         self._envs = envs
+
+        if data is not None:
+            raise NotImplemented
 
     @property
     def root(self):

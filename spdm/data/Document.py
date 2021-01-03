@@ -1,24 +1,30 @@
 import collections
 from typing import Any, Dict, List
 
-from spdm.util.AttributeTree import AttributeTree
-from spdm.util.logger import logger
-
-from .DataObject import DataObject
+from ..util.AttributeTree import AttributeTree
+from ..util.logger import logger
 from .Node import Node
+from .DataObject import DataObject
 
 
 class Document(DataObject):
 
-    def __init__(self, *args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-   
     def copy(self, other):
         if isinstance(other, Document):
             return self.root.copy(other.root)
         else:
             return self.root.copy(other)
+
+    @property
+    def root(self):
+        return Node(self)
+
+    @property
+    def entry(self):
+        return self.root.entry
 
     def validate(self, schema=None):
         raise NotImplementedError()

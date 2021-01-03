@@ -6,7 +6,7 @@ import collections
 
 
 class Node(object):
-    def __init__(self, holder,    *args, parent=None,  **kwargs):
+    def __init__(self, holder,  *args, parent=None,  **kwargs):
         super().__init__()
         self._holder = holder
         self._parent = parent

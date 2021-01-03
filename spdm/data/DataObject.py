@@ -30,31 +30,29 @@ class DataObject(SpObject):
     }
 
     @staticmethod
-    def __new__(cls, data=None,  *args, metadata=None, **kwargs):
-        if cls is not DataObject and metadata is None:
-            return SpObject.__new__(cls, data,  *args, **kwargs)
+    def __new__(cls, data=None, *args, _metadata=None, **kwargs):
+        if cls is not DataObject and _metadata is None:
+            return SpObject.__new__(cls, data, *args, _metadata=None, **kwargs)
 
-        if isinstance(metadata, collections.abc.Mapping):
-            return super(cls, SpObject).deserialize(metadata)
-        elif isinstance(metadata, str):
-            raise NotImplementedError()
-        elif isinstance(data, str):
-            return data
+        if isinstance(_metadata, (collections.abc.Mapping, str)):
+            return SpObject.__new__(cls, _metadata=_metadata)
+        elif _metadata is not None:
+            raise TypeError(type(_mect, clstadata))
         elif isinstance(data, collections.abc.Mapping):
             return {k: DataObject(v) for k, v in data.items()}
-        elif isinstance(data, collections.abc.Sequence):
+        elif isinstance(data, collections.abc.Sequence) and not isinstance(data, str):
             return [DataObject(v) for v in data]
         else:
             return data
 
-        # if isinstance(metadata, str):
-        #     metadata = {"$schema": metadata}
-        # elif metadata is None:
-        #     metadata = {}
-        # elif not isinstance(metadata, collections.abc.Mapping):
-        #     raise TypeError(type(metadata))
+        # if isinstance(_metadata, str):
+        #     _metadata = {"$schema": _metadata}
+        # elif _metadata is None:
+        #     _metadata = {}
+        # elif not isinstance(_metadata, collections.abc.Mapping):
+        #     raise TypeError(type(_metadata))
 
-        # schema = metadata.get("$schema", {})
+        # schema = _metadata.get("$schema", {})
 
         # if isinstance(schema, str):
         #     schema = {"$id": schema}
@@ -66,20 +64,20 @@ class DataObject(SpObject):
 
         # schema_id = schema_id.replace('/', '.').strip(".")
 
-        # n_cls = metadata.get("$class", None) or DataObject.associations.get(schema_id.lower(), None)
+        # n_cls = _metadata.get("$class", None) or DataObject.associations.get(schema_id.lower(), None)
 
         # if n_cls in (int, float, str):
         #     if data is None:
-        #         data = metadata.get("default", None) or schema.get("default", 0)
+        #         data = _metadata.get("default", None) or schema.get("default", 0)
         #     return n_cls(data)
         # elif inspect.isclass(n_cls):
         #     return object.__new__(n_cls)
         # else:
-        #     metadata["$class"] = n_cls
+        #     _metadata["$class"] = n_cls
 
-        #     return SpObject.__new__(cls, data, *args, metadata=metadata, **kwargs)
+        #     return SpObject.__new__(cls, data, *args, _metadata=_metadata, **kwargs)
 
-    def __init__(self, data=None, *args,  metadata=None,  **kwargs):
+    def __init__(self, data=None, *args,  _metadata=None,  **kwargs):
         super().__init__(*args, **kwargs)
 
     def __repr__(self):
