@@ -50,11 +50,20 @@ class SpModule(SpObject):
             format_string_recursive(p_in, self.envs)
             p_name = str(p_in["name"])
             if p_name == "VAR_ARGS":
-                self._inputs["VAR_ARGS"] = DataObject.deserialize(self._args, envs=self.envs, metadata=p_in,
-                                                                  working_dir=self.envs.get("INTPUT_DIR", "./"))
+                self._inputs["VAR_ARGS"] = DataObject(self._args, envs=self.envs, _metadata=p_in,
+                                                      working_dir=self.envs.get("INTPUT_DIR", "./"))
             else:
-                self._inputs[p_name] = DataObject.deserialize(data, envs=self.envs, metadata=p_in,
-                                                              working_dir=self.envs.get("INPUT_DIR", "./"))
+                if p_name not in self._kwargs:
+                    continue
+                data = self._kwargs[p_name]
+                if isinstance(data, str):
+                    data = format_string_recursive(data, self.envs)
+                else:
+                    format_string_recursive(data, self.envs)
+                    data = DataObject(data)
+
+                self._inputs[p_name] = DataObject(data, envs=self.envs, _metadata=p_in,
+                                                  working_dir=self.envs.get("INPUT_DIR", "./"))
         return self._inputs
 
     def outputs(self):

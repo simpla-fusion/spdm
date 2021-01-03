@@ -60,8 +60,8 @@ class SpObject(object):
         n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}",
                      (n_cls,), {"_metadata": AttributeTree(_metadata)})
 
-        obj= object.__new__(n_cls)
-        obj._attributes=AttributeTree()
+        obj = object.__new__(n_cls)
+        obj._attributes = AttributeTree()
         return obj
 
     @classmethod
@@ -106,7 +106,11 @@ class SpObject(object):
 
     @property
     def attributes(self):
-        return  self._attributes
+        return self._attributes
+
+    @cached_property
+    def metadata(self):
+        return AttributeTree(getattr(self.__class__, "_metadata", {}))
 
     def __hash__(self):
         return self._oid.int

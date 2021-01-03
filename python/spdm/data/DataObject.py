@@ -26,24 +26,59 @@ class DataObject(SpObject):
         "integer": int,
         "float": float,
         "string": str,
-        "ndarray": np.ndarray
+        "ndarray": np.ndarray,
+
+        "file.general": ".data.file.GeneralFile",
+        "file.bin": ".data.file.Binary",
+        "file.h5": ".data.file.HDF5",
+        "file.hdf5": ".data.file.HDF5",
+        "file.nc": ".data.file.netCDF",
+        "file.netcdf": ".data.file.netCDF",
+        "file.namelist": ".data.file.namelist",
+        "file.nml": ".data.file.namelist",
+        "file.xml": ".data.file.XML",
+        "file.json": ".data.file.JSON",
+        "file.yaml": ".data.file.YAML",
+        "file.txt": ".data.file.TXT",
+        "file.csv": ".data.file.CSV",
+        "file.numpy": ".data.file.NumPy",
+        "file.geqdsk": ".data.file.GEQdsk",
+        "file.gfile": ".data.file.GEQdsk",
+        "file.mds": ".data.db.MDSplus#MDSplusDocument",
+        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
     }
 
     @staticmethod
     def __new__(cls, data=None, *args, _metadata=None, **kwargs):
         if cls is not DataObject and _metadata is None:
-            return SpObject.__new__(cls, data, *args, _metadata=None, **kwargs)
+            return object.__new__(cls)
+            # return SpObject.__new__(cls, data, *args, _metadata=None, **kwargs)
 
-        if isinstance(_metadata, (collections.abc.Mapping, str)):
-            return SpObject.__new__(cls, _metadata=_metadata)
-        elif _metadata is not None:
-            raise TypeError(type(_mect, clstadata))
+        if _metadata is None and isinstance(data, collections.abc.Mapping):
+            _metadata = {k: v for k, v in data.items() if k[0] == "$"}
+            if len(_metadata) == 0:
+                _metadata = None
+
+        if _metadata is not None:
+            pass
         elif isinstance(data, collections.abc.Mapping):
-            return {k: DataObject(v) for k, v in data.items()}
+            return {k: DataObject(v) for k, v in data.items() if k[0] != "$"}
         elif isinstance(data, collections.abc.Sequence) and not isinstance(data, str):
             return [DataObject(v) for v in data]
         else:
             return data
+
+        if isinstance(_metadata, collections.abc.Mapping):
+            n_cls = _metadata.get("$class", None)
+            n_cls = n_cls.replace("/", ".").lower()
+            n_cls = DataObject.associations.get(n_cls, n_cls)
+            if inspect.isclass(n_cls):
+                return n_cls(data)
+            else:
+                _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
+
+        # if not not _metadata:  # isinstance(_metadata, (collections.abc.Mapping, str)):
+        return SpObject.__new__(cls, _metadata=_metadata)
 
         # if isinstance(_metadata, str):
         #     _metadata = {"$schema": _metadata}

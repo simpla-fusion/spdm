@@ -48,15 +48,13 @@ build:
   eb: Genray/{version}
 
 prescript:
-  - module use /fuyun/modules/
   - module use /fuyun/modules/all
   - module purge
   - module load genray/{version}{tag}
 
 run:
-  exec_file: "xgenray_mpi.gfortran64"
-  arguments:
-    ""
+  exec_file: "bin/xgenray_mpi.gfortran64"
+  arguments: ""
     # "-n {number_of_steps}   -i {config}  "
 
 postscript:

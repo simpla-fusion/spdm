@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     module.factory.insert_handler("SpModule", SpModule)
 
-    Genray = module.new_class("physics/genray", version="201213", tag="-gompi-2019b")
+    Genray = module.new_class("physics/genray", version="10.13_200117", tag="-gompi-2020a")
 
     cfg = {
         "tokamak": {

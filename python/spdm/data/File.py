@@ -18,81 +18,81 @@ class File(Document):
     """ Default entry for file-like object
     """
 
-    associations = {
-        "file.general": ".data.file.GeneralFile",
-        "file.bin": ".data.file.Binary",
-        "file.h5": ".data.file.HDF5",
-        "file.hdf5": ".data.file.HDF5",
-        "file.nc": ".data.file.netCDF",
-        "file.netcdf": ".data.file.netCDF",
-        "file.namelist": ".data.file.namelist",
-        "file.nml": ".data.file.namelist",
-        "file.xml": ".data.file.XML",
-        "file.json": ".data.file.JSON",
-        "file.yaml": ".data.file.YAML",
-        "file.txt": ".data.file.TXT",
-        "file.csv": ".data.file.CSV",
-        "file.numpy": ".data.file.NumPy",
-        "file.geqdsk": ".data.file.GEQdsk",
-        "file.gfile": ".data.file.GEQdsk",
-        "file.mds": ".data.db.MDSplus#MDSplusDocument",
-        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+    extension = {
+        ".bin": "Binary",
+        ".h5": "HDF5",
+        ".hdf5": "HDF5",
+        ".nc": "netCDF",
+        ".netcdf": "netCDF",
+        ".namelist": "namelist",
+        ".nml": "namelist",
+        ".xml": "XML",
+        ".json": "JSON",
+        ".yaml": "YAML",
+        ".txt": "TXT",
+        ".csv": "CSV",
+        ".numpy": "NumPy",
+        ".geqdsk": "GEQdsk",
+        ".gfile": "GEQdsk",
+        ".mds": "mdsplus",
+        ".mdsplus": "mdsplus",
     }
 
     @staticmethod
-    def __new__(cls, data=None,  *args, _metadata=None, file_format=None, **kwargs):
+    def __new__(cls, data=None,  *args, _metadata=None, path=None, file_format=None, **kwargs):
         if cls is not File and _metadata is None:
             return object.__new__(cls)
 
-        if file_format is not None:
+        if isinstance(_metadata, collections.abc.Mapping) and "$class" in _metadata:
             pass
-        elif isinstance(_metadata, str):
-            file_format = _metadata
-        elif isinstance(_metadata, collections.abc.Mapping):
-            file_format = _metadata.get("$class", None) or _metadata.get("$schema", None)
-            # raise TypeError(f"{type(_metadata)} is not a 'dict'!")
-
-        if file_format is None and isinstance(data, str):
-            o = urisplit(data)
+        elif file_format is None:
+            if path is None and isinstance(data, str):
+                path = data
+            o = urisplit(path)
 
             if o.schema in (None, 'local', 'file'):
-                file_format = pathlib.Path(o.path).suffix
+                ext = pathlib.Path(o.path).suffix
+                file_format = File.extension.get(ext.lower(), ext)
 
-        if not isinstance(file_format, str):
-            raise ValueError(f"File format is not defined! {file_format}")
+        if isinstance(file_format, str):
+            # raise ValueError(f"File format is not defined! {file_format}")
+            file_format = file_format.replace('/', '.')
 
-        file_format = file_format.replace('/', '.')
+            if not file_format.startswith("file."):
+                file_format = "file."+file_format
 
-        if file_format.startswith("."):
-            file_format = "file"+file_format
-        logger.debug(file_format)
-        n_cls = File.associations.get(file_format.lower(), file_format)
+            _metadata = collections.ChainMap({"$class": file_format}, _metadata or {})
 
-        _metadata = collections.ChainMap({"$class": n_cls}, _metadata or {})
+        logger.debug(_metadata)
 
         return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
 
     def __init__(self,  data=None, *args,  path=None,   ** kwargs):
         super().__init__(*args,   ** kwargs)
 
-        if path is None:
-            self._path = pathlib.Path.cwd()
-        elif isinstance(path, str):
-            self._path = pathlib.Path.cwd()/path
-        elif isinstance(path, collections.abc.Sequence):
-            self._path = [pathlib.Path.cwd()/p for p in path]
-        else:
-            raise TypeError(type(path))
+        # if path is None:
+        #     self._path = pathlib.Path.cwd()
+        # elif isinstance(path, str):
+        #     self._path = pathlib.Path.cwd()/path
+        # elif isinstance(path, collections.abc.Sequence):
+        #     self._path = [pathlib.Path.cwd()/p for p in path]
+        # else:
+        #     raise TypeError(type(path))
+        self._path = path
 
     def __repr__(self):
-        return str(self._path)
+        return str(self.path)
 
     def __str__(self):
         return str(self._path)
 
     @property
     def path(self):
-        return self._path
+        return pathlib.Path(getattr(self, "_path", None) or self.metadata.path).resolve()
+
+    @property
+    def template(self):
+        return pathlib.Path(getattr(self, "_template", None) or self.metadata.template).resolve()
 
     @property
     def is_writable(self):

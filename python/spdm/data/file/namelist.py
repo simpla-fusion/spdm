@@ -10,20 +10,17 @@ from spdm.util.logger import logger
 from spdm.util.dict_util import normalize_data
 from ..File import File
 
+
 class FileNamelist(File):
     def __init__(self, data=None, *args, **kwargs):
         super().__init__(data, *args, **kwargs)
-
-        template = self.metadata.template
-        if not not template:
-            self._template = pathlib.Path(str(template))
 
         if data is not None:
             self.update(data)
 
     def update(self, data, *args, **kwargs):
-
-        f90nml.patch(self._template.as_posix(), normalize_data(data), self.path.as_posix())
+        logger.debug(data)
+        f90nml.patch(self.template.as_posix(), normalize_data(data), self.path.as_posix())
 
     def read(self, *args, **kwargs) -> Dict[str, Any]:
         return f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)
