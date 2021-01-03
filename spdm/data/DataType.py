@@ -1,6 +1,4 @@
-
-
-from .BiMap import BiMap
+from ..util.BiMap import BiMap
 from enum import Enum
 
 

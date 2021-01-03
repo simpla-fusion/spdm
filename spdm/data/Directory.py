@@ -5,13 +5,13 @@ import shutil
 import tempfile
 import uuid
 
-from ...util.logger import logger
-from ...util.urilib import urisplit
-from ..Document import Document
-from ..DataObject import DataObject
+from spdm.util.logger import logger
+from spdm.util.urilib import urisplit
+from .Document import Document
+from .DataObject import DataObject
 
 
-class Directory(Document, DataObject):
+class Directory(DataObject):
     """ Default entry for file-like object
     """
 

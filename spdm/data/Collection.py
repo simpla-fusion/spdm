@@ -34,6 +34,7 @@ class Collection(object):
         "mongo": f"{__package__}.db.MongoDB",
         "mongodb": f"{__package__}.db.MongoDB",
     }
+    metadata=AttributeTree()
 
     @staticmethod
     def __new__(cls, desc=None, *args, schema=None, **kwargs):

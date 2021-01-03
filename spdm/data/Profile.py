@@ -16,9 +16,10 @@ from scipy.interpolate import RectBivariateSpline, UnivariateSpline, interp1d
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
+from .DataObject import DataObject
 
 
-class Profile(np.ndarray):
+class Profile(np.ndarray, DataObject):
 
     @staticmethod
     def __new__(cls, *args, axis=None, description=None,  **kwargs):

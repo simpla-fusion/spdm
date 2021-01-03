@@ -3,11 +3,9 @@ import contextlib
 import pathlib
 from urllib import parse
 
-from spdm.global_constant import SP_PACKAGE_NAME
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urijoin, urisplit
-from spdm.util.SpURI import SpURI
 
 
 def _guess_protocol(path, protocol):

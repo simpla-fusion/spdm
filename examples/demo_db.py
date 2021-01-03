@@ -7,10 +7,11 @@ import scipy.constants as constants
 import scipy.stats
 from scipy.interpolate import RectBivariateSpline, UnivariateSpline
 
-sys.path.append("/home/salmon/workspace/fytok/python")
-sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 if __name__ == "__main__":
+
+    sys.path.append("/home/salmon/workspace/SpDev/SpDB")
+    sys.path.append("/home/salmon/workspace/fytok/python")
 
     from spdm.data.Document import Document
     from spdm.data.Collection import Collection

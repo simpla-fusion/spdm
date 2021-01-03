@@ -1,13 +1,14 @@
-import inspect
-from spdm.util.sp_export import sp_find_module
+import collections
 import contextlib
+import inspect
 import io
 import pathlib
 import shutil
 import tempfile
 import uuid
-import collections
+
 from ..util.logger import logger
+from ..util.sp_export import sp_find_module
 from ..util.urilib import urisplit
 from .Document import Document
 
@@ -15,35 +16,60 @@ from .Document import Document
 class File(Document):
     """ Default entry for file-like object
     """
-    #     if isinstance(desc, collections.abc.Mapping):
-    #         path = desc.get("path", None)
-    #         file_format = file_format or desc.get("file_format", None)
-    #     elif isinstance(desc, (str, pathlib.PosixPath)):
-    #         path = desc
-    #     else:
-    #         raise TypeError(f"{type(desc)}")
+    extensions = {
 
-    #     if file_format is not None:
-    #         pass
-    #     elif isinstance(path, (str, pathlib.PosixPath)):
-    #         path = pathlib.Path(path)
-    #         file_format = path.suffix[1:]
-    #     else:
-    #         raise ValueError(f"'file_format' is not defined!")
+    }
 
-    #     n_cls = File.associations.get(file_format.lower(), f"{__package__}.file.{file_format}")
+    file_associations = {
+        "file.general": ".data.file.GeneralFile",
+        "file.bin": ".data.file.Binary",
+        "file.h5": ".data.file.HDF5",
+        "file.hdf5": ".data.file.HDF5",
+        "file.nc": ".data.file.netCDF",
+        "file.netcdf": ".data.file.netCDF",
+        "file.namelist": ".data.file.namelist",
+        "file.nml": ".data.file.namelist",
+        "file.xml": ".data.file.XML",
+        "file.json": ".data.file.JSON",
+        "file.yaml": ".data.file.YAML",
+        "file.txt": ".data.file.TXT",
+        "file.csv": ".data.file.CSV",
+        "file.numpy": ".data.file.NumPy",
+        "file.geqdsk": ".data.file.GEQdsk",
+        "file.gfile": ".data.file.GEQdsk",
+        "file.mds": ".data.db.MDSplus#MDSplusDocument",
+        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+    }
 
-    #     if isinstance(n_cls, str):
-    #         n_cls = sp_find_module(n_cls)
+    @staticmethod
+    def __new__(cls, data=None,  *args, metadata=None, **kwargs):
+        if cls is not File and metadata is None:
+            return object.__new__(cls)
 
-    #     if inspect.isclass(n_cls):
-    #         res = object.__new__(n_cls)
-    #     elif callable(n_cls):
-    #         res = n_cls(path, *args, schema=file_format, **kwargs)
-    #     else:
-    #         raise RuntimeError(f"Illegal schema! {file_format} {n_cls} {path}")
+        if isinstance(metadata, str):
+            metadata = io.read(metadata)
+        elif metadata is None:
+            metadata = {}
+        elif not isinstance(metadata, collections.abc.Mapping):
+            raise TypeError(f"{type(metadata)} is not a 'dict'!")
 
-    #     return res
+        if isinstance(data, str) and "$class" not in metadata:
+            o = urisplit(data)
+            if o.schema not in (None, 'local', 'file'):
+                raise NotImplementedError("TODO: fetch remote file!")
+            else:
+                metadata.setdefault("$class", pathlib.Path(o.path).suffix)
+
+        n_cls = metadata.get("$class", ".general")
+
+        if isinstance(n_cls, str):
+            if n_cls.startswith("."):
+                n_cls = "file"+n_cls
+            n_cls = File.associations.get(n_cls, n_cls)
+
+            metadata = collections.ChainMap({"$class": n_cls}, metadata or {})
+
+        return Document.__new__(data, *args, metadata=metadata, **kwargs)
 
     def __init__(self,  data=None, *args,   working_dir=None,   ** kwargs):
         super().__init__(data, *args,   working_dir=working_dir, ** kwargs)
@@ -60,18 +86,17 @@ class File(Document):
 
         self._path = working_dir/str(file_path)
 
-
     def __repr__(self):
         return str(self._path)
 
     def __str__(self):
         return str(self._path)
 
-    @property
+    @ property
     def path(self):
         return self._path
 
-    @property
+    @ property
     def is_writable(self):
         return "w" in self.metadata.mode or "x" in self.metadata.mode
 
@@ -95,7 +120,7 @@ class File(Document):
         res._schema = self._schema
         return res
 
-    @contextlib.contextmanager
+    @ contextlib.contextmanager
     def open(self, mode=None, buffering=None, encoding=None, newline=None):
         if isinstance(self._path, pathlib.Path):
             path = self._path

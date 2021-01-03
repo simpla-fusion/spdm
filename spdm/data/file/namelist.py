@@ -7,38 +7,41 @@ from typing import Any, Dict
 
 import f90nml
 from spdm.util.logger import logger
-
+from spdm.util.dict_util import normalize_data
 from ..File import File
-
-__plugin_spec__ = {
-    "name": "namelist",
-    "filename_pattern": ["*.nml"],
-    "filename_extension": "nml",
-    "support_data_type": [int, float, str, dict]
-}
-
 
 class FileNamelist(File):
     def __init__(self, data=None, *args, **kwargs):
         super().__init__(data, *args, **kwargs)
-        logger.debug(data)
 
-    def read(self, fid, *args, **kwargs) -> Dict[str, Any]:
-        return f90nml.read(fid).todict(complex_tuple=True)
+        template = self.metadata.template
+        if not not template:
+            self._template = pathlib.Path(str(template))
 
-    def normalize_r(self, prefix, nobj):
-        if isinstance(nobj, str):
-            return nobj
-        elif isinstance(nobj, collections.abc.Mapping):
-            return {k: self.normalize_r(f"{prefix}.{k}", p) for k, p in nobj.items()}
-        elif isinstance(nobj, collections.abc.Sequence):
-            return [self.normalize_r(f"{prefix}.{k}", p) for k, p in enumerate(nobj)]
-        elif type(nobj) not in [str, int, float, bool, type(None)]:
-            return str(nobj)
-        else:
-            return nobj
+        if data is not None:
+            self.update(data)
 
-    def write(self,  d: Dict[str, Any], *args, template=None, **kwargs):
+    def update(self, data, *args, **kwargs):
+
+        f90nml.patch(self._template.as_posix(), normalize_data(data), self.path.as_posix())
+
+    def read(self, *args, **kwargs) -> Dict[str, Any]:
+        return f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)
+
+    # def normalize_r(self, prefix, nobj):
+    #     if isinstance(nobj, str):
+    #         return nobj
+    #     elif isinstance(nobj, collections.abc.Mapping):
+    #         return {k: self.normalize_r(f"{prefix}.{k}", p) for k, p in nobj.items()}
+    #     elif isinstance(nobj, collections.abc.Sequence):
+    #         return [self.normalize_r(f"{prefix}.{k}", p) for k, p in enumerate(nobj)]
+    #     elif type(nobj) not in [str, int, float, bool, type(None)]:
+    #         return str(nobj)
+    #     else:
+    #         return nobj
+
+    def write(self,  data: Dict[str, Any], *args,  **kwargs):
+        f90nml.write(normalize_data(data), self.path.open(mode="w"))
         # d = d or {}
 
         # if isinstance(fid, pathlib.Path):

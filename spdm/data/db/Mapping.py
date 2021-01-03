@@ -79,8 +79,8 @@ class MappingNode(Node):
 
 
 class MappingDocument(Document):
-    def __init__(self, desc, *args, target=None,  mapping=None, envs=None, **kwargs):
-        super().__init__(desc, *args, **kwargs)
+    def __init__(self, target=None, *args,   mapping=None, envs=None, **kwargs):
+        super().__init__(*args, **kwargs)
         if not isinstance(mapping, Document):
             self._mapping = Document(mapping)
         else:
@@ -116,7 +116,7 @@ class MappingCollection(Collection):
     def find_one(self,   *args, query=None,  **kwargs):
         oid = self.guess_id(query or kwargs)
         doc = self._target.find_one(_id=oid)
-        return MappingDocument({}, target=doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid,   mapping=self._mapping)
+        return MappingDocument(doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid,   mapping=self._mapping)
 
 
 __SP_EXPORT__ = MappingCollection

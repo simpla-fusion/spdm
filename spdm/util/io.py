@@ -8,7 +8,7 @@ import yaml
 
 from .logger import logger
 from .sp_export import sp_pkg_data_path
-from .SpURI import urisplit
+from .urilib import urisplit
 from .utilities import deep_update_dict
 FAIL_SAFE = None
 ENABLE_REMOTE = False

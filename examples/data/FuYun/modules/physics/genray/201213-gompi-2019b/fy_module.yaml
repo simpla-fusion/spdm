@@ -49,45 +49,49 @@ build:
 
 prescript:
   - module use /fuyun/modules/
+  - module use /fuyun/modules/all
   - module purge
-  - module load {module_path}
+  - module load genray/{version}{tag}
 
 run:
-  exec_file: "bin/xgenray"
-  arguments: "-n {number_of_steps}   -c {config}  -o {OUTPUT_DIR} "
+  exec_file: "xgenray_mpi.gfortran64"
+  arguments:
+    ""
+    # "-n {number_of_steps}   -i {config}  "
 
 postscript:
   - module purge
 
 in_ports:
-  # - name: equilibrium # This is a copy of eqdsk file
-  #   $schema: file/geqdsk
-  #   path: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
+  - name: equilibrium  
+    $class: file/geqdsk
+    path: equilib.dat
 
+    # "{FY_MODULEFILE_DIR}/../template/g063982.04800"
   - name: number_of_steps
-    $schema: integer
+    $class: integer
     default: 1
 
   - name: dt
     default: 0.1
-    $schema: float
+    $class: float
     $comment: Inputs the data for all NAMELISTs used in the code.
 
   - name: config
-    $schema: file/namelist
+    $class: file/namelist
     template: "{FY_MODULEFILE_DIR}/../template/genray.in"
-    path: config.nml
+    path: genray.dat
     default:
-      tokamak.eqdskin: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
+      tokamak.eqdskin: "{equilibrium}"
       genr.partner: "{FY_MODULEFILE_DIR}/../template/genray_profs_in.nc"
-      genr.outdata: "outputs"
+      genr.outdat: "{OUTPUT_DIR}"
       ecocone.gzone: 1
 
 out_ports:
   - name: out_nc
-    $schema: file/netcdf
+    $class: file/netcdf
     path: genray_EAST.nc
 
   - name: out_eq
-    $schema: file/geqdsk
+    $class: file/geqdsk
     path: genray_output.gfile

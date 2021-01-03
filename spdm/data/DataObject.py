@@ -23,24 +23,6 @@ class DataObject(SpObject):
 
     associations = {
         "general": ".data.General",
-        "file.general": ".data.file.GeneralFile",
-        "file.bin": ".data.file.Binary",
-        "file.h5": ".data.file.HDF5",
-        "file.hdf5": ".data.file.HDF5",
-        "file.nc": ".data.file.netCDF",
-        "file.netcdf": ".data.file.netCDF",
-        "file.namelist": ".data.file.namelist",
-        "file.nml": ".data.file.namelist",
-        "file.xml": ".data.file.XML",
-        "file.json": ".data.file.JSON",
-        "file.yaml": ".data.file.YAML",
-        "file.txt": ".data.file.TXT",
-        "file.csv": ".data.file.CSV",
-        "file.numpy": ".data.file.NumPy",
-        "file.geqdsk": ".data.file.GEQdsk",
-        "file.gfile": ".data.file.GEQdsk",
-        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
-
         "integer": int,
         "float": float,
         "string": str,
@@ -49,59 +31,66 @@ class DataObject(SpObject):
 
     @staticmethod
     def __new__(cls, data=None,  *args, metadata=None, **kwargs):
-        if cls is not DataObject and cls.__name__ not in ("File"):
-            return object.__new__(cls)
+        if cls is not DataObject and metadata is None:
+            return SpObject.__new__(cls, data,  *args, **kwargs)
 
-        if metadata is None and isinstance(data, collections.abc.Mapping) and "$schema" in data:
-            metadata = data
-            data = None
+        if isinstance(metadata, collections.abc.Mapping):
+            return super(cls, SpObject).deserialize(metadata)
         elif isinstance(metadata, str):
-            metadata = {"$schema": metadata}
-        elif metadata is None:
-            metadata = {}
-        elif not isinstance(metadata, collections.abc.Mapping):
-            raise TypeError(type(metadata))
-
-        schema = metadata.get("$schema", {})
-
-        if isinstance(schema, str):
-            schema = {"$id": schema}
-
-        if not isinstance(schema, collections.abc.Mapping):
-            raise TypeError(type(schema))
-
-        schema_id = schema.get("$id",  "general")
-
-        schema_id = schema_id.replace('/', '.').strip(".")
-
-        if not schema_id.startswith("."):
-            schema_id = DataObject.associations.get(schema_id.lower(), schema_id)
-
-        if schema_id in (int, float, str):
-            if data is None:
-                data = metadata.get("default", None) or schema.get("default", 0)
-            return schema_id(data)
-        elif inspect.isclass(schema_id):
-            return object.__new__(schema_id)
+            raise NotImplementedError()
+        elif isinstance(data, str):
+            return data
+        elif isinstance(data, collections.abc.Mapping):
+            return {k: DataObject(v) for k, v in data.items()}
+        elif isinstance(data, collections.abc.Sequence):
+            return [DataObject(v) for v in data]
         else:
-            schema["$id"] = schema_id
+            return data
 
-            metadata["$schema"] = schema
+        # if isinstance(metadata, str):
+        #     metadata = {"$schema": metadata}
+        # elif metadata is None:
+        #     metadata = {}
+        # elif not isinstance(metadata, collections.abc.Mapping):
+        #     raise TypeError(type(metadata))
 
-            return SpObject.__new__(cls, data, *args, metadata=metadata, **kwargs)
+        # schema = metadata.get("$schema", {})
+
+        # if isinstance(schema, str):
+        #     schema = {"$id": schema}
+
+        # if not isinstance(schema, collections.abc.Mapping):
+        #     raise TypeError(type(schema))
+
+        # schema_id = schema.get("$id",  "general")
+
+        # schema_id = schema_id.replace('/', '.').strip(".")
+
+        # n_cls = metadata.get("$class", None) or DataObject.associations.get(schema_id.lower(), None)
+
+        # if n_cls in (int, float, str):
+        #     if data is None:
+        #         data = metadata.get("default", None) or schema.get("default", 0)
+        #     return n_cls(data)
+        # elif inspect.isclass(n_cls):
+        #     return object.__new__(n_cls)
+        # else:
+        #     metadata["$class"] = n_cls
+
+        #     return SpObject.__new__(cls, data, *args, metadata=metadata, **kwargs)
 
     def __init__(self, data=None, *args,  metadata=None,  **kwargs):
-        super().__init__(*args, metadata=metadata,  **kwargs)
+        super().__init__(*args, **kwargs)
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
 
-    def serialize(self):
-        return NotImplemented
+    def serialize(self, *args, **kwargs):
+        return super().serialize(*args, **kwargs)
 
     @classmethod
-    def deserialize(cls, desc):
-        return DataObject.__new__(cls, desc)
+    def deserialize(cls, *args, **kwargs):
+        return super().deserialize(cls, *args, **kwargs)
 
     @property
     def root(self):

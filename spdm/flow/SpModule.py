@@ -27,10 +27,7 @@ class SpModule(SpObject):
             return SpObject.__new__(cls, *args, **kwargs)
 
     def __init__(self, *args, envs=None, metadata=None, **kwargs):
-        super().__init__(metadata=metadata,
-                         name=self.__class__.__name__,
-                         label=self.metadata.annotation.label,
-                         attributes=kwargs)
+        super().__init__(metadata=metadata)
 
         self._envs = envs or {}
         self._args = args
@@ -53,17 +50,11 @@ class SpModule(SpObject):
             format_string_recursive(p_in, self.envs)
             p_name = str(p_in["name"])
             if p_name == "VAR_ARGS":
-
-                self._inputs[p_name] = DataObject([DataObject(arg, envs=self.envs) for arg in self._args],
-                                                  metadata=p_in,
-                                                  working_dir=self.envs.get("INTPUT_DIR", "./"))
+                self._inputs["VAR_ARGS"] = DataObject.deserialize(self._args, envs=self.envs, metadata=p_in,
+                                                                  working_dir=self.envs.get("INTPUT_DIR", "./"))
             else:
-                data = self._kwargs.get(p_name, None)
-                if data is None:
-                    data = p_in.get("default", None) or p_in.get("$schema", {}).get("default", None)
-                self._inputs[p_name] = DataObject(data, metadata=p_in,
-                                                  working_dir=self.envs.get("INPUT_DIR", "./"))
-
+                self._inputs[p_name] = DataObject.deserialize(data, envs=self.envs, metadata=p_in,
+                                                              working_dir=self.envs.get("INPUT_DIR", "./"))
         return self._inputs
 
     def outputs(self):
@@ -127,6 +118,10 @@ class SpModuleLocal(SpModule):
         self._envs["WORKING_DIR"] = working_dir
         self._envs["INPUT_DIR"] = working_dir/"inputs"
         self._envs["OUTPUT_DIR"] = working_dir/"outputs"
+
+        working_dir.mkdir()
+        self._envs["INPUT_DIR"].mkdir()
+        self._envs["OUTPUT_DIR"].mkdir()
 
         logger.debug(f"Initialize: {self.__class__.__name__} ")
 
@@ -200,7 +195,7 @@ class SpModuleLocal(SpModule):
             logger.error(f"Try to call external programs [{exec_file}]! module_root={module_root}")
             raise RuntimeError(f"It is forbidden to call external programs! [{exec_file}]!  module_root={module_root}")
 
-        command = [exec_file]
+        command = []
 
         if not exec_file.exists():
             raise FileExistsError(exec_file)
@@ -223,14 +218,17 @@ class SpModuleLocal(SpModule):
 
         logger.debug(command)
 
+        working_dir = self.envs.get("INPUT_DIR", "./")
+
         try:
             exit_status = subprocess.run(
                 command,
-                env=self._envs,
+                env=collections.ChainMap(self._envs, os.environ),
                 capture_output=True,
                 check=True,
-                shell=False,
-                text=True
+                shell=True,
+                text=True,
+                cwd=working_dir
             )
         except subprocess.CalledProcessError as error:
             logger.error(

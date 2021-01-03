@@ -12,7 +12,7 @@ from ..util.LazyProxy import LazyProxy
 from ..util.logger import logger
 from ..util.RefResolver import RefResolver
 from ..util.sp_export import sp_find_module
-from ..util.SpURI import URISplitResult, urisplit
+from ..util.urilib import urisplit
 from ..util.utilities import deep_update_dict
 from ..util.AttributeTree import AttributeTree
 from ..util.dict_util import format_string_recursive
@@ -58,8 +58,13 @@ class ModuleRepository:
         # TODO:  list in dict should be appended not overwrited .
         f_conf = collections.ChainMap(kwargs, conf, sys_conf)
 
-        self._factory = Factory(**collections.ChainMap(f_conf.get("factory", {}), {"module_prefix": f"{__package__}"}),
-                                resolver=RefResolver(**f_conf.get("resolver", {})))
+        self._factory = Factory(**collections.ChainMap(
+            f_conf.get("factory", {}),
+            {
+                "alias": [["https://fusionyun.org/", "SpModule:///*#{fragment}"]],
+                "module_prefix": f"{__package__}"
+            }),
+            resolver=RefResolver(**f_conf.get("resolver", {})))
 
         self._home_dir = f_conf.get("home_dir", None) or \
             os.environ.get(f"{self._repo_tag.upper()}_HOME_DIR", None)
@@ -100,20 +105,19 @@ class ModuleRepository:
 
     def resolve_metadata(self, metadata, *args, expand_template=True, envs=None, version=None, tag=None, ** kwargs):
         """
-        Format of searching path
-            <desc>/<version>-<tag>
-            file link:
-                <repo_path>/physics/genray/10.8.1   -> <repo_path>/physics/genray/10.8.1-foss-2019
-                <repo_path>/physics/genray/10.8     -> <repo_path>/physics/genray/10.8.1-foss-2019
-                <repo_path>/physics/genray/10       -> <repo_path>/physics/genray/10.8.1-foss-2019
-                <repo_path>/physics/genray/default  -> <repo_path>/physics/genray/10.8.1-foss-2019
+           Format of searching path
+                <desc>/<version>-<tag>
+                file link:
+                    <repo_path>/physics/genray/10.8.1   -> <repo_path>/physics/genray/10.8.1-foss-2019
+                    <repo_path>/physics/genray/10.8     -> <repo_path>/physics/genray/10.8.1-foss-2019
+                    <repo_path>/physics/genray/10       -> <repo_path>/physics/genray/10.8.1-foss-2019
+                    <repo_path>/physics/genray/default  -> <repo_path>/physics/genray/10.8.1-foss-2019
 
-        Example:
-                <repo_path>/physics/genray/10.8-foss-2019
-                <repo_path>/physics/genray/10.8
-                <repo_path>/physics/genray/default
-                <repo_path>/physics/genray/
-
+           Example:
+                    <repo_path>/physics/genray/10.8-foss-2019
+                    <repo_path>/physics/genray/10.8
+                    <repo_path>/physics/genray/default
+                    <repo_path>/physics/genray/
         """
         if isinstance(metadata, str):
             metadata = f"{metadata}/{version or 'default'}{tag}"

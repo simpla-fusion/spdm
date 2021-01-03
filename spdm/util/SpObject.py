@@ -12,6 +12,10 @@ from .AttributeTree import AttributeTree
 from .logger import logger
 from .sp_export import sp_find_module
 
+_factory = None
+
+_resolver = None
+
 
 class SpObject(object):
     """
@@ -23,69 +27,69 @@ class SpObject(object):
     """
     _default_prefix = ".".join(__package__.split('.')[:-1])
 
-    _metadata = {"$schema": "SpObject"}
+    _schema = "SpObject"
+    _metadata = {"$class": "SpObject"}
 
     @staticmethod
     def __new__(cls, data=None, *args, metadata=None, **kwargs):
-        # if cls is not SpObject:
-        #     return object.__new__(cls)
+        if cls is not SpObject and metadata is None:
+            return object.__new__(cls)
 
         if isinstance(metadata, str):
             metadata = {"$schema": metadata}
         elif not isinstance(metadata, collections.abc.Mapping):
             raise TypeError(type(metadata))
 
-        schema = metadata.get("$schema", None)
+        n_cls = metadata.get("$class", None) or metadata.get("$schema", None)
 
-        if isinstance(schema, str):
-            schema_id = schema
-            schema = {"$id": schema_id}
-        elif isinstance(schema, collections.abc.Mapping):
-            schema_id = schema.get("$id", None)
-        else:
-            raise TypeError(type(schema))
+        n_cls_name = None
 
-        if schema_id.startswith("."):
-            schema_id = f"{SpObject._default_prefix}{schema_id}"
-
-        n_cls = sp_find_module(schema_id)
-
-        if n_cls is None:
-            raise ModuleNotFoundError(f"{schema_id}")
-        n_cls_name = re.sub(r'[-\/\.\:]', '_', schema_id)
-        # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
-        n_cls = type(n_cls_name, (n_cls,), {"_metadata": metadata})
+        if isinstance(n_cls, str):
+            if n_cls.startswith("."):
+                n_cls = f"{SpObject._default_prefix}{n_cls}"
+            n_cls_name = re.sub(r'[-\/\.\:]', '_', n_cls)
+            n_cls = sp_find_module(n_cls)
 
         if inspect.isclass(n_cls):
-            return object.__new__(n_cls)
+            pass
         elif callable(n_cls):
-            return n_cls(data, *args, metadata=metadata, **kwargs)
+            return n_cls(data, args, metadata=metadata, **kwargs)
         else:
-            raise RuntimeError(f"Illegal SpObject type! {type(n_cls)}")
+            raise ModuleNotFoundError(f"{metadata}")
 
-    def __init__(self,  *,  oid=None,  parent=None, attributes=None, metadata=None, **kwargs):
-        super().__init__()
-        self._oid = oid or uuid.uuid1()
-        self._parent = parent
-        self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
+        n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": metadata})
 
-    # def __del__(self):
-    #     if hasattr(self._parent, "remove_child"):
-    #         self._parent.remove_child(self)
+        return object.__new__(n_cls)
 
     @classmethod
-    def deserialize(cls, spec: collections.abc.Mapping):
-        spec = spec or {}
+    def deserialize(cls, spec):
+        if hasattr(cls, "_factory"):
+            return cls._factory.create(spec)
+        elif isinstance(spec, str):
+            spec = cls._resolver.fetch(spec) if hasattr(cls, "_resolver") else io.read(spec)
+
         if not isinstance(spec, collections.abc.Mapping):
-            raise TypeError(type(spec).__name__)
+            raise TypeError(type(spec))
         spec.setdefault("name", spec.get("name", cls.__name__))
         return cls(**spec)
 
     def serialize(self):
-        return {"$schema": self.metadata["$schema"],
-                "$id":  self.metadata["$id"] or f"{self.__class__.__module__}.{self.__class__.__name__}",
-                "attributes": self._attributes,
-                "metadata": {}}
+        return {"$schema": self._schema,
+                "$class": self._class,
+                "$id":  self._oid,
+                "attributes": self._attributes.__as_native__(),
+                }
+
+    def __init__(self,  *,   attributes=None, **kwargs):
+        super().__init__()
+        self._oid =   uuid.uuid1()
+        self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
+        self._parent = None
+        self._children = None
+
+    # def __del__(self):
+    #     if hasattr(self._parent, "remove_child"):
+    #         self._parent.remove_child(self)
 
     @classmethod
     def from_json(cls, spec, *args, **kwargs):
@@ -94,9 +98,9 @@ class SpObject(object):
     def to_json(self):
         return self.serialize()
 
-    @cached_property
-    def metadata(self):
-        return AttributeTree(self.__class__._metadata)
+    # @cached_property
+    # def metadata(self):
+    #     return AttributeTree(self.__class__._metadata)
 
     @property
     def attributes(self):
@@ -112,10 +116,10 @@ class SpObject(object):
 
     @property
     def children(self):
-        return []
+        return self._children
 
     def remove_child(self, child):
-        pass
+        raise NotImplementedError
 
     def insert_child(self, child, name=None, *args, **kwargs):
         raise NotImplementedError
@@ -161,6 +165,10 @@ class SpObject(object):
 
     def find_shortest_path(self, s, t):
         return []
+
+
+def as_spobject(cls, *args, **kwargs):
+    pass
 
 
 __SP_EXPORT__ = SpObject

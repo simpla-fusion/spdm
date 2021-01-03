@@ -7,10 +7,10 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 
 if __name__ == "__main__":
+    sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
     from spdm.data.DataObject import DataObject
     from spdm.data.File import File
@@ -27,13 +27,16 @@ if __name__ == "__main__":
     Genray = module.new_class("physics/genray", version="201213", tag="-gompi-2019b")
 
     cfg = {
-        "tokamak.eqdskin": {"$schema": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../templates/g063982.04800"},
-        "genr.partner":  {"$schema": "file.netcdf", "path": "{FY_MODULEFILE_DIR}/../templates/genray_profs_in.nc"},
-        "genr.outdata": "{OUTPUT_DIR}",
+        "tokamak": {
+            "eqdskin":  {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../template/g063982.04800"}},
+        "genr": {
+            "partner":  {"$class": "file.netcdf", "path": "/home/salmon/workspace/data/genray/genray_profs_in.nc"},
+            "outdat": "{OUTPUT_DIR}" 
+            },
         "ecocone.gzone": 1
     }
 
-    genray = Genray(num_of_steps=1, dt=0.001, confgi=cfg)
+    genray = Genray(num_of_steps=1, dt=0.001, config=cfg, working_dir="/home/salmon/workspace/output")
 
     logger.debug(genray.outputs().STDOUT)
 
