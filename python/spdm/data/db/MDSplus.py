@@ -103,8 +103,8 @@ class MDSplusCollection(Collection):
     def __init__(self, desc, *args,  tree_name=None,  **kwargs):
         super().__init__(desc, *args, **kwargs)
 
-        self._default_tree_name = tree_name or self._desc.query.tree_name
-        self._path = self._desc.path or pathlib.Path.cwd()
+        self._default_tree_name = tree_name or self.attributes.query.tree_name
+        self._path = self.attributes.path or pathlib.Path.cwd()
         # schema = self.metadata.schema.lower()
         # authority = self.metadata.authority or ''
         # path = self.metadata.path or ""

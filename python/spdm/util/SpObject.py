@@ -60,7 +60,9 @@ class SpObject(object):
         n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}",
                      (n_cls,), {"_metadata": AttributeTree(_metadata)})
 
-        return object.__new__(n_cls)
+        obj= object.__new__(n_cls)
+        obj._attributes=AttributeTree()
+        return obj
 
     @classmethod
     def deserialize(cls, spec):
@@ -84,7 +86,10 @@ class SpObject(object):
     def __init__(self,  *,   attributes=None, **kwargs):
         super().__init__()
         self._oid = uuid.uuid1()
-        self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
+        if isinstance(attributes, AttributeTree):
+            self._attributes = attributes
+        else:
+            self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
         self._parent = None
         self._children = None
 
@@ -101,7 +106,7 @@ class SpObject(object):
 
     @property
     def attributes(self):
-        return self._attributes
+        return  self._attributes
 
     def __hash__(self):
         return self._oid.int

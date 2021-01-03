@@ -10,6 +10,7 @@ from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urisplit, uriunsplit
+from spdm.util.SpObject import SpObject
 
 from .Document import Document
 
@@ -19,7 +20,7 @@ UpdateResult = collections.namedtuple("UpdateResult", "upserted_id success")
 DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 
 
-class Collection(object):
+class Collection(SpObject):
     ''' Collection of documents
     '''
     DOCUMENT_CLASS = Document
@@ -64,34 +65,14 @@ class Collection(object):
 
         return res
 
-    def __init__(self, desc, *args,
-                 id_hasher=None,
-                 handler=None,
-                 request_proxy=None,
-                 envs=None,
-                 **kwargs):
-        super().__init__()
+    def __init__(self, desc, *args, id_hasher=None, envs=None, **kwargs):
+        super().__init__(attributes=desc)
 
-        if isinstance(desc, str):
-            desc = urisplit(desc)
-
-        if not isinstance(desc, AttributeTree):
-            self._desc = AttributeTree(desc)
-
-        logger.debug(f"Open {self.__class__.__name__} :  {desc}")
+        logger.debug(f"Open {self.__class__.__name__} : \n {desc}")
 
         self._id_hasher = id_hasher or "{_id}"
 
-        # if request_proxy is not None:
-        #     self._handler = request_proxy(handler)
-        # else:
-        #     self._handler = handler
-
         self._envs = collections.ChainMap(kwargs, envs or {})
-
-    @property
-    def description(self):
-        return self._desc
 
     @cached_property
     def envs(self):

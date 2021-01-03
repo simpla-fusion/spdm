@@ -58,14 +58,14 @@ class Profile(np.ndarray, DataObject):
 
         obj = super(Profile, cls).__new__(cls, shape)
         obj._axis = axis
-        obj._description = AttributeTree(description)
+        obj._attributes = AttributeTree(description)
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
         self._axis = getattr(obj, '_axis', None)
-        self._description = getattr(obj, '_description', None) or AttributeTree()
+        self._attributes = getattr(obj, '_attributes', None) or AttributeTree()
 
     def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
         if any([isinstance(arg, ProfileFunction) for arg in inputs]):
@@ -105,7 +105,7 @@ class Profile(np.ndarray, DataObject):
 
     def __init__(self,  value=None, *args, axis=None, description=None, **kwargs):
         super().__init__(*args, **kwargs)
-
+        super(DataObject,self).__init__(attributes=description)
         if isinstance(value, Profile):
             value = value(self._axis).view(np.ndarray)
 
@@ -113,12 +113,8 @@ class Profile(np.ndarray, DataObject):
             self.copy(value)
 
     def __repr__(self):
-        desc = getattr(self, "_description", None)
-        if desc is not None:
-            return f"<{self.__class__.__name__} name='{ desc.name}'>"
-        else:
-            return super().__repr__()
-
+        return f"<{self.__class__.__name__} name='{ self.attributes.name}'>"
+        
     @property
     def is_constant(self):
         return self.shape == () and self.__class__ is not ProfileFunction
@@ -147,7 +143,7 @@ class Profile(np.ndarray, DataObject):
 
     @property
     def description(self):
-        return self._description
+        return self._attributes
 
     @property
     def axis(self):
@@ -158,7 +154,7 @@ class Profile(np.ndarray, DataObject):
         axis = self._axis.view(np.ndarray)
         data = self.value
         try:
-            res = interp1d(axis, data, kind=self.metadata.interpolator or 'linear')
+            res = interp1d(axis, data, kind=self.attributes.interpolator or 'linear')
         except Exception as error:
             logger.debug((error, axis, data))
             raise error
@@ -192,7 +188,7 @@ class Profile(np.ndarray, DataObject):
             else:
                 res = res.view(Profile)
                 res._axis = x_axis
-                res._description = self.metadata
+                res._attributes = self.attributes
 
         return res
 

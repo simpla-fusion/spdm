@@ -109,7 +109,7 @@ class TestProfile(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from spdm.util.Profiles import Profile, ProfileFunction, ProfileExpression, Profiles
+    from spdm.data.Profile import Profile, ProfileFunction, ProfileExpression, Profiles
     from spdm.util.logger import logger
 
     unittest.main()
