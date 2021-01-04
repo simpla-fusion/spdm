@@ -6,17 +6,13 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-
+from spdm.data.DataObject import DataObject
+from spdm.data.File import File
+from spdm.flow.ModuleRepository import ModuleRepository
+from spdm.flow.SpModule import SpModule
+from spdm.util.logger import logger
 
 if __name__ == "__main__":
-    sys.path.append("/home/salmon/workspace/SpDev/SpDB")
-
-    from spdm.data.DataObject import DataObject
-    from spdm.data.File import File
-    from spdm.flow.ModuleRepository import ModuleRepository
-    from spdm.flow.SpModule import SpModule
-    from spdm.util.logger import logger
 
     os.environ["FUYUN_CONFIGURE_PATH"] = "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/configure.yaml"
 
@@ -31,9 +27,9 @@ if __name__ == "__main__":
             "eqdskin":  {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../template/g063982.04800"}},
         "genr": {
             "partner":  {"$class": "file.netcdf", "path": "/home/salmon/workspace/data/genray/genray_profs_in.nc"},
-            "outdat": "{OUTPUT_DIR}" 
-            },
-        "ecocone.gzone": 1
+            "outdat": "{OUTPUT_DIR}"
+        },
+        "ecocone": {"gzone": 1}
     }
 
     genray = Genray(num_of_steps=1, dt=0.001, config=cfg, working_dir="/home/salmon/workspace/output")

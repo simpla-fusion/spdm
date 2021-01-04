@@ -67,32 +67,55 @@ class File(Document):
 
         return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
 
-    def __init__(self,  data=None, *args,  path=None,   ** kwargs):
-        super().__init__(*args,   ** kwargs)
+    def __init__(self,  data=None, *args,  path=None, working_dir=None,   ** kwargs):
+        super().__init__(data, *args, ** kwargs)
 
-        # if path is None:
-        #     self._path = pathlib.Path.cwd()
-        # elif isinstance(path, str):
-        #     self._path = pathlib.Path.cwd()/path
-        # elif isinstance(path, collections.abc.Sequence):
-        #     self._path = [pathlib.Path.cwd()/p for p in path]
-        # else:
-        #     raise TypeError(type(path))
-        self._path = path
+        if working_dir is None:
+            working_dir = pathlib.Path.cwd()
+        elif isinstance(working_dir, str):
+            working_dir = pathlib.Path.cwd()/path
+        elif not isinstance(working_dir, pathlib.PosixPath):
+            raise TypeError(type(working_dir))
+
+        if path is None and isinstance(data, collections.abc.Mapping) and "$class" in data:
+            path = data.get("path")
+        if path is None:
+            path = str(self.metadata.path)
+
+        self._path = working_dir / path
+
+        if data is not None:
+            self.update(data)
 
     def __repr__(self):
         return str(self.path)
 
     def __str__(self):
-        return str(self._path)
+        return str(self.path)
 
     @property
     def path(self):
-        return pathlib.Path(getattr(self, "_path", None) or self.metadata.path).resolve()
+        p = getattr(self, "_path", None) or self.metadata.path
+        if isinstance(p, str):
+            return pathlib.Path(p).resolve()
+        elif isinstance(p, pathlib.PosixPath):
+            return p
+        elif not p:
+            return None
+        else:
+            raise ValueError(p)
 
     @property
     def template(self):
-        return pathlib.Path(getattr(self, "_template", None) or self.metadata.template).resolve()
+        p = getattr(self, "_template", None) or self.metadata.template
+        if isinstance(p, str):
+            return pathlib.Path(p).resolve()
+        elif isinstance(p, pathlib.PosixPath):
+            return p
+        elif not p:
+            return None
+        else:
+            raise ValueError(p)
 
     @property
     def is_writable(self):

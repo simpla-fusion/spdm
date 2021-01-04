@@ -15,12 +15,10 @@ class FileNamelist(File):
     def __init__(self, data=None, *args, **kwargs):
         super().__init__(data, *args, **kwargs)
 
-        if data is not None:
-            self.update(data)
-
     def update(self, data, *args, **kwargs):
+        data = normalize_data(data)
         logger.debug(data)
-        f90nml.patch(self.template.as_posix(), normalize_data(data), self.path.as_posix())
+        f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
 
     def read(self, *args, **kwargs) -> Dict[str, Any]:
         return f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)

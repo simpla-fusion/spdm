@@ -46,24 +46,34 @@ class SpModule(SpObject):
         if self._inputs is not None:
             return self._inputs
         self._inputs = {}
+
+        working_dir = self.envs.get("INPUT_DIR", "./")
+
         for p_in in self.metadata.in_ports:
             format_string_recursive(p_in, self.envs)
             p_name = str(p_in["name"])
             if p_name == "VAR_ARGS":
-                self._inputs["VAR_ARGS"] = DataObject(self._args, envs=self.envs, _metadata=p_in,
-                                                      working_dir=self.envs.get("INTPUT_DIR", "./"))
+                self._inputs["VAR_ARGS"] = DataObject(self._args,
+                                                      _metadata=p_in,
+                                                      envs=self.envs,
+                                                      working_dir=working_dir)
             else:
                 if p_name not in self._kwargs:
                     continue
+
                 data = self._kwargs[p_name]
+
                 if isinstance(data, str):
                     data = format_string_recursive(data, self.envs)
                 else:
                     format_string_recursive(data, self.envs)
-                    data = DataObject(data)
 
-                self._inputs[p_name] = DataObject(data, envs=self.envs, _metadata=p_in,
-                                                  working_dir=self.envs.get("INPUT_DIR", "./"))
+                data = DataObject.create(data, envs=self.envs, working_dir=working_dir)
+
+                self._inputs[p_name] = DataObject.create(data,
+                                                         _metadata=p_in,
+                                                         envs=self.envs,
+                                                         working_dir=working_dir)
         return self._inputs
 
     def outputs(self):
