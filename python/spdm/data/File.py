@@ -63,12 +63,9 @@ class File(Document):
 
             _metadata = collections.ChainMap({"$class": file_format}, _metadata or {})
 
-        logger.debug(_metadata)
-
         return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
 
     def __init__(self,  data=None, *args,  path=None, working_dir=None,   ** kwargs):
-        super().__init__(data, *args, ** kwargs)
 
         if working_dir is None:
             working_dir = pathlib.Path.cwd()
@@ -77,12 +74,15 @@ class File(Document):
         elif not isinstance(working_dir, pathlib.PosixPath):
             raise TypeError(type(working_dir))
 
-        if path is None and isinstance(data, collections.abc.Mapping) and "$class" in data:
-            path = data.get("path")
         if path is None:
             path = str(self.metadata.path)
 
-        self._path = working_dir / path
+        if isinstance(path, str):
+            path = working_dir/path
+        if isinstance(path, list):
+            path = [working_dir/p for p in path]
+
+        super().__init__(data, *args, path=path, ** kwargs)
 
         if data is not None:
             self.update(data)
@@ -98,12 +98,10 @@ class File(Document):
         p = getattr(self, "_path", None) or self.metadata.path
         if isinstance(p, str):
             return pathlib.Path(p).resolve()
-        elif isinstance(p, pathlib.PosixPath):
+        elif isinstance(p, (pathlib.PosixPath, list)):
             return p
         elif not p:
             return None
-        else:
-            raise ValueError(p)
 
     @property
     def template(self):

@@ -17,12 +17,44 @@ logging.basicConfig(level=logging.ERROR,
                         '%(asctime)s %(levelname)s [%(name)s] '
                         '%(pathname)s:%(lineno)d:%(funcName)s: '
                         '%(message)s'),
-                    handlers=[logging.FileHandler(SP_DEFAULT_OUTPUT_DIR/f"sp_{os.getpid()}.log"),
-                              logging.StreamHandler(stream=sys.stdout)
-                              ]
+                    handlers=[logging.FileHandler(SP_DEFAULT_OUTPUT_DIR/f"sp_{os.getpid()}.log") ]
                     )
 logger = logging.getLogger(__package__[:__package__.find('.')])
 logger.setLevel(logging.DEBUG)
+
+
+class CustomFormatter(logging.Formatter):
+    """Logging Formatter to add colors and count warning / errors"""
+
+    grey = "\x1b[0;37m"
+    yellow = "\x1b[1;33m"
+    green = "\x1b[0;32m"
+    red = "\x1b[0;31m"
+    bold_red = "\x1b[1;31m"
+    reset = "\x1b[0m"
+    format_normal =  '%(asctime)s %(levelname)s [%(name)s] %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
+
+    FORMATS = {
+        logging.DEBUG: grey + format_normal + reset,
+        logging.INFO:  green + '%(asctime)s %(levelname)s [%(name)s] : %(message)s' + reset,
+        logging.WARNING: yellow + format_normal + reset,
+        logging.ERROR: red + format_normal + reset,
+        logging.CRITICAL: bold_red + format_normal + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler(stream=sys.stdout)
+ch.setLevel(logging.DEBUG)
+# add formatter to ch
+ch.setFormatter(CustomFormatter())
+# add ch to logger
+logger.addHandler(ch)
+
 # logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
 

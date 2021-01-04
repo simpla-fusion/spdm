@@ -68,7 +68,7 @@ class Collection(SpObject):
     def __init__(self, desc, *args, id_hasher=None, envs=None, **kwargs):
         super().__init__(attributes=desc)
 
-        logger.debug(f"Open {self.__class__.__name__} : \n {desc}")
+        logger.info(f"Open {self.__class__.__name__} : \n {desc}")
 
         self._id_hasher = id_hasher or "{_id}"
 

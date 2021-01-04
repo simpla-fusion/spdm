@@ -8,10 +8,11 @@ import sys
 from pathlib import Path
 from string import Template
 from typing import List
+from functools import cached_property
 
 from ..data.DataObject import DataObject
-from ..util.dict_util import format_string_recursive
 from ..util.AttributeTree import AttributeTree
+from ..util.dict_util import format_string_recursive
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
@@ -32,7 +33,7 @@ class SpModule(SpObject):
         self._envs = envs or {}
         self._args = args
         self._kwargs = kwargs
-        self._inputs = None
+
         self._outputs = None
 
     def __del__(self):
@@ -41,45 +42,6 @@ class SpModule(SpObject):
     @property
     def envs(self):
         return collections.ChainMap(self._envs, self._metadata)
-
-    def inputs(self):
-        if self._inputs is not None:
-            return self._inputs
-        self._inputs = {}
-
-        working_dir = self.envs.get("INPUT_DIR", "./")
-
-        for p_in in self.metadata.in_ports:
-            format_string_recursive(p_in, self.envs)
-            p_name = str(p_in["name"])
-            if p_name == "VAR_ARGS":
-                self._inputs["VAR_ARGS"] = DataObject(self._args,
-                                                      _metadata=p_in,
-                                                      envs=self.envs,
-                                                      working_dir=working_dir)
-            else:
-                if p_name not in self._kwargs:
-                    continue
-
-                data = self._kwargs[p_name]
-
-                if isinstance(data, str):
-                    data = format_string_recursive(data, self.envs)
-                else:
-                    format_string_recursive(data, self.envs)
-
-                data = DataObject.create(data, envs=self.envs, working_dir=working_dir)
-
-                self._inputs[p_name] = DataObject.create(data,
-                                                         _metadata=p_in,
-                                                         envs=self.envs,
-                                                         working_dir=working_dir)
-        return self._inputs
-
-    def outputs(self):
-        if self._outputs is None:
-            self._outputs = AttributeTree(self.run())
-        return self._outputs
 
     def preprocess(self):
         logger.debug(f"Preprocess: {self.__class__.__name__}")
@@ -91,13 +53,64 @@ class SpModule(SpObject):
         logger.debug(f"Execute: {self.__class__.__name__}")
         return None
 
+    @cached_property
+    def inputs(self):
+        """
+            Collect and convert inputs
+        """
+        working_dir = self.envs.get("WORKING_DIR", "./")
+
+        args = None
+
+        kwargs = {}
+
+        for p_in in self.metadata.in_ports:
+
+            format_string_recursive(p_in, self.envs)
+
+            p_name = str(p_in["name"])
+
+            if p_name == "VAR_ARGS" and not not self._args:
+                args = DataObject.create(self._args, _metadata=p_in, envs=self.envs, working_dir=working_dir)
+            elif p_name not in self._kwargs:
+                continue
+
+            data = self._kwargs[p_name]
+
+            if isinstance(data, str):
+                data = format_string_recursive(data, self.envs)
+            else:
+                format_string_recursive(data, self.envs)
+
+            data = DataObject.create(data, envs=self.envs, working_dir=working_dir)
+
+            kwargs[p_name] = DataObject.create(data,   _metadata=p_in,      envs=self.envs,     working_dir=working_dir)
+
+        if not self._args:
+            pass
+        elif args is None:
+            args = DataObject.create(self._args,  envs=self.envs, working_dir=working_dir)
+
+        return args or [], kwargs
+
+    @property
+    def outputs(self):
+        if not self._outputs:
+            self._outputs = self.run()
+            del self.inputs
+
+        return self._outputs
+
     def run(self):
+
+        args, kwargs = self.inputs
+
         self.preprocess()
 
         error_msg = None
 
         # try:
-        res = self.execute()
+        res = self.execute(*args, **kwargs)
         # except Exception as error:
         #     error_msg = error
         #     logger.error(f"{error}")
@@ -113,7 +126,7 @@ class SpModule(SpObject):
 
 class SpModuleLocal(SpModule):
     """Call subprocess/shell command
-    {PKG_PREFIX}/bin/xgenray -i {INPUT_FILE} -o {OUTPUT_DIR}
+    {PKG_PREFIX}/bin/xgenray  
     """
 
     script_call = {
@@ -133,14 +146,8 @@ class SpModuleLocal(SpModule):
         count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
 
         working_dir /= f"{self.__class__.__name__}_{count}"
-
-        self._envs["WORKING_DIR"] = working_dir
-        self._envs["INPUT_DIR"] = working_dir/"inputs"
-        self._envs["OUTPUT_DIR"] = working_dir/"outputs"
-
         working_dir.mkdir()
-        self._envs["INPUT_DIR"].mkdir()
-        self._envs["OUTPUT_DIR"].mkdir()
+        self._envs["WORKING_DIR"] = working_dir
 
         logger.debug(f"Initialize: {self.__class__.__name__} ")
 
@@ -198,8 +205,7 @@ class SpModuleLocal(SpModule):
         self._execute_script(self.metadata.postscript)
         super().postprocess()
 
-    def execute(self):
-        # super().execute(*args, **kwargs)
+    def execute(self, *args, **kwargs):
         module_name = str(self.metadata.annotation.name)
 
         module_root = pathlib.Path(os.environ.get(f"EBROOT{module_name.upper()}", "./")).expanduser()
@@ -228,40 +234,54 @@ class SpModuleLocal(SpModule):
         cmd_arguments = str(self.metadata.run.arguments)
 
         try:
-            envs = collections.ChainMap(self.inputs(), self.envs)
-            arguments = cmd_arguments.format_map(envs)
+            arguments = cmd_arguments.format_map(collections.ChainMap({"VAR_ARGS": args}, kwargs,  self.envs))
         except KeyError as key:
             raise KeyError(f"Missing argument {key} ! [ {cmd_arguments} ]")
 
         command.extend(shlex.split(arguments))
 
-        logger.debug(command)
+        working_dir = self.envs.get("WORKING_DIR", "./")
 
-        working_dir = self.envs.get("INPUT_DIR", "./")
-
+        # @ref: https://stackoverflow.com/questions/21953835/run-subprocess-and-print-output-to-logging
         try:
-            exit_status = subprocess.run(
+            # exit_status = subprocess.run(
+            #     command,
+            #     env=collections.ChainMap(self._envs, os.environ),
+            #     capture_output=False,
+            #     check=True,
+            #     shell=True,
+            #     text=True,
+            #     cwd=working_dir
+            # )
+            command_line_process = subprocess.Popen(
                 command,
-                env=collections.ChainMap(self._envs, os.environ),
-                capture_output=True,
-                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                # env=self.envs,
                 shell=True,
-                text=True,
                 cwd=working_dir
             )
-        except subprocess.CalledProcessError as error:
+            # process_output, _ = command_line_process.communicate()
+
+            with command_line_process.stdout as pipe:
+                for line in iter(pipe.readline, b''):  # b'\n'-separated lines
+                    logger.info(line)
+            
+            exitcode = command_line_process.wait()
+
+        except (OSError, subprocess.CalledProcessError) as error:
             logger.error(
                 f"""Command failed! [{command}]
                    STDOUT:[{error.stdout}]
                    STDERR:[{error.stderr}]""")
             raise error
 
-        outputs = {"RETURNCODE": exit_status.returncode,
-                   "STDOUT": exit_status.stdout,
-                   "STDERR": exit_status.stderr, }
+        outputs = {
+            "EXITCODE": exitcode,
+            "WORKINGDIR": working_dir}
 
         for p_out in self.metadata.out_ports:
             p_name = str(p_out["name"])
-            outputs[p_name] = DataObject(p_out,  working_dir=self.envs.get("OUTPUT_DIR", "./"))
+            outputs[p_name] = DataObject(_metadata=p_out,  working_dir=working_dir)
 
         return AttributeTree(outputs)

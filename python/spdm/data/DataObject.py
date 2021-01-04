@@ -52,11 +52,16 @@ class DataObject(SpObject):
         if isinstance(_metadata, collections.abc.Mapping):
             n_cls = _metadata.get("$class", None)
             n_cls = n_cls.replace("/", ".").lower()
-            n_cls = DataObject.associations.get(n_cls, n_cls)            
+            n_cls = DataObject.associations.get(n_cls, n_cls)
             _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
+        else:
+            n_cls = cls
 
-        # if not not _metadata:  # isinstance(_metadata, (collections.abc.Mapping, str)):
-        return SpObject.__new__(cls, _metadata=_metadata)
+        if n_cls in (int, float, str):
+            return n_cls(data)
+        else:
+            # if not not _metadata:  # isinstance(_metadata, (collections.abc.Mapping, str)):
+            return SpObject.__new__(cls, _metadata=_metadata)
 
         # if isinstance(_metadata, str):
         #     _metadata = {"$schema": _metadata}

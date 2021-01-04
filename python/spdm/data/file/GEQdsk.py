@@ -291,13 +291,8 @@ def load_geqdsk(uri):
 
 
 class FileGEQdsk(File):
-    def __init__(self, path, *args,  **kwargs):
-        super().__init__(path, *args, **kwargs)
-
-        # if "r" in mode and self._path is not None:
-        #     super().__init__(load_geqdsk(path), *args, **kwargs)
-        # else:
-        #     super().__init__({}, *args, **kwargs)
+    def __init__(self,  *args,  **kwargs):
+        super().__init__(*args, **kwargs)
 
     def load(self, p):
         with open(p or self._path, mode="r") as fp:

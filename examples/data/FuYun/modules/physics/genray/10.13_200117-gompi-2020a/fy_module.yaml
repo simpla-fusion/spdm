@@ -53,7 +53,7 @@ prescript:
   - module load genray/{version}{tag}
 
 run:
-  exec_file: "bin/xgenray_mpi.gfortran64"
+  exec_file: "bin/xgenray.gfortran64"
   arguments: ""
     # "-n {number_of_steps}   -i {config}  "
 
@@ -82,14 +82,14 @@ in_ports:
     default:
       tokamak.eqdskin: "{equilibrium}"
       genr.partner: "{FY_MODULEFILE_DIR}/../template/genray_profs_in.nc"
-      genr.outdat: "{OUTPUT_DIR}"
+      genr.outdat: "{WORKING_DIR}"
       ecocone.gzone: 1
 
 out_ports:
   - name: out_nc
     $class: file/netcdf
-    path: genray_EAST.nc
+    path: genray.nc
 
   - name: out_eq
     $class: file/geqdsk
-    path: genray_output.gfile
+    path: genray.txt

@@ -58,7 +58,7 @@ def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
         raise ValueError(f"Treename is empty!")
     try:
         shot = int(shot)
-        logger.debug(f"Opend MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
+        logger.info(f"Opend MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
         tree = mds.Tree(tree_name, shot, mode=mode, path=path)
     except mds.mdsExceptions.TreeFOPENR as error:
         # tree_path = os.environ.get(f"{tree_name}_path", None)
