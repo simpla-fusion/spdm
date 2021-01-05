@@ -22,17 +22,21 @@ if __name__ == "__main__":
 
     Genray = module.new_class("physics/genray", version="10.13_200117", tag="-gompi-2020a")
 
-    cfg = {
-        "tokamak": {
-            "eqdskin":  {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../template/g063982.04800"}},
-        "genr": {
-            "partner":  {"$class": "file.netcdf", "path": "/home/salmon/workspace/data/genray/genray_profs_in.nc"},
-            "outdat": "{WORKING_DIR}"
-        },
-        "ecocone": {"gzone": 1}
-    }
+    # cfg = {
+    #     "tokamak": {
+    #         "eqdskin":  {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../template/g063982.04800"}},
+    #     "genr": {
+    #         "partner":  {"$class": "file.netcdf", "path": "/home/salmon/workspace/data/genray/genray_profs_in.nc"},
+    #         "outdat": "{WORKING_DIR}"
+    #     },
+    #     "ecocone": {"gzone": 1}
+    # }
 
-    genray = Genray(num_of_steps=1, dt=0.001, config=cfg, working_dir="/home/salmon/workspace/output")
+    equilibrium = File(
+        path="/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/physics/genray/template/g086166.02990",
+        file_format="file.geqdsk")
+
+    genray = Genray(num_of_steps=1, dt=0.001, equilibrium=equilibrium, working_dir="/home/salmon/workspace/output")
 
     logger.debug(genray.outputs.EXITCODE)
 

@@ -58,11 +58,12 @@ class SpModule(SpObject):
         """
             Collect and convert inputs
         """
-        working_dir = self.envs.get("WORKING_DIR", "./")
+        working_dir = self.envs.get("WORKING_DIR", None)
 
-        args = None
+        args = [DataObject.create(arg, envs=self.envs, working_dir=working_dir) for arg in self._args]
 
-        kwargs = {}
+        kwargs = {k: DataObject.create(data, envs=self.envs, working_dir=working_dir)
+                  for k, data in self._kwargs.items()}
 
         for p_in in self.metadata.in_ports:
 
@@ -70,28 +71,16 @@ class SpModule(SpObject):
 
             p_name = str(p_in["name"])
 
-            if p_name == "VAR_ARGS" and not not self._args:
-                args = DataObject.create(self._args, _metadata=p_in, envs=self.envs, working_dir=working_dir)
-            elif p_name not in self._kwargs:
+            if p_name == "VAR_ARGS":
+                args = DataObject.create(args, _metadata=p_in, envs=self.envs, working_dir=working_dir)
                 continue
 
-            data = self._kwargs[p_name]
+            kwargs[p_name] = DataObject.create(kwargs.get(p_name, None) or p_in.get("default", None),
+                                               working_dir=working_dir,
+                                               envs=collections.ChainMap(kwargs, {"VAR_ARGS": args}, self.envs),
+                                               _metadata=p_in)
 
-            if isinstance(data, str):
-                data = format_string_recursive(data, self.envs)
-            else:
-                format_string_recursive(data, self.envs)
-
-            data = DataObject.create(data, envs=self.envs, working_dir=working_dir)
-
-            kwargs[p_name] = DataObject.create(data,   _metadata=p_in,      envs=self.envs,     working_dir=working_dir)
-
-        if not self._args:
-            pass
-        elif args is None:
-            args = DataObject.create(self._args,  envs=self.envs, working_dir=working_dir)
-
-        return args or [], kwargs
+        return args, kwargs
 
     @property
     def outputs(self):
@@ -266,7 +255,7 @@ class SpModuleLocal(SpModule):
             with command_line_process.stdout as pipe:
                 for line in iter(pipe.readline, b''):  # b'\n'-separated lines
                     logger.info(line)
-            
+
             exitcode = command_line_process.wait()
 
         except (OSError, subprocess.CalledProcessError) as error:

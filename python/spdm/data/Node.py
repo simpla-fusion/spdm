@@ -6,10 +6,11 @@ import collections
 
 
 class Node(object):
-    def __init__(self, holder,  *args, parent=None,  **kwargs):
+    def __init__(self, holder,  *args, parent=None, prefix=None, **kwargs):
         super().__init__()
         self._holder = holder
         self._parent = parent
+        self._prefix = prefix or []
 
     @property
     def holder(self):
@@ -18,6 +19,10 @@ class Node(object):
     @property
     def parent(self):
         return self._parent
+
+    @property
+    def prefix(self):
+        return self._prefix
 
     @property
     def entry(self):

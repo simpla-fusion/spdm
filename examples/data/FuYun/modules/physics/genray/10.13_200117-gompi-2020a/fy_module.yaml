@@ -54,16 +54,17 @@ prescript:
 
 run:
   exec_file: "bin/xgenray.gfortran64"
-  arguments: ""
+  arguments:
+    ""
     # "-n {number_of_steps}   -i {config}  "
 
 postscript:
   - module purge
 
 in_ports:
-  - name: equilibrium  
+  - name: equilibrium
     $class: file/geqdsk
-    path: equilib.dat
+    path: "{FY_MODULEFILE_DIR}/../template/g063982.04800"
 
     # "{FY_MODULEFILE_DIR}/../template/g063982.04800"
   - name: number_of_steps
@@ -80,10 +81,15 @@ in_ports:
     template: "{FY_MODULEFILE_DIR}/../template/genray.in"
     path: genray.dat
     default:
-      tokamak.eqdskin: "{equilibrium}"
-      genr.partner: "{FY_MODULEFILE_DIR}/../template/genray_profs_in.nc"
-      genr.outdat: "{WORKING_DIR}"
-      ecocone.gzone: 1
+      tokamak:
+        eqdskin: "{equilibrium}"
+      genr:
+        partner:
+          $class: file.netcdf
+          path: "/home/salmon/workspace/data/genray/genray_profs_in.nc"
+        outdat: "{WORKING_DIR}"
+      ecocone:
+        gzone: 1
 
 out_ports:
   - name: out_nc
