@@ -17,7 +17,6 @@ class FileNamelist(File):
 
     def update(self, data, *args, **kwargs):
         data = normalize_data(data)
-        logger.debug(data)
         f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
 
     def read(self, *args, **kwargs) -> Dict[str, Any]:

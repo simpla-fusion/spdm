@@ -71,29 +71,30 @@ class DataObject(SpObject):
 
     @classmethod
     def create(cls, data=None, *args, _metadata=None, envs=None, **kwargs):
-        if _metadata is None and isinstance(data, collections.abc.Mapping) and ("$class" in data or "$schema" in data):
-            _metadata = data
-            data = None
-
         l_envs = collections.ChainMap(envs or {}, os.environ)
 
         if isinstance(data, str):
             data = format_string_recursive(data, l_envs)
-
         elif isinstance(data, collections.abc.Mapping):
             format_string_recursive(data,  l_envs)
-            data = {k: DataObject.create(v, *args,  envs=envs, **kwargs) for k, v in data.items()}
+            data = {k: (v if k[0] == '$' else DataObject.create(v, *args,  envs=envs, **kwargs))
+                    for k, v in data.items()}
         elif isinstance(data, collections.abc.Sequence):
             format_string_recursive(data,  l_envs)
             data = [DataObject.create(v, *args, envs=envs,  **kwargs) for v in data]
 
-        if _metadata is None:
-            return data
-
         if isinstance(_metadata, str):
             _metadata = {"$class": _metadata}
-        elif not isinstance(_metadata, collections.abc.Mapping):
-            raise TypeError(type(_metadata))
+        elif _metadata is not None:
+            pass
+        elif isinstance(data, collections.abc.Mapping) and "$class" in data:
+            _metadata = data
+            data = None
+        else:
+            return data
+
+        # elif not isinstance(_metadata, collections.abc.Mapping):
+        #     raise TypeError(type(_metadata))
 
         n_cls = _metadata.get("$class", "")
         n_cls = n_cls.replace("/", ".").lower()

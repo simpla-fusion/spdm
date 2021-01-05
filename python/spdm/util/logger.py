@@ -18,9 +18,20 @@ default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
 
 
 class CustomFormatter(logging.Formatter):
-    """Logging Formatter to add colors and count warning / errors"""
+    """ Logging Formatter to add colors and count warning / errors """
+
+        
+    # Black       0;30     Dark Gray     1;30
+    # Blue        0;34     Light Blue    1;34
+    # Green       0;32     Light Green   1;32
+    # Cyan        0;36     Light Cyan    1;36
+    # Red         0;31     Light Red     1;31
+    # Purple      0;35     Light Purple  1;35
+    # Brown       0;33     Yellow        1;33
+    # Light Gray  0;37     White         1;37
 
     grey = "\x1b[0;37m"
+    blue = "\x1b[0;34m"
     yellow = "\x1b[1;33m"
     green = "\x1b[0;32m"
     red = "\x1b[0;31m"
@@ -30,7 +41,7 @@ class CustomFormatter(logging.Formatter):
 
     FORMATS = {
         logging.DEBUG: grey + format_normal + reset,
-        logging.INFO:  green + '%(asctime)s %(levelname)s [%(name)s] : %(message)s' + reset,
+        logging.INFO:  blue + '%(asctime)s %(levelname)s [%(name)s] : %(message)s' + reset,
         logging.WARNING: yellow + format_normal + reset,
         logging.ERROR: red + format_normal + reset,
         logging.CRITICAL: bold_red + format_normal + reset
@@ -65,7 +76,7 @@ def sp_enable_logging(handler=None, prefix=None, formater=None):
 
 if not os.environ.get("SP_NO_DEBUG", None):
     sp_enable_logging("STDOUT")
-    # add_logging_handler()
+    sp_enable_logging()
 
 
 def deprecated(func):

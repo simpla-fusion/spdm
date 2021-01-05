@@ -98,12 +98,14 @@ class SpModule(SpObject):
 
         error_msg = None
 
-        # try:
-        res = self.execute(*args, **kwargs)
-        # except Exception as error:
-        #     error_msg = error
-        #     logger.error(f"{error}")
-        #     res = None
+        try:
+            logger.debug("Execute Start")
+            res = self.execute(*args, **kwargs)
+            logger.debug("Execute Done")
+        except Exception as error:
+            error_msg = error
+            logger.error(f"Execute Error! {error}")
+            res = None
 
         self.postprocess()
 
@@ -267,7 +269,7 @@ class SpModuleLocal(SpModule):
 
         outputs = {
             "EXITCODE": exitcode,
-            "WORKINGDIR": working_dir}
+            "WORKING_DIR": working_dir}
 
         for p_out in self.metadata.out_ports:
             p_name = str(p_out["name"])
