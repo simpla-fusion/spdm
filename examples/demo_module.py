@@ -23,11 +23,15 @@ if __name__ == "__main__":
 
     module.factory.insert_handler("SpModule", SpModule)
 
+    os.environ["SP_OUTPUT_DIR"] = "/home/salmon/workspace/output"
+
+    CQL3D = module.new_class("physics/cql3d")
+
     Genray = module.new_class("physics/genray", version="10.13_200117", tag="-gompi-2020a")
 
     cfg = {
         "tokamak": {
-            # {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/../template/g063982.04800"},
+            # {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/template/g063982.04800"},
             "eqdskin": "{equilibrium}"
         },
         "genr": {
@@ -38,13 +42,16 @@ if __name__ == "__main__":
     }
 
     equilibrium = File(
-        path="/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/physics/genray/template/g086166.02990",
+        path="/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/physics/genray/10.13_200117-gompi-2020a/template/g063982.04800",
         file_format="file.geqdsk")
 
-    genray = Genray(num_of_steps=1, dt=0.001, equilibrium=equilibrium,
-                    config=cfg,   working_dir="/home/salmon/workspace/output")
+    genray = Genray(num_of_steps=1, dt=0.001, equilibrium=equilibrium,  config=cfg)
 
-    logger.debug(genray.outputs.WORKING_DIR)
+    logger.debug(genray.outputs.EXITCODE)
+
+    cql3d = CQL3D(equilibrium=genray.outputs.equilibrium, ray_trace=genray.outputs.result)
+
+    logger.debug(cql3d.outputs.EXITCODE)
 
     # out_nc = genray_out.out_nc
     # out_eq = genray_out.out_eq

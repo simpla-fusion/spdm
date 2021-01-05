@@ -24,13 +24,17 @@ resolver:
         "*",
         "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/*/fy_module.yaml",
       ]
+    - [
+        "*",
+        "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/*.yaml",
+      ]
     - ["*", "/fuyun/modules/*/fy_module.yaml"]
-
+    - ["*", "/fuyun/modules/*.yaml"]
 # factory:
 #   alias:
-    # - ["https://fusionyun.org/schemas/draft-00/flow/", "PyObject:///spdm/flow/"]
-    # - ["https://fusionyun.org/flow/nodes/", "PyObject:///spdm/flow/nodes/"]
-    # - ["https://fusionyun.org/", "PyObject:///spdm/*#{fragment}"]
-    # - ["https://fusionyun.org/", "SpModule:///*#{fragment}"]
-  # module_prefix:
-  #   - spdm.flow
+# - ["https://fusionyun.org/schemas/draft-00/flow/", "PyObject:///spdm/flow/"]
+# - ["https://fusionyun.org/flow/nodes/", "PyObject:///spdm/flow/nodes/"]
+# - ["https://fusionyun.org/", "PyObject:///spdm/*#{fragment}"]
+# - ["https://fusionyun.org/", "SpModule:///*#{fragment}"]
+# module_prefix:
+#   - spdm.flow

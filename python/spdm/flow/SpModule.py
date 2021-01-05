@@ -129,6 +129,8 @@ class SpModuleLocal(SpModule):
     def __init__(self, *args, working_dir=None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        working_dir = working_dir or os.environ.get("SP_OUTPUT_DIR", None)
+
         if working_dir is not None:
             working_dir = pathlib.Path(working_dir)
         else:

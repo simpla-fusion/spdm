@@ -119,8 +119,10 @@ class ModuleRepository:
                     <repo_path>/physics/genray/default
                     <repo_path>/physics/genray/
         """
+        version = version or 'default'
+        tag = tag or ''
         if isinstance(metadata, str):
-            metadata = f"{metadata}/{version or 'default'}{tag}"
+            metadata = f"{metadata}/{version}{tag}"
 
         n_metadata = self.resolver.fetch(metadata, envs)
 

@@ -1,9 +1,9 @@
 $schema: SpModule#SpModuleLocal
-$id: /actors/physics/genray/{version}{tag}
+$id: /actors/physics/cql3d/{version}{tag}
 
 annotation:
-  name: genray
-  label: GenRray
+  name: cql3d
+  label: CQL3D
   version: "{version}"
   tag: "{tag}"
   contributors:
@@ -45,15 +45,15 @@ build:
   #     ('netCDF', '4.6.2'),
   #     ('MDSplus', '>7.83.0'),
   # ]
-  eb: Genray/{version}
+  eb: cql3d/{version}
 
 prescript:
   - module use /fuyun/modules/all
   - module purge
-  - module load genray/{version}{tag}
+  - module load cql3d/{version}{tag}
 
 run:
-  exec_file: "bin/xgenray.gfortran64" # "bin/xgenray_dummy"
+  exec_file: "bin/xcql3d.gfortran64" # "bin/xgenray.gfortran64"
   arguments: "" # "-n {number_of_steps}   -i {config}  "
 
 postscript:
@@ -64,6 +64,7 @@ in_ports:
     $class: file/geqdsk
     path: "{FY_MODULEFILE_DIR}/template/g063982.04800"
 
+    # "{FY_MODULEFILE_DIR}/../template/g063982.04800"
   - name: number_of_steps
     $class: integer
     default: 1
@@ -75,24 +76,18 @@ in_ports:
 
   - name: config
     $class: file/namelist
-    template: "{FY_MODULEFILE_DIR}/template/genray.in"
-    path: genray.dat
+    template: "{FY_MODULEFILE_DIR}/template/cql3d.in"
+    path: cqlinput
     default:
-      tokamak:
-        eqdskin: "{equilibrium}"
-      genr:
-        partner:
-          $class: file.netcdf
-          path: "/home/salmon/workspace/data/genray/genray_profs_in.nc"
-        outdat: "{WORKING_DIR}"
-      ecocone:
-        gzone: 1
+      eqsetup:
+        eqsource: "{equilibrium}"
+     
 
 out_ports:
-  - name: result
+  - name: nc
     $class: file/netcdf
     path: genray.nc
 
-  - name: equilibrium
+  - name: out_eq
     $class: file/geqdsk
     path: genray.txt
