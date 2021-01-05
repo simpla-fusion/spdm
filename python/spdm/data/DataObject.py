@@ -52,15 +52,17 @@ class DataObject(SpObject):
 
         if isinstance(_metadata, str):
             n_cls = _metadata
+            _metadata = {"$class": n_cls}
         elif isinstance(_metadata, collections.abc.Mapping):
             n_cls = _metadata.get("$class", "general")
-            if isinstance(n_cls, str):
-                n_cls = n_cls.replace("/", ".").lower()
-                if n_cls[0] != '.':
-                    n_cls = DataObject.associations.get(n_cls, n_cls)
-                    _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
         else:
             n_cls = cls
+
+        if isinstance(n_cls, str):
+            n_cls = n_cls.replace("/", ".").lower()
+            if n_cls[0] != '.':
+                n_cls = DataObject.associations.get(n_cls, n_cls)
+                _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
 
         if n_cls in (int, float, str):
             return n_cls(data)

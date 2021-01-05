@@ -5,22 +5,16 @@ import pathlib
 import pprint
 import os
 import sys
-
-SP_DEFAULT_OUTPUT_DIR = pathlib.Path("~/spdm_log").expanduser()
-SP_DEFAULT_OUTPUT_DIR.mkdir(mode=0o755, exist_ok=True)
-
-std_handler = logging.StreamHandler(stream=sys.stdout)
+from datetime import datetime
 
 
-logging.basicConfig(level=logging.ERROR,
-                    format=(
-                        '%(asctime)s %(levelname)s [%(name)s] '
-                        '%(pathname)s:%(lineno)d:%(funcName)s: '
-                        '%(message)s'),
-                    handlers=[logging.FileHandler(SP_DEFAULT_OUTPUT_DIR/f"sp_{os.getpid()}.log") ]
-                    )
 logger = logging.getLogger(__package__[:__package__.find('.')])
+
 logger.setLevel(logging.DEBUG)
+
+default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
+                                     '%(pathname)s:%(lineno)d:%(funcName)s: '
+                                     '%(message)s')
 
 
 class CustomFormatter(logging.Formatter):
@@ -32,7 +26,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[0;31m"
     bold_red = "\x1b[1;31m"
     reset = "\x1b[0m"
-    format_normal =  '%(asctime)s %(levelname)s [%(name)s] %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
+    format_normal = '%(asctime)s %(levelname)s [%(name)s] %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
 
     FORMATS = {
         logging.DEBUG: grey + format_normal + reset,
@@ -47,18 +41,31 @@ class CustomFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
 
-# create console handler and set level to debug
-ch = logging.StreamHandler(stream=sys.stdout)
-ch.setLevel(logging.DEBUG)
-# add formatter to ch
-ch.setFormatter(CustomFormatter())
-# add ch to logger
-logger.addHandler(ch)
 
-# logging.getLogger('matplotlib').setLevel(logging.ERROR)
+def sp_enable_logging(handler=None, prefix=None, formater=None):
+
+    if isinstance(handler, str) and handler == "STDOUT":
+        handler = logging.StreamHandler(stream=sys.stdout)
+        formater = formater or CustomFormatter()
+    elif handler is None:
+        path = pathlib.Path(
+            f"{prefix or os.environ.get('SP_LOG_PREFIX', '/tmp/sp_log/sp_')}{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.log")
+        path = path.expanduser().resolve()
+        if not path.parent.exists():
+            path.parent.mkdir(mode=0o0755, exist_ok=True)
+        handler = logging.FileHandler(path)
+
+    if issubclass(type(handler), logging.Handler):
+        handler.setFormatter(formater or default_formater)
+        handler.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+    else:
+        raise NotImplementedError()
 
 
-# TODO (salmon 20190922): support more log handlers,
+if not os.environ.get("SP_NO_DEBUG", None):
+    sp_enable_logging("STDOUT")
+    # add_logging_handler()
 
 
 def deprecated(func):

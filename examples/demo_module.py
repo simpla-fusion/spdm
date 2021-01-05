@@ -10,7 +10,8 @@ from spdm.data.DataObject import DataObject
 from spdm.data.File import File
 from spdm.flow.ModuleRepository import ModuleRepository
 from spdm.flow.SpModule import SpModule
-from spdm.util.logger import logger
+from spdm.util.logger import logger, add_logging_handler
+
 
 if __name__ == "__main__":
 

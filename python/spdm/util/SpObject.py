@@ -31,16 +31,16 @@ class SpObject(object):
     _metadata = {"$class": "SpObject"}
 
     @staticmethod
-    def __new__(cls, data=None, *args, _metadata=None, **kwargs):
+    def __new__(cls, *args, _metadata=None, **kwargs):
         if cls is not SpObject and _metadata is None:
             return object.__new__(cls)
 
         if isinstance(_metadata, str):
-            _metadata = {"$schema": _metadata}
+            _metadata = {"$class": _metadata}
         elif not isinstance(_metadata, collections.abc.Mapping):
             raise TypeError(type(_metadata))
 
-        n_cls = _metadata.get("$class", None) or _metadata.get("$schema", None)
+        n_cls = _metadata.get("$class", None)
 
         n_cls_name = None
 
@@ -53,12 +53,11 @@ class SpObject(object):
         if inspect.isclass(n_cls):
             pass
         elif callable(n_cls):
-            return n_cls(data, args, _metadata=_metadata, **kwargs)
+            return n_cls(*args, _metadata=_metadata, **kwargs)
         else:
             raise ModuleNotFoundError(f"{_metadata}")
 
-        n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}",
-                     (n_cls,), {"_metadata": AttributeTree(_metadata)})
+        n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": _metadata})
 
         obj = object.__new__(n_cls)
         obj._attributes = AttributeTree()
