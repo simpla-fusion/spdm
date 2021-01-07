@@ -9,10 +9,9 @@ import time
 import pathlib
 
 from ..util.logger import logger
-from .SpModule import SpModule
 
 
-class Session(SpModule):
+class Session:
     """ Manager of computing
 
         TODO (salmon 20190922):
@@ -25,6 +24,8 @@ class Session(SpModule):
     """
     MAX_NODES_NUMBER = 128
     DEFAULT_MASK = 0o755
+
+    current_job = None
 
     _stack = []
 

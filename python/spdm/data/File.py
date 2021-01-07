@@ -39,29 +39,22 @@ class File(Document):
     }
 
     @staticmethod
-    def __new__(cls, data=None,  *args, _metadata=None, path=None, file_format=None, **kwargs):
-        if cls is not File and _metadata is None:
+    def __new__(cls, data=None,  *args, _metadata=None,  **kwargs):
+        if cls is not File and _metadata is None and len(kwargs) == 0:
             return object.__new__(cls)
 
-        if isinstance(_metadata, collections.abc.Mapping) and "$class" in _metadata:
-            pass
-        elif file_format is None:
-            if path is None and isinstance(data, str):
-                path = data
-            o = urisplit(path)
+        _metadata = collections.ChainMap(_metadata or {}, kwargs)
 
-            if o.schema in (None, 'local', 'file'):
-                ext = pathlib.Path(o.path).suffix
-                file_format = File.extension.get(ext.lower(), ext)
-
-        if isinstance(file_format, str):
-            # raise ValueError(f"File format is not defined! {file_format}")
+        if "$class" not in _metadata:
+            file_format = _metadata.get("file_format", None) or pathlib.Path(_metadata.get("path", "")).suffix
+            file_format = File.extension.get(ext.lower(), file_format)
             file_format = file_format.replace('/', '.')
 
             if not file_format.startswith("file."):
                 file_format = "file."+file_format
+            _metadata["$class"] = file_format
 
-            _metadata = collections.ChainMap({"$class": file_format}, _metadata or {})
+        logger.debug(_metadata)
 
         return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
 
@@ -84,8 +77,7 @@ class File(Document):
 
         super().__init__(data, *args, path=path, ** kwargs)
 
-        if data is not None:
-            self.update(data)
+    
 
     def __repr__(self):
         return str(self.path)
@@ -146,18 +138,13 @@ class File(Document):
         else:
             o = urisplit(self._path)
             path = pathlib.Path(o.path)
-        try:
-            fid = path.open(
-                mode=mode or self._mode,
-                buffering=buffering or self._buffering,
-                encoding=encoding or self._encoding,
-                newline=newline or self._newline)
-        except Exception:
-            fid = None
-        finally:
-            yield fid
-            if fid is not None:
-                fid.close()
+
+        fid = path.open(mode=mode or self._mode)
+
+        yield fid
+
+        if fid is not None:
+            fid.close()
 
     def read(self, *args, **kwargs):
         with self.open(mode="r") as fid:

@@ -53,7 +53,7 @@ prescript:
   - module load genray/{version}{tag}
 
 run:
-  exec_file: "bin/xgenray.gfortran64" # "bin/xgenray_dummy"
+  exec_file: "bin/xgenray_dummy" # "bin/xgenray.gfortran64" # 
   arguments: "" # "-n {number_of_steps}   -i {config}  "
 
 postscript:

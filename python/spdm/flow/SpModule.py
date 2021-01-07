@@ -16,6 +16,7 @@ from ..util.dict_util import format_string_recursive
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
+from .Session import Session
 
 
 class SpModule(SpObject):
@@ -27,7 +28,7 @@ class SpModule(SpObject):
         else:
             return SpObject.__new__(cls, *args, **kwargs)
 
-    def __init__(self, *args, envs=None, metadata=None, **kwargs):
+    def __init__(self, *args, envs=None, metadata=None, working_dir=None, **kwargs):
         super().__init__(metadata=metadata)
 
         self._envs = envs or {}
@@ -35,6 +36,21 @@ class SpModule(SpObject):
         self._kwargs = kwargs
 
         self._outputs = None
+
+        working_dir = working_dir or os.environ.get("SP_OUTPUT_DIR", None)
+
+        if working_dir is not None:
+            working_dir = pathlib.Path(working_dir)
+        else:
+            working_dir = pathlib.Path.cwd()
+
+        count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
+
+        working_dir /= f"{self.__class__.__name__}_{count}"
+        working_dir.mkdir()
+
+        self._envs["WORKING_DIR"] = working_dir
+        self._envs["JOB_ID"] = Session.current_job or self.__class__.__name__
 
     def __del__(self):
         super().__del__()
@@ -99,9 +115,9 @@ class SpModule(SpObject):
         error_msg = None
 
         try:
-            logger.debug("Execute Start")
+            logger.debug(f"Execute Start: {self.metadata.annotation.label}")
             res = self.execute(*args, **kwargs)
-            logger.debug("Execute Done")
+            logger.debug(f"Execute Done : {self.metadata.annotation.label}")
         except Exception as error:
             error_msg = error
             logger.error(f"Execute Error! {error}")
@@ -126,22 +142,8 @@ class SpModuleLocal(SpModule):
         ".csh": "tcsh"
     }
 
-    def __init__(self, *args, working_dir=None, **kwargs):
+    def __init__(self, *args,  **kwargs):
         super().__init__(*args, **kwargs)
-
-        working_dir = working_dir or os.environ.get("SP_OUTPUT_DIR", None)
-
-        if working_dir is not None:
-            working_dir = pathlib.Path(working_dir)
-        else:
-            working_dir = pathlib.Path.cwd()
-
-        count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
-
-        working_dir /= f"{self.__class__.__name__}_{count}"
-        working_dir.mkdir()
-        self._envs["WORKING_DIR"] = working_dir
-
         logger.debug(f"Initialize: {self.__class__.__name__} ")
 
     def __del__(self):
