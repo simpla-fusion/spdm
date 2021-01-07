@@ -7,14 +7,6 @@ from spdm.util.logger import logger
 
 from ..File import File
 
-__plugin_spec__ = {
-    "name": "json",
-    "filename_pattern": ["*.json"],
-    "support_data_type": [int, float, str, dict, list],
-    "filename_extension": "json"
-
-}
-
 
 # class ndArrayEncoder(json.JSONEncoder):
 #     def default(self, obj):

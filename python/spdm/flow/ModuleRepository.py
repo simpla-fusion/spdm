@@ -20,6 +20,7 @@ from ..util.dict_util import format_string_recursive
 
 class ModuleRepository:
     def __init__(self, *args, repo_name=None, repo_tag=None,  envs=None, module_file_suffix=None, **kwargs):
+        self._resolver = None
         self._factory = None
         self._repo_name = repo_name or __package__.split('.')[0]
         self._repo_tag = repo_tag or self._repo_name[:2]
@@ -28,32 +29,31 @@ class ModuleRepository:
 
         logger.debug(f"Open module repository '{self._repo_name} ({self._repo_tag})'")
 
-        self.configure([p for p in [
-            *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(':'),
-            *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(':'),
-            f"pkgdata://{self._repo_name}/configure.yaml"
-        ] if not not p])
-
     def load_configure(self, path, **kwargs):
         return self.configure(io.read(path))
 
     def save_configure(self, path):
         io.write(path, self._envs)
 
-    def configure(self, conf=None, **kwargs):
-        conf_path = []
-        if isinstance(conf, str):
-            conf_path.append(conf)
+    def configure(self, conf=None, enable_sys_confile=True, **kwargs):
+
+        if conf is None:
             conf = {}
         elif isinstance(conf, collections.abc.Sequence):
-            conf_path.extend(conf)
-            conf = {}
-        elif isinstance(conf, collections.abc.Mapping):
-            pass
-        else:
+            conf = io.read(conf)
+        elif not isinstance(conf, collections.abc.Mapping):
             raise TypeError(f"configure should be dict, string or list of string")
 
-        sys_conf = {} if not conf_path else io.read(conf_path)
+        if enable_sys_confile:
+            sys_conf = io.read(
+                [
+                    *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(':'),
+                    *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(':'),
+                    f"pkgdata://{self._repo_name}/configure.yaml"
+                ])
+        else:
+            sys_conf = {}
+        # conf_path = []
 
         # TODO:  list in dict should be appended not overwrited .
         f_conf = collections.ChainMap(kwargs, conf, sys_conf)
@@ -153,6 +153,17 @@ class ModuleRepository:
         n_metadata[f"{self._repo_tag.upper()}_MODULEFILE_DIR"] = modulefile_path.parent
         n_metadata[f"{self._repo_tag.upper()}_MODULEFILE_PATH"] = modulefile_path
         return n_metadata
+
+    def new_class_by_path(self, path):
+        if isinstance(path, str):
+            res = self.new_class(path)
+        elif isinstance(path, list) and isinstance(path[-1], collections.Mapping):
+            res = self.new_class('/'.join(path[:-1]), **path[-1])
+        elif isinstance(path, list) and not isinstance(path[-1], collections.Mapping):
+            res = self.new_class('/'.join(path))
+        else:
+            raise TypeError(type(path))
+        return res
 
     def new_class(self, metadata, *args, **kwargs):
 

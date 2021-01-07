@@ -182,17 +182,17 @@ class XMLNode(Node):
 
 
 class XMLFile(File):
-    def __init__(self, data=None, *args, envs=None, **kwargs):
+    def __init__(self, data=None, *args, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._envs = envs
+        self._root = None
         if data is not None:
             raise NotImplemented
 
     @property
     def root(self):
         if self._root is None:
-            self._root = load_xml(self.path, mode=mode)
-        return XMLNode(self._root, parent=self, envs=self._envs)
+            self._root = load_xml(self.path, mode=self.metadata.mode)
+        return XMLNode(self._root, parent=self)
 
 
 __SP_EXPORT__ = XMLFile

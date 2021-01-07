@@ -169,17 +169,17 @@ class LazyProxy:
 
         if isinstance(handler, LazyProxyHandler) or inspect.isclass(handler):
             return handler
-        elif isinstance(ops, collections.abc.Mapping):
-            ops = {**ops, **kwargs}
-        elif inspect.isfunction(ops):
-            ops = {"get": ops}
+        elif isinstance(handler, collections.abc.Mapping):
+            handler = {**handler, **kwargs}
+        elif inspect.isfunction(handler):
+            handler = {"get": handler}
         else:
-            raise TypeError(f"illegal ops type {type(ops)}!")
+            raise TypeError(f"illegal ops type {type(handler)}!")
 
         n_cls = type(
-            f"wrapped_{cls.__name__}_{uuid.uuid1().hex}",
-            (LazyProxy.Handler,),
-            {k: staticmethod(op) for k, op in ops.items()}
+            f"wrapped_{obj.__class__.__name__}_{uuid.uuid1().hex}",
+            (LazyProxyHandler,),
+            {k: staticmethod(op) for k, op in handler.items()}
         )
         return n_cls()
 
@@ -326,12 +326,12 @@ class LazyProxy:
         )
 
     def __call__(self, *args, **kwargs):
-        # return self.__fetch__()(*args, **kwargs)
-        return object.__getattribute__(self, "__handler__").call(
-            object.__getattribute__(self, "__object__"),
-            object.__getattribute__(self, "__path__"),
-            *args, **kwargs
-        )
+        return self.__fetch__()(*args, **kwargs)
+        # return object.__getattribute__(self, "__handler__").call(
+        #     object.__getattribute__(self, "__object__"),
+        #     object.__getattribute__(self, "__path__"),
+        #     *args, **kwargs
+        # )
 
     ###############################################################
     # from lazy_object_proxy

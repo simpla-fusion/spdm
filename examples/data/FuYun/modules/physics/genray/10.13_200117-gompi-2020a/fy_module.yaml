@@ -62,7 +62,10 @@ postscript:
 in_ports:
   - name: equilibrium
     $class: file/geqdsk
-    path: "{FY_MODULEFILE_DIR}/template/g063982.04800"
+
+  - name: profile_in
+    $class: file/netcdf
+    $schema: "{name}/profile_in"
 
   - name: number_of_steps
     $class: integer
@@ -78,21 +81,18 @@ in_ports:
     template: "{FY_MODULEFILE_DIR}/template/genray.in"
     path: genray.dat
     default:
+      mnemonic: "{JOB_ID}"
       tokamak:
         eqdskin: "{equilibrium}"
       genr:
-        partner:
-          $class: file.netcdf
-          path: "/home/salmon/workspace/data/genray/genray_profs_in.nc"
+        partner: "{profile_in}"
         outdat: "{WORKING_DIR}"
-      ecocone:
-        gzone: 1
 
 out_ports:
   - name: result
     $class: file/netcdf
-    path: genray.nc
+    path: "{JOB_ID}.nc"
 
   - name: equilibrium
     $class: file/geqdsk
-    path: genray.txt
+    path: "{equilibrium}"

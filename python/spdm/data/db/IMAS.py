@@ -1,6 +1,3 @@
-from .PluginXML import XMLHandler, XMLHolder
-from .PluginHDF5 import HDF5Handler, connect_hdf5
-from ..Handler import Handler
 import collections
 import pathlib
 
@@ -8,12 +5,11 @@ from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ..connect import connect
 from ..Document import Document
 from ..Collection import Collection
 
 
-class IMASHandler(Handler):
+class IMASNode(Node):
     def __init__(self, target, *args, mapping=None, **kwargs):
         super().__init__(*args, **kwargs)
         if isinstance(mapping, LazyProxy):
@@ -65,7 +61,10 @@ class IMASHandler(Handler):
     def iter(self, holder, path, *args, **kwargs):
         for item in self._xml_handler.iter(self._xml_holder, path):
             yield self._fetch_from_xml(holder, item, *args, **kwargs)
-   
+
+
+class IMASDocument(Document):
+    pass
 
 
 class IMASCollection(Collection):

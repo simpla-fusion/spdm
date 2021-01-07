@@ -30,17 +30,19 @@ if __name__ == "__main__":
     Genray = module.new_class("physics/genray", version="10.13_200117", tag="-gompi-2020a")
 
     cfg = {
-        "tokamak": {
-            # {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/template/g063982.04800"},
-            "eqdskin": "{equilibrium}"
-        },
-        "genr": {
-            "partner":  {"$class": "file.netcdf", "path": "/home/salmon/workspace/data/genray/genray_profs_in.nc"},
-            "outdat": "{WORKING_DIR}"
-        },
-        "ecocone": {"gzone": 1}
+        "$schema": "file/namelist",
+        "default": {
+            "tokamak": {
+                # {"$class": "file.geqdsk", "path": "{FY_MODULEFILE_DIR}/template/g063982.04800"},
+                "eqdskin": "{equilibrium}"
+            },
+            "genr": {
+                "partner":  {"$class": "file.netcdf", "path": "/home/salmon/workspace/data/genray/genray_profs_in.nc"},
+                "outdat": "{WORKING_DIR}"
+            },
+            "ecocone": {"gzone": 1}
+        }
     }
-
     equilibrium = File(
         path="/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/physics/genray/10.13_200117-gompi-2020a/template/g063982.04800",
         file_format="file.geqdsk")

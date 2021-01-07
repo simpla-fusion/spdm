@@ -193,4 +193,4 @@ class MDSplusCollection(Collection):
     #     return shot
 
 
-__SP_EXPORT__ = MDSplusCollection
+__SP_EXPORT__ = MDSplusDocument

@@ -105,7 +105,7 @@ class Profile(np.ndarray, DataObject):
 
     def __init__(self,  value=None, *args, axis=None, description=None, **kwargs):
         super().__init__(*args, **kwargs)
-        super(DataObject,self).__init__(attributes=description)
+        super(DataObject, self).__init__(attributes=description)
         if isinstance(value, Profile):
             value = value(self._axis).view(np.ndarray)
 
@@ -114,7 +114,7 @@ class Profile(np.ndarray, DataObject):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name='{ self.attributes.name}'>"
-        
+
     @property
     def is_constant(self):
         return self.shape == () and self.__class__ is not ProfileFunction
@@ -171,7 +171,7 @@ class Profile(np.ndarray, DataObject):
         elif self.shape == other.shape:
             np.copyto(self, other)
         else:
-            raise ValueError(f"Can not copy object! {type(other)} {other} ")
+            raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
 
     def __call__(self, x_axis=None, *args, **kwargs):
         if x_axis is self._axis or x_axis is None:
@@ -433,23 +433,21 @@ class Profiles(AttributeTree):
         else:
             return self.__as_object__().setdefault(key, self._create(d, name=key))
 
-    def __setitem__(self, key, value):
+    def __normalize__(self, value, name=None):
         if isinstance(value, Profile):
-            self.__as_object__()[key] = value(self._axis)
+            res = value(self._axis)
+        elif isinstance(value, np.ndarray) or callable(value):
+            res = Profile(value, axis=self._axis,  description={"name": name})
+        elif isinstance(value, collections.abc.Mapping):
+            res = {k: self.__normalize__(v, k) for k, v in value.items()}
+        elif isinstance(value, list):
+            res = [self.__normalize__(v, f"{name or ''}_{idx}") for idx, v in enumerate(value)]
         else:
-            self.__as_object__()[key] = Profile(value, axis=self._axis,  description={"name": key})
-        # v = self.__getitem__(key)
-        # if v is None:
-        # elif isinstance(v, Profile):
-        #     if isinstance(value, (np.ndarray, int, float)):
-        #         v.copy(value)
-        #     elif callable(value):
-        #         ufunc = np.vectorize(value)
-        #         v.copy(ufunc(self._axis))
-        #     else:
-        #         raise ValueError(value)
-        # else:
-        #     raise KeyError(f"Can not assign value to {key}: {type(v)}!")
+            res = value
+        return res
+
+    # def __setitem__(self, key, value):
+    #     super().__setitem__(key, self.__normalize__(value, key))
 
     @ lru_cache
     def cache(self, key):

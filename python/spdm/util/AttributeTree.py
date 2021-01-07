@@ -97,16 +97,24 @@ class AttributeTree:
 
         return res if res is not None else self.__missing__(key)
 
+    def __normalize__(self, value, name=None):
+        return value
+
     def __setitem__(self, key, value):
-        if key is _next_:
-            self.__push_back__().__update__(value)
+        if isinstance(key, str) and '.' in key:
+            key = key.split('.')
+
+        if isinstance(key, list):
+            self.__getitem__(key[:1]).__setitem__(key[-1], value)
+        elif key is _next_:
+            self.__push_back__().__update__(self.__normalize__(value, key))
         elif isinstance(value, Mapping):
             self.__delitem__(key)
-            self.__getitem__(key).__update__(value)
+            self.__getitem__(key).__update__(self.__normalize__(value, key))
         elif isinstance(key, str):
-            self.__as_object__().__setitem__(key, value)
+            self.__as_object__().__setitem__(key, self.__normalize__(value, key))
         elif type(key) in (int, slice, tuple):
-            self.__as_array__()[key] = value
+            self.__as_array__()[key] = self.__normalize__(value, key)
 
         else:
             raise TypeError(f"Illegal key type! {type(key)}")
@@ -206,6 +214,7 @@ class AttributeTree:
                 return
             obj = self.__as_object__()
             for k, v in other.items():
+                v=self.__normalize__(v,k)
                 if isinstance(v, collections.abc.Mapping):
                     d = self.__missing__(k)
                     if isinstance(d, AttributeTree):

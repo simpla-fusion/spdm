@@ -34,6 +34,9 @@ class Collection(SpObject):
 
         "mongo": f"{__package__}.db.MongoDB",
         "mongodb": f"{__package__}.db.MongoDB",
+
+        "imas": f"{__package__}.db.IMAS#IMASCollection",
+
     }
     metadata = AttributeTree()
 
