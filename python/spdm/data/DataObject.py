@@ -85,16 +85,20 @@ class DataObject(SpObject):
 
         if isinstance(_metadata, str):
             _metadata = {"$class": _metadata}
-        elif _metadata is not None:
+        elif _metadata is None:
             pass
-        elif isinstance(data, collections.abc.Mapping) and "$class" in data:
+        elif not isinstance(_metadata, collections.abc.Mapping):
+            raise TypeError(type(_metadata))
+
+        if not isinstance(data, collections.abc.Mapping) or "$class" not in data:
+            if _metadata is None:
+                return data
+        elif _metadata is None:
             _metadata = data
             data = None
-        else:
-            return data
-
-        # elif not isinstance(_metadata, collections.abc.Mapping):
-        #     raise TypeError(type(_metadata))
+        elif _metadata.get("$class", None) == data["$class"]:
+            _metadata = collections.ChainMap(data, _metadata or {})
+            data = None
 
         n_cls = _metadata.get("$class", "")
         n_cls = n_cls.replace("/", ".").lower()

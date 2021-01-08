@@ -62,9 +62,9 @@ class SpModule(SpObject):
             Collect and convert inputs
         """
 
-        args = DataObject.create(self._args or [])
+        args = self._args or []
 
-        kwargs = DataObject.create(self._kwargs)
+        kwargs = self._kwargs
 
         envs = collections.ChainMap(kwargs, {"VAR_ARGS": args}, self.envs)
 
