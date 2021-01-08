@@ -34,7 +34,7 @@ class SpModule(SpObject):
         self._envs = envs or {}
         self._args = args
         self._kwargs = kwargs
-
+        self._inputs = None
         self._outputs = None
 
         self._envs["JOB_ID"] = Session.current_job or self.__class__.__name__
@@ -61,27 +61,26 @@ class SpModule(SpObject):
         """
             Collect and convert inputs
         """
-        working_dir = self.envs.get("WORKING_DIR", None)
 
-        args = [DataObject.create(arg, envs=self.envs, working_dir=working_dir) for arg in self._args]
+        args = DataObject.create(self._args or [])
 
-        kwargs = {k: DataObject.create(data, envs=self.envs, working_dir=working_dir)
-                  for k, data in self._kwargs.items()}
+        kwargs = DataObject.create(self._kwargs)
+
+        envs = collections.ChainMap(kwargs, {"VAR_ARGS": args}, self.envs)
 
         for p_in in self.metadata.in_ports:
-
-            format_string_recursive(p_in, self.envs)
 
             p_name = str(p_in["name"])
 
             if p_name == "VAR_ARGS":
-                args = DataObject.create(args, _metadata=p_in, envs=self.envs, working_dir=working_dir)
-                continue
+                args = DataObject.create(args, _metadata=format_string_recursive(p_in, envs))
+            elif p_name in self._kwargs:
+                kwargs[p_name] = DataObject.create(kwargs[p_name], _metadata=format_string_recursive(p_in, envs))
+            else:
+                kwargs[p_name] = DataObject.create(p_in.get("default", None),
+                                                   _metadata=format_string_recursive(p_in, envs))
 
-            kwargs[p_name] = DataObject.create(kwargs.get(p_name, None) or p_in.get("default", None),
-                                               working_dir=working_dir,
-                                               envs=collections.ChainMap(kwargs, {"VAR_ARGS": args}, self.envs),
-                                               _metadata=p_in)
+        logger.debug(kwargs)
 
         return args, kwargs
 
@@ -89,7 +88,7 @@ class SpModule(SpObject):
     def outputs(self):
         if not self._outputs:
             self._outputs = self.run()
-            del self.inputs
+            self._inputs = None
 
         return self._outputs
 
@@ -156,6 +155,17 @@ class SpModuleLocal(SpModule):
     @property
     def working_dir(self):
         return self._working_dir
+
+    @property
+    def inputs(self):
+        if self._inputs is not None:
+            return self._inputs
+
+        pwd = pathlib.Path.cwd()
+        os.chdir(self.working_dir)
+        res = super().inputs
+        os.chdir(pwd)
+        return res
 
     def _execute_module_command(self, *args):
         logger.debug(f"MODULE CMD: module {' '.join(args)}")

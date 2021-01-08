@@ -58,26 +58,17 @@ class File(Document):
 
         return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
 
-    def __init__(self,  data=None, *args,  path=None, working_dir=None,   ** kwargs):
+    def __init__(self,  data=None, *args,  path=None, ** kwargs):
+        path = path or self.metadata.path
 
-        if working_dir is None:
-            working_dir = pathlib.Path.cwd()
-        elif isinstance(working_dir, str):
-            working_dir = pathlib.Path.cwd()/path
-        elif not isinstance(working_dir, pathlib.PosixPath):
-            raise TypeError(type(working_dir))
-
-        if path is None:
-            path = str(self.metadata.path)
-
-        if isinstance(path, str):
-            path = working_dir/path
-        if isinstance(path, list):
-            path = [working_dir/p for p in path]
+        if not path:
+            path = None
+        elif isinstance(path, str):
+            path = pathlib.Path(path)
+        elif isinstance(path, list):
+            path = [pathlib.Path(p) for p in path]
 
         super().__init__(data, *args, path=path, ** kwargs)
-
-    
 
     def __repr__(self):
         return str(self.path)
