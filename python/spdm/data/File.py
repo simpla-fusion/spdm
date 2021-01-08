@@ -38,16 +38,16 @@ class File(Document):
         ".mdsplus": "mdsplus",
     }
 
-    @staticmethod
-    def __new__(cls, data=None,  *args, _metadata=None,  **kwargs):
-        if cls is not File and _metadata is None and len(kwargs) == 0:
+    @classmethod
+    def __new__(cls, data=None,  *args, _metadata=None, format_hint=None,  **kwargs):
+        if cls is not File:
             return object.__new__(cls)
 
         _metadata = collections.ChainMap(_metadata or {}, kwargs)
 
         if "$class" not in _metadata:
             file_format = _metadata.get("file_format", None) or pathlib.Path(_metadata.get("path", "")).suffix
-            file_format = File.extension.get(ext.lower(), file_format)
+            file_format = File.extension.get(file_format.lower(), format_hint)
             file_format = file_format.replace('/', '.')
 
             if not file_format.startswith("file."):
@@ -67,6 +67,16 @@ class File(Document):
             path = pathlib.Path(path)
         elif isinstance(path, list):
             path = [pathlib.Path(p) for p in path]
+
+        if isinstance(data, pathlib.PosixPath):
+            file_format = File.extension.get(data.suffix.lower(), None)
+            if file_format is None or f"file/{file_format.lower()}" == self.metadata["$class"]:
+                if path is None:
+                    path = pathlib.Path.cwd()/data.name
+                shutil.copy(data, path)
+                data = None
+            else:
+                data = File(path=data)
 
         super().__init__(data, *args, path=path, ** kwargs)
 

@@ -30,9 +30,9 @@ class SpObject(object):
     _schema = "SpObject"
     _metadata = {"$class": "SpObject"}
 
-    @staticmethod
+    @classmethod
     def __new__(cls, *args, _metadata=None, **kwargs):
-        if cls is not SpObject and _metadata is None:
+        if cls is not SpObject:
             return object.__new__(cls)
 
         if isinstance(_metadata, str):
@@ -59,7 +59,7 @@ class SpObject(object):
 
         n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": _metadata})
 
-        obj = object.__new__(n_cls)
+        obj = n_cls.__new__(*args, _metadata=_metadata, **kwargs)
         obj._attributes = AttributeTree()
         return obj
 

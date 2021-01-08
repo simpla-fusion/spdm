@@ -30,6 +30,7 @@ class DataObject(SpObject):
         "string": str,
         "ndarray": np.ndarray,
 
+        "file": ".data.File",
         "file.general": ".data.file.GeneralFile",
         "file.bin": ".data.file.Binary",
         "file.hdf5": ".data.file.HDF5",
@@ -45,10 +46,10 @@ class DataObject(SpObject):
         "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
     }
 
-    @staticmethod
-    def __new__(cls, data=None, *args, _metadata=None, **kwargs):
+    @classmethod
+    def __new__(cls,   *args, _metadata=None, **kwargs):
         if cls is not DataObject and _metadata is None:
-            return SpObject.__new__(cls, data, *args, _metadata=_metadata, **kwargs)
+            return super(SpObject, cls).__new__(*args, _metadata=_metadata, **kwargs)
 
         if isinstance(_metadata, str):
             n_cls = _metadata
@@ -64,24 +65,11 @@ class DataObject(SpObject):
                 n_cls = DataObject.associations.get(n_cls, n_cls)
                 _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
 
-        if n_cls in (int, float, str):
-            return n_cls(data)
-        else:
-            return SpObject.__new__(cls, _metadata=_metadata)
+        return SpObject.__new__(*args, _metadata=_metadata, **kwargs)
 
     @classmethod
     def create(cls, data=None, *args, _metadata=None, envs=None, **kwargs):
         l_envs = collections.ChainMap(envs or {}, os.environ)
-
-        if isinstance(data, str):
-            data = format_string_recursive(data, l_envs)
-        elif isinstance(data, collections.abc.Mapping):
-            format_string_recursive(data,  l_envs)
-            data = {k: (v if k[0] == '$' else DataObject.create(v, *args,  envs=envs, **kwargs))
-                    for k, v in data.items()}
-        elif isinstance(data, collections.abc.Sequence):
-            format_string_recursive(data,  l_envs)
-            data = [DataObject.create(v, *args, envs=envs,  **kwargs) for v in data]
 
         if isinstance(_metadata, str):
             _metadata = {"$class": _metadata}
@@ -90,21 +78,36 @@ class DataObject(SpObject):
         elif not isinstance(_metadata, collections.abc.Mapping):
             raise TypeError(type(_metadata))
 
-        if not isinstance(data, collections.abc.Mapping) or "$class" not in data:
-            if _metadata is None:
-                return data
-        elif _metadata is None:
-            _metadata = data
-            data = None
-        elif _metadata.get("$class", None) == data["$class"]:
-            _metadata = collections.ChainMap(data, _metadata or {})
-            data = None
+        if data is None and _metadata is not None:
+            data = _metadata.get("default", None)
+
+        if isinstance(data, str):
+            data = format_string_recursive(data, l_envs)
+        elif isinstance(data, collections.abc.Mapping):
+            format_string_recursive(data,  l_envs)
+            data = {k: (v if k[0] == '$' else DataObject.create(v, *args,  envs=envs, **kwargs))
+                    for k, v in data.items()}
+            if "$class" in data:
+                if _metadata is None:
+                    _metadata = data
+                elif _metadata.get("$class", None) == data["$class"]:
+                    _metadata = collections.ChainMap(data, _metadata or {})
+                data = None
+
+        elif isinstance(data, collections.abc.Sequence):
+            format_string_recursive(data,  l_envs)
+            data = [DataObject.create(v, *args, envs=envs,  **kwargs) for v in data]
+
+        if _metadata is None:
+            return data
 
         n_cls = _metadata.get("$class", "")
         n_cls = n_cls.replace("/", ".").lower()
         n_cls = DataObject.associations.get(n_cls, n_cls)
 
-        if isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
+        if inspect.isclass(n_cls) and data is not None:
+            return n_cls(data)
+        elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
             return data
         else:
             return DataObject(data, *args, _metadata=collections.ChainMap({"$class": n_cls}, _metadata), envs=envs,  **kwargs)
