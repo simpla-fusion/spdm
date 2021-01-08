@@ -28,7 +28,7 @@ class SpModule(SpObject):
         else:
             return SpObject.__new__(cls, *args, **kwargs)
 
-    def __init__(self, *args, envs=None, metadata=None, working_dir=None, **kwargs):
+    def __init__(self, *args, envs=None, metadata=None,  **kwargs):
         super().__init__(metadata=metadata)
 
         self._envs = envs or {}
@@ -37,19 +37,6 @@ class SpModule(SpObject):
 
         self._outputs = None
 
-        working_dir = working_dir or os.environ.get("SP_OUTPUT_DIR", None)
-
-        if working_dir is not None:
-            working_dir = pathlib.Path(working_dir)
-        else:
-            working_dir = pathlib.Path.cwd()
-
-        count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
-
-        working_dir /= f"{self.__class__.__name__}_{count}"
-        working_dir.mkdir()
-
-        self._envs["WORKING_DIR"] = working_dir
         self._envs["JOB_ID"] = Session.current_job or self.__class__.__name__
 
     def __del__(self):
@@ -142,12 +129,33 @@ class SpModuleLocal(SpModule):
         ".csh": "tcsh"
     }
 
-    def __init__(self, *args,  **kwargs):
+    def __init__(self, *args, working_dir=None, **kwargs):
         super().__init__(*args, **kwargs)
-        logger.debug(f"Initialize: {self.__class__.__name__} ")
+
+        working_dir = working_dir or Session.current().cwd
+
+        if isinstance(working_dir, str):
+            working_dir = pathlib.Path(working_dir)
+
+        count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
+
+        working_dir /= f"{self.__class__.__name__}_{count}"
+        working_dir = working_dir.expanduser().resolve()
+
+        working_dir.mkdir(exist_ok=True, parents=True)
+
+        self._working_dir = working_dir
+
+        self._envs["WORKING_DIR"] = working_dir
+
+        logger.debug(f"Initialize: {self.__class__.__name__} at {self.working_dir} ")
 
     def __del__(self):
-        logger.debug(f"Finialize: {self.__class__.__name__} ")
+        logger.debug(f"Finalize: {self.__class__.__name__} ")
+
+    @property
+    def working_dir(self):
+        return self._working_dir
 
     def _execute_module_command(self, *args):
         logger.debug(f"MODULE CMD: module {' '.join(args)}")

@@ -47,8 +47,8 @@ class ModuleRepository:
         if enable_sys_confile:
             sys_conf = io.read(
                 [
-                    *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(':'),
-                    *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(':'),
+                    *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(';'),
+                    *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(';'),
                     f"pkgdata://{self._repo_name}/configure.yaml"
                 ])
         else:

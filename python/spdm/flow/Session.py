@@ -32,27 +32,58 @@ class Session:
     @staticmethod
     def current():
         if len(Session._stack) == 0:
-            Session._stack.append(Session(name="_ROOT_"))
+            Session._stack.append(Session())
         return Session._stack[-1]
 
     def __init__(self, envs=None, *args, engine=None,
-                 name=None, label=None, parent=None, attributes=None,
+                 name=None, label=None, parent=None, attributes=None, working_dir=None,
                  ** kwargs):
 
-        super().__init__(name=name, label=label or name,
-                         parent=parent, attributes=attributes)
+        # super().__init__(name=name, label=label or name,
+        #                  parent=parent, attributes=attributes)
 
-        if isinstance(engine, Engine):
-            self._engine = engine
+        # if isinstance(engine, Engine):
+        #     self._engine = engine
+        # else:
+        #     self._engine = Engine(engine, **kwargs)
+
+        # self._graph = None
+
+        self._envs = {}
+
+        if working_dir is not None:
+            self._working_dir = working_dir
+        elif isinstance(parent, Session):
+            self._working_dir = parent.cwd
         else:
-            self._engine = Engine(engine, **kwargs)
+            self._working_dir = working_dir or os.environ.get("FUYUN_OUTPUT_PATH", None)
+            if self._working_dir is not None:
+                self._working_dir = pathlib.Path(self._working_dir)
+            else:
+                self._working_dir = pathlib.Path.cwd()
 
-        self._graph = None
-        self._envs = SpBag(envs)
+        self._working_dir = self._working_dir.expanduser().resolve()
+
+        name = name or "fuyun"
+
+        count = len(list(self._working_dir.glob(f"{name}_*")))
+
+        self._name = f"{name}_{count}"
+
+        self._working_dir /= self._name
+
+        logger.info(f"====== Session [{self._name}]  Start ======")
+
+    def __del__(self):
+        logger.info(f"====== Session [{self._name}]  Stop  ======")
 
     @property
     def envs(self):
         return self._envs
+
+    @property
+    def cwd(self):
+        return self._working_dir
 
     @property
     def graph(self):

@@ -44,7 +44,7 @@ def _read(uri, **kwargs):
                 content = yaml.load(fid, Loader=yaml.FullLoader)
 
     elif o.schema in ['pkgdata']:
-        pkg = o.authority or __package__.split('.')[0]
+        pkg = str(o.authority) or __package__.split('.')[0]
         if not pkg:
             pass
         else:
