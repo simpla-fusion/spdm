@@ -26,11 +26,11 @@ class Collection(SpObject):
     DOCUMENT_CLASS = Document
 
     associations = {
-        "mapping": f"{__package__}.db.Mapping",
+        "mapping": f"{__package__}.db.Mapping#MappingCollection",
         "local": f"{__package__}.db.LocalFile",
 
-        "mds": f"{__package__}.db.MDSplus",
-        "mdsplus": f"{__package__}.db.MDSplus",
+        "mds": f"{__package__}.db.MDSplus#MDSplusCollection",
+        "mdsplus": f"{__package__}.db.MDSplus#MDSplusCollection",
 
         "mongo": f"{__package__}.db.MongoDB",
         "mongodb": f"{__package__}.db.MongoDB",
@@ -41,51 +41,64 @@ class Collection(SpObject):
     metadata = AttributeTree()
 
     @staticmethod
-    def __new__(cls, desc=None, *args, schema=None, **kwargs):
-        if cls is not Collection:
+    def __new__(cls, _metadata=None, *args,   **kwargs):
+        if cls is not Collection and _metadata is None:
             return object.__new__(cls)
             # return super(Collection, cls).__new__(desc, *args, **kwargs)
 
-        if isinstance(desc, str):
-            desc = urisplit(desc)
+        if isinstance(_metadata, str):
+            o = urisplit(_metadata)
+            if not o.schema:
+                _metadata = {"$class": _metadata}
+            else:
+                _metadata = {"$class": o.schema,  "path": _metadata}
 
-        if isinstance(desc, AttributeTree):
-            desc = desc.__as_native__()
+        elif desc is None:
+            _metadata = {}
+        elif isinstance(_metadata, AttributeTree):
+            _metadata = _metadata.__as_native__()
 
-        schema = (schema or desc.get("schema", "local")).split("+")[0]
+        schemas = (_metadata["$class"] or "local").split('+')
+        if not schemas:
+            raise ValueError(_metadata)
+        elif len(schemas) > 1:
+            schema = "mapping"
+        else:
+            schema = schemas[0]
 
         n_cls = Collection.associations.get(schema.lower(), f"{__package__}.db.{schema}")
 
-        if isinstance(n_cls, str):
-            n_cls = sp_find_module(n_cls)
-
         if inspect.isclass(n_cls):
             res = object.__new__(n_cls)
-        elif callable(n_cls):
-            res = n_cls()
         else:
-            raise RuntimeError(f"Illegal schema! {schema} {n_cls} {desc}")
+            res = SpObject.__new__(Collection, _metadata=n_cls)
+
+        # else:
+        #     raise RuntimeError(f"Illegal schema! {schema} {n_cls} {desc}")
 
         return res
 
     def __init__(self, desc, *args, id_hasher=None, envs=None, **kwargs):
-        super().__init__(attributes=desc)
+        super().__init__()
 
-        logger.info(f"Open {self.__class__.__name__} : \n {desc}")
+        logger.info(f"Open {self.__class__.__name__} : {desc}")
 
         self._id_hasher = id_hasher or "{_id}"
 
         self._envs = collections.ChainMap(kwargs, envs or {})
 
-    @cached_property
+    def __del__(self):
+        logger.info(f"Close {self.__class__.__name__}:{self.metadata.name}")
+
+    @ cached_property
     def envs(self):
         return AttributeTree(self._envs)
 
-    @property
+    @ property
     def is_writable(self):
         return "w" in self.metadata.mode
 
-    @property
+    @ property
     def handler(self):
         return self._handler
 

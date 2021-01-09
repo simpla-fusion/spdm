@@ -36,26 +36,29 @@ def write(path, content, force=True):
 
 def _read(uri, **kwargs):
     content = None
-    o = urisplit(uri)
-    if o.schema in [None, 'file', 'local']:
-        p = pathlib.Path(o.path).expanduser()
-        if p.exists() and p.suffix in (".json", ".yaml", None):
-            logger.debug(f"Read file: {p}")
+    path = []
+    if isinstance(uri, pathlib.PosixPath):
+        path = [uri]
+    else:
+        o = urisplit(uri)
+        if o.schema in [None, 'file', 'local']:
+            path = [pathlib.Path(o.path).expanduser()]
+        elif o.schema in ['pkgdata']:
+            pkg = str(o.authority) or __package__.split('.')[0]
+            if pkg:
+                path = sp_pkg_data_path(pkg, o.path[1:])
+        elif o.schema in ['http', 'https'] and ENABLE_REMOTE:
+            content = requests.get(uri).json()
+
+    for p in path:
+        if not p.is_file():
+            continue
+        elif p.suffix in (".json", ".yaml", ''):
             with p.open() as fid:
                 content = yaml.load(fid, Loader=yaml.FullLoader)
-
-    elif o.schema in ['pkgdata']:
-        pkg = str(o.authority) or __package__.split('.')[0]
-        if not pkg:
-            pass
+                break
         else:
-            for p in sp_pkg_data_path(pkg, o.path[1:]):
-                if p.exists() and p.suffix in (".json", ".yaml", ''):
-                    with p.open() as fid:
-                        content = yaml.load(fid, Loader=yaml.FullLoader)
-                        break
-    elif o.schema in ['http', 'https'] and ENABLE_REMOTE:
-        content = requests.get(uri).json()
+            raise NotImplementedError(f"Unknown file type {p}")
 
     if content is None and FAIL_SAFE is not None:
         content = FAIL_SAFE(uri).read()

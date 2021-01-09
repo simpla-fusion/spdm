@@ -38,27 +38,29 @@ class File(Document):
         ".mdsplus": "mdsplus",
     }
 
-    @classmethod
-    def __new__(cls, path=None,  *args, _metadata=None, format_hint=None,  **kwargs):
-        if cls is not File:
-            return object.__new__(cls)
+    def __new__(cls, _metadata=None, *args, path=None,   file_format=None,  **kwargs):
+        if cls is not File and _metadata is None:
+            return Document.__new__(cls)
 
-        _metadata = collections.ChainMap(_metadata or {}, kwargs)
-
-        if "$class" not in _metadata:
-            file_format = _metadata.get("file_format", None) or pathlib.Path(path or _metadata.get("path", "")).suffix
-            file_format = File.extension.get(file_format.lower(), format_hint)
+        if not isinstance(_metadata, collections.abc.Mapping) or "$class" not in _metadata:
+            file_format = file_format or _metadata.get("file_format", None) or\
+                pathlib.Path(path or _metadata.get("path", "")).suffix
+            if file_format[0] != '.':
+                file_format = '.'+file_format
+            file_format = File.extension.get(file_format.lower(), file_format)
             file_format = file_format.replace('/', '.')
 
             if not file_format.startswith("file."):
                 file_format = "file."+file_format
-            _metadata["$class"] = file_format
 
-        logger.debug(_metadata)
+            if _metadata is None:
+                _metadata = file_format
+            else:
+                _metadata["$class"] = file_format
 
-        return Document.__new__(*args, _metadata=_metadata, **kwargs)
+        return Document.__new__(cls, _metadata=_metadata, *args,  **kwargs)
 
-    def __init__(self,  *args, path=None,  ** kwargs):
+    def __init__(self,   *args, path=None, ** kwargs):
         path = path or self.metadata.path
 
         if not path:

@@ -198,7 +198,6 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
     ffprim = eq.profiles_1d.f_df_dpsi
     pprim = eq.profiles_1d.dpressure_dpsi
     qpsi = eq.profiles_1d.q
-    print(qpsi.shape)
 
     return {
         "nw": nw,
@@ -280,19 +279,12 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
     profiles_1d.q = geqdsk["qpsi"]
 
 
-def load_geqdsk(uri):
-
-    eq = AttributeTree()
-
-    with open(uri) as fp:
-        sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
-
-    return eq
-
-
 class FileGEQdsk(File):
+    schema = "geqdsk"
+
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args, **kwargs)
+        self._data = None
 
     def load(self, p):
         with open(p or self._path, mode="r") as fp:
@@ -301,6 +293,36 @@ class FileGEQdsk(File):
     def save(self, p):
         geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.entry)
         with open(p or self._path, mode="w") as fp:
+            sp_write_geqdsk(geqdsk, fp)
+
+    @property
+    def root(self):
+        if self._data is not None:
+            return self._data
+
+        self._data = Document()
+
+        with open(self._path, mode="r") as fp:
+            self._data.update(sp_read_geqdsk(fp))
+
+        self._data["$schema"] = self.schema
+
+        return self._data
+
+    def update(self, d):
+        if not isinstance(d, collections.abc.Mapping):
+            raise TypeError(type(d))
+        if not isinstance(d, AttributeTree):
+            d = AttributeTree(d)
+        schema = d["$schema"] or "imas"
+        if schama == "imas":
+            geqdsk = sp_imas_equilibrium_to_geqdsk(d)
+        elif schema == self.schema:
+            geqdsk = d
+        else:
+            raise NotImplementedError(schema)
+
+        with open(self.path, mode="w") as fp:
             sp_write_geqdsk(geqdsk, fp)
 
 

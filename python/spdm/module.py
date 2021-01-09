@@ -6,19 +6,27 @@ import sys
 
 from spdm.flow.ModuleRepository import ModuleRepository
 
-REPO_NAME = 'FUYUN'
+_repo = None
 
-REPO_TAG = 'FY'
 
-os.environ.setdefault(f"{REPO_NAME}_CONFIGURE_PATH",
-                      f"pkgdata://{__package__}/../../examples/data/FuYun/configure.yaml")
+def _configure(path=None, repo_name=None, repo_tag=None):
+    global _repo
+    repo_name=repo_name or __package__.split('.')[0]
+    if _repo is None:
+        _repo = ModuleRepository(repo_name=repo_name, repo_tag=repo_tag)
+        # os.environ.setdefault(f"{repo_name.upper()}_CONFIGURE_PATH",
+        #                       f"pkgdata://{__package__}/../../examples/data/FuYun/configure.yaml")
+        os.environ.setdefault(f"{repo_name.upper()}_OUTPUT_PATH", f"~/{repo_name.lower()}_output")
 
-os.environ.setdefault(f"{REPO_NAME}_OUTPUT_PATH", f"~/{REPO_NAME.lower()}_output")
+    _repo.configure(path)
 
-_module = ModuleRepository(repo_name=REPO_NAME, repo_tag=REPO_TAG)
-_module.configure()
+
+def _get_repo():
+    if _repo is None:
+        _configure()
+    return _repo
 
 
 def __getattr__(path):
-    return _module.entry[path]
+    return _get_repo().entry[path]
     # return LazyProxy(_module, [path], handler=lambda o, p: o.new_class_by_path(p))

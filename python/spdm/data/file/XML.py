@@ -182,11 +182,9 @@ class XMLNode(Node):
 
 
 class XMLFile(File):
-    def __init__(self, data=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
         self._root = None
-        if data is not None:
-            raise NotImplemented
 
     @property
     def root(self):

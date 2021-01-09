@@ -79,20 +79,27 @@ class MDSplusDocument(Document):
         "x": "New"
     }
 
-    def __init__(self, desc, *args, tree_name=None, path=None, **kwargs):
-        super().__init__(desc, *args, path=path, ** kwargs)
+    def __init__(self, *args, desc=None,  tree_name=None, path=None, **kwargs):
+        super().__init__(*args,  path=path, ** kwargs)
 
         mds_mode = MDSplusDocument.MDS_MODE.get(self.mode, "NORMAL")
 
         self._trees = DefaultDict(lambda t, s=self.fid, m=mds_mode,
                                   p=str(self.path): open_mdstree(t, s, mode=m, path=p))
 
-        if tree_name is None:
-            tree_name = str(self.metadata.tree_name)
-        if not tree_name:
-            pass
-        else:
-            self._trees[None] = self._trees[tree_name]
+        if desc is None:
+            desc = {}
+
+        tree_name = tree_name or desc.get("tree_name")
+
+        self._trees[None] = self._trees[tree_name]
+
+    def __del__(self):
+        del self._trees
+        super().__del__()
+
+        # for k, tree in self._trees.items():
+        #     logger.debug(tree)
 
     @property
     def root(self):
@@ -100,11 +107,17 @@ class MDSplusDocument(Document):
 
 
 class MDSplusCollection(Collection):
-    def __init__(self, desc, *args,  tree_name=None,  **kwargs):
-        super().__init__(desc, *args, **kwargs)
+    def __init__(self, _metadata=None, *args,  tree_name=None,  **kwargs):
+        super().__init__(_metadata, *args,  **kwargs)
 
-        self._default_tree_name = tree_name or self.attributes.query.tree_name
-        self._path = self.attributes.path or pathlib.Path.cwd()
+        if isinstance(_metadata, str):
+            o = urisplit(_metadata)
+            self._authority = o.authority
+            self._path = o.path
+            self._tree_name = o.query.tree_name
+
+        else:
+            raise RuntimeError(_metadata)
         # schema = self.metadata.schema.lower()
         # authority = self.metadata.authority or ''
         # path = self.metadata.path or ""
@@ -131,7 +144,8 @@ class MDSplusCollection(Collection):
     #         del os.environ[f"{tree_name}_path"]
 
     def open_document(self, fid, mode="r", tree_name=None):
-        return MDSplusDocument(self.metadata, fid=fid, mode=mode, path=self._path, tree_name=tree_name or self._default_tree_name)
+        return MDSplusDocument(None, desc=self.metadata, fid=fid, mode=mode,
+                               path=self._path, tree_name=tree_name or self._tree_name)
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(collections.ChainMap((query or {}), kwargs), auto_inc=True)

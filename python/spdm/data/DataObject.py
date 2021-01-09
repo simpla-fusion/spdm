@@ -48,7 +48,7 @@ class DataObject(SpObject):
 
     def __new__(cls,   _metadata=None, *args, **kwargs):
         if cls is not DataObject and _metadata is None:
-            return super(SpObject, cls).__new__(_metadata, *args, **kwargs)
+            return SpObject.__new__(cls)
 
         if isinstance(_metadata, str):
             n_cls = _metadata
@@ -64,7 +64,7 @@ class DataObject(SpObject):
                 n_cls = DataObject.associations.get(n_cls, n_cls)
                 _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
 
-        return SpObject.__new__(SpObject, _metadata, *args, **kwargs)
+        return SpObject.__new__(cls, _metadata, *args, **kwargs)
 
     @staticmethod
     def create(data,  _metadata=None, *args, **kwargs):

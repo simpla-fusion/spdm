@@ -37,26 +37,27 @@ class ModuleRepository:
 
     def configure(self, conf=None, enable_sys_confile=True, **kwargs):
 
-        if conf is None:
-            conf = {}
+        conf_file_list = []
+
+        if isinstance(conf, (str, pathlib.PosixPath)):
+            conf_file_list = [conf]
+            conf = None
         elif isinstance(conf, collections.abc.Sequence):
-            conf = io.read(conf)
-        elif not isinstance(conf, collections.abc.Mapping):
-            raise TypeError(f"configure should be dict, string or list of string")
+            conf_file_list = conf
+            conf = None
 
         if enable_sys_confile:
-            sys_conf = io.read(
+            conf_file_list.extend(
                 [
                     *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(';'),
                     *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(';'),
                     f"pkgdata://{self._repo_name}/configure.yaml"
                 ])
-        else:
-            sys_conf = {}
-        # conf_path = []
 
-        # TODO:  list in dict should be appended not overwrited .
-        f_conf = collections.ChainMap(kwargs, conf, sys_conf)
+        extra_conf = io.read(conf_file_list)
+
+        # TODO:  list in dict should be appended not overwrote .
+        f_conf = collections.ChainMap(kwargs, conf or {}, extra_conf)
 
         self._factory = Factory(**collections.ChainMap(
             f_conf.get("factory", {}),
