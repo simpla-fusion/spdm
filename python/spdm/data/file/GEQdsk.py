@@ -310,7 +310,10 @@ class FileGEQdsk(File):
         return self._data
 
     def update(self, d):
-        if not isinstance(d, collections.abc.Mapping):
+        if isinstance(d, pathlib.PosixPath):
+            self._path = d
+            return
+        elif not isinstance(d, collections.abc.Mapping):
             raise TypeError(type(d))
         if not isinstance(d, AttributeTree):
             d = AttributeTree(d)
