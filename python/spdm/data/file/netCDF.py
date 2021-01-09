@@ -115,8 +115,8 @@ class NetCDFNode(Node):
 
 
 class FileNetCDF(File):
-    def __init__(self, data=None, *args, mode="r", **kwargs):
-        super().__init__(data, *args,   **kwargs)
+    def __init__(self, _metadata=None, *args, mode="r", **kwargs):
+        super().__init__(_metadata, *args,   **kwargs)
         self._root = None
 
     @property

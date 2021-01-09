@@ -17,8 +17,8 @@ class Document(DataObject):
         self._fid = fid
         self._path = path or self.metadata.path or pathlib.Path.cwd()
 
-    def __del__(self):
-        logger.info(f"{self.__class__.__name__}")
+    # def __del__(self):
+    #     logger.info(f"{self.__class__.__name__}")
 
     def copy(self, other):
         if isinstance(other, Document):

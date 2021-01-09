@@ -310,7 +310,9 @@ class FileGEQdsk(File):
         return self._data
 
     def update(self, d):
-        if isinstance(d, pathlib.PosixPath):
+        if d is None:
+            return
+        elif isinstance(d, pathlib.PosixPath):
             self._path = d
             return
         elif not isinstance(d, collections.abc.Mapping):

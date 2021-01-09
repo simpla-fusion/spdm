@@ -88,9 +88,12 @@ class DataObject(SpObject):
 
         if inspect.isclass(n_cls) and data is not None:
             return n_cls(data)
+        elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
+            return data
         else:
             res = DataObject(collections.ChainMap({"$class": n_cls}, _metadata), *args,  **kwargs)
-            res.update(data)
+            if data is not None:
+                res.update(data)
             return res
 
     def __init__(self, _metadata=None, *args,  **kwargs):

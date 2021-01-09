@@ -93,12 +93,16 @@ class SpModule(SpObject):
             obj = DataObject.create(data, _metadata=metadata)
         return obj
 
-    @cached_property
+    @property
     def inputs(self):
         """
             Collect and convert inputs
         """
+        if self._inputs is not None:
+            return self._inputs
 
+        cwd = pathlib.Path.cwd()
+        os.chdir(self.envs.get("WORKING_DIR", None) or cwd)
         envs_map = DictTemplate(collections.ChainMap(self._kwargs, {"_VAR_ARGS_": self._args}, self.envs))
 
         args = []
@@ -125,18 +129,21 @@ class SpModule(SpObject):
 
             kwargs[p_name] = DataObject.create(data, _metadata=p_metadata)
 
-        return args, kwargs
+        self._inputs = args, kwargs
 
-    @ property
+        os.chdir(cwd)
+        return self._inputs
+
+    @property
     def outputs(self):
         if self._outputs is not None:
             return self._outputs
-
+        cwd = pathlib.Path.cwd()
+        os.chdir(self.envs.get("WORKING_DIR", None) or cwd)
         result = self.run()
 
-        envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {
-                                "inputs": AttributeTree(self.inputs[1])}, self.envs))
-
+        inputs = AttributeTree(self.inputs[1])
+        envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {"inputs": inputs}, self.envs))
         outputs = {}
 
         for p_name, p_metadata in self.metadata.out_ports:
@@ -153,7 +160,7 @@ class SpModule(SpObject):
         self._outputs = AttributeTree(outputs)
 
         self._inputs = None
-
+        os.chdir(cwd)
         return self._outputs
 
     def run(self):
@@ -214,11 +221,11 @@ class SpModuleLocal(SpModule):
     def __del__(self):
         logger.debug(f"Finalize: {self.__class__.__name__} ")
 
-    @ property
+    @property
     def working_dir(self):
         return self._working_dir
 
-    @ property
+    @property
     def inputs(self):
         if self._inputs is not None:
             return self._inputs

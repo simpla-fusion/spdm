@@ -66,9 +66,9 @@ class File(Document):
         if not path:
             path = None
         elif isinstance(path, str):
-            path = pathlib.Path(path)
+            path = pathlib.Path.cwd()/path
         elif isinstance(path, list):
-            path = [pathlib.Path(p) for p in path]
+            path = [pathlib.Path.cwd()/p for p in path]
 
         super().__init__(*args, path=path, ** kwargs)
 
