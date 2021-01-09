@@ -73,7 +73,7 @@ def normalize_data(data, types=(int, float, str)):
     elif isinstance(data, collections.abc.Mapping):
         return {k:  normalize_data(v, types) for k, v in data.items()}
     elif isinstance(data, collections.abc.Sequence) and not isinstance(data, str):
-        return [normalize_data(data) for v in data]
+        return [normalize_data(v) for v in data]
     else:
         return str(data)
 

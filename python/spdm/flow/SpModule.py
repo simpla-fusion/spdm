@@ -118,28 +118,36 @@ class SpModule(SpObject):
                     data = None
                 else:
                     data = DataObject.create(_metadata=data)
-            
+
             kwargs[p_name] = DataObject.create(data, _metadata=p_metadata)
-            # if p_name == "VAR_ARGS":
-            #     args = self._convert_data(args, p_in, envs)
-            # else:
-            #     kwargs[p_name] = self._convert_data(kwargs.get(p_name, None), _metadata=p_in, envs)
-            # if isinstance(data, pathlib.PosixPath):
-            #     file_format = File.extension.get(data.suffix.lower(), None)
-            #     if file_format is None or f"file/{file_format.lower()}" == self.metadata["$class"]:
-            #         if path is None:
-            #             path = pathlib.Path.cwd()/data.name
-            #         shutil.copy(data, path)
-            #         data = None
-            #     else:
-            #         data = File(path=data)
+
         return args, kwargs
 
     @ property
     def outputs(self):
-        if not self._outputs:
-            self._outputs = AttributeTree(self.run())
-            self._inputs = None
+        if self._outputs is not None:
+            return self._outputs
+
+        result = self.run()
+
+        envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {"inputs": AttributeTree(self.inputs[1])}, self.envs))
+
+        outputs = {}
+
+        for p_name, p_metadata in self.metadata.out_ports:
+
+            p_metadata = envs_map.apply(p_metadata)
+
+            data = result.get(p_name, None) or p_metadata["default"]
+
+            if not data:
+                data = None
+
+            outputs[p_name] = DataObject.create(data, _metadata=p_metadata)
+
+        self._outputs = AttributeTree(outputs)
+
+        self._inputs = None
 
         return self._outputs
 
@@ -340,7 +348,4 @@ class SpModuleLocal(SpModule):
                    STDERR:[{error.stderr}]""")
             raise error
 
-        return {
-            "EXITCODE": exitcode,
-            "WORKING_DIR": working_dir
-        }
+        return {"EXITCODE": exitcode}

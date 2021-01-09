@@ -31,10 +31,8 @@ build:
   #         url : 'ssh://git@git.iter.org/imas'
   #         repo_name : 'installer'
   #         tag : local_installer
-
   # builddependencies :
   #   - ['libxslt', '1.1.33']
-
   # dependencies : [
   #     ('Java', local_javaver, '', True),
   #     ('Python', local_pyver),
@@ -51,7 +49,7 @@ prescript:
   - module load genray/{version}{tag}
 
 run:
-  exec_file: "bin/xgenray_dummy" # "bin/xgenray.gfortran64" #
+  exec_file: "bin/xgenray.gfortran64" # "bin/xgenray_dummy" #
   arguments: "" # "-n {number_of_steps}   -i {config}  "
 
 postscript:
@@ -83,7 +81,7 @@ in_ports:
     $class: file/namelist
     template: "{FY_MODULEFILE_DIR}/template/genray.in"
     path: genray.dat
-    default:              
+    default:
       tokamak:
         eqdskin: "{equilibrium}"
       genr:
@@ -98,4 +96,4 @@ out_ports:
 
   equilibrium:
     $class: file/geqdsk
-    path: "{equilibrium}"
+    path: "{inputs.equilibrium}"

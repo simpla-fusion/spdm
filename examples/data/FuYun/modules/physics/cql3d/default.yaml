@@ -83,6 +83,10 @@ in_ports:
         mnemonic: "{JOB_ID}"
       eqsetup:
         eqsource: "{equilibrium}"
+      rfsetup:
+        rffile(1): 
+          - '{genray_result}'
+          
 
 out_ports:
   result:
@@ -91,4 +95,4 @@ out_ports:
 
   equilibrium:
     $class: file/geqdsk
-    path: genray.txt
+    path: "{inputs.equilibrium}"
