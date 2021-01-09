@@ -68,6 +68,8 @@ class Session:
 
         count = len(list(self._working_dir.glob(f"{name}_*")))
 
+        self._job_count = 0
+
         self._name = f"{name}_{count}"
 
         self._working_dir /= self._name
@@ -76,6 +78,11 @@ class Session:
 
     def __del__(self):
         logger.info(f"====== Session [{self._name}]  Stop  ======")
+
+    def job_id(self, id_hint=None):
+        res = f"{self._job_count:03}_{id_hint or ''}"
+        self._job_count += 1
+        return res
 
     @property
     def envs(self):

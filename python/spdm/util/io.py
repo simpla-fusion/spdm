@@ -40,6 +40,7 @@ def _read(uri, **kwargs):
     if o.schema in [None, 'file', 'local']:
         p = pathlib.Path(o.path).expanduser()
         if p.exists() and p.suffix in (".json", ".yaml", None):
+            logger.debug(f"Read file: {p}")
             with p.open() as fid:
                 content = yaml.load(fid, Loader=yaml.FullLoader)
 

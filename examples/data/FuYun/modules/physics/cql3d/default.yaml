@@ -80,13 +80,13 @@ in_ports:
     path: cqlinput
     default:
       setup0:
+        iuser: "{USER}"
         mnemonic: "{JOB_ID}"
       eqsetup:
         eqsource: "{equilibrium}"
       rfsetup:
-        rffile(1): 
-          - '{genray_result}'
-          
+        rffile(1):
+          - "{genray_result}"
 
 out_ports:
   result:

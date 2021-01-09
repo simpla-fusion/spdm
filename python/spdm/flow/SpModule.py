@@ -36,11 +36,15 @@ class SpModule(SpObject):
         self._kwargs = kwargs
         self._inputs = None
         self._outputs = None
-
-        self._envs["JOB_ID"] = Session.current_job or self.__class__.__name__
+        self._job_id = Session.current().job_id(self.__class__.__name__)
+        self._envs["JOB_ID"] = self._job_id
 
     def __del__(self):
         super().__del__()
+
+    @property
+    def job_id(self):
+        return self._job_id
 
     @property
     def envs(self):
@@ -130,7 +134,8 @@ class SpModule(SpObject):
 
         result = self.run()
 
-        envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {"inputs": AttributeTree(self.inputs[1])}, self.envs))
+        envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {
+                                "inputs": AttributeTree(self.inputs[1])}, self.envs))
 
         outputs = {}
 
@@ -195,12 +200,10 @@ class SpModuleLocal(SpModule):
         if isinstance(working_dir, str):
             working_dir = pathlib.Path(working_dir)
 
-        count = len(list(working_dir.glob(f"{self.__class__.__name__}_*")))
-
-        working_dir /= f"{self.__class__.__name__}_{count}"
+        working_dir /= f"{self.job_id}"
         working_dir = working_dir.expanduser().resolve()
 
-        working_dir.mkdir(exist_ok=True, parents=True)
+        working_dir.mkdir(exist_ok=False, parents=True)
 
         self._working_dir = working_dir
 
