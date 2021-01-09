@@ -15,7 +15,7 @@ class Document(DataObject):
         super().__init__(*args, **kwargs)
         self._mode = mode
         self._fid = fid
-        self._path = path or pathlib.Path.cwd()
+        self._path = path or self.metadata.path or pathlib.Path.cwd()
 
     def copy(self, other):
         if isinstance(other, Document):

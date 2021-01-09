@@ -12,12 +12,17 @@ from ..File import File
 
 
 class FileNamelist(File):
-    def __init__(self, data=None, *args, **kwargs):
-        super().__init__(data, *args, **kwargs)
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def update(self, data, *args, **kwargs):
-        data = normalize_data(data)
-        f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
+    def update(self, data=None, *args, **kwargs):
+        if data is None:
+            data = kwargs
+        if not isinstance(data, collections.abc.Mapping):
+            super().update(data, *args, **kwargs)
+        else:
+            data = normalize_data(data)
+            f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
 
     def read(self, *args, **kwargs) -> Dict[str, Any]:
         return f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)

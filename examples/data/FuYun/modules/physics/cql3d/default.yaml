@@ -60,34 +60,35 @@ postscript:
   - module purge
 
 in_ports:
-  - name: equilibrium
+  equilibrium:
     $class: file/geqdsk
     path: "{FY_MODULEFILE_DIR}/template/g063982.04800"
 
     # "{FY_MODULEFILE_DIR}/../template/g063982.04800"
-  - name: number_of_steps
+  number_of_steps:
     $class: integer
     default: 1
 
-  - name: dt
+  dt:
     default: 0.1
     $class: float
     $comment: Inputs the data for all NAMELISTs used in the code.
 
-  - name: config
+  config:
     $class: file/namelist
     template: "{FY_MODULEFILE_DIR}/template/cql3d.in"
     path: cqlinput
     default:
+      setup0:
+        mnemonic: "{JOB_ID}"
       eqsetup:
         eqsource: "{equilibrium}"
-     
 
 out_ports:
-  - name: nc
+  result:
     $class: file/netcdf
-    path: genray.nc
+    path: "{JOB_ID}.nc"
 
-  - name: out_eq
+  equilibrium:
     $class: file/geqdsk
     path: genray.txt

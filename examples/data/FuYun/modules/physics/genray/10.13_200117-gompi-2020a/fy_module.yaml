@@ -45,8 +45,6 @@ build:
   #     ('netCDF', '4.6.2'),
   #     ('MDSplus', '>7.83.0'),
   # ]
-  eb: Genray/{version}
-
 prescript:
   - module use /fuyun/modules/all
   - module purge
@@ -60,40 +58,44 @@ postscript:
   - module purge
 
 in_ports:
-  - name: equilibrium
+  # _VAR_ARGS_: False
+
+  # _VAR_KWARGS_: False
+
+  equilibrium:
     $class: file/geqdsk
 
-  - name: profile_in
+  profile_in:
     $class: file/netcdf
     $schema:
-      $id: "{name}/profile_in"
+      $id: "{metadata.annotation.name}/profile_in"
 
-  - name: number_of_steps
+  number_of_steps:
     $class: integer
     default: 1
 
-  - name: dt
+  dt:
     default: 0.1
     $class: float
     $comment: Inputs the data for all NAMELISTs used in the code.
 
-  - name: config
+  config:
     $class: file/namelist
     template: "{FY_MODULEFILE_DIR}/template/genray.in"
     path: genray.dat
-    default:
-      mnemonic: "{JOB_ID}"
+    default:              
       tokamak:
         eqdskin: "{equilibrium}"
       genr:
+        mnemonic: "{JOB_ID}"
         partner: "{profile_in}"
         outdat: "{WORKING_DIR}"
 
 out_ports:
-  - name: result
+  result:
     $class: file/netcdf
     path: "{JOB_ID}.nc"
 
-  - name: equilibrium
+  equilibrium:
     $class: file/geqdsk
     path: "{equilibrium}"

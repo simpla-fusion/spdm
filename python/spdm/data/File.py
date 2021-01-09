@@ -39,14 +39,14 @@ class File(Document):
     }
 
     @classmethod
-    def __new__(cls, data=None,  *args, _metadata=None, format_hint=None,  **kwargs):
+    def __new__(cls, path=None,  *args, _metadata=None, format_hint=None,  **kwargs):
         if cls is not File:
             return object.__new__(cls)
 
         _metadata = collections.ChainMap(_metadata or {}, kwargs)
 
         if "$class" not in _metadata:
-            file_format = _metadata.get("file_format", None) or pathlib.Path(_metadata.get("path", "")).suffix
+            file_format = _metadata.get("file_format", None) or pathlib.Path(path or _metadata.get("path", "")).suffix
             file_format = File.extension.get(file_format.lower(), format_hint)
             file_format = file_format.replace('/', '.')
 
@@ -56,9 +56,9 @@ class File(Document):
 
         logger.debug(_metadata)
 
-        return Document.__new__(data, *args, _metadata=_metadata, **kwargs)
+        return Document.__new__(*args, _metadata=_metadata, **kwargs)
 
-    def __init__(self,  data=None, *args,  path=None, ** kwargs):
+    def __init__(self,  *args, path=None,  ** kwargs):
         path = path or self.metadata.path
 
         if not path:
@@ -68,17 +68,7 @@ class File(Document):
         elif isinstance(path, list):
             path = [pathlib.Path(p) for p in path]
 
-        if isinstance(data, pathlib.PosixPath):
-            file_format = File.extension.get(data.suffix.lower(), None)
-            if file_format is None or f"file/{file_format.lower()}" == self.metadata["$class"]:
-                if path is None:
-                    path = pathlib.Path.cwd()/data.name
-                shutil.copy(data, path)
-                data = None
-            else:
-                data = File(path=data)
-
-        super().__init__(data, *args, path=path, ** kwargs)
+        super().__init__(*args, path=path, ** kwargs)
 
     def __repr__(self):
         return str(self.path)
@@ -159,9 +149,11 @@ class File(Document):
     def update(self, d, *args, **kwargs):
         if d is None:
             return
-        old_d = self.read()
-        old_d.update(d)
-        self.write(old_d)
+        elif isinstance(d, pathlib.PosixPath):
+            self._path = d
+        # old_d = self.read()
+        # old_d.update(d)
+        # self.write(old_d)
 
 
 __SP_EXPORT__ = File

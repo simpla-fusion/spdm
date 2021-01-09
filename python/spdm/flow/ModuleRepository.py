@@ -13,7 +13,7 @@ from ..util.logger import logger
 from ..util.RefResolver import RefResolver
 from ..util.sp_export import sp_find_module
 from ..util.urilib import urisplit
-from ..util.utilities import deep_update_dict
+from ..util.dict_util import deep_merge_dict
 from ..util.AttributeTree import AttributeTree
 from ..util.dict_util import format_string_recursive
 

@@ -9,7 +9,7 @@ import json5
 from .logger import logger
 from .sp_export import sp_pkg_data_path
 from .urilib import urisplit
-from .utilities import deep_update_dict
+from .dict_util import deep_merge_dict
 FAIL_SAFE = None
 ENABLE_REMOTE = False
 
@@ -68,7 +68,7 @@ def read(path, **kwargs):
         raise TypeError(f"Type of path should be a string, Path or list of string/Path!")
     content = {}
     for p in path:
-        deep_update_dict(content, _read(p))
+        deep_merge_dict(content, _read(p))
 
     return content
 

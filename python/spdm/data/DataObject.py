@@ -46,10 +46,9 @@ class DataObject(SpObject):
         "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
     }
 
-    @classmethod
-    def __new__(cls,   *args, _metadata=None, **kwargs):
+    def __new__(cls,   _metadata=None, *args, **kwargs):
         if cls is not DataObject and _metadata is None:
-            return super(SpObject, cls).__new__(*args, _metadata=_metadata, **kwargs)
+            return super(SpObject, cls).__new__(_metadata, *args, **kwargs)
 
         if isinstance(_metadata, str):
             n_cls = _metadata
@@ -65,54 +64,36 @@ class DataObject(SpObject):
                 n_cls = DataObject.associations.get(n_cls, n_cls)
                 _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
 
-        return SpObject.__new__(*args, _metadata=_metadata, **kwargs)
+        return SpObject.__new__(SpObject, _metadata, *args, **kwargs)
 
-    @classmethod
-    def create(cls, data=None, *args, _metadata=None, envs=None, **kwargs):
-        l_envs = collections.ChainMap(envs or {}, os.environ)
-
-        if isinstance(_metadata, str):
-            _metadata = {"$class": _metadata}
-        elif _metadata is None:
-            pass
-        elif not isinstance(_metadata, collections.abc.Mapping):
-            raise TypeError(type(_metadata))
-
-        if data is None and _metadata is not None:
-            data = _metadata.get("default", None)
-
-        if isinstance(data, str):
-            data = format_string_recursive(data, l_envs)
-        elif isinstance(data, collections.abc.Mapping):
-            format_string_recursive(data,  l_envs)
-            data = {k: (v if k[0] == '$' else DataObject.create(v, *args,  envs=envs, **kwargs))
-                    for k, v in data.items()}
-            if "$class" in data:
-                if _metadata is None:
-                    _metadata = data
-                elif _metadata.get("$class", None) == data["$class"]:
-                    _metadata = collections.ChainMap(data, _metadata or {})
-                data = None
-
-        elif isinstance(data, collections.abc.Sequence):
-            format_string_recursive(data,  l_envs)
-            data = [DataObject.create(v, *args, envs=envs,  **kwargs) for v in data]
+    @staticmethod
+    def create(data,  _metadata=None, *args, **kwargs):
 
         if _metadata is None:
-            return data
+            _metadata = {}
+        elif isinstance(_metadata, str):
+            _metadata = {"$class": _metadata}
+        elif isinstance(_metadata, AttributeTree):
+            _metadata = _metadata.__as_native__()
+        elif not isinstance(_metadata, collections.abc.Mapping):
+            raise TypeError(type(_metadata))
 
         n_cls = _metadata.get("$class", "")
         n_cls = n_cls.replace("/", ".").lower()
         n_cls = DataObject.associations.get(n_cls, n_cls)
 
+        data = data or _metadata["default"]
+        if not data:
+            data = None
+
         if inspect.isclass(n_cls) and data is not None:
             return n_cls(data)
-        elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
-            return data
         else:
-            return DataObject(data, *args, _metadata=collections.ChainMap({"$class": n_cls}, _metadata), envs=envs,  **kwargs)
+            res = DataObject(collections.ChainMap({"$class": n_cls}, _metadata), *args,  **kwargs)
+            res.update(data)
+            return res
 
-    def __init__(self, data=None, *args,  _metadata=None,  **kwargs):
+    def __init__(self, _metadata=None, *args,  **kwargs):
         super().__init__(*args, **kwargs)
 
     def __repr__(self):

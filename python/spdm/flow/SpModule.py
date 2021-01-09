@@ -12,7 +12,7 @@ from functools import cached_property
 
 from ..data.DataObject import DataObject
 from ..util.AttributeTree import AttributeTree
-from ..util.dict_util import format_string_recursive
+from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
@@ -44,7 +44,7 @@ class SpModule(SpObject):
 
     @property
     def envs(self):
-        return collections.ChainMap(self._envs, self._metadata)
+        return collections.ChainMap(self._envs, {"metadata": self.metadata})
 
     def preprocess(self):
         logger.debug(f"Preprocess: {self.__class__.__name__}")
@@ -56,38 +56,89 @@ class SpModule(SpObject):
         logger.debug(f"Execute: {self.__class__.__name__}")
         return None
 
+    def _convert_data(self, data, metadata, envs):
+
+        if metadata is None:
+            metadata = {}
+
+        metadata = format_string_recursive(metadata, envs)
+
+        if data is None:
+            data = metadata.get("default", None)
+
+        elif isinstance(data, str):
+            data = format_string_recursive(data, envs)
+        elif isinstance(data, collections.abc.Mapping):
+            format_string_recursive(data,  l_envs)
+            data = {k: (v if k[0] == '$' else self._convert_data(v)) for k, v in data.items()}
+        elif isinstance(data, collections.abc.Sequence):
+            format_string_recursive(data,  l_envs)
+            data = [self._convert_data(v) for v in data]
+
+        if isinstance(data, collections.abc.Mapping) and "$class" in data:
+            d_class = data.get("$class", None)
+            p_class = p_in.get("$class", None)
+            d_schema = data.get("$schema", None)
+            p_schema = p_in.get("$schema", None)
+            if d_class == p_class and (d_schema or p_schema) == p_schema:
+                obj = DataObject.create(_metadata=collections.ChainMap(deep_merge_dict(data, metadata), envs))
+            else:
+                data = DataObject.create(_metadata=collections.ChainMap(data, envs))
+                obj = DataObject.create(data, _metadata=collections.ChainMap(p_in, envs))
+        else:
+            obj = DataObject.create(data, _metadata=metadata)
+        return obj
+
     @cached_property
     def inputs(self):
         """
             Collect and convert inputs
         """
 
-        args = self._args or []
+        envs_map = DictTemplate(collections.ChainMap(self._kwargs, {"_VAR_ARGS_": self._args}, self.envs))
 
-        kwargs = self._kwargs
+        args = []
 
-        envs = collections.ChainMap(kwargs, {"VAR_ARGS": args}, self.envs)
+        kwargs = {}
 
-        for p_in in self.metadata.in_ports:
+        for p_name, p_metadata in self.metadata.in_ports:
+            p_metadata = envs_map.apply(p_metadata)
+            data = self._kwargs.get(p_name, None) or p_metadata["default"]
 
-            p_name = str(p_in["name"])
+            if not data:
+                data = None
+            elif isinstance(data, collections.abc.Mapping) and ("$class" in data or "$schema" in data):
+                d_class = data.get("$class", None)
+                p_class = p_metadata["$class"]
+                p_schema = p_metadata["$schema"]
+                d_schema = data.get("$schema", None) or p_schema
 
-            if p_name == "VAR_ARGS":
-                args = DataObject.create(args, _metadata=format_string_recursive(p_in, envs))
-            elif p_name in self._kwargs:
-                kwargs[p_name] = DataObject.create(kwargs[p_name], _metadata=format_string_recursive(p_in, envs))
-            else:
-                kwargs[p_name] = DataObject.create(p_in.get("default", None),
-                                                   _metadata=format_string_recursive(p_in, envs))
-
-        logger.debug(kwargs)
-
+                if d_class == p_class and d_schema == p_schema:
+                    p_metadata = deep_merge_dict(data, p_metadata.__as_native__())
+                    data = None
+                else:
+                    data = DataObject.create(_metadata=data)
+            
+            kwargs[p_name] = DataObject.create(data, _metadata=p_metadata)
+            # if p_name == "VAR_ARGS":
+            #     args = self._convert_data(args, p_in, envs)
+            # else:
+            #     kwargs[p_name] = self._convert_data(kwargs.get(p_name, None), _metadata=p_in, envs)
+            # if isinstance(data, pathlib.PosixPath):
+            #     file_format = File.extension.get(data.suffix.lower(), None)
+            #     if file_format is None or f"file/{file_format.lower()}" == self.metadata["$class"]:
+            #         if path is None:
+            #             path = pathlib.Path.cwd()/data.name
+            #         shutil.copy(data, path)
+            #         data = None
+            #     else:
+            #         data = File(path=data)
         return args, kwargs
 
-    @property
+    @ property
     def outputs(self):
         if not self._outputs:
-            self._outputs = self.run()
+            self._outputs = AttributeTree(self.run())
             self._inputs = None
 
         return self._outputs
@@ -119,7 +170,7 @@ class SpModule(SpObject):
 
 class SpModuleLocal(SpModule):
     """Call subprocess/shell command
-    {PKG_PREFIX}/bin/xgenray  
+    {PKG_PREFIX}/bin/xgenray
     """
 
     script_call = {
@@ -152,11 +203,11 @@ class SpModuleLocal(SpModule):
     def __del__(self):
         logger.debug(f"Finalize: {self.__class__.__name__} ")
 
-    @property
+    @ property
     def working_dir(self):
         return self._working_dir
 
-    @property
+    @ property
     def inputs(self):
         if self._inputs is not None:
             return self._inputs
@@ -289,12 +340,7 @@ class SpModuleLocal(SpModule):
                    STDERR:[{error.stderr}]""")
             raise error
 
-        outputs = {
+        return {
             "EXITCODE": exitcode,
-            "WORKING_DIR": working_dir}
-
-        for p_out in self.metadata.out_ports:
-            p_name = str(p_out["name"])
-            outputs[p_name] = DataObject(_metadata=p_out,  working_dir=working_dir)
-
-        return AttributeTree(outputs)
+            "WORKING_DIR": working_dir
+        }

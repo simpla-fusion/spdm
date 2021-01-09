@@ -189,26 +189,7 @@ def _try_insert(self, name_hint, node):
     return self.add_node(node, label=self._gusses_name(name_hint or node.__class__.__name__.lower()))
 
 
-def deep_update_dict(first, second, level=-1):
-    if level == 0:
-        return
-    elif isinstance(first, collections.abc.Sequence):
-        if isinstance(second, collections.abc.Sequence):
-            first.extent(second)
-        else:
-            first.append(second)
-    elif isinstance(first, collections.abc.Mapping) and isinstance(second, collections.abc.Mapping):
-        for k, v in second.items():
-            if isinstance(first.get(k, None), collections.abc.Mapping):
-                deep_update_dict(first[k], v, level-1)
-            else:
-                first[k] = v
-    elif second is None:
-        pass
-    else:
-        raise TypeError(f"Can not merge dict with {type(second)}!")
 
-    return first
 
 
 def compile_regex_pattern(pattern):
