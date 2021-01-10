@@ -60,6 +60,7 @@ class SpObject(object):
             raise ModuleNotFoundError(f"{_metadata}")
 
         if _metadata is not None:
+            # FIXME (salmon 20210110): Dynamic creating class is not a good idea. This is not necessary, remove it!
             n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": _metadata})
 
         obj = object.__new__(n_cls)

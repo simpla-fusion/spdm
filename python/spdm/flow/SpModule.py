@@ -39,8 +39,8 @@ class SpModule(SpObject):
         self._job_id = Session.current().job_id(self.__class__.__name__)
         self._envs["JOB_ID"] = self._job_id
 
-    def __del__(self):
-        super().__del__()
+    # def __del__(self):
+    #     super().__del__()
 
     @property
     def job_id(self):
@@ -218,8 +218,8 @@ class SpModuleLocal(SpModule):
 
         logger.debug(f"Initialize: {self.__class__.__name__} at {self.working_dir} ")
 
-    def __del__(self):
-        logger.debug(f"Finalize: {self.__class__.__name__} ")
+    # def __del__(self):
+    #     logger.debug(f"Finalize: {self.__class__.__name__} ")
 
     @property
     def working_dir(self):

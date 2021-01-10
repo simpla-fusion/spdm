@@ -41,12 +41,14 @@ class File(Document):
     def __new__(cls, _metadata=None, *args, path=None,   file_format=None,  **kwargs):
         if cls is not File and _metadata is None:
             return Document.__new__(cls)
-
+        extension_name = ''
         if not isinstance(_metadata, collections.abc.Mapping) or "$class" not in _metadata:
             file_format = file_format or _metadata.get("file_format", None) or\
                 pathlib.Path(path or _metadata.get("path", "")).suffix
             if file_format[0] != '.':
                 file_format = '.'+file_format
+            extension_name = file_format
+
             file_format = File.extension.get(file_format.lower(), file_format)
             file_format = file_format.replace('/', '.')
 
@@ -57,20 +59,15 @@ class File(Document):
                 _metadata = file_format
             else:
                 _metadata["$class"] = file_format
+                _metadata["extension_name"] = extension_name
 
         return Document.__new__(cls, _metadata=_metadata, *args,  **kwargs)
 
-    def __init__(self,   *args, path=None, ** kwargs):
-        path = path or self.metadata.path
+    def __init__(self,   *args, ** kwargs):
 
-        if not path:
-            path = None
-        elif isinstance(path, str):
-            path = pathlib.Path.cwd()/path
-        elif isinstance(path, list):
-            path = [pathlib.Path.cwd()/p for p in path]
-
-        super().__init__(*args, path=path, ** kwargs)
+        super().__init__(*args,   ** kwargs)
+        if self.path.is_dir():
+            self._path /= f"{uuid.uuid1()}{self.metadata.extension_name or '' }"
 
     def __repr__(self):
         return str(self.path)
@@ -80,13 +77,7 @@ class File(Document):
 
     @property
     def path(self):
-        p = getattr(self, "_path", None) or self.metadata.path
-        if isinstance(p, str):
-            return pathlib.Path(p).resolve()
-        elif isinstance(p, (pathlib.PosixPath, list)):
-            return p
-        elif not p:
-            return None
+        return self._path
 
     @property
     def template(self):

@@ -1,6 +1,6 @@
 import collections
 from typing import Any, Dict, List
-
+import pathlib
 from ..util.AttributeTree import AttributeTree
 from ..util.logger import logger
 from .Node import Node
@@ -15,7 +15,7 @@ class Document(DataObject):
         super().__init__(*args, **kwargs)
         self._mode = mode
         self._fid = fid
-        self._path = path or self.metadata.path or pathlib.Path.cwd()
+        self._path = pathlib.Path(path or self.metadata.path or pathlib.Path.cwd())
         self._data = None
 
     def __del__(self):

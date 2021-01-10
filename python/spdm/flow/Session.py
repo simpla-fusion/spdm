@@ -76,8 +76,8 @@ class Session:
 
         logger.info(f"====== Session [{self._name}]  Start ======")
 
-    def __del__(self):
-        logger.info(f"====== Session [{self._name}]  Stop  ======")
+    # def __del__(self):
+    #     logger.info(f"====== Session [{self._name}]  Stop  ======")
 
     def job_id(self, id_hint=None):
         res = f"{self._job_count:03}_{id_hint or ''}"
