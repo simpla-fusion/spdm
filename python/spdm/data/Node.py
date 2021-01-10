@@ -12,6 +12,12 @@ class Node(object):
         self._parent = parent
         self._prefix = prefix or []
 
+    # def __del__(self):
+    #     try:
+    #         self._holder=None
+    #     except Exception as error:
+    #         logger.error(error)
+
     @property
     def holder(self):
         return self._holder

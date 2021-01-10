@@ -9,6 +9,7 @@ from spdm.util.PathTraverser import PathTraverser
 from ..Document import Document
 from ..File import File
 from ..Node import Node
+from spdm.util.dict_util import format_string_recursive
 
 try:
     from lxml.etree import Comment as _XMLComment
@@ -86,14 +87,18 @@ class XMLNode(Node):
         self._prefix = prefix or []
 
     def xpath(self, path):
+        envs = {}
         res = "."
+        prev = None
         for p in path:
             if type(p) is int:
                 res += f"[ @id='{p}' or position()= {p+1} or @id='*']"
+                envs[prev] = p
             elif isinstance(p, str) and p[0] == '@':
-                res += f"[{p}]"
+                res += f"[{p}]"                
             elif isinstance(p, str):
                 res += f"/{p}"
+                prev = p
             else:
                 # TODO: handle slice
                 raise TypeError(f"Illegal path type! {type(p)} {path}")
@@ -102,11 +107,11 @@ class XMLNode(Node):
             res = _XPath(res)
         else:
             raise NotImplementedError()
-        return res
+        return res, envs
 
-    def _convert(self, element, path=[],   lazy=True, projection=None,):
+    def _convert(self, element, path=[],   lazy=True, envs=None, projection=None,):
         if isinstance(element, collections.abc.Sequence):
-            return [self._convert(e, path=path, lazy=lazy, projection=property) for e in element]
+            return [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
         res = None
 
         if len(element) > 0 and lazy:
@@ -131,7 +136,7 @@ class XMLNode(Node):
             else:
                 res = np.array(res)
         else:
-            res = {child.tag: self._convert(child, path=path+[child.tag], lazy=lazy)
+            res = {child.tag: self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy)
                    for child in element if child.tag is not _XMLComment}
             for k, v in element.attrib.items():
                 res[f"@{k}"] = v
@@ -151,6 +156,9 @@ class XMLNode(Node):
                 #     fstr = collections.ChainMap(query, self.envs.fragment.__data__, self.envs.query.__data__ or {})
                 # format_string_recursive(text, fstr)  # text.format_map(fstr)
                 res["@text"] = text
+
+        if envs is not None and isinstance(res, (str, collections.abc.Mapping)):
+            res = format_string_recursive(res, envs)
         return res
 
     def put(self,  path, value, *args, only_one=False, **kwargs):
@@ -163,22 +171,24 @@ class XMLNode(Node):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
-            return self._convert(self.xpath(path).evaluate(self._holder), path=path, **kwargs)
+            xp, envs = self.xpath(path)
+            return self._convert(xp.evaluate(self._holder), path=path, envs=envs ** kwargs)
 
     def get_value(self,  path, *args,  only_one=False, **kwargs):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
         else:
-            obj = self.xpath(path).evaluate(self._holder)
+            xp, envs = self.xpath(path)
+            obj = xp.evaluate(self._holder)
             if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
                 obj = obj[0]
-            return self._convert(obj, lazy=False, path=path, **kwargs)
+            return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
-    def iter(self,  path, *args, **kwargs):
+    def iter(self,  path, *args, envs=None, **kwargs):
         for spath in PathTraverser(path):
             for child in self.xpath(spath).evaluate(self._holder):
                 if child.tag is not _XMLComment:
-                    yield self._convert(child, path=spath)
+                    yield self._convert(child, path=spath, envs=envs)
 
 
 class XMLFile(File):

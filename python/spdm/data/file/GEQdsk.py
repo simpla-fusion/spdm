@@ -8,6 +8,7 @@ from spdm.util.logger import logger
 import numpy as np
 
 from ..File import File
+from ..Document import Document
 
 
 def sp_read_geqdsk(file):
@@ -118,7 +119,7 @@ def sp_write_geqdsk(p, file):
     nw = p["nw"]
     nh = p["nh"]
 
-    file.write("%48s%4i%4i%4i\n" % (p["description"], 3, p["nw"], p["nh"]))
+    file.write("%48s%4i%4i%4i\n" % (p.get("description", "UNTITLED"), 3, p["nw"], p["nh"]))
     file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
                (p["rdim"], p["zdim"], p["rcentr"], p["rleft"], p["zmid"]))
     file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
@@ -130,9 +131,10 @@ def sp_write_geqdsk(p, file):
 
     def _write_data(d):
         count = len(d)
+        logger.debug(count)
         for n in range(count):
             file.write("%16.9e" % d[n])
-            if (n == count - 1) or ((n + 1) % 5 == 0):
+            if n >= count - 1 or ((n + 1) % 5 == 0):
                 file.write('\n')
 
     _write_data(p["fpol"])
@@ -148,14 +150,17 @@ def sp_write_geqdsk(p, file):
     return
 
 
-def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
-    from scipy.interpolate import griddata
+def sp_imas_to_geqdsk(d):
 
-    coord_r = eq.coordinate_system.r
-    coord_z = eq.coordinate_system.z
-    rleft = coord_r.min()
-    rdim = coord_r.max() - coord_r.min()
-    zdim = coord_z.max() - coord_z.min()
+    eq = d.equilibrium.time_slice
+    wall = d.wall
+
+    dim_r = eq.profiles_2d.grid.dim1
+    dim_z = eq.profiles_2d.grid.dim2
+
+    rleft = dim_r.min()
+    rdim = dim_r.max() - dim_r.min()
+    zdim = dim_z.max() - dim_z.min()
 
     # rdim = 0.0
     # zdim = 0.0
@@ -170,38 +175,53 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
     current = eq.global_quantities.ip
 
     # boundary
+    if not eq.boundary.lcfs:
+        rbbs = eq.boundary.outline.r
+        zbbs = eq.boundary.outline.z
+    else:
+        rbbs = eq.boundary.lcfs.r
+        zbbs = eq.boundary.lcfs.z
 
-    rbbs = eq.boundary.lcfs.r
-    zbbs = eq.boundary.lcfs.z
+    rcentr = float(rcentr or (rbbs.min()+rbbs.max())/2.0)
+    zmid = float(rcentr or (zbbs.min()+zbbs.max())/2.0)
 
     bbsrz = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape(
         [1, rbbs.size]), axis=0).transpose()
     # psi
 
-    grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
-                              1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
-    coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
-        coord_r.shape[0], 1), axis=1)
-    coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(
-        coord_z.shape[0], 1), axis=1)
-    points = np.append(coord_r.reshape(
-        [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    psi = eq.profiles_2d[1].psi
-    values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    psirz = griddata(points, values, (grid_r, grid_z),
-                     method='cubic').transpose()
+    # grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
+    #                           1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
+    # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
+    #     coord_r.shape[0], 1), axis=1)
+    # coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(
+    #     coord_z.shape[0], 1), axis=1)
+    # points = np.append(coord_r.reshape(
+    #     [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
+    # psi = eq.profiles_2d[1].psi
+    # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
+    # psirz = griddata(points, values, (grid_r, grid_z),
+    #                  method='cubic').transpose()
 
+    psirz = eq.profiles_2d.psi
     # profile
 
     fpol = eq.profiles_1d.f
-    pres = eq.profiles_1d.pressure
+    pres = eq.profiles_1d.pressure or np.zeros(psirz.shape[0])
     ffprim = eq.profiles_1d.f_df_dpsi
     pprim = eq.profiles_1d.dpressure_dpsi
     qpsi = eq.profiles_1d.q
 
+    if not wall:
+        limrz = np.ndarray([0, 2])
+    else:
+        limr = wall.description_2d.limiter.unit.outline.r
+        limz = wall.description_2d.limiter.unit.outline.z
+        limrz = np.append(limr.reshape([1, limr.size]), limz.reshape(
+            [1, limz.size]), axis=0).transpose()
     return {
-        "nw": nw,
-        "nh": nh,
+        "description": d.description,
+        "nw": psirz.shape[0],
+        "nh": psirz.shape[1],
         "rdim": rdim,
         "zdim": zdim,
         "rcentr": rcentr,
@@ -219,64 +239,47 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
         "pres": pres,
         "ffprim": ffprim,
         "pprim": pprim,
-        "qpsi": qpsi
-
+        "qpsi": qpsi,
+        "limrz": limrz
     }
 
 
-def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
+def sp_geqdsk_to_imas(geqdsk, doc=None):
     # rdim = 0.0
     # zdim = 0.0
-    eq.boundary.geometric_axis.r = geqdsk["rcentr"]
-    eq.boundary.geometric_axis.z = geqdsk["zmid"]
+    doc = doc or AttributeTree()
+
+    doc.equilibrium.boundary.geometric_axis.r = geqdsk["rcentr"]
+    doc.equilibrium.boundary.geometric_axis.z = geqdsk["zmid"]
     # rleft = 0.0
-    eq.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
-    eq.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
-    eq.global_quantities.psi_axis = geqdsk["simag"]
-    eq.global_quantities.psi_boundary = geqdsk["sibry"]
-    eq.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
-    eq.global_quantities.ip = geqdsk["current"]
+    doc.equilibrium.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
+    doc.equilibrium.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
+    doc.equilibrium.global_quantities.psi_axis = geqdsk["simag"]
+    doc.equilibrium.global_quantities.psi_boundary = geqdsk["sibry"]
+    doc.equilibrium.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
+    doc.equilibrium.global_quantities.ip = geqdsk["current"]
 
     # boundary
 
-    eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
-    eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
+    doc.equilibrium.boundary.outline.r = geqdsk["bbsrz"][:, 0]
+    doc.equilibrium.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
-    profiles_2d = eq.profiles_2d.__push_back__()
-    profiles_2d.grid_type.name = "rectangular"
-    profiles_2d.grid_type.index = 1
-    profiles_2d.psi = geqdsk["psirz"]
-
-    # coord_r = eq.coordinate_system.r
-    # coord_z = eq.coordinate_system.z
-    # rleft = coord_r.min()
-    # rdim = coord_r.max() - coord_r.min()
-    # zdim = coord_z.max() - coord_z.min()
-
-    # bbsrz = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape(
-    #     [1, rbbs.size]), axis=0).transpose()
-    # # psi
-
-    # grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
-    #                           1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
-    # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
-    #     coord_r.shape[0], 1), axis=1)
-    # coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(
-    #     coord_z.shape[0], 1), axis=1)
-    # points = np.append(coord_r.reshape(
-    #     [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    # psi = eq.profiles_2d[1].psi
-    # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    # psirz = griddata(points, values, (grid_r, grid_z),
-    #                  method='cubic').transpose()
+    doc.equilibrium.time_slice.profiles_2d.grid_type.name = "rectangular"
+    doc.equilibrium.time_slice.profiles_2d.grid_type.index = 1
+    doc.equilibrium.time_slice.profiles_2d.psi = geqdsk["psirz"]
 
     # profile
-    profiles_1d = eq.profiles_1d.__push_back__()
-    profiles_1d.f = geqdsk["fpol"]
-    profiles_1d.pressure = geqdsk["pres"]
-    profiles_1d.f_df_dpsi = geqdsk["ffprim"]
-    profiles_1d.dpressure_dpsi = geqdsk["pprim"]
-    profiles_1d.q = geqdsk["qpsi"]
+    doc.equilibrium.time_slice.profiles_1d.f = geqdsk["fpol"]
+    doc.equilibrium.time_slice.profiles_1d.pressure = geqdsk["pres"]
+    doc.equilibrium.time_slice.profiles_1d.f_df_dpsi = geqdsk["ffprim"]
+    doc.equilibrium.time_slice.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
+    doc.equilibrium.time_slice.profiles_1d.q = geqdsk["qpsi"]
+
+    # limiter
+    doc.wall.description_2d.limiter.unit.outline.r = geqdsk["limrz"][:, 0]
+    doc.wall.description_2d.limiter.unit.outline.r = geqdsk["limrz"][:, 1]
+
+    return doc
 
 
 class FileGEQdsk(File):
@@ -284,30 +287,18 @@ class FileGEQdsk(File):
 
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args, **kwargs)
-        self._data = None
-
-    def load(self, p):
-        with open(p or self._path, mode="r") as fp:
-            sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), self.root.entry)
-
-    def save(self, p):
-        geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.entry)
-        with open(p or self._path, mode="w") as fp:
-            sp_write_geqdsk(geqdsk, fp)
 
     @property
     def root(self):
         if self._data is not None:
-            return self._data
-
-        self._data = Document()
+            return super().root
 
         with open(self._path, mode="r") as fp:
-            self._data.update(sp_read_geqdsk(fp))
+            d = sp_geqdsk_to_imas(sp_read_geqdsk(fp))
 
-        self._data["$schema"] = self.schema
+        self._data = d
 
-        return self._data
+        return super().root
 
     def update(self, d):
         if d is None:
@@ -315,20 +306,19 @@ class FileGEQdsk(File):
         elif isinstance(d, pathlib.PosixPath):
             self._path = d
             return
-        elif not isinstance(d, collections.abc.Mapping):
-            raise TypeError(type(d))
-        if not isinstance(d, AttributeTree):
+        # elif not isinstance(d, collections.abc.Mapping):
+        #     raise TypeError(type(d))
+        elif isinstance(d, collections.abc.Mapping):
             d = AttributeTree(d)
-        schema = d["$schema"] or "imas"
-        if schama == "imas":
-            geqdsk = sp_imas_equilibrium_to_geqdsk(d)
-        elif schema == self.schema:
-            geqdsk = d
-        else:
-            raise NotImplementedError(schema)
+        elif isinstance(d, Document):
+            d = AttributeTree(
+                description="GEQDSK from IMAS",
+                equilibrium=d.entry.equilibrium.__value__(),
+                wall=d.entry.wall.__value__()
+            )
 
         with open(self.path, mode="w") as fp:
-            sp_write_geqdsk(geqdsk, fp)
+            sp_write_geqdsk(sp_imas_to_geqdsk(d), fp)
 
 
 __SP_EXPORT__ = FileGEQdsk

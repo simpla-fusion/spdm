@@ -22,6 +22,10 @@ class MDSplusNode(Node):
     def __init__(self, holder, *args, **kwargs):
         super().__init__(holder, *args, **kwargs)
 
+    def __del__(self):
+        logger.info(f"Close {self.__class__.__name__}")
+
+
     def get(self, path, *args, projection=None,  **kwargs):
         if isinstance(path, collections.abc.Mapping):
             tree_name = path.get("@tree_name", None)
@@ -58,7 +62,7 @@ def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
         raise ValueError(f"Treename is empty!")
     try:
         shot = int(shot)
-        logger.info(f"Opend MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
+        logger.info(f"Open MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
         tree = mds.Tree(tree_name, shot, mode=mode, path=path)
     except mds.mdsExceptions.TreeFOPENR as error:
         # tree_path = os.environ.get(f"{tree_name}_path", None)
@@ -94,12 +98,12 @@ class MDSplusDocument(Document):
 
         self._trees[None] = self._trees[tree_name]
 
-    def __del__(self):
-        del self._trees
-        super().__del__()
-
-        # for k, tree in self._trees.items():
-        #     logger.debug(tree)
+    # def __del__(self):
+    #     # del self._trees
+    #     # super().__del__()
+    #     pass
+    #     # for k, tree in self._trees.items():
+    #     #     logger.debug(tree)
 
     @property
     def root(self):

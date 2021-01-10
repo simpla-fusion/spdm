@@ -16,9 +16,10 @@ class Document(DataObject):
         self._mode = mode
         self._fid = fid
         self._path = path or self.metadata.path or pathlib.Path.cwd()
+        self._data = None
 
-    # def __del__(self):
-    #     logger.info(f"{self.__class__.__name__}")
+    def __del__(self):
+        pass
 
     def copy(self, other):
         if isinstance(other, Document):
@@ -28,7 +29,7 @@ class Document(DataObject):
 
     @property
     def root(self):
-        return Node(self)
+        return Node(self._data)
 
     @property
     def entry(self):
@@ -56,7 +57,8 @@ class Document(DataObject):
         raise NotImplementedError()
 
     def update(self, d: Dict[str, Any]):
-        raise NotImplementedError()
+        self._data = AttributeTree(d) if not isinstance(d, AttributeTree) else d
+        # raise NotImplementedError()
 
     def fetch(self, proj: Dict[str, Any] = None):
         raise NotImplementedError()

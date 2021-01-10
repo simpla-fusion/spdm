@@ -93,10 +93,10 @@ class MappingDocument(Document):
 
         self._envs = envs or {}
 
-    def __del__(self):
-        del self._target
-        del self._mapping
-        super().__del__()
+    # def __del__(self):
+    #     del self._target
+    #     del self._mapping
+    #     super().__del__()
 
     @property
     def root(self):
@@ -148,9 +148,9 @@ class MappingCollection(Collection):
 
         self._mapping = File(path=mapping_conf_files, file_format="XML")
 
-    def __del__(self):
-        del self._target
-        super().__del__()
+    # def __del__(self):
+    #     del self._target
+    #     super().__del__()
 
     def insert_one(self, *args,  query=None, **kwargs):
         oid = self.guess_id(query or kwargs)
