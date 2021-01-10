@@ -66,8 +66,17 @@ class File(Document):
     def __init__(self,   *args, ** kwargs):
 
         super().__init__(*args,   ** kwargs)
-        if self.path.is_dir():
-            self._path /= f"{uuid.uuid1()}{self.metadata.extension_name or '' }"
+
+        self._path = self._path or self.metadata.path or "."
+        if not isinstance(self._path, list):
+            self._path = pathlib.Path.cwd() / self._path
+            if self.path.is_dir():
+                self._path /= f"{uuid.uuid1()}{self.extension_name or '.txt' }"
+            self._path = self._path.expanduser().resolve()
+
+    @ property
+    def extension_name(self):
+        return self.metadata.extension_name or '.txt'
 
     def __repr__(self):
         return str(self.path)
@@ -75,11 +84,7 @@ class File(Document):
     def __str__(self):
         return str(self.path)
 
-    @property
-    def path(self):
-        return self._path
-
-    @property
+    @ property
     def template(self):
         p = getattr(self, "_template", None) or self.metadata.template
         if isinstance(p, str):
@@ -91,7 +96,7 @@ class File(Document):
         else:
             raise ValueError(p)
 
-    @property
+    @ property
     def is_writable(self):
         return "w" in self.mode or "x" in self.mode
 
@@ -115,7 +120,7 @@ class File(Document):
         res._schema = self._schema
         return res
 
-    @contextlib.contextmanager
+    @ contextlib.contextmanager
     def open(self, mode=None, buffering=None, encoding=None, newline=None):
         if isinstance(self._path, pathlib.Path):
             path = self._path

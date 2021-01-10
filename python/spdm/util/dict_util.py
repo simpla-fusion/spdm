@@ -2,6 +2,7 @@ import collections
 from .AttributeTree import AttributeTree
 from .logger import logger
 
+
 class DefaultDict(dict):
     def __init__(self, default_factory, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -117,6 +118,16 @@ class DictTemplate:
         except (KeyError, IndexError):
             raise KeyError(key)
 
+        return res
+
+    def get(self, key, default_value=None):
+        try:
+            if isinstance(key, str):
+                res = _recursive_get(self._template, key.split('.'))
+            else:
+                res = self._template[key]
+        except (KeyError, IndexError):
+            res = default_value
         return res
 
     def apply(self, data):

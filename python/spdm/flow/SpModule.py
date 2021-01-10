@@ -106,28 +106,10 @@ class SpModule(SpObject):
         envs_map = DictTemplate(collections.ChainMap(self._kwargs, {"_VAR_ARGS_": self._args}, self.envs))
 
         args = []
-
         kwargs = {}
-
         for p_name, p_metadata in self.metadata.in_ports:
-            p_metadata = envs_map.apply(p_metadata)
-            data = self._kwargs.get(p_name, None) or p_metadata["default"]
-
-            if not data:
-                data = None
-            elif isinstance(data, collections.abc.Mapping) and ("$class" in data or "$schema" in data):
-                d_class = data.get("$class", None)
-                p_class = p_metadata["$class"]
-                p_schema = p_metadata["$schema"]
-                d_schema = data.get("$schema", None) or p_schema
-
-                if d_class == p_class and d_schema == p_schema:
-                    p_metadata = deep_merge_dict(data, p_metadata.__as_native__())
-                    data = None
-                else:
-                    data = DataObject.create(_metadata=data)
-
-            kwargs[p_name] = DataObject.create(data, _metadata=p_metadata)
+            kwargs[p_name] = DataObject.create(self._kwargs.get(p_name, None),
+                                               _metadata=p_metadata, envs=envs_map)
 
         self._inputs = args, kwargs
 
@@ -146,16 +128,19 @@ class SpModule(SpObject):
         envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {"inputs": inputs}, self.envs))
         outputs = {}
 
-        for p_name, p_metadata in self.metadata.out_ports:
+        # for p_name, p_metadata in self.metadata.out_ports:
 
-            p_metadata = envs_map.apply(p_metadata)
+        #     p_metadata = envs_map.apply(p_metadata)
 
-            data = result.get(p_name, None) or p_metadata["default"]
+        #     data = result.get(p_name, None) or p_metadata["default"]
 
-            if not data:
-                data = None
+        #     if not data:
+        #         data = None
 
-            outputs[p_name] = DataObject.create(data, _metadata=p_metadata)
+        #     outputs[p_name] = DataObject.create(data, _metadata=p_metadata)
+
+        outputs = {p_name: DataObject.create(result.get(p_name, None),
+                                             _metadata=p_metadata, envs=envs_map) for p_name, p_metadata in self.metadata.out_ports}
 
         self._outputs = AttributeTree(outputs)
 

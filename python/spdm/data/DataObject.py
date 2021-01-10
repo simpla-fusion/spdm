@@ -10,6 +10,7 @@ from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.SpObject import SpObject
 from spdm.util.dict_util import format_string_recursive
+from ..util.dict_util import DictTemplate, deep_merge_dict
 
 from .Node import Node
 
@@ -67,11 +68,32 @@ class DataObject(SpObject):
         return SpObject.__new__(cls, _metadata, *args, **kwargs)
 
     @staticmethod
-    def create(data,  _metadata=None, *args, **kwargs):
+    def create(data,  _metadata=None, *args, envs=None, **kwargs):
 
+        if isinstance(_metadata, AttributeTree):
+            _metadata = _metadata.__as_native__()
+
+        if not isinstance(data, collections.abc.Mapping):
+            pass
+        elif "$class" in data:
+            _metadata = deep_merge_dict(data, _metadata or {})
+            data = None
+
+        if isinstance(envs, object) and hasattr(envs.__class__, "apply"):
+            _metadata = envs.apply(_metadata)
+
+        if isinstance(_metadata, collections.abc.Mapping) and data is None:
+            data = (envs or {}).get(_metadata.get("$ref", None), None) or _metadata.get("default", None)
+
+        if isinstance(data, collections.abc.Mapping):
+            data = {k: DataObject.create(v, envs=envs) for k, v in data.items()}
+        elif isinstance(data, list):
+            data = [DataObject.create(v, envs=envs) for v in data]
+        
         if _metadata is None:
-            _metadata = {}
-        elif isinstance(_metadata, str):
+            return data
+
+        if isinstance(_metadata, str):
             _metadata = {"$class": _metadata}
         elif isinstance(_metadata, AttributeTree):
             _metadata = _metadata.__as_native__()
@@ -82,13 +104,12 @@ class DataObject(SpObject):
         n_cls = n_cls.replace("/", ".").lower()
         n_cls = DataObject.associations.get(n_cls, n_cls)
 
-        data = data or _metadata["default"]
-        if not data:
-            data = None
-
+       
         if inspect.isclass(n_cls) and data is not None:
             return n_cls(data)
         elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
+            return data
+        elif not n_cls:
             return data
         else:
             res = DataObject(collections.ChainMap({"$class": n_cls}, _metadata), *args,  **kwargs)

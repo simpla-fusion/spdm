@@ -297,6 +297,10 @@ class FileGEQdsk(File):
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args, **kwargs)
 
+
+    @property
+    def extension_name(self):
+        return ".gfile"
     @property
     def root(self):
         if self._data is not None:
