@@ -308,7 +308,7 @@ class SpModuleLocal(SpModule):
         command.extend(shlex.split(arguments))
 
         working_dir = self.envs.get("WORKING_DIR", "./")
-
+        logger.info(f"Execute Shell command [{working_dir}$ {' '.join(command)}]")
         # @ref: https://stackoverflow.com/questions/21953835/run-subprocess-and-print-output-to-logging
         try:
             # exit_status = subprocess.run(
