@@ -22,8 +22,8 @@ class MDSplusNode(Node):
     def __init__(self, holder, *args, **kwargs):
         super().__init__(holder, *args, **kwargs)
 
-    def __del__(self):
-        logger.info(f"Close {self.__class__.__name__}")
+    # def __del__(self):
+    #     logger.info(f"Close {self.__class__.__name__}")
 
 
     def get(self, path, *args, projection=None,  **kwargs):

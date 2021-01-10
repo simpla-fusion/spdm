@@ -1,6 +1,7 @@
 import collections
 import pathlib
 import pprint
+import scipy.integrate
 
 from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
@@ -129,23 +130,26 @@ def sp_write_geqdsk(p, file):
     file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
                (p["zmaxis"], 0, p["sibry"], 0, 0))
 
-    def _write_data(d):
-        count = len(d)
-        logger.debug(count)
+    def _write_data(d, count):
+        count = count or len(d)
+        if not isinstance(d, np.ndarray) and not d:
+            d = np.zeros(count)
+        else:
+            d = d.reshape([count])
         for n in range(count):
             file.write("%16.9e" % d[n])
             if n >= count - 1 or ((n + 1) % 5 == 0):
                 file.write('\n')
 
-    _write_data(p["fpol"])
-    _write_data(p["pres"])
-    _write_data(p["ffprim"])
-    _write_data(p["pprim"])
-    _write_data(p["psirz"].reshape([nw * nh]))
-    _write_data(p["qpsi"])
+    _write_data(p["fpol"], nw)
+    _write_data(p["pres"], nw)
+    _write_data(p["ffprim"], nw)
+    _write_data(p["pprim"], nw)
+    _write_data(p["psirz"], nw * nh)
+    _write_data(p["qpsi"], nw)
     file.write("%5i%5i\n" % (p["bbsrz"].shape[0], p["limrz"].shape[0]))
-    _write_data(p["bbsrz"].reshape([p["bbsrz"].size]))
-    _write_data(p["limrz"].reshape([p["limrz"].size]))
+    _write_data(p["bbsrz"], p["bbsrz"].size)
+    _write_data(p["limrz"], p["limrz"].size)
 
     return
 
@@ -203,25 +207,30 @@ def sp_imas_to_geqdsk(d):
     #                  method='cubic').transpose()
 
     psirz = eq.profiles_2d.psi
+
+    nw = psirz.shape[0]
+    nz = psirz.shape[1]
     # profile
 
     fpol = eq.profiles_1d.f
-    pres = eq.profiles_1d.pressure or np.zeros(psirz.shape[0])
+    pres = eq.profiles_1d.pressure
     ffprim = eq.profiles_1d.f_df_dpsi
     pprim = eq.profiles_1d.dpressure_dpsi
     qpsi = eq.profiles_1d.q
 
+    if not isinstance(pres, np.ndarray) and isinstance(pprim, np.ndarray):
+        pres = scipy.integrate.cumtrapz(pprim[::-1], np.linspace(1.0, 0.0, nw), initial=0.0)[::-1]
+        logger.warning(f"Pressure is obtained from 'pprime'!")
     if not wall:
         limrz = np.ndarray([0, 2])
     else:
         limr = wall.description_2d.limiter.unit.outline.r
         limz = wall.description_2d.limiter.unit.outline.z
-        limrz = np.append(limr.reshape([1, limr.size]), limz.reshape(
-            [1, limz.size]), axis=0).transpose()
+        limrz = np.append(limr.reshape([1, limr.size]), limz.reshape([1, limz.size]), axis=0).transpose()
     return {
         "description": d.description,
-        "nw": psirz.shape[0],
-        "nh": psirz.shape[1],
+        "nw": nw,
+        "nh": nz,
         "rdim": rdim,
         "zdim": zdim,
         "rcentr": rcentr,
@@ -312,7 +321,7 @@ class FileGEQdsk(File):
             d = AttributeTree(d)
         elif isinstance(d, Document):
             d = AttributeTree(
-                description="GEQDSK from IMAS",
+                description="Convert from SPDB",
                 equilibrium=d.entry.equilibrium.__value__(),
                 wall=d.entry.wall.__value__()
             )

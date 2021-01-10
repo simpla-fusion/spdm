@@ -20,7 +20,6 @@ default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
 class CustomFormatter(logging.Formatter):
     """ Logging Formatter to add colors and count warning / errors """
 
-        
     # Black       0;30     Dark Gray     1;30
     # Blue        0;34     Light Blue    1;34
     # Green       0;32     Light Green   1;32
@@ -33,6 +32,7 @@ class CustomFormatter(logging.Formatter):
     grey = "\x1b[0;37m"
     blue = "\x1b[0;34m"
     yellow = "\x1b[1;33m"
+    brown = "\x1b[0;33m"
     green = "\x1b[0;32m"
     red = "\x1b[0;31m"
     bold_red = "\x1b[1;31m"
@@ -42,7 +42,7 @@ class CustomFormatter(logging.Formatter):
     FORMATS = {
         logging.DEBUG: grey + format_normal + reset,
         logging.INFO:  blue + '%(asctime)s %(levelname)s [%(name)s] : %(message)s' + reset,
-        logging.WARNING: yellow + format_normal + reset,
+        logging.WARNING: brown + format_normal + reset,
         logging.ERROR: red + format_normal + reset,
         logging.CRITICAL: bold_red + format_normal + reset
     }
