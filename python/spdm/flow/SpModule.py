@@ -210,7 +210,8 @@ class SpModule(SpObject):
         outputs = {p_name: self.create_dobject(result.get(p_name, None),
                                                _metadata=p_metadata, envs=envs_map) for p_name, p_metadata in self.metadata.out_ports}
 
-        self._outputs = AttributeTree(outputs)
+        self._outputs = AttributeTree(collections.ChainMap(
+            outputs, {k: v for k, v in result.items() if k not in self.metadata.out_ports}))
 
         self._inputs = None
         os.chdir(cwd)
