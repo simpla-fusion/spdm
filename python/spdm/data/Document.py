@@ -6,6 +6,7 @@ from ..util.logger import logger
 from .Node import Node
 from .DataObject import DataObject
 
+
 class Document(DataObject):
 
     def __init__(self, *args, fid=None, mode="r", path=None, **kwargs):

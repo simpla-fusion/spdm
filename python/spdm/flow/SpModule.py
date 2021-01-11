@@ -99,17 +99,33 @@ class SpModule(SpObject):
         if isinstance(_metadata, AttributeTree):
             _metadata = _metadata.__as_native__()
 
-        if not isinstance(data, collections.abc.Mapping):
-            pass
-        elif "$class" in data:
+        if not envs:
+            envs = {}
+
+        _metadata = _metadata or {}
+
+        if isinstance(_metadata, str):
+            _metadata = {"$class": _metadata}
+
+        if isinstance(data, collections.abc.Mapping) and "$class" in data:
+            if (_metadata.get("$class", None) or data["$class"]) != data["$class"]:
+                raise RuntimeError(f"Class mismatch! {_metadata.get('$class',None)}!={ data['$class']}")
             _metadata = deep_merge_dict(data, _metadata or {})
             data = None
 
-        if isinstance(envs, object) and hasattr(envs.__class__, "apply"):
-            _metadata = envs.apply(_metadata)
+        if "default" in _metadata:
+            if data is None:
+                data = _metadata["default"]
+            del _metadata["default"]
 
-        if isinstance(_metadata, collections.abc.Mapping) and data is None:
-            data = (envs or {}).get(_metadata.get("$ref", None), None) or _metadata.get("default", None)
+        if isinstance(data, collections.abc.Mapping) and "$ref" in data:
+            data = envs.get(data["$ref"], None)
+
+        if hasattr(envs.__class__, "apply"):
+            if isinstance(data, (str, collections.abc.Mapping)):
+                data = envs.apply(data)
+            if isinstance(_metadata, (str, collections.abc.Mapping)):
+                _metadata = envs.apply(_metadata)
 
         if isinstance(data, collections.abc.Mapping):
             data = {k: self.create_dobject(v, envs=envs) for k, v in data.items()}
@@ -118,8 +134,7 @@ class SpModule(SpObject):
 
         if _metadata is None:
             return data
-
-        if isinstance(_metadata, str):
+        elif isinstance(_metadata, str):
             _metadata = {"$class": _metadata}
         elif isinstance(_metadata, AttributeTree):
             _metadata = _metadata.__as_native__()
@@ -127,14 +142,15 @@ class SpModule(SpObject):
             raise TypeError(type(_metadata))
 
         n_cls = _metadata.get("$class", "")
+
         n_cls = n_cls.replace("/", ".").lower()
         n_cls = DataObject.associations.get(n_cls, n_cls)
 
-        if inspect.isclass(n_cls) and data is not None:
-            return n_cls(data)
-        elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
+        if not n_cls:
             return data
-        elif not n_cls:
+        if inspect.isclass(n_cls):
+            return n_cls(data) if data is not None else None
+        elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
             return data
         else:
             res = DataObject(collections.ChainMap({"$class": n_cls}, _metadata), *args,  **kwargs)
@@ -142,7 +158,7 @@ class SpModule(SpObject):
                 res.update(data)
             return res
 
-    @property
+    @ property
     def inputs(self):
         """
             Collect and convert inputs
@@ -151,16 +167,17 @@ class SpModule(SpObject):
             return self._inputs
 
         cwd = pathlib.Path.cwd()
-        
+
         os.chdir(self.envs.get("WORKING_DIR", None) or cwd)
 
-        envs_map = DictTemplate(collections.ChainMap({"inputs": collections.ChainMap(self._kwargs, {"_VAR_ARGS_": self._args})}, self.envs))
+        envs_map = DictTemplate(collections.ChainMap(
+            {"inputs": collections.ChainMap(self._kwargs, {"_VAR_ARGS_": self._args})}, self.envs))
 
         args = []
         kwargs = {}
         for p_name, p_metadata in self.metadata.in_ports:
             kwargs[p_name] = self.create_dobject(self._kwargs.get(p_name, None),
-                                               _metadata=p_metadata, envs=envs_map)
+                                                 _metadata=p_metadata, envs=envs_map)
 
         self._inputs = args, kwargs
 
@@ -176,8 +193,8 @@ class SpModule(SpObject):
         result = self.run()
 
         inputs = AttributeTree(self.inputs[1])
+
         envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {"inputs": inputs}, self.envs))
-        outputs = {}
 
         # for p_name, p_metadata in self.metadata.out_ports:
 
@@ -191,7 +208,7 @@ class SpModule(SpObject):
         #     outputs[p_name] = self.create_dobject(data, _metadata=p_metadata)
 
         outputs = {p_name: self.create_dobject(result.get(p_name, None),
-                                             _metadata=p_metadata, envs=envs_map) for p_name, p_metadata in self.metadata.out_ports}
+                                               _metadata=p_metadata, envs=envs_map) for p_name, p_metadata in self.metadata.out_ports}
 
         self._outputs = AttributeTree(outputs)
 

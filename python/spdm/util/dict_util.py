@@ -89,9 +89,10 @@ def deep_merge_dict(first, second, level=-1):
             first.append(second)
     elif isinstance(first, collections.abc.Mapping) and isinstance(second, collections.abc.Mapping):
         for k, v in second.items():
-            if isinstance(first.get(k, None), collections.abc.Mapping):
-                deep_merge_dict(first[k], v, level-1)
-            else:
+            d = first.get(k, None)
+            if isinstance(d, collections.abc.Mapping):
+                deep_merge_dict(d, v, level-1)
+            elif d is None:  # or not isinstance(v, collections.abc.Mapping):
                 first[k] = v
     elif second is None:
         pass

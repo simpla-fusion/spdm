@@ -18,11 +18,16 @@ class File(Document):
     """ Default entry for file-like object
     """
 
-    def __new__(cls, _metadata=None, *args, path=None,   file_format=None,  **kwargs):
+    def __new__(cls, _metadata=None, *args, path=None,    file_format=None,  **kwargs):
         if cls is not File and _metadata is None:
             return Document.__new__(cls)
-
-        extension_name = pathlib.Path(path or _metadata.get("path", "")).suffix
+        if path is None and isinstance(_metadata, str):
+            path = _metadata
+            _metadata = None
+        if isinstance(path, (str, pathlib.PosixPath)):
+            extension_name = pathlib.Path(path or _metadata.get("path", "")).suffix
+        else:
+            extension_name = ""
 
         if not isinstance(_metadata, collections.abc.Mapping) or "$class" not in _metadata:
 
@@ -42,9 +47,11 @@ class File(Document):
 
         return Document.__new__(cls, _metadata=_metadata, *args,  **kwargs)
 
-    def __init__(self,   *args, ** kwargs):
-
-        super().__init__(*args,   ** kwargs)
+    def __init__(self,  _metadata=None, *args, path=None, ** kwargs):
+        if path is None and isinstance(_metadata, str):
+            path = _metadata
+            _metadata = None
+        super().__init__(_metadata=_metadata, *args,  path=path, ** kwargs)
 
         self._path = self._path or self.metadata.path or "."
         if not isinstance(self._path, list):
