@@ -18,47 +18,26 @@ class File(Document):
     """ Default entry for file-like object
     """
 
-    extension = {
-        ".bin": "Binary",
-        ".h5": "HDF5",
-        ".hdf5": "HDF5",
-        ".nc": "netCDF",
-        ".netcdf": "netCDF",
-        ".namelist": "namelist",
-        ".nml": "namelist",
-        ".xml": "XML",
-        ".json": "JSON",
-        ".yaml": "YAML",
-        ".txt": "TXT",
-        ".csv": "CSV",
-        ".numpy": "NumPy",
-        ".geqdsk": "GEQdsk",
-        ".gfile": "GEQdsk",
-        ".mds": "mdsplus",
-        ".mdsplus": "mdsplus",
-    }
-
     def __new__(cls, _metadata=None, *args, path=None,   file_format=None,  **kwargs):
         if cls is not File and _metadata is None:
             return Document.__new__(cls)
-        extension_name = ''
+
+        extension_name = pathlib.Path(path or _metadata.get("path", "")).suffix
+
         if not isinstance(_metadata, collections.abc.Mapping) or "$class" not in _metadata:
-            file_format = file_format or _metadata.get("file_format", None) or\
-                pathlib.Path(path or _metadata.get("path", "")).suffix
-            if file_format[0] != '.':
-                file_format = '.'+file_format
-            extension_name = file_format
 
-            file_format = File.extension.get(file_format.lower(), file_format)
-            file_format = file_format.replace('/', '.')
+            class_name = file_format or _metadata.get("file_format", None)
 
-            if not file_format.startswith("file."):
-                file_format = "file."+file_format
+            if not class_name and not not extension_name:
+                class_name = extension_name[1:]
+
+            if not class_name.startswith("."):
+                class_name = "file."+file_format
 
             if _metadata is None:
-                _metadata = file_format
+                _metadata = class_name
             else:
-                _metadata["$class"] = file_format
+                _metadata["$class"] = class_name
                 _metadata["extension_name"] = extension_name
 
         return Document.__new__(cls, _metadata=_metadata, *args,  **kwargs)

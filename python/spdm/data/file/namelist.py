@@ -24,8 +24,8 @@ class FileNamelist(File):
             data = normalize_data(data)
             f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
 
-    def read(self, *args, **kwargs) -> Dict[str, Any]:
-        return f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)
+    def root(self) -> Dict[str, Any]:
+        return Node(f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True))
 
     # def normalize_r(self, prefix, nobj):
     #     if isinstance(nobj, str):
@@ -39,22 +39,6 @@ class FileNamelist(File):
     #     else:
     #         return nobj
 
-    def write(self,  data: Dict[str, Any], *args,  **kwargs):
-        f90nml.write(normalize_data(data), self.path.open(mode="w"))
-        # d = d or {}
-
-        # if isinstance(fid, pathlib.Path):
-        #     fid = fid.as_posix()
-
-        # d = self.normalize_r("", d)
-
-        # if template is None:
-        #     f90nml.write(d, fid)
-        # else:
-        #     if not isinstance(template, SpURI):
-        #         template = SpURI(template)
-        #     f90nml.patch(template.path, d, fid)
-        pass
 
 
 __SP_EXPORT__ = FileNamelist
