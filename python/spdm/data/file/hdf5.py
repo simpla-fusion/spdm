@@ -22,7 +22,10 @@ __plugin_spec__ = {
 }
 
 
-class FileHDF5(File):
+class HDF5Node(Node):
+    def __init__(self, data, *args,  **kwargs):
+        super().__init__(data, *args, **kwargs)
+
     def __init__(self, desc, value=None, *args, mode="w", **kwargs):
         super().__init__(desc, value, *args, **kwargs)
         if isinstance(fp, str):
@@ -133,9 +136,27 @@ class FileHDF5(File):
         raise NotImplementedError(whoami(self))
 
 
+class HDF5File(File):
+    def __init__(self, _metadata=None, *args, mode="r", **kwargs):
+        super().__init__(_metadata, *args,   **kwargs)
+        self._root = None
+
+    @property
+    def root(self):
+        if self._root is None:
+            self._root = h5py.File(self.path)
+        return HDF5Node(self._root)
+
+    def update(self, d):
+        raise NotImplementedError()
+
+
 def load(fp):
-    return FileHDF5(fp, mode="r")
+    return HDF5File(fp, mode="r")
 
 
 def save(fp, data: collections.abc.Mapping):
-    return FileHDF5(fp, mode="w").update(data)
+    return HDF5File(fp, mode="w").update(data)
+
+
+__SP_EXPORT__ = HDF5File

@@ -4,6 +4,7 @@ import os
 import pathlib
 
 import netCDF4 as nc
+# from scipy.io import netcdf
 import numpy as np
 from spdm.util.logger import logger
 from spdm.util.utilities import whoami
@@ -16,37 +17,58 @@ class NetCDFNode(Node):
     def __init__(self, data, *args,  **kwargs):
         super().__init__(data, *args, **kwargs)
 
-    def get(self,  path, *args, **kwargs):
-        raise NotImplementedError(path)
-
-    def get_value(self, path, *args, **kwargs):
-        if isinstance(path, str):
+    def _get(self, path, *args, **kwargs):
+        if not path:
+            return self._holder
+        elif isinstance(path, str):
             path = path.split('.')
 
         path = self.prefix+path
 
         obj = self._holder
 
-        for idx in path:
+        for idx, key in enumerate(path):
             if obj is None:
                 break
             elif isinstance(obj, nc.Dataset):
-                obj = obj.groups.get(idx, None) or\
-                    obj.variables.get(idx, None)
+                obj = obj.groups.get(key, None) or obj.variables.get(key, None)
             elif isinstance(obj, nc.Group):
-                obj = obj[idx]
-            elif isinstance(obj, nc.Variable) and (type(idx) in [int, slice, tuple]):
-                obj = obj[idx]
-            elif hasattr(obj, idx):
-                obj = getattr(obj, idx)
+                obj = obj[key]
+            elif isinstance(obj, nc.Variable) and (type(key) in [int, slice, tuple]):
+                obj = np.array(obj[key])
             else:
-                raise IndexError(idx)
-        if isinstance(obj, nc.Variable):
-            obj = obj[:]
+                try:
+                    obj = self._get_value(obj)[key]
+                except Exception:
+                    raise IndexError('.'.join(path[:idx+1]))
         return obj
 
-    def write(self, path, d):
-        raise NotImplementedError
+    def _get_value(self, obj):
+        if isinstance(obj, nc.Variable):
+            if 'S1' in str(obj.dtype):
+                obj = obj[:]
+                res = obj[~obj.mask].tostring()
+            else:
+                res = np.array(obj)  # 　TODO: if dimension is not None , should return Profile
+        elif isinstance(obj, (nc.Dataset, nc.Group)):
+            res0 = {k: self._get_value(obj.variables[k]) for k in obj.variables.keys()}
+            res1 = {k: self._get_value(obj.groups[k]) for k in obj.groups.keys()}
+            res = {**res0, **res1}
+        else:
+            res = obj
+        return res
+
+    def get(self, path, *args, **kwargs):
+        obj = self._get(path)
+        if isinstance(obj, (nc.Group, nc.Dataset)):
+            return NetCDFNode(obj)
+        elif isinstance(obj, nc.Variable):
+            return self._get_value(obj)
+        else:
+            return obj
+
+    def get_value(self, path, *args, **kwargs):
+        return self._get_value(self._get(path))
 
     def _update(self, grp, path, value, **kwargs):
         if grp is None:
@@ -55,9 +77,12 @@ class NetCDFNode(Node):
         if path is None:
             raise RuntimeError(f"None path")
 
+        if isinstance(path, str):
+            path = path.split('/')
+
         if isinstance(value, collections.abc.Mapping):
             for k, v in value.items():
-                self._update(grp, path/k, v)
+                self._update(grp, path+[k], v)
             return
 
         prefix = str(path.parent).replace("/", ".")
@@ -71,7 +96,7 @@ class NetCDFNode(Node):
             raise f"Unsupported data type {type(value)}"
         else:
             logger.debug(f"insert ndarray {value.shape} {value.dtype.str}")
-            dimensions = list()
+            dimensions = np.linspace(len(value))
             for i in range(len(value.shape)):
                 d_name = f"_{attr_name}_d{i}"
                 grp.createDimension(d_name, value.shape[i])
@@ -80,6 +105,9 @@ class NetCDFNode(Node):
             data[:] = value
 
         return
+
+    def update(self, d, *args, **kwargs):
+        self._update(self._holder, [], d)
 
     def put(self, path, value, *args, **kwargs):
         if isinstance(path, str):
@@ -114,16 +142,19 @@ class NetCDFNode(Node):
         #             yield self._convert(child, path=spath)
 
 
-class FileNetCDF(File):
+class NetCDFFile(File):
     def __init__(self, _metadata=None, *args, mode="r", **kwargs):
         super().__init__(_metadata, *args,   **kwargs)
         self._root = None
 
-    @property
+    @ property
     def root(self):
         if self._root is None:
             self._root = nc.Dataset(self.path, self.mode)
         return NetCDFNode(self._root)
 
+    def update(self, d):
+        raise NotImplementedError()
 
-__SP_EXPORT__ = FileNetCDF
+
+__SP_EXPORT__ = NetCDFFile

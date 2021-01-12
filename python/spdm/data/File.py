@@ -31,13 +31,13 @@ class File(Document):
 
         if not isinstance(_metadata, collections.abc.Mapping) or "$class" not in _metadata:
 
-            class_name = file_format or _metadata.get("file_format", None)
+            class_name = file_format or (_metadata or {}).get("file_format", None)
 
             if not class_name and not not extension_name:
                 class_name = extension_name[1:]
 
             if not class_name.startswith("."):
-                class_name = "file."+file_format
+                class_name = "file."+class_name
 
             if _metadata is None:
                 _metadata = class_name

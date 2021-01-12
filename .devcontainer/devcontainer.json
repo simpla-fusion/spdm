@@ -21,8 +21,7 @@
 	"appPort": [
 		8888
 	],
-	"postCreateCommand": "patch -p0 -i  ${containerWorkspaceFolder}/.devcontainer/server.patch `ls /home/fydev/.vscode-server/bin/*/server.sh |head -n 1`  && mkdir -m 700 -p ~/.ssh && ssh-keyscan gitee.com > ~/.ssh/known_hosts  && sudo chown fydev:fydef ${containerWorkspaceFolder}/.."
-	 ,
+	// "postCreateCommand": "patch -p0 -i  ${containerWorkspaceFolder}/.devcontainer/server.patch `ls /home/fydev/.vscode-server/bin/*/server.sh |head -n 1`  && mkdir -m 700 -p ~/.ssh && ssh-keyscan gitee.com > ~/.ssh/known_hosts  && sudo chown fydev:fydef ${containerWorkspaceFolder}/.."	 ,
 	"remoteUser": "fydev",
 	// Add the IDs of extensions you want installed when the container is created in the array below.
 	"extensions": [
