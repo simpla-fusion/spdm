@@ -8,7 +8,7 @@ import sys
 import time
 import pathlib
 
-from ..util.logger import logger
+from ..util.logger import logger, sp_enable_logging
 
 
 class Session:
@@ -34,6 +34,7 @@ class Session:
     def current(name=None, *args, **kwargs):
         if len(Session._stack) == 0:
             Session._stack.append(Session(name=name, *args, **kwargs))
+            sp_enable_logging(prefix=f"{Session._stack[-1].cwd}/{Session._stack[-1].name}_")
         return Session._stack[-1]
 
     def __init__(self,  *args, engine=None, envs=None,
@@ -71,6 +72,10 @@ class Session:
         res = f"{self._job_count:03}_{id_hint or ''}"
         self._job_count += 1
         return res
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def envs(self):

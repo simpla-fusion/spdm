@@ -55,6 +55,10 @@ class CustomFormatter(logging.Formatter):
 
 def sp_enable_logging(handler=None, prefix=None, formater=None):
 
+    # if prefix is None and isinstance(handler, str):
+    #     prefix = handler
+    #     handler = None
+
     if isinstance(handler, str) and handler == "STDOUT":
         handler = logging.StreamHandler(stream=sys.stdout)
         formater = formater or CustomFormatter()
@@ -76,7 +80,7 @@ def sp_enable_logging(handler=None, prefix=None, formater=None):
 
 if not os.environ.get("SP_NO_DEBUG", None):
     sp_enable_logging("STDOUT")
-    sp_enable_logging()
+    # sp_enable_logging()
 
 
 def deprecated(func):
