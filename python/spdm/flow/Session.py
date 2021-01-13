@@ -25,54 +25,42 @@ class Session:
     MAX_NODES_NUMBER = 128
     DEFAULT_MASK = 0o755
 
+    _default_working_dir = None
     current_job = None
 
     _stack = []
 
     @staticmethod
-    def current():
+    def current(name=None, *args, **kwargs):
         if len(Session._stack) == 0:
-            Session._stack.append(Session())
+            Session._stack.append(Session(name=name, *args, **kwargs))
         return Session._stack[-1]
 
-    def __init__(self, envs=None, *args, engine=None,
+    def __init__(self,  *args, engine=None, envs=None,
                  name=None, label=None, parent=None, attributes=None, working_dir=None,
                  ** kwargs):
 
-        # super().__init__(name=name, label=label or name,
-        #                  parent=parent, attributes=attributes)
-
-        # if isinstance(engine, Engine):
-        #     self._engine = engine
-        # else:
-        #     self._engine = Engine(engine, **kwargs)
-
-        # self._graph = None
-
-        self._envs = {}
+        self._envs = envs or {}
+        self._name = name or __package__.split('.')[0]
+        self._label = label or self._name
 
         if working_dir is not None:
-            self._working_dir = working_dir
-        elif isinstance(parent, Session):
-            self._working_dir = parent.cwd
+            working_dir = pathlib.Path(working_dir)
         else:
-            self._working_dir = working_dir or os.environ.get("FUYUN_OUTPUT_PATH", None)
-            if self._working_dir is not None:
-                self._working_dir = pathlib.Path(self._working_dir)
+            if isinstance(parent, Session):
+                working_dir = parent.cwd
             else:
-                self._working_dir = pathlib.Path.cwd()
+                working_dir = pathlib.Path(Session._default_working_dir or pathlib.Path.cwd())
 
-        self._working_dir = self._working_dir.expanduser().resolve()
+            working_dir = working_dir.expanduser().resolve()
 
-        name = name or "fuyun"
+            count = len(list(working_dir.glob(f"{self._name}_*")))
 
-        count = len(list(self._working_dir.glob(f"{name}_*")))
+            working_dir /= f"{self._name}_{count}"
+
+        self._working_dir = working_dir
 
         self._job_count = 0
-
-        self._name = f"{name}_{count}"
-
-        self._working_dir /= self._name
 
         logger.info(f"====== Session [{self._name}]  Start ======")
 

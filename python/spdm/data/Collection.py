@@ -29,7 +29,7 @@ class Collection(SpObject):
 
     associations = {
         "mapping": f"{__package__}.db.Mapping#MappingCollection",
-        "local": f"{__package__}.db.LocalFile",
+        "local": f"{__package__}.Collection#CollectionLocalFile",
 
         "mds": f"{__package__}.db.MDSplus#MDSplusCollection",
         "mdsplus": f"{__package__}.db.MDSplus#MDSplusCollection",
@@ -49,12 +49,7 @@ class Collection(SpObject):
             # return super(Collection, cls).__new__(desc, *args, **kwargs)
 
         if isinstance(_metadata, str):
-            o = urisplit(_metadata)
-            if not o.schema:
-                _metadata = {"$class": _metadata}
-            else:
-                _metadata = {"$class": o.schema,  "path": _metadata}
-
+            _metadata = {"$class": urisplit(_metadata).schema,  "path": _metadata}
         elif desc is None:
             _metadata = {}
         elif isinstance(_metadata, AttributeTree):

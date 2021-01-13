@@ -51,10 +51,18 @@ class ModuleRepository:
                 [
                     *os.environ.get(f"{self._repo_name.upper()}_CONFIGURE_PATH", "").split(';'),
                     *os.environ.get(f"{self._repo_tag.upper()}_CONFIGURE_PATH", "").split(';'),
-                    f"pkgdata://{self._repo_name}/configure.yaml"
+                    # f"pkgdata://{self._repo_name}/configure.yaml"
                 ])
 
-        extra_conf = io.read(conf_file_list)
+        extra_conf = {}
+        for conf_file in conf_file_list:
+            if isinstance(conf_file, str):
+                conf_file = pathlib.Path(conf_file)
+            d = io.read(conf_file)
+            format_string_recursive(d, {"CURRENT_CONFIGURE_FILE_DIR": conf_file.parent})
+            deep_merge_dict(extra_conf, d)
+        # logger.debug(extra_conf)
+        # extra_conf = io.read(conf_file_list)
 
         # TODO:  list in dict should be appended not overwrote .
         f_conf = collections.ChainMap(kwargs, conf or {}, extra_conf)
