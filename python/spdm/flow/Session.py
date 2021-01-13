@@ -62,7 +62,7 @@ class Session:
 
         self._job_count = 0
 
-        logger.info(f"====== Session [{self._name}]  Start ======")
+        logger.info(f"====== Session Start [{self._name} in {self._working_dir}]   ======")
 
     # def __del__(self):
     #     logger.info(f"====== Session [{self._name}]  Stop  ======")
