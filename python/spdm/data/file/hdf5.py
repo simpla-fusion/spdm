@@ -151,12 +151,9 @@ class HDF5File(File):
         raise NotImplementedError()
 
 
-def load(fp):
-    return HDF5File(fp, mode="r")
-
-
-def save(fp, data: collections.abc.Mapping):
-    return HDF5File(fp, mode="w").update(data)
+class HDF5Collection(CollectionLocalFile):
+    def __init__(self, uri, *args, **kwargs):
+        super().__init__(*args, file_extension=".h5",   file_factory=None, **kwargs)
 
 
 __SP_EXPORT__ = HDF5File
