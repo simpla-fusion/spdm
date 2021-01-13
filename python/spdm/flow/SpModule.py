@@ -290,16 +290,60 @@ class SpModuleLocal(SpModule):
         os.chdir(pwd)
         return res
 
-    def _execute_module_command(self, *args):
-        logger.debug(f"MODULE CMD: module {' '.join(args)}")
-        py_commands = os.popen(f"{os.environ['LMOD_CMD']} python {' '.join(args)}  ").read()
-        res = exec(py_commands)
+    def _execute_module_command(self, cmd, working_dir=None):
+        # py_command = self._execute_process([f"{os.environ['LMOD_CMD']}", 'python', *args])
+        # process = os.popen(f"{os.environ['LMOD_CMD']} python {' '.join(args)}  ")
+        if isinstance(cmd, list):
+            cmd = ' '.join(cmd)
+
+        lmod_cmd = os.environ.get('LMOD_CMD', None)
+
+        if not lmod_cmd:
+            raise RuntimeError(f"Can not find lmod!")
+
+        # process = subprocess.run([lmod_cmd, "python", *cmd], capture_output=True)
+
+        mod_cmd = ' '.join([lmod_cmd, "python", cmd])
+        process = os.popen(mod_cmd, mode='r')
+        py_command = process.read()
+        exitcode = process.close()
+        if not exitcode:
+            res = exec(py_command)
+            logger.debug(f"MODULE CMD: module {cmd}")
+        else:
+            logger.error(f"Module command failed! [module {cmd}] [exitcode: {exitcode}] ")
+            raise RuntimeError(f"Module command failed! [module {cmd}] [exitcode: {exitcode}]")
+
         return res
 
-    def _execute_process(self, cmd):
-        res = os.popen(cmd).read()
-        logger.debug(f"SHELL CMD: {cmd} : {res}")
-        return res
+    def _execute_process(self, cmd, working_dir='.'):
+        # logger.debug(f"CMD: {cmd} : {res}")
+        logger.info(f"Execute Shell command [{working_dir}$ {' '.join(cmd)}]")
+        # @ref: https://stackoverflow.com/questions/21953835/run-subprocess-and-print-output-to-logging
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                # env=self.envs,
+                shell=True,
+                cwd=working_dir
+            )
+            # process_output, _ = command_line_process.communicate()
+
+            with process.stdout as pipe:
+                for line in iter(pipe.readline, b''):  # b'\n'-separated lines
+                    logger.info(line)
+
+            exitcode = process.wait()
+
+        except (OSError, subprocess.CalledProcessError) as error:
+            logger.error(
+                f"""Command failed! [{cmd}]
+                   STDOUT:[{error.stdout}]
+                   STDERR:[{error.stderr}]""")
+            raise error
+        return exitcode
 
     def _execute_object(self, cmd):
         return NotImplemented
@@ -344,12 +388,19 @@ class SpModuleLocal(SpModule):
     def execute(self, *args, **kwargs):
         module_name = str(self.metadata.annotation.name)
 
-        module_root = pathlib.Path(os.environ.get(f"EBROOT{module_name.upper()}", "./")).expanduser()
+        module_root = os.environ.get(f"EBROOT{module_name.upper()}", None)
+
+        if not module_root:
+            logger.error(f"Load module '{module_name}' failed! {module_root}")
+            raise RuntimeError(f"Load module '{module_name}' failed!")
+
+        module_root = pathlib.Path(module_root).expanduser()
 
         exec_file = module_root / str(self.metadata.run.exec_file)
 
         exec_file.resolve()
-
+        logger.debug(module_name)
+        logger.debug((module_root, exec_file))
         try:
             exec_file.relative_to(module_root)
         except ValueError:
@@ -359,7 +410,7 @@ class SpModuleLocal(SpModule):
         command = []
 
         if not exec_file.exists():
-            raise FileExistsError(exec_file)
+            raise FileExistsError(module_root/exec_file)
         elif exec_file.suffix in SpModuleLocal.script_call.keys():
             command = [SpModuleLocal.script_call[exec_file.suffix], exec_file.as_posix()]
         elif os.access(exec_file, os.X_OK):
@@ -377,39 +428,27 @@ class SpModuleLocal(SpModule):
         command.extend(shlex.split(arguments))
 
         working_dir = self.envs.get("WORKING_DIR", "./")
-        logger.info(f"Execute Shell command [{working_dir}$ {' '.join(command)}]")
-        # @ref: https://stackoverflow.com/questions/21953835/run-subprocess-and-print-output-to-logging
-        try:
-            # exit_status = subprocess.run(
-            #     command,
-            #     env=collections.ChainMap(self._envs, os.environ),
-            #     capture_output=False,
-            #     check=True,
-            #     shell=True,
-            #     text=True,
-            #     cwd=working_dir
-            # )
-            command_line_process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                # env=self.envs,
-                shell=True,
-                cwd=working_dir
-            )
-            # process_output, _ = command_line_process.communicate()
 
-            with command_line_process.stdout as pipe:
-                for line in iter(pipe.readline, b''):  # b'\n'-separated lines
-                    logger.info(line)
-
-            exitcode = command_line_process.wait()
-
-        except (OSError, subprocess.CalledProcessError) as error:
-            logger.error(
-                f"""Command failed! [{command}]
-                   STDOUT:[{error.stdout}]
-                   STDERR:[{error.stderr}]""")
-            raise error
+        exitcode = self._execute_process(command, working_dir)
+        # try:
+        #     command_line_process = subprocess.Popen(
+        #         command,
+        #         stdout=subprocess.PIPE,
+        #         stderr=subprocess.STDOUT,
+        #         # env=self.envs,
+        #         shell=True,
+        #         cwd=working_dir
+        #     )
+        #     # process_output, _ = command_line_process.communicate()
+        #     with command_line_process.stdout as pipe:
+        #         for line in iter(pipe.readline, b''):  # b'\n'-separated lines
+        #             logger.info(line)
+        #     exitcode = command_line_process.wait()
+        # except (OSError, subprocess.CalledProcessError) as error:
+        #     logger.error(
+        #         f"""Command failed! [{command}]
+        #            STDOUT:[{error.stdout}]
+        #            STDERR:[{error.stderr}]""")
+        #     raise error
 
         return {"EXITCODE": exitcode}

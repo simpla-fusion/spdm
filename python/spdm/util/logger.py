@@ -59,8 +59,8 @@ def sp_enable_logging(handler=None, prefix=None, formater=None):
         handler = logging.StreamHandler(stream=sys.stdout)
         formater = formater or CustomFormatter()
     elif handler is None:
-        path = pathlib.Path(
-            f"{prefix or os.environ.get('SP_LOG_PREFIX', '/tmp/sp_log/sp_')}{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.log")
+        prefix = prefix or os.environ.get('SP_LOG_PREFIX', f"/tmp/sp_log_{os.environ['USER']}/sp_")
+        path = pathlib.Path(f"{prefix}{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.log")
         path = path.expanduser().resolve()
         if not path.parent.exists():
             path.parent.mkdir(mode=0o0755, exist_ok=True)

@@ -154,7 +154,8 @@ class NetCDFFile(File):
         return NetCDFNode(self._root)
 
     def update(self, d):
-        raise NotImplementedError()
+        super().update(d)
+        # raise NotImplementedError()
 
 
 __SP_EXPORT__ = NetCDFFile
