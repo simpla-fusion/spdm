@@ -61,7 +61,7 @@ class ModuleRepository:
             d = io.read(conf_file)
             format_string_recursive(d, {"CURRENT_CONFIGURE_FILE_DIR": conf_file.parent})
             deep_merge_dict(extra_conf, d)
-        # logger.debug(extra_conf)
+        logger.debug(conf_file_list)
         # extra_conf = io.read(conf_file_list)
 
         # TODO:  list in dict should be appended not overwrote .
