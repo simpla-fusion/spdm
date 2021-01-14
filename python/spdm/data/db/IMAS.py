@@ -1,104 +1,145 @@
 import collections
+import os
 import pathlib
-
+import numpy as np
+import imas
+from spdm.util.urilib import urisplit
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ..Document import Document
 from ..Collection import Collection
+from ..Document import Document
+from ..Node import Node
 
 
 class IMASNode(Node):
-    def __init__(self, target, *args, mapping=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if isinstance(mapping, LazyProxy):
-            self._xml_holder = mapping.__object__
-            self._xml_handler = mapping.__handler__
-        elif isinstance(mapping, XMLHolder):
-            self._xml_holder = mapping
-            self._xml_handler = XMLHandler()
-        else:
-            self._xml_holder = XMLHolder(mapping)
-            self._xml_handler = XMLHandler()
+    def __init__(self, holder,  *args,  **kwargs):
+        super().__init__(holder, *args, **kwargs)
 
-        self._target = target
+    def _get_ids(self, obj, path, time_slice=None):
+        if not path:
+            return obj
+        if isinstance(path, str):
+            path = path.split('/')
+        prev = None
 
-    def put(self, holder, path, value, *args, is_raw_path=False,   **kwargs):
-        if not is_raw_path:
-            return PathTraverser(path).apply(lambda p: self.get(holder, p, is_raw_path=True, **kwargs))
-        else:
-            req = self._xml_handler.get(self._xml_holder, path, *args, **kwargs)
-            if isinstance(req, str):
-                self._target.put(holder, req, value, is_raw_path=True)
-            elif isinstance(res, collections.abc.Sequence):
-                raise NotImplementedError()
-            elif isinstance(res, collections.abc.Mapping):
-                raise NotImplementedError()
-            elif req is not None:
-                raise RuntimeError(f"Can not write to non-empty entry! {path}")
+        for idx, p in enumerate(path):
+            if prev == "time_slice" and not isinstance(p, (int, slice)) and p != "resize":
+                time_slice = time_slice or self.envs.get("time_slice", 0)
+                t_obj = obj[time_slice]
+            if isinstance(p, str):
+                t_obj = getattr(obj, p, None)
+            elif isinstance(p, (int, slice)):
+                t_obj = obj[p]
+            else:
+                t_obj = None
 
-    def _fetch_from_xml(self, holder, item, *args, **kwargs):
-        if item is None:
-            return None
-        elif isinstance(item, LazyProxy) or isinstance(item, XMLHolder):
-            return LazyProxy(holder, handler=IMASHandler(self._target, mapping=item))
-        elif isinstance(item, collections.abc.Mapping) and "{http://fusionyun.org/schema/}mdsplus" in item:
-            return self._target.get(holder, item["{http://fusionyun.org/schema/}mdsplus"], *args, **kwargs)
-        else:
-            return item
+            if t_obj is None:
+                raise KeyError(path)  # '.'.join(path[:idx+1]))
+            else:
+                obj = t_obj
 
-    def get(self, holder, path, *args,  is_raw_path=False,  **kwargs):
-        if not is_raw_path:
-            res = PathTraverser(path).apply(lambda p: self.get(holder, p,  is_raw_path=True, **kwargs))
+            prev = p
+        return obj
+
+    def _put_ids(self, obj, path, value, *args, **kwargs):
+        if not path:
+            if isinstance(value, list):
+                obj.resize(len(value))
+                for idx, v in enumerate(value):
+                    self._put_ids(obj, idx, v)
+            elif isinstance(value, collections.abc.Mapping):
+                obj.resize(len(value))
+                for k, v in value.items():
+                    self._put_ids(obj, k, v)
+        elif isinstance(value, (int, float, str)):
+            if isinstance(path, str):
+                path = path.split('/')
+            obj = self._get_ids(obj, path[:-1])
+            key = path[-1]
+            if isinstance(key, str):
+                setattr(obj, key, value)
+            else:
+                obj[key] = value
+        elif isinstance(value, np.ndarray):
+            obj = self._get_ids(obj, path[:-1])
+            self._get_ids(obj, [path[-1], "resize"])(*value.shape)
+            aobj = self._get_ids(obj, path[-1])
+            aobj[:] = value[:]
+
         else:
-            item = self._xml_handler.get_value(self._xml_holder, path, *args, **kwargs)
-            res = self._fetch_from_xml(holder, item)
-            if res is None:
-                res = self._target.get(holder, path,  *args,  **kwargs)
-        return res
+            self._put_ids(self._get_ids(obj, path), [], value)
+
+    def put(self, path, value, *args, **kwargs):
+        self._put_ids(self.holder, path, value)
+        # getattr(self.holder, path[0]).putSlice()
+        # getattr(self.holder, path[0]).put()
+
+    def get(self, path, *args,    **kwargs):
+        # getattr(self.holder, path[0]).get()
+        return self._get_ids(self._holder, path, **kwargs)
 
     def iter(self, holder, path, *args, **kwargs):
-        for item in self._xml_handler.iter(self._xml_holder, path):
-            yield self._fetch_from_xml(holder, item, *args, **kwargs)
+        raise NotImplementedError()
 
 
 class IMASDocument(Document):
-    pass
+    def __init__(self,  *args, shot=0, run=0, database=None, user=None, version=None, **kwargs):
+        super().__init__(*args,  ** kwargs)
+
+        user = user or os.environ.get("USER", "NOBODY")
+
+        database = database or 'UNNAMED_DB'
+
+        version = version or os.environ.get('IMAS_VERSION', '3').split('.', 1)[0]
+
+        self._data = imas.ids(int(shot), int(run))
+
+        if "r" in self.mode:
+            self._data.open_env(user, database, version)
+        else:
+            self._data.create_env(user, database, version)
+
+        logger.info(f"Open IMAS Document {user, database, version}: {'OK' if self._data.isConnected() else 'FAILED'}")
+
+    def close(self):
+        if not not self._data:
+            logger.info(f"Close IMAS Document")
+            self._data.equilibrium.put()
+            logger.debug(len(self._data.equilibrium.time_slice))
+            self._data.close()
+        super().close()
+
+    @property
+    def root(self):
+        return IMASNode(self._data, mode=self.mode, envs=self.envs)
+
+    def update(self, d):
+        IMASNode(self._data, mode=self.mode, envs=self.envs).put(d)
 
 
 class IMASCollection(Collection):
-    def __init__(self, uri, *args, data_source=None, mapping=None,  **kwargs):
+    def __init__(self, uri, *args,  user=None,  database=None, version=None,   **kwargs):
+        super().__init__(uri, *args, id_hasher="{shot}_{run}", ** kwargs)
 
-        super().__init__()
+        self._user = user or os.environ.get("USER", "NOBODY")
 
-        eself._data_source = data_source or {}
+        o = urisplit(uri)
 
-    def add_data_source(self, d):
-        pass
+        self._database = database or o.authority
 
-    def open_document(self, fid, mode):
-        return Document(root=MDSplusHolder(self._tree_name, fid, mode="NORMAL"),
-                        handler=self._handler,
-                        collection=self)
+        self._version = version or os.environ.get('IMAS_VERSION', '3').split('.', 1)[0]
 
+        self._local_db = pathlib.Path(f"~/public/imasdb/{self._database}/{self._version}/0").expanduser().resolve()
 
-def connect_imas(uri, *args, mapping=None, backend="HDF5", **kwargs):
+        self._local_db.mkdir(parents=True, exist_ok=True)
 
-    def id_hasher(collect, d, auto_inc=False):
-        pattern = "{shot:08}_{run}"
-        s = d.get("shot", 0)
-        r = d.get("run", None)
-
-        return s
-
-    if mapping is not None:
-        def wrapper(target, mfiles=mapping):
-            return IMASHandler(target, mapping=mfiles)
-    else:
-        wrapper = None
-
-    return connect(backend, *args, id_hasher=id_hasher, request_proxy=wrapper,  ** kwargs)
+    def open_document(self, fid=None, *args, mode=None, **kwargs):
+        shot, run = fid.split('_')
+        return IMASDocument(*args,  mode=mode, user=self._user,
+                            database=self._database, shot=shot, run=run,
+                            envs=collections.ChainMap(kwargs, self.envs))
 
 
-__SP_EXPORT__ = connect_imas
+__SP_EXPORT__ = IMASCollection

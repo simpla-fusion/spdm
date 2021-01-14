@@ -9,15 +9,16 @@ from .DataObject import DataObject
 
 class Document(DataObject):
 
-    def __init__(self, *args, fid=None, mode="r", path=None, **kwargs):
+    def __init__(self, *args, fid=None, mode="r", path=None, envs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._mode = mode
         self._fid = fid
         self._path = path
         self._data = None
+        self._envs = envs
 
     def __del__(self):
-        pass
+        self.close()
 
     def copy(self, other):
         if isinstance(other, Document):
@@ -28,6 +29,10 @@ class Document(DataObject):
     @property
     def root(self):
         return Node(self._data)
+
+    @property
+    def envs(self):
+        return self._envs
 
     @property
     def entry(self):
@@ -48,6 +53,9 @@ class Document(DataObject):
     def validate(self, schema=None):
         raise NotImplementedError()
 
+    def close(self):
+        self._data = None
+
     def flush(self):
         raise NotImplementedError()
 
@@ -55,8 +63,7 @@ class Document(DataObject):
         raise NotImplementedError()
 
     def update(self, d: Dict[str, Any]):
-        self._data = AttributeTree(d) if not isinstance(d, AttributeTree) else d
-        # raise NotImplementedError()
+        self.root.update(d)
 
     def fetch(self, proj: Dict[str, Any] = None):
         raise NotImplementedError()

@@ -131,10 +131,10 @@ class File(Document):
             fid.write(d, *args, **kwargs)
 
     def update(self, d, *args, **kwargs):
-        if d is None:
-            return
-        elif isinstance(d, pathlib.PosixPath):
+        if isinstance(d, pathlib.PosixPath):
             self._path = d
+        else:
+            super().update(d)
         # old_d = self.read()
         # old_d.update(d)
         # self.write(old_d)

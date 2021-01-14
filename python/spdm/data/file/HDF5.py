@@ -133,16 +133,17 @@ class HDF5File(File):
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._root = None
+
+    def close(self):
+        if self._data is not None:
+            self._data.close()
+        super().close()
 
     @property
     def root(self):
-        if self._root is None:
-            self._root = h5py.File(self.path, mode=HDF5File.model_map.get(self.mode, "r"))
-        return HDF5Node(self._root, mode=self.mode)
-
-    def update(self, d):
-        raise NotImplementedError()
+        if self._data is None:
+            self._data = h5py.File(self.path, mode=HDF5File.model_map.get(self.mode, "r"))
+        return HDF5Node(self._data, mode=self.mode)
 
 
 __SP_EXPORT__ = HDF5File

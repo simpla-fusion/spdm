@@ -38,7 +38,7 @@ class Collection(SpObject):
         "mongo": f"{__package__}.db.MongoDB",
         "mongodb": f"{__package__}.db.MongoDB",
 
-        "imas": f"{__package__}.db.IMAS#IMASCollection",
+        "imas": f"{__package__}.db.IMAS",
 
     }
     metadata = AttributeTree()
@@ -76,7 +76,7 @@ class Collection(SpObject):
 
         return res
 
-    def __init__(self, uri, *args, id_hasher=None, envs=None, mode="rw", auto_inc_idx=True, doc_factory=None, **kwargs):
+    def __init__(self, uri, *args, id_hasher=None, envs=None, mode="r", auto_inc_idx=True, doc_factory=None, **kwargs):
         super().__init__()
 
         logger.info(f"Open {self.__class__.__name__} : {uri}")

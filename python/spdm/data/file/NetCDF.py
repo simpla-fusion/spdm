@@ -143,19 +143,19 @@ class NetCDFNode(Node):
 
 
 class NetCDFFile(File):
-    def __init__(self, _metadata=None, *args, mode="r", **kwargs):
-        super().__init__(_metadata, *args,   **kwargs)
-        self._root = None
+    def __init__(self,   *args,   **kwargs):
+        super().__init__(*args,   **kwargs)
 
-    @ property
+    def close(self):
+        if self._data is not None:
+            self._data.close()
+        super().close()
+
+    @property
     def root(self):
-        if self._root is None:
-            self._root = nc.Dataset(self.path, self.mode)
-        return NetCDFNode(self._root)
-
-    def update(self, d):
-        super().update(d)
-        # raise NotImplementedError()
+        if self._data is None:
+            self._data = nc.Dataset(self.path, self.mode)
+        return NetCDFNode(self._data)
 
 
 __SP_EXPORT__ = NetCDFFile

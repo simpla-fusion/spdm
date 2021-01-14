@@ -90,12 +90,7 @@ class MDSplusDocument(Document):
         self._trees = DefaultDict(lambda t, s=self.fid, m=mds_mode,
                                   p=str(self.path): open_mdstree(t, s, mode=m, path=p))
 
-        if desc is None:
-            desc = {}
-
-        tree_name = tree_name or desc.get("tree_name")
-
-        self._trees[None] = self._trees[tree_name]
+        self._trees[None] = self._trees[tree_name or (desc or {}).get("tree_name")]
 
     # def __del__(self):
     #     # del self._trees
@@ -103,6 +98,9 @@ class MDSplusDocument(Document):
     #     pass
     #     # for k, tree in self._trees.items():
     #     #     logger.debug(tree)
+
+    def close(self):
+        self._trees.clear()
 
     @property
     def root(self):
