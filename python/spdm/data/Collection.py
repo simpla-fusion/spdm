@@ -26,6 +26,7 @@ class Collection(SpObject):
     ''' Collection of documents
     '''
     DOCUMENT_CLASS = Document
+    ID_TAG = "{:06}"
 
     associations = {
         "mapping": f"{__package__}.db.Mapping#MappingCollection",
@@ -75,72 +76,102 @@ class Collection(SpObject):
 
         return res
 
-    def __init__(self, desc, *args, id_hasher=None, envs=None, **kwargs):
+    def __init__(self, uri, *args, id_hasher=None, envs=None, mode="rw", auto_inc_idx=True, doc_factory=None, **kwargs):
         super().__init__()
 
-        logger.info(f"Open {self.__class__.__name__} : {desc}")
+        logger.info(f"Open {self.__class__.__name__} : {uri}")
 
-        self._id_hasher = id_hasher or "{_id}"
+        self._uri = uri
+
+        self._id_hasher = id_hasher
 
         self._envs = collections.ChainMap(kwargs, envs or {})
 
-    def __del__(self):
-        logger.info(f"Close {self.__class__.__name__}:{self.metadata.name}")
+        self._mode = mode
 
-    @ cached_property
+        self._auto_inc_idx = auto_inc_idx
+
+        self._document_factory = doc_factory or Document
+
+    # def __del__(self):
+    #     logger.info(f"Close {self.__class__.__name__}:{self._uri}")
+
+    @cached_property
     def envs(self):
         return AttributeTree(self._envs)
 
-    @ property
-    def is_writable(self):
-        return "w" in self.metadata.mode
+    @property
+    def uri(self):
+        return self._uri
 
-    @ property
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def is_writable(self):
+        return "w" in self.mode or 'x' in self.mode
+
+    @property
     def handler(self):
         return self._handler
 
     # mode in ["", auto_inc  , glob ]
-    def guess_id(self, d, auto_inc=True):
+    def guess_id(self, *args, **kwargs):
         fid = None
-        if callable(self._id_hasher):
-            fid = self._id_hasher(self, d, auto_inc)
+        if not self._id_hasher:
+            fid = args[0] if len(args) > 0 else None
+        elif callable(self._id_hasher):
+            fid = self._id_hasher(self, *args, **kwargs)
         elif isinstance(self._id_hasher, str):
             try:
-                fid = self._id_hasher.format_map(d)
-            except KeyError:
-                if auto_inc:
-                    fid = self._id_hasher.format(_id=self.count())
-                else:
-                    raise RuntimeError(f"Can not get id from {d}!")
-
+                fid = self._id_hasher.format(*args, **kwargs)
+            except Exception:
+                fid = None
+        else:
+            raise RuntimeError(f"Can not guess id from {args,kwargs}")
         return fid
 
-    def open_document(self, fid, mode):
-        logger.debug(f"Opend Document: {fid} mode=\"{mode}\"")
+    @property
+    def next_id(self):
         raise NotImplementedError()
 
-    def insert(self, *args, **kwargs):
-        return self.insert_one(*args, **kwargs)
+    def open_document(self, fid, *args, mode=None, **kwargs):
+        logger.debug(f"Open Document: {fid} [mode=\"{ mode or self.mode}\"]")
+        return self._document_factory(self.guess_path(fid), *args, mode=mode or self.mode, **kwargs)
 
-    def open(self, *args, mode="r", **kwargs):
-        if "w" in mode and self.is_writable:
-            return self.insert_one(*args, **kwargs)
+    def open(self, *args, mode=None, **kwargs):
+        mode = mode or self.mode
+        if "w" in mode:
+            return self.create(*args, **kwargs)
         elif "w" not in mode:
             return self.find_one(*args, **kwargs)
         else:
             raise RuntimeWarning("Collection is not writable!")
+
+    def create(self, *args, **kwargs):
+        return self.open_document(self.guess_id(*args, **kwargs) or self.next_id, mode="x")
+
+    def insert(self, data, *args, **kwargs):
+        if isinstance(data, list):
+            return self.insert_many(data, *args, **kwargs)
+        else:
+            return self.insert_one(*args, **kwargs)
+
+    def insert_one(self, data, * args,  **kwargs) -> InsertOneResult:
+        doc = self.open_document(self.guess_id(*args, **kwargs) or self.next_id, mode="x")
+        if data is not None:
+            doc.update(data)
+        return doc
+
+    def insert_many(self, documents, *args, **kwargs) -> InsertManyResult:
+        return [self.insert_one(doc, *args, **kwargs) for doc in documents]
 
     def find_one(self, predicate=None, *args, **kwargs):
         raise NotImplementedError()
 
     def find(self, predicate=None, projection=None, *args, **kwargs):
         raise NotImplementedError()
-
-    def insert_one(self, data=None, *args, **kwargs) -> InsertOneResult:
-        raise NotImplementedError()
-
-    def insert_many(self, documents, *args, **kwargs) -> InsertManyResult:
-        return [self.insert_one(doc, *args, **kwargs) for doc in documents]
 
     def replace_one(self, predicate, replacement,  *args, **kwargs) -> UpdateResult:
         raise NotImplementedError()
@@ -189,66 +220,53 @@ class CollectionLocalFile(Collection):
 
     def __init__(self, uri, *args,
                  file_extension=".dat",
-                 file_factory=None,
+                 doc_factory=None,
                  **kwargs):
 
-        super().__init__(uri, *args, **kwargs)
+        super().__init__(uri, *args, doc_factory=doc_factory or File, **kwargs)
 
         if isinstance(uri, str):
             uri = urisplit(uri)
 
-        path = getattr(uri, "path", ".").replace("*", "{_id}")
+        path = getattr(uri, "path", "./")  # .replace("*", Collection.ID_TAG)
 
-        if isinstance(path, str) and path.find("{_id}") < 0:  # not path.endswith(file_extension):
-            path = f"{path}{{_id}}{file_extension}"
+        if "*" not in path:  # not path.endswith(file_extension):
+            path = f"{path}*{file_extension}"
 
-        self._path = pathlib.Path(path).resolve().expanduser()
+        pos = path.rfind('/', 0, path.find('*'))
 
-        logger.debug(self._path)
+        self._path = pathlib.Path(path[:pos]).resolve().expanduser()
 
-        if self._path.suffix == '':
-            self._path = self._path.with_suffix(file_extension)
+        self._doc_name = path[pos+1:]
 
-        if "{_id}" not in self._path.stem:
-            self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
+        # if self._path.suffix == '':
+        #     self._path = self._path.with_suffix(file_extension)
 
-        if not self._path.parent.exists():
+        # if Collection.ID_TAG not in self._path.stem:
+        #     self._path = self._path.with_name(f"{self._path.stem}{Collection.ID_TAG}{self._path.suffix}")
+        if not self._path.exists():
             if "w" not in self._mode:
                 raise RuntimeError(f"Can not make dir {self._path}")
             else:
-                self._path.parent.mkdir()
+                self._path.mkdir()
         elif not self._path.parent.is_dir():
-            raise NotADirectoryError(self._path.parent)
+            raise NotADirectoryError(self._path)
 
-        self._file_factory = file_factory or File
+        logger.debug((self._path, self._doc_name))
 
-    def guess_id(self, d, auto_inc=True):
-        fid = super().guess_id(d, auto_inc=auto_inc)
+    @property
+    def next_id(self):
+        return len(list(self._path.glob(self._doc_name)))
 
-        if fid is None and auto_inc:
-            fid = self.count()
-
-        return fid
-
-    def guess_filepath(self, *args, **kwargs):
-        return self._path.with_name(self._path.name.format(_id=self.guess_id(*args, **kwargs)))
-
-    def open_document(self, fid, mode=None):
-        fpath = self.guess_filepath({"_id": fid})
-        logger.debug(f"Open Document: {fpath} mode=\"{ mode or self.metadata.mode}\"")
-        return Document(root=self._file_factory(fpath, mode or self.metadata.mode), fid=fid, envs=self.envs, handler=self._handler)
-
-    def insert_one(self, data=None, *args,  **kwargs):
-        doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
-        doc.update(data or kwargs)
-        return doc
+    def guess_path(self, f_id):
+        return self._path/(self._doc_name.replace('*', Collection.ID_TAG)).format(f_id)
 
     def find_one(self, predicate=None, projection=None, **kwargs):
-        fpath = self.guess_filepath(predicate or kwargs)
+        f_path = self.guess_filepath(**collections.ChainMap(predicate or {}, kwargs))
 
         doc = None
-        if fpath.exists():
-            doc = self.open_document(fpath)
+        if f_path.exists():
+            doc = self.open_document(f_path)
         else:
             for fp in self._path.parent.glob(self._path.name.format(_id="*")):
                 if not fp.exists():
@@ -269,9 +287,3 @@ class CollectionLocalFile(Collection):
 
     def delete_one(self, predicate,  *args, **kwargs):
         raise NotImplementedError()
-
-    def count(self, predicate=None,   *args, **kwargs) -> int:
-        if predicate is None:
-            logger.warning("NOT IMPLEMENTED! count by predicate")
-
-        return len(list(self._path.parent.glob(self._path.name.format(_id="*"))))

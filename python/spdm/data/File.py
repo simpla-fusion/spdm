@@ -21,7 +21,7 @@ class File(Document):
     def __new__(cls, _metadata=None, *args, path=None,    file_format=None,  **kwargs):
         if cls is not File and _metadata is None:
             return Document.__new__(cls)
-        if path is None and isinstance(_metadata, str):
+        if path is None and isinstance(_metadata, (str, pathlib.PosixPath)):
             path = _metadata
             _metadata = None
         if isinstance(path, (str, pathlib.PosixPath)):

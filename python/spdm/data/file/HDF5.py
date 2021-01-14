@@ -12,35 +12,16 @@ import h5py
 import numpy
 
 from ..File import File
+from ..Node import Node
+
 from spdm.util.logger import logger
 from spdm.util.utilities import whoami
 
-__plugin_spec__ = {
-    "name": "hdf5",
-    "filename_pattern": ["*.h5"],
-    "filename_extension": "h5"
-}
-
 
 class HDF5Node(Node):
-    def __init__(self, data, *args,  **kwargs):
-        super().__init__(data, *args, **kwargs)
 
-    def __init__(self, desc, value=None, *args, mode="w", **kwargs):
-        super().__init__(desc, value, *args, **kwargs)
-        if isinstance(fp, str):
-            pos = fp.rfind("#")
-            self._file_path = pathlib.Path(fp[:pos])
-            self._prefix = fp[pos+1:]
-        elif isinstance(fp, os.PathLike):
-            self._file_path = fp
-            self._prefix = "/"
-        else:
-            raise TypeError(
-                f"expected str, bytes or os.PathLike, not {type(fp)}")
-
-        self._grp_root = None
-        self._mode = mode
+    def __init__(self, holder,  *args, mode="w", **kwargs):
+        super().__init__(holder,  *args, **kwargs)
 
     def _open(self):
         if self._grp_root is None:

@@ -153,13 +153,13 @@ class MappingCollection(Collection):
     #     super().__del__()
 
     def insert_one(self, *args,  query=None, **kwargs):
-        oid = self.guess_id(query or kwargs)
-        doc = self._target.insert_one(_id=oid)
+        oid = self.guess_id(*args, **collection.ChainMap(query or {}, kwargs))
+        doc = self._target.insert_one(oid)
         return MappingDocument(target=doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid, mapping=self._mapping)
 
     def find_one(self,   *args, query=None,  **kwargs):
-        oid = self.guess_id(query or kwargs)
-        doc = self._target.find_one(_id=oid)
+        oid = self.guess_id(*args, **collections.ChainMap(query or {}, kwargs))
+        doc = self._target.find_one(oid)
         return MappingDocument(target=doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid,   mapping=self._mapping)
 
 

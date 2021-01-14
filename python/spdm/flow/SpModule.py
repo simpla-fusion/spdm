@@ -158,7 +158,7 @@ class SpModule(SpObject):
                 res.update(data)
             return res
 
-    @ property
+    @property
     def inputs(self):
         """
             Collect and convert inputs
@@ -184,7 +184,7 @@ class SpModule(SpObject):
         os.chdir(cwd)
         return self._inputs
 
-    @ property
+    @property
     def outputs(self):
         if self._outputs is not None:
             return self._outputs
@@ -275,11 +275,11 @@ class SpModuleLocal(SpModule):
     # def __del__(self):
     #     logger.debug(f"Finalize: {self.__class__.__name__} ")
 
-    @ property
+    @property
     def working_dir(self):
         return self._working_dir
 
-    @ property
+    @property
     def inputs(self):
         if self._inputs is not None:
             return self._inputs

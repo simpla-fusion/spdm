@@ -25,7 +25,6 @@ class MDSplusNode(Node):
     # def __del__(self):
     #     logger.info(f"Close {self.__class__.__name__}")
 
-
     def get(self, path, *args, projection=None,  **kwargs):
         if isinstance(path, collections.abc.Mapping):
             tree_name = path.get("@tree_name", None)
@@ -152,13 +151,14 @@ class MDSplusCollection(Collection):
                                path=self._path, tree_name=tree_name or self._tree_name)
 
     def insert_one(self, *args,  query=None, **kwargs):
-        oid = self.guess_id(collections.ChainMap((query or {}), kwargs), auto_inc=True)
-        doc = self.open_document(oid, mode="w")
+        fid = self.guess_id(*args, **collections.ChainMap((query or {}), kwargs))
+        doc = self.open_document(fid, mode="w")
         # doc.update(data or kwargs)
         return doc
 
     def find_one(self, *args, query=None, projection=None,  **kwargs):
-        fid = self.guess_id(query or kwargs)
+        fid = self.guess_id(*args, **collections.ChainMap((query or {}), kwargs))
+        # fid=self.guess_id(query or kwargs)
         doc = None
         if fid is not None:
             doc = self.open_document(fid, mode="r")
