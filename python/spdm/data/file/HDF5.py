@@ -23,21 +23,24 @@ class HDF5Node(Node):
     def __init__(self, holder,  *args, mode="w", **kwargs):
         super().__init__(holder,  *args, **kwargs)
 
-    def _open(self):
-        if self._grp_root is None:
-            self._grp_root = h5py.File(self._file_path)
-        return self._grp_root
-
     def _insert(self, grp, path, value, **kwargs):
         if grp is None:
             raise RuntimeError("None group")
+        if isinstance(path, str):
+            path = path.split('/')
 
-        if path is None:
-            raise RuntimeError(f"None path")
-        pos = path.rfind('/')
-        if pos > 0:
-            return self._insert(grp.require_group(path[:pos]),
-                                path[pos + 1:], value)
+        if not path:
+            if isinstance(value, collections.abc.Mapping):
+                for k, v in value.items():
+                    self._insert(grp, [k], v, **kwargs)
+            elif isinstance(value, list):
+                raise NotImplementedError()
+            elif not path:
+                raise RuntimeError(f"Empty path!")
+        elif len(path) > 1:
+            return self._insert(grp.require_group('/'.join(path[:-1])), path[-1:], value, **kwargs)
+        else:
+            path = path[0]
 
         if path in grp.keys() and path != '/':
             del grp[path]
@@ -66,7 +69,7 @@ class HDF5Node(Node):
         return
 
     def _fetch(self, obj, projection=None):
-        if projection is None:
+        if not projection:
             if isinstance(obj, h5py.Group):
                 return {**self._fetch(obj.attrs),
                         **{k: self._fetch(obj[k]) for k in obj}}
@@ -74,27 +77,30 @@ class HDF5Node(Node):
                 return {k: self._fetch(obj[k]) for k in obj}
             else:
                 return obj
-        elif isinstance(projection, str):
+        elif isinstance(projection, collections.abc.Mapping):
             if isinstance(obj, h5py.Group):
-                return self._fetch(obj.attrs, projection) \
-                    or self._fetch(obj.get(projection, None))
+                return {**self._fetch(obj.attrs, projection),
+                        **{k: self._fetch(obj[k])
+                           for k, v in projection.items() if v > 0 and k in obj}}
             elif isinstance(obj, h5py.AttributeManager):
-                return self._fetch(obj.get(projection, None))
-        elif isinstance(obj, h5py.Group):
-            return {**self._fetch(obj.attrs, projection),
-                    **{k: self._fetch(obj[k])
-                       for k, v in projection.items() if v > 0 and k in obj}}
-        elif isinstance(obj, h5py.AttributeManager):
-            return {k: self._fetch(obj[k])
-                    for k, v in projection.items() if v > 0 and k in obj}
+                return {k: self._fetch(obj[k])
+                        for k, v in projection.items() if v > 0 and k in obj}
+        elif isinstance(projection, str):
+            return self._fetch(obj, projection.split('/'))
+        elif not isinstance(projection, list):
+            raise TypeError(type(projection))
+        elif len(projection) > 1:
+            return self._fetch(obj.get('/'.join(projection[:-1])), projection[-1:])
         else:
-            return obj
+            key = projection[0]
+            if isinstance(obj, h5py.Group):
+                return self._fetch(obj.attrs, key) \
+                    or self._fetch(obj.get(key, None))
+            elif isinstance(obj, h5py.AttributeManager):
+                return self._fetch(obj.get(key, None))
 
     def update(self, d: Dict[str, Any]):
-        return self._insert(self._open(), "/", d)
-
-    def fetch(self, proj: Dict[str, Any] = None):
-        return self._fetch(self._open(), proj)
+        return self._insert(self._holder, "/", d)
 
     # def fetch_if(self,
     #              projection: Dict[str, Any],
@@ -106,35 +112,37 @@ class HDF5Node(Node):
     #               predicate: Dict[str, Any] = None):
     #     raise NotImplementedError(whoami(self))
 
-    def delete(self, path, *args, **kwargs):
-        pass
+    def put(self, path, value, *args, **kwargs):
+        return self._insert(self.holder, path, value, *args, **kwargs)
 
-    def exists(self, path, *args, **kwargs):
-        raise NotImplementedError(whoami(self))
-
-    def dir(self, *args, **kwargs):
-        self.pull_cache()
-        raise NotImplementedError(whoami(self))
+    def get(self, path, *args, **kwargs):
+        data = self._fetch(self._holder, path, *args, **kwargs)
+        if isinstance(data, h5py.Dataset):
+            data = data[()]  # TODO:if  data has attributes return   Profile
+        return data
 
 
 class HDF5File(File):
-    def __init__(self, _metadata=None, *args, mode="r", **kwargs):
-        super().__init__(_metadata, *args,   **kwargs)
+    model_map = {
+        "r": "r",
+        "rw": "r+",
+        "w": "w",
+        "w-": "w-",
+        "x": "x",
+    }
+
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._root = None
 
     @property
     def root(self):
         if self._root is None:
-            self._root = h5py.File(self.path)
-        return HDF5Node(self._root)
+            self._root = h5py.File(self.path, mode=HDF5File.model_map.get(self.mode, "r"))
+        return HDF5Node(self._root, mode=self.mode)
 
     def update(self, d):
         raise NotImplementedError()
-
-
-class HDF5Collection(CollectionLocalFile):
-    def __init__(self, uri, *args, **kwargs):
-        super().__init__(*args, file_extension=".h5",   file_factory=None, **kwargs)
 
 
 __SP_EXPORT__ = HDF5File

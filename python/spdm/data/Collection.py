@@ -137,8 +137,12 @@ class Collection(SpObject):
         raise NotImplementedError()
 
     def open_document(self, fid, *args, mode=None, **kwargs):
-        logger.debug(f"Open Document: {fid} [mode=\"{ mode or self.mode}\"]")
-        return self._document_factory(self.guess_path(fid), *args, mode=mode or self.mode, **kwargs)
+        f_path = self.guess_path(fid)
+        if not f_path.parent.exists():
+            f_path.parent.mkdir()
+        doc = self._document_factory(*args, mode=mode or self.mode, path=f_path,  **kwargs)
+        logger.debug(f"Open Document {doc.__class__.__name__}: {f_path} [mode=\"{ mode or self.mode}\"]")
+        return doc
 
     def open(self, *args, mode=None, **kwargs):
         mode = mode or self.mode
