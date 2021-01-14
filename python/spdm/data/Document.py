@@ -15,7 +15,7 @@ class Document(DataObject):
         self._fid = fid
         self._path = path
         self._data = None
-        self._envs = envs
+        self._envs = collections.ChainMap(envs or {}, kwargs)
 
     def __del__(self):
         self.close()

@@ -14,8 +14,9 @@ from ..Node import Node
 
 
 class IMASNode(Node):
-    def __init__(self, holder,  *args,  **kwargs):
+    def __init__(self, holder,  *args, envs=None, **kwargs):
         super().__init__(holder, *args, **kwargs)
+        self._envs = envs or {}
 
     def _get_ids(self, obj, path, time_slice=None):
         if not path:
@@ -71,13 +72,30 @@ class IMASNode(Node):
         else:
             self._put_ids(self._get_ids(obj, path), [], value)
 
+    def _fix_time_slice(self, path):
+        if len(path) >= 3 and path[1] == 'time_slice' and isinstance(path[2], str):
+            time_slice = self._envs.get("time_slice", 0)
+            path = path[:2]+[time_slice]+path[2:]
+        return path
+
     def put(self, path, value, *args, **kwargs):
+        path = self._fix_time_slice(path)
         self._put_ids(self.holder, path, value)
-        # getattr(self.holder, path[0]).putSlice()
-        # getattr(self.holder, path[0]).put()
+        if len(path) > 1 and path[1] == "time":
+            ids = getattr(self.holder, path[0])
+            if isinstance(value, float):
+                ids.time_slice.resize(1)
+                ids.ids_properties.homogeneous_time = 2
+            elif isinstance(value, np.ndarray):
+                ids.ids_properties.homogeneous_time = 1
+                ids.time_slice.resize(value.size)
+            else:
+                ids.ids_properties.homogeneous_time = 0
+            # getattr(self.holder, path[0]).putSlice()
+            # getattr(self.holder, path[0]).put()
 
     def get(self, path, *args,    **kwargs):
-        # getattr(self.holder, path[0]).get()
+        path = self._fix_time_slice(path)
         return self._get_ids(self._holder, path, **kwargs)
 
     def iter(self, holder, path, *args, **kwargs):
