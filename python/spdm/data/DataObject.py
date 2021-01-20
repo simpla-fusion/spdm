@@ -47,6 +47,8 @@ class DataObject(SpObject):
         "file.gfile": ".data.file.GEQdsk",
         "file.mds": ".data.db.MDSplus#MDSplusDocument",
         "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+        "db.imas": ".data.db.IMAS#IMASDocument",
+
 
         # "file": ".data.File",
         # "file.general": ".data.file.GeneralFile",

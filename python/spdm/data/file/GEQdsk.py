@@ -159,8 +159,8 @@ def sp_imas_to_geqdsk(d):
     eq = d.equilibrium.time_slice
     wall = d.wall
 
-    dim_r = eq.profiles_2d.grid.dim1
-    dim_z = eq.profiles_2d.grid.dim2
+    dim_r = eq.time_slice.profiles_2d.grid.dim1
+    dim_z = eq.time_slice.profiles_2d.grid.dim2
 
     rleft = dim_r.min()
     rdim = dim_r.max() - dim_r.min()
@@ -168,23 +168,23 @@ def sp_imas_to_geqdsk(d):
 
     # rdim = 0.0
     # zdim = 0.0
-    rcentr = eq.boundary.geometric_axis.r
+    rcentr = eq.time_slice.boundary.geometric_axis.r
     # rleft = 0.0
-    zmid = eq.boundary.geometric_axis.z
-    rmaxis = eq.global_quantities.magnetic_axis.r
-    zmaxis = eq.global_quantities.magnetic_axis.z
-    simag = eq.global_quantities.psi_axis
-    sibry = eq.global_quantities.psi_boundary
-    bcentr = eq.global_quantities.magnetic_axis.b_field_tor
-    current = eq.global_quantities.ip
+    zmid = eq.time_slice.boundary.geometric_axis.z
+    rmaxis = eq.time_slice.global_quantities.magnetic_axis.r
+    zmaxis = eq.time_slice.global_quantities.magnetic_axis.z
+    simag = eq.time_slice.global_quantities.psi_axis
+    sibry = eq.time_slice.global_quantities.psi_boundary
+    bcentr = eq.time_slice.global_quantities.magnetic_axis.b_field_tor
+    current = eq.time_slice.global_quantities.ip
 
     # boundary
-    if not eq.boundary.lcfs:
-        rbbs = eq.boundary.outline.r
-        zbbs = eq.boundary.outline.z
+    if not eq.time_slice.boundary.lcfs:
+        rbbs = eq.time_slice.boundary.outline.r
+        zbbs = eq.time_slice.boundary.outline.z
     else:
-        rbbs = eq.boundary.lcfs.r
-        zbbs = eq.boundary.lcfs.z
+        rbbs = eq.time_slice.boundary.lcfs.r
+        zbbs = eq.time_slice.boundary.lcfs.z
 
     rcentr = float(rcentr or (rbbs.min()+rbbs.max())/2.0)
     zmid = float(rcentr or (zbbs.min()+zbbs.max())/2.0)
@@ -192,7 +192,6 @@ def sp_imas_to_geqdsk(d):
     bbsrz = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape(
         [1, rbbs.size]), axis=0).transpose()
     # psi
-
     # grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
     #                           1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
     # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
@@ -201,22 +200,22 @@ def sp_imas_to_geqdsk(d):
     #     coord_z.shape[0], 1), axis=1)
     # points = np.append(coord_r.reshape(
     #     [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    # psi = eq.profiles_2d[1].psi
+    # psi = eq.time_slice.profiles_2d[1].psi
     # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
     # psirz = griddata(points, values, (grid_r, grid_z),
     #                  method='cubic').transpose()
 
-    psirz = eq.profiles_2d.psi
+    psirz = eq.time_slice.profiles_2d.psi
 
     nw = psirz.shape[0]
     nz = psirz.shape[1]
     # profile
 
-    fpol = eq.profiles_1d.f
-    pres = eq.profiles_1d.pressure
-    ffprim = eq.profiles_1d.f_df_dpsi
-    pprim = eq.profiles_1d.dpressure_dpsi
-    qpsi = eq.profiles_1d.q
+    fpol = eq.time_slice.profiles_1d.f
+    pres = eq.time_slice.profiles_1d.pressure
+    ffprim = eq.time_slice.profiles_1d.f_df_dpsi
+    pprim = eq.time_slice.profiles_1d.dpressure_dpsi
+    qpsi = eq.time_slice.profiles_1d.q
 
     if not isinstance(pres, np.ndarray) and isinstance(pprim, np.ndarray):
         pres = scipy.integrate.cumtrapz(pprim[::-1], np.linspace(1.0, 0.0, nw), initial=0.0)[::-1]
@@ -258,20 +257,20 @@ def sp_geqdsk_to_imas(geqdsk, doc=None):
     # zdim = 0.0
     doc = doc or AttributeTree()
 
-    doc.equilibrium.boundary.geometric_axis.r = geqdsk["rcentr"]
-    doc.equilibrium.boundary.geometric_axis.z = geqdsk["zmid"]
+    doc.equilibrium.time_slice.boundary.geometric_axis.r = geqdsk["rcentr"]
+    doc.equilibrium.time_slice.boundary.geometric_axis.z = geqdsk["zmid"]
     # rleft = 0.0
-    doc.equilibrium.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
-    doc.equilibrium.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
-    doc.equilibrium.global_quantities.psi_axis = geqdsk["simag"]
-    doc.equilibrium.global_quantities.psi_boundary = geqdsk["sibry"]
-    doc.equilibrium.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
-    doc.equilibrium.global_quantities.ip = geqdsk["current"]
+    doc.equilibrium.time_slice.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
+    doc.equilibrium.time_slice.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
+    doc.equilibrium.time_slice.global_quantities.psi_axis = geqdsk["simag"]
+    doc.equilibrium.time_slice.global_quantities.psi_boundary = geqdsk["sibry"]
+    doc.equilibrium.time_slice.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
+    doc.equilibrium.time_slice.global_quantities.ip = geqdsk["current"]
 
     # boundary
 
-    doc.equilibrium.boundary.outline.r = geqdsk["bbsrz"][:, 0]
-    doc.equilibrium.boundary.outline.z = geqdsk["bbsrz"][:, 1]
+    doc.equilibrium.time_slice.boundary.outline.r = geqdsk["bbsrz"][:, 0]
+    doc.equilibrium.time_slice.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
     doc.equilibrium.time_slice.profiles_2d.grid_type.name = "rectangular"
     doc.equilibrium.time_slice.profiles_2d.grid_type.index = 1

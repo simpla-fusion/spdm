@@ -160,19 +160,15 @@ class LazyProxy:
 
     @staticmethod
     def wrap(obj, handler=None, **kwargs):
-        if handler is not None:
-            pass
-        elif hasattr(obj.__class__, "__lazy_proxy__"):
+        if handler is None and hasattr(obj.__class__, "__lazy_proxy__"):
             handler = obj.__class__.__lazy_proxy__
-        else:
-            handler = LazyProxyHandler
 
         if isinstance(handler, LazyProxyHandler) or inspect.isclass(handler):
             return handler
-        elif isinstance(handler, collections.abc.Mapping):
-            handler = {**handler, **kwargs}
+        elif isinstance(handler, (type(None), collections.abc.Mapping)):
+            handler = collections.ChainMap(handler or {}, kwargs)
         elif inspect.isfunction(handler):
-            handler = {"get": handler}
+            handler = collections.ChainMap({"get": handler}, kwargs)
         else:
             raise TypeError(f"illegal ops type {type(handler)}!")
 
@@ -203,24 +199,24 @@ class LazyProxy:
                                object.__getattribute__(obj, "__level__")-1)
             object.__setattr__(self, "__handler__",
                                object.__getattribute__(obj, "__handler__")
-                               if handler is None and len(kwargs) == 0 else LazyProxy.wrap(obj, handler, **kwargs))
+                               if handler is None and len(kwargs) == 0 else LazyProxy.wrap_handler(obj, handler, **kwargs))
 
         else:
             object.__setattr__(self, "__object__", obj)
             object.__setattr__(self, "__path__", prefix)
             object.__setattr__(self, "__level__", level)
-            object.__setattr__(self, "__handler__",  LazyProxy.wrap(obj, handler), **kwargs)
+            object.__setattr__(self, "__handler__",  LazyProxy.wrap(obj, handler, **kwargs))
 
     def __fetch__(self):
-        obj = object.__getattribute__(self, "__object__")
-        path = object.__getattribute__(self, "__path__")
-        handler = object.__getattribute__(self, "__handler__")
+        obj=object.__getattribute__(self, "__object__")
+        path=object.__getattribute__(self, "__path__")
+        handler=object.__getattribute__(self, "__handler__")
 
         if len(path) == 0:
             pass
         else:
             try:
-                obj = handler.get(obj, path)
+                obj=handler.get(obj, path)
             except KeyError:
                 raise KeyError(f"Unsolved path '{path}'")
             else:
@@ -230,33 +226,33 @@ class LazyProxy:
         return obj
 
     def __push_back__(self, v=None):
-        obj = object.__getattribute__(self, "__object__")
-        path = object.__getattribute__(self, "__path__")
-        handler = object.__getattribute__(self, "__handler__")
-        new_path = handler.push_back(obj, path, v)
+        obj=object.__getattribute__(self, "__object__")
+        path=object.__getattribute__(self, "__path__")
+        handler=object.__getattribute__(self, "__handler__")
+        new_path=handler.push_back(obj, path, v)
         return LazyProxy(obj, prefix=new_path, handler=handler)
 
     def __pop_back__(self):
-        obj = object.__getattribute__(self, "__object__")
-        path = object.__getattribute__(self, "__path__")
-        handler = object.__getattribute__(self, "__handler__")
+        obj=object.__getattribute__(self, "__object__")
+        path=object.__getattribute__(self, "__path__")
+        handler=object.__getattribute__(self, "__handler__")
         return handler.pop_back(obj, path)
 
     def __real_value__(self):
-        obj = object.__getattribute__(self, "__object__")
-        path = object.__getattribute__(self, "__path__")
-        handler = object.__getattribute__(self, "__handler__")
+        obj=object.__getattribute__(self, "__object__")
+        path=object.__getattribute__(self, "__path__")
+        handler=object.__getattribute__(self, "__handler__")
         return handler.get_value(obj, path)
 
     def __value__(self):
-        res = self.__real_value__()
+        res=self.__real_value__()
         if isinstance(res, collections.abc.Mapping):
             return LazyProxy(res)
         else:
             return res
 
     def __do_get__(self, idx):
-        res = LazyProxy(self, idx)
+        res=LazyProxy(self, idx)
         return res.__fetch__() if self.__level__ == 0 else res
 
     def __do_set__(self, idx, value):
@@ -290,11 +286,11 @@ class LazyProxy:
         self.__do_del__(idx)
 
     def __deepcopy__(self, memo=None):
-        handler = object.__getattribute__(self, "__handler__")
+        handler=object.__getattribute__(self, "__handler__")
         return LazyProxy(copy.deepcopy(self.__fetch__()),    handler=handler)
 
     def __copy__(self):
-        handler = object.__getattribute__(self, "__handler__")
+        handler=object.__getattribute__(self, "__handler__")
         return LazyProxy(copy.copy(self.__fetch__()),   handler=handler)
 
     # def __getslice__(self, i, j):
@@ -408,7 +404,7 @@ class LazyProxy:
         return lambda p: p, (self.__fetch__(),)
 
 
-__op_list__ = ['abs', 'add', 'and',
+__op_list__=['abs', 'add', 'and',
                #  'attrgetter',
                'concat',
                # 'contains', 'countOf',
@@ -430,7 +426,7 @@ __op_list__ = ['abs', 'add', 'and',
 
 
 for name in __op_list__:
-    op = getattr(operator, f"__{name}__", None)
+    op=getattr(operator, f"__{name}__", None)
     setattr(LazyProxy,  f"__{name}__",
             lambda s, r, __fun__=op: __fun__(s.__fetch__(), r))
     setattr(LazyProxy,  f"__r{name}__",
