@@ -25,7 +25,7 @@ class IMASNode(Node):
         self._envs = envs or {}
         self._mode = mode or "r"
 
-        if "r" in self.mode and self._+holder.isConnected():
+        if "r" in self._mode and self._holder.isConnected():
             if self._time_slice is None:
                 self._holder.get()
             else:
@@ -215,17 +215,16 @@ class IMASDocument(Document):
 
     def flush(self):
         if "w" in self.mode or "x" in self.mode:
-            for ids in self._access_cache:
-                ids.put()
+            for ids, v in self._cache.items():
+                v.put()
         self._cache.clear()
 
     @property
     def entry(self):
         if self._entry is None:
             self._entry = LazyProxy(None,
-                                    get=lambda o, p, _s=self: _s.get_ids(p[0]).get(p[1:]),
-                                    get_value=lambda o, p, _s=self: _s.get_ids(p[0]).get(p[1:]),
-                                    put=lambda o, p, v, _s=self: _s.get_ids(p[0]).put(p[1:], v),
+                                    get=lambda c, o, p, _s=self: _s.get_ids(p[0]).get(p[1:]),
+                                    put=lambda c, o, p, v, _s=self: _s.get_ids(p[0]).put(p[1:], v),
                                     )
         return self._entry
 

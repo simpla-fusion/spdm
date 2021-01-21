@@ -106,7 +106,7 @@ class ModuleRepository:
 
     @property
     def entry(self):
-        return LazyProxy(self, [], handler=lambda o, p: o.new_class_by_path(p))
+        return LazyProxy(self, [], handler=lambda c, o, p: o.new_class_by_path(p))
 
     @property
     def resolver(self):

@@ -20,8 +20,8 @@ else:
 
 
 class LazyProxyHandler:
-    @staticmethod
-    def put(obj, path, value, *args, **kwargs):
+    @classmethod
+    def put(cls, obj, path, value, *args, **kwargs):
         for p in path[:-1]:
             if type(p) is str and hasattr(obj, p):
                 obj = getattr(obj, p)
@@ -40,8 +40,8 @@ class LazyProxyHandler:
 
         return None
 
-    @staticmethod
-    def get(obj, path, *args, **kwargs):
+    @classmethod
+    def get(cls, obj, path, *args, **kwargs):
         for p in path:
             if type(p) is str and hasattr(obj, p):
                 obj = getattr(obj, p)
@@ -54,45 +54,45 @@ class LazyProxyHandler:
                     raise KeyError(path)
         return obj
 
-    @staticmethod
-    def get_value(obj, path, *args, **kwargs):
-        return LazyProxyHandler.get(obj, path, *args, **kwargs)
+    @classmethod
+    def get_value(cls, obj, path, *args, **kwargs):
+        return cls.get(obj, path, *args, **kwargs)
 
-    @staticmethod
-    def delete(obj, path, *args, **kwargs):
+    @classmethod
+    def delete(cls, obj, path, *args, **kwargs):
         if len(path) > 1:
-            obj = LazyProxyHandler.get(obj,  path[:-1], *args, **kwargs)
+            obj = cls.get(obj,  path[:-1], *args, **kwargs)
 
         if hasattr(obj, path[-1]):
             delattr(obj, path[-1])
         else:
             del obj[path[-1]]
 
-    @staticmethod
-    def push_back(obj,  path, value, *args, **kwargs):
+    @classmethod
+    def push_back(cls, obj,  path, value, *args, **kwargs):
         if len(path) > 0:
-            obj = LazyProxyHandler.get_value(obj, path[:-1]).setdefault(path[-1], [])
+            obj = cls.get_value(obj, path[:-1]).setdefault(path[-1], [])
         obj.append(value)
         return path+[len(obj)-1]
 
-    @staticmethod
-    def count(obj,  path, *args, **kwargs):
-        obj = LazyProxyHandler.get(obj, path, *args, **kwargs)
-        return len(obj)
-        
-    @staticmethod
-    def resize(obj,  path, *args, **kwargs):
-        obj = LazyProxyHandler.get(obj, path, *args, **kwargs)
+    @classmethod
+    def count(cls, obj,  path, *args, **kwargs):
+        obj = cls.get(obj, path, *args, **kwargs)
         return len(obj)
 
-    @staticmethod
-    def contains(obj,  path, v, *args, **kwargs):
-        obj = LazyProxyHandler.get(obj, path, *args, **kwargs)
+    @classmethod
+    def resize(cls, obj,  path, *args, **kwargs):
+        obj = cls.get(obj, path, *args, **kwargs)
+        return len(obj)
+
+    @classmethod
+    def contains(cls, obj,  path, v, *args, **kwargs):
+        obj = cls.get(obj, path, *args, **kwargs)
         return v in obj
 
-    @staticmethod
-    def call(obj, path, *args, **kwargs):
-        obj = LazyProxyHandler.get(obj, path)
+    @classmethod
+    def call(cls, obj, path, *args, **kwargs):
+        obj = cls.get(obj, path)
         if callable(obj):
             return obj(*args, **kwargs)
         elif len(args)+len(kwargs) == 0:
@@ -100,9 +100,9 @@ class LazyProxyHandler:
         else:
             raise TypeError(f"{obj.__class__.__name__} is not callable")
 
-    @staticmethod
-    def iter(obj, path, *args, **kwargs):
-        for o in LazyProxyHandler.get(obj, path, *args, **kwargs):
+    @classmethod
+    def iter(cls, obj, path, *args, **kwargs):
+        for o in cls.get(obj, path, *args, **kwargs):
             if type(o) in ELEMENT_TYPE_LIST:
                 yield o
             else:
@@ -180,7 +180,7 @@ class LazyProxy:
         n_cls = type(
             f"wrapped_{obj.__class__.__name__}_{uuid.uuid1().hex}",
             (LazyProxyHandler,),
-            {k: staticmethod(op) for k, op in handler.items()}
+            {k: classmethod(op) for k, op in handler.items()}
         )
         return n_cls()
 

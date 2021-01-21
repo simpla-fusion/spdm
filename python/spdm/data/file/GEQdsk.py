@@ -159,8 +159,8 @@ def sp_imas_to_geqdsk(d):
     eq = d.equilibrium.time_slice
     wall = d.wall
 
-    dim_r = eq.time_slice.profiles_2d.grid.dim1
-    dim_z = eq.time_slice.profiles_2d.grid.dim2
+    dim_r = eq.profiles_2d.grid.dim1
+    dim_z = eq.profiles_2d.grid.dim2
 
     rleft = dim_r.min()
     rdim = dim_r.max() - dim_r.min()
@@ -168,23 +168,23 @@ def sp_imas_to_geqdsk(d):
 
     # rdim = 0.0
     # zdim = 0.0
-    rcentr = eq.time_slice.boundary.geometric_axis.r
+    rcentr = eq.boundary.geometric_axis.r
     # rleft = 0.0
-    zmid = eq.time_slice.boundary.geometric_axis.z
-    rmaxis = eq.time_slice.global_quantities.magnetic_axis.r
-    zmaxis = eq.time_slice.global_quantities.magnetic_axis.z
-    simag = eq.time_slice.global_quantities.psi_axis
-    sibry = eq.time_slice.global_quantities.psi_boundary
-    bcentr = eq.time_slice.global_quantities.magnetic_axis.b_field_tor
-    current = eq.time_slice.global_quantities.ip
+    zmid = eq.boundary.geometric_axis.z
+    rmaxis = eq.global_quantities.magnetic_axis.r
+    zmaxis = eq.global_quantities.magnetic_axis.z
+    simag = eq.global_quantities.psi_axis
+    sibry = eq.global_quantities.psi_boundary
+    bcentr = eq.global_quantities.magnetic_axis.b_field_tor
+    current = eq.global_quantities.ip
 
     # boundary
-    if not eq.time_slice.boundary.lcfs:
-        rbbs = eq.time_slice.boundary.outline.r
-        zbbs = eq.time_slice.boundary.outline.z
+    if not eq.boundary.lcfs:
+        rbbs = eq.boundary.outline.r
+        zbbs = eq.boundary.outline.z
     else:
-        rbbs = eq.time_slice.boundary.lcfs.r
-        zbbs = eq.time_slice.boundary.lcfs.z
+        rbbs = eq.boundary.lcfs.r
+        zbbs = eq.boundary.lcfs.z
 
     rcentr = float(rcentr or (rbbs.min()+rbbs.max())/2.0)
     zmid = float(rcentr or (zbbs.min()+zbbs.max())/2.0)
@@ -200,22 +200,22 @@ def sp_imas_to_geqdsk(d):
     #     coord_z.shape[0], 1), axis=1)
     # points = np.append(coord_r.reshape(
     #     [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    # psi = eq.time_slice.profiles_2d[1].psi
+    # psi = eq.profiles_2d[1].psi
     # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
     # psirz = griddata(points, values, (grid_r, grid_z),
     #                  method='cubic').transpose()
 
-    psirz = eq.time_slice.profiles_2d.psi
+    psirz = eq.profiles_2d.psi
 
     nw = psirz.shape[0]
     nz = psirz.shape[1]
     # profile
 
-    fpol = eq.time_slice.profiles_1d.f
-    pres = eq.time_slice.profiles_1d.pressure
-    ffprim = eq.time_slice.profiles_1d.f_df_dpsi
-    pprim = eq.time_slice.profiles_1d.dpressure_dpsi
-    qpsi = eq.time_slice.profiles_1d.q
+    fpol = eq.profiles_1d.f
+    pres = eq.profiles_1d.pressure
+    ffprim = eq.profiles_1d.f_df_dpsi
+    pprim = eq.profiles_1d.dpressure_dpsi
+    qpsi = eq.profiles_1d.q
 
     if not isinstance(pres, np.ndarray) and isinstance(pprim, np.ndarray):
         pres = scipy.integrate.cumtrapz(pprim[::-1], np.linspace(1.0, 0.0, nw), initial=0.0)[::-1]
