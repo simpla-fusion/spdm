@@ -399,8 +399,7 @@ class SpModuleLocal(SpModule):
         exec_file = module_root / str(self.metadata.run.exec_file)
 
         exec_file.resolve()
-        logger.debug(module_name)
-        logger.debug((module_root, exec_file))
+   
         try:
             exec_file.relative_to(module_root)
         except ValueError:

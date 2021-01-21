@@ -58,10 +58,10 @@ def sp_enable_logging(handler=None, prefix=None, formater=None):
     # if prefix is None and isinstance(handler, str):
     #     prefix = handler
     #     handler = None
+    formater = formater or CustomFormatter()
 
     if isinstance(handler, str) and handler == "STDOUT":
         handler = logging.StreamHandler(stream=sys.stdout)
-        formater = formater or CustomFormatter()
     elif handler is None:
         prefix = prefix or os.environ.get('SP_LOG_PREFIX', f"/tmp/sp_log_{os.environ['USER']}/sp_")
         path = pathlib.Path(f"{prefix}{datetime.now().strftime(r'%Y%m%d_%H%M%S')}.log")
