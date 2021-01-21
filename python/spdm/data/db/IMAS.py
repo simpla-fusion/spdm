@@ -18,34 +18,40 @@ from ..Node import Node
 
 
 class IMASNode(Node):
-    def __init__(self, holder,  *args, envs=None, time=None, time_slice=None, **kwargs):
+    def __init__(self, holder,  *args, envs=None, time=None, time_slice=None, mode=None, **kwargs):
         super().__init__(holder, *args, **kwargs)
         self._time = time
-        self._time_slice = time_slice or 0
+        self._time_slice = time_slice
         self._envs = envs or {}
+        self._mode = mode or "r"
+
+        if "r" in self.mode and self._+holder.isConnected():
+            if self._time_slice is None:
+                self._holder.get()
+            else:
+                self._holder.getSlice(self._time_slice)
+        else:
+            self._holder.ids_properties.homogeneous_time = self._homogeneous_time
+            self._holder.ids_properties.creation_date = self._creation_date
+            self._holder.ids_properties.provider = self._provider
+            self._holder.time = self._time
 
     def _get_ids(self, obj, path):
-        if path is None:
+        assert(isinstance(path, list))
+        if path == [None]:
             return obj
-        if isinstance(path, str):
-            path = path.split('/')
-        elif isinstance(path, (int, slice)):
-            path = [path]
-
-        if not path:
-            return obj
-
-        prev = None
 
         for idx, p in enumerate(path):
+            t_obj = None
             if obj.__class__.__name__.endswith("__structArray"):
                 if isinstance(p, str):
-                    t_obj = getattr(self._get_ids(obj, self._time_slice), p, None)
+                    logger.debug((type(obj), obj._base_path))
+                    t_obj = getattr(self._get_ids(obj, [self._time_slice]), p, None)
                 elif isinstance(p, (int, slice)):
                     try:
                         t_obj = obj[p]
                     except IndexError as error:
-                        if hasattr(obj.__class__, 'resize'):
+                        if hasattr(obj.__class__, 'resize') and ("w" in self._mode or "x" in self._mode):
                             logger.debug(f"Resize object {obj.__class__} {len(obj)} {p+1}")
                             obj.resize(p+1)
                             t_obj = obj[p]
@@ -53,16 +59,13 @@ class IMASNode(Node):
                             t_obj = None
             elif isinstance(p, str):
                 t_obj = getattr(obj, p, None)
-            else:
-                t_obj = None
 
             if t_obj is None:
-                logger.error((type(obj), '.'.join(map(str, path[:idx+1]))))
+                logger.error((type(obj),   path))
                 raise KeyError('.'.join(map(str, path[:idx+1])))
-            else:
-                obj = t_obj
 
-            prev = p
+            obj = t_obj
+
         return obj
 
     def _put_value(self, obj, key, value):
@@ -74,19 +77,19 @@ class IMASNode(Node):
                 obj[key] = value
         elif isinstance(value, np.ndarray):
             self._get_ids(obj, [key, "resize"])(*value.shape)
-            self._get_ids(obj, key)[:] = value[:]
+            self._get_ids(obj, [key])[:] = value[:]
         elif isinstance(value, list):
-            t_obj = self._get_ids(obj, key)
+            t_obj = self._get_ids(obj, [key])
             if len(t_obj) < len(value):
                 self._get_ids(obj, [key, "resize"])(len(value))
-                obj = self._get_ids(obj, key)
+                obj = self._get_ids(obj, [key])
             else:
                 obj = t_obj
             for idx, v in enumerate(value):
                 self._put_value(obj, idx, value)
 
         elif isinstance(value, collections.abc.Mapping):
-            obj = self._get_ids(obj, key)
+            obj = self._get_ids(obj, [key])
             for k, v in value.items():
                 self._put_value(obj, k, v)
         else:
@@ -104,44 +107,55 @@ class IMASNode(Node):
         elif len(path) == 0:
             raise ValueError(type(value))
         elif len(path) == 1:
-            self._put_value(self._get(path), None, value)
+            self._put_value(self._get_ids(self._holder, path), None, value)
         else:
-            self._put_value(self._get(path[:-1]), path[-1], value)
+            self._put_value(self._get_ids(self._holder, path[:-1]), path[-1], value)
 
-    def _get(self, path):
+    # def _get(self, path):
+    #     if not path:
+    #         return self._holder
 
-        assert(len(path) > 0)
-        obj = getattr(self._holder, path[0], None)
-        if obj is None:
-            raise KeyError(f"{type(self._holder)} {path[0]}")
+    #     # assert(len(path) > 0)
+    #     obj=self._holder
+    #     if obj.__class__.__name__.endswith('__structArray'):
+    #         if isinstance(p[0],str):
+    #             obj=self._get_ids(obj,0)
 
-        # only structArray in first level is time dependent
-        logger.debug(obj.__class__)
-        if obj.__class__.__name__.endswith('__structArray'):
-            time_slice_length = len(self._time) if isinstance(self._time, np.ndarray) else 1
-            if len(obj) < time_slice_length:
-                obj.resize(time_slice_length)
-            if len(path) > 1 and isinstance(path[1], str):
-                obj = obj[self._time_slice]
+    #     obj = getattr(self._holder, path[0], None)
 
-        return self._get_ids(obj, path[1:])
+    #     if obj is None:
+    #         raise KeyError(f"{type(self._holder)} {path[0]}")
+
+    #     # only structArray in first level is time dependent
+    #     logger.debug(obj.__class__)
+    #     if obj.__class__.__name__.endswith('__structArray'):
+    #         time_slice_length = len(self._time) if isinstance(self._time, np.ndarray) else 1
+    #         if len(obj) < time_slice_length:
+    #             obj.resize(time_slice_length)
+    #         if len(path) > 1 and isinstance(path[1], str):
+    #             obj = obj[self._time_slice]
+
+    #     return self._get_ids(obj, path[1:])
 
     def _wrap_obj(self, res):
-        if isinstance(res, (int, float, list, dict, AttributeTree)):
+        if isinstance(res, (int, float, list, dict, AttributeTree, np.ndarray)):
             return res
         else:
+            logger.debug(type(res))
             return IMASNode(res, envs=self._envs, time=self._time, time_slice=self._time_slice)
 
     def get(self, path):
-        return self._wrap_obj(self._get(path))
+
+        return self._wrap_obj(self._get_ids(self._holder, path))
 
     def iter(self,   path, *args, **kwargs):
-        obj = self._get(path)
+        obj = self._get_ids(self._holder, path)
         if obj.__class__.__name__.endswith("__structArray"):
             for idx in range(len(obj)):
                 yield self._wrap_obj(self._get_ids(obj, [idx]))
         else:
-            raise NotImplementedError()
+            yield from self._wrap_obj(obj)
+            # raise NotImplementedError()
 
 
 class IMASDocument(Document):
@@ -154,7 +168,7 @@ class IMASDocument(Document):
 
         self._data = data or imas.ids(int(shot), int(run))
 
-        self._access_cache = set()
+        self._cache = {}
 
         logger.info(
             f"Open IMAS Document: shot={self._data.getShot()} run={self._data.getRun()} isConnected={self._data.isConnected()}")
@@ -177,9 +191,9 @@ class IMASDocument(Document):
             self._time = None
             self._homogeneous_time = None
 
-        if "x" in self.mode:
-            self._creation_date = datetime.datetime.now().ctime()
-            self._provider = os.environ.get('USER', 'nobody')
+        # if "x" in self.mode or "w" in self.mode:
+        #     self._creation_date = datetime.datetime.now().ctime()
+        #     self._provider = os.environ.get('USER', 'nobody')
 
     def close(self):
         self.flush()
@@ -189,41 +203,28 @@ class IMASDocument(Document):
 
         super().close()
 
-    @lru_cache
     def get_ids(self,  p):
         assert(isinstance(p, str))
 
-        ids = getattr(self._data, p, None)
+        ids = self._cache.get(p, None) or self._cache.setdefault(p, getattr(self._data, p, None))
 
         if not ids:
             raise KeyError(f"Can not get ids '{p}'!")
 
-        self._access_cache.add(ids)
-
-        # if "r" in self.mode:
-        #     if not self._time_slice:
-        #         ids.get()
-        #     else:
-        #         ids.getSlice(self._time_slice)
-        # else:
-        ids.ids_properties.homogeneous_time = self._homogeneous_time
-        ids.time = self._time
-        ids.creation_date = self._creation_date
-        ids.provider = self._provider
-
         return IMASNode(ids, mode=self.mode, envs=self.envs, time=self._time, time_slice=self._time_slice)
 
     def flush(self):
-        if "w" not in self.mode or "x" not in self.mode:
+        if "w" in self.mode or "x" in self.mode:
             for ids in self._access_cache:
                 ids.put()
-            self._access_cache.clear()
+        self._cache.clear()
 
-    @ property
+    @property
     def entry(self):
         if self._entry is None:
             self._entry = LazyProxy(None,
                                     get=lambda o, p, _s=self: _s.get_ids(p[0]).get(p[1:]),
+                                    get_value=lambda o, p, _s=self: _s.get_ids(p[0]).get(p[1:]),
                                     put=lambda o, p, v, _s=self: _s.get_ids(p[0]).put(p[1:], v),
                                     )
         return self._entry
@@ -243,10 +244,12 @@ class IMASDocument(Document):
 
 
 class IMASCollection(Collection):
-    def __init__(self, uri, *args,  user=None,  database=None, version=None, local_path=None,   **kwargs):
+    def __init__(self, uri, *args,  user=None,  database=None, version=None, local_path=None, mode=None,   **kwargs):
         super().__init__(uri, *args, id_hasher="{shot}_{run}", ** kwargs)
 
         self._user = user or os.environ.get("USER", "nobody")
+
+        self._mode = mode or "rw"
 
         o = urisplit(uri)
 
@@ -269,7 +272,7 @@ class IMASCollection(Collection):
         if self._path != default_path:
             raise NotImplementedError(f"Can not change imasdb path  from '{default_path}'' to '{self._path}'!")
 
-        logger.info(f"Open IMAS Database at {self._path}")
+        logger.info(f"Set IMAS database path: {self._path}")
 
         for i in range(10):
             p = self._path/f"{i}"
@@ -282,6 +285,7 @@ class IMASCollection(Collection):
             shot, run = fid.split('_')
 
         shot = int(shot or 0)
+
         run = int(run or 0)
 
         ids = imas.ids(shot, run)

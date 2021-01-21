@@ -147,13 +147,13 @@ class Collection(SpObject):
     def open(self, *args, mode=None, **kwargs):
         mode = mode or self.mode
         if "x" in mode:
-            return self.create(*args, **kwargs)
+            return self.create(*args, mode=mode, **kwargs)
         else:
             try:
-                doc = self.find_one(*args, **kwargs)
+                doc = self.find_one(*args, mode=mode,  **kwargs)
             except Exception:
                 if "w" in mode:
-                    doc = self.create(*args, **kwargs)
+                    doc = self.create(*args, mode=mode,  **kwargs)
                 else:
                     doc = None
 
@@ -163,7 +163,7 @@ class Collection(SpObject):
         #     raise RuntimeWarning("Collection is not writable!")
 
     def create(self, *args, **kwargs):
-        return self.open_document(self.guess_id(*args, **kwargs) or self.next_id, mode="x", **kwargs)
+        return self.open_document(self.guess_id(*args, **kwargs) or self.next_id,  **kwargs)
 
     def insert(self, data, *args, **kwargs):
         if isinstance(data, list):
@@ -172,7 +172,7 @@ class Collection(SpObject):
             return self.insert_one(*args, **kwargs)
 
     def insert_one(self, data, * args,  **kwargs) -> InsertOneResult:
-        doc = self.open_document(self.guess_id(*args, **kwargs) or self.next_id, mode="x")
+        doc = self.open_document(self.guess_id(*args, **kwargs) or self.next_id, **kwargs)
         if data is not None:
             doc.update(data)
         return doc
@@ -181,7 +181,7 @@ class Collection(SpObject):
         return [self.insert_one(doc, *args, **kwargs) for doc in documents]
 
     def find_one(self, predicate=None, *args, **kwargs):
-        raise NotImplementedError()
+        return self.open_document(self.guess_id(*args, **kwargs), **kwargs)
 
     def find(self, predicate=None, projection=None, *args, **kwargs):
         raise NotImplementedError()

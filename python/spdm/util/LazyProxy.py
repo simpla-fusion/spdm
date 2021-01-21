@@ -79,6 +79,11 @@ class LazyProxyHandler:
     def count(obj,  path, *args, **kwargs):
         obj = LazyProxyHandler.get(obj, path, *args, **kwargs)
         return len(obj)
+        
+    @staticmethod
+    def resize(obj,  path, *args, **kwargs):
+        obj = LazyProxyHandler.get(obj, path, *args, **kwargs)
+        return len(obj)
 
     @staticmethod
     def contains(obj,  path, v, *args, **kwargs):
@@ -208,15 +213,15 @@ class LazyProxy:
             object.__setattr__(self, "__handler__",  LazyProxy.wrap(obj, handler, **kwargs))
 
     def __fetch__(self):
-        obj=object.__getattribute__(self, "__object__")
-        path=object.__getattribute__(self, "__path__")
-        handler=object.__getattribute__(self, "__handler__")
+        obj = object.__getattribute__(self, "__object__")
+        path = object.__getattribute__(self, "__path__")
+        handler = object.__getattribute__(self, "__handler__")
 
         if len(path) == 0:
             pass
         else:
             try:
-                obj=handler.get(obj, path)
+                obj = handler.get(obj, path)
             except KeyError:
                 raise KeyError(f"Unsolved path '{path}'")
             else:
@@ -226,33 +231,33 @@ class LazyProxy:
         return obj
 
     def __push_back__(self, v=None):
-        obj=object.__getattribute__(self, "__object__")
-        path=object.__getattribute__(self, "__path__")
-        handler=object.__getattribute__(self, "__handler__")
-        new_path=handler.push_back(obj, path, v)
+        obj = object.__getattribute__(self, "__object__")
+        path = object.__getattribute__(self, "__path__")
+        handler = object.__getattribute__(self, "__handler__")
+        new_path = handler.push_back(obj, path, v)
         return LazyProxy(obj, prefix=new_path, handler=handler)
 
     def __pop_back__(self):
-        obj=object.__getattribute__(self, "__object__")
-        path=object.__getattribute__(self, "__path__")
-        handler=object.__getattribute__(self, "__handler__")
+        obj = object.__getattribute__(self, "__object__")
+        path = object.__getattribute__(self, "__path__")
+        handler = object.__getattribute__(self, "__handler__")
         return handler.pop_back(obj, path)
 
     def __real_value__(self):
-        obj=object.__getattribute__(self, "__object__")
-        path=object.__getattribute__(self, "__path__")
-        handler=object.__getattribute__(self, "__handler__")
+        obj = object.__getattribute__(self, "__object__")
+        path = object.__getattribute__(self, "__path__")
+        handler = object.__getattribute__(self, "__handler__")
         return handler.get_value(obj, path)
 
     def __value__(self):
-        res=self.__real_value__()
+        res = self.__real_value__()
         if isinstance(res, collections.abc.Mapping):
             return LazyProxy(res)
         else:
             return res
 
     def __do_get__(self, idx):
-        res=LazyProxy(self, idx)
+        res = LazyProxy(self, idx)
         return res.__fetch__() if self.__level__ == 0 else res
 
     def __do_set__(self, idx, value):
@@ -286,11 +291,11 @@ class LazyProxy:
         self.__do_del__(idx)
 
     def __deepcopy__(self, memo=None):
-        handler=object.__getattribute__(self, "__handler__")
+        handler = object.__getattribute__(self, "__handler__")
         return LazyProxy(copy.deepcopy(self.__fetch__()),    handler=handler)
 
     def __copy__(self):
-        handler=object.__getattribute__(self, "__handler__")
+        handler = object.__getattribute__(self, "__handler__")
         return LazyProxy(copy.copy(self.__fetch__()),   handler=handler)
 
     # def __getslice__(self, i, j):
@@ -313,6 +318,12 @@ class LazyProxy:
             object.__getattribute__(self, "__object__"),
             object.__getattribute__(self, "__path__")
         )
+
+    def __resize__(self, *args, **kwargs):
+        return object.__getattribute__(self, "__handler__").resize(
+            object.__getattribute__(self, "__object__"),
+            object.__getattribute__(self, "__path__"),
+            * args, **kwargs)
 
     def __contains__(self, value):
         return object.__getattribute__(self, "__handler__").contains(
@@ -404,7 +415,7 @@ class LazyProxy:
         return lambda p: p, (self.__fetch__(),)
 
 
-__op_list__=['abs', 'add', 'and',
+__op_list__ = ['abs', 'add', 'and',
                #  'attrgetter',
                'concat',
                # 'contains', 'countOf',
@@ -426,7 +437,7 @@ __op_list__=['abs', 'add', 'and',
 
 
 for name in __op_list__:
-    op=getattr(operator, f"__{name}__", None)
+    op = getattr(operator, f"__{name}__", None)
     setattr(LazyProxy,  f"__{name}__",
             lambda s, r, __fun__=op: __fun__(s.__fetch__(), r))
     setattr(LazyProxy,  f"__r{name}__",

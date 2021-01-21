@@ -256,34 +256,38 @@ def sp_geqdsk_to_imas(geqdsk, doc=None):
     # rdim = 0.0
     # zdim = 0.0
     doc = doc or AttributeTree()
+    doc.equilibrium.ids_properties.homogeneous_time = 1
+    eq = doc.equilibrium.time_slice
+    eq.time = 0.0
 
-    doc.equilibrium.time_slice.boundary.geometric_axis.r = geqdsk["rcentr"]
-    doc.equilibrium.time_slice.boundary.geometric_axis.z = geqdsk["zmid"]
+    eq.boundary.geometric_axis.r = geqdsk["rcentr"]
+    eq.boundary.geometric_axis.z = geqdsk["zmid"]
     # rleft = 0.0
-    doc.equilibrium.time_slice.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
-    doc.equilibrium.time_slice.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
-    doc.equilibrium.time_slice.global_quantities.psi_axis = geqdsk["simag"]
-    doc.equilibrium.time_slice.global_quantities.psi_boundary = geqdsk["sibry"]
-    doc.equilibrium.time_slice.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
-    doc.equilibrium.time_slice.global_quantities.ip = geqdsk["current"]
+    eq.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
+    eq.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
+    eq.global_quantities.psi_axis = geqdsk["simag"]
+    eq.global_quantities.psi_boundary = geqdsk["sibry"]
+    eq.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
+    eq.global_quantities.ip = geqdsk["current"]
 
     # boundary
 
-    doc.equilibrium.time_slice.boundary.outline.r = geqdsk["bbsrz"][:, 0]
-    doc.equilibrium.time_slice.boundary.outline.z = geqdsk["bbsrz"][:, 1]
+    eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
+    eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
-    doc.equilibrium.time_slice.profiles_2d.grid_type.name = "rectangular"
-    doc.equilibrium.time_slice.profiles_2d.grid_type.index = 1
-    doc.equilibrium.time_slice.profiles_2d.psi = geqdsk["psirz"]
+    eq.profiles_2d.grid_type.name = "rectangular"
+    eq.profiles_2d.grid_type.index = 1
+    eq.profiles_2d.psi = geqdsk["psirz"]
 
     # profile
-    doc.equilibrium.time_slice.profiles_1d.f = geqdsk["fpol"]
-    doc.equilibrium.time_slice.profiles_1d.pressure = geqdsk["pres"]
-    doc.equilibrium.time_slice.profiles_1d.f_df_dpsi = geqdsk["ffprim"]
-    doc.equilibrium.time_slice.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
-    doc.equilibrium.time_slice.profiles_1d.q = geqdsk["qpsi"]
+    eq.profiles_1d.f = geqdsk["fpol"]
+    eq.profiles_1d.pressure = geqdsk["pres"]
+    eq.profiles_1d.f_df_dpsi = geqdsk["ffprim"]
+    eq.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
+    eq.profiles_1d.q = geqdsk["qpsi"]
 
     # limiter
+    doc.wall.ids_properties.homogeneous_time = 2
     doc.wall.description_2d.limiter.unit.outline.r = geqdsk["limrz"][:, 0]
     doc.wall.description_2d.limiter.unit.outline.z = geqdsk["limrz"][:, 1]
 
@@ -296,10 +300,10 @@ class FileGEQdsk(File):
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args, **kwargs)
 
-
     @property
     def extension_name(self):
         return ".gfile"
+
     @property
     def root(self):
         if self._data is not None:
