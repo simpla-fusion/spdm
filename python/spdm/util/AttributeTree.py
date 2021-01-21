@@ -90,10 +90,12 @@ class AttributeTree:
         elif key is _next_:
             res = self.__push_back__()
         elif type(key) in (int, slice, tuple):
-            try:
+            if self.__data__ is None or isinstance(self.__data__, list):
                 res = self.__as_array__()[key]
-            except Exception as error:
-                raise KeyError(f"Can not insert key '{key}'! error:{error} {self.__data__}")
+            elif key == 0:
+                res = self.__data__
+            else:
+                raise KeyError(f"Can not insert key '{key}'!  {type(self.__data__)} \n error:{error}")
 
         return res if res is not None else self.__missing__(key)
 
@@ -214,7 +216,7 @@ class AttributeTree:
                 return
             obj = self.__as_object__()
             for k, v in other.items():
-                v=self.__normalize__(v,k)
+                v = self.__normalize__(v, k)
                 if isinstance(v, collections.abc.Mapping):
                     d = self.__missing__(k)
                     if isinstance(d, AttributeTree):

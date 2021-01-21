@@ -25,28 +25,17 @@ class IMASNode(Node):
         self._envs = envs or {}
         self._mode = mode or "r"
 
-        if "r" in self._mode and self._holder.isConnected():
-            if self._time_slice is None:
-                self._holder.get()
-            else:
-                self._holder.getSlice(self._time_slice)
-        else:
-            self._holder.ids_properties.homogeneous_time = self._homogeneous_time
-            self._holder.ids_properties.creation_date = self._creation_date
-            self._holder.ids_properties.provider = self._provider
-            self._holder.time = self._time
-
     def _get_ids(self, obj, path):
         assert(isinstance(path, list))
-        if path == [None]:
-            return obj
 
         for idx, p in enumerate(path):
             t_obj = None
             if obj.__class__.__name__.endswith("__structArray"):
                 if isinstance(p, str):
-                    logger.debug((type(obj), obj._base_path))
-                    t_obj = getattr(self._get_ids(obj, [self._time_slice]), p, None)
+                    if len(obj) == 0 and ('w' in self.mode or "x" in self.mode):
+                        obj.resize(1)
+                    obj = obj[0]
+                    t_obj = getattr(obj, p, None)
                 elif isinstance(p, (int, slice)):
                     try:
                         t_obj = obj[p]
@@ -69,31 +58,36 @@ class IMASNode(Node):
         return obj
 
     def _put_value(self, obj, key, value):
+        if obj.__class__.__name__.endswith("__structArray") and isinstance(key, str):
+            if len(obj) == 0:
+                obj.resize(1)
+            obj = obj[0]
 
-        if isinstance(value, (int, float, str)):
+        if key is None:
+            if isinstance(value, list):
+                if not obj.__class__.__name__.endswith("__structArray"):
+                    raise TypeError(f"{type(value)}=>{obj.__class__}")
+                if len(obj) < len(value):
+                    obj.resize(len(value))
+                for idx, v in enumerate(value):
+                    self._put_value(obj, idx, value)
+            elif isinstance(value, collections.abc.Mapping):
+                for k, v in value.items():
+                    self._put_value(obj, k, v)
+            else:
+                logger.error((obj.__class__, type(value)))
+                raise TypeError(obj.__class__)
+
+        elif isinstance(value, (int, float, str)):
             if isinstance(key, str):
                 setattr(obj, key, value)
             else:
                 obj[key] = value
         elif isinstance(value, np.ndarray):
             self._get_ids(obj, [key, "resize"])(*value.shape)
-            self._get_ids(obj, [key])[:] = value[:]
-        elif isinstance(value, list):
-            t_obj = self._get_ids(obj, [key])
-            if len(t_obj) < len(value):
-                self._get_ids(obj, [key, "resize"])(len(value))
-                obj = self._get_ids(obj, [key])
-            else:
-                obj = t_obj
-            for idx, v in enumerate(value):
-                self._put_value(obj, idx, value)
-
-        elif isinstance(value, collections.abc.Mapping):
-            obj = self._get_ids(obj, [key])
-            for k, v in value.items():
-                self._put_value(obj, k, v)
+            self._get_ids(obj, [key])[:] = value
         else:
-            raise NotImplementedError(type(value))
+            self._put_value(self._get_ids(obj, [key]), None, value)
 
     def put(self, path, value, *args, **kwargs):
         if isinstance(value, LazyProxy):
@@ -179,7 +173,7 @@ class IMASDocument(Document):
             elif isinstance(time, np.ndarray):
                 self._time = time
             elif time is not None:
-                self._time = float(time)
+                self._time = [float(time)]
 
             if self._time is None:
                 self._homogeneous_time = 0
@@ -188,12 +182,12 @@ class IMASDocument(Document):
             elif isinstance(self._time, float):
                 self._homogeneous_time = 2
         else:
-            self._time = None
-            self._homogeneous_time = None
+            self._time = [0.0]
+            self._homogeneous_time = 2
 
         # if "x" in self.mode or "w" in self.mode:
-        #     self._creation_date = datetime.datetime.now().ctime()
-        #     self._provider = os.environ.get('USER', 'nobody')
+        self._creation_date = datetime.datetime.now().ctime()
+        self._provider = os.environ.get('USER', 'nobody')
 
     def close(self):
         self.flush()
@@ -210,6 +204,17 @@ class IMASDocument(Document):
 
         if not ids:
             raise KeyError(f"Can not get ids '{p}'!")
+
+        if "r" in self._mode and self._data.isConnected():
+            if self._time_slice is None:
+                ids.get()
+            else:
+                ids.getSlice(self._time_slice)
+        else:
+            ids.ids_properties.homogeneous_time = self._homogeneous_time
+            ids.time = self._time
+            ids.ids_properties.creation_date = self._creation_date
+            ids.ids_properties.provider = self._provider
 
         return IMASNode(ids, mode=self.mode, envs=self.envs, time=self._time, time_slice=self._time_slice)
 

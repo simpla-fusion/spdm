@@ -42,16 +42,23 @@ class LazyProxyHandler:
 
     @classmethod
     def get(cls, obj, path, *args, **kwargs):
-        for p in path:
+        for idx, p in enumerate(path):
             if type(p) is str and hasattr(obj, p):
                 obj = getattr(obj, p)
             else:
-                try:
+                if hasattr(obj.__class__, "__getitem__"):
                     obj = obj[p]
-                except IndexError:
-                    raise KeyError(path)
-                except TypeError:
-                    raise KeyError(path)
+                elif isinstance(p, int) and p == 0:
+                    pass
+                else:
+                    raise KeyError(path[:idx]+[p])
+
+                # try:
+                #     obj = obj[p]
+                # except IndexError:
+                #     raise KeyError(path)
+                # except TypeError:
+                #     raise KeyError(path)
         return obj
 
     @classmethod
