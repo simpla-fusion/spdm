@@ -18,9 +18,10 @@ from ..Node import Node
 
 
 class IMASNode(Node):
-    def __init__(self, holder,  *args, envs=None, time=None, **kwargs):
+    def __init__(self, holder,  *args, envs=None, time=None, time_slice=None, **kwargs):
         super().__init__(holder, *args, **kwargs)
         self._time = time
+        self._time_slice = time_slice or 0
         self._envs = envs or {}
 
     def _get_ids(self, obj, path):
@@ -39,7 +40,7 @@ class IMASNode(Node):
         for idx, p in enumerate(path):
             if obj.__class__.__name__.endswith("__structArray"):
                 if isinstance(p, str):
-                    t_obj = getattr(self._get_ids(obj, 0), p, None)
+                    t_obj = getattr(self._get_ids(obj, self._time_slice), p, None)
                 elif isinstance(p, (int, slice)):
                     try:
                         t_obj = obj[p]
@@ -103,11 +104,11 @@ class IMASNode(Node):
         elif len(path) == 0:
             raise ValueError(type(value))
         elif len(path) == 1:
-            self._put_value(self.get(path), None, value)
+            self._put_value(self._get(path), None, value)
         else:
-            self._put_value(self.get(path[:-1]), path[-1], value)
+            self._put_value(self._get(path[:-1]), path[-1], value)
 
-    def get(self, path):
+    def _get(self, path):
 
         assert(len(path) > 0)
         obj = getattr(self._holder, path[0], None)
@@ -115,45 +116,73 @@ class IMASNode(Node):
             raise KeyError(f"{type(self._holder)} {path[0]}")
 
         # only structArray in first level is time dependent
+        logger.debug(obj.__class__)
         if obj.__class__.__name__.endswith('__structArray'):
             time_slice_length = len(self._time) if isinstance(self._time, np.ndarray) else 1
             if len(obj) < time_slice_length:
                 obj.resize(time_slice_length)
+            if len(path) > 1 and isinstance(path[1], str):
+                obj = obj[self._time_slice]
 
         return self._get_ids(obj, path[1:])
 
-    def iter(self, holder, path, *args, **kwargs):
-        raise NotImplementedError()
+    def _wrap_obj(self, res):
+        if isinstance(res, (int, float, list, dict, AttributeTree)):
+            return res
+        else:
+            return IMASNode(res, envs=self._envs, time=self._time, time_slice=self._time_slice)
+
+    def get(self, path):
+        return self._wrap_obj(self._get(path))
+
+    def iter(self,   path, *args, **kwargs):
+        obj = self._get(path)
+        if obj.__class__.__name__.endswith("__structArray"):
+            for idx in range(len(obj)):
+                yield self._wrap_obj(self._get_ids(obj, [idx]))
+        else:
+            raise NotImplementedError()
 
 
 class IMASDocument(Document):
-    def __init__(self,  *args, shot=0, run=0, data=None, time=0.0, **kwargs):
+    def __init__(self,  *args, shot=0, run=0, data=None, time=0.0, time_slice=None, **kwargs):
         super().__init__(*args,  ** kwargs)
-
-        self._data = data or imas.ids(int(shot), int(run))
 
         self._entry = None
 
-        if isinstance(time, list):
-            self._time = np.array(time)
-        elif isinstance(time, np.ndarray):
-            self._time = time
-        elif time is not None:
-            self._time = float(time)
+        self._time_slice = time_slice
 
-        if self._time is None:
-            self._homogeneous_time = 0
-        elif isinstance(self._time, np.ndarray):
-            self._homogeneous_time = 1
-        elif isinstance(self._time, float):
-            self._homogeneous_time = 2
+        self._data = data or imas.ids(int(shot), int(run))
 
-        self._creation_date = datetime.datetime.now().ctime()
-        self._provider = os.environ.get('USER', 'nobody')
+        self._access_cache = set()
 
-        logger.info(f"Open IMAS Document: {'connected' if self._data.isConnected() else 'Single'}")
+        logger.info(
+            f"Open IMAS Document: shot={self._data.getShot()} run={self._data.getRun()} isConnected={self._data.isConnected()}")
+
+        if "x" in self.mode or "w" in self.mode:
+            if isinstance(time, list):
+                self._time = np.array(time)
+            elif isinstance(time, np.ndarray):
+                self._time = time
+            elif time is not None:
+                self._time = float(time)
+
+            if self._time is None:
+                self._homogeneous_time = 0
+            elif isinstance(self._time, np.ndarray):
+                self._homogeneous_time = 1
+            elif isinstance(self._time, float):
+                self._homogeneous_time = 2
+        else:
+            self._time = None
+            self._homogeneous_time = None
+
+        if "x" in self.mode:
+            self._creation_date = datetime.datetime.now().ctime()
+            self._provider = os.environ.get('USER', 'nobody')
 
     def close(self):
+        self.flush()
         if self._data is not None and self._data.isConnected():
             self._data.close()
         logger.info(f"Close IMAS Document")
@@ -169,14 +198,28 @@ class IMASDocument(Document):
         if not ids:
             raise KeyError(f"Can not get ids '{p}'!")
 
+        self._access_cache.add(ids)
+
+        # if "r" in self.mode:
+        #     if not self._time_slice:
+        #         ids.get()
+        #     else:
+        #         ids.getSlice(self._time_slice)
+        # else:
         ids.ids_properties.homogeneous_time = self._homogeneous_time
         ids.time = self._time
         ids.creation_date = self._creation_date
         ids.provider = self._provider
 
-        return IMASNode(ids, mode=self.mode, envs=self.envs, time=self._time)
+        return IMASNode(ids, mode=self.mode, envs=self.envs, time=self._time, time_slice=self._time_slice)
 
-    @property
+    def flush(self):
+        if "w" not in self.mode or "x" not in self.mode:
+            for ids in self._access_cache:
+                ids.put()
+            self._access_cache.clear()
+
+    @ property
     def entry(self):
         if self._entry is None:
             self._entry = LazyProxy(None,
@@ -200,37 +243,63 @@ class IMASDocument(Document):
 
 
 class IMASCollection(Collection):
-    def __init__(self, uri, *args,  user=None,  database=None, version=None,   **kwargs):
+    def __init__(self, uri, *args,  user=None,  database=None, version=None, local_path=None,   **kwargs):
         super().__init__(uri, *args, id_hasher="{shot}_{run}", ** kwargs)
 
-        self._user = user or os.environ.get("USER", "NOBODY")
+        self._user = user or os.environ.get("USER", "nobody")
 
         o = urisplit(uri)
 
-        self._database = database or o.authority
+        if not not o.authority:
+            raise NotImplementedError(o.authority)
 
-        self._version = version or os.environ.get('IMAS_VERSION', '3').split('.', 1)[0]
+        self._database = database or o.query.device or "unnamed"
 
-        self._local_db = pathlib.Path(f"~/public/imasdb/{self._database}/{self._version}/0").expanduser().resolve()
+        self._version = version or o.query.version or os.environ.get('IMAS_VERSION', '3').split('.', 1)[0]
 
-        self._local_db.mkdir(parents=True, exist_ok=True)
+        self._path = f"{local_path or o.path or '~/public/imasdb'}/{self._database}/{self._version}"
 
-        self._data.create_env(user, database, version)
+        if self._path[:2] == '/~':
+            self._path = self._path[1:]
 
-    def open_document(self, fid=None, *args, mode=None, **kwargs):
-        shot, run = fid.split('_')
-        return IMASDocument(*args,  mode=mode, user=self._user,
-                            database=self._database, shot=shot, run=run,
-                            envs=collections.ChainMap(kwargs, self.envs))
+        self._path = pathlib.Path(self._path).expanduser().resolve()
 
-        # user = user or os.environ.get("USER", "NOBODY")
+        default_path = pathlib.Path(f"~/public/imasdb/{self._database}/{self._version}").expanduser().resolve()
 
-        # database = database or 'UNNAMED_DB'
+        if self._path != default_path:
+            raise NotImplementedError(f"Can not change imasdb path  from '{default_path}'' to '{self._path}'!")
 
-        # version = version or os.environ.get('IMAS_VERSION', '3').split('.', 1)[0]
+        logger.info(f"Open IMAS Database at {self._path}")
 
-        # if "r" in self.mode:
-        #     self._data.open_env(user, database, version)
+        for i in range(10):
+            p = self._path/f"{i}"
+            p.mkdir(parents=True, exist_ok=True)
+            os.environ[f"MDSPLUS_TREE_BASE_{i}"] = p.as_posix()
+
+    def open_document(self, fid=None, *args, mode=None, shot=None, run=None, time_slice=None, **kwargs):
+
+        if fid is not None:
+            shot, run = fid.split('_')
+
+        shot = int(shot or 0)
+        run = int(run or 0)
+
+        ids = imas.ids(shot, run)
+
+        mode = mode or self._mode
+
+        status = None
+        idx = None
+        # logger.debug(os.environ[f"MDSPLUS_TREE_BASE_0"])
+        if "x" in mode:
+            status, idx = ids.create_env(self._user, self._database, self._version)
+        else:
+            status, idx = ids.open_env(self._user, self._database, self._version)
+
+        if status != 0:
+            raise RuntimeError(
+                f"Can not open imas databas user={self._user} database={self._database} version={self._version} error status={status}")
+        return IMASDocument(data=ids,  mode=mode, **kwargs)
 
 
 __SP_EXPORT__ = IMASCollection

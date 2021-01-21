@@ -285,7 +285,7 @@ def sp_geqdsk_to_imas(geqdsk, doc=None):
 
     # limiter
     doc.wall.description_2d.limiter.unit.outline.r = geqdsk["limrz"][:, 0]
-    doc.wall.description_2d.limiter.unit.outline.r = geqdsk["limrz"][:, 1]
+    doc.wall.description_2d.limiter.unit.outline.z = geqdsk["limrz"][:, 1]
 
     return doc
 

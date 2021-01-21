@@ -76,7 +76,7 @@ class Collection(SpObject):
 
         return res
 
-    def __init__(self, uri, *args, id_hasher=None, envs=None, mode="r", auto_inc_idx=True, doc_factory=None, **kwargs):
+    def __init__(self, uri, *args, id_hasher=None, envs=None, mode="rw", auto_inc_idx=True, doc_factory=None, **kwargs):
         super().__init__()
 
         logger.info(f"Open {self.__class__.__name__} : {uri}")
@@ -146,15 +146,24 @@ class Collection(SpObject):
 
     def open(self, *args, mode=None, **kwargs):
         mode = mode or self.mode
-        if "w" in mode:
+        if "x" in mode:
             return self.create(*args, **kwargs)
-        elif "w" not in mode:
-            return self.find_one(*args, **kwargs)
         else:
-            raise RuntimeWarning("Collection is not writable!")
+            try:
+                doc = self.find_one(*args, **kwargs)
+            except Exception:
+                if "w" in mode:
+                    doc = self.create(*args, **kwargs)
+                else:
+                    doc = None
+
+            return doc
+
+        # else:
+        #     raise RuntimeWarning("Collection is not writable!")
 
     def create(self, *args, **kwargs):
-        return self.open_document(self.guess_id(*args, **kwargs) or self.next_id, mode="x")
+        return self.open_document(self.guess_id(*args, **kwargs) or self.next_id, mode="x", **kwargs)
 
     def insert(self, data, *args, **kwargs):
         if isinstance(data, list):
