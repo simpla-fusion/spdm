@@ -173,7 +173,7 @@ class IMASDocument(Document):
             elif isinstance(time, np.ndarray):
                 self._time = time
             elif time is not None:
-                self._time = [float(time)]
+                self._time = np.array([float(time)])
 
             if self._time is None:
                 self._homogeneous_time = 0
@@ -182,7 +182,7 @@ class IMASDocument(Document):
             elif isinstance(self._time, float):
                 self._homogeneous_time = 2
         else:
-            self._time = [0.0]
+            self._time = np.array([float(0.0)])
             self._homogeneous_time = 2
 
         # if "x" in self.mode or "w" in self.mode:

@@ -17,6 +17,7 @@ from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
+from ..util.sp_export import sp_find_module
 from .Session import Session
 
 
@@ -43,6 +44,19 @@ class SpModule(SpObject):
     # def __del__(self):
     #     super().__del__()
 
+    @cached_property
+    def name(self):
+        return str(self.metadata.annotation.name)
+
+    @cached_property
+    def root_path(self):
+        module_root = os.environ.get(f"EBROOT{self.name.upper()}", None)
+        if not module_root:
+            logger.error(f"Load module '{self.name}' failed! ")
+            raise RuntimeError(f"Load module '{self.name}' failed!")
+
+        return pathlib.Path(module_root).expanduser()
+
     @property
     def job_id(self):
         return self._job_id
@@ -51,15 +65,104 @@ class SpModule(SpObject):
     def envs(self):
         return collections.ChainMap(self._envs, {"metadata": self.metadata})
 
-    def preprocess(self):
-        logger.debug(f"Preprocess: {self.__class__.__name__}")
-
-    def postprocess(self):
-        logger.debug(f"Postprocess: {self.__class__.__name__}")
-
     def execute(self):
         logger.debug(f"Execute: {self.__class__.__name__}")
         return None
+
+    def _execute_module_command(self, cmd, working_dir=None):
+        # py_command = self._execute_process([f"{os.environ['LMOD_CMD']}", 'python', *args])
+        # process = os.popen(f"{os.environ['LMOD_CMD']} python {' '.join(args)}  ")
+        if isinstance(cmd, list):
+            cmd = ' '.join(cmd)
+
+        lmod_cmd = os.environ.get('LMOD_CMD', None)
+
+        if not lmod_cmd:
+            raise RuntimeError(f"Can not find lmod!")
+
+        # process = subprocess.run([lmod_cmd, "python", *cmd], capture_output=True)
+
+        mod_cmd = ' '.join([lmod_cmd, "python", cmd])
+        process = os.popen(mod_cmd, mode='r')
+        py_command = process.read()
+        exitcode = process.close()
+        if not exitcode:
+            res = exec(py_command)
+            logger.debug(f"MODULE CMD: module {cmd}")
+        else:
+            logger.error(f"Module command failed! [module {cmd}] [exitcode: {exitcode}] ")
+            raise RuntimeError(f"Module command failed! [module {cmd}] [exitcode: {exitcode}]")
+
+        return res
+
+    def _execute_process(self, cmd, working_dir='.'):
+        # logger.debug(f"CMD: {cmd} : {res}")
+        logger.info(f"Execute Shell command [{working_dir}$ {' '.join(cmd)}]")
+        # @ref: https://stackoverflow.com/questions/21953835/run-subprocess-and-print-output-to-logging
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                # env=self.envs,
+                shell=True,
+                cwd=working_dir
+            )
+            # process_output, _ = command_line_process.communicate()
+
+            with process.stdout as pipe:
+                for line in iter(pipe.readline, b''):  # b'\n'-separated lines
+                    logger.info(line)
+
+            exitcode = process.wait()
+
+        except (OSError, subprocess.CalledProcessError) as error:
+            logger.error(
+                f"""Command failed! [{cmd}]
+                   STDOUT:[{error.stdout}]
+                   STDERR:[{error.stderr}]""")
+            raise error
+        return exitcode
+
+    def _execute_object(self, cmd):
+        return NotImplemented
+
+    def _execute_script(self, cmds):
+        if cmds is None:
+            return None
+        elif isinstance(cmds, collections.abc.Sequence) and not isinstance(cmds, str):
+            pass
+        else:
+            cmds = [cmds]
+
+        res = None
+
+        for cmd in cmds:
+            if isinstance(cmd, collections.abc.Mapping):
+                res = self._execute_object(cmd)
+            elif isinstance(cmd, str):
+                if cmd.startswith("module "):
+                    res = self._execute_module_command(cmd[len("module "):])
+                elif not self._only_module_command:
+                    res = self._execute_process(cmd)
+                else:
+                    raise RuntimeError(f"Illegal command! [{cmd}] Only 'module' command is allowed.")
+            elif isinstance(cmd, collections.abc.Sequence):
+                res = self._execute_script(cmd)
+            elif not cmd:
+                res = None
+            else:
+                raise NotImplementedError(cmd)
+
+        return res
+
+    def preprocess(self):
+        logger.debug(f"Preprocess: {self.__class__.__name__}")
+        self._execute_script(self.metadata.prescript)
+
+    def postprocess(self):
+        logger.debug(f"Postprocess: {self.__class__.__name__}")
+        self._execute_script(self.metadata.postscript)
 
     def _convert_data(self, data, metadata, envs):
 
@@ -176,8 +279,15 @@ class SpModule(SpObject):
         args = []
         kwargs = {}
         for p_name, p_metadata in self.metadata.in_ports:
-            kwargs[p_name] = self.create_dobject(self._kwargs.get(p_name, None),
-                                                 _metadata=p_metadata, envs=envs_map)
+            if p_name != '_VAR_ARGS_':
+                kwargs[p_name] = self.create_dobject(self._kwargs.get(p_name, None),
+                                                     _metadata=p_metadata, envs=envs_map)
+            elif not isinstance(p_metadata, list):
+                args = [self.create_dobject(arg,  _metadata=p_metadata, envs=envs_map) for arg in self._args]
+            else:
+                l_metada = len(p_metadata)
+                args = [self.create_dobject(arg, _metadata=p_metadata[min(idx, l_metada-1)], envs=envs_map)
+                        for idx, arg in enumerate(self._args)]
 
         self._inputs = args, kwargs
 
@@ -190,7 +300,8 @@ class SpModule(SpObject):
             return self._outputs
         cwd = pathlib.Path.cwd()
         os.chdir(self.envs.get("WORKING_DIR", None) or cwd)
-        result = self.run()
+
+        result = self.run() or {}
 
         inputs = AttributeTree(self.inputs[1])
 
@@ -290,101 +401,6 @@ class SpModuleLocal(SpModule):
         os.chdir(pwd)
         return res
 
-    def _execute_module_command(self, cmd, working_dir=None):
-        # py_command = self._execute_process([f"{os.environ['LMOD_CMD']}", 'python', *args])
-        # process = os.popen(f"{os.environ['LMOD_CMD']} python {' '.join(args)}  ")
-        if isinstance(cmd, list):
-            cmd = ' '.join(cmd)
-
-        lmod_cmd = os.environ.get('LMOD_CMD', None)
-
-        if not lmod_cmd:
-            raise RuntimeError(f"Can not find lmod!")
-
-        # process = subprocess.run([lmod_cmd, "python", *cmd], capture_output=True)
-
-        mod_cmd = ' '.join([lmod_cmd, "python", cmd])
-        process = os.popen(mod_cmd, mode='r')
-        py_command = process.read()
-        exitcode = process.close()
-        if not exitcode:
-            res = exec(py_command)
-            logger.debug(f"MODULE CMD: module {cmd}")
-        else:
-            logger.error(f"Module command failed! [module {cmd}] [exitcode: {exitcode}] ")
-            raise RuntimeError(f"Module command failed! [module {cmd}] [exitcode: {exitcode}]")
-
-        return res
-
-    def _execute_process(self, cmd, working_dir='.'):
-        # logger.debug(f"CMD: {cmd} : {res}")
-        logger.info(f"Execute Shell command [{working_dir}$ {' '.join(cmd)}]")
-        # @ref: https://stackoverflow.com/questions/21953835/run-subprocess-and-print-output-to-logging
-        try:
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                # env=self.envs,
-                shell=True,
-                cwd=working_dir
-            )
-            # process_output, _ = command_line_process.communicate()
-
-            with process.stdout as pipe:
-                for line in iter(pipe.readline, b''):  # b'\n'-separated lines
-                    logger.info(line)
-
-            exitcode = process.wait()
-
-        except (OSError, subprocess.CalledProcessError) as error:
-            logger.error(
-                f"""Command failed! [{cmd}]
-                   STDOUT:[{error.stdout}]
-                   STDERR:[{error.stderr}]""")
-            raise error
-        return exitcode
-
-    def _execute_object(self, cmd):
-        return NotImplemented
-
-    def _execute_script(self, cmds):
-        if cmds is None:
-            return None
-        elif isinstance(cmds, collections.abc.Sequence) and not isinstance(cmds, str):
-            pass
-        else:
-            cmds = [cmds]
-
-        res = None
-
-        for cmd in cmds:
-            if isinstance(cmd, collections.abc.Mapping):
-                res = self._execute_object(cmd)
-            elif isinstance(cmd, str):
-                if cmd.startswith("module "):
-                    res = self._execute_module_command(cmd[len("module "):])
-                elif not self._only_module_command:
-                    res = self._execute_process(cmd)
-                else:
-                    raise RuntimeError(f"Illegal command! [{cmd}] Only 'module' command is allowed.")
-            elif isinstance(cmd, collections.abc.Sequence):
-                res = self._execute_script(cmd)
-            elif not cmd:
-                res = None
-            else:
-                raise NotImplementedError(cmd)
-
-        return res
-
-    def preprocess(self):
-        super().preprocess()
-        self._execute_script(self.metadata.prescript)
-
-    def postprocess(self):
-        self._execute_script(self.metadata.postscript)
-        super().postprocess()
-
     def execute(self, *args, **kwargs):
         module_name = str(self.metadata.annotation.name)
 
@@ -396,10 +412,10 @@ class SpModuleLocal(SpModule):
 
         module_root = pathlib.Path(module_root).expanduser()
 
-        exec_file = module_root / str(self.metadata.run.exec_file)
+        exec_file = module_root / str(self.metadata.run.exec)
 
         exec_file.resolve()
-   
+
         try:
             exec_file.relative_to(module_root)
         except ValueError:
@@ -451,3 +467,40 @@ class SpModuleLocal(SpModule):
         #     raise error
 
         return {"EXITCODE": exitcode}
+
+
+class SpModulePy(SpModule):
+    def __init__(self, *args,   **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._path_cache = []
+
+    def preprocess(self):
+        super().preprocess()
+        self._path_cache = sys.path
+        pythonpath = os.environ.get('PYTHONPATH', []).split(':')
+        if not not pythonpath:
+            sys.path.extend(pythonpath)
+
+    def postprocess(self):
+        super().preprocess()
+        if not not self._path_cache:
+            sys.path.clear()
+            sys.path.extend(self._path_cache)
+
+    def execute(self, *args, **kwargs):
+        root_path = self.root_path
+
+        pythonpath = [root_path/p for p in str(self.metadata.run.pythonpath or '').split(':') if not not p]
+
+        func_name = str(self.metadata.run.exec)
+
+        func = sp_find_module(func_name, pythonpath=pythonpath)
+
+        if callable(func):
+            logger.info(f"Execute Py-Function [ {func_name}]")
+            res = func(*args, **kwargs)
+        else:
+            raise RuntimeError(f"Can not load py-function {func_name}")
+
+        return res

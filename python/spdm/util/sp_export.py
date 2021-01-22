@@ -30,26 +30,7 @@ def sp_load_module(filepath, name=None, export_entry: str = None):
     return lambda p: p
 
 
-@functools.lru_cache(1024)
-def _sp_find_module(path):
-    module = sys.modules.get(path, None)  # if module is loaded, use it
-
-    if module is None:
-        try:
-            spec = importlib.util.find_spec(path)
-        except ModuleNotFoundError:
-            module = None
-        else:
-            if spec is not None:
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
-    # if module is not None:
-    #     logger.debug(f"Load module  {module} ")
-    return module
-
-
-def sp_find_module(path, fragment=None):
+def sp_find_module(path, fragment=None, pythonpath=None):
     if path is None:
         return None
     if not isinstance(path, str) and isinstance(path, collections.abc.Sequence):
@@ -57,29 +38,55 @@ def sp_find_module(path, fragment=None):
 
     o = path.strip('/.').replace('/', '.').split('#')
 
-    path = o[0]
+    mod_name = o[0]
     if fragment is None and len(o) > 1:
         fragment = o[1]
 
-    mod = _sp_find_module(path)
-    # if mod is None:
-    #     return _sp_find_module(*path.rsplit(".", 1))
-    if not isinstance(mod, object):
-        raise ModuleNotFoundError(f"{path}")
-    if fragment is None:
-        mod = getattr(mod, SP_EXPORT_KEYWORD, None) or getattr(mod, path.split('.')[-1], None) or mod
-    elif hasattr(mod, fragment):
-        mod = getattr(mod, fragment)
-    elif hasattr(mod, SP_EXPORT_KEYWORD):
-        mod = getattr(getattr(mod, SP_EXPORT_KEYWORD), fragment, None)
-    else:
-        mod = None
+    module = sys.modules.get(mod_name, None)  # if module is loaded, use it
 
-    # if mod is None:
-    #     raise ModuleNotFoundError(f"Can not find module {path}{ '#'+fragment if fragment is not None else ''}")
-    # else:
-        # logger.debug(f"Found module : {path}{'#'+fragment if fragment is not None else ''}")
-    return mod
+    if module is None:
+        if not pythonpath:
+            try:
+                spec = importlib.util.find_spec(mod_name)
+            except ModuleNotFoundError:
+                spec = None
+        else:
+            if isinstance(pythonpath, str):
+                pythonpath = pythonpath.split(':')
+            for p in pythonpath:
+                mod_path = pathlib.Path(p) / mod_name.replace('.', '/')
+                if mod_path.is_dir():
+                    mod_path = mod_path/"__init__.py"
+                else:
+                    mod_path = mod_path.with_suffix(".py")
+
+                if not(mod_path.exists() and mod_path.is_file()):
+                    continue
+                try:
+                    spec = importlib.util.spec_from_file_location(mod_name, mod_path)
+                except ModuleNotFoundError:
+                    spec = None
+                else:
+                    if spec is not None:
+                        break
+
+        if spec is not None:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+    if not isinstance(module, object):
+        raise ModuleNotFoundError(f"{path}")
+
+    if fragment is None:
+        module = getattr(module, SP_EXPORT_KEYWORD, None) or getattr(module, path.split('.')[-1], None) or module
+    elif hasattr(module, fragment):
+        module = getattr(module, fragment)
+    elif hasattr(module, SP_EXPORT_KEYWORD):
+        module = getattr(getattr(module, SP_EXPORT_KEYWORD), fragment, None)
+    else:
+        module = None
+
+    return module
 
 
 def sp_find_subclass(cls, path: list):
@@ -178,4 +185,4 @@ def absoluate_path_slash(path, prefix):
 
 def relativce_module_path(cls, base):
     return [p.__name__.lower()
-            for p in inspect.getmro(cls) if issubclass(p, base) and p is not base and p is not cls][::-1]+[cls.__name__]
+            for p in inspect.getmro(cls) if issubclass(p, base) and p is not base and p is not cls][:: -1]+[cls.__name__]

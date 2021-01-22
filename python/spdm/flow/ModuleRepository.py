@@ -135,9 +135,14 @@ class ModuleRepository:
         version = version or 'default'
         tag = tag or ''
         if isinstance(metadata, str):
-            metadata = f"{metadata}/{version}{tag}"
+            n_metadata = self.resolver.fetch(f"{metadata}/{version}{tag}", envs)
+            if not n_metadata:
+                n_metadata = self.resolver.fetch(f"{metadata}/default", envs)
+                if isinstance(n_metadata, (collections.abc.Mapping, collections.abc.Sequence)):
+                    format_string_recursive(n_metadata, {"version": version, "tag": tag})
 
-        n_metadata = self.resolver.fetch(metadata, envs)
+        else:
+            n_metadata = self.resolver.fetch(metadata, envs)
 
         if not n_metadata:
             raise LookupError(f"Can not find module {metadata}!")
