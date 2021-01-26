@@ -108,6 +108,14 @@ class SpObject(object):
         return self.serialize()
 
     @property
+    def label(self):
+        return self.attributes.label
+
+    @property
+    def name(self):
+        return self.attributes.name
+    
+    @property
     def attributes(self):
         return self._attributes
 

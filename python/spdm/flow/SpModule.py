@@ -16,19 +16,12 @@ from ..util.AttributeTree import AttributeTree
 from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
 from ..util.Signature import Signature
-from ..util.SpObject import SpObject
 from ..util.sp_export import sp_find_module
 from .Session import Session
+from .Actor import Actor
 
 
-class SpModule(SpObject):
-
-    @staticmethod
-    def __new__(cls, *args, **kwargs):
-        if cls is not SpModule:
-            return object.__new__(cls)
-        else:
-            return SpObject.__new__(cls, *args, **kwargs)
+class SpModule(Actor):
 
     def __init__(self, *args, envs=None, metadata=None,  **kwargs):
         super().__init__(metadata=metadata)
