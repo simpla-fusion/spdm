@@ -17,8 +17,8 @@ from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.sp_export import sp_find_module
-from .Session import Session
 from .Actor import Actor
+from .Session import Session
 
 
 class SpModule(Actor):
@@ -31,8 +31,7 @@ class SpModule(Actor):
         self._kwargs = kwargs
         self._inputs = None
         self._outputs = None
-        self._job_id = Session.current().job_id(self.__class__.__name__)
-        self._envs["JOB_ID"] = self._job_id
+        self._envs["JOB_ID"] = self.job_id
 
     # def __del__(self):
     #     super().__del__()
@@ -51,16 +50,8 @@ class SpModule(Actor):
         return pathlib.Path(module_root).expanduser()
 
     @property
-    def job_id(self):
-        return self._job_id
-
-    @property
     def envs(self):
         return collections.ChainMap(self._envs, {"metadata": self.metadata})
-
-    def execute(self):
-        logger.debug(f"Execute: {self.__class__.__name__}")
-        return None
 
     def _execute_module_command(self, cmd, working_dir=None):
         # py_command = self._execute_process([f"{os.environ['LMOD_CMD']}", 'python', *args])
@@ -148,14 +139,6 @@ class SpModule(Actor):
                 raise NotImplementedError(cmd)
 
         return res
-
-    def preprocess(self):
-        logger.debug(f"Preprocess: {self.__class__.__name__}")
-        self._execute_script(self.metadata.prescript)
-
-    def postprocess(self):
-        logger.debug(f"Postprocess: {self.__class__.__name__}")
-        self._execute_script(self.metadata.postscript)
 
     def _convert_data(self, data, metadata, envs):
 
@@ -320,6 +303,18 @@ class SpModule(Actor):
         self._inputs = None
         os.chdir(cwd)
         return self._outputs
+
+    def preprocess(self):
+        logger.debug(f"Preprocess: {self.__class__.__name__}")
+        self._execute_script(self.metadata.prescript)
+
+    def postprocess(self):
+        logger.debug(f"Postprocess: {self.__class__.__name__}")
+        self._execute_script(self.metadata.postscript)
+
+    def execute(self):
+        logger.debug(f"Execute: {self.__class__.__name__}")
+        return None
 
     def run(self):
 
