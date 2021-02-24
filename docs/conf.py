@@ -32,15 +32,16 @@ release = '0.0.1'
 extensions = ["sphinx.ext.napoleon",
               "sphinx.ext.imgmath",
               "sphinx.ext.graphviz",
-              "sphinx.ext.autodoc",
+            #   "sphinx.ext.autodoc",
               "sphinx.ext.todo",
               "sphinx.ext.imgconverter",
               "sphinx.ext.graphviz",
               "sphinx.ext.autosectionlabel",
-              "sphinxcontrib.bibtex",
+            #   "sphinxcontrib.bibtex",
               'sphinxcontrib.plantuml',
               "recommonmark",
-              "docxsphinx"]
+            #   "docxsphinx"
+              ]
 
 source_suffix = {
     '.rst': 'restructuredtext',

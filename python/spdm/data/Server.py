@@ -8,22 +8,6 @@ from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urijoin, urisplit
 
 
-def _guess_protocol(path, protocol):
-    return protocol
-
-
-def _find_file_module(protocol):
-    assert(protocol)
-    o = urisplit(
-        urijoin(f"pyobject:///{SP_PACKAGE_NAME}/data/protocol/", protocol))
-    mod = sp_find_module(o.path.strip('/').replace('/', '.'))
-
-    if mod is None:
-        raise ModuleNotFoundError(
-            f"Can't find hanlder for file type '{protocol}'.")
-    return mod
-
-
 class Connection(object):
     def __init__(self, path=None, *args,  protocol=None, template=None, schema=None, **kwargs):
         super().__init__()

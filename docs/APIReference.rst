@@ -6,5 +6,4 @@ API Reference 参考
    :maxdepth: 4
    :glob:
    
-   ../_apidoc/*
    
