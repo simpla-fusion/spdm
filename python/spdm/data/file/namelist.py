@@ -25,7 +25,7 @@ class FileNamelist(File):
             f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
 
     def root(self) -> Dict[str, Any]:
-        return Node(f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True))
+        return Entry(f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True))
 
     # def normalize_r(self, prefix, nobj):
     #     if isinstance(nobj, str):

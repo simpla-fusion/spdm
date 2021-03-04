@@ -1,0 +1,21 @@
+@startuml
+[*] --> Empty
+Empty --> Mapping : setitem(str),getitem(str),__as_mapping__
+Empty --> Sequence : [_next_],__as_sequence__
+Empty --> Item: "__update__"
+Item --> Sequence : [_next_],__as_sequence__
+Mapping --> Sequence : [_next_]
+
+Mapping --> Mapping : setitem(str),getitem(str),__as_mapping__
+Sequence --> Sequence : getitem(int),setitem(int),__as_sequence__
+
+Item --> Item : "__value__"
+
+Mapping     --> Empty : clear
+Sequence    --> Empty : clear
+Item        --> Empty : clear
+
+Item     --> Illegal: __as_mapping__
+Sequence --> Illegal: __as_mapping__
+
+@enduml

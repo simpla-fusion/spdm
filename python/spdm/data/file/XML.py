@@ -8,7 +8,7 @@ from spdm.util.PathTraverser import PathTraverser
 
 from ..Document import Document
 from ..File import File
-from ..Node import Node
+from ..Entry import Entry
 from spdm.util.dict_util import format_string_recursive
 
 try:
@@ -81,7 +81,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
     return root
 
 
-class XMLNode(Node):
+class XMLNode(Entry):
     def __init__(self, data, *args, prefix=None, **kwargs):
         super().__init__(data, *args, **kwargs)
         self._prefix = prefix or []

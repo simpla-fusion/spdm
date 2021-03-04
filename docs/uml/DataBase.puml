@@ -1,0 +1,56 @@
+@startuml DataBase 
+
+
+class DBEntry{
+    location: URL
+    fetch(): Node
+}
+
+DBEntry --|> Document
+DBEntry ... Collection
+
+class Schema{
+}
+
+class Dictionary{
+}
+
+
+class Constraints{
+}
+
+Constraints --|> Edge
+
+Schema *-- Dictionary
+Schema *-- Constraints
+
+
+
+
+abstract class Document{
+    id: UUID
+}
+
+note " Document('Collection') is a hierarchical tree of data with fixed schema." as DocumentComment
+
+DocumentComment ... Document
+
+Document "1" *-- "1" Schema
+
+Document --|> Group
+
+
+class Collection{
+    location:　URL
+    open(): Document
+    query(): Document[]
+}
+
+note " DataBase('Collection') is a collection of documents" as CollectionComment
+
+CollectionComment ... Collection
+
+Collection "1" *-- "n" Document
+Collection "1" *-- "1" Schema
+
+@enduml

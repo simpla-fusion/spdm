@@ -1,6 +1,6 @@
 from ..Collection import FileCollection
 from ..Document import Document
-from ..Node import Node
+from ..Entry import Entry
 import h5py
 import numpy
 import collections
@@ -130,7 +130,7 @@ def h5_get_value(obj, path=None, projection=None):
     return res
 
 
-class HDF5Node(Node):
+class HDF5Node(Entry):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -138,7 +138,7 @@ class HDF5Node(Node):
     def copy(self, other):
         if isinstance(other, LazyProxy):
             other = other.__real_value__()
-        elif isinstance(other, Node):
+        elif isinstance(other, Entry):
             other = other.entry.__real_value__()
         self.put(None, other)
 

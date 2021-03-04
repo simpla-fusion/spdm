@@ -13,7 +13,7 @@ class Alias:
             >>> alias=Alias()
             >>> alias.append("http://a.b.c.d.com/schemas/draft-00","/some/local/dir/%PLACEHOLDER%.json")
             >>> alias.append("http://a.b.c.d.com/schemas/draft-00/flow","/other/local/dir/")
-            >>> [ p for p in alias.get("http://a.b.c.d.com/schemas/draft-00/flow/Node")]
+            >>> [ p for p in alias.get("http://a.b.c.d.com/schemas/draft-00/flow/Entry")]
             ["/some/local/dir/flow/Node.json",
             "/other/local/dir/Node",
             "http://a.b.c.d.com/schemas/draft-00/flow/Node"]

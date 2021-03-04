@@ -1,0 +1,46 @@
+@startuml PhysicalQuantity
+
+class Unit{
+    name :String
+    SI_dimension : int[7]
+    factor: float
+}
+
+
+class Quantity{
+    + unit: Unit
+    + coordinates : Coordinates
+    + error: ErrorBar
+}
+
+note top of Quantity: "A 'Quantity' is a 'DataSet' with 'Coordinate'. "
+
+Quantity --|> DataSet
+
+Quantity "n" *-- "0,1" Coordinates
+Quantity *-- "0,1" Unit
+
+' Schema ... Quantity
+
+class Coordinates{
+    axis : Axis[]
+    mesh : Mesh
+    domain
+}
+
+
+class Axis{
+
+}
+Axis --|> Link
+
+class Mesh{
+
+}
+Mesh --|> Link
+
+
+Coordinates "1" *-- "n" Axis
+Coordinates  *--  Mesh
+
+@enduml  

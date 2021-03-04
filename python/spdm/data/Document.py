@@ -1,10 +1,8 @@
 import collections
 from typing import Any, Dict, List
-import pathlib
-from ..util.AttributeTree import AttributeTree
 from ..util.logger import logger
-from .Node import Node
 from .DataObject import DataObject
+from .Entry import Entry
 
 
 class Document(DataObject):
@@ -28,15 +26,15 @@ class Document(DataObject):
 
     @property
     def root(self):
-        return Node(self._data)
-
-    @property
-    def envs(self):
-        return self._envs
+        return Entry(self._data)
 
     @property
     def entry(self):
         return self.root.entry
+
+    @property
+    def envs(self):
+        return self._envs
 
     @property
     def path(self):

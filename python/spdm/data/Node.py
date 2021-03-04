@@ -1,185 +1,250 @@
-from spdm.util.LazyProxy import LazyProxy
-from spdm.util.logger import logger
-from spdm.util.AttributeTree import AttributeTree
-
 import collections
+import uuid
+from spdm.util.logger import logger
 
 
-class Node(object):
-    def __init__(self, holder,  *args, parent=None, prefix=None, **kwargs):
-        super().__init__()
-        self._holder = holder
+class _NEXT_TAG_:
+    pass
+
+
+_next_ = _NEXT_TAG_()
+_last_ = -1
+
+
+class Node:
+    """
+        @startuml
+
+        class Node{
+            name    : String
+            parent  : Node
+            value   : Group or Data
+        }
+
+        class Group{
+            children : Node[*]
+        }
+
+        Node *--  Node  : parent
+
+        Node o--  Group : value
+        Node o--  Data  : value
+
+        Group *-- "*" Node
+
+        @enduml
+    """
+
+    class Mapping(dict):
+        def __init__(self, parent, *args,  **kwargs):
+            super().__init__(*args, **kwargs)
+            self._parent = parent
+
+        def serialize(self):
+            return {k: (v.serialize() if hasattr(v, "serialize") else v) for k, v in self.items()}
+
+        @staticmethod
+        def deserialize(cls, d, parent=None):
+            res = cls(parent)
+            res.update(d)
+            return res
+
+        def __iter__(self):
+            for node in self.values():
+                if hasattr(node, "__value__"):
+                    yield node.__value__
+                else:
+                    yield node
+
+        def __merge__(self, d,  recursive=True):
+            return NotImplemented
+
+        def __ior__(self, other):
+            return self.__merge__(other, recursive=True)
+
+        """
+            @startuml
+            [*] --> Group
+
+            Group       --> Mapping         : update(dict),insert(value,str),at(str)
+            Group       --> Sequence        : update(list),insert(value,int),[_next_]
+
+            Mapping     --> Mapping         : insert(value,key), at(key),
+            Mapping     --> Sequence        : [_next_],
+
+            Sequence    --> Sequence        : insert(value), at(int),
+            Sequence    --> Illegal         : insert(value,str),get(str)
+
+            Illegal     --> [*]             : Error
+
+            @enduml
+        """
+
+        def __missing__(self, key):
+            obj = self._parent.__new_child__(name=key)
+            super().__setitem__(key, obj)
+            return obj
+
+        def __setitem__(self, key, value):
+            self.insert(value, key)
+
+        def update(self, other, *args, **kwargs):
+            if other is None:
+                return
+            elif isinstance(other, collections.abc.Mapping):
+                for k, v in other.items():
+                    self.insert(v, k)
+            elif isinstance(other, collections.abc.Sequence):
+                for v in other:
+                    self.insert(v)
+            else:
+                raise TypeError(f"Not supported operator! update({type(self)},{type(other)})")
+
+        def insert(self, value, key=None, *args, **kwargs):
+            if key is None:
+                obj = self.__new_child__(value, *args, name=key, **kwargs)
+                super().__setitem__(obj.__name__, obj)
+            else:
+                self.at(key).__update__(value, *args, **kwargs)
+
+        def at(self, key):
+            return self.__getitem__(key)
+
+    class Sequence(list):
+        def __init__(self, parent,  *args, **kwargs) -> None:
+            super().__init__(self,  *args, **kwargs)
+            self._parent = parent
+
+        def serialize(self):
+            return [(v.serialize() if hasattr(v, "serialize") else v) for v in self]
+
+        @staticmethod
+        def deserialize(cls, d, parent=None):
+            res = cls(parent)
+            res.update(d)
+            return res
+
+        def insert(self, value, key=None, *args, **kwargs):
+            if isinstance(key, int):
+                self.__getitem__(key).__update__(value, *args, **kwargs)
+            else:
+                self.append(self._parent.__new_child__(value, *args, name=key, **kwargs))
+
+        def at(self, key):
+            return self.__getitem__(key)
+
+        def update(self, other, *args, **kwargs):
+            if isinstance(other, collections.abc.Sequence):
+                for v in other:
+                    self.insert(v, *args, **kwargs)
+            else:
+                raise TypeError(f"Not supported operator! update({type(self)},{type(other)})")
+
+    def __init__(self, value=None, *args,  name=None, parent=None, **kwargs):
+        self._name = name or uuid.uuid1()
         self._parent = parent
-        self._prefix = prefix or []
+        self._value = None
+        self.__update__(value, *args, **kwargs)
 
-    # def __del__(self):
-    #     try:
-    #         self._holder=None
-    #     except Exception as error:
-    #         logger.error(error)
+    def __repr__(self) -> str:
+        return f"{self._value}"
+
+    def serialize(self):
+        return self._value.serialize() if hasattr(self._value, "serialize") else self._value
+
+    @staticmethod
+    def deserialize(cls, d):
+        return cls(d)
 
     @property
-    def holder(self):
-        return self._holder
+    def __name__(self):
+        return self._name
 
     @property
-    def parent(self):
+    def __value__(self):
+        return self._value
+
+    @property
+    def __parent__(self):
         return self._parent
 
     @property
-    def prefix(self):
-        return self._prefix
+    def __metadata__(self):
+        return self._metadata
 
-    @property
-    def entry(self):
-        return LazyProxy(self,  handler=self.__class__)
+    def __hash__(self) -> int:
+        return hash(self._name)
 
-    @entry.setter
-    def entry(self, other):
-        return self.copy(other)
+    def __clear__(self):
+        self._value = None
 
-    def copy(self, other):
-        if isinstance(other, LazyProxy):
-            other = other.__real_value__()
-        elif isinstance(other, Node):
-            other = other.entry.__real_value__()
+    """
+        @startuml
+        [*] --> Empty
+        Empty       --> Sequence        : as_sequence, __update__(list), __setitem__(int,v),__getitem__(int)
+        Empty       --> Mapping         : as_mapping , __update__(dict), __setitem__(str,v),__getitem__(str)
+        Empty       --> Empty           : clear
 
-        if isinstance(other, collections.abc.Mapping):
-            for k, v in other.items():
-                self._holder[k] = v
-        elif isinstance(other, collections.abc.Sequence):
-            self._holder.extend(other)
+
+        Item        --> Item            : "__value__"
+        Item        --> Empty           : clear
+        Item        --> Sequence        : __setitem__(_next_,v),__getitem__(_next_),as_sequence
+        Item        --> Illegal         : as_mapping
+
+        Sequence    --> Empty           : clear
+        Sequence    --> Sequence        : as_sequence
+        Sequence    --> Illegal         : as_mapping
+
+        Mapping     --> Empty           : clear
+        Mapping     --> Mapping         : as_mapping
+        Mapping     --> Sequence        :  __setitem__(_next_,v),__getitem__(_next_),as_sequence
+
+
+        Illegal     --> [*]             : Error
+
+        @enduml
+    """
+
+    def __as_mapping__(self):
+        if isinstance(self._value, Node.Mapping):
+            return self._value
+        elif not self._value:
+            self._value = self.__class__.Mapping(self)
+            return self._value
         else:
-            raise ValueError(f"Can not copy {type(other)}!")
+            raise RuntimeError(f"Can not convert {type(self._value)} to Mapping!")
 
-    def put(self,  path, value, *args, **kwargs):
-        obj = self._holder
-
-        if len(path) == 0:
-            return obj
-        for p in path[:-1]:
-            if type(p) is str and hasattr(obj, p):
-                obj = getattr(obj, p)
-            else:
-                try:
-                    t = obj[p]
-                except KeyError:
-                    obj[p] = {}
-                    obj = obj[p]
-                except IndexError as error:
-                    raise IndexError(f"{p} > {len(obj)}! {error}")
-                else:
-                    obj = t
-            # elif type(p) is int and p < len(obj):
-            #     obj = obj[p]
-
-            # else:
-            #     obj[p] = {}
-            #     obj = obj[p]
-        if hasattr(obj, path[-1]):
-            setattr(obj, path[-1], value)
+    def __as_sequence__(self):
+        if isinstance(self._value, Node.Sequence):
+            return self._value
         else:
-            obj[path[-1]] = value
+            res = self.__class__.Sequence(self)
+            if not not self._value:
+                self._value.insert(self._value)
+            self._value = res
+            return res
 
-        return obj[path[-1]]
+    def __new_child__(self, *args, parent=None, **kwargs):
+        return self.__class__(*args,  parent=parent or self, **kwargs)
 
-    def get(self, path, *args, **kwargs):
-        obj = self._holder
-
-        for p in path:
-            if type(p) is str and hasattr(obj, p):
-                obj = getattr(obj, p)
-            elif obj is not None:
-                try:
-                    obj = obj[p]
-                except IndexError:
-                    raise KeyError(path)
-                except TypeError:
-                    raise KeyError(path)
-            else:
-                raise ValueError(path)
-        if isinstance(obj, collections.abc.Mapping):
-            obj = AttributeTree(obj)
-
-        return obj
-
-    def insert(self, path, v, *args, **kwargs):
-
-        try:
-            parent = self.get(path[:-1])
-        except KeyError:
-            parent = None
-        idx = path[-1]
-        if parent is not None and idx in parent:
-            pass
-        elif parent is not None and idx not in parent:
-            parent[idx] = v
-        elif isinstance(idx, str):
-            parent = self.put(path[:-1], {})
-            parent[idx] = v
-        elif type(path[-1]) is int and path[-1] <= 0:
-            parent = self.put(path[:-1], [])
-            idx = 0
-            parent[idx] = v
-        return parent[idx]
-
-    def get_value(self,  path, *args, **kwargs):
-        return self.get(path, *args, **kwargs)
-
-    def delete(self, path, *args, **kwargs):
-
-        if len(path) > 1:
-            obj = self.get(path[:-1], *args, **kwargs)
+    def __update__(self, value, *args, **kwargs):
+        if isinstance(value, collections.abc.Mapping):
+            self.__as_mapping__().update(value, *args, **kwargs)
+        elif isinstance(value, collections.abc.Sequence):
+            self.__as_sequence__().update(value, *args, **kwargs)
         else:
-            obj = self._holder
-        if hasattr(obj, path[-1]):
-            delattr(obj, path[-1])
+            self._value = value
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            self.__as_mapping__().insert(value, key)
         else:
-            del obj[path[-1]]
+            self.__as_sequence__().insert(value, key)
 
-    def count(self,  path, *args, **kwargs):
-        obj = self.get(path, *args, **kwargs)
-        return len(obj)
-
-    def contains(self, path, v, *args, **kwargs):
-        obj = self.get(path, *args, **kwargs)
-        return v in obj
-
-    def call(self,   path, *args, **kwargs):
-
-        obj = self.get(path)
-        if callable(obj):
-            res = obj(*args, **kwargs)
-        elif len(args)+len(kwargs) == 0:
-            res = obj
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            res = self.__as_mapping__().at(key)
         else:
-            raise TypeError(f"'{type(obj)}' is not callable")
+            res = self.__as_sequence__().at(key)
 
-        if isinstance(res, collections.abc.Mapping):
-            res = AttributeTree(res)
-        return res
-
-    def push_back(self, path, v=None):
-        parent = self.insert(path, [])
-        parent.append(v or {})
-        return path+[len(parent)-1]
-
-    def pop_back(self, path):
-        obj = self.get(path)
-        res = None
-        if obj is None:
-            pass
-        elif isinstance(obj, collections.abc.Sequence):
-            res = obj[-1]
-            obj.pop()
-        else:
-            raise KeyError(path)
-
-        return res
-
-    def iter(self, path, *args, **kwargs):
-        yield from self.get(path, *args, **kwargs)
-
-
-def is_entry(obj):
-    return isinstance(obj, LazyProxy) and isinstance(obj.__object__, Node)
+        return res if isinstance(res._value, (self.__class__.Sequence, self.__class__.Mapping, type(None))) else res._value

@@ -6,7 +6,7 @@ import numpy as np
 from spdm.util.logger import logger
 
 from ..Document import Document
-from ..Node import Node
+from ..Entry import Entry
 
 
 def sp_read_geqdsk(file):
@@ -281,7 +281,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
 
 def load_geqdsk(uri):
 
-    root = Node()
+    root = Entry()
     eq = root.entry.equilibrium.time_slice.__push_back__()
 
     with open(uri) as fp:

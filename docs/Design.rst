@@ -13,10 +13,10 @@ Principles of Design 设计原则
 
 Data is defined by the data model and data representation
 
-    - Data model: the semantics and structure of data 
+    - Data model: the semantics and structure of data :
     ITER Physics Data Model /IMAS Data Dictionary (DD)
 
-    - Data representation: the concrete data format 
+    - Data representation: the concrete data format :
     File Format: HDC, HDF5, MDSplus, JSON, XML，
 
 Language-specified data type: Python(dict,list,numpy)，Fortran(array,structure).... 

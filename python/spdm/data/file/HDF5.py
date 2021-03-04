@@ -12,13 +12,13 @@ import h5py
 import numpy
 
 from ..File import File
-from ..Node import Node
+from ..Entry import Entry
 
 from spdm.util.logger import logger
 from spdm.util.utilities import whoami
 
 
-class HDF5Node(Node):
+class HDF5Node(Entry):
 
     def __init__(self, holder,  *args, mode="w", **kwargs):
         super().__init__(holder,  *args, **kwargs)

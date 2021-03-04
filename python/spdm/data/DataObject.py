@@ -9,7 +9,7 @@ from spdm.util.sp_export import sp_find_module
 from spdm.util.SpObject import SpObject
 
 
-from .Node import Node
+from .Entry import Entry
 
 
 def load_ndarray(desc, value, *args, **kwargs):
@@ -101,7 +101,7 @@ class DataObject(SpObject):
 
     @ property
     def root(self):
-        return Node(self)
+        return Entry(self)
 
     @ property
     def entry(self):

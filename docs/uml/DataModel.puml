@@ -1,0 +1,109 @@
+@startuml SpDB
+
+
+
+DataType <|-- PrimitiveType
+DataType <|-- UserDefinedType
+DataType <|-- Tensor
+
+UserDefinedType <|-- Enum
+UserDefinedType <|-- Opaque
+UserDefinedType <|-- Compound
+UserDefinedType <|-- VarLength
+
+
+
+class PrimitiveType{
+    integral
+    float
+    complex
+    string
+}
+
+class Tensor{
+    primitive_type: PrimitiveType
+    shape : integer[]
+}
+
+
+
+class Node{
+    + attributes: Attribute[]
+    + dict serialize()
+    + {static} Node deserialize(dict)
+}
+
+note "A 'Node' is a node of hierarchically tree.  " as NodeComment
+
+NodeComment ... Node
+Node "1" *-- "n" Attribute
+
+class "Group"{
+    +  iter()
+    +  get() : Node
+    +  set(k:string,v:Node)
+}
+
+note "A Group is a hierarchical tree of Nodes. "  as GroupComment
+
+GroupComment ... Group
+
+"Group"  "1" *-- "n" Node
+
+class DataSpace{
+
+}
+
+class DObject{
+
+}
+' DObject  --|> numpy.ndarray
+DObject *-- "1" DataType
+DObject *-- "1" DataSpace
+
+class Attribute{
+
+}
+
+note left of Attribute:  "An 'Attribute' is a single 'data'. "
+
+Attribute --|> DObject
+
+class DataSet{
+}
+
+note top of  DataSet:  "A 'DataSet' is a homogeneous collection  of data elements, \n with an immutable datatype and (hyper)rectangular shape."
+
+
+DataSet  --|> DObject
+DataSet  --|> Node
+
+class Link{
+
+}
+
+Link --|> Node
+Link ... Node
+
+class Edge{
+
+}
+
+Edge   *-- "2" Node
+
+class Graph{
+
+}
+
+Graph --|> Group
+
+
+Graph *-- "*" Edge
+
+
+
+
+
+
+
+@enduml

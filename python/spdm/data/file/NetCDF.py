@@ -10,10 +10,10 @@ from spdm.util.logger import logger
 from spdm.util.utilities import whoami
 
 from ..File import File
-from ..Node import Node
+from ..Entry import Entry
 
 
-class NetCDFNode(Node):
+class NetCDFNode(Entry):
     def __init__(self, data, *args,  **kwargs):
         super().__init__(data, *args, **kwargs)
 

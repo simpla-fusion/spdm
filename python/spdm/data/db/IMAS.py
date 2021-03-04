@@ -14,10 +14,10 @@ from spdm.util.urilib import urisplit
 
 from ..Collection import Collection
 from ..Document import Document
-from ..Node import Node
+from ..Entry import Entry
 
 
-class IMASNode(Node):
+class IMASNode(Entry):
     def __init__(self, holder,  *args, envs=None, time=None, time_slice=None, mode=None, **kwargs):
         super().__init__(holder, *args, **kwargs)
         self._time = time

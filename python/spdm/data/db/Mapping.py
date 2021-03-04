@@ -11,14 +11,14 @@ from spdm.util.PathTraverser import PathTraverser
 
 from ..Collection import Collection
 from ..Document import Document
-from ..Node import Node
+from ..Entry import Entry
 from ..File import File
 
 
-class MappingNode(Node):
+class MappingEntry(Entry):
     def __init__(self, holder, *args, mapping=None, envs=None, **kwargs):
         super().__init__(holder, *args, **kwargs)
-        if isinstance(mapping, Node):
+        if isinstance(mapping, Entry):
             self._mapping = mapping
         else:
             raise TypeError(mapping)
@@ -46,10 +46,10 @@ class MappingNode(Node):
         if item is None:
             pass
         elif isinstance(item, LazyProxy):
-            res = MappingNode(self._holder, mapping=item.__object__).entry
-        # elif isinstance(item, Node):
+            res = MappingEntry(self._holder, mapping=item.__object__).entry
+        # elif isinstance(item, Entry):
         #     logger.debug(item.holder.data)
-        #     return LazyProxy(holder, handler=MappingNode(self._target, mapping=Node(item, handler=self._mapping.handler)))
+        #     return LazyProxy(holder, handler=MappingEntry(self._target, mapping=Entry(item, handler=self._mapping.handler)))
         elif isinstance(item, list):
             res = [self._fetch(v) for v in item]
         elif not isinstance(item, collections.abc.Mapping):
@@ -100,7 +100,7 @@ class MappingDocument(Document):
 
     @property
     def root(self):
-        return MappingNode(self._target.root, mapping=self._mapping, envs=self._envs)
+        return MappingEntry(self._target.root, mapping=self._mapping, envs=self._envs)
 
 
 class MappingCollection(Collection):

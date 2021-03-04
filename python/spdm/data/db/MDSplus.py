@@ -14,10 +14,10 @@ import MDSplus as mds
 
 from ..Collection import Collection
 from ..Document import Document
-from ..Node import Node
+from ..Entry import Entry
 
 
-class MDSplusNode(Node):
+class MDSplusNode(Entry):
 
     def __init__(self, holder, *args, **kwargs):
         super().__init__(holder, *args, **kwargs)
