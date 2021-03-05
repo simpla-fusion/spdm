@@ -12,7 +12,6 @@ from string import Template
 from typing import List
 
 from ..data.DataObject import DataObject
-from ..util.AttributeTree import AttributeTree
 from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
 from ..util.Signature import Signature
@@ -175,9 +174,6 @@ class SpModule(Actor):
 
     def create_dobject(self, data,  _metadata=None, *args, envs=None, **kwargs):
 
-        if isinstance(_metadata, AttributeTree):
-            _metadata = _metadata.__as_native__()
-
         if not envs:
             envs = {}
 
@@ -215,8 +211,6 @@ class SpModule(Actor):
             return data
         elif isinstance(_metadata, str):
             _metadata = {"$class": _metadata}
-        elif isinstance(_metadata, AttributeTree):
-            _metadata = _metadata.__as_native__()
         elif not isinstance(_metadata, collections.abc.Mapping):
             raise TypeError(type(_metadata))
 
@@ -279,7 +273,7 @@ class SpModule(Actor):
 
         result = self.run() or {}
 
-        inputs = AttributeTree(self.inputs[1])
+        inputs = self.inputs[1]
 
         envs_map = DictTemplate(collections.ChainMap({"RESULT": result}, {"inputs": inputs}, self.envs))
 
@@ -297,8 +291,8 @@ class SpModule(Actor):
         outputs = {p_name: self.create_dobject(result.get(p_name, None),
                                                _metadata=p_metadata, envs=envs_map) for p_name, p_metadata in self.metadata.out_ports}
 
-        self._outputs = AttributeTree(collections.ChainMap(
-            outputs, {k: v for k, v in result.items() if k not in self.metadata.out_ports}))
+        self._outputs = collections.ChainMap(
+            outputs, {k: v for k, v in result.items() if k not in self.metadata.out_ports})
 
         self._inputs = None
         os.chdir(cwd)

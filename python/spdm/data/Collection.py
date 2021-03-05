@@ -7,7 +7,6 @@ from functools import cached_property
 from typing import Any, Dict, List, NewType, Tuple
 
 import numpy
-from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.SpObject import SpObject
@@ -41,7 +40,7 @@ class Collection(SpObject):
         "imas": f"{__package__}.db.IMAS",
 
     }
-    metadata = AttributeTree()
+    metadata = {}
 
     @staticmethod
     def __new__(cls, _metadata=None, *args,   **kwargs):
@@ -50,11 +49,9 @@ class Collection(SpObject):
             # return super(Collection, cls).__new__(desc, *args, **kwargs)
 
         if isinstance(_metadata, str):
-            _metadata = {"$class": urisplit(_metadata).schema,  "path": _metadata}
-        elif desc is None:
+            _metadata = {"$class": urisplit(_metadata)["schema"],  "path": _metadata}
+        elif _metadata is None:
             _metadata = {}
-        elif isinstance(_metadata, AttributeTree):
-            _metadata = _metadata.__as_native__()
 
         schemas = (_metadata["$class"] or "local").split('+')
         if not schemas:
@@ -98,7 +95,7 @@ class Collection(SpObject):
 
     @cached_property
     def envs(self):
-        return AttributeTree(self._envs)
+        return self._envs
 
     @property
     def uri(self):
@@ -135,6 +132,9 @@ class Collection(SpObject):
     @property
     def next_id(self):
         raise NotImplementedError()
+
+    def guess_path(self, fid):
+        return pathlib.Path(fid)
 
     def open_document(self, fid, *args, mode=None, **kwargs):
         f_path = self.guess_path(fid)
@@ -274,6 +274,13 @@ class CollectionLocalFile(Collection):
     def guess_path(self, f_id):
         return self._path/(self._doc_name.replace('*', Collection.ID_TAG)).format(f_id)
 
+    def open_document(self, fid, *args, mode=None, **kwargs):
+        f_path = self.guess_path(fid)
+        if not f_path.parent.exists():
+            f_path.parent.mkdir()
+        doc = self._document_factory(*args, mode=mode or self.mode, path=f_path,  **kwargs)
+        logger.debug(f"Open Document {doc.__class__.__name__}: {f_path} [mode=\"{ mode or self.mode}\"]")
+        return doc
     def find_one(self, predicate=None, projection=None, **kwargs):
         f_path = self.guess_filepath(**collections.ChainMap(predicate or {}, kwargs))
 

@@ -7,7 +7,6 @@ import traceback
 import uuid
 
 from ..util import io
-from ..util.AttributeTree import AttributeTree
 from ..util.dict_util import deep_merge_dict, format_string_recursive
 from ..util.Factory import Factory
 from ..util.LazyProxy import LazyProxy

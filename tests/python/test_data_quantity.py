@@ -2,7 +2,7 @@ import collections
 import unittest
 
 import numpy as np
-from spdm.data.Node import Node
+from spdm.data.Node import Node, _next_
 from spdm.data.Quantity import Quantity
 from spdm.util.logger import logger
 from spdm.data.Coordinates import Coordinates
@@ -19,17 +19,33 @@ class QuantityTree(Node):
 
         super().__init__(*args, coordinates=coordinates, **kwargs)
 
+    def __getattr__(self, k):
+        if k.startswith("_"):
+            return super().__getattr__(k)
+        else:
+            return self.__getitem__(k)
+
+    def __setattr__(self, k, v):
+        if k.startswith("_"):
+            super().__setattr__(k, v)
+        else:
+            self.__setitem__(k, v)
+
+    def __delattr__(self, k):
+        if k.startswith("_"):
+            super().__delattr__(k)
+        else:
+            self.__delitem__(k)
+
     @property
     def coordinates(self):
         return getattr(self, "_coordinates", None) or getattr(self._value, "coordinates", None) or getattr(self._parent, "coordinates", None)
 
-    def __update__(self, value, *args, coordinates=None, **kwargs):
-        if isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)) and not isinstance(value, str):
-            super().__update__(value, *args, **kwargs)
-        elif isinstance(value, Quantity):
-            self._value = value
-        elif value is not None:
-            self._value = Quantity(value, *args, coordinates=coordinates or self.coordinates, **kwargs)
+    def __pre_process__(self, value, *args, coordinates=None, **kwargs):
+        # if not isinstance(value, (Quantity, collections.abc.Mapping, collections.abc.Sequence)) or isinstance(value, str):
+        if isinstance(value, np.ndarray) and not isinstance(value, Quantity):
+            value = Quantity(value, *args, coordinates=coordinates or self.coordinates, **kwargs)
+        return value
 
 
 dobj = QuantityTree
@@ -57,14 +73,24 @@ class TestQuantity(unittest.TestCase):
 
         g = dobj(coordinates="cartesian")
 
-        g["a"] = {"b": 5}
-        g["b"] = [1, 2, 3, 4, {"c": {"d": 2345}}]
-        g["c"] = Quantity(5, unit="g")
+        g.a.b = 5
+        g.d.c.d[_next_] = "hello world!"
+        g.d.c.e = "  world!"
+        # logger.debug( g.d.c.g.h)
+        g.b = [1, 2, 3, 4, {"c": {"d": 2345}}]
+        g.c = Quantity(5, unit="g")
+        # g.b[_next_] = g.d.c.g.h
 
         logger.debug(g)
-        logger.debug(g["a"]["b"].coordinates)
-        logger.debug(g["c"].unit)
-        logger.debug(g["c"])
+        logger.debug(g.a.d.e)
+        logger.debug(g.b[2])
+        logger.debug(g.c.unit)
+        logger.debug(g.c)
+        logger.debug(len(g))
+        logger.debug("b" in g)
+
+        # for item in g:
+        #     logger.debug(item)
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ map Equilibrium {
    psirz
    boundary
    limiter
-   coordinates  => RZGrid
+   coordinates  => RZGrid 
 }
 
 Coordinates --* Equilibrium

@@ -3,7 +3,6 @@ import pathlib
 import os
 
 from spdm.util.urilib import urisplit
-from spdm.util.AttributeTree import AttributeTree
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
@@ -64,9 +63,6 @@ class MappingEntry(Entry):
         else:
             res = {k: self._fetch(v) for k, v in item.items()}
 
-        if isinstance(res, collections.abc.Mapping):
-            res = AttributeTree(res)
-
         return res
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
@@ -120,9 +116,9 @@ class MappingCollection(Collection):
         else:
             self._target = target
 
-        if isinstance(mapping, Document):
-            self._mapping = Document(mapping, envs=self.envs)
-            return
+        # if not isinstance(mapping, Document):
+        #     self._mapping = Document(mapping, envs=self.envs)
+        #     return
 
         if isinstance(mapping_data_path, str):
             mapping_data_path = mapping_data_path.split(";")
@@ -153,7 +149,7 @@ class MappingCollection(Collection):
     #     super().__del__()
 
     def insert_one(self, *args,  query=None, **kwargs):
-        oid = self.guess_id(*args, **collection.ChainMap(query or {}, kwargs))
+        oid = self.guess_id(*args, **collections.ChainMap(query or {}, kwargs))
         doc = self._target.insert_one(oid)
         return MappingDocument(target=doc, envs=collections.ChainMap(kwargs, self._envs), fid=oid, mapping=self._mapping)
 

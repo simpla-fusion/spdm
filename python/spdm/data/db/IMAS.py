@@ -6,7 +6,6 @@ from functools import lru_cache
 
 import imas
 import numpy as np
-from spdm.util.AttributeTree import AttributeTree
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
@@ -90,11 +89,6 @@ class IMASNode(Entry):
             self._put_value(self._get_ids(obj, [key]), None, value)
 
     def put(self, path, value, *args, **kwargs):
-        if isinstance(value, LazyProxy):
-            value = value.__value__()
-        if isinstance(value, AttributeTree):
-            value = value.__as_native__()
-
         if len(path) == 0 and isinstance(value, collections.abc.Mapping):
             for k, v in value.items():
                 self.put([k], v)
@@ -132,7 +126,7 @@ class IMASNode(Entry):
     #     return self._get_ids(obj, path[1:])
 
     def _wrap_obj(self, res):
-        if isinstance(res, (int, float, list, dict, AttributeTree, np.ndarray)):
+        if isinstance(res, (int, float, list, dict,  np.ndarray)):
             return res
         else:
             logger.debug(type(res))
@@ -236,11 +230,6 @@ class IMASDocument(Document):
     def update(self, d):
         if isinstance(d, Document):
             d = d.entry
-        if isinstance(d, LazyProxy):
-            d = d.__real_value__()
-        if isinstance(d, AttributeTree):
-            d = d.__as_native__()
-
         for k, v in d.items():
             self.get_ids(k).put([], v)
 

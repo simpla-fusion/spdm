@@ -1,15 +1,13 @@
 import collections
 import pathlib
 import pprint
-import scipy.integrate
-
-from spdm.util.AttributeTree import AttributeTree
-from spdm.util.logger import logger
 
 import numpy as np
+import scipy.integrate
+from spdm.util.logger import logger
 
-from ..File import File
 from ..Document import Document
+from ..File import File
 
 
 def sp_read_geqdsk(file):
@@ -255,7 +253,7 @@ def sp_imas_to_geqdsk(d):
 def sp_geqdsk_to_imas(geqdsk, doc=None):
     # rdim = 0.0
     # zdim = 0.0
-    doc = doc or AttributeTree()
+    doc = doc or {}
     doc.equilibrium.ids_properties.homogeneous_time = 1
     eq = doc.equilibrium.time_slice
     eq.time = 0.0
@@ -324,14 +322,13 @@ class FileGEQdsk(File):
             return
         # elif not isinstance(d, collections.abc.Mapping):
         #     raise TypeError(type(d))
-        elif isinstance(d, collections.abc.Mapping):
-            d = AttributeTree(d)
+
         elif isinstance(d, Document):
-            d = AttributeTree(
-                description="Convert from SPDB",
-                equilibrium=d.entry.equilibrium.__value__(),
-                wall=d.entry.wall.__value__()
-            )
+            d = {
+                "description": "Convert from SPDB",
+                "equilibrium": d.entry.equilibrium.__value__(),
+                "wall": d.entry.wall.__value__()
+            }
 
         with open(self.path, mode="w") as fp:
             sp_write_geqdsk(sp_imas_to_geqdsk(d), fp)

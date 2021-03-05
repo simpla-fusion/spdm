@@ -7,7 +7,6 @@ import os
 import re
 from functools import lru_cache
 from .Alias import Alias
-from .AttributeTree import AttributeTree
 from .logger import logger
 from .sp_export import sp_find_module
 from .SpObject import SpObject

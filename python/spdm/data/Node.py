@@ -1,5 +1,8 @@
 import collections
+import enum
 import uuid
+from numpy.lib.arraysetops import isin
+from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
 
@@ -80,10 +83,8 @@ class Node:
             @enduml
         """
 
-        def __missing__(self, key):
-            obj = self._parent.__new_child__(name=key)
-            super().__setitem__(key, obj)
-            return obj
+        def __getitem__(self, key):
+            return super().__getitem__(key)
 
         def __setitem__(self, key, value):
             self.insert(value, key)
@@ -93,22 +94,20 @@ class Node:
                 return
             elif isinstance(other, collections.abc.Mapping):
                 for k, v in other.items():
-                    self.insert(v, k)
+                    self.insert(v, k, *args, **kwargs)
             elif isinstance(other, collections.abc.Sequence):
                 for v in other:
-                    self.insert(v)
+                    self.insert(v, None, *args, **kwargs)
             else:
                 raise TypeError(f"Not supported operator! update({type(self)},{type(other)})")
 
         def insert(self, value, key=None, *args, **kwargs):
-            if key is None:
-                obj = self.__new_child__(value, *args, name=key, **kwargs)
-                super().__setitem__(obj.__name__, obj)
-            else:
-                self.at(key).__update__(value, *args, **kwargs)
+            res = self.get(key, None) or self.setdefault(key, self._parent.__new_child__(name=key))
+            res.__update__(value, *args, **kwargs)
+            return res
 
-        def at(self, key):
-            return self.__getitem__(key)
+        # def at(self, key):
+        #     return self.__getitem__(key)
 
     class Sequence(list):
         def __init__(self, parent,  *args, **kwargs) -> None:
@@ -126,12 +125,19 @@ class Node:
 
         def insert(self, value, key=None, *args, **kwargs):
             if isinstance(key, int):
-                self.__getitem__(key).__update__(value, *args, **kwargs)
+                res = self.__getitem__(key)
             else:
-                self.append(self._parent.__new_child__(value, *args, name=key, **kwargs))
+                self.append(self._parent.__new_child__(name=key))
+                res = self.__getitem__(-1)
 
-        def at(self, key):
-            return self.__getitem__(key)
+            res.__update__(value, *args, **kwargs)
+            return res
+
+        # def at(self, key):
+        #     if isinstance(key, (int, slice)):
+        #         return self.__getitem__(key)
+        #     else:
+        #         raise KeyError(key)
 
         def update(self, other, *args, **kwargs):
             if isinstance(other, collections.abc.Sequence):
@@ -205,19 +211,19 @@ class Node:
         @enduml
     """
 
-    def __as_mapping__(self):
+    def __as_mapping__(self, force=False):
         if isinstance(self._value, Node.Mapping):
             return self._value
-        elif not self._value:
+        elif not self._value and force:
             self._value = self.__class__.Mapping(self)
             return self._value
         else:
-            raise RuntimeError(f"Can not convert {type(self._value)} to Mapping!")
+            raise ValueError(f"{type(self._value)} is not a Mapping!")
 
-    def __as_sequence__(self):
+    def __as_sequence__(self, force=False):
         if isinstance(self._value, Node.Sequence):
             return self._value
-        else:
+        elif force:
             res = self.__class__.Sequence(self)
             if not not self._value:
                 self._value.insert(self._value)
@@ -228,23 +234,157 @@ class Node:
         return self.__class__(*args,  parent=parent or self, **kwargs)
 
     def __update__(self, value, *args, **kwargs):
+        value = self.__pre_process__(value, *args, **kwargs)
         if isinstance(value, collections.abc.Mapping):
-            self.__as_mapping__().update(value, *args, **kwargs)
-        elif isinstance(value, collections.abc.Sequence):
-            self.__as_sequence__().update(value, *args, **kwargs)
+            self.__as_mapping__(True).update(value, *args, **kwargs)
+        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+            self.__as_sequence__(True).update(value, *args, **kwargs)
         else:
             self._value = value
 
-    def __setitem__(self, key, value):
-        if isinstance(key, str):
-            self.__as_mapping__().insert(value, key)
-        else:
-            self.__as_sequence__().insert(value, key)
+    def __pre_process__(self, value, *args, **kwargs):
+        return value
 
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            res = self.__as_mapping__().at(key)
-        else:
-            res = self.__as_sequence__().at(key)
+    def __post_process__(self, value, *args, **kwargs):
+        return value if isinstance(value._value, (self.__class__.Sequence, self.__class__.Mapping, type(None))) else value._value
 
-        return res if isinstance(res._value, (self.__class__.Sequence, self.__class__.Mapping, type(None))) else res._value
+    def __setitem__(self, path, value):
+        if isinstance(path, str):
+            path = path.split('.')
+        elif not isinstance(path, list):
+            path = [path]
+
+        obj = self
+
+        for k in path:
+            if isinstance(k, str):
+                obj = obj.__as_mapping__(True).insert(None, k)
+            else:
+                obj = obj.__as_sequence__(True).insert(None, k)
+
+        obj.__update__(value)
+
+    def __getitem__(self, path):
+        if isinstance(path, str):
+            path = path.split('.')
+        elif not isinstance(path, list):
+            path = [path]
+
+        obj = self
+        for i, key in enumerate(path):
+            try:
+                if isinstance(key, str):
+                    res = self.__as_mapping__(False)[key]
+                else:
+                    res = self.__as_sequence__(False)[key]
+            except Exception:
+                obj = LazyProxy(obj, prefix=path[i:])
+                break
+            else:
+                obj = res
+        if isinstance(obj, LazyProxy):
+            return obj
+        else:
+            return self.__post_process__(obj)
+
+    def __delitem__(self, key):
+        if isinstance(key, str) and isinstance(self._value, collections.abc.Mapping):
+            del self._value[key]
+        elif not isinstance(key, str) and isinstance(self._value, collections.abc.Sequence):
+            del self._value[key]
+        else:
+            raise RuntimeError((type(self._value), type(key)))
+
+    def __contain__(self, key):
+        if isinstance(key, str) and isinstance(self._value, collections.abc.Mapping):
+            return key in self._value
+        elif not isinstance(key, str) and isinstance(self._value, collections.abc.Sequence):
+            return key >= 0 and key < len(self._value)
+        else:
+            return False
+
+    def __len__(self):
+        if isinstance(self._value, collections.abc.Mapping):
+            return len(self._value)
+        elif isinstance(self._value, collections.abc.Sequence) and not isinstance(self._value, str):
+            return len(self._value)
+        else:
+            return 0 if self._value is None else 1
+
+    def __iter__(self):
+        if isinstance(self._value, collections.abc.Mapping):
+            yield from map(lambda v: self.__post_process__(v), self._value.values())
+        elif isinstance(self._value, collections.abc.Sequence) and not isinstance(self._value, str):
+            yield from map(lambda v: self.__post_process__(v), self._value)
+        else:
+            yield self._value
+
+    class __lazy_proxy__:
+        @staticmethod
+        def put(self, path, value):
+            self[path] = value
+
+        @staticmethod
+        def get(self, path):
+            res = self[path]
+            if isinstance(res, LazyProxy):
+                raise KeyError(path)
+            else:
+                return res
+
+        # @staticmethod
+        # def iter(self, path):
+        #     obj = self[path]
+        #     logger.debug(obj)
+            # yield obj
+            # if isinstance(path, str):
+            #     path = path.split('.')
+
+            # obj = self
+            # for i, k in enumerate(path):
+            #     if isinstance(k, str):
+            #         obj = obj.__as_mapping__()
+            #     try:
+            #         obj = obj[k]
+            #     except KeyError:
+            #         raise KeyError('.'.join(map(str, path[:i+1])))
+
+            # return None
+
+        # def delete(self, key):
+        #     if isinstance(self.__data__, collections.abc.Mapping) or isinstance(self.__data__, collections.abc.Sequence):
+        #         try:
+        #             del self.__data__[key]
+        #         except KeyError:
+        #             pass
+
+        # def contain(self, key):
+        #     if self.__data__ is None:
+        #         return False
+        #     elif isinstance(key, str):
+        #         return key in self.__data__
+        #     elif type(key) is int:
+        #         return key < len(self.__data__)
+        #     else:
+        #         raise KeyError(key)
+
+        # def count(self):
+        #     if self.__data__ is None:
+        #         return 0
+        #     else:
+        #         return len(self.__data__)
+
+        # def iter(self):
+        #     if self.__data__ is None:
+        #         return
+        #     elif isinstance(self.__data__,  collections.abc.Mapping):
+        #         for k, v in self.__data__.items():
+        #             if isinstance(v, collections.abc.Mapping):
+        #                 v = AttributeTree(v)
+
+        #             yield k, v
+        #     else:
+        #         for v in self.__data__:
+        #             if isinstance(v, collections.abc.Mapping):
+        #                 v = AttributeTree(v)
+        #             yield v

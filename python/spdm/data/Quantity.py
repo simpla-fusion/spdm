@@ -45,19 +45,17 @@ class Quantity(np.ndarray):
 
         obj._unit = Unit(unit)
         obj._coordinates = coordinates
-        obj._upper = upper
-        obj._lower = lower
+
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
         self._unit = getattr(obj, '_unit', None)
-        self._lower = getattr(obj, '_lower', None)
-        self._upper = getattr(obj, '_upper', None)
         self._coordinates = getattr(obj, '_coordinates', None)
 
-    def __init__(self, *args,  **kwargs):
+    def __init__(self, *args, associated=None, **kwargs):
+        self._associated = associated or {}
         pass
 
     def set(self, value):
@@ -123,12 +121,8 @@ class Quantity(np.ndarray):
         return self._coordinates
 
     @property
-    def lower(self):
-        return self._lower
-
-    @property
-    def upper(self):
-        return self._upper
+    def associated(self):
+        return self._associated
 
     @cached_property
     def as_function(self):

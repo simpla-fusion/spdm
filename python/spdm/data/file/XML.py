@@ -2,7 +2,6 @@ import collections
 import pathlib
 
 import numpy as np
-from spdm.util.AttributeTree import AttributeTree
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
@@ -95,7 +94,7 @@ class XMLNode(Entry):
                 res += f"[ @id='{p}' or position()= {p+1} or @id='*']"
                 envs[prev] = p
             elif isinstance(p, str) and p[0] == '@':
-                res += f"[{p}]"                
+                res += f"[{p}]"
             elif isinstance(p, str):
                 res += f"/{p}"
                 prev = p
@@ -199,7 +198,8 @@ class XMLFile(File):
     @property
     def root(self):
         if self._root is None:
-            self._root = load_xml(self.path, mode=self.metadata.mode)
+            # logger.debug(self.metadata.mode)
+            self._root = load_xml(self.path)
         return XMLNode(self._root, parent=self)
 
 

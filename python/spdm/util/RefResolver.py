@@ -15,7 +15,6 @@ import jsonschema
 
 from . import io
 from .Alias import Alias
-from .AttributeTree import AttributeTree
 from .dict_util import format_string_recursive
 from .logger import logger
 from .Multimap import Multimap

@@ -8,7 +8,6 @@ from functools import cached_property
 
 import numpy as np
 
-from .AttributeTree import AttributeTree
 from .logger import logger
 from .sp_export import sp_find_module
 
@@ -37,8 +36,6 @@ class SpObject(object):
         if isinstance(_metadata, str):
             n_cls = _metadata
             _metadata = None
-        elif isinstance(_metadata, AttributeTree):
-            _metadata = _metadata.__as_native__()
         elif not isinstance(_metadata, collections.abc.Mapping):
             raise TypeError(type(_metadata))
 
@@ -64,7 +61,7 @@ class SpObject(object):
             n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": _metadata})
 
         obj = object.__new__(n_cls)
-        obj._attributes = AttributeTree()
+        obj._attributes = {}
         return obj
 
     @classmethod
@@ -89,10 +86,7 @@ class SpObject(object):
     def __init__(self,  *,   attributes=None, **kwargs):
         super().__init__()
         self._oid = uuid.uuid1()
-        if isinstance(attributes, AttributeTree):
-            self._attributes = attributes
-        else:
-            self._attributes = AttributeTree(collections.ChainMap(attributes or {}, kwargs))
+        self._attributes = collections.ChainMap(attributes or {}, kwargs)
         self._parent = None
         self._children = None
 
@@ -114,14 +108,14 @@ class SpObject(object):
     @property
     def name(self):
         return self.attributes.name
-    
+
     @property
     def attributes(self):
         return self._attributes
 
     @cached_property
     def metadata(self):
-        return AttributeTree(getattr(self.__class__, "_metadata", {}))
+        return getattr(self.__class__, "_metadata", {})
 
     def __hash__(self):
         return self._oid.int

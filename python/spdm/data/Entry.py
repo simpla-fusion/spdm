@@ -1,32 +1,29 @@
 
 import collections
 
-from spdm.util.AttributeTree import AttributeTree
-from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
-from spdm.util.urilib import urisplit
 
+# from spdm.util.urilib import urisplit
+# from .Collection import Collection
+# from .Document import Document
+# def open_entry(desc, *args, **kwargs):
+#     if isinstance(desc, str):
+#         desc = urisplit(desc)
 
-def open_entry(desc, *args, **kwargs):
-    if isinstance(desc, str):
-        desc = urisplit(desc)
-    elif not isinstance(desc, AttributeTree):
-        desc = AttributeTree(desc)
-    # else:
-    #     raise TypeError(f"Illegal uri type! {desc}")
-    if kwargs is not None and len(kwargs) > 0:
-        desc.fragment = kwargs
+#     # else:
+#     #     raise TypeError(f"Illegal uri type! {desc}")
+#     if kwargs is not None and len(kwargs) > 0:
+#         desc[] = kwargs
 
-    if desc.schema is not None:
-        holder = Collection(desc)
-    else:
-        holder = Document(desc)
+#     if desc.get("schema", None) is not None:
+#         holder = Collection(desc)
+#     else:
+#         holder = Document(desc)
 
-    if not desc.fragment:
-        return holder.entry
-    else:
-        return holder.open(**desc.fragment.__data__).entry
-
+#     if not desc.get("fragment", None):
+#         return holder.entry
+#     else:
+#         return holder.open(**desc.fragment.__data__).entry
 
 class Entry(object):
     def __init__(self, holder,  *args, parent=None, prefix=None, **kwargs):
@@ -53,18 +50,19 @@ class Entry(object):
     def prefix(self):
         return self._prefix
 
-    @property
-    def entry(self):
-        return LazyProxy(self,  handler=self.__class__)
+    # @property
+    # def entry(self):
+    #     return LazyProxy(self,  handler=self.__class__)
 
-    @entry.setter
-    def entry(self, other):
-        return self.copy(other)
+    # @entry.setter
+    # def entry(self, other):
+    #     return self.copy(other)
 
     def copy(self, other):
-        if isinstance(other, LazyProxy):
-            other = other.__real_value__()
-        elif isinstance(other, Entry):
+        # if isinstance(other, LazyProxy):
+        #     other = other.__real_value__()
+        # el
+        if isinstance(other, Entry):
             other = other.entry.__real_value__()
 
         if isinstance(other, collections.abc.Mapping):
@@ -120,9 +118,7 @@ class Entry(object):
                 except TypeError:
                     raise KeyError(path)
             else:
-                raise ValueError(path)
-        if isinstance(obj, collections.abc.Mapping):
-            obj = AttributeTree(obj)
+                raise KeyError(path)
 
         return obj
 
@@ -178,8 +174,6 @@ class Entry(object):
         else:
             raise TypeError(f"'{type(obj)}' is not callable")
 
-        if isinstance(res, collections.abc.Mapping):
-            res = AttributeTree(res)
         return res
 
     def push_back(self, path, v=None):
@@ -203,6 +197,12 @@ class Entry(object):
     def iter(self, path, *args, **kwargs):
         yield from self.get(path, *args, **kwargs)
 
+    def __getitem__(self, key):
+        return self.get(key)
 
-def is_entry(obj):
-    return isinstance(obj, LazyProxy) and isinstance(obj.__object__, Entry)
+    def __setitem__(self, key, value):
+        return self.put(key, value)
+
+
+# def is_entry(obj):
+#     return isinstance(obj, LazyProxy) and isinstance(obj.__object__, Entry)

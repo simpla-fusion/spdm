@@ -10,7 +10,6 @@ import collections
 import pathlib
 import re
 
-from .AttributeTree import AttributeTree
 from .logger import logger
 
 _rfc3986 = re.compile(
@@ -20,15 +19,15 @@ _rfc3986 = re.compile(
 def urisplit(uri):
     if uri is None:
         uri = ""
-    res = AttributeTree(_rfc3986.match(uri).groupdict())
-    if isinstance(res.query, str) and res.query != "":
-        res.query = dict([tuple(item.split("=")) for item in str(res.query).split(',')])
-    if isinstance(res.fragment, str):
-        fragments = res.fragment.split(',')
+    res = _rfc3986.match(uri).groupdict()
+    if isinstance(res["query"], str) and res["query"] != "":
+        res["query"] = dict([tuple(item.split("=")) for item in str(res["query"]).split(',')])
+    if isinstance(res["fragment"], str):
+        fragments = res["fragment"].split(',')
         if len(fragments) == 1:
-            res.fragment = fragments[0]
+            res["fragment"] = fragments[0]
         elif len(fragments) > 1:
-            res.fragment = dict([tuple(item.split("=")) for item in fragments])
+            res["fragment"] = dict([tuple(item.split("=")) for item in fragments])
     return res
 
 
@@ -44,8 +43,8 @@ def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
 
 
 def urijoin(base, uri):
-    o0 = urisplit(base) if not isinstance(base, AttributeTree) else base
-    o1 = urisplit(uri) if not isinstance(uri, AttributeTree) else uri
+    o0 = urisplit(base) if not isinstance(base, collections.abc.Mapping) else base
+    o1 = urisplit(uri) if not isinstance(uri, collections.abc.Mapping) else uri
     if o1.schema is not None and o1.schema != o0.schema:
         return uri
     elif o1.authority is not None and o1.authority != o0.authority:

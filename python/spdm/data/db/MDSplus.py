@@ -5,7 +5,6 @@ import re
 from functools import cached_property
 
 import numpy as np
-from spdm.util.AttributeTree import AttributeTree
 from spdm.util.dict_util import DefaultDict
 from spdm.util.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
@@ -113,9 +112,9 @@ class MDSplusCollection(Collection):
 
         if isinstance(_metadata, str):
             o = urisplit(_metadata)
-            self._authority = o.authority
-            self._path = o.path
-            self._tree_name = o.query.tree_name
+            self._authority = o["authority"]
+            self._path = o["path"]
+            self._tree_name = o["query"]["tree_name"]
 
         else:
             raise RuntimeError(_metadata)
