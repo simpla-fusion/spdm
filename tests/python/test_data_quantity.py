@@ -82,7 +82,7 @@ class TestQuantity(unittest.TestCase):
         # g.b[_next_] = g.d.c.g.h
 
         logger.debug(g)
-        logger.debug(g.a.d.e)
+        # logger.debug(g.a.d.e)
         logger.debug(g.b[2])
         logger.debug(g.c.unit)
         logger.debug(g.c)

@@ -16,6 +16,8 @@ class Graph(Group):
         super().__init__(value, *args, **kwargs)
         self._edges = []
 
+ 
+
     @property
     def edges(self):
         return self._edges

@@ -4,14 +4,24 @@ import uuid
 from numpy.lib.arraysetops import isin
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
+import numpy as np
 
 
-class _NEXT_TAG_:
+class _TAG_:
     pass
 
 
+class _NEXT_TAG_(_TAG_):
+    pass
+
+
+class _LAST_TAG_(np.ndarray, _TAG_):
+    def __init__(self) -> None:
+        np.ndarray.__init__(self, -1)
+
+
 _next_ = _NEXT_TAG_()
-_last_ = -1
+_last_ = _LAST_TAG_()
 
 
 class Node:
@@ -153,7 +163,7 @@ class Node:
         self.__update__(value, *args, **kwargs)
 
     def __repr__(self) -> str:
-        return f"{self._value}"
+        return f"{self._value}" if not isinstance(self._value, str) else f"'{self._value}'"
 
     def serialize(self):
         return self._value.serialize() if hasattr(self._value, "serialize") else self._value
@@ -246,7 +256,10 @@ class Node:
         return value
 
     def __post_process__(self, value, *args, **kwargs):
-        return value if isinstance(value._value, (self.__class__.Sequence, self.__class__.Mapping, type(None))) else value._value
+        if not isinstance(value, Node) or isinstance(value._value, (self.__class__.Sequence, self.__class__.Mapping, type(None))):
+            return value
+        else:
+            return value._value
 
     def __setitem__(self, path, value):
         if isinstance(path, str):
@@ -264,6 +277,9 @@ class Node:
 
         obj.__update__(value)
 
+    def __missing__(self, path):
+        return LazyProxy(self, prefix=path)
+
     def __getitem__(self, path):
         if isinstance(path, str):
             path = path.split('.')
@@ -274,18 +290,18 @@ class Node:
         for i, key in enumerate(path):
             try:
                 if isinstance(key, str):
-                    res = self.__as_mapping__(False)[key]
+                    res = obj.__as_mapping__(False)[key]
+                elif isinstance(key, _TAG_):
+                    res = obj.__as_sequence__(True)[key]
                 else:
-                    res = self.__as_sequence__(False)[key]
+                    res = obj.__as_sequence__(False)[key]
             except Exception:
-                obj = LazyProxy(obj, prefix=path[i:])
+                obj = obj.__missing__(path[i:])
                 break
             else:
                 obj = res
-        if isinstance(obj, LazyProxy):
-            return obj
-        else:
-            return self.__post_process__(obj)
+
+        return self.__post_process__(obj)
 
     def __delitem__(self, key):
         if isinstance(key, str) and isinstance(self._value, collections.abc.Mapping):
@@ -322,11 +338,11 @@ class Node:
     class __lazy_proxy__:
         @staticmethod
         def put(self, path, value):
-            self[path] = value
+            self.__setitem__(path, value)
 
         @staticmethod
         def get(self, path):
-            res = self[path]
+            res = self.__getitem__(path)
             if isinstance(res, LazyProxy):
                 raise KeyError(path)
             else:
