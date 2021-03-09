@@ -1,13 +1,13 @@
 import collections
+import inspect
+import os
 import pathlib
 import pprint
-import os
-import numpy as np
-from spdm.util.AttributeTree import AttributeTree
-from spdm.util.logger import logger
-from spdm.util.sp_export import sp_find_module
-from spdm.util.SpObject import SpObject
+from typing import Type
 
+import numpy as np
+from spdm.util.logger import logger
+from spdm.util.SpObject import SpObject
 
 from .Entry import Entry
 
@@ -21,72 +21,33 @@ def load_ndarray(desc, value, *args, **kwargs):
 
 class DataObject(SpObject):
 
-    associations = {
+    schema = {
         "general": ".data.General",
         "integer": int,
         "float": float,
         "string": str,
         "ndarray": np.ndarray,
-
-
-        "file.table": ".data.file.Table",
-        "file.bin": "Binary",
-        "file.h5": ".data.file.HDF5",
-        "file.hdf5": ".data.file.HDF5",
-        "file.nc": ".data.file.NetCDF",
-        "file.netcdf": ".data.file.NetCDF",
-        "file.namelist": ".data.file.namelist",
-        "file.nml": ".data.file.namelist",
-        "file.xml": ".data.file.XML",
-        "file.json":  ".data.file.JSON",
-        "file.yaml": ".data.file.YAML",
-        "file.txt": ".data.file.TXT",
-        "file.csv": ".data.file.CSV",
-        "file.numpy": ".data.file.NumPy",
-        "file.geqdsk": ".data.file.GEQdsk",
-        "file.gfile": ".data.file.GEQdsk",
-        "file.mds": ".data.db.MDSplus#MDSplusDocument",
-        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
-        "db.imas": ".data.db.IMAS#IMASDocument",
-
-
-        # "file": ".data.File",
-        # "file.general": ".data.file.GeneralFile",
-        # "file.bin": ".data.file.Binary",
-        # "file.hdf5": ".data.file.HDF5",
-        # "file.netcdf": ".data.file.netCDF",
-        # "file.namelist": ".data.file.namelist",
-        # "file.xml": ".data.file.XML",
-        # "file.json": ".data.file.JSON",
-        # "file.yaml": ".data.file.YAML",
-        # "file.txt": ".data.file.TXT",
-        # "file.csv": ".data.file.CSV",
-        # "file.numpy": ".data.file.NumPy",
-        # "file.geqdsk": ".data.file.GEQdsk",
-        # "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
     }
 
-    def __new__(cls,   _metadata=None, *args, **kwargs):
-        if cls is not DataObject and _metadata is None:
+    @staticmethod
+    def __new__(cls,  metadata=None, *args, **kwargs):
+        if isinstance(metadata, collections.abc.Mapping):
+            n_cls = metadata.get("$class", None)
+        else:
+            n_cls = metadata
+
+        if cls is not DataObject and n_cls is None:
             return SpObject.__new__(cls)
 
-        if isinstance(_metadata, str):
-            n_cls = _metadata
-            _metadata = {"$class": n_cls}
-        elif isinstance(_metadata, collections.abc.Mapping):
-            n_cls = _metadata.get("$class", "general")
-        else:
-            n_cls = cls
+        if inspect.isclass(n_cls):
+            return object.__new__(n_cls)
 
-        if isinstance(n_cls, str):
-            n_cls = n_cls.replace("/", ".")
-            if n_cls[0] != '.':
-                n_cls = DataObject.associations.get(n_cls.lower(), None)
-            _metadata = collections.ChainMap({"$class": n_cls}, _metadata)
+        if isinstance(n_cls, str) and not n_cls.startswith("."):
+            n_cls = DataObject.schema.get(n_cls.lower(), None)
 
-        return SpObject.__new__(cls, _metadata, *args, **kwargs)
+        return SpObject.__new__(cls, n_cls)
 
-    def __init__(self, _metadata=None, *args,  **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def __repr__(self):
@@ -95,19 +56,19 @@ class DataObject(SpObject):
     def serialize(self, *args, **kwargs):
         return super().serialize(*args, **kwargs)
 
-    @ classmethod
+    @classmethod
     def deserialize(cls, *args, **kwargs):
         return super().deserialize(cls, *args, **kwargs)
 
-    @ property
+    @property
     def root(self):
         return Entry(self)
 
-    @ property
+    @property
     def entry(self):
         return self.root.entry
 
-    @ property
+    @property
     def value(self):
         return NotImplemented
 

@@ -340,7 +340,12 @@ class LazyProxy:
         )
 
     def __call__(self, *args, **kwargs):
-        return self.__fetch__()(*args, **kwargs)
+
+        res = self.__fetch__()
+        if callable(res):
+            return res(*args, **kwargs)
+        else:
+            return res
         # return object.__getattribute__(self, "__handler__").call(
         #     object.__getattribute__(self, "__object__"),
         #     object.__getattribute__(self, "__path__"),

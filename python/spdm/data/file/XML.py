@@ -80,7 +80,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
     return root
 
 
-class XMLNode(Entry):
+class XMLEntry(Entry):
     def __init__(self, data, *args, prefix=None, **kwargs):
         super().__init__(data, *args, **kwargs)
         self._prefix = prefix or []
@@ -114,7 +114,7 @@ class XMLNode(Entry):
         res = None
 
         if len(element) > 0 and lazy:
-            res = XMLNode(element, prefix=self._prefix+path).entry
+            res = XMLEntry(element, prefix=self._prefix+path).lazy_entry
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
@@ -185,7 +185,7 @@ class XMLNode(Entry):
 
     def iter(self,  path, *args, envs=None, **kwargs):
         for spath in PathTraverser(path):
-            for child in self.xpath(spath).evaluate(self._holder):
+            for child in self.xpath(spath)[0].evaluate(self._holder):
                 if child.tag is not _XMLComment:
                     yield self._convert(child, path=spath, envs=envs)
 
@@ -200,7 +200,7 @@ class XMLFile(File):
         if self._root is None:
             # logger.debug(self.metadata.mode)
             self._root = load_xml(self.path)
-        return XMLNode(self._root, parent=self)
+        return XMLEntry(self._root, parent=self)
 
 
 __SP_EXPORT__ = XMLFile

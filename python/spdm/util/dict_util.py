@@ -1,5 +1,4 @@
 import collections
-from .AttributeTree import AttributeTree
 from .logger import logger
 
 
@@ -26,10 +25,8 @@ def tree_apply_recursive(obj, op, types=None):
             changed = True
         return res, changed
 
-    if isinstance(obj, AttributeTree):
-        data = obj.__data__
-    else:
-        data = obj
+
+    data = obj
 
     changed = False
 
@@ -46,18 +43,13 @@ def tree_apply_recursive(obj, op, types=None):
                 data[idx] = new_v
                 changed = True
 
-    if isinstance(obj, AttributeTree):
-        obj.__data__ = data
-    else:
-        obj = data
+ 
+    obj = data
 
     return obj, changed
 
 
 def format_string_recursive(obj, mapping=None):
-
-    if isinstance(mapping, AttributeTree):
-        mapping = mapping.__as_native__()
 
     class DefaultDict(dict):
         def __missing__(self, key):

@@ -12,7 +12,6 @@ from typing import List
 from ..util.logger import logger
 from ..util.Signature import Signature
 from ..util.SpObject import SpObject
-from ..util.AttributeTree import AttributeTree
 
 
 class LocalCommand(SpObject):

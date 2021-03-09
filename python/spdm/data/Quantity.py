@@ -390,16 +390,16 @@ class Quantity(np.ndarray):
 #         return self[:]
 
 
-# class Quantitys(AttributeTree):
+# class Quantitys():
 #     """ Collection of Quantitys with same x-axis
 #     """
 
 #     def __init__(self, cache=None, *args,  axis=None,  parent=None, **kwargs):
 #         super().__init__(**kwargs)
-#         if isinstance(cache, LazyProxy) or isinstance(cache, AttributeTree):
+#         if isinstance(cache, LazyProxy) :
 #             self.__dict__["_cache"] = cache
 #         else:
-#             self.__dict__["_cache"] = AttributeTree(cache)
+#             self.__dict__["_cache"] = (cache)
 
 #         if isinstance(axis, str):
 #             axis = self._cache[axis]
@@ -454,9 +454,7 @@ class Quantity(np.ndarray):
 #             opts = desc.get("opts", {})
 #         elif isinstance(desc, tuple):
 #             path, opts = desc
-#         elif isinstance(desc, AttributeTree):
-#             path = desc.data
-#             opts = desc.opts
+#       
 #         else:
 #             raise TypeError(f"Illegal Quantity type! {desc}")
 

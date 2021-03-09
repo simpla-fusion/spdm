@@ -1,6 +1,6 @@
 
 import collections
-
+from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
 # from spdm.util.urilib import urisplit
@@ -25,6 +25,7 @@ from spdm.util.logger import logger
 #     else:
 #         return holder.open(**desc.fragment.__data__).entry
 
+
 class Entry(object):
     def __init__(self, holder,  *args, parent=None, prefix=None, **kwargs):
         super().__init__()
@@ -37,6 +38,10 @@ class Entry(object):
     #         self._holder=None
     #     except Exception as error:
     #         logger.error(error)
+
+    @property
+    def lazy_entry(self):
+        return LazyProxy(self, handler=self.__class__)
 
     @property
     def holder(self):
@@ -106,6 +111,8 @@ class Entry(object):
 
     def get(self, path, *args, **kwargs):
         obj = self._holder
+        if isinstance(path, str):
+            path = path.split(".")
 
         for p in path:
             if type(p) is str and hasattr(obj, p):

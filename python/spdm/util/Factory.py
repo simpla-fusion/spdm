@@ -167,7 +167,7 @@ class Factory(object):
 #  @classmethod
 #     def new_class(cls,  desc=None, *args, ** kwargs):
 
-#         description = AttributeTree(getattr(cls, "_description", {}))
+#         description = (getattr(cls, "_description", {}))
 
 #         if desc is None and len(kwargs) == 0:
 #             return cls
@@ -195,7 +195,7 @@ class Factory(object):
 
 #         n_cls_name = f"{n_cls_name}{path}"
 
-#         n_cls = type(n_cls_name, (cls,), {"_description": AttributeTree(description)})
+#         n_cls = type(n_cls_name, (cls,), {"_description": (description)})
 
 #         return n_cls
 

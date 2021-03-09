@@ -5,9 +5,8 @@ import unittest
 import numpy as np
 
 from spdm.util.logger import logger
-from spdm.data.Attribute import Attribute
-from spdm.data.Variable import Variable
-dobj = Attribute
+from spdm.data.Quantity import Quantity
+dobj = Quantity
 
 
 class TestAttribute(unittest.TestCase):

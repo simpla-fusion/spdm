@@ -3,7 +3,6 @@ import pprint
 import unittest
 import pathlib
 
-from spdm.data import bag
 from spdm.util.logger import logger
 
 

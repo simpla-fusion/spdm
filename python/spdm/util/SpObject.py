@@ -29,40 +29,30 @@ class SpObject(object):
     _schema = "SpObject"
     _metadata = {"$class": "SpObject"}
 
-    def __new__(cls, _metadata=None, *args,  **kwargs):
-        if cls is not SpObject and _metadata is None:
+    def __new__(cls, metadata=None, *args,  **kwargs):
+        if cls is not SpObject and metadata is None:
             return object.__new__(cls)
+
         n_cls = None
-        if isinstance(_metadata, str):
-            n_cls = _metadata
-            _metadata = None
-        elif not isinstance(_metadata, collections.abc.Mapping):
-            raise TypeError(type(_metadata))
 
-        n_cls = n_cls or _metadata.get("$class", None)
-
-        n_cls_name = None
+        if isinstance(metadata, str):
+            n_cls = metadata
+        elif isinstance(metadata, collections.abc.Mapping):
+            n_cls = metadata.get("$class", None)
+        else:
+            raise TypeError(type(metadata))
 
         if isinstance(n_cls, str):
             if n_cls.startswith("."):
                 n_cls = f"{SpObject._default_prefix}{n_cls}"
-            n_cls_name = re.sub(r'[-\/\.\:]', '_', n_cls)
             n_cls = sp_find_module(n_cls)
 
         if inspect.isclass(n_cls):
-            pass
+            return object.__new__(n_cls)
         elif callable(n_cls):
-            return n_cls(*args, _metadata=_metadata, **kwargs)
+            return n_cls(metadata, *args, **kwargs)
         else:
-            raise ModuleNotFoundError(f"{_metadata}")
-
-        if _metadata is not None:
-            # FIXME (salmon 20210110): Dynamic creating class is not a good idea. This is not necessary, remove it!
-            n_cls = type(n_cls_name or f"{n_cls.__name__}_{uuid.uuid1()}", (n_cls,), {"_metadata": _metadata})
-
-        obj = object.__new__(n_cls)
-        obj._attributes = {}
-        return obj
+            raise ModuleNotFoundError(f"{metadata}")
 
     @classmethod
     def deserialize(cls, spec):

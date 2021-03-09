@@ -147,7 +147,7 @@ class NetCDFFile(File):
         super().__init__(*args,   **kwargs)
 
     def close(self):
-        if self._data is not None:
+        if hasattr(self, "_data") and self._data is not None:
             self._data.close()
         super().close()
 

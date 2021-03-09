@@ -1,5 +1,3 @@
-
-
 from .Edge import Edge
 from .Group import Group
 
@@ -15,8 +13,6 @@ class Graph(Group):
     def __init__(self, value=None, *args, **kwargs):
         super().__init__(value, *args, **kwargs)
         self._edges = []
-
- 
 
     @property
     def edges(self):

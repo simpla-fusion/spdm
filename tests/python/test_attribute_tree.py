@@ -4,7 +4,7 @@ import sys
 import unittest
 
 
-class TestAttributeTree(unittest.TestCase):
+class TestPhysicalGraph(unittest.TestCase):
 
     def test_attribute_travel(self):
 
@@ -13,7 +13,7 @@ class TestAttributeTree(unittest.TestCase):
             "age": 12
         }
 
-        d = AttributeTree({
+        d = PhysicalGraph({
             "a": [
                 "hello world {name}!",
                 "hello world2 {name}!",
@@ -38,7 +38,7 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(d.a[2:6],  [1, 2, 3, 4])
 
     def test_attribute_format(self):
-        d = AttributeTree({
+        d = PhysicalGraph({
             'annotation': {'contributors': ['Salmon'],
                            'description': '\\n Just a demo \\n multiline string example\\n',
                            'homepage': 'http://funyun.com/demo.html',
@@ -66,7 +66,7 @@ class TestAttributeTree(unittest.TestCase):
 
 if __name__ == '__main__':
     sys.path.append("/home/salmon/workspace/SpDev/SpDB")
-    from spdm.util.AttributeTree import AttributeTree
+    from spdm.data.PhysicalGraph import PhysicalGraph
     from spdm.util.logger import logger
     from spdm.util.dict_util import format_string_recursive, tree_apply_recursive
 

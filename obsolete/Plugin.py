@@ -4,7 +4,6 @@ import pathlib
 from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urisplit
 from spdm.util.logger import logger
-from spdm.util.AttributeTree import AttributeTree
 
 associations = {
     "mapping": "Mapping",
@@ -46,8 +45,7 @@ def find_plugin(desc, *args, pattern="{name}", fragment=None, **kwargs):
     if isinstance(desc, str):
         desc = urisplit(desc)
         logger.debug(desc)
-    elif not isinstance(desc, AttributeTree):
-        desc = AttributeTree(desc)
+   
 
     plugin_name = ""
 

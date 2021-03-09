@@ -1,5 +1,6 @@
 import collections
 import contextlib
+from spdm.data.DataObject import DataObject
 import inspect
 import io
 import pathlib
@@ -8,61 +9,78 @@ import tempfile
 import uuid
 
 from ..util.logger import logger
-from ..util.sp_export import sp_find_module
 from ..util.urilib import urisplit
-from .DataObject import DataObject
 from .Document import Document
 
 
+Document.schema.update(
+    {
+        "file.table": ".data.file.Table",
+        "file.bin": ".data.file.Binary",
+        "file.h5": ".data.file.HDF5",
+        "file.hdf5": ".data.file.HDF5",
+        "file.nc": ".data.file.NetCDF",
+        "file.netcdf": ".data.file.NetCDF",
+        "file.namelist": ".data.file.namelist",
+        "file.nml": ".data.file.namelist",
+        "file.xml": ".data.file.XML",
+        "file.json":  ".data.file.JSON",
+        "file.yaml": ".data.file.YAML",
+        "file.txt": ".data.file.TXT",
+        "file.csv": ".data.file.CSV",
+        "file.numpy": ".data.file.NumPy",
+        "file.geqdsk": ".data.file.GEQdsk",
+        "file.gfile": ".data.file.GEQdsk",
+        "file.mds": ".data.db.MDSplus#MDSplusDocument",
+        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+        "db.imas": ".data.db.IMAS#IMASDocument",
+    }
+)
+
+
 class File(Document):
-    """ Default entry for file-like object
+    """ 
+        Default entry for file-like object
     """
 
-    def __new__(cls, _metadata=None, *args, path=None,    file_format=None,  **kwargs):
-        if cls is not File and _metadata is None:
+    @staticmethod
+    def __new__(cls,  metadata=None, *args, **kwargs):
+
+        if metadata is not None and not isinstance(metadata, collections.abc.Mapping):
+            metadata = {"path": metadata}
+
+        metadata = collections.ChainMap(metadata or {}, kwargs)
+
+        if cls is not File and len(metadata) == 0:
             return Document.__new__(cls)
-        if path is None and isinstance(_metadata, (str, pathlib.PosixPath)):
-            path = _metadata
-            _metadata = None
-        if isinstance(path, (str, pathlib.PosixPath)):
-            extension_name = pathlib.Path(path or _metadata.get("path", "")).suffix
-        else:
-            extension_name = ""
 
-        if not isinstance(_metadata, collections.abc.Mapping) or "$class" not in _metadata:
+        n_cls = metadata.get("$class", None)
 
-            class_name = file_format or (_metadata or {}).get("file_format", None)
+        if not n_cls:
+            file_format = metadata.get("format", None)
 
-            if not class_name and not not extension_name:
-                class_name = extension_name[1:]
+            if not file_format:
+                path = pathlib.Path(metadata.get("path", ""))
 
-            if not class_name.startswith("."):
-                class_name = "file."+class_name
+                if not path.suffix:
+                    raise ValueError(f"Can not guess file format from path! {path}")
+                file_format = path.suffix[1:]
 
-            if _metadata is None:
-                _metadata = class_name
-            else:
-                _metadata["$class"] = class_name
-                _metadata["extension_name"] = extension_name
+            n_cls = f"file.{file_format}"
 
-        return Document.__new__(cls, _metadata=_metadata, *args,  **kwargs)
+        return Document.__new__(cls, n_cls)
 
-    def __init__(self,  _metadata=None, *args, path=None, ** kwargs):
-        if path is None and isinstance(_metadata, str):
-            path = _metadata
-            _metadata = None
-        super().__init__(_metadata=_metadata, *args,  path=path, ** kwargs)
-
-        self._path = self._path or self.metadata.path or "."
+    def __init__(self, path=None,  *args, ** kwargs):
+        super().__init__(path, *args,  ** kwargs)
         if not isinstance(self._path, list):
             self._path = pathlib.Path.cwd() / self._path
             if self.path.is_dir():
                 self._path /= f"{uuid.uuid1()}{self.extension_name or '.txt' }"
             self._path = self._path.expanduser().resolve()
 
-    @ property
+    @property
     def extension_name(self):
-        return self.metadata.extension_name or '.txt'
+        return self.metadata.get("extension_name", '.txt')
 
     def __repr__(self):
         return str(self.path)
@@ -70,7 +88,7 @@ class File(Document):
     def __str__(self):
         return str(self.path)
 
-    @ property
+    @property
     def template(self):
         p = getattr(self, "_template", None) or self.metadata.template
         if isinstance(p, str):
@@ -82,7 +100,7 @@ class File(Document):
         else:
             raise ValueError(p)
 
-    @ property
+    @property
     def is_writable(self):
         return "w" in self.mode or "x" in self.mode
 
@@ -106,7 +124,7 @@ class File(Document):
         res._schema = self._schema
         return res
 
-    @ contextlib.contextmanager
+    @contextlib.contextmanager
     def open(self, mode=None, buffering=None, encoding=None, newline=None):
         if isinstance(self._path, pathlib.Path):
             path = self._path
@@ -139,5 +157,7 @@ class File(Document):
         # old_d.update(d)
         # self.write(old_d)
 
+
+DataObject.schema['file'] = File
 
 __SP_EXPORT__ = File

@@ -4,6 +4,7 @@ from .Node import _next_, _last_
 from .Coordinates import Coordinates
 import numpy as np
 import functools
+from ..util.LazyProxy import LazyProxy
 
 
 class PhysicalGraph(Graph):
@@ -26,11 +27,15 @@ class PhysicalGraph(Graph):
     def __changed__(self):
         return self._changed
 
-    def __update__(self):
-        self._changed = False
+    def __update__(self, *args, **kwargs):
+        super().__update__(*args, **kwargs)
+        self._changed = True
 
-    def __new_child__(self, *args, parent=None, **kwargs):
+    def __new_node__(self, *args, parent=None, **kwargs):
         return PhysicalGraph(*args,  parent=parent or self, **kwargs)
+
+    def __missing__(self, path):
+        return LazyProxy(self._data, prefix=path)
 
     def __getattr__(self, k):
         if k.startswith("_"):

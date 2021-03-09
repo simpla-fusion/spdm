@@ -46,16 +46,18 @@ class Collection(SpObject):
     def __new__(cls, _metadata=None, *args,   **kwargs):
         if cls is not Collection and _metadata is None:
             return object.__new__(cls)
-            # return super(Collection, cls).__new__(desc, *args, **kwargs)
 
         if isinstance(_metadata, str):
-            _metadata = {"$class": urisplit(_metadata)["schema"],  "path": _metadata}
+            schemas = urisplit(_metadata)["schema"]
+        elif isinstance(_metadata, collections.abc.Mapping):
+            schemas = _metadata.get("$class", None)
         elif _metadata is None:
-            _metadata = {}
+            schemas = ""
 
-        schemas = (_metadata["$class"] or "local").split('+')
+        schemas = schemas.split('+')
+
         if not schemas:
-            raise ValueError(_metadata)
+            raise ValueError(schemas)
         elif len(schemas) > 1:
             schema = "mapping"
         else:
@@ -63,15 +65,7 @@ class Collection(SpObject):
 
         n_cls = Collection.associations.get(schema.lower(), f"{__package__}.db.{schema}")
 
-        if inspect.isclass(n_cls):
-            res = object.__new__(n_cls)
-        else:
-            res = SpObject.__new__(Collection, _metadata=n_cls)
-
-        # else:
-        #     raise RuntimeError(f"Illegal schema! {schema} {n_cls} {desc}")
-
-        return res
+        return SpObject.__new__(Collection, n_cls)
 
     def __init__(self, uri, *args, id_hasher=None, envs=None, mode="rw", auto_inc_idx=True, doc_factory=None, **kwargs):
         super().__init__()
@@ -141,7 +135,9 @@ class Collection(SpObject):
         if not f_path.parent.exists():
             f_path.parent.mkdir()
         doc = self._document_factory(*args, mode=mode or self.mode, path=f_path,  **kwargs)
+
         logger.debug(f"Open Document {doc.__class__.__name__}: {f_path} [mode=\"{ mode or self.mode}\"]")
+        
         return doc
 
     def open(self, *args, mode=None, **kwargs):
@@ -281,6 +277,7 @@ class CollectionLocalFile(Collection):
         doc = self._document_factory(*args, mode=mode or self.mode, path=f_path,  **kwargs)
         logger.debug(f"Open Document {doc.__class__.__name__}: {f_path} [mode=\"{ mode or self.mode}\"]")
         return doc
+
     def find_one(self, predicate=None, projection=None, **kwargs):
         f_path = self.guess_filepath(**collections.ChainMap(predicate or {}, kwargs))
 

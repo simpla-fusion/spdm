@@ -1,16 +1,12 @@
+import pprint
+import matplotlib.pyplot as plt
+import numpy as np
+import pathlib
+from spdm.data.File import File
+from spdm.util.logger import logger
 import sys
 
-sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
-sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
-
-from spdm.util.logger import logger
-from spdm.data import Document
-import numpy as np
-import matplotlib.pyplot as plt
-import pprint
-
- 
 if __name__ == '__main__':
-    doc = Document("/home/salmon/workspace/SpDev/SpDB/examples/data/g086166.02990", format_type="GEQdsk")
-    pprint.pprint(doc.root.holder)
+    doc = File(pathlib.Path(__file__).parent/"data/g063982.04800", format="GEQdsk")
+    pprint.pprint(doc.root._holder)

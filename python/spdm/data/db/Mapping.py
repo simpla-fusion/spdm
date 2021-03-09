@@ -45,7 +45,7 @@ class MappingEntry(Entry):
         if item is None:
             pass
         elif isinstance(item, LazyProxy):
-            res = MappingEntry(self._holder, mapping=item.__object__).entry
+            res = MappingEntry(self._holder, mapping=item.__object__)
         # elif isinstance(item, Entry):
         #     logger.debug(item.holder.data)
         #     return LazyProxy(holder, handler=MappingEntry(self._target, mapping=Entry(item, handler=self._mapping.handler)))
@@ -142,7 +142,7 @@ class MappingCollection(Collection):
                 if p.exists():
                     mapping_conf_files.append(p)
 
-        self._mapping = File(path=mapping_conf_files, file_format="XML")
+        self._mapping = File(mapping_conf_files, format="XML")
 
     # def __del__(self):
     #     del self._target

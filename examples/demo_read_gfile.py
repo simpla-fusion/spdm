@@ -3,7 +3,7 @@ import pprint
 from spdm.util.logger import logger
 
 if __name__ == "__main__":
-    d = file.load("/home/salmon/workspace/spdm/examples/python/east_04010.gfile",
+    d = File("/home/salmon/workspace/fytok/external/SpDB/examples/data/g063982.04800",
                 schema="geqdsk")
     print(d._data)
     # io.save(d, "test.json")
