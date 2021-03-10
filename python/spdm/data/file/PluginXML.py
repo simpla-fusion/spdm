@@ -85,7 +85,7 @@ class XMLEntry(Entry):
         super().__init__(data, *args, **kwargs)
         self._prefix = prefix or []
 
-    def xpath(self, path):
+    def xpath(self, path):        
         envs = {}
         res = "."
         prev = None
@@ -167,6 +167,8 @@ class XMLEntry(Entry):
             raise NotImplementedError()
 
     def get(self,  path, *args, only_one=False, **kwargs):
+        if isinstance(path, str):
+            path = path.split(".")
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
@@ -196,9 +198,8 @@ class XMLFile(File):
         self._root = None
 
     @property
-    def root(self):
+    def entry(self):
         if self._root is None:
-            # logger.debug(self.metadata.mode)
             self._root = load_xml(self.path)
         return XMLEntry(self._root, parent=self)
 

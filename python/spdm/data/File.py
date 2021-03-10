@@ -15,22 +15,22 @@ from .Document import Document
 
 Document.schema.update(
     {
-        "file.table": ".data.file.Table",
-        "file.bin": ".data.file.Binary",
-        "file.h5": ".data.file.HDF5",
-        "file.hdf5": ".data.file.HDF5",
-        "file.nc": ".data.file.NetCDF",
-        "file.netcdf": ".data.file.NetCDF",
-        "file.namelist": ".data.file.namelist",
-        "file.nml": ".data.file.namelist",
-        "file.xml": ".data.file.XML",
-        "file.json":  ".data.file.JSON",
-        "file.yaml": ".data.file.YAML",
-        "file.txt": ".data.file.TXT",
-        "file.csv": ".data.file.CSV",
-        "file.numpy": ".data.file.NumPy",
-        "file.geqdsk": ".data.file.GEQdsk",
-        "file.gfile": ".data.file.GEQdsk",
+        "file.table": ".data.file.PluginTable",
+        "file.bin": ".data.file.PluginBinary",
+        "file.h5": ".data.file.PluginHDF5",
+        "file.hdf5": ".data.file.PluginHDF5",
+        "file.nc": ".data.file.PluginNetCDF",
+        "file.netcdf": ".data.file.PluginNetCDF",
+        "file.namelist": ".data.file.PluginNamelist",
+        "file.nml": ".data.file.PluginNamelist",
+        "file.xml": ".data.file.PluginXML",
+        "file.json":  ".data.file.PluginJSON",
+        "file.yaml": ".data.file.PluginYAML",
+        "file.txt": ".data.file.PluginTXT",
+        "file.csv": ".data.file.PluginCSV",
+        "file.numpy": ".data.file.PluginNumPy",
+        "file.geqdsk": ".data.file.PluginGEQdsk",
+        "file.gfile": ".data.file.PluginGEQdsk",
         "file.mds": ".data.db.MDSplus#MDSplusDocument",
         "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
         "db.imas": ".data.db.IMAS#IMASDocument",
@@ -66,13 +66,13 @@ class File(Document):
                     raise ValueError(f"Can not guess file format from path! {path}")
                 file_format = path.suffix[1:]
 
-            n_cls = f"file.{file_format}"
+            n_cls = f"file.{file_format.lower()}"
 
         return Document.__new__(cls, n_cls)
 
-    def __init__(self, path=None,  *args, ** kwargs):
-        super().__init__(path, *args,  ** kwargs)
-        if not isinstance(self._path, list):
+    def __init__(self, path=None, *args,  **kwargs):
+        super().__init__(*args, path=path, ** kwargs)
+        if isinstance(self._path, str):
             self._path = pathlib.Path.cwd() / self._path
             if self.path.is_dir():
                 self._path /= f"{uuid.uuid1()}{self.extension_name or '.txt' }"

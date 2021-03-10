@@ -4,8 +4,7 @@ import json
 import numpy as np
 from spdm.util.logger import logger
 
-from ..Collection import FileCollection
-from ..Document import Document
+from ..File import File
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -17,23 +16,18 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-class JSONDocument(Document):
+class JSONFile(File):
     def __init__(self, path, *args, **kwargs):
         super().__init__(path, *args, **kwargs)
-        self._path = path
 
-    def load(self, *args, path=None,  **kwargs):
-        with open(path or self._path, mode="r") as fid:
-            self.root._holder = json.load(fid)
+    def read(self, *args,   **kwargs):
+        with open(self._path, mode="r") as fid:
+            res = json.load(fid)
+        return res
 
-    def save(self,   *args, path=None, **kwargs):
-        with open(path or self._path, mode="w") as fid:
-            json.dump(self.root._holder, fid, cls=NumpyEncoder)
+    def write(self,   d, *args,  **kwargs):
+        with open(self._path, mode="w") as fid:
+            json.dump(d, fid, cls=NumpyEncoder)
 
 
-class JSONCollection(FileCollection):
-    def __init__(self, uri, *args, **kwargs):
-        super().__init__(uri, *args,
-                         file_extension=".json",
-                         file_factory=lambda *a, **k: JSONDocument(*a, **k),
-                         ** kwargs)
+__SP_EXPORT__ = JSONFile

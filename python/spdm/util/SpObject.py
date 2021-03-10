@@ -26,9 +26,6 @@ class SpObject(object):
     """
     _default_prefix = ".".join(__package__.split('.')[:-1])
 
-    _schema = "SpObject"
-    _metadata = {"$class": "SpObject"}
-
     def __new__(cls, metadata=None, *args,  **kwargs):
         if cls is not SpObject and metadata is None:
             return object.__new__(cls)
@@ -73,12 +70,9 @@ class SpObject(object):
                 "attributes": self._attributes.__as_native__(),
                 }
 
-    def __init__(self,  *,   attributes=None, **kwargs):
+    def __init__(self, metadata=None, *args,  **kwargs):
         super().__init__()
         self._oid = uuid.uuid1()
-        self._attributes = collections.ChainMap(attributes or {}, kwargs)
-        self._parent = None
-        self._children = None
 
     # def __del__(self):
     #     if hasattr(self._parent, "remove_child"):

@@ -8,6 +8,7 @@ from typing import Type
 import numpy as np
 from spdm.util.logger import logger
 from spdm.util.SpObject import SpObject
+from spdm.util.urilib import urisplit
 
 from .Entry import Entry
 
@@ -33,10 +34,12 @@ class DataObject(SpObject):
     def __new__(cls,  metadata=None, *args, **kwargs):
         if isinstance(metadata, collections.abc.Mapping):
             n_cls = metadata.get("$class", None)
+        elif isinstance(metadata, str):
+            n_cls = urisplit(metadata)["schema"] or metadata
         else:
-            n_cls = metadata
+            n_cls = None
 
-        if cls is not DataObject and n_cls is None:
+        if cls is not DataObject and not n_cls:
             return SpObject.__new__(cls)
 
         if inspect.isclass(n_cls):
@@ -47,8 +50,9 @@ class DataObject(SpObject):
 
         return SpObject.__new__(cls, n_cls)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, metadata=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._metadata = metadata
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
@@ -61,12 +65,12 @@ class DataObject(SpObject):
         return super().deserialize(cls, *args, **kwargs)
 
     @property
-    def root(self):
-        return Entry(self)
+    def metadata(self):
+        return self._metadata
 
     @property
     def entry(self):
-        return self.root.entry
+        return Entry(self)
 
     @property
     def value(self):

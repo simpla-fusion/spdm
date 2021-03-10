@@ -1,4 +1,4 @@
-from  .logger import logger
+from .logger import logger
 import functools
 
 
@@ -6,7 +6,10 @@ class PathTraverser:
     MAX_SLICE_LENGTH = 10
 
     def __init__(self, path="", *args, **kwargs):
-        self._path = [path] if isinstance(path, str) else path
+        if isinstance(path, str):
+            self._path = path.split(".")
+        else:
+            self._path = path
 
     @property
     def is_multiple(self):

@@ -3,7 +3,6 @@ import copy
 import pathlib
 import re
 
-from .logger import logger
 
 _rfc3986 = re.compile(
     r"^((?P<schema>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
@@ -115,7 +114,6 @@ class SpURI(object):
     @property
     def path(self):
         return self._path
-    
 
     def as_key(self):
         return f"{self._schema}__{self._authority.replace('.','_')}_{self._path.as_key()}_{self._fragment.replace('.','_')}"

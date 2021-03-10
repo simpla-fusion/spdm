@@ -8,16 +8,16 @@ from .Entry import Entry
 
 class Document(DataObject):
 
-    def __init__(self,  path=None, *args, fid=None, mode="r", envs=None, **kwargs):
+    def __init__(self,  *args,  fid=None, path=None, mode="r", envs=None, parent=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._fid = fid
         self._path = path
         self._mode = mode
-        self._fid = fid
-        self._data = None
         self._envs = collections.ChainMap(envs or {}, kwargs)
+        self._parent = parent
 
     def __del__(self):
-        self.close()
+        pass
 
     def copy(self, other):
         if isinstance(other, Document):
@@ -26,11 +26,11 @@ class Document(DataObject):
             return self.root.copy(other)
 
     @property
-    def root(self):
-        return Entry(self._data)
+    def entry(self):
+        return Entry(self)
 
     @property
-    def entry(self):
+    def lazy_entry(self):
         return self.root.lazy_entry
 
     @property
@@ -46,14 +46,15 @@ class Document(DataObject):
         return self._fid
 
     @property
+    def parent(self):
+        return self._parent
+
+    @property
     def mode(self):
         return self._mode
 
     def validate(self, schema=None):
         raise NotImplementedError()
-
-    def close(self):
-        self._data = None
 
     def flush(self):
         raise NotImplementedError()
@@ -65,7 +66,10 @@ class Document(DataObject):
         self.root.update(d)
 
     def fetch(self, proj: Dict[str, Any] = None):
-        raise NotImplementedError()
+        if proj is not None:
+            raise NotImplementedError()
+        else:
+            return self
 
     def dump(self):
         raise NotImplementedError()

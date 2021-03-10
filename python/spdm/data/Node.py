@@ -214,7 +214,8 @@ class Node:
             self.__update__(value)
 
     def __repr__(self) -> str:
-        return pprint.pformat(self._data) if not isinstance(self._data, str) else f"'{self._data}'"
+        v = self.__value__
+        return pprint.pformat(v) if not isinstance(v, str) else f"'{v}'"
 
     def __new_node__(self, *args, **kwargs):
         return self.__class__(*args,  **kwargs)
@@ -318,31 +319,30 @@ class Node:
         return value
 
     def __post_process__(self, value, *args, **kwargs):
-        if isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)):
-            return self.__class__(value)
+
+        if isinstance(value, (collections.abc.Mapping, collections.abc.Sequence, LazyProxy)):
+            return self.__new_node__(value)
         elif not isinstance(value, Node):
             return value
         elif isinstance(value._data, (collections.abc.Mapping, collections.abc.Sequence, type(None))):
-            return self.__class__(value._data)
+            return self.__new_node__(value._data)
         else:
             return value._data
 
     def __setitem__(self, path, value):
-        value = self.__pre_process__(value)
-        if isinstance(self._data, LazyProxy):
-            return self._data.__setitem__(path, value)
-        elif path is None or (isinstance(path, collections.abc.Sequence) and len(path) == 0):
-            self._data = value
-            return
-        elif isinstance(self._data, Entry):
-            return self._data.set(path, value)
+        if path is None:
+            path = []
         elif isinstance(path, str):
             path = path.split('.')
         elif not isinstance(path, list):
             path = [path]
 
+        value = self.__pre_process__(value)
+
         if isinstance(self._data, LazyProxy):
-            self._data[path] = value
+            self._data.__setitem__(path, value)
+        elif len(path) == 0:
+            self._data = value
         else:
             obj = self
 
@@ -355,14 +355,17 @@ class Node:
             obj.__update__(value)
 
     def __getitem__(self, path):
-        if isinstance(self._data, LazyProxy):
-            return self.__post_process__(self._data.__getitem__(path))
-        elif path is None or (isinstance(path, collections.abc.Sequence) and len(path) == 0):
-            return self.__post_process__(self._data)
+        if path is None:
+            path = []
         elif isinstance(path, str):
             path = path.split('.')
         elif not isinstance(path, list):
             path = [path]
+
+        if isinstance(self._data, LazyProxy):
+            return self.__post_process__(self._data.__getitem__(path))
+        elif len(path) == 0:
+            return self.__post_process__(self._data)
 
         obj = self
         for i, key in enumerate(path):
@@ -381,30 +384,44 @@ class Node:
 
         return self.__post_process__(obj)
 
-    def __delitem__(self, key):
+    def __delitem__(self, path):
+        if path is None:
+            path = []
+        elif isinstance(path, str):
+            path = path.split('.')
+        elif not isinstance(path, list):
+            path = [path]
+
         if isinstance(self._data, LazyProxy):
-            self._data.__delitem__(key)
-        elif key is None or len(key) == 0:
+            self._data.__delitem__(path)
+        elif len(path) == 0:
             self.__clear__()
-        elif isinstance(key, str) and isinstance(self._data, collections.abc.Mapping):
-            del self._data[key]
-        elif not isinstance(key, str) and isinstance(self._data, collections.abc.Sequence):
-            del self._data[key]
         else:
-            raise RuntimeError((type(self._data), type(key)))
+            obj = self.__getitem__[path[:-1]]
+            del obj[path[-1]]
 
     # def __missing__(self, path):
     #     return LazyProxy(self._data, prefix=path)
 
-    def __contains__(self, key):
+    def __contains__(self, path):
+        if path is None:
+            path = []
+        elif isinstance(path, str):
+            path = path.split('.')
+        elif not isinstance(path, list):
+            path = [path]
+
         if isinstance(self._data, LazyProxy):
-            return self._data.__contains__(key)
-        elif isinstance(key, str) and isinstance(self._data, collections.abc.Mapping):
-            return key in self._data
-        elif not isinstance(key, str) and isinstance(self._data, collections.abc.Sequence):
-            return key >= 0 and key < len(self._data)
+            return self._data.__contains__(path)
         else:
-            return False
+            obj = self.__getitem__(path[:-1])
+            key = path[-1]
+            if isinstance(key, str) and isinstance(obj, collections.abc.Mapping):
+                return key in self._data
+            elif not isinstance(key, str) and isinstance(obj, collections.abc.Sequence):
+                return key >= 0 and key < len(obj)
+            else:
+                return False
 
     def __len__(self):
         if isinstance(self._data, LazyProxy):

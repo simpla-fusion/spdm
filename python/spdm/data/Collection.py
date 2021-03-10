@@ -1,14 +1,9 @@
 import collections
-import inspect
 import pathlib
-import re
-import urllib
 from functools import cached_property
 from typing import Any, Dict, List, NewType, Tuple
 
-import numpy
 from spdm.util.logger import logger
-from spdm.util.sp_export import sp_find_module
 from spdm.util.SpObject import SpObject
 from spdm.util.urilib import urisplit, uriunsplit
 
@@ -24,11 +19,9 @@ DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 class Collection(SpObject):
     ''' Collection of documents
     '''
-    DOCUMENT_CLASS = Document
-    ID_TAG = "{:06}"
 
     associations = {
-        "mapping": f"{__package__}.db.Mapping#MappingCollection",
+        "mapping": f"{__package__}.Mapping#MappingCollection",
         "local": f"{__package__}.Collection#CollectionLocalFile",
 
         "mds": f"{__package__}.db.MDSplus#MDSplusCollection",
@@ -38,62 +31,59 @@ class Collection(SpObject):
         "mongodb": f"{__package__}.db.MongoDB",
 
         "imas": f"{__package__}.db.IMAS",
-
     }
-    metadata = {}
 
     @staticmethod
     def __new__(cls, _metadata=None, *args,   **kwargs):
-        if cls is not Collection and _metadata is None:
+        if cls is not Collection and not _metadata:
             return object.__new__(cls)
 
         if isinstance(_metadata, str):
             schemas = urisplit(_metadata)["schema"]
         elif isinstance(_metadata, collections.abc.Mapping):
-            schemas = _metadata.get("$class", None)
+            schemas = _metadata.get("$class", None) or _metadata.get("schema", None)
         elif _metadata is None:
             schemas = ""
 
-        schemas = schemas.split('+')
+        schemas = (schemas or "").split('+')
 
         if not schemas:
-            raise ValueError(schemas)
+            raise ValueError(_metadata)
         elif len(schemas) > 1:
             schema = "mapping"
         else:
             schema = schemas[0]
 
-        n_cls = Collection.associations.get(schema.lower(), f"{__package__}.db.{schema}")
+        n_cls = Collection.associations.get(schema.lower(), None)   # f"{__package__}.db.{schema}"
 
-        return SpObject.__new__(Collection, n_cls)
+        if n_cls is not None:
+            return SpObject.__new__(Collection, n_cls)
+        else:
+            return SpObject.__new__(CollectionLocalFile)
 
-    def __init__(self, uri, *args, id_hasher=None, envs=None, mode="rw", auto_inc_idx=True, doc_factory=None, **kwargs):
+    def __init__(self, metadata, *args, mode="rw", envs=None,   **kwargs):
         super().__init__()
-
-        logger.info(f"Open {self.__class__.__name__} : {uri}")
-
-        self._uri = uri
-
-        self._id_hasher = id_hasher
-
-        self._envs = collections.ChainMap(kwargs, envs or {})
-
+        if isinstance(metadata, str):
+            metadata = urisplit(metadata)
+        self._metadata = metadata
         self._mode = mode
+        self._envs = collections.ChainMap(kwargs, envs or {})
+        logger.info(f"Create {self.__class__.__name__} : {self._metadata}")
 
-        self._auto_inc_idx = auto_inc_idx
+    def __del__(self):
+        logger.info(f"Close  {self.__class__.__name__} : {self._metadata}")
 
-        self._document_factory = doc_factory or Document
+    @property
+    def metadata(self):
+        return self._metadata
 
-    # def __del__(self):
-    #     logger.info(f"Close {self.__class__.__name__}:{self._uri}")
+    @property
+    def schema(self):
+        return self._metadata.get("schema", None)
 
     @cached_property
     def envs(self):
         return self._envs
-
-    @property
-    def uri(self):
-        return self._uri
 
     @property
     def mode(self):
@@ -103,72 +93,31 @@ class Collection(SpObject):
     def is_writable(self):
         return "w" in self.mode or 'x' in self.mode
 
-    @property
-    def handler(self):
-        return self._handler
-
-    # mode in ["", auto_inc  , glob ]
     def guess_id(self, *args, **kwargs):
-        fid = None
-        if not self._id_hasher:
-            fid = args[0] if len(args) > 0 else None
-        elif callable(self._id_hasher):
-            fid = self._id_hasher(self, *args, **kwargs)
-        elif isinstance(self._id_hasher, str):
-            try:
-                fid = self._id_hasher.format(*args, **kwargs)
-            except Exception:
-                fid = None
-        else:
-            raise RuntimeError(f"Can not guess id from {args,kwargs}")
-        return fid
+        return NotImplemented
 
     @property
     def next_id(self):
         raise NotImplementedError()
 
-    def guess_path(self, fid):
-        return pathlib.Path(fid)
-
-    def open_document(self, fid, *args, mode=None, **kwargs):
-        f_path = self.guess_path(fid)
-        if not f_path.parent.exists():
-            f_path.parent.mkdir()
-        doc = self._document_factory(*args, mode=mode or self.mode, path=f_path,  **kwargs)
-
-        logger.debug(f"Open Document {doc.__class__.__name__}: {f_path} [mode=\"{ mode or self.mode}\"]")
-        
-        return doc
-
     def open(self, *args, mode=None, **kwargs):
         mode = mode or self.mode
         if "x" in mode:
-            return self.create(*args, mode=mode, **kwargs)
+            return self.insert_one(*args,  **kwargs)
         else:
-            try:
-                doc = self.find_one(*args, mode=mode,  **kwargs)
-            except Exception:
-                if "w" in mode:
-                    doc = self.create(*args, mode=mode,  **kwargs)
-                else:
-                    doc = None
-
-            return doc
-
-        # else:
-        #     raise RuntimeWarning("Collection is not writable!")
+            return self.find_one(*args,   **kwargs)
 
     def create(self, *args, **kwargs):
-        return self.open_document(self.guess_id(*args, **kwargs) or self.next_id,  **kwargs)
+        return self.insert_one(*args, mode="x", **kwargs)
 
     def insert(self, data, *args, **kwargs):
         if isinstance(data, list):
             return self.insert_many(data, *args, **kwargs)
         else:
-            return self.insert_one(*args, **kwargs)
+            return self.insert_one(data, *args, **kwargs)
 
     def insert_one(self, data, * args,  **kwargs) -> InsertOneResult:
-        doc = self.open_document(self.guess_id(*args, **kwargs) or self.next_id, **kwargs)
+        doc = Document(self.guess_id(*args, **kwargs) or self.next_id, **kwargs)
         if data is not None:
             doc.update(data)
         return doc
@@ -176,8 +125,8 @@ class Collection(SpObject):
     def insert_many(self, documents, *args, **kwargs) -> InsertManyResult:
         return [self.insert_one(doc, *args, **kwargs) for doc in documents]
 
-    def find_one(self, predicate=None, *args, **kwargs):
-        return self.open_document(self.guess_id(*args, **kwargs), **kwargs)
+    def find_one(self, *args, predicate=None, **kwargs):
+        return Document(self.guess_id(*args, **kwargs), **kwargs).fetch(predicate)
 
     def find(self, predicate=None, projection=None, *args, **kwargs):
         raise NotImplementedError()
@@ -226,78 +175,50 @@ class Collection(SpObject):
 
 
 class CollectionLocalFile(Collection):
+    """
+        Collection of local files.
+    """
 
-    def __init__(self, uri, *args,
-                 file_extension=".dat",
-                 doc_factory=None,
-                 **kwargs):
+    def __init__(self,   *args, file_format=None, mask=None,   **kwargs):
+        super().__init__(*args, schema="local", **kwargs)
 
-        super().__init__(uri, *args, doc_factory=doc_factory or File, **kwargs)
+        logger.debug(self.metadata)
 
-        if isinstance(uri, str):
-            uri = urisplit(uri)
+        self._path = pathlib.Path(self.metadata.get("authority", "") +
+                                  self.metadata.get("path", ""))  # .replace("*", Collection.ID_TAG)
 
-        path = getattr(uri, "path", "./")  # .replace("*", Collection.ID_TAG)
+        self._file_format = file_format
 
-        if "*" not in path:  # not path.endswith(file_extension):
-            path = f"{path}*{file_extension}"
+        prefix = self._path
 
-        pos = path.rfind('/', 0, path.find('*'))
+        while "*" in prefix.name or "{" in prefix.name:
+            prefix = prefix.parent
 
-        self._path = pathlib.Path(path[:pos]).resolve().expanduser()
+        self._prefix = prefix
+        self._filename = self._path.relative_to(self._prefix).as_posix()
 
-        self._doc_name = path[pos+1:]
+        if "x" in self._mode:
+            self._prefix.mkdir(parents=True, exist_ok=True, mode=mask or 0o777)
+        elif not self._prefix.is_dir():
+            raise NotADirectoryError(self._prefix)
+        elif not self._prefix.exists():
+            raise FileNotFoundError(self._prefix)
 
-        # if self._path.suffix == '':
-        #     self._path = self._path.with_suffix(file_extension)
-
-        # if Collection.ID_TAG not in self._path.stem:
-        #     self._path = self._path.with_name(f"{self._path.stem}{Collection.ID_TAG}{self._path.suffix}")
-        if not self._path.exists():
-            if "w" not in self._mode:
-                raise RuntimeError(f"Can not make dir {self._path}")
-            else:
-                self._path.mkdir()
-        elif not self._path.parent.is_dir():
-            raise NotADirectoryError(self._path)
-
-        logger.debug((self._path, self._doc_name))
+        self._path = self._path.as_posix().replace("*", "{id:06}")
 
     @property
     def next_id(self):
-        return len(list(self._path.glob(self._doc_name)))
+        pattern = self._filename if "*" in self._filename else "*"
+        return len(list(self._prefix.glob(pattern)))
 
-    def guess_path(self, f_id):
-        return self._path/(self._doc_name.replace('*', Collection.ID_TAG)).format(f_id)
+    def guess_path(self, *args, fid=None, **kwargs):
+        return self._path.format(id=fid or self.next_id, **kwargs)
 
-    def open_document(self, fid, *args, mode=None, **kwargs):
-        f_path = self.guess_path(fid)
-        if not f_path.parent.exists():
-            f_path.parent.mkdir()
-        doc = self._document_factory(*args, mode=mode or self.mode, path=f_path,  **kwargs)
-        logger.debug(f"Open Document {doc.__class__.__name__}: {f_path} [mode=\"{ mode or self.mode}\"]")
-        return doc
+    def find_one(self, *args, projection=None, **kwargs):
+        return File(self.guess_path(*args, **kwargs), mode=self.mode).fetch(projection)
 
-    def find_one(self, predicate=None, projection=None, **kwargs):
-        f_path = self.guess_filepath(**collections.ChainMap(predicate or {}, kwargs))
-
-        doc = None
-        if f_path.exists():
-            doc = self.open_document(f_path)
-        else:
-            for fp in self._path.parent.glob(self._path.name.format(_id="*")):
-                if not fp.exists():
-                    continue
-                doc = self.open_document(fp, mode="r")
-                if doc.check(predicate):
-                    break
-                else:
-                    doc = None
-
-        if projection is not None:
-            raise NotImplementedError()
-
-        return doc
+    def insert_one(self, *args, projection=None, **kwargs):
+        return File(self.guess_path(*args, **kwargs), mode="x")
 
     def update_one(self, predicate, update,  *args, **kwargs):
         raise NotImplementedError()
