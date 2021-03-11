@@ -85,7 +85,7 @@ class XMLEntry(Entry):
         super().__init__(data, *args, **kwargs)
         self._prefix = prefix or []
 
-    def xpath(self, path):        
+    def xpath(self, path):
         envs = {}
         res = "."
         prev = None
@@ -109,7 +109,7 @@ class XMLEntry(Entry):
         return res, envs
 
     def _convert(self, element, path=[],   lazy=True, envs=None, projection=None,):
-        if isinstance(element, collections.abc.Sequence):
+        if isinstance(element, collections.abc.Sequence) and not isinstance(element, str):
             return [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
         res = None
 
@@ -173,23 +173,25 @@ class XMLEntry(Entry):
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
             xp, envs = self.xpath(path)
-            return self._convert(xp.evaluate(self._holder), path=path, envs=envs ** kwargs)
+            return self._convert(xp.evaluate(self._holder), path=path, envs=envs, ** kwargs)
 
     def get_value(self,  path, *args,  only_one=False, **kwargs):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
         else:
             xp, envs = self.xpath(path)
-            obj = xp.evaluate(self._holder)
-            if isinstance(obj, collections.abc.Sequence) and len(obj) > 0:
+            obj = xp.evaluate(self._data)
+            if isinstance(obj, collections.abc.Sequence) and len(obj) == 1:
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
     def iter(self,  path, *args, envs=None, **kwargs):
         for spath in PathTraverser(path):
-            for child in self.xpath(spath)[0].evaluate(self._holder):
-                if child.tag is not _XMLComment:
-                    yield self._convert(child, path=spath, envs=envs)
+            xp, s_envs = self.xpath(spath)
+            for child in xp.evaluate(self._data):
+                if child.tag is _XMLComment:
+                    continue
+                yield self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
 
 
 class XMLFile(File):

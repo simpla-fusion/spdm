@@ -24,7 +24,7 @@ class PathTraverser:
 
     def traverse(self,  visitor, prev=[], idx=0):
         res = None
-        if idx >= len(self._path):
+        if self._path is None or idx >= len(self._path):
             res = visitor(prev)
         elif isinstance(self._path[idx], str) or isinstance(self._path[idx], int):
             res = self.traverse(visitor, prev+[self._path[idx]], idx+1)

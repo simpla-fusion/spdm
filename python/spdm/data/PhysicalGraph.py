@@ -24,6 +24,10 @@ class PhysicalGraph(Graph):
         self._changed = True
 
     @property
+    def coordinates(self):
+        return getattr(self, "_coordinates", None) or getattr(self._value, "coordinates", None) or getattr(self._parent, "coordinates", None)
+
+    @property
     def __changed__(self):
         return self._changed
 
@@ -33,9 +37,6 @@ class PhysicalGraph(Graph):
 
     def __new_node__(self, *args, parent=None, **kwargs):
         return PhysicalGraph(*args,  parent=parent or self, **kwargs)
-
-    def __missing__(self, path):
-        return LazyProxy(self._data, prefix=path)
 
     def __getattr__(self, k):
         if k.startswith("_"):
@@ -73,10 +74,6 @@ class PhysicalGraph(Graph):
                 res.fdel(self, k)
             else:
                 raise AttributeError(f"Can not delete attribute {k}!")
-
-    @property
-    def coordinates(self):
-        return getattr(self, "_coordinates", None) or getattr(self._value, "coordinates", None) or getattr(self._parent, "coordinates", None)
 
     def __pre_process__(self, value, *args, coordinates=None, **kwargs):
         # if not isinstance(value, (Quantity, collections.abc.Mapping, collections.abc.Sequence)) or isinstance(value, str):

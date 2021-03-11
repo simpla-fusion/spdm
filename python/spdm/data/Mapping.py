@@ -18,13 +18,13 @@ SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 class MappingEntry(Entry):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._mapping = self._holder._mapping.entry
+        self._mapping = self._data._mapping.entry
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
         # if not is_raw_path:
         #     res = PathTraverser(path).apply(lambda p, _s=self: _s.get(p,  is_raw_path=True, **kwargs))
         # else:
-        return self._holder.fetch(self._mapping.get_value(path, *args, **kwargs))
+        return self._data.fetch(self._mapping.get_value(path, *args, **kwargs))
 
     def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
         if not is_raw_path:
@@ -33,7 +33,7 @@ class MappingEntry(Entry):
             request = self._mapping.get_value(path, *args, **kwargs)
 
             if isinstance(request, str):
-                self._holder.update(request, value, is_raw_path=True)
+                self._data.update(request, value, is_raw_path=True)
             elif isinstance(request, collections.abc.Sequence):
                 raise NotImplementedError()
             elif isinstance(request, collections.abc.Mapping):
@@ -43,7 +43,7 @@ class MappingEntry(Entry):
 
     def iter(self,  request, *args, **kwargs):
         for source_req in self._mapping.iter(request, *args, **kwargs):
-            yield self._holder.fetch(source_req)
+            yield self._data.fetch(source_req)
 
 
 class MappingDocument(Document):
@@ -78,6 +78,8 @@ class MappingDocument(Document):
             res = [self.fetch(v) for v in request]
         elif isinstance(request, collections.abc.Mapping):
             res = {k: self.fetch(v, tag=k) for k, v in request.items()}
+            if len(res) == 1 and list(res.keys())[0][0] == "{":
+                res = list(res.values())[0]
         else:
             res = request
         return res

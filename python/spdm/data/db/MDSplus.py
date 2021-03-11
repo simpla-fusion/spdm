@@ -80,6 +80,10 @@ class MDSplusDocument(Document):
         else:
             raise ValueError(request)
 
+        if not tdi:
+            # logger.error(f"{request}: {tdi}")
+            return self.entry
+
         shot = self.fid
         mode = self._mds_mode
         path = self.metadata.get("path", None)
@@ -87,7 +91,8 @@ class MDSplusDocument(Document):
         res = None
         try:
             with mds.Tree(tree_name, int(shot), mode=mode, path=path) as tree:
-                res = tree.tdiExecute(tdi)
+                res = tree.tdiExecute(tdi).data()
+
         except mds.mdsExceptions.TdiException as error:
             raise RuntimeError(f"MDSplus TDI error [{tdi}]! {error}")
         except mds.mdsExceptions.TreeFOPENR as error:
@@ -96,10 +101,8 @@ class MDSplusDocument(Document):
         except mds.mdsExceptions.TreeNOPATH as error:
             raise FileNotFoundError(
                 f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
-        # except mds.mdsExceptions.TdiINV_SIZE as error:
-        #     raise SyntaxError(f"MDSplus TDI syntax error [{path}]! {error}")
-
-        res = res.data()
+        except Exception as error:
+            raise error
 
         if not isinstance(res, np.ndarray):
             pass

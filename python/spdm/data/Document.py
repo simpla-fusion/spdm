@@ -21,17 +21,13 @@ class Document(DataObject):
 
     def copy(self, other):
         if isinstance(other, Document):
-            return self.root.copy(other.root)
+            return self.entry.copy(other.entry)
         else:
-            return self.root.copy(other)
+            return self.entry.copy(other)
 
     @property
     def entry(self):
         return Entry(self)
-
-    @property
-    def lazy_entry(self):
-        return self.root.lazy_entry
 
     @property
     def envs(self):
@@ -63,7 +59,7 @@ class Document(DataObject):
         raise NotImplementedError()
 
     def update(self, d: Dict[str, Any]):
-        self.root.update(d)
+        self.entry.update(d)
 
     def fetch(self, proj: Dict[str, Any] = None):
         if proj is not None:
