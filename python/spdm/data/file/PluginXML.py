@@ -68,7 +68,6 @@ def load_xml(path, *args,  mode="r", **kwargs):
         if path.exists() and path.is_file():
             root = parse_xml(path.as_posix()).getroot()
             logger.debug(f"Loading XML file from {path}")
-
     except _XMLParseError as msg:
         raise RuntimeError(f"ParseError: {path}: {msg}")
 
@@ -77,13 +76,13 @@ def load_xml(path, *args,  mode="r", **kwargs):
             fp = path.parent/child.attrib["href"]
             root.insert(0, load_xml(fp))
             root.remove(child)
+
     return root
 
 
 class XMLEntry(Entry):
-    def __init__(self, data, *args, prefix=None, **kwargs):
-        super().__init__(data, *args, **kwargs)
-        self._prefix = prefix or []
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def xpath(self, path):
         envs = {}
@@ -108,13 +107,17 @@ class XMLEntry(Entry):
             raise NotImplementedError()
         return res, envs
 
-    def _convert(self, element, path=[],   lazy=True, envs=None, projection=None,):
+    def _convert(self, element, path=[], lazy=True, envs=None, projection=None):
+
         if isinstance(element, collections.abc.Sequence) and not isinstance(element, str):
-            return [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
+            res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
+            if len(res) == 1:
+                res = res[0]
+            return res
         res = None
 
         if len(element) > 0 and lazy:
-            res = XMLEntry(element, prefix=self._prefix+path).lazy_entry
+            res = XMLEntry(element, prefix=[])
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
@@ -161,24 +164,28 @@ class XMLEntry(Entry):
         return res
 
     def put(self,  path, value, *args, only_one=False, **kwargs):
+        path = self._normalize_path(path)
+
         if not only_one:
-            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._holder: s._push(h, p, v))
+            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._data: s._push(h, p, v))
         else:
             raise NotImplementedError()
 
     def get(self,  path, *args, only_one=False, **kwargs):
-        if isinstance(path, str):
-            path = path.split(".")
+
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
+            path = self._normalize_path(path)
             xp, envs = self.xpath(path)
-            return self._convert(xp.evaluate(self._holder), path=path, envs=envs, ** kwargs)
+            return self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
 
     def get_value(self,  path, *args,  only_one=False, **kwargs):
+
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
         else:
+            path = self._normalize_path(path)
             xp, envs = self.xpath(path)
             obj = xp.evaluate(self._data)
             if isinstance(obj, collections.abc.Sequence) and len(obj) == 1:
@@ -186,12 +193,15 @@ class XMLEntry(Entry):
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
     def iter(self,  path, *args, envs=None, **kwargs):
+        path = self._normalize_path(path)
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._data):
                 if child.tag is _XMLComment:
                     continue
-                yield self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+                res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+
+                yield res
 
 
 class XMLFile(File):

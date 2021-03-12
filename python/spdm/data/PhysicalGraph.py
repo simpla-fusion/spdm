@@ -80,3 +80,10 @@ class PhysicalGraph(Graph):
         if isinstance(value, np.ndarray) and not isinstance(value, Quantity):
             value = Quantity(value, *args, coordinates=coordinates or self.coordinates, **kwargs)
         return value
+
+    def __call__(self, *args, **kwargs):
+        value = self.__value__
+        if callable(value):
+            return value(*args, **kwargs)
+        else:
+            return value

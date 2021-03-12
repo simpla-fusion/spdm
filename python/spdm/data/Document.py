@@ -8,7 +8,7 @@ from .Entry import Entry
 
 class Document(DataObject):
 
-    def __init__(self,  *args,  fid=None, path=None, mode="r", envs=None, parent=None, **kwargs):
+    def __init__(self,  *args,  fid=None, parent=None, path=None, mode="r", envs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._fid = fid
         self._path = path
@@ -58,10 +58,10 @@ class Document(DataObject):
     def check(self, predication, **kwargs) -> bool:
         raise NotImplementedError()
 
-    def update(self, d: Dict[str, Any]):
+    def update(self, d: Dict[str, Any], *args, **kwargs):
         self.entry.update(d)
 
-    def fetch(self, proj: Dict[str, Any] = None):
+    def fetch(self, proj: Dict[str, Any] = None, *args, **kwargs):
         if proj is not None:
             raise NotImplementedError()
         else:

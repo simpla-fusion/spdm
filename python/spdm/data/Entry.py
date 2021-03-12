@@ -1,16 +1,28 @@
 
 import collections
+import pprint
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
 
 class Entry(object):
 
-    def __init__(self, data,  *args, prefix=None, parent=None,   **kwargs):
+    def __init__(self, data=None,  *args, prefix=None, parent=None,   **kwargs):
         super().__init__()
         self._data = data
         self._parent = parent
-        self._prefix = prefix or []
+
+        if not prefix:
+            self._prefix = []
+        elif isinstance(prefix, str):
+            self._prefix = prefix.split(".")
+        elif not isinstance(prefix, collections.abc.Sequence):
+            self._prefix = [prefix]
+        else:
+            self._prefix = prefix
+
+    def __repr__(self) -> str:
+        return pprint.pformat(self.get_value([]))
 
     @property
     def lazy(self):
@@ -27,6 +39,12 @@ class Entry(object):
     @property
     def prefix(self):
         return self._prefix
+
+    def child(self, path, *args, **kwargs):
+        if not path:
+            return self
+        else:
+            return self.__class__(self._data, prefix=self._normalize_path(path), parent=self._parent)
 
     def copy(self, other):
         # if isinstance(other, LazyProxy):
@@ -49,6 +67,29 @@ class Entry(object):
         elif not isinstance(path, collections.abc.Sequence):
             path = [path]
         return self._prefix + path
+
+    def get(self, path=[], *args, **kwargs):
+        path = self._normalize_path(path)
+
+        obj = self._data
+
+        for p in path:
+            if type(p) is str and hasattr(obj, p):
+                obj = getattr(obj, p)
+            elif obj is not None:
+                try:
+                    obj = obj[p]
+                except IndexError:
+                    raise KeyError(path)
+                except TypeError:
+                    raise KeyError(path)
+            else:
+                raise KeyError(path)
+
+        return obj
+
+    def get_value(self,  path=[], *args, **kwargs):
+        return self.get(path, *args, **kwargs)
 
     def put(self,  path, value, *args, **kwargs):
         path = self._normalize_path(path)
@@ -107,29 +148,6 @@ class Entry(object):
     def update(self, path, v, *args, **kwargs):
         raise NotImplementedError()
 
-    def get(self, path=[], *args, **kwargs):
-        path = self._normalize_path(path)
-
-        obj = self._data
-
-        for p in path:
-            if type(p) is str and hasattr(obj, p):
-                obj = getattr(obj, p)
-            elif obj is not None:
-                try:
-                    obj = obj[p]
-                except IndexError:
-                    raise KeyError(path)
-                except TypeError:
-                    raise KeyError(path)
-            else:
-                raise KeyError(path)
-
-        return obj
-
-    def get_value(self,  path=[], *args, **kwargs):
-        return self.get(path, *args, **kwargs)
-
     def delete(self, path=[], *args, **kwargs):
         path = self._normalize_path(path)
 
@@ -143,7 +161,11 @@ class Entry(object):
             del obj[path[-1]]
 
     def count(self,  path=[], *args, **kwargs):
-        return len(self.get(path, *args, **kwargs))
+        res = self.get(path, *args, **kwargs)
+        if isinstance(res, (list, collections.abc.Mapping)):
+            return len(res)
+        else:
+            return 1
 
     def contains(self, path, v, *args, **kwargs):
         obj = self.get(path, *args, **kwargs)
@@ -178,9 +200,24 @@ class Entry(object):
 
         return res
 
-    def iter(self, path, *args, **kwargs):
+    def iter(self, path=[], *args, **kwargs):
         yield from self.get(path, *args, **kwargs)
 
+    def __iter__(self):
+        yield from self.get()
+
+    def __pre_process__(self, request, *args, **kwargs):
+        return request
+
+    def __post_process__(self, request, *args, **kwargs):
+        if isinstance(request,  collections.abc.Sequence) and not isinstance(request, str):
+            res = [self.__post_process__(v, *args, **kwargs) for v in request]
+        elif isinstance(request, collections.abc.Mapping):
+            res = {k: self.__post_process__(v, *args, **kwargs) for k, v in request.items()}
+        else:
+            res = request
+
+        return res
 
 # def is_entry(obj):
 #     return isinstance(obj, LazyProxy) and isinstance(obj.__object__, Entry)

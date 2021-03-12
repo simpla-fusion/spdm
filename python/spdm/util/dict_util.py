@@ -25,7 +25,6 @@ def tree_apply_recursive(obj, op, types=None):
             changed = True
         return res, changed
 
-
     data = obj
 
     changed = False
@@ -43,14 +42,12 @@ def tree_apply_recursive(obj, op, types=None):
                 data[idx] = new_v
                 changed = True
 
- 
     obj = data
 
     return obj, changed
 
 
 def format_string_recursive(obj, mapping=None):
-
     class DefaultDict(dict):
         def __missing__(self, key):
             return '{'+key+'}'

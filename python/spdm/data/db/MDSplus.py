@@ -13,6 +13,7 @@ import MDSplus as mds
 from ..Collection import Collection
 from ..Document import Document
 from ..Entry import Entry
+from ...util.dict_util import format_string_recursive
 
 
 class MDSplusEntry(Entry):
@@ -21,13 +22,13 @@ class MDSplusEntry(Entry):
         super().__init__(*args, **kwargs)
 
     def get(self,  *args, **kwargs):
-        return self._holder.fetch(*args, **kwargs)
+        return self._data.fetch(*args, **kwargs)
 
     def put(self,  path, value, *args, **kwargs):
-        return self._holder.update({path: value}, *args, **kwargs)
+        return self._data.update({path: value}, *args, **kwargs)
 
     def iter(self,  path, *args, **kwargs):
-        return self._holder.iter(path, *args, **kwargs)
+        return self._data.iter(path, *args, **kwargs)
 
 
 def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
@@ -56,8 +57,12 @@ class MDSplusDocument(Document):
         "x": "New"
     }
 
-    def __init__(self,  metadata=None, *args, tree_name=None, **kwargs):
-        super().__init__(metadata, *args,  ** kwargs)
+    def __init__(self, *args, tree_name=None,   **kwargs):
+        super().__init__(*args,  ** kwargs)
+
+        self._envs = {k: (v if not isinstance(v, slice) else f"{v.start}:{v.stop}:{v.step}")
+                      for k, v in self._envs.items()}
+
         self._mds_mode = MDSplusDocument.MDS_MODE.get(self.mode, "NORMAL")
         self._tree_name = tree_name or self.metadata.get("query", {}).get("tree_name", None)
 
@@ -68,9 +73,9 @@ class MDSplusDocument(Document):
     def entry(self):
         return MDSplusEntry(self)
 
-    def fetch(self, request, *args, **kwargs):
+    def fetch(self, request, *args,   **kwargs):
         tree_name = self._tree_name
-        if request is None:
+        if not request:
             return self
         elif isinstance(request, collections.abc.Mapping):
             tree_name = request.get("@tree", None)
@@ -81,11 +86,12 @@ class MDSplusDocument(Document):
             raise ValueError(request)
 
         if not tdi:
-            # logger.error(f"{request}: {tdi}")
             return self.entry
 
-        shot = self.fid
+        tdi = tdi.format_map(self._envs)
+
         mode = self._mds_mode
+        shot = self.fid
         path = self.metadata.get("path", None)
 
         res = None
@@ -115,21 +121,21 @@ class MDSplusDocument(Document):
                 res = res.transpose(1, 0)
         return res
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request, *args,  envs=None, **kwargs):
         raise NotImplementedError()
 
 
 class MDSplusCollection(Collection):
-    def __init__(self,  metadata=None, *args, **kwargs):
-        super().__init__(metadata, *args,  **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,  **kwargs)
 
     def insert_one(self, fid=None, *args,  query=None, mode=None, **kwargs):
         fid = fid or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
-        return MDSplusDocument(self.metadata, fid=fid, mode=mode or "w")
+        return MDSplusDocument(self.metadata, fid=fid, mode=mode or "w", **kwargs)
 
     def find_one(self, fid=None, *args, query=None, projection=None, mode=None, **kwargs):
         fid = fid or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs))
-        return MDSplusDocument(self.metadata, fid=fid, mode=mode or "w").fetch(projection)
+        return MDSplusDocument(self.metadata, fid=fid, mode=mode or "w", **kwargs).fetch(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()

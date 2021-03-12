@@ -35,7 +35,7 @@ class Collection(SpObject):
 
     @staticmethod
     def __new__(cls, _metadata=None, *args,   **kwargs):
-        if cls is not Collection and not _metadata:
+        if cls is not Collection:
             return object.__new__(cls)
 
         if isinstance(_metadata, str):

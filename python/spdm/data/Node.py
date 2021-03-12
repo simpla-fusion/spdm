@@ -1,11 +1,9 @@
 import collections
 import copy
 import pprint
-import uuid
 
 import numpy as np
 
-from ..util.LazyProxy import LazyProxy
 from ..util.logger import logger
 from .Entry import Entry
 
@@ -88,11 +86,7 @@ class Node:
             return k in self._data
 
         def __iter__(self):
-            for node in self._data.values():
-                if isinstance(node, Node):
-                    yield node.__value__
-                else:
-                    yield node
+            yield from self._data.values()
 
         def __merge__(self, d,  recursive=True):
             return NotImplemented
@@ -167,11 +161,7 @@ class Node:
             return k in self._data
 
         def __iter__(self):
-            for node in self._data:
-                if hasattr(node, "__value__"):
-                    yield node.__value__
-                else:
-                    yield node
+            yield from self._data
 
         def insert(self, value, key=None, *args, **kwargs):
             if isinstance(key, int):
@@ -193,27 +183,24 @@ class Node:
                 raise TypeError(f"Not supported operator! update({type(self)},{type(other)})")
 
     def __init__(self, value=None, *args,  name=None, parent=None, **kwargs):
-        self._name = name or uuid.uuid1()
+        self._name = name  # or uuid.uuid1()
         self._parent = parent
         self._data = None
 
         if isinstance(value, Node):
             self._data = value._data
-            self._parent = parent or value._parent
-        elif isinstance(value, (Node.Mapping, Node.Sequence, type(None))):
-            self._data = value
-        elif hasattr(value, "entry"):
-            self._data = value.entry
         else:
-            self.__update__(value)
+            value = self.__pre_process__(value)
+            if isinstance(value, collections.abc.Mapping):
+                self.__as_mapping__(value, force=True)
+            elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                self.__as_sequence__(value, force=True)
+            else:
+                self._data = value
 
     def __repr__(self) -> str:
-        v = self.__value__
+        v = self.__fetch__()
         return pprint.pformat(v) if not isinstance(v, str) else f"'{v}'"
-
-    @property
-    def lazy(self):
-        return LazyProxy(self,  handler=self.__lazy_proxy__)
 
     def __new_node__(self, *args, **kwargs):
         return self.__class__(*args,  **kwargs)
@@ -223,6 +210,12 @@ class Node:
             return self.__new_node__(self._data.copy())
         else:
             return self.__new_node__(copy.copy(self._data))
+
+    def entry(self, path, *args, **kwargs):
+        if isinstance(self._data, Entry):
+            return self._data.child(path, *args, **kwargs)
+        else:
+            return Entry(self._data, prefix=path, parent=self._parent)
 
     def serialize(self):
         return self._data.serialize() if hasattr(self._data, "serialize") else self._data
@@ -235,9 +228,11 @@ class Node:
     def __name__(self):
         return self._name
 
-    @property
-    def __value__(self):
-        return self._data
+    def __fetch__(self):
+        if isinstance(self._data, Entry):
+            return self._data.get_value([])
+        else:
+            return self._data
 
     @property
     def __parent__(self):
@@ -257,7 +252,7 @@ class Node:
         Empty       --> Empty           : clear
 
 
-        Item        --> Item            : "__value__"
+        Item        --> Item            : "__fetch__"
         Item        --> Empty           : clear
         Item        --> Sequence        : __setitem__(_next_,v),__getitem__(_next_),as_sequence
         Item        --> Illegal         : as_mapping
@@ -307,7 +302,7 @@ class Node:
         return value
 
     def __post_process__(self, value, *args, **kwargs):
-        if isinstance(value, (Node.Mapping, Node.Sequence, collections.abc.Mapping, collections.abc.Sequence)) and not isinstance(value, str):
+        if isinstance(value, (Node.Mapping, Node.Sequence, collections.abc.Mapping, collections.abc.Sequence, Entry)) and not isinstance(value, str):
             return self.__new_node__(value, parent=self)
         elif not isinstance(value, Node):
             return value
@@ -320,7 +315,7 @@ class Node:
 
     def __raw_set__(self, path, value):
         if isinstance(self._data, Entry):
-            self._data.set(path, value)
+            self._data.insert(path, value)
         elif path is None or len(path) == 0:
             self._data = value
         elif isinstance(path, str):
@@ -329,10 +324,11 @@ class Node:
             self.__as_sequence__(force=True).insert(value, path)
 
     def __raw_get__(self, path):
-        
-        if isinstance(self._data, Entry):
+        if isinstance(path, slice):
+            res = self.__fetch__()[path]
+        elif isinstance(self._data, Entry):
             res = self._data.get(path)
-        elif path is None or len(path) == 0:
+        elif not path:
             res = self._data
         elif isinstance(path, str):
             res = self.__as_mapping__(force=False)[path]
@@ -380,9 +376,7 @@ class Node:
             return 0 if self._data is None else 1
 
     def __iter__(self):
-        if isinstance(self._data, Entry):
-            yield from self._data.iter()
-        elif isinstance(self._data, (Node.Mapping, Node.Sequence)):
+        if isinstance(self._data, (Node.Mapping, Node.Sequence, Entry)):
             yield from map(lambda v: self.__post_process__(v), self._data)
         else:
             yield self.__post_process__(self._data)
