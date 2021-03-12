@@ -54,9 +54,18 @@ class Quantity(np.ndarray):
         self._unit = getattr(obj, '_unit', None)
         self._coordinates = getattr(obj, '_coordinates', None)
 
-    def __init__(self, *args, associated=None, **kwargs):
-        self._associated = associated or {}
-        pass
+    def __init__(self, *args, parent=None, name=None, **kwargs):
+        self._parent = parent
+        self._name = name
+
+    def __str__(self):
+        return f"""<{self._name or self.__class__.__name__} unit=\"{self._unit}\">
+        {self._coordinates}
+        <data>
+            {self.view(np.ndarray).__repr__()}
+        </data>
+        </{self._name or self.__class__.__name__}>
+        """
 
     def set(self, value):
         return self.copy(np.asarray(value))
@@ -454,7 +463,7 @@ class Quantity(np.ndarray):
 #             opts = desc.get("opts", {})
 #         elif isinstance(desc, tuple):
 #             path, opts = desc
-#       
+#
 #         else:
 #             raise TypeError(f"Illegal Quantity type! {desc}")
 

@@ -1,10 +1,12 @@
-from .Quantity import Quantity
-from .Graph import Graph
-from .Node import _next_, _last_
-from .Coordinates import Coordinates
-import numpy as np
 import functools
+
+import numpy as np
+
 from ..util.LazyProxy import LazyProxy
+from .Coordinates import Coordinates
+from .Graph import Graph
+from .Node import _last_, _next_
+from .Quantity import Quantity
 
 
 class PhysicalGraph(Graph):
@@ -80,6 +82,9 @@ class PhysicalGraph(Graph):
         if isinstance(value, np.ndarray) and not isinstance(value, Quantity):
             value = Quantity(value, *args, coordinates=coordinates or self.coordinates, **kwargs)
         return value
+
+    def __postprocess__(self, value, *args, **kwargs):
+        return super().__post_process__(value, *args, **kwargs)
 
     def __call__(self, *args, **kwargs):
         value = self.__value__
