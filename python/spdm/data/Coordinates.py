@@ -11,7 +11,7 @@ class Coordinates:
 
     #     return object.__new__(cls)
 
-    def __init__(self, coord, *args, **kwargs) -> None:
+    def __init__(self, coord=None, *args, **kwargs) -> None:
         self._ndmis = 1
         self._ndims_manifold = 1
         self._defined_domain = 1
@@ -21,7 +21,7 @@ class Coordinates:
             self._name = coord
             self._data = None
         else:
-            self._name = None
+            self._name = "x"
             self._data = coord
 
     def __repr__(self) -> str:
@@ -30,19 +30,19 @@ class Coordinates:
             for k, d in self._data.items():
                 msg += f"""\t<{k}> {pprint.pformat(d)} </{k}>\n"""
         else:
-            msg=pprint.pformat(self._data)
+            msg = pprint.pformat(self._data)
 
         if not self._name:
-            name=""
+            name = ""
         else:
-            name=f" name=\"{self._name}\""
+            name = f" name=\"{self._name}\""
         return f"""<{self.__class__.__name__}{name}>
         {msg}
         </{self.__class__.__name__}>
         """
 
     @property
-    def __name__(self):
+    def name(self):
         return self._name
 
     def serialize(self):

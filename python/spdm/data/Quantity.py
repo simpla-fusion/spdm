@@ -1,17 +1,16 @@
 import collections
-from functools import cached_property, lru_cache
+from external.SpDB.python.spdm.data.Annotation import Annotation
+from functools import cached_property
 
-import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import scipy.constants
 import scipy.integrate
-import scipy.misc
 from scipy.interpolate import RectBivariateSpline, UnivariateSpline, interp1d
-from spdm.util.logger import logger
 
+from ..util.logger import logger
 from .Coordinates import Coordinates
 from .Unit import Unit
+from .Annotation import Annotation
 
 
 class Quantity(np.ndarray):
@@ -26,48 +25,51 @@ class Quantity(np.ndarray):
 
         An `extensive properties` such as the mass, volume and entropy of systems are additive for subsystems because they increase and
         decrease as they grow larger and smaller, respectively.
+
+        # psi_func = RectBivariateSpline(dim1, dim2,  ])
+        # psi_func = SmoothBivariateSpline(self.r.ravel(), self.z.ravel(), psi_value.ravel())
+        # psi_func = lambda *args: spl(*args, grid=False)
     """
 
     @staticmethod
-    def __new__(cls,  value=None, *args, dtype=None, order=None, unit=None, coordinates=None, upper=None,  lower=None, **kwargs):
-
-        coordinates = Coordinates(coordinates) if not isinstance(coordinates, Coordinates) else coordinates
+    def __new__(cls,  value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
 
         if isinstance(value, np.ndarray):
             obj = value.view(cls)
-        elif value is not None or len(coordinates.dataset_shape) == 0:
+        elif value is not None:
             obj = np.asarray(value, dtype=dtype, order=order).view(cls)
         else:
+            coordinates = Coordinates(coordinates, *args, coordinates=coordinates, **kwargs) \
+                if not isinstance(coordinates, Coordinates) else coordinates
             obj = np.ndarray(coordinates.dataset_shape, dtype=dtype, order=order).view(cls)
+            obj._coordinates = coordinates
 
         if isinstance(obj, np.ndarray):
             obj = obj.view(cls)
-
-        obj._unit = Unit(unit)
-        obj._coordinates = coordinates
 
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        self._unit = getattr(obj, '_unit', None)
         self._coordinates = getattr(obj, '_coordinates', None)
 
-    def __init__(self, *args, parent=None, name=None, **kwargs):
-        self._parent = parent
-        self._name = name
+    def __init__(self, value=None, *args,  coordinates=None,  unit=None, annotation=None,  **kwargs):
+        self._unit = Unit(unit)
+
+        self._annotation = Annotation(annotation or {})
+
+        if not hasattr(self, "_coordinates") or not self._coordinates:
+            self._coordinates = Coordinates(*args, coordinates=coordinates, **kwargs)
 
     def __str__(self):
-        return f"""<{self._name or self.__class__.__name__} unit=\"{self._unit}\">
-        {self._coordinates}
-        <data>
+        tag = getattr(self.annotation, '_name',  None) or self.__class__.__name__
+        return f"""<{tag} unit=\"{self._unit}\" coordinates=\"{self.coordinates.name}\">
             {self.view(np.ndarray).__repr__()}
-        </data>
-        </{self._name or self.__class__.__name__}>
+        </{tag}>
         """
 
-    def set(self, value):
+    def put(self, value):
         return self.copy(np.asarray(value))
 
     def get(self):
@@ -92,12 +94,13 @@ class Quantity(np.ndarray):
                             order=d.get("order", None),
                             unit=d.get("unit", None),
                             coordinates=d.get("coordinates", None),
-                            uncertainty=d.get("uncertainty", None))
+                            annotation=d.get("annotation", None))
 
     def __repr__(self):
         return f"<{self.__class__.__name__} unit='{ self._unit}' coordinates='{self._coordinates.__name__}'>"
 
     def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
+
         if method != "__call__":
             raise NotImplementedError((ufunc, method))
         elif not not out:
@@ -107,19 +110,28 @@ class Quantity(np.ndarray):
 
         # FIXME (salmon 20210302): dimensional analysis
 
-        res = super(Quantity, self).__array_ufunc__(ufunc, method, *
-                                                    [(in_.__array__() if hasattr(in_.__class__, '__array__') else in_) for in_ in inputs], **kwargs)
+        res = super(Quantity, self).__array_ufunc__(
+            ufunc, method, *
+            [(in_.__array__() if hasattr(in_.__class__, '__array__') else in_) for in_ in inputs], **kwargs)
 
+        try:
+            coordinates = next((n.coordinates for n in inputs if isinstance(n, Quantity)), 'All are Nones')
+        except Exception:
+            coordinates = None
         # FIXME (salmon 20210302): handle coordinates
-
         # FIXME (salmon 20210302): handle uncertainty
 
         if not isinstance(res, Quantity):
-            res = Quantity(res, unit=unit)
+            res = Quantity(res, unit=unit, coordinates=coordinates)
+
         return res
 
     def __array__(self):
         return super().__array__()
+
+    @property
+    def annotation(self):
+        return self._annotation
 
     @property
     def unit(self):
@@ -157,7 +169,7 @@ class Quantity(np.ndarray):
         else:
             raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
 
-    def __call__(self, x_axis=None, *args, **kwargs):
+    def __call__(self,   *args, **kwargs):
         if x_axis is self._coordinates or x_axis is None:
             return self
         res = self.as_function(x_axis)
@@ -188,31 +200,32 @@ class Quantity(np.ndarray):
         #                                n=n, *args, **kwargs) for i, x in enumerate(self._coordinates[1:-1])]
         #     return Quantity(np.array([v0]+v+[vn]), axis=self._coordinates)
 
-    @cached_property
-    def derivative(self):
+    def diff(self, *args, **kwargs):
+        """
+            differential
+        """
         # value = UnivariateSpline(self._coordinates, self.value).derivative()(self._coordinates)
         # return Quantity(value[:], axis=self._coordinates)
         return Quantity(np.gradient(self[:])/np.gradient(self._coordinates[:]), axis=self._coordinates)
 
-    # @cached_property
-    # def dln(self, *args, **kwargs):
-    #     r"""
-    #         .. math:: d\ln f=\frac{df}{f}
-    #     """
-    #     data = np.ndarray(self._coordinates.shape)
-    #     data[1:] = self.derivative.value[1:]/self.value[1:]
-    #     data[0] = 2*data[1]-data[2]
-    #     if any(np.isnan(data)) or any(self.value == 0):
-    #         logger.error(self.value)
-    #         raise ValueError(data)
-    #     return Quantity(data, axis=self._coordinates)
-
     @cached_property
-    def integral(self):
+    def dln(self, *args, **kwargs):
+        r"""
+            .. math:: d\ln f=\frac{df}{f}
+        """
+        data = np.ndarray(self._coordinates.shape, dtype=self.dtype)
+        data[1:] = self.diff()[1:]/self[1:]
+        data[0] = 2*data[1]-data[2]
+
+        if any(np.isnan(data)):
+            raise ValueError(data)
+
+        return Quantity(data, coordinates=self._coordinates)
+
+    def integral(self, *args, **kwargs):
         return Quantity(scipy.integrate.cumtrapz(self.value, self.axis, initial=0.0), axis=self.axis)
 
-    @cached_property
-    def inv_integral(self):
+    def inv_integral(self, *args, **kwargs):
         value = scipy.integrate.cumtrapz(self.value[::-1], self.axis[::-1], initial=0.0)[::-1]
         return Quantity(value, axis=self.axis)
 
@@ -250,42 +263,31 @@ class Quantity(np.ndarray):
 #     """
 #      A `QuantityGroup` is a set of `Quantity` with same `Coordiantes`.
 #     """
-
 #     def __init__(self, *args, name=None, parent=None,  coordinates=None, **kwargs):
 #         self._coordinates = Coordinates(coordinates) if not isinstance(coordinates, Coordinates) else coordinates
-
 #         def defaultfactory(*args, coordinates=self._coordinates, **kwargs):
 #             return Quantity(*args, coordinates=coordinates, **kwargs)
-
 #         super().__init__(*args, name=name, parent=parent, defaultfactory=defaultfactory, **kwargs)
-
-
 # class QuantityFunction(Quantity):
-
 #     def __init__(self, ufunc,   *args,  **kwargs):
 #         super().__init__(*args, **kwargs)
-
 #         if not callable(ufunc):
 #             raise TypeError(type(ufunc))
 #         elif not isinstance(ufunc, np.ufunc):
 #             ufunc = np.vectorize(ufunc)
 #         self._ufunc = ufunc
-
 #     def __call__(self, x=None):
 #         if x is None:
 #             x = self._coordinates
 #         if x is None:
 #             raise ValueError(f" x is None !")
-
 #         res = self._ufunc(x)
 #         if isinstance(res, np.ndarray) and not isinstance(res, Quantity):
 #             res = res.view(Quantity)
 #             res._coordinates = x
 #         return res
-
 #     def __getitem__(self, idx):
 #         return self._ufunc(self._coordinates[idx])
-
 #     @property
 #     def value(self):
 #         if self.shape == ():
@@ -300,43 +302,33 @@ class Quantity(np.ndarray):
 #         else:
 #             res = self.view(np.ndarray)
 #         return res
-
 #     @cached_property
 #     def derivative(self):
 #         return Quantity(np.gradient(self.value)/np.gradient(self._coordinates), axis=self._coordinates)
-
 #     @cached_property
 #     def dln(self, *args, **kwargs):
 #         r"""
 #             .. math:: d\ln f=\frac{df}{f}
 #         """
 #         return Quantity(self.derivative.value/self.value, axis=self._coordinates)
-
 #     @cached_property
 #     def integral(self):
 #         data = scipy.integrate.cumtrapz(self[:], self.axis[:], initial=0.0)
 #         return Quantity(data, axis=self.axis)
-
 #     @cached_property
 #     def inv_integral(self):
 #         value = scipy.integrate.cumtrapz(self[::-1], self.axis[::-1], initial=0.0)[::-1]
 #         return Quantity(value, axis=self.axis)
-
-
 # class QuantityExpression(Quantity):
-
 #     def __init__(self,    func,   *args, func_args=None, func_kwargs=None,  **kwargs):
 #         self._func = func
 #         self._args = func_args or []
 #         self._kwargs = func_kwargs or {}
 #         super().__init__(*args, **kwargs)
-
 #     def __str__(self):
 #         return self.__repr__()
-
 #     def __repr__(self):
 #         return f"<{self.__class__.__name__} ufunc={self._func}  >"
-
 #     def __call__(self, x_axis=None):
 #         if x_axis is None:
 #             x_axis = self._coordinates
@@ -350,23 +342,17 @@ class Quantity(np.ndarray):
 #                 args.append(data.view(np.ndarray))
 #             else:
 #                 args.append(data)
-
 #         res = self._func(*args, **self._kwargs)
-
 #         if isinstance(res, np.ndarray) and res.shape != () and (any(np.isnan(res)) or any(np.isinf(res))):
 #             raise ValueError(res)
-
 #         if isinstance(res, np.ndarray) and not isinstance(res, Quantity):
 #             res = res.view(Quantity)
 #             res._coordinates = x_axis
-
 #         return res
-
 #     def __getitem__(self, idx):
 #         args = []
 #         if not hasattr(self, "_args"):
 #             return self.view(np.ndarray)[idx]
-
 #         for arg in self._args:
 #             if not isinstance(arg,  np.ndarray):
 #                 args.append(arg)
@@ -380,48 +366,37 @@ class Quantity(np.ndarray):
 #                     args.append(data.view(np.ndarray))
 #                 else:
 #                     args.append(data)
-
 #         return self._func(*args, **self._kwargs)
-
 #     def __setitem__(self, idx, value):
 #         if self.shape != self._coordinates.shape:
 #             self.evaluate()
 #         self.view(np.ndarray)[idx] = value
-
 #     def evaluate(self):
 #         if self.shape != self._coordinates.shape:
 #             self.resize(self._coordinates.size, refcheck=False)
 #             self.reshape(self._coordinates.shape)
 #         np.copyto(self, self[:])
-
 #     @property
 #     def value(self):
 #         return self[:]
-
-
 # class Quantitys():
 #     """ Collection of Quantitys with same x-axis
 #     """
-
 #     def __init__(self, cache=None, *args,  axis=None,  parent=None, **kwargs):
 #         super().__init__(**kwargs)
 #         if isinstance(cache, LazyProxy) :
 #             self.__dict__["_cache"] = cache
 #         else:
 #             self.__dict__["_cache"] = (cache)
-
 #         if isinstance(axis, str):
 #             axis = self._cache[axis]
-
 #         self.__dict__["_axis"] = axis
-
 #     def _create(self, d=None, name=None, **kwargs):
 #         if isinstance(d, Quantity) and not hasattr(d, "_axis"):
 #             d._coordinates = self._coordinates
 #         else:
 #             d = Quantity(d, axis=self._coordinates, description={"name": name, **kwargs})
 #         return d
-
 #     def __missing__(self, key):
 #         d = self._cache[key]
 #         if isinstance(d, LazyProxy):
@@ -430,7 +405,6 @@ class Quantity(np.ndarray):
 #             return None
 #         else:
 #             return self.__as_object__().setdefault(key, self._create(d, name=key))
-
 #     def __normalize__(self, value, name=None):
 #         if isinstance(value, Quantity):
 #             res = value(self._coordinates)
@@ -443,17 +417,14 @@ class Quantity(np.ndarray):
 #         else:
 #             res = value
 #         return res
-
 #     # def __setitem__(self, key, value):
 #     #     super().__setitem__(key, self.__normalize__(value, key))
-
 #     @lru_cache
 #     def cache(self, key):
 #         res = self._cache[key.split(".")]
 #         if isinstance(res, LazyProxy):
 #             res = res()
 #         return res
-
 #     def _fetch_Quantity(self, desc, prefix=[]):
 #         if isinstance(desc, str):
 #             path = desc
@@ -466,45 +437,34 @@ class Quantity(np.ndarray):
 #
 #         else:
 #             raise TypeError(f"Illegal Quantity type! {desc}")
-
 #         if isinstance(opts, str):
 #             opts = {"label": opts}
-
 #         if prefix is None:
 #             prefix = []
 #         elif isinstance(prefix, str):
 #             prefix = prefix.split(".")
-
 #         if isinstance(path, str):
 #             path = path.split(".")
-
 #         path = prefix+path
-
 #         if isinstance(path, np.ndarray):
 #             data = path
 #         else:
 #             data = self[path]
-
 #         # else:
 #         #     raise TypeError(f"Illegal data type! {prefix} {type(data)}")
-
 #         return data, opts
-
 #     def plot(self, Quantitys, fig_axis=None, axis=None,  prefix=None):
 #         if isinstance(Quantitys, str):
 #             Quantitys = Quantitys.split(",")
 #         elif not isinstance(Quantitys, collections.abc.Sequence):
 #             Quantitys = [Quantitys]
-
 #         if prefix is None:
 #             prefix = []
 #         elif isinstance(prefix, str):
 #             prefix = prefix.split(".")
 #         elif not isinstance(prefix, collections.abc.Sequence):
 #             prefix = [prefix]
-
 #         axis, axis_opts = self._fetch_Quantity(axis, prefix=prefix)
-
 #         fig = None
 #         if isinstance(fig_axis, collections.abc.Sequence):
 #             pass
@@ -514,31 +474,23 @@ class Quantity(np.ndarray):
 #             fig_axis = [fig_axis]
 #         else:
 #             raise RuntimeError(f"Too much Quantitys!")
-
 #         for idx, data in enumerate(Quantitys):
 #             ylabel = None
 #             opts = {}
 #             if isinstance(data, tuple):
 #                 data, ylabel = data
-
 #             if not isinstance(data, list):
 #                 data = [data]
-
 #             for d in data:
 #                 value, opts = self._fetch_Quantity(d,  prefix=prefix)
-
 #                 if value is not NotImplemented and value is not None and len(value) > 0:
 #                     fig_axis[idx].plot(axis, value, **opts)
 #                 else:
 #                     logger.error(f"Can not find Quantity '{d}'")
-
 #             fig_axis[idx].legend(fontsize=6)
-
 #             if ylabel:
 #                 fig_axis[idx].set_ylabel(ylabel, fontsize=6).set_rotation(0)
 #             fig_axis[idx].labelsize = "media"
 #             fig_axis[idx].tick_params(labelsize=6)
-
 #         fig_axis[-1].set_xlabel(axis_opts.get("label", ""),  fontsize=6)
-
 #         return fig_axis, fig

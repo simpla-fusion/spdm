@@ -8,10 +8,10 @@ class Unit:
         A `unit` of measurement is a standardised quantity of a physical property, 
         used as a factor to express occurring quantities of that property.
     """
-    
+
     def __init__(self, unit, *args, **kwargs) -> None:
         if isinstance(unit, str):
-            self._unit = getattr(units, unit, None) or units.Quantity(unit)
+            self._unit = getattr(units, unit, None) or 1
         else:
             self._unit = unit
 
@@ -24,7 +24,7 @@ class Unit:
 
     @staticmethod
     def calculate(ufunc, method,  *args, **kwargs):
-        return Unit(ufunc(*[getattr(u, "_unit", 1) for u in args]))
+        return Unit(ufunc(*[getattr(u, "unit", 1) for u in args]))
 
     @property
     def dimension(self):

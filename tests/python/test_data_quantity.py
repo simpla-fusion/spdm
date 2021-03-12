@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 from spdm.data.Node import Node, _next_
 from spdm.data.Quantity import Quantity
+from spdm.data.Coordinates import Coordinates
 from spdm.util.logger import logger
 from spdm.data.Unit import Unit
 import pprint
@@ -14,12 +15,13 @@ dobj = Quantity
 class TestQuantity(unittest.TestCase):
 
     def test_create(self):
-        s = dobj(np.ones((3, 3)), dtype=int, unit="s")
-        d0 = dobj(np.ones((3, 3)), dtype=int, unit="m")
-        d1 = dobj(np.ones((3, 3)), dtype=int, unit="kg")
-        d2 = dobj(np.ones((3, 3)), dtype=int, unit="newton")
+        x0 = Quantity(np.linspace(1, 1.0, 10), unit="m")
+        s0 = dobj(dtype=float, coordinates=x0, unit="s")
+        d0 = dobj(dtype=float, coordinates=x0, unit="m")
+        d1 = dobj(dtype=float, coordinates=x0, unit="kg")
+        d2 = dobj(dtype=float, coordinates=x0, unit="newton")
 
-        res = (2*d0)*d1/(s**(2)) + d2*2
+        res = (2*d0)*d1/(s0**(2)) + d2*2
 
         # logger.debug(d0.unit)
         # logger.debug(d1.unit)
@@ -27,6 +29,7 @@ class TestQuantity(unittest.TestCase):
         # logger.debug(res.unit)
         logger.debug(res)
         logger.debug(res.unit)
+        logger.debug(res.coordinates)
         logger.debug(type(res))
 
     # def test_quantity_group(self):
