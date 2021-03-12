@@ -135,7 +135,7 @@ class Quantity(np.ndarray):
 
     @cached_property
     def as_function(self):
-        axis = self._axis.view(np.ndarray)
+        axis = self._coordinates.view(np.ndarray)
         data = self.value
         try:
             res = interp1d(axis, data, kind=self.attributes.interpolator or 'linear')
@@ -146,10 +146,10 @@ class Quantity(np.ndarray):
 
     def copy(self, other):
         if isinstance(other, Quantity):
-            if self._axis is other._axis:
+            if self._coordinates is other._coordinates:
                 np.copyto(self, other.value)
             else:
-                np.copyto(self, other(self._axis))
+                np.copyto(self, other(self._coordinates))
         elif not isinstance(other, np.ndarray):
             self.fill(other)
         elif self.shape == other.shape:
@@ -158,12 +158,12 @@ class Quantity(np.ndarray):
             raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
 
     def __call__(self, x_axis=None, *args, **kwargs):
-        if x_axis is self._axis or x_axis is None:
+        if x_axis is self._coordinates or x_axis is None:
             return self
         res = self.as_function(x_axis)
         if isinstance(res, Quantity):
             if not hasattr(res, "_axis"):
-                res._axis = x_axis
+                res._coordinates = x_axis
         elif isinstance(res, np.ndarray):
             if len(res.shape) == 0:
                 res = res.item()
@@ -171,41 +171,41 @@ class Quantity(np.ndarray):
                 res = res[0]
             else:
                 res = res.view(Quantity)
-                res._axis = x_axis
+                res._coordinates = x_axis
                 res._attributes = self.attributes
 
         return res
 
         # def derivative_n(self, n, *args, **kwargs):
         #     self.evaluate()
-        #     return Quantity(self.as_function.derivative(n=n)(self._axis), axis=self._axis)
+        #     return Quantity(self.as_function.derivative(n=n)(self._coordinates), axis=self._coordinates)
         # func = getattr(self, "_ufunc", None)
         # if func is None:
         # elif callable(func) or isinstance(func, types.BuiltinFunctionType):
-        #     v0 = scipy.misc.derivative(func, self._axis[0], dx=self._axis[1]-self._axis[0], n=n, **kwargs)
-        #     vn = scipy.misc.derivative(func, self._axis[-1], dx=self._axis[-1]-self._axis[-2], n=n, **kwargs)
-        #     v = [scipy.misc.derivative(func, x, dx=0.5*(self._axis[i+1]-self._axis[i-1]),
-        #                                n=n, *args, **kwargs) for i, x in enumerate(self._axis[1:-1])]
-        #     return Quantity(np.array([v0]+v+[vn]), axis=self._axis)
+        #     v0 = scipy.misc.derivative(func, self._coordinates[0], dx=self._coordinates[1]-self._coordinates[0], n=n, **kwargs)
+        #     vn = scipy.misc.derivative(func, self._coordinates[-1], dx=self._coordinates[-1]-self._coordinates[-2], n=n, **kwargs)
+        #     v = [scipy.misc.derivative(func, x, dx=0.5*(self._coordinates[i+1]-self._coordinates[i-1]),
+        #                                n=n, *args, **kwargs) for i, x in enumerate(self._coordinates[1:-1])]
+        #     return Quantity(np.array([v0]+v+[vn]), axis=self._coordinates)
 
     @cached_property
     def derivative(self):
-        # value = UnivariateSpline(self._axis, self.value).derivative()(self._axis)
-        # return Quantity(value[:], axis=self._axis)
-        return Quantity(np.gradient(self[:])/np.gradient(self._axis[:]), axis=self._axis)
+        # value = UnivariateSpline(self._coordinates, self.value).derivative()(self._coordinates)
+        # return Quantity(value[:], axis=self._coordinates)
+        return Quantity(np.gradient(self[:])/np.gradient(self._coordinates[:]), axis=self._coordinates)
 
     # @cached_property
     # def dln(self, *args, **kwargs):
     #     r"""
     #         .. math:: d\ln f=\frac{df}{f}
     #     """
-    #     data = np.ndarray(self._axis.shape)
+    #     data = np.ndarray(self._coordinates.shape)
     #     data[1:] = self.derivative.value[1:]/self.value[1:]
     #     data[0] = 2*data[1]-data[2]
     #     if any(np.isnan(data)) or any(self.value == 0):
     #         logger.error(self.value)
     #         raise ValueError(data)
-    #     return Quantity(data, axis=self._axis)
+    #     return Quantity(data, axis=self._coordinates)
 
     @cached_property
     def integral(self):
@@ -229,9 +229,9 @@ class Quantity(np.ndarray):
         # return res
         # self.evaluate()
         # if start is None:
-        #     start = self._axis
+        #     start = self._coordinates
         # if stop is None:
-        #     stop = self._axis
+        #     stop = self._coordinates
         # func = getattr(self, "_ufunc", None) or self.as_function
         # if func is None:
         #     spl = self.as_function
@@ -273,29 +273,29 @@ class Quantity(np.ndarray):
 
 #     def __call__(self, x=None):
 #         if x is None:
-#             x = self._axis
+#             x = self._coordinates
 #         if x is None:
 #             raise ValueError(f" x is None !")
 
 #         res = self._ufunc(x)
 #         if isinstance(res, np.ndarray) and not isinstance(res, Quantity):
 #             res = res.view(Quantity)
-#             res._axis = x
+#             res._coordinates = x
 #         return res
 
 #     def __getitem__(self, idx):
-#         return self._ufunc(self._axis[idx])
+#         return self._ufunc(self._coordinates[idx])
 
 #     @property
 #     def value(self):
 #         if self.shape == ():
 #             try:
-#                 self.resize(self._axis.size, refcheck=True)
-#                 self.reshape(self._axis.shape)
+#                 self.resize(self._coordinates.size, refcheck=True)
+#                 self.reshape(self._coordinates.shape)
 #             except Exception:
-#                 res = self._ufunc(self._axis)
+#                 res = self._ufunc(self._coordinates)
 #             else:
-#                 np.copyto(self, self._ufunc(self._axis))
+#                 np.copyto(self, self._ufunc(self._coordinates))
 #                 res = self.view(np.ndarray)
 #         else:
 #             res = self.view(np.ndarray)
@@ -303,14 +303,14 @@ class Quantity(np.ndarray):
 
 #     @cached_property
 #     def derivative(self):
-#         return Quantity(np.gradient(self.value)/np.gradient(self._axis), axis=self._axis)
+#         return Quantity(np.gradient(self.value)/np.gradient(self._coordinates), axis=self._coordinates)
 
 #     @cached_property
 #     def dln(self, *args, **kwargs):
 #         r"""
 #             .. math:: d\ln f=\frac{df}{f}
 #         """
-#         return Quantity(self.derivative.value/self.value, axis=self._axis)
+#         return Quantity(self.derivative.value/self.value, axis=self._coordinates)
 
 #     @cached_property
 #     def integral(self):
@@ -339,7 +339,7 @@ class Quantity(np.ndarray):
 
 #     def __call__(self, x_axis=None):
 #         if x_axis is None:
-#             x_axis = self._axis
+#             x_axis = self._coordinates
 #         args = []
 #         for arg in self._args:
 #             if isinstance(arg,  Quantity):
@@ -358,7 +358,7 @@ class Quantity(np.ndarray):
 
 #         if isinstance(res, np.ndarray) and not isinstance(res, Quantity):
 #             res = res.view(Quantity)
-#             res._axis = x_axis
+#             res._coordinates = x_axis
 
 #         return res
 
@@ -375,7 +375,7 @@ class Quantity(np.ndarray):
 #             elif arg.axis is self.axis:
 #                 args.append(arg[idx])
 #             else:
-#                 data = arg(self._axis[idx])
+#                 data = arg(self._coordinates[idx])
 #                 if isinstance(data, np.ndarray):
 #                     args.append(data.view(np.ndarray))
 #                 else:
@@ -384,14 +384,14 @@ class Quantity(np.ndarray):
 #         return self._func(*args, **self._kwargs)
 
 #     def __setitem__(self, idx, value):
-#         if self.shape != self._axis.shape:
+#         if self.shape != self._coordinates.shape:
 #             self.evaluate()
 #         self.view(np.ndarray)[idx] = value
 
 #     def evaluate(self):
-#         if self.shape != self._axis.shape:
-#             self.resize(self._axis.size, refcheck=False)
-#             self.reshape(self._axis.shape)
+#         if self.shape != self._coordinates.shape:
+#             self.resize(self._coordinates.size, refcheck=False)
+#             self.reshape(self._coordinates.shape)
 #         np.copyto(self, self[:])
 
 #     @property
@@ -417,9 +417,9 @@ class Quantity(np.ndarray):
 
 #     def _create(self, d=None, name=None, **kwargs):
 #         if isinstance(d, Quantity) and not hasattr(d, "_axis"):
-#             d._axis = self._axis
+#             d._coordinates = self._coordinates
 #         else:
-#             d = Quantity(d, axis=self._axis, description={"name": name, **kwargs})
+#             d = Quantity(d, axis=self._coordinates, description={"name": name, **kwargs})
 #         return d
 
 #     def __missing__(self, key):
@@ -433,9 +433,9 @@ class Quantity(np.ndarray):
 
 #     def __normalize__(self, value, name=None):
 #         if isinstance(value, Quantity):
-#             res = value(self._axis)
+#             res = value(self._coordinates)
 #         elif isinstance(value, np.ndarray) or callable(value):
-#             res = Quantity(value, axis=self._axis,  description={"name": name})
+#             res = Quantity(value, axis=self._coordinates,  description={"name": name})
 #         elif isinstance(value, collections.abc.Mapping):
 #             res = {k: self.__normalize__(v, k) for k, v in value.items()}
 #         elif isinstance(value, list):
