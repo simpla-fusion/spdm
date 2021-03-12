@@ -22,13 +22,13 @@ class MDSplusEntry(Entry):
         super().__init__(*args, **kwargs)
 
     def get(self,  *args, **kwargs):
-        return self._data.fetch(*args, **kwargs)
+        return self._parent.fetch(*args, **kwargs)
 
     def put(self,  path, value, *args, **kwargs):
-        return self._data.update({path: value}, *args, **kwargs)
+        return self._parent.update({path: value}, *args, **kwargs)
 
     def iter(self,  path, *args, **kwargs):
-        return self._data.iter(path, *args, **kwargs)
+        return self._parent.iter(path, *args, **kwargs)
 
 
 def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
@@ -71,7 +71,7 @@ class MDSplusDocument(Document):
 
     @property
     def entry(self):
-        return MDSplusEntry(self)
+        return MDSplusEntry(parent=self)
 
     def fetch(self, request, *args,   **kwargs):
         tree_name = self._tree_name

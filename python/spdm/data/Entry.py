@@ -204,7 +204,7 @@ class Entry(object):
         yield from self.get(path, *args, **kwargs)
 
     def __iter__(self):
-        yield from self.get()
+        yield from self.get([])
 
     def __pre_process__(self, request, *args, **kwargs):
         return request
