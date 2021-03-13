@@ -25,6 +25,8 @@ class Coordinates:
             self._data = coord
 
     def __repr__(self) -> str:
+        if not self._data:
+            return "None"
         msg = ""
         if isinstance(self._data, collections.abc.Mapping):
             for k, d in self._data.items():
@@ -36,10 +38,7 @@ class Coordinates:
             name = ""
         else:
             name = f" name=\"{self._name}\""
-        return f"""<{self.__class__.__name__}{name}>
-        {msg}
-        </{self.__class__.__name__}>
-        """
+        return f"""<{self.__class__.__name__}{name}>{msg} </{self.__class__.__name__}> """
 
     @property
     def name(self):

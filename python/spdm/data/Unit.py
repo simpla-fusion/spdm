@@ -9,11 +9,8 @@ class Unit:
         used as a factor to express occurring quantities of that property.
     """
 
-    def __init__(self, unit, *args, **kwargs) -> None:
-        if isinstance(unit, str):
-            self._unit = getattr(units, unit, None) or 1
-        else:
-            self._unit = unit
+    def __init__(self, unit=None, *args, **kwargs) -> None:
+        self._unit = unit
 
     def serialize(self):
         return {}
@@ -24,7 +21,7 @@ class Unit:
 
     @staticmethod
     def calculate(ufunc, method,  *args, **kwargs):
-        return Unit(ufunc(*[getattr(u, "unit", 1) for u in args]))
+        return Unit(NotImplemented)
 
     @property
     def dimension(self):

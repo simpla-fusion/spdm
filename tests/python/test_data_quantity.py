@@ -21,7 +21,8 @@ class TestQuantity(unittest.TestCase):
         d1 = dobj(dtype=float, coordinates=x0, unit="kg")
         d2 = dobj(dtype=float, coordinates=x0, unit="newton")
 
-        res = (2*d0)*d1/(s0**(2)) + d2*2
+        res = d0*d1
+        # res = (d1-d1)*d1/(s0**(2)) + d2*2
 
         # logger.debug(d0.unit)
         # logger.debug(d1.unit)
@@ -32,8 +33,14 @@ class TestQuantity(unittest.TestCase):
         logger.debug(res.coordinates)
         logger.debug(type(res))
 
-    # def test_quantity_group(self):
+    def test_quantity_with_coordinates(self):
 
+        x0 = Quantity(np.linspace(1, 1.0, 10), unit="m")
+        y0 = x0*2  # np.sin(x0)
+
+        logger.debug(x0)
+        logger.debug((y0.unit))
+        logger.debug((y0.coordinates))
     #     g = dobj()
 
     #     g.a.b = 5

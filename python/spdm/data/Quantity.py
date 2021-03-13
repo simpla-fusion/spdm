@@ -1,5 +1,5 @@
 import collections
-from external.SpDB.python.spdm.data.Annotation import Annotation
+import pprint
 from functools import cached_property
 
 import numpy as np
@@ -8,9 +8,9 @@ import scipy.integrate
 from scipy.interpolate import RectBivariateSpline, UnivariateSpline, interp1d
 
 from ..util.logger import logger
+from .Annotation import Annotation
 from .Coordinates import Coordinates
 from .Unit import Unit
-from .Annotation import Annotation
 
 
 class Quantity(np.ndarray):
@@ -63,11 +63,9 @@ class Quantity(np.ndarray):
             self._coordinates = Coordinates(*args, coordinates=coordinates, **kwargs)
 
     def __str__(self):
-        tag = getattr(self.annotation, '_name',  None) or self.__class__.__name__
-        return f"""<{tag} unit=\"{self._unit}\" coordinates=\"{self.coordinates.name}\">
-            {self.view(np.ndarray).__repr__()}
-        </{tag}>
-        """
+        return pprint.pformat(self.view(np.ndarray))
+        # tag = getattr(self.annotation, '_name',  None) or self.__class__.__name__
+        # return f"""<{tag} unit=\"{self._unit}\" coordinates=\"{self.coordinates.name}\"> {self.view(np.ndarray).__repr__()} </{tag}> """
 
     def put(self, value):
         return self.copy(np.asarray(value))
@@ -106,7 +104,7 @@ class Quantity(np.ndarray):
         elif not not out:
             raise NotImplementedError
 
-        unit = Unit.calculate(ufunc, method, *[getattr(a, 'unit', 1) for a in inputs])
+        unit = Unit.calculate(ufunc, method, *[getattr(a, 'unit', None) for a in inputs])
 
         # FIXME (salmon 20210302): dimensional analysis
 
