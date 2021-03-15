@@ -11,12 +11,12 @@ import scipy.interpolate
 class Mesh(SpObject):
 
     @staticmethod
-    def __new__(cls, *args, mesh_type=None, **kwargs):
+    def __new__(cls, *args, grid_type=None, grid_index=0, **kwargs):
         if cls != Mesh:
             return super(Mesh, SpObject).__new__(None, *args, type=mesh_type, **kwargs)
 
         n_cls = None
-        if mesh_type is None or mesh_type == "rectangle":
+        if grid_type is None or grid_type == "rectangle" or grid_index == 0:
             n_cls = RectangleMesh
         else:
             raise NotImplementedError()
@@ -72,8 +72,14 @@ class RectangleMesh(Mesh):
     def bbox(self):
         return [[d[0], d[-1]] for d in self._axis]
 
+    @cached_property
+    def mesh(self):
+        return np.meshgrid(*self._axis, indexing="ij")
+
+    def point(self, *idx):
+        return [m[tuple(idx)] for m in self.mesh]
+
     def interpolator(self, value,  **kwargs):
-        logger.debug((value.shape, self.shape))
         assert(value.shape == self.shape)
         if self.ndims == 1:
             interp = scipy.interpolate.InterpolatedUnivariateSpline(self._axis[0], value,  **kwargs)
@@ -83,4 +89,3 @@ class RectangleMesh(Mesh):
             raise NotImplementedError(f"NDIMS {self.ndims}>2")
 
         return interp
-

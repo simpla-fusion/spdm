@@ -16,7 +16,6 @@ class Field(Quantity):
 
     @staticmethod
     def __new__(cls,  value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
-
         if not isinstance(coordinates, Coordinates):
             coordinates = Coordinates(coordinates, *args,   **kwargs)
 
@@ -33,6 +32,9 @@ class Field(Quantity):
 
     def __init__(self,   *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} unit='{ self._unit}' coordinates='{self._coordinates.__name__}'>"
 
     def serialize(self):
         return {
@@ -93,7 +95,7 @@ class Field(Quantity):
     def interpolator(self):
         return self._coordinates.mesh.interpolator(self.view(np.ndarray))
 
-    def __call__(self,   *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         if len(args) == 0:
             args = self._coordinates.mesh.axis
 
@@ -108,7 +110,7 @@ class Field(Quantity):
         if self.ndim == 1:
             return self.interpolator.derivative(1, **kwargs)(self._coordinates.mesh.axis[0])
         else:
-            return self.interpolator(*args, dx=dx or 1, dy=dy or 0, **kwargs)
+            return self(*args, dx=dx or 0, dy=dy or 0, **kwargs)
 
     @cached_property
     def dln(self, *args, **kwargs):

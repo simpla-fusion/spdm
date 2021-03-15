@@ -1,5 +1,3 @@
-import collections
-import pprint
 import unittest
 
 import matplotlib.pyplot as plt
