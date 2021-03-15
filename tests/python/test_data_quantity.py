@@ -16,32 +16,39 @@ class TestQuantity(unittest.TestCase):
 
     def test_create(self):
         x0 = Quantity(np.linspace(1, 1.0, 10), unit="m")
-        s0 = dobj(dtype=float, coordinates=x0, unit="s")
-        d0 = dobj(dtype=float, coordinates=x0, unit="m")
-        d1 = dobj(dtype=float, coordinates=x0, unit="kg")
-        d2 = dobj(dtype=float, coordinates=x0, unit="newton")
+        s0 = dobj(1.0, dtype=float, coordinates=x0, unit="s")
+        d0 = dobj(1, dtype=float, coordinates=x0, unit="m")
+        d1 = dobj(2, dtype=float, coordinates=x0, unit="kg")
+        d2 = dobj(3.0, dtype=float, coordinates=x0, unit="newton")
 
-        res = d0*d1
+        res = d0*d1/(s0**2)-d2*2
         # res = (d1-d1)*d1/(s0**(2)) + d2*2
 
         # logger.debug(d0.unit)
         # logger.debug(d1.unit)
         # logger.debug(res[:, 1].unit.is_dimensionless)
         # logger.debug(res.unit)
-        logger.debug(res)
+        logger.debug((res))
         logger.debug(res.unit)
-        logger.debug(res.coordinates)
         logger.debug(type(res))
 
     def test_quantity_with_coordinates(self):
+        NX = 128
+        NY = 128
 
-        x0 = Quantity(np.linspace(1, 1.0, 10), unit="m")
-        y0 = x0*2  # np.sin(x0)
+        dim0 = np.linspace(0, 1, NX)
+        dim1 = np.linspace(0, 1, NY)
 
-        logger.debug(x0)
-        logger.debug((y0.unit))
-        logger.debug((y0.coordinates))
-    #     g = dobj()
+        coord = Coordinates(dim0, dim1, name="x,y", unit="m")
+
+        logger.debug(coord.name)
+        logger.debug(coord.unit)
+        logger.debug(coord.mesh.mesh)
+
+    #     logger.debug(x0)
+    #     logger.debug((y0.unit))
+    #     logger.debug((y0.coordinates))
+    # #     g = dobj()
 
     #     g.a.b = 5
     #     g.d.c.d[_next_] = "hello world!"

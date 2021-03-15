@@ -10,7 +10,10 @@ class Unit:
     """
 
     def __init__(self, unit=None, *args, **kwargs) -> None:
-        self._unit = unit
+        if isinstance(unit, str):
+            self._unit = getattr(units, unit, 1)
+        else:
+            self._unit = unit
 
     def serialize(self):
         return {}
@@ -19,9 +22,14 @@ class Unit:
     def deserialize(cls, d):
         return Unit(d)
 
+    def __repr__(self) -> str:
+        return f"{self._unit}"
+
     @staticmethod
     def calculate(ufunc, method,  *args, **kwargs):
-        return Unit(NotImplemented)
+        # FIXME (salmon 20210302): dimensional analysis
+
+        return ufunc(*[(a._unit if isinstance(a, Unit) else (a or 1)) for a in args])
 
     @property
     def dimension(self):
@@ -40,6 +48,3 @@ class Unit:
     @property
     def is_dimensionless(self):
         return self.dimension == 1
-
-    def __repr__(self) -> str:
-        return f"{self._unit}"

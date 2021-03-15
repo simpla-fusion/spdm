@@ -1,56 +1,38 @@
 import collections
-import pprint
 from functools import cached_property
 
 import numpy as np
 import scipy.constants
 
 from ..util.logger import logger
-from .Annotation import Annotation
 from .Coordinates import Coordinates
-from .Unit import Unit
+from .Quantity import Quantity
 
 
-class Quantity(np.ndarray):
+class Field(Quantity):
     """
-        A `Quantity` is a property that can exist as a multitude or magnitude, which illustrate discontinuity and continuity.
-
-        A `physical quantity` is a property of a material or system that can be quantified by measurement.
-
-        An `intensive property` is a bulk property, meaning that it is a local physical property of a system that does not depend on
-        the system size or the amount of material in the system. Examples of intensive properties include temperature, T; refractive index,
-        n; density, ρ; and hardness of an object, η.
-
-        An `extensive properties` such as the mass, volume and entropy of systems are additive for subsystems because they increase and
-        decrease as they grow larger and smaller, respectively.
-
+        Field
     """
 
     @staticmethod
     def __new__(cls,  value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
 
-        if isinstance(value, np.ndarray):
-            obj = value.view(cls)
-        elif value is not None:
-            obj = np.asarray(value, dtype=dtype, order=order).view(cls)
-        else:
-            obj = np.ndarray(shape, dtype=dtype, order=order).view(cls)
+        if not isinstance(coordinates, Coordinates):
+            coordinates = Coordinates(coordinates, *args,   **kwargs)
 
+        shape = shape or coordinates.mesh.shape
+
+        obj = super().__new__(cls, value, dtype=dtype, order=order, shape=shape)
+        obj._coordinates = coordinates
         return obj
 
-    def __init__(self, value=None, *args,  coordinates=None,  unit=None, annotation=None,  **kwargs):
-        self._unit = Unit(unit)
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self._coordinates = getattr(obj, '_coordinates', None)
 
-        self._annotation = Annotation(annotation or {})
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} unit='{ self._unit}' coordinates='{self._coordinates.__name__}'>"
-
-    def put(self, value):
-        return self.copy(np.asarray(value))
-
-    def get(self):
-        return self.view(np.ndarray)
+    def __init__(self,   *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def serialize(self):
         return {
@@ -73,59 +55,121 @@ class Quantity(np.ndarray):
                             coordinates=d.get("coordinates", None),
                             annotation=d.get("annotation", None))
 
-    @property
-    def annotation(self):
-        return self._annotation
-
-    @property
-    def unit(self):
-        return self._unit
-
     def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
 
-        if method != "__call__":
-            raise NotImplementedError((ufunc, method))
-        elif not not out:
-            raise NotImplementedError
+        res = super(Field, self).__array_ufunc__(ufunc, method, * inputs, out=out, **kwargs)
 
-   
-        res = super(Quantity, self).__array_ufunc__(ufunc, method, *
-                                                    [(in_.view(np.ndarray) if isinstance(in_, np.ndarray) else in_) for in_ in inputs], **kwargs)
+        try:
+            coordinates = next((n.coordinates for n in inputs if isinstance(n, Quantity)), 'All are Nones')
+        except Exception:
+            coordinates = None
+        # FIXME (salmon 20210302): handle coordinates
+        # FIXME (salmon 20210302): handle uncertainty
+        res._coordinates = coordinates
 
-        res = Quantity(res)
-        res._unit = Unit.calculate(ufunc, method, *[getattr(a, 'unit', None) for a in inputs])
         return res
 
-    # if isinstance(start, np.ndarray) and isinstance(stop, np.ndarray):
-    #     raise ValueError(f"Illegal arguments! start is {type(start)} ,end is {type(stop)}")
-    # elif isinstance(start, np.ndarray):
-    #     value =self.
+    def __array__(self):
+        return super().__array__()
 
-    #     res = Quantity(np.array([scipy.integrate.quad(func, x, stop)[0] for x in start]), axis=start)
-    # elif isinstance(stop, np.ndarray):
-    #     res = Quantity(np.array([scipy.integrate.quad(func, start, x)[0] for x in stop]), axis=stop)
-    # else:
-    #     res = scipy.integrate.quad(func, start, stop)
-    # return res
-    # self.evaluate()
-    # if start is None:
-    #     start = self._coordinates
-    # if stop is None:
-    #     stop = self._coordinates
-    # func = getattr(self, "_ufunc", None) or self.as_function
-    # if func is None:
-    #     spl = self.as_function
-    #     if isinstance(start, np.ndarray) and isinstance(stop, np.ndarray):
-    #         raise ValueError(f"Illegal arguments! start is {type(start)} ,end is {type(end)}")
-    #     elif isinstance(start, np.ndarray):
-    #         res = Quantity(np.array([spl.integral(x, stop) for x in start]), axis=start)
-    #     elif isinstance(stop, np.ndarray):
-    #         res = Quantity(np.array([spl.integral(start, x) for x in stop]), axis=stop)
-    #     else:
-    #         res = spl.integral(start, stop)
-    # else:
+    @property
+    def coordinates(self):
+        return self._coordinates
+
+    def copy(self, other):
+        if isinstance(other, Quantity):
+            if self._coordinates is other._coordinates:
+                np.copyto(self, other.value)
+            else:
+                np.copyto(self, other(self._coordinates))
+        elif not isinstance(other, np.ndarray):
+            self.fill(other)
+        elif self.shape == other.shape:
+            np.copyto(self, other)
+        else:
+            raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
+
+    @cached_property
+    def interpolator(self):
+        return self._coordinates.mesh.interpolator(self.view(np.ndarray))
+
+    def __call__(self,   *args, **kwargs):
+        if len(args) == 0:
+            args = self._coordinates.mesh.axis
+
+        if all([isinstance(a, np.ndarray) and len(a.shape) == 1 for a in args]) and len(args) > 1:
+            kwargs.setdefault("grid", True)
+        elif len(args) > 1:
+            kwargs.setdefault("grid", False)
+
+        return self.interpolator(*args, **kwargs)
+
+    def derivative(self, *args, dx=None, dy=None, **kwargs):
+        if self.ndim == 1:
+            return self.interpolator.derivative(1, **kwargs)(self._coordinates.mesh.axis[0])
+        else:
+            return self.interpolator(*args, dx=dx or 1, dy=dy or 0, **kwargs)
+
+    @cached_property
+    def dln(self, *args, **kwargs):
+        r"""
+            .. math:: d\ln f=\frac{df}{f}
+        """
+        data = np.ndarray(self._coordinates.shape, dtype=self.dtype)
+        data[1:] = self.diff()[1:]/self[1:]
+        data[0] = 2*data[1]-data[2]
+
+        if any(np.isnan(data)):
+            raise ValueError(data)
+
+        return Quantity(data, coordinates=self._coordinates)
+
+    def integral(self, *args, **kwargs):
+        return Quantity(scipy.integrate.cumtrapz(self.value, self.axis, initial=0.0), axis=self.axis)
+
+    def inv_integral(self, *args, **kwargs):
+        value = scipy.integrate.cumtrapz(self.value[::-1], self.axis[::-1], initial=0.0)[::-1]
+        return Quantity(value, axis=self.axis)
 
 
+# def derivative_n(self, n, *args, **kwargs):
+#     self.evaluate()
+#     return Quantity(self.as_function.derivative(n=n)(self._coordinates), axis=self._coordinates)
+# func = getattr(self, "_ufunc", None)
+# if func is None:
+# elif callable(func) or isinstance(func, types.BuiltinFunctionType):
+#     v0 = scipy.misc.derivative(func, self._coordinates[0], dx=self._coordinates[1]-self._coordinates[0], n=n, **kwargs)
+#     vn = scipy.misc.derivative(func, self._coordinates[-1], dx=self._coordinates[-1]-self._coordinates[-2], n=n, **kwargs)
+#     v = [scipy.misc.derivative(func, x, dx=0.5*(self._coordinates[i+1]-self._coordinates[i-1]),
+#                                n=n, *args, **kwargs) for i, x in enumerate(self._coordinates[1:-1])]
+#     return Quantity(np.array([v0]+v+[vn]), axis=self._coordinates)
+# if isinstance(start, np.ndarray) and isinstance(stop, np.ndarray):
+#     raise ValueError(f"Illegal arguments! start is {type(start)} ,end is {type(stop)}")
+# elif isinstance(start, np.ndarray):
+#     value =self.
+#     res = Quantity(np.array([scipy.integrate.quad(func, x, stop)[0] for x in start]), axis=start)
+# elif isinstance(stop, np.ndarray):
+#     res = Quantity(np.array([scipy.integrate.quad(func, start, x)[0] for x in stop]), axis=stop)
+# else:
+#     res = scipy.integrate.quad(func, start, stop)
+# return res
+# self.evaluate()
+# if start is None:
+#     start = self._coordinates
+# if stop is None:
+#     stop = self._coordinates
+# func = getattr(self, "_ufunc", None) or self.as_function
+# if func is None:
+#     spl = self.as_function
+#     if isinstance(start, np.ndarray) and isinstance(stop, np.ndarray):
+#         raise ValueError(f"Illegal arguments! start is {type(start)} ,end is {type(end)}")
+#     elif isinstance(start, np.ndarray):
+#         res = Quantity(np.array([spl.integral(x, stop) for x in start]), axis=start)
+#     elif isinstance(stop, np.ndarray):
+#         res = Quantity(np.array([spl.integral(start, x) for x in stop]), axis=stop)
+#     else:
+#         res = spl.integral(start, stop)
+# else:
 # class QuantityGroup(Group):
 #     """
 #      A `QuantityGroup` is a set of `Quantity` with same `Coordiantes`.

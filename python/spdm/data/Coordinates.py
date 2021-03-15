@@ -1,48 +1,32 @@
 import collections
 import numpy as np
-
 import pprint
+
+from .Unit import Unit
+from .Mesh import Mesh
 
 
 class Coordinates:
 
-    # @staticmethod
-    # def __new__(cls, *args, **kwargs):
-
-    #     return object.__new__(cls)
-
-    def __init__(self, coord=None, *args, **kwargs) -> None:
-        self._ndmis = 1
-        self._ndims_manifold = 1
-        self._defined_domain = 1
-        self._dataset_shape = []
-        self._mesh = np.ndarray(self._dataset_shape)
-        if isinstance(coord, str):
-            self._name = coord
-            self._data = None
-        else:
-            self._name = "x"
-            self._data = coord
+    def __init__(self, *args, name=None, unit=None,  **kwargs) -> None:
+        self._name = name.split(",") if isinstance(name, str) else name
+        self._unit = [*map(Unit, unit.split(","))] if isinstance(unit, str) else unit
+        self._mesh = Mesh(*args,  **kwargs)
 
     def __repr__(self) -> str:
-        if not self._data:
-            return "None"
-        msg = ""
-        if isinstance(self._data, collections.abc.Mapping):
-            for k, d in self._data.items():
-                msg += f"""\t<{k}> {pprint.pformat(d)} </{k}>\n"""
-        else:
-            msg = pprint.pformat(self._data)
-
-        if not self._name:
-            name = ""
-        else:
-            name = f" name=\"{self._name}\""
-        return f"""<{self.__class__.__name__}{name}>{msg} </{self.__class__.__name__}> """
+        return f"""<{self.__class__.__name__} name=\"{self._name}\" />"""
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def mesh(self):
+        return self._mesh
 
     def serialize(self):
         return {}
@@ -50,7 +34,3 @@ class Coordinates:
     @staticmethod
     def deserialize(cls, d):
         return Coordinates(d)
-
-    @property
-    def dataset_shape(self):
-        return self._dataset_shape
