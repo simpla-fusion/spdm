@@ -78,6 +78,17 @@ class Field(Quantity):
     def coordinates(self):
         return self._coordinates
 
+    def unpack(self):
+        """
+            if ndim == 1 then return x,y
+            elif ndim == 2 then return x,y,z
+            else return *axis,f
+        """
+        if isinstance(self._coordinates, Coordinates):
+            return self._coordinates.mesh.axis+[self.view(np.ndarray)]
+        else:
+            return [self.view(np.ndarray)]
+
     def copy(self, other):
         if isinstance(other, Quantity):
             if self._coordinates is other._coordinates:

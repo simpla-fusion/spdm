@@ -102,29 +102,55 @@ def getattr_r(obj, path: str):
     return o
 
 
-# def try_getitem_r(obj, path):
-#     if path is None or path == '':
-#         return obj, ''
-#     start = 0
-#     path = path.strip(".")
-#     s_len = len(path)
-#     while start >= 0 and start < s_len:
-#         pos = path.find('.', start)
-#         if pos < 0:
-#             pos = s_len
-#         if isinstance(obj, collections.abc.Mapping) and path[start:pos] in obj:
-#             obj = obj.get(path[start: pos])
-#             start = pos+1
-#         else:
-#             break
-#     return obj, path[start:]
+def try_get(holder, path, default_value=None):
+    data = getattr(holder.__class__, path, None)
+
+    if data is None:
+        try:
+            data = holder.__getitem__(path)
+        except KeyError:
+            data = default_value
+    elif isinstance(data, functools.cached_property):
+        data = data.__get__(holder)
+    elif isinstance(data, property):
+        data = getattr(data, "fget")(holder)
+    else:
+        data = default_value
+
+    return data
 
 
-# def getitem_r(obj, path: str):
-#     o, p = try_getitem_r(obj, path)
-#     if p != '':
-#         raise KeyError(f"Can for find path {path}")
-#     return o
+def try_set(holder, path,  value):
+    res = getattr(holder.__class__, path, None)
+    if res is None:
+        holder.__setitem__(path, value)
+    elif isinstance(res, property):
+        getattr(res, "fset")(holder, path, value)
+    else:
+        raise KeyError(f"Can not set attribute {value}!")
+
+    # def try_getitem_r(obj, path):
+    #     if path is None or path == '':
+    #         return obj, ''
+    #     start = 0
+    #     path = path.strip(".")
+    #     s_len = len(path)
+    #     while start >= 0 and start < s_len:
+    #         pos = path.find('.', start)
+    #         if pos < 0:
+    #             pos = s_len
+    #         if isinstance(obj, collections.abc.Mapping) and path[start:pos] in obj:
+    #             obj = obj.get(path[start: pos])
+    #             start = pos+1
+    #         else:
+    #             break
+    #     return obj, path[start:]
+
+    # def getitem_r(obj, path: str):
+    #     o, p = try_getitem_r(obj, path)
+    #     if p != '':
+    #         raise KeyError(f"Can for find path {path}")
+    #     return o
 
 
 def as_file_fun(func=None,  *f_args, **f_kwargs):
@@ -189,9 +215,6 @@ def _try_insert(self, name_hint, node):
     return self.add_node(node, label=self._gusses_name(name_hint or node.__class__.__name__.lower()))
 
 
-
-
-
 def compile_regex_pattern(pattern):
     try:
         res = re.compile(pattern)
@@ -207,4 +230,3 @@ def as_namedtuple(d: dict, name=""):
 
 def first_not_empty(*args):
     return next(x for x in args if len(x) > 0)
-

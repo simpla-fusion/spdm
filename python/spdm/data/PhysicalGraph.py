@@ -4,6 +4,7 @@ import numpy as np
 
 from .Graph import Graph
 from .Quantity import Quantity
+from ..util.utilities import try_get, try_set
 
 
 class PhysicalGraph(Graph):
@@ -31,26 +32,27 @@ class PhysicalGraph(Graph):
         if k.startswith("_"):
             return super().__getattr__(k)
         else:
-            res = getattr(self.__class__, k, None)
-            if res is None:
-                res = self.__getitem__(k)
-            elif isinstance(res, property):
-                res = getattr(res, "fget")(self)
-            elif isinstance(res, functools.cached_property):
-                res = res.__get__(self)
-            return res
+            # res = getattr(self.__class__, k, None)
+            # if res is None:
+            #     res = self.__getitem__(k)
+            # elif isinstance(res, property):
+            #     res = getattr(res, "fget")(self)
+            # elif isinstance(res, functools.cached_property):
+            #     res = res.__get__(self)
+            return try_get(self, k, None)
 
     def __setattr__(self, k, v):
         if k.startswith("_"):
             super().__setattr__(k, v)
         else:
-            res = getattr(self.__class__, k, None)
-            if res is None:
-                self.__setitem__(k, v)
-            elif isinstance(res, property):
-                res.fset(self, k, v)
-            else:
-                raise AttributeError(f"Can not set attribute {k}!")
+            try_set(self, k, v)
+            # res = getattr(self.__class__, k, None)
+            # if res is None:
+            #     self.__setitem__(k, v)
+            # elif isinstance(res, property):
+            #     res.fset(self, k, v)
+            # else:
+            #     raise AttributeError(f"Can not set attribute {k}!")
 
     def __delattr__(self, k):
         if k.startswith("_"):
