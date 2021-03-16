@@ -2,10 +2,7 @@ import functools
 
 import numpy as np
 
-from ..util.LazyProxy import LazyProxy
-from .Coordinates import Coordinates
 from .Graph import Graph
-from .Node import _last_, _next_
 from .Quantity import Quantity
 
 
@@ -15,19 +12,9 @@ class PhysicalGraph(Graph):
 
     """
 
-    def __init__(self, *args, coordinates=None, **kwargs) -> None:
-        if coordinates is not None:
-            coordinates = coordinates if isinstance(coordinates, Coordinates) else Coordinates(coordinates)
-
-        if coordinates is not None:
-            self._coordinates = coordinates
-
-        super().__init__(*args, coordinates=coordinates, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._changed = True
-
-    @property
-    def coordinates(self):
-        return getattr(self, "_coordinates", None) or getattr(self._value, "coordinates", None) or getattr(self._parent, "coordinates", None)
 
     @property
     def __changed__(self):
@@ -78,7 +65,6 @@ class PhysicalGraph(Graph):
                 raise AttributeError(f"Can not delete attribute {k}!")
 
     def __pre_process__(self, value, *args, coordinates=None, **kwargs):
-        # if not isinstance(value, (Quantity, collections.abc.Mapping, collections.abc.Sequence)) or isinstance(value, str):
         if isinstance(value, np.ndarray) and not isinstance(value, Quantity):
             value = Quantity(value, *args, coordinates=coordinates or self.coordinates, **kwargs)
         return value

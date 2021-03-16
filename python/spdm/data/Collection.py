@@ -34,25 +34,26 @@ class Collection(SpObject):
     }
 
     @staticmethod
-    def __new__(cls, _metadata=None, *args,   **kwargs):
+    def __new__(cls, _metadata=None, *args, schema=None,  **kwargs):
         if cls is not Collection:
             return object.__new__(cls)
 
-        if isinstance(_metadata, str):
-            schemas = urisplit(_metadata)["schema"]
-        elif isinstance(_metadata, collections.abc.Mapping):
-            schemas = _metadata.get("$class", None) or _metadata.get("schema", None)
-        elif _metadata is None:
-            schemas = ""
+        if not schema:
+            if isinstance(_metadata, str):
+                schemas = urisplit(_metadata)["schema"]
+            elif isinstance(_metadata, collections.abc.Mapping):
+                schemas = _metadata.get("$class", None) or _metadata.get("schema", None)
+            elif _metadata is None:
+                schemas = ""
 
-        schemas = (schemas or "").split('+')
+            schemas = (schemas or "").split('+')
 
-        if not schemas:
-            raise ValueError(_metadata)
-        elif len(schemas) > 1:
-            schema = "mapping"
-        else:
-            schema = schemas[0]
+            if not schemas:
+                raise ValueError(_metadata)
+            elif len(schemas) > 1:
+                schema = "mapping"
+            else:
+                schema = schemas[0]
 
         n_cls = Collection.associations.get(schema.lower(), None)   # f"{__package__}.db.{schema}"
 

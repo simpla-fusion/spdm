@@ -149,8 +149,8 @@ class MappingDocument(Document):
 
 class MappingCollection(Collection):
 
-    def __init__(self,  metadata=None, *args, source=None, mapping=None, id_hasher=None, ** kwargs):
-        super().__init__(metadata, *args, schema="mapping", **kwargs)
+    def __init__(self,  metadata=None, *args, source=None, mapping=None, id_hasher=None, schema=None, ** kwargs):
+        super().__init__(metadata, *args, schema=schema or "mapping", **kwargs)
 
         id_hasher = id_hasher or "{shot}"
 
