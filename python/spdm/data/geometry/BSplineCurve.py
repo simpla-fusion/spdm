@@ -44,6 +44,7 @@ class BSplineCurve(Curve):
         return np.linalg.norm(self.derivative(u, *args, **kwargs), axis=0)
 
     def integrate(self, func, p0=None, p1=None):
+        # logger.debug([func(*self._spl(u)) for u in np.linspace(p0 or 0.0, p1 or 1.0, 10)])
         return quad(lambda u: func(*self._spl(u))*self.dl(u), p0 or 0.0, p1 or 1.0, limit=128)
 
         # return self._spl.integrate(p0 or 0.0, p1 or 1.0, extrapolate='periodic' if self.is_closed else False)
