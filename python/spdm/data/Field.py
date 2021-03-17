@@ -108,9 +108,9 @@ class Field(Quantity):
 
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
-            args = self._coordinates.mesh.axis
+            args = self._coordinates.mesh.points
 
-        if all([isinstance(a, np.ndarray) and len(a.shape) == 1 for a in args]) and len(args) > 1:
+        if all([(isinstance(a, np.ndarray) and len(a.shape) == 1) for a in args]) and len(args) > 1:
             kwargs.setdefault("grid", True)
         elif len(args) > 1:
             kwargs.setdefault("grid", False)

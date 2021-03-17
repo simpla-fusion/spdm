@@ -53,6 +53,8 @@ class RectilinearMesh(StructedMesh):
             return self._dims[0]
         elif self.ndims == 2:
             return np.meshgrid(*self._dims, indexing="ij")
+        else:
+            raise NotImplementedError()
 
     def point(self, *idx):
         return [p[tuple(idx)] for p in self.points]
@@ -62,7 +64,7 @@ class RectilinearMesh(StructedMesh):
         if self.ndims == 1:
             interp = scipy.interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
         elif self.ndims == 2:
-            interp = scipy.interpolate.RectBivariateSpline(self.points[0], self.points[1], value, ** kwargs)
+            interp = scipy.interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
         else:
             raise NotImplementedError(f"NDIMS {self.ndims}>2")
 
