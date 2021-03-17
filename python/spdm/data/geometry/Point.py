@@ -18,3 +18,6 @@ class Point:
 
     def integrate(self, *args, **kwargs):
         return 0.0
+
+    def apply(self, func, *args, **kwargs):
+        return func(*self._x)

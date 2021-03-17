@@ -85,7 +85,7 @@ class Field(Quantity):
             else return *axis,f
         """
         if isinstance(self._coordinates, Coordinates):
-            return self._coordinates.mesh.axis+[self.view(np.ndarray)]
+            return self._coordinates.mesh.points+[self.view(np.ndarray)]
         else:
             return [self.view(np.ndarray)]
 
