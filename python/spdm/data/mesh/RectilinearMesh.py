@@ -1,0 +1,75 @@
+from functools import cached_property, lru_cache
+
+import numpy as np
+import scipy.interpolate
+
+from ...util.logger import logger
+from ..geometry.Curve import Line
+from ..geometry.Point import Point
+from .StructedMesh import StructedMesh
+
+
+class RectilinearMesh(StructedMesh):
+    """
+        A `rectilinear grid` is a tessellation by rectangles or rectangular cuboids (also known as rectangular parallelepipeds)
+        that are not, in general, all congruent to each other. The cells may still be indexed by integers as above, but the
+        mapping from indexes to vertex coordinates is less uniform than in a regular grid. An example of a rectilinear grid
+        that is not regular appears on logarithmic scale graph paper.
+            -- [https://en.wikipedia.org/wiki/Regular_grid]
+
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        def normalize_dim(d):
+            if isinstance(d, np.ndarray):
+                return d
+            elif isinstance(d, int):
+                return np.linspace(0, 1, d)
+            else:
+                raise TypeError(type(d))
+
+        self._dims = [normalize_dim(d) for d in args]
+        super().__init__(*args, shape=[len(d) for d in self._dims],  **kwargs)
+
+    @cached_property
+    def bbox(self):
+        return [[d[0], d[-1]] for d in self._dims]
+
+    def axis(self, idx, axis=0):
+        p0 = [d[0] for d in self._dims]
+        p1 = [d[-1] for d in self._dims]
+        p0[axis] = self._dims[axis][idx]
+        p1[axis] = self._dims[axis][idx]
+
+        try:
+            res = Line(p0, p1, is_closed=self.cycle[axis])
+        except ValueError as error:
+            res = Point(*p0)
+        return res
+
+    @cached_property
+    def points(self):
+        if self.ndims == 1:
+            return self._dims[0]
+        elif self.ndims == 2:
+            return np.meshgrid(*self._dims, indexing="ij")
+
+    def point(self, *idx):
+        return [p[tuple(idx)] for p in self.points]
+
+    def interpolator(self, value,  **kwargs):
+        assert(value.shape == self.shape)
+        if self.ndims == 1:
+            interp = scipy.interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+        elif self.ndims == 2:
+            interp = scipy.interpolate.RectBivariateSpline(self.points[0], self.points[1], value, ** kwargs)
+        else:
+            raise NotImplementedError(f"NDIMS {self.ndims}>2")
+
+        return interp
+
+    @cached_property
+    def dl(self):
+        dX = (np.roll(self.points[0], 1, axis=1) - np.roll(self.points[0], -1, axis=1))/2.0
+        dY = (np.roll(self.points[1], 1, axis=1) - np.roll(self.points[1], -1, axis=1))/2.0
+        return dX, dY
