@@ -28,8 +28,7 @@ class Unit:
     @staticmethod
     def calculate(ufunc, method,  *args, **kwargs):
         # FIXME (salmon 20210302): dimensional analysis
-
-        return ufunc(*[(a._unit if isinstance(a, Unit) else (a or 1)) for a in args])
+        return ufunc(*[((a._unit if a._unit is not None else 1) if isinstance(a, Unit) else (a or 1)) for a in args])
 
     @property
     def dimension(self):

@@ -1,37 +1,88 @@
-from matplotlib.pyplot import loglog
-from numpy.lib.function_base import interp, meshgrid
-from ..util.SpObject import SpObject
-from ..util.logger import logger
-import numpy as np
-from functools import cached_property
-import scipy.interpolate
 # import (RectBivariateSpline, SmoothBivariateSpline, UnivariateSpline)
+import collections
+from functools import cached_property
+
+import numpy as np
+import scipy.interpolate
+from numpy.lib.function_base import interp, meshgrid
+
+from ..util.logger import logger
+from ..util.SpObject import SpObject
+from .Unit import Unit
 
 
 class Mesh(SpObject):
 
     @staticmethod
-    def __new__(cls, *args, grid_type=None, grid_index=0, **kwargs):
-        if cls != Mesh:
-            return super(Mesh, SpObject).__new__(None, *args, type=mesh_type, **kwargs)
+    def __new__(cls, *args, mesh_type=None, grid_index=0, **kwargs):
+        if cls is not Mesh:
+            return object.__new__(cls)
 
         n_cls = None
-        if grid_type is None or grid_type == "rectangle" or grid_index == 0:
-            n_cls = RectangleMesh
+        if mesh_type is None or mesh_type == "rectilinear" or grid_index == 0:
+            n_cls = RectilinearMesh
         else:
             raise NotImplementedError()
 
         return object.__new__(n_cls)
 
-    def __init__(self, *args, **kwargs) -> None:
-        self._shape = []
+    def __init__(self, *args, ndims=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
+
+        self._shape = shape or []
+        self._ndims = ndims or len(shape or [])
+
+        name = name or [""] * self._ndims
+        if isinstance(name, str):
+            self._name = name.split(",")
+        elif not isinstance(name, collections.abc.Sequence):
+            self._name = [name]
+
+        unit = unit or [None] * self._ndims
+        if isinstance(unit, str):
+            unit = unit.split(",")
+        elif not isinstance(unit, collections.abc.Sequence):
+            unit = [unit]
+        if len(unit) == 1:
+            unit = unit * self._ndims
+        # self._unit = [*map(Unit(u for u in unit))]
+
+        cycle = cycle or [False] * self._ndims
+        if not isinstance(cycle, collections.abc.Sequence):
+            cycle = [cycle]
+        if len(cycle) == 1:
+            cycle = cycle * self._ndims
+        self._cycle = cycle
 
     @property
-    def axis(self):
-        return NotImplemented
+    def name(self):
+        return self._name
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def cycle(self):
+        return self._cycle
 
     @property
     def ndims(self):
+        return NotImplemented
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def bbox(self):
+        return NotImplemented
+
+    @property
+    def boundary(self):
+        return NotImplemented
+
+    @property
+    def axis(self):
         return NotImplemented
 
     @property
@@ -42,7 +93,16 @@ class Mesh(SpObject):
         return np.ndarray(self._shape, *args, **kwargs)
 
 
-class RectangleMesh(Mesh):
+class RectilinearMesh(Mesh):
+    """
+        A `rectilinear grid` is a tessellation by rectangles or rectangular cuboids (also known as rectangular parallelepipeds)
+        that are not, in general, all congruent to each other. The cells may still be indexed by integers as above, but the 
+        mapping from indexes to vertex coordinates is less uniform than in a regular grid. An example of a rectilinear grid 
+        that is not regular appears on logarithmic scale graph paper.
+            -- [https://en.wikipedia.org/wiki/Regular_grid]
+
+    """
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args,  **kwargs)
 
