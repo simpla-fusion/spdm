@@ -1,4 +1,3 @@
-from itertools import cycle
 
 from scipy.interpolate import splev, splprep, splrep
 
@@ -11,7 +10,6 @@ class BSplineCurve(Curve):
         super().__init__(*args, is_closed=cycle is not None, **kwargs)
         if self.is_closed:
             self._spl, _ = splprep([X, Y], s=0)
-            logger.debug(_)
         else:
             self._spl = splrep(X, Y, s=0)
 

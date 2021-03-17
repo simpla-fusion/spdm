@@ -67,7 +67,7 @@ class Mesh(SpObject):
 
     @property
     def ndims(self):
-        return NotImplemented
+        return len(self.shape)
 
     @property
     def shape(self):

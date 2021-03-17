@@ -1,12 +1,13 @@
-from functools import cached_property
+from functools import cached_property, lru_cache
 
 import numpy as np
 import scipy.interpolate
-from numpy.lib.function_base import interp, meshgrid
 
+from ...util.logger import logger
 from ..geometry.BSplineCurve import BSplineCurve
 from ..Mesh import Mesh
 from ..PhysicalGraph import PhysicalGraph
+from ..Point import Point
 
 
 class StructedMesh2D(Mesh):
@@ -28,8 +29,8 @@ class StructedMesh2D(Mesh):
 class RectilinearMesh(StructedMesh2D):
     """
         A `rectilinear grid` is a tessellation by rectangles or rectangular cuboids (also known as rectangular parallelepipeds)
-        that are not, in general, all congruent to each other. The cells may still be indexed by integers as above, but the 
-        mapping from indexes to vertex coordinates is less uniform than in a regular grid. An example of a rectilinear grid 
+        that are not, in general, all congruent to each other. The cells may still be indexed by integers as above, but the
+        mapping from indexes to vertex coordinates is less uniform than in a regular grid. An example of a rectilinear grid
         that is not regular appears on logarithmic scale graph paper.
             -- [https://en.wikipedia.org/wiki/Regular_grid]
 
@@ -96,25 +97,31 @@ class CurvilinearMesh2D(StructedMesh2D):
         self._xy = X, Y
 
     def axis(self, idx, axis=0):
-        if axis == 0:
-            res = BSplineCurve(self.xy[0][idx, :], self.xy[1][idx, :], cycle=self.cycle[0])
-        else:
-            res = BSplineCurve(self.xy[0][:, idx], self.xy[1][:, idx], cycle=self.cycle[1])
-
+        s = [slice(None, None, None)]*self.ndims
+        s[axis] = idx
+        s = tuple(s)
+        try:
+            res = BSplineCurve(self.xy[0][s], self.xy[1][s], cycle=self.cycle[axis])
+        except ValueError as error:
+            logger.error(f"BSplineCurve Error: {error}")
+            res = Point(self.xy[0][0], self.xy[1][0])
         return res
 
-    @cached_property
+    def remesh(self, *arg, **kwargs):
+        return NotImplemented
+
+    @ cached_property
     def boundary(self):
         return PhysicalGraph({"inner": self.axis[0][0],  "outer": self.axis[0][-1]})
 
-    @cached_property
+    @ cached_property
     def bbox(self):
         return [[np.min(self._xy[0]), np.min(self._xy[1])], [np.max(self._xy[0]), np.max(self._xy[1])]]
 
-    @cached_property
+    @ cached_property
     def dl(self):
         return NotImplemented, NotImplemented
 
-    @cached_property
+    @ cached_property
     def xy(self):
         return self._xy
