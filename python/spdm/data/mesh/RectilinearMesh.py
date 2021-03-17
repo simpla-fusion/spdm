@@ -57,7 +57,7 @@ class RectilinearMesh(StructedMesh):
             raise NotImplementedError()
 
     def point(self, *idx):
-        return [p[tuple(idx)] for p in self.points]
+        return [d[idx[s]] for s, d in enumerate(self._dims)]
 
     def interpolator(self, value,  **kwargs):
         assert(value.shape == self.shape)

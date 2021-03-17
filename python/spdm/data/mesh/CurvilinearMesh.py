@@ -53,3 +53,7 @@ class CurvilinearMesh(StructedMesh):
     @property
     def points(self):
         return self._points
+
+    @property
+    def point(self, *idx):
+        return [p[tuple(idx)] for p in self._points]

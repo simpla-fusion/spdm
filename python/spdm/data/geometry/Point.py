@@ -15,3 +15,6 @@ class Point:
 
     def __call__(self, *args, **kwargs):
         return self._x
+
+    def integrate(self, *args, **kwargs):
+        return 0.0
