@@ -1,9 +1,10 @@
 import collections
-import numpy as np
 import pprint
 
+import numpy as np
+
+from .mesh.Mesh import Mesh
 from .Unit import Unit
-from .Mesh import Mesh
 
 
 class Coordinates:
