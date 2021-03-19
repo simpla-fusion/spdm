@@ -1,13 +1,15 @@
 from ...util.logger import logger
+from .GeoObject import GeoObject
 
 
-class Point:
+class Point(GeoObject):
     def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._x = args
 
     @property
     def topology_rank(self):
-        return 1
+        return 0
 
     @property
     def ndims(self):
@@ -16,8 +18,14 @@ class Point:
     def __call__(self, *args, **kwargs):
         return self._x
 
-    def integrate(self, *args, **kwargs):
-        return 0.0
+    def map(self,  *args, **kwargs):
+        return self._x
 
-    def apply(self, func, *args, **kwargs):
-        return func(*self._x)
+    @property
+    def points(self):
+        return self._x
+
+    def make_one_form(self, *args, **kwargs):
+        return lambda *_args: 0.0
+
+ 

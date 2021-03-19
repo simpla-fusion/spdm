@@ -8,6 +8,8 @@ from ..geometry.Point import Point
 from ..PhysicalGraph import PhysicalGraph
 from .StructedMesh import StructedMesh
 
+TOLERANCE = 1.0e-5
+
 
 class CurvilinearMesh(StructedMesh):
     """
@@ -32,15 +34,18 @@ class CurvilinearMesh(StructedMesh):
         s[axis] = idx
         s = tuple(s)
         try:
-            res = BSplineCurve(*[p[s] for p in self.points],  is_closed=self.cycle[axis])
+            xy = [p[s] for p in self.points]
+            if np.all([np.var(x)/np.mean(x**2) < TOLERANCE for x in xy]):
+                res = Point(xy[0][0], xy[1][0])
+            else:
+                res = BSplineCurve(*xy,  is_closed=self.cycle[axis])
         except ValueError as error:
-            logger.warning(f"Failed to create BSplineCurve: {error}")
-            res = Point(*[p[0] for p in self.points])
+            raise RuntimeError(f"Failed to create BSplineCurve: {error}")
         return res
 
     @cached_property
     def boundary(self):
-        return PhysicalGraph({"inner": self.axis[0][0],  "outer": self.axis[0][-1]})
+        return PhysicalGraph({"inner": self.axis(0, 0),  "outer": self.axis(-1, 0)})
 
     @cached_property
     def bbox(self):

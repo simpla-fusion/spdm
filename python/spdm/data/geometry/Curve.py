@@ -1,9 +1,9 @@
 from .Point import Point
 import numpy as np
+from .GeoObject import GeoObject
 
 
-class Curve:
-
+class Curve(GeoObject):
     @staticmethod
     def __new__(cls, *args, type=None, **kwargs):
         if len(args) == 0:
@@ -17,21 +17,17 @@ class Curve:
             # FIXME：　find module
             return object.__new__(Curve)
 
-    def __init__(self, *args, is_closed=False, **kwargs) -> None:
-        self._is_closed = is_closed
+    def __init__(self, *args,  **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     @property
     def topology_rank(self):
         return 1
-
-    @property
-    def is_closed(self):
-        return self._is_closed
 
     def inside(self, *x):
         return False
 
 
 class Line(Curve):
-    def __init__(self, *args, is_closed, **kwargs) -> None:
-        super().__init__(*args, is_closed=is_closed, **kwargs)
+    def __init__(self, *args,   **kwargs) -> None:
+        super().__init__(*args, is_closed=False, **kwargs)

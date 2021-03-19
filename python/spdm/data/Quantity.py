@@ -38,9 +38,8 @@ class Quantity(np.ndarray):
 
         return obj
 
-    def __init__(self, value=None, *args,  coordinates=None,  unit=None, annotation=None,  **kwargs):
+    def __init__(self,  *args, unit=None, annotation=None,  **kwargs):
         self._unit = Unit(unit)
-
         self._annotation = Annotation(annotation or {})
 
     def __repr__(self):
@@ -88,7 +87,6 @@ class Quantity(np.ndarray):
         elif not not out:
             raise NotImplementedError
 
-   
         res = super(Quantity, self).__array_ufunc__(ufunc, method, *
                                                     [(in_.view(np.ndarray) if isinstance(in_, np.ndarray) else in_) for in_ in inputs], **kwargs)
 

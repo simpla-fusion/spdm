@@ -114,8 +114,13 @@ class Field(Quantity):
             kwargs.setdefault("grid", True)
         elif len(args) > 1:
             kwargs.setdefault("grid", False)
-
-        return self.interpolator(*args, **kwargs)
+        try:
+            res = self.interpolator(*args, **kwargs)
+        except Exception as error:
+            logger.debug((args, kwargs))
+            raise error
+        else:
+            return res
 
     def derivative(self, *args, dx=None, dy=None, **kwargs):
         if self.ndim == 1:
