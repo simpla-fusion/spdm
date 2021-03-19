@@ -124,10 +124,6 @@ class SpObject(object):
         return self._parent is None
 
     @property
-    def rank(self):
-        return self._parent.rank+1 if self._parent is not None else 0
-
-    @property
     def kind(self):
         return self.__class__.__name__
 

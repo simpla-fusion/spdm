@@ -127,7 +127,10 @@ class Node:
         def insert(self, value, key=None, *args, **kwargs):
             res = self._data.get(key, None) or self._data.setdefault(
                 key, self._parent.__new_node__(name=key, parent=self))
-            res.__update__(value, *args, **kwargs)
+            if isinstance(res, Node):
+                res.__update__(value, *args, **kwargs)
+            else:
+                self._data[key] = value
             return res
 
     class Sequence:

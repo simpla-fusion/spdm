@@ -24,8 +24,8 @@ class Mesh(SpObject):
 
         return object.__new__(n_cls)
 
-    def __init__(self, *args, ndims=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
-
+    def __init__(self, *args, ndims=None, rank=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
+        self._rank = rank or 1
         self._shape = shape or []
         self._ndims = ndims or len(shape or [])
 
@@ -66,6 +66,10 @@ class Mesh(SpObject):
     @property
     def ndims(self):
         return len(self.shape)
+
+    @property
+    def rank(self):
+        return self._rank
 
     @property
     def shape(self):

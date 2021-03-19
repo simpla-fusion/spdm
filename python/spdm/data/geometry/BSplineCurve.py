@@ -12,13 +12,13 @@ from ..Function import Function
 
 
 class BSplineCurve(Curve):
-    def __init__(self,  *args, is_closed=None, **kwargs) -> None:
-        if len(args) != 2:
-            raise ValueError(f"Illegal input! len(args)={len(args)}")
-        super().__init__(is_closed=is_closed is not None, **kwargs)
+    def __init__(self, u, p, *args, is_closed=None, cycle=None, **kwargs) -> None:
+        # if len(args) != 2:
+        #     raise ValueError(f"Illegal input! len(args)={len(args)}")
+        super().__init__(*args, is_closed=is_closed is not None, cycle=cycle)
 
-        self._u = np.linspace(0, 1.0, len(args[0]))
-        self._spl = make_interp_spline(self._u, np.c_[tuple(args)], **kwargs)
+        self._u = u if u is not None else np.linspace(0, 1.0, len(p[0]))
+        self._spl = make_interp_spline(self._u, np.c_[tuple(p)], **kwargs)
         if self.is_closed:
             self._spl.extrapolate = 'periodic'
 
