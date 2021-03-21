@@ -28,4 +28,6 @@ class Point(GeoObject):
     def make_one_form(self, *args, **kwargs):
         return lambda *_args: 0.0
 
- 
+    @property
+    def dl(self):
+        return 0.0

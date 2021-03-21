@@ -89,7 +89,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
                 sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
             elif isinstance(profile, np.ndarray):
                 if x_axis.shape != profile.shape:
-                    logger.error(f"length of x,y  must be same! [{x_axis.shape},{len(profile.shape)}]")
+                    logger.error(
+                        f"length of x,y  must be same! [{opts.get('label','')} {x_axis.shape},{type(profile)}]")
                 else:
                     sub_plot[idx].plot(x_axis, profile, **opts)
             elif callable(profile):

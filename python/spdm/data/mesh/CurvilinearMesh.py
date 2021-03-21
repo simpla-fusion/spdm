@@ -3,7 +3,8 @@ from functools import cached_property, lru_cache
 import numpy as np
 
 from ...util.logger import logger
-from ..geometry.BSplineCurve import BSplineCurve
+from ..geometry.CubicSplineCurve import CubicSplineCurve
+from ..geometry.BSplineSurface import BSplineSurface
 from ..geometry.Point import Point
 from ..PhysicalGraph import PhysicalGraph
 from .StructedMesh import StructedMesh
@@ -25,7 +26,7 @@ class CurvilinearMesh(StructedMesh):
             raise ValueError(f"illegal shape! uv={shape}  xy={[x.shape  for x in xy]} ")
 
         super().__init__(*args, shape=shape, rank=len(uv), ndims=len(xy), **kwargs)
-        self._xy = xy
+        self._xy = np.stack(xy) 
         self._uv = uv
 
     def axis(self, idx, axis=0):
@@ -55,6 +56,14 @@ class CurvilinearMesh(StructedMesh):
         return self._xy
 
     @property
+    def xy(self):
+        return self._xy
+
+    @property
+    def uv(self):
+        return self._uv
+
+    @property
     def point(self, *idx):
         return [p[tuple(idx)] for p in self._xy]
 
@@ -64,8 +73,10 @@ class CurvilinearMesh(StructedMesh):
             if all([np.var(x)/np.mean(x**2) < CurvilinearMesh.TOLERANCE for x in self._xy]):
                 gobj = Point(*[x[0] for x in self._xy])
             else:
-                gobj = BSplineCurve(self._uv[0], self._xy, cycle=self.cycle[0])
+                gobj = CubicSplineCurve(self._uv[0], self._xy, cycle=self.cycle[0])
         elif self.rank == 2:
-            gobj = BSplineCurve(self._uv, self._xy, cycle=self.cycle)
+            gobj = BSplineSurface(self._uv, self._xy, cycle=self.cycle)
+        else:
+            raise NotImplementedError()
 
         return gobj

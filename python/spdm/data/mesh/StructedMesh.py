@@ -19,10 +19,4 @@ class StructedMesh(Mesh):
 
 
 
-    @cached_property
-    def dl(self):
-        return NotImplemented, NotImplemented
 
-    @cached_property
-    def points(self):
-        return NotImplemented, NotImplemented

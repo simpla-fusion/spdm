@@ -36,8 +36,8 @@ class GeoObject:
     def derivative(self, u, *args, **kwargs):
         return NotImplemented
 
-    def dl(self, u, *args, **kwargs):
-        return NotImplemented
+    # def dl(self, u, *args, **kwargs):
+    #     return NotImplemented
 
     def pullback(self, func, *args, **kwargs):
         r"""
