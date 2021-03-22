@@ -20,6 +20,7 @@ class CurvilinearMesh(StructedMesh):
     TOLERANCE = 1.0e-5
 
     def __init__(self, xy, uv=None,  *args,   ** kwargs) -> None:
+
         super().__init__(*args, shape=xy[0].shape, rank=len(xy[0].shape), ndims=len(xy), **kwargs)
 
         if not all(x.shape == self.shape for x in xy):
@@ -29,10 +30,10 @@ class CurvilinearMesh(StructedMesh):
 
         for axis in range(self.rank):
             u = uv[axis]
-
             if isinstance(u, np.ndarray):
                 assert(len(u) == self.shape[axis])
                 continue
+
             if len(u) == 2:
                 u = np.linspace(*u,  self.shape[axis])
             elif u is None:
@@ -42,7 +43,7 @@ class CurvilinearMesh(StructedMesh):
 
             uv[axis] = u
 
-        self._xy = np.stack(xy) 
+        self._xy = np.stack(xy)
         self._uv = uv
 
     def axis(self, idx, axis=0):

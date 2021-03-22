@@ -25,9 +25,9 @@ class Mesh(SpObject):
         return object.__new__(n_cls)
 
     def __init__(self, *args, ndims=None, rank=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
-        self._rank = rank or 1
+        self._rank = rank or len(shape or [])
         self._shape = shape or []
-        self._ndims = ndims or len(shape or [])
+        self._ndims = ndims or self._rank
 
         name = name or [""] * self._ndims
         if isinstance(name, str):
@@ -51,6 +51,8 @@ class Mesh(SpObject):
             cycle = cycle * self._ndims
         self._cycle = cycle
 
+        # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
+
     @property
     def name(self):
         return self._name
@@ -65,7 +67,7 @@ class Mesh(SpObject):
 
     @property
     def ndims(self):
-        return len(self.shape)
+        return self._ndims
 
     @property
     def rank(self):

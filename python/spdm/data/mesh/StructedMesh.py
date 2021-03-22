@@ -9,7 +9,7 @@ from .Mesh import Mesh
 
 class StructedMesh(Mesh):
     def __init__(self, *args,  **kwargs) -> None:
-        super().__init__(*args,   **kwargs)
+        super().__init__(*args,**kwargs)
 
     def axis(self, idx, axis=0):
         return NotImplemented

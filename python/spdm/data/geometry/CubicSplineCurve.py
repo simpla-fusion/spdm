@@ -31,5 +31,5 @@ class CubicSplineCurve(Curve):
     def derivative(self, *args, **kwargs):
         if len(args) == 0:
             args = self.uv
-        logger.debug(len(args))
-        return self._derivative(*args, **kwargs)
+        res = self._derivative(*args, **kwargs)
+        return res[:, 0], res[:, 1]

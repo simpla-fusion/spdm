@@ -33,22 +33,38 @@ class Curve(GeoObject):
     def bbox(self):
         return [[np.min(p) for p in self.xy], [np.max(p) for p in self.xy]]
 
-    def dl(self,   *args, **kwargs):
+    def dl(self, *args, **kwargs):
         if len(args) == 0:
-            args = self.uv
+            u = self.uv[0]
+        else:
+            u = args[0]
+        L = u[-1]
+
+        u = (u[1:]+u[:-1])*0.5
+
         a, b = self.derivative(*args, **kwargs)
+
         x, y = self.xy(*args, **kwargs)
+
+        a = a[:-1]
+        b = b[:-1]
+        x = x[1:]-x[:-1]
+        y = y[1:]-y[:-1]
+
         m1 = (-a*y+b*x)/(a*x+b*y)
 
         a = np.roll(a, 1, axis=0)
         b = np.roll(b, 1, axis=0)
+
         m2 = (-a*y+b*x)/(a*x+b*y)
 
-        r = (2.0*m1**2+2.0*m2**2-m1*m2)/30
-        if np.mean(r) > 1000:
-            logger.debug(a.shape)
+        d = np.sqrt(x**2+y**2)*(1 + (2.0*m1**2+2.0*m2**2-m1*m2)/30)
 
-        return Function(*args, np.sqrt(x**2+y**2)*(1 + r), is_period=self.is_closed)
+        if self.is_closed:
+            u = np.hstack([u, [u[0]+L]])
+            d = np.hstack([d, [d[0]]])
+
+        return Function(u, d, is_period=self.is_closed)
 
 
 class Line(Curve):
