@@ -2,56 +2,64 @@ from functools import cached_property
 
 import numpy as np
 import scipy.interpolate
+
 from ..util.logger import logger
 from .Quantity import Quantity
 
 
 class Function(Quantity):
     @staticmethod
-    def __new__(cls,  *args, **kwargs):
+    def __new__(cls,  *args, is_periodic=False, **kwargs):
         if cls is not Function:
             return Quantity.__new__(cls, *args, **kwargs)
+
         obj = None
+
         if len(args) != 2:
             pass
         elif isinstance(args[1], Function):
-            obj = Quantity.__new__(cls, args[1](args[0]), **kwargs)
-            obj._spl = args[1]._spl
+            d = args[1](args[0])
+            ppoly = args[1]._ppoly
         elif isinstance(args[1], np.ndarray):
-            obj = Quantity.__new__(cls, args[1], **kwargs)
-            obj._spl = scipy.interpolate.make_interp_spline(args[0], args[1])
-        elif isinstance(args[1], scipy.interpolate.BSpline):
-            obj = Quantity.__new__(cls, args[1](args[0]), **kwargs)
-            obj._spl = args[1]
+            d = args[1]
+            ppoly = scipy.interpolate.CubicSpline(args[0],  d,
+                                                  bc_type="periodic" if is_periodic else "not-a-knot")
+        elif isinstance(args[1], scipy.interpolate.PPoly):
+            d = args[1](args[0])
+            ppoly = args[1]
 
-        if obj is None:
+        if d is None:
             raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
+
+        obj = Quantity.__new__(cls, d, **kwargs)
+        obj._ppoly = ppoly
 
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        self._spl = getattr(obj, '_spl', None)
+        self._ppoly = getattr(obj, '_ppoly', None)
 
-    def __init__(self,  x, y, *args, is_period=False, **kwargs):
+    def __init__(self,  x, y, *args, is_periodic=False, **kwargs):
         super().__init__(*args,  **kwargs)
-        self._x = x
-        self._is_period = is_period
-        if self._is_period:
-            self._spl.extrapolate = 'periodic'
+        self._is_periodic = is_periodic
 
     @property
-    def is_period(self):
-        return self._is_period
+    def is_periodic(self):
+        return self._is_periodic
+
+    @property
+    def x(self):
+        return self._ppoly.x
 
     @cached_property
     def derivative(self):
-        return Function(self._x, self._spl.derivative())
+        return Function(self.x, self._ppoly.derivative())
 
     @cached_property
     def antiderivative(self):
-        return Function(self._x, self._spl.antiderivative())
+        return Function(self.x, self._ppoly.antiderivative())
 
     @cached_property
     def invert(self):
@@ -63,7 +71,7 @@ class Function(Quantity):
         return func
 
     def integrate(self, a=None, b=None):
-        return self._spl.integrate(a or self._x[0], b or self._x[-1])
+        return self._ppoly.integrate(a or self._x[0], b or self._x[-1])
 
-    def __call__(self, *args, **kwargs):
-        return self._spl(*args, **kwargs)
+    def __call__(self,   *args, **kwargs):
+        return self._ppoly(*args, **kwargs)
