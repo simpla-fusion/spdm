@@ -4,7 +4,7 @@ import numpy as np
 
 from .GeoObject import GeoObject
 from .Point import Point
-
+from ..Function import Function
 from ...util.logger import logger
 
 
@@ -22,30 +22,22 @@ class Curve(GeoObject):
             # FIXME：　find module
             return object.__new__(Curve)
 
-    def __init__(self, *args,  **kwargs) -> None:
+    def __init__(self,  *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     @property
     def topology_rank(self):
         return 1
 
-    def inside(self, *x):
-        return False
-
     @cached_property
-    def points(self):
-        return NotImplemented
+    def bbox(self):
+        return [[np.min(p) for p in self.xy], [np.max(p) for p in self.xy]]
 
-    @cached_property
-    def dl(self):
-        a, b = self.derivative()
-        l = self.points[1:]-self.points[:-1]
-
-        a = a[:-1]
-        b = b[:-1]
-
-        x = l[:, 0]
-        y = l[:, 1]
+    def dl(self,   *args, **kwargs):
+        if len(args) == 0:
+            args = self.uv
+        a, b = self.derivative(*args, **kwargs)
+        x, y = self.xy(*args, **kwargs)
         m1 = (-a*y+b*x)/(a*x+b*y)
 
         a = np.roll(a, 1, axis=0)
@@ -53,17 +45,10 @@ class Curve(GeoObject):
         m2 = (-a*y+b*x)/(a*x+b*y)
 
         r = (2.0*m1**2+2.0*m2**2-m1*m2)/30
-        logger.debug((np.mean(m1), np.mean(m2), np.mean(r)))
+        if np.mean(r) > 1000:
+            logger.debug(a.shape)
 
-        res = np.sqrt(x**2+y**2) * (1.0+r)
-
-        return np.hstack([res, res[0]])
-
-    def derivative(self,  *args, **kwargs):
-        return NotImplemented
-
-    def pullback(self, func, *args, form=0, **kwargs):
-        return NotImplemented
+        return Function(*args, np.sqrt(x**2+y**2)*(1 + r), is_period=self.is_closed)
 
 
 class Line(Curve):

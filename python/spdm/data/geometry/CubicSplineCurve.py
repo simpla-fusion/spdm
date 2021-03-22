@@ -1,66 +1,35 @@
 
 from functools import cached_property
-from operator import is_
 
 import numpy as np
-from scipy.integrate import quad
+from numpy.lib.arraysetops import isin
 from scipy.interpolate import CubicSpline
 
 from ...util.logger import logger
-from .Curve import Curve
 from ..Function import Function
+from .Curve import Curve
 
 
 class CubicSplineCurve(Curve):
-    def __init__(self, u, p, *args, is_closed=None, cycle=None, **kwargs) -> None:
-        # if len(args) != 2:
-        #     raise ValueError(f"Illegal input! len(args)={len(args)}")
-        super().__init__(*args, is_closed=is_closed is not None, cycle=cycle)
-        if self.is_closed:
-            self._u = u if u is not None else np.linspace(0, 1.0, len(p[0]))
-            self._spl = CubicSpline(self._u, np.c_[tuple(p)], bc_type="periodic")
-        else:
-            self._u = u if u is not None else np.linspace(0, 1.0, len(p[0]))
-            self._spl = CubicSpline(self._u, np.c_[tuple(p)])
+    def __init__(self, u, xy, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._spl = CubicSpline(u, np.c_[tuple(xy)], bc_type="periodic" if self.is_closed else "not-a-knot")
 
-    def inside(self, *x):
-        return NotImplemented
+    @cached_property
+    def uv(self):
+        return [self._spl.x]
 
-    @property
-    def points(self):
-        return self.map(self._u)
-
-    def point(self, u,  *args, **kwargs):
-        return self._spl(u,  *args, **kwargs).T
-
-    def map(self, u, *args, **kwargs):
-        r"""
-            ..math:: \Phi:\mathbb{R}\rightarrow N
-        """
-        return self._spl(u, *args, **kwargs)
-
-    def __call__(self, *args, **kwargs):
-        return self.map(*args, **kwargs)
+    def point(self,  *args, **kwargs):
+        if len(args) == 0:
+            args = self.uv
+        return self._spl(*args, **kwargs)
 
     @cached_property
     def _derivative(self):
         return self._spl.derivative()
 
-    def derivative(self,  *args, **kwargs):
+    def derivative(self, *args, **kwargs):
         if len(args) == 0:
-            return self._derivative(self._u, **kwargs).T
-        else:
-            return self._derivative(*args, **kwargs).T
-
-    def pullback(self, func, *args, form=0, **kwargs):
-        if len(args) > 0:
-            return func(*self.map(*args, **kwargs))
-
-        if form == 0:
-            fun = Function(self._u, func(*self.map(self._u)), is_period=self.is_closed)
-        elif form == 1:
-            fun = Function(self._u, func(*self.map(self._u))*self.dl(self._u), is_period=self.is_closed)
-        else:
-            raise ValueError()
-
-        return fun
+            args = self.uv
+        logger.debug(len(args))
+        return self._derivative(*args, **kwargs)

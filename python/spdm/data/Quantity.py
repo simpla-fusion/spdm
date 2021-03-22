@@ -83,9 +83,7 @@ class Quantity(np.ndarray):
     def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
 
         if method != "__call__":
-            raise NotImplementedError((ufunc, method))
-        elif not not out:
-            raise NotImplementedError
+            return super().__array_ufunc__(ufunc, method, inputs[0].view(np.ndarray), *inputs[1:], out=out, **kwargs)
 
         res = super(Quantity, self).__array_ufunc__(ufunc, method, *
                                                     [(in_.view(np.ndarray) if isinstance(in_, np.ndarray) else in_) for in_ in inputs], **kwargs)

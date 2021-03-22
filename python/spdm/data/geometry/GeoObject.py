@@ -1,9 +1,9 @@
+from ..Function import Function
 
 
 class GeoObject:
     def __init__(self, *args, is_closed=False, **kwargs) -> None:
         self._is_closed = is_closed
-        self._uv = None
 
     @property
     def topology_rank(self):
@@ -18,32 +18,28 @@ class GeoObject:
         return NotImplemented
 
     @property
-    def points(self):
-        return self.map(self._u)
-
-    def inside(self, *x):
-        return False
-
-    def point(self, u,  *args, **kwargs):
+    def uv(self):
         return NotImplemented
 
-    def map(self, u, *args, **kwargs):
+    def point(self, *args, **kwargs):
         return NotImplemented
 
-    def __call__(self, *args, **kwargs):
-        return self.map(*args, **kwargs)
+    def xy(self, *args, **kwargs):
+        return self.point(*args, **kwargs).T
 
-    def derivative(self, u, *args, **kwargs):
+    def derivative(self,  *args, **kwargs):
         return NotImplemented
 
-    # def dl(self, u, *args, **kwargs):
-    #     return NotImplemented
-
-    def pullback(self, func, *args, **kwargs):
+    def pullback(self, func,   *args, **kwargs):
         r"""
             ..math:: f:N\rightarrow M\\\Phi^{*}f:\mathbb{R}\rightarrow M\\\left(\Phi^{*}f\right)\left(u\right)&\equiv f\left(\Phi\left(u\right)\right)=f\left(r\left(u\right),z\left(u\right)\right)
         """
-        return func(*self.map(*args, **kwargs))
+        return func(*self.xy(*args, **kwargs))
 
-    def make_one_form(self, func):
-        return NotImplemented
+    def pullback(self, func,  *args,   **kwargs):
+        if len(args) == 0:
+            args = self.uv
+        return Function(args, func(*self.xy(*args,   **kwargs)), is_period=self.is_closed)
+        
+    # def dl(self, u, *args, **kwargs):
+    #     return NotImplemented

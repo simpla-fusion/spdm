@@ -53,6 +53,15 @@ class Function(Quantity):
     def antiderivative(self):
         return Function(self._x, self._spl.antiderivative())
 
+    @cached_property
+    def invert(self):
+        try:
+            func = Function(self.__call__(self._x), self._x)
+        except Exception:
+            raise ValueError(f"Can not create invert function!")
+
+        return func
+
     def integrate(self, a=None, b=None):
         return self._spl.integrate(a or self._x[0], b or self._x[-1])
 

@@ -1,5 +1,6 @@
 from ...util.logger import logger
 from .GeoObject import GeoObject
+import numpy as np
 
 
 class Point(GeoObject):
@@ -28,6 +29,8 @@ class Point(GeoObject):
     def make_one_form(self, *args, **kwargs):
         return lambda *_args: 0.0
 
-    @property
-    def dl(self):
-        return 0.0
+    def dl(self, u=None):
+        if u is None:
+            return np.asarray(0.0)
+        else:
+            return 0.0*u
