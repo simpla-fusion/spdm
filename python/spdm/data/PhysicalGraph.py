@@ -5,6 +5,8 @@ import numpy as np
 from .Graph import Graph
 from .Quantity import Quantity
 from ..util.utilities import try_get, try_put
+from ..util.logger import logger
+from .Entry import Entry
 
 
 class PhysicalGraph(Graph):
@@ -39,7 +41,10 @@ class PhysicalGraph(Graph):
             #     res = getattr(res, "fget")(self)
             # elif isinstance(res, functools.cached_property):
             #     res = res.__get__(self)
-            return try_get(self, k, None)
+            res = try_get(self, k, None)
+            if res is None:
+                res = self.__class__(Entry(self._data, prefix=[k]))
+            return res
 
     def __setattr__(self, k, v):
         if k.startswith("_"):

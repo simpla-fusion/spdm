@@ -2,15 +2,13 @@ import importlib
 import pprint
 import sys
 import unittest
-from spdm.data.PhysicalGraph import PhysicalGraph
 from spdm.util.logger import logger
-from spdm.util.dict_util import format_string_recursive, tree_apply_recursive
+from spdm.data.PhysicalGraph import PhysicalGraph
 
 
 class TestPhysicalGraph(unittest.TestCase):
     def test_attribute_put(self):
-        cache = {}
-        d = PhysicalGraph(cache)
+        d = PhysicalGraph()
         d.a = {
             "a": [
                 "hello world {name}!",
@@ -27,29 +25,29 @@ class TestPhysicalGraph(unittest.TestCase):
         }
         logger.debug(d)
 
-    # def test_attribute_get(self):
+    def test_attribute_get(self):
 
-    #     d = PhysicalGraph({
-    #         "a": [
-    #             "hello world {name}!",
-    #             "hello world2 {name}!",
-    #             1, 2, 3, 4
-    #         ],
-    #         "b": {
-    #             "c": "I'm {age}!",
-    #             "d": {
-    #                 "e": "{name} is {age}",
-    #                 "f": "{address}"
-    #             }
-    #         }
-    #     })
+        d = PhysicalGraph({
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ],
+            "b": {
+                "c": "I'm {age}!",
+                "d": {
+                    "e": "{name} is {age}",
+                    "f": "{address}"
+                }
+            }
+        })
 
-    #     self.assertEqual(d.a[0], "hello world {name}!")
-    #     self.assertEqual(d.a[1], "hello world2 {name}!")
-    #     self.assertEqual(d.b.c,  "I'm {age}!")
-    #     self.assertEqual(d.b.d.e,  "{name} is {age}")
-    #     self.assertEqual(d.b.d.f,  "{address}")
-    #     self.assertEqual(d.a[2:6].__fetch__(), [1, 2, 3, 4])
+        self.assertEqual(d.a[0], "hello world {name}!")
+        self.assertEqual(d.a[1], "hello world2 {name}!")
+        self.assertEqual(d.b.c,  "I'm {age}!")
+        self.assertEqual(d.b.d.e,  "{name} is {age}")
+        self.assertEqual(d.b.d.f,  "{address}")
+        # self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
     # def test_attribute_format(self):
     #     d = PhysicalGraph({

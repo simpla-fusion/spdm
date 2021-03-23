@@ -23,6 +23,7 @@ class TestNode(unittest.TestCase):
             }
         }
         d = Node(cache)
+        d["d"] = 5
 
         pprint.pprint(cache)
 

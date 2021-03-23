@@ -1,11 +1,13 @@
 import collections
 import copy
 import pprint
+from typing import Type
 
 import numpy as np
 
 from ..util.logger import logger
 from .Entry import Entry
+from ..util.dict_util import deep_merge_dict
 
 
 class _TAG_:
@@ -53,138 +55,6 @@ class Node:
         @enduml
     """
 
-    class Mapping:
-        def __init__(self, data=None, *args,  parent=None, **kwargs):
-            self._parent = parent
-            self._data = data or dict()
-
-        def serialize(self):
-            return {k: (v.serialize() if hasattr(v, "serialize") else v) for k, v in self.items()}
-
-        @staticmethod
-        def deserialize(cls, d, parent=None):
-            res = cls(parent)
-            res.update(d)
-            return res
-
-        def __repr__(self) -> str:
-            return pprint.pformat(getattr(self, "_data", None))
-
-        def __getitem__(self, key):
-            return self._data[key]
-
-        def __setitem__(self, key, value):
-            self.insert(value, key)
-
-        def __delitem__(self, k):
-            del self._data[k]
-
-        def __len__(self):
-            return len(self._data)
-
-        def __contain__(self, k):
-            return k in self._data
-
-        def __iter__(self):
-            yield from self._data.values()
-
-        def __merge__(self, d,  recursive=True):
-            return NotImplemented
-
-        def __ior__(self, other):
-            return self.__merge__(other, recursive=True)
-
-        """
-            @startuml
-            [*] --> Group
-
-            Group       --> Mapping         : update(dict),insert(value,str),at(str)
-            Group       --> Sequence        : update(list),insert(value,int),[_next_]
-
-            Mapping     --> Mapping         : insert(value,key), at(key),
-            Mapping     --> Sequence        : [_next_],
-
-            Sequence    --> Sequence        : insert(value), at(int),
-            Sequence    --> Illegal         : insert(value,str),get(str)
-
-            Illegal     --> [*]             : Error
-
-            @enduml
-        """
-
-        def update(self, other, *args, **kwargs):
-            if other is None:
-                return
-            elif isinstance(other, collections.abc.Mapping):
-                for k, v in other.items():
-                    self.insert(v, k, *args, **kwargs)
-            elif isinstance(other, collections.abc.Sequence):
-                for v in other:
-                    self.insert(v, None, *args, **kwargs)
-            else:
-                raise TypeError(f"Not supported operator! update({type(self)},{type(other)})")
-
-        def insert(self, value, key=None, *args, **kwargs):
-            res = self._data.get(key, None) or self._data.setdefault(
-                key, self._parent.__new_node__(name=key, parent=self))
-            if isinstance(res, Node):
-                res.__update__(value, *args, **kwargs)
-            else:
-                self._data[key] = value
-            return res
-
-    class Sequence:
-        def __init__(self, data=None,   *args, parent=None, **kwargs) -> None:
-            self._parent = parent
-            self._data = data or list()
-
-        def serialize(self):
-            return [(v.serialize() if hasattr(v, "serialize") else v) for v in self]
-
-        @staticmethod
-        def deserialize(cls, d, parent=None):
-            return cls(d, parent)
-
-        def __repr__(self) -> str:
-            return pprint.pformat(self._data)
-
-        def __getitem__(self, key):
-            return self._data[key]
-
-        def __setitem__(self, key, value):
-            self.insert(value, key)
-
-        def __delitem__(self, k):
-            del self._data[k]
-
-        def __len__(self):
-            return len(self._data)
-
-        def __contain__(self, k):
-            return k in self._data
-
-        def __iter__(self):
-            yield from self._data
-
-        def insert(self, value, key=None, *args, **kwargs):
-            if isinstance(key, int):
-                res = self._data[key]
-            else:
-                self._data.append(self._parent.__new_node__(name=key, parent=self))
-                res = self._data.__getitem__(-1)
-
-            res.__update__(value, *args, **kwargs)
-            return res
-
-        def update(self, other, *args, **kwargs):
-            if other is None:
-                return
-            if isinstance(other, collections.abc.Sequence):
-                for v in other:
-                    self.insert(v, *args, **kwargs)
-            else:
-                raise TypeError(f"Not supported operator! update({type(self)},{type(other)})")
-
     def __init__(self, value=None, *args,  name=None, parent=None, **kwargs):
         self._name = name  # or uuid.uuid1()
         self._parent = parent
@@ -195,9 +65,9 @@ class Node:
         else:
             value = self.__pre_process__(value)
             if isinstance(value, collections.abc.Mapping):
-                self.__as_mapping__(value, force=True)
+                self.__as_mapping__(value)
             elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-                self.__as_sequence__(value, force=True)
+                self.__as_sequence__(value)
             else:
                 self._data = value
 
@@ -283,21 +153,27 @@ class Node:
             path = [path]
         return path
 
-    def __as_mapping__(self, value=None,  force=True):
-        if isinstance(self._data, Node.Mapping):
-            self._data.update(value)
-        elif self._data is None and force:
-            self._data = self.__class__.Mapping(value, parent=self)
-        else:
+    def __as_mapping__(self, value=None):
+        if isinstance(value, collections.abc.Mapping):
+            if self._data is None:
+                self._data = {}
+            self._data = deep_merge_dict(self._data, value)
+        elif value is not None:
+            raise TypeError(f"{type(value)} is not a Mapping!")
+        elif self._data is None:
+            self._data = {}
+        elif not isinstance(self._data, collections.abc.Mapping):
             raise ValueError(f"{type(self._data)} is not a Mapping!")
         return self._data
 
     def __as_sequence__(self, value=None, force=False):
-        if isinstance(self._data, Node.Sequence):
-            self._data.update(value)
-        elif self._data is None and force:
-            self._data = self.__class__.Sequence(value, parent=self)
-        else:
+        if isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+            self._data = value
+        elif value is not None:
+            raise TypeError(f"{type(value)} is not a Sequence!")
+        elif self._data is None:
+            self._data = list()
+        elif not isinstance(self._data, collections.abc.Sequence):
             raise ValueError(f"{type(self._data)} is not a Sequence!")
         return self._data
 
@@ -305,42 +181,40 @@ class Node:
         return value
 
     def __post_process__(self, value, *args, **kwargs):
-        if isinstance(value, (Node.Mapping, Node.Sequence, collections.abc.Mapping, collections.abc.Sequence, Entry)) and not isinstance(value, str):
-            return self.__new_node__(value, parent=self)
-        elif not isinstance(value, Node):
+        if isinstance(value, str):
             return value
+        elif isinstance(value, (collections.abc.Mapping, collections.abc.Sequence, Entry)):
+            return self.__new_node__(value, parent=self)
         else:
-            raise TypeError(type(value))
-        # elif isinstance(value._data, (collections.abc.Mapping, collections.abc.Sequence, type(None))):
-        #     return self.__new_node__(value._data)
-        # else:
-        #     return value._data
+            return value
 
     def __raw_set__(self, path, value):
         if isinstance(self._data, Entry):
             self._data.insert(path, value)
-        elif isinstance(path, _TAG_):
-            self.__as_sequence__(force=True).insert(value, path)
         elif path is None or len(path) == 0:
             self._data = value
-        elif isinstance(path, str):
-            self.__as_mapping__(force=True).insert(value, path)
+        elif isinstance(path, _NEXT_TAG_):
+            self.__as_sequence__().append(value)
+        elif not isinstance(path, str):
+            self.__as_sequence__()[path] = value
         else:
-            self.__as_sequence__(force=True).insert(value, path)
+            self.__as_mapping__()[path] = value
 
     def __raw_get__(self, path):
-        if isinstance(path, slice):
-            res = self.__fetch__()[path]
-        elif isinstance(self._data, Entry):
+        if isinstance(self._data, Entry):
             res = self._data.get(path)
-        elif not path:
-            res = self._data
         elif isinstance(path, str):
-            res = self.__as_mapping__(force=False)[path]
-        elif isinstance(path, _TAG_):
-            res = self.__as_sequence__(force=True)[path]
+            res = self.__as_mapping__()[path]
+        elif path is None and (isinstance(path, list) and len(path) == 0):
+            res = self._data
+        elif isinstance(path, (int, slice)):
+            res = self.__as_sequence__()[path]
+        elif isinstance(path, _NEXT_TAG_):
+            self.__as_sequence__().append({})
+            res = self.__as_sequence__()[-1]
+
         else:
-            res = self.__as_sequence__(force=False)[path]
+            raise TypeError(type(path))
 
         return res
 
@@ -355,17 +229,17 @@ class Node:
             self._data.delete(path)
         elif not path:
             self.__clear__()
-        elif not isinstance(self._data, (Node.Mapping, Node.Sequence)):
+        elif isinstance(self._data, str):
+            self._data = None
+        elif not isinstance(self._data, (collections.abc.Mapping, collections.abc.Sequence)):
             raise TypeError(type(self._data))
-        elif isinstance(path, str):
-            del self._data[path]
         else:
             del self._data[path]
 
     def __contains__(self, path):
         if isinstance(self._data, Entry):
             return self._data.contains(path)
-        elif isinstance(path, str):
+        elif isinstance(path, str) and isinstance(self._data, collections.abc.Mapping):
             return path in self._data
         elif not isinstance(path, str):
             return path >= 0 and path < len(self._data)
@@ -375,26 +249,39 @@ class Node:
     def __len__(self):
         if isinstance(self._data, Entry):
             return self._data.count()
-        elif isinstance(self._data,  (Node.Mapping, Node.Sequence)) and not isinstance(self._data, str):
+        elif isinstance(self._data, str):
+            return 1
+        elif isinstance(self._data,  (collections.abc.Mapping, collections.abc.Sequence)):
             return len(self._data)
         else:
             return 0 if self._data is None else 1
 
     def __iter__(self):
-        if isinstance(self._data, (Node.Mapping, Node.Sequence, Entry)):
+        if isinstance(self._data, (collections.abc.Mapping, collections.abc.Sequence, Entry)):
             yield from map(lambda v: self.__post_process__(v), self._data)
         else:
             yield self.__post_process__(self._data)
 
-    def __update__(self, value, * args,   **kwargs):
-        value = self.__pre_process__(value, *args, **kwargs)
+    # def __update__(self, value, * args,   **kwargs):
+    #     value = self.__pre_process__(value, *args, **kwargs)
 
-        if isinstance(value, collections.abc.Mapping):
-            self.__as_mapping__(value, force=True)
-        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            self.__as_sequence__(value,  force=True)
+    #     if isinstance(value, collections.abc.Mapping):
+    #         self.__as_mapping__(value)
+    #     elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+    #         self.__as_sequence__(value)
+    #     else:
+    #         self._data = value
+
+    def __ior__(self, other):
+        if self._data is None:
+            self._data = other
+        elif not isinstance(self._data, collections.abc.Mapping):
+            self._data |= other
+        elif isinstance(self._data, collections.abc.Mapping):
+            for k, v in other.items():
+                self.__setitem__(k, v)
         else:
-            self._data = value
+            raise TypeError(f"{type(other)}")
 
     class __lazy_proxy__:
         @staticmethod
