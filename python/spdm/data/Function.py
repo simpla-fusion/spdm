@@ -64,14 +64,14 @@ class Function(Quantity):
     @cached_property
     def invert(self):
         try:
-            func = Function(self.__call__(self._x), self._x)
+            func = Function(self.__call__(self.x), self.x)
         except Exception:
             raise ValueError(f"Can not create invert function!")
 
         return func
 
     def integrate(self, a=None, b=None):
-        return self._ppoly.integrate(a or self._x[0], b or self._x[-1])
+        return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
 
     def __call__(self,   *args, **kwargs):
         return self._ppoly(*args, **kwargs)

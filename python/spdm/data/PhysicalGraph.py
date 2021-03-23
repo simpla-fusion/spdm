@@ -4,7 +4,7 @@ import numpy as np
 
 from .Graph import Graph
 from .Quantity import Quantity
-from ..util.utilities import try_get, try_set
+from ..util.utilities import try_get, try_put
 
 
 class PhysicalGraph(Graph):
@@ -45,7 +45,7 @@ class PhysicalGraph(Graph):
         if k.startswith("_"):
             super().__setattr__(k, v)
         else:
-            try_set(self, k, v)
+            try_put(self, k, v)
             # res = getattr(self.__class__, k, None)
             # if res is None:
             #     self.__setitem__(k, v)

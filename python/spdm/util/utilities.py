@@ -120,8 +120,10 @@ def try_get(holder, path, default_value=None):
     return data
 
 
-def try_set(holder, path,  value):
-    res = getattr(holder.__class__, path, None)
+def try_put(holder, path,  value):
+    res = None
+    if isinstance(path, str):
+        res = getattr(holder.__class__, path, None)
     if res is None:
         holder.__setitem__(path, value)
     elif isinstance(res, property):
