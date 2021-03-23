@@ -319,6 +319,8 @@ class Node:
     def __raw_set__(self, path, value):
         if isinstance(self._data, Entry):
             self._data.insert(path, value)
+        elif isinstance(path, _TAG_):
+            self.__as_sequence__(force=True).insert(value, path)
         elif path is None or len(path) == 0:
             self._data = value
         elif isinstance(path, str):
