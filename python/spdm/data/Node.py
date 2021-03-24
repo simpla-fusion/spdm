@@ -36,13 +36,12 @@ class Node:
     class LazyHolder:
         def __init__(self, parent, path, prefix=[]) -> None:
             self._parent = parent
-            self._prefix = prefix
             if isinstance(path, str):
-                self._prefix.extend(path.split('.'))
+                self._prefix = (prefix or []) + path.split('.')
             elif isinstance(path, collections.abc.MutableSequence):
-                self._prefix.extend(path)
+                self._prefix = (prefix or []) + path
             else:
-                self._prefix.append(path)
+                self._prefix = (prefix or []) + [path]
 
         @property
         def parent(self):
@@ -55,20 +54,12 @@ class Node:
         def extend(self, path):
             return Node.LazyHolder(self._parent, path, prefix=self._prefix)
 
-    def __init__(self, value=None, *args,  name=None, parent=None, **kwargs):
-        self._name = name  # or uuid.uuid1()
+    def __init__(self, data=None, *args,  parent=None, **kwargs):
         self._parent = parent
-        self._data = None
-
-        if isinstance(value, Node):
-            self._data = value._data
-        elif isinstance(value, (Node.LazyHolder, Entry)):
-            self._data = value
-        else:
-            self.__raw_set__(None, self.__pre_process__(value))
+        self._data = data._data if isinstance(data, Node) else data
 
     def __repr__(self) -> str:
-        return pprint.pformat(self._data) if not isinstance(self._data, str) else f"'{v}'"
+        return pprint.pformat(self._data) if not isinstance(self._data, str) else f"'{self._data}'"
 
     def __new_node__(self, *args, **kwargs):
         return self.__class__(*args,  **kwargs)
@@ -151,7 +142,7 @@ class Node:
     def __raw_set__(self, key, value):
         if isinstance(self._data, Entry):
             return self._data.insert(key, value)
-        elif self._data is None:
+        elif key is None and self._data is None:
             self._data = value
             return self._data
 
@@ -187,7 +178,7 @@ class Node:
                 obj = obj.setdefault(key, collections.OrderedDict() if isinstance(path[idx+1], str) else [])
             elif isinstance(obj, collections.abc.MutableSequence):
                 if isinstance(key, _NEXT_TAG_):
-                    obj.append({} if isinstance(type(path[idx+1], str)) else [])
+                    obj.append({} if isinstance(path[idx+1], str) else [])
                     obj = obj[-1]
                 elif isinstance(key, (int, slice)):
                     obj = obj[key]
@@ -238,7 +229,7 @@ class Node:
                 obj = _not_found_
 
         if obj is _not_found_:
-            raise KeyError(f"{path }")
+            return Node.LazyHolder(self, path)
 
         return obj
 

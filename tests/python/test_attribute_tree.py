@@ -5,62 +5,87 @@ import unittest
 from spdm.util.logger import logger
 from spdm.data.Entry import _next_
 from spdm.data.Node import Node
-from spdm.data.PhysicalGraph import PhysicalGraph
+from spdm.data.AttributeTree import AttributeTree
 
 
-class TestPhysicalGraph(unittest.TestCase):
-    def test_attribute_put(self):
-        d = PhysicalGraph()
-        d["a"] = [
-            "hello world {name}!",
-            "hello world2 {name}!",
-            1, 2, 3, 4
-        ]
-        d["b"] = {
+class TestAttributeTree(unittest.TestCase):
+    def test_node_initialize(self):
+        d = Node({
+            "c": "I'm {age}!",
+            "d": {
+                "e": "{name} is {age}",
+                "f": "{address}"
+            }
+        })
+
+    def test_node_get(self):
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ],
             "c": "I'm {age}!",
             "d": {
                 "e": "{name} is {age}",
                 "f": "{address}"
             }
         }
+        d = Node(cache)
 
-        self.assertEqual(d.a[0], "hello world {name}!")
-        self.assertEqual(d.a[1], "hello world2 {name}!")
-        self.assertEqual(d.b.c,  "I'm {age}!")
-        self.assertEqual(d.b.d.e,  "{name} is {age}")
-        self.assertEqual(d.b.d.f,  "{address}")
+        self.assertEqual(len(d["a"]),  6)
+        self.assertEqual(d["c"],  cache["c"])
+        self.assertEqual(d["d.e"], cache["d"]["e"])
+        self.assertEqual(d["d.f"],  cache["d"]["f"])
+        self.assertEqual(d["a"][0], cache["a"][0])
+        self.assertEqual(d["a"][1],  cache["a"][1])
 
-    def test_attribute_get(self):
+        # self.assertEqual(d["c"],  "I'm {age}!")
+        # self.assertEqual(d["d.e"],  "{name} is {age}")
+        # self.assertEqual(d["d.f"],  "{address}")
+        # self.assertEqual(d["a"][0], "hello world {name}!")
+        # self.assertEqual(d["a"][1], "hello world2 {name}!")
 
-        d = PhysicalGraph({
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ],
-            "b": {
-                "c": "I'm {age}!",
-                "d": {
-                    "e": "{name} is {age}",
-                    "f": "{address}"
-                }
-            }
-        })
+    def test_node_insert(self):
+        cache = {}
 
-        self.assertEqual(d.a[0], "hello world {name}!")
-        self.assertEqual(d.a[1], "hello world2 {name}!")
-        self.assertEqual(d.b.c,  "I'm {age}!")
-        self.assertEqual(d.b.d.e,  "{name} is {age}")
-        self.assertEqual(d.b.d.f,  "{address}")
-        # self.assertEqual(d.a[2:6], [1, 2, 3, 4])
+        d = Node(cache)
 
-    def test_attribute_insert(self):
-        d = Node()
+        d["a"] = "hello world {name}!"
+        self.assertEqual(cache["a"], "hello world {name}!")
+
         d["c"][_next_] = 1.23455
         d["c"][_next_] = {"a": "hello world", "b": 3.141567}
 
-        self.assertEqual(d["c"][0],  1.23455)
-        self.assertEqual(len(d["c"]),  2)
+        self.assertEqual(cache["c"][0],  1.23455)
+
+    def test_node_iter(self):
+        d = Node([1, 2, 3, 4, 5, 6])
+        self.assertEqual([v for v in d],  [1, 2, 3, 4, 5, 6])
+
+    # def test_attribute_get(self):
+
+    #     d = AttributeTree({
+    #         "a": [
+    #             "hello world {name}!",
+    #             "hello world2 {name}!",
+    #             1, 2, 3, 4
+    #         ],
+    #         "b": {
+    #             "c": "I'm {age}!",
+    #             "d": {
+    #                 "e": "{name} is {age}",
+    #                 "f": "{address}"
+    #             }
+    #         }
+    #     })
+
+    #     self.assertEqual(d.a[0], "hello world {name}!")
+    #     self.assertEqual(d.a[1], "hello world2 {name}!")
+    #     self.assertEqual(d.b.c,  "I'm {age}!")
+    #     self.assertEqual(d.b.d.e,  "{name} is {age}")
+    #     self.assertEqual(d.b.d.f,  "{address}")
+        # self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
     # def test_attribute_format(self):
     #     d = PhysicalGraph({
