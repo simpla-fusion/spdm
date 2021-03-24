@@ -4,11 +4,11 @@ import numpy as np
 
 from .Graph import Graph
 from .Quantity import Quantity
-from ..util.utilities import try_get, try_put
 from ..util.logger import logger
-from .Entry import Entry
+from .AttributeTree import as_attribute_tree
 
 
+@as_attribute_tree
 class PhysicalGraph(Graph):
     r"""
        "PhysicalGraph" is a set of "quantities" (nodes) with internal mutual constraints (edges).
@@ -29,47 +29,6 @@ class PhysicalGraph(Graph):
 
     def __new_node__(self, *args, parent=None, **kwargs):
         return PhysicalGraph(*args,  parent=parent or self, **kwargs)
-
-    def __getattr__(self, k):
-        if k.startswith("_"):
-            return self.__dict__[k]
-        else:
-            # res = getattr(self.__class__, k, None)
-            # if res is None:
-            #     res = self.__getitem__(k)
-            # elif isinstance(res, property):
-            #     res = getattr(res, "fget")(self)
-            # elif isinstance(res, functools.cached_property):
-            #     res = res.__get__(self)
-            res = try_get(self, k, None)
-            if res is None:
-                res = self.__class__(Entry(self._data, prefix=[k]))
-            return res
-
-    def __setattr__(self, k, v):
-        if k.startswith("_"):
-            super().__setattr__(k, v)
-        else:
-            try_put(self, k, v)
-            # res = getattr(self.__class__, k, None)
-            # if res is None:
-            #     self.__setitem__(k, v)
-            # elif isinstance(res, property):
-            #     res.fset(self, k, v)
-            # else:
-            #     raise AttributeError(f"Can not set attribute {k}!")
-
-    def __delattr__(self, k):
-        if k.startswith("_"):
-            super().__delattr__(k)
-        else:
-            res = getattr(self.__class__, k, None)
-            if res is None:
-                self.__delitem__(k)
-            elif isinstance(res, property):
-                res.fdel(self, k)
-            else:
-                raise AttributeError(f"Can not delete attribute {k}!")
 
     def __pre_process__(self, value, *args, coordinates=None, **kwargs):
         if isinstance(value, np.ndarray) and not isinstance(value, Quantity):

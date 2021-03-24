@@ -5,7 +5,7 @@ import unittest
 from spdm.util.logger import logger
 from spdm.data.Entry import _next_
 from spdm.data.Node import Node
-from spdm.data.AttributeTree import AttributeTree
+from spdm.data.AttributeTree import as_attribute_tree
 
 
 class TestAttributeTree(unittest.TestCase):
@@ -59,6 +59,8 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual([v for v in d],  [1, 2, 3, 4, 5, 6])
 
     def test_attribute_get(self):
+        AttributeTree = as_attribute_tree(Node)
+
         cache = {
             "a": [
                 "hello world {name}!",
@@ -82,6 +84,9 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
     def test_attribute_set(self):
+        AttributeTree = as_attribute_tree(Node)
+
+        logger.debug(AttributeTree.__name__)
         cache = {}
 
         d = AttributeTree(cache)
@@ -93,7 +98,23 @@ class TestAttributeTree(unittest.TestCase):
         d.c[_next_] = {"a": "hello world", "b": 3.141567}
 
         self.assertEqual(cache["c"][0],  1.23455)
-         
+
+    def test_attribute_del(self):
+        AttributeTree = as_attribute_tree(Node)
+  
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ]
+        }
+        d = AttributeTree(cache)
+
+        del d.a
+
+        self.assertTrue("a" not in cache)
+
     # def test_attribute_format(self):
     #     d = PhysicalGraph({
     #         'annotation': {'contributors': ['Salmon'],
