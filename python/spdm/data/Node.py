@@ -33,6 +33,8 @@ class Node:
 
         @enduml
     """
+    DICT_TYPE = dict  # collections.OrderedDict
+
     class LazyHolder:
         def __init__(self, parent, path, prefix=[]) -> None:
             self._parent = parent
@@ -59,16 +61,17 @@ class Node:
         self._data = data._data if isinstance(data, Node) else data
 
     def __repr__(self) -> str:
-        return pprint.pformat(self._data) if not isinstance(self._data, str) else f"'{self._data}'"
+        d = None if isinstance(self._data, Node.LazyHolder) else self._data
+        return pprint.pformat(d) if not isinstance(d, str) else f"'{d}'"
 
-    def __new_node__(self, *args, **kwargs):
-        return self.__class__(*args,  **kwargs)
+    def __new_child__(self, *args,  **kwargs):
+        return self.__class__(*args, parent=self,  **kwargs)
 
     def copy(self):
         if isinstance(Node, (Node.Mapping, Node.Sequence)):
-            return self.__new_node__(self._data.copy())
+            return self.__new_child__(self._data.copy())
         else:
-            return self.__new_node__(copy.copy(self._data))
+            return self.__new_child__(copy.copy(self._data))
 
     # def entry(self, path, *args, **kwargs):
     #     if isinstance(self._data, Entry):
@@ -82,10 +85,6 @@ class Node:
     @staticmethod
     def deserialize(cls, d):
         return cls(d)
-
-    @property
-    def __name__(self):
-        return self._name
 
     def __fetch__(self):
         if isinstance(self._data, Entry):
@@ -138,9 +137,9 @@ class Node:
             if len(value) == 0:
                 return None
             else:
-                return self.__new_node__(value, parent=self)
+                return self.__new_child__(value)
         elif isinstance(value, (Entry, Node.LazyHolder)):
-            return self.__new_node__(value, parent=self)
+            return self.__new_child__(value)
         else:
             return value
 
@@ -170,7 +169,7 @@ class Node:
 
         if holder._data is None:
             if isinstance(path[0], str):
-                holder._data = collections.OrderedDict()
+                holder._data = Node.DICT_TYPE()
             else:
                 holder._data = list()
 
@@ -180,7 +179,7 @@ class Node:
             if isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}")
-                obj = obj.setdefault(key, collections.OrderedDict() if isinstance(path[idx+1], str) else [])
+                obj = obj.setdefault(key, Node.DICT_TYPE() if isinstance(path[idx+1], str) else [])
             elif isinstance(obj, collections.abc.MutableSequence):
                 if isinstance(key, _NEXT_TAG_):
                     obj.append({} if isinstance(path[idx+1], str) else [])
@@ -290,8 +289,8 @@ class Node:
             raise TypeError(f"{type(other)}")
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, Node):
-            other = self._data
+        if isinstance(other, Node):
+            other = other._data
 
         if isinstance(self._data, Entry):
             return self.equal(other)
@@ -299,3 +298,6 @@ class Node:
             return other is None
         else:
             return self._data == other
+
+    def __bool__(self) -> bool:
+        return False if isinstance(self._data, Node.LazyHolder) else (not not self._data)

@@ -99,9 +99,14 @@ class TestAttributeTree(unittest.TestCase):
 
         self.assertEqual(cache["c"][0],  1.23455)
 
+    def test_attribute_boolean(self):
+        AttributeTree = as_attribute_tree(Node)
+        d = AttributeTree({})
+        self.assertTrue(d.a == None)
+        self.assertTrue(d.a or 12.3, 12.3)
+
     def test_attribute_del(self):
         AttributeTree = as_attribute_tree(Node)
-  
         cache = {
             "a": [
                 "hello world {name}!",
@@ -109,10 +114,9 @@ class TestAttributeTree(unittest.TestCase):
                 1, 2, 3, 4
             ]
         }
+
         d = AttributeTree(cache)
-
         del d.a
-
         self.assertTrue("a" not in cache)
 
     # def test_attribute_format(self):

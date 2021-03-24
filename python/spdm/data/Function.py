@@ -13,22 +13,22 @@ class Function(Quantity):
         if cls is not Function:
             return Quantity.__new__(cls, *args, **kwargs)
 
-        obj = None
+        if len(args) < 2:
+            raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
 
-        if len(args) != 2:
-            pass
-        elif isinstance(args[1], Function):
-            d = args[1](args[0])
-            ppoly = args[1]._ppoly
-        elif isinstance(args[1], np.ndarray):
-            d = args[1]
-            ppoly = scipy.interpolate.CubicSpline(args[0],  d,
-                                                  bc_type="periodic" if is_periodic else "not-a-knot")
-        elif isinstance(args[1], scipy.interpolate.PPoly):
-            d = args[1](args[0])
-            ppoly = args[1]
+        x = args[0]
+        y = args[1]
 
-        if d is None:
+        if isinstance(y, Function):
+            d = y(x)
+            ppoly = y._ppoly
+        elif isinstance(y, scipy.interpolate.PPoly) or callable(y):
+            d = y(x)
+            ppoly = y
+        elif isinstance(y, np.ndarray):
+            d = y
+            ppoly = scipy.interpolate.CubicSpline(x,  d, bc_type="periodic" if is_periodic else "not-a-knot")
+        else:
             raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
 
         obj = Quantity.__new__(cls, d, **kwargs)

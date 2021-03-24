@@ -27,7 +27,7 @@ class PhysicalGraph(Graph):
         super().__update__(*args, **kwargs)
         self._changed = True
 
-    def __new_node__(self, *args, parent=None, **kwargs):
+    def __new_child__(self, *args, parent=None, **kwargs):
         return PhysicalGraph(*args,  parent=parent or self, **kwargs)
 
     def __pre_process__(self, value, *args, coordinates=None, **kwargs):
