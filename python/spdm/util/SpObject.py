@@ -5,7 +5,7 @@ import re
 import traceback
 import uuid
 from functools import cached_property
-
+import io
 import numpy as np
 
 from .logger import logger

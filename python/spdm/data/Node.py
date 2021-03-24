@@ -52,7 +52,7 @@ class Node:
             return self._prefix
 
         def extend(self, path):
-            return Node.LazyHolder(self._parent, path, prefix=self._prefix)
+            return self if path is None else Node.LazyHolder(self._parent, path, prefix=self._prefix)
 
     def __init__(self, data=None, *args,  parent=None, **kwargs):
         self._parent = parent
@@ -134,7 +134,12 @@ class Node:
         return value
 
     def __post_process__(self, value, *args, **kwargs):
-        if isinstance(value, (collections.abc.Mapping, collections.abc.MutableSequence, Entry, Node.LazyHolder)):
+        if isinstance(value, (collections.abc.Mapping, collections.abc.MutableSequence)):
+            if len(value) == 0:
+                return None
+            else:
+                return self.__new_node__(value, parent=self)
+        elif isinstance(value, (Entry, Node.LazyHolder)):
             return self.__new_node__(value, parent=self)
         else:
             return value
@@ -217,11 +222,11 @@ class Node:
                 pass
             elif isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
-                    raise TypeError(f"mapping indices must be str, not {type(key).__name__} {key}")
+                    raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{key}\"")
                 obj = obj.get(key, _not_found_)
             elif isinstance(obj, collections.abc.MutableSequence):
                 if not isinstance(key, (int, slice)):
-                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__} {key}")
+                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
                 elif isinstance(key, int) and key > len(self._data):
                     raise IndexError(f"Out of range! {key} > {len(self._data)}")
                 obj = obj[key]
@@ -276,8 +281,8 @@ class Node:
     def __ior__(self, other):
         if self._data is None:
             self._data = other
-        elif not isinstance(self._data, collections.abc.Mapping):
-            self._data |= other
+        elif isinstance(self._data, Node.LazyHolder):
+            self.__raw_set__(None, other)
         elif isinstance(self._data, collections.abc.Mapping):
             for k, v in other.items():
                 self.__setitem__(k, v)
