@@ -5,6 +5,27 @@ from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
 
+class _TAG_:
+    pass
+
+
+class _NOT_FOUND_(_TAG_):
+    pass
+
+
+class _NEXT_TAG_(_TAG_):
+    pass
+
+
+class _LAST_TAG_(_TAG_):
+    pass
+
+
+_not_found_ = _NOT_FOUND_()
+_next_ = _NEXT_TAG_()
+_last_ = _LAST_TAG_()
+
+
 class Entry(object):
 
     def __init__(self, data=None,  *args, prefix=None, parent=None,   **kwargs):
@@ -16,7 +37,7 @@ class Entry(object):
             self._prefix = []
         elif isinstance(prefix, str):
             self._prefix = prefix.split(".")
-        elif not isinstance(prefix, collections.abc.Sequence):
+        elif not isinstance(prefix, collections.abc.MutableSequence):
             self._prefix = [prefix]
         else:
             self._prefix = prefix
@@ -56,15 +77,24 @@ class Entry(object):
         if isinstance(other, collections.abc.Mapping):
             for k, v in other.items():
                 self._data[k] = v
-        elif isinstance(other, collections.abc.Sequence):
+        elif isinstance(other, collections.abc.MutableSequence):
             self._data.extend(other)
         else:
             raise ValueError(f"Can not copy {type(other)}!")
 
+    def __normalize_path__(self, path=None):
+        if path is None:
+            pass
+        elif isinstance(path, str):
+            path = path.split(".")
+        elif not isinstance(path, collections.abc.MutableSequence):
+            path = [path]
+        return path
+
     def _normalize_path(self, path):
         if isinstance(path, str):
             path = path.split(".")
-        elif not isinstance(path, collections.abc.Sequence):
+        elif not isinstance(path, collections.abc.MutableSequence):
             path = [path]
         return self._prefix + path
 
@@ -72,6 +102,8 @@ class Entry(object):
         path = self._normalize_path(path)
 
         obj = self._data
+        if obj is None:
+            obj = self._parent
 
         for p in path:
             if type(p) is str and hasattr(obj, p):
@@ -143,6 +175,7 @@ class Entry(object):
             parent = self.put(path[:-1], [])
             idx = 0
             parent[idx] = v
+        logger.debug(path)
         return parent[idx]
 
     def update(self, path, v, *args, **kwargs):
@@ -192,7 +225,7 @@ class Entry(object):
         res = None
         if obj is None:
             pass
-        elif isinstance(obj, collections.abc.Sequence):
+        elif isinstance(obj, collections.abc.MutableSequence):
             res = obj[-1]
             obj.pop()
         else:
@@ -210,7 +243,7 @@ class Entry(object):
         return request
 
     def __post_process__(self, request, *args, **kwargs):
-        if isinstance(request,  collections.abc.Sequence) and not isinstance(request, str):
+        if isinstance(request,  collections.abc.MutableSequence):
             res = [self.__post_process__(v, *args, **kwargs) for v in request]
         elif isinstance(request, collections.abc.Mapping):
             res = {k: self.__post_process__(v, *args, **kwargs) for k, v in request.items()}

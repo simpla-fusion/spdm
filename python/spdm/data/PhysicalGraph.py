@@ -32,7 +32,7 @@ class PhysicalGraph(Graph):
 
     def __getattr__(self, k):
         if k.startswith("_"):
-            return super().__getattr__(k)
+            return self.__dict__[k]
         else:
             # res = getattr(self.__class__, k, None)
             # if res is None:

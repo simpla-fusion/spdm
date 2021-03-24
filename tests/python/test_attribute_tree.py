@@ -3,27 +3,32 @@ import pprint
 import sys
 import unittest
 from spdm.util.logger import logger
+from spdm.data.Entry import _next_
+from spdm.data.Node import Node
 from spdm.data.PhysicalGraph import PhysicalGraph
 
 
 class TestPhysicalGraph(unittest.TestCase):
     def test_attribute_put(self):
         d = PhysicalGraph()
-        d.a = {
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ],
-            "b": {
-                "c": "I'm {age}!",
-                "d": {
-                    "e": "{name} is {age}",
-                    "f": "{address}"
-                }
+        d["a"] = [
+            "hello world {name}!",
+            "hello world2 {name}!",
+            1, 2, 3, 4
+        ]
+        d["b"] = {
+            "c": "I'm {age}!",
+            "d": {
+                "e": "{name} is {age}",
+                "f": "{address}"
             }
         }
-        logger.debug(d)
+
+        self.assertEqual(d.a[0], "hello world {name}!")
+        self.assertEqual(d.a[1], "hello world2 {name}!")
+        self.assertEqual(d.b.c,  "I'm {age}!")
+        self.assertEqual(d.b.d.e,  "{name} is {age}")
+        self.assertEqual(d.b.d.f,  "{address}")
 
     def test_attribute_get(self):
 
@@ -48,6 +53,14 @@ class TestPhysicalGraph(unittest.TestCase):
         self.assertEqual(d.b.d.e,  "{name} is {age}")
         self.assertEqual(d.b.d.f,  "{address}")
         # self.assertEqual(d.a[2:6], [1, 2, 3, 4])
+
+    def test_attribute_insert(self):
+        d = Node()
+        d["c"][_next_] = 1.23455
+        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
+
+        self.assertEqual(d["c"][0],  1.23455)
+        self.assertEqual(len(d["c"]),  2)
 
     # def test_attribute_format(self):
     #     d = PhysicalGraph({
