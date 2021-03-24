@@ -283,3 +283,14 @@ class Node:
                 self.__setitem__(k, v)
         else:
             raise TypeError(f"{type(other)}")
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Node):
+            other = self._data
+
+        if isinstance(self._data, Entry):
+            return self.equal(other)
+        elif isinstance(self._data, Node.LazyHolder):
+            return other is None
+        else:
+            return self._data == other

@@ -39,12 +39,7 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(d["d.f"],  cache["d"]["f"])
         self.assertEqual(d["a"][0], cache["a"][0])
         self.assertEqual(d["a"][1],  cache["a"][1])
-
-        # self.assertEqual(d["c"],  "I'm {age}!")
-        # self.assertEqual(d["d.e"],  "{name} is {age}")
-        # self.assertEqual(d["d.f"],  "{address}")
-        # self.assertEqual(d["a"][0], "hello world {name}!")
-        # self.assertEqual(d["a"][1], "hello world2 {name}!")
+        self.assertEqual(d["a"][2:6], [1, 2, 3, 4])
 
     def test_node_insert(self):
         cache = {}
@@ -63,30 +58,42 @@ class TestAttributeTree(unittest.TestCase):
         d = Node([1, 2, 3, 4, 5, 6])
         self.assertEqual([v for v in d],  [1, 2, 3, 4, 5, 6])
 
-    # def test_attribute_get(self):
+    def test_attribute_get(self):
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ],
+            "c": "I'm {age}!",
+            "d": {
+                "e": "{name} is {age}",
+                "f": "{address}"
+            }
+        }
+        d = AttributeTree(cache)
 
-    #     d = AttributeTree({
-    #         "a": [
-    #             "hello world {name}!",
-    #             "hello world2 {name}!",
-    #             1, 2, 3, 4
-    #         ],
-    #         "b": {
-    #             "c": "I'm {age}!",
-    #             "d": {
-    #                 "e": "{name} is {age}",
-    #                 "f": "{address}"
-    #             }
-    #         }
-    #     })
+        self.assertEqual(len(d["a"]),  6)
+        self.assertEqual(d.c,  cache["c"])
+        self.assertEqual(d.d.e, cache["d"]["e"])
+        self.assertEqual(d.d.f,  cache["d"]["f"])
+        self.assertEqual(d.a[0], cache["a"][0])
+        self.assertEqual(d.a[1],  cache["a"][1])
+        self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
-    #     self.assertEqual(d.a[0], "hello world {name}!")
-    #     self.assertEqual(d.a[1], "hello world2 {name}!")
-    #     self.assertEqual(d.b.c,  "I'm {age}!")
-    #     self.assertEqual(d.b.d.e,  "{name} is {age}")
-    #     self.assertEqual(d.b.d.f,  "{address}")
-        # self.assertEqual(d.a[2:6], [1, 2, 3, 4])
+    def test_attribute_set(self):
+        cache = {}
 
+        d = AttributeTree(cache)
+
+        d.a = "hello world {name}!"
+        self.assertEqual(cache["a"], "hello world {name}!")
+
+        d.c[_next_] = 1.23455
+        d.c[_next_] = {"a": "hello world", "b": 3.141567}
+
+        self.assertEqual(cache["c"][0],  1.23455)
+         
     # def test_attribute_format(self):
     #     d = PhysicalGraph({
     #         'annotation': {'contributors': ['Salmon'],
