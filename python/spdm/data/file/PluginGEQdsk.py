@@ -1,12 +1,14 @@
 import collections
 import pathlib
 import pprint
+from functools import cached_property
 
 import numpy as np
 from spdm.util.logger import logger
 
-from ..Document import Document
-from ..Entry import Entry
+from ..Entry import Entry, _next_
+from ..File import File
+from ..AttributeTree import AttributeTree
 
 
 def sp_read_geqdsk(file):
@@ -66,12 +68,18 @@ def sp_read_geqdsk(file):
 
     qpsi = _read_data(nw)
 
-    nbbs = int(file.read(5))
-    limitr = int(file.read(5))
-    file.readline()
+    try:
+        nbbs = int(file.read(5))
+        limitr = int(file.read(5))
+        file.readline()
 
-    bbsrz = _read_data(nbbs * 2).reshape([nbbs, 2])
-    limrz = _read_data(limitr * 2).reshape([limitr, 2])
+        bbsrz = _read_data(nbbs * 2).reshape([nbbs, 2])
+        limrz = _read_data(limitr * 2).reshape([limitr, 2])
+    except:
+        nbbs = 0
+        limitr = 0
+        bbsrz = None
+        limrz = None
 
     data = {
         "description": description,
@@ -177,18 +185,13 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
         [1, rbbs.size]), axis=0).transpose()
     # psi
 
-    grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
-                              1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
-    coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
-        coord_r.shape[0], 1), axis=1)
-    coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(
-        coord_z.shape[0], 1), axis=1)
-    points = np.append(coord_r.reshape(
-        [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
+    grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw * 1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
+    coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(coord_r.shape[0], 1), axis=1)
+    coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(coord_z.shape[0], 1), axis=1)
+    points = np.append(coord_r.reshape([coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
     psi = eq.profiles_2d[1].psi
     values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    psirz = griddata(points, values, (grid_r, grid_z),
-                     method='cubic').transpose()
+    psirz = griddata(points, values, (grid_r, grid_z), method='cubic').transpose()
 
     # profile
 
@@ -197,7 +200,6 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
     ffprim = eq.profiles_1d.f_df_dpsi
     pprim = eq.profiles_1d.dpressure_dpsi
     qpsi = eq.profiles_1d.q
-    print(qpsi.shape)
 
     return {
         "nw": nw,
@@ -225,27 +227,28 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
 
 
 def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
+
     # rdim = 0.0
     # zdim = 0.0
-    eq.boundary.geometric_axis.r = geqdsk["rcentr"]
-    eq.boundary.geometric_axis.z = geqdsk["zmid"]
+    eq.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
+    eq.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
+
     # rleft = 0.0
     eq.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
     eq.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
+    eq.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
     eq.global_quantities.psi_axis = geqdsk["simag"]
     eq.global_quantities.psi_boundary = geqdsk["sibry"]
-    eq.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
     eq.global_quantities.ip = geqdsk["current"]
 
     # boundary
 
-    eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
-    eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
+    # eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
+    # eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
-    profiles_2d = eq.profiles_2d.__push_back__()
-    profiles_2d.grid_type.name = "rectangular"
-    profiles_2d.grid_type.index = 1
-    profiles_2d.psi = geqdsk["psirz"]
+    eq.profiles_2d.grid_type.name = "rectangular"
+    eq.profiles_2d.grid_type.index = 1
+    eq.profiles_2d.psi = geqdsk["psirz"]
 
     # coord_r = eq.coordinate_system.r
     # coord_z = eq.coordinate_system.z
@@ -271,33 +274,32 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
     #                  method='cubic').transpose()
 
     # profile
-    profiles_1d = eq.profiles_1d.__push_back__()
-    profiles_1d.f = geqdsk["fpol"]
-    profiles_1d.pressure = geqdsk["pres"]
-    profiles_1d.f_df_dpsi = geqdsk["ffprim"]
-    profiles_1d.dpressure_dpsi = geqdsk["pprim"]
-    profiles_1d.q = geqdsk["qpsi"]
+    eq.profiles_1d.f = geqdsk["fpol"]
+    eq.profiles_1d.pressure = geqdsk["pres"]
+    eq.profiles_1d.f_df_dpsi = geqdsk["ffprim"]
+    eq.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
+    eq.profiles_1d.q = geqdsk["qpsi"]
 
 
 def load_geqdsk(uri):
 
-    root = Entry()
-    eq = root.entry.equilibrium.time_slice.__push_back__()
-
+    root = AttributeTree()
     with open(uri) as fp:
-        sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
+        sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), root.equilibrium)
 
-    return root.holder
+    return root
 
 
-class GEQdskDocument(Document):
+class GEQdskDocument(File):
     def __init__(self, path, *args, mode="r", **kwargs):
-        self._path = path
+        super().__init__(path=path, mode=mode)
 
-        if "r" in mode and self._path is not None:
-            super().__init__(load_geqdsk(path), *args, **kwargs)
+    @cached_property
+    def entry(self):
+        if "w" in self.mode or "x" in self.mode:
+            raise NotImplementedError()
         else:
-            super().__init__({}, *args, **kwargs)
+            return load_geqdsk(self._path)
 
     def load(self, p):
         with open(p or self._path, mode="r") as fp:
@@ -307,3 +309,6 @@ class GEQdskDocument(Document):
         geqdsk = sp_imas_equilibrium_to_geqdsk(self.root.holder)
         with open(p or self._path, mode="w") as fp:
             sp_write_geqdsk(geqdsk, fp)
+
+
+__SP_EXPORT__ = GEQdskDocument

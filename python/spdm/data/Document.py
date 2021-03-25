@@ -1,13 +1,13 @@
 import collections
 from typing import Any, Dict, List
 from ..util.logger import logger
-from ..util.LazyProxy import LazyProxy
 from .DataObject import DataObject
 from .Entry import Entry
 
 
 class Document(DataObject):
 
+  
     def __init__(self,  *args,  fid=None, parent=None, path=None, mode="r", envs=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._fid = fid

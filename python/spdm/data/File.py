@@ -1,20 +1,20 @@
 import collections
 import contextlib
-from spdm.data.DataObject import DataObject
-import inspect
-import io
 import pathlib
 import shutil
-import tempfile
 import uuid
 
 from ..util.logger import logger
 from ..util.urilib import urisplit
+from ..util.SpObject import SpObject
 from .Document import Document
 
 
-Document.schema.update(
-    {
+class File(Document):
+    """ 
+        Default entry for file-like object
+    """
+    associtaion = {
         "file.table": ".data.file.PluginTable",
         "file.bin": ".data.file.PluginBinary",
         "file.h5": ".data.file.PluginHDF5",
@@ -35,30 +35,19 @@ Document.schema.update(
         "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
         "db.imas": ".data.db.IMAS#IMASDocument",
     }
-)
+    is_interface = True
 
-
-class File(Document):
-    """ 
-        Default entry for file-like object
-    """
-
-    @staticmethod
     def __new__(cls,  metadata=None, *args, **kwargs):
+        if cls is not File:
+            return super(File, cls).__new__(cls, metadata, *args, **kwargs)
 
         if metadata is not None and not isinstance(metadata, collections.abc.Mapping):
             metadata = {"path": metadata}
-
-        metadata = collections.ChainMap(metadata or {}, kwargs)
-
-        if cls is not File and len(metadata) == 0:
-            return Document.__new__(cls)
-
+        metadata = collections.ChainMap(metadata, kwargs)
         n_cls = metadata.get("$class", None)
 
         if not n_cls:
             file_format = metadata.get("format", None)
-
             if not file_format:
                 path = pathlib.Path(metadata.get("path", ""))
 
@@ -67,8 +56,13 @@ class File(Document):
                 file_format = path.suffix[1:]
 
             n_cls = f"file.{file_format.lower()}"
+            metadata["$class"] = File.associtaion.get(n_cls, None) or n_cls
 
-        return Document.__new__(cls, n_cls)
+        n_cls = SpObject.find_class(metadata)
+        if issubclass(n_cls, cls):
+            return object.__new__(n_cls)
+        else:
+            return n_cls(metadata, *args, **kwargs)
 
     def __init__(self, path=None, *args,  **kwargs):
         super().__init__(*args, path=path, ** kwargs)
@@ -77,6 +71,11 @@ class File(Document):
             if self.path.is_dir():
                 self._path /= f"{uuid.uuid1()}{self.extension_name or '.txt' }"
             self._path = self._path.expanduser().resolve()
+
+    @classmethod
+    def deserialize(cls, metadata):
+
+        return super().deserialize(metadata)
 
     @property
     def extension_name(self):
@@ -158,6 +157,6 @@ class File(Document):
         # self.write(old_d)
 
 
-DataObject.schema['file'] = File
+SpObject.schema['file'] = File
 
 __SP_EXPORT__ = File

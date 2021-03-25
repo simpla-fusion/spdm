@@ -26,33 +26,40 @@ class SpObject(object):
     """
     _default_prefix = ".".join(__package__.split('.')[:-1])
 
-    def __new__(cls, metadata=None, *args,  **kwargs):
-        if cls is not SpObject and metadata is None:
-            return object.__new__(cls)
+    schema = {}
 
-        n_cls = None
-
+    @staticmethod
+    def find_class(metadata,  *args,  **kwargs):
         if isinstance(metadata, str):
             n_cls = metadata
         elif isinstance(metadata, collections.abc.Mapping):
-            n_cls = metadata.get("$class", None)
-        else:
-            raise TypeError(type(metadata))
+            n_cls = metadata.get("$class")
 
         if isinstance(n_cls, str):
             if n_cls.startswith("."):
                 n_cls = f"{SpObject._default_prefix}{n_cls}"
             n_cls = sp_find_module(n_cls)
+        if not inspect.isclass(n_cls):
+            raise ModuleNotFoundError(metadata)
+        return n_cls
 
-        if inspect.isclass(n_cls):
-            return object.__new__(n_cls)
-        elif callable(n_cls):
-            return n_cls(metadata, *args, **kwargs)
+    def __new__(cls,   *args,  **kwargs):
+        if cls is not SpObject:
+            return object.__new__(cls)
         else:
-            raise ModuleNotFoundError(f"{metadata}")
+            n_cls = SpObject.find_class(*args,  **kwargs)
+            if issubclass(n_cls, cls):
+                return object.__new__(n_cls)
+            else:
+                return n_cls(*args, **kwargs)
 
     @classmethod
     def deserialize(cls, spec):
+        # @classmethod
+        # def parse_metadata(cls,  metadata=None, *args, **kwargs):
+
+        # return n_cls
+
         if hasattr(cls, "_factory"):
             return cls._factory.create(spec)
         elif isinstance(spec, str):
