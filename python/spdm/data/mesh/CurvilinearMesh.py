@@ -9,10 +9,10 @@ from ..geometry.BSplineSurface import BSplineSurface
 from ..geometry.CubicSplineCurve import CubicSplineCurve
 from ..geometry.Point import Point
 from ..PhysicalGraph import PhysicalGraph
-from .StructedMesh import StructedMesh
+from .StructuredMesh import StructuredMesh
 
 
-class CurvilinearMesh(StructedMesh):
+class CurvilinearMesh(StructuredMesh):
     """
         A `curvilinear grid` or `structured grid` is a grid with the same combinatorial structure as a regular grid,
         in which the cells are quadrilaterals or [general] cuboids, rather than rectangles or rectangular cuboids.

@@ -48,7 +48,7 @@ def find_peaks_2d(Z):
         yield ix, iy
 
 
-class StructedMesh(Mesh):
+class StructuredMesh(Mesh):
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
