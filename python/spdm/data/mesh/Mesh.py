@@ -91,3 +91,9 @@ class Mesh(SpObject):
 
     def new_dataset(self, *args, **kwargs):
         return np.ndarray(self._shape, *args, **kwargs)
+
+    def interpolator(self, Z):
+        return NotImplemented
+
+    def find_peak(self, Z):
+        yield NotImplemented

@@ -176,6 +176,9 @@ class Node:
         obj = holder._data
 
         for idx, key in enumerate(path[:-1]):
+            if isinstance(obj, Node):
+                obj = obj._data
+
             if isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}")
@@ -203,19 +206,22 @@ class Node:
         elif not isinstance(path, collections.abc.MutableSequence):
             path = [path]
 
-        if isinstance(self._data, Entry):
-            return self._data.get(path)
-        elif path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
+        if path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
             return self._data
         elif isinstance(self._data, Node.LazyHolder):
             return self._data.extend(path)
         elif self._data is None:
             return Node.LazyHolder(self, path)
-
-        obj = self._data
+        obj = self
 
         for idx, key in enumerate(path):
-            if obj is _not_found_:
+            if isinstance(obj, Node):
+                obj = obj._data
+
+            if isinstance(obj, Entry):
+                obj = obj.get(path[idx:])
+                break
+            elif obj is _not_found_:
                 raise KeyError(f"{path[idx:]}")
             elif key is None or key == "":
                 pass

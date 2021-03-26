@@ -19,7 +19,7 @@ class RectilinearMesh(StructedMesh):
 
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args,  **kwargs) -> None:
         def normalize_dim(d):
             if isinstance(d, np.ndarray):
                 return d
@@ -60,7 +60,9 @@ class RectilinearMesh(StructedMesh):
         return [d[idx[s]] for s, d in enumerate(self._dims)]
 
     def interpolator(self, value,  **kwargs):
-        assert(value.shape == self.shape)
+        if value.shape != self.shape:
+            raise ValueError(f"{value.shape} {self.shape}")
+
         if self.ndims == 1:
             interp = scipy.interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
         elif self.ndims == 2:

@@ -2,10 +2,11 @@ from functools import cached_property, lru_cache
 from math import log
 
 import numpy as np
+import scipy.interpolate
 
 from ...util.logger import logger
-from ..geometry.CubicSplineCurve import CubicSplineCurve
 from ..geometry.BSplineSurface import BSplineSurface
+from ..geometry.CubicSplineCurve import CubicSplineCurve
 from ..geometry.Point import Point
 from ..PhysicalGraph import PhysicalGraph
 from .StructedMesh import StructedMesh
@@ -67,6 +68,18 @@ class CurvilinearMesh(StructedMesh):
     #     if new_shape != self.shape:
     #         raise ValueError(f"illegal shape! {new_shape}!={self.shape}")
     #     return CurvilinearMesh(self._xy, new_uv, cycle=self.cycle)
+
+    def interpolator(self, value,  **kwargs):
+        if value.shape != self.shape:
+            raise ValueError(f"{value.shape} {self.shape}")
+
+        if self.ndims == 1:
+            interp = scipy.interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+        elif self.ndims == 2:
+            interp = scipy.interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
+        else:
+            raise NotImplementedError(f"NDIMS {self.ndims}>2")
+        return interp
 
     @cached_property
     def boundary(self):

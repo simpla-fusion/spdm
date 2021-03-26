@@ -67,7 +67,7 @@ class Field(Quantity):
             coordinates = None
         # FIXME (salmon 20210302): handle coordinates
         # FIXME (salmon 20210302): handle uncertainty
-        res._coordinates = coordinates
+        # res._coordinates = coordinates
 
         return res
 
@@ -114,13 +114,13 @@ class Field(Quantity):
             kwargs.setdefault("grid", True)
         elif len(args) > 1:
             kwargs.setdefault("grid", False)
-        try:
-            res = self.interpolator(*args, **kwargs)
-        except Exception as error:
-            logger.debug((args, kwargs))
-            raise error
-        else:
-            return res
+
+        res = self.interpolator(*args, **kwargs)
+
+        return res
+
+    def find_peak(self):
+        yield from self._coordinates.mesh.find_peak(self)
 
     def derivative(self, *args, dx=None, dy=None, **kwargs):
         if self.ndim == 1:

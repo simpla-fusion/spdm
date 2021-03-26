@@ -2,13 +2,14 @@ import collections
 import pathlib
 
 import numpy as np
+from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
+from ..AttributeTree import AttributeTree
 from ..Document import Document
-from ..File import File
 from ..Entry import Entry
-from spdm.util.dict_util import format_string_recursive
+from ..File import File
 
 try:
     from lxml.etree import Comment as _XMLComment
@@ -19,10 +20,10 @@ try:
 
     _HAS_LXML = True
 except ImportError:
+    from xml.etree.ElementTree import Comment as _XMLComment
     from xml.etree.ElementTree import Element as _XMLElement
     from xml.etree.ElementTree import ParseError as _XMLParseError
     from xml.etree.ElementTree import parse as parse_xml
-    from xml.etree.ElementTree import Comment as _XMLComment
     _XPath = str
     _HAS_LXML = False
 
@@ -213,7 +214,7 @@ class XMLFile(File):
     def entry(self):
         if self._root is None:
             self._root = load_xml(self.path)
-        return XMLEntry(self._root, parent=self)
+        return AttributeTree(XMLEntry(self._root, parent=self))
 
 
 __SP_EXPORT__ = XMLFile

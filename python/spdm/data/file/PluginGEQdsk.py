@@ -64,7 +64,7 @@ def sp_read_geqdsk(file):
     ffprim = _read_data(nw)
     pprim = _read_data(nw)
 
-    psirz = _read_data(nw * nh).reshape([nw, nh])
+    psirz = _read_data(nw * nh).reshape([nh, nw])
 
     qpsi = _read_data(nw)
 
@@ -246,10 +246,26 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
     # eq.equilibrium.boundary.outline.r = geqdsk["bbsrz"][:, 0]
     # eq.equilibrium.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
-    eq.equilibrium.profiles_2d.grid_type.name = "rectangular"
-    eq.equilibrium.profiles_2d.grid_type.index = 1
-    eq.equilibrium.profiles_2d.psi = geqdsk["psirz"]
+    nw = geqdsk["nw"]
+    nh = geqdsk["nh"]
+    rmin = geqdsk["rleft"]
+    rmax = geqdsk["rleft"]+geqdsk["rdim"]
+    zmin = geqdsk["zmid"]-geqdsk["zdim"]/2
+    zmax = geqdsk["zmid"]+geqdsk["zdim"]/2
 
+    eq.equilibrium.profiles_2d.grid_type = "rectangular"
+    eq.equilibrium.profiles_2d.grid_index = 1
+    eq.equilibrium.profiles_2d.grid.dim1 = np.linspace(rmin, rmax, nw)
+    eq.equilibrium.profiles_2d.grid.dim2 = np.linspace(zmin, zmax, nh)
+
+    r, z = np.meshgrid(eq.equilibrium.profiles_2d.grid.dim1,
+                       eq.equilibrium.profiles_2d.grid.dim2, indexing="ij")
+   
+
+    eq.equilibrium.profiles_2d.r = r
+    eq.equilibrium.profiles_2d.z = z
+    eq.equilibrium.profiles_2d.psi = geqdsk["psirz"].T
+  
     # coord_r = eq.equilibrium.coordinate_system.r
     # coord_z = eq.equilibrium.coordinate_system.z
     # rleft = coord_r.min()
