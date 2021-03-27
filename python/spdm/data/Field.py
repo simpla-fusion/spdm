@@ -110,13 +110,14 @@ class Field(Quantity):
         if len(args) == 0:
             args = self._coordinates.mesh.points
 
-        if all([(isinstance(a, np.ndarray) and len(a.shape) == 1) for a in args]) and len(args) > 1:
+        if any([(isinstance(a, np.ndarray)) for a in args]):
             kwargs.setdefault("grid", True)
         elif len(args) > 1:
             kwargs.setdefault("grid", False)
 
         res = self.interpolator(*args, **kwargs)
-
+        if isinstance(res, np.ndarray) and len(res.shape) == 0:
+            res = res.item()
         return res
 
     def find_peak(self):
