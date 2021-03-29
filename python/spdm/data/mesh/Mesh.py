@@ -11,16 +11,16 @@ from ...util.SpObject import SpObject
 class Mesh(SpObject):
 
     @staticmethod
-    def __new__(cls, *args, mesh_type=None, grid_index=0, **kwargs):
+    def __new__(cls, *args, mesh_type=None,   **kwargs):
         if cls is not Mesh:
             return object.__new__(cls)
 
         n_cls = None
-        if mesh_type is None or mesh_type == "rectilinear" or grid_index == 0:
+        if mesh_type is None or mesh_type == "rectilinear":
             from .RectilinearMesh import RectilinearMesh
             n_cls = RectilinearMesh
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(mesh_type)
 
         return object.__new__(n_cls)
 

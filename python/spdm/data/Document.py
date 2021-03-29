@@ -7,14 +7,14 @@ from .Entry import Entry
 
 class Document(DataObject):
 
-  
-    def __init__(self,  *args,  fid=None, parent=None, path=None, mode="r", envs=None, **kwargs):
+    def __init__(self,  *args,  fid=None, parent=None, path=None, mode="r", envs=None, schema=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._fid = fid
         self._path = path
         self._mode = mode
         self._envs = collections.ChainMap(envs or {}, kwargs)
         self._parent = parent
+        self._schema = schema
 
     def __del__(self):
         pass
@@ -28,6 +28,10 @@ class Document(DataObject):
     @property
     def entry(self):
         return Entry(self)
+
+    @property
+    def schema(self):
+        return self._schema
 
     @property
     def envs(self):

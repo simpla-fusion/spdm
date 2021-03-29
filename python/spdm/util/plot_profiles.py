@@ -44,6 +44,8 @@ def parse_profile(desc, holder=None, **kwargs):
         data = try_get(holder, data, None)
     elif isinstance(data, np.ndarray):
         pass
+    elif data == None:
+        logger.error(f"Value error { (data)}")
     else:
         logger.error(f"Type error {type(data)}")
     return data, opts

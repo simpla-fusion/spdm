@@ -9,10 +9,10 @@ from .Unit import Unit
 
 class Coordinates:
 
-    def __init__(self, *args, name=None, unit=None,  **kwargs) -> None:
+    def __init__(self, *args, name=None, unit=None, mesh=None,  **kwargs) -> None:
         self._name = name.split(",") if isinstance(name, str) else name
         self._unit = [*map(Unit, unit.split(","))] if isinstance(unit, str) else unit
-        self._mesh = Mesh(*args,  **kwargs)
+        self._mesh = Mesh(*args, **kwargs) if not isinstance(mesh, Mesh) else mesh
 
     def __repr__(self) -> str:
         return f"""<{self.__class__.__name__} name=\"{self._name}\" />"""

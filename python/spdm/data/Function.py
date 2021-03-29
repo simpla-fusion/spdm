@@ -6,6 +6,12 @@ import scipy.interpolate
 from ..util.logger import logger
 from .Quantity import Quantity
 
+# if version.parse(scipy.__version__) <= version.parse("1.4.1"):
+#     from scipy.integrate import cumtrapz as cumtrapz
+# else:
+#     from scipy.integrate import cumulative_trapezoid as cumtrapz
+
+logger.debug(f"Using SciPy Version: {scipy.__version__}")
 
 class Function(Quantity):
     @staticmethod

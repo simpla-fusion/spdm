@@ -16,7 +16,9 @@ class Field(Quantity):
 
     @staticmethod
     def __new__(cls,  value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
-        if not isinstance(coordinates, Coordinates):
+        if coordinates is None:
+            coordinates = Coordinates(*args,   **kwargs)
+        elif not isinstance(coordinates, Coordinates):
             coordinates = Coordinates(coordinates, *args,   **kwargs)
 
         shape = shape or coordinates.mesh.shape
@@ -110,12 +112,13 @@ class Field(Quantity):
         if len(args) == 0:
             args = self._coordinates.mesh.points
 
-        if any([(isinstance(a, np.ndarray)) for a in args]):
+        if all([(isinstance(a, np.ndarray) and len(a.shape) == 1 and a.shape[0] == self.shape[idx]) for idx, a in enumerate(args)]):
             kwargs.setdefault("grid", True)
-        elif len(args) > 1:
+        else:
             kwargs.setdefault("grid", False)
 
         res = self.interpolator(*args, **kwargs)
+
         if isinstance(res, np.ndarray) and len(res.shape) == 0:
             res = res.item()
         return res
