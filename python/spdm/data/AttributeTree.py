@@ -1,3 +1,4 @@
+import collections
 import functools
 from .Node import Node
 
@@ -25,6 +26,10 @@ def _setattr(self, k, v):
             self.__setitem__(k, v)
         elif isinstance(res, property):
             res.fset(self, k, v)
+        elif isinstance(v, collections.abc.Mapping):
+            target = _getattr(self, k)
+            for i, d in v.items():
+                _setattr(target, i, d)
         else:
             raise AttributeError(f"Can not set attribute {k}!")
 
