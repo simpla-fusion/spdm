@@ -43,7 +43,8 @@ class Quantity(np.ndarray):
         self._annotation = Annotation(annotation or {})
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} unit='{ self._unit}' >"
+        unit_str = f"unit='{self._unit}'" if not self._unit.is_dimensionless else ""
+        return f"<{self.__class__.__name__} shape={self.shape} {unit_str} >"
 
     def put(self, value):
         return self.copy(np.asarray(value))

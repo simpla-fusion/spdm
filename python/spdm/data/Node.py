@@ -222,7 +222,8 @@ class Node:
                 obj = obj.get(path[idx:])
                 break
             elif obj is _not_found_:
-                raise KeyError(f"{path[idx:]}")
+                # raise KeyError(f"{path[idx:]}")
+                break
             elif key is None or key == "":
                 pass
             elif isinstance(obj, collections.abc.Mapping):

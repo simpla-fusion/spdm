@@ -25,6 +25,10 @@ class Unit:
     def __repr__(self) -> str:
         return f"{self._unit}"
 
+    @property
+    def is_dimensionless(self) -> bool:
+        return self._unit is None or self.dimension == 1
+
     @staticmethod
     def calculate(ufunc, method,  *args, **kwargs):
         # FIXME (salmon 20210302): dimensional analysis
@@ -43,7 +47,3 @@ class Unit:
     @property
     def valid(self):
         return self.dimension is not None
-
-    @property
-    def is_dimensionless(self):
-        return self.dimension == 1

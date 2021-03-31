@@ -81,20 +81,20 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
 
         for p_desc in profile_grp:
             profile, opts = parse_profile(p_desc, **kwargs)
-
             if x_axis is None:
                 if not isinstance(profile, np.ndarray):
                     logger.error(f"Illegal profile type!'{type(profile)}'")
                 else:
                     sub_plot[idx].plot(profile, **opts)
-            elif isinstance(profile, (Field, Function)):
-                sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
-            elif isinstance(profile, np.ndarray):
-                if x_axis.shape != profile.shape:
-                    logger.error(
-                        f"length of x,y  must be same! [{opts.get('label','')} {x_axis.shape},{type(profile)}]")
-                else:
-                    sub_plot[idx].plot(x_axis, profile, **opts)
+            # elif isinstance(profile, (Field, Function)) and x_axis is not profile.x:
+            #     logger.debug((x_axis, profile.x))
+            #     sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
+            elif isinstance(profile, np.ndarray) and x_axis.shape == profile.shape:
+                sub_plot[idx].plot(x_axis, profile, **opts)
+                # if x_axis.shape != profile.shape:
+                #     logger.error(
+                #         f"length of x,y  must be same! [{opts.get('label','')} {x_axis.shape},{type(profile)}]")
+                # else:
             elif callable(profile):
                 sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
             else:
@@ -110,6 +110,9 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
         sub_plot[idx].labelsize = "media"
         sub_plot[idx].tick_params(labelsize=fontsize)
 
-    sub_plot[-1].set_xlabel(x_axis_opts.get("label", ""),  fontsize=fontsize)
+    if len(sub_plot) <= 1:
+        sub_plot[0].set_xlabel(x_axis_opts.get("label", ""),  fontsize=fontsize)
+    else:
+        sub_plot[-1].set_xlabel(x_axis_opts.get("label", ""),  fontsize=fontsize)
 
     return fig
