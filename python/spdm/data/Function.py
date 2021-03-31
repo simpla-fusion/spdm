@@ -47,8 +47,12 @@ class Function(np.ndarray):
         elif isinstance(y, scipy.interpolate.PPoly):
             ppoly = y
             y = ppoly(x)
-        elif callable(y) or isinstance(y, Function):
+        elif isinstance(y, Function):
+            if x is not y.x and any(x != y.x):
+                y = y(x)
+        elif callable(y):
             y = y(x)
+            ppoly = y
         elif isinstance(y, np.ndarray):
             pass
         elif isinstance(y, (float, int)):
