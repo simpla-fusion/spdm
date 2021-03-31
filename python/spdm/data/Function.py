@@ -16,16 +16,20 @@ from .Quantity import Quantity
 logger.debug(f"Using SciPy Version: {scipy.__version__}")
 
 
-class Function(Quantity):
+class Function(np.ndarray):
     @staticmethod
     def __new__(cls,  *args, is_periodic=False, **kwargs):
         if cls is not Function:
-            return Quantity.__new__(cls, *args, **kwargs)
+            return object.__new__(cls, *args, **kwargs)
         ppoly = None
         x = None
         y = None
         if len(args) == 1:
-            if isinstance(args[0], PPoly):
+            if isinstance(args[0], Function):
+                ppoly = args[0]._ppoly
+                x = args[0].x
+                y = args[0].view(np.ndarray)
+            elif isinstance(args[0], PPoly):
                 ppoly = args[0]
                 x = ppoly.x
                 y = ppoly(x)
@@ -40,31 +44,33 @@ class Function(Quantity):
 
         if ppoly is not None:
             pass
-        elif isinstance(y, scipy.interpolate.PPoly) or callable(y):
+        elif isinstance(y, scipy.interpolate.PPoly):
             ppoly = y
             y = ppoly(x)
+        elif callable(y) or isinstance(y, Function):
+            y = y(x)
         elif isinstance(y, np.ndarray):
             pass
         elif isinstance(y, (float, int)):
             y = np.full(len(x), y)
         else:
             raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
+        if isinstance(y, np.ndarray):
+            y = y.view(cls)
 
-        obj = Quantity.__new__(cls, y, **kwargs)
-        obj._ppoly = ppoly
-        obj._x = x
-
-        return obj
+        y._ppoly = ppoly
+        y._x = x
+        y._is_periodic = is_periodic
+        return y
 
     def __array_finalize__(self, obj):
-        if obj is None:
-            return
         self._ppoly = getattr(obj, '_ppoly', None)
         self._x = getattr(obj, '_x', None)
+        self._is_periodic = getattr(obj, '_is_periodic', None)
 
-    def __init__(self,  x, y=None, *args, is_periodic=False, **kwargs):
-        super().__init__(*args,  **kwargs)
-        self._is_periodic = is_periodic
+    def __init__(self,  x, y=None, *args, **kwargs):
+        # super().__init__(*args,  **kwargs)
+        pass
 
     @property
     def ppoly(self) -> PPoly:

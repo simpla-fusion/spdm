@@ -35,16 +35,24 @@ class Quantity(np.ndarray):
             obj = np.asarray(value, dtype=dtype, order=order).view(cls)
         else:
             obj = np.ndarray(shape, dtype=dtype, order=order).view(cls)
-
+        
+        # for k, v in kwargs.items():
+        #     if k[0] == '_' and k[1] != '_':
+        #         setattr(obj, k, v)
         return obj
+
+    # def __array_finalize__(self, obj):
+    #     for k, v in getattr(obj, '__dict__', {}).items():
+    #         if k[0] == '_' and k[1] != '_':
+    #             setattr(self, k, v)
 
     def __init__(self,  *args, unit=None, annotation=None,  **kwargs):
         self._unit = Unit(unit)
         self._annotation = Annotation(annotation or {})
 
     def __repr__(self):
-        unit_str = f"unit='{self._unit}'" if not self._unit.is_dimensionless else ""
-        return f"<{self.__class__.__name__} shape={self.shape} {unit_str} >"
+        # unit_str = f"unit='{self._unit}'" if not self._unit.is_dimensionless else ""
+        return f"<{self.__class__.__name__} shape={self.shape}  >"
 
     def put(self, value):
         return self.copy(np.asarray(value))
@@ -61,7 +69,7 @@ class Quantity(np.ndarray):
                             "error_upper": getattr(self, "_error_upper", None)},
         }
 
-    @staticmethod
+    @ staticmethod
     def deserialize(cls, d):
         if not isinstance(d, collections.abc.Mapping):
             return Quantity(d)
@@ -73,11 +81,11 @@ class Quantity(np.ndarray):
                             coordinates=d.get("coordinates", None),
                             annotation=d.get("annotation", None))
 
-    @property
+    @ property
     def annotation(self):
         return self._annotation
 
-    @property
+    @ property
     def unit(self):
         return self._unit
 
