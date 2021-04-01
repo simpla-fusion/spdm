@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     f0 = Function(x, y, is_periodic=True)
     f1 = Function(np.linspace(0, 1.0, 128), y, is_periodic=True)
-    # f2 = Function(x, [(lambda t:t < 1), (lambda t:t >= 1)], [lambda t:t**2, lambda t:np.sin(t)])
+    f2 = Function(x, [(lambda t:t < 1), (lambda t:t >= 1)], [lambda t:t**2, lambda t:0.4*np.sin(t)])
 
     plot_profiles([
         [(f0, r"$f0(x)$"),
@@ -26,7 +26,7 @@ if __name__ == '__main__':
         [(-np.cos(x)+np.cos(0), r"-$cos(x)+cos(0)$"),
          (f0.antiderivative, r"$\int f0$"),
          (scipy.constants.pi*2.0*f1.antiderivative, r"2\pi $\int f1$")],
-        # (f2, r"f2")
+        (f2, r"f2")
 
     ],
         # x_axis=(x, "x")

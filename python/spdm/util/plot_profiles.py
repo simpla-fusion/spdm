@@ -3,7 +3,6 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.PhysicalGraph import PhysicalGraph
-from spdm.data.Field import Field
 from spdm.data.Function import Function
 from spdm.util.logger import logger
 from spdm.util.utilities import try_get
@@ -95,6 +94,12 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
                 #     logger.error(
                 #         f"length of x,y  must be same! [{opts.get('label','')} {x_axis.shape},{type(profile)}]")
                 # else:
+            elif isinstance(profile, Function):
+                if profile.x[0] == x_axis[0] and profile.x[-1] == x_axis[-1]:
+                    sub_plot[idx].plot(profile.x, profile.view(np.ndarray), **opts)
+                else:
+                    sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
+
             elif callable(profile):
                 sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
             else:

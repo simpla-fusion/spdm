@@ -34,6 +34,9 @@ class PimplFunc(object):
     def y(self) -> np.ndarray:
         return self.apply(self.x)
 
+    def apply(self, x=None) -> np.ndarray:
+        return NotImplemented
+
     @cached_property
     def derivative(self):
         return NotImplemented
@@ -45,9 +48,6 @@ class PimplFunc(object):
     def invert(self, x=None):
         x = self.x if x is None else x
         return PimplFunc(self.apply(x), x)
-
-    def apply(self, x=None) -> np.ndarray:
-        return NotImplemented
 
     def pullback(self, *args, **kwargs):
         if len(args) == 0:
@@ -114,7 +114,18 @@ class SplineFunction(PimplFunc):
 
 class PiecewiseFunction(PimplFunc):
     def __init__(self, x, cond, func, *args,    **kwargs) -> None:
-        super().__init__(None,   **kwargs)
+        super().__init__(**kwargs)
+        self._x = x
+        self._cond = cond
+        self._func = func
+
+    @property
+    def x(self) -> np.ndarray:
+        return self._x
+
+    def apply(self, x=None) -> np.ndarray:
+        cond = [c(x) for c in self._cond]
+        return np.piecewise(x, cond, self._func)
 
 
 class Function(np.ndarray):
