@@ -33,7 +33,7 @@ class _PFuncImpl(object):
             y = args[1]
             if callable(y):
                 y = y(x)
-            elif isinstance(y, np.ndarray):
+            elif isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
                 assert(x.shape == y.shape)
             elif isinstance(y, (float, int)):
                 y = np.full(len(x), y)
@@ -128,8 +128,37 @@ class Function(np.ndarray):
         self._pimpl = getattr(obj, '_pimpl', None)
         self._x = getattr(obj, '_x', None)
 
+    def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
+
+        x = next(d.x for d in inputs if isinstance(d, Function))
+
+        def wrapp(d):
+            if x is not None and isinstance(d, Function) and d.x is not x:
+                d = d(x)
+            return d.view(np.ndarray) if isinstance(d, np.ndarray) else d
+
+        inputs = [wrapp(in_) for in_ in inputs]
+
+        if method != "__call__":
+            return super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+        else:
+            return super(Function, self).__array_ufunc__(ufunc, method, *inputs, **kwargs)
+
+        # if isinstance(res, np.ndarray):
+        #     pimpl = _PFuncImpl(x, res)
+        #     res = res.view(self.__class__)
+        #     res._pimpl = pimpl
+
     def __init__(self, *args, **kwargs):
         pass
+
+    def __getitem__(self, key):
+        d = super().__getitem__(key)
+        if isinstance(d, np.ndarray) and len(d.shape) > 0:
+            d.view(Function)
+            d._pimpl = self._pimpl
+            d._x = self._x[key]
+        return d
 
     @property
     def is_periodic(self):

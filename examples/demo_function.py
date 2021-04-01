@@ -15,7 +15,8 @@ if __name__ == '__main__':
 
     f0 = Function(x, y, is_periodic=True)
     f1 = Function(np.linspace(0, 1.0, 128), y, is_periodic=True)
-
+    f2 = f1*2
+    logger.debug(type(f2))
     plot_profiles([
         [(f0, r"$f0(x)$"),
          (f1, r"$f1(x)=f0(2\pi x)$")],
