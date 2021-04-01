@@ -81,10 +81,12 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
         for p_desc in profile_grp:
             profile, opts = parse_profile(p_desc, **kwargs)
             if x_axis is None:
-                if not isinstance(profile, np.ndarray):
-                    logger.error(f"Illegal profile type!'{type(profile)}'")
-                else:
+                if isinstance(profile, Function):
+                    sub_plot[idx].plot(profile.x, profile.view(np.ndarray), **opts)
+                elif isinstance(profile, np.ndarray):
                     sub_plot[idx].plot(profile, **opts)
+                else:
+                    logger.error(f"Illegal profile type!'{type(profile)}'")
             # elif isinstance(profile, (Field, Function)) and x_axis is not profile.x:
             #     logger.debug((x_axis, profile.x))
             #     sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
@@ -95,10 +97,10 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
                 #         f"length of x,y  must be same! [{opts.get('label','')} {x_axis.shape},{type(profile)}]")
                 # else:
             elif isinstance(profile, Function):
-                if profile.x[0] == x_axis[0] and profile.x[-1] == x_axis[-1]:
-                    sub_plot[idx].plot(profile.x, profile.view(np.ndarray), **opts)
-                else:
-                    sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
+                # if profile.x[0] == x_axis[0] and profile.x[-1] == x_axis[-1]:
+                #     sub_plot[idx].plot(profile.x, profile.view(np.ndarray), **opts)
+                # else:
+                sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
 
             elif callable(profile):
                 sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
