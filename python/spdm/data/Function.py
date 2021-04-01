@@ -1,6 +1,7 @@
 from functools import cached_property
 
 import numpy as np
+from numpy.lib.function_base import piecewise
 from scipy import constants
 import scipy.interpolate
 from scipy.interpolate.interpolate import PPoly
@@ -16,76 +17,123 @@ from .Quantity import Quantity
 logger.debug(f"Using SciPy Version: {scipy.__version__}")
 
 
-class Function(np.ndarray):
-    @staticmethod
-    def __new__(cls,  *args, is_periodic=False, **kwargs):
-        if cls is not Function:
-            return object.__new__(cls, *args, **kwargs)
-        ppoly = None
+class _PFuncImpl(object):
+    def __init__(self, *args, is_periodic=False, ** kwargs) -> None:
+        super().__init__()
+        self._is_periodic = is_periodic
+        self._ppoly = None
         x = None
         y = None
-        if len(args) == 1:
-            if isinstance(args[0], Function):
-                ppoly = args[0]._ppoly
-                x = args[0].x
-                y = args[0].view(np.ndarray)
-            elif isinstance(args[0], PPoly):
-                ppoly = args[0]
-                x = ppoly.x
-                y = ppoly(x)
-            elif isinstance(args[0], np.ndarray):
-                x = np.linspace(0, 1.0, len(args[0]))
-                y = args[0]
-        elif len(args) == 2:
+        if len(args) == 0:
+            raise RuntimeError(f"Missing input!")
+        elif len(args) == 1 and isinstance(args[0], PPoly):
+            self._ppoly = args[0]
+        elif len(args) >= 2:
             x = args[0]
             y = args[1]
-        else:
-            raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
-
-        if ppoly is not None:
-            pass
-        elif isinstance(y, scipy.interpolate.PPoly):
-            ppoly = y
-            y = ppoly(x)
-        elif isinstance(y, Function):
-            if x is not y.x and any(x != y.x):
+            if callable(y):
                 y = y(x)
-        elif callable(y):
-            y = y(x)
-            ppoly = y
-        elif isinstance(y, np.ndarray):
-            pass
-        elif isinstance(y, (float, int)):
-            y = np.full(len(x), y)
+            elif isinstance(y, np.ndarray):
+                assert(x.shape == y.shape)
+            elif isinstance(y, (float, int)):
+                y = np.full(len(x), y)
+            elif callable(y):
+                y = y(x)
+            else:
+                raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
+
+            if self._is_periodic:
+                self._ppoly = scipy.interpolate.CubicSpline(x, y, bc_type="periodic", **kwargs)
+            else:
+                self._ppoly = scipy.interpolate.CubicSpline(x, y, **kwargs)
+
         else:
             raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
-        if isinstance(y, np.ndarray):
-            y = y.view(cls)
-
-        y._ppoly = ppoly
-        y._x = x
-        y._is_periodic = is_periodic
-        return y
-
-    def __array_finalize__(self, obj):
-        self._ppoly = getattr(obj, '_ppoly', None)
-        self._x = getattr(obj, '_x', None)
-        self._is_periodic = getattr(obj, '_is_periodic', None)
-
-    def __init__(self,  x, y=None, *args, **kwargs):
-        # super().__init__(*args,  **kwargs)
-        pass
-
-    @property
-    def ppoly(self) -> PPoly:
-        if self._ppoly is None:
-            self._ppoly = scipy.interpolate.CubicSpline(
-                self.x, self.view(np.ndarray), bc_type="periodic" if self.is_periodic else "not-a-knot")
-        return self._ppoly
 
     @property
     def is_periodic(self):
         return self._is_periodic
+
+    @property
+    def x(self) -> np.ndarray:
+        return self._ppoly.x
+
+    @property
+    def y(self) -> np.ndarray:
+        return self.apply(self.x)
+
+    @cached_property
+    def derivative(self):
+        return _PFuncImpl(self._ppoly.derivative())
+
+    @cached_property
+    def antiderivative(self):
+        return _PFuncImpl(self._ppoly.antiderivative())
+
+    def invert(self, x=None):
+        x = self.x if x is None else x
+        return _PFuncImpl(self.apply(x), x)
+
+    def apply(self, x=None) -> np.ndarray:
+        x = self.x if x is None else x
+        return self._ppoly(x)
+
+    def pullback(self, *args, **kwargs):
+        if len(args) == 0:
+            raise ValueError(f"missing arguments!")
+        elif len(args) == 2 and args[0].shape == args[1].shape:
+            x0, x1 = args
+            y = self.apply(x0)
+        elif isinstance(args[0], Function) or callable(args[0]):
+            x1 = args[0](self.x)
+            y = self.view(np.ndarray)
+        elif isinstance(args[0], np.ndarray):
+            x1 = args[0]
+            y = self.apply(x1)
+        else:
+            raise TypeError(f"{args}")
+
+        return Function(x1, y, is_periodic=self.is_periodic)
+
+
+class Function(np.ndarray):
+    @staticmethod
+    def __new__(cls,  *args,   **kwargs):
+        if cls is not Function:
+            return object.__new__(cls, *args, **kwargs)
+        else:
+            if len(args) == 1 and isinstance(args[0], Function):
+                pimpl = args[0]._pimpl
+                obj = pimpl.apply(*args[1:], **kwargs)
+                x = pimpl.x
+            elif len(args) >= 2 and isinstance(args[1], Function):
+                pimpl = args[1]._pimpl
+                obj = pimpl.apply(args[0], *args[2:], **kwargs)
+                x = args[0]
+            elif len(args) >= 2 and isinstance(args[1], _PFuncImpl):
+                pimpl = args[1]
+                obj = pimpl.apply(args[0], *args[2:], **kwargs)
+                x = args[0]
+            else:
+                pimpl = _PFuncImpl(*args, **kwargs)
+                obj = pimpl.y
+                x = pimpl.x
+
+            obj = obj.view(cls)
+            obj._pimpl = pimpl
+            obj._x = x
+            return obj
+
+    def __array_finalize__(self, obj):
+        self._pimpl = getattr(obj, '_pimpl', None)
+        self._x = getattr(obj, '_x', None)
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    @property
+    def is_periodic(self):
+        return self._pimpl.is_periodic
 
     @property
     def x(self):
@@ -93,40 +141,25 @@ class Function(np.ndarray):
 
     @cached_property
     def derivative(self):
-        return Function(self.ppoly.derivative())
+        return Function(self._x, self._pimpl.derivative)
 
     @cached_property
     def antiderivative(self):
-        return Function(self.ppoly.antiderivative())
+        return Function(self._x, self._pimpl.antiderivative)
 
     @cached_property
     def invert(self):
-        try:
-            func = Function(self.__call__(self.x), self.x)
-        except Exception:
-            raise ValueError(f"Can not create invert function!")
+        return Function(*self._pimpl.invert(self._x))
 
-        return func
+    def pullback(self, *args, **kwargs):
+        if len(args) == 0:
+            args = [self._x]
+        return Function(self._pimpl.pullback(*args, **kwargs))
 
     def integrate(self, a=None, b=None):
-        return self.ppoly.integrate(a or self.x[0], b or self.x[-1])
+        return self._pimpl.integrate(a or self.x[0], b or self.x[-1])
 
     def __call__(self,   *args, **kwargs):
-        return self.ppoly(*args, **kwargs)
-
-    def pullback(self, *args):
         if len(args) == 0:
-            raise ValueError(f"missing arguments!")
-        elif len(args) == 2 and args[0].shape == args[1].shape:
-            x0, x1 = args
-            y = self(x0)
-        elif isinstance(args[0], Function) or callable(args[0]):
-            x1 = args[0](self.x)
-            y = self.view(np.ndarray)
-        elif isinstance(args[0], np.ndarray):
-            x1 = args[0]
-            y = self(x1)
-        else:
-            raise TypeError(f"{args}")
-
-        return Function(x1, y, is_periodic=self.is_periodic)
+            args = [self._x]
+        return self._pimpl.apply(*args, **kwargs)

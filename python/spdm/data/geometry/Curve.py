@@ -64,7 +64,7 @@ class Curve(GeoObject):
             u = np.hstack([u, [u[0]+L]])
             d = np.hstack([d, [d[0]]])
 
-        return Function(u, d, is_period=self.is_closed)
+        return Function(u, d, is_periodic=self.is_closed)
 
 
 class Line(Curve):
