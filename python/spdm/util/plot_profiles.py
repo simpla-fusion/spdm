@@ -47,7 +47,7 @@ def parse_profile(desc, holder=None, **kwargs):
     elif data == None:
         logger.error(f"Value error { (data)}")
     else:
-        logger.error(f"Type error {type(data)}")
+        logger.error(f"Type error {data}")
     return data, opts
 
 
@@ -55,7 +55,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
-    profile_list += args
+    # profile_list += args
 
     if not isinstance(x_axis, np.ndarray):
         x_axis, x_axis_opts = parse_profile(x_axis, **kwargs)
@@ -98,7 +98,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, fontsize=6,  grid=False, *
             elif callable(profile):
                 sub_plot[idx].plot(x_axis, profile(x_axis), **opts)
             else:
-                logger.error(f"Can not plot profile '{p_desc}'")
+                logger.error(f"Can not plot profile '{opts}'")
 
         sub_plot[idx].legend(fontsize=fontsize)
 
