@@ -3,7 +3,7 @@ import collections
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.PhysicalGraph import PhysicalGraph
-from spdm.data.Function import Function
+from spdm.numerical.Function import Function
 from spdm.util.logger import logger
 from spdm.util.utilities import try_get
 

@@ -5,9 +5,9 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import make_interp_spline
 
-from ...util.logger import logger
+from ..numerical.Function import Function
+from ..util.logger import logger
 from .Surface import Surface
-from ..Function import Function
 
 
 class BSplineSurface(Surface):

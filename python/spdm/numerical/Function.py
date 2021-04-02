@@ -1,15 +1,11 @@
 from functools import cached_property
 
-from matplotlib.pyplot import isinteractive
-
 import numpy as np
-from numpy.lib.function_base import piecewise
-from scipy import constants
 import scipy.interpolate
 from scipy.interpolate.interpolate import PPoly
 
 from ..util.logger import logger
-from .Quantity import Quantity
+# from ..data.Quantity import Quantity
 
 # if version.parse(scipy.__version__) <= version.parse("1.4.1"):
 #     from scipy.integrate import cumtrapz as cumtrapz

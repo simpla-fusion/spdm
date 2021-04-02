@@ -4,8 +4,8 @@ import numpy as np
 
 from .GeoObject import GeoObject
 from .Point import Point
-from ..Function import Function
-from ...util.logger import logger
+from ..numerical.Function import Function
+from ..util.logger import logger
 
 
 class Curve(GeoObject):

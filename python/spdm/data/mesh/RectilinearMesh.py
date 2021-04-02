@@ -4,8 +4,8 @@ import numpy as np
 import scipy.interpolate
 
 from ...util.logger import logger
-from ..geometry.Curve import Line
-from ..geometry.Point import Point
+from ...geometry.Curve import Line
+from ...geometry.Point import Point
 from .StructuredMesh import StructuredMesh
 
 

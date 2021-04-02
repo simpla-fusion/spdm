@@ -5,8 +5,8 @@ import numpy as np
 from numpy.lib.arraysetops import isin
 from scipy.interpolate import CubicSpline
 
-from ...util.logger import logger
-from ..Function import Function
+from ..util.logger import logger
+from ..numerical.Function import Function
 from .Curve import Curve
 
 

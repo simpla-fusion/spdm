@@ -4,10 +4,10 @@ from math import log
 import numpy as np
 import scipy.interpolate
 
+from ...geometry.BSplineSurface import BSplineSurface
+from ...geometry.CubicSplineCurve import CubicSplineCurve
+from ...geometry.Point import Point
 from ...util.logger import logger
-from ..geometry.BSplineSurface import BSplineSurface
-from ..geometry.CubicSplineCurve import CubicSplineCurve
-from ..geometry.Point import Point
 from ..PhysicalGraph import PhysicalGraph
 from .StructuredMesh import StructuredMesh
 
