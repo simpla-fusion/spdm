@@ -4,3 +4,4 @@ from . import data
 from . import flow
 from . import util
 from . import module
+from . import numerical

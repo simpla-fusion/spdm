@@ -35,7 +35,7 @@ class PimplFunc(object):
     def y(self) -> np.ndarray:
         return self.apply(self.x)
 
-    def apply(self, x=None) -> np.ndarray:
+    def apply(self, x) -> np.ndarray:
         raise NotImplementedError(self.__class__.__name__)
 
     @cached_property
@@ -49,6 +49,21 @@ class PimplFunc(object):
     def invert(self, x=None):
         x = self.x if x is None else x
         return PimplFunc(self.apply(x), x)
+
+
+class WrapperFunc(PimplFunc):
+    def __init__(self, x, func, * args,   ** kwargs) -> None:
+        super().__init__()
+        self._x = x
+        self._func = func
+
+    def apply(self, x) -> np.ndarray:
+        x = self.x if x is None else x
+        return self._func(x)
+
+    @property
+    def x(self) -> np.ndarray:
+        return self._x
 
 
 class SplineFunction(PimplFunc):
@@ -87,7 +102,7 @@ class SplineFunction(PimplFunc):
     def antiderivative(self):
         return SplineFunction(self._ppoly.antiderivative())
 
-    def apply(self, x=None) -> np.ndarray:
+    def apply(self, x) -> np.ndarray:
         x = self.x if x is None else x
         return self._ppoly(x)
 
@@ -103,21 +118,18 @@ class PiecewiseFunction(PimplFunc):
     def x(self) -> np.ndarray:
         return self._x
 
-    def apply(self, x=None) -> np.ndarray:
-        if x is None:
-            x = self._x
+    def apply(self, x) -> np.ndarray:
         cond = [c(x) for c in self._cond]
         return np.piecewise(x, cond, self._func)
 
 
 class Expression(PimplFunc):
-    def __init__(self, ufunc, method, *inputs, out=None, **kwargs) -> None:
+    def __init__(self, ufunc, method, *inputs,  **kwargs) -> None:
         super().__init__()
         self._ufunc = ufunc
         self._method = method
         self._inputs = inputs
         self._kwargs = kwargs
-        self._out = out
 
     @property
     def is_periodic(self):
@@ -131,28 +143,31 @@ class Expression(PimplFunc):
     def y(self) -> np.ndarray:
         return self.apply(self.x)
 
-    def apply(self, x=None) -> np.ndarray:
-        if x is None:
-            x = self.x
-
+    def apply(self, x) -> np.ndarray:
         def wrap(x, d):
             if isinstance(d, Function):
                 res = d(x).view(np.ndarray)
-            elif isinstance(d, np.ndarray) and d.shape == self.x.shape:
+            elif not isinstance(d, np.ndarray):
+                res = d
+            elif d.shape == self.x.shape:
                 res = Function(self.x, d)(x).view(np.ndarray)
             else:
-                res = d
+                raise ValueError(f"{self.x.shape} {d.shape}")
+
             return res
 
-        d_list = [wrap(x, d) for d in self._inputs]
+        if self._method != "__call__":
+            raise RuntimeError((self._ufunc, self._method))
 
-        obj = next(d for d in d_list if isinstance(d, np.ndarray))
-
-        return obj.__array_ufunc__(self._ufunc, self._method, *d_list, out=self._out)
+        try:
+            res = self._ufunc(*[wrap(x, d) for d in self._inputs])
+        except ValueError as error:
+            raise ValueError(
+                f"\n {self._ufunc}  {[type(a) for a in self._inputs]}  {[a.shape for a in self._inputs if isinstance(a,Function)]} {error} \n ")
+        return res
 
 
 class Function(np.ndarray):
-    @staticmethod
     def __new__(cls, x, y=None, *args, is_periodic=False,   **kwargs):
         if cls is not Function:
             return object.__new__(cls, *args,  is_periodic=is_periodic, **kwargs)
@@ -184,9 +199,14 @@ class Function(np.ndarray):
             pimpl = y
             y0 = pimpl.apply(args[0], *args[2:], **kwargs)
             x0 = x
+        elif callable(y):
+            pimpl = WrapperFunc(x, y, *args, **kwargs)
+            y0 = pimpl.apply(x)
+            x0 = pimpl.x
+
         elif len(args) > 0 and isinstance(y, list) and isinstance(args[0], list):
             pimpl = PiecewiseFunction(x, y, *args, **kwargs)
-            y0 = pimpl.apply()
+            y0 = pimpl.apply(x)
             x0 = pimpl.x
 
         if not isinstance(y0, np.ndarray):
@@ -219,29 +239,29 @@ class Function(np.ndarray):
             d._x = self.x[key]
         return d
 
-    @property
+    @ property
     def pimpl(self):
         if self._pimpl is None:
             self._pimpl = SplineFunction(self.x, self.view(np.ndarray), is_periodic=self.is_periodic)
         return self._pimpl
 
-    @property
+    @ property
     def is_periodic(self):
         return self._is_periodic
 
-    @property
+    @ property
     def x(self):
         return self._x
 
-    @cached_property
+    @ cached_property
     def derivative(self):
         return Function(self.pimpl.derivative)
 
-    @cached_property
+    @ cached_property
     def antiderivative(self):
         return Function(self.pimpl.antiderivative)
 
-    @cached_property
+    @ cached_property
     def invert(self):
         return Function(self.pimpl.invert(self._x))
 
@@ -261,8 +281,6 @@ class Function(np.ndarray):
         else:
             raise TypeError(f"{args}")
 
-        logger.debug((x1.shape, y.shape))
-
         return Function(x1, y, is_periodic=self.is_periodic)
 
     def integrate(self, a=None, b=None):
@@ -271,4 +289,5 @@ class Function(np.ndarray):
     def __call__(self,   *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
-        return self.pimpl.apply(*args, **kwargs)
+        res = self.pimpl.apply(*args, **kwargs)
+        return res.view(np.ndarray)
