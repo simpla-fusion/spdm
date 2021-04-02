@@ -5,6 +5,7 @@ import scipy.interpolate
 from scipy.interpolate.interpolate import PPoly
 
 from ..util.logger import logger
+
 # from ..data.Quantity import Quantity
 
 # if version.parse(scipy.__version__) <= version.parse("1.4.1"):
