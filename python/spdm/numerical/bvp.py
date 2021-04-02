@@ -9,7 +9,7 @@ from numpy.linalg import norm, pinv
 from scipy.sparse import coo_matrix, csc_matrix
 from scipy.sparse.linalg import splu
 from scipy.optimize import OptimizeResult
-
+from ..util.logger import logger
 
 EPS = np.finfo(float).eps
 
@@ -348,64 +348,65 @@ def prepare_sys(n, m, k, fun, bc, fun_jac, bc_jac, x, h):
 
 
 def solve_newton(n, m, h, col_fun, bc, jac, y, p, B, bvp_tol, bc_tol):
-    """Solve the nonlinear collocation system by a Newton method.
+    """
+        Solve the nonlinear collocation system by a Newton method.
 
-    This is a simple Newton method with a backtracking line search. As
-    advised in [1]_, an affine-invariant criterion function F = ||J^-1 r||^2
-    is used, where J is the Jacobian matrix at the current iteration and r is
-    the vector or collocation residuals (values of the system lhs).
+        This is a simple Newton method with a backtracking line search. As
+        advised in [1]_, an affine-invariant criterion function F = ||J^-1 r||^2
+        is used, where J is the Jacobian matrix at the current iteration and r is
+        the vector or collocation residuals (values of the system lhs).
 
-    The method alters between full Newton iterations and the fixed-Jacobian
-    iterations based
+        The method alters between full Newton iterations and the fixed-Jacobian
+        iterations based
 
-    There are other tricks proposed in [1]_, but they are not used as they
-    don't seem to improve anything significantly, and even break the
-    convergence on some test problems I tried.
+        There are other tricks proposed in [1]_, but they are not used as they
+        don't seem to improve anything significantly, and even break the
+        convergence on some test problems I tried.
 
-    All important parameters of the algorithm are defined inside the function.
+        All important parameters of the algorithm are defined inside the function.
 
-    Parameters
-    ----------
-    n : int
-        Number of equations in the ODE system.
-    m : int
-        Number of nodes in the mesh.
-    h : ndarray, shape (m-1,)
-        Mesh intervals.
-    col_fun : callable
-        Function computing collocation residuals.
-    bc : callable
-        Function computing boundary condition residuals.
-    jac : callable
-        Function computing the Jacobian of the whole system (including
-        collocation and boundary condition residuals). It is supposed to
-        return csc_matrix.
-    y : ndarray, shape (n, m)
-        Initial guess for the function values at the mesh nodes.
-    p : ndarray, shape (k,)
-        Initial guess for the unknown parameters.
-    B : ndarray with shape (n, n) or None
-        Matrix to force the S y(a) = 0 condition for a problems with the
-        singular term. If None, the singular term is assumed to be absent.
-    bvp_tol : float
-        Tolerance to which we want to solve a BVP.
-    bc_tol : float
-        Tolerance to which we want to satisfy the boundary conditions.
+        Parameters
+        ----------
+        n : int
+            Number of equations in the ODE system.
+        m : int
+            Number of nodes in the mesh.
+        h : ndarray, shape (m-1,)
+            Mesh intervals.
+        col_fun : callable
+            Function computing collocation residuals.
+        bc : callable
+            Function computing boundary condition residuals.
+        jac : callable
+            Function computing the Jacobian of the whole system (including
+            collocation and boundary condition residuals). It is supposed to
+            return csc_matrix.
+        y : ndarray, shape (n, m)
+            Initial guess for the function values at the mesh nodes.
+        p : ndarray, shape (k,)
+            Initial guess for the unknown parameters.
+        B : ndarray with shape (n, n) or None
+            Matrix to force the S y(a) = 0 condition for a problems with the
+            singular term. If None, the singular term is assumed to be absent.
+        bvp_tol : float
+            Tolerance to which we want to solve a BVP.
+        bc_tol : float
+            Tolerance to which we want to satisfy the boundary conditions.
 
-    Returns
-    -------
-    y : ndarray, shape (n, m)
-        Final iterate for the function values at the mesh nodes.
-    p : ndarray, shape (k,)
-        Final iterate for the unknown parameters.
-    singular : bool
-        True, if the LU decomposition failed because Jacobian turned out
-        to be singular.
+        Returns
+        -------
+        y : ndarray, shape (n, m)
+            Final iterate for the function values at the mesh nodes.
+        p : ndarray, shape (k,)
+            Final iterate for the unknown parameters.
+        singular : bool
+            True, if the LU decomposition failed because Jacobian turned out
+            to be singular.
 
-    References
-    ----------
-    .. [1]  U. Ascher, R. Mattheij and R. Russell "Numerical Solution of
-       Boundary Value Problems for Ordinary Differential Equations"
+        References
+        ----------
+        .. [1]  U. Ascher, R. Mattheij and R. Russell "Numerical Solution of
+        Boundary Value Problems for Ordinary Differential Equations"
     """
     # We know that the solution residuals at the middle points of the mesh
     # are connected with collocation residuals  r_middle = 1.5 * col_res / h.
@@ -504,7 +505,7 @@ def solve_newton(n, m, h, col_fun, bc, jac, y, p, B, bvp_tol, bc_tol):
 
 def print_iteration_header():
     print("{:^15}{:^15}{:^15}{:^15}{:^15}".format(
-        "Iteration", "Max residual", "Max BC residual", "Total nodes", 
+        "Iteration", "Max residual", "Max BC residual", "Total nodes",
         "Nodes added"))
 
 
@@ -710,8 +711,8 @@ def wrap_functions(fun, bc, fun_jac, bc_jac, k, a, S, D, dtype):
     return fun_wrapped, bc_wrapped, fun_jac_wrapped, bc_jac_wrapped
 
 
-def solve_bvp(fun, bc, x, y, p=None, S=None, fun_jac=None, bc_jac=None,
-              tol=1e-3, max_nodes=1000, verbose=0, bc_tol=None,):
+def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
+              tol=1e-3, max_nodes=1000, verbose=0, bc_tol=None, ignore_x=None, **kwargs):
     """Solve a boundary-value problem for a system of ODEs.
 
     This function numerically solves a first order system of ODEs subject to
@@ -1052,13 +1053,13 @@ def solve_bvp(fun, bc, x, y, p=None, S=None, fun_jac=None, bc_jac=None,
     else:
         B = None
         D = None
-    
+
     if bc_tol is None:
         bc_tol = tol
 
-    # Maximum number of iterations    
+    # Maximum number of iterations
     max_iteration = 10
-    
+
     fun_wrapped, bc_wrapped, fun_jac_wrapped, bc_jac_wrapped = wrap_functions(
         fun, bc, fun_jac, bc_jac, k, a, S, D, dtype)
 
@@ -1096,6 +1097,15 @@ def solve_bvp(fun, bc, x, y, p=None, S=None, fun_jac=None, bc_jac=None,
         sol = create_spline(y, f, x, h)
         rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,
                                          r_middle, f_middle)
+        ###########################
+        # add by salmon
+        if ignore_x is not None:
+            idx = np.argmax(x > ignore_x[0])
+            rms_res[idx-2] = rms_res[idx-3]
+            rms_res[idx-1] = rms_res[idx-2] #(rms_res[idx-2] + rms_res[idx+1])*0.5
+            rms_res[idx] = rms_res[idx+1]
+
+        ###########################
         max_rms_res = np.max(rms_res)
 
         if singular:
@@ -1122,7 +1132,7 @@ def solve_bvp(fun, bc, x, y, p=None, S=None, fun_jac=None, bc_jac=None,
             x = modify_mesh(x, insert_1, insert_2)
             h = np.diff(x)
             y = sol(x)
-        elif max_bc_res <= bc_tol: 
+        elif max_bc_res <= bc_tol:
             status = 0
             break
         elif iteration >= max_iteration:
