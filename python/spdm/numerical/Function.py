@@ -165,46 +165,50 @@ class Expression(PimplFunc):
 
 
 class Function(np.ndarray):
-    def __new__(cls, x, y=None, *args, is_periodic=False,   **kwargs):
+    def __new__(cls, x, y=None, *args,   experiment=False, **kwargs):
         if cls is not Function:
-            return object.__new__(cls, *args,  is_periodic=is_periodic, **kwargs)
-        pimpl = None
-        y0 = None
-        x0 = None
-        if y is None:
-            if isinstance(x, Function):
-                pimpl = x._pimpl
-                y0 = x.view(np.ndarray)
-                x0 = x.x
-            elif isinstance(x, PimplFunc):
-                pimpl = x
-                y0 = pimpl.y
-                x0 = pimpl.x
-            elif isinstance(x, np.ndarray):
-                y0 = x
-        elif not isinstance(x, np.ndarray):
-            raise TypeError(f"x should be np.ndarray not {type(x)}!")
-        elif isinstance(y, np.ndarray):
-            pimpl = None
-            x0 = x
-            y0 = y
-        elif isinstance(y, Function):
-            pimpl = y._pimpl
-            y0 = pimpl.apply(x, *args, **kwargs)
-            x0 = x
-        elif isinstance(y, PimplFunc):
-            pimpl = y
-            y0 = pimpl.apply(args[0], *args[2:], **kwargs)
-            x0 = x
-        elif callable(y):
-            pimpl = WrapperFunc(x, y, *args, **kwargs)
-            y0 = pimpl.apply(x)
-            x0 = pimpl.x
+            return object.__new__(cls, *args, **kwargs)
 
-        elif len(args) > 0 and isinstance(y, list) and isinstance(args[0], list):
-            pimpl = PiecewiseFunction(x, y, *args, **kwargs)
-            y0 = pimpl.apply(x)
-            x0 = pimpl.x
+        if experiment:
+            return Function2(x, y, *args, **kwargs)
+        else:
+            pimpl = None
+            y0 = None
+            x0 = None
+            if y is None:
+                if isinstance(x, Function):
+                    pimpl = x._pimpl
+                    y0 = x.view(np.ndarray)
+                    x0 = x.x
+                elif isinstance(x, PimplFunc):
+                    pimpl = x
+                    y0 = pimpl.y
+                    x0 = pimpl.x
+                elif isinstance(x, np.ndarray):
+                    y0 = x
+            elif not isinstance(x, np.ndarray):
+                raise TypeError(f"x should be np.ndarray not {type(x)}!")
+            elif isinstance(y, np.ndarray):
+                pimpl = None
+                x0 = x
+                y0 = y
+            elif isinstance(y, Function):
+                pimpl = y._pimpl
+                y0 = pimpl.apply(x, *args, **kwargs)
+                x0 = x
+            elif isinstance(y, PimplFunc):
+                pimpl = y
+                y0 = pimpl.apply(args[0], *args[2:], **kwargs)
+                x0 = x
+            elif callable(y):
+                pimpl = WrapperFunc(x, y, *args, **kwargs)
+                y0 = pimpl.apply(x)
+                x0 = pimpl.x
+
+            elif len(args) > 0 and isinstance(y, list) and isinstance(args[0], list):
+                pimpl = PiecewiseFunction(x, y, *args, **kwargs)
+                y0 = pimpl.apply(x)
+                x0 = pimpl.x
 
         if not isinstance(y0, np.ndarray):
             raise RuntimeError((type(pimpl), [type(a) for a in args]))
@@ -212,7 +216,7 @@ class Function(np.ndarray):
             obj = y0.view(cls)
             obj._pimpl = pimpl
             obj._x = x0
-            obj._is_periodic = is_periodic
+            # obj._is_periodic = is_periodic
         else:
             obj = y0
         return obj
@@ -236,29 +240,29 @@ class Function(np.ndarray):
             d._x = self.x[key]
         return d
 
-    @ property
+    @property
     def pimpl(self):
         if self._pimpl is None:
             self._pimpl = SplineFunction(self.x, self.view(np.ndarray), is_periodic=self.is_periodic)
         return self._pimpl
 
-    @ property
+    @property
     def is_periodic(self):
         return self._is_periodic
 
-    @ property
+    @property
     def x(self):
         return self._x
 
-    @ cached_property
+    @cached_property
     def derivative(self):
         return Function(self.pimpl.derivative)
 
-    @ cached_property
+    @cached_property
     def antiderivative(self):
         return Function(self.pimpl.antiderivative)
 
-    @ cached_property
+    @cached_property
     def invert(self):
         return Function(self.pimpl.invert(self._x))
 
@@ -288,3 +292,71 @@ class Function(np.ndarray):
             args = [self._x]
         res = self.pimpl.apply(*args, **kwargs)
         return res.view(np.ndarray)
+
+
+def create_ppoly(x, y, * args, **kwargs):
+
+    ppoly = scipy.interpolate.CubicSpline(x, y, **kwargs)
+
+    return ppoly
+
+
+class Function2(object):
+    def __init__(self, x, y, dy=None, *args, **kwargs) -> None:
+        super().__init__()
+        # super().__init__(*args, **kwargs)
+        self._x = x
+        self._y = y
+        self._kwargs = kwargs
+
+    @property
+    def x(self):
+        return self._ppoly.x
+
+    @cached_property
+    def y(self):
+        return self._ppoly(self.x)
+
+    @cached_property
+    def _ppoly(self):
+        return create_ppoly(self._x, self._y, **self._kwargs)
+
+    def rms_rediusal(self, x=None, reference=None):
+        return NotImplemented
+
+    def discontinue(self, x, left=None, right=None):
+        return NotImplemented
+
+    def insert(self, pts):
+        raise NotImplementedError()
+
+    def refine(self, tol=1.0e-3, weight=None):
+        insert_1, = np.nonzero((rms_res > tol) & (rms_res < 100 * tol))
+        insert_2, = np.nonzero(rms_res >= 100 * tol)
+        nodes_added = insert_1.shape[0] + 2 * insert_2.shape[0]
+
+        if m + nodes_added > max_nodes:
+            status = 1
+            if verbose == 2:
+                nodes_added = "({})".format(nodes_added)
+                print_iteration_progress(iteration, max_rms_res, max_bc_res,
+                                         m, nodes_added)
+
+        if verbose == 2:
+            print_iteration_progress(iteration, max_rms_res, max_bc_res, m,
+                                     nodes_added)
+
+        if nodes_added > 0:
+            x = modify_mesh(x, insert_1, insert_2)
+            h = np.diff(x)
+            y = sol(x)
+        elif max_bc_res <= bc_tol:
+            status = 0
+            
+        elif iteration >= max_iteration:
+            status = 3
+
+        return NotImplemented
+
+    def coarsen(self, tol=1.0e-3, weight=None):
+        raise NotImplementedError()

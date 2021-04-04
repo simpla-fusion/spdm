@@ -78,10 +78,15 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             profile, opts = parse_profile(p_desc, **kwargs)
             y = None
             if isinstance(profile, Function):
-                if x_axis is profile.x:
+                if (x_axis is profile.x) or (isinstance(x_axis, Function) and x_axis is profile.x) or len(x_axis) == len(profile):
                     y = profile.view(np.ndarray)
                 else:
-                    y = profile(x_axis).view(np.ndarray)
+                    logger.debug((type(x_axis), len(x_axis)))
+                    try:
+                        y = profile(x_axis).view(np.ndarray)
+                    except RuntimeWarning:
+                        logger.debug(p_desc),
+                        continue
             elif isinstance(profile, np.ndarray):
                 y = profile
             elif callable(profile):
