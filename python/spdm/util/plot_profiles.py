@@ -81,7 +81,6 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
                 if (x_axis is profile.x) or (isinstance(x_axis, Function) and x_axis is profile.x) or len(x_axis) == len(profile):
                     y = profile.view(np.ndarray)
                 else:
-                    logger.debug((type(x_axis), len(x_axis)))
                     try:
                         y = profile(x_axis).view(np.ndarray)
                     except RuntimeWarning:
