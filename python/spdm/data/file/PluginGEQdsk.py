@@ -289,10 +289,11 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
 
     # profile
     eq.profiles_1d.f = geqdsk["fpol"]
-    eq.profiles_1d.pressure = geqdsk["pres"]
     eq.profiles_1d.f_df_dpsi = geqdsk["ffprim"]
+    eq.profiles_1d.pressure = geqdsk["pres"]
     eq.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
     eq.profiles_1d.q = geqdsk["qpsi"]
+    eq.profiles_1d.psi_norm = np.linspace(0, 1.0, nw)
 
 
 class GEQdskDocument(File):

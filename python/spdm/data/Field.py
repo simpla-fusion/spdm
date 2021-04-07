@@ -153,6 +153,9 @@ class Field(Quantity):
         value = scipy.integrate.cumtrapz(self.value[::-1], self.axis[::-1], initial=0.0)[::-1]
         return Quantity(value, axis=self.axis)
 
+    def plot(self, axis, *args, linewidths=0.1, **kwargs):
+        axis.contour(*self._coordinates.mesh.points,  self.view(np.ndarray), linewidths=linewidths, **kwargs)
+        return axis
 
 # def derivative_n(self, n, *args, **kwargs):
 #     self.evaluate()

@@ -158,7 +158,7 @@ class Expression(PimplFunc):
 
         try:
             res = self._ufunc(*[wrap(x, d) for d in self._inputs])
-        except ValueError as error:
+        except Warning as error:
             raise ValueError(
                 f"\n {self._ufunc}  {[type(a) for a in self._inputs]}  {[a.shape for a in self._inputs if isinstance(a,Function)]} {error} \n ")
         return res
@@ -169,46 +169,44 @@ class Function(np.ndarray):
         if cls is not Function:
             return object.__new__(cls, *args, **kwargs)
 
-        if experiment:
-            return Function2(x, y, *args, **kwargs)
-        else:
-            pimpl = None
-            y0 = None
-            x0 = None
-            if y is None:
-                if isinstance(x, Function):
-                    pimpl = x._pimpl
-                    y0 = x.view(np.ndarray)
-                    x0 = x.x
-                elif isinstance(x, PimplFunc):
-                    pimpl = x
-                    y0 = pimpl.y
-                    x0 = pimpl.x
-                elif isinstance(x, np.ndarray):
-                    y0 = x
-            elif not isinstance(x, np.ndarray):
-                raise TypeError(f"x should be np.ndarray not {type(x)}!")
-            elif isinstance(y, np.ndarray):
-                pimpl = None
-                x0 = x
-                y0 = y
-            elif isinstance(y, Function):
-                pimpl = y._pimpl
-                y0 = pimpl.apply(x, *args, **kwargs)
-                x0 = x
-            elif isinstance(y, PimplFunc):
-                pimpl = y
-                y0 = pimpl.apply(args[0], *args[2:], **kwargs)
-                x0 = x
-            elif callable(y):
-                pimpl = WrapperFunc(x, y, *args, **kwargs)
-                y0 = pimpl.apply(x)
-                x0 = pimpl.x
+        pimpl = None
+        x0 = None
+        y0 = None
 
-            elif len(args) > 0 and isinstance(y, list) and isinstance(args[0], list):
-                pimpl = PiecewiseFunction(x, y, *args, **kwargs)
-                y0 = pimpl.apply(x)
+        if y is None:
+            if isinstance(x, Function):
+                pimpl = x._pimpl
+                y0 = x.view(np.ndarray)
+                x0 = x.x
+            elif isinstance(x, PimplFunc):
+                pimpl = x
+                y0 = pimpl.y
                 x0 = pimpl.x
+            elif isinstance(x, np.ndarray):
+                y0 = x
+        elif not isinstance(x, np.ndarray):
+            raise TypeError(f"x should be np.ndarray not {type(x)}!")
+        elif isinstance(y, np.ndarray):
+            pimpl = None
+            x0 = x
+            y0 = y
+        elif isinstance(y, Function):
+            pimpl = y._pimpl
+            y0 = pimpl.apply(x, *args, **kwargs)
+            x0 = x
+        elif isinstance(y, PimplFunc):
+            pimpl = y
+            y0 = pimpl.apply(args[0], *args[2:], **kwargs)
+            x0 = x
+        elif callable(y):
+            pimpl = WrapperFunc(x, y, *args, **kwargs)
+            y0 = pimpl.apply(x)
+            x0 = pimpl.x
+
+        elif len(args) > 0 and isinstance(y, list) and isinstance(args[0], list):
+            pimpl = PiecewiseFunction(x, y, *args, **kwargs)
+            y0 = pimpl.apply(x)
+            x0 = pimpl.x
 
         if not isinstance(y0, np.ndarray):
             raise RuntimeError((type(pimpl), [type(a) for a in args]))
@@ -290,6 +288,7 @@ class Function(np.ndarray):
     def __call__(self,   *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
+        
         res = self.pimpl.apply(*args, **kwargs)
         return res.view(np.ndarray)
 
@@ -352,7 +351,7 @@ class Function2(object):
             y = sol(x)
         elif max_bc_res <= bc_tol:
             status = 0
-            
+
         elif iteration >= max_iteration:
             status = 3
 
