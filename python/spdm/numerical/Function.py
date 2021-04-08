@@ -103,6 +103,9 @@ class SplineFunction(PimplFunc):
         x = self.x if x is None else x
         return self._ppoly(x)
 
+    def integrate(self, a, b):
+        return self._ppoly.integrate(a, b)
+
 
 class PiecewiseFunction(PimplFunc):
     def __init__(self, x, cond, func, *args,    **kwargs) -> None:
@@ -288,7 +291,7 @@ class Function(np.ndarray):
     def __call__(self,   *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
-        
+
         res = self.pimpl.apply(*args, **kwargs)
         return res.view(np.ndarray)
 

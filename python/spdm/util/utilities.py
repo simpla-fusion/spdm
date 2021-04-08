@@ -103,21 +103,26 @@ def getattr_r(obj, path: str):
 
 
 def try_get(holder, path, default_value=None):
-    data = getattr(holder.__class__, path, None)
+    if not isinstance(path, collections.abc.MutableSequence):
+        path = path.split('.')
+    obj = holder
 
-    if data is None:
-        try:
-            data = holder.__getitem__(path)
-        except KeyError:
-            data = default_value
-    elif isinstance(data, functools.cached_property):
-        data = data.__get__(holder)
-    elif isinstance(data, property):
-        data = getattr(data, "fget")(holder)
-    else:
-        data = default_value
+    for k in path:
+        op = getattr(obj.__class__, k, None)
 
-    return data
+        if op is None:
+            try:
+                obj = obj.__getitem__(k)
+            except KeyError:
+                data = default_value
+        elif isinstance(op, functools.cached_property):
+            obj = op.__get__(obj)
+        elif isinstance(data, property):
+            obj = op(data, "fget")(obj)
+        else:
+            obj = default_value
+
+    return obj
 
 
 def try_put(holder, path,  value):
