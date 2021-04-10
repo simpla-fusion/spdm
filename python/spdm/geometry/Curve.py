@@ -33,11 +33,10 @@ class Curve(GeoObject):
     def bbox(self):
         return [[np.min(p) for p in self.xy], [np.max(p) for p in self.xy]]
 
-    def dl(self, *args, **kwargs):
-        if len(args) == 0:
+    def dl(self, u=None, *args, **kwargs):
+        if u is None:
             u = self.uv[0]
-        else:
-            u = args[0]
+
         L = u[-1]
 
         u = (u[1:]+u[:-1])*0.5
@@ -66,11 +65,11 @@ class Curve(GeoObject):
 
         return Function(u, d, is_periodic=self.is_closed)
 
-    def integrate(self, fun, *args, **kwargs):
-        dl = self.dl(*args, **kwargs)
+    def integrate(self, fun, u=None):
+        dl = self.dl(u)
         f = np.asarray([fun(*p) for p in self.point(dl.x)])
         if self.is_closed:
-            return np.sum((np.roll(f, 1)+f)*dl)*0.5
+            return np.sum(((np.roll(f, 1)+f)*dl).view(np.ndarray))*0.5
         else:
             return np.sum((f[1:]+f[:-1])*dl[:-1])*0.5
 

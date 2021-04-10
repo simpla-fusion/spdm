@@ -157,7 +157,9 @@ class Expression(PimplFunc):
             return res
 
         if self._method != "__call__":
-            raise RuntimeError((self._ufunc, self._method))
+            op = getattr(self._ufunc, self._method)
+            # raise RuntimeError((self._ufunc, self._method))
+            res = op(*[wrap(x, d) for d in self._inputs])
 
         try:
             res = self._ufunc(*[wrap(x, d) for d in self._inputs])
