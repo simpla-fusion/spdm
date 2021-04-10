@@ -66,6 +66,14 @@ class Curve(GeoObject):
 
         return Function(u, d, is_periodic=self.is_closed)
 
+    def integrate(self, fun, *args, **kwargs):
+        dl = self.dl(*args, **kwargs)
+        f = np.asarray([fun(*p) for p in self.point(dl.x)])
+        if self.is_closed:
+            return np.sum((np.roll(f, 1)+f)*dl)*0.5
+        else:
+            return np.sum((f[1:]+f[:-1])*dl[:-1])*0.5
+
 
 class Line(Curve):
     def __init__(self, *args,   **kwargs) -> None:

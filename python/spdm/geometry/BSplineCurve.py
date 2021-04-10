@@ -6,9 +6,9 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import make_interp_spline
 
-from ...util.logger import logger
+from ..util.logger import logger
 from .Curve import Curve
-from ..Function import Function
+from ..numerical.Function import Function
 
 
 class BSplineCurve(Curve):
@@ -51,7 +51,6 @@ class BSplineCurve(Curve):
         else:
             return self._derivative(*args, **kwargs).T
 
-    
     def pullback(self, func, *args, form=0, **kwargs):
         if len(args) > 0:
             return func(*self.map(*args, **kwargs))

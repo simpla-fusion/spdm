@@ -21,38 +21,19 @@ class CurvilinearMesh(StructuredMesh):
     TOLERANCE = 1.0e-5
 
     def __init__(self, xy, uv=None,  *args,   ** kwargs) -> None:
-
-        super().__init__(*args, shape=xy[0].shape, rank=len(xy[0].shape), ndims=len(xy), **kwargs)
-
-        if not all(x.shape == self.shape for x in xy):
-            raise ValueError(f"illegal shape! uv={self.shape}  xy={[x.shape  for x in xy]} ")
-
-        uv = uv if uv is not None else ([[0.0, 1.0]] * self.rank)
-
-        for axis in range(self.rank):
-            u = uv[axis]
-            if isinstance(u, np.ndarray):
-                assert(len(u) == self.shape[axis])
-                continue
-
-            if len(u) == 2:
-                u = np.linspace(*u,  self.shape[axis])
-            elif u is None:
-                u = np.linspace(0.0, 1.0,  self.shape[axis])
-            else:
-                raise ValueError(f"Illegal {u}")
-
-            uv[axis] = u
-
-        self._xy = np.stack(xy)
+        super().__init__(*args, shape=[len(d) for d in uv], rank=len(uv), ndims=xy.shape[-1], **kwargs)
+        self._xy = xy.reshape([*self.shape, self.ndims])
         self._uv = uv
 
     def axis(self, idx, axis=0):
         s = [slice(None, None, None)]*self.ndims
         s[axis] = idx
-        sub_xy = [p[tuple(s)] for p in self._xy]
+        s = s+[slice(None, None, None)]
+        
+        sub_xy = self._xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
         sub_uv = [self._uv[(axis+i) % self.ndims] for i in range(1, self.ndims)]
         sub_cycle = [self.cycle[(axis+i) % self.ndims] for i in range(1, self.ndims)]
+
         return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
 
     @property
