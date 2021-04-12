@@ -252,11 +252,12 @@ class Function(np.ndarray):
             d._x = self.x[key]
         return d
 
-    @property
-    def pimpl(self):
-        if self._pimpl is None:
-            self._pimpl = SplineFunction(self.x, self.view(np.ndarray), is_periodic=self.is_periodic)
-        return self._pimpl
+    @cached_property
+    def spl(self):
+        if isinstance(self._pimpl, SplineFunction):
+            return self._pimpl
+        else:
+            return SplineFunction(self.x, self.view(np.ndarray), is_periodic=self.is_periodic)
 
     @property
     def is_periodic(self):
@@ -268,15 +269,15 @@ class Function(np.ndarray):
 
     @cached_property
     def derivative(self):
-        return Function(self.pimpl.derivative)
+        return Function(self.spl.derivative)
 
     @cached_property
     def antiderivative(self):
-        return Function(self.pimpl.antiderivative)
+        return Function(self.spl.antiderivative)
 
     @cached_property
     def invert(self):
-        return Function(self.pimpl.invert(self._x))
+        return Function(self.spl.invert(self._x))
 
     def pullback(self, *args, **kwargs):
         if len(args) == 0:
@@ -297,17 +298,18 @@ class Function(np.ndarray):
         return Function(x1, y, is_periodic=self.is_periodic)
 
     def integrate(self, a=None, b=None):
-        return self.pimpl.integrate(a or self.x[0], b or self.x[-1])
+        return self.spl.integrate(a or self.x[0], b or self.x[-1])
 
     def __call__(self,   *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
-        if hasattr(self.pimpl, "apply"):
-            res = self.pimpl.apply(*args, **kwargs)
-        elif callable:
-            res = self.pimpl(*args, **kwargs)
+        if hasattr(self._pimpl, "apply"):
+            res = self._pimpl.apply(*args, **kwargs)
+        elif callable(self._pimpl):
+            res = self._pimpl(*args, **kwargs)
         else:
-            raise RuntimeError(f"{type(self.pimpl)}")
+            res = self.spl.apply(*args, **kwargs)
+            # raise RuntimeError(f"{type(self.spl)}")
 
         return res.view(np.ndarray)
 
