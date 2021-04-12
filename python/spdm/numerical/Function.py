@@ -213,7 +213,7 @@ class Function(np.ndarray):
             x0 = x
             y0 = np.zeros(x.shape)
         elif isinstance(y, (int, float, complex)):
-            pimpl = None
+            def pimpl(x, _v=y): return _v if not isinstance(x, np.ndarray) else np.full(x.shape, _v)
             x0 = x
             y0 = np.full(x.shape, y)
         elif callable(y):
@@ -302,8 +302,13 @@ class Function(np.ndarray):
     def __call__(self,   *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
+        if hasattr(self.pimpl, "apply"):
+            res = self.pimpl.apply(*args, **kwargs)
+        elif callable:
+            res = self.pimpl(*args, **kwargs)
+        else:
+            raise RuntimeError(f"{type(self.pimpl)}")
 
-        res = self.pimpl.apply(*args, **kwargs)
         return res.view(np.ndarray)
 
 
