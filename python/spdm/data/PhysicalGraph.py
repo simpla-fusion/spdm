@@ -1,3 +1,4 @@
+import collections
 import functools
 
 import numpy as np
@@ -15,17 +16,11 @@ class PhysicalGraph(Graph):
 
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self,   *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._changed = True
-
-    @property
-    def __changed__(self):
-        return self._changed
 
     def __update__(self, *args, **kwargs):
         super().__update__(*args, **kwargs)
-        self._changed = True
 
     def __new_child__(self, *args, parent=None, **kwargs):
         return PhysicalGraph(*args,  parent=parent or self, **kwargs)

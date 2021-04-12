@@ -160,7 +160,6 @@ class Expression(PimplFunc):
             op = getattr(self._ufunc, self._method)
             # raise RuntimeError((self._ufunc, self._method))
             res = op(*[wrap(x, d) for d in self._inputs])
-
         try:
             res = self._ufunc(*[wrap(x, d) for d in self._inputs])
         except Warning as error:
@@ -191,49 +190,59 @@ class Function(np.ndarray):
                 y0 = x
         elif not isinstance(x, np.ndarray):
             raise TypeError(f"x should be np.ndarray not {type(x)}!")
-        elif isinstance(y, np.ndarray):
-            pimpl = None
-            x0 = x
-            y0 = y
         elif isinstance(y, Function):
-            pimpl = y._pimpl
-            y0 = pimpl.apply(x, *args, **kwargs)
-            x0 = x
+            if x is y._x:
+                pimpl = y._pimpl
+                y0 = y.view(np.ndarray)
+                x0 = x
+            else:
+                pimpl = y._pimpl
+                y0 = pimpl.apply(x, *args, **kwargs)
+                x0 = x
         elif isinstance(y, PimplFunc):
             pimpl = y
             y0 = pimpl.apply(args[0], *args[2:], **kwargs)
             x0 = x
+        elif isinstance(y, np.ndarray):
+            assert(getattr(x, "shape", None) == y.shape)
+            pimpl = None
+            x0 = x
+            y0 = y
+        elif y == None:
+            pimpl = None
+            x0 = x
+            y0 = np.zeros(x.shape)
+        elif isinstance(y, (int, float, complex)):
+            pimpl = None
+            x0 = x
+            y0 = np.full(x.shape, y)
         elif callable(y):
             pimpl = WrapperFunc(x, y, *args, **kwargs)
             y0 = pimpl.apply(x)
             x0 = pimpl.x
-
         elif len(args) > 0 and isinstance(y, list) and isinstance(args[0], list):
             pimpl = PiecewiseFunction(x, y, *args, **kwargs)
             y0 = pimpl.apply(x)
             x0 = pimpl.x
 
-        if not isinstance(y0, np.ndarray):
-            raise RuntimeError((type(pimpl), [type(a) for a in args]))
-        elif x0 is None or (isinstance(x0, np.ndarray) and x0.shape == y0.shape):
+        if isinstance(x0, np.ndarray) and isinstance(y0, np.ndarray) and x0.shape == y0.shape:
             obj = y0.view(cls)
             obj._pimpl = pimpl
             obj._x = x0
-            # obj._is_periodic = is_periodic
         else:
-            obj = y0
+            raise RuntimeError(f"{type(x0)} {x0.shape} {type(y0)} {y0.shape}")
+
         return obj
 
     def __array_finalize__(self, obj):
         self._pimpl = getattr(obj, '_pimpl', None)
         self._x = getattr(obj, '_x', None)
-        self._is_periodic = getattr(obj, '_is_periodic', False)
 
     def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
         return Function(Expression(ufunc, method, *inputs, **kwargs))
 
-    def __init__(self, *args,  **kwargs):
-        pass
+    def __init__(self, *args, is_periodic=False, **kwargs):
+        self._is_periodic = is_periodic
 
     def __getitem__(self, key):
         d = super().__getitem__(key)

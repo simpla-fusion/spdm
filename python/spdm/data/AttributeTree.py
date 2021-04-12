@@ -45,6 +45,10 @@ def _delattr(self, k):
             self.__delitem__(k)
         elif isinstance(res, property):
             res.fdel(self, k)
+        elif isinstance(res, functools.cached_property):
+            if k in self.__dict__:
+                del self.__dict__[k]
+            # raise AttributeError(f"Can not set cached_property")
         else:
             raise AttributeError(f"Can not delete attribute {k}!")
 
