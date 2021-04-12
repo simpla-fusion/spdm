@@ -31,7 +31,7 @@ class PhysicalGraph(Graph):
     #     #     value = Quantity(value, *args, coordinates=coordinates or self.coordinates, **kwargs)
     #     return super().__pre_process__(value, *args, **kwargs)
 
-    # def __postprocess__(self, value, *args, **kwargs):
+    # def __post_process__(self, value, *args, **kwargs):
     #     return super().__post_process__(value, *args, **kwargs)
 
     def __call__(self, *args, **kwargs):

@@ -204,7 +204,7 @@ class Function(np.ndarray):
             y0 = pimpl.apply(args[0], *args[2:], **kwargs)
             x0 = x
         elif isinstance(y, np.ndarray):
-            assert(getattr(x, "shape", None) == y.shape)
+            assert(getattr(x, "shape", None) == getattr(y,"shape",None))
             pimpl = None
             x0 = x
             y0 = y
@@ -230,7 +230,7 @@ class Function(np.ndarray):
             obj._pimpl = pimpl
             obj._x = x0
         else:
-            raise RuntimeError(f"{type(x0)} {x0.shape} {type(y0)} {y0.shape}")
+            raise RuntimeError(f"{type(x)}   {type(y)} ")
 
         return obj
 

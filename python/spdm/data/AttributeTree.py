@@ -14,10 +14,19 @@ def _getattr(self, k):
             res = getattr(res, "fget")(self)
         elif isinstance(res, functools.cached_property):
             res = res.__get__(self)
+
+        # post_process = getattr(self.__class__, "__post_process__", None)
+        # if post_process is not None:
+        #     res = post_process(self, res)
         return res
 
 
 def _setattr(self, k, v):
+
+    # pre_process = getattr(self.__class__, "__pre_process__", None)
+    # if pre_process is not None:
+    #     v = pre_process(self, v)
+
     if k.startswith("_"):
         self.__dict__[k] = v
     else:
