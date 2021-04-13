@@ -197,14 +197,14 @@ class Function(np.ndarray):
                 x0 = x
             else:
                 pimpl = y._pimpl
-                y0 = pimpl.apply(x, *args, **kwargs)
+                y0 = y(x, *args, **kwargs)
                 x0 = x
         elif isinstance(y, PimplFunc):
             pimpl = y
             y0 = pimpl.apply(args[0], *args[2:], **kwargs)
             x0 = x
         elif isinstance(y, np.ndarray):
-            assert(getattr(x, "shape", None) == getattr(y,"shape",None))
+            assert(getattr(x, "shape", None) == getattr(y, "shape", None))
             pimpl = None
             x0 = x
             y0 = y
