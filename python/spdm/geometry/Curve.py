@@ -31,7 +31,11 @@ class Curve(GeoObject):
 
     @cached_property
     def bbox(self):
-        return [[np.min(p) for p in self.xy], [np.max(p) for p in self.xy]]
+        return np.asarray([[np.min(p) for p in self.xy], [np.max(p) for p in self.xy]])
+
+    @cached_property
+    def center(self):
+        return (self.bbox[0]+self.bbox[1])*0.5
 
     def dl(self, u=None, *args, **kwargs):
         if u is None:

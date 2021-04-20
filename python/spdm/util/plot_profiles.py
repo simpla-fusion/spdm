@@ -37,7 +37,7 @@ def parse_profile(desc, holder=None, **kwargs):
     if opts is None:
         opts = {}
 
-    opts.setdefault("label", "unnamed")
+    opts.setdefault("label", "")
 
     if isinstance(data, str):
         data = try_get(holder, data, None)
