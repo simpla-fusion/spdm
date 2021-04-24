@@ -1,8 +1,16 @@
+import collections
+
+from matplotlib.pyplot import loglog
+from spdm.util.logger import logger
+from spdm.data.Node import Node
+
 from .Group import Group
 
 
 class List(Group):
     def __init__(self, d=None, *args, default_factory=None, **kwargs):
+        if isinstance(d, (collections.abc.MutableSequence, Node)):
+            d = [default_factory(v) for v in d]
         super().__init__(d or [], *args, **kwargs)
         self._default_factory = default_factory
 
@@ -11,3 +19,6 @@ class List(Group):
             return super().__new_child__(*args, parent=parent or self._parent, **kwargs)
         else:
             return self._default_factory(*args, parent=parent or self._parent, **kwargs)
+
+    def __iter__(self):
+        yield from self._data

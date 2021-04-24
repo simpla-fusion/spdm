@@ -64,8 +64,8 @@ class Node:
         d = None if isinstance(self._data, Node.LazyHolder) else self._data
         return pprint.pformat(d) if not isinstance(d, str) else f"'{d}'"
 
-    def __new_child__(self, *args,  **kwargs):
-        return self.__class__(*args, parent=self,  **kwargs)
+    def __new_child__(self, *args, parent=None, **kwargs):
+        return self.__class__(*args, parent=parent or self,  **kwargs)
 
     def copy(self):
         if isinstance(Node, (Node.Mapping, Node.Sequence)):
