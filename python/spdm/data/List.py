@@ -8,11 +8,12 @@ from .Group import Group
 
 
 class List(Group):
-    def __init__(self, d=None, *args, default_factory=None, **kwargs):
-        if isinstance(d, (collections.abc.MutableSequence, Node)):
-            d = [default_factory(v) for v in d]
-        super().__init__(d or [], *args, **kwargs)
+    def __init__(self, d=None, *args, default_factory=None, parent=None, **kwargs):
+
+        super().__init__(None, *args,  parent=parent, **kwargs)
         self._default_factory = default_factory
+        if d is not None:
+            self._data = [self.__new_child__(v) for v in d]
 
     def __new_child__(self, *args, parent=None, **kwargs):
         if self._default_factory is None:

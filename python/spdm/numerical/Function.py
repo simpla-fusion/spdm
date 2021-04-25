@@ -13,7 +13,7 @@ from ..util.logger import logger
 # else:
 #     from scipy.integrate import cumulative_trapezoid as cumtrapz
 
-logger.debug(f"Using SciPy Version: {scipy.__version__}")
+logger.debug(f"SciPy Version: {scipy.__version__}")
 
 
 class PimplFunc(object):

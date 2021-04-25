@@ -1,11 +1,34 @@
 import collections
-
+import getpass
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.PhysicalGraph import PhysicalGraph
 from spdm.numerical.Function import Function
 from spdm.util.logger import logger
 from spdm.util.utilities import try_get
+
+
+# def signaturebar(fig, text, fontsize=10, pad=5, xpos=20, ypos=7.5,
+#                  rect_kw={"facecolor": "grey", "edgecolor": None},
+#                  text_kw={"color": "w"}):
+#     w, h = fig.get_size_inches()
+#     height = ((fontsize+2*pad)/72.)/h
+#     rect = plt.Rectangle((0, 0), 1, height, transform=fig.transFigure, clip_on=False, **rect_kw)
+#     fig.axes[0].add_patch(rect)
+#     fig.text(xpos/72./h, ypos/72./h, text, fontsize=fontsize, **text_kw)
+#     fig.subplots_adjust(bottom=fig.subplotpars.bottom+height)
+
+
+def sp_figure_signature(fig, signature=None):
+    if signature is False:
+        return fig
+    elif not isinstance(signature, str):
+        signature = f"Create by SpDM. [time: {datetime.datetime.now().isoformat()}, user: '{getpass.getuser()}']"
+
+    fig.suptitle(signature)
+
+    return fig
 
 
 def parse_profile(desc, holder=None, **kwargs):
@@ -50,7 +73,7 @@ def parse_profile(desc, holder=None, **kwargs):
     return data, opts
 
 
-def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize=6,  grid=False, **kwargs):
+def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize=6,  grid=False, signature=None, **kwargs):
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
@@ -119,4 +142,14 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
     else:
         sub_plot[-1].set_xlabel(x_axis_opts.get("label", ""),  fontsize=fontsize)
 
-    return fig
+    return sp_figure_signature(fig, signature=signature)
+
+
+def sp_figure(obj, *args, signature=None, **kwargs):
+    fig = plt.figure()
+    if not hasattr(obj, 'plot'):
+        raise NotImplementedError(type(obj))
+    else:
+        obj.plot(fig.gca(), *args, **kwargs)
+
+    return sp_figure_signature(fig, signature=signature)
