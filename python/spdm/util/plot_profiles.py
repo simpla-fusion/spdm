@@ -27,7 +27,7 @@ def sp_figure_signature(fig, signature=None):
         signature = f"Create by SpDM at {datetime.datetime.now().isoformat()}. [user: '{getpass.getuser().capitalize()}']"
 
     fig.suptitle(signature)
-
+    # fig.gca().axis('scaled')
     return fig
 
 

@@ -204,7 +204,8 @@ class Function(np.ndarray):
             y0 = pimpl.apply(args[0], *args[2:], **kwargs)
             x0 = x
         elif isinstance(y, np.ndarray):
-            assert(getattr(x, "shape", None) == getattr(y, "shape", None))
+            if(getattr(x, "shape", None) != getattr(y, "shape", None)):
+                raise RuntimeError((getattr(x, "shape", None), getattr(y, "shape", None)))
             pimpl = None
             x0 = x
             y0 = y
