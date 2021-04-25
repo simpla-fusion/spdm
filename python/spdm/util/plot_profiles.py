@@ -24,7 +24,7 @@ def sp_figure_signature(fig, signature=None):
     if signature is False:
         return fig
     elif not isinstance(signature, str):
-        signature = f"Create by SpDM. [time: {datetime.datetime.now().isoformat()}, user: '{getpass.getuser()}']"
+        signature = f"Create by SpDM at {datetime.datetime.now().isoformat()}. [user: '{getpass.getuser().capitalize()}']"
 
     fig.suptitle(signature)
 
