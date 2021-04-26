@@ -8,7 +8,7 @@ from scipy.interpolate import make_interp_spline
 
 from ..util.logger import logger
 from .Curve import Curve
-from ..numerical.Function import Function
+from ..data.Function import Function
 
 
 class BSplineCurve(Curve):

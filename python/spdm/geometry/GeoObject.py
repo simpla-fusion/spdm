@@ -1,4 +1,4 @@
-from ..numerical.Function import Function
+from ..data.Function import Function
 
 
 class GeoObject:

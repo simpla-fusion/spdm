@@ -4,7 +4,7 @@ import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.PhysicalGraph import PhysicalGraph
-from spdm.numerical.Function import Function
+from spdm.data.Function import Function
 from spdm.util.logger import logger
 from spdm.util.utilities import try_get
 
@@ -80,10 +80,12 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
     # profile_list += args
 
     if not isinstance(x_axis, np.ndarray):
-        x_axis, x_axis_opts = parse_profile(x_axis, **kwargs)
+        x_axis, x_label,  *x_opts = x_axis
+        x_opts = (x_opts or [{}])[0]
     else:
-        x_axis = None
-        x_axis_opts = {}
+        # x_axis = None
+        x_label = ""
+        x_opts = {}
 
     nprofiles = len(profile_list)
 
@@ -98,7 +100,9 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             profile_grp = [profile_grp]
 
         for p_desc in profile_grp:
-            profile, opts = parse_profile(p_desc, **kwargs)
+            profile, label, *opts = p_desc  # parse_profile(p_desc, **kwargs)
+            opts = (opts or [{}])[0]
+
             y = None
             if isinstance(profile, Function):
                 if (x_axis is profile.x) or (isinstance(x_axis, Function) and x_axis is profile.x) or len(x_axis) == len(profile):
@@ -106,8 +110,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
                 else:
                     try:
                         y = profile(x_axis).view(np.ndarray)
-                    except RuntimeWarning:
-                        logger.debug(p_desc),
+                    except ValueError as error:
+                        logger.error(f"Can not plot profile {label}! : {error}"),
                         continue
             elif isinstance(profile, np.ndarray):
                 y = profile
@@ -115,17 +119,17 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
                 y = profile(x_axis)
 
             if y is None:
-                logger.error(f"Can not plot profile '{opts.get('label','')}'[{type(profile)}]!")
+                logger.error(f"Can not plot profile '{label}'[{type(profile)}]!")
             elif x_axis.shape != y.shape:
                 logger.error(
-                    f"length of x,y  must be same! [{opts.get('label','')}[{type(profile)}] {x_axis.shape}!={y.shape}]")
+                    f"length of x,y  must be same! [{label}[{type(profile)}] {x_axis.shape}!={y.shape}]")
 
             if index_slice is not None:
                 x = x_axis[index_slice]
                 y = y[index_slice]
             else:
                 x = x_axis
-            sub_plot[idx].plot(x, y, **opts)
+            sub_plot[idx].plot(x, y, label=label, **opts)
 
         sub_plot[idx].legend(fontsize=fontsize)
 
@@ -138,9 +142,9 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         sub_plot[idx].tick_params(labelsize=fontsize)
 
     if len(sub_plot) <= 1:
-        sub_plot[0].set_xlabel(x_axis_opts.get("label", ""),  fontsize=fontsize)
+        sub_plot[0].set_xlabel(x_label,  fontsize=fontsize)
     else:
-        sub_plot[-1].set_xlabel(x_axis_opts.get("label", ""),  fontsize=fontsize)
+        sub_plot[-1].set_xlabel(x_label,  fontsize=fontsize)
 
     return sp_figure_signature(fig, signature=signature)
 

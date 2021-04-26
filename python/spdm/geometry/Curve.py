@@ -4,7 +4,7 @@ import numpy as np
 
 from .GeoObject import GeoObject
 from .Point import Point
-from ..numerical.Function import Function
+from ..data.Function import Function
 from ..util.logger import logger
 
 

@@ -10,9 +10,9 @@ from .Group import Group
 class List(Group):
     def __init__(self, d=None, *args, default_factory=None, parent=None, **kwargs):
 
-        super().__init__(None, *args,  parent=parent, **kwargs)
+        super().__init__([], *args,  parent=parent, **kwargs)
         self._default_factory = default_factory
-        if d is not None:
+        if d is not None and d != None:
             self._data = [self.__new_child__(v) for v in d]
 
     def __new_child__(self, *args, parent=None, **kwargs):
@@ -23,3 +23,6 @@ class List(Group):
 
     def __iter__(self):
         yield from self._data
+
+    def __len__(self):
+        return len(self._data)
