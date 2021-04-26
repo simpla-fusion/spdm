@@ -1,6 +1,6 @@
 import collections
 import functools
-from .Node import Node
+from .Group import Group
 
 
 def _getattr(self, k):
@@ -72,4 +72,4 @@ def as_attribute_tree(cls, *args, **kwargs):
     return n_cls
 
 
-AttributeTree = as_attribute_tree(Node)
+AttributeTree = as_attribute_tree(Group)
