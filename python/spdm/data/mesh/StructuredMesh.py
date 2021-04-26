@@ -94,14 +94,15 @@ class StructuredMesh(Mesh):
                 fyy = func(r[0], r[1], dy=2, grid=False)
                 fxy = func(r[0], r[1], dy=1, dx=1, grid=False)
 
-                return [[fxx, fxy], [fxy, fyy]]  # FIXME: not sure, need double check
+                return [[fxx, fxy], [fxy, fyy]] 
 
             x = X[ix, iy]
             y = Y[ix, iy]
             try:
                 x1, y1 = fsolve(f, [x, y],   fprime=fprime)
             except LookupError as error:
-                logger.debug(error)
+                # TODO: need handle exception
+                # logger.debug(error)
                 continue
             else:
                 x = x1
