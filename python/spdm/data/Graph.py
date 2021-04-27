@@ -1,6 +1,5 @@
 from .Edge import Edge
 from .Group import Group
-from .AttributeTree import as_attribute_tree
 
 
 class Graph(Group):

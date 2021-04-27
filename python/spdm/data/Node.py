@@ -64,12 +64,6 @@ class Node:
         d = None if isinstance(self._data, Node.LazyHolder) else self._data
         return pprint.pformat(d) if not isinstance(d, str) else f"'{d}'"
 
-    def __new_child__(self, d, *args, parent=None, **kwargs):
-        if isinstance(d, (int, str, float, np.ndarray)):
-            return d
-        else:
-            return self.__class__(d, *args, parent=parent or self,  **kwargs)
-
     def copy(self):
         if isinstance(Node, (Node.Mapping, Node.Sequence)):
             return self.__new_child__(self._data.copy())
@@ -132,16 +126,17 @@ class Node:
         @enduml
     """
 
+    def __new_child__(self, d, *args, parent=None, **kwargs):
+        if isinstance(d, (int, str, float, np.ndarray)):
+            return d
+        else:
+            return self.__class__(d, *args, parent=parent or self,  **kwargs)
+
     def __pre_process__(self, value, *args, **kwargs):
-        return self.__new_child__(value)
+        return value
 
     def __post_process__(self, value, *args, **kwargs):
-        if isinstance(value, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            if len(value) == 0:
-                return None
-            else:
-                return self.__new_child__(value)
-        elif isinstance(value, (Entry, Node.LazyHolder)):
+        if isinstance(value, (Entry, Node.LazyHolder, collections.abc.Mapping, collections.abc.MutableSequence)):
             return self.__new_child__(value)
         else:
             return value

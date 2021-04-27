@@ -1,6 +1,7 @@
 import collections
 import functools
 from .Group import Group
+import numpy as np
 
 
 def _getattr(self, k):
