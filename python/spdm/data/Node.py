@@ -127,19 +127,14 @@ class Node:
     """
 
     def __new_child__(self, d, *args, parent=None, **kwargs):
-        if isinstance(d, (int, str, float, np.ndarray)):
-            return d
-        else:
-            return self.__class__(d, *args, parent=parent or self,  **kwargs)
+        # d if isinstance(d, (int, str, float, np.ndarray)) else
+        return Node(d, *args, parent=parent or self,  **kwargs)
 
     def __pre_process__(self, value, *args, **kwargs):
         return value
 
     def __post_process__(self, value, *args, **kwargs):
-        if isinstance(value, (Entry, Node.LazyHolder, collections.abc.Mapping, collections.abc.MutableSequence)):
-            return self.__new_child__(value)
-        else:
-            return value
+        return value if not isinstance(value, (Entry, Node.LazyHolder, collections.abc.Mapping, collections.abc.MutableSequence)) else self.__new_child__(value)
 
     def __raw_set__(self, key, value):
         if isinstance(self._data, Entry):
