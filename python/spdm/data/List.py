@@ -3,26 +3,24 @@ import collections
 from matplotlib.pyplot import loglog
 from spdm.util.logger import logger
 from spdm.data.Node import Node
+import typing
 
-from .Group import Group
+_KT = typing.TypeVar('_KT')
+_VT = typing.TypeVar('_VT')
 
 
-class List(Group):
-    def __init__(self, d=None, *args, default_factory=None, parent=None, **kwargs):
+class List(typing.MutableSequence[_VT], Node):
+    def __init__(self, d=None, *args, default_factory=None,  parent=None, **kwargs):
+        Node.__init__(self, [], *args,  parent=parent, **kwargs)
 
-        super().__init__([], *args,  parent=parent, **kwargs)
-        self._default_factory = default_factory
-        if d is not None and d != None:
-            self._data = [self.__new_child__(v) for v in d]
+        #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+        self._default_factory = default_factory or typing.get_args(self._orig_class)
 
-    def __new_child__(self, *args, parent=None, **kwargs):
-        if self._default_factory is None:
-            return super().__new_child__(*args, parent=parent or self._parent, **kwargs)
-        else:
-            return self._default_factory(*args, parent=parent or self._parent, **kwargs)
+    def __len__(self) -> int:
+        return Node.__len__(self)
 
-    def __iter__(self):
-        yield from self._data
+    def __setitem__(self, k: _KT, v: _VT) -> None:
+        Node.__raw_set__(self, k, v)
 
-    def __len__(self):
-        return len(self._data)
+    def __getitem__(self, k: _KT) -> _VT:
+        return self._default_factory(Node.__raw_get__(self, k), parent=self._parent)
