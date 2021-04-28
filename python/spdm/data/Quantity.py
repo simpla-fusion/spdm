@@ -1,5 +1,4 @@
 import collections
-from external.SpDB.python.spdm.data.AttributeTree import AttributeTree
 import pprint
 from functools import cached_property
 

@@ -4,7 +4,7 @@ import sys
 import unittest
 from spdm.util.logger import logger
 from spdm.data.Entry import _next_
-from spdm.data.Node import Node
+from spdm.data.Node import Node, Dict, List
 from spdm.data.AttributeTree import AttributeTree
 
 
@@ -31,7 +31,7 @@ class TestAttributeTree(unittest.TestCase):
                 "f": "{address}"
             }
         }
-        d = Node(cache)
+        d = Dict(cache)
 
         self.assertEqual(len(d["a"]),  6)
         self.assertEqual(d["c"],  cache["c"])
@@ -44,7 +44,7 @@ class TestAttributeTree(unittest.TestCase):
     def test_node_insert(self):
         cache = {}
 
-        d = Node(cache)
+        d = Dict(cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
@@ -92,9 +92,15 @@ class TestAttributeTree(unittest.TestCase):
 
         d.c[_next_] = 1.23455
         d.c[_next_] = {"a": "hello world", "b": 3.141567}
-        # d.e.f = 5
+
         self.assertEqual(cache["c"][0],  1.23455)
-        # self.assertEqual(cache["e"]["f"], 5)
+        self.assertEqual(cache["c"][1]["a"], "hello world")
+        self.assertEqual(d.c[1].a, "hello world")
+
+        d.e.f = 5
+        d.e.g = 6
+        self.assertEqual(cache["e"]["f"], 5)
+        self.assertEqual(cache["e"]["g"], 6)
 
     def test_attribute_boolean(self):
         d = AttributeTree({})

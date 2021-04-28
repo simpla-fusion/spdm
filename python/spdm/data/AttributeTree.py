@@ -1,10 +1,11 @@
 import collections
 import functools
+import typing
 
 import numpy as np
 
 from ..util.logger import logger
-from .Node import Dict, Node, _TObject
+from .Node import Dict, List, Node, _TObject
 
 
 def _getattr(self, k):
@@ -76,18 +77,21 @@ def as_attribute_tree(cls, *args, **kwargs):
 class AttributeTree(Dict[str, _TObject]):
     __slots__ = ()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __new_child__(self, value, *args, parent=None, **kwargs):
-        if isinstance(value, collections.abc.Mapping):
-            return self.__class__(value, *args, parent=parent or self, **kwargs)
+    @classmethod
+    def default_factory(cls, value, *args, **kwargs):
+        if isinstance(value, (Node, collections.abc.MutableSequence, int, str, float)) and value is None:
+            return value
         else:
-            return super().__new_child__(value, *args, parent=parent, **kwargs)
+            return AttributeTree(value, *args, **kwargs)
+
+    def __init__(self, *args, default_factory=None, **kwargs):
+        super().__init__(*args, default_factory=default_factory or AttributeTree.default_factory, **kwargs)
 
     def __getattr__(self, k):
         if k in Node.__slots__:
             return super(Node, self).__getattr__(k)
+        elif k in self.__slots__:
+            return super().__getattr__(k)
         else:
             res = getattr(self.__class__, k, None)
             if res is None:
@@ -102,6 +106,8 @@ class AttributeTree(Dict[str, _TObject]):
     def __setattr__(self, k, v):
         if k in Node.__slots__:
             super(Node, self).__setattr__(k, v)
+        elif k in self.__slots__:
+            super().__setattr__(k, v)
         else:
             res = getattr(self.__class__, k, None)
             if res is None:
@@ -118,7 +124,7 @@ class AttributeTree(Dict[str, _TObject]):
                 raise AttributeError(f"Can not set attribute {k}:{type(v)}!")
 
     def __delattr__(self, k):
-        if k in Node.__slots__:
+        if k in Node.__slots__ or k in self.__slots__:
             raise AttributeError(k)
         else:
             res = getattr(self.__class__, k, None)

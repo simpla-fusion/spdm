@@ -67,7 +67,7 @@ class Node(typing.Generic[_TObject]):
         self._parent = parent
         self._data = data._data if isinstance(data, Node) else data
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-        self._default_factory = default_factory or typing.get_args(getattr(self, "__orig_class__", None)) or Node
+        self._default_factory = default_factory
 
     def __repr__(self) -> str:
         d = None if isinstance(self._data, Node.LazyHolder) else self._data
@@ -135,17 +135,34 @@ class Node(typing.Generic[_TObject]):
         @enduml
     """
 
-    def __new_child__(self, value, *args, parent=None, **kwargs):
-        if isinstance(value, (str, int, float, np.ndarray)):
+    def __new_child__(self, value, *args, parent=None, default_factory=None, **kwargs):
+        if self._default_factory is not None:
+            value = self._default_factory(value, *args,
+                                          parent=parent or self,
+                                          default_factory=default_factory or self._default_factory,
+                                          **kwargs)
+
+        if isinstance(value, Node):
             return value
         elif isinstance(value, collections.abc.MutableSequence):
-            return List[_TObject](value, *args, parent=parent or self, **kwargs)
+            return List[_TObject](value, *args,
+                                  parent=parent or self,
+                                  default_factory=default_factory or self._default_factory,
+                                  **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
-            return Dict[_TKey, _TObject](value, *args, parent=parent or self, **kwargs)
-        elif self._default_factory is not None:
-            return self._default_factory(value, *args,  parent=parent or self, **kwargs)
-        else:
-            return Node[_TObject](value, *args,  parent=parent or self, **kwargs)
+            return Dict[_TKey, _TObject](value, *args,
+                                         parent=parent or self,
+                                         default_factory=default_factory or self._default_factory,
+                                         **kwargs)
+        elif isinstance(value, (Entry, Node.LazyHolder)):
+            return Node[_TObject](value, *args,
+                                  parent=parent or self,
+                                  default_factory=default_factory or self._default_factory,
+                                  **kwargs)
+        else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
+            return value
+        # else:
+        #     raise TypeError(type(value))
 
     def __pre_process__(self, value, *args, **kwargs):
         return value
@@ -186,16 +203,19 @@ class Node(typing.Generic[_TObject]):
         obj = holder._data
 
         for idx, key in enumerate(path[:-1]):
+
+            child = {} if isinstance(path[idx+1], str) else []
             if isinstance(obj, Node):
+                child = obj.__new_child__(child, parent=obj)
                 obj = obj._data
 
             if isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}")
-                obj = obj.setdefault(key, Node.DICT_TYPE() if isinstance(path[idx+1], str) else [])
+                obj = obj.setdefault(key, child)
             elif isinstance(obj, collections.abc.MutableSequence):
                 if isinstance(key, _NEXT_TAG_):
-                    obj.append({} if isinstance(path[idx+1], str) else [])
+                    obj.append(child)
                     obj = obj[-1]
                 elif isinstance(key, (int, slice)):
                     obj = obj[key]
@@ -251,8 +271,8 @@ class Node(typing.Generic[_TObject]):
 
         if obj is _not_found_:
             return Node.LazyHolder(self, path)
-
-        return obj
+        else:
+            return obj
 
     def __setitem__(self, path, value):
         self.__raw_set__(path, self.__pre_process__(value))
@@ -330,10 +350,10 @@ class List(Node[_TObject], typing.MutableSequence[_TObject],):
         return Node.__len__(self)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
-        Node.__raw_set__(self, k, v)
+        self.__raw_set__(k, self.__pre_process__(v))
 
     def __getitem__(self, k: _TIndex) -> _TObject:
-        return self._default_factory(Node.__raw_get__(self, k), parent=self._parent)
+        return self.__post_process__(self.__raw_get__(k), parent=self._parent)
 
     def __delitem__(self, k: _TIndex) -> None:
         Node.__delitem__(self, k)
