@@ -1,11 +1,13 @@
 import collections
+
 import numpy as np
+from spdm.data.AttributeTree import AttributeTree
 from spdm.data.Function import Function
+from spdm.data.Node import Dict, Node
 from spdm.util.logger import logger
-from spdm.data.Node import Node, Dict
 
 
-class Profiles(Dict[str, Function]):
+class Profiles(AttributeTree):
     __slots__ = ("_axis",)
 
     def __init__(self,   *args, axis=None, default_factory=None, ** kwargs):
