@@ -1,8 +1,10 @@
 from .Edge import Edge
-from .Group import Group
+from .Node import List, Dict, _TKey, _TObject
+
+_TPath = List[_TKey]
 
 
-class Graph(Group):
+class Graph(Dict[_TKey, _TObject]):
     """Represents '''Graph'''.
         * defines namespace for the '''Node'''s
         * Graph is a Node
@@ -15,10 +17,10 @@ class Graph(Group):
         self._edges = []
 
     @property
-    def edges(self):
+    def edges(self) -> List[Edge]:
         return self._edges
 
-    def link(self, source, target, *args, **kwargs):
+    def link(self, source: _TPath, target: _TPath, *args, **kwargs):
         e = Edge(source, target, *args, graph=self, **kwargs)
         self._edges.append(e)
         return e

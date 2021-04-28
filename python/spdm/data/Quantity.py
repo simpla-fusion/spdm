@@ -1,4 +1,5 @@
 import collections
+from external.SpDB.python.spdm.data.AttributeTree import AttributeTree
 import pprint
 from functools import cached_property
 
@@ -6,13 +7,13 @@ import numpy as np
 import scipy.constants
 
 from ..util.logger import logger
-from .Annotation import Annotation
-from .Coordinates import Coordinates
 from .Unit import Unit
 
 
 class Quantity(np.ndarray):
-    """
+    r"""
+        @NOTE: !!!!! NOT COMPLETE!!!!!
+
         A `Quantity` is a property that can exist as a multitude or magnitude, which illustrate discontinuity and continuity.
 
         A `physical quantity` is a property of a material or system that can be quantified by measurement.
@@ -23,6 +24,7 @@ class Quantity(np.ndarray):
 
         An `extensive properties` such as the mass, volume and entropy of systems are additive for subsystems because they increase and
         decrease as they grow larger and smaller, respectively.
+
 
     """
 
@@ -35,7 +37,7 @@ class Quantity(np.ndarray):
             obj = np.asarray(value, dtype=dtype, order=order).view(cls)
         else:
             obj = np.ndarray(shape, dtype=dtype, order=order).view(cls)
-        
+
         # for k, v in kwargs.items():
         #     if k[0] == '_' and k[1] != '_':
         #         setattr(obj, k, v)
@@ -48,7 +50,7 @@ class Quantity(np.ndarray):
 
     def __init__(self,  *args, unit=None, annotation=None,  **kwargs):
         self._unit = Unit(unit)
-        self._annotation = Annotation(annotation or {})
+        self._annotation = AttributeTree(annotation or {})
 
     def __repr__(self):
         # unit_str = f"unit='{self._unit}'" if not self._unit.is_dimensionless else ""
@@ -81,11 +83,11 @@ class Quantity(np.ndarray):
                             coordinates=d.get("coordinates", None),
                             annotation=d.get("annotation", None))
 
-    @ property
+    @property
     def annotation(self):
         return self._annotation
 
-    @ property
+    @property
     def unit(self):
         return self._unit
 

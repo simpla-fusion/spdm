@@ -1,16 +1,20 @@
 import collections
 import copy
-import pprint
 import functools
-import collections
+import pprint
+import typing
+
 import numpy as np
 
 from ..util.logger import logger
-from .Entry import Entry, _next_, _last_, _not_found_, _NEXT_TAG_
-from ..util.dict_util import deep_merge_dict
+from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
+
+_TObject = typing.TypeVar('_TObject')
+_TKey = typing.TypeVar('_TKey', int, str)
+_TIndex = typing.TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
-class Node:
+class Node(typing.Generic[_TObject]):
     r"""
         @startuml
 
@@ -33,9 +37,11 @@ class Node:
 
         @enduml
     """
-    DICT_TYPE = dict  # collections.OrderedDict
+    __slots__ = ["_parent", "_data", "_default_factory"]
 
     class LazyHolder:
+        __slots__ = "_prefix", "_parent"
+
         def __init__(self, parent, path, prefix=[]) -> None:
             self._parent = parent
             if isinstance(path, str):
@@ -56,9 +62,12 @@ class Node:
         def extend(self, path):
             return self if path is None else Node.LazyHolder(self._parent, path, prefix=self._prefix)
 
-    def __init__(self, data=None, *args,  parent=None, **kwargs):
+    def __init__(self, data=None, *args, default_factory=None, parent=None, **kwargs):
+        super().__init__()
         self._parent = parent
         self._data = data._data if isinstance(data, Node) else data
+        #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+        self._default_factory = default_factory or typing.get_args(getattr(self, "__orig_class__", None)) or Node
 
     def __repr__(self) -> str:
         d = None if isinstance(self._data, Node.LazyHolder) else self._data
@@ -126,15 +135,23 @@ class Node:
         @enduml
     """
 
-    def __new_child__(self, d, *args, parent=None, **kwargs):
-        # d if isinstance(d, (int, str, float, np.ndarray)) else
-        return Node(d, *args, parent=parent or self,  **kwargs)
+    def __new_child__(self, value, *args, parent=None, **kwargs):
+        if isinstance(value, (str, int, float, np.ndarray)):
+            return value
+        elif isinstance(value, collections.abc.MutableSequence):
+            return List[_TObject](value, *args, parent=parent or self, **kwargs)
+        elif isinstance(value, collections.abc.MutableMapping):
+            return Dict[_TKey, _TObject](value, *args, parent=parent or self, **kwargs)
+        elif self._default_factory is not None:
+            return self._default_factory(value, *args,  parent=parent or self, **kwargs)
+        else:
+            return Node[_TObject](value, *args,  parent=parent or self, **kwargs)
 
     def __pre_process__(self, value, *args, **kwargs):
         return value
 
-    def __post_process__(self, value, *args, **kwargs):
-        return value if not isinstance(value, (Entry, Node.LazyHolder, collections.abc.Mapping, collections.abc.MutableSequence)) else self.__new_child__(value)
+    def __post_process__(self, value, *args,   **kwargs):
+        return value if isinstance(value, Node) else self.__new_child__(value, *args, **kwargs)
 
     def __raw_set__(self, key, value):
         if isinstance(self._data, Entry):
@@ -162,9 +179,9 @@ class Node:
 
         if holder._data is None:
             if isinstance(path[0], str):
-                holder._data = Node.DICT_TYPE()
+                holder._data = Dict(parent=self)
             else:
-                holder._data = list()
+                holder._data = List(parent=self)
 
         obj = holder._data
 
@@ -301,3 +318,53 @@ class Node:
 
     def __bool__(self) -> bool:
         return False if isinstance(self._data, Node.LazyHolder) else (not not self._data)
+
+
+class List(Node[_TObject], typing.MutableSequence[_TObject],):
+    __slots__ = ()
+
+    def __init__(self, d: collections.abc.Sequence = [], *args,   **kwargs):
+        Node.__init__(self, d or [], *args,    **kwargs)
+
+    def __len__(self) -> int:
+        return Node.__len__(self)
+
+    def __setitem__(self, k: _TIndex, v: _TObject) -> None:
+        Node.__raw_set__(self, k, v)
+
+    def __getitem__(self, k: _TIndex) -> _TObject:
+        return self._default_factory(Node.__raw_get__(self, k), parent=self._parent)
+
+    def __delitem__(self, k: _TIndex) -> None:
+        Node.__delitem__(self, k)
+
+    def insert(self, *args, **kwargs):
+        return Node.__raw_set__(self, *args, **kwargs)
+
+
+class Dict(Node[_TObject], typing.MutableMapping[_TKey, _TObject]):
+    __slots__ = ()
+
+    def __init__(self, data: typing.Mapping = {}, *args,  **kwargs):
+        Node.__init__(self, data, *args, **kwargs)
+
+    def __getitem__(self, key: _TKey) -> _TObject:
+        return self.__post_process__(self.__raw_get__(key))
+
+    def __setitem__(self, key: _TKey, value: _TObject) -> None:
+        self.__raw_set__(key, self.__pre_process__(value))
+
+    def __delitem__(self, v: _TKey) -> None:
+        return Node.__delitem__(self, v)
+
+    def __iter__(self) -> typing.Iterator[Node]:
+        return Node.__iter__(self)
+
+    def __len__(self) -> int:
+        return Node.__len__(self)
+
+    def __eq__(self, o: object) -> bool:
+        return Node.__eq__(self, o)
+
+    def __contains__(self, o: object) -> bool:
+        return Node.__contains__(self, o)

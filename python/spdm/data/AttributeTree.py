@@ -1,7 +1,10 @@
 import collections
 import functools
-from .Group import Group
+
 import numpy as np
+
+from ..util.logger import logger
+from .Node import Dict, Node, _TObject
 
 
 def _getattr(self, k):
@@ -16,9 +19,6 @@ def _getattr(self, k):
         elif isinstance(res, functools.cached_property):
             res = res.__get__(self)
 
-        # post_process = getattr(self.__class__, "__post_process__", None)
-        # if post_process is not None:
-        #     res = post_process(self, res)
         return res
 
 
@@ -73,7 +73,62 @@ def as_attribute_tree(cls, *args, **kwargs):
     return n_cls
 
 
-@as_attribute_tree
-class AttributeTree(Group):
-    def __new_child__(self, d, *args, parent=None, **kwargs):
-        return AttributeTree(d, *args, parent=parent or self, **kwargs)
+class AttributeTree(Dict[str, _TObject]):
+    __slots__ = ()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __new_child__(self, value, *args, parent=None, **kwargs):
+        if isinstance(value, collections.abc.Mapping):
+            return self.__class__(value, *args, parent=parent or self, **kwargs)
+        else:
+            return super().__new_child__(value, *args, parent=parent, **kwargs)
+
+    def __getattr__(self, k):
+        if k in Node.__slots__:
+            return super(Node, self).__getattr__(k)
+        else:
+            res = getattr(self.__class__, k, None)
+            if res is None:
+                res = self.__getitem__(k)
+            elif isinstance(res, property):
+                res = getattr(res, "fget")(self)
+            elif isinstance(res, functools.cached_property):
+                res = res.__get__(self)
+
+            return res
+
+    def __setattr__(self, k, v):
+        if k in Node.__slots__:
+            super(Node, self).__setattr__(k, v)
+        else:
+            res = getattr(self.__class__, k, None)
+            if res is None:
+                self.__setitem__(k, v)
+            elif isinstance(res, property):
+                res.fset(self, k, v)
+            elif isinstance(res, functools.cached_property):
+                raise AttributeError(f"Can not set cached_property")
+            elif isinstance(v, collections.abc.Mapping):
+                target = self.getattr(self, k)
+                for i, d in v.items():
+                    target.__setattr__(target, i, d)
+            else:
+                raise AttributeError(f"Can not set attribute {k}:{type(v)}!")
+
+    def __delattr__(self, k):
+        if k in Node.__slots__:
+            raise AttributeError(k)
+        else:
+            res = getattr(self.__class__, k, None)
+            if res is None:
+                self.__delitem__(k)
+            elif isinstance(res, property):
+                res.fdel(self, k)
+            elif isinstance(res, functools.cached_property):
+                if k in self.__dict__:
+                    del self.__dict__[k]
+                # raise AttributeError(f"Can not set cached_property")
+            else:
+                raise AttributeError(f"Can not delete attribute {k}!")

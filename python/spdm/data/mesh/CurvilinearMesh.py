@@ -8,7 +8,7 @@ from ...geometry.BSplineSurface import BSplineSurface
 from ...geometry.CubicSplineCurve import CubicSplineCurve
 from ...geometry.Point import Point
 from ...util.logger import logger
-from ..PhysicalGraph import PhysicalGraph
+from ..AttributeTree import AttributeTree
 from .StructuredMesh import StructuredMesh
 
 
@@ -64,7 +64,7 @@ class CurvilinearMesh(StructuredMesh):
 
     @cached_property
     def boundary(self):
-        return PhysicalGraph({"inner": self.axis(0, 0),  "outer": self.axis(-1, 0)})
+        return AttributeTree({"inner": self.axis(0, 0),  "outer": self.axis(-1, 0)})
 
     @cached_property
     def geo_object(self):
