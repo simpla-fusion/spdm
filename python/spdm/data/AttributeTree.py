@@ -6,10 +6,10 @@ import numpy as np
 
 from ..util.logger import logger
 from .Node import Dict, List, Node, _TObject
-
+from .Node import _next_
 
 class AttributeTree(Dict[str, _TObject]):
-    # __slots__ = ()
+    __slots__ = ()
 
     @classmethod
     def default_factory(cls, value, *args, **kwargs):

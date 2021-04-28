@@ -27,6 +27,10 @@ class TestNode(unittest.TestCase):
 
         pprint.pprint(cache)
 
+    def test_node_iter(self):
+        d = Node([1, 2, 3, 4, 5, 6])
+        self.assertEqual([v for v in d],  [1, 2, 3, 4, 5, 6])
+
 
 if __name__ == '__main__':
 

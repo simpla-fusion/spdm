@@ -1,18 +1,13 @@
-import importlib
 import pprint
-import sys
 import unittest
-from functools import cached_property
 
-from spdm.data.AttributeTree import AttributeTree
-from spdm.data.Entry import _next_
-from spdm.data.Node import Dict, List, Node
+from spdm.data.AttributeTree import AttributeTree, _next_
 from spdm.util.logger import logger
 
 
 class TestAttributeTree(unittest.TestCase):
-    def test_node_initialize(self):
-        d = Node({
+    def test_attribute_initialize(self):
+        d = AttributeTree({
             "c": "I'm {age}!",
             "d": {
                 "e": "{name} is {age}",
@@ -20,7 +15,7 @@ class TestAttributeTree(unittest.TestCase):
             }
         })
 
-    def test_node_get(self):
+    def test_attribute_get(self):
         cache = {
             "a": [
                 "hello world {name}!",
@@ -36,29 +31,25 @@ class TestAttributeTree(unittest.TestCase):
         d = AttributeTree(cache)
 
         self.assertEqual(len(d["a"]),  6)
-        self.assertEqual(d["c"],  cache["c"])
-        self.assertEqual(d["d.e"], cache["d"]["e"])
-        self.assertEqual(d["d.f"],  cache["d"]["f"])
-        self.assertEqual(d["a"][0], cache["a"][0])
-        self.assertEqual(d["a"][1],  cache["a"][1])
-        self.assertEqual(d["a"][2:6], [1, 2, 3, 4])
+        self.assertEqual(d.c,  cache["c"])
+        self.assertEqual(d.d.e, cache["d"]["e"])
+        self.assertEqual(d.d.f,  cache["d"]["f"])
+        self.assertEqual(d.a[0], cache["a"][0])
+        self.assertEqual(d.a[1],  cache["a"][1])
+        self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
-    def test_node_insert(self):
+    def test_attribute_insert(self):
         cache = {}
 
         d = AttributeTree(cache)
 
-        d["a"] = "hello world {name}!"
+        d.a = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
 
-        d["c"][_next_] = 1.23455
-        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
+        d.c[_next_] = 1.23455
+        d.c[_next_] = {"a": "hello world", "b": 3.141567}
 
         self.assertEqual(cache["c"][0],  1.23455)
-
-    def test_node_iter(self):
-        d = Node([1, 2, 3, 4, 5, 6])
-        self.assertEqual([v for v in d],  [1, 2, 3, 4, 5, 6])
 
     def test_attribute_get(self):
 
@@ -111,8 +102,8 @@ class TestAttributeTree(unittest.TestCase):
         v.b = 2
 
         self.assertEqual(len(d.a), 1)
-        self.assertEqual(d.__category__, Node.Category.DICT)
-        self.assertEqual(d.a.__category__, Node.Category.LIST)
+        self.assertEqual(d.__category__, AttributeTree.Category.DICT)
+        self.assertEqual(d.a.__category__, AttributeTree.Category.LIST)
         self.assertEqual(d.a[0].a, 1)
         self.assertEqual(d.a[0].b, 2)
 
@@ -133,13 +124,6 @@ class TestAttributeTree(unittest.TestCase):
         d = AttributeTree(cache)
         del d.a
         self.assertTrue("a" not in cache)
-
-    def test_attribute_generic_list(self):
-        class Foo(str):
-            def __init__(self, d):
-                self._v = d
-
-        d = List[Foo]([1, 2, 3, 4])
 
     # def test_subclass(self):
     #     class Foo(AttributeTree):
