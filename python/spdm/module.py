@@ -4,7 +4,7 @@ import pprint
 import sys
 
 
-from spdm.flow.ModuleRepository import ModuleRepository
+from .flow.ModuleRepository import ModuleRepository
 
 _repo = None
 

@@ -1,8 +1,8 @@
 
 import collections
 import pprint
-from spdm.util.LazyProxy import LazyProxy
-from spdm.util.logger import logger
+from ..util.LazyProxy import LazyProxy
+from ..util.logger import logger
 
 
 class _TAG_:

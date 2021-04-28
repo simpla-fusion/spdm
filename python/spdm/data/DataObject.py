@@ -6,9 +6,9 @@ import pprint
 from typing import Type
 
 import numpy as np
-from spdm.util.logger import logger
-from spdm.util.SpObject import SpObject
-from spdm.util.urilib import urisplit
+from ..util.logger import logger
+from ..util.SpObject import SpObject
+from ..util.urilib import urisplit
 
 from .Entry import Entry
 
