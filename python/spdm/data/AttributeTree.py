@@ -8,6 +8,7 @@ from ..util.logger import logger
 from .Node import Dict, List, Node, _TObject
 from .Node import _next_
 
+
 class AttributeTree(Dict[str, _TObject]):
     __slots__ = ()
 
@@ -23,23 +24,29 @@ class AttributeTree(Dict[str, _TObject]):
 
     def __getattr__(self, k):
         if k in Node.__slots__:
-            return getattr(self, k)
+            res = getattr(self, k)
         elif k in self.__slots__:
-            return super().__getattr__(k)
+            res = super().__getattr__(k)
         else:
             res = getattr(self.__class__, k, None)
-            if res is None:
+            if hasattr(self.__class__, 'get'):
+                res = self.get(k, None)
+            elif res is None:
                 res = self.__getitem__(k)
             elif isinstance(res, property):
                 res = getattr(res, "fget")(self)
             elif isinstance(res, functools.cached_property):
                 res = res.__get__(self)
-
+        if res is None:
+            return AttributeTree(Node.LazyHolder(self, [k]))
+        elif isinstance(res, (collections.abc.Mapping, Node)):
+            return AttributeTree(res)
+        else:
             return res
 
     def __setattr__(self, k, v):
         if k in Node.__slots__:
-            super(Node, self).__setattr__(k, v)
+            Node.__setattr__(self, k, v)
         elif k in self.__slots__:
             super().__setattr__(k, v)
         else:
@@ -73,11 +80,16 @@ class AttributeTree(Dict[str, _TObject]):
             else:
                 raise AttributeError(f"Can not delete attribute {k}!")
 
+    def __iter__(self) -> typing.Iterator[Node]:
+        for v in super(Node, self).__iter__():
+            yield AttributeTree(v)
+
 
 def as_attribute_tree(cls, *args, **kwargs):
     n_cls = type(f"{cls.__name__}__with_attr__", (cls,), {
-        "__getattr__": Node.__getattr__,
-        "__setattr__": Node.__setattr__,
-        "__delattr__": Node.__delattr__,
+        "__getattr__": AttributeTree.__getattr__,
+        "__setattr__": AttributeTree.__setattr__,
+        "__delattr__": AttributeTree.__delattr__,
+        "__iter__": AttributeTree.__iter__,
     })
     return n_cls

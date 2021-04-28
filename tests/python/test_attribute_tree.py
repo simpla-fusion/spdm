@@ -1,7 +1,6 @@
-import pprint
 import unittest
-
-from spdm.data.AttributeTree import AttributeTree, _next_
+from typing import Mapping, Any, Iterator
+from spdm.data.AttributeTree import AttributeTree, _next_, as_attribute_tree
 from spdm.util.logger import logger
 
 
@@ -14,42 +13,6 @@ class TestAttributeTree(unittest.TestCase):
                 "f": "{address}"
             }
         })
-
-    def test_attribute_get(self):
-        cache = {
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ],
-            "c": "I'm {age}!",
-            "d": {
-                "e": "{name} is {age}",
-                "f": "{address}"
-            }
-        }
-        d = AttributeTree(cache)
-
-        self.assertEqual(len(d["a"]),  6)
-        self.assertEqual(d.c,  cache["c"])
-        self.assertEqual(d.d.e, cache["d"]["e"])
-        self.assertEqual(d.d.f,  cache["d"]["f"])
-        self.assertEqual(d.a[0], cache["a"][0])
-        self.assertEqual(d.a[1],  cache["a"][1])
-        self.assertEqual(d.a[2:6], [1, 2, 3, 4])
-
-    def test_attribute_insert(self):
-        cache = {}
-
-        d = AttributeTree(cache)
-
-        d.a = "hello world {name}!"
-        self.assertEqual(cache["a"], "hello world {name}!")
-
-        d.c[_next_] = 1.23455
-        d.c[_next_] = {"a": "hello world", "b": 3.141567}
-
-        self.assertEqual(cache["c"][0],  1.23455)
 
     def test_attribute_get(self):
 
@@ -95,6 +58,19 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
 
+    def test_attribute_insert(self):
+        cache = {}
+
+        d = AttributeTree(cache)
+
+        d.a = "hello world {name}!"
+        self.assertEqual(cache["a"], "hello world {name}!")
+
+        d.c[_next_] = 1.23455
+        d.c[_next_] = {"a": "hello world", "b": 3.141567}
+
+        self.assertEqual(cache["c"][0],  1.23455)
+
     def test_attribute_append(self):
         d = AttributeTree()
         v = d.a[_next_]
@@ -124,6 +100,31 @@ class TestAttributeTree(unittest.TestCase):
         d = AttributeTree(cache)
         del d.a
         self.assertTrue("a" not in cache)
+
+    def test_decorate(self):
+
+        @as_attribute_tree
+        class Foo(Mapping[str, Any]):
+            def __init__(self, d, *args, **kwargs) -> None:
+                self._data = d
+
+            def __getitem__(self, k):
+                return self._data[k]
+
+            def __setitem__(self, k, v):
+                self._data[k] = v
+
+            def __iter__(self) -> Iterator:
+                yield from self._data
+
+            def __len__(self) -> int:
+                return len(self._data)
+
+        cache = {}
+        foo = Foo(cache)
+
+        foo.e.f = 5
+        self.assertEqual(cache["e"]["f"], 5)
 
     # def test_subclass(self):
     #     class Foo(AttributeTree):

@@ -28,9 +28,8 @@ class Profiles(Dict[str, Function]):
                         raise ValueError(f"The shape of arrays dismatch! {value.shape} !={axis.shape} ")
                     value = Function(axis, value)
                 return value
-
-        super().__init__(*args, default_factory=default_factory, **kwargs)
         self._axis = axis
+        super().__init__(*args, default_factory=default_factory, **kwargs)
 
     @property
     def axis(self):
