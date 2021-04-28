@@ -419,6 +419,9 @@ class List(Node, typing.MutableSequence[_TObject]):
     def insert(self, *args, **kwargs):
         return Node.__raw_set__(self, *args, **kwargs)
 
+    def __iter__(self):
+        yield from Node.__iter__(self)
+
 
 class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
     __slots__ = ()
@@ -436,7 +439,7 @@ class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
         return Node.__delitem__(self, v)
 
     def __iter__(self) -> typing.Iterator[Node]:
-        return Node.__iter__(self)
+        yield from Node.__iter__(self)
 
     def __len__(self) -> int:
         return Node.__len__(self)
