@@ -226,14 +226,16 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
     }
 
 
-def sp_geqdsk_to_imas_equilibrium(geqdsk, eq=None):
-    if eq is None:
-        eq = AttributeTree()
+def sp_geqdsk_to_imas_equilibrium(geqdsk, equilibrium=None):
+    if equilibrium is None:
+        equilibrium = AttributeTree()
     # rdim = 0.0
     # zdim = 0.0
-    eq.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
-    eq.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
+    equilibrium.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
+    equilibrium.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
 
+    eq = equilibrium.time_slice[_next_]
+    eq.time = 0.0
     # rleft = 0.0
     eq.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
     eq.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
@@ -296,7 +298,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq=None):
     eq.profiles_1d.q = geqdsk["qpsi"]
     eq.profiles_1d.psi_norm = np.linspace(0, 1.0, nw)
 
-    return eq
+    return equilibrium
 
 
 class GEQdskDocument(File):
@@ -307,10 +309,7 @@ class GEQdskDocument(File):
     @property
     def entry(self):
         if self._data is None:
-            self._data = AttributeTree()
-            eq = self._data.time_slice[_next_]
-            eq.time = 0.0
-            self.load(self.path, eq)
+            self._data = self.load(self.path)
         return self._data
 
     def flush(self, *args, **kwargs):
@@ -320,6 +319,7 @@ class GEQdskDocument(File):
     def load(self, p, eq=None):
         with open(p or self._path, mode="r") as fp:
             eq = sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
+        logger.debug(eq.time_slice)
         return eq
 
     def save(self, p):

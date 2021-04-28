@@ -3,9 +3,9 @@ import copy
 import functools
 import pprint
 import typing
-
+import inspect
 import numpy as np
-
+from enum import IntFlag
 from ..util.logger import logger
 from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
 
@@ -14,7 +14,7 @@ _TKey = typing.TypeVar('_TKey', int, str)
 _TIndex = typing.TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
-class Node(typing.Generic[_TObject]):
+class Node:
     r"""
         @startuml
 
@@ -66,7 +66,6 @@ class Node(typing.Generic[_TObject]):
         super().__init__()
         self._parent = parent
         self._data = data._data if isinstance(data, Node) else data
-        #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
         self._default_factory = default_factory
 
     def __repr__(self) -> str:
@@ -108,6 +107,44 @@ class Node(typing.Generic[_TObject]):
     def __clear__(self):
         self._data = None
 
+    class Category(IntFlag):
+        UNKNOWN = 0
+        ITEM = 0x000
+        DICT = 0x100
+        LIST = 0x200
+        ENTRY = 0x400
+
+        ARRAY = 0x010
+
+        INT = 0x001
+        FLOAT = 0x002
+        COMPLEX = 0x004
+        STRING = 0x008
+
+    @staticmethod
+    def type_category(d) -> IntFlag:
+        flag = Node.Category.UNKNOWN
+        if isinstance(d, (Entry, Node.LazyHolder)):
+            flag |= Node.Category.ENTRY
+        elif isinstance(d, np.ndarray):
+            flag |= Node.Category.ARRAY
+            if np.issubdtype(d.dtype, np.int64):
+                flag |= Node.Category.INT
+            elif np.issubdtype(d.dtype, np.float64):
+                flag |= Node.Category.FLOAT
+        elif isinstance(d, collections.abc.Mapping):
+            flag |= Node.Category.DICT
+        elif isinstance(d, collections.abc.Sequence):
+            flag |= Node.Category.LIST
+        elif isinstance(d, int):
+            flag |= Node.Category.INT
+        elif isinstance(d, float):
+            flag |= Node.Category.FLOAT
+        elif isinstance(d, str):
+            flag |= Node.Category.STRING
+
+        return flag
+
     """
         @startuml
         [*] --> Empty
@@ -134,31 +171,38 @@ class Node(typing.Generic[_TObject]):
 
         @enduml
     """
+    @property
+    def __category__(self):
+        return Node.type_category(self._data)
 
     def __new_child__(self, value, *args, parent=None, default_factory=None, **kwargs):
-        if self._default_factory is not None:
-            value = self._default_factory(value, *args,
-                                          parent=parent or self,
-                                          default_factory=default_factory or self._default_factory,
-                                          **kwargs)
+        default_factory = default_factory or self._default_factory
+        if default_factory is not None:
+            try:
+                d = default_factory(value, *args,  parent=parent or self, ** kwargs)
+            except Exception as error:
+                logger.debug(default_factory)
+                d = default_factory(value, *args, ** kwargs)
+
+            value = d
 
         if isinstance(value, Node):
             return value
         elif isinstance(value, collections.abc.MutableSequence):
             return List[_TObject](value, *args,
                                   parent=parent or self,
-                                  default_factory=default_factory or self._default_factory,
+                                  default_factory=default_factory,
                                   **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
             return Dict[_TKey, _TObject](value, *args,
                                          parent=parent or self,
-                                         default_factory=default_factory or self._default_factory,
+                                         default_factory=default_factory,
                                          **kwargs)
         elif isinstance(value, (Entry, Node.LazyHolder)):
-            return Node[_TObject](value, *args,
-                                  parent=parent or self,
-                                  default_factory=default_factory or self._default_factory,
-                                  **kwargs)
+            return Node(value, *args,
+                        parent=parent or self,
+                        default_factory=default_factory,
+                        **kwargs)
         else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
             return value
         # else:
@@ -233,6 +277,9 @@ class Node(typing.Generic[_TObject]):
     def __raw_get__(self, path):
         if isinstance(path, str):
             path = path.split(".")
+        elif isinstance(path, _NEXT_TAG_):
+            self.__raw_set__(_next_, None)
+            return self.__raw_get__(-1)
         elif not isinstance(path, collections.abc.MutableSequence):
             path = [path]
 
@@ -256,6 +303,9 @@ class Node(typing.Generic[_TObject]):
                 break
             elif key is None or key == "":
                 pass
+            # elif isinstance(key, _NEXT_TAG_):
+            #     obj[_next_] = None
+            #     obj = obj[-1]
             elif isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{key}\"")
@@ -340,11 +390,16 @@ class Node(typing.Generic[_TObject]):
         return False if isinstance(self._data, Node.LazyHolder) else (not not self._data)
 
 
-class List(Node[_TObject], typing.MutableSequence[_TObject],):
+class List(Node, typing.MutableSequence[_TObject]):
     __slots__ = ()
 
-    def __init__(self, d: collections.abc.Sequence = [], *args,   **kwargs):
-        Node.__init__(self, d or [], *args,    **kwargs)
+    def __init__(self, d: collections.abc.Sequence = [], *args, default_factory=None,  **kwargs):
+        # #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+        # if default_factory is None:
+        #     o_cls = getattr(self, "__orig_class__", None)
+        #     if o_cls is not None:
+        #         default_factory = typing.get_args(o_cls)[0]
+        Node.__init__(self, d or [], *args, default_factory=default_factory, **kwargs)
 
     def __len__(self) -> int:
         return Node.__len__(self)
@@ -362,7 +417,7 @@ class List(Node[_TObject], typing.MutableSequence[_TObject],):
         return Node.__raw_set__(self, *args, **kwargs)
 
 
-class Dict(Node[_TObject], typing.MutableMapping[_TKey, _TObject]):
+class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
     __slots__ = ()
 
     def __init__(self, data: typing.Mapping = {}, *args,  **kwargs):

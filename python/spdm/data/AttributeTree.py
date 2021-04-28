@@ -79,10 +79,10 @@ class AttributeTree(Dict[str, _TObject]):
 
     @classmethod
     def default_factory(cls, value, *args, **kwargs):
-        if isinstance(value, (Node, collections.abc.MutableSequence, int, str, float)) and value is None:
-            return value
-        else:
+        if bool((Node.Category.DICT | Node.Category.ENTRY) & Node.type_category(value)):
             return AttributeTree(value, *args, **kwargs)
+        else:
+            return value
 
     def __init__(self, *args, default_factory=None, **kwargs):
         super().__init__(*args, default_factory=default_factory or AttributeTree.default_factory, **kwargs)

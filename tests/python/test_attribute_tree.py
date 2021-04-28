@@ -102,6 +102,19 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
 
+    def test_attribute_append(self):
+        d = AttributeTree()
+        v = d.a[_next_]
+        v.a = 1
+        v.b = 2
+        logger.debug(d)
+
+        self.assertEqual(len(d.a), 1)
+        self.assertEqual(d.__category__, Node.Category.LIST)
+        self.assertEqual(d.a.__category__, Node.Category.LIST)
+        self.assertEqual(d.a[0].a, 1)
+        self.assertEqual(d.a[0].b, 2)
+
     def test_attribute_boolean(self):
         d = AttributeTree({})
         self.assertTrue(d.a == None)
@@ -119,6 +132,16 @@ class TestAttributeTree(unittest.TestCase):
         d = AttributeTree(cache)
         del d.a
         self.assertTrue("a" not in cache)
+
+    def test_attribute_generic_list(self):
+        class Foo(str):
+            def __init__(self, d):
+                self._v = d
+
+        d = List[Foo]([1, 2, 3, 4])
+
+        logger.debug(d)
+        logger.debug(type(d[0]))
 
     # def test_attribute_format(self):
     #     d = AttributeTree({
