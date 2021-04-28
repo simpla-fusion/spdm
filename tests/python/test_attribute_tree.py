@@ -1,15 +1,16 @@
-from functools import cached_property
 import importlib
 import pprint
 import sys
 import unittest
-from spdm.util.logger import logger
+from functools import cached_property
+
+from spdm.data.AttributeTree import AttributeTree
 from spdm.data.Entry import _next_
-from spdm.data.Node import Node, Dict, List
-from spdm.data.Node import Dict
+from spdm.data.Node import Dict, List, Node
+from spdm.util.logger import logger
 
 
-class TestDict(unittest.TestCase):
+class TestAttributeTree(unittest.TestCase):
     def test_node_initialize(self):
         d = Node({
             "c": "I'm {age}!",
@@ -32,7 +33,7 @@ class TestDict(unittest.TestCase):
                 "f": "{address}"
             }
         }
-        d = Dict(cache)
+        d = AttributeTree(cache)
 
         self.assertEqual(len(d["a"]),  6)
         self.assertEqual(d["c"],  cache["c"])
@@ -45,7 +46,7 @@ class TestDict(unittest.TestCase):
     def test_node_insert(self):
         cache = {}
 
-        d = Dict(cache)
+        d = AttributeTree(cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
@@ -73,7 +74,7 @@ class TestDict(unittest.TestCase):
                 "f": "{address}"
             }
         }
-        d = Dict(cache)
+        d = AttributeTree(cache)
 
         self.assertEqual(len(d["a"]),  6)
         self.assertEqual(d.c,  cache["c"])
@@ -86,25 +87,25 @@ class TestDict(unittest.TestCase):
     def test_attribute_set(self):
         cache = {}
 
-        d = Dict(cache)
+        d = AttributeTree(cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
 
-        d.c[_next_] = 1.23455
-        d.c[_next_] = {"a": "hello world", "b": 3.141567}
+        d["c"][_next_] = 1.23455
+        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
 
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["a"], "hello world")
-        self.assertEqual(d.c[1].a, "hello world")
+        self.assertEqual(d["c"][1]["a"], "hello world")
 
-        d.e.f = 5
-        d.e.g = 6
+        d["e"]["f"] = 5
+        d["e"]["g"] = 6
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
 
     def test_attribute_append(self):
-        d = Dict()
+        d = AttributeTree()
         v = d.a[_next_]
         v.a = 1
         v.b = 2
@@ -116,7 +117,7 @@ class TestDict(unittest.TestCase):
         self.assertEqual(d.a[0].b, 2)
 
     def test_attribute_boolean(self):
-        d = Dict({})
+        d = AttributeTree({})
         self.assertTrue(d.a == None)
         self.assertTrue(d.a or 12.3, 12.3)
 
@@ -129,7 +130,7 @@ class TestDict(unittest.TestCase):
             ]
         }
 
-        d = Dict(cache)
+        d = AttributeTree(cache)
         del d.a
         self.assertTrue("a" not in cache)
 
@@ -140,9 +141,8 @@ class TestDict(unittest.TestCase):
 
         d = List[Foo]([1, 2, 3, 4])
 
-
     # def test_subclass(self):
-    #     class Foo(Dict):
+    #     class Foo(AttributeTree):
     #         @cached_property
     #         def prop_cached(self):
     #             return {"a": 1, "b": 2}
@@ -157,7 +157,7 @@ class TestDict(unittest.TestCase):
     #     self.assertTrue(foo.prop.c, 4)
 
     # def test_attribute_format(self):
-    #     d = Dict({
+    #     d = AttributeTree({
     #         'annotation': {'contributors': ['Salmon'],
     #                        'description': '\\n Just a demo \\n multiline string example\\n',
     #                        'homepage': 'http://funyun.com/demo.html',
