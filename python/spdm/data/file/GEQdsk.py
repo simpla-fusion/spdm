@@ -1,5 +1,5 @@
 import collections
-from spdm.data.AttributeTree import AttributeTree
+from spdm.data.Node import Dict
 import pathlib
 import pprint
 
@@ -75,7 +75,7 @@ def sp_read_geqdsk(file):
     bbsrz = _read_data(nbbs * 2).reshape([nbbs, 2])
     limrz = _read_data(limitr * 2).reshape([limitr, 2])
 
-    data = AttributeTree({
+    data = Dict({
         "description": description,
         # "idum": idum,
         "nw": nw,
@@ -253,7 +253,7 @@ def sp_imas_to_geqdsk(d):
 def sp_geqdsk_to_imas(geqdsk, doc=None):
     # rdim = 0.0
     # zdim = 0.0
-    doc = doc or AttributeTree()
+    doc = doc or Dict()
     doc.equilibrium.ids_properties.homogeneous_time = 1
     eq = doc.equilibrium.time_slice
     eq.time = 0.0

@@ -89,7 +89,7 @@ class AttributeTree(Dict[str, _TObject]):
 
     def __getattr__(self, k):
         if k in Node.__slots__:
-            return super(Node, self).__getattr__(k)
+            return getattr(self, k)
         elif k in self.__slots__:
             return super().__getattr__(k)
         else:

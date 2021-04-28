@@ -3,7 +3,7 @@ import getpass
 import datetime
 import matplotlib.pyplot as plt
 import numpy as np
-from spdm.data.AttributeTree import AttributeTree
+from spdm.data.Node import Dict
 from spdm.data.Function import Function
 from spdm.util.logger import logger
 from spdm.util.utilities import try_get
@@ -45,7 +45,7 @@ def parse_profile(desc, holder=None, **kwargs):
         opts = desc.get("opts", {})
     elif isinstance(desc, tuple):
         data, opts = desc
-    elif isinstance(desc, AttributeTree):
+    elif isinstance(desc, Dict):
         data = desc.data
         opts = desc.opts
     elif isinstance(desc, np.ndarray):

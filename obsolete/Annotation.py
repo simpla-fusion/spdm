@@ -1,4 +1,4 @@
-from .AttributeTree import as_attribute_tree
+from .Dict import as_attribute_tree
 from .Node import Node
 
 

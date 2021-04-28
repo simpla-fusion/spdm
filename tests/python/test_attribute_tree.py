@@ -6,10 +6,10 @@ import unittest
 from spdm.util.logger import logger
 from spdm.data.Entry import _next_
 from spdm.data.Node import Node, Dict, List
-from spdm.data.AttributeTree import AttributeTree
+from spdm.data.Node import Dict
 
 
-class TestAttributeTree(unittest.TestCase):
+class TestDict(unittest.TestCase):
     def test_node_initialize(self):
         d = Node({
             "c": "I'm {age}!",
@@ -73,7 +73,7 @@ class TestAttributeTree(unittest.TestCase):
                 "f": "{address}"
             }
         }
-        d = AttributeTree(cache)
+        d = Dict(cache)
 
         self.assertEqual(len(d["a"]),  6)
         self.assertEqual(d.c,  cache["c"])
@@ -86,7 +86,7 @@ class TestAttributeTree(unittest.TestCase):
     def test_attribute_set(self):
         cache = {}
 
-        d = AttributeTree(cache)
+        d = Dict(cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
@@ -104,7 +104,7 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(cache["e"]["g"], 6)
 
     def test_attribute_append(self):
-        d = AttributeTree()
+        d = Dict()
         v = d.a[_next_]
         v.a = 1
         v.b = 2
@@ -116,7 +116,7 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(d.a[0].b, 2)
 
     def test_attribute_boolean(self):
-        d = AttributeTree({})
+        d = Dict({})
         self.assertTrue(d.a == None)
         self.assertTrue(d.a or 12.3, 12.3)
 
@@ -129,7 +129,7 @@ class TestAttributeTree(unittest.TestCase):
             ]
         }
 
-        d = AttributeTree(cache)
+        d = Dict(cache)
         del d.a
         self.assertTrue("a" not in cache)
 
@@ -142,7 +142,7 @@ class TestAttributeTree(unittest.TestCase):
 
 
     # def test_subclass(self):
-    #     class Foo(AttributeTree):
+    #     class Foo(Dict):
     #         @cached_property
     #         def prop_cached(self):
     #             return {"a": 1, "b": 2}
@@ -157,7 +157,7 @@ class TestAttributeTree(unittest.TestCase):
     #     self.assertTrue(foo.prop.c, 4)
 
     # def test_attribute_format(self):
-    #     d = AttributeTree({
+    #     d = Dict({
     #         'annotation': {'contributors': ['Salmon'],
     #                        'description': '\\n Just a demo \\n multiline string example\\n',
     #                        'homepage': 'http://funyun.com/demo.html',

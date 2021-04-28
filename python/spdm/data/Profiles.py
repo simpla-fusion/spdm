@@ -2,11 +2,10 @@ import collections
 import numpy as np
 from spdm.data.Function import Function
 from spdm.util.logger import logger
-from spdm.data.AttributeTree import AttributeTree
-from spdm.data.Node import Node
+from spdm.data.Node import Node, Dict
 
 
-class Profiles(AttributeTree[Function]):
+class Profiles(Dict[str, Function]):
     __slots__ = ("_axis",)
 
     def __init__(self,   *args, axis=None, default_factory=None, ** kwargs):
@@ -16,7 +15,7 @@ class Profiles(AttributeTree[Function]):
             axis = axis.view(np.ndarray)
         else:
             raise TypeError(type(axis))
-        
+
         if default_factory is None:
             def default_factory(value, *_args, axis=axis, **_kwargs):
                 if isinstance(value, Function):
@@ -28,8 +27,7 @@ class Profiles(AttributeTree[Function]):
                     if value.shape != axis.shape:
                         raise ValueError(f"The shape of arrays dismatch! {value.shape} !={axis.shape} ")
                     value = Function(axis, value)
-
-                return AttributeTree.default_factory(value, *_args, **_kwargs)
+                return value
 
         super().__init__(*args, default_factory=default_factory, **kwargs)
         self._axis = axis

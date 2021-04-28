@@ -13,12 +13,12 @@ class TestProfiles(unittest.TestCase):
         axis = np.linspace(0, 1, 128)
 
         profiles = Profiles(axis=axis)
-        profiles.a = 1
-        profiles.b[_next_].c = 2.34
+        profiles["a"] = 1
+        profiles["b"][_next_]["c"] = 2.34
         logger.debug(profiles)
-        logger.debug(type(profiles.a))
-        logger.debug((profiles.a))
-        logger.debug((profiles.b[0].c))
+        logger.debug(type(profiles["a"]))
+        logger.debug((profiles["a"]))
+        logger.debug((profiles["b"][0]["c"]))
 
 
 if __name__ == '__main__':

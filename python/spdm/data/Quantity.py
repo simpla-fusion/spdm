@@ -8,7 +8,7 @@ import scipy.constants
 from ..util.logger import logger
 from .Unit import Unit
 from .Node import Node, Dict
-from .AttributeTree import AttributeTree
+from .Node import Dict
 
 
 class Quantity(np.ndarray):
@@ -51,7 +51,7 @@ class Quantity(np.ndarray):
 
     def __init__(self,  *args, unit=None, annotation=None,  **kwargs):
         self._unit = Unit(unit)
-        self._annotation = AttributeTree(annotation or {})
+        self._annotation = Dict(annotation or {})
 
     def __repr__(self):
         # unit_str = f"unit='{self._unit}'" if not self._unit.is_dimensionless else ""

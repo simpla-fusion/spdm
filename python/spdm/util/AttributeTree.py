@@ -13,15 +13,15 @@ _next_ = _NEXT_TAG_()
 _last_ = -1
 
 
-class AttributeTree:
+class Dict:
     def __init__(self, data=None, *args,  default_factory=None, default_factory_array=None, **kwargs):
         super().__init__()
         self.__dict__['__data__'] = None
-        self.__dict__['__default_factory__'] = default_factory or (lambda key: AttributeTree())
+        self.__dict__['__default_factory__'] = default_factory or (lambda key: Dict())
         if callable(default_factory_array):
             self.__dict__['__default_factory_array__'] = default_factory_array
         else:
-            self.__dict__['__default_factory_array__'] = AttributeTree
+            self.__dict__['__default_factory_array__'] = Dict
 
         self.__update__(data)
         self.__update__(kwargs)
@@ -39,10 +39,10 @@ class AttributeTree:
             return pprint.pformat(self.__data__)
 
     def __copy__(self):
-        return AttributeTree(copy.copy(self.__data__))
+        return Dict(copy.copy(self.__data__))
 
     def __deepcopy__(self, memo=None):
-        return AttributeTree(copy.deepcopy(self.__data__, memo))
+        return Dict(copy.deepcopy(self.__data__, memo))
 
     def __setattr__(self, key, value):
         if key.startswith('_'):
@@ -151,27 +151,27 @@ class AttributeTree:
         elif isinstance(self.__data__,  collections.abc.Mapping):
             for k, v in self.__data__.items():
                 if isinstance(v, collections.abc.Mapping):
-                    v = AttributeTree(v)
+                    v = Dict(v)
 
                 yield k, v
         else:
             for v in self.__data__:
                 if isinstance(v, collections.abc.Mapping):
-                    v = AttributeTree(v)
+                    v = Dict(v)
                 yield v
 
     def __as_native__(self):
         if isinstance(self.__data__, collections.abc. Mapping):
             res = {}
             for k, v in self.__data__.items():
-                if isinstance(v, AttributeTree):
+                if isinstance(v, Dict):
                     res[k] = v.__as_native__()
                 else:
                     res[k] = v
         else:
             res = []
             for v in self.__data__:
-                if isinstance(AttributeTree):
+                if isinstance(Dict):
                     res.append(v.__as_native__())
                 else:
                     res.append(v)
@@ -208,7 +208,7 @@ class AttributeTree:
     def __update__(self, other):
         if other is None:
             return
-        elif isinstance(other, AttributeTree):
+        elif isinstance(other, Dict):
             other = other.__data__
 
         if isinstance(other, collections.abc.Mapping):
@@ -219,14 +219,14 @@ class AttributeTree:
                 v = self.__normalize__(v, k)
                 if isinstance(v, collections.abc.Mapping):
                     d = self.__missing__(k)
-                    if isinstance(d, AttributeTree):
+                    if isinstance(d, Dict):
                         d.__update__(v)
                     elif isinstance(d, collections.abc.Sequence):
                         if isinstance(v, collections.abc.Sequence) and not isinstance(v, str):
                             d.extend(v)
                         else:
                             d.append(v)
-                elif isinstance(v, AttributeTree) and v.__data__ is None:
+                elif isinstance(v, Dict) and v.__data__ is None:
                     pass
                 else:
                     obj[k] = v
@@ -235,10 +235,10 @@ class AttributeTree:
                 return
             obj = self.__as_array__()
             for v in other:
-                if isinstance(v, AttributeTree):
+                if isinstance(v, Dict):
                     obj.append(v)
                 elif isinstance(v, collections.abc.Mapping) or isinstance(v, collections.abc.Sequence):
-                    obj.append(AttributeTree(v))
+                    obj.append(Dict(v))
                 else:
                     obj.append(v)
         else:
@@ -266,7 +266,7 @@ class AttributeTree:
         return self.__data__ is not None and len(self.__data__) > 0
 
 
-class Foo(AttributeTree):
+class Foo(Dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.foo(*args, **kwargs)
@@ -309,8 +309,8 @@ if __name__ == "__main__":
     #         if len(path) == 0:
     #             raise KeyError("Empty path")
     #         for idx, p in enumerate(path[:-1]):
-    #             if isinstance(obj, AttributeTree):
-    #                 obj = obj.setdefault(p, AttributeTree())
+    #             if isinstance(obj, Dict):
+    #                 obj = obj.setdefault(p, Dict())
     #             elif not isinstance(p, str) and isinstance(obj, list):
     #                 obj = obj[p]
     #             else:
@@ -331,7 +331,7 @@ if __name__ == "__main__":
     #             return obj
 
     #         for idx, p in enumerate(path):
-    #             if isinstance(obj, AttributeTree):
+    #             if isinstance(obj, Dict):
     #                 obj = obj.get(p, None)
     #             elif isinstance(obj, list):
     #                 try:
@@ -348,12 +348,12 @@ if __name__ == "__main__":
 
     #     @staticmethod
     #     def get_value(data, path, *args, **kwargs):
-    #         return AttributeTree.__lazy_proxy__.get(data, path, *args, **kwargs)
+    #         return Dict.__lazy_proxy__.get(data, path, *args, **kwargs)
 
     #     @staticmethod
     #     def delete(data,  path, *args, **kwargs):
     #         if len(path) > 1:
-    #             obj = AttributeTree.__lazy_proxy__.get(data, path[:-1], *args, **kwargs)
+    #             obj = Dict.__lazy_proxy__.get(data, path[:-1], *args, **kwargs)
     #         else:
     #             obj = data
     #         if hasattr(obj, path[-1]):
@@ -368,26 +368,26 @@ if __name__ == "__main__":
     #         # else:
     #         # data.get(path).setdefault(path[-1], []).append(value)
     #         if len(path) > 0:
-    #             obj = AttributeTree.__lazy_proxy__.get(data, path[:-1]).setdefault(path[-1], [])
+    #             obj = Dict.__lazy_proxy__.get(data, path[:-1]).setdefault(path[-1], [])
     #         else:
     #             obj = data
 
-    #         obj.append(value or AttributeTree())
+    #         obj.append(value or Dict())
     #         return path+[len(obj)-1]
 
     #     @staticmethod
     #     def count(data,  path, *args, **kwargs):
-    #         obj = AttributeTree.__lazy_proxy__.get(data, path, *args, **kwargs)
+    #         obj = Dict.__lazy_proxy__.get(data, path, *args, **kwargs)
     #         return len(obj)
 
     #     @staticmethod
     #     def contains(data,  path, v, *args, **kwargs):
-    #         obj = AttributeTree.__lazy_proxy__.get(data, path, *args, **kwargs)
+    #         obj = Dict.__lazy_proxy__.get(data, path, *args, **kwargs)
     #         return v in obj
 
     #     @staticmethod
     #     def iter(data,  path, *args, **kwargs):
-    #         for obj in AttributeTree.__lazy_proxy__.get(data, path, *args, **kwargs):
+    #         for obj in Dict.__lazy_proxy__.get(data, path, *args, **kwargs):
     #             if type(obj) in (int, float, str):
     #                 yield obj
     #             else:
@@ -395,7 +395,7 @@ if __name__ == "__main__":
 
     #     @staticmethod
     #     def call(data, path, *args, **kwargs):
-    #         obj = AttributeTree.__lazy_proxy__.get(data, path)
+    #         obj = Dict.__lazy_proxy__.get(data, path)
     #         if callable(obj):
     #             return obj(*args, **kwargs)
     #         elif len(args)+len(kwargs) == 0:
