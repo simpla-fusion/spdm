@@ -319,7 +319,6 @@ class GEQdskDocument(File):
     def load(self, p, eq=None):
         with open(p or self._path, mode="r") as fp:
             eq = sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
-        logger.debug(eq.time_slice)
         return eq
 
     def save(self, p):

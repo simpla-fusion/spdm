@@ -75,7 +75,7 @@ def as_attribute_tree(cls, *args, **kwargs):
 
 
 class AttributeTree(Dict[str, _TObject]):
-    __slots__ = ()
+    # __slots__ = ()
 
     @classmethod
     def default_factory(cls, value, *args, **kwargs):

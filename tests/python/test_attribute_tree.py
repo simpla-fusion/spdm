@@ -1,3 +1,4 @@
+from functools import cached_property
 import importlib
 import pprint
 import sys
@@ -107,10 +108,9 @@ class TestAttributeTree(unittest.TestCase):
         v = d.a[_next_]
         v.a = 1
         v.b = 2
-        logger.debug(d)
 
         self.assertEqual(len(d.a), 1)
-        self.assertEqual(d.__category__, Node.Category.LIST)
+        self.assertEqual(d.__category__, Node.Category.DICT)
         self.assertEqual(d.a.__category__, Node.Category.LIST)
         self.assertEqual(d.a[0].a, 1)
         self.assertEqual(d.a[0].b, 2)
@@ -140,8 +140,21 @@ class TestAttributeTree(unittest.TestCase):
 
         d = List[Foo]([1, 2, 3, 4])
 
-        logger.debug(d)
-        logger.debug(type(d[0]))
+
+    # def test_subclass(self):
+    #     class Foo(AttributeTree):
+    #         @cached_property
+    #         def prop_cached(self):
+    #             return {"a": 1, "b": 2}
+
+    #         @property
+    #         def prop(self):
+    #             return {"c": 4, "d": 6}
+
+    #     foo = Foo()
+
+    #     self.assertTrue(foo.prop_cached.a, 1)
+    #     self.assertTrue(foo.prop.c, 4)
 
     # def test_attribute_format(self):
     #     d = AttributeTree({

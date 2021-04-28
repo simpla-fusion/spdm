@@ -7,6 +7,8 @@ import scipy.constants
 
 from ..util.logger import logger
 from .Unit import Unit
+from .Node import Node, Dict
+from .AttributeTree import AttributeTree
 
 
 class Quantity(np.ndarray):

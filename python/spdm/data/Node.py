@@ -178,13 +178,7 @@ class Node:
     def __new_child__(self, value, *args, parent=None, default_factory=None, **kwargs):
         default_factory = default_factory or self._default_factory
         if default_factory is not None:
-            try:
-                d = default_factory(value, *args,  parent=parent or self, ** kwargs)
-            except Exception as error:
-                logger.debug(default_factory)
-                d = default_factory(value, *args, ** kwargs)
-
-            value = d
+            value = default_factory(value, *args,  parent=parent or self, ** kwargs)
 
         if isinstance(value, Node):
             return value
@@ -256,13 +250,22 @@ class Node:
             if isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}")
-                obj = obj.setdefault(key, child)
+                tmp = obj.setdefault(key, child)
+                if tmp is None:
+                    obj[key] = child
+                    tmp = obj[key]
+                obj = tmp
             elif isinstance(obj, collections.abc.MutableSequence):
                 if isinstance(key, _NEXT_TAG_):
                     obj.append(child)
                     obj = obj[-1]
                 elif isinstance(key, (int, slice)):
-                    obj = obj[key]
+                    tmp = obj[key]
+                    if tmp is None:
+                        obj[key] = child
+                        obj = obj[key]
+                    else:
+                        obj = tmp
                 else:
                     raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
 
