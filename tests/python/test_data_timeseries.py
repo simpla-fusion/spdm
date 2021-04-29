@@ -1,12 +1,13 @@
 import importlib
 import pprint
 import sys
-import numpy as np
 import unittest
-from spdm.util.logger import logger
-from spdm.data.Profiles import Profiles
+
+import numpy as np
 from spdm.data.Node import Node, _next_
+from spdm.data.Profiles import Profiles
 from spdm.data.TimeSeries import TimeSeries, TimeSlice
+from spdm.util.logger import logger
 
 
 class TestTimeSeries(unittest.TestCase):
