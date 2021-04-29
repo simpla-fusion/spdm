@@ -179,7 +179,7 @@ class Node:
         return Node.type_category(self._data)
 
     def __new_child__(self, value, *args, parent=None,  **kwargs):
-        if self._default_factory is None and self.__orig_class__ is not None:
+        if self._default_factory is None and hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             factory = typing.get_args(self.__orig_class__)
             if len(factory) > 0:
@@ -197,17 +197,17 @@ class Node:
         elif isinstance(value, collections.abc.MutableSequence):
             value = List[_TObject](value, *args,
                                    parent=parent or self,
-                                   default_factory=default_factory,
+                                   #    default_factory=default_factory,
                                    **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
             value = Dict[_TKey, _TObject](value, *args,
                                           parent=parent or self,
-                                          default_factory=default_factory,
+                                          #   default_factory=default_factory,
                                           **kwargs)
         elif isinstance(value, (Entry, Node.LazyHolder)):
             value = Node(value, *args,
                          parent=parent or self,
-                         default_factory=default_factory,
+                         #  default_factory=default_factory,
                          **kwargs)
 
         # else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
