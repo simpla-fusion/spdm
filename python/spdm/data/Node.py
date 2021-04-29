@@ -1,11 +1,14 @@
 import collections
 import copy
 import functools
+import inspect
 import pprint
 import typing
-import inspect
-import numpy as np
 from enum import IntFlag
+from functools import cached_property
+
+import numpy as np
+
 from ..util.logger import logger
 from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
 
@@ -37,7 +40,7 @@ class Node:
 
         @enduml
     """
-    __slots__ = ["_parent", "_data", "_default_factory"]
+    __slots__ = ["_parent", "_data", "_default_factory", "__orig_class__"]
 
     class LazyHolder:
         __slots__ = "_prefix", "_parent"
@@ -175,32 +178,40 @@ class Node:
     def __category__(self):
         return Node.type_category(self._data)
 
-    def __new_child__(self, value, *args, parent=None, default_factory=None, **kwargs):
-        default_factory = default_factory or self._default_factory
-        if default_factory is not None:
-            value = default_factory(value, *args,  parent=parent or self, ** kwargs)
+    def __new_child__(self, value, *args, parent=None,  **kwargs):
+        if self._default_factory is None and self.__orig_class__ is not None:
+            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+            factory = typing.get_args(self.__orig_class__)
+            if len(factory) > 0:
+                factory = factory[-1]
+            if not (inspect.isclass(factory) or callable(factory)):
+                logger.error(f"Illegal factory type! {factory}")
+                factory = None
+            self._default_factory = factory
+
+        if self._default_factory is not None:
+            value = self._default_factory(value, *args,  parent=parent or self, ** kwargs)
 
         if isinstance(value, Node):
-            return value
+            pass
         elif isinstance(value, collections.abc.MutableSequence):
-            return List[_TObject](value, *args,
-                                  parent=parent or self,
-                                  default_factory=default_factory,
-                                  **kwargs)
+            value = List[_TObject](value, *args,
+                                   parent=parent or self,
+                                   default_factory=default_factory,
+                                   **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
-            return Dict[_TKey, _TObject](value, *args,
-                                         parent=parent or self,
-                                         default_factory=default_factory,
-                                         **kwargs)
+            value = Dict[_TKey, _TObject](value, *args,
+                                          parent=parent or self,
+                                          default_factory=default_factory,
+                                          **kwargs)
         elif isinstance(value, (Entry, Node.LazyHolder)):
-            return Node(value, *args,
-                        parent=parent or self,
-                        default_factory=default_factory,
-                        **kwargs)
-        else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
-            return value
-        # else:
-        #     raise TypeError(type(value))
+            value = Node(value, *args,
+                         parent=parent or self,
+                         default_factory=default_factory,
+                         **kwargs)
+
+        # else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
+        return value
 
     def __pre_process__(self, value, *args, **kwargs):
         return value
@@ -396,16 +407,14 @@ class Node:
 class List(Node, typing.MutableSequence[_TObject]):
     __slots__ = ()
 
-    def __init__(self, d: collections.abc.Sequence = [], *args, default_factory=None,  **kwargs):
-        # #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-        # if default_factory is None:
-        #     o_cls = getattr(self, "__orig_class__", None)
-        #     if o_cls is not None:
-        #         default_factory = typing.get_args(o_cls)[0]
-        Node.__init__(self, d or [], *args, default_factory=default_factory, **kwargs)
+    def __init__(self, d: collections.abc.Sequence = [], *args,   **kwargs):
+        Node.__init__(self, d or [], *args,   **kwargs)
 
     def __len__(self) -> int:
         return Node.__len__(self)
+
+    def __new_child__(self, value, *args, parent=None,  **kwargs):
+        return super().__new_child__(value, *args, parent=parent or self._parent, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
         self.__raw_set__(k, self.__pre_process__(v))
@@ -416,11 +425,11 @@ class List(Node, typing.MutableSequence[_TObject]):
     def __delitem__(self, k: _TIndex) -> None:
         Node.__delitem__(self, k)
 
-    def insert(self, *args, **kwargs):
-        return Node.__raw_set__(self, *args, **kwargs)
-
     def __iter__(self):
         yield from Node.__iter__(self)
+
+    def insert(self, *args, **kwargs):
+        return Node.__raw_set__(self, *args, **kwargs)
 
 
 class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
