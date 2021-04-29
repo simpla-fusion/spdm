@@ -37,25 +37,27 @@ class TimeSeries(List[_TObject]):
     """
     __slots__ = ("_time", "_dt")
 
-    def __init__(self, *args, time=None, dt=0.0,  **kwargs) -> None:
+    def __init__(self, *args, time=None, dt=None,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if isinstance(time, np.ndarray):
             time = time.tolist()
-        elif time is None:
+        elif time == None:
             time = []
+        elif not isinstance(time, collections.abc.MutableSequence):
+            time = [time]
         self._time = time
-        self._dt = dt
+        self._dt = dt or 0.0
 
     @property
-    def time(self) -> _TTimeSeries:
+    def time(self) -> Sequence[float]:
         return self._time
 
     @property
-    def last_time(self):
-        return self._time[-1] if len(self._time) > 0 else 0.0
+    def last_time(self) -> float:
+        return self._time[-1] if isinstance(self._time, collections.abc.Sequence) and len(self._time) > 0 else 0.0
 
     @property
-    def new_time(self):
+    def new_time(self) -> float:
         return self.last_time + self._dt
 
     def __new_child__(self,  *args,  time=None, **kwargs):
