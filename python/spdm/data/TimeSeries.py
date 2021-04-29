@@ -12,6 +12,47 @@ _TTime = float
 _TTimeSeries = Sequence[float]
 
 
+class TimeSequence(Sequence[float]):
+    def __init__(self, time, *args, dt=None, **kwargs) -> None:
+        super().__init__()
+        if isinstance(time, np.ndarray):
+            time = time.tolist()
+        elif time == None:
+            time = []
+        elif not isinstance(time, collections.abc.MutableSequence):
+            time = [time]
+        self._time = time
+        self._dt = dt
+
+    @property
+    def last(self) -> float:
+        return self._time[-1] if isinstance(self._time, collections.abc.Sequence) and len(self._time) > 0 else 0.0
+
+    @property
+    def next(self) -> float:
+        return self.last_time + self._dt
+
+    def append(self, time):
+        if time < self.last_time:
+            raise NotImplementedError(f"{time} > {self.last_time}")
+
+        self._data.append(time)
+
+        return time
+
+    def insert(self, time):
+        return self._data.append(time)
+
+    def __array__(self) -> np.ndarray:
+        return np.asarray(self._data)
+
+    def __getitem__(self, idx):
+        return self._time[idx]
+
+    def __len__(self) -> int:
+        return len(self._time)
+
+
 class TimeSlice(Generic[_TObject]):
     r"""
         Time Slice
@@ -39,36 +80,18 @@ class TimeSeries(List[_TObject]):
 
     def __init__(self, *args, time=None, dt=None,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if isinstance(time, np.ndarray):
-            time = time.tolist()
-        elif time == None:
-            time = []
-        elif not isinstance(time, collections.abc.MutableSequence):
-            time = [time]
-        self._time = time
+        self._time = TimeSequence(time, dt=dt)
         self._dt = dt or 0.0
 
     @property
-    def time(self) -> Sequence[float]:
+    def time(self) -> TimeSequence:
         return self._time
 
-    @property
-    def last_time(self) -> float:
-        return self._time[-1] if isinstance(self._time, collections.abc.Sequence) and len(self._time) > 0 else 0.0
-
-    @property
-    def new_time(self) -> float:
-        return self.last_time + self._dt
-
-    def __new_child__(self,  *args,  time=None, **kwargs):
-        return super().__new_child__(*args, time=time or self.new_time, **kwargs)
+    def __new_child__(self,  *args,    **kwargs):
+        return super().__new_child__(*args,  **kwargs)
 
     def insert(self, d: _TObject, *args, time: _TTime = None, **kwargs) -> _TObject:
-        if time < self.last_time:
-            raise NotImplementedError(f"{time} > {self.last_time}")
-        time = time or self.new_time
-        obj = self.__new_child__(d, *args, time=time, **kwargs)
-        self._time.append(getattr(obj, time, None) or time)
+        obj = self.__new_child__(d, *args, time=self._time.append(time), **kwargs)
         super().insert(obj)
         return obj
 
@@ -79,8 +102,4 @@ class TimeSeries(List[_TObject]):
         return TimeSlice[_TObject](self, time)
 
     def __call__(self, time: _TTime) -> TimeSlice[_TObject]:
-
         return self.get_slice(time)
-
-    def __getattr__(self, k) -> Any:
-        return getattr(self.get_slice(self.last_time), k)
