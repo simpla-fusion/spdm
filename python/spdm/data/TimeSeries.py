@@ -1,15 +1,12 @@
 import collections
-from typing import (Any, Generic, Sequence, TypeVar)
-import typing
-from functools import cached_property
+from typing import Any, Generic, Sequence, TypeVar
+
 import numpy as np
-from ..util.generic_template import get_template_args
+
 from ..util.logger import logger
-from .AttributeTree import AttributeTree, as_attribute_tree
-from .Function import Function
-from .Node import Dict, List,   _TIndex, _TObject, _TKey
-_TTime = float
-_TTimeSeries = Sequence[float]
+from .Node import Dict, List, _TIndex, _TKey, _TObject
+
+_TTime = TypeVar("_TTime")
 
 
 class TimeSequence(Sequence[float]):
@@ -101,5 +98,8 @@ class TimeSeries(List[_TObject]):
         """
         return TimeSlice[_TObject](self, time)
 
-    def __call__(self, time: _TTime) -> TimeSlice[_TObject]:
-        return self.get_slice(time)
+    def __call__(self, time: _TTime = None) -> TimeSlice[_TObject]:
+        if time is None:
+            return self[-1]
+        else:
+            return self.get_slice(time)

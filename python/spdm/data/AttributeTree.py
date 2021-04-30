@@ -81,8 +81,9 @@ class AttributeTree(Dict[str, _TObject]):
                 raise AttributeError(f"Can not delete attribute {k}!")
 
     def __iter__(self) -> typing.Iterator[Node]:
-        for v in super(Node, self).__iter__():
-            yield AttributeTree(v)
+        # for v in super(Node, self).__iter__():
+        #     yield AttributeTree({v})
+        yield from Node.__iter__(self)
 
 
 def as_attribute_tree(cls, *args, **kwargs):

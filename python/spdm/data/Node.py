@@ -72,7 +72,7 @@ class Node:
         self._default_factory = default_factory
 
     def __repr__(self) -> str:
-        d = None if isinstance(self._data, Node.LazyHolder) else self._data
+        d = f"<LazyHolder  prefix='{self._data.prefix}' />" if isinstance(self._data, Node.LazyHolder) else self._data
         return pprint.pformat(d) if not isinstance(d, str) else f"'{d}'"
 
     def copy(self):
@@ -185,8 +185,8 @@ class Node:
             if len(factory) > 0:
                 factory = factory[-1]
             if not (inspect.isclass(factory) or callable(factory)):
-                logger.error(f"Illegal factory type! {factory}")
-                factory = None
+                # logger.error(f"Illegal factory type! {factory}")
+                factory = Node
             self._default_factory = factory
 
         if self._default_factory is not None:
@@ -373,10 +373,18 @@ class Node:
             return 0 if self._data is None else 1
 
     def __iter__(self):
-        if isinstance(self._data, (collections.abc.Mapping, collections.abc.MutableSequence, Entry)):
-            yield from map(lambda v: self.__post_process__(v), self._data)
+        if isinstance(self._data, Node.LazyHolder):
+            d = self.__raw_get__([])
         else:
-            yield self.__post_process__(self._data)
+            d = self._data
+        if isinstance(d, (collections.abc.MutableSequence)):
+            yield from map(lambda v: self.__post_process__(v), d)
+        elif isinstance(d, collections.abc.Mapping):
+            yield from d
+        elif isinstance(d, Entry):
+            yield from d.iter()
+        else:
+            yield self.__post_process__(d)
 
     def __ior__(self, other):
         if self._data is None:

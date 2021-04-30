@@ -237,3 +237,14 @@ def as_namedtuple(d: dict, name=""):
 
 def first_not_empty(*args):
     return next(x for x in args if len(x) > 0)
+
+
+def convert_to_named_tuple(d, ntuple=None):
+    if hasattr(ntuple, "_fields") and isinstance(ntuple, type):
+        return ntuple(*[try_get(d, k) for k in ntuple._fields])
+    else:
+        keys = [k for k in d.keys()]
+        values = [v for v in d.values()]
+        if not isinstance(ntuple, str):
+            ntuple = "__"+("_".join(keys))
+        return collections.namedtuple(ntuple, keys)(*values)
