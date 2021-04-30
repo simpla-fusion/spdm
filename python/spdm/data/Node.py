@@ -10,6 +10,7 @@ from functools import cached_property
 import numpy as np
 
 from ..util.logger import logger
+from ..util.utilities import try_get, serialize
 from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
 
 _TObject = typing.TypeVar('_TObject')
@@ -40,7 +41,7 @@ class Node:
 
         @enduml
     """
-    __slots__ = ["_parent", "_data", "_default_factory", "__orig_class__"]
+    __slots__ = ["_parent", "_cache", "_default_factory", "__orig_class__"]
 
     class LazyHolder:
         __slots__ = "_prefix", "_parent"
@@ -68,37 +69,34 @@ class Node:
     def __init__(self, data=None, *args, default_factory=None, parent=None, **kwargs):
         super().__init__()
         self._parent = parent
-        self._data = data._data if isinstance(data, Node) else data
+        self._cache = data._cache if isinstance(data, Node) else data
         self._default_factory = default_factory
 
     def __repr__(self) -> str:
-        d = f"<LazyHolder  prefix='{self._data.prefix}' />" if isinstance(self._data, Node.LazyHolder) else self._data
-        return pprint.pformat(d) if not isinstance(d, str) else f"'{d}'"
+        # d = f"<LazyHolder  prefix='{self._cache.prefix}' />" if isinstance(self._cache, Node.LazyHolder) else self._cache
+        # return pprint.pformat(self.__serialize__())
+        return f"<{self.__class__.__name__} />"
 
-    def copy(self):
-        if isinstance(Node, (Node.Mapping, Node.Sequence)):
-            return self.__new_child__(self._data.copy())
-        else:
-            return self.__new_child__(copy.copy(self._data))
-
-    # def entry(self, path, *args, **kwargs):
-    #     if isinstance(self._data, Entry):
-    #         return self._data.child(path, *args, **kwargs)
+    # def copy(self):
+    #     if isinstance(Node, (Node.Mapping, Node.Sequence)):
+    #         return self.__new_child__(self._cache.copy())
     #     else:
-    #         return Entry(self._data, prefix=path, parent=self._parent)
+    #         return self.__new_child__(copy.copy(self._cache))
 
-    def serialize(self):
-        return self._data.serialize() if hasattr(self._data, "serialize") else self._data
+    def __serialize__(self):
+        return serialize(self._cache)
 
-    @staticmethod
-    def deserialize(cls, d):
-        return cls(d)
+    # @staticmethod
+    # def deserialize(cls, d):
+    #     return cls(d)
 
     def __fetch__(self):
-        if isinstance(self._data, Entry):
-            return self._data.get_value([])
-        else:
-            return self._data
+        if isinstance(self._cache, Entry):
+            self._cache = self._cache.get_value([])
+        elif isinstance(self._cache, Node.LazyHolder):
+            self._cache = self.__raw_get__([])
+
+        return self._cache
 
     @property
     def __parent__(self):
@@ -108,7 +106,7 @@ class Node:
         return hash(self._name)
 
     def __clear__(self):
-        self._data = None
+        self._cache = None
 
     class Category(IntFlag):
         UNKNOWN = 0
@@ -125,7 +123,7 @@ class Node:
         STRING = 0x008
 
     @staticmethod
-    def type_category(d) -> IntFlag:
+    def __type_category__(d) -> IntFlag:
         flag = Node.Category.UNKNOWN
         if isinstance(d, (Entry, Node.LazyHolder)):
             flag |= Node.Category.ENTRY
@@ -176,7 +174,7 @@ class Node:
     """
     @property
     def __category__(self):
-        return Node.type_category(self._data)
+        return Node.__type_category__(self._cache)
 
     def __new_child__(self, value, *args, parent=None,  **kwargs):
         if self._default_factory is None and hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
@@ -220,14 +218,14 @@ class Node:
         return value if isinstance(value, Node) else self.__new_child__(value, *args, **kwargs)
 
     def __raw_set__(self, key, value):
-        if isinstance(self._data, Entry):
-            return self._data.insert(key, value)
-        elif key is None and self._data is None:
-            self._data = value
-            return self._data
+        if isinstance(self._cache, Entry):
+            return self._cache.insert(key, value)
+        elif key is None and self._cache is None:
+            self._cache = value
+            return self._cache
 
-        if isinstance(self._data, Node.LazyHolder):
-            entry = self._data.extend(key)
+        if isinstance(self._cache, Node.LazyHolder):
+            entry = self._cache.extend(key)
             holder = entry.parent
             path = entry.prefix
         else:
@@ -240,23 +238,23 @@ class Node:
             path = [path]
 
         if path is None or len(path) == 0:
-            holder._data = value
+            holder._cache = value
             return
 
-        if holder._data is None:
+        if holder._cache is None:
             if isinstance(path[0], str):
-                holder._data = Dict(parent=self)
+                holder._cache = Dict(parent=self)
             else:
-                holder._data = List(parent=self)
+                holder._cache = List(parent=self)
 
-        obj = holder._data
+        obj = holder._cache
 
         for idx, key in enumerate(path[:-1]):
 
             child = {} if isinstance(path[idx+1], str) else []
             if isinstance(obj, Node):
                 child = obj.__new_child__(child, parent=obj)
-                obj = obj._data
+                obj = obj._cache
 
             if isinstance(obj, collections.abc.Mapping):
                 if not isinstance(key, str):
@@ -298,16 +296,16 @@ class Node:
             path = [path]
 
         if path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
-            return self._data
-        elif isinstance(self._data, Node.LazyHolder):
-            return self._data.extend(path)
-        elif self._data is None:
+            return self._cache
+        elif isinstance(self._cache, Node.LazyHolder):
+            return self._cache.extend(path)
+        elif self._cache is None:
             return Node.LazyHolder(self, path)
         obj = self
 
         for idx, key in enumerate(path):
             if isinstance(obj, Node):
-                obj = obj._data
+                obj = obj._cache
 
             if isinstance(obj, Entry):
                 obj = obj.get(path[idx:])
@@ -327,8 +325,8 @@ class Node:
             elif isinstance(obj, collections.abc.MutableSequence):
                 if not isinstance(key, (int, slice)):
                     raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
-                elif isinstance(key, int) and key > len(self._data):
-                    raise IndexError(f"Out of range! {key} > {len(self._data)}")
+                elif isinstance(key, int) and key > len(self._cache):
+                    raise IndexError(f"Out of range! {key} > {len(self._cache)}")
                 obj = obj[key]
             else:
                 obj = _not_found_
@@ -345,71 +343,59 @@ class Node:
         return self.__post_process__(self.__raw_get__(path))
 
     def __delitem__(self, path):
-        if isinstance(self._data, Entry):
-            self._data.delete(path)
+        if isinstance(self._cache, Entry):
+            self._cache.delete(path)
         elif not path:
             self.__clear__()
-        elif not isinstance(self._data, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            raise TypeError(type(self._data))
+        elif not isinstance(self._cache, (collections.abc.Mapping, collections.abc.MutableSequence)):
+            raise TypeError(type(self._cache))
         else:
-            del self._data[path]
+            del self._cache[path]
 
     def __contains__(self, path):
-        if isinstance(self._data, Entry):
-            return self._data.contains(path)
-        elif isinstance(path, str) and isinstance(self._data, collections.abc.Mapping):
-            return path in self._data
+        if isinstance(self._cache, Entry):
+            return self._cache.contains(path)
+        elif isinstance(path, str) and isinstance(self._cache, collections.abc.Mapping):
+            return path in self._cache
         elif not isinstance(path, str):
-            return path >= 0 and path < len(self._data)
+            return path >= 0 and path < len(self._cache)
         else:
             return False
 
     def __len__(self):
-        if isinstance(self._data, Entry):
-            return self._data.count()
-        elif isinstance(self._data,  (collections.abc.Mapping, collections.abc.MutableSequence)):
-            return len(self._data)
+        if isinstance(self._cache, Entry):
+            return self._cache.count()
+        elif isinstance(self._cache,  (collections.abc.Mapping, collections.abc.MutableSequence)):
+            return len(self._cache)
         else:
-            return 0 if self._data is None else 1
+            return 0 if self._cache is None else 1
 
     def __iter__(self):
-        if isinstance(self._data, Node.LazyHolder):
-            d = self.__raw_get__([])
+        if isinstance(self._cache, Entry):
+            yield from self._cache.iter()
         else:
-            d = self._data
-        if isinstance(d, (collections.abc.MutableSequence)):
-            yield from map(lambda v: self.__post_process__(v), d)
-        elif isinstance(d, collections.abc.Mapping):
-            yield from d
-        elif isinstance(d, Entry):
-            yield from d.iter()
-        else:
-            yield self.__post_process__(d)
+            d = self.__fetch__()
+            if isinstance(d, (collections.abc.MutableSequence)):
+                yield from map(lambda v: self.__post_process__(v), d)
+            elif isinstance(d, collections.abc.Mapping):
+                yield from d
 
-    def __ior__(self, other):
-        if self._data is None:
-            self._data = other
-        elif isinstance(self._data, Node.LazyHolder):
-            self.__raw_set__(None, other)
-        elif isinstance(self._data, collections.abc.Mapping):
-            for k, v in other.items():
-                self.__setitem__(k, v)
-        else:
-            raise TypeError(f"{type(other)}")
+            else:
+                yield self.__post_process__(d)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Node):
-            other = other._data
+            other = other._cache
 
-        if isinstance(self._data, Entry):
+        if isinstance(self._cache, Entry):
             return self.equal(other)
-        elif isinstance(self._data, Node.LazyHolder):
+        elif isinstance(self._cache, Node.LazyHolder):
             return other is None
         else:
-            return self._data == other
+            return self._cache == other
 
     def __bool__(self) -> bool:
-        return False if isinstance(self._data, Node.LazyHolder) else (not not self._data)
+        return False if isinstance(self._cache, Node.LazyHolder) else (not not self._cache)
 
 
 class List(Node, typing.MutableSequence[_TObject]):
@@ -417,6 +403,13 @@ class List(Node, typing.MutableSequence[_TObject]):
 
     def __init__(self, d: collections.abc.Sequence = [], *args,   **kwargs):
         Node.__init__(self, d or [], *args,   **kwargs)
+
+    def __serialize__(self):
+        return [serialize(v) for v in self]
+
+    @property
+    def __category__(self):
+        return super().__category__() | Node.Category.LIST
 
     def __len__(self) -> int:
         return Node.__len__(self)
@@ -434,6 +427,10 @@ class List(Node, typing.MutableSequence[_TObject]):
         Node.__delitem__(self, k)
 
     def __iter__(self):
+        if isinstance(self._cache, (collections.abc.MutableSequence)):
+                yield from map(lambda v: self.__post_process__(v), d)
+        elif isinstance(d, collections.abc.Mapping):
+            yield from d
         yield from Node.__iter__(self)
 
     def insert(self, *args, **kwargs):
@@ -446,14 +443,21 @@ class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
     def __init__(self, data: typing.Mapping = {}, *args,  **kwargs):
         Node.__init__(self, data, *args, **kwargs)
 
+    def __serialize__(self):
+        return {k: try_get(self, k) for k in self.__iter__()}
+
+    @property
+    def __category__(self):
+        return super().__category__() | Node.Category.LIST
+
     def __getitem__(self, key: _TKey) -> _TObject:
         return self.__post_process__(self.__raw_get__(key))
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
         self.__raw_set__(key, self.__pre_process__(value))
 
-    def __delitem__(self, v: _TKey) -> None:
-        return Node.__delitem__(self, v)
+    def __delitem__(self, key: _TKey) -> None:
+        return Node.__delitem__(self, key)
 
     def __iter__(self) -> typing.Iterator[Node]:
         yield from Node.__iter__(self)
@@ -466,3 +470,17 @@ class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
 
     def __contains__(self, o: object) -> bool:
         return Node.__contains__(self, o)
+
+    def __ior__(self, other):
+        if self._cache is None:
+            self._cache = other
+        elif isinstance(self._cache, Node.LazyHolder):
+            self.__raw_set__(None, other)
+        elif isinstance(self._cache, collections.abc.Mapping):
+            for k, v in other.items():
+                self.__setitem__(k, v)
+        else:
+            raise TypeError(f"{type(other)}")
+
+    def __iter__(self):
+        return super().__iter__()

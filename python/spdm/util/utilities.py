@@ -12,8 +12,7 @@ import re
 import sys
 import re
 from .logger import logger
-from .LazyProxy import LazyProxy
-
+import numpy as np
 
 class _Empty:
     pass
@@ -158,6 +157,19 @@ def try_put(holder, path,  value):
     #     if p != '':
     #         raise KeyError(f"Can for find path {path}")
     #     return o
+
+
+def serialize(d):
+    if hasattr(d, "__serialize__"):
+        return d.__serialize__()
+    elif isinstance(d, (int, float, np.ndarray)):
+        return d
+    elif isinstance(d, collections.abc.Mapping):
+        return {k: serialize(try_get(d, k)) for k in d}
+    elif isinstance(d, collections.abc.Sequence):
+        return [serialize(v) for v in d]
+    else:
+        raise TypeError(f"Can not serialize {type(d)}!")
 
 
 def as_file_fun(func=None,  *f_args, **f_kwargs):

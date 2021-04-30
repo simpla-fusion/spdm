@@ -14,7 +14,7 @@ class AttributeTree(Dict[str, _TObject]):
 
     @classmethod
     def default_factory(cls, value, *args, **kwargs):
-        if bool((Node.Category.DICT | Node.Category.ENTRY) & Node.type_category(value)):
+        if bool((Node.Category.DICT | Node.Category.ENTRY) & Node.__type_category__(value)):
             return AttributeTree(value, *args, **kwargs)
         else:
             return value
