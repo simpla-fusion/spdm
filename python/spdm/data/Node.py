@@ -6,16 +6,16 @@ import pprint
 import typing
 from enum import IntFlag
 from functools import cached_property
-
+from typing import Mapping, Sequence, TypeVar, Iterator, MutableMapping, MutableSequence, get_args
 import numpy as np
 
 from ..util.logger import logger
 from ..util.utilities import try_get, serialize
 from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
 
-_TObject = typing.TypeVar('_TObject')
-_TKey = typing.TypeVar('_TKey', int, str)
-_TIndex = typing.TypeVar('_TIndex', int, slice, _NEXT_TAG_)
+_TObject = TypeVar('_TObject')
+_TKey = TypeVar('_TKey', int, str)
+_TIndex = TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
 class Node:
@@ -179,7 +179,7 @@ class Node:
     def __new_child__(self, value, *args, parent=None,  **kwargs):
         if self._default_factory is None and hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-            factory = typing.get_args(self.__orig_class__)
+            factory = get_args(self.__orig_class__)
             if len(factory) > 0:
                 factory = factory[-1]
             if not (inspect.isclass(factory) or callable(factory)):
@@ -398,7 +398,7 @@ class Node:
         return False if isinstance(self._cache, Node.LazyHolder) else (not not self._cache)
 
 
-class List(Node, typing.MutableSequence[_TObject]):
+class List(Node, MutableSequence[_TObject]):
     __slots__ = ()
 
     def __init__(self, d: collections.abc.Sequence = [], *args,   **kwargs):
@@ -428,23 +428,48 @@ class List(Node, typing.MutableSequence[_TObject]):
 
     def __iter__(self):
         if isinstance(self._cache, (collections.abc.MutableSequence)):
-                yield from map(lambda v: self.__post_process__(v), d)
-        elif isinstance(d, collections.abc.Mapping):
-            yield from d
-        yield from Node.__iter__(self)
+            yield from map(lambda v: self.__post_process__(v), self._cache)
+        elif isinstance(self._cache, collections.abc.Mapping):
+            yield from self._cache
+        else:
+            yield from Node.__iter__(self)
 
     def insert(self, *args, **kwargs):
         return Node.__raw_set__(self, *args, **kwargs)
 
 
-class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
+class Dict(Node, MutableMapping[_TKey, _TObject]):
     __slots__ = ()
 
-    def __init__(self, data: typing.Mapping = {}, *args,  **kwargs):
+    def __init__(self, data: Mapping = {}, *args,  **kwargs):
         Node.__init__(self, data, *args, **kwargs)
 
     def __serialize__(self):
-        return {k: try_get(self, k) for k in self.__iter__()}
+        cls = self.__class__
+        res = {}
+        for k in filter(lambda k: k[0] != '_', self.__dir__()):
+            prop = getattr(cls, k, None)
+            if isinstance(prop, (property, cached_property)):
+                v = getattr(self, k, None)
+            elif inspect.isfunction(prop):
+                continue
+            else:
+                v = getattr(self, k, None)
+            res[k] = v
+
+        if isinstance(self._cache, (collections.abc.Mapping, Entry)):
+            for k in filter(lambda k: k not in res and k[0] != '_', self._cache):
+                res[k] = self._cache[k]
+
+        return {k: serialize(v) for k, v in res.items() if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
+
+    @classmethod
+    def __deserialize__(cls, desc: Mapping):
+        ids = desc.get("@ids", None)
+        if ids is None:
+            raise ValueError(desc)
+        else:
+            raise NotImplementedError(ids)
 
     @property
     def __category__(self):
@@ -459,7 +484,7 @@ class Dict(Node, typing.MutableMapping[_TKey, _TObject]):
     def __delitem__(self, key: _TKey) -> None:
         return Node.__delitem__(self, key)
 
-    def __iter__(self) -> typing.Iterator[Node]:
+    def __iter__(self) -> Iterator[Node]:
         yield from Node.__iter__(self)
 
     def __len__(self) -> int:

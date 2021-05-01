@@ -41,7 +41,7 @@ class TimeSequence(Sequence[float]):
         return self._data.append(time)
 
     def __array__(self) -> np.ndarray:
-        return np.asarray(self._data)
+        return np.asarray(self._time)
 
     def __getitem__(self, idx):
         return self._time[idx]

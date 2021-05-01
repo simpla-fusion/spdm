@@ -14,6 +14,7 @@ import re
 from .logger import logger
 import numpy as np
 
+
 class _Empty:
     pass
 
@@ -160,16 +161,22 @@ def try_put(holder, path,  value):
 
 
 def serialize(d):
-    if hasattr(d, "__serialize__"):
+    if hasattr(d.__class__, "__serialize__"):
         return d.__serialize__()
-    elif isinstance(d, (int, float, np.ndarray)):
+    elif hasattr(d, "_asdict"):
+        return d._asdict()
+    elif hasattr(d, "__array__"): # numpy.ndarray like
+        return d.__array__()
+    elif isinstance(d, (int, float, str, np.ndarray)):
         return d
     elif isinstance(d, collections.abc.Mapping):
-        return {k: serialize(try_get(d, k)) for k in d}
+        return {k: serialize(v) for k, v in d.items()}
     elif isinstance(d, collections.abc.Sequence):
         return [serialize(v) for v in d]
     else:
-        raise TypeError(f"Can not serialize {type(d)}!")
+        logger.error(f"Can not serialize {d.__class__.__name__}!")
+        return f"<{d.__class__.__name__}>CAN NOT BE SERIALIZED!</{d.__class__.__name__}>"
+        # raise TypeError(f"Can not serialize {type(d)}!")
 
 
 def as_file_fun(func=None,  *f_args, **f_kwargs):

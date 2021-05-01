@@ -27,6 +27,12 @@ class AttributeTree(Dict[str, _TObject]):
             res = getattr(self, k)
         elif k in self.__slots__:
             res = super().__getattr__(k)
+        elif k[0] == '_':
+            # if hasattr(self, '__dict__') and k in self.__dict__:
+            try:
+                return self.__dict__[k]
+            except Exception:
+                raise AttributeError(k)
         else:
             res = getattr(self.__class__, k, None)
             if hasattr(self.__class__, 'get'):
