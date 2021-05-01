@@ -18,8 +18,16 @@ class TestFunction(unittest.TestCase):
     def test_operator(self):
         x = np.linspace(0, 1, 128)
         fun = Function(x, 1.0)
+        logger.debug(dir(fun))
 
         logger.debug(type(np.sin(fun)))
+        logger.debug(-fun)
+        logger.debug(fun + 2)
+        logger.debug(fun - 2)
+        logger.debug(fun * 2)
+        logger.debug(fun / 2)
+        logger.debug(fun ** 2)
+        # logger.debug(fun @ fun)
 
 
 if __name__ == '__main__':
