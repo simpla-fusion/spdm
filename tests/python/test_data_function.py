@@ -11,13 +11,16 @@ from spdm.util.logger import logger
 class TestFunction(unittest.TestCase):
     def test_init(self):
         x = np.linspace(0, 1, 128)
+        
         fun = Function(x, 1.0)
 
         logger.debug(fun)
 
     def test_operator(self):
         x = np.linspace(0, 1, 128)
+
         fun = Function(x, 1.0)
+
         logger.debug(dir(fun))
 
         logger.debug(type(np.sin(fun)))

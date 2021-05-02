@@ -10,8 +10,6 @@ from .Node import _next_
 
 
 class AttributeTree(Dict[str, _TObject]):
-    __slots__ = ()
-
     @classmethod
     def default_factory(cls, value, *args, **kwargs):
         if bool((Node.Category.DICT | Node.Category.ENTRY) & Node.__type_category__(value)):
@@ -23,7 +21,9 @@ class AttributeTree(Dict[str, _TObject]):
         super().__init__(*args, default_factory=default_factory or AttributeTree.default_factory, **kwargs)
 
     def __getattr__(self, k):
-        if k in Node.__slots__:
+        if k[0] == '_':
+            return super().__getattr__(self, k)
+        elif k in Node.__slots__:
             res = getattr(self, k)
         elif k in self.__slots__:
             res = super().__getattr__(k)
@@ -51,7 +51,9 @@ class AttributeTree(Dict[str, _TObject]):
             return res
 
     def __setattr__(self, k, v):
-        if k in Node.__slots__:
+        if k[0] == '_':
+            super().__setattr__( k, v)
+        elif k in Node.__slots__:
             Node.__setattr__(self, k, v)
         elif k in self.__slots__:
             super().__setattr__(k, v)
@@ -64,7 +66,7 @@ class AttributeTree(Dict[str, _TObject]):
             elif isinstance(res, functools.cached_property):
                 raise AttributeError(f"Can not set cached_property")
             elif isinstance(v, collections.abc.Mapping):
-                target = self.getattr(self, k)
+                target = self.__getattr__(k)
                 for i, d in v.items():
                     target.__setattr__(target, i, d)
             else:
