@@ -32,9 +32,13 @@ class Function:
                  is_periodic=False):
         self._is_periodic = is_periodic
         self._x = x
-        self._y = y
-        # elif isinstance(y, np.ndarray) and x.shape == y.shape:
-        #     obj = object.__new__(cls)
+        if isinstance(y, np.ndarray):
+            assert(x.shape == y.shape)
+            self._y = y
+            self._func = None
+        else:
+            self._y = None
+            self._func = y
 
     @property
     def is_periodic(self):
@@ -51,23 +55,9 @@ class Function:
         return Expression(ufunc, method, *inputs, **kwargs)
 
     def __array__(self) -> np.ndarray:
-        if self._y is None:
-            self._y = self.__call__()
-        elif not isinstance(self._y, np.ndarray):
-            self._y = np.asarray(self._y)
+        if not isinstance(self._y, np.ndarray):
+            self._y = self.__call__(self._x)
         return self._y
-
-    def __repr__(self) -> str:
-        return self.__array__().__repr__()
-
-    def __getitem__(self, idx):
-        return self.__array__()[idx]
-
-    def __setitem__(self, idx, value):
-        raise NotImplementedError()
-
-    def __len__(self):
-        return len(self._x)
 
     @cached_property
     def _ppoly(self):
@@ -85,13 +75,26 @@ class Function:
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
-
-        if callable(self._y):
-            res = self._y(*args, **kwargs)
-        else:
+        if callable(self._func):
+            res = self._func(*args, **kwargs)
+        elif self._y is not None:
             res = self._ppoly(*args, **kwargs)
+        else:
+            raise RuntimeError()
 
         return res.view(np.ndarray)
+
+    def __repr__(self) -> str:
+        return self.__array__().__repr__()
+
+    def __getitem__(self, idx):
+        return self.__array__()[idx]
+
+    def __setitem__(self, idx, value):
+        raise NotImplementedError()
+
+    def __len__(self):
+        return len(self._x)
 
     @cached_property
     def derivative(self):

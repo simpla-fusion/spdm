@@ -11,7 +11,7 @@ from .Node import _next_
 
 
 def do_getattr(obj, k):
-    if k[0] == '_':  
+    if k[0] == '_':
         scls = obj.__class__
         bcls = obj.__class__.__bases__[0]
         obj.__class__ = bcls
@@ -19,14 +19,15 @@ def do_getattr(obj, k):
         obj.__class__ = scls
     else:
         res = getattr(obj.__class__, k, None)
-        if hasattr(obj.__class__, 'get'):
-            res = obj.get(k, None)
-        elif res is None:
-            res = obj.__getitem__(k)
-        elif isinstance(res, property):
+
+        if isinstance(res, property):
             res = getattr(res, "fget")(obj)
         elif isinstance(res, functools.cached_property):
             res = res.__get__(obj)
+        elif hasattr(obj.__class__, 'get'):
+            res = obj.get(k, None)
+        else:
+            res = obj.__getitem__(k)
     if res is None:
         return AttributeTree(Node.LazyHolder(obj, [k]))
     elif isinstance(res, (collections.abc.Mapping, Node)):
@@ -36,7 +37,7 @@ def do_getattr(obj, k):
 
 
 def do_setattr(obj, k, v):
-    if k[0] == '_':   
+    if k[0] == '_':
         object.__setattr__(obj, k, v)
     else:
         res = getattr(obj.__class__, k, None)
