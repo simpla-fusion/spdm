@@ -3,22 +3,16 @@ from functools import cached_property
 from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
+import scipy
 import scipy.interpolate
-from scipy.interpolate.interpolate import PPoly
 
 from ..util.logger import logger
-
-# from ..data.Quantity import Quantity
-
-# if version.parse(scipy.__version__) <= version.parse("1.4.1"):
-#     from scipy.integrate import cumtrapz as cumtrapz
-# else:
-#     from scipy.integrate import cumulative_trapezoid as cumtrapz
 
 logger.debug(f"SciPy: Version {scipy.__version__}")
 
 
 class Function:
+
     def __new__(cls, x, y=None, *args, **kwargs):
         if cls is not Function:
             return object.__new__(cls)
@@ -27,46 +21,20 @@ class Function:
             obj = PiecewiseFunction(x, y, *args, **kwargs)
         elif not isinstance(x, np.ndarray):
             raise TypeError(f"x should be np.ndarray not {type(x)}!")
-        elif y is None and isinstance(x, Function):
-            obj = x.duplicate()
-        elif isinstance(y, Function):
-            obj = y.pullback(x)
-        elif isinstance(y, (int, float, complex)):
-            obj = ConstantFunc(x, y)
-        elif callable(y):
-            obj = WrapperFunc(x, y, *args, **kwargs)
-        elif isinstance(y, np.ndarray):
-            obj = object.__new__(cls)
         else:
-            raise RuntimeError(f"{type(x)}   {type(y)} ")
+            obj = object.__new__(cls)
 
         return obj
 
     def __init__(self,
-                 x: Union[float, np.ndarray, Sequence],
-                 y: Optional[Union[float, np.ndarray, Callable, Sequence]] = None,
-                 *args, is_periodic=False, **kwargs):
+                 x: np.ndarray,
+                 y: Union[np.ndarray, float, Callable],
+                 is_periodic=False):
         self._is_periodic = is_periodic
         self._x = x
         self._y = y
-
-    def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
-        return Expression(ufunc, method, *inputs, **kwargs)
-
-    def __array__(self) -> np.ndarray:
-        return self.__call__(self._x)
-
-    def __repr__(self) -> str:
-        return self.__array__().__repr__()
-
-    def __getitem__(self, idx, value):
-        return self.y[idx]
-
-    def __setitem__(self, idx, value):
-        raise NotImplementedError()
-
-    def duplicate(self):
-        return Function(self._x, self._y, is_periodic=self._is_periodic)
+        # elif isinstance(y, np.ndarray) and x.shape == y.shape:
+        #     obj = object.__new__(cls)
 
     @property
     def is_periodic(self):
@@ -76,39 +44,63 @@ class Function:
     def x(self):
         return self._x
 
-    @cached_property
-    def y(self):
-        return self.__array__()
+    def duplicate(self):
+        return Function(self._x, self.__array__(), is_periodic=self._is_periodic)
+
+    def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
+        return Expression(ufunc, method, *inputs, **kwargs)
+
+    def __array__(self) -> np.ndarray:
+        if self._y is None:
+            self._y = self.__call__()
+        elif not isinstance(self._y, np.ndarray):
+            self._y = np.asarray(self._y)
+        return self._y
+
+    def __repr__(self) -> str:
+        return self.__array__().__repr__()
+
+    def __getitem__(self, idx):
+        return self.__array__()[idx]
+
+    def __setitem__(self, idx, value):
+        raise NotImplementedError()
 
     @cached_property
-    def _spl(self):
-        return SplineFunction(self.x, self.y, is_periodic=self.is_periodic)
+    def _ppoly(self):
+        d = self.__array__()
+        if len(d.shape) == 0:
+            d = np.full(self._x.shape, d)
+        if self._x.shape != d.shape:
+            raise RuntimeError(f"{self._x.shape }!={d.shape}")
+        if self.is_periodic:
+            ppoly = scipy.interpolate.CubicSpline(self._x, d, bc_type="periodic")
+        else:
+            ppoly = scipy.interpolate.CubicSpline(self._x, d)
+        return ppoly
 
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
             args = [self._x]
 
-        if hasattr(self._pimpl, "apply"):
-            res = self._pimpl.apply(*args, **kwargs)
-        elif callable(self._pimpl):
-            res = self._pimpl(*args, **kwargs)
+        if callable(self._y):
+            res = self._y(*args, **kwargs)
         else:
-            res = self.spl.apply(*args, **kwargs)
-            # raise RuntimeError(f"{type(self.spl)}")
+            res = self._ppoly(*args, **kwargs)
 
         return res.view(np.ndarray)
 
     @cached_property
     def derivative(self):
-        return Function(self.spl.derivative)
+        return Function(self._x, self._ppoly.derivative(self._x))
 
     @cached_property
     def antiderivative(self):
-        return Function(self.spl.antiderivative)
+        return Function(self._x, self._ppoly.antiderivative(self._x))
 
     @cached_property
     def invert(self):
-        return Function(self.spl.invert(self._x))
+        return Function(self.__array__(), self._x, is_periodic=self.is_periodic)
 
     def pullback(self, *args, **kwargs):
         if len(args) == 0:
@@ -129,7 +121,7 @@ class Function:
         return Function(x1, y, is_periodic=self.is_periodic)
 
     def integrate(self, a=None, b=None):
-        return self.spl.integrate(a or self.x[0], b or self.x[-1])
+        return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
 
 
 # __op_list__ = ['abs', 'add', 'and',
@@ -179,74 +171,16 @@ for name, op in _bi_ops.items():
     setattr(Function,  name, lambda s, other, _op=op: _op(s, other))
 
 
-class ConstantFunc(Function):
-    def __init__(self, x: Any, y: float, *args, is_periodic=True, **kwargs):
-        super().__init__(x, y, *args, is_periodic=True, **kwargs)
-
-    def __call__(self, *args, **kwargs) -> np.ndarray:
-        return np.asarray(self._y)
-
-
-class WrapperFunc(Function):
-    def __init__(self, x, func: Callable, * args,   ** kwargs) -> None:
-        super().__init__(x, func, *args, **kwargs)
-
-    def __call__(self, x) -> np.ndarray:
-        return self._y(x)
-
-
-class SplineFunction(Function):
-    def __init__(self, x, y=None, is_periodic=False,  ** kwargs) -> None:
-        super().__init__()
-        self._is_periodic = is_periodic
-
-        if isinstance(x, PPoly) and y is None:
-            self._ppoly = x
-        elif not isinstance(x, np.ndarray) or y is None:
-            raise TypeError((type(x), type(y)))
-        else:
-            if callable(y):
-                y = y(x)
-            elif isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
-                assert(x.shape == y.shape)
-            elif isinstance(y, (float, int)):
-                y = np.full(len(x), y)
-            else:
-                raise NotImplementedError(f"Illegal input {[type(a) for a in args]}")
-
-            if is_periodic:
-                self._ppoly = scipy.interpolate.CubicSpline(x, y, bc_type="periodic", **kwargs)
-            else:
-                self._ppoly = scipy.interpolate.CubicSpline(x, y, **kwargs)
-
-    @property
-    def x(self) -> np.ndarray:
-        return self._ppoly.x
-
-    @cached_property
-    def derivative(self):
-        return SplineFunction(self._ppoly.derivative())
-
-    @cached_property
-    def antiderivative(self):
-        return SplineFunction(self._ppoly.antiderivative())
-
-    def apply(self, x) -> np.ndarray:
-        x = self.x if x is None else x
-        return self._ppoly(x)
-
-    def integrate(self, a, b):
-        return self._ppoly.integrate(a, b)
-
-
 class PiecewiseFunction(Function):
-    def __init__(self, x, cond, func, *args,    **kwargs) -> None:
-        super().__init__()
-        self._x = x
+    def __init__(self, cond, func, *args,    **kwargs) -> None:
+        super().__init__(None, None, *args,    **kwargs)
         self._cond = cond
         self._func = func
 
-    def apply(self, x) -> np.ndarray:
+    def __array__(self) -> np.ndarray:
+        raise NotImplementedError()
+
+    def __call__(self, x) -> np.ndarray:
         cond = [c(x) for c in self._cond]
         return np.piecewise(x, cond, self._func)
 
@@ -264,7 +198,10 @@ class Expression(Function):
         is_periodic = not any([not d.is_periodic for d in self._inputs if isinstance(d, Function)])
         super().__init__(x, y, is_periodic=is_periodic)
 
-    def __call__(self, x: Optional[Union[float, np.ndarray]], *args, **kwargs) -> np.ndarray:
+    def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
+        if x is None:
+            x = self._x
+
         def wrap(x, d):
             if isinstance(d, Function):
                 res = d(x).view(np.ndarray)

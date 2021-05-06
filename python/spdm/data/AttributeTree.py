@@ -11,7 +11,7 @@ from .Node import _next_
 
 
 def do_getattr(obj, k):
-    if k[0] == '_':  # or (hasattr(obj, "__slots__") and k in obj.__slots__):
+    if k[0] == '_':  
         scls = obj.__class__
         bcls = obj.__class__.__bases__[0]
         obj.__class__ = bcls
@@ -36,7 +36,7 @@ def do_getattr(obj, k):
 
 
 def do_setattr(obj, k, v):
-    if k[0] == '_':  # or (hasattr(obj.__slots__) and k in obj.__slots__):
+    if k[0] == '_':   
         object.__setattr__(obj, k, v)
     else:
         res = getattr(obj.__class__, k, None)

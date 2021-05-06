@@ -421,7 +421,12 @@ class List(Node, MutableSequence[_TObject]):
         self.__raw_set__(k, self.__pre_process__(v))
 
     def __getitem__(self, k: _TIndex) -> _TObject:
-        return self.__post_process__(self.__raw_get__(k), parent=self._parent)
+        obj = self.__raw_get__(k)
+        orig_class = get_args(self.__orig_class__)
+        if len(orig_class) > 0 and not isinstance(obj, orig_class[0]):
+            obj = self.__post_process__(self.__raw_get__(k), parent=self._parent)
+            self.__raw_set__(k, obj)
+        return obj
 
     def __delitem__(self, k: _TIndex) -> None:
         Node.__delitem__(self, k)
@@ -474,6 +479,13 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     @property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
+
+    def get(self, key: _TKey, default_value=None) -> _TObject:
+        try:
+            res = self.__raw_get__(key)
+        except KeyError:
+            res = default_value
+        return self.__post_process__(res)
 
     def __getitem__(self, key: _TKey) -> _TObject:
         return self.__post_process__(self.__raw_get__(key))
