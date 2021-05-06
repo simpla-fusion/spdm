@@ -72,16 +72,12 @@ def do_delattr(obj, k):
             raise AttributeError(f"Can not delete attribute {k}!")
 
 
-def do_iter(obj) -> typing.Iterator:
-    raise NotImplementedError()
-
-
 def as_attribute_tree(cls, *args, **kwargs):
     n_cls = type(f"{cls.__name__}__with_attr__", (cls,), {
         "__getattr__": do_getattr,
         "__setattr__": do_setattr,
         "__delattr__": do_delattr,
-        "__iter__": do_iter,
+        # "__iter__": do_iter,
     })
     return n_cls
 
@@ -109,4 +105,5 @@ class AttributeTree(Dict[str, _TObject]):
     def __iter__(self) -> typing.Iterator[Node]:
         # for v in super(Node, self).__iter__():
         #     yield AttributeTree({v})
+        logger.debug(self.__class__)
         yield from Node.__iter__(self)

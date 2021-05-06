@@ -19,8 +19,8 @@ class Function:
 
         if isinstance(x, collections.abc.Sequence):
             obj = PiecewiseFunction(x, y, *args, **kwargs)
-        elif not isinstance(x, np.ndarray):
-            raise TypeError(f"x should be np.ndarray not {type(x)}!")
+        # elif not isinstance(x, np.ndarray):
+        #     raise TypeError(f"x should be np.ndarray not {type(x)}!")
         else:
             obj = object.__new__(cls)
 
@@ -31,7 +31,7 @@ class Function:
                  y: Union[np.ndarray, float, Callable],
                  is_periodic=False):
         self._is_periodic = is_periodic
-        self._x = x
+        self._x = np.asarray(x)
         if isinstance(y, np.ndarray):
             assert(x.shape == y.shape)
             self._y = y
@@ -56,7 +56,12 @@ class Function:
 
     def __array__(self) -> np.ndarray:
         if not isinstance(self._y, np.ndarray):
-            self._y = self.__call__(self._x)
+            try:
+                self._y = self.__call__(self._x)
+            except ValueError as error:
+                logger.error(f"{self.__class__.__name__}")
+
+                raise ValueError(error)
         return self._y
 
     @cached_property
@@ -210,7 +215,7 @@ class Expression(Function):
 
         def wrap(x, d):
             if isinstance(d, Function):
-                res = d(x).view(np.ndarray)
+                res = np.asarray(d(x))
             elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
                 res = d
             elif d.shape == self.x.shape:
