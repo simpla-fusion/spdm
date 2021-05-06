@@ -1,5 +1,6 @@
 import unittest
-from typing import Mapping, Any, Iterator
+from typing import Any, Iterator, Mapping
+
 from spdm.data.AttributeTree import AttributeTree, _next_, as_attribute_tree
 from spdm.util.logger import logger
 
@@ -78,8 +79,8 @@ class TestAttributeTree(unittest.TestCase):
         v.b = 2
 
         self.assertEqual(len(d.a), 1)
-        self.assertEqual(d.__category__, AttributeTree.Category.DICT)
-        self.assertEqual(d.a.__category__, AttributeTree.Category.LIST)
+        self.assertTrue(d.__category__ | AttributeTree.Category.DICT)
+        self.assertTrue(d.a.__category__ | AttributeTree.Category.LIST)
         self.assertEqual(d.a[0].a, 1)
         self.assertEqual(d.a[0].b, 2)
 
@@ -106,24 +107,26 @@ class TestAttributeTree(unittest.TestCase):
         @as_attribute_tree
         class Foo(Mapping[str, Any]):
             def __init__(self, d, *args, **kwargs) -> None:
-                self._data = d
+                self._cache = d
 
             def __getitem__(self, k):
-                return self._data[k]
+                return self._cache[k]
 
             def __setitem__(self, k, v):
-                self._data[k] = v
+                self._cache[k] = v
 
             def __iter__(self) -> Iterator:
-                yield from self._data
+                yield from self._cache
 
             def __len__(self) -> int:
-                return len(self._data)
+                return len(self._cache)
 
         cache = {}
+        
         foo = Foo(cache)
 
         foo.e.f = 5
+
         self.assertEqual(cache["e"]["f"], 5)
 
     # def test_subclass(self):

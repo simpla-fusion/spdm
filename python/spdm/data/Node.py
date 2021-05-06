@@ -41,7 +41,7 @@ class Node:
 
         @enduml
     """
-    __slots__ = ["_parent", "_cache", "_default_factory", "__orig_class__"]
+    __slots__ = "_parent", "_cache", "_default_factory", "__orig_class__"
 
     class LazyHolder:
         __slots__ = "_prefix", "_parent"
@@ -438,7 +438,7 @@ class List(Node, MutableSequence[_TObject]):
         return Node.__raw_set__(self, *args, **kwargs)
 
 
-class Dict(Node, MutableMapping[_TKey, _TObject]):
+class Dict(MutableMapping[_TKey, _TObject], Node):
     __slots__ = ()
 
     def __init__(self, data: Mapping = {}, *args,  **kwargs):
@@ -473,7 +473,7 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
 
     @property
     def __category__(self):
-        return super().__category__() | Node.Category.LIST
+        return super().__category__ | Node.Category.LIST
 
     def __getitem__(self, key: _TKey) -> _TObject:
         return self.__post_process__(self.__raw_get__(key))
