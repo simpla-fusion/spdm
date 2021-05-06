@@ -106,10 +106,10 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             y = None
             if isinstance(profile, Function):
                 if (x_axis is profile.x) or (isinstance(x_axis, Function) and x_axis is profile.x) or len(x_axis) == len(profile):
-                    y = profile.view(np.ndarray)
+                    y = np.asarray(profile)
                 else:
                     try:
-                        y = profile(x_axis).view(np.ndarray)
+                        y = np.asarray(profile(x_axis))
                     except ValueError as error:
                         logger.error(f"Can not plot profile {label}! : {error}"),
                         continue

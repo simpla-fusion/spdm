@@ -66,6 +66,9 @@ class Function:
     def __setitem__(self, idx, value):
         raise NotImplementedError()
 
+    def __len__(self):
+        return len(self._x)
+
     @cached_property
     def _ppoly(self):
         d = self.__array__()
@@ -92,11 +95,11 @@ class Function:
 
     @cached_property
     def derivative(self):
-        return Function(self._x, self._ppoly.derivative(self._x))
+        return Function(self._x, self._ppoly.derivative())
 
     @cached_property
     def antiderivative(self):
-        return Function(self._x, self._ppoly.antiderivative(self._x))
+        return Function(self._x, self._ppoly.antiderivative())
 
     @cached_property
     def invert(self):
