@@ -7,7 +7,7 @@ import scipy
 import scipy.interpolate
 
 from ..util.logger import logger
-
+from .Node import Node
 logger.debug(f"SciPy: Version {scipy.__version__}")
 
 
@@ -32,6 +32,10 @@ class Function:
                  is_periodic=False):
         self._is_periodic = is_periodic
         self._x = np.asarray(x)
+
+        if isinstance(y, Node):
+            y = y.__fetch__(default_value=None)
+
         if callable(y):
             self._y = None
             self._func = y
@@ -68,7 +72,7 @@ class Function:
         if len(d.shape) == 0:
             d = np.full(self._x.shape, d)
         if self._x.shape != d.shape:
-            raise RuntimeError(f"{self._x.shape }!={d.shape}")
+            raise RuntimeError(f"{self._x.shape }!={d.shape} {d}")
         if self.is_periodic:
             ppoly = scipy.interpolate.CubicSpline(self._x, d, bc_type="periodic")
         else:

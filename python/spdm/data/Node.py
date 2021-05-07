@@ -6,11 +6,14 @@ import pprint
 import typing
 from enum import IntFlag
 from functools import cached_property
-from typing import Mapping, Sequence, TypeVar, Iterator, MutableMapping, MutableSequence, get_args
+from typing import (Any, Iterator, Mapping, MutableMapping, MutableSequence,
+                    Sequence, TypeVar, Union, get_args)
+
 import numpy as np
+from numpy.lib.arraysetops import isin
 
 from ..util.logger import logger
-from ..util.utilities import try_get, serialize
+from ..util.utilities import serialize, try_get
 from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
 
 _TObject = TypeVar('_TObject')
@@ -44,27 +47,36 @@ class Node:
     __slots__ = "_parent", "_cache", "_default_factory", "__orig_class__"
 
     class LazyHolder:
-        __slots__ = "_prefix", "_parent"
+        __slots__ = "_path", "_parent"
 
-        def __init__(self, parent, path, prefix=[]) -> None:
+        def __init__(self, parent, path) -> None:
             self._parent = parent
-            if isinstance(path, str):
-                self._prefix = (prefix or []) + path.split('.')
-            elif isinstance(path, collections.abc.MutableSequence):
-                self._prefix = (prefix or []) + path
-            else:
-                self._prefix = (prefix or []) + [path]
+            self._path = []
+            self.append(path)
 
         @property
         def parent(self):
             return self._parent
 
         @property
-        def prefix(self):
-            return self._prefix
+        def path(self):
+            return self._path
+
+        def append(self, path):
+            if isinstance(path, str):
+                self._path += path.split('.')
+            elif isinstance(path, collections.abc.MutableSequence):
+                self._path += path
+            else:
+                self._path += [path]
 
         def extend(self, path):
-            return self if path is None else Node.LazyHolder(self._parent, path, prefix=self._prefix)
+            res = Node.LazyHolder(self._parent, self._path)
+            res.append(path)
+            return res
+
+        def fetch(self, default_value=_not_found_):
+            return default_value
 
     def __init__(self, data=None, *args, default_factory=None, parent=None, **kwargs):
         super().__init__()
@@ -77,26 +89,12 @@ class Node:
         # return pprint.pformat(self.__serialize__())
         return f"<{self.__class__.__name__} />"
 
-    # def copy(self):
-    #     if isinstance(Node, (Node.Mapping, Node.Sequence)):
-    #         return self.__new_child__(self._cache.copy())
-    #     else:
-    #         return self.__new_child__(copy.copy(self._cache))
-
     def __serialize__(self):
         return serialize(self._cache)
 
     # @staticmethod
     # def deserialize(cls, d):
     #     return cls(d)
-
-    def __fetch__(self):
-        if isinstance(self._cache, Entry):
-            self._cache = self._cache.get_value([])
-        elif isinstance(self._cache, Node.LazyHolder):
-            self._cache = self.__raw_get__([])
-
-        return self._cache
 
     @property
     def __parent__(self):
@@ -227,7 +225,7 @@ class Node:
         if isinstance(self._cache, Node.LazyHolder):
             entry = self._cache.extend(key)
             holder = entry.parent
-            path = entry.prefix
+            path = entry.path
         else:
             holder = self
             path = key
@@ -286,14 +284,10 @@ class Node:
         else:
             obj[path[-1]] = value
 
-    def __raw_get__(self, path):
-        if isinstance(path, str):
-            path = path.split(".")
-        elif isinstance(path, _NEXT_TAG_):
+    def __raw_get__(self, path: Union[str, float, slice, Sequence, None]):
+        if isinstance(path, _NEXT_TAG_):
             self.__raw_set__(_next_, None)
             return self.__raw_get__(-1)
-        elif not isinstance(path, collections.abc.MutableSequence):
-            path = [path]
 
         if path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
             return self._cache
@@ -301,6 +295,20 @@ class Node:
             return self._cache.extend(path)
         elif self._cache is None:
             return Node.LazyHolder(self, path)
+        else:
+            return self.__fetch__(path)
+
+    def __fetch__(self, path=None, default_value=_not_found_):
+        if isinstance(self._cache, Entry):
+            self._cache = self._cache.get_value(path, default_value=_not_found_)
+        elif isinstance(self._cache, Node.LazyHolder):
+            self._cache = self._cache.get_value(path, default_value=_not_found_)
+
+        if isinstance(path, str):
+            path = path.split('.')
+        elif not isinstance(path, collections.abc.Sequence):
+            path = [path]
+
         obj = self
 
         for idx, key in enumerate(path):
@@ -423,7 +431,7 @@ class List(Node, MutableSequence[_TObject]):
     def __getitem__(self, k: _TIndex) -> _TObject:
         obj = self.__raw_get__(k)
         orig_class = get_args(self.__orig_class__)
-        if len(orig_class) > 0 and not isinstance(obj, orig_class[0]):
+        if len(orig_class) > 0 and inspect.isclass(orig_class[0]) and not isinstance(obj, orig_class[0]):
             obj = self.__post_process__(self.__raw_get__(k), parent=self._parent)
             self.__raw_set__(k, obj)
         return obj

@@ -267,5 +267,7 @@ def convert_to_named_tuple(d, ntuple=None):
         if not isinstance(ntuple, str):
             ntuple = "__"+("_".join(keys))
         return collections.namedtuple(ntuple, keys)(*values)
+    elif isinstance(d, collections.abc.MutableSequence):
+        return [convert_to_named_tuple(v) for v in d]
     else:
         return d

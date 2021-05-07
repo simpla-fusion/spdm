@@ -120,7 +120,7 @@ class Entry(object):
 
         return obj
 
-    def get_value(self,  path=[], *args, **kwargs):
+    def get_value(self,  path=[], *args, default_value=_not_found_, **kwargs):
         return self.get(path, *args, **kwargs)
 
     def put(self,  path, value, *args, **kwargs):
