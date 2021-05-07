@@ -282,20 +282,25 @@ class Node:
             obj[path[-1]] = value
 
     def __raw_get__(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
+
         if isinstance(path, _NEXT_TAG_):
             self.__raw_set__(_next_)
-            return self.__raw_get__(-1)
-        elif isinstance(self._cache, Node.LazyHolder) and default_value is _not_found_:
-            return self._cache.extend(path)
-        elif path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
-            return self._cache if self._cache is not None else default_value
-
-        if isinstance(path, str):
+            path = [-1]
+        elif isinstance(path, str):
             path = path.split(".")
         elif not isinstance(path, collections.abc.MutableSequence):
             path = [path]
 
-        obj = self
+        base = self
+
+        if isinstance(self._cache, Node.LazyHolder):
+            if default_value is _not_found_:
+                return self._cache.extend(path)
+            else:
+                base = self._cache.parent
+                path = self._cache.path+path
+
+        obj = base
 
         for idx, key in enumerate(path):
             if isinstance(obj, Node):
@@ -325,12 +330,15 @@ class Node:
             else:
                 obj = _not_found_
 
-        if obj is not _not_found_ :
+        if obj is not _not_found_:
             return obj
         elif default_value is _not_found_:
-            return Node.LazyHolder(self, path)
+            return Node.LazyHolder(base, path)
         else:
             return default_value
+
+    def __fetch__(self, path=None, default_value=None):
+        return self.__raw_get__(path or [], default_value=default_value)
 
     def __setitem__(self, path, value):
         self.__raw_set__(path, self.__pre_process__(value))

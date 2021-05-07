@@ -34,7 +34,7 @@ class Function:
         self._x = np.asarray(x)
 
         if isinstance(y, Node):
-            y = y.__raw_get__([], default_value=None)
+            y = y.__fetch__(default_value=0.0)
 
         if callable(y):
             self._y = None
@@ -62,15 +62,19 @@ class Function:
 
     def __array__(self) -> np.ndarray:
         if self._y is None:
-            self._y = self.__call__(self._x)
+            self._y = np.asarray(self.__call__(self._x))
+        return self._y
 
-        return np.asarray(self._y)
+    def __real_array__(self) -> np.ndarray:
+        d = self.__array__()
+        if len(d.shape) == 0:
+            self._y = np.full(self._x.shape, d)
+        return self._y
 
     @cached_property
     def _ppoly(self):
-        d = self.__array__()
-        if len(d.shape) == 0:
-            d = np.full(self._x.shape, d)
+        d = self.__real_array__()
+
         if self._x.shape != d.shape:
             raise RuntimeError(f"{self._x.shape }!={d.shape} {d}")
         if self.is_periodic:
@@ -98,7 +102,7 @@ class Function:
         return self.__array__()[idx]
 
     def __setitem__(self, idx, value):
-        raise NotImplementedError()
+        self.__real_array__()[idx] = value
 
     def __len__(self):
         return len(self._x)
