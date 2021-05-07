@@ -17,9 +17,9 @@ class Profiles(AttributeTree):
             axis = axis.view(np.ndarray)
         else:
             raise TypeError(type(axis))
-        
+
         self._axis = axis
-        
+
         if default_factory is None:
             def default_factory(value, *_args, axis=self._axis, **_kwargs):
                 if isinstance(value, Function):
@@ -32,9 +32,5 @@ class Profiles(AttributeTree):
                         raise ValueError(f"The shape of arrays dismatch! {value.shape} !={axis.shape} ")
                     value = Function(axis, value)
                 return value
-        
-        super().__init__(*args, default_factory=default_factory, **kwargs)
 
-    @property
-    def axis(self):
-        return self._axis
+        super().__init__(*args, default_factory=default_factory, **kwargs)

@@ -83,11 +83,14 @@ class Node:
 
     def __repr__(self) -> str:
         # d = f"<LazyHolder  prefix='{self._cache.prefix}' />" if isinstance(self._cache, Node.LazyHolder) else self._cache
-        # return pprint.pformat(self.__serialize__())
-        return f"<{self.__class__.__name__} />"
+        return pprint.pformat(self.__serialize__())
+        # return f"<{self.__class__.__name__} />"
 
     def __serialize__(self):
-        return serialize(self._cache)
+        if isinstance(self._cache, (Node.LazyHolder, Entry)):
+            return "<N/A>"
+        else:
+            return serialize(self._cache)
 
     # @staticmethod
     # def deserialize(cls, d):
@@ -458,19 +461,26 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         res = {}
         for k in filter(lambda k: k[0] != '_', self.__dir__()):
             prop = getattr(cls, k, None)
-            if isinstance(prop, (property, cached_property)):
-                v = getattr(self, k, None)
-            elif inspect.isfunction(prop):
+            if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
                 continue
+            elif isinstance(prop, cached_property):
+                v = prop.__get__(self)
+            elif isinstance(prop, property):
+                v = prop.fget(self)
             else:
                 v = getattr(self, k, None)
-            res[k] = v
+
+            if v is None or isinstance(v, (Node.LazyHolder, Entry)):
+                continue
+
+            res[k] = serialize(v)
 
         if isinstance(self._cache, (collections.abc.Mapping, Entry)):
             for k in filter(lambda k: k not in res and k[0] != '_', self._cache):
-                res[k] = self._cache[k]
-
-        return {k: serialize(v) for k, v in res.items() if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
+                res[k] = serialize(self._cache[k])
+        return res
+        # return {k: serialize(v) for k, v in res.items()}
+        #  if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
 
     @classmethod
     def __deserialize__(cls, desc: Mapping):

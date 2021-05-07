@@ -67,9 +67,12 @@ class Function:
         return self._y
 
     def __real_array__(self) -> np.ndarray:
-        d = self.__array__()
-        if len(d.shape) == 0:
-            self._y = np.full(self._x.shape, d)
+        if not isinstance(self._y, np.ndarray) or self._y.shape != self._x.shape:
+            self._y = self.__array__()
+            if len(self._y .shape) == 0:
+                self._y = np.full(self._x.shape, self._y)
+            elif self._y.shape != self._x.shape:
+                raise ValueError(f"{self._x.shape}!={self._y.shape}")
         return self._y
 
     @cached_property
