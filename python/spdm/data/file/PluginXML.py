@@ -10,6 +10,7 @@ from ..AttributeTree import AttributeTree
 from ..Document import Document
 from ..Entry import Entry
 from ..File import File
+from ..Node import _not_found_
 
 try:
     from lxml.etree import Comment as _XMLComment
@@ -181,7 +182,7 @@ class XMLEntry(Entry):
             xp, envs = self.xpath(path)
             return self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
 
-    def get_value(self,  path, *args,  only_one=False, **kwargs):
+    def get_value(self,  path, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))

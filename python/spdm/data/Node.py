@@ -75,10 +75,7 @@ class Node:
             res.append(path)
             return res
 
-        def fetch(self, default_value=_not_found_):
-            return default_value
-
-    def __init__(self, data=None, *args, default_factory=None, parent=None, **kwargs):
+    def __init__(self, data: Any = None, *args, default_factory=None, parent=None, **kwargs):
         super().__init__()
         self._parent = parent
         self._cache = data._cache if isinstance(data, Node) else data
@@ -215,7 +212,7 @@ class Node:
     def __post_process__(self, value, *args,   **kwargs):
         return value if isinstance(value, Node) else self.__new_child__(value, *args, **kwargs)
 
-    def __raw_set__(self, key, value):
+    def __raw_set__(self, key, value: Any = None):
         if isinstance(self._cache, Entry):
             return self._cache.insert(key, value)
         elif key is None and self._cache is None:
@@ -284,29 +281,18 @@ class Node:
         else:
             obj[path[-1]] = value
 
-    def __raw_get__(self, path: Union[str, float, slice, Sequence, None]):
+    def __raw_get__(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
         if isinstance(path, _NEXT_TAG_):
-            self.__raw_set__(_next_, None)
+            self.__raw_set__(_next_)
             return self.__raw_get__(-1)
-
-        if path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
-            return self._cache
-        elif isinstance(self._cache, Node.LazyHolder):
+        elif isinstance(self._cache, Node.LazyHolder) and default_value is _not_found_:
             return self._cache.extend(path)
-        elif self._cache is None:
-            return Node.LazyHolder(self, path)
-        else:
-            return self.__fetch__(path)
-
-    def __fetch__(self, path=None, default_value=_not_found_):
-        if isinstance(self._cache, Entry):
-            self._cache = self._cache.get_value(path, default_value=_not_found_)
-        elif isinstance(self._cache, Node.LazyHolder):
-            self._cache = self._cache.get_value(path, default_value=_not_found_)
+        elif path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
+            return self._cache if self._cache is not _not_found_ else default_value
 
         if isinstance(path, str):
-            path = path.split('.')
-        elif not isinstance(path, collections.abc.Sequence):
+            path = path.split(".")
+        elif not isinstance(path, collections.abc.MutableSequence):
             path = [path]
 
         obj = self
@@ -376,7 +362,7 @@ class Node:
         elif isinstance(self._cache,  (collections.abc.Mapping, collections.abc.MutableSequence)):
             return len(self._cache)
         else:
-            return 0 if self._cache is None else 1
+            return 0 if self._cache is _not_found_ else 1
 
     def __iter__(self):
         if isinstance(self._cache, Entry):
