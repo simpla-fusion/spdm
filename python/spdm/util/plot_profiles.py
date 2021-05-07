@@ -120,6 +120,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
 
             if y is None:
                 logger.error(f"Can not plot profile '{label}'[{type(profile)}]!")
+            elif len(y.shape) == 0:
+                y = np.full(x_axis.shape, y)
             elif x_axis.shape != y.shape:
                 logger.error(
                     f"length of x,y  must be same! [{label}[{type(profile)}] {x_axis.shape}!={y.shape}]")
@@ -129,6 +131,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
                 y = y[index_slice]
             else:
                 x = x_axis
+
             sub_plot[idx].plot(x, y, label=label, **opts)
 
         sub_plot[idx].legend(fontsize=fontsize)

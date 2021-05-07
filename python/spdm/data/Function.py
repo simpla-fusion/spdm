@@ -32,13 +32,15 @@ class Function:
                  is_periodic=False):
         self._is_periodic = is_periodic
         self._x = np.asarray(x)
-        if isinstance(y, np.ndarray):
-            assert(x.shape == y.shape)
-            self._y = y
+        if callable(y):
+            self._y = None
+            self._func = y
+        elif y is not None:
+            self._y = np.asarray(y)
             self._func = None
         else:
             self._y = None
-            self._func = y
+            self._func = None
 
     @property
     def is_periodic(self):
@@ -55,9 +57,10 @@ class Function:
         return Expression(ufunc, method, *inputs, **kwargs)
 
     def __array__(self) -> np.ndarray:
-        if not isinstance(self._y, np.ndarray):
+        if self._y is None:
             self._y = self.__call__(self._x)
-        return self._y
+
+        return np.asarray(self._y)
 
     @cached_property
     def _ppoly(self):
@@ -80,7 +83,7 @@ class Function:
         elif self._y is not None:
             res = self._ppoly(*args, **kwargs)
         else:
-            raise RuntimeError()
+            raise TypeError(type(self._y))
 
         return res.view(np.ndarray)
 

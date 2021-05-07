@@ -165,7 +165,7 @@ def serialize(d):
         return d.__serialize__()
     elif hasattr(d, "_asdict"):
         return d._asdict()
-    elif hasattr(d, "__array__"): # numpy.ndarray like
+    elif hasattr(d, "__array__"):  # numpy.ndarray like
         return d.__array__()
     elif isinstance(d, (int, float, str, np.ndarray)):
         return d
@@ -261,9 +261,11 @@ def first_not_empty(*args):
 def convert_to_named_tuple(d, ntuple=None):
     if hasattr(ntuple, "_fields") and isinstance(ntuple, type):
         return ntuple(*[try_get(d, k) for k in ntuple._fields])
-    else:
+    elif isinstance(d, collections.abc.Mapping):
         keys = [k for k in d.keys()]
-        values = [v for v in d.values()]
+        values = [convert_to_named_tuple(v) for v in d.values()]
         if not isinstance(ntuple, str):
             ntuple = "__"+("_".join(keys))
         return collections.namedtuple(ntuple, keys)(*values)
+    else:
+        return d
