@@ -56,12 +56,7 @@ class Function:
 
     def __array__(self) -> np.ndarray:
         if not isinstance(self._y, np.ndarray):
-            try:
-                self._y = self.__call__(self._x)
-            except ValueError as error:
-                logger.error(f"{self.__class__.__name__}")
-
-                raise ValueError(error)
+            self._y = self.__call__(self._x)
         return self._y
 
     @cached_property
@@ -219,19 +214,19 @@ class Expression(Function):
             elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
                 res = d
             elif d.shape == self.x.shape:
-                res = Function(self.x, d)(x).view(np.ndarray)
+                res = np.asarray(Function(self.x, d)(x))
             else:
                 raise ValueError(f"{self.x.shape} {d.shape}")
-
             return res
 
-        if self._method != "__call__":
-            op = getattr(self._ufunc, self._method)
-            # raise RuntimeError((self._ufunc, self._method))
-            res = op(*[wrap(x, d) for d in self._inputs])
         try:
             res = self._ufunc(*[wrap(x, d) for d in self._inputs])
-        except Warning as error:
-            raise ValueError(
-                f"\n {self._ufunc}  {[type(a) for a in self._inputs]}  {[a.shape for a in self._inputs if isinstance(a,Function)]} {error} \n ")
+        except Exception as error:
+            logger.error(f"Expression error: {self._ufunc.__name__}{ [type(a).__name__ for a in self._inputs] }  ")
+            raise ValueError(error)
+
         return res
+
+        # if self._method != "__call__":
+        #     op = getattr(self._ufunc, self._method)
+        #     res = op(*[wrap(x, d) for d in self._inputs])
