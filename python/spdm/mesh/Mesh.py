@@ -4,8 +4,8 @@ from functools import cached_property
 import numpy as np
 import scipy.interpolate
 
-from ...util.logger import logger
-from ...util.SpObject import SpObject
+from ..util.logger import logger
+from ..util.SpObject import SpObject
 
 
 class Mesh(SpObject):

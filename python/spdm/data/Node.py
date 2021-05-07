@@ -429,9 +429,9 @@ class List(Node, MutableSequence[_TObject]):
 
     def __getitem__(self, k: _TIndex) -> _TObject:
         obj = self.__raw_get__(k)
-        orig_class = get_args(self.__orig_class__)
-        if len(orig_class) > 0 and inspect.isclass(orig_class[0]) and not isinstance(obj, orig_class[0]):
-            obj = self.__post_process__(self.__raw_get__(k), parent=self._parent)
+
+        if not isinstance(obj, (Node, int, float, str, np.ndarray)):
+            obj = self.__new_child__(obj, parent=self._parent)
             self.__raw_set__(k, obj)
         return obj
 
@@ -439,12 +439,8 @@ class List(Node, MutableSequence[_TObject]):
         Node.__delitem__(self, k)
 
     def __iter__(self):
-        if isinstance(self._cache, (collections.abc.MutableSequence)):
-            yield from map(lambda v: self.__post_process__(v), self._cache)
-        elif isinstance(self._cache, collections.abc.Mapping):
-            yield from self._cache
-        else:
-            yield from Node.__iter__(self)
+        for idx in range(self.__len__()):
+            yield self.__getitem__(idx)
 
     def insert(self, *args, **kwargs):
         return Node.__raw_set__(self, *args, **kwargs)
@@ -501,8 +497,15 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
             res = default_value
         return self.__post_process__(res)
 
-    def __getitem__(self, key: _TKey) -> _TObject:
-        return self.__post_process__(self.__raw_get__(key))
+    def __getitem__(self, k: _TKey) -> _TObject:
+        # FIXME: cached result
+        # logger.warning("FIXME: cached result")
+        return self.__post_process__(self.__raw_get__(k))
+        # obj = self.__raw_get__(k)
+        # if not isinstance(obj, (Node, int, float, str, np.ndarray)):
+        #     obj = self.__post_process__(obj)
+        #     # self.__raw_set__(k, obj)
+        # return obj
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
         self.__raw_set__(key, self.__pre_process__(value))

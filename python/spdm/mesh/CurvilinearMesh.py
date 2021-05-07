@@ -4,12 +4,12 @@ from math import log
 import numpy as np
 import scipy.interpolate
 
-from ...geometry.BSplineSurface import BSplineSurface
-from ...geometry.CubicSplineCurve import CubicSplineCurve
-from ...geometry.Point import Point
-from ...util.logger import logger
-from ..AttributeTree import AttributeTree
+from ..geometry.BSplineSurface import BSplineSurface
+from ..geometry.CubicSplineCurve import CubicSplineCurve
+from ..geometry.Point import Point
+from ..util.logger import logger
 from .StructuredMesh import StructuredMesh
+from ..util.utilities import convert_to_named_tuple
 
 
 class CurvilinearMesh(StructuredMesh):
@@ -29,7 +29,7 @@ class CurvilinearMesh(StructuredMesh):
         s = [slice(None, None, None)]*self.ndims
         s[axis] = idx
         s = s+[slice(None, None, None)]
-        
+
         sub_xy = self._xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
         sub_uv = [self._uv[(axis+i) % self.ndims] for i in range(1, self.ndims)]
         sub_cycle = [self.cycle[(axis+i) % self.ndims] for i in range(1, self.ndims)]
@@ -64,7 +64,7 @@ class CurvilinearMesh(StructuredMesh):
 
     @cached_property
     def boundary(self):
-        return AttributeTree({"inner": self.axis(0, 0),  "outer": self.axis(-1, 0)})
+        return convert_to_named_tuple({"inner": self.axis(0, 0),  "outer": self.axis(-1, 0)})
 
     @cached_property
     def geo_object(self):

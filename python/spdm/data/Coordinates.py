@@ -3,7 +3,7 @@ import pprint
 
 import numpy as np
 
-from .mesh.Mesh import Mesh
+from ..mesh.Mesh import Mesh
 from .Unit import Unit
 
 

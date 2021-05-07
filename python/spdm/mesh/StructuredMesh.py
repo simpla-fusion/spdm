@@ -5,7 +5,7 @@ from scipy.ndimage.filters import maximum_filter, minimum_filter
 from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
 from scipy.optimize import fsolve, root_scalar
 
-from ...util.logger import logger
+from ..util.logger import logger
 from .Mesh import Mesh
 import pprint
 
