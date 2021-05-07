@@ -29,7 +29,8 @@ class Function:
     def __init__(self,
                  x: np.ndarray,
                  y: Union[np.ndarray, float, Callable],
-                 is_periodic=False):
+                 is_periodic=False,
+                 func=None):
         self._is_periodic = is_periodic
         self._x = np.asarray(x)
 
@@ -41,10 +42,10 @@ class Function:
             self._func = y
         elif y is not None:
             self._y = np.asarray(y)
-            self._func = None
+            self._func = func
         else:
             self._y = None
-            self._func = None
+            self._func = func
 
     @property
     def is_periodic(self):
@@ -99,10 +100,32 @@ class Function:
         return self.__array__().__repr__()
 
     def __getitem__(self, idx):
-        return self.__array__()[idx]
+        d = self.__array__()
+        if len(d.shape) == 0:
+            return d
+        else:
+            return d[idx]
 
     def __setitem__(self, idx, value):
+        if hasattr(self, "_ppoly"):
+            delattr(self, "_ppoly")
         self.__real_array__()[idx] = value
+
+    def _prepare(self, x, y):
+        if not isinstance(x, [collections.abc.Sequence, np.ndarray]):
+            x = np.asarray([x])
+        if isinstance(y, [collections.abc.Sequence, np.ndarray]):
+            y = np.asarray(y)
+        elif y is not None:
+            y = np.asarray([y])
+        else:
+            y = self.__call__(x)
+        return x, y
+
+    def insert(self, x, y=None):
+        res = Function(*self._prepare(x, y), is_periodic=self.is_periodic, func=self._func)
+        raise NotImplementedError('Insert points!')
+        return res
 
     def __len__(self):
         return len(self._x)
