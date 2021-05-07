@@ -288,7 +288,7 @@ class Node:
         elif isinstance(self._cache, Node.LazyHolder) and default_value is _not_found_:
             return self._cache.extend(path)
         elif path is None or (isinstance(path, collections.abc.MutableSequence) and len(path) == 0):
-            return self._cache if self._cache is not _not_found_ else default_value
+            return self._cache if self._cache is not None else default_value
 
         if isinstance(path, str):
             path = path.split(".")
@@ -325,10 +325,12 @@ class Node:
             else:
                 obj = _not_found_
 
-        if obj is _not_found_:
+        if obj is not _not_found_ :
+            return obj
+        elif default_value is _not_found_:
             return Node.LazyHolder(self, path)
         else:
-            return obj
+            return default_value
 
     def __setitem__(self, path, value):
         self.__raw_set__(path, self.__pre_process__(value))
@@ -368,7 +370,7 @@ class Node:
         if isinstance(self._cache, Entry):
             yield from self._cache.iter()
         else:
-            d = self.__fetch__()
+            d = self.__raw_get__([], [])
             if isinstance(d, (collections.abc.MutableSequence)):
                 yield from map(lambda v: self.__post_process__(v), d)
             elif isinstance(d, collections.abc.Mapping):

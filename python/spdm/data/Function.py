@@ -34,7 +34,7 @@ class Function:
         self._x = np.asarray(x)
 
         if isinstance(y, Node):
-            y = y.__fetch__(default_value=None)
+            y = y.__raw_get__([], default_value=None)
 
         if callable(y):
             self._y = None
