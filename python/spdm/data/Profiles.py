@@ -24,7 +24,7 @@ class Profiles(AttributeTree):
             def default_factory(value, *_args, axis=self._axis, **_kwargs):
                 if isinstance(value, Function):
                     if value.x is not axis:
-                        value = Function(axis, value.viewe(np.ndarray))
+                        value = Function(axis, np.asarray(value(axis)))
                 elif isinstance(value, (int, float)) or callable(value):
                     value = Function(axis, value)
                 elif isinstance(value, np.ndarray):

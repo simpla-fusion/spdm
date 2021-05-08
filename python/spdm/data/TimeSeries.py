@@ -84,8 +84,8 @@ class TimeSeries(List[_TObject]):
     def time(self) -> TimeSequence:
         return self._time
 
-    def __new_child__(self,  *args,    **kwargs):
-        return super().__new_child__(*args,  **kwargs)
+    def __new_child__(self,  *args, parent=None,   **kwargs):
+        return super().__new_child__(*args, parent=parent or self, **kwargs)
 
     def insert(self, d: _TObject, *args, time: _TTime = None, **kwargs) -> _TObject:
         obj = self.__new_child__(d, *args, time=self._time.append(time), **kwargs)

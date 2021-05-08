@@ -37,7 +37,10 @@ class Function:
         if isinstance(y, Node):
             y = y.__fetch__(default_value=0.0)
 
-        if callable(y):
+        if isinstance(y, Function):
+            self._y = None
+            self._func = y
+        elif callable(y):
             self._y = None
             self._func = y
         elif y is not None:
@@ -212,6 +215,24 @@ _bi_ops = {
 
 for name, op in _bi_ops.items():
     setattr(Function,  name, lambda s, other, _op=op: _op(s, other))
+
+_rbi_ops = {
+
+    # Add arguments element-wise.
+    "__radd__": np.add,
+    # (x1, x2, / [, out, where, casting, …]) Subtract arguments, element-wise.
+    "__rsub__": np.subtract,
+    # multiply(x1, x2, / [, out, where, casting, …])  Multiply arguments element-wise.
+    "__rmul__": np.multiply,
+    # (x1, x2, / [, out, casting, order, …])   Matrix product of two arrays.
+    "__rmatmul__": np.matmul,
+    # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
+    "__rtruediv__": np.divide,
+    # Return x to the power p, (x**p).
+    "__rpow__": np.power
+}
+for name, op in _rbi_ops.items():
+    setattr(Function,  name, lambda s, other, _op=op: _op(other, s))
 
 
 class PiecewiseFunction(Function):
