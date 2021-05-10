@@ -8,6 +8,7 @@ from enum import IntFlag
 from functools import cached_property
 from typing import (Any, Iterator, Mapping, MutableMapping, MutableSequence,
                     Sequence, TypeVar, Union, get_args)
+import bisect
 
 import numpy as np
 from numpy.lib.arraysetops import isin
@@ -442,8 +443,31 @@ class List(Node, MutableSequence[_TObject]):
         for idx in range(self.__len__()):
             yield self.__getitem__(idx)
 
-    def insert(self, *args, **kwargs):
-        return Node.__raw_set__(self, *args, **kwargs)
+    def insert(self, idx, value=None, sorted=True) -> _TObject:
+        if value is None:
+            value = idx
+            idx = None
+        if value is None:
+            pass
+        elif not isinstance(value, Node):
+            value = self.__new_child__(value)
+
+        if idx is not None:
+            Node.__raw_set__(self, idx, value)
+        elif not sorted:
+            Node.__raw_set__(self, -1, value)
+        elif not isinstance(self._cache, collections.abc.MutableSequence):
+            raise NotImplementedError(f"{type(self._cache)} is not  MutableSequence!")
+        else:
+            idx = bisect.bisect_right(self._cache, value)
+            self._cache.insert(idx, value)
+        return value
+
+    def sort(self):
+        if hasattr(self._cache.__class__, "sort"):
+            self._cache.sort()
+        else:
+            raise NotImplementedError()
 
 
 class Dict(MutableMapping[_TKey, _TObject], Node):
@@ -485,6 +509,9 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
             raise ValueError(desc)
         else:
             raise NotImplementedError(ids)
+
+    def _as_dict(self):
+        return self.__serialize__()
 
     @property
     def __category__(self):

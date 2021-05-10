@@ -13,26 +13,29 @@ from spdm.util.logger import logger
 class TestTimeSeries(unittest.TestCase):
     def test_timeseries_initialize(self):
         cache = [{"a": 1},
-                 {"a": 2},
+                 {"a": 2, "time": 5},
                  {"a": 3}, ]
 
-        class Foo(Node):
-            __slot__ = ("_time")
-
-            def __init__(self,  *args, time=None, **kwargs):
+        class Foo(TimeSlice):
+            def __init__(self,  *args,   **kwargs):
                 super().__init__(*args, **kwargs)
-                self._time = time or 0.0
 
             def __repr__(self) -> str:
-                return f"<{self.__class__.__name__} time='{self._time}' />"
+                return f"<{self.__class__.__name__} time='{self.time}' />"
 
-        time_series = TimeSeries[Foo](cache, time=None, dt=0.1)
+        time_series = TimeSeries[Foo](cache, time_start=0.2, time_step=0.1)
 
         time_series[_next_] = {"a": 4}
 
         logger.debug(time_series)
 
-        logger.debug(time_series[-1])
+        time_series.sort()
+
+        logger.debug(time_series)
+
+        time_series.insert({"a": 10, "time": 0.45})
+
+        logger.debug(time_series)
 
 
 if __name__ == '__main__':
