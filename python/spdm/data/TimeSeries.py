@@ -45,19 +45,17 @@ class TimeSeries(List[_TObject]):
     """
     __slots__ = ("_time_step", "_time_start")
 
-    def __init__(self, d=None, *args, time_start=None, time_step=None,  **kwargs) -> None:
-        super().__init__([], *args, **kwargs)
+    def __init__(self, *args, time_start=None, time_step=None,  **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._time_start = time_start or 0.0
         self._time_step = time_step or 1.0
-        for v in d or []:
-            self.insert(v)
 
     @property
     def time(self) -> np.ndarray:
         return np.asarray([t_slice.time for t_slice in self])
 
     def last_time_step(self):
-        if len(self) == 0 or self[-1].time == None:
+        if len(self) == 0:
             return 0.0
         else:
             return float(self[-1].time)
@@ -65,15 +63,16 @@ class TimeSeries(List[_TObject]):
     def next_time_step(self, dt=None):
         return self.last_time_step() + (dt or self._time_step)
 
-    # def __getitem__(self, k: _TIndex) -> _TObject:
-    #     obj = super().__getitem__(k)
+    def __getitem__(self, k: _TIndex) -> _TObject:
+        obj = super().__getitem__(k)
 
-    #     if not hasattr(obj, "_time"):
-    #         raise KeyError(k)
-    #     elif obj._time == -np.inf:
-    #         obj._time = self._time_start+k*self._time_step
+        if not hasattr(obj, "_time"):
+            raise KeyError((k, obj))
+        elif obj._time == -np.inf:
+            n = len(self)
+            obj._time = self._time_start+((k+n) % n)*self._time_step
 
-    #     return obj
+        return obj
 
     def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:
         return self.insert(k, obj)
@@ -89,19 +88,16 @@ class TimeSeries(List[_TObject]):
             value = args[0]
         else:
             value = self.__new_child__(*args, **kwargs)
-        logger.debug(type(value))
 
-        if isinstance(time, float):
-            time = time
-        elif isinstance(time, int):
-            time = self._time_start+time*self._time_step
-        elif not isinstance(value._time, float):
-            time = self.next_time_step()
-        else:
-            time = 0.0
-        logger.debug(value)
+        if value._time == -np.inf:
+            if isinstance(time, float):
+                time = time
+            elif isinstance(time, int):
+                n = len(self)
+                time = self._time_start+((time+n) % n)*self._time_step
+            else:
+                time = self.next_time_step()
 
-        if getattr(value, "_time", None) == None:
             value._time = time
 
         return super().insert(value)

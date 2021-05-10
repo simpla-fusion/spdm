@@ -182,41 +182,33 @@ class Node:
         return Node.__type_category__(self._cache)
 
     def __generic_class__(self):
-        if hasattr(self, "__orig_class__") and self.__orig_class__:
+        #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+        if hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
             return get_args(self.__orig_class__)[0]
         else:
-            return NotImplemented
+            return None
 
     def __new_child__(self, value, *args, parent=None,  **kwargs):
-        if self._default_factory is None and hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
-            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-            factory = get_args(self.__orig_class__)
-            if len(factory) > 0:
-                factory = factory[-1]
-            if not (inspect.isclass(factory) or callable(factory)):
-                # logger.error(f"Illegal factory type! {factory}")
-                factory = Node
-            self._default_factory = factory
-
         if self._default_factory is not None:
             value = self._default_factory(value, *args,  parent=parent or self, ** kwargs)
+        else:
+            creator = self.__generic_class__()
+            if creator is not None:
+                value = creator(value, *args,  parent=parent or self, ** kwargs)
 
         if isinstance(value, Node):
             pass
         elif isinstance(value, collections.abc.MutableSequence):
             value = List[_TObject](value, *args,
                                    parent=parent or self,
-                                   #    default_factory=default_factory,
                                    **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
             value = Dict[_TKey, _TObject](value, *args,
                                           parent=parent or self,
-                                          #   default_factory=default_factory,
                                           **kwargs)
         elif isinstance(value, (Entry, Node.LazyHolder)):
             value = Node(value, *args,
                          parent=parent or self,
-                         #  default_factory=default_factory,
                          **kwargs)
 
         # else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
@@ -418,12 +410,11 @@ class Node:
         return False if isinstance(self._cache, Node.LazyHolder) else (not not self._cache)
 
 
-class List(Node, MutableSequence[_TObject]):
+class List(MutableSequence[_TObject], Node):
     __slots__ = ()
 
     def __init__(self, d: collections.abc.Sequence = [], *args,  **kwargs):
-        Node.__init__(self, [], *args,   **kwargs)
-        self._cache = [Node.__new_child__(self, v) for v in d or []]
+        Node.__init__(self, d, *args,   **kwargs)
 
     def __serialize__(self) -> Mapping:
         return [serialize(v) for v in self]
@@ -446,9 +437,10 @@ class List(Node, MutableSequence[_TObject]):
 
     def __getitem__(self, k: _TIndex) -> _TObject:
         obj = self.__raw_get__(k)
-        if not isinstance(obj, self.__generic_class__()):
+        if not isinstance(obj, Node):
             obj = self.__new_child__(obj, parent=self._parent)
             self.__raw_set__(k, obj)
+        logger.debug(obj)
         return obj
 
     def __delitem__(self, k: _TIndex) -> None:
