@@ -258,7 +258,9 @@ def first_not_empty(*args):
     return next(x for x in args if len(x) > 0)
 
 
-def convert_to_named_tuple(d, ntuple=None):
+def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
+    if d is None:
+        d = kwargs
     if hasattr(ntuple, "_fields") and isinstance(ntuple, type):
         return ntuple(*[try_get(d, k) for k in ntuple._fields])
     elif isinstance(d, collections.abc.Mapping):

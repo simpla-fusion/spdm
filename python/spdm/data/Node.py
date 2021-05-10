@@ -96,6 +96,11 @@ class Node:
     # @staticmethod
     # def deserialize(cls, d):
     #     return cls(d)
+    def _as_dict(self):
+        return NotImplemented
+
+    def _as_list(self):
+        return NotImplemented
 
     @property
     def __parent__(self):
@@ -415,6 +420,9 @@ class List(Node, MutableSequence[_TObject]):
     def __serialize__(self):
         return [serialize(v) for v in self]
 
+    def _as_list(self):
+        return self.__serialize__()
+
     @property
     def __category__(self):
         return super().__category__() | Node.Category.LIST
@@ -476,10 +484,11 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     def __init__(self, data: Mapping = {}, *args,  **kwargs):
         Node.__init__(self, data, *args, **kwargs)
 
-    def __serialize__(self):
+    def __serialize__(self, ignore=None):
+        ignore = ignore or []
         cls = self.__class__
         res = {}
-        for k in filter(lambda k: k[0] != '_', self.__dir__()):
+        for k in filter(lambda k: k[0] != '_' and k not in ignore, self.__dir__()):
             prop = getattr(cls, k, None)
             if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
                 continue

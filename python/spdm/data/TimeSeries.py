@@ -1,5 +1,6 @@
 import collections
 from typing import Any, Generic, Sequence, TypeVar
+
 import numpy as np
 
 from ..util.logger import logger
@@ -56,68 +57,43 @@ class TimeSeries(List[_TimeSlice]):
     def time(self) -> np.ndarray:
         return np.asarray([t_slice.time for t_slice in self])
 
-    # def __new_child__(self, value, *args, parent=None, time=None, **kwargs):
-    #     return super().__new_child__(value, *args, parent=parent, time=time, **kwargs)
-
-    def __getitem__(self, k: _TIndex) -> _TObject:
-        obj = super().__getitem__(k)
-        if obj._time is None or obj._time == None:
-            obj._time = self._time_start+k*self._time_step
-        return obj
-
-    def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:
-        if isinstance(k, int):
-            logger.warning("FIXME: Untested features!")
-            obj = super().__new_child__(obj, parent=self)
-            if obj._time is None or obj._time == None:
-                obj._time = self._time_start+k*self._time_step
-            super().__setitem__(k, obj)
-        elif isinstance(k, float):
-            self.insert(super().__new_child__(obj, time=k, parent=self))
-        else:
-            super().__setitem__(k, obj)
-
     def last_time_step(self):
         return 0.0 if len(self) == 0 else self[-1].time
 
     def next_time_step(self, dt=None):
         return self.last_time_step() + (dt or self._time_step)
 
+    def __getitem__(self, k: _TIndex) -> _TObject:
+        obj = super().__getitem__(k)
+        if obj._time == None:
+            obj._time = self._time_start+k*self._time_step
+        return obj
+
+    def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:
+        return self.insert(k, obj)
+
     def insert(self, first, second=None) -> _TimeSlice:
         if second is not None:
-            obj = self.__new_child__(second)
-            if isinstance(first, float):
-                obj._time = first
-            elif isinstance(first, int):
-                obj._time = self._time_start+first*self._time_step
-            else:
-                raise TypeError(f"{type(first)} is not flaot or int!")
-        elif not hasattr(first, "_time"):
-            obj = self.__new_child__(first)
+            time = first
+            value = second
         else:
-            obj = first
-        if obj._time == None:
-            obj._time = self.next_time_step()
-        return super().insert(obj)
+            time = None
+            value = first
 
-    @property
-    def last_time_slice(self) -> _TimeSlice:
-        if len(self) == 0:
-            raise IndexError(f"Empty list")
-        return self[-1]
+        if not hasattr(value, "_time"):
+            value = self.__new_child__(value)
 
-    @property
-    def next_time_slice(self) -> _TimeSlice:
-        return self.insert(self.last_time_slice.__duplicate__(time=self.next_time_step()))
+        if isinstance(time, float):
+            value._time = time
+        elif isinstance(time, int):
+            value._time = self._time_start+time*self._time_step
+        elif value._time == None:
+            value._time = self.next_time_step()
 
-    def get_slice(self, time: float = None) -> _TimeSlice:
-        """
-           Time Interpolation 
-        """
-        return NotImplemented
+        return super().insert(value)
 
     def __call__(self, time: float = None) -> _TimeSlice:
-        if time is None:
-            return self[-1]
-        else:
-            return self.get_slice(time)
+        r"""
+            Time Interpolation of slices
+        """
+        return NotImplemented
