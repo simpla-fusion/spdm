@@ -96,10 +96,11 @@ class Node:
     # @staticmethod
     # def deserialize(cls, d):
     #     return cls(d)
-    def _as_dict(self):
+
+    def _as_dict(self) -> Mapping:
         return NotImplemented
 
-    def _as_list(self):
+    def _as_list(self) -> Sequence:
         return NotImplemented
 
     @property
@@ -179,6 +180,12 @@ class Node:
     @property
     def __category__(self):
         return Node.__type_category__(self._cache)
+
+    def __generic_class__(self):
+        if hasattr(self, "__orig_class__") and self.__orig_class__:
+            return get_args(self.__orig_class__)[0]
+        else:
+            return NotImplemented
 
     def __new_child__(self, value, *args, parent=None,  **kwargs):
         if self._default_factory is None and hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
@@ -414,13 +421,14 @@ class Node:
 class List(Node, MutableSequence[_TObject]):
     __slots__ = ()
 
-    def __init__(self, d: collections.abc.Sequence = [], *args,   **kwargs):
-        Node.__init__(self, d or [], *args,   **kwargs)
+    def __init__(self, d: collections.abc.Sequence = [], *args,  **kwargs):
+        Node.__init__(self, [], *args,   **kwargs)
+        self._cache = [Node.__new_child__(self, v) for v in d or []]
 
-    def __serialize__(self):
+    def __serialize__(self) -> Mapping:
         return [serialize(v) for v in self]
 
-    def _as_list(self):
+    def _as_list(self) -> Sequence:
         return self.__serialize__()
 
     @property
@@ -430,7 +438,7 @@ class List(Node, MutableSequence[_TObject]):
     def __len__(self) -> int:
         return Node.__len__(self)
 
-    def __new_child__(self, value, *args, parent=None,  **kwargs):
+    def __new_child__(self, value, *args, parent=None,  **kwargs) -> _TObject:
         return super().__new_child__(value, *args, parent=parent or self._parent, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
@@ -438,8 +446,7 @@ class List(Node, MutableSequence[_TObject]):
 
     def __getitem__(self, k: _TIndex) -> _TObject:
         obj = self.__raw_get__(k)
-
-        if not isinstance(obj, (Node, int, float, str, np.ndarray)):
+        if not isinstance(obj, self.__generic_class__()):
             obj = self.__new_child__(obj, parent=self._parent)
             self.__raw_set__(k, obj)
         return obj
@@ -457,7 +464,7 @@ class List(Node, MutableSequence[_TObject]):
             idx = None
         if value is None:
             pass
-        elif not isinstance(value, Node):
+        elif not isinstance(value, self.__generic_class__()):
             value = self.__new_child__(value)
 
         if idx is not None:
@@ -519,7 +526,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         else:
             raise NotImplementedError(ids)
 
-    def _as_dict(self):
+    def _as_dict(self) -> Mapping:
         return self.__serialize__()
 
     @property

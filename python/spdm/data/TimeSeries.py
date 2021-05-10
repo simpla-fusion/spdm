@@ -5,6 +5,7 @@ import numpy as np
 
 from ..util.logger import logger
 from .Node import Dict, List, _TIndex, _TKey, _TObject
+from .AoS import AoS, SoA
 
 
 class TimeSlice(Dict):
@@ -17,9 +18,7 @@ class TimeSlice(Dict):
 
     def __init__(self,   *args, time: float = None,   **kwargs) -> None:
         Dict.__init__(self, *args, **kwargs)
-        self._time = time or self["time"]
-        if isinstance(self._time, str):
-            self._time = str(self._time)
+        self._time = time or self["time"] or -np.inf
 
     @property
     def time(self) -> float:
@@ -34,13 +33,11 @@ class TimeSlice(Dict):
         elif isinstance(other, TimeSlice):
             return self._time < other._time
         else:
-            raise TypeError(type(other))
+            return False
+            # raise TypeError(type(other))
 
 
-_TimeSlice = TypeVar("_TimeSlice", TimeSlice, Any)
-
-
-class TimeSeries(List[_TimeSlice]):
+class TimeSeries(List[_TObject]):
     r"""
         Time Series
         - the collestion of propertis' time series . SOA (structure of array)
@@ -48,52 +45,75 @@ class TimeSeries(List[_TimeSlice]):
     """
     __slots__ = ("_time_step", "_time_start")
 
-    def __init__(self, *args, time_start=None, time_step=None,  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, d=None, *args, time_start=None, time_step=None,  **kwargs) -> None:
+        super().__init__([], *args, **kwargs)
         self._time_start = time_start or 0.0
         self._time_step = time_step or 1.0
+        for v in d or []:
+            self.insert(v)
 
     @property
     def time(self) -> np.ndarray:
         return np.asarray([t_slice.time for t_slice in self])
 
     def last_time_step(self):
-        return 0.0 if len(self) == 0 else self[-1].time
+        if len(self) == 0 or self[-1].time == None:
+            return 0.0
+        else:
+            return float(self[-1].time)
 
     def next_time_step(self, dt=None):
         return self.last_time_step() + (dt or self._time_step)
 
-    def __getitem__(self, k: _TIndex) -> _TObject:
-        obj = super().__getitem__(k)
-        if obj._time == None:
-            obj._time = self._time_start+k*self._time_step
-        return obj
+    # def __getitem__(self, k: _TIndex) -> _TObject:
+    #     obj = super().__getitem__(k)
+
+    #     if not hasattr(obj, "_time"):
+    #         raise KeyError(k)
+    #     elif obj._time == -np.inf:
+    #         obj._time = self._time_start+k*self._time_step
+
+    #     return obj
 
     def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:
         return self.insert(k, obj)
 
-    def insert(self, first, second=None) -> _TimeSlice:
-        if second is not None:
-            time = first
-            value = second
-        else:
+    def insert(self, first, *args, **kwargs) -> _TObject:
+        if len(args)+len(kwargs) == 0:
             time = None
-            value = first
+            args = [first]
+        else:
+            time = first
 
-        if not hasattr(value, "_time"):
-            value = self.__new_child__(value)
+        if len(args) > 0 and hasattr(args[0], "_time"):
+            value = args[0]
+        else:
+            value = self.__new_child__(*args, **kwargs)
+        logger.debug(type(value))
 
         if isinstance(time, float):
-            value._time = time
+            time = time
         elif isinstance(time, int):
-            value._time = self._time_start+time*self._time_step
-        elif value._time == None:
-            value._time = self.next_time_step()
+            time = self._time_start+time*self._time_step
+        elif not isinstance(value._time, float):
+            time = self.next_time_step()
+        else:
+            time = 0.0
+        logger.debug(value)
+
+        if getattr(value, "_time", None) == None:
+            value._time = time
 
         return super().insert(value)
 
-    def __call__(self, time: float = None) -> _TimeSlice:
+    def __call__(self, time: float = None) -> _TObject:
         r"""
             Time Interpolation of slices
         """
         return NotImplemented
+
+    def to_aos(self, key, time=None) -> List[Dict]:
+        return AoS(self, self.time)
+
+    def to_soa(self, key, time=None) -> Dict[_TKey, List]:
+        return SoA(self, self.time)
