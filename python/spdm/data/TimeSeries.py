@@ -83,13 +83,22 @@ class TimeSeries(List[_TimeSlice]):
     def next_time_step(self, dt=None):
         return self.last_time_step() + (dt or self._time_step)
 
-    def insert_by_order(self, obj, *args, **kwargs) -> _TimeSlice:
-        if not hasattr(obj, "_time"):
-            obj = self.__new_child__(obj, *args,  **kwargs)
-            if obj._time == None:
-                obj._time = self.next_time_step()
-        self.insert_by_order(self, obj)
-        return obj
+    def insert(self, first, second=None) -> _TimeSlice:
+        if second is not None:
+            obj = self.__new_child__(second)
+            if isinstance(first, float):
+                obj._time = first
+            elif isinstance(first, int):
+                obj._time = self._time_start+first*self._time_step
+            else:
+                raise TypeError(f"{type(first)} is not flaot or int!")
+        elif not hasattr(first, "_time"):
+            obj = self.__new_child__(first)
+        else:
+            obj = first
+        if obj._time == None:
+            obj._time = self.next_time_step()
+        return super().insert(obj)
 
     @property
     def last_time_slice(self) -> _TimeSlice:

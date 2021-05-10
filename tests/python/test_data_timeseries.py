@@ -37,6 +37,10 @@ class TestTimeSeries(unittest.TestCase):
 
         logger.debug(time_series)
 
+        time_series.insert({"a": 12})
+        
+        logger.debug(time_series)
+
 
 if __name__ == '__main__':
     unittest.main()
