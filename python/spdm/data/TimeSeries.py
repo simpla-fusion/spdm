@@ -56,19 +56,19 @@ class TimeSeries(List[_TObject]):
     def time(self) -> np.ndarray:
         return np.asarray([t_slice.time for t_slice in self])
 
-    def last_time_step(self):
+    def last_time(self):
         if len(self) == 0:
-            return 0.0
+            return self._time_start
         else:
             return float(self[-1].time)
 
-    def next_time_step(self, dt=None):
-        return self.last_time_step() + (dt or self._time_step)
+    def next_time(self, dt=None):
+        return self.last_time() + (dt or self._time_step)
 
     def __getitem__(self, k: _TIndex) -> _TObject:
         obj = super().__getitem__(k)
 
-        if not hasattr(obj, "_time"):
+        if not self.__check_template__(obj.__class__):
             raise KeyError((k, obj))
         elif obj._time == -np.inf:
             n = len(self)
@@ -80,25 +80,18 @@ class TimeSeries(List[_TObject]):
         return self.insert(k, obj)
 
     def insert(self,   *args,  **kwargs) -> _TObject:
-
-        if len(args) > 0 and hasattr(args[0], "_time"):
+        if len(args) > 0 and self.__check_template__(args[0].__class__):
             value = args[0]
         else:
             value = self.__new_child__(*args,  **kwargs)
 
         if value._time == -np.inf:
-            # if isinstance(time, float):
-            #     time = time
-            # elif isinstance(time, int):
-            #     n = len(self)
-            #     time = self._time_start+((time+n) % n)*self._time_step
-            # else:
-            value._time = self.next_time_step()
+            value._time = self.next_time()
 
         return super().insert(value)
 
     def next(self, *args, time=None, **kwargs):
-        return super().insert(self.__new_child__(*args, time=time or self.next_time_step(), **kwargs))
+        return super().insert(self.__new_child__(*args, time=time or self.next_time(), **kwargs))
 
     def __call__(self, time: float = None) -> _TObject:
         r"""

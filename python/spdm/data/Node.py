@@ -182,21 +182,25 @@ class Node(Generic[_TObject]):
     def __category__(self):
         return Node.__type_category__(self._cache)
 
-    def __generic_class__(self):
+    def __genreric_template_arguments__(self):
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+
         if hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
-            return get_args(self.__orig_class__)[0]
+            return get_args(self.__orig_class__)
         else:
-            return None
+            return []
+
+    def __check_template__(self, cls):
+        return issubclass(cls, self.__genreric_template_arguments__())
 
     def __new_child__(self,  *args, parent=None,  **kwargs):
         value = None
         if self._default_factory is not None:
             value = self._default_factory(*args,  parent=parent or self, ** kwargs)
         else:
-            creator = self.__generic_class__()
-            if creator is not None and not isinstance(creator, TypeVar):
-                value = creator(*args,  parent=parent or self, ** kwargs)
+            factory = self.__genreric_template_arguments__()
+            if factory is not None and len(factory) > 0 and inspect.isclass(factory[0]):
+                value = factory[0](*args,  parent=parent or self, ** kwargs)
         if value is None and len(args) > 0:
             value = args[0]
 
@@ -459,7 +463,7 @@ class List(MutableSequence[_TObject], Node):
             idx = None
         if value is None:
             pass
-        elif not isinstance(value, self.__generic_class__()):
+        elif self.__check_template__(value.__class__):
             value = self.__new_child__(value)
 
         if idx is not None:
