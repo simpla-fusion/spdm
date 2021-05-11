@@ -1,5 +1,5 @@
 import collections
-from typing import Any, Generic, Sequence, TypeVar
+from typing import Any, Generic, MutableMapping, Sequence, TypeVar, Union, Mapping
 
 import numpy as np
 
@@ -45,8 +45,10 @@ class TimeSeries(List[_TObject]):
     """
     __slots__ = ("_time_step", "_time_start")
 
-    def __init__(self, *args, time_start=None, time_step=None,  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, d: Union[Mapping, Sequence], *args, time_start=None, time_step=None,  **kwargs) -> None:
+        if isinstance(d, collections.abc.Mapping):
+            pass
+        super().__init__(d, *args, **kwargs)
         self._time_start = time_start or 0.0
         self._time_step = time_step or 1.0
 

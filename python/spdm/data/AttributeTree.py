@@ -29,7 +29,7 @@ def do_getattr(obj, k):
         else:
             res = obj.__getitem__(k)
     if res is None:
-        return AttributeTree(Node.LazyHolder(obj, [k]))
+        return AttributeTree(Node.LazyAccessor(obj, [k]))
     elif isinstance(res, (collections.abc.Mapping, Node)):
         return AttributeTree(res)
     else:

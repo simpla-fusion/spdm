@@ -47,7 +47,7 @@ class Node:
     """
     __slots__ = "_parent", "_cache", "_default_factory", "__orig_class__"
 
-    class LazyHolder:
+    class LazyAccessor:
         __slots__ = "_path", "_parent"
 
         def __init__(self, parent, path) -> None:
@@ -72,7 +72,7 @@ class Node:
                 self._path += [path]
 
         def extend(self, path):
-            res = Node.LazyHolder(self._parent, self._path)
+            res = self.__class__(self._parent, self._path)
             res.append(path)
             return res
 
@@ -83,13 +83,14 @@ class Node:
         self._default_factory = default_factory
 
     def __repr__(self) -> str:
-        # d = f"<LazyHolder  prefix='{self._cache.prefix}' />" if isinstance(self._cache, Node.LazyHolder) else self._cache
         return pprint.pformat(self.__serialize__())
-        # return f"<{self.__class__.__name__} />"
 
     def __serialize__(self):
-        if isinstance(self._cache, (Node.LazyHolder, Entry)):
-            return "<N/A>"
+        if isinstance(self._cache, Node.LazyAccessor):
+            return f"<{self._cache.__class__.__name__} path={'.'.join(self._cache.path)}>"
+        elif isinstance(self._cache, Entry):
+            return f"<{self._cache.__class__.__name__} path={ self._cache.__normalize_path__()}>"
+
         else:
             return serialize(self._cache)
 
@@ -98,10 +99,10 @@ class Node:
     #     return cls(d)
 
     def _as_dict(self) -> Mapping:
-        return NotImplemented
+        return {}
 
     def _as_list(self) -> Sequence:
-        return NotImplemented
+        return []
 
     @property
     def __parent__(self):
@@ -130,7 +131,7 @@ class Node:
     @staticmethod
     def __type_category__(d) -> IntFlag:
         flag = Node.Category.UNKNOWN
-        if isinstance(d, (Entry, Node.LazyHolder)):
+        if isinstance(d, (Entry, Node.LazyAccessor)):
             flag |= Node.Category.ENTRY
         elif isinstance(d, np.ndarray):
             flag |= Node.Category.ARRAY
@@ -206,7 +207,7 @@ class Node:
             value = Dict[_TKey, _TObject](value, *args,
                                           parent=parent or self,
                                           **kwargs)
-        elif isinstance(value, (Entry, Node.LazyHolder)):
+        elif isinstance(value, (Entry, Node.LazyAccessor)):
             value = Node(value, *args,
                          parent=parent or self,
                          **kwargs)
@@ -227,7 +228,7 @@ class Node:
             self._cache = value
             return self._cache
 
-        if isinstance(self._cache, Node.LazyHolder):
+        if isinstance(self._cache, Node.LazyAccessor):
             entry = self._cache.extend(key)
             holder = entry.parent
             path = entry.path
@@ -301,7 +302,7 @@ class Node:
 
         base = self
 
-        if isinstance(self._cache, Node.LazyHolder):
+        if isinstance(self._cache, Node.LazyAccessor):
             if default_value is _not_found_:
                 return self._cache.extend(path)
             else:
@@ -341,7 +342,7 @@ class Node:
         if obj is not _not_found_:
             return obj
         elif default_value is _not_found_:
-            return Node.LazyHolder(base, path)
+            return Node.LazyAccessor(base, path)
         else:
             return default_value
 
@@ -401,13 +402,13 @@ class Node:
 
         if isinstance(self._cache, Entry):
             return self.equal(other)
-        elif isinstance(self._cache, Node.LazyHolder):
+        elif isinstance(self._cache, Node.LazyAccessor):
             return other is None
         else:
             return self._cache == other
 
     def __bool__(self) -> bool:
-        return False if isinstance(self._cache, Node.LazyHolder) else (not not self._cache)
+        return False if isinstance(self._cache, Node.LazyAccessor) else (not not self._cache)
 
 
 class List(MutableSequence[_TObject], Node):
@@ -498,7 +499,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
             else:
                 v = getattr(self, k, None)
 
-            if v is None or isinstance(v, (Node.LazyHolder, Entry)):
+            if v is None or isinstance(v, (Node.LazyAccessor, Entry)):
                 continue
 
             res[k] = serialize(v)
@@ -563,7 +564,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     def __ior__(self, other):
         if self._cache is None:
             self._cache = other
-        elif isinstance(self._cache, Node.LazyHolder):
+        elif isinstance(self._cache, Node.LazyAccessor):
             self.__raw_set__(None, other)
         elif isinstance(self._cache, collections.abc.Mapping):
             for k, v in other.items():
