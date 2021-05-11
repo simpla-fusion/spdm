@@ -38,7 +38,10 @@ class TestTimeSeries(unittest.TestCase):
         logger.debug(time_series)
 
         time_series.insert({"a": 12})
-        
+        time_series.insert({"a": 13})
+        time_series.insert({"a": 14})
+        time_series.insert({"a": 15, "time": 0.1})
+
         logger.debug(time_series)
 
 

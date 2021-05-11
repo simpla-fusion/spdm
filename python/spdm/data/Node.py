@@ -189,13 +189,16 @@ class Node(Generic[_TObject]):
         else:
             return None
 
-    def __new_child__(self, value, *args, parent=None,  **kwargs):
+    def __new_child__(self,  *args, parent=None,  **kwargs):
+        value = None
         if self._default_factory is not None:
-            value = self._default_factory(value, *args,  parent=parent or self, ** kwargs)
+            value = self._default_factory(*args,  parent=parent or self, ** kwargs)
         else:
             creator = self.__generic_class__()
             if creator is not None and not isinstance(creator, TypeVar):
-                value = creator(value, *args,  parent=parent or self, ** kwargs)
+                value = creator(*args,  parent=parent or self, ** kwargs)
+        if value is None and len(args) > 0:
+            value = args[0]
 
         if isinstance(value, Node):
             pass
@@ -430,8 +433,8 @@ class List(MutableSequence[_TObject], Node):
     def __len__(self) -> int:
         return Node.__len__(self)
 
-    def __new_child__(self, value, *args, parent=None,  **kwargs) -> _TObject:
-        return super().__new_child__(value, *args, parent=parent or self._parent, **kwargs)
+    def __new_child__(self,   *args, parent=None,  **kwargs) -> _TObject:
+        return super().__new_child__(*args, parent=parent or self._parent, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
         self.__raw_set__(k, self.__pre_process__(v))

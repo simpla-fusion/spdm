@@ -16,7 +16,7 @@ class TimeSlice(Dict):
     """
     __slots__ = ("_time")
 
-    def __init__(self,   *args, time: float = None,   **kwargs) -> None:
+    def __init__(self, *args, time: float = None,   **kwargs) -> None:
         Dict.__init__(self, *args, **kwargs)
         self._time = time or self["time"] or -np.inf
 
@@ -79,39 +79,29 @@ class TimeSeries(List[_TObject]):
     def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:
         return self.insert(k, obj)
 
-    def insert(self, first, *args, **kwargs) -> _TObject:
-        if len(args)+len(kwargs) == 0:
-            time = None
-            args = [first]
-        else:
-            time = first
+    def insert(self,   *args,  **kwargs) -> _TObject:
 
         if len(args) > 0 and hasattr(args[0], "_time"):
             value = args[0]
         else:
-            value = self.__new_child__(*args, **kwargs)
+            value = self.__new_child__(*args,  **kwargs)
 
         if value._time == -np.inf:
-            if isinstance(time, float):
-                time = time
-            elif isinstance(time, int):
-                n = len(self)
-                time = self._time_start+((time+n) % n)*self._time_step
-            else:
-                time = self.next_time_step()
-
-            value._time = time
+            # if isinstance(time, float):
+            #     time = time
+            # elif isinstance(time, int):
+            #     n = len(self)
+            #     time = self._time_start+((time+n) % n)*self._time_step
+            # else:
+            value._time = self.next_time_step()
 
         return super().insert(value)
+
+    def next(self, *args, time=None, **kwargs):
+        return super().insert(self.__new_child__(*args, time=time or self.next_time_step(), **kwargs))
 
     def __call__(self, time: float = None) -> _TObject:
         r"""
             Time Interpolation of slices
         """
         return NotImplemented
-
-    def to_aos(self, key, time=None) -> List[Dict]:
-        return AoS(self, self.time)
-
-    def to_soa(self, key, time=None) -> Dict[_TKey, List]:
-        return SoA(self, self.time)
