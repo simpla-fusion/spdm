@@ -6,7 +6,7 @@ import pprint
 import typing
 from enum import IntFlag
 from functools import cached_property
-from typing import (Any, Iterator, Mapping, MutableMapping, MutableSequence,
+from typing import (Any, Generic, Iterator, Mapping, MutableMapping, MutableSequence,
                     Sequence, TypeVar, Union, get_args)
 import bisect
 
@@ -22,7 +22,7 @@ _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
-class Node:
+class Node(Generic[_TObject]):
     r"""
         @startuml
 
@@ -194,7 +194,7 @@ class Node:
             value = self._default_factory(value, *args,  parent=parent or self, ** kwargs)
         else:
             creator = self.__generic_class__()
-            if creator is not None:
+            if creator is not None and not isinstance(creator, TypeVar):
                 value = creator(value, *args,  parent=parent or self, ** kwargs)
 
         if isinstance(value, Node):
@@ -441,7 +441,6 @@ class List(MutableSequence[_TObject], Node):
         if not isinstance(obj, Node):
             obj = self.__new_child__(obj, parent=self._parent)
             self.__raw_set__(k, obj)
-        logger.debug(obj)
         return obj
 
     def __delitem__(self, k: _TIndex) -> None:
