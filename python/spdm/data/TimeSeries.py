@@ -97,4 +97,5 @@ class TimeSeries(List[_TObject]):
         r"""
             Time Interpolation of slices
         """
-        return NotImplemented
+        logger.warning("NOTIMPLEMENTED!")
+        return self[-1]

@@ -226,16 +226,14 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
     }
 
 
-def sp_geqdsk_to_imas_equilibrium(geqdsk, equilibrium=None):
-    if equilibrium is None:
-        equilibrium = AttributeTree()
-    # rdim = 0.0
-    # zdim = 0.0
-    equilibrium.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
-    equilibrium.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
+def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
+    if eq is None:
+        eq = AttributeTree()
 
-    eq = equilibrium.time_slice[_next_]
     eq.time = 0.0
+    eq.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
+    eq.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
+
     # rleft = 0.0
     eq.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
     eq.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
@@ -298,7 +296,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, equilibrium=None):
     eq.profiles_1d.q = geqdsk["qpsi"]
     eq.profiles_1d.psi_norm = np.linspace(0, 1.0, nw)
 
-    return equilibrium
+    return eq
 
 
 class GEQdskDocument(File):

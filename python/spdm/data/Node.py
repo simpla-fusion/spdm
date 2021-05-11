@@ -445,8 +445,8 @@ class List(MutableSequence[_TObject], Node):
 
     def __getitem__(self, k: _TIndex) -> _TObject:
         obj = self.__raw_get__(k)
-        if not isinstance(obj, Node):
-            obj = self.__new_child__(obj, parent=self._parent)
+        if not self.__check_template__(obj.__class__):
+            obj = self.__new_child__(obj)
             self.__raw_set__(k, obj)
         return obj
 
@@ -463,7 +463,7 @@ class List(MutableSequence[_TObject], Node):
             idx = None
         if value is None:
             pass
-        elif self.__check_template__(value.__class__):
+        elif not self.__check_template__(value.__class__):
             value = self.__new_child__(value)
 
         if idx is not None:
