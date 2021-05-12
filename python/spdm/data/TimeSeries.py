@@ -47,12 +47,13 @@ class TimeSeries(List[_TObject]):
         - the collestion of propertis' time series . SOA (structure of array)
         - time series of the collection of properties  AOS (array of structure)
     """
-    __slots__ = ("_time_step", "_time_start")
+    __slots__ = ("_time_step", "_time_start", "_roll")
 
-    def __init__(self, d, *args, time_start=None, time_step=None,  **kwargs) -> None:
+    def __init__(self, d, *args, time_start=None, time_step=None, roll=-1, **kwargs) -> None:
         super().__init__(d or [], *args, **kwargs)
         self._time_start = time_start or 0.0
         self._time_step = time_step or 1.0
+        self._roll = roll
 
     @property
     def time(self) -> np.ndarray:
