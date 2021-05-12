@@ -501,8 +501,9 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         Node.__init__(self, data, *args, **kwargs)
 
     def __serialize__(self, ignore=None):
-        ignore = ignore or []
         cls = self.__class__
+        ignore = (ignore or []) + getattr(cls, '_serialize_ignore', [])
+
         res = {}
         for k in filter(lambda k: k[0] != '_' and k not in ignore, self.__dir__()):
             prop = getattr(cls, k, None)
