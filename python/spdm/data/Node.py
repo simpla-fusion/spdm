@@ -90,10 +90,11 @@ class Node(Generic[_TObject]):
             return f"<{self._cache.__class__.__name__} path={'.'.join(self._cache.path)}>"
         elif isinstance(self._cache, Entry):
             return f"<{self._cache.__class__.__name__} path={ self._cache.__normalize_path__()}>"
-
         else:
             return serialize(self._cache)
 
+    def __duplicate__(self, desc=None):
+        return self.__class__(desc or self.__serialize__(), parent=self._parent)
     # @staticmethod
     # def deserialize(cls, d):
     #     return cls(d)
@@ -476,6 +477,10 @@ class List(MutableSequence[_TObject], Node):
             idx = bisect.bisect_right(self._cache, value)
             self._cache.insert(idx, value)
         return value
+
+    def find_first(self, func):
+        idx, v = next(filter(lambda t: func(t[1]), enumerate(self._cache)))
+        return idx, v
 
     def sort(self):
         if hasattr(self._cache.__class__, "sort"):

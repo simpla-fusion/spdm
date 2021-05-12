@@ -163,12 +163,14 @@ def try_put(holder, path,  value):
 def serialize(d):
     if hasattr(d.__class__, "__serialize__"):
         return d.__serialize__()
-    elif hasattr(d, "_asdict"):
-        return d._asdict()
+    elif isinstance(d, (int, float, str)):
+        return d
+    elif isinstance(d, np.ndarray):
+        return d.copy()
+    elif hasattr(d, "_as_dict"):
+        return d._as_dict()
     elif hasattr(d, "__array__"):  # numpy.ndarray like
         return d.__array__()
-    elif isinstance(d, (int, float, str, np.ndarray)):
-        return d
     elif isinstance(d, collections.abc.Mapping):
         return {k: serialize(v) for k, v in d.items()}
     elif isinstance(d, collections.abc.Sequence):

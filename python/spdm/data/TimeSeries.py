@@ -18,14 +18,18 @@ class TimeSlice(Dict):
 
     def __init__(self, *args, time: float = None,   **kwargs) -> None:
         Dict.__init__(self, *args, **kwargs)
-        self._time = time or self["time"] or -np.inf
+        if time is None:
+            time = self["time"] or -np.inf
+        self._time = time
 
     @property
     def time(self) -> float:
         return self._time
 
-    def __duplicate__(self, time=None, parent=None):
-        return self.__class__(time=time or self._time, parent=parent or self._parent)
+    def __serialize__(self):
+        res = super().__serialize__()
+        res["time"] = self.time
+        return res
 
     def __lt__(self, other):
         if isinstance(other, float):
@@ -45,10 +49,8 @@ class TimeSeries(List[_TObject]):
     """
     __slots__ = ("_time_step", "_time_start")
 
-    def __init__(self, d: Union[Mapping, Sequence], *args, time_start=None, time_step=None,  **kwargs) -> None:
-        if isinstance(d, collections.abc.Mapping):
-            pass
-        super().__init__(d, *args, **kwargs)
+    def __init__(self, d, *args, time_start=None, time_step=None,  **kwargs) -> None:
+        super().__init__(d or [], *args, **kwargs)
         self._time_start = time_start or 0.0
         self._time_step = time_step or 1.0
 
@@ -63,39 +65,74 @@ class TimeSeries(List[_TObject]):
             return float(self[-1].time)
 
     def next_time(self, dt=None):
-        return self.last_time() + (dt or self._time_step)
+        if len(self) == 0:
+            return self._time_start
+        else:
+            return float(self[-1].time) + (dt or self._time_step)
 
     def __getitem__(self, k: _TIndex) -> _TObject:
-        obj = super().__getitem__(k)
+        obj = self.__raw_get__(k)
 
         if not self.__check_template__(obj.__class__):
-            raise KeyError((k, obj))
-        elif obj._time == -np.inf:
             n = len(self)
-            obj._time = self._time_start+((k+n) % n)*self._time_step
-
+            obj = self.__new_child__(obj, time=self._time_start+((k+n) % n)*self._time_step)
+            self.__raw_set__(k, obj)
         return obj
 
     def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:
         return self.insert(k, obj)
 
-    def insert(self,   *args,  **kwargs) -> _TObject:
+    def insert(self,  *args, time=None, **kwargs) -> _TObject:
+        return super().insert(self.__new_child__(*args, time=time or self.next_time(),  **kwargs))
+
+    def push_back(self,  *args, time=None, **kwargs):
         if len(args) > 0 and self.__check_template__(args[0].__class__):
-            value = args[0]
+            super().insert(args[0])
         else:
-            value = self.__new_child__(*args,  **kwargs)
+            if time is None:
+                time = self.next_time()
+            return super().insert(self.__new_child__(*args, time=time, **kwargs))
 
-        if value._time == -np.inf:
-            value._time = self.next_time()
+    def next(self, *args, time=None, dt=None, **kwargs):
+        if time is None:
+            time = self.next_time(dt)
+        if self.empty() == 0:
+            return self.push_back(*args, time=time, **kwargs)
+        else:
+            return self.insert(self[-1].__duplicate__(*args, time=time, **kwargs))
 
-        return super().insert(value)
+    @property
+    def prev(self):
+        if len(self) > 1:
+            raise RuntimeError()
+        return self[-2]
 
-    def next(self, *args, time=None, **kwargs):
-        return super().insert(self.__new_child__(*args, time=time or self.next_time(), **kwargs))
+    @property
+    def last(self):
+        if len(self) == 0:
+            raise RuntimeError()
+        return self[-1]
 
     def __call__(self, time: float = None) -> _TObject:
         r"""
             Time Interpolation of slices
         """
-        logger.warning("NOTIMPLEMENTED!")
-        return self[-1]
+
+        if len(self) == 0:
+            raise RuntimeError("Empty!")
+
+        if time is None:
+            t_slice = self[-1]
+        else:
+            try:
+                idx, t_slice_next = self.find_first(lambda t_slice: t_slice.time >= time)
+            except Exception:
+                raise RuntimeError(f"Out of range! {self[-1].time} < {time}")
+            else:
+                if t_slice_next.time > time:
+                    t_slice_prev = self[idx-1]
+                    logger.debug(f"Time interpolation {t_slice_prev.time} < {time} < {t_slice_next.time}")
+                    raise NotImplementedError()
+                else:
+                    t_slice = t_slice_next
+        return t_slice

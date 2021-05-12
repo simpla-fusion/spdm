@@ -230,7 +230,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
     if eq is None:
         eq = AttributeTree()
 
-    eq.time = 0.0
+    # eq.time = 0.0
     eq.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
     eq.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
 
@@ -295,7 +295,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
     eq.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
     eq.profiles_1d.q = geqdsk["qpsi"]
     eq.profiles_1d.psi_norm = np.linspace(0, 1.0, nw)
-
+    
     return eq
 
 
