@@ -97,7 +97,7 @@ class TimeSeries(List[_TObject]):
     def next(self, *args, time=None, dt=None, **kwargs):
         if time is None:
             time = self.next_time(dt)
-        if self.empty() == 0:
+        if self.empty():
             return self.push_back(*args, time=time, **kwargs)
         else:
             return self.insert(self[-1].__duplicate__(*args, time=time, **kwargs))

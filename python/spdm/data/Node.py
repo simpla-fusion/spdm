@@ -191,6 +191,9 @@ class Node(Generic[_TObject]):
         else:
             return []
 
+    def empty(self):
+        return self._cache is None or (isinstance(self._cache, (collections.abc.Sequence, collections.abc.Mapping)) and len(self._cache) == 0)
+
     def __check_template__(self, cls):
         return issubclass(cls, self.__genreric_template_arguments__())
 
