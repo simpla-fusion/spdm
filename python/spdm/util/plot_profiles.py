@@ -132,7 +132,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             else:
                 x = x_axis
 
-            sub_plot[idx].plot(x, y, label=label, **opts)
+            if y is not None:
+                sub_plot[idx].plot(x, y, label=label, **opts)
 
         sub_plot[idx].legend(fontsize=fontsize)
 

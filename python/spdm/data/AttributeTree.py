@@ -46,7 +46,12 @@ def do_setattr(obj, k, v):
         elif isinstance(res, property):
             res.fset(obj, k, v)
         elif isinstance(res, functools.cached_property):
-            raise AttributeError(f"Can not set cached_property")
+            if isinstance(obj, Node) and isinstance(obj._cache, collections.abc.MutableMapping):
+                obj._cache[k] = v
+                if hasattr(obj, k):
+                    delattr(obj, k)
+            else:
+                raise AttributeError(f"Can not set cached_property '{k}'! ")
         elif isinstance(v, collections.abc.Mapping):
             target = obj.__getattr__(k)
             for i, d in v.items():

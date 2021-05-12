@@ -1,4 +1,5 @@
 import collections
+import collections.abc
 import copy
 import functools
 import inspect
@@ -87,7 +88,8 @@ class Node(Generic[_TObject]):
 
     def __serialize__(self):
         if isinstance(self._cache, Node.LazyAccessor):
-            return f"<{self._cache.__class__.__name__} path={'.'.join(self._cache.path)}>"
+            return "<N/A>"
+            # return f"<{self._cache.__class__.__name__} path={'.'.join(self._cache.path)}>"
         elif isinstance(self._cache, Entry):
             return f"<{self._cache.__class__.__name__} path={ self._cache.__normalize_path__()}>"
         else:
@@ -344,7 +346,7 @@ class Node(Generic[_TObject]):
             elif isinstance(obj, collections.abc.MutableSequence):
                 if not isinstance(key, (int, slice)):
                     raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
-                elif isinstance(key, int) and key > len(self._cache):
+                elif isinstance(key, int) and isinstance(self._cache, collections.abc.MutableSequence) and key > len(self._cache):
                     raise IndexError(f"Out of range! {key} > {len(self._cache)}")
                 obj = obj[key]
             else:
