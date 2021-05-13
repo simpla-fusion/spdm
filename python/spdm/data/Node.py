@@ -304,7 +304,8 @@ class List(MutableSequence[_TObject], Node):
         obj = self._entry.get(k)
         if not self.__check_template__(obj.__class__):
             obj = self.__new_child__(obj)
-            self._entry.put(k, obj)
+            if self._entry.writable:
+                self._entry.put(k, obj)
         return obj
 
     def __delitem__(self, k: _TIndex) -> None:

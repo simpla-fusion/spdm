@@ -104,10 +104,7 @@ def getattr_r(obj, path: str):
 
 
 def try_get(holder, path, default_value=None):
-    if isinstance(path, str):
-        path = path.split('.')
-    elif not isinstance(path, collections.abc.MutableSequence):
-        path = [path]
+    path = normalize_path(path)
     obj = holder
 
     for k in path:
@@ -120,6 +117,9 @@ def try_get(holder, path, default_value=None):
                 obj = obj.__getitem__(k)
             except KeyError:
                 data = default_value
+            except IndexError as error:
+                raise IndexError(f"{k} > {len(obj)} Error: {error}")
+
         elif isinstance(op, functools.cached_property):
             obj = op.__get__(obj)
         elif isinstance(data, property):

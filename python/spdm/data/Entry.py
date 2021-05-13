@@ -44,7 +44,7 @@ class Entry(object):
         self._writable = writable
 
     @property
-    def wriable(self):
+    def writable(self):
         return self._writable
 
     @property
