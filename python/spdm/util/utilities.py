@@ -13,6 +13,7 @@ import sys
 import re
 from .logger import logger
 import numpy as np
+import collections.abc
 
 
 class _Empty:
@@ -103,13 +104,17 @@ def getattr_r(obj, path: str):
 
 
 def try_get(holder, path, default_value=None):
-    if not isinstance(path, collections.abc.MutableSequence):
+    if isinstance(path, str):
         path = path.split('.')
+    elif not isinstance(path, collections.abc.MutableSequence):
+        path = [path]
     obj = holder
 
     for k in path:
-        op = getattr(obj.__class__, k, None)
-
+        if isinstance(k, str):
+            op = getattr(obj.__class__, k, None)
+        else:
+            op = None
         if op is None:
             try:
                 obj = obj.__getitem__(k)
@@ -158,6 +163,16 @@ def try_put(holder, path,  value):
     #     if p != '':
     #         raise KeyError(f"Can for find path {path}")
     #     return o
+
+
+def normalize_path(path):
+    if path is None:
+        path = []
+    elif isinstance(path, str):
+        path = path.split('.')
+    elif not isinstance(path, collections.abc.MutableSequence):
+        path = [path]
+    return path
 
 
 def serialize(d):

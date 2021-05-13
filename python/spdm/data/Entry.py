@@ -1,7 +1,12 @@
 
 import collections
+import collections.abc
 import pprint
-from ..util.LazyProxy import LazyProxy
+from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
+                    MutableSequence, Sequence, TypeVar, Union, get_args)
+
+from spdm.util.utilities import normalize_path
+
 from ..util.logger import logger
 
 
@@ -28,26 +33,14 @@ _last_ = _LAST_TAG_()
 
 class Entry(object):
 
+    _DICT_TYPE_ = dict
+    _LIST_TYPE_ = list
+
     def __init__(self, data=None,  *args, prefix=None, parent=None,   **kwargs):
         super().__init__()
         self._data = data
         self._parent = parent
-
-        if not prefix:
-            self._prefix = []
-        elif isinstance(prefix, str):
-            self._prefix = prefix.split(".")
-        elif not isinstance(prefix, collections.abc.MutableSequence):
-            self._prefix = [prefix]
-        else:
-            self._prefix = prefix
-
-    def __repr__(self) -> str:
-        return pprint.pformat(self.get_value([]))
-
-    @property
-    def lazy(self):
-        return LazyProxy(self,  handler=self.__class__)
+        self._prefix = normalize_path(prefix)
 
     @property
     def data(self):
@@ -60,6 +53,14 @@ class Entry(object):
     @property
     def prefix(self):
         return self._prefix
+
+    def append(self, path):
+        self._prefix += normalize_path(path)
+
+    def extend(self, path):
+        res = self.__class__(self._data, prefix=self._prefix, parent=self._parent)
+        res.append(path)
+        return res
 
     def child(self, path, *args, **kwargs):
         if not path:
@@ -98,63 +99,144 @@ class Entry(object):
             path = [path]
         return self._prefix + path
 
-    def get(self, path=[], *args, **kwargs):
-        path = self._normalize_path(path)
+    # def get(self, path=[], *args, default_value=_not_found_, **kwargs):
+    #     path = self._normalize_path(path)
+    #     obj = self._data
+    #     if obj is None:
+    #         obj = self._parent
+    #     for p in path:
+    #         if type(p) is str and hasattr(obj, p):
+    #             obj = getattr(obj, p, _not_found_)
+    #         elif obj is not None:
+    #             try:
+    #                 obj = obj[p]
+    #             except IndexError:
+    #                 obj = _not_found_
+    #             except TypeError:
+    #                 obj = _not_found_
+    #         else:
+    #             raise KeyError(path)
+    #     return obj
+
+    # def put(self,  path, value, *args, **kwargs):
+    #     path = self._normalize_path(path)
+    #     obj = self._data
+    #     if len(path) == 0:
+    #         return obj
+    #     for p in path[:-1]:
+    #         if type(p) is str and hasattr(obj, p):
+    #             obj = getattr(obj, p)
+    #         else:
+    #             try:
+    #                 t = obj[p]
+    #             except KeyError:
+    #                 obj[p] = {}
+    #                 obj = obj[p]
+    #             except IndexError as error:
+    #                 raise IndexError(f"{p} > {len(obj)}! {error}")
+    #             else:
+    #                 obj = t
+    #         # elif type(p) is int and p < len(obj):
+    #         #     obj = obj[p]
+    #         # else:
+    #         #     obj[p] = {}
+    #         #     obj = obj[p]
+    #     if hasattr(obj, path[-1]):
+    #         setattr(obj, path[-1], value)
+    #     else:
+    #         obj[path[-1]] = value
+
+    #     return obj[path[-1]]
+
+    def put(self, path, value: Any = None):
+        path = self._prefix+normalize_path(path)
+
+        if len(path) == 0 and self._data is None:
+            self._data = value
+            return self._data
+
+        if self._data is None:
+            self._data = Entry._DICT_TYPE_() if isinstance(path[0], str) else Entry._LIST_TYPE_()
 
         obj = self._data
-        if obj is None:
-            obj = self._parent
 
-        for p in path:
-            if type(p) is str and hasattr(obj, p):
-                obj = getattr(obj, p)
-            elif obj is not None:
-                try:
-                    obj = obj[p]
-                except IndexError:
-                    raise KeyError(path)
-                except TypeError:
-                    raise KeyError(path)
+        for idx, key in enumerate(path[:-1]):
+
+            child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
+
+            if hasattr(obj, "_entry"):
+                obj = obj._entry
+            if isinstance(obj, Entry):
+                obj = obj._data
+
+            if isinstance(obj, collections.abc.MutableMapping):
+                if not isinstance(key, str):
+                    raise TypeError(f"mapping indices must be str, not {key}")
+                tmp = obj.setdefault(key, child)
+                if tmp is None:
+                    obj[key] = child
+                    tmp = obj[key]
+                obj = tmp
+            elif isinstance(obj, collections.abc.MutableSequence):
+                if isinstance(key, _NEXT_TAG_):
+                    obj.append(child)
+                    obj = obj[-1]
+                elif isinstance(key, (int, slice)):
+                    tmp = obj[key]
+                    if tmp is None:
+                        obj[key] = child
+                        obj = obj[key]
+                    else:
+                        obj = tmp
+                else:
+                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
+
             else:
-                raise KeyError(path)
+                raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
+
+        if hasattr(obj, "_entry"):
+            obj = obj._entry
+
+        if isinstance(path[-1], _NEXT_TAG_):
+            obj.append(value)
+        else:
+            try:
+                obj[path[-1]] = value
+            except Exception:
+                raise KeyError(f"[{']['.join(path)}]")
+
+    def get(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
+        path = self._prefix + normalize_path(path)
+        obj = self._data
+        for idx, key in enumerate(path):
+            if hasattr(obj, "_entry"):
+                obj = obj._entry.get(path[idx:])
+                break
+
+            elif isinstance(key, _NEXT_TAG_):
+                obj.append(_not_found_)
+                obj = Entry(obj, prefix=[len(obj)-1] + path[idx:])
+                break
+            elif isinstance(obj, collections.abc.Mapping):
+                if not isinstance(key, str):
+                    raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
+                tmp = obj.get(key, _not_found_)
+                if tmp is _not_found_:
+                    obj = Entry(obj, prefix=path[idx:])
+                    break
+                else:
+                    obj = tmp
+            elif isinstance(obj, collections.abc.MutableSequence):
+                if not isinstance(key, (int, slice)):
+                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
+                elif isinstance(key, int) and isinstance(self._data, collections.abc.MutableSequence) and key > len(self._data):
+                    raise IndexError(f"Out of range! {key} > {len(self._data)}")
+                obj = obj[key]
 
         return obj
 
     def get_value(self,  path=[], *args, default_value=_not_found_, **kwargs):
         return self.get(path, *args, **kwargs)
-
-    def put(self,  path, value, *args, **kwargs):
-        path = self._normalize_path(path)
-
-        obj = self._data
-
-        if len(path) == 0:
-            return obj
-        for p in path[:-1]:
-            if type(p) is str and hasattr(obj, p):
-                obj = getattr(obj, p)
-            else:
-                try:
-                    t = obj[p]
-                except KeyError:
-                    obj[p] = {}
-                    obj = obj[p]
-                except IndexError as error:
-                    raise IndexError(f"{p} > {len(obj)}! {error}")
-                else:
-                    obj = t
-            # elif type(p) is int and p < len(obj):
-            #     obj = obj[p]
-
-            # else:
-            #     obj[p] = {}
-            #     obj = obj[p]
-        if hasattr(obj, path[-1]):
-            setattr(obj, path[-1], value)
-        else:
-            obj[path[-1]] = value
-
-        return obj[path[-1]]
 
     def insert(self, path, v, *args, **kwargs):
         path = self._normalize_path(path)
@@ -236,21 +318,6 @@ class Entry(object):
     def iter(self, path=[], *args, **kwargs):
         yield from self.get(path, *args, **kwargs)
 
-    def __iter__(self):
-        yield from self.get([])
-
-    def __pre_process__(self, request, *args, **kwargs):
-        return request
-
-    def __post_process__(self, request, *args, **kwargs):
-        if isinstance(request,  collections.abc.MutableSequence):
-            res = [self.__post_process__(v, *args, **kwargs) for v in request]
-        elif isinstance(request, collections.abc.Mapping):
-            res = {k: self.__post_process__(v, *args, **kwargs) for k, v in request.items()}
-        else:
-            res = request
-
-        return res
-
-# def is_entry(obj):
-#     return isinstance(obj, LazyProxy) and isinstance(obj.__object__, Entry)
+    def equal(self, other) -> bool:
+        obj = self.get(None)
+        return (isinstance(obj, Entry) and other is None) or (obj == other)

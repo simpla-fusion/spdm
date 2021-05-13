@@ -1,3 +1,4 @@
+import bisect
 import collections
 import collections.abc
 import copy
@@ -7,15 +8,13 @@ import pprint
 import typing
 from enum import IntFlag
 from functools import cached_property
-from typing import (Any, Generic, Iterator, Mapping, MutableMapping, MutableSequence,
-                    Sequence, TypeVar, Union, get_args)
-import bisect
+from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
+                    MutableSequence, Sequence, TypeVar, Union, get_args)
 
 import numpy as np
-from numpy.lib.arraysetops import isin
 
 from ..util.logger import logger
-from ..util.utilities import serialize, try_get
+from ..util.utilities import serialize
 from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
 
 _TObject = TypeVar('_TObject')
@@ -46,66 +45,41 @@ class Node(Generic[_TObject]):
 
         @enduml
     """
-    __slots__ = "_parent", "_cache", "_default_factory", "__orig_class__"
-
-    class LazyAccessor:
-        __slots__ = "_path", "_parent"
-
-        def __init__(self, parent, path) -> None:
-            self._parent = parent
-            self._path = []
-            self.append(path)
-
-        @property
-        def parent(self):
-            return self._parent
-
-        @property
-        def path(self):
-            return self._path
-
-        def append(self, path):
-            if isinstance(path, str):
-                self._path += path.split('.')
-            elif isinstance(path, collections.abc.MutableSequence):
-                self._path += path
-            else:
-                self._path += [path]
-
-        def extend(self, path):
-            res = self.__class__(self._parent, self._path)
-            res.append(path)
-            return res
+    __slots__ = "_parent", "_entry", "_default_factory", "__orig_class__"
 
     def __init__(self, data: Any = None, *args, default_factory=None, parent=None, **kwargs):
         super().__init__()
-        self._parent = parent
-        self._cache = data._cache if isinstance(data, Node) else data
         self._default_factory = default_factory
+        self._parent = parent
+
+        if isinstance(data, Node):
+            self._entry = data._entry
+        elif isinstance(data, Entry):
+            self._entry = data
+        else:
+            self._entry = Entry(data, *args, **kwargs)
 
     def __repr__(self) -> str:
         return pprint.pformat(self.__serialize__())
 
     def __serialize__(self):
-        if isinstance(self._cache, Node.LazyAccessor):
-            return "<N/A>"
-            # return f"<{self._cache.__class__.__name__} path={'.'.join(self._cache.path)}>"
-        elif isinstance(self._cache, Entry):
-            return f"<{self._cache.__class__.__name__} path={ self._cache.__normalize_path__()}>"
+        if isinstance(self._entry, Entry):
+            return f"<{self._entry.__class__.__name__} path={ self._entry.__normalize_path__()}>"
         else:
-            return serialize(self._cache)
+            return serialize(self._entry)
 
     def __duplicate__(self, desc=None):
         return self.__class__(desc or self.__serialize__(), parent=self._parent)
+
     # @staticmethod
     # def deserialize(cls, d):
     #     return cls(d)
 
     def _as_dict(self) -> Mapping:
-        return {}
+        return Entry._DICT_TYPE_
 
     def _as_list(self) -> Sequence:
-        return []
+        return Entry._LIST_TYPE_
 
     @property
     def __parent__(self):
@@ -115,7 +89,7 @@ class Node(Generic[_TObject]):
         return hash(self._name)
 
     def __clear__(self):
-        self._cache = None
+        self._entry = None
 
     class Category(IntFlag):
         UNKNOWN = 0
@@ -134,7 +108,7 @@ class Node(Generic[_TObject]):
     @staticmethod
     def __type_category__(d) -> IntFlag:
         flag = Node.Category.UNKNOWN
-        if isinstance(d, (Entry, Node.LazyAccessor)):
+        if isinstance(d, (Entry)):
             flag |= Node.Category.ENTRY
         elif isinstance(d, np.ndarray):
             flag |= Node.Category.ARRAY
@@ -154,6 +128,9 @@ class Node(Generic[_TObject]):
             flag |= Node.Category.STRING
 
         return flag
+
+    def empty(self):
+        return self._entry is None or (isinstance(self._entry, (collections.abc.Sequence, collections.abc.Mapping)) and len(self._entry) == 0)
 
     """
         @startuml
@@ -183,21 +160,22 @@ class Node(Generic[_TObject]):
     """
     @property
     def __category__(self):
-        return Node.__type_category__(self._cache)
+        return Node.__type_category__(self._entry)
 
     def __genreric_template_arguments__(self):
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-
-        if hasattr(self, "__orig_class__") and self.__orig_class__ is not None:
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
             return get_args(self.__orig_class__)
         else:
-            return []
-
-    def empty(self):
-        return self._cache is None or (isinstance(self._cache, (collections.abc.Sequence, collections.abc.Mapping)) and len(self._cache) == 0)
+            return None
 
     def __check_template__(self, cls):
-        return issubclass(cls, self.__genreric_template_arguments__())
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
+            return issubclass(cls,  get_args(orig_class))
+        else:
+            return False
 
     def __new_child__(self,  *args, parent=None,  **kwargs):
         value = None
@@ -213,14 +191,14 @@ class Node(Generic[_TObject]):
         if isinstance(value, Node):
             pass
         elif isinstance(value, collections.abc.MutableSequence):
-            value = List[_TObject](value, *args,
-                                   parent=parent or self,
-                                   **kwargs)
+            value = List[Node](value, *args,
+                               parent=parent or self,
+                               **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
-            value = Dict[_TKey, _TObject](value, *args,
-                                          parent=parent or self,
-                                          **kwargs)
-        elif isinstance(value, (Entry, Node.LazyAccessor)):
+            value = Dict[str, Node](value, *args,
+                                    parent=parent or self,
+                                    **kwargs)
+        elif isinstance(value, (Entry)):
             value = Node(value, *args,
                          parent=parent or self,
                          **kwargs)
@@ -234,173 +212,48 @@ class Node(Generic[_TObject]):
     def __post_process__(self, value, *args,   **kwargs):
         return value if isinstance(value, Node) else self.__new_child__(value, *args, **kwargs)
 
-    def __raw_set__(self, key, value: Any = None):
-        if isinstance(self._cache, Entry):
-            return self._cache.insert(key, value)
-        elif key is None and self._cache is None:
-            self._cache = value
-            return self._cache
-
-        if isinstance(self._cache, Node.LazyAccessor):
-            entry = self._cache.extend(key)
-            holder = entry.parent
-            path = entry.path
-        else:
-            holder = self
-            path = key
-
-        if isinstance(path, str):
-            path = path.split(".")
-        elif not isinstance(path, collections.abc.MutableSequence):
-            path = [path]
-
-        if path is None or len(path) == 0:
-            holder._cache = value
-            return
-
-        if holder._cache is None:
-            if isinstance(path[0], str):
-                holder._cache = Dict(parent=self)
-            else:
-                holder._cache = List(parent=self)
-
-        obj = holder._cache
-
-        for idx, key in enumerate(path[:-1]):
-
-            child = {} if isinstance(path[idx+1], str) else []
-            if isinstance(obj, Node):
-                child = obj.__new_child__(child, parent=obj)
-                obj = obj._cache
-
-            if isinstance(obj, collections.abc.Mapping):
-                if not isinstance(key, str):
-                    raise TypeError(f"mapping indices must be str, not {type(key).__name__}")
-                tmp = obj.setdefault(key, child)
-                if tmp is None:
-                    obj[key] = child
-                    tmp = obj[key]
-                obj = tmp
-            elif isinstance(obj, collections.abc.MutableSequence):
-                if isinstance(key, _NEXT_TAG_):
-                    obj.append(child)
-                    obj = obj[-1]
-                elif isinstance(key, (int, slice)):
-                    tmp = obj[key]
-                    if tmp is None:
-                        obj[key] = child
-                        obj = obj[key]
-                    else:
-                        obj = tmp
-                else:
-                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
-
-            else:
-                raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
-
-        if isinstance(path[-1], _NEXT_TAG_):
-            obj.append(value)
-        else:
-            obj[path[-1]] = value
-
-    def __raw_get__(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
-
-        if isinstance(path, _NEXT_TAG_):
-            self.__raw_set__(_next_)
-            path = [-1]
-        elif isinstance(path, str):
-            path = path.split(".")
-        elif not isinstance(path, collections.abc.MutableSequence):
-            path = [path]
-
-        base = self
-
-        if isinstance(self._cache, Node.LazyAccessor):
-            if default_value is _not_found_:
-                return self._cache.extend(path)
-            else:
-                base = self._cache.parent
-                path = self._cache.path+path
-
-        obj = base
-
-        for idx, key in enumerate(path):
-            if isinstance(obj, Node):
-                obj = obj._cache
-
-            if isinstance(obj, Entry):
-                obj = obj.get(path[idx:])
-                break
-            elif obj is _not_found_:
-                # raise KeyError(f"{path[idx:]}")
-                break
-            elif key is None or key == "":
-                pass
-            # elif isinstance(key, _NEXT_TAG_):
-            #     obj[_next_] = None
-            #     obj = obj[-1]
-            elif isinstance(obj, collections.abc.Mapping):
-                if not isinstance(key, str):
-                    raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{key}\"")
-                obj = obj.get(key, _not_found_)
-            elif isinstance(obj, collections.abc.MutableSequence):
-                if not isinstance(key, (int, slice)):
-                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
-                elif isinstance(key, int) and isinstance(self._cache, collections.abc.MutableSequence) and key > len(self._cache):
-                    raise IndexError(f"Out of range! {key} > {len(self._cache)}")
-                obj = obj[key]
-            else:
-                obj = _not_found_
-
-        if obj is not _not_found_:
-            return obj
-        elif default_value is _not_found_:
-            return Node.LazyAccessor(base, path)
-        else:
-            return default_value
-
     def __fetch__(self, path=None, default_value=None):
-        return self.__raw_get__(path or [], default_value=default_value)
+        return self._entry.get(path or [], default_value=default_value)
 
     def __setitem__(self, path, value):
-        self.__raw_set__(path, self.__pre_process__(value))
+        self._entry.put(path, self.__pre_process__(value))
 
     def __getitem__(self, path):
-        return self.__post_process__(self.__raw_get__(path))
+        return self.__post_process__(self._entry.get(path))
 
     def __delitem__(self, path):
-        if isinstance(self._cache, Entry):
-            self._cache.delete(path)
+        if isinstance(self._entry, Entry):
+            self._entry.delete(path)
         elif not path:
             self.__clear__()
-        elif not isinstance(self._cache, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            raise TypeError(type(self._cache))
+        elif not isinstance(self._entry, (collections.abc.Mapping, collections.abc.MutableSequence)):
+            raise TypeError(type(self._entry))
         else:
-            del self._cache[path]
+            del self._entry[path]
 
     def __contains__(self, path):
-        if isinstance(self._cache, Entry):
-            return self._cache.contains(path)
-        elif isinstance(path, str) and isinstance(self._cache, collections.abc.Mapping):
-            return path in self._cache
+        if isinstance(self._entry, Entry):
+            return self._entry.contains(path, None)
+        elif isinstance(path, str) and isinstance(self._entry, collections.abc.Mapping):
+            return path in self._entry
         elif not isinstance(path, str):
-            return path >= 0 and path < len(self._cache)
+            return path >= 0 and path < len(self._entry)
         else:
             return False
 
     def __len__(self):
-        if isinstance(self._cache, Entry):
-            return self._cache.count()
-        elif isinstance(self._cache,  (collections.abc.Mapping, collections.abc.MutableSequence)):
-            return len(self._cache)
+        if isinstance(self._entry, Entry):
+            return self._entry.count()
+        elif isinstance(self._entry,  (collections.abc.Mapping, collections.abc.MutableSequence)):
+            return len(self._entry)
         else:
-            return 0 if self._cache is _not_found_ else 1
+            return 0 if self._entry is _not_found_ else 1
 
     def __iter__(self):
-        if isinstance(self._cache, Entry):
-            yield from self._cache.iter()
+        if isinstance(self._entry, Entry):
+            yield from self._entry.iter()
         else:
-            d = self.__raw_get__([], [])
+            d = self._entry.get([], [])
             if isinstance(d, (collections.abc.MutableSequence)):
                 yield from map(lambda v: self.__post_process__(v), d)
             elif isinstance(d, collections.abc.Mapping):
@@ -411,17 +264,15 @@ class Node(Generic[_TObject]):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Node):
-            other = other._cache
+            other = other._entry
 
-        if isinstance(self._cache, Entry):
-            return self.equal(other)
-        elif isinstance(self._cache, Node.LazyAccessor):
-            return other is None
+        if isinstance(self._entry, Entry):
+            return self._entry.equal(other)
         else:
-            return self._cache == other
+            return self._entry == other
 
     def __bool__(self) -> bool:
-        return False if isinstance(self._cache, Node.LazyAccessor) else (not not self._cache)
+        return False if isinstance(self._entry, Entry) else (not not self._entry)
 
 
 class List(MutableSequence[_TObject], Node):
@@ -447,13 +298,13 @@ class List(MutableSequence[_TObject], Node):
         return super().__new_child__(*args, parent=parent or self._parent, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
-        self.__raw_set__(k, self.__pre_process__(v))
+        self._entry.put(k, self.__pre_process__(v))
 
     def __getitem__(self, k: _TIndex) -> _TObject:
-        obj = self.__raw_get__(k)
+        obj = self._entry.get(k)
         if not self.__check_template__(obj.__class__):
             obj = self.__new_child__(obj)
-            self.__raw_set__(k, obj)
+            self._entry.put(k, obj)
         return obj
 
     def __delitem__(self, k: _TIndex) -> None:
@@ -473,23 +324,23 @@ class List(MutableSequence[_TObject], Node):
             value = self.__new_child__(value)
 
         if idx is not None:
-            Node.__raw_set__(self, idx, value)
+            Node._entry.put(self, idx, value)
         elif not sorted:
-            Node.__raw_set__(self, -1, value)
-        elif not isinstance(self._cache, collections.abc.MutableSequence):
-            raise NotImplementedError(f"{type(self._cache)} is not  MutableSequence!")
+            Node._entry.put(self, -1, value)
+        elif not isinstance(self._entry, collections.abc.MutableSequence):
+            raise NotImplementedError(f"{type(self._entry)} is not  MutableSequence!")
         else:
-            idx = bisect.bisect_right(self._cache, value)
-            self._cache.insert(idx, value)
+            idx = bisect.bisect_right(self._entry, value)
+            self._entry.insert(idx, value)
         return value
 
     def find_first(self, func):
-        idx, v = next(filter(lambda t: func(t[1]), enumerate(self._cache)))
+        idx, v = next(filter(lambda t: func(t[1]), enumerate(self._entry)))
         return idx, v
 
     def sort(self):
-        if hasattr(self._cache.__class__, "sort"):
-            self._cache.sort()
+        if hasattr(self._entry.__class__, "sort"):
+            self._entry.sort()
         else:
             raise NotImplementedError()
 
@@ -516,14 +367,14 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
             else:
                 v = getattr(self, k, None)
 
-            if v is None or isinstance(v, (Node.LazyAccessor, Entry)):
+            if v is None or isinstance(v, (Entry)):
                 continue
 
             res[k] = serialize(v)
 
-        if isinstance(self._cache, (collections.abc.Mapping, Entry)):
-            for k in filter(lambda k: k not in res and k[0] != '_', self._cache):
-                res[k] = serialize(self._cache[k])
+        if isinstance(self._entry, (collections.abc.Mapping, Entry)):
+            for k in filter(lambda k: k not in res and k[0] != '_', self._entry):
+                res[k] = serialize(self._entry.get(k))
         return res
         # return {k: serialize(v) for k, v in res.items()}
         #  if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
@@ -544,24 +395,19 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         return super().__category__ | Node.Category.LIST
 
     def get(self, key: _TKey, default_value=None) -> _TObject:
-        try:
-            res = self.__raw_get__(key)
-        except KeyError:
-            res = default_value
-        return self.__post_process__(res)
+        return self.__post_process__(self._entry.get(key, default_value=default_value))
 
     def __getitem__(self, k: _TKey) -> _TObject:
-        # FIXME: cached result
-        # logger.warning("FIXME: cached result")
-        return self.__post_process__(self.__raw_get__(k))
-        # obj = self.__raw_get__(k)
-        # if not isinstance(obj, (Node, int, float, str, np.ndarray)):
-        #     obj = self.__post_process__(obj)
-        #     # self.__raw_set__(k, obj)
-        # return obj
+        obj = self._entry.get(k)
+        if isinstance(obj, Entry):
+            obj = self.__post_process__(obj)
+        elif not self.__check_template__(obj.__class__):
+            obj = self.__post_process__(obj)
+            self._entry.put(k, obj)
+        return obj
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
-        self.__raw_set__(key, self.__pre_process__(value))
+        self._entry.put(key, self.__pre_process__(value))
 
     def __delitem__(self, key: _TKey) -> None:
         return Node.__delitem__(self, key)
@@ -579,11 +425,11 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         return Node.__contains__(self, o)
 
     def __ior__(self, other):
-        if self._cache is None:
-            self._cache = other
-        elif isinstance(self._cache, Node.LazyAccessor):
-            self.__raw_set__(None, other)
-        elif isinstance(self._cache, collections.abc.Mapping):
+        if self._entry is None:
+            self._entry = other
+        elif isinstance(self._entry, Entry):
+            self._entry.put(None, other)
+        elif isinstance(self._entry, collections.abc.Mapping):
             for k, v in other.items():
                 self.__setitem__(k, v)
         else:

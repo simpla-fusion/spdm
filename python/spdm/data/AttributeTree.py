@@ -1,22 +1,21 @@
 import collections
+import collections.abc
 import functools
-from logging import log
 import typing
+from logging import log
+from typing import Any, Sequence
 
 import numpy as np
 
 from ..util.logger import logger
-from .Node import Dict, List, Node, _TObject
-from .Node import _next_
+from .Entry import Entry, _not_found_
+from .Node import Dict, List, Node, _next_, _TObject
 
 
 def do_getattr(obj, k):
     if k[0] == '_':
-        scls = obj.__class__
         bcls = obj.__class__.__bases__[0]
-        obj.__class__ = bcls
-        res = getattr(obj, k)
-        obj.__class__ = scls
+        res = bcls.__getattr__(obj, k)
     else:
         res = getattr(obj.__class__, k, None)
 
@@ -29,7 +28,7 @@ def do_getattr(obj, k):
         else:
             res = obj.__getitem__(k)
     if res is None:
-        return AttributeTree(Node.LazyAccessor(obj, [k]))
+        return AttributeTree(Entry(obj, [k]))
     elif isinstance(res, (collections.abc.Mapping, Node)):
         return AttributeTree(res)
     else:
@@ -87,28 +86,27 @@ def as_attribute_tree(cls, *args, **kwargs):
     return n_cls
 
 
-class AttributeTree(Dict[str, _TObject]):
-    @classmethod
-    def default_factory(cls, value, *args, **kwargs):
-        if bool((Node.Category.DICT | Node.Category.ENTRY) & Node.__type_category__(value)):
-            return AttributeTree(value, *args, **kwargs)
+class AttributeTree(Dict[str, Node]):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __new_child__(self, value, *args, parent=None,  **kwargs):
+        if isinstance(value, (collections.abc.Mapping)):
+            return AttributeTree(value, *args, parent=parent, **kwargs)
         else:
-            return value
+            return super().__new_child__(value, *args, parent=parent, **kwargs)
 
-    def __init__(self, *args, default_factory=None, **kwargs):
-        super().__init__(*args, default_factory=default_factory or AttributeTree.default_factory, **kwargs)
+    def __getattr__(self, *args, **kwargs):
+        return do_getattr(self, *args, **kwargs)
 
-    def __getattr__(self, k):
-        return do_getattr(self, k)
+    def __setattr__(self, name: str, value: Any) -> None:
+        return do_setattr(self, name, value)
 
-    def __setattr__(self, k, v):
-        do_setattr(self, k, v)
-
-    def __delattr__(self, k):
-        do_delattr(self, k)
+    def __delattr__(self, name: str) -> None:
+        return do_delattr(self, name)
 
     def __iter__(self) -> typing.Iterator[Node]:
         # for v in super(Node, self).__iter__():
         #     yield AttributeTree({v})
-        logger.debug(self.__class__)
         yield from Node.__iter__(self)

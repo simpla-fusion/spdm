@@ -45,11 +45,10 @@ class TestAttributeTree(unittest.TestCase):
         d = AttributeTree(cache)
 
         d["a"] = "hello world {name}!"
-        self.assertEqual(cache["a"], "hello world {name}!")
-
         d["c"][_next_] = 1.23455
         d["c"][_next_] = {"a": "hello world", "b": 3.141567}
 
+        self.assertEqual(cache["a"], "hello world {name}!")
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["a"], "hello world")
         self.assertEqual(d["c"][1]["a"], "hello world")
@@ -74,9 +73,7 @@ class TestAttributeTree(unittest.TestCase):
 
     def test_attribute_append(self):
         d = AttributeTree()
-        v = d.a[_next_]
-        v.a = 1
-        v.b = 2
+        d.a[_next_] = {"a": 1, "b": 2}
 
         self.assertEqual(len(d.a), 1)
         self.assertTrue(d.__category__ | AttributeTree.Category.DICT)
@@ -102,32 +99,32 @@ class TestAttributeTree(unittest.TestCase):
         del d.a
         self.assertTrue("a" not in cache)
 
-    def test_decorate(self):
+    # def test_decorate(self):
 
-        @as_attribute_tree
-        class Foo(Mapping[str, Any]):
-            def __init__(self, d, *args, **kwargs) -> None:
-                self._cache = d
+    #     @as_attribute_tree
+    #     class Foo(Mapping[str, Any]):
+    #         def __init__(self, d, *args, **kwargs) -> None:
+    #             self._cache = d
 
-            def __getitem__(self, k):
-                return self._cache[k]
+    #         def __getitem__(self, k):
+    #             return self._cache[k]
 
-            def __setitem__(self, k, v):
-                self._cache[k] = v
+    #         def __setitem__(self, k, v):
+    #             self._cache[k] = v
 
-            def __iter__(self) -> Iterator:
-                yield from self._cache
+    #         def __iter__(self) -> Iterator:
+    #             yield from self._cache
 
-            def __len__(self) -> int:
-                return len(self._cache)
+    #         def __len__(self) -> int:
+    #             return len(self._cache)
 
-        cache = {}
-        
-        foo = Foo(cache)
+    #     cache = {}
 
-        foo.e.f = 5
+    #     foo = Foo(cache)
 
-        self.assertEqual(cache["e"]["f"], 5)
+    #     foo.e.f = 5
+
+    #     self.assertEqual(cache["e"]["f"], 5)
 
     # def test_subclass(self):
     #     class Foo(AttributeTree):
