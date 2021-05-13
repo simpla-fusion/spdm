@@ -324,14 +324,18 @@ class List(MutableSequence[_TObject], Node):
             value = self.__new_child__(value)
 
         if idx is not None:
-            Node._entry.put(self, idx, value)
+            self._entry.put(idx, value)
         elif not sorted:
-            Node._entry.put(self, -1, value)
-        elif not isinstance(self._entry, collections.abc.MutableSequence):
-            raise NotImplementedError(f"{type(self._entry)} is not  MutableSequence!")
+            self._entry.put(-1, value)
+        elif isinstance(self._entry, Entry):
+            data = self._entry._data
+            if not isinstance(data, collections.abc.MutableSequence):
+                raise NotImplementedError(f"{type(data)} is not  MutableSequence!")
+            else:
+                idx = bisect.bisect_right(data, value)
+                data.insert(idx, value)
         else:
-            idx = bisect.bisect_right(self._entry, value)
-            self._entry.insert(idx, value)
+            raise TypeError(type(self._entry))
         return value
 
     def find_first(self, func):
@@ -403,7 +407,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
             obj = self.__post_process__(obj)
         elif not self.__check_template__(obj.__class__):
             obj = self.__post_process__(obj)
-            self._entry.put(k, obj)
+            # self._entry.put(k, obj)
         return obj
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:

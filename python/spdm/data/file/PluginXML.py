@@ -83,8 +83,8 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLEntry(Entry):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, writable=False, **kwargs):
+        super().__init__(*args, writable=writable, **kwargs)
 
     def xpath(self, path):
         envs = {}
@@ -166,14 +166,16 @@ class XMLEntry(Entry):
         return res
 
     def put(self,  path, value, *args, only_one=False, **kwargs):
-        path = self._normalize_path(path)
-
-        if not only_one:
-            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._data: s._push(h, p, v))
+        if self.wriable:
+            path = self._normalize_path(path)
+            if not only_one:
+                return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._data: s._push(h, p, v))
+            else:
+                raise NotImplementedError()
         else:
-            raise NotImplementedError()
+            raise RuntimeError(f"Not writable!")
 
-    def get(self,  path, *args, only_one=False, **kwargs):
+    def get(self,  path, *args, only_one=False, default_value=None, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))

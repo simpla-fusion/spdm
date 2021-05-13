@@ -72,12 +72,12 @@ class TimeSeries(List[_TObject]):
             return float(self[-1].time) + (dt or self._time_step)
 
     def __getitem__(self, k: _TIndex) -> _TObject:
-        obj = self.__raw_get__(k)
+        obj = self._entry.get(k)
 
         if not self.__check_template__(obj.__class__):
             n = len(self)
             obj = self.__new_child__(obj, time=self._time_start+((k+n) % n)*self._time_step)
-            self.__raw_set__(k, obj)
+            self._entry.put(k, obj)
         return obj
 
     def __setitem__(self, k: _TIndex, obj: Any) -> _TObject:

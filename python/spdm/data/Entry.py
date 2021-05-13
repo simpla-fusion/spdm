@@ -36,11 +36,16 @@ class Entry(object):
     _DICT_TYPE_ = dict
     _LIST_TYPE_ = list
 
-    def __init__(self, data=None,  *args, prefix=None, parent=None,   **kwargs):
+    def __init__(self, data=None,  *args, prefix=None, parent=None, writable=True,   **kwargs):
         super().__init__()
         self._data = data
         self._parent = parent
         self._prefix = normalize_path(prefix)
+        self._writable = writable
+
+    @property
+    def wriable(self):
+        return self._writable
 
     @property
     def data(self):
@@ -199,11 +204,12 @@ class Entry(object):
 
         if isinstance(path[-1], _NEXT_TAG_):
             obj.append(value)
+        elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
+            obj[path[-1]] = value
+        elif isinstance(obj, Entry):
+            obj.put(path[-1], value)
         else:
-            try:
-                obj[path[-1]] = value
-            except Exception:
-                raise KeyError(f"[{']['.join(path)}]")
+            raise KeyError(f"[{']['.join(path)}]")
 
     def get(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
         path = self._prefix + normalize_path(path)
@@ -321,3 +327,6 @@ class Entry(object):
     def equal(self, other) -> bool:
         obj = self.get(None)
         return (isinstance(obj, Entry) and other is None) or (obj == other)
+
+    def __iter__(self):
+        yield from self.iter()
