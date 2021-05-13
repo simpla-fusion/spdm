@@ -22,7 +22,7 @@ _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
-class Node(Generic[_TObject]):
+class Node:
     r"""
         @startuml
 
@@ -64,7 +64,7 @@ class Node(Generic[_TObject]):
 
     def __serialize__(self):
         if isinstance(self._entry, Entry):
-            return f"<{self._entry.__class__.__name__} path={ self._entry.__normalize_path__()}>"
+            return f"<{self.__class__.__name__} type={self._entry.__class__.__name__} path={ self._entry.__normalize_path__()}>"
         else:
             return serialize(self._entry)
 

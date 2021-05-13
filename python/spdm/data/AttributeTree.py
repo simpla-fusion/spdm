@@ -3,7 +3,7 @@ import collections.abc
 import functools
 import typing
 from logging import log
-from typing import Any, Sequence
+from typing import Any, MutableSequence, Sequence
 
 import numpy as np
 
@@ -13,6 +13,9 @@ from .Node import Dict, List, Node, _next_, _TObject
 
 
 def do_getattr(obj, k):
+    if getattr(obj.__class__, '__getattr__', None) == do_getattr:
+        raise RuntimeError(f"Recursive call")
+
     if k[0] == '_':
         bcls = obj.__class__.__bases__[0]
         res = bcls.__getattr__(obj, k)
@@ -29,7 +32,11 @@ def do_getattr(obj, k):
             res = obj.__getitem__(k)
     if res is None:
         return AttributeTree(Entry(obj, [k]))
-    elif isinstance(res, (collections.abc.Mapping, Node)):
+    elif isinstance(res, AttributeTree):
+        return res
+    elif isinstance(res, Node):
+        return AttributeTree(res._entry, parent=res._parent)
+    elif isinstance(res, (collections.abc.Mapping)):
         return AttributeTree(res)
     else:
         return res
@@ -90,6 +97,13 @@ class AttributeTree(Dict[str, Node]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def __post_process__(self, value, *args, parent=None, **kwargs):
+        if isinstance(value, (collections.abc.Mapping, collections.abc.MutableSequence, Entry)):
+            return AttributeTree(value, *args, parent=parent or self, **kwargs)
+        else:
+            return value
+        # return super().__post_process__(value, *args, **kwargs)
 
     def __new_child__(self, value, *args, parent=None,  **kwargs):
         if isinstance(value, (collections.abc.Mapping)):
