@@ -1,4 +1,5 @@
 import collections
+import collections.abc
 from functools import cached_property
 from typing import Any, Callable, Optional, Sequence, Union
 
@@ -7,7 +8,9 @@ import scipy
 import scipy.interpolate
 
 from ..util.logger import logger
+from .Entry import Entry
 from .Node import Node
+
 logger.debug(f"SciPy: Version {scipy.__version__}")
 
 
@@ -36,6 +39,8 @@ class Function:
 
         if isinstance(y, Node):
             y = y.__fetch__(default_value=0.0)
+        elif isinstance(y, Entry):
+            y = y.get_value()
 
         if isinstance(y, Function):
             self._y = None
@@ -43,9 +48,9 @@ class Function:
         elif callable(y):
             self._y = None
             self._func = y
-        elif y is not None:
+        elif isinstance(y, (int, float, np.ndarray, collections.abc.Sequence)):
             self._y = np.asarray(y)
-            self._func = func
+            self._func = None
         else:
             self._y = None
             self._func = func
@@ -98,7 +103,8 @@ class Function:
         elif self._y is not None:
             res = self._ppoly(*args, **kwargs)
         else:
-            raise TypeError(type(self._y))
+            res = np.asarray(0.0)
+            # raise TypeError(type(self._y))
 
         return res.view(np.ndarray)
 
