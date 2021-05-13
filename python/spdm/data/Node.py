@@ -251,7 +251,8 @@ class Node:
 
     def __iter__(self):
         if isinstance(self._entry, Entry):
-            yield from self._entry.iter()
+            for obj in self._entry.iter():
+                yield self.__post_process__(obj)
         else:
             d = self._entry.get([], [])
             if isinstance(d, (collections.abc.MutableSequence)):
@@ -313,7 +314,7 @@ class List(MutableSequence[_TObject], Node):
 
     def __iter__(self):
         for idx in range(self.__len__()):
-            yield self.__getitem__(idx)
+            yield self.__post_process__(self.__getitem__(idx))
 
     def insert(self, idx, value=None, sorted=True) -> _TObject:
         if value is None:
@@ -378,7 +379,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
             res[k] = serialize(v)
 
         if isinstance(self._entry, (collections.abc.Mapping, Entry)):
-            for k in filter(lambda k: k not in res and k[0] != '_', self._entry):
+            for k in filter(lambda k: k not in res and k[0] != '_', self._entry.iter()):
                 res[k] = serialize(self._entry.get(k))
         return res
         # return {k: serialize(v) for k, v in res.items()}
