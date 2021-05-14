@@ -69,7 +69,7 @@ class Node:
             return serialize(self._entry)
 
     def __duplicate__(self, desc=None):
-        return self.__class__(desc or self.__serialize__(), parent=self._parent)
+        return self.__class__(desc if desc is not None else self.__serialize__(), parent=self._parent)
 
     # @staticmethod
     # def deserialize(cls, d):
@@ -178,32 +178,27 @@ class Node:
             return False
 
     def __new_child__(self,  *args, parent=None,  **kwargs):
+        if parent is None:
+            parent = self
         value = None
         if self._default_factory is not None:
-            value = self._default_factory(*args,  parent=parent or self, ** kwargs)
+            value = self._default_factory(*args,  parent=parent, ** kwargs)
         else:
             factory = self.__genreric_template_arguments__()
             if factory is not None and len(factory) > 0 and inspect.isclass(factory[0]):
-                value = factory[0](*args,  parent=parent or self, ** kwargs)
+                value = factory[0](*args,  parent=parent, ** kwargs)
         if value is None and len(args) > 0:
             value = args[0]
 
         if isinstance(value, Node):
             pass
         elif isinstance(value, collections.abc.MutableSequence):
-            value = List[Node](value, *args,
-                               parent=parent or self,
-                               **kwargs)
+            value = List[Node](value, *args, parent=parent, **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
-            value = Dict[str, Node](value, *args,
-                                    parent=parent or self,
-                                    **kwargs)
+            value = Dict[str, Node](value, *args, parent=parent,  **kwargs)
         elif isinstance(value, (Entry)):
-            value = Node(value, *args,
-                         parent=parent or self,
-                         **kwargs)
+            value = Node(value, *args, parent=parent, *kwargs)
 
-        # else:  # if isinstance(value, (str, int, float, np.ndarray)) or value is None:
         return value
 
     def __pre_process__(self, value, *args, **kwargs):
@@ -280,10 +275,10 @@ class List(MutableSequence[_TObject], Node):
     __slots__ = ()
 
     def __init__(self, d: collections.abc.Sequence = [], *args,  **kwargs):
-        Node.__init__(self, d, *args,   **kwargs)
+        Node.__init__(self, d, *args, **kwargs)
 
-    def __serialize__(self) -> Mapping:
-        return [serialize(v) for v in self]
+    def __serialize__(self) -> Sequence:
+        return [serialize(v) for v in self._entry._data]
 
     def _as_list(self) -> Sequence:
         return self.__serialize__()
@@ -296,7 +291,7 @@ class List(MutableSequence[_TObject], Node):
         return Node.__len__(self)
 
     def __new_child__(self,   *args, parent=None,  **kwargs) -> _TObject:
-        return super().__new_child__(*args, parent=parent or self._parent, **kwargs)
+        return super().__new_child__(*args, parent=parent if parent is not None else self._parent, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
         self._entry.put(k, self.__pre_process__(v))
@@ -357,7 +352,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     def __init__(self, data: Mapping = {}, *args,  **kwargs):
         Node.__init__(self, data, *args, **kwargs)
 
-    def __serialize__(self, ignore=None):
+    def __serialize__(self, ignore=None) -> Mapping:
         cls = self.__class__
         ignore = (ignore or []) + getattr(cls, '_serialize_ignore', [])
 
@@ -378,8 +373,8 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
             res[k] = serialize(v)
 
-        if isinstance(self._entry, (collections.abc.Mapping, Entry)):
-            for k in filter(lambda k: k not in res and k[0] != '_', self._entry.iter()):
+        if isinstance(self._entry._data, (collections.abc.Mapping)):
+            for k in filter(lambda k: k not in res and k[0] != '_', self._entry._data):
                 res[k] = serialize(self._entry.get(k))
         return res
         # return {k: serialize(v) for k, v in res.items()}

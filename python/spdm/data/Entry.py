@@ -213,7 +213,9 @@ class Entry(object):
 
     def get(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
         path = self._prefix + normalize_path(path)
+
         obj = self._data
+
         for idx, key in enumerate(path):
             if hasattr(obj, "_entry"):
                 obj = obj._entry.get(path[idx:])
@@ -321,12 +323,13 @@ class Entry(object):
 
         return res
 
-    def iter(self, path=[], *args, **kwargs):
-        yield from self.get(path, *args, **kwargs)
-
     def equal(self, other) -> bool:
         obj = self.get(None)
         return (isinstance(obj, Entry) and other is None) or (obj == other)
 
     def __iter__(self):
         yield from self.iter()
+
+    def iter(self, path=[], *args, **kwargs):
+        obj = self.get(path, *args, **kwargs)
+        yield from obj
