@@ -328,8 +328,17 @@ class Entry(object):
         return (isinstance(obj, Entry) and other is None) or (obj == other)
 
     def __iter__(self):
-        yield from self.iter()
+        obj = self.get([])
+        yield from obj
 
     def iter(self, path=[], *args, **kwargs):
         obj = self.get(path, *args, **kwargs)
-        yield from obj
+        logger.debug(type(obj))
+        if isinstance(obj, (collections.abc.Mapping or collections.abc.MutableSequence)):
+            yield from obj
+        elif not isinstance(obj, Entry):
+            yield obj
+        elif obj is not self._data:
+            yield from obj.iter()
+        else:
+            raise NotImplementedError(type(obj))

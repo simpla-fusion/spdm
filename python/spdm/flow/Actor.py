@@ -1,21 +1,123 @@
-from ..util.SpObject import SpObject
+# from ..util.SpObject import SpObject
+# from ..util.logger import logger
+
+# from .Session import Session
+
+
+# class Actor(SpObject):
+#     @staticmethod
+#     def __new__(cls, *args, **kwargs):
+#         if cls is not Actor:
+#             return object.__new__(cls)
+#         else:
+#             return SpObject.__new__(cls, *args, **kwargs)
+
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self._job_id = Session.current().job_id(self.__class__.__name__)
+
+#     @property
+#     def job_id(self):
+#         return self._job_id
+import collections
+from functools import cached_property
+from typing import Any, Generic, Mapping
+
+import numpy as np
+
+from ..data.Combiner import Combiner
+from ..data.Function import Function
+from ..data.Node import Dict, List, _TObject
+from ..data.Profiles import Profiles
+from ..data.TimeSeries import TimeSequence, TimeSeries, TimeSlice
 from ..util.logger import logger
+from ..util.sp_export import sp_find_module
 
-from .Session import Session
 
+class Actor(Generic[_TObject]):
 
-class Actor(SpObject):
-    @staticmethod
-    def __new__(cls, *args, **kwargs):
-        if cls is not Actor:
+    _stats_ = []
+
+    def __new__(cls, desc=None, *args, **kwargs):
+        prefix = getattr(cls, "_actor_module_prefix", None)
+        if cls is not Actor and prefix is None:
             return object.__new__(cls)
+        elif desc is not None:
+            name = desc.get("code", {}).get("name", "")
+            n_cls = sp_find_module(f"{prefix}{name}")
+            logger.debug(n_cls)
+            return object.__new__(n_cls)
         else:
-            return SpObject.__new__(cls, *args, **kwargs)
+            raise RuntimeError((prefix, cls))
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._job_id = Session.current().job_id(self.__class__.__name__)
+        self._time = 0
+        self._prev_time = None
+        self._kwargs = kwargs
 
     @property
-    def job_id(self):
-        return self._job_id
+    def previous_time(self) -> float:
+        return self._prev_time
+
+    @property
+    def time(self) -> float:
+        return self._time
+
+    @property
+    def previous_state(self) -> _TObject:
+        def fetch(k, obj=self):
+            attr = getattr(obj, k, None)
+            if isinstance(attr, TimeSeries):
+                attr = attr[-2]
+            return attr
+
+        return TimeSlice({"time": self.previous_time, **{k: fetch(k) for k in self._stats_}})
+
+    @property
+    def current_state(self) -> _TObject:
+        def fetch(k, obj=self):
+            attr = getattr(obj, k, None)
+            if isinstance(attr, TimeSeries):
+                attr = attr[-1]
+            return attr
+
+        return TimeSlice({"time": self.time, **{k: fetch(k) for k in self._stats_}})
+
+    def advance(self, *args, time=None, dt=None,   **kwargs) -> float:
+        """
+            Advance the state of the Actor to the next time step.
+            current -> next
+        """
+        self._prev_time = self.time
+        if time is None:
+            time = self.time+(dt or 1.0)
+        self._time = time
+        logger.debug(f"Advance actor '{self.__class__.__name__}' from {self._prev_time} to {time}")
+        return time
+
+    def update(self,  *args,  **kwargs) -> bool:
+        """
+          Update the current state of the Actor without advancing the time.
+        """
+        logger.debug(f"Update actor '{self.__class__.__name__}' at time={self._time}")
+        return True
+
+
+class ActorBundle(List[_TObject], Actor):
+
+    def __init__(self, *args, parent=None, **kwargs):
+        List.__init__(self, *args, parent=parent)
+        Actor.__init__(self, **kwargs)
+        logger.debug(args)
+
+    def advance(self, *args, time=None, dt=None, **kwargs) -> float:
+        time = Actor.advance(self, time=time, dt=dt)
+        # TODO: Need to be parallelized
+        success = [m.advance(*args, time=time, ** collections.ChainMap(kwargs, self._kwargs)) for m in self]
+        return time
+
+    def update(self, *args, **kwargs) -> bool:
+        # TODO: Need to be parallelized
+        success = [m.update(*args, **kwargs) for m in self]
+        return all(success)

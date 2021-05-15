@@ -39,7 +39,7 @@ class Combiner(Entry):
     def put(self, key, value: Any):
         raise NotImplementedError()
 
-    def __iter__(self):
+    def iter(self):
         cache = [try_get(d, self._prefix).__iter__() for d in self._data]
         if len(cache) == 0:
             return NotImplementedError()

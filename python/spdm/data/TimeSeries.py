@@ -1,11 +1,38 @@
 import collections
-from typing import Any, Generic, MutableMapping, Sequence, TypeVar, Union, Mapping
+from typing import (Any, Generic, Mapping, MutableMapping, Sequence, TypeVar,
+                    Union)
 
 import numpy as np
 
 from ..util.logger import logger
-from .Node import Dict, List, _TIndex, _TKey, _TObject
 from .AoS import AoS, SoA
+from .Node import Dict, List, _TIndex, _TKey, _TObject
+
+
+class TimeSequence(list):
+    def __init__(self, time_start=0.0, time_step=1.0) -> None:
+        super().__init__([time_start])
+        self._time_step = time_step
+
+    @property
+    def current(self):
+        return self[-1]
+
+    @property
+    def previous(self):
+        return self[-2] if len(self) > 1 else None
+
+    @property
+    def next(self):
+        return self[-1] + self._time_step
+
+    def advance(self, time=None, dt=None):
+        if time is None:
+            time = (self.previous or 0.0) + (dt if dt is not None else self._time_step)
+        elif self.previous is not None and time <= self.previous:
+            raise RuntimeError(f"Time can't go back!")
+        self.append(time)
+        return time
 
 
 class TimeSlice(Dict):
