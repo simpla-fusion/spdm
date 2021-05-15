@@ -22,7 +22,7 @@ _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
-class Node:
+class Node(object):
     r"""
         @startuml
 
