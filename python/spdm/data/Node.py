@@ -8,7 +8,7 @@ import pprint
 import typing
 from enum import IntFlag
 from functools import cached_property
-from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
+from typing import (Any, Generic, Iterator, Mapping, MutableMapping, Iterable,
                     MutableSequence, Sequence, TypeVar, Union, get_args)
 
 import numpy as np
@@ -307,7 +307,7 @@ class List(MutableSequence[_TObject], Node):
     def __delitem__(self, k: _TIndex) -> None:
         Node.__delitem__(self, k)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[_TObject]:
         for idx in range(self.__len__()):
             yield self.__post_process__(self.__getitem__(idx))
 

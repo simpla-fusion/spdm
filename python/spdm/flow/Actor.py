@@ -21,7 +21,7 @@
 #         return self._job_id
 import collections
 from functools import cached_property
-from typing import Any, Generic, Mapping
+from typing import Any, Generic, Mapping, TypeVar, NewType
 
 import numpy as np
 
@@ -34,7 +34,7 @@ from ..util.logger import logger
 from ..util.sp_export import sp_find_module
 
 
-class Actor(Generic[_TObject]):
+class Actor(object):
 
     _stats_ = []
 
@@ -45,13 +45,13 @@ class Actor(Generic[_TObject]):
         elif desc is not None:
             name = desc.get("code", {}).get("name", "")
             n_cls = sp_find_module(f"{prefix}{name}")
-            logger.debug(n_cls)
+            logger.info(f"Load actor module [{n_cls}]")
             return object.__new__(n_cls)
         else:
             raise RuntimeError((prefix, cls))
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__()
         self._time = 0
         self._prev_time = None
         self._kwargs = kwargs
@@ -61,7 +61,7 @@ class Actor(Generic[_TObject]):
         return self._prev_time
 
     @property
-    def time(self) -> float:
+    def current_time(self) -> float:
         return self._time
 
     @property
@@ -82,16 +82,16 @@ class Actor(Generic[_TObject]):
                 attr = attr[-1]
             return attr
 
-        return TimeSlice({"time": self.time, **{k: fetch(k) for k in self._stats_}})
+        return TimeSlice({"time": self.current_time, **{k: fetch(k) for k in self._stats_}})
 
     def advance(self, *args, time=None, dt=None,   **kwargs) -> float:
         """
             Advance the state of the Actor to the next time step.
             current -> next
         """
-        self._prev_time = self.time
+        self._prev_time = self.current_time
         if time is None:
-            time = self.time+(dt or 1.0)
+            time = self.current_time+(dt or 1.0)
         self._time = time
         logger.debug(f"Advance actor '{self.__class__.__name__}' from {self._prev_time} to {time}")
         return time
@@ -104,17 +104,19 @@ class Actor(Generic[_TObject]):
         return True
 
 
-class ActorBundle(List[_TObject], Actor):
+_TActor = TypeVar('_TActor')
 
-    def __init__(self, *args, parent=None, **kwargs):
-        List.__init__(self, *args, parent=parent)
-        Actor.__init__(self, **kwargs)
-        logger.debug(args)
+
+class ActorBundle(List[_TActor], Actor):
+
+    def __init__(self, d, *args, parent=None, **kwargs):
+        super(List, self).__init__(d, *args, parent=parent)
+        super(Actor, self).__init__(**kwargs)
 
     def advance(self, *args, time=None, dt=None, **kwargs) -> float:
         time = Actor.advance(self, time=time, dt=dt)
         # TODO: Need to be parallelized
-        success = [m.advance(*args, time=time, ** collections.ChainMap(kwargs, self._kwargs)) for m in self]
+        success = [m.advance(*args, time=time, ** collections.ChainMap(kwargs, self._kwargs)) for m in self.__iter__()]
         return time
 
     def update(self, *args, **kwargs) -> bool:
