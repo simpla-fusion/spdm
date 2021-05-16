@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import Any, Generic, Mapping, TypeVar, NewType
 
 import numpy as np
-
+from ..util.utilities import guess_class_name
 from ..data.Combiner import Combiner
 from ..data.Function import Function
 from ..data.Node import Dict, List, _TObject
@@ -45,7 +45,7 @@ class Actor(object):
         elif desc is not None:
             name = desc.get("code", {}).get("name", "")
             n_cls = sp_find_module(f"{prefix}{name}")
-            logger.info(f"Load actor module [{n_cls}]")
+            logger.info(f"Load actor module [{guess_class_name(n_cls)}]")
             return object.__new__(n_cls)
         else:
             raise RuntimeError((prefix, cls))
@@ -93,14 +93,14 @@ class Actor(object):
         if time is None:
             time = self.current_time+(dt or 1.0)
         self._time = time
-        logger.debug(f"Advance actor '{self.__class__.__name__}' from {self._prev_time} to {time}")
+        logger.debug(f"Advance actor '{guess_class_name(self)}' from {self._prev_time} to {time}")
         return time
 
     def update(self,  *args,  **kwargs) -> bool:
         """
           Update the current state of the Actor without advancing the time.
         """
-        logger.debug(f"Update actor '{self.__class__.__name__}' at time={self._time}")
+        logger.debug(f"Update actor '{guess_class_name(self)}' at time={self._time}")
         return True
 
 

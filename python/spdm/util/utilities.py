@@ -290,3 +290,15 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return [convert_to_named_tuple(v) for v in d]
     else:
         return d
+
+
+def guess_class_name(obj):
+
+    if not inspect.isclass(obj):
+        cls = obj.__class__
+        cls_name = getattr(obj, "__orig_class__", None)
+    else:
+        cls = obj
+        cls_name = None
+
+    return cls_name or f"{cls.__module__}.{cls.__name__}"
