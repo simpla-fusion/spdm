@@ -49,10 +49,10 @@ class Actor(object):
                 try:
                     n_cls = sp_find_module(f"{prefix}{name}")
                 except Exception:
-                    logger.error(f"Can not find module {prefix}{name}")
+                    logger.error(f"Can not find actor '{prefix}{name}'!")
                     raise ModuleNotFoundError(f"{prefix}{name}")
                 else:
-                    logger.info(f"Load actor module [{guess_class_name(n_cls)}]")
+                    logger.info(f"Load actor '{guess_class_name(n_cls)}'!")
 
         return object.__new__(n_cls)
 
@@ -99,14 +99,14 @@ class Actor(object):
         if time is None:
             time = self.current_time+(dt or 1.0)
         self._time = time
-        logger.debug(f"Advance actor '{guess_class_name(self)}' from {self._prev_time} to {time}")
+        logger.info(f"Advance actor from {self._prev_time} to {time}. '{guess_class_name(self)}' ")
         return time
 
     def update(self,  *args,  **kwargs) -> bool:
         """
           Update the current state of the Actor without advancing the time.
         """
-        logger.debug(f"Update actor '{guess_class_name(self)}' at time={self._time}")
+        logger.info(f"Update actor at time={self._time}. '{guess_class_name(self)}'")
         return True
 
 
