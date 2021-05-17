@@ -13,8 +13,9 @@ from .Node import Node
 
 
 class Combiner(Entry):
-    def __init__(self, cache: Sequence, *args,    **kwargs) -> None:
+    def __init__(self, cache: Sequence, *args, factor=None,   **kwargs) -> None:
         super().__init__(cache, *args, **kwargs)
+        self._factor = factor
 
     def get(self, path, *args, **kwargs):
         if len(self._data) == 0:
@@ -27,14 +28,16 @@ class Combiner(Entry):
         else:
             cache = [try_get(d, path) for d in self._data]
 
-        cache = [d for d in cache if isinstance(d, (np.ndarray, Function, float, int))]
+        cache = [(idx, d) for idx, d in enumerate(cache) if isinstance(d, (np.ndarray, Function, float, int, tuple))]
 
         if len(cache) == 0:
             return Combiner(self._data, prefix=path)
         elif len(cache) == 1:
             return (cache[0])
+        elif self._factor is not None:
+            return np.add.reduce([d for idx, d in cache])
         else:
-            return np.add.reduce(cache)
+            return np.add.reduce([d*self._factor[idx] for idx, d in cache])
 
     def put(self, key, value: Any):
         raise NotImplementedError()

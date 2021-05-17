@@ -438,3 +438,12 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
     def __iter__(self):
         return super().__iter__()
+
+    def __reset_cache__(self, namelist=None):
+        if namelist is None:
+            namelist = dir(self)
+
+        for k in namelist:
+            op = getattr(self.__class__, k, None)
+            if isinstance(op, functools.cached_property) and hasattr(self, k):
+                delattr(self, k)

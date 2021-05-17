@@ -191,7 +191,7 @@ def serialize(d):
     elif isinstance(d, collections.abc.Sequence):
         return [serialize(v) for v in d]
     else:
-        logger.warning(f"Can not serialize {d.__class__.__name__}!")
+        # logger.warning(f"Can not serialize {d.__class__.__name__}!")
         return f"<{d.__class__.__name__}>NOT SERIALIZABLE!</{d.__class__.__name__}>"
         # raise TypeError(f"Can not serialize {type(d)}!")
 
