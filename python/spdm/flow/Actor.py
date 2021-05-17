@@ -49,7 +49,8 @@ class Actor(object):
                 try:
                     n_cls = sp_find_module(f"{prefix}{name}")
                 except Exception:
-                    n_cls = cls
+                    logger.error(f"Can not find module {prefix}{name}")
+                    raise ModuleNotFoundError(f"{prefix}{name}")
                 else:
                     logger.info(f"Load actor module [{guess_class_name(n_cls)}]")
 
