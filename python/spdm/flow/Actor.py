@@ -40,15 +40,20 @@ class Actor(object):
 
     def __new__(cls, desc=None, *args, **kwargs):
         prefix = getattr(cls, "_actor_module_prefix", None)
+        n_cls = cls
         if cls is not Actor and prefix is None:
-            return object.__new__(cls)
-        elif desc is not None:
-            name = desc.get("code", {}).get("name", "")
-            n_cls = sp_find_module(f"{prefix}{name}")
-            logger.info(f"Load actor module [{guess_class_name(n_cls)}]")
-            return object.__new__(n_cls)
-        else:
-            raise RuntimeError((prefix, cls))
+            pass
+        elif isinstance(desc, collections.abc.Mapping):
+            name = desc.get("code", {}).get("name", None)
+            if name is not None:
+                try:
+                    n_cls = sp_find_module(f"{prefix}{name}")
+                except Exception:
+                    n_cls = cls
+                else:
+                    logger.info(f"Load actor module [{guess_class_name(n_cls)}]")
+
+        return object.__new__(n_cls)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__()
@@ -116,10 +121,10 @@ class ActorBundle(List[_TActor], Actor):
     def advance(self, *args, time=None, dt=None, **kwargs) -> float:
         time = Actor.advance(self, time=time, dt=dt)
         # TODO: Need to be parallelized
-        success = [m.advance(*args, time=time, ** collections.ChainMap(kwargs, self._kwargs)) for m in self.__iter__()]
+        success = [m.advance(*args, time=time, **kwargs) for m in self.__iter__()]
         return time
 
-    def update(self, *args, **kwargs) -> bool:
+    def update(self, *args, **kwargs) -> float:
         # TODO: Need to be parallelized
         success = [m.update(*args, **kwargs) for m in self]
         return all(success)
