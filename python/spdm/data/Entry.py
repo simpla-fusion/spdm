@@ -14,15 +14,15 @@ class _TAG_:
     pass
 
 
-class _NOT_FOUND_(_TAG_):
-    pass
-
 
 class _NEXT_TAG_(_TAG_):
     pass
 
 
 class _LAST_TAG_(_TAG_):
+    pass
+
+class _NOT_FOUND_(_TAG_):
     pass
 
 
@@ -333,7 +333,7 @@ class Entry(object):
 
     def iter(self, path=[], *args, **kwargs):
         obj = self.get(path, *args, **kwargs)
-        logger.debug(type(obj))
+         
         if isinstance(obj, (collections.abc.Mapping or collections.abc.MutableSequence)):
             yield from obj
         elif not isinstance(obj, Entry):

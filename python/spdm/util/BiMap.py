@@ -1,4 +1,4 @@
-from typing import Mapping, TypeVar, Any
+from typing import Mapping, TypeVar, Any, Union
 from collections import OrderedDict
 from .logger import logger
 ST = TypeVar('ST')
@@ -29,7 +29,7 @@ class BiMap(OrderedDict, Mapping[ST, DT]):
         else:
             return super().__getitem__(k)
 
-    def __getitem__(self, s: [ST, DT]):
+    def __getitem__(self, s: Union[ST, DT]):
         return self.to_dest(s)
 
     def __setitem__(self, s: ST, d: DT):

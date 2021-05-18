@@ -115,11 +115,13 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
                         continue
             elif isinstance(profile, np.ndarray):
                 y = profile
+            elif isinstance(profile, (int, float)):
+                y = np.full(x_axis.shape, profile)
             elif callable(profile):
                 y = profile(x_axis)
 
             if y is None:
-                logger.error(f"Can not plot profile '{label}'[{type(profile)}]!")
+                logger.error(f"Illegal profile '{label}' [{type(profile)}]!")
             elif len(y.shape) == 0:
                 y = np.full(x_axis.shape, y)
             elif x_axis.shape != y.shape:

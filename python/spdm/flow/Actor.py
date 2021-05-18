@@ -26,6 +26,7 @@ from typing import Any, Generic, Mapping, TypeVar, NewType
 import numpy as np
 from ..util.utilities import guess_class_name
 from ..data.Combiner import Combiner
+from ..data.AttributeTree import AttributeTree
 from ..data.Function import Function
 from ..data.Node import Dict, List, _TObject
 from ..data.Profiles import Profiles
@@ -42,36 +43,36 @@ class Actor(SpObject):
 
     _stats_ = []
 
-    # def __new__(cls, desc=None, *args, **kwargs):
-    #     prefix = getattr(cls, "_actor_module_prefix", None)
-    #     n_cls = cls
-    #     if cls is not Actor and prefix is None:
-    #         pass
-    #     elif isinstance(desc, collections.abc.Mapping):
-    #         name = desc.get("code", {}).get("name", None)
-    #         if name is not None:
-    #             try:
-    #                 n_cls = sp_find_module(f"{prefix}{name}")
-    #             except Exception:
-    #                 logger.error(f"Can not find actor '{prefix}{name}'!")
-    #                 raise ModuleNotFoundError(f"{prefix}{name}")
-    #             else:
-    #                 logger.info(f"Load actor '{guess_class_name(n_cls)}'!")
+    def __new__(cls, desc=None, *args, **kwargs):
+        prefix = getattr(cls, "_actor_module_prefix", None)
+        n_cls = cls
+        if cls is not Actor and prefix is None:
+            pass
+        elif isinstance(desc, collections.abc.Mapping):
+            name = desc.get("code", {}).get("name", None)
+            if name is not None:
+                try:
+                    n_cls = sp_find_module(f"{prefix}{name}")
+                except Exception:
+                    logger.error(f"Can not find actor '{prefix}{name}'!")
+                    raise ModuleNotFoundError(f"{prefix}{name}")
+                else:
+                    logger.info(f"Load actor '{guess_class_name(n_cls)}'!")
 
-    #     return object.__new__(n_cls)
+        return object.__new__(n_cls)
 
-    def __new__(cls, *args, **kwargs):
-        if cls is not Actor:
-            return object.__new__(cls)
-        else:
-            return SpObject.__new__(cls, *args, **kwargs)
+    # def __new__(cls, *args, **kwargs):
+    #     if cls is not Actor:
+    #         return object.__new__(cls)
+    #     else:
+    #         return SpObject.__new__(cls, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._time = 0
         self._prev_time = None
         self._kwargs = kwargs
-        self._job_id = Session.current().job_id(self.__class__.__name__)
+        self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
 
     @property
     def job_id(self):
@@ -144,3 +145,11 @@ class ActorBundle(List[_TActor], Actor):
         # TODO: Need to be parallelized
         success = [m.update(*args, **kwargs) for m in self]
         return all(success)
+
+    @property
+    def current_state(self) -> _TActor:
+        return AttributeTree(Combiner([m.current_state for m in self]), parent=self)
+
+    @property
+    def previous_state(self) -> _TActor:
+        return AttributeTree(Combiner([m.previous_state for m in self]), parent=self)

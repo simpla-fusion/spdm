@@ -13,31 +13,27 @@ from .Node import Node
 
 
 class Combiner(Entry):
-    def __init__(self, cache: Sequence, *args, factor=None,   **kwargs) -> None:
+    def __init__(self, cache: Sequence, *args,   **kwargs) -> None:
         super().__init__(cache, *args, **kwargs)
-        self._factor = factor
 
-    def get(self, path, *args, **kwargs):
-        if len(self._data) == 0:
-            logger.warning(f"Combiner of empty list!")
-            return None
+    def _get_data(self, path):
         path = self._prefix + normalize_path(path)
-
-        if len(path) == 0:
-            raise KeyError(f"Empty path!")
+        if not path:
+            return self._data
         else:
             cache = [try_get(d, path) for d in self._data]
+            return [d for d in cache if d is not None]
 
-        cache = [(idx, d) for idx, d in enumerate(cache) if isinstance(d, (np.ndarray, Function, float, int, tuple))]
-
+    def get(self, path, *args, default_value=None, **kwargs):
+        cache = self._get_data(path)
         if len(cache) == 0:
-            return Combiner(self._data, prefix=path)
-        elif len(cache) == 1:
-            return (cache[0])
-        elif self._factor is not None:
-            return np.add.reduce([d for idx, d in cache])
+            return default_value
+        elif all([isinstance(d, (np.ndarray, Function, float, int)) for d in cache]):
+            return np.add.reduce([np.asarray(d) for d in cache])
+        elif isinstance(cache[0], str):
+            return cache[0]
         else:
-            return np.add.reduce([d*self._factor[idx] for idx, d in cache])
+            return Combiner(cache)
 
     def put(self, key, value: Any):
         raise NotImplementedError()
@@ -46,6 +42,7 @@ class Combiner(Entry):
         cache = [try_get(d, self._prefix).__iter__() for d in self._data]
         if len(cache) == 0:
             return NotImplementedError()
+
         for d in cache[0]:
             yield Combiner([d, *[next(it) for it in cache[1:]]])
 

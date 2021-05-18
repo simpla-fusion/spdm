@@ -175,7 +175,7 @@ class Node(object):
         if orig_class is not None:
             return issubclass(cls,  get_args(orig_class))
         else:
-            return False
+            return issubclass(cls, Node)
 
     def __new_child__(self,  *args, parent=None,  **kwargs):
         if parent is None:

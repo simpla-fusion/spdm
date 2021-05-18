@@ -183,7 +183,9 @@ class ModuleRepository:
         return res
 
     def new_class(self, metadata, *args, **kwargs):
-        n_cls = self._factory.create(self.resolve_metadata(metadata, *args, **kwargs))
+        metadata = self.resolve_metadata(metadata, *args, **kwargs)
+        
+        n_cls = self._factory.create(metadata)
 
         if n_cls is None:
             raise ValueError(f"Can not make module {metadata}!")
@@ -207,7 +209,7 @@ class ModuleRepository:
 
         spec_path.parent.mkdir(parents=True, exist_ok=force)
 
-        write(spec_path, spec)
+        io.write(spec_path, spec)
 
         if not no_build:
             self.build(spec_path, force=force)
@@ -237,7 +239,8 @@ class ModuleRepository:
         if isinstance(path, pathlib.Path) and path.is_dir():
             return self.build_repo(path, *args, **kwargs)
 
-        spec = self.resolver.fetch(path)
+        spec = self.resolve_metadata(path, *args, **kwargs)
+
 
         annotation = spec.get("annotation", {})
 

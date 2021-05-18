@@ -114,16 +114,19 @@ def try_get(holder, path, default_value=None):
             op = None
         if op is None:
             try:
-                obj = obj.__getitem__(k)
-            except KeyError:
-                data = default_value
-            except IndexError as error:
-                raise IndexError(f"{k} > {len(obj)} Error: {error}")
-
+                data = obj.__getitem__(k)
+            except Exception:
+                obj = default_value
+                break
+            # except IndexError as error:
+            #     raise IndexError(f"{k} > {len(obj)} Error: {error}")
+            else:
+                obj = data
+            
         elif isinstance(op, functools.cached_property):
             obj = op.__get__(obj)
-        elif isinstance(data, property):
-            obj = op(data, "fget")(obj)
+        elif isinstance(obj, property):
+            obj = op(obj, "fget")(obj)
         else:
             obj = default_value
 
@@ -192,7 +195,7 @@ def serialize(d):
         return [serialize(v) for v in d]
     else:
         # logger.warning(f"Can not serialize {d.__class__.__name__}!")
-        return f"<{d.__class__.__name__}>NOT SERIALIZABLE!</{d.__class__.__name__}>"
+        return f"<{d.__class__.__name__}>NOT_SERIALIZABLE!</{d.__class__.__name__}>"
         # raise TypeError(f"Can not serialize {type(d)}!")
 
 
