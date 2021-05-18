@@ -32,35 +32,50 @@ from ..data.Profiles import Profiles
 from ..data.TimeSeries import TimeSequence, TimeSeries, TimeSlice
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
+from ..util.SpObject import SpObject
+from ..util.logger import logger
+
+from .Session import Session
 
 
-class Actor(object):
+class Actor(SpObject):
 
     _stats_ = []
 
-    def __new__(cls, desc=None, *args, **kwargs):
-        prefix = getattr(cls, "_actor_module_prefix", None)
-        n_cls = cls
-        if cls is not Actor and prefix is None:
-            pass
-        elif isinstance(desc, collections.abc.Mapping):
-            name = desc.get("code", {}).get("name", None)
-            if name is not None:
-                try:
-                    n_cls = sp_find_module(f"{prefix}{name}")
-                except Exception:
-                    logger.error(f"Can not find actor '{prefix}{name}'!")
-                    raise ModuleNotFoundError(f"{prefix}{name}")
-                else:
-                    logger.info(f"Load actor '{guess_class_name(n_cls)}'!")
+    # def __new__(cls, desc=None, *args, **kwargs):
+    #     prefix = getattr(cls, "_actor_module_prefix", None)
+    #     n_cls = cls
+    #     if cls is not Actor and prefix is None:
+    #         pass
+    #     elif isinstance(desc, collections.abc.Mapping):
+    #         name = desc.get("code", {}).get("name", None)
+    #         if name is not None:
+    #             try:
+    #                 n_cls = sp_find_module(f"{prefix}{name}")
+    #             except Exception:
+    #                 logger.error(f"Can not find actor '{prefix}{name}'!")
+    #                 raise ModuleNotFoundError(f"{prefix}{name}")
+    #             else:
+    #                 logger.info(f"Load actor '{guess_class_name(n_cls)}'!")
 
-        return object.__new__(n_cls)
+    #     return object.__new__(n_cls)
+
+    def __new__(cls, *args, **kwargs):
+        if cls is not Actor:
+            return object.__new__(cls)
+        else:
+            return SpObject.__new__(cls, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self._time = 0
         self._prev_time = None
         self._kwargs = kwargs
+        self._job_id = Session.current().job_id(self.__class__.__name__)
+
+    @property
+    def job_id(self):
+        return self._job_id
 
     @property
     def previous_time(self) -> float:

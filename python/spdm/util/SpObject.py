@@ -10,9 +10,8 @@ import numpy as np
 
 from .logger import logger
 from .sp_export import sp_find_module
-
+from .utilities import convert_to_named_tuple
 _factory = None
-
 _resolver = None
 
 
@@ -34,7 +33,6 @@ class SpObject(object):
             n_cls = metadata
         elif isinstance(metadata, collections.abc.Mapping):
             n_cls = metadata.get("$class")
-
         if isinstance(n_cls, str):
             if n_cls.startswith("."):
                 n_cls = f"{SpObject._default_prefix}{n_cls}"
@@ -44,7 +42,7 @@ class SpObject(object):
         return n_cls
 
     def __new__(cls,   *args,  **kwargs):
-        if cls is not SpObject:
+        if cls is not SpObject and not getattr(cls, "_is_abstract", False):
             return object.__new__(cls)
         else:
             n_cls = SpObject.find_class(*args,  **kwargs)
@@ -106,7 +104,7 @@ class SpObject(object):
 
     @cached_property
     def metadata(self):
-        return getattr(self.__class__, "_metadata", {})
+        return (getattr(self.__class__, "_metadata", {}))
 
     def __hash__(self):
         return self._oid.int

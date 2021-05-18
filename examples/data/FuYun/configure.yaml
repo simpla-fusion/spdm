@@ -22,11 +22,11 @@ resolver:
   alias:
     - [
         "*",
-        "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/*/fy_module.yaml",
+        "/home/salmon/workspace/fytok/external/SpDB/examples/data/FuYun/modules/*/fy_module.yaml",
       ]
     - [
         "*",
-        "/home/salmon/workspace/SpDev/SpDB/examples/data/FuYun/modules/*.yaml",
+        "/home/salmon/workspace/fytok/external/SpDB/examples/data/FuYun/modules/*.yaml",
       ]
     - ["*", "/fuyun/modules/*/fy_module.yaml"]
     - ["*", "/fuyun/modules/*.yaml"]

@@ -246,6 +246,10 @@ def getlogin():
         return pwd.getpwuid(os.getuid())[0]
 
 
+def get_username():
+    return getlogin()
+
+
 def _gusses_name(self, name_hint):
     count = sum(1 for k, v in self._graph.nodes.items()
                 if k == name_hint or k.startswith(f"{name_hint}_"))
@@ -276,15 +280,18 @@ def first_not_empty(*args):
 
 
 def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
-    if d is None:
+    if d is None and len(kwargs) > 0:
         d = kwargs
-    if hasattr(ntuple, "_fields") and isinstance(ntuple, type):
+    if d is None:
+        return d
+    elif hasattr(ntuple, "_fields") and isinstance(ntuple, type):
         return ntuple(*[try_get(d, k) for k in ntuple._fields])
     elif isinstance(d, collections.abc.Mapping):
-        keys = [k for k in d.keys()]
+        keys = [k.replace('$', 's_') for k in d.keys()]
         values = [convert_to_named_tuple(v) for v in d.values()]
         if not isinstance(ntuple, str):
             ntuple = "__"+("_".join(keys))
+        ntuple = ntuple.replace('$', '_')
         return collections.namedtuple(ntuple, keys)(*values)
     elif isinstance(d, collections.abc.MutableSequence):
         return [convert_to_named_tuple(v) for v in d]

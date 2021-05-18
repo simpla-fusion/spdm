@@ -33,9 +33,16 @@ SpObject.schema.update(
 
 class DataObject(SpObject):
 
+    _is_abstract = True
+
+    def __new__(cls, metadata, *args, **kwargs):
+        if cls is not DataObject:
+            return object.__new__(cls)
+        
+
     def __init__(self, metadata=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._metadata = metadata
+        self._metadata = metadata or {}
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
@@ -43,7 +50,7 @@ class DataObject(SpObject):
     def serialize(self, *args, **kwargs):
         return super().serialize(*args, **kwargs)
 
-    @ classmethod
+    @classmethod
     def deserialize(cls, metadata):
         if isinstance(metadata, collections.abc.Mapping):
             n_cls = metadata.get("$class", None)
@@ -59,17 +66,17 @@ class DataObject(SpObject):
 
         return super().deserialize(n_cls)
 
-    @ property
+    @property
     def metadata(self):
         return self._metadata
 
-    @ property
+    @property
     def entry(self):
         return Entry(self)
 
-    @ property
+    @property
     def value(self):
         return NotImplemented
 
     def update(self, value):
-        raise NotImplementedError
+        raise NotImplementedError(type(value))

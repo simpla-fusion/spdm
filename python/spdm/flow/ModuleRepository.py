@@ -183,7 +183,6 @@ class ModuleRepository:
         return res
 
     def new_class(self, metadata, *args, **kwargs):
-
         n_cls = self._factory.create(self.resolve_metadata(metadata, *args, **kwargs))
 
         if n_cls is None:

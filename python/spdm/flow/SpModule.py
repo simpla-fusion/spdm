@@ -11,6 +11,8 @@ from pathlib import Path
 from string import Template
 from typing import List
 
+from spdm.util.SpObject import SpObject
+
 from ..data.DataObject import DataObject
 from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
@@ -18,6 +20,8 @@ from ..util.Signature import Signature
 from ..util.sp_export import sp_find_module
 from .Actor import Actor
 from .Session import Session
+import uuid
+from ..util.utilities import get_username
 
 
 class SpModule(Actor):
@@ -34,6 +38,9 @@ class SpModule(Actor):
 
     # def __del__(self):
     #     super().__del__()
+    @property
+    def job_id(self):
+        return f"{get_username()}_{uuid.uuid1()}"
 
     @cached_property
     def name(self):
@@ -217,13 +224,13 @@ class SpModule(Actor):
         n_cls = _metadata.get("$class", "")
 
         n_cls = n_cls.replace("/", ".").lower()
-        n_cls = DataObject.associations.get(n_cls, n_cls)
+        n_cls = SpObject.schema.get(n_cls, n_cls)
 
         if not n_cls:
             return data
         if inspect.isclass(n_cls):
             return n_cls(data) if data is not None else None
-        elif isinstance(data, DataObject) and data.metadata["$class"] == n_cls:
+        elif isinstance(data, DataObject):  # FIXME: !! and data.metadata["$class"] == n_cls:
             return data
         else:
             res = DataObject(collections.ChainMap({"$class": n_cls}, _metadata), *args,  **kwargs)
@@ -248,7 +255,7 @@ class SpModule(Actor):
 
         args = []
         kwargs = {}
-        for p_name, p_metadata in self.metadata.in_ports:
+        for p_name, p_metadata in self.metadata["in_ports"].items():
             if p_name != '_VAR_ARGS_':
                 kwargs[p_name] = self.create_dobject(self._kwargs.get(p_name, None),
                                                      _metadata=p_metadata, envs=envs_map)

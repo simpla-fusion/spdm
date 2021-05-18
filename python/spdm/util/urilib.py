@@ -11,7 +11,7 @@ import pathlib
 import re
 
 from .logger import logger
-
+from .utilities import convert_to_named_tuple
 _rfc3986 = re.compile(
     r"^((?P<schema>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
@@ -28,7 +28,7 @@ def urisplit(uri):
             res["fragment"] = fragments[0]
         elif len(fragments) > 1:
             res["fragment"] = dict([tuple(item.split("=")) for item in fragments])
-    return res
+    return convert_to_named_tuple(res)
 
 
 def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
