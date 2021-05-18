@@ -15,16 +15,14 @@ if __name__ == "__main__":
 
     module.load_configure("/home/salmon/workspace/fytok/external/SpDB/examples/data/FuYun/configure.yaml")
 
-    # module.factory.insert_handler("SpModule", SpModule)
-
-    # os.environ["SP_OUTPUT_DIR"] = "/home/salmon/workspace/output"
-
     CQL3D = module.new_class("physics/cql3d")
 
     Genray = module.new_class("physics/genray", version="10.13_200117", tag="-gompi-2020a")
     
     logger.debug( pprint.pformat((CQL3D._metadata)))
+    
     logger.debug( pprint.pformat((Genray._metadata)))
+
     # cfg = {
     #     "$schema": "file/namelist",
     #     "default": {
