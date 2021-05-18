@@ -42,7 +42,7 @@ class SpObject(object):
         return n_cls
 
     def __new__(cls,   *args,  **kwargs):
-        if cls is not SpObject and not getattr(cls, "_is_abstract", False):
+        if cls is not SpObject:
             return object.__new__(cls)
         else:
             n_cls = SpObject.find_class(*args,  **kwargs)

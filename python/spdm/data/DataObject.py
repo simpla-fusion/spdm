@@ -33,12 +33,9 @@ SpObject.schema.update(
 
 class DataObject(SpObject):
 
-    _is_abstract = True
-
     def __new__(cls, metadata, *args, **kwargs):
         if cls is not DataObject:
-            return object.__new__(cls)
-        
+            return super().__new__(cls, metadata, *args, **kwargs)
 
     def __init__(self, metadata=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
