@@ -10,8 +10,8 @@ class Profiles(Dict[str, Node]):
     __slots__ = ("_axis",)
 
     def __init__(self,   *args, axis=None, default_factory=None, ** kwargs):
-        if axis is None:
-            axis = np.linspace(0, 1.0, 128)
+        if isinstance(axis, int):
+            axis = np.linspace(0, 1.0, axis)
         elif isinstance(axis, np.ndarray):
             axis = axis.view(np.ndarray)
         else:

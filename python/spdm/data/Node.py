@@ -307,7 +307,7 @@ class List(MutableSequence[_TObject], Node):
     def __delitem__(self, k: _TIndex) -> None:
         Node.__delitem__(self, k)
 
-    def __iter__(self) -> Iterable[_TObject]:
+    def __iter__(self) -> Iterator[_TObject]:
         for idx in range(self.__len__()):
             yield self.__post_process__(self.__getitem__(idx))
 
