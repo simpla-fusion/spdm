@@ -15,12 +15,11 @@ from .logger import logger
 import numpy as np
 import collections.abc
 
+ 
 
-class _Empty:
-    pass
+_empty = object()
 
-
-_empty = _Empty()
+_not_found_ = object()
 
 
 def whoami(obj=None):
@@ -122,7 +121,7 @@ def try_get(holder, path, default_value=None):
             #     raise IndexError(f"{k} > {len(obj)} Error: {error}")
             else:
                 obj = data
-            
+
         elif isinstance(op, functools.cached_property):
             obj = op.__get__(obj)
         elif isinstance(obj, property):
