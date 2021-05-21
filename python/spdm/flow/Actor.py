@@ -1,50 +1,20 @@
-# from ..util.SpObject import SpObject
-# from ..util.logger import logger
-
-# from .Session import Session
-
-
-# class Actor(SpObject):
-#     @staticmethod
-#     def __new__(cls, *args, **kwargs):
-#         if cls is not Actor:
-#             return object.__new__(cls)
-#         else:
-#             return SpObject.__new__(cls, *args, **kwargs)
-
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self._job_id = Session.current().job_id(self.__class__.__name__)
-
-#     @property
-#     def job_id(self):
-#         return self._job_id
 import collections
 from dataclasses import dataclass, is_dataclass
-from functools import cached_property
-from typing import Any, Deque, Generic, Mapping, NewType, TypeVar, Optional
+from typing import Any, Deque, Generic, Mapping, NewType, Optional, TypeVar
 
 import numpy as np
 
-from ..data.AttributeTree import AttributeTree
-from ..data.Combiner import Combiner
-from ..data.Function import Function
-from ..data.Node import Dict, List, _TObject, Node
-from ..data.Profiles import Profiles
+from ..data.Entry import Entry
+from ..data.Node import Dict, List, Node, _TObject
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
-from ..util.SpObject import SpObject
 from ..util.utilities import _empty, _not_found_, guess_class_name
 from .Session import Session
-from ..data.Entry import Entry
-
-_TState = TypeVar("_TState")
 
 
-class Actor(Deque[_TState], Dict[str, Node]):
+class Actor(Dict[str, Node]):
     """
         Action/Event: Objects whose state changes over time
-
     """
     @dataclass
     class State:
@@ -73,7 +43,7 @@ class Actor(Deque[_TState], Dict[str, Node]):
         return object.__new__(n_cls)
 
     def __init__(self, entry: Optional[Entry] = None, *args, time: Optional[float] = None, maxlen: Optional[int] = None,  **kwargs) -> None:
-        super().__init__()
+        super().__init__(entry, *args, **kwargs)
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
         self._entry = entry
@@ -86,7 +56,6 @@ class Actor(Deque[_TState], Dict[str, Node]):
     @property
     def previous_state(self) -> State:
         return self._s_deque[-1]
-
 
     @property
     def current_state(self) -> State:
