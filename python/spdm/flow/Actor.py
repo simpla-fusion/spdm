@@ -1,6 +1,6 @@
 import collections
-from dataclasses import dataclass, is_dataclass
-from typing import Any, Deque, Generic, Mapping, NewType, Optional, TypeVar
+from dataclasses import dataclass, is_dataclass, fields
+from typing import Any, Deque, Generic, Mapping, NewType, Optional, Sequence, TypeVar, Iterator
 
 import numpy as np
 
@@ -18,7 +18,8 @@ class Actor(Dict[str, Node]):
     """
     @dataclass
     class State:
-        pass
+        def update(self, *args, **kwargs):
+            pass
 
     def __new__(cls, desc=None, *args, **kwargs):
         prefix = getattr(cls, "_actor_module_prefix", None)
@@ -42,16 +43,24 @@ class Actor(Dict[str, Node]):
         #         return SpObject.__new__(cls, *args, **kwargs)
         return object.__new__(n_cls)
 
-    def __init__(self, entry: Optional[Entry] = None, *args, time: Optional[float] = None, maxlen: Optional[int] = None,  **kwargs) -> None:
-        super().__init__(entry, *args, **kwargs)
+    def __init__(self, entry: Iterator[Dict] = None,  *args, time: Optional[float] = None, maxlen: Optional[int] = None,  **kwargs) -> None:
+        super().__init__()
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
-        self._entry = entry
+        self._s_entry = entry
         self._s_deque = collections.deque(maxlen=maxlen)
+
+    @property
+    def time(self):
+        return self._time
 
     @property
     def job_id(self):
         return self._job_id
+
+    @property
+    def states(self) -> Sequence[State]:
+        return self._s_deque
 
     @property
     def previous_state(self) -> State:
@@ -63,39 +72,55 @@ class Actor(Dict[str, Node]):
             Function:  gather current state based on the dataclass ‘State’
             Return  :  state
         """
-        cls_state = self.__class__.State
-        assert(is_dataclass(cls_state))
-        d = {}
-        for k in dir(self.__class__.State.__annotations__):
-            d[k] = getattr(self, k, _not_found_)
-        return self.__class__.State(**collections.ChainMap(self._time, d))
+        assert(is_dataclass(self.State))
 
-    def advance(self, *args, time: float = None, dt: float = None,   **kwargs) -> float:
-        """
-            Function: Advance the state of the Actor to the next time step. current -> next
-            Return  : return new time
+        return self.State(
+            **collections.ChainMap({"time": self._time},
+                                   {f.name: getattr(self, f.name, _not_found_) for f in fields(self.__class__.State)}))
 
-                1. push current state to deque
-                2. upate current state
-        """
-        if time is None:
-            time = self._time[-1]+(dt or 1.0)
-        self._time = time
-        logger.info(f"Advance actor to {self._time[-1]}. '{guess_class_name(self)}' ")
-        return self._time
+    def flush(self) -> State:
+        current_state = self.current_state
+        if self._s_entry is not None:
+            next(self._s_entry).__reset__(current_state)
 
-    def rollback(self, n_step: int = 1) -> bool:
+        self._s_deque.append(current_state)
+        return current_state
+
+    def rollback(self) -> bool:
         """
             Function : Roll back to the previous state
             Return   : if success return True
         """
+        if self._s_deque.count() == 0 and self._s_entry is not None:
+            self._s_deque.append(self._s_entry.fetch())
 
-        return NotImplemented
+        return self.update(self._s_deque.pop(), force=True)
 
-    def update(self,  *args,  **kwargs) -> float:
+    def advance(self, *args, time: float = None, dt: float = None,   **kwargs) -> float:
+        """
+            Function: Advance the state of the Actor to the next time step. current -> next
+            Return  : return the residual between the updated state and the previous state
+                1. push current state to deque
+                2. update current state
+        """
+        self.flush()
+        if time is None:
+            time = self.time+(dt or 1.0)
+        logger.info(f"Advance actor to {self.time}. '{guess_class_name(self)}' ")
+        return self.update(*args, time=time, **kwargs)
+
+    def update(self, state: Optional[Mapping] = None, *args,   force=False, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        logger.info(f"Update actor at time={self._time}. '{guess_class_name(self)}'")
-        return 0.0
+
+        d = collections.ChainMap(state or {}, kwargs)
+
+        super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
+
+        self._time = self["time"] or self._time
+
+        logger.info(f"Update actor at time={self.time}. '{guess_class_name(self)}'")
+
+        return 0.0 if force else 0.0

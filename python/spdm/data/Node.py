@@ -11,6 +11,8 @@ from functools import cached_property
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping, Iterable,
                     MutableSequence, Sequence, TypeVar, Union, get_args)
 
+from matplotlib.pyplot import isinteractive
+
 import numpy as np
 
 from ..util.logger import logger
@@ -409,6 +411,8 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
         self._entry.put(key, self.__pre_process__(value))
+        if isinstance(key, str):
+            self.__reset__([key])
 
     def __delitem__(self, key: _TKey) -> None:
         return Node.__delitem__(self, key)
@@ -439,11 +443,16 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     def __iter__(self):
         return super().__iter__()
 
-    def __reset_cache__(self, namelist=None):
-        if namelist is None:
-            namelist = dir(self)
-
-        for k in namelist:
-            op = getattr(self.__class__, k, None)
-            if isinstance(op, functools.cached_property) and hasattr(self, k):
-                delattr(self, k)
+    def __reset__(self, d=None):
+        if isinstance(d, str):
+            return self.__reset__([d])
+        elif d is None:
+            return self.__reset__([d for k in dir(self) if not k.startswith("_")])
+        elif isinstance(d, Mapping):
+            self._entry.update({key: self.__pre_process__(value) for key, value in d.items()})
+            self.__reset__(d.keys())
+        elif isinstance(d, Sequence):
+            for key in d:
+                if isinstance(key, str) and hasattr(self, key) and \
+                        isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
+                    delattr(self, key)
