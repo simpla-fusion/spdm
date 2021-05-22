@@ -3,7 +3,7 @@ import collections
 import collections.abc
 import pprint
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
-                    MutableSequence, Sequence, TypeVar, Union, get_args)
+                    MutableSequence, Sequence, Type, TypeVar, Union, get_args)
 
 from spdm.util.utilities import normalize_path
 
@@ -36,7 +36,7 @@ class Entry(object):
     _DICT_TYPE_ = dict
     _LIST_TYPE_ = list
 
-    def __init__(self, data=None,  *args, prefix=None, parent=None, writable=True,   **kwargs):
+    def __init__(self, data=None,  *args, prefix=None, parent=None, writable=False,   **kwargs):
         super().__init__()
         self._data = data
         self._parent = parent
@@ -243,10 +243,10 @@ class Entry(object):
 
         return obj
 
-    def get_value(self,  path=[], *args, default_value=_not_found_, **kwargs)->Any:
+    def get_value(self,  path=[], *args, default_value=_not_found_, **kwargs) -> Any:
         return self.get(path, *args, **kwargs)
 
-    def fetch(self)->Any:
+    def fetch(self) -> Any:
         return self.get_vale()
 
     def insert(self, path, v, *args, **kwargs):
@@ -345,3 +345,10 @@ class Entry(object):
             yield from obj.iter()
         else:
             raise NotImplementedError(type(obj))
+
+    def items(self):
+        obj = self.get_value([])
+        if isinstance(obj, collections.abc.Mapping):
+            yield from obj.items()
+        else:
+            raise TypeError(type(obj))

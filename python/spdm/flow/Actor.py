@@ -43,30 +43,26 @@ class Actor(Dict[str, Node]):
         #         return SpObject.__new__(cls, *args, **kwargs)
         return object.__new__(n_cls)
 
-    def __init__(self, entry: Iterator[Dict] = None,  *args, time: Optional[float] = None, maxlen: Optional[int] = None,  **kwargs) -> None:
-        super().__init__()
+    def __init__(self, d=None,  *args, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
+        super().__init__(d, *args, **kwargs)
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
-        self._s_entry = entry
+        self._s_entry = dumper
         self._s_deque = collections.deque(maxlen=maxlen)
 
     @property
     def time(self):
-        return self._time
+        return 0.0  # self._time
 
-    @property
     def job_id(self):
         return self._job_id
 
-    @property
     def states(self) -> Sequence[State]:
         return self._s_deque
 
-    @property
     def previous_state(self) -> State:
         return self._s_deque[-1]
 
-    @property
     def current_state(self) -> State:
         """
             Function:  gather current state based on the dataclass ‘State’
@@ -115,11 +111,10 @@ class Actor(Dict[str, Node]):
             Return  : return the residual between the updated state and the previous state
         """
 
-        d = collections.ChainMap(state or {}, kwargs)
+        super().__reset__(collections.ChainMap(state or {}, kwargs))
+        # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
 
-        super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
-
-        self._time = self["time"] or self._time
+        self._time = self["time"]
 
         logger.info(f"Update actor at time={self.time}. '{guess_class_name(self)}'")
 

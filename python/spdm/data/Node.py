@@ -14,10 +14,11 @@ from typing import (Any, Generic, Iterator, Mapping, MutableMapping, Iterable,
 from matplotlib.pyplot import isinteractive
 
 import numpy as np
+from numpy.lib.function_base import iterable
 
 from ..util.logger import logger
-from ..util.utilities import serialize
-from .Entry import _NEXT_TAG_, Entry, _last_, _next_, _not_found_
+from ..util.utilities import serialize, _not_found_
+from .Entry import _NEXT_TAG_, Entry, _last_, _next_
 
 _TObject = TypeVar('_TObject')
 _TKey = TypeVar('_TKey', int, str)
@@ -280,7 +281,7 @@ class List(MutableSequence[_TObject], Node):
         Node.__init__(self, d, *args, **kwargs)
 
     def __serialize__(self) -> Sequence:
-        return [serialize(v) for v in self._entry._data]
+        return [serialize(v) for v in self._entry.iter()]
 
     def _as_list(self) -> Sequence:
         return self.__serialize__()
@@ -302,8 +303,8 @@ class List(MutableSequence[_TObject], Node):
         obj = self._entry.get(k)
         if not self.__check_template__(obj.__class__):
             obj = self.__new_child__(obj)
-            if self._entry.writable:
-                self._entry.put(k, obj)
+            # if self._entry.writable:
+            #     self._entry.put(k, obj)
         return obj
 
     def __delitem__(self, k: _TIndex) -> None:
@@ -356,28 +357,32 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
     def __serialize__(self, ignore=None) -> Mapping:
         cls = self.__class__
-        ignore = (ignore or []) + getattr(cls, '_serialize_ignore', [])
+        properties = getattr(cls, '_properties_', _not_found_)
+        if properties is _not_found_:
+            res = {k: v for k, v in self._entry.items()}
+        else:
+            res = {}
+            for k in filter(lambda k: k[0] != '_' and k not in ignore, self.__dir__()):
+                prop = getattr(cls, k, None)
+                if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
+                    continue
+                elif isinstance(prop, cached_property):
+                    v = prop.__get__(self)
+                elif isinstance(prop, property):
+                    v = prop.fget(self)
+                else:
+                    v = getattr(self, k, _not_found_)
 
-        res = {}
-        for k in filter(lambda k: k[0] != '_' and k not in ignore, self.__dir__()):
-            prop = getattr(cls, k, None)
-            if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
-                continue
-            elif isinstance(prop, cached_property):
-                v = prop.__get__(self)
-            elif isinstance(prop, property):
-                v = prop.fget(self)
-            else:
-                v = getattr(self, k, None)
+                if v is _not_found_:
+                    continue
+                elif hasattr(v, "__serialize__"):
+                    res[k] = v.__serialize__()
+                else:
+                    res[k] = serialize(v)
 
-            if v is None or isinstance(v, (Entry)):
-                continue
-
-            res[k] = serialize(v)
-
-        if isinstance(self._entry._data, (collections.abc.Mapping)):
-            for k in filter(lambda k: k not in res and k[0] != '_', self._entry._data):
-                res[k] = serialize(self._entry.get(k))
+            if isinstance(self._entry._data, (collections.abc.Mapping)):
+                for k in filter(lambda k: k not in res and k[0] != '_', self._entry._data):
+                    res[k] = serialize(self._entry.get(k))
         return res
         # return {k: serialize(v) for k, v in res.items()}
         #  if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
@@ -390,6 +395,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         else:
             raise NotImplementedError(ids)
 
+    
     def _as_dict(self) -> Mapping:
         return self.__serialize__()
 
@@ -449,7 +455,10 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         elif d is None:
             return self.__reset__([d for k in dir(self) if not k.startswith("_")])
         elif isinstance(d, Mapping):
-            self._entry.update({key: self.__pre_process__(value) for key, value in d.items()})
+            # self._entry.update({key: self.__pre_process__(value) for key, value in d.items()})
+            # for key, value in d.items():
+            #     self._entry.put(key, self.__pre_process__(value))
+            self._entry = Entry(d, parent=self._entry.parent)
             self.__reset__(d.keys())
         elif isinstance(d, Sequence):
             for key in d:
