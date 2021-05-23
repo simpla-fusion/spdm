@@ -39,6 +39,8 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(d.a[1],  cache["a"][1])
         self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
+        self.assertEqual(d["f"]["g"], None)
+
     def test_attribute_set(self):
         cache = {}
 

@@ -1,5 +1,6 @@
 import collections
 import pathlib
+from typing import Optional
 
 import numpy as np
 from spdm.util.dict_util import format_string_recursive
@@ -8,7 +9,7 @@ from spdm.util.PathTraverser import PathTraverser
 
 from ..AttributeTree import AttributeTree
 from ..Document import Document
-from ..Entry import Entry
+from ..Entry import Entry, _TPath
 from ..File import File
 from ..Node import _not_found_
 
@@ -165,7 +166,7 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, envs)
         return res
 
-    def put(self,  path, value, *args, only_one=False, **kwargs):
+    def put(self,  value,  path: Optional[_TPath] = None, only_one=False, **kwargs):
         if self.wriable:
             path = self._normalize_path(path)
             if not only_one:
@@ -175,7 +176,7 @@ class XMLEntry(Entry):
         else:
             raise RuntimeError(f"Not writable!")
 
-    def get(self,  path, *args, only_one=False, default_value=None, **kwargs):
+    def get(self,  path: Optional[_TPath] = None, *args, only_one=False, default_value=None, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
@@ -184,7 +185,7 @@ class XMLEntry(Entry):
             xp, envs = self.xpath(path)
             return self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
 
-    def get_value(self,  path, *args,  only_one=False, default_value=_not_found_, **kwargs):
+    def get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
@@ -196,7 +197,7 @@ class XMLEntry(Entry):
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
-    def iter(self,  path, *args, envs=None, **kwargs):
+    def iter(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
         path = self._normalize_path(path)
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)

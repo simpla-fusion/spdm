@@ -212,7 +212,7 @@ class Node(object):
         if not self.__check_template__(value.__class__):
             value = self.__new_child__(value)
             if key is not None and self._entry.writable:
-                self._entry.put(key, value)
+                self._entry.put(value, key)
         return value
 
     def __fetch__(self, path=None, default_value=None):
@@ -222,7 +222,7 @@ class Node(object):
         return obj
 
     def __setitem__(self, path, value):
-        self._entry.put(path, self.__pre_process__(value))
+        self._entry.put(self.__pre_process__(value), path)
 
     def __getitem__(self, path):
         return self.__post_process__(self._entry.get(path), path)
@@ -288,7 +288,7 @@ class Node(object):
         return False if isinstance(self._entry, Entry) else (not not self._entry)
 
 
-class List(MutableSequence[_TObject], Node):
+class List(Node, MutableSequence[_TObject]):
     __slots__ = ()
 
     def __init__(self, d: collections.abc.Sequence = [], *args,  **kwargs):
@@ -332,9 +332,9 @@ class List(MutableSequence[_TObject], Node):
             value = self.__new_child__(value)
 
         if idx is not None:
-            self._entry.put(idx, value)
+            self._entry.put(value, idx)
         elif not sorted:
-            self._entry.put(-1, value)
+            self._entry.put(value, -1)
         elif isinstance(self._entry, Entry):
             data = self._entry._data
             if not isinstance(data, collections.abc.MutableSequence):
@@ -357,7 +357,7 @@ class List(MutableSequence[_TObject], Node):
             raise NotImplementedError()
 
 
-class Dict(MutableMapping[_TKey, _TObject], Node):
+class Dict(Node, MutableMapping[_TKey, _TObject]):
     __slots__ = ()
 
     def __init__(self, data: Mapping = None, *args,  **kwargs):
@@ -443,7 +443,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         if self._entry is None:
             self._entry = other
         elif isinstance(self._entry, Entry):
-            self._entry.put(None, other)
+            self._entry.put(other)
         elif isinstance(self._entry, collections.abc.Mapping):
             for k, v in other.items():
                 self.__setitem__(k, v)
