@@ -217,7 +217,7 @@ class XMLFile(File):
     def entry(self):
         if self._root is None:
             self._root = load_xml(self.path)
-        return AttributeTree(XMLEntry(self._root, parent=self))
+        return AttributeTree(XMLEntry(self._root, writable=False, parent=self))
 
 
 __SP_EXPORT__ = XMLFile

@@ -412,8 +412,8 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
         Node.__setitem__(self, key, value)
-        if isinstance(key, str):
-            self.__reset__([key])
+        # if isinstance(key, str):
+        #     self.__reset__([key])
 
     def __delitem__(self, key: _TKey) -> None:
         return Node.__delitem__(self, key)

@@ -4,6 +4,7 @@ import collections.abc
 import pprint
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Sequence, Type, TypeVar, Union, get_args)
+from numpy.lib.arraysetops import isin
 
 from spdm.util.utilities import normalize_path
 
@@ -36,7 +37,7 @@ class Entry(object):
     _DICT_TYPE_ = dict
     _LIST_TYPE_ = list
 
-    def __init__(self, data=None,  *args, prefix=None, parent=None, writable=False,   **kwargs):
+    def __init__(self, data=None,  *args, prefix=None, parent=None, writable=True,   **kwargs):
         super().__init__()
         self._data = data
         self._parent = parent
@@ -165,51 +166,46 @@ class Entry(object):
 
         obj = self._data
 
-        for idx, key in enumerate(path[:-1]):
+        for idx, key in enumerate(path):
 
-            child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
+            obj = getattr(obj, "_entry", obj)
 
-            if hasattr(obj, "_entry"):
-                obj = obj._entry
             if isinstance(obj, Entry):
-                obj = obj._data
-
-            if isinstance(obj, collections.abc.MutableMapping):
-                if not isinstance(key, str):
-                    raise TypeError(f"mapping indices must be str, not {key}")
-                tmp = obj.setdefault(key, child)
-                if tmp is None:
-                    obj[key] = child
-                    tmp = obj[key]
-                obj = tmp
-            elif isinstance(obj, collections.abc.MutableSequence):
+                obj = obj.put(path[idx:], value)
+                break
+            elif idx == len(path)-1:
                 if isinstance(key, _NEXT_TAG_):
-                    obj.append(child)
-                    obj = obj[-1]
-                elif isinstance(key, (int, slice)):
-                    tmp = obj[key]
+                    obj.append(value)
+                elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
+                    obj[key] = value
+                else:
+                    raise KeyError(f"[{']['.join(path)}]")
+            else:
+                child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
+                if isinstance(obj, collections.abc.MutableMapping):
+                    if not isinstance(key, str):
+                        raise TypeError(f"mapping indices must be str, not {key}")
+                    tmp = obj.setdefault(key, child)
                     if tmp is None:
                         obj[key] = child
-                        obj = obj[key]
+                        tmp = obj[key]
+                    obj = tmp
+                elif isinstance(obj, collections.abc.MutableSequence):
+                    if isinstance(key, _NEXT_TAG_):
+                        obj.append(child)
+                        obj = obj[-1]
+                    elif isinstance(key, (int, slice)):
+                        tmp = obj[key]
+                        if tmp is None:
+                            obj[key] = child
+                            obj = obj[key]
+                        else:
+                            obj = tmp
                     else:
-                        obj = tmp
+                        raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
+
                 else:
-                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
-
-            else:
-                raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
-
-        if hasattr(obj, "_entry"):
-            obj = obj._entry
-
-        if isinstance(path[-1], _NEXT_TAG_):
-            obj.append(value)
-        elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            obj[path[-1]] = value
-        elif isinstance(obj, Entry):
-            obj.put(path[-1], value)
-        else:
-            raise KeyError(f"[{']['.join(path)}]")
+                    raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
 
     def get(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
         path = self._prefix + normalize_path(path)
