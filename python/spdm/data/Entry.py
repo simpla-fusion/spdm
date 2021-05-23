@@ -214,14 +214,14 @@ class Entry(object):
             else:
                 raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
 
-    def get(self, path: Union[str, float, slice, Sequence, None]) -> Tuple[Any, Sequence]:
+    def get(self, path: Union[str, float, slice, Sequence, None]) -> Any:
         path = self._prefix + normalize_path(path)
 
         obj = self._data
         r_path = None
         for idx, key in enumerate(path):
             if hasattr(obj, "_entry"):
-                obj, r_path = obj._entry.get(path[idx:])
+                obj = obj._entry.get(path[idx:])
                 break
             elif isinstance(key, _NEXT_TAG_):
                 obj.append(_not_found_)
@@ -241,14 +241,8 @@ class Entry(object):
                 elif isinstance(key, int) and isinstance(self._data, collections.abc.MutableSequence) and key > len(self._data):
                     raise IndexError(f"Out of range! {key} > {len(self._data)}")
                 obj = obj[key]
-
-        return obj, r_path
-
-    def get_value(self,  path=[], *args, default_value=_not_found_, **kwargs) -> Any:
-        return self.get(path, *args, **kwargs)
-
-    def fetch(self) -> Any:
-        return self.get_value()
+        
+        return Entry(obj, prefix=r_path) if r_path is not None else obj
 
     def insert(self, path, v, *args, **kwargs):
         path = self._normalize_path(path)
@@ -287,10 +281,13 @@ class Entry(object):
         else:
             del obj[path[-1]]
 
-    def count(self,  path=[], *args, **kwargs):
-        res, rpath = self.get(path, *args, **kwargs)
-        if rpath is not None:
-            raise KeyError(rpath)
+    def count(self,  path=None, *args, **kwargs):
+        if path is None:
+            res = self._data
+        else:
+            res = self.get(path, *args, **kwargs)
+        if isinstance(res, Entry):
+            return 0
         elif isinstance(res, (str, int, float, np.ndarray)):
             return 1
         elif isinstance(res, (collections.abc.Sequence, collections.abc.Mapping)):
@@ -299,8 +296,7 @@ class Entry(object):
             raise TypeError(f"Not countable! {type(res)}")
 
     def contains(self, path, v, *args, **kwargs):
-        obj = self.get(path, *args, **kwargs)
-        return v in obj
+        return v in self.get(path, *args, **kwargs)
 
     def call(self,   path=[], *args, **kwargs):
         obj = self.get(path)
@@ -332,9 +328,7 @@ class Entry(object):
         return res
 
     def equal(self, other) -> bool:
-        obj, rpath = self.get(None)
-        if rpath is not None:
-            raise KeyError(rpath)
+        obj = self.get(None)
         return (isinstance(obj, Entry) and other is None) or (obj == other)
 
     def __iter__(self):

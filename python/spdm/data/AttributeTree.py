@@ -30,18 +30,21 @@ def do_getattr(obj, k):
         #     res = obj.get(k, _not_found_)
         else:
             res = obj.__getitem__(k)
+
     if res is _not_found_:
-        return AttributeTree(Entry(obj, [k]))
+        #     res = AttributeTree(Entry(obj, [k]))
+        res = _not_found_
     elif isinstance(res, Entry):
-        return AttributeTree(res)
-    elif isinstance(res, AttributeTree):
-        return res
-    elif isinstance(res, Node):
-        return AttributeTree(res._entry, parent=res._parent)
+        res = AttributeTree(res)
+    # # elif isinstance(res, AttributeTree):
+    # #     return res
+    # # elif isinstance(res, Node):
+    # #     return AttributeTree(res._entry, parent=res._parent)
     elif isinstance(res, (collections.abc.Mapping)):
-        return AttributeTree(res)
-    else:
-        return res
+        res = AttributeTree(res)
+    # else:
+    #     return res
+    return res
 
 
 def do_setattr(obj, k, v):

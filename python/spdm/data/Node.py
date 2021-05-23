@@ -216,17 +216,16 @@ class Node(object):
         return value
 
     def __fetch__(self, path=None, default_value=None):
-        v, p = self._entry.get(path or [])
-        return v if p is None else default_value
+        obj = self._entry.get(path or [])
+        if isinstance(obj, Entry):
+            obj = default_value
+        return obj
 
     def __setitem__(self, path, value):
         self._entry.put(path, self.__pre_process__(value))
 
     def __getitem__(self, path):
-        obj, p = self._entry.get(path)
-        if p is not None:
-            obj = Entry(obj, prefix=p)
-        return self.__post_process__(obj, path)
+        return self.__post_process__(self._entry.get(path), path)
 
     def __delitem__(self, path):
         if isinstance(self._entry, Entry):
@@ -261,10 +260,11 @@ class Node(object):
             for idx, obj in enumerate(self._entry.iter()):
                 yield self.__post_process__(obj, idx)
         else:
-            d, r_p = self._entry.get([], [])
-            if r_p is not None:
-                raise KeyError()
-            if isinstance(d, (collections.abc.MutableSequence)):
+            d = self._entry.get()
+
+            if isinstance(d, Entry):
+                yield from d.iter()
+            elif isinstance(d, (collections.abc.MutableSequence)):
                 # yield from map(lambda idx, v: self.__post_process__(v, idx), enumerate(d))
                 for idx, v in enumerate(d):
                     yield self.__post_process__(v, idx)
@@ -390,10 +390,7 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
             if isinstance(self._entry._data, (collections.abc.Mapping)):
                 for k in filter(lambda k: k not in res and k[0] != '_', self._entry._data):
-                    v, p = self._entry.get(k)
-                    if p is not None:
-                        raise KeyError(p)
-                    res[k] = serialize(v)
+                    res[k] = serialize(self._entry.get(k))
         return res
         # return {k: serialize(v) for k, v in res.items()}
         #  if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
@@ -414,14 +411,10 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         return super().__category__ | Node.Category.LIST
 
     def get(self, key: _TKey, default_value=_not_found_) -> _TObject:
-        v, r = self._entry.get(key)
-        if r is None:
-            pass
-        elif default_value is _not_found_:
-            v = Entry(v, prefix=r)
-        else:
-            v = default_value
-        return self.__post_process__(v)
+        obj = self._entry.get(key)
+        if isinstance(obj, Entry):
+            obj = default_value
+        return self.__post_process__(obj)
 
     def __getitem__(self, key: _TKey) -> _TObject:
         return Node.__getitem__(self, key)
