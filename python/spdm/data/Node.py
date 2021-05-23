@@ -216,13 +216,17 @@ class Node(object):
         return value
 
     def __fetch__(self, path=None, default_value=None):
-        return self._entry.get(path or [], default_value=default_value)
+        v, p = self._entry.get(path or [])
+        return v if p is None else default_value
 
     def __setitem__(self, path, value):
         self._entry.put(path, self.__pre_process__(value))
 
     def __getitem__(self, path):
-        return self.__post_process__(self._entry.get(path), path)
+        obj, p = self._entry.get(path)
+        if p is not None:
+            obj = Entry(obj, prefix=p)
+        return self.__post_process__(obj, path)
 
     def __delitem__(self, path):
         if isinstance(self._entry, Entry):
@@ -257,7 +261,9 @@ class Node(object):
             for idx, obj in enumerate(self._entry.iter()):
                 yield self.__post_process__(obj, idx)
         else:
-            d = self._entry.get([], [])
+            d, r_p = self._entry.get([], [])
+            if r_p is not None:
+                raise KeyError()
             if isinstance(d, (collections.abc.MutableSequence)):
                 # yield from map(lambda idx, v: self.__post_process__(v, idx), enumerate(d))
                 for idx, v in enumerate(d):
@@ -274,7 +280,7 @@ class Node(object):
             other = other._entry
 
         if isinstance(self._entry, Entry):
-            return self._entry.equal(other)
+            return other is None or self._entry.equal(other)
         else:
             return self._entry == other
 
@@ -286,7 +292,7 @@ class List(MutableSequence[_TObject], Node):
     __slots__ = ()
 
     def __init__(self, d: collections.abc.Sequence = [], *args,  **kwargs):
-        Node.__init__(self, d, *args, **kwargs)
+        Node.__init__(self, d if d is not None else [], *args, **kwargs)
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._entry.iter()]
@@ -354,8 +360,8 @@ class List(MutableSequence[_TObject], Node):
 class Dict(MutableMapping[_TKey, _TObject], Node):
     __slots__ = ()
 
-    def __init__(self, data: Mapping = {}, *args,  **kwargs):
-        Node.__init__(self, data, *args, **kwargs)
+    def __init__(self, data: Mapping = None, *args,  **kwargs):
+        Node.__init__(self, data if data is not None else {}, *args, **kwargs)
 
     def __serialize__(self, ignore=None) -> Mapping:
         cls = self.__class__
@@ -384,7 +390,10 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
 
             if isinstance(self._entry._data, (collections.abc.Mapping)):
                 for k in filter(lambda k: k not in res and k[0] != '_', self._entry._data):
-                    res[k] = serialize(self._entry.get(k))
+                    v, p = self._entry.get(k)
+                    if p is not None:
+                        raise KeyError(p)
+                    res[k] = serialize(v)
         return res
         # return {k: serialize(v) for k, v in res.items()}
         #  if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
@@ -404,8 +413,15 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
-    def get(self, key: _TKey, default_value=None) -> _TObject:
-        return self.__post_process__(self._entry.get(key, default_value=default_value))
+    def get(self, key: _TKey, default_value=_not_found_) -> _TObject:
+        v, r = self._entry.get(key)
+        if r is None:
+            pass
+        elif default_value is _not_found_:
+            v = Entry(v, prefix=r)
+        else:
+            v = default_value
+        return self.__post_process__(v)
 
     def __getitem__(self, key: _TKey) -> _TObject:
         return Node.__getitem__(self, key)

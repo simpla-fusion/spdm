@@ -2,10 +2,11 @@
 import collections
 import collections.abc
 import pprint
-from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
+from typing import (Any, Generic, Iterator, Mapping, MutableMapping, Tuple,
                     MutableSequence, Sequence, Type, TypeVar, Union, get_args)
-from numpy.lib.arraysetops import isin
 
+import numpy as np
+from numpy.lib.arraysetops import isin
 from spdm.util.utilities import normalize_path
 
 from ..util.logger import logger
@@ -161,62 +162,67 @@ class Entry(object):
             self._data = value
             return self._data
 
-        if self._data is None:
+        if self._data is None or self._data is _not_found_:
             self._data = Entry._DICT_TYPE_() if isinstance(path[0], str) else Entry._LIST_TYPE_()
 
         obj = self._data
 
         for idx, key in enumerate(path):
 
-            obj = getattr(obj, "_entry", obj)
-
             if isinstance(obj, Entry):
                 obj = obj.put(path[idx:], value)
                 break
-            elif idx == len(path)-1:
-                if isinstance(key, _NEXT_TAG_):
-                    obj.append(value)
-                elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
-                    obj[key] = value
-                else:
-                    raise KeyError(f"[{']['.join(path)}]")
+            # elif idx == len(path)-1:
+            #     if isinstance(key, _NEXT_TAG_):
+            #         obj.append(value)
+            #         obj = obj[-1]
+            #     elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
+            #         obj[key] = value
+            #         obj = obj[key]
+            #     else:
+            #         raise KeyError(f"[{']['.join(path)}]")
+
+            if idx == len(path)-1:
+                child = value
             else:
                 child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
-                if isinstance(obj, collections.abc.MutableMapping):
-                    if not isinstance(key, str):
-                        raise TypeError(f"mapping indices must be str, not {key}")
-                    tmp = obj.setdefault(key, child)
+
+            obj = getattr(obj, "_entry", obj)
+
+            if isinstance(obj, collections.abc.MutableMapping):
+                if not isinstance(key, str):
+                    raise TypeError(f"mapping indices must be str, not {key}")
+                tmp = obj.setdefault(key, child)
+                if tmp is None:
+                    obj[key] = child
+                    tmp = obj[key]
+                obj = tmp
+            elif isinstance(obj, collections.abc.MutableSequence):
+                if isinstance(key, _NEXT_TAG_):
+                    obj.append(child)
+                    obj = obj[-1]
+                elif isinstance(key, (int, slice)):
+                    tmp = obj[key]
                     if tmp is None:
                         obj[key] = child
-                        tmp = obj[key]
-                    obj = tmp
-                elif isinstance(obj, collections.abc.MutableSequence):
-                    if isinstance(key, _NEXT_TAG_):
-                        obj.append(child)
-                        obj = obj[-1]
-                    elif isinstance(key, (int, slice)):
-                        tmp = obj[key]
-                        if tmp is None:
-                            obj[key] = child
-                            obj = obj[key]
-                        else:
-                            obj = tmp
+                        obj = obj[key]
                     else:
-                        raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
-
+                        obj = tmp
                 else:
-                    raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
+                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
 
-    def get(self, path: Union[str, float, slice, Sequence, None], default_value=_not_found_):
+            else:
+                raise TypeError(f"Can not insert data to {path[:idx]}! type={type(obj)}")
+
+    def get(self, path: Union[str, float, slice, Sequence, None]) -> Tuple[Any, Sequence]:
         path = self._prefix + normalize_path(path)
 
         obj = self._data
-
+        r_path = None
         for idx, key in enumerate(path):
             if hasattr(obj, "_entry"):
-                obj = obj._entry.get(path[idx:])
+                obj, r_path = obj._entry.get(path[idx:])
                 break
-
             elif isinstance(key, _NEXT_TAG_):
                 obj.append(_not_found_)
                 obj = Entry(obj, prefix=[len(obj)-1] + path[idx:])
@@ -226,10 +232,9 @@ class Entry(object):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
                 tmp = obj.get(key, _not_found_)
                 if tmp is _not_found_:
-                    obj = Entry(obj, prefix=path[idx:])
+                    r_path = path[idx:]
                     break
-                else:
-                    obj = tmp
+                obj = tmp
             elif isinstance(obj, collections.abc.MutableSequence):
                 if not isinstance(key, (int, slice)):
                     raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
@@ -237,13 +242,13 @@ class Entry(object):
                     raise IndexError(f"Out of range! {key} > {len(self._data)}")
                 obj = obj[key]
 
-        return obj
+        return obj, r_path
 
     def get_value(self,  path=[], *args, default_value=_not_found_, **kwargs) -> Any:
         return self.get(path, *args, **kwargs)
 
     def fetch(self) -> Any:
-        return self.get_vale()
+        return self.get_value()
 
     def insert(self, path, v, *args, **kwargs):
         path = self._normalize_path(path)
@@ -283,11 +288,15 @@ class Entry(object):
             del obj[path[-1]]
 
     def count(self,  path=[], *args, **kwargs):
-        res = self.get(path, *args, **kwargs)
-        if isinstance(res, (list, collections.abc.Mapping)):
+        res, rpath = self.get(path, *args, **kwargs)
+        if rpath is not None:
+            raise KeyError(rpath)
+        elif isinstance(res, (str, int, float, np.ndarray)):
+            return 1
+        elif isinstance(res, (collections.abc.Sequence, collections.abc.Mapping)):
             return len(res)
         else:
-            return 1
+            raise TypeError(f"Not countable! {type(res)}")
 
     def contains(self, path, v, *args, **kwargs):
         obj = self.get(path, *args, **kwargs)
@@ -323,7 +332,9 @@ class Entry(object):
         return res
 
     def equal(self, other) -> bool:
-        obj = self.get(None)
+        obj, rpath = self.get(None)
+        if rpath is not None:
+            raise KeyError(rpath)
         return (isinstance(obj, Entry) and other is None) or (obj == other)
 
     def __iter__(self):

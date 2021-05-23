@@ -26,12 +26,14 @@ def do_getattr(obj, k):
             res = getattr(res, "fget")(obj)
         elif isinstance(res, functools.cached_property):
             res = res.__get__(obj)
-        elif hasattr(obj.__class__, 'get'):
-            res = obj.get(k, None)
+        # elif hasattr(obj.__class__, 'get'):
+        #     res = obj.get(k, _not_found_)
         else:
             res = obj.__getitem__(k)
-    if res is None:
+    if res is _not_found_:
         return AttributeTree(Entry(obj, [k]))
+    elif isinstance(res, Entry):
+        return AttributeTree(res)
     elif isinstance(res, AttributeTree):
         return res
     elif isinstance(res, Node):
