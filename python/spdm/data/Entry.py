@@ -348,7 +348,7 @@ class Entry(object):
             raise NotImplementedError(type(obj))
 
     def items(self):
-        obj = self.get_value([])
+        obj = self.get([])
         if isinstance(obj, collections.abc.Mapping):
             yield from obj.items()
         else:
