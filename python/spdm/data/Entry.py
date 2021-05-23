@@ -337,7 +337,7 @@ class Entry(object):
     def iter(self, path=[], *args, **kwargs):
         obj = self.get(path, *args, **kwargs)
 
-        if isinstance(obj, (collections.abc.Mapping or collections.abc.MutableSequence)):
+        if isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
             yield from obj
         elif not isinstance(obj, Entry):
             yield obj

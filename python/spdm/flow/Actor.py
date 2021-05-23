@@ -18,6 +18,8 @@ class Actor(Dict[str, Node]):
     """
     @dataclass
     class State:
+        time: float 
+
         def update(self, *args, **kwargs):
             pass
 
@@ -35,7 +37,7 @@ class Actor(Dict[str, Node]):
                     logger.error(f"Can not find actor '{prefix}{name}'!")
                     raise ModuleNotFoundError(f"{prefix}{name}")
                 else:
-                    logger.info(f"Load actor '{guess_class_name(n_cls)}'!")
+                    logger.info(f"Load actor '{prefix}{name}={guess_class_name(n_cls)}'!")
 
         #     if cls is not Actor:
         #         return object.__new__(cls)
@@ -70,9 +72,8 @@ class Actor(Dict[str, Node]):
         """
         assert(is_dataclass(self.State))
 
-        return self.State(
-            **collections.ChainMap({"time": self._time},
-                                   {f.name: getattr(self, f.name, _not_found_) for f in fields(self.__class__.State)}))
+        return self.State(**collections.ChainMap({"time": self._time},
+                                                 {f.name: getattr(self, f.name, _not_found_) for f in fields(self.__class__.State)}))
 
     def flush(self) -> State:
         current_state = self.current_state
@@ -110,8 +111,8 @@ class Actor(Dict[str, Node]):
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-
-        super().__reset__(collections.ChainMap(state or {}, kwargs))
+        if state is not None:
+            super().__update__(state)
         # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
 
         self._time = self["time"]

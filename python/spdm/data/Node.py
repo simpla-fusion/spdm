@@ -2,6 +2,7 @@ import bisect
 import collections
 import collections.abc
 import copy
+import enum
 import functools
 import inspect
 import pprint
@@ -207,8 +208,12 @@ class Node(object):
     def __pre_process__(self, value, *args, **kwargs):
         return value
 
-    def __post_process__(self, value, *args,   **kwargs):
-        return value if isinstance(value, Node) else self.__new_child__(value, *args, **kwargs)
+    def __post_process__(self, value, key=None, *args,   **kwargs):
+        if not self.__check_template__(value.__class__):
+            value = self.__new_child__(value)
+            if key is not None and self._entry.writable:
+                self._entry.put(key, value)
+        return value
 
     def __fetch__(self, path=None, default_value=None):
         return self._entry.get(path or [], default_value=default_value)
@@ -217,7 +222,7 @@ class Node(object):
         self._entry.put(path, self.__pre_process__(value))
 
     def __getitem__(self, path):
-        return self.__post_process__(self._entry.get(path))
+        return self.__post_process__(self._entry.get(path), path)
 
     def __delitem__(self, path):
         if isinstance(self._entry, Entry):
@@ -249,15 +254,18 @@ class Node(object):
 
     def __iter__(self):
         if isinstance(self._entry, Entry):
-            for obj in self._entry.iter():
-                yield self.__post_process__(obj)
+            for idx, obj in enumerate(self._entry.iter()):
+                yield self.__post_process__(obj, idx)
         else:
             d = self._entry.get([], [])
             if isinstance(d, (collections.abc.MutableSequence)):
-                yield from map(lambda v: self.__post_process__(v), d)
+                # yield from map(lambda idx, v: self.__post_process__(v, idx), enumerate(d))
+                for idx, v in enumerate(d):
+                    yield self.__post_process__(v, idx)
             elif isinstance(d, collections.abc.Mapping):
-                yield from d
-
+                # yield from map(lambda idx, v: self.__post_process__(v, idx), d.items())
+                for idx, v in d.items():
+                    yield self.__post_process__(v, idx)
             else:
                 yield self.__post_process__(d)
 
@@ -297,22 +305,16 @@ class List(MutableSequence[_TObject], Node):
         return super().__new_child__(*args, parent=parent if parent is not None else self._parent, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
-        self._entry.put(k, self.__pre_process__(v))
+        Node.__setitem__(self, k, v)
 
     def __getitem__(self, k: _TIndex) -> _TObject:
-        obj = self._entry.get(k)
-        if not self.__check_template__(obj.__class__):
-            obj = self.__new_child__(obj)
-            # if self._entry.writable:
-            #     self._entry.put(k, obj)
-        return obj
+        return Node.__getitem__(self, k)
 
     def __delitem__(self, k: _TIndex) -> None:
         Node.__delitem__(self, k)
 
     def __iter__(self) -> Iterator[_TObject]:
-        for idx in range(self.__len__()):
-            yield self.__post_process__(self.__getitem__(idx))
+        yield from Node.__iter__(self)
 
     def insert(self, idx, value=None, sorted=True) -> _TObject:
         if value is None:
@@ -395,7 +397,6 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         else:
             raise NotImplementedError(ids)
 
-    
     def _as_dict(self) -> Mapping:
         return self.__serialize__()
 
@@ -406,17 +407,11 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
     def get(self, key: _TKey, default_value=None) -> _TObject:
         return self.__post_process__(self._entry.get(key, default_value=default_value))
 
-    def __getitem__(self, k: _TKey) -> _TObject:
-        obj = self._entry.get(k)
-        if isinstance(obj, Entry):
-            obj = self.__post_process__(obj)
-        elif not self.__check_template__(obj.__class__):
-            obj = self.__post_process__(obj)
-            # self._entry.put(k, obj)
-        return obj
+    def __getitem__(self, key: _TKey) -> _TObject:
+        return Node.__getitem__(self, key)
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
-        self._entry.put(key, self.__pre_process__(value))
+        Node.__setitem__(self, key, value)
         if isinstance(key, str):
             self.__reset__([key])
 
@@ -446,8 +441,14 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         else:
             raise TypeError(f"{type(other)}")
 
-    def __iter__(self):
-        return super().__iter__()
+    def __update__(self, d):
+        if not self._entry.writable:
+            self._entry = Entry(d)  # Entry(collections.ChainMap(d, Dict[str, Node](self._entry)), writable=True)
+        else:
+            for k, v in d.items():
+                self.__setitem__(k, v)
+
+        self.__reset__(d.keys())
 
     def __reset__(self, d=None):
         if isinstance(d, str):
@@ -455,13 +456,12 @@ class Dict(MutableMapping[_TKey, _TObject], Node):
         elif d is None:
             return self.__reset__([d for k in dir(self) if not k.startswith("_")])
         elif isinstance(d, Mapping):
-            # self._entry.update({key: self.__pre_process__(value) for key, value in d.items()})
-            # for key, value in d.items():
-            #     self._entry.put(key, self.__pre_process__(value))
-            self._entry = Entry(d, parent=self._entry.parent)
+            properties = getattr(self.__class__, '_properties_', _not_found_)
+            if properties is not _not_found_:
+                data = {k: v for k, v in d.items() if k in properties}
+            self._entry = Entry(data, parent=self._entry.parent)
             self.__reset__(d.keys())
         elif isinstance(d, Sequence):
             for key in d:
-                if isinstance(key, str) and hasattr(self, key) and \
-                        isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
+                if isinstance(key, str) and hasattr(self, key) and isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
                     delattr(self, key)
