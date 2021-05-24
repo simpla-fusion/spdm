@@ -295,7 +295,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
     eq.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
     eq.profiles_1d.q = geqdsk["qpsi"]
     eq.profiles_1d.psi_norm = np.linspace(0, 1.0, nw)
-    
+
     return eq
 
 
@@ -308,7 +308,7 @@ class GEQdskDocument(File):
     def entry(self):
         if self._data is None:
             self._data = self.load(self.path)
-        return self._data
+        return self._data._entry
 
     def flush(self, *args, **kwargs):
         if "x" in self.mode or "w" in self.mode:

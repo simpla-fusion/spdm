@@ -63,7 +63,7 @@ class Node(object):
             self._entry = Entry(data, *args, **kwargs)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__._name} />"
+        return f"<{self.__class__.__name__} />"
         # return pprint.pformat(self.__serialize__())
 
     def __serialize__(self) -> Mapping:
@@ -195,7 +195,7 @@ class Node(object):
             value = List(value, *args, parent=parent, **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
             value = Dict(value, *args, parent=parent,  **kwargs)
-        # elif isinstance(value, (Entry)):
+        # elif isinstance(value, Entry):
         #     value = Node(value, *args, parent=parent, *kwargs)
 
         return value
@@ -302,13 +302,8 @@ class List(Node, MutableSequence[_TObject]):
     def __len__(self) -> int:
         return Node.__len__(self)
 
-    def __new_child__(self,   *args, parent: Optional[Node] = None,  **kwargs) -> _TObject:
-        return super().__new_child__(*args, parent=parent if parent is not None else self._parent, **kwargs)
-
     def __post_process__(self, value: Any, *args, **kwargs) -> Any:
-        if not self.__check_template__(value.__class__):
-            value = self.__new_child__(value)
-        return super().__post_process__(value, *args, **kwargs)
+        return super().__post_process__(self.__new_child__(value), *args, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
         Node.__setitem__(self, k, v)
@@ -361,7 +356,9 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
     __slots__ = ()
 
     def __init__(self, data: Optional[Mapping] = None, *args,  **kwargs):
-        Node.__init__(self, data if data != None and data is not _not_found_ else {}, *args, **kwargs)
+        if data is None or data is _not_found_:
+            data = {}
+        Node.__init__(self, data, *args, **kwargs)
 
     def __serialize__(self, properties: Optional[Sequence] = None) -> Mapping:
         return {k: serialize(v) for k, v in self._as_dict().items() if properties is None or k in properties}
@@ -376,34 +373,31 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
 
     def _as_dict(self) -> Mapping:
         cls = self.__class__
-
-        properties = set([k for k in self.__dir__() if not k.startswith('_')])
-
-        res = {}
-
-        for k in properties:
-            prop = getattr(cls, k, None)
-            if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
-                continue
-            elif isinstance(prop, cached_property):
-                v = prop.__get__(self)
-            elif isinstance(prop, property):
-                v = prop.fget(self)
-            else:
-                v = getattr(self, k, _not_found_)
-
-            if v is _not_found_:
-                v = self._entry.get(k)
-
-            if v is _not_found_ or isinstance(v, Entry):
-                continue
-            # elif hasattr(v, "__serialize__"):
-            #     res[k] = v.__serialize__()
-            # else:
-            #     res[k] = serialize(v)
-            res[k] = v
-
-        return res
+        if cls is Dict:
+            return self._entry._data
+        else:
+            properties = set([k for k in self.__dir__() if not k.startswith('_')])
+            res = {}
+            for k in properties:
+                prop = getattr(cls, k, None)
+                if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
+                    continue
+                elif isinstance(prop, cached_property):
+                    v = prop.__get__(self)
+                elif isinstance(prop, property):
+                    v = prop.fget(self)
+                else:
+                    v = getattr(self, k, _not_found_)
+                if v is _not_found_:
+                    v = self._entry.get(k)
+                if v is _not_found_ or isinstance(v, Entry):
+                    continue
+                # elif hasattr(v, "__serialize__"):
+                #     res[k] = v.__serialize__()
+                # else:
+                #     res[k] = serialize(v)
+                res[k] = v
+            return res
 
     @property
     def __category__(self):
@@ -416,7 +410,7 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
         return self.__post_process__(obj)
 
     def __post_process__(self, value: Any, *args, **kwargs) -> Any:
-        return super().__post_process__(value, *args, **kwargs)
+        return super().__post_process__(self.__new_child__(value), *args, **kwargs)
 
     def __getitem__(self, key: _TKey) -> _TObject:
         return Node.__getitem__(self, key)

@@ -109,18 +109,15 @@ class XMLEntry(Entry):
         return res, envs
 
     def _convert(self, element, path=[], lazy=True, envs=None, projection=None):
+        
+        if isinstance(element, collections.abc.MutableSequence) and len(element) == 1 and "id" not in element[0].attrib:
+            element = element[0]
 
-        if isinstance(element, collections.abc.Sequence) and not isinstance(element, str):
-            res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
-            if len(res) == 1:
-                res = res[0]
-            elif len(res) == 0:
-                res = _not_found_
-            return res
-            
         res = None
-
-        if len(element) > 0 and lazy:
+        
+        if isinstance(element, collections.abc.MutableSequence):
+            res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
+        elif len(element) > 0 and lazy:
             res = XMLEntry(element, prefix=[])
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)

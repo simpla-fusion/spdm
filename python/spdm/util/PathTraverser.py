@@ -1,3 +1,4 @@
+from spdm.util.utilities import normalize_path
 from .logger import logger
 import functools
 
@@ -6,10 +7,7 @@ class PathTraverser:
     MAX_SLICE_LENGTH = 10
 
     def __init__(self, path="", *args, **kwargs):
-        if isinstance(path, str):
-            self._path = path.split(".")
-        else:
-            self._path = path
+        self._path = normalize_path(path)
 
     @property
     def is_multiple(self):
