@@ -40,7 +40,7 @@ class Function:
         if isinstance(y, Node):
             y = y.__fetch__(default_value=0.0)
         elif isinstance(y, Entry):
-            y = y.get_value()
+            y = y.get()
 
         if isinstance(y, Function):
             self._y = None

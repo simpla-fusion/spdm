@@ -186,7 +186,7 @@ class Node(object):
         return self._default_factory
 
     def __new_child__(self, value, *args, parent=None,  **kwargs) -> Any:
-        parent = parent if parent is None else self
+        parent = parent if parent is not None else self
         if isinstance(value, Node):
             pass
         elif self.__factory__ is not None:
@@ -301,6 +301,9 @@ class List(Node, MutableSequence[_TObject]):
 
     def __len__(self) -> int:
         return Node.__len__(self)
+
+    def __new_child__(self, value, *args, parent=None,  **kwargs) -> Any:
+        return super().__new_child__(value, *args, parent=parent if parent is not None else self._parent, **kwargs)
 
     def __post_process__(self, value: Any, *args, **kwargs) -> Any:
         return super().__post_process__(self.__new_child__(value), *args, **kwargs)
