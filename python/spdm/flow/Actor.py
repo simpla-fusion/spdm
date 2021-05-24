@@ -1,6 +1,7 @@
 import collections
-from dataclasses import dataclass, is_dataclass, fields
-from typing import Any, Deque, Generic, Mapping, NewType, Optional, Sequence, TypeVar, Iterator
+from dataclasses import dataclass, fields, is_dataclass
+from typing import (Any, Deque, Generic, Iterator, Mapping, NewType, Optional,
+                    Sequence, TypeVar)
 
 import numpy as np
 
@@ -8,7 +9,8 @@ from ..data.Entry import Entry
 from ..data.Node import Dict, List, Node, _TObject
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
-from ..util.utilities import _empty, _not_found_, guess_class_name
+from ..util.utilities import (_empty, _not_defined_, _not_found_,
+                              guess_class_name)
 from .Session import Session
 
 
@@ -18,7 +20,7 @@ class Actor(Dict[str, Node]):
     """
     @dataclass
     class State:
-        time: float 
+        time: float
 
         def update(self, *args, **kwargs):
             pass
@@ -26,23 +28,23 @@ class Actor(Dict[str, Node]):
     def __new__(cls, desc=None, *args, **kwargs):
         prefix = getattr(cls, "_actor_module_prefix", None)
         n_cls = cls
+        cls_name = None
         if cls is not Actor and prefix is None:
             pass
         elif isinstance(desc, collections.abc.Mapping):
-            name = desc.get("code", {}).get("name", None)
-            if name is not None:
-                try:
-                    n_cls = sp_find_module(f"{prefix}{name}")
-                except Exception:
-                    logger.error(f"Can not find actor '{prefix}{name}'!")
-                    raise ModuleNotFoundError(f"{prefix}{name}")
-                else:
-                    logger.info(f"Load actor '{prefix}{name}={guess_class_name(n_cls)}'!")
+            cls_name = desc.get("code", {}).get("name", None)
+        elif isinstance(desc, Entry):
+            cls_name = desc.get("code.name", _not_defined_)
 
-        #     if cls is not Actor:
-        #         return object.__new__(cls)
-        #     else:
-        #         return SpObject.__new__(cls, *args, **kwargs)
+        if isinstance(cls_name, str):
+            try:
+                n_cls = sp_find_module(f"{prefix}{cls_name}")
+            except Exception:
+                logger.error(f"Can not find actor '{prefix}{cls_name}'!")
+                raise ModuleNotFoundError(f"{prefix}{cls_name}")
+            else:
+                logger.info(f"Load actor '{prefix}{cls_name}={guess_class_name(n_cls)}'!")
+
         return object.__new__(n_cls)
 
     def __init__(self, d=None,  *args, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:

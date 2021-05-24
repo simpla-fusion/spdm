@@ -16,14 +16,13 @@ from matplotlib.pyplot import isinteractive
 
 import numpy as np
 from numpy.lib.function_base import iterable
+from sympy.core import cache
 
 from ..util.logger import logger
-from ..util.utilities import serialize, _not_found_
-from .Entry import _NEXT_TAG_, Entry, _last_, _next_
+from ..util.utilities import serialize, _not_found_, _not_defined_
+from .Entry import Entry, _last_, _next_, _TPath, _TKey, _TIndex
 
 _TObject = TypeVar('_TObject')
-_TKey = TypeVar('_TKey', int, str)
-_TIndex = TypeVar('_TIndex', int, slice, _NEXT_TAG_)
 
 
 class Node(object):
@@ -64,20 +63,17 @@ class Node(object):
             self._entry = Entry(data, *args, **kwargs)
 
     def __repr__(self) -> str:
-        return pprint.pformat(self.__serialize__())
+        return f"<{self.__class__._name} />"
+        # return pprint.pformat(self.__serialize__())
 
-    def __serialize__(self):
+    def __serialize__(self) -> Mapping:
         if isinstance(self._entry, Entry):
-            return f"<{self.__class__.__name__} type={self._entry.__class__.__name__} path={ self._entry.__normalize_path__()}>"
+            return f"<{self.__class__.__name__} type={self._entry.__class__.__name__} path={ self._entry._prefix}>"
         else:
             return serialize(self._entry)
 
-    def __duplicate__(self, desc=None):
+    def __duplicate__(self, desc=None) -> object:
         return self.__class__(desc if desc is not None else self.__serialize__(), parent=self._parent)
-
-    # @staticmethod
-    # def deserialize(cls, d):
-    #     return cls(d)
 
     def _as_dict(self) -> Mapping:
         return Entry._DICT_TYPE_
@@ -86,13 +82,13 @@ class Node(object):
         return Entry._LIST_TYPE_
 
     @property
-    def __parent__(self):
+    def __parent__(self) -> object:
         return self._parent
 
     def __hash__(self) -> int:
         return hash(self._name)
 
-    def __clear__(self):
+    def __clear__(self) -> None:
         self._entry = None
 
     class Category(IntFlag):
@@ -133,7 +129,7 @@ class Node(object):
 
         return flag
 
-    def empty(self):
+    def empty(self) -> bool:
         return self._entry is None or (isinstance(self._entry, (collections.abc.Sequence, collections.abc.Mapping)) and len(self._entry) == 0)
 
     """
@@ -163,7 +159,7 @@ class Node(object):
         @enduml
     """
     @property
-    def __category__(self):
+    def __category__(self) -> Category:
         return Node.__type_category__(self._entry)
 
     def __genreric_template_arguments__(self):
@@ -174,60 +170,57 @@ class Node(object):
         else:
             return None
 
-    def __check_template__(self, cls):
+    def __check_template__(self, cls) -> bool:
         orig_class = getattr(self, "__orig_class__", None)
         if orig_class is not None:
             return issubclass(cls,  get_args(orig_class))
         else:
             return issubclass(cls, Node)
 
-    def __new_child__(self,  *args, parent=None,  **kwargs):
-        if parent is None:
-            parent = self
-        value = None
-        if self._default_factory is not None:
-            value = self._default_factory(*args,  parent=parent, ** kwargs)
-        else:
+    @property
+    def __factory__(self):
+        if self._default_factory is None:
             factory = self.__genreric_template_arguments__()
             if factory is not None and len(factory) > 0 and inspect.isclass(factory[0]):
-                value = factory[0](*args,  parent=parent, ** kwargs)
-        if value is None and len(args) > 0:
-            value = args[0]
+                self._default_factory = factory[0]
+        return self._default_factory
 
+    def __new_child__(self, value, *args, parent=None,  **kwargs) -> Any:
+        parent = parent if parent is None else self
         if isinstance(value, Node):
             pass
+        elif self.__factory__ is not None:
+            value = self.__factory__(value, *args,  parent=parent, ** kwargs)
         elif isinstance(value, collections.abc.MutableSequence):
-            value = List[Node](value, *args, parent=parent, **kwargs)
+            value = List(value, *args, parent=parent, **kwargs)
         elif isinstance(value, collections.abc.MutableMapping):
-            value = Dict[str, Node](value, *args, parent=parent,  **kwargs)
-        elif isinstance(value, (Entry)):
-            value = Node(value, *args, parent=parent, *kwargs)
+            value = Dict(value, *args, parent=parent,  **kwargs)
+        # elif isinstance(value, (Entry)):
+        #     value = Node(value, *args, parent=parent, *kwargs)
 
         return value
 
-    def __pre_process__(self, value, *args, **kwargs):
+    def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, value, key=None, *args,   **kwargs):
-        if not self.__check_template__(value.__class__):
-            value = self.__new_child__(value)
-            if key is not None and self._entry.writable:
-                self._entry.put(value, key)
+    def __post_process__(self, value: Any,  *args,   **kwargs) -> Any:
+        if self._entry.writable and not isinstance(value, Entry):
+            self._entry.put(value, *args, **kwargs)
         return value
 
-    def __fetch__(self, path=None, default_value=None):
-        obj = self._entry.get(path or [])
+    def __fetch__(self, path: Optional[_TPath] = None, default_value=None) -> Any:
+        obj = self._entry.get(path)
         if isinstance(obj, Entry):
             obj = default_value
         return obj
 
-    def __setitem__(self, path, value):
+    def __setitem__(self, path: _TPath, value: Any) -> None:
         self._entry.put(self.__pre_process__(value), path)
 
-    def __getitem__(self, path):
+    def __getitem__(self, path: _TPath) -> Any:
         return self.__post_process__(self._entry.get(path), path)
 
-    def __delitem__(self, path):
+    def __delitem__(self, path: _TPath) -> None:
         if isinstance(self._entry, Entry):
             self._entry.delete(path)
         elif not path:
@@ -237,7 +230,7 @@ class Node(object):
         else:
             del self._entry[path]
 
-    def __contains__(self, path):
+    def __contains__(self, path: _TPath) -> bool:
         if isinstance(self._entry, Entry):
             return self._entry.contains(path, None)
         elif isinstance(path, str) and isinstance(self._entry, collections.abc.Mapping):
@@ -247,7 +240,7 @@ class Node(object):
         else:
             return False
 
-    def __len__(self):
+    def __len__(self) -> int:
         if isinstance(self._entry, Entry):
             return self._entry.count()
         elif isinstance(self._entry,  (collections.abc.Mapping, collections.abc.MutableSequence)):
@@ -255,7 +248,7 @@ class Node(object):
         else:
             return 0 if self._entry is _not_found_ else 1
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[_TObject]:
         if isinstance(self._entry, Entry):
             for idx, obj in enumerate(self._entry.iter()):
                 yield self.__post_process__(obj, idx)
@@ -291,14 +284,16 @@ class Node(object):
 class List(Node, MutableSequence[_TObject]):
     __slots__ = ()
 
-    def __init__(self, d: Optional[Sequence] = None, *args,  **kwargs):
-        Node.__init__(self, d if d != None else [], *args, **kwargs)
+    def __init__(self, data: Optional[Sequence] = None, *args,  **kwargs) -> None:
+        if data == None and data is _not_found_:
+            data = []
+        Node.__init__(self, data, *args, **kwargs)
 
     def __serialize__(self) -> Sequence:
-        return [serialize(v) for v in self._entry.iter()]
+        return [serialize(v) for v in self._as_list()]
 
     def _as_list(self) -> Sequence:
-        return self.__serialize__()
+        return [v for v in self._entry.values()]
 
     @property
     def __category__(self):
@@ -307,8 +302,13 @@ class List(Node, MutableSequence[_TObject]):
     def __len__(self) -> int:
         return Node.__len__(self)
 
-    def __new_child__(self,   *args, parent=None,  **kwargs) -> _TObject:
+    def __new_child__(self,   *args, parent: Optional[Node] = None,  **kwargs) -> _TObject:
         return super().__new_child__(*args, parent=parent if parent is not None else self._parent, **kwargs)
+
+    def __post_process__(self, value: Any, *args, **kwargs) -> Any:
+        if not self.__check_template__(value.__class__):
+            value = self.__new_child__(value)
+        return super().__post_process__(value, *args, **kwargs)
 
     def __setitem__(self, k: _TIndex, v: _TObject) -> None:
         Node.__setitem__(self, k, v)
@@ -361,42 +361,13 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
     __slots__ = ()
 
     def __init__(self, data: Optional[Mapping] = None, *args,  **kwargs):
-        Node.__init__(self, data if data != None else {}, *args, **kwargs)
+        Node.__init__(self, data if data != None and data is not _not_found_ else {}, *args, **kwargs)
 
-    def __serialize__(self, ignore=None) -> Mapping:
-        cls = self.__class__
-        properties = getattr(cls, '_properties_', _not_found_)
-        if properties is _not_found_:
-            res = {k: v for k, v in self._entry.items()}
-        else:
-            res = {}
-            for k in filter(lambda k: k[0] != '_' and k not in ignore, self.__dir__()):
-                prop = getattr(cls, k, None)
-                if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
-                    continue
-                elif isinstance(prop, cached_property):
-                    v = prop.__get__(self)
-                elif isinstance(prop, property):
-                    v = prop.fget(self)
-                else:
-                    v = getattr(self, k, _not_found_)
-
-                if v is _not_found_:
-                    continue
-                elif hasattr(v, "__serialize__"):
-                    res[k] = v.__serialize__()
-                else:
-                    res[k] = serialize(v)
-
-            if isinstance(self._entry._data, (collections.abc.Mapping)):
-                for k in filter(lambda k: k not in res and k[0] != '_', self._entry._data):
-                    res[k] = serialize(self._entry.get(k))
-        return res
-        # return {k: serialize(v) for k, v in res.items()}
-        #  if isinstance(v, (int, float, str, collections.abc.Mapping, collections.abc.Sequence))}
+    def __serialize__(self, properties: Optional[Sequence] = None) -> Mapping:
+        return {k: serialize(v) for k, v in self._as_dict().items() if properties is None or k in properties}
 
     @classmethod
-    def __deserialize__(cls, desc: Mapping):
+    def __deserialize__(cls, desc: Mapping) -> _TObject:
         ids = desc.get("@ids", None)
         if ids is None:
             raise ValueError(desc)
@@ -404,17 +375,48 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
             raise NotImplementedError(ids)
 
     def _as_dict(self) -> Mapping:
-        return self.__serialize__()
+        cls = self.__class__
+
+        properties = set([k for k in self.__dir__() if not k.startswith('_')])
+
+        res = {}
+
+        for k in properties:
+            prop = getattr(cls, k, None)
+            if inspect.isfunction(prop) or inspect.isclass(prop) or inspect.ismethod(prop):
+                continue
+            elif isinstance(prop, cached_property):
+                v = prop.__get__(self)
+            elif isinstance(prop, property):
+                v = prop.fget(self)
+            else:
+                v = getattr(self, k, _not_found_)
+
+            if v is _not_found_:
+                v = self._entry.get(k)
+
+            if v is _not_found_ or isinstance(v, Entry):
+                continue
+            # elif hasattr(v, "__serialize__"):
+            #     res[k] = v.__serialize__()
+            # else:
+            #     res[k] = serialize(v)
+            res[k] = v
+
+        return res
 
     @property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
-    def get(self, key: _TKey, default_value=_not_found_) -> _TObject:
+    def get(self, key: _TPath, default_value=_not_found_) -> _TObject:
         obj = self._entry.get(key)
         if isinstance(obj, Entry):
             obj = default_value
         return self.__post_process__(obj)
+
+    def __post_process__(self, value: Any, *args, **kwargs) -> Any:
+        return super().__post_process__(value, *args, **kwargs)
 
     def __getitem__(self, key: _TKey) -> _TObject:
         return Node.__getitem__(self, key)
@@ -427,7 +429,7 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
     def __delitem__(self, key: _TKey) -> None:
         return Node.__delitem__(self, key)
 
-    def __iter__(self) -> Iterator[Node]:
+    def __iter__(self) -> Iterator[_TObject]:
         yield from Node.__iter__(self)
 
     def __len__(self) -> int:
@@ -450,7 +452,7 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
         else:
             raise TypeError(f"{type(other)}")
 
-    def __update__(self, d):
+    def __update__(self, d: Mapping) -> None:
         if not self._entry.writable:
             self._entry = Entry(d)  # Entry(collections.ChainMap(d, Dict[str, Node](self._entry)), writable=True)
         else:
@@ -459,7 +461,7 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
 
         self.__reset__(d.keys())
 
-    def __reset__(self, d=None):
+    def __reset__(self, d=None) -> None:
         if isinstance(d, str):
             return self.__reset__([d])
         elif d is None:

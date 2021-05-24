@@ -13,7 +13,7 @@ class PathTraverser:
 
     @property
     def is_multiple(self):
-        return len(self._path) > 0 and functools.reduce(lambda a, b: a and b, [isinstance(p, slice) for p in self._path], True)
+        return self._path != None and len(self._path) > 0 and functools.reduce(lambda a, b: a and b, [isinstance(p, slice) for p in self._path], True)
 
     def append(self, seg):
         self._path.append(seg)

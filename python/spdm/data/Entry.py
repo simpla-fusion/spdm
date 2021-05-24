@@ -11,28 +11,14 @@ from spdm.util.utilities import normalize_path
 
 from ..util.logger import logger
 
+from ..util.utilities import _not_defined_, _not_found_, serialize
 
-class _TAG_:
-    pass
-
-
-class _NEXT_TAG_(_TAG_):
-    pass
-
-
-class _LAST_TAG_(_TAG_):
-    pass
-
-
-class _NOT_FOUND_(_TAG_):
-    pass
-
-
-_not_found_ = _NOT_FOUND_()
-_next_ = _NEXT_TAG_()
-_last_ = _LAST_TAG_()
+_next_ = object()
+_last_ = object()
 
 _TPath = TypeVar("_TPath", str, float, slice, Sequence)
+_TKey = TypeVar('_TKey', int, str)
+_TIndex = TypeVar('_TIndex', int, slice)
 
 
 class Entry(object):
@@ -118,13 +104,17 @@ class Entry(object):
             elif isinstance(obj, collections.abc.MutableMapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {key}")
-                tmp = obj.setdefault(key, child)
-                if tmp is None:
+                elif idx == len(path)-1:
                     obj[key] = child
-                    tmp = obj[key]
-                obj = tmp
+                    obj = child
+                else:
+                    tmp = obj.setdefault(key, child)
+                    if tmp is None or tmp is _not_found_:
+                        obj[key] = child
+                        tmp = obj[key]
+                    obj = tmp
             elif isinstance(obj, collections.abc.MutableSequence):
-                if isinstance(key, _NEXT_TAG_):
+                if key is _next_:
                     obj.append(child)
                     obj = obj[-1]
                 elif isinstance(key, (int, slice)):
@@ -143,22 +133,21 @@ class Entry(object):
             self._data = self.get()
             self._prefix = []
 
-    def get(self, rpath: Optional[_TPath] = None) -> Any:
-
+    def get(self, rpath: Optional[_TPath] = None, default_value=None) -> Any:
         path = self._prefix + normalize_path(rpath)
 
         obj = self._data
-        r_path = None
+        suffix = None
         for idx, key in enumerate(path):
             if hasattr(obj, "_entry"):
                 if obj._entry._data == self._data and obj._entry._prefix == path[:idx]:
-                    r_path = path
+                    suffix = path
                     obj = obj._entry._data
                     break
                 else:
                     obj = obj._entry.get(path[idx:])
                 break
-            elif isinstance(key, _NEXT_TAG_):
+            elif key is _next_:
                 obj.append(_not_found_)
                 obj = Entry(obj, prefix=[len(obj)-1] + path[idx:])
                 break
@@ -167,17 +156,25 @@ class Entry(object):
                     raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
                 tmp = obj.get(key, _not_found_)
                 if tmp is _not_found_:
-                    r_path = path[idx:]
+                    suffix = path[idx:]
                     break
                 obj = tmp
             elif isinstance(obj, collections.abc.MutableSequence):
                 if not isinstance(key, (int, slice)):
-                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}! \"{key}\"")
+                    raise TypeError(
+                        f"list indices must be integers or slices, not {type(key).__name__}! \"{path[:idx+1]}\" {type(obj)}")
                 elif isinstance(key, int) and isinstance(self._data, collections.abc.MutableSequence) and key > len(self._data):
                     raise IndexError(f"Out of range! {key} > {len(self._data)}")
                 obj = obj[key]
 
-        return Entry(obj, prefix=r_path) if r_path is not None else obj
+        if rpath is None:
+            self._data = obj
+            self._prefix = []
+
+        if suffix is None:
+            return obj
+        else:
+            return Entry(obj, prefix=suffix)
 
     def insert(self,   v, rpath: Optional[_TPath] = None, *args, **kwargs):
         path = self._prefix + normalize_path(rpath)
@@ -245,7 +242,7 @@ class Entry(object):
         parent.append(v or {})
         return rpath+[len(parent)-1]
 
-    def pop_back(self,  rpath: Optional[_TPath] = None,*args, **kwargs):
+    def pop_back(self,  rpath: Optional[_TPath] = None, *args, **kwargs):
         obj = self.get(*args, **kwargs)
         res = None
         if obj is None:
@@ -254,7 +251,7 @@ class Entry(object):
             res = obj[-1]
             obj.pop()
         else:
-            raise KeyError(path)
+            raise KeyError(rpath)
 
         return res
 
@@ -280,6 +277,8 @@ class Entry(object):
             yield from obj.items()
         elif isinstance(obj, collections.abc.MutableSequence):
             yield from enumerate(obj)
+        elif isinstance(obj, Entry):
+            yield from obj.items()
         else:
             raise TypeError(type(obj))
 
@@ -289,6 +288,8 @@ class Entry(object):
             yield from obj.values()
         elif isinstance(obj, collections.abc.MutableSequence):
             yield from obj
+        elif isinstance(obj, Entry):
+            yield from []
         else:
             yield obj
 
@@ -300,6 +301,9 @@ class Entry(object):
             yield from range(len(obj))
         else:
             raise NotImplementedError()
+
+    def __serialize__(self, *args, **kwargs):
+        return [v for v in self.values(*args, **kwargs)]
 
     #  def get(self, path=[], *args, default_value=_not_found_, **kwargs):
     #     path = self._prefix + normalize_path(path)

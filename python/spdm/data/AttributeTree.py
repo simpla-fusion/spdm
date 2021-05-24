@@ -3,7 +3,7 @@ import collections.abc
 import functools
 import typing
 from logging import log
-from typing import Any, MutableSequence, Sequence
+from typing import Any, MutableSequence, Optional, Sequence
 
 import numpy as np
 
@@ -96,23 +96,23 @@ def as_attribute_tree(cls, *args, **kwargs):
 
 class AttributeTree(Dict[str, Node]):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def __post_process__(self, value, *args, parent=None, **kwargs):
+    def __post_process__(self, value: Any, *args, parent: Optional[Node] = None, **kwargs) -> Any:
         if isinstance(value, (collections.abc.Mapping, collections.abc.MutableSequence, Entry)):
             return AttributeTree(value, *args, parent=parent or self, **kwargs)
         else:
             return value
         # return super().__post_process__(value, *args, **kwargs)
 
-    def __new_child__(self, value, *args, parent=None,  **kwargs):
+    def __new_child__(self, value, *args, parent: Optional[Node] = None,  **kwargs) -> Node:
         if isinstance(value, (collections.abc.Mapping)):
             return AttributeTree(value, *args, parent=parent, **kwargs)
         else:
             return super().__new_child__(value, *args, parent=parent, **kwargs)
 
-    def __getattr__(self, *args, **kwargs):
+    def __getattr__(self, *args, **kwargs) -> Any:
         return do_getattr(self, *args, **kwargs)
 
     def __setattr__(self, name: str, value: Any) -> None:

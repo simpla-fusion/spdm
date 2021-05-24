@@ -14,12 +14,25 @@ import re
 from .logger import logger
 import numpy as np
 import collections.abc
-
- 
+from dataclasses import is_dataclass, fields
 
 _empty = object()
 
-_not_found_ = object()
+
+class _NOT_FOUND_:
+    def _as_dict(self):
+        return {}
+
+    def _as_list(self):
+        return []
+
+    def __serialize__(self):
+        return None
+
+
+_not_found_ = _NOT_FOUND_()
+
+_not_defined_ = object()
 
 
 def whoami(obj=None):
@@ -178,16 +191,16 @@ def normalize_path(path):
 
 
 def serialize(d):
-    if hasattr(d.__class__, "__serialize__"):
-        return d.__serialize__()
-    elif isinstance(d, (int, float, str)):
+    if isinstance(d, (int, float, str, np.ndarray)):
         return d
-    elif isinstance(d, np.ndarray):
-        return d.copy()
-    elif hasattr(d, "_as_dict"):
-        return d._as_dict()
+    # elif isinstance(d, np.ndarray):
+    #     return d
     elif hasattr(d, "__array__"):  # numpy.ndarray like
         return d.__array__()
+    elif hasattr(d.__class__, "__serialize__"):
+        return d.__serialize__()
+    elif is_dataclass(d):
+        return {f.name: serialize(getattr(d, f.name)) for f in fields(d)}
     elif isinstance(d, collections.abc.Mapping):
         return {k: serialize(v) for k, v in d.items()}
     elif isinstance(d, collections.abc.Sequence):

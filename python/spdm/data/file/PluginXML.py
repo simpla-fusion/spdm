@@ -1,18 +1,16 @@
 import collections
 import pathlib
 from typing import Optional
-
+from functools import cached_property
 import numpy as np
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ..AttributeTree import AttributeTree
-from ..Document import Document
 from ..Entry import Entry, _TPath
 from ..File import File
 from ..Node import _not_found_
-from ...util.utilities import normalize_path
+from ...util.utilities import normalize_path, serialize
 try:
     from lxml.etree import Comment as _XMLComment
     from lxml.etree import ParseError as _XMLParseError
@@ -116,7 +114,10 @@ class XMLEntry(Entry):
             res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
             if len(res) == 1:
                 res = res[0]
+            elif len(res) == 0:
+                res = _not_found_
             return res
+            
         res = None
 
         if len(element) > 0 and lazy:
@@ -179,18 +180,19 @@ class XMLEntry(Entry):
     def get(self,  path: Optional[_TPath] = None, *args, only_one=False, default_value=None, **kwargs):
 
         if not only_one:
-            return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
+            res = PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            return self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
+            res = self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
+        return res
 
     def get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
         else:
-            path = self._normalize_path(path)
+            path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
             obj = xp.evaluate(self._data)
             if isinstance(obj, collections.abc.Sequence) and len(obj) == 1:
@@ -198,15 +200,37 @@ class XMLEntry(Entry):
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
     def iter(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
-        path = self._normalize_path(path)
+        path = self._prefix+normalize_path(path)
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._data):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
-
                 yield res
+
+    def items(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
+        path = self._prefix+normalize_path(path)
+        for spath in PathTraverser(path):
+            xp, s_envs = self.xpath(spath)
+            for child in xp.evaluate(self._data):
+                if child.tag is _XMLComment:
+                    continue
+                res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+                yield child.tag, res
+
+    def values(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
+        path = self._prefix+normalize_path(path)
+        for spath in PathTraverser(path):
+            xp, s_envs = self.xpath(spath)
+            for child in xp.evaluate(self._data):
+                if child.tag is _XMLComment:
+                    continue
+                res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+                yield res
+
+    def __serialize__(self, *args, **kwargs):
+        return serialize(self.get_value(*args, **kwargs))
 
 
 class XMLFile(File):
@@ -214,11 +238,11 @@ class XMLFile(File):
         super().__init__(*args, ** kwargs)
         self._root = None
 
-    @property
+    @cached_property
     def entry(self):
         if self._root is None:
             self._root = load_xml(self.path)
-        return AttributeTree(XMLEntry(self._root, writable=False, parent=self))
+        return XMLEntry(self._root, writable=False, parent=self)
 
 
 __SP_EXPORT__ = XMLFile
