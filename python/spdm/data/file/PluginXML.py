@@ -82,8 +82,9 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLEntry(Entry):
-    def __init__(self, *args, writable=False, **kwargs):
-        super().__init__(*args, writable=writable, **kwargs)
+    def __init__(self, root, *args, writable=False, **kwargs):
+        super().__init__(None, *args, writable=writable, **kwargs)
+        self._root = root
 
     def xpath(self, path):
         envs = {}
@@ -109,12 +110,12 @@ class XMLEntry(Entry):
         return res, envs
 
     def _convert(self, element, path=[], lazy=True, envs=None, projection=None):
-        
+
         if isinstance(element, collections.abc.MutableSequence) and len(element) == 1 and "id" not in element[0].attrib:
             element = element[0]
 
         res = None
-        
+
         if isinstance(element, collections.abc.MutableSequence):
             res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
         elif len(element) > 0 and lazy:
@@ -165,23 +166,31 @@ class XMLEntry(Entry):
         return res
 
     def put(self,  value,  path: Optional[_TPath] = None, only_one=False, **kwargs):
-        if self.wriable:
-            path = self._normalize_path(path)
+        if self.writable:
+            path = self._prefix+normalize_path(path)
             if not only_one:
-                return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._data: s._push(h, p, v))
+                return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._root: s._push(h, p, v))
             else:
                 raise NotImplementedError()
         else:
-            raise RuntimeError(f"Not writable!")
+            try:
+                super().put(value, path)
+            except Exception as error:
+                raise KeyError(path)
+                # raise RuntimeError(f"Not writable!")
 
     def get(self,  path: Optional[_TPath] = None, *args, only_one=False, default_value=None, **kwargs):
 
         if not only_one:
-            res = PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
+            res = PathTraverser(path).apply(lambda p: self.get(p, only_one=True, default_value=_not_found_, **kwargs))
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            res = self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
+            res = self._convert(xp.evaluate(self._root), lazy=True, path=path, envs=envs, ** kwargs)
+
+        if res is _not_found_:  # not self.writable:
+            res = super().get(path, default_value=default_value)
+
         return res
 
     def get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
@@ -191,7 +200,7 @@ class XMLEntry(Entry):
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            obj = xp.evaluate(self._data)
+            obj = xp.evaluate(self._root)
             if isinstance(obj, collections.abc.Sequence) and len(obj) == 1:
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
@@ -200,7 +209,7 @@ class XMLEntry(Entry):
         path = self._prefix+normalize_path(path)
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._data):
+            for child in xp.evaluate(self._root):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
@@ -210,7 +219,7 @@ class XMLEntry(Entry):
         path = self._prefix+normalize_path(path)
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._data):
+            for child in xp.evaluate(self._root):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
@@ -220,7 +229,7 @@ class XMLEntry(Entry):
         path = self._prefix+normalize_path(path)
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._data):
+            for child in xp.evaluate(self._root):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))

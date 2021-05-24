@@ -2,6 +2,7 @@ import collections
 import collections.abc
 import functools
 import typing
+from functools import cached_property
 from logging import log
 from typing import Any, MutableSequence, Optional, Sequence
 
@@ -24,7 +25,7 @@ def do_getattr(obj, k):
 
         if isinstance(res, property):
             res = getattr(res, "fget")(obj)
-        elif isinstance(res, functools.cached_property):
+        elif isinstance(res, cached_property):
             res = res.__get__(obj)
         # elif hasattr(obj.__class__, 'get'):
         #     res = obj.get(k, _not_found_)

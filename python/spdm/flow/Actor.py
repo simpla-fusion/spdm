@@ -21,7 +21,6 @@ class Actor(Dict[str, Node]):
     @dataclass
     class State:
         time: float
-
         def update(self, *args, **kwargs):
             pass
 

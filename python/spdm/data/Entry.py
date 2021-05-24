@@ -99,8 +99,9 @@ class Entry(object):
                 child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
 
             if isinstance(obj, Entry):
-                tmp = obj.put(path[idx:], child)
-                obj.put(key, child)
+                obj.put(path[idx:], child)
+                # obj.put(key, child)
+
             elif isinstance(obj, collections.abc.MutableMapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {key}")
@@ -133,7 +134,7 @@ class Entry(object):
             self._data = self.get()
             self._prefix = []
 
-    def get(self, rpath: Optional[_TPath] = None, default_value=None) -> Any:
+    def get(self, rpath: Optional[_TPath] = None, default_value=_not_defined_) -> Any:
         path = self._prefix + normalize_path(rpath)
 
         obj = self._data
@@ -173,8 +174,10 @@ class Entry(object):
 
         if suffix is None:
             return obj
-        else:
+        elif default_value is _not_defined_:
             return Entry(obj, prefix=suffix)
+        else:
+            return default_value
 
     def insert(self,   v, rpath: Optional[_TPath] = None, *args, **kwargs):
         path = self._prefix + normalize_path(rpath)
@@ -259,15 +262,13 @@ class Entry(object):
         obj = self.get(None)
         return (isinstance(obj, Entry) and other is None) or (obj == other)
 
-    def iter(self,  *args, **kwargs):
-        obj = self.get(*args, **kwargs)
+    def iter(self, *args, default_value=None, **kwargs):
+        obj = self.get(*args, default_value=default_value if default_value is not None else [], **kwargs)
 
-        if isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            yield from obj
-        elif not isinstance(obj, Entry):
-            yield obj
-        elif obj is not self._data:
+        if isinstance(obj, Entry):
             yield from obj.iter()
+        elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
+            yield from obj
         else:
             raise NotImplementedError(type(obj))
 
