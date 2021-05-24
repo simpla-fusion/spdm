@@ -75,7 +75,7 @@ class Entry(object):
         if not path:
             return self
         else:
-            return self.__class__(self._data, prefix=self._normalize_path(path), parent=self._parent)
+            return self.__class__(self._data, prefix=self._prefix + normalize_path(path), parent=self._parent)
 
     def copy(self, other):
         # if isinstance(other, LazyProxy):
@@ -92,25 +92,8 @@ class Entry(object):
         else:
             raise ValueError(f"Can not copy {type(other)}!")
 
-    def __normalize_path__(self, path=None):
-        if path is None:
-            pass
-        elif isinstance(path, str):
-            path = path.split(".")
-        elif not isinstance(path, collections.abc.MutableSequence):
-            path = [path]
-        return path
-
-    def _normalize_path(self, path):
-        if isinstance(path, str):
-            path = path.split(".")
-        elif not isinstance(path, collections.abc.MutableSequence):
-            path = [path]
-        return self._prefix + path
-
-    def put(self,  value: Any, path:  Optional[_TPath] = None):
-
-        path = self._prefix+normalize_path(path)
+    def put(self,  value: Any, rpath:  Optional[_TPath] = None):
+        path = self._prefix+normalize_path(rpath)
 
         if len(path) == 0 and self._data is None:
             self._data = value
@@ -131,9 +114,7 @@ class Entry(object):
 
             if isinstance(obj, Entry):
                 tmp = obj.put(path[idx:], child)
-
                 obj.put(key, child)
-
             elif isinstance(obj, collections.abc.MutableMapping):
                 if not isinstance(key, str):
                     raise TypeError(f"mapping indices must be str, not {key}")
@@ -158,11 +139,13 @@ class Entry(object):
             else:
                 raise TypeError(f"Can not insert data to {path[:idx]}! type={obj}")
 
-    def get(self, path: Optional[_TPath] = None) -> Any:
-        if path is None:
-            return self._data
+        if rpath is None:
+            self._data = self.get()
+            self._prefix = []
 
-        path = self._prefix + normalize_path(path)
+    def get(self, rpath: Optional[_TPath] = None) -> Any:
+
+        path = self._prefix + normalize_path(rpath)
 
         obj = self._data
         r_path = None
@@ -196,9 +179,8 @@ class Entry(object):
 
         return Entry(obj, prefix=r_path) if r_path is not None else obj
 
-    def insert(self, path, v, *args, **kwargs):
-        path = self._normalize_path(path)
-        # FIXME: self._normalize_path(path)
+    def insert(self,   v, rpath: Optional[_TPath] = None, *args, **kwargs):
+        path = self._prefix + normalize_path(rpath)
         try:
             parent = self.get(path[:-1])
         except KeyError:
@@ -218,11 +200,11 @@ class Entry(object):
         logger.debug(path)
         return parent[idx]
 
-    def update(self, path, v, *args, **kwargs):
+    def update(self,  v, path: Optional[_TPath] = None, *args, **kwargs):
         raise NotImplementedError()
 
-    def delete(self, path=[], *args, **kwargs):
-        path = self._normalize_path(path)
+    def delete(self, path: Optional[_TPath] = None, *args, **kwargs):
+        path = self._prefix + normalize_path(path)
 
         if len(path) > 1:
             obj = self.get(path[:-1], *args, **kwargs)
@@ -233,11 +215,8 @@ class Entry(object):
         else:
             del obj[path[-1]]
 
-    def count(self,  path=None, *args, **kwargs):
-        if path is None:
-            res = self._data
-        else:
-            res = self.get(path, *args, **kwargs)
+    def count(self,    *args, **kwargs) -> int:
+        res = self.get(*args, **kwargs)
         if isinstance(res, Entry):
             return 0
         elif isinstance(res, (str, int, float, np.ndarray)):
@@ -247,11 +226,11 @@ class Entry(object):
         else:
             raise TypeError(f"Not countable! {type(res)}")
 
-    def contains(self, path, v, *args, **kwargs):
-        return v in self.get(path, *args, **kwargs)
+    def contains(self, v,  *args, **kwargs) -> bool:
+        return v in self.get(*args, **kwargs)
 
-    def call(self,   path=[], *args, **kwargs):
-        obj = self.get(path)
+    def call(self,   rpath: Optional[_TPath], *args, **kwargs) -> Any:
+        obj = self.get(rpath)
         if callable(obj):
             res = obj(*args, **kwargs)
         elif len(args)+len(kwargs) == 0:
@@ -261,13 +240,13 @@ class Entry(object):
 
         return res
 
-    def push_back(self, path, v=None):
-        parent = self.insert(path, [])
+    def push_back(self,  v=None, rpath: Optional[_TPath] = None, *args, **kwargs):
+        parent = self.insert([], rpath, *args, **kwargs)
         parent.append(v or {})
-        return path+[len(parent)-1]
+        return rpath+[len(parent)-1]
 
-    def pop_back(self, path):
-        obj = self.get(path)
+    def pop_back(self,  rpath: Optional[_TPath] = None,*args, **kwargs):
+        obj = self.get(*args, **kwargs)
         res = None
         if obj is None:
             pass
@@ -323,7 +302,7 @@ class Entry(object):
             raise NotImplementedError()
 
     #  def get(self, path=[], *args, default_value=_not_found_, **kwargs):
-    #     path = self._normalize_path(path)
+    #     path = self._prefix + normalize_path(path)
     #     obj = self._data
     #     if obj is None:
     #         obj = self._parent
@@ -342,7 +321,7 @@ class Entry(object):
     #     return obj
 
     # def put(self,  path, value, *args, **kwargs):
-    #     path = self._normalize_path(path)
+    #     path = self._prefix + normalize_path(path)
     #     obj = self._data
     #     if len(path) == 0:
     #         return obj

@@ -34,7 +34,7 @@ class ModuleRepository:
     def save_configure(self, path):
         io.write(path, self._envs)
 
-    def configure(self, conf=None, enable_sys_confile=True, **kwargs):
+    def configure(self, conf =None, enable_sys_confile=True, **kwargs):
 
         conf_file_list = []
 

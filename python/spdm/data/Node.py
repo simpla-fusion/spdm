@@ -10,7 +10,7 @@ import typing
 from enum import IntFlag
 from functools import cached_property
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping, Iterable,
-                    MutableSequence, Sequence, TypeVar, Union, get_args)
+                    MutableSequence, Optional, Sequence, TypeVar, Union, get_args)
 
 from matplotlib.pyplot import isinteractive
 
@@ -291,8 +291,8 @@ class Node(object):
 class List(Node, MutableSequence[_TObject]):
     __slots__ = ()
 
-    def __init__(self, d: collections.abc.Sequence = [], *args,  **kwargs):
-        Node.__init__(self, d if d is not None else [], *args, **kwargs)
+    def __init__(self, d: Optional[Sequence] = None, *args,  **kwargs):
+        Node.__init__(self, d if d != None else [], *args, **kwargs)
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._entry.iter()]
@@ -360,8 +360,8 @@ class List(Node, MutableSequence[_TObject]):
 class Dict(Node, MutableMapping[_TKey, _TObject]):
     __slots__ = ()
 
-    def __init__(self, data: Mapping = None, *args,  **kwargs):
-        Node.__init__(self, data if data is not None else {}, *args, **kwargs)
+    def __init__(self, data: Optional[Mapping] = None, *args,  **kwargs):
+        Node.__init__(self, data if data != None else {}, *args, **kwargs)
 
     def __serialize__(self, ignore=None) -> Mapping:
         cls = self.__class__

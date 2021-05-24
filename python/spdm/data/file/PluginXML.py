@@ -12,7 +12,7 @@ from ..Document import Document
 from ..Entry import Entry, _TPath
 from ..File import File
 from ..Node import _not_found_
-
+from ...util.utilities import normalize_path
 try:
     from lxml.etree import Comment as _XMLComment
     from lxml.etree import ParseError as _XMLParseError
@@ -181,7 +181,7 @@ class XMLEntry(Entry):
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get(p, only_one=True, **kwargs))
         else:
-            path = self._normalize_path(path)
+            path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
             return self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, ** kwargs)
 
