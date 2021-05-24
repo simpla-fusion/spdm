@@ -65,12 +65,14 @@ def load_xml(path, *args,  mode="r", **kwargs):
         path = pathlib.Path(path)
 
     root = None
-    try:
-        if path.exists() and path.is_file():
+    if path.exists() and path.is_file():
+        try:
             root = parse_xml(path.as_posix()).getroot()
             logger.debug(f"Loading XML file from {path}")
-    except _XMLParseError as msg:
-        raise RuntimeError(f"ParseError: {path}: {msg}")
+        except _XMLParseError as msg:
+            raise RuntimeError(f"ParseError: {path}: {msg}")
+    else:
+        raise FileNotFoundError(path)
 
     if root is not None:
         for child in root.findall("{http://www.w3.org/2001/XInclude}include"):
@@ -176,21 +178,22 @@ class XMLEntry(Entry):
             try:
                 super().put(value, path)
             except Exception as error:
-                raise KeyError(path)
+                raise KeyError(f"{path} {error}")
                 # raise RuntimeError(f"Not writable!")
 
     def get(self,  path: Optional[_TPath] = None, *args, only_one=False, default_value=None, **kwargs):
-
-        if not only_one:
+        res = super().get(path, default_value=_not_found_)
+        if res is not _not_found_:
+            pass
+        elif not only_one:
             res = PathTraverser(path).apply(lambda p: self.get(p, only_one=True, default_value=_not_found_, **kwargs))
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
             res = self._convert(xp.evaluate(self._root), lazy=True, path=path, envs=envs, ** kwargs)
 
-        if res is _not_found_:  # not self.writable:
-            res = super().get(path, default_value=default_value)
-
+        if res is _not_found_:
+            res = default_value
         return res
 
     def get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):

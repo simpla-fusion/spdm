@@ -9,7 +9,7 @@ from .Function import Function
 from .Node import Node, _TObject
 
 
-class sp_cached_property(Generic[_TObject]):
+class sp_property(Generic[_TObject]):
     def __init__(self, func):
         self.func = func
         self.attrname = None
@@ -63,5 +63,5 @@ class sp_cached_property(Generic[_TObject]):
     def __set__(self, instance: Node, value):
         if not isinstance(instance, Node):
             raise NotImplemented
-
-        instance._entry.put(value, self.attrname)
+        with self.lock:
+            instance._entry.put(value, self.attrname)

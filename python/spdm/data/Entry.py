@@ -26,7 +26,7 @@ class Entry(object):
     _DICT_TYPE_ = dict
     _LIST_TYPE_ = list
 
-    def __init__(self, data=None,  *args, prefix=None, parent=None, writable=True,   **kwargs):
+    def __init__(self, data=_not_found_,  *args, prefix=None, parent=None, writable=True,   **kwargs):
         super().__init__()
         self._data = data
         self._parent = parent
@@ -115,7 +115,7 @@ class Entry(object):
                         tmp = obj[key]
                     obj = tmp
             elif isinstance(obj, collections.abc.MutableSequence):
-                if key is _next_:
+                if key is _next_ or (key == len(obj)):
                     obj.append(child)
                     obj = obj[-1]
                 elif isinstance(key, (int, slice)):
@@ -140,7 +140,9 @@ class Entry(object):
         obj = self._data
         suffix = None
         for idx, key in enumerate(path):
-            if hasattr(obj, "_entry"):
+            if obj is None or obj is _not_found_:
+                break
+            elif hasattr(obj, "_entry"):
                 if obj._entry._data == self._data and obj._entry._prefix == path[:idx]:
                     suffix = path
                     obj = obj._entry._data
@@ -172,7 +174,9 @@ class Entry(object):
             self._data = obj
             self._prefix = []
 
-        if suffix is None:
+        if obj is _not_found_ or obj is None:
+            return default_value
+        elif suffix is None:
             return obj
         elif default_value is _not_defined_:
             return Entry(obj, prefix=suffix)
