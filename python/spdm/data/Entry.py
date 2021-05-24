@@ -2,15 +2,13 @@
 import collections
 import collections.abc
 import pprint
-from typing import (Any, Generic, Iterator, Mapping, MutableMapping, Optional, Tuple,
-                    MutableSequence, Sequence, Type, TypeVar, Union, get_args)
+from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
+                    MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
+                    Union, get_args)
 
-import numpy as np
-from numpy.lib.arraysetops import isin
 from spdm.util.utilities import normalize_path
 
 from ..util.logger import logger
-
 from ..util.utilities import _not_defined_, _not_found_, serialize
 
 _next_ = object()
@@ -223,7 +221,7 @@ class Entry(object):
         res = self.get(*args, **kwargs)
         if isinstance(res, Entry):
             return 0
-        elif isinstance(res, (str, int, float, np.ndarray)):
+        elif isinstance(res, (str, int, float)) or hasattr(res, "__array__"):
             return 1
         elif isinstance(res, (collections.abc.Sequence, collections.abc.Mapping)):
             return len(res)
@@ -309,6 +307,40 @@ class Entry(object):
 
     def __serialize__(self, *args, **kwargs):
         return [v for v in self.values(*args, **kwargs)]
+
+
+class EntryChain(Entry):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        self._chain = [(a if isinstance(a, Entry) else Entry(a)) for a in args]
+
+    def get(self, path: Optional[_TPath] = None, *args, default_value=_not_defined_, **kwargs):
+        for sub in self._chain:
+            res = sub.get(path, default_value=_not_found_)
+            if res is not _not_found_:
+                break
+        if res is _not_found_:
+            res = default_value
+        return res
+
+    def put(self, value,  path: Optional[_TPath] = None, **kwargs):
+        self._chain[0].put(value, path, **kwargs)
+
+    def __getitem__(self, path: Optional[_TPath]) -> Any:
+        return self.get(path)
+
+    def __setitem__(self, path: _TPath, value: Any) -> None:
+        self.put(value, path)
+
+    def __len__(self) -> int:
+        return self.count()
+
+    def __contains__(self, key) -> bool:
+        return self.contains(key)
+
+    def __iter__(self):
+        yield from self.iter()
 
     #  def get(self, path=[], *args, default_value=_not_found_, **kwargs):
     #     path = self._prefix + normalize_path(path)

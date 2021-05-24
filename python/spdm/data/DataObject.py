@@ -5,7 +5,6 @@ import pathlib
 import pprint
 from typing import Type
 
-import numpy as np
 from ..util.logger import logger
 from ..util.SpObject import SpObject
 from ..util.urilib import urisplit
@@ -14,8 +13,8 @@ from .Entry import Entry
 
 
 def load_ndarray(desc, value, *args, **kwargs):
-    if isinstance(value, np.ndarray):
-        return value
+    if hasattr(value, "__array__"):
+        return value.__array__()
     else:
         return NotImplemented
 
@@ -26,7 +25,7 @@ SpObject.schema.update(
         "integer": int,
         "float": float,
         "string": str,
-        "ndarray": np.ndarray,
+        # "array": np.ndarray,
     }
 )
 

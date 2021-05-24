@@ -1,11 +1,9 @@
 import collections.abc
 from _thread import RLock
+from typing import Generic, Mapping, Sequence
+
 from typing import Generic
-
-import numpy as np
-
 from ..util.utilities import _not_found_
-from .Function import Function
 from .Node import Node, _TObject
 
 
@@ -33,25 +31,17 @@ class sp_property(Generic[_TObject]):
             raise TypeError(
                 "Cannot use cached_property instance without calling __set_name__ on it.")
 
-        try:
-            cache = instance._entry
-        except AttributeError:  # not all objects have __dict__ (e.g. class defines slots)
-            msg = (
-                f"No '_entry' attribute on {type(instance).__name__!r} "
-                f"instance to cache {self.attrname!r} property."
-            )
-            raise TypeError(msg) from None
-
-        val = cache.get(self.attrname, _not_found_)
-        if not isinstance(val, (int, str, np.ndarray, Node, Function)) and not isinstance(val, Node):
+        val = instance._entry.get(self.attrname, _not_found_)
+        # if not isinstance(val, (int, str, np.ndarray, Function, Node))
+        if isinstance(val, (collections.abc.Sequence, collections.abc.Mapping)) and not isinstance(val, (str, Node)):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, _not_found_)
-                if not isinstance(val, (int, str, np.ndarray, Node, Function)) and not isinstance(val, Node):
+                val = instance._entry.get(self.attrname, _not_found_)
+                if isinstance(val, (collections.abc.Sequence, collections.abc.Mapping)) and not isinstance(val, (str, Node)):
                     val = self.func(instance)
 
                     try:
-                        cache.put(val, self.attrname)
+                        instance._entry.put(val, self.attrname)
                     except TypeError as error:
                         msg = (
                             f"The '_entry' attribute on {type(instance).__name__!r} instance "

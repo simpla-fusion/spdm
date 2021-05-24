@@ -12,7 +12,6 @@ import re
 import sys
 import re
 from .logger import logger
-import numpy as np
 import collections.abc
 from dataclasses import is_dataclass, fields
 
@@ -191,10 +190,8 @@ def normalize_path(path):
 
 
 def serialize(d):
-    if isinstance(d, (int, float, str, np.ndarray)):
+    if isinstance(d, (int, float, str)):
         return d
-    # elif isinstance(d, np.ndarray):
-    #     return d
     elif hasattr(d, "__array__"):  # numpy.ndarray like
         return d.__array__()
     elif hasattr(d.__class__, "__serialize__"):

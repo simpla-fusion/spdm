@@ -168,24 +168,18 @@ class XMLEntry(Entry):
         return res
 
     def put(self,  value,  path: Optional[_TPath] = None, only_one=False, **kwargs):
-        if self.writable:
-            path = self._prefix+normalize_path(path)
-            if not only_one:
-                return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._root: s._push(h, p, v))
-            else:
-                raise NotImplementedError()
+        path = self._prefix+normalize_path(path)
+
+        if not self.writable:
+            raise RuntimeError(f"Not writable! [{path}]")
+
+        if not only_one:
+            return PathTraverser(path).apply(lambda p,  v=value, s=self, h=self._root: s._push(h, p, v))
         else:
-            try:
-                super().put(value, path)
-            except Exception as error:
-                raise KeyError(f"{path} {error}")
-                # raise RuntimeError(f"Not writable!")
+            raise NotImplementedError()
 
     def get(self,  path: Optional[_TPath] = None, *args, only_one=False, default_value=None, **kwargs):
-        res = super().get(path, default_value=_not_found_)
-        if res is not _not_found_:
-            pass
-        elif not only_one:
+        if not only_one:
             res = PathTraverser(path).apply(lambda p: self.get(p, only_one=True, default_value=_not_found_, **kwargs))
         else:
             path = self._prefix+normalize_path(path)

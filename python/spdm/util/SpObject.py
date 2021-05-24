@@ -6,11 +6,11 @@ import traceback
 import uuid
 from functools import cached_property
 import io
-import numpy as np
 
 from .logger import logger
 from .sp_export import sp_find_module
-from .utilities import convert_to_named_tuple
+
+
 _factory = None
 _resolver = None
 

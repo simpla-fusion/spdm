@@ -13,7 +13,7 @@ ELEMENT_TYPE_LIST = [int, float, str]
 
 try:
     import numpy
-except ModuleNotFoundError:
+except Exception:
     pass
 else:
     ELEMENT_TYPE_LIST = ELEMENT_TYPE_LIST+[numpy.ndarray]

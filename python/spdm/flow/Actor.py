@@ -3,7 +3,6 @@ from dataclasses import dataclass, fields, is_dataclass
 from typing import (Any, Deque, Generic, Iterator, Mapping, NewType, Optional,
                     Sequence, TypeVar)
 
-import numpy as np
 
 from ..data.Entry import Entry
 from ..data.Node import Dict, List, Node, _TObject
@@ -21,6 +20,7 @@ class Actor(Dict[str, Node]):
     @dataclass
     class State:
         time: float
+
         def update(self, *args, **kwargs):
             pass
 

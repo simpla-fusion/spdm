@@ -1,22 +1,14 @@
 import bisect
 import collections
 import collections.abc
-import copy
-import enum
 import functools
 import inspect
-import pprint
-import typing
 from enum import IntFlag
 from functools import cached_property
 from typing import (Any, Generic, Iterable, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, TypeVar, Union,
                     get_args)
 
-import numpy as np
-from matplotlib.pyplot import isinteractive
-from numpy.lib.function_base import iterable
-from sympy.core import cache
 
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
@@ -110,12 +102,12 @@ class Node(object):
         flag = Node.Category.UNKNOWN
         if isinstance(d, (Entry)):
             flag |= Node.Category.ENTRY
-        elif isinstance(d, np.ndarray):
+        elif hasattr(d,  "__array__"):
             flag |= Node.Category.ARRAY
-            if np.issubdtype(d.dtype, np.int64):
-                flag |= Node.Category.INT
-            elif np.issubdtype(d.dtype, np.float64):
-                flag |= Node.Category.FLOAT
+            # if np.issubdtype(d.dtype, np.int64):
+            #     flag |= Node.Category.INT
+            # elif np.issubdtype(d.dtype, np.float64):
+            #     flag |= Node.Category.FLOAT
         elif isinstance(d, collections.abc.Mapping):
             flag |= Node.Category.DICT
         elif isinstance(d, collections.abc.Sequence):

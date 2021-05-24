@@ -5,7 +5,6 @@ from urllib.request import urlopen
 
 import requests
 import yaml
-import json5
 from .logger import logger
 from .sp_export import sp_pkg_data_path
 from .urilib import urisplit
