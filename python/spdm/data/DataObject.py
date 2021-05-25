@@ -1,8 +1,4 @@
 import collections
-import inspect
-import os
-import pathlib
-import pprint
 from typing import Type
 
 from ..util.logger import logger
@@ -10,6 +6,17 @@ from ..util.SpObject import SpObject
 from ..util.urilib import urisplit
 
 from .Entry import Entry
+try:
+    import numpy as np
+    import scipy
+except Exception:
+    logger.warning(f"Can not load numpy!")
+    _array_cls = None
+else:
+    logger.debug(f"Using NumPy {np.version.full_version}")
+    logger.debug(f"Using SciPy {scipy.__version__}")
+
+    _array_cls = np.ndarray
 
 
 def load_ndarray(desc, value, *args, **kwargs):
@@ -25,7 +32,7 @@ SpObject.schema.update(
         "integer": int,
         "float": float,
         "string": str,
-        # "array": np.ndarray,
+        "array": _array_cls,
     }
 )
 

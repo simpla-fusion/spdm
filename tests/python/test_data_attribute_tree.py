@@ -1,7 +1,6 @@
 import unittest
-from typing import Any, Iterator, Mapping
 
-from spdm.data.AttributeTree import AttributeTree, _next_, as_attribute_tree
+from spdm.data.AttributeTree import AttributeTree, _next_
 from spdm.util.logger import logger
 
 

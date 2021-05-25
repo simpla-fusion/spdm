@@ -1,18 +1,24 @@
 import collections.abc
+import logging
+import typing
 from _thread import RLock
-from typing import Generic, Mapping, Sequence
+from typing import (Callable, Generic, Mapping, Sequence, TypeVar, Union,
+                    get_args)
 
-from typing import Generic
+from ..util.logger import logger
 from ..util.utilities import _not_found_
 from .Node import Node, _TObject
 
+_TObject = TypeVar('_TObject')
 
-class sp_property(Generic[_TObject]):
+
+class _SpProperty(Generic[_TObject]):
     def __init__(self, func):
         self.func = func
         self.attrname = None
         self.__doc__ = func.__doc__
         self.lock = RLock()
+        self._return_type = func.__annotations__.get("return", type(None))
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
@@ -28,25 +34,24 @@ class sp_property(Generic[_TObject]):
             raise NotImplemented
 
         if self.attrname is None:
-            raise TypeError(
-                "Cannot use cached_property instance without calling __set_name__ on it.")
+            raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
 
         val = instance._entry.get(self.attrname, _not_found_)
-        # if not isinstance(val, (int, str, np.ndarray, Function, Node))
-        if isinstance(val, (collections.abc.Sequence, collections.abc.Mapping)) and not isinstance(val, (str, Node)):
+        if val is _not_found_ or not (self._return_type is None or isinstance(val, self._return_type)):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
                 val = instance._entry.get(self.attrname, _not_found_)
-                if isinstance(val, (collections.abc.Sequence, collections.abc.Mapping)) and not isinstance(val, (str, Node)):
-                    val = self.func(instance)
+                if val is _not_found_ or not (self._return_type is None or isinstance(val, self._return_type)):
+                    try:
+                        val = self._return_type(self.func(instance), parent=instance)
+                    except Exception as error:
+                        logger.error(f"Can not create {self._obj_type.__name__}")
+                        raise error from None
 
                     try:
                         instance._entry.put(val, self.attrname)
                     except TypeError as error:
-                        msg = (
-                            f"The '_entry' attribute on {type(instance).__name__!r} instance "
-                            f"does not support item assignment for caching {self.attrname!r} property."
-                        )
+                        logger.error(f"Can not put value to {self.attrname}")
                         raise TypeError(error) from None
         return val
 
@@ -54,4 +59,22 @@ class sp_property(Generic[_TObject]):
         if not isinstance(instance, Node):
             raise NotImplemented
         with self.lock:
-            instance._entry.put(value, self.attrname)
+            try:
+                instance._entry.put(value, self.attrname)
+            except TypeError as error:
+                logger.error(f"Can not put value to {self.attrname}")
+                raise TypeError(error) from None
+
+
+def sp_property(func: Callable[..., _TObject]) -> _SpProperty[_TObject]:
+    return _SpProperty[_TObject](func)
+
+
+# def sp_property_with_parameter(*args, **kwargs) -> Callable[[Callable[..., _TObject]], _SpProperty[_TObject]]:
+#     """
+#         NOTE: Pylance failed!
+#     """
+#     def _wrapper(wrapped: Callable[..., _TObject], _args=args, _kwargs=kwargs) -> _SpProperty[_TObject]:
+#         return _SpProperty[_TObject](wrapped)
+
+#     return _wrapper

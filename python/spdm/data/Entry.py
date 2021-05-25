@@ -202,8 +202,15 @@ class Entry(object):
         logger.debug(path)
         return parent[idx]
 
-    def update(self,  v, path: Optional[_TPath] = None, *args, **kwargs):
-        raise NotImplementedError()
+    def update(self,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
+        if not isinstance(value, collections.abc.Mapping):
+            self.put(value, rpath)
+        else:
+            obj = self.get(rpath, _not_found_)
+            if isinstance(obj, collections.abc.MutableMapping):
+                obj.update(value)
+            else:
+                self.put(value, rpath)
 
     def delete(self, path: Optional[_TPath] = None, *args, **kwargs):
         path = self._prefix + normalize_path(path)

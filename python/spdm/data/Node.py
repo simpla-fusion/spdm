@@ -12,7 +12,7 @@ from typing import (Any, Generic, Iterable, Iterator, Mapping, MutableMapping,
 
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
-from .Entry import Entry, _last_, _next_, _TIndex, _TKey, _TPath
+from .Entry import Entry, EntryChain, _last_, _next_, _TIndex, _TKey, _TPath
 
 _TObject = TypeVar('_TObject')
 
@@ -42,17 +42,21 @@ class Node(object):
     """
     __slots__ = "_parent", "_entry", "_default_factory", "__orig_class__"
 
-    def __init__(self, data: Any = None, *args, default_factory=None, parent=None, **kwargs):
+    def __init__(self, data: Any = None, *args, default_factory=None, parent=None, writable=True, **kwargs):
         super().__init__()
         self._default_factory = default_factory
         self._parent = parent
 
         if isinstance(data, Node):
-            self._entry = data._entry
-        elif isinstance(data, Entry):
-            self._entry = data
+            data = data._entry
+
+        if not isinstance(data, Entry):
+            data = Entry(data, *args, **kwargs)
+
+        if writable and not data.writable:
+            self._entry = EntryChain({}, data)
         else:
-            self._entry = Entry(data, *args, **kwargs)
+            self._entry = data
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} />"
@@ -443,25 +447,23 @@ class Dict(Node, MutableMapping[_TKey, _TObject]):
 
     def __update__(self, d: Mapping) -> None:
         if not self._entry.writable:
-            self._entry = Entry(d)  # Entry(collections.ChainMap(d, Dict[str, Node](self._entry)), writable=True)
+            self._entry = EntryChain(d, self._entry)
         else:
-            for k, v in d.items():
-                self.__setitem__(k, v)
+            self._entry.update(d)
 
-        self.__reset__(d.keys())
-
-    def __reset__(self, d=None) -> None:
-        if isinstance(d, str):
-            return self.__reset__([d])
-        elif d is None:
-            return self.__reset__([d for k in dir(self) if not k.startswith("_")])
-        elif isinstance(d, Mapping):
-            properties = getattr(self.__class__, '_properties_', _not_found_)
-            if properties is not _not_found_:
-                data = {k: v for k, v in d.items() if k in properties}
-            self._entry = Entry(data, parent=self._entry.parent)
-            self.__reset__(d.keys())
-        elif isinstance(d, Sequence):
-            for key in d:
-                if isinstance(key, str) and hasattr(self, key) and isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
-                    delattr(self, key)
+    # self.__reset__(d.keys())
+    # def __reset__(self, d=None) -> None:
+    #     if isinstance(d, str):
+    #         return self.__reset__([d])
+    #     elif d is None:
+    #         return self.__reset__([d for k in dir(self) if not k.startswith("_")])
+    #     elif isinstance(d, Mapping):
+    #         properties = getattr(self.__class__, '_properties_', _not_found_)
+    #         if properties is not _not_found_:
+    #             data = {k: v for k, v in d.items() if k in properties}
+    #         self._entry = Entry(data, parent=self._entry.parent)
+    #         self.__reset__(d.keys())
+    #     elif isinstance(d, Sequence):
+    #         for key in d:
+    #             if isinstance(key, str) and hasattr(self, key) and isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
+    #                 delattr(self, key)

@@ -6,6 +6,7 @@ import pprint
 import shlex
 import subprocess
 import sys
+import uuid
 from functools import cached_property
 from pathlib import Path
 from string import Template
@@ -16,12 +17,10 @@ from spdm.util.SpObject import SpObject
 from ..data.DataObject import DataObject
 from ..util.dict_util import DictTemplate, deep_merge_dict
 from ..util.logger import logger
-from ..util.Signature import Signature
 from ..util.sp_export import sp_find_module
+from ..util.utilities import get_username
 from .Actor import Actor
 from .Session import Session
-import uuid
-from ..util.utilities import get_username
 
 
 class SpModule(Actor):
