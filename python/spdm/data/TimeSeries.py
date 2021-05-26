@@ -6,10 +6,10 @@ import numpy as np
 
 from ..util.logger import logger
 from .AoS import AoS, SoA
-from .Node import Dict, List, _TIndex, _TKey, _TObject
+from .Node import Dict, List, _TIndex,  _TObject
 
 
-class TimeSlice(Dict[_TKey, _TObject]):
+class TimeSlice(Dict[_TObject]):
     r"""
         Time Slice
         - collection of property at same time point

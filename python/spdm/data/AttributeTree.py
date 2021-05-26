@@ -20,7 +20,7 @@ def do_getattr(obj, k):
         bcls = obj.__class__.__bases__[0]
         res = bcls.__getattr__(obj, k)
     else:
-        res = getattr(obj.__class__, k, None)
+        res = getattr(obj.__class__, k, _not_found_)
 
         if isinstance(res, property):
             res = getattr(res, "fget")(obj)
@@ -94,7 +94,7 @@ def as_attribute_tree(cls, *args, **kwargs):
     return n_cls
 
 
-class AttributeTree(Dict[str, Node]):
+class AttributeTree(Dict[Node]):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

@@ -1,8 +1,9 @@
 import json
+import pathlib
 import pprint
 import unittest
-import pathlib
 
+from spdm.data.File import File
 from spdm.util.logger import logger
 
 
@@ -30,19 +31,23 @@ class TestFlowBag(unittest.TestCase):
     }
     }
 
-    def testFileRW(self):
-        fn = "~/test.json"
-        fp = pathlib.Path(fn).expanduser()
+    # def testFileRW(self):
+    #     fn = "~/test.json"
+    #     fp = pathlib.Path(fn).expanduser()
 
-        file_type = "json"
+    #     file_type = "json"
 
-        bag.File(fn, schema={"file_type": file_type})\
-            .write(TestFlowBag.dict_data)
+    # bag.File(fn, schema={"file_type": file_type})\
+    #     .write(TestFlowBag.dict_data)
 
-        d2 = json.load(open(fp))
-        self.assertEqual(TestFlowBag.dict_data, d2)
-        d3 = bag.File(fn, schema={"file_type": file_type}).read()
-        self.assertEqual(TestFlowBag.dict_data, d3)
+    # d2 = json.load(open(fp))
+    # self.assertEqual(TestFlowBag.dict_data, d2)
+    # d3 = bag.File(fn, schema={"file_type": file_type}).read()
+    # self.assertEqual(TestFlowBag.dict_data, d3)
+
+    def test_xml_get(self):
+        entry = File(pathlib.Path(__file__).parent/"../data/test.xml").entry
+        self.assertEqual(entry.get(["timeslice", 0, "eq", "psi"]), "mdsplus://1.2.3.4/east")
 
 
 if __name__ == '__main__':

@@ -14,6 +14,7 @@ from ..util.utilities import _not_defined_, _not_found_, serialize
 _next_ = object()
 _last_ = object()
 
+_T = TypeVar("_T")
 _TPath = TypeVar("_TPath", str, float, slice, Sequence)
 _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)
@@ -23,17 +24,16 @@ class Entry(object):
 
     _DICT_TYPE_ = dict
     _LIST_TYPE_ = list
+    __slots__ = "_data", "_prefix"
 
-    def __init__(self, data=_not_found_,  *args, prefix=None, parent=None, writable=True,   **kwargs):
+    def __init__(self, data=_not_found_,  *args, prefix=None,      **kwargs):
         super().__init__()
         self._data = data
-        self._parent = parent
         self._prefix = normalize_path(prefix)
-        self._writable = writable
 
     @property
-    def writable(self):
-        return self._writable
+    def writable(self) -> bool:
+        return True
 
     @property
     def data(self):
@@ -46,6 +46,25 @@ class Entry(object):
     @property
     def prefix(self):
         return self._prefix
+
+    @property
+    def is_relative(self):
+        return len(self._prefix) > 0
+
+    @property
+    def empty(self):
+        return (self._data is None and len(self._prefix) == 0) or self.get(default_value=_not_found_) is _not_found_
+
+    def resolve(self):
+        if self._prefix is None:
+            return self
+
+        data = self.get(default_value=_not_found_)
+
+        if isinstance(data, Entry):
+            return data
+        else:
+            return Entry(data, prefix=[])
 
     def append(self, path):
         self._prefix += normalize_path(path)
@@ -76,7 +95,7 @@ class Entry(object):
         else:
             raise ValueError(f"Can not copy {type(other)}!")
 
-    def put(self,  value: Any, rpath:  Optional[_TPath] = None):
+    def put(self,  value: _T, rpath:  Optional[_TPath] = None) -> _T:
         path = self._prefix+normalize_path(rpath)
 
         if len(path) == 0 and self._data is None:
@@ -89,97 +108,83 @@ class Entry(object):
         obj = self._data
 
         for idx, key in enumerate(path):
-            obj = getattr(obj, "_entry", obj)
 
             if idx == len(path)-1:
                 child = value
             else:
                 child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
 
-            if isinstance(obj, Entry):
-                obj.put(path[idx:], child)
-                # obj.put(key, child)
-
+            if key is _next_ or (key == len(obj)):
+                obj.append(child)
+                obj = obj[-1]
             elif isinstance(obj, collections.abc.MutableMapping):
-                if not isinstance(key, str):
-                    raise TypeError(f"mapping indices must be str, not {key}")
-                elif idx == len(path)-1:
+                if idx == len(path)-1:
                     obj[key] = child
-                    obj = child
+                    obj = obj[key]
                 else:
-                    tmp = obj.setdefault(key, child)
-                    if tmp is None or tmp is _not_found_:
-                        obj[key] = child
-                        tmp = obj[key]
-                    obj = tmp
+                    obj = obj.setdefault(key, child)
             elif isinstance(obj, collections.abc.MutableSequence):
-                if key is _next_ or (key == len(obj)):
-                    obj.append(child)
-                    obj = obj[-1]
-                elif isinstance(key, (int, slice)):
-                    tmp = obj[key]
-                    if tmp is None:
-                        obj[key] = child
-                        obj = obj[key]
-                    else:
-                        obj = tmp
-                else:
-                    raise TypeError(f"list indices must be integers or slices, not {type(key).__name__}")
+                obj[key] = child
+                obj = obj[key]
             else:
                 raise TypeError(f"Can not insert data to {path[:idx]}! type={obj}")
 
-        if rpath is None:
-            self._data = self.get()
-            self._prefix = []
+        return obj
 
     def get(self, rpath: Optional[_TPath] = None, default_value=_not_defined_) -> Any:
         path = self._prefix + normalize_path(rpath)
 
         obj = self._data
-        suffix = None
+        val = obj
         for idx, key in enumerate(path):
-            if obj is None or obj is _not_found_:
+            try:
+                val = obj[key]
+            except Exception:
+                val = _not_found_
                 break
-            elif hasattr(obj, "_entry"):
-                if obj._entry._data == self._data and obj._entry._prefix == path[:idx]:
-                    suffix = path
-                    obj = obj._entry._data
-                    break
-                else:
-                    obj = obj._entry.get(path[idx:])
-                break
-            elif key is _next_:
-                obj.append(_not_found_)
-                obj = Entry(obj, prefix=[len(obj)-1] + path[idx:])
-                break
-            elif isinstance(obj, collections.abc.Mapping):
-                if not isinstance(key, str):
-                    raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
-                tmp = obj.get(key, _not_found_)
-                if tmp is _not_found_:
-                    suffix = path[idx:]
-                    break
-                obj = tmp
-            elif isinstance(obj, collections.abc.MutableSequence):
-                if not isinstance(key, (int, slice)):
-                    raise TypeError(
-                        f"list indices must be integers or slices, not {type(key).__name__}! \"{path[:idx+1]}\" {type(obj)}")
-                elif isinstance(key, int) and isinstance(self._data, collections.abc.MutableSequence) and key > len(self._data):
-                    raise IndexError(f"Out of range! {key} > {len(self._data)}")
-                obj = obj[key]
+            else:
+                obj = val
 
-        if rpath is None:
-            self._data = obj
-            self._prefix = []
-
-        if obj is _not_found_ or obj is None:
-            return default_value
-        elif suffix is None:
-            return obj
+        if val is not _not_found_:
+            return val
         elif default_value is _not_defined_:
-            return Entry(obj, prefix=suffix)
+            return Entry(obj, prefix=path[idx:])
         else:
             return default_value
+
+        # elif isinstance(obj, collections.abc.Mapping):
+        #     if not isinstance(key, str):
+        #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
+        #     tmp = obj.get(key, _not_found_)
+        #     obj = tmp
+        # elif isinstance(obj, collections.abc.MutableSequence):
+        #     if not isinstance(key, (int, slice)):
+        #         raise TypeError(
+        #             f"list indices must be integers or slices, not {type(key).__name__}! \"{path[:idx+1]}\" {type(obj)}")
+        #     elif isinstance(key, int) and isinstance(self._data, collections.abc.MutableSequence) and key > len(self._data):
+        #         raise IndexError(f"Out of range! {key} > {len(self._data)}")
+        #     obj = obj[key]
+        # elif hasattr(obj, "_cache"):
+        #     if obj._cache._data == self._data and obj._cache._prefix == path[:idx]:
+        #         suffix = path
+        #         obj = obj._cache._data
+        #         break
+        #     else:
+        #         obj = obj._cache.get(path[idx:])
+        #     break
+
+        # if rpath is None:
+        #     self._data = obj
+        #     self._prefix = []
+
+    def setdefault(self, value: Any, rpath: Optional[_TPath] = None) -> Any:
+        obj = self.get(rpath, _not_found_)
+        if obj is _not_found_ or isinstance(obj, Entry):
+            self.put(value, rpath)
+            obj = self.get(rpath, _not_found_)
+        if obj is _not_found_:
+            raise KeyError(f"Can not put value to {rpath}")
+        return obj
 
     def insert(self,   v, rpath: Optional[_TPath] = None, *args, **kwargs):
         path = self._prefix + normalize_path(rpath)
@@ -205,6 +210,8 @@ class Entry(object):
     def update(self,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
         if not isinstance(value, collections.abc.Mapping):
             self.put(value, rpath)
+        elif rpath is None:
+            self.put(value)
         else:
             obj = self.get(rpath, _not_found_)
             if isinstance(obj, collections.abc.MutableMapping):

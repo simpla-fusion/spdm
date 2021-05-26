@@ -13,7 +13,7 @@ from ..util.utilities import (_empty, _not_defined_, _not_found_,
 from .Session import Session
 
 
-class Actor(Dict[str, Node]):
+class Actor(Dict[Node]):
     """
         Action/Event: Objects whose state changes over time
     """
@@ -113,7 +113,7 @@ class Actor(Dict[str, Node]):
             Return  : return the residual between the updated state and the previous state
         """
         if state is not None:
-            super().__update__(state)
+            super().update(state)
         # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
 
         self._time = self["time"]

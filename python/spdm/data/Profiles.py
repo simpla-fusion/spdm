@@ -6,7 +6,7 @@ from spdm.data.Node import Dict, Node
 from spdm.util.logger import logger
 
 
-class Profiles(Dict[str, Node]):
+class Profiles(Dict[Node]):
     __slots__ = ("_axis",)
 
     def __init__(self,   *args, axis=None, default_factory=None, ** kwargs):

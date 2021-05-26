@@ -14,7 +14,7 @@ except Exception:
     _array_cls = None
 else:
     logger.debug(f"Using NumPy {np.version.full_version}")
-    logger.debug(f"Using SciPy {scipy.__version__}")
+    # logger.debug(f"Using SciPy {scipy.__version__}")
 
     _array_cls = np.ndarray
 

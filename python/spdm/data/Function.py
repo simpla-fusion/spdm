@@ -8,10 +8,11 @@ import scipy
 import scipy.interpolate
 
 from ..util.logger import logger
-from .Entry import Entry
-from .Node import Node
 
 logger.debug(f"SciPy: Version {scipy.__version__}")
+
+from .Entry import Entry
+from .Node import Node
 
 
 class Function:
