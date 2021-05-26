@@ -61,8 +61,6 @@ class StructuredMesh(Mesh):
     def interpolator(self, Z):
         return NotImplemented
 
-    def find_peak(self, Z):
-        yield NotImplemented
 
     def find_peak(self, Z):
 

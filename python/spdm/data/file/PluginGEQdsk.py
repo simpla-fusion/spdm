@@ -50,12 +50,12 @@ def sp_read_geqdsk(file):
     file.readline()
 
     def _read_data(count, width=16):
-        data = np.ndarray(shape=[count], dtype=float)
-
+        data = []
         for n in range(count):
-            data[n] = float(file.read(width))
+            data.append(float(file.read(width)))
             if n >= count - 1 or ((n + 1) % 5 == 0):
                 file.readline()
+        data = np.asarray(data)
         return data
 
     #
@@ -156,7 +156,7 @@ def sp_write_geqdsk(p, file):
 
 
 def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
-    from spdm.util.numlib import interpolate 
+    from spdm.util.numlib import interpolate
 
     coord_r = eq.coordinate_system.r
     coord_z = eq.coordinate_system.z

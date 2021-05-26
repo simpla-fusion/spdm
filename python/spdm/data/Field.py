@@ -5,16 +5,14 @@ from spdm.util.numlib import constants, np, scipy
 
 from ..util.logger import logger
 from .Coordinates import Coordinates
-from .Quantity import Quantity
 
 
-class Field(Quantity):
+class Field(object):
     """
         Field
     """
 
-    @staticmethod
-    def __new__(cls,  value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
+    def __init__(self, value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
         if coordinates is None:
             coordinates = Coordinates(*args,   **kwargs)
         elif not isinstance(coordinates, Coordinates):
@@ -22,58 +20,41 @@ class Field(Quantity):
 
         shape = shape or coordinates.mesh.shape
 
-        obj = super().__new__(cls, value, dtype=dtype, order=order, shape=shape)
-        obj._coordinates = coordinates
-        return obj
+        self._coordinates = coordinates
 
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        self._coordinates = getattr(obj, '_coordinates', None)
+        self._array = np.asarray(value)  # np.zeros(shape, order=order)
 
-    def __init__(self,   *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __array__(self):
+        return np.asarray(self._array)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} unit='{ self._unit}' coordinates='{self._coordinates.__name__}'>"
 
     def serialize(self):
         return {
-            "value": self.view(np.ndarray),
+            "value": self.__array__(),
             "unit": self.unit.serialize(),
             "coordinates": self.coordinates.serialize(),
             "uncertainty": {"error_lower": getattr(self, "_error_lower", None),
                             "error_upper": getattr(self, "_error_upper", None)},
         }
 
+    @property
+    def shape(self):
+        return self._coordinates.mesh.shape
+
     @staticmethod
     def deserialize(cls, d):
-        if not isinstance(d, collections.abc.Mapping):
-            return Quantity(d)
-        else:
-            return Quantity(d.get("value", None),
-                            dtype=d.get("dtype", None),
-                            order=d.get("order", None),
-                            unit=d.get("unit", None),
-                            coordinates=d.get("coordinates", None),
-                            annotation=d.get("annotation", None))
-
-    def __array_ufunc__(self, ufunc, method, *inputs, out=None, **kwargs):
-
-        res = super(Field, self).__array_ufunc__(ufunc, method, * inputs, out=out, **kwargs)
-
-        try:
-            coordinates = next((n.coordinates for n in inputs if isinstance(n, Quantity)), 'All are Nones')
-        except Exception:
-            coordinates = None
-        # FIXME (salmon 20210302): handle coordinates
-        # FIXME (salmon 20210302): handle uncertainty
-        # res._coordinates = coordinates
-
-        return res
-
-    def __array__(self):
-        return super().__array__()
+        raise NotImplemented
+        # if not isinstance(d, collections.abc.Mapping):
+        #     return Quantity(d)
+        # else:
+        #     return Quantity(d.get("value", None),
+        #                     dtype=d.get("dtype", None),
+        #                     order=d.get("order", None),
+        #                     unit=d.get("unit", None),
+        #                     coordinates=d.get("coordinates", None),
+        #                     annotation=d.get("annotation", None))
 
     @property
     def coordinates(self):
@@ -86,26 +67,26 @@ class Field(Quantity):
             else return *axis,f
         """
         if isinstance(self._coordinates, Coordinates):
-            return self._coordinates.mesh.points+[self.view(np.ndarray)]
+            return self._coordinates.mesh.points+[self.__array__()]
         else:
-            return [self.view(np.ndarray)]
+            return [self.__array__()]
 
-    def copy(self, other):
-        if isinstance(other, Quantity):
-            if self._coordinates is other._coordinates:
-                np.copyto(self, other.value)
-            else:
-                np.copyto(self, other(self._coordinates))
-        elif not isinstance(other, np.ndarray):
-            self.fill(other)
-        elif self.shape == other.shape:
-            np.copyto(self, other)
-        else:
-            raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
+    # def copy(self, other):
+    #     if isinstance(other, Quantity):
+    #         if self._coordinates is other._coordinates:
+    #             np.copyto(self, other.value)
+    #         else:
+    #             np.copyto(self, other(self._coordinates))
+    #     elif not isinstance(other, np.ndarray):
+    #         self.fill(other)
+    #     elif self.shape == other.shape:
+    #         np.copyto(self, other)
+    #     else:
+    #         raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
 
     @cached_property
     def interpolator(self):
-        return self._coordinates.mesh.interpolator(self.view(np.ndarray))
+        return self._coordinates.mesh.interpolator(self.__array__())
 
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
@@ -123,7 +104,7 @@ class Field(Quantity):
         return res
 
     def find_peak(self):
-        yield from self._coordinates.mesh.find_peak(self)
+        yield from self._coordinates.mesh.find_peak(self.__array__())
 
     def derivative(self, *args, dx=None, dy=None, **kwargs):
         if self.ndim == 1:
@@ -153,7 +134,7 @@ class Field(Quantity):
         return Quantity(value, axis=self.axis)
 
     def plot(self, axis, *args, linewidths=0.1, **kwargs):
-        axis.contour(*self._coordinates.mesh.points,  self.view(np.ndarray), linewidths=linewidths, **kwargs)
+        axis.contour(*self._coordinates.mesh.points,  self.__array__(), linewidths=linewidths, **kwargs)
         return axis
 
 # def derivative_n(self, n, *args, **kwargs):
@@ -233,9 +214,9 @@ class Field(Quantity):
 #                 res = self._ufunc(self._coordinates)
 #             else:
 #                 np.copyto(self, self._ufunc(self._coordinates))
-#                 res = self.view(np.ndarray)
+#                 res = self.__array__()
 #         else:
-#             res = self.view(np.ndarray)
+#             res = self.__array__()
 #         return res
 #     @cached_property
 #     def derivative(self):
@@ -274,7 +255,7 @@ class Field(Quantity):
 #             else:
 #                 data = arg
 #             if isinstance(data, Quantity):
-#                 args.append(data.view(np.ndarray))
+#                 args.append(data.__array__())
 #             else:
 #                 args.append(data)
 #         res = self._func(*args, **self._kwargs)
@@ -287,7 +268,7 @@ class Field(Quantity):
 #     def __getitem__(self, idx):
 #         args = []
 #         if not hasattr(self, "_args"):
-#             return self.view(np.ndarray)[idx]
+#             return self.__array__()[idx]
 #         for arg in self._args:
 #             if not isinstance(arg,  np.ndarray):
 #                 args.append(arg)
@@ -298,14 +279,14 @@ class Field(Quantity):
 #             else:
 #                 data = arg(self._coordinates[idx])
 #                 if isinstance(data, np.ndarray):
-#                     args.append(data.view(np.ndarray))
+#                     args.append(data.__array__())
 #                 else:
 #                     args.append(data)
 #         return self._func(*args, **self._kwargs)
 #     def __setitem__(self, idx, value):
 #         if self.shape != self._coordinates.shape:
 #             self.evaluate()
-#         self.view(np.ndarray)[idx] = value
+#         self.__array__()[idx] = value
 #     def evaluate(self):
 #         if self.shape != self._coordinates.shape:
 #             self.resize(self._coordinates.size, refcheck=False)
