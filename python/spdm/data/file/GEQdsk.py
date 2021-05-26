@@ -1,11 +1,10 @@
 import collections
-from spdm.data.Node import Dict
 import pathlib
 import pprint
 
-import numpy as np
-import scipy.integrate
+from spdm.data.Node import Dict
 from spdm.util.logger import logger
+from spdm.util.numlib import np, scipy
 
 from ..Document import Document
 from ..File import File

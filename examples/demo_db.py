@@ -2,10 +2,8 @@ import pprint
 import sys
 
 import matplotlib.pyplot as plt
-import numpy as np
-import scipy.constants as constants
-import scipy.stats
-from scipy.interpolate import RectBivariateSpline, UnivariateSpline
+from spdm.util.numlib import np
+from spdm.util.numlib import constants as constants
 
 
 if __name__ == "__main__":

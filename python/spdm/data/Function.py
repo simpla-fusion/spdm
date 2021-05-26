@@ -3,14 +3,8 @@ import collections.abc
 from functools import cached_property
 from typing import Any, Callable, Optional, Sequence, Union
 
-import numpy as np
-import scipy
-import scipy.interpolate
-
 from ..util.logger import logger
-
-logger.debug(f"SciPy: Version {scipy.__version__}")
-
+from ..util.numlib import interpolate, np, scipy
 from .Entry import Entry
 from .Node import Node
 
@@ -91,9 +85,9 @@ class Function:
         if self._x.shape != d.shape:
             raise RuntimeError(f"{self._x.shape }!={d.shape} {d}")
         if self.is_periodic:
-            ppoly = scipy.interpolate.CubicSpline(self._x, d, bc_type="periodic")
+            ppoly = interpolate.CubicSpline(self._x, d, bc_type="periodic")
         else:
-            ppoly = scipy.interpolate.CubicSpline(self._x, d)
+            ppoly = interpolate.CubicSpline(self._x, d)
         return ppoly
 
     def __call__(self, *args, **kwargs):

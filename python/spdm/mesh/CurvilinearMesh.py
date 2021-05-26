@@ -1,15 +1,14 @@
 from functools import cached_property, lru_cache
 from math import log
 
-import numpy as np
-import scipy.interpolate
+from spdm.util.numlib import interpolate, np
 
 from ..geometry.BSplineSurface import BSplineSurface
 from ..geometry.CubicSplineCurve import CubicSplineCurve
 from ..geometry.Point import Point
 from ..util.logger import logger
-from .StructuredMesh import StructuredMesh
 from ..util.utilities import convert_to_named_tuple
+from .StructuredMesh import StructuredMesh
 
 
 class CurvilinearMesh(StructuredMesh):
@@ -55,9 +54,9 @@ class CurvilinearMesh(StructuredMesh):
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.ndims == 1:
-            interp = scipy.interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+            interp = interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
         elif self.ndims == 2:
-            interp = scipy.interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
+            interp = interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
         else:
             raise NotImplementedError(f"NDIMS {self.ndims}>2")
         return interp

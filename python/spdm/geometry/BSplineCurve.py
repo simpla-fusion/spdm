@@ -2,13 +2,11 @@
 from functools import cached_property
 from operator import is_
 
-import numpy as np
-from scipy.integrate import quad
-from scipy.interpolate import make_interp_spline
+from spdm.util.numlib import interpolate, np
 
+from ..data.Function import Function
 from ..util.logger import logger
 from .Curve import Curve
-from ..data.Function import Function
 
 
 class BSplineCurve(Curve):
@@ -18,7 +16,7 @@ class BSplineCurve(Curve):
         super().__init__(*args, is_closed=is_closed is not None, cycle=cycle)
 
         self._u = u if u is not None else np.linspace(0, 1.0, len(p[0]))
-        self._spl = make_interp_spline(self._u, np.c_[tuple(p)], **kwargs)
+        self._spl = interpolate.make_interp_spline(self._u, np.c_[tuple(p)], **kwargs)
         if self.is_closed:
             self._spl.extrapolate = 'periodic'
 

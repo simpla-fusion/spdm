@@ -1,8 +1,7 @@
 import collections
 from functools import cached_property
 
-import numpy as np
-import scipy.constants
+from spdm.util.numlib import constants, np, scipy
 
 from ..util.logger import logger
 from .Coordinates import Coordinates

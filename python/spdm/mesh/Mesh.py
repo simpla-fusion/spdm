@@ -1,9 +1,7 @@
 import collections
 from functools import cached_property
 
-import numpy as np
-import scipy.interpolate
-
+from spdm.util.numlib import np
 from ..util.logger import logger
 from ..util.SpObject import SpObject
 

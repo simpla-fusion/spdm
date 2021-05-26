@@ -2,7 +2,7 @@ import collections
 from typing import (Any, Generic, Mapping, MutableMapping, Sequence, TypeVar,
                     Union)
 
-import numpy as np
+from spdm.util.numlib import np
 
 from ..util.logger import logger
 from .AoS import AoS, SoA

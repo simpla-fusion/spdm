@@ -1,6 +1,6 @@
 from functools import cached_property
 
-import numpy as np
+from spdm.util.numlib import np
 
 from .GeoObject import GeoObject
 from .Point import Point

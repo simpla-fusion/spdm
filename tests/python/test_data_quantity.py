@@ -1,7 +1,7 @@
 import collections
 import unittest
 
-import numpy as np
+from spdm.util.numlib import np
 from spdm.data.Node import Node, _next_
 from spdm.data.Quantity import Quantity
 from spdm.data.Coordinates import Coordinates

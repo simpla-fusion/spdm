@@ -1,5 +1,5 @@
 import sys
-import numpy as np
+from spdm.util.numlib import np
 import timeit
 
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")

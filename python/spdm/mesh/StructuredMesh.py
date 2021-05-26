@@ -1,6 +1,6 @@
 from functools import cached_property, lru_cache
 
-import numpy as np
+from spdm.util.numlib import np
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
 from scipy.optimize import fsolve, root_scalar

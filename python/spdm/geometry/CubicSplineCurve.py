@@ -2,11 +2,8 @@
 import collections
 from functools import cached_property
 
-import numpy as np
-from numpy.lib.arraysetops import isin
-from scipy.interpolate import CubicSpline
-
 from ..util.logger import logger
+from ..util.numlib import interpolate, np
 from .Curve import Curve
 
 
@@ -15,7 +12,7 @@ class CubicSplineCurve(Curve):
         super().__init__(*args, **kwargs)
         if isinstance(xy, collections.abc.MutableSequence):
             xy = np.c_[tuple(xy)]
-        self._spl = CubicSpline(u, xy, bc_type="periodic" if self.is_closed else "not-a-knot")
+        self._spl = interpolate.CubicSpline(u, xy, bc_type="periodic" if self.is_closed else "not-a-knot")
 
     @cached_property
     def uv(self):

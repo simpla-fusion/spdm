@@ -2,8 +2,8 @@ import pprint
 import sys
 import unittest
 
-import numpy as np
-import scipy.integrate
+from spdm.util.numlib import np,scipy
+
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 npoints = 129

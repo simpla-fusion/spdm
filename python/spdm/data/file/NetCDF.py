@@ -4,13 +4,12 @@ import os
 import pathlib
 
 import netCDF4 as nc
-# from scipy.io import netcdf
-import numpy as np
 from spdm.util.logger import logger
+from spdm.util.numlib import np, scipy
 from spdm.util.utilities import whoami
 
-from ..File import File
 from ..Entry import Entry
+from ..File import File
 
 
 class NetCDFNode(Entry):

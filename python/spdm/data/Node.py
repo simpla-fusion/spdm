@@ -6,7 +6,9 @@ from enum import IntFlag
 from functools import cached_property
 from typing import (Any, Callable, Generic, Iterator, Mapping, Optional, Tuple,
                     Sequence, TypeVar, Union, get_args)
-import numpy as np
+
+from ..util.numlib import np, scipy
+
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
 from .Entry import Entry, EntryChain, _last_, _next_, _TIndex, _TKey, _TPath
@@ -217,8 +219,8 @@ class Node(Generic[_TObject]):
             return 0 if self._cache is _not_found_ else 1
 
     def __iter__(self) -> Iterator[_TObject]:
-        for obj in enumerate(self._cache.iter()):
-            yield self.__post_process__(obj)
+        for idx, obj in enumerate(self._cache.iter()):
+            yield self.__post_process__(obj, idx)
 
         # if isinstance(self._cache, Entry):
         # else:
@@ -450,8 +452,9 @@ class _SpProperty(Generic[_TObject]):
         self._return_type = func.__annotations__.get("return", None)
 
     def _isinstance(self, obj) -> bool:
-        return self._return_type is None or obj.__class__ == self._return_type \
-            or (not hasattr(self._return_type, "__origin__") and isinstance(obj, self._return_type))
+        return obj is not _not_found_ and \
+            (self._return_type is None or obj.__class__ == self._return_type
+             or (not hasattr(self._return_type, "__origin__") and isinstance(obj, self._return_type)))
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
@@ -466,11 +469,10 @@ class _SpProperty(Generic[_TObject]):
         try:
             cache.put(val, self.attrname)
         except Exception as error:
-            logger.debug(error)
             try:
                 cache[self.attrname] = val
             except TypeError as error:
-                logger.error(f"Can not put value to '{self.attrname}'")
+                # logger.error(f"Can not put value to '{self.attrname}'")
                 raise TypeError(error) from None
 
     def __get__(self, instance: Any, owner=None) -> _TObject:
@@ -481,11 +483,12 @@ class _SpProperty(Generic[_TObject]):
 
         val = cache.get(self.attrname, _not_found_)
 
-        if val is _not_found_ or not self._isinstance(val):
+        if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
                 val = cache.get(self.attrname, _not_found_)
-                if val is _not_found_ or not self._isinstance(val):
+                # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
+                if not self._isinstance(val):
                     val = self.func(instance)
                     if self._isinstance(val):
                         pass
@@ -493,8 +496,10 @@ class _SpProperty(Generic[_TObject]):
                         val = self._return_type(val, parent=instance)
                     elif self._return_type is not None:
                         val = self._return_type(val)
-
-                self.__put__(cache, val)
+                    try:
+                        self.__put__(cache, val)
+                    except Exception:
+                        logger.error(f"Can not put value to '{self.attrname}'!")
 
         return val
 
@@ -502,6 +507,19 @@ class _SpProperty(Generic[_TObject]):
         with self.lock:
             cache = getattr(instance, "_cache", instance.__dict__)
             self.__put__(cache, value)
+
+    # def __del__(self, instance: Any):
+    #     with self.lock:
+    #         cache = getattr(instance, "_cache", instance.__dict__)
+
+    #         try:
+    #             cache.delete(self.attrname)
+    #         except Exception:
+    #             try:
+    #                 del cache[self.attrname]
+    #             except TypeError as error:
+    #                 logger.error(f"Can not delete '{self.attrname}'")
+    #                 raise TypeError(error)
 
 
 def sp_property(func: Callable[..., _TObject]) -> _SpProperty[_TObject]:

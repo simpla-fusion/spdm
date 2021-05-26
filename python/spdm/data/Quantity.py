@@ -2,13 +2,11 @@ import collections
 import pprint
 from functools import cached_property
 
-import numpy as np
-import scipy.constants
+from spdm.util.numlib import constants, np, scipy
 
 from ..util.logger import logger
+from .Node import Dict, Node
 from .Unit import Unit
-from .Node import Node, Dict
-from .Node import Dict
 
 
 class Quantity(np.ndarray):

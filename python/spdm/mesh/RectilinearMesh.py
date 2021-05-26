@@ -1,6 +1,6 @@
 from functools import cached_property, lru_cache
 
-import numpy as np
+from spdm.util.numlib import np
 import scipy.interpolate
 
 from ..util.logger import logger

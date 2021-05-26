@@ -1,7 +1,7 @@
 import pprint
 import subprocess
 import pathlib
-import numpy as np
+from spdm.util.numlib import np
 
 from spdm.data import io
 from spdm.util.logger import logger

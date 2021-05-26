@@ -3,7 +3,7 @@ import pprint
 import sys
 import unittest
 
-import numpy as np
+from spdm.util.numlib import np
 from spdm.data.Node import Node, _next_
 from spdm.data.Profiles import Profiles
 from spdm.data.TimeSeries import TimeSeries, TimeSlice

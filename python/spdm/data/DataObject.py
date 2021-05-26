@@ -2,21 +2,10 @@ import collections
 from typing import Type
 
 from ..util.logger import logger
+from ..util.numlib import _array_cls, np
 from ..util.SpObject import SpObject
 from ..util.urilib import urisplit
-
 from .Entry import Entry
-try:
-    import numpy as np
-    import scipy
-except Exception:
-    logger.warning(f"Can not load numpy!")
-    _array_cls = None
-else:
-    logger.debug(f"Using NumPy {np.version.full_version}")
-    # logger.debug(f"Using SciPy {scipy.__version__}")
-
-    _array_cls = np.ndarray
 
 
 def load_ndarray(desc, value, *args, **kwargs):

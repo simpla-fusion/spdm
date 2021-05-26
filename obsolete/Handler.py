@@ -3,7 +3,7 @@ from spdm.util.logger import logger
 import pathlib
 import collections
 from xml.etree import (ElementTree, ElementInclude)
-import numpy as np
+from spdm.util.numlib import np
  
 
 class Iterator(object):
