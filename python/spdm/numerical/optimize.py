@@ -1,5 +1,6 @@
 from functools import cached_property, lru_cache
 from typing import Callable
+from scipy import optimize
 
 from spdm.util.numlib import np
 from scipy.ndimage.filters import maximum_filter, minimum_filter
@@ -50,7 +51,7 @@ def find_peaks_image(Z):
         yield ix, iy
 
 
-def find_critical_points_2d_(func, X, Y):
+def find_critical_points_2d_(func: Callable[..., float], X: np.ndarray, Y: np.ndarray):
     shape = X.shape
 
     if X.shape != Y.shape:
@@ -99,14 +100,81 @@ def find_critical_points_2d_(func, X, Y):
         yield x, y, func(x, y, grid=False), D
 
 
-def find_critical_points_2d_experimental(Z):
-    raise NotImplementedError
-    yield []
+_minimize_status_msg = [
+    '0 means converged(nominal)', '1 = max BFGS iters reached', '2 = undefined',
+    '3 = zoom failed', '4 = saddle point reached', '5 = max line search iters reached', '-1 = undefined'
+]
 
 
-def find_critical_points(func, X, Y):
+def minimize_experimental(func: Callable[..., float], x0, y0):
+
+    sol = minimize(func,   np.asarray([x0, y0]), method='BFGS')
+
+    logger.debug(sol.message)
+
+    if not sol.success:
+        raise RuntimeError(f"{_minimize_status_msg[sol.status]}")
+
+    x, y = sol.x
+    val = sol.fun
+    return x, y, val
+
+
+def find_peaks_2d_experimental(func: Callable[..., float], x0, y0, x1, y1):
+
+    peaks = []
+
+    sol = minimize(func,   np.asarray([0.5*(x0+x1), 0.5*(y0+y1)]), method='BFGS')
+    xsol, ysol = sol.x
+
+    xmin = min(x0, x1)
+    xmax = max(x0, x1)
+    ymin = min(y0, y1)
+    ymax = max(y0, y1)
+    logger.debug((xsol, ysol, xmin, ymin, xmax, ymax))
+    if not sol.success \
+            or xsol < xmin or xsol >= xmax \
+            or ysol < ymin or ysol >= ymax \
+        or (np.isclose(xsol, x0) and np.isclose(ysol, y0)) :
+
+        return peaks
+
+    peaks.append(sol.x)
+
+    peaks.extend(find_peaks_2d_experimental(func, xsol, ysol, xmin, ymin))
+    peaks.extend(find_peaks_2d_experimental(func, xsol, ysol, xmax, ymin))
+    peaks.extend(find_peaks_2d_experimental(func, xsol, ysol, xmin, ymax))
+    peaks.extend(find_peaks_2d_experimental(func, xsol, ysol, xmax, ymax))
+
+    return peaks
+
+
+def find_critical_points_2d_experimental(func: Callable[..., float], xmin, ymin, xmax, ymax):
+
+    def grad_func(p): return func(*p, dx=1, grid=False)**2 + func(*p, dy=1, grid=False)**2
+
+    peaks = find_peaks_2d_experimental(grad_func, xmin, ymin, xmax, ymax)
+
+    logger.debug(peaks)
+
+    for p in peaks:
+        x, y = p
+        D = func(x, y, dx=2, grid=False) * func(x, y, dy=2, grid=False) - (func(x, y,  dx=1, dy=1, grid=False))**2
+        yield x, y, func(x, y, grid=False), D
+
+
+def find_critical_points(func: Callable[..., float], X: np.ndarray, Y: np.ndarray):
+
+    shape = X.shape
+
+    if X.shape != Y.shape:
+        raise ValueError(f"{X.shape} !={Y.shape}")
 
     if not SP_EXPERIMENTAL:
         yield from find_critical_points_2d_(func, X, Y)
     else:
-        yield from find_critical_points_2d_experimental(func, X, Y)
+        xmin = X.min()
+        xmax = X.max()
+        ymin = Y.min()
+        ymax = Y.max()
+        yield from find_critical_points_2d_experimental(func,  xmin, ymin, xmax, ymax)
