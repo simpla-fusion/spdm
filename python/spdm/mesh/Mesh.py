@@ -93,5 +93,5 @@ class Mesh(SpObject):
     def interpolator(self, Z):
         return NotImplemented
 
-    def find_peak(self, Z):
+    def find_critical_points(self, Z):
         yield NotImplemented

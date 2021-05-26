@@ -103,8 +103,8 @@ class Field(object):
             res = res.item()
         return res
 
-    def find_peak(self):
-        yield from self._coordinates.mesh.find_peak(self.__array__())
+    def find_critical_points(self):
+        yield from self._coordinates.mesh.find_critical_points(self.__array__())
 
     def derivative(self, *args, dx=None, dy=None, **kwargs):
         if self.ndim == 1:

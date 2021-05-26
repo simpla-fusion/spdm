@@ -26,7 +26,7 @@ class Coordinates:
         return self._unit
 
     @property
-    def mesh(self):
+    def mesh(self)->Mesh:
         return self._mesh
 
     def serialize(self):

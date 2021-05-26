@@ -14,7 +14,7 @@ if ENABLE_JAX:
     logger.info(f"Using JAX \t: {jax.__version__}")
 else:
     import numpy as np
-    from scipy.optimize import minimize, root_scalar
+    from scipy.optimize import minimize, root_scalar,fsolve
     import scipy.interpolate as interpolate
 
     logger.info(f"Using SciPy \t: {scipy.__version__}")
