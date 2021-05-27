@@ -27,7 +27,7 @@ class RectilinearMesh(StructuredMesh):
             elif isinstance(d, int):
                 return np.linspace(0, 1, d)
             else:
-                raise TypeError(type(d))
+                raise TypeError(d)
 
         self._dims = [normalize_dim(d) for d in args]
         super().__init__(*args, shape=[len(d) for d in self._dims],  **kwargs)

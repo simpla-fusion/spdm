@@ -98,7 +98,7 @@ class Entry(object):
     def put(self,  value: _T, rpath:  Optional[_TPath] = None) -> _T:
         path = self._prefix+normalize_path(rpath)
 
-        if len(path) == 0 and self._data is None:
+        if len(path) == 0:  # and self._data is None:
             self._data = value
             return self._data
 
@@ -137,10 +137,29 @@ class Entry(object):
         obj = self._data
         val = obj
         for idx, key in enumerate(path):
-            try:
-                val = obj[key]
-            except Exception:
+            # if hasattr(obj, "_cache"):
+            #     obj = obj._cache
+
+            if isinstance(obj, Entry):
+                val = obj.get(path[idx:], _not_found_)
+                if(obj is self):
+                    raise RuntimeError(f"Recursive call {path}=> {path[idx:]}")
+                break
+            elif isinstance(obj, dict):
+                val = obj.get(key, _not_found_)
+            elif isinstance(key, (int, slice)) and isinstance(obj, (collections.abc.MutableSequence)):
+                try:
+                    val = obj[key]
+                except Exception:
+                    val = _not_found_
+            elif key is _next_:
                 val = _not_found_
+            # elif hasattr(obj.__class__, 'get'):
+            #     val = obj.get(key, _not_found_)
+            else:
+                val = getattr(obj, key, _not_found_)
+
+            if val is _not_found_:
                 break
             else:
                 obj = val
@@ -177,7 +196,7 @@ class Entry(object):
         #     self._data = obj
         #     self._prefix = []
 
-    def setdefault(self, value: Any, rpath: Optional[_TPath] = None) -> Any:
+    def setdefault(self, rpath: Optional[_TPath], value: Any) -> Any:
         obj = self.get(rpath, _not_found_)
         if obj is _not_found_ or isinstance(obj, Entry):
             self.put(value, rpath)
@@ -186,7 +205,7 @@ class Entry(object):
             raise KeyError(f"Can not put value to {rpath}")
         return obj
 
-    def insert(self,   v, rpath: Optional[_TPath] = None, *args, **kwargs):
+    def insert(self, v, rpath: Optional[_TPath] = None, *args, **kwargs):
         path = self._prefix + normalize_path(rpath)
         try:
             parent = self.get(path[:-1])
@@ -210,12 +229,21 @@ class Entry(object):
     def update(self,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
         if not isinstance(value, collections.abc.Mapping):
             self.put(value, rpath)
-        elif rpath is None:
-            self.put(value)
+        # elif rpath is None:
+        #     self.put(value)
         else:
             obj = self.get(rpath, _not_found_)
             if isinstance(obj, collections.abc.MutableMapping):
-                obj.update(value)
+                for k, v in value.items():
+                    target = obj.setdefault(k, v)
+                    if target is v:
+                        pass
+                    elif hasattr(target.__class__, 'update'):
+                        target.update(v)
+                    else:
+                        raise KeyError
+
+                # obj.update(value)
             else:
                 self.put(value, rpath)
 
@@ -323,38 +351,34 @@ class Entry(object):
         return [v for v in self.values(*args, **kwargs)]
 
 
-class EntryChain(Entry):
+class EntryWrapper(Entry):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, d: Entry, *args, **kwargs):
         super().__init__(**kwargs)
-        self._chain = [(a if isinstance(a, Entry) else Entry(a)) for a in args]
+        self._target = d
 
-    def get(self, path: Optional[_TPath] = None, *args, default_value=_not_defined_, **kwargs):
-        for sub in self._chain:
-            res = sub.get(path, default_value=_not_found_)
-            if res is not _not_found_:
-                break
+    def get(self, rpath: Optional[_TPath] = None, *args, default_value=_not_defined_, **kwargs):
+        res = self._target.get(rpath, default_value=_not_found_)
         if res is _not_found_:
-            res = default_value
+            res = super().get(rpath, default_value=default_value)
         return res
 
     def put(self, value,  path: Optional[_TPath] = None, **kwargs):
-        self._chain[0].put(value, path, **kwargs)
-
-    def __getitem__(self, path: Optional[_TPath]) -> Any:
-        return self.get(path)
-
-    def __setitem__(self, path: _TPath, value: Any) -> None:
-        self.put(value, path)
+        super().put(value, path, **kwargs)
 
     def __len__(self) -> int:
-        return self.count()
+        try:
+            n = self._target.count()
+        except Exception:
+            n = super().count()
+        return n
 
     def __contains__(self, key) -> bool:
-        return self.contains(key)
+        return self._target.contains(key) or super().contains(key)
 
     def __iter__(self):
-        yield from self.iter()
+        yield from self._target.iter()
+        yield from super().iter()
 
     #  def get(self, path=[], *args, default_value=_not_found_, **kwargs):
     #     path = self._prefix + normalize_path(path)

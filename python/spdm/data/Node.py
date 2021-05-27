@@ -11,7 +11,7 @@ from ..numlib import np, scipy
 
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
-from .Entry import Entry, EntryChain, _last_, _next_, _TIndex, _TKey, _TPath
+from .Entry import Entry, EntryWrapper, _last_, _next_, _TIndex, _TKey, _TPath
 
 _TObject = TypeVar('_TObject')
 
@@ -49,12 +49,12 @@ class Node(Generic[_TObject]):
             cache = cache._cache
 
         if writable and not getattr(cache, "writable", True):
-            cache = EntryChain({}, cache)
+            cache = EntryWrapper(cache)
         elif not isinstance(cache, Entry):
             cache = Entry(cache, *args, **kwargs)
 
-        if not cache.writable:
-            cache = EntryChain({}, cache)
+        # if not cache.writable:
+        #     cache = EntryChain({}, cache)
 
         self._cache = cache
 
@@ -72,10 +72,10 @@ class Node(Generic[_TObject]):
         return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
 
     def _as_dict(self) -> Mapping:
-        return {k: self.__post_process__(v) for k, v in self._cache.setdefault(Entry._DICT_TYPE_()).items()}
+        return {k: self.__post_process__(v) for k, v in self._cache.setdefault([], Entry._DICT_TYPE_()).items()}
 
     def _as_list(self) -> Sequence:
-        return [self.__post_process__(v) for v in self._cache.setdefault(Entry._LIST_TYPE_())]
+        return [self.__post_process__(v) for v in self._cache.setdefault([], Entry._LIST_TYPE_())]
 
     @property
     def __parent__(self) -> object:
@@ -252,8 +252,8 @@ class Node(Generic[_TObject]):
     def __bool__(self) -> bool:
         return bool(self._cache.get(default_value=False))
 
-    def __str__(self):
-        return str(self._cache.get(default_value=_not_found_))
+    # def __str__(self):
+    #     return str(self._cache.get(default_value=_not_found_))
 
     def __int__(self):
         return int(self._cache.get(default_value=_not_found_))
@@ -266,8 +266,18 @@ class List(Node[_TObject], Sequence[_TObject]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Sequence] = None, *args,  **kwargs) -> None:
-        Node.__init__(self, cache if not (cache is None or cache is _not_found_)
-                      else Entry._LIST_TYPE_(), *args, **kwargs)
+        if cache is None or cache is _not_found_:
+            cache = Entry._LIST_TYPE_()
+        elif isinstance(cache, Node):
+            cache = cache._cache
+
+        if not isinstance(cache, Entry):
+            cache = Entry(cache)
+        elif cache.writable:
+            cache = cache.setdefault([], Entry._LIST_TYPE_())
+        else:
+            cache = EntryWrapper(cache)
+        Node.__init__(self, cache, *args, **kwargs)
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
@@ -334,8 +344,19 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
+
         if cache is None or cache is _not_found_:
             cache = Entry._DICT_TYPE_()
+        elif isinstance(cache, Node):
+            cache = cache._cache
+
+        if not isinstance(cache, Entry):
+            pass
+        elif cache.writable:
+            cache = cache.setdefault([], Entry._DICT_TYPE_())
+        else:
+            cache = EntryWrapper(  cache)
+
         Node.__init__(self, cache, *args, **kwargs)
 
     def __serialize__(self, properties: Optional[Sequence] = None) -> Mapping:
@@ -466,9 +487,12 @@ class _SpProperty(Generic[_TObject]):
             )
 
     def __put__(self, cache: Any, val: Any):
-        try:
+        if isinstance(val, Node):
+            logger.debug((self.attrname, type(val._cache), type(cache), val._cache._data is cache._data))
+
+        if isinstance(cache, Entry):
             cache.put(val, self.attrname)
-        except Exception as error:
+        else:
             try:
                 cache[self.attrname] = val
             except TypeError as error:
@@ -496,10 +520,10 @@ class _SpProperty(Generic[_TObject]):
                         val = self._return_type(val, parent=instance)
                     elif self._return_type is not None:
                         val = self._return_type(val)
-                    # try:
-                    #     self.__put__(cache, val)
-                    # except Exception:
-                    #     logger.error(f"Can not put value to '{self.attrname}'!")
+                    try:
+                        self.__put__(cache, val)
+                    except Exception:
+                        logger.error(f"Can not put value to '{self.attrname}'!")
 
         return val
 
