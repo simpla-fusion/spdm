@@ -2,7 +2,7 @@ import collections
 import getpass
 import datetime
 import matplotlib.pyplot as plt
-from spdm.util.numlib import np
+from spdm.numlib import np
 from spdm.data.Node import Dict
 from spdm.data.Function import Function
 from spdm.util.logger import logger

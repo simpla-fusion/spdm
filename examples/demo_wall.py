@@ -4,7 +4,7 @@ import pprint
 import sys
 
 import matplotlib.pyplot as plt
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 
 sys.path.append("/home/salmon/workspace/SpDev/SpCommon")

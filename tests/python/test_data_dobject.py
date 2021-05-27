@@ -2,7 +2,7 @@ import importlib
 import pprint
 import sys
 import unittest
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 from spdm.util.logger import logger
 from spdm.data.Quantity import Quantity

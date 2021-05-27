@@ -1,6 +1,6 @@
 from functools import cached_property
 
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 from .GeoObject import GeoObject
 from .Point import Point
@@ -25,17 +25,14 @@ class Curve(GeoObject):
     def __init__(self,  *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    @cached_property
+    def is_closed(self):
+        return all(np.isclose(self.xy[0], self.xy[-1]))
+
+
     @property
     def topology_rank(self):
         return 1
-
-    @cached_property
-    def bbox(self):
-        return np.asarray([[np.min(p) for p in self.xy], [np.max(p) for p in self.xy]])
-
-    @cached_property
-    def center(self):
-        return (self.bbox[0]+self.bbox[1])*0.5
 
     def dl(self, u=None, *args, **kwargs):
         if u is None:

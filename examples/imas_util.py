@@ -1,4 +1,4 @@
-from spdm.util.numlib import np
+from spdm.numlib import np
 import imas
 import pprint
 

@@ -3,7 +3,7 @@ import enum
 from functools import cached_property
 from typing import Any, Generic, MutableSequence, Sequence
 
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 from ..util.logger import logger
 from ..util.utilities import normalize_path, try_get

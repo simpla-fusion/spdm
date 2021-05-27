@@ -5,7 +5,7 @@ import pathlib
 
 import netCDF4 as nc
 from spdm.util.logger import logger
-from spdm.util.numlib import np, scipy
+from spdm.numlib import np, scipy
 from spdm.util.utilities import whoami
 
 from ..Entry import Entry

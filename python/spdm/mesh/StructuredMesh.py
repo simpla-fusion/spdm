@@ -1,6 +1,6 @@
 from typing import Callable
 
-from ..numerical.optimize import find_critical_points
+from ..numlib.optimize import find_critical_points
 from ..util.logger import logger
 from .Mesh import Mesh
 

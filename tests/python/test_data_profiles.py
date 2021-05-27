@@ -1,7 +1,7 @@
 import importlib
 import pprint
 import sys
-from spdm.util.numlib import np
+from spdm.numlib import np
 import unittest
 from spdm.util.logger import logger
 from spdm.data.Profiles import Profiles

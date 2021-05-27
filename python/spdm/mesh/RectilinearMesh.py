@@ -1,11 +1,12 @@
 from functools import cached_property, lru_cache
+from typing import Sequence, Tuple
 
-from spdm.util.numlib import np
-import scipy.interpolate
+from spdm.numlib import np
 
-from ..util.logger import logger
 from ..geometry.Curve import Line
 from ..geometry.Point import Point
+from ..numlib import interpolate
+from ..util.logger import logger
 from .StructuredMesh import StructuredMesh
 
 
@@ -19,7 +20,7 @@ class RectilinearMesh(StructuredMesh):
 
     """
 
-    def __init__(self, *args,  **kwargs) -> None:
+    def __init__(self, desc=None, *args,  **kwargs) -> None:
         def normalize_dim(d):
             if isinstance(d, np.ndarray):
                 return d
@@ -32,8 +33,12 @@ class RectilinearMesh(StructuredMesh):
         super().__init__(*args, shape=[len(d) for d in self._dims],  **kwargs)
 
     @cached_property
-    def bbox(self):
-        return [[d[0], d[-1]] for d in self._dims]
+    def bbox(self) -> Sequence[float]:
+        return [*[d[0] for d in self._dims], *[d[-1] for d in self._dims]]
+
+    @cached_property
+    def dx(self) -> Sequence[float]:
+        return [(d[-1]-d[0])/self.shape[idx] for idx, d in enumerate(self._dims)]
 
     def axis(self, idx, axis=0):
         p0 = [d[0] for d in self._dims]
@@ -48,9 +53,9 @@ class RectilinearMesh(StructuredMesh):
         return res
 
     @cached_property
-    def points(self):
+    def xy(self) -> Sequence[np.ndarray]:
         if self.ndims == 1:
-            return self._dims[0]
+            return [self._dims[0]]
         elif self.ndims == 2:
             return np.meshgrid(*self._dims, indexing="ij")
         else:
@@ -64,15 +69,15 @@ class RectilinearMesh(StructuredMesh):
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.ndims == 1:
-            interp = scipy.interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+            interp = interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
         elif self.ndims == 2:
-            interp = scipy.interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
+            interp = interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
         else:
             raise NotImplementedError(f"NDIMS {self.ndims}>2")
 
         return interp
 
-    @cached_property
+    @ cached_property
     def dl(self):
         dX = (np.roll(self.points[0], 1, axis=1) - np.roll(self.points[0], -1, axis=1))/2.0
         dY = (np.roll(self.points[1], 1, axis=1) - np.roll(self.points[1], -1, axis=1))/2.0

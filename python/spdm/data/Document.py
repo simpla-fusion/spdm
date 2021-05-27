@@ -1,7 +1,7 @@
 import collections
-from typing import Any, Dict, List
 from functools import cached_property
-from spdm.data.AttributeTree import AttributeTree
+from typing import Any, Dict, List
+
 from ..util.logger import logger
 from .DataObject import DataObject
 from .Entry import Entry
@@ -30,10 +30,6 @@ class Document(DataObject):
     @cached_property
     def entry(self):
         return Entry(self)
-
-    @cached_property
-    def attributes(self):
-        return AttributeTree(self.entry)
 
     @property
     def schema(self):

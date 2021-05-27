@@ -2,7 +2,7 @@ import collections
 import pathlib
 from typing import Optional
 from functools import cached_property
-from spdm.util.numlib import np
+from spdm.numlib import np
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser

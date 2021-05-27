@@ -18,18 +18,18 @@ from dataclasses import is_dataclass, fields
 _empty = object()
 
 
-class _NOT_FOUND_:
-    def _as_dict(self):
-        return {}
+# class _NOT_FOUND_:
+#     def _as_dict(self):
+#         return {}
 
-    def _as_list(self):
-        return []
+#     def _as_list(self):
+#         return []
 
-    def __serialize__(self):
-        return None
+#     def __serialize__(self):
+#         return None
 
 
-_not_found_ = _NOT_FOUND_()
+_not_found_ = object()
 
 _not_defined_ = object()
 

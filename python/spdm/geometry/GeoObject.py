@@ -1,17 +1,17 @@
+from functools import cached_property
+
 from ..data.Function import Function
+from ..numlib import np
+from typing import Sequence
 
 
 class GeoObject:
-    def __init__(self, *args, is_closed=False, **kwargs) -> None:
-        self._is_closed = is_closed
+    def __init__(self, *args,   **kwargs) -> None:
+        pass
 
     @property
     def topology_rank(self):
         return 0
-
-    @property
-    def is_closed(self):
-        return self._is_closed
 
     @property
     def ndims(self):
@@ -21,11 +21,34 @@ class GeoObject:
     def uv(self):
         return NotImplemented
 
-    def point(self, *args, **kwargs):
+    def point(self, *args, **kwargs) -> np.ndarray:
         return NotImplemented
 
-    def xy(self, *args, **kwargs):
-        return self.point(*args, **kwargs).T
+    @cached_property
+    def xy(self) -> np.ndarray:
+        return self.point().T
+
+    @cached_property
+    def is_closed(self):
+        return NotImplemented
+
+    @cached_property
+    def bbox(self) -> np.ndarray:
+        """[[xmin,xmax],[ymin,ymax],...]"""
+        return np.asarray([[d.min(), d.max()] for d in self.xy.T])
+
+    @cached_property
+    def center(self):
+        return (self.bbox[:, 0]+self.bbox[:, 1])*0.5
+
+    def enclosed(self, p: Sequence[float], tolerance=None) -> bool:
+        bbox = self.bbox
+        if any(p < bbox[:, 0]) or any(p > bbox[:, 1]):
+            return False
+        elif tolerance is None:
+            return True
+        else:
+            return NotImplemented
 
     def derivative(self,  *args, **kwargs):
         return NotImplemented
@@ -40,6 +63,6 @@ class GeoObject:
         if len(args) == 0:
             args = self.uv
         return Function(args, func(*self.xy(*args,   **kwargs)), is_period=self.is_closed)
-        
+
     # def dl(self, u, *args, **kwargs):
     #     return NotImplemented

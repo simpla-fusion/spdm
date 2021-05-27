@@ -1,7 +1,7 @@
 import collections
 import typing
 
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 from .List import List
 from .Node import Node, _TObject, _TKey

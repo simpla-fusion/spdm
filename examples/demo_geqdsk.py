@@ -1,6 +1,6 @@
 import pprint
 import matplotlib.pyplot as plt
-from spdm.util.numlib import np
+from spdm.numlib import np
 import pathlib
 from spdm.data.File import File
 from spdm.util.logger import logger

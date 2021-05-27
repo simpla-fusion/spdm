@@ -4,7 +4,7 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 
 import matplotlib.pyplot as plt
-from spdm.util.numlib import np
+from spdm.numlib import np
 from spdm.data import Document
 from spdm.util.logger import logger
 

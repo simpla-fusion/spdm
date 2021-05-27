@@ -1,6 +1,6 @@
 from ..util.logger import logger
 from .GeoObject import GeoObject
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 
 class Point(GeoObject):

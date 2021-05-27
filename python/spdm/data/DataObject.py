@@ -1,8 +1,8 @@
 import collections
 from typing import Type
 
+from ..numlib import  np
 from ..util.logger import logger
-from ..util.numlib import _array_cls, np
 from ..util.SpObject import SpObject
 from ..util.urilib import urisplit
 from .Entry import Entry
@@ -21,7 +21,7 @@ SpObject.schema.update(
         "integer": int,
         "float": float,
         "string": str,
-        "array": _array_cls,
+        "array": np.ndarray,
     }
 )
 

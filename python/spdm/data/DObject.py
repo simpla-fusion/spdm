@@ -1,5 +1,5 @@
 
-from spdm.util.numlib import np, scipy
+from spdm.numlib import np, scipy
 from spdm.util.logger import logger
 
 

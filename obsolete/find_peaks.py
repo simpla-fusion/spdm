@@ -1,6 +1,6 @@
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
-from spdm.util.numlib import np
+from spdm.numlib import np
 from .logger import logger
 
 

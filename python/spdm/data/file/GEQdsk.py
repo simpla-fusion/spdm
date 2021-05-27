@@ -4,7 +4,7 @@ import pprint
 
 from spdm.data.Node import Dict
 from spdm.util.logger import logger
-from spdm.util.numlib import np, scipy
+from spdm.numlib import np, scipy
 
 from ..Document import Document
 from ..File import File

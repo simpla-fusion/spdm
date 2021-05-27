@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import Any, Callable, Optional, Sequence, Union
 
 from ..util.logger import logger
-from ..util.numlib import interpolate, np, scipy
+from ..numlib import interpolate, np, scipy
 from .Entry import Entry
 from .Node import Node
 

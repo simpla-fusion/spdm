@@ -1,10 +1,15 @@
+import collections
 from functools import cached_property, lru_cache
 from math import log
+from typing import Sequence, Type, Union
+from scipy.ndimage.interpolation import geometric_transform
 
-from spdm.util.numlib import interpolate, np
+from spdm.numlib import interpolate, np
 
 from ..geometry.BSplineSurface import BSplineSurface
 from ..geometry.CubicSplineCurve import CubicSplineCurve
+from ..geometry.GeoObject import GeoObject
+from ..geometry.Curve import Curve
 from ..geometry.Point import Point
 from ..util.logger import logger
 from ..util.utilities import convert_to_named_tuple
@@ -19,29 +24,52 @@ class CurvilinearMesh(StructuredMesh):
     """
     TOLERANCE = 1.0e-5
 
-    def __init__(self, xy, uv=None,  *args,   ** kwargs) -> None:
-        super().__init__(*args, shape=[len(d) for d in uv], rank=len(uv), ndims=xy.shape[-1], **kwargs)
-        self._xy = xy.reshape([*self.shape, self.ndims])
+    def __init__(self, geo_mesh: Union[np.ndarray, Sequence[GeoObject], GeoObject], uv=None,  *args,   ** kwargs) -> None:
+        rank = len(uv)
+        shape = [len(d) for d in uv]
+        if isinstance(geo_mesh, np.ndarray):
+            if len(geo_mesh.shape[:-1]) != shape:
+                raise ValueError(f"Illegal shape! {geo_mesh.shape[:-1]} != {shape}")
+            ndims = geo_mesh.shape[-1]
+            xy = geo_mesh
+            surf = None
+            raise NotImplementedError(f"NOT COMPLETE! xy -> surface")
+
+        elif isinstance(geo_mesh, collections.abc.Sequence) and isinstance(geo_mesh[0], GeoObject):
+            ndims = geo_mesh[0].ndims
+            if len(uv[0]) != len(geo_mesh):
+                raise ValueError(f"Illegal number of sub-surface {len(self[uv[0]])} != {len(geo_mesh)}")
+            surf = geo_mesh
+        elif isinstance(geo_mesh, GeoObject):
+            raise NotImplementedError()
+        else:
+            raise TypeError(f"geo_mesh should be np.ndarray, Sequence[GeoObject] or GeoObject, not {type(geo_mesh)}")
+
+        super().__init__(*args, shape=shape, rank=rank, ndims=ndims, **kwargs)
         self._uv = uv
+        self._sub_surf = surf
 
     def axis(self, idx, axis=0):
-        s = [slice(None, None, None)]*self.ndims
-        s[axis] = idx
-        s = s+[slice(None, None, None)]
+        if axis == 0:
+            return self._sub_surf[idx]
+        else:
+            s = [slice(None, None, None)]*self.ndims
+            s[axis] = idx
+            s = s+[slice(None, None, None)]
 
-        sub_xy = self._xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
-        sub_uv = [self._uv[(axis+i) % self.ndims] for i in range(1, self.ndims)]
-        sub_cycle = [self.cycle[(axis+i) % self.ndims] for i in range(1, self.ndims)]
+            sub_xy = self.xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
+            sub_uv = [self._uv[(axis+i) % self.ndims] for i in range(1, self.ndims)]
+            sub_cycle = [self.cycle[(axis+i) % self.ndims] for i in range(1, self.ndims)]
 
-        return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
-
-    @property
-    def xy(self):
-        return self._xy
+            return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
 
     @property
     def uv(self):
         return self._uv
+
+    @cached_property
+    def xy(self) -> np.ndarray:
+        return np.hstack([surf(self.uv[idx]) for idx, surf in enumerate(self._sub_surf)])
 
     # def pushforward(self, new_uv):
     #     new_shape = [len(u) for u in new_uv]
@@ -68,12 +96,12 @@ class CurvilinearMesh(StructuredMesh):
     @cached_property
     def geo_object(self):
         if self.rank == 1:
-            if all([np.var(x)/np.mean(x**2) < CurvilinearMesh.TOLERANCE for x in self._xy]):
-                gobj = Point(*[x[0] for x in self._xy])
+            if all([np.var(x)/np.mean(x**2) < CurvilinearMesh.TOLERANCE for x in self.xy.T]):
+                gobj = Point(*[x[0] for x in self.xy.T])
             else:
-                gobj = CubicSplineCurve(self._uv[0], self._xy, is_closed=self.cycle[0])
+                gobj = CubicSplineCurve(self._uv[0], self.xy, is_closed=self.cycle[0])
         elif self.rank == 2:
-            gobj = BSplineSurface(self._uv, self._xy, is_closed=self.cycle)
+            gobj = BSplineSurface(self._uv, self.xy, is_closed=self.cycle)
         else:
             raise NotImplementedError()
 

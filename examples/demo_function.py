@@ -2,8 +2,8 @@
 import sys
 
 import matplotlib.pyplot as plt
-from spdm.util.numlib import np
-from spdm.util.numlib import constants
+from spdm.numlib import np
+from spdm.numlib import constants
 from spdm.util.plot_profiles import plot_profiles
 from spdm.data.Function import Function
 from spdm.util.logger import logger

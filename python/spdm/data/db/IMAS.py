@@ -5,7 +5,7 @@ import pathlib
 from functools import lru_cache
 
 import imas
-from spdm.util.numlib import np
+from spdm.numlib import np
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser

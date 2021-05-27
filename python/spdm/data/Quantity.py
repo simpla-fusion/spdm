@@ -2,7 +2,7 @@ import collections
 import pprint
 from functools import cached_property
 
-from spdm.util.numlib import constants, np, scipy
+from spdm.numlib import constants, np, scipy
 
 from ..util.logger import logger
 from .Node import Dict, Node

@@ -7,7 +7,7 @@ from functools import cached_property
 from typing import (Any, Callable, Generic, Iterator, Mapping, Optional, Tuple,
                     Sequence, TypeVar, Union, get_args)
 
-from ..util.numlib import np, scipy
+from ..numlib import np, scipy
 
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
@@ -496,10 +496,10 @@ class _SpProperty(Generic[_TObject]):
                         val = self._return_type(val, parent=instance)
                     elif self._return_type is not None:
                         val = self._return_type(val)
-                    try:
-                        self.__put__(cache, val)
-                    except Exception:
-                        logger.error(f"Can not put value to '{self.attrname}'!")
+                    # try:
+                    #     self.__put__(cache, val)
+                    # except Exception:
+                    #     logger.error(f"Can not put value to '{self.attrname}'!")
 
         return val
 

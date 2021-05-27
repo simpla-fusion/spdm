@@ -1,10 +1,11 @@
 import collections
 from functools import cached_property
+from typing import Mapping, Union
 
-from spdm.util.numlib import constants, np, scipy
+from spdm.numlib import constants, np, scipy
 
+from ..mesh.Mesh import Mesh
 from ..util.logger import logger
-from .Coordinates import Coordinates
 
 
 class Field(object):
@@ -12,17 +13,13 @@ class Field(object):
         Field
     """
 
-    def __init__(self, value=None, *args, dtype=None, order=None, shape=None, coordinates=None,  **kwargs):
-        if coordinates is None:
-            coordinates = Coordinates(*args,   **kwargs)
-        elif not isinstance(coordinates, Coordinates):
-            coordinates = Coordinates(coordinates, *args,   **kwargs)
+    def __init__(self, value=None, *args, dtype=None, order=None, mesh: Union[Mesh, Mapping] = None,  **kwargs):
+        self._mesh = mesh if isinstance(mesh, Mesh) else Mesh(mesh, *args)
 
-        shape = shape or coordinates.mesh.shape
-
-        self._coordinates = coordinates
-
-        self._array = np.asarray(value)  # np.zeros(shape, order=order)
+        if value is None:
+            self._array = np.zeros(self._mesh.shape)
+        else:
+            self._array = np.asarray(value)
 
     def __array__(self):
         return np.asarray(self._array)
@@ -33,15 +30,15 @@ class Field(object):
     def serialize(self):
         return {
             "value": self.__array__(),
-            "unit": self.unit.serialize(),
-            "coordinates": self.coordinates.serialize(),
+            # "unit": self.unit.serialize(),
+            "mesh": self._mesh.serialize(),
             "uncertainty": {"error_lower": getattr(self, "_error_lower", None),
                             "error_upper": getattr(self, "_error_upper", None)},
         }
 
     @property
     def shape(self):
-        return self._coordinates.mesh.shape
+        return self._mesh.shape
 
     @staticmethod
     def deserialize(cls, d):
@@ -57,40 +54,16 @@ class Field(object):
         #                     annotation=d.get("annotation", None))
 
     @property
-    def coordinates(self):
-        return self._coordinates
-
-    def unpack(self):
-        """
-            if ndim == 1 then return x,y
-            elif ndim == 2 then return x,y,z
-            else return *axis,f
-        """
-        if isinstance(self._coordinates, Coordinates):
-            return self._coordinates.mesh.points+[self.__array__()]
-        else:
-            return [self.__array__()]
-
-    # def copy(self, other):
-    #     if isinstance(other, Quantity):
-    #         if self._coordinates is other._coordinates:
-    #             np.copyto(self, other.value)
-    #         else:
-    #             np.copyto(self, other(self._coordinates))
-    #     elif not isinstance(other, np.ndarray):
-    #         self.fill(other)
-    #     elif self.shape == other.shape:
-    #         np.copyto(self, other)
-    #     else:
-    #         raise ValueError(f"Can not copy object! {type(other)} [{self.shape}, {other.shape}]  ")
+    def mesh(self) -> Mesh:
+        return self._mesh
 
     @cached_property
     def interpolator(self):
-        return self._coordinates.mesh.interpolator(self.__array__())
+        return self._mesh.interpolator(self.__array__())
 
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
-            args = self._coordinates.mesh.points
+            args = self._mesh.points
 
         if all([(isinstance(a, np.ndarray) and len(a.shape) == 1 and a.shape[0] == self.shape[idx]) for idx, a in enumerate(args)]):
             kwargs.setdefault("grid", True)
@@ -103,38 +76,35 @@ class Field(object):
             res = res.item()
         return res
 
-    def find_critical_points(self):
-        yield from self._coordinates.mesh.find_critical_points(self.__array__())
-
     def derivative(self, *args, dx=None, dy=None, **kwargs):
         if self.ndim == 1:
-            return self.interpolator.derivative(1, **kwargs)(self._coordinates.mesh.axis[0])
+            return self.interpolator.derivative(1, **kwargs)(self._mesh.axis[0])
         else:
             return self(*args, dx=dx or 0, dy=dy or 0, **kwargs)
 
-    @cached_property
-    def dln(self, *args, **kwargs):
-        r"""
-            .. math:: d\ln f=\frac{df}{f}
-        """
-        data = np.ndarray(self._coordinates.shape, dtype=self.dtype)
-        data[1:] = self.diff()[1:]/self[1:]
-        data[0] = 2*data[1]-data[2]
+    # @cached_property
+    # def dln(self, *args, **kwargs):
+    #     r"""
+    #         .. math:: d\ln f=\frac{df}{f}
+    #     """
+    #     data = np.ndarray(self._coordinates.shape, dtype=self.dtype)
+    #     data[1:] = self.diff()[1:]/self[1:]
+    #     data[0] = 2*data[1]-data[2]
 
-        if any(np.isnan(data)):
-            raise ValueError(data)
+    #     if any(np.isnan(data)):
+    #         raise ValueError(data)
 
-        return Quantity(data, coordinates=self._coordinates)
+    #     return Quantity(data, coordinates=self._coordinates)
 
-    def integral(self, *args, **kwargs):
-        return Quantity(scipy.integrate.cumtrapz(self.value, self.axis, initial=0.0), axis=self.axis)
+    # def integral(self, *args, **kwargs):
+    #     return Quantity(scipy.integrate.cumtrapz(self.value, self.axis, initial=0.0), axis=self.axis)
 
-    def inv_integral(self, *args, **kwargs):
-        value = scipy.integrate.cumtrapz(self.value[::-1], self.axis[::-1], initial=0.0)[::-1]
-        return Quantity(value, axis=self.axis)
+    # def inv_integral(self, *args, **kwargs):
+    #     value = scipy.integrate.cumtrapz(self.value[::-1], self.axis[::-1], initial=0.0)[::-1]
+    #     return Quantity(value, axis=self.axis)
 
     def plot(self, axis, *args, linewidths=0.1, **kwargs):
-        axis.contour(*self._coordinates.mesh.points,  self.__array__(), linewidths=linewidths, **kwargs)
+        axis.contour(*self._mesh.xy,  self.__array__(), linewidths=linewidths, **kwargs)
         return axis
 
 # def derivative_n(self, n, *args, **kwargs):

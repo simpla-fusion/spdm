@@ -2,7 +2,7 @@
 from functools import cached_property
 from operator import is_
 
-from spdm.util.numlib import interpolate, np
+from spdm.numlib import interpolate, np
 
 from ..data.Function import Function
 from ..util.logger import logger

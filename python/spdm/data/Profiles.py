@@ -1,6 +1,6 @@
 import collections
 
-from spdm.util.numlib import np
+from spdm.numlib import np
 from spdm.data.Function import Function
 from spdm.data.Node import Dict, Node
 from spdm.util.logger import logger

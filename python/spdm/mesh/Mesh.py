@@ -1,7 +1,7 @@
 import collections
 from functools import cached_property
-
-from spdm.util.numlib import np
+from typing import Tuple, Sequence
+from spdm.numlib import np
 from ..util.logger import logger
 from ..util.SpObject import SpObject
 
@@ -9,20 +9,20 @@ from ..util.SpObject import SpObject
 class Mesh(SpObject):
 
     @staticmethod
-    def __new__(cls, *args, mesh_type=None,   **kwargs):
+    def __new__(cls,  mesh=None, *args,   **kwargs):
         if cls is not Mesh:
             return object.__new__(cls)
 
         n_cls = None
-        if mesh_type is None or mesh_type == "rectilinear":
+        if mesh is None or mesh == "rectilinear":
             from .RectilinearMesh import RectilinearMesh
             n_cls = RectilinearMesh
         else:
-            raise NotImplementedError(mesh_type)
+            raise NotImplementedError(mesh)
 
         return object.__new__(n_cls)
 
-    def __init__(self, *args, ndims=None, rank=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
+    def __init__(self, mesh=None, *args, ndims=None, rank=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
         self._rank = rank or len(shape or [])
         self._shape = shape or []
         self._ndims = ndims or self._rank
@@ -52,7 +52,7 @@ class Mesh(SpObject):
         # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
@@ -64,11 +64,11 @@ class Mesh(SpObject):
         return self._cycle
 
     @property
-    def ndims(self):
+    def ndims(self) -> int:
         return self._ndims
 
     @property
-    def rank(self):
+    def rank(self) -> int:
         return self._rank
 
     @property
@@ -80,11 +80,19 @@ class Mesh(SpObject):
         return self.ndims
 
     @cached_property
-    def bbox(self):
+    def bbox(self) -> Sequence[float]:
+        return NotImplemented
+
+    @cached_property
+    def dx(self) -> Sequence[float]:
         return NotImplemented
 
     @cached_property
     def boundary(self):
+        return NotImplemented
+
+    @property
+    def xy(self) -> Sequence[np.ndarray]:
         return NotImplemented
 
     def new_dataset(self, *args, **kwargs):
@@ -92,6 +100,3 @@ class Mesh(SpObject):
 
     def interpolator(self, Z):
         return NotImplemented
-
-    def find_critical_points(self, Z):
-        yield NotImplemented

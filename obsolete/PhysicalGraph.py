@@ -1,7 +1,7 @@
 import collections
 import functools
 
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 from .Graph import Graph
 

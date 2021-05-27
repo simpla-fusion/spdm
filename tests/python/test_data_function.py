@@ -2,8 +2,8 @@ import logging
 import pprint
 import sys
 import unittest
-from spdm.util.numlib import constants
-from spdm.util.numlib import np
+from spdm.numlib import constants
+from spdm.numlib import np
 from spdm.data.Function import Function
 from spdm.util.logger import logger
 

@@ -1,4 +1,4 @@
-from spdm.util.numlib import np
+from spdm.numlib import np
 
 
 def sp_read_geqdsk(file):
