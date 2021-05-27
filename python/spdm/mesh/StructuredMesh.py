@@ -20,4 +20,10 @@ class StructuredMesh(Mesh):
 
     def find_critical_points(self, Z):
         X, Y = self.points
-        yield from find_critical_points(self.interpolator(Z), X, Y)
+        xmin = X.min()
+        xmax = X.max()
+        ymin = Y.min()
+        ymax = Y.max()
+        dx = (xmax-xmin)/X.shape[0]
+        dy = (ymax-ymin)/X.shape[1]
+        yield from find_critical_points(self.interpolator(Z),  xmin, ymin, xmax, ymax, tolerance=[dx, dy])
