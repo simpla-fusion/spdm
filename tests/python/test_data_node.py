@@ -36,7 +36,8 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d["a"][0],       cache["a"][0])
         self.assertEqual(d["a"][1],       cache["a"][1])
         self.assertEqual(d["a"][2:6],      [1, 2, 3, 4])
-        self.assertEqual(d["f"]["g"],       _not_found_)
+
+        self.assertTrue(d["f"]["g"].empty)
 
     def test_node_set(self):
         cache = {}
@@ -58,9 +59,9 @@ class TestNode(unittest.TestCase):
         self.assertEqual(cache["e"]["g"], 6)
 
     def test_node_insert(self):
-        cache = {}
+        cache = {"this_is_a_cache": True}
 
-        d = Node(cache)
+        d = Dict(cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
@@ -71,7 +72,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(cache["c"][0],  1.23455)
 
     def test_node_append(self):
-        d = Node()
+        d = List()
         d[_next_] = {"a": 1, "b": 2}
 
         self.assertEqual(len(d), 1)
@@ -80,8 +81,8 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d[0]["b"], 2)
 
     def test_node_boolean(self):
-        d = Node({})
-        self.assertTrue(d["a"].empty)
+        d = Dict()
+        self.assertTrue(d.empty)
         self.assertTrue(d["a"] or 12.3, 12.3)
 
     def test_node_del(self):

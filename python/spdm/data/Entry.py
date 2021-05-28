@@ -1,29 +1,286 @@
 
-import collections
 import collections.abc
-import pprint
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
-                    Union, get_args)
+                    Union, final, get_args)
 
-from spdm.util.utilities import normalize_path
-
+from ..numlib import np
 from ..util.logger import logger
-from ..util.utilities import _not_defined_, _not_found_, serialize
+from ..util.utilities import (_not_defined_, _not_found_, normalize_path,
+                              serialize)
 
 _next_ = object()
 _last_ = object()
 
-_T = TypeVar("_T")
+_TObject = TypeVar("_TObject")
 _TPath = TypeVar("_TPath", str, float, slice, Sequence)
 _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)
+_DICT_TYPE_ = dict
+_LIST_TYPE_ = list
+
+
+def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=False) -> _TObject:
+    """
+        insert if the key does not exist, does nothing if the key exists.
+        return value at key
+    """
+    if isinstance(target, Entry):
+        return target.insert(path, value, assign_if_exists=assign_if_exists)
+
+    path = normalize_path(path)
+
+    if len(path) > 0:  # and target._data is None:
+        pass
+    elif hasattr(target, "_cache"):
+        target._cache = value
+        return target
+    else:
+        raise RuntimeError(f"Empty path!")
+
+    for idx, key in enumerate(path):
+        if isinstance(target, Entry):
+            target = target.insert(path[idx:], value, assign_if_exists=assign_if_exists)
+            break
+
+        if idx == len(path)-1:
+            child = value
+        else:
+            child = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
+
+        if key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
+            if not isinstance(target, collections.abc.MutableSequence):
+                raise TypeError(type(target))
+            target.append(child)
+            target = target[-1]
+        elif isinstance(key,  int):
+            if not isinstance(target, collections.abc.MutableSequence):
+                raise TypeError(type(target))
+            elif assign_if_exists:
+                target[key] = child
+            val = target[key]
+        elif isinstance(key,  slice):
+            for idx in range(key.start, key.stop, key.step):
+                ht_insert(target, [idx]+path[idx+1:], value, assign_if_exists=assign_if_exists)
+            target = ht_get(target, key)
+            break
+        elif isinstance(key, str):
+            val = getattr(target, key, _not_found_)
+            if val is not _not_found_:
+                pass
+            elif assign_if_exists:
+                try:
+                    setattr(target, key, child)
+                    val = getattr(target, key, _not_found_)
+                except AttributeError:
+                    try:
+                        val = target.setdefault(key, child)
+                    except Exception:
+                        val = _not_found_
+            else:
+                try:
+                    val = target.get(key, _not_found_)
+                except Exception:
+                    val = _not_found_
+
+            if val is _not_found_:
+                break
+            else:
+                target = val
+
+    return target
+
+
+def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_) -> Any:
+    """
+        Finds an element with key equivalent to key.
+        return if key exists return element else return default_value
+    """
+    if isinstance(target, Entry):
+        return target.get(path, default_value=default_value)
+
+    path = normalize_path(path)
+
+    val = target
+    for idx, key in enumerate(path):
+        if isinstance(target, Entry):
+            val = target.get(path[idx:], default_value)
+            break
+        elif key is _next_ or (key == len(target)):
+            val = Entry(target, prefix=path[idx:])
+            break
+        elif isinstance(key, str):
+            try:
+                val = getattr(target, key, _not_found_)
+            except Exception:
+                val = _not_found_
+
+            if val is _not_found_:
+                try:
+                    val = target[key]
+                except Exception:
+                    val = _not_found_
+        elif isinstance(key,  (int, slice)):
+            try:
+                val = target[key]
+            except Exception:
+                val = _not_found_
+
+        if val is _not_found_:
+            break
+    if val is not _not_found_:
+        return val
+    elif default_value is _not_defined_:
+        return Entry(target, prefix=path[idx:])
+    else:
+        return default_value
+
+    # elif isinstance(obj, collections.abc.Mapping):
+    #     if not isinstance(key, str):
+    #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
+    #     tmp = obj.get(key, _not_found_)
+    #     obj = tmp
+    # elif isinstance(obj, collections.abc.MutableSequence):
+    #     if not isinstance(key, (int, slice)):
+    #         raise TypeError(
+    #             f"list indices must be integers or slices, not {type(key).__name__}! \"{path[:idx+1]}\" {type(obj)}")
+    #     elif isinstance(key, int) and isinstance(target._data, collections.abc.MutableSequence) and key > len(target._data):
+    #         raise IndexError(f"Out of range! {key} > {len(target._data)}")
+    #     obj = obj[key]
+    # elif hasattr(obj, "_cache"):
+    #     if obj._cache._data == target._data and obj._cache._prefix == path[:idx]:
+    #         suffix = path
+    #         obj = obj._cache._data
+    #         break
+    #     else:
+    #         obj = obj._cache.get(path[idx:])
+    #     break
+
+    # if rpath is None:
+    #     target._data = obj
+    #     target._prefix = []
+
+
+def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
+    if not isinstance(value, collections.abc.Mapping):
+        target.put(value, rpath)
+    # elif rpath is None:
+    #     target.put(value)
+    else:
+        obj = target.get(rpath, _not_found_)
+        if isinstance(obj, collections.abc.MutableMapping):
+            for k, v in value.items():
+                target = obj.setdefault(k, v)
+                if target is v:
+                    pass
+                elif hasattr(target.__class__, 'update'):
+                    target.update(v)
+                else:
+                    raise KeyError
+
+            # obj.update(value)
+        else:
+            target.put(value, rpath)
+
+
+def ht_erase(target, path: Optional[_TPath] = None, *args, **kwargs):
+
+    if isinstance(target, Entry):
+        return target.remove(path, *args, **kwargs)
+
+    path = normalize_path(path)
+
+    if len(path) == 0:
+        return False
+
+    target = ht_get(target, path[:-1], _not_found_)
+
+    if target is _not_found_:
+        return
+    elif isinstance(path[-1], str):
+        try:
+            delattr(target, path[-1])
+        except Exception:
+            try:
+                del target[path[-1]]
+            except Exception:
+                raise KeyError(f"Can not delete '{path}'")
+
+
+def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
+    if isinstance(target, Entry):
+        return target.count(*args, **kwargs)
+    else:
+        target = ht_get(target, *args, default_value=default_value, **kwargs)
+        if target is None or target is _not_found_:
+            return 0
+        elif isinstance(target, (str, int, float, np.ndarray)):
+            return 1
+        elif isinstance(target, (collections.abc.Sequence, collections.abc.Mapping)):
+            return len(target)
+        else:
+            raise TypeError(f"Not countable! {type(target)}")
+
+
+def ht_contains(target, v,  *args, **kwargs) -> bool:
+    return v in target.get(*args, **kwargs)
+
+
+def ht_iter(target, *args, default_value=None, **kwargs):
+    obj = target.get(*args, default_value=default_value if default_value is not None else [], **kwargs)
+
+    if isinstance(obj, Entry):
+        yield from obj.iter()
+    elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
+        yield from obj
+    else:
+        raise NotImplementedError(type(obj))
+
+
+def ht_items(target,  *args, **kwargs):
+    obj = target.get(*args, **kwargs)
+    if isinstance(obj, collections.abc.Mapping):
+        yield from obj.items()
+    elif isinstance(obj, collections.abc.MutableSequence):
+        yield from enumerate(obj)
+    elif isinstance(obj, Entry):
+        yield from obj.items()
+    else:
+        raise TypeError(type(obj))
+
+
+def ht_values(target,  *args, **kwargs):
+    obj = target.get(*args, **kwargs)
+    if isinstance(obj, collections.abc.Mapping):
+        yield from obj.values()
+    elif isinstance(obj, collections.abc.MutableSequence):
+        yield from obj
+    elif isinstance(obj, Entry):
+        yield from []
+    else:
+        yield obj
+
+
+def ht_keys(target,  *args, **kwargs):
+    obj = target.get(*args, **kwargs)
+    if isinstance(obj, collections.abc.Mapping):
+        yield from obj.keys()
+    elif isinstance(obj, collections.abc.MutableSequence):
+        yield from range(len(obj))
+    else:
+        raise NotImplementedError()
+
+
+def ht_compare(first, second) -> bool:
+    if isinstance(first, Entry):
+        first = first.fetch()
+    if isinstance(second, Entry):
+        second = second.fetch()
+    return first == second
 
 
 class Entry(object):
-
-    _DICT_TYPE_ = dict
-    _LIST_TYPE_ = list
+    is_entry = True
     __slots__ = "_data", "_prefix"
 
     def __init__(self, data=_not_found_,  *args, prefix=None,      **kwargs):
@@ -55,6 +312,9 @@ class Entry(object):
     def empty(self):
         return (self._data is None and len(self._prefix) == 0) or self.get(default_value=_not_found_) is _not_found_
 
+    def fetch(self):
+        return self.get(default_value=_not_found_)
+
     def resolve(self):
         if self._prefix is None:
             return self
@@ -81,233 +341,44 @@ class Entry(object):
             return self.__class__(self._data, prefix=self._prefix + normalize_path(path), parent=self._parent)
 
     def copy(self, other):
-        # if isinstance(other, LazyProxy):
-        #     other = other.__real_value__()
-        # el
-        if isinstance(other, Entry):
-            other = other.entry.__real_value__()
+        raise NotImplementedError()
 
-        if isinstance(other, collections.abc.Mapping):
-            for k, v in other.items():
-                self._data[k] = v
-        elif isinstance(other, collections.abc.MutableSequence):
-            self._data.extend(other)
-        else:
-            raise ValueError(f"Can not copy {type(other)}!")
+    def get(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
+        return ht_get(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
-    def put(self,  value: _T, rpath:  Optional[_TPath] = None) -> _T:
-        path = self._prefix+normalize_path(rpath)
+    def put(self,  rpath:  Optional[_TPath],  *args, assign_if_exists=True, **kwargs):
+        return ht_insert(self._data,  self._prefix + normalize_path(rpath),  *args, assign_if_exists=assign_if_exists or True, **kwargs)
 
-        if len(path) == 0:  # and self._data is None:
-            self._data = value
-            return self._data
-
-        if self._data is None or self._data is _not_found_:
-            self._data = Entry._DICT_TYPE_() if isinstance(path[0], str) else Entry._LIST_TYPE_()
-
-        obj = self._data
-
-        for idx, key in enumerate(path):
-
-            if idx == len(path)-1:
-                child = value
-            else:
-                child = Entry._DICT_TYPE_() if isinstance(path[idx+1], str) else Entry._LIST_TYPE_()
-
-            if key is _next_ or (key == len(obj)):
-                obj.append(child)
-                obj = obj[-1]
-            elif isinstance(obj, collections.abc.MutableMapping):
-                if idx == len(path)-1:
-                    obj[key] = child
-                    obj = obj[key]
-                else:
-                    obj = obj.setdefault(key, child)
-            elif isinstance(obj, collections.abc.MutableSequence):
-                obj[key] = child
-                obj = obj[key]
-            else:
-                raise TypeError(f"Can not insert data to {path[:idx]}! type={obj}")
-
-        return obj
-
-    def get(self, rpath: Optional[_TPath] = None, default_value=_not_defined_) -> Any:
-        path = self._prefix + normalize_path(rpath)
-
-        obj = self._data
-        val = obj
-        for idx, key in enumerate(path):
-            # if hasattr(obj, "_cache"):
-            #     obj = obj._cache
-
-            if isinstance(obj, Entry):
-                val = obj.get(path[idx:], _not_found_)
-                if(obj is self):
-                    raise RuntimeError(f"Recursive call {path}=> {path[idx:]}")
-                break
-            elif isinstance(obj, dict):
-                val = obj.get(key, _not_found_)
-            elif isinstance(key, (int, slice)) and isinstance(obj, (collections.abc.MutableSequence)):
-                try:
-                    val = obj[key]
-                except Exception:
-                    val = _not_found_
-            elif key is _next_:
-                val = _not_found_
-            # elif hasattr(obj.__class__, 'get'):
-            #     val = obj.get(key, _not_found_)
-            else:
-                val = getattr(obj, key, _not_found_)
-
-            if val is _not_found_:
-                break
-            else:
-                obj = val
-
-        if val is not _not_found_:
-            return val
-        elif default_value is _not_defined_:
-            return Entry(obj, prefix=path[idx:])
-        else:
-            return default_value
-
-        # elif isinstance(obj, collections.abc.Mapping):
-        #     if not isinstance(key, str):
-        #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
-        #     tmp = obj.get(key, _not_found_)
-        #     obj = tmp
-        # elif isinstance(obj, collections.abc.MutableSequence):
-        #     if not isinstance(key, (int, slice)):
-        #         raise TypeError(
-        #             f"list indices must be integers or slices, not {type(key).__name__}! \"{path[:idx+1]}\" {type(obj)}")
-        #     elif isinstance(key, int) and isinstance(self._data, collections.abc.MutableSequence) and key > len(self._data):
-        #         raise IndexError(f"Out of range! {key} > {len(self._data)}")
-        #     obj = obj[key]
-        # elif hasattr(obj, "_cache"):
-        #     if obj._cache._data == self._data and obj._cache._prefix == path[:idx]:
-        #         suffix = path
-        #         obj = obj._cache._data
-        #         break
-        #     else:
-        #         obj = obj._cache.get(path[idx:])
-        #     break
-
-        # if rpath is None:
-        #     self._data = obj
-        #     self._prefix = []
-
-    def setdefault(self, rpath: Optional[_TPath], value: Any) -> Any:
-        obj = self.get(rpath, _not_found_)
-        if obj is _not_found_ or isinstance(obj, Entry):
-            self.put(value, rpath)
-            obj = self.get(rpath, _not_found_)
-        if obj is _not_found_:
-            raise KeyError(f"Can not put value to {rpath}")
-        return obj
-
-    def insert(self, v, rpath: Optional[_TPath] = None, *args, **kwargs):
-        path = self._prefix + normalize_path(rpath)
-        try:
-            parent = self.get(path[:-1])
-        except KeyError:
-            parent = None
-        idx = path[-1]
-        if parent is not None and idx in parent:
-            pass
-        elif parent is not None and idx not in parent:
-            parent[idx] = v
-        elif isinstance(idx, str):
-            parent = self.put(path[:-1], {})
-            parent[idx] = v
-        elif type(path[-1]) is int and path[-1] <= 0:
-            parent = self.put(path[:-1], [])
-            idx = 0
-            parent[idx] = v
-        logger.debug(path)
-        return parent[idx]
+    def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
+        return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)
 
     def update(self,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
-        if not isinstance(value, collections.abc.Mapping):
-            self.put(value, rpath)
-        # elif rpath is None:
-        #     self.put(value)
-        else:
-            obj = self.get(rpath, _not_found_)
-            if isinstance(obj, collections.abc.MutableMapping):
-                for k, v in value.items():
-                    target = obj.setdefault(k, v)
-                    if target is v:
-                        pass
-                    elif hasattr(target.__class__, 'update'):
-                        target.update(v)
-                    else:
-                        raise KeyError
+        raise NotImplementedError()
 
-                # obj.update(value)
-            else:
-                self.put(value, rpath)
+    def delete(self, rpath: Optional[_TPath] = None, *args, **kwargs):
+        return ht_erase(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
-    def delete(self, path: Optional[_TPath] = None, *args, **kwargs):
-        path = self._prefix + normalize_path(path)
+    def count(self,  rpath: Optional[_TPath] = None,  *args, **kwargs) -> int:
+        return ht_count(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
-        if len(path) > 1:
-            obj = self.get(path[:-1], *args, **kwargs)
-        else:
-            obj = self._data
-        if hasattr(obj, path[-1]):
-            delattr(obj, path[-1])
-        else:
-            del obj[path[-1]]
-
-    def count(self,    *args, **kwargs) -> int:
-        res = self.get(*args, **kwargs)
-        if isinstance(res, Entry):
-            return 0
-        elif isinstance(res, (str, int, float)) or hasattr(res, "__array__"):
-            return 1
-        elif isinstance(res, (collections.abc.Sequence, collections.abc.Mapping)):
-            return len(res)
-        else:
-            raise TypeError(f"Not countable! {type(res)}")
-
-    def contains(self, v,  *args, **kwargs) -> bool:
-        return v in self.get(*args, **kwargs)
+    def contains(self, v, rpath=None,  *args, **kwargs) -> bool:
+        return ht_contains(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def call(self,   rpath: Optional[_TPath], *args, **kwargs) -> Any:
-        obj = self.get(rpath)
+        obj = self.get(rpath, _not_found_)
         if callable(obj):
             res = obj(*args, **kwargs)
         elif len(args)+len(kwargs) == 0:
             res = obj
         else:
             raise TypeError(f"'{type(obj)}' is not callable")
-
-        return res
-
-    def push_back(self,  v=None, rpath: Optional[_TPath] = None, *args, **kwargs):
-        parent = self.insert([], rpath, *args, **kwargs)
-        parent.append(v or {})
-        return rpath+[len(parent)-1]
-
-    def pop_back(self,  rpath: Optional[_TPath] = None, *args, **kwargs):
-        obj = self.get(*args, **kwargs)
-        res = None
-        if obj is None:
-            pass
-        elif isinstance(obj, collections.abc.MutableSequence):
-            res = obj[-1]
-            obj.pop()
-        else:
-            raise KeyError(rpath)
-
         return res
 
     def equal(self, other) -> bool:
-        obj = self.get(None)
-        return (isinstance(obj, Entry) and other is None) or (obj == other)
+        return ht_compare(self.get(), other)
 
-    def iter(self, *args, default_value=None, **kwargs):
-        obj = self.get(*args, default_value=default_value if default_value is not None else [], **kwargs)
+    def iter(self, *args, **kwargs):
+        obj = self.get(*args, **kwargs)
 
         if isinstance(obj, Entry):
             yield from obj.iter()

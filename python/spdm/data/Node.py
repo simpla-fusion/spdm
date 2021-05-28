@@ -1,19 +1,23 @@
 import bisect
+import collections
 import collections.abc
 import inspect
+import pprint
 from _thread import RLock
 from enum import IntFlag
 from functools import cached_property
-from typing import (Any, Callable, Generic, Iterator, Mapping, Optional, Tuple,
-                    Sequence, TypeVar, Union, get_args)
+from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
+                    MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
+                    Union, final, get_args)
+
+from spdm.util.utilities import normalize_path
 
 from ..numlib import np, scipy
-
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
-from .Entry import Entry, EntryWrapper, _last_, _next_, _TIndex, _TKey, _TPath
-
-_TObject = TypeVar('_TObject')
+from .Entry import (Entry, EntryWrapper, _next_, _TObject, _TPath, ht_compare,
+                    ht_contains, ht_count, ht_erase, ht_get, ht_insert, _TIndex, _TKey,
+                    ht_items, ht_iter, _LIST_TYPE_, _DICT_TYPE_)
 
 
 class Node(Generic[_TObject]):
@@ -47,15 +51,6 @@ class Node(Generic[_TObject]):
         self._default_factory = None
         if isinstance(cache, Node):
             cache = cache._cache
-
-        if writable and not getattr(cache, "writable", True):
-            cache = EntryWrapper(cache)
-        elif not isinstance(cache, Entry):
-            cache = Entry(cache, *args, **kwargs)
-
-        # if not cache.writable:
-        #     cache = EntryChain({}, cache)
-
         self._cache = cache
 
     def __repr__(self) -> str:
@@ -72,10 +67,10 @@ class Node(Generic[_TObject]):
         return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
 
     def _as_dict(self) -> Mapping:
-        return {k: self.__post_process__(v) for k, v in self._cache.setdefault([], Entry._DICT_TYPE_()).items()}
+        return {k: self.__post_process__(v) for k, v in self._cache.items()}
 
     def _as_list(self) -> Sequence:
-        return [self.__post_process__(v) for v in self._cache.setdefault([], Entry._LIST_TYPE_())]
+        return [self.__post_process__(v) for v in self._cache]
 
     @property
     def __parent__(self) -> object:
@@ -125,8 +120,9 @@ class Node(Generic[_TObject]):
 
         return flag
 
+    @property
     def empty(self) -> bool:
-        return self._cache is _not_found_ or self._cache.empty
+        return ht_count(self._cache) == 0
 
     """
         @startuml
@@ -185,81 +181,37 @@ class Node(Generic[_TObject]):
         return self.__new_child__(value, *args, **kwargs)
 
     def __setitem__(self, path: _TPath, value: Any) -> None:
-        self._cache.put(self.__pre_process__(value), path)
+        ht_insert(self._cache, path,  self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> Any:
-        return self.__post_process__(self._cache.get(path), path)
+        return self.__post_process__(ht_get(self._cache, path))
 
     def __delitem__(self, path: _TPath) -> None:
-        if isinstance(self._cache, Entry):
-            self._cache.delete(path)
-        elif not path:
-            self.__clear__()
-        elif not isinstance(self._cache, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            raise TypeError(type(self._cache))
-        else:
-            del self._cache[path]
+        ht_erase(self._cache, path)
 
     def __contains__(self, path: _TPath) -> bool:
-        if isinstance(self._cache, Entry):
-            return self._cache.contains(path, None)
-        elif isinstance(path, str) and isinstance(self._cache, collections.abc.Mapping):
-            return path in self._cache
-        elif not isinstance(path, str):
-            return path >= 0 and path < len(self._cache)
-        else:
-            return False
+        return ht_contains(self._cache, path)
 
     def __len__(self) -> int:
-        if isinstance(self._cache, Entry):
-            return self._cache.count()
-        elif isinstance(self._cache,  (collections.abc.Mapping, collections.abc.MutableSequence)):
-            return len(self._cache)
-        else:
-            return 0 if self._cache is _not_found_ else 1
+        return ht_count(self._cache)
 
     def __iter__(self) -> Iterator[_TObject]:
-        for idx, obj in enumerate(self._cache.iter()):
-            yield self.__post_process__(obj, idx)
-
-        # if isinstance(self._cache, Entry):
-        # else:
-        #     d = self._cache.get()
-
-        #     if isinstance(d, Entry):
-        #         yield from d.iter()
-        #     elif isinstance(d, (collections.abc.MutableSequence)):
-        #         # yield from map(lambda idx, v: self.__post_process__(v, idx), enumerate(d))
-        #         for idx, v in enumerate(d):
-        #             yield self.__post_process__(v, idx)
-        #     elif isinstance(d, collections.abc.Mapping):
-        #         # yield from map(lambda idx, v: self.__post_process__(v, idx), d.items())
-        #         for idx, v in d.items():
-        #             yield self.__post_process__(v, idx)
-        #     else:
-        #         yield self.__post_process__(d)
+        for obj in ht_iter(self._cache):
+            yield self.__post_process__(obj)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, Node):
-            other = other._cache.get(default_value=_not_found_)
+        return ht_compare(self._cache, other)
 
+    def __fetch__(self):
         if isinstance(self._cache, Entry):
-            val = self._cache.get(default_value=_not_found_)
-            return val == other
-        else:
-            return other is None or other is _not_found_
+            self._cache = self._cache.fetch()
+        return self._cache
 
     def __bool__(self) -> bool:
-        return bool(self._cache.get(default_value=False))
+        return not self.empty and (not self.__fetch__())
 
-    # def __str__(self):
-    #     return str(self._cache.get(default_value=_not_found_))
-
-    def __int__(self):
-        return int(self._cache.get(default_value=_not_found_))
-
-    def __array__(self):
-        return np.ndarray(self._cache.get(default_value=_not_found_))
+    def __array__(self) -> np.ndarray:
+        return np.asarray(self.__fetch__())
 
 
 class List(Node[_TObject], Sequence[_TObject]):
@@ -267,16 +219,7 @@ class List(Node[_TObject], Sequence[_TObject]):
 
     def __init__(self, cache: Optional[Sequence] = None, *args,  **kwargs) -> None:
         if cache is None or cache is _not_found_:
-            cache = Entry._LIST_TYPE_()
-        elif isinstance(cache, Node):
-            cache = cache._cache
-
-        if not isinstance(cache, Entry):
-            cache = Entry(cache)
-        elif cache.writable:
-            cache = cache.setdefault([], Entry._LIST_TYPE_())
-        else:
-            cache = EntryWrapper(cache)
+            cache = _LIST_TYPE_()
         Node.__init__(self, cache, *args, **kwargs)
 
     def __serialize__(self) -> Sequence:
@@ -284,7 +227,7 @@ class List(Node[_TObject], Sequence[_TObject]):
 
     @property
     def __category__(self):
-        return super().__category__() | Node.Category.LIST
+        return super().__category__ | Node.Category.LIST
 
     def __len__(self) -> int:
         return Node.__len__(self)
@@ -346,16 +289,9 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
 
         if cache is None or cache is _not_found_:
-            cache = Entry._DICT_TYPE_()
+            cache = _DICT_TYPE_()
         elif isinstance(cache, Node):
             cache = cache._cache
-
-        if not isinstance(cache, Entry):
-            pass
-        elif cache.writable:
-            cache = cache.setdefault([], Entry._DICT_TYPE_())
-        else:
-            cache = EntryWrapper(  cache)
 
         Node.__init__(self, cache, *args, **kwargs)
 
