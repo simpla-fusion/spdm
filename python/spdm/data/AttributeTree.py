@@ -9,7 +9,7 @@ from typing import Any, MutableSequence, Optional, Sequence
 
 from ..util.logger import logger
 from .Entry import Entry, _not_found_, ht_get
-from .Node import Dict, List, Node, _next_, _TObject, sp_property,_SpProperty
+from .Node import Dict, List, Node, _next_, _TObject, sp_property, _SpProperty
 
 
 def do_getattr(obj, k):
@@ -27,7 +27,7 @@ def do_getattr(obj, k):
         elif isinstance(res, (_SpProperty, cached_property)):
             res = res.__get__(obj)
         else:
-            res = ht_get(obj, k, ignore_attribuete=True)
+            res = ht_get(obj, k, ignore_attribute=True)
 
     if isinstance(res, AttributeTree):
         pass
@@ -97,29 +97,30 @@ class AttributeTree(Dict[Node]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def __post_process__(self, value: Any, *args, parent: Optional[Node] = None, **kwargs) -> Any:
-        if isinstance(value, (collections.abc.Mapping, collections.abc.MutableSequence, Entry)):
-            return AttributeTree(value, *args, parent=parent or self, **kwargs)
+    # def __new_child__(self, value, *args, parent: Optional[Node] = None,  **kwargs) -> Node:
+    #     parent = parent if parent is not None else self
+
+    #     if isinstance(value, (Entry, collections.abc.Mapping, Dict)):
+    #         res = AttributeTree(value, *args, parent=parent, **kwargs)
+    #     elif isinstance(value, (collections.abc.MutableSequence)):
+    #         res = List[AttributeTree](value, *args, parent=parent, **kwargs)
+    #     else:
+    #         res = super().__new_child__(value, *args, parent=parent, **kwargs)
+    #     return res
+
+    def __getattr__(self, attr_name) -> Any:
+        if attr_name[0] == '_':
+            bcls = self.__class__.__bases__[0]
+            res = object.__getattr__(self, attr_name)
         else:
-            return value
-        # return super().__post_process__(value, *args, **kwargs)
+            res = self.__getitem__(attr_name)
+        return res
 
-    def __new_child__(self, value, *args, parent: Optional[Node] = None,  **kwargs) -> Node:
-        if isinstance(value, (collections.abc.Mapping)):
-            return AttributeTree(value, *args, parent=parent, **kwargs)
+    def __setattr__(self, attr_name: str, value: Any) -> None:
+        if attr_name[0] == '_':
+            object.__setattr__(self, attr_name, value)
         else:
-            return super().__new_child__(value, *args, parent=parent, **kwargs)
+            self.__setitem__(attr_name, value)
 
-    def __getattr__(self, *args, **kwargs) -> Any:
-        return do_getattr(self, *args, **kwargs)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        return do_setattr(self, name, value)
-
-    def __delattr__(self, name: str) -> None:
-        return do_delattr(self, name)
-
-    def __iter__(self) -> typing.Iterator[Node]:
-        # for v in super(Node, self).__iter__():
-        #     yield AttributeTree({v})
-        yield from Node.__iter__(self)
+    def __delattr__(self, attr_name: str) -> None:
+        return self.__delitem__(attr_name)

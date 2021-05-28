@@ -38,7 +38,7 @@ class TestAttributeTree(unittest.TestCase):
         self.assertEqual(d.a[1],  cache["a"][1])
         self.assertEqual(d.a[2:6], [1, 2, 3, 4])
 
-        self.assertEqual(d["f"]["g"], _not_found_)
+        self.assertFalse(d["f"]["g"])
 
     def test_attribute_set(self):
         cache = {}
@@ -84,7 +84,8 @@ class TestAttributeTree(unittest.TestCase):
 
     def test_attribute_boolean(self):
         d = AttributeTree({})
-        self.assertTrue(d.a == _not_found_)
+
+        self.assertFalse(d.a)
         self.assertTrue(d.a or 12.3, 12.3)
 
     def test_attribute_del(self):

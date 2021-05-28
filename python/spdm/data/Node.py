@@ -44,12 +44,12 @@ class Node(Generic[_TObject]):
 
         @enduml
     """
-    __slots__ = "_parent", "_cache",  "__orig_class__", "_default_factory"
+    __slots__ = "_parent", "_cache",  "__orig_class__", "_child_cls"
 
     def __init__(self, cache: Any = None, *args, parent=None, writable=True, **kwargs):
         super().__init__()
         self._parent = parent
-        self._default_factory = None
+        self._child_cls = None
         if isinstance(cache, Node):
             cache = cache._cache
         self._cache = cache
@@ -152,28 +152,36 @@ class Node(Generic[_TObject]):
     """
 
     def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Union[_TObject]:
-        if self._default_factory is None:
-            factory = _not_found_
+        if self._child_cls is None:
+            child_cls = self.__class__
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
-                factory = get_args(self.__orig_class__)
-                if factory is not None and len(factory) > 0 and inspect.isclass(factory[0]):
-                    factory = factory[0]
-            self._default_factory = factory
+                child_cls = get_args(self.__orig_class__)
+                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
+                    child_cls = child_cls[0]
+
+            self._child_cls = child_cls
 
         parent = parent if parent is not None else self
 
-        if self._default_factory is not _not_found_:
-            value = self._default_factory(value, *args,  parent=parent, ** kwargs)
-        elif isinstance(value, (int, str, np.ndarray)):
+        if isinstance(value, (int, str, np.ndarray)):
             pass
         elif isinstance(value, collections.abc.Sequence):
-            value = List(value, *args, parent=parent, **kwargs)
+            if issubclass(self._child_cls, List):
+                value = self._child_cls(value, *args, parent=parent, **kwargs)
+            else:
+                value = List[self._child_cls](value, *args, parent=parent, **kwargs)
         elif isinstance(value, collections.abc.Mapping):
-            value = Dict(value, *args, parent=parent, **kwargs)
+            if issubclass(self._child_cls, Dict):
+                value = self._child_cls(value, *args, parent=parent, **kwargs)
+            else:
+                value = Dict[self._child_cls](value, *args, parent=parent, **kwargs)
         else:
-            value = Node(value, *args, parent=parent, **kwargs)
+            if issubclass(self._child_cls, Node):
+                value = self._child_cls(value, *args, parent=parent, **kwargs)
+            else:
+                value = Node[self._child_cls](value, *args, parent=parent, **kwargs)
 
         return value
 
@@ -206,7 +214,7 @@ class Node(Generic[_TObject]):
         return ht_compare(self._cache, other)
 
     def __fetch__(self):
-        if isinstance(self._cache, Entry):
+        if hasattr(self._cache.__class__, "fecth"):
             self._cache = self._cache.fetch()
         return self._cache
 
@@ -316,8 +324,8 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def update(self, d: Mapping) -> None:
         self._cache = ht_update(self._cache, d)
 
-    def get(self, key: _TPath, default_value=_not_found_) -> _TObject:
-        return self.__post_process__(ht_get(self._cache, key, default_value=default_value))
+    def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
+        return self.__post_process__(ht_get(self._cache, key, default_value=default_value, **kwargs))
 
     def items(self) -> Iterator[Tuple[str, _TObject]]:
         for k, v in ht_items(self._cache):
