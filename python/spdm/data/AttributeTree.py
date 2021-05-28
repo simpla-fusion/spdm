@@ -8,8 +8,8 @@ from typing import Any, MutableSequence, Optional, Sequence
 
 
 from ..util.logger import logger
-from .Entry import Entry, _not_found_
-from .Node import Dict, List, Node, _next_, _TObject
+from .Entry import Entry, _not_found_, ht_get
+from .Node import Dict, List, Node, _next_, _TObject, sp_property,_SpProperty
 
 
 def do_getattr(obj, k):
@@ -24,12 +24,10 @@ def do_getattr(obj, k):
 
         if isinstance(res, property):
             res = getattr(res, "fget")(obj)
-        elif isinstance(res, cached_property):
+        elif isinstance(res, (_SpProperty, cached_property)):
             res = res.__get__(obj)
-        # elif hasattr(obj.__class__, 'get'):
-        #     res = obj.get(k, _not_found_)
         else:
-            res = obj.__getitem__(k)
+            res = ht_get(obj, k, ignore_attribuete=True)
 
     if isinstance(res, AttributeTree):
         pass

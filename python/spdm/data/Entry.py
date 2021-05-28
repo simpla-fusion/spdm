@@ -20,7 +20,7 @@ _DICT_TYPE_ = dict
 _LIST_TYPE_ = list
 
 
-def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=False) -> _TObject:
+def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=False, ignore_attribute=True) -> _TObject:
     """
         insert if the key does not exist, does nothing if the key exists.
         return value at key
@@ -37,7 +37,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
         return target
     else:
         raise RuntimeError(f"Empty path!")
-
+    val = _not_found_
     for idx, key in enumerate(path):
         if isinstance(target, Entry):
             target = target.insert(path[idx:], value, assign_if_exists=assign_if_exists)
@@ -48,11 +48,11 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
         else:
             child = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
 
-        if key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
+        if key is _next_ or (isinstance(target, collections.abc.MutableSequence) and key == len(target)):
             if not isinstance(target, collections.abc.MutableSequence):
                 raise TypeError(type(target))
             target.append(child)
-            target = target[-1]
+            val = target[-1]
         elif isinstance(key,  int):
             if not isinstance(target, collections.abc.MutableSequence):
                 raise TypeError(type(target))
@@ -62,36 +62,41 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
         elif isinstance(key,  slice):
             for idx in range(key.start, key.stop, key.step):
                 ht_insert(target, [idx]+path[idx+1:], value, assign_if_exists=assign_if_exists)
-            target = ht_get(target, key)
+            val = ht_get(target, key)
             break
         elif isinstance(key, str):
-            val = getattr(target, key, _not_found_)
-            if val is not _not_found_:
-                pass
-            elif assign_if_exists:
-                try:
-                    setattr(target, key, child)
-                    val = getattr(target, key, _not_found_)
-                except AttributeError:
+            if not ignore_attribute:
+                val = getattr(target, key, _not_found_)
+                if val is _not_found_ and assign_if_exists:
                     try:
-                        val = target.setdefault(key, child)
-                    except Exception:
+                        setattr(target, key, child)
+                        val = getattr(target, key, _not_found_)
+                    except AttributeError:
                         val = _not_found_
-            else:
+
+            if ignore_attribute or val is _not_found_:
+                try:
+                    val = target.setdefault(key, child)
+                except Exception as error:
+                    logger.debug(error)
+                    val = _not_found_
+            if val is _not_found_:
                 try:
                     val = target.get(key, _not_found_)
                 except Exception:
                     val = _not_found_
 
-            if val is _not_found_:
-                break
-            else:
-                target = val
+        if val is _not_found_:
+            break
+        else:
+            target = val
 
-    return target
+    if val is _not_found_:
+        raise KeyError(path[idx:])
+    return val
 
 
-def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_) -> Any:
+def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_, ignore_attribute=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -106,16 +111,17 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_) 
         if isinstance(target, Entry):
             val = target.get(path[idx:], default_value)
             break
-        elif key is _next_ or (key == len(target)):
+        elif key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
             val = Entry(target, prefix=path[idx:])
             break
         elif isinstance(key, str):
-            try:
-                val = getattr(target, key, _not_found_)
-            except Exception:
-                val = _not_found_
+            if not ignore_attribute:
+                try:
+                    val = getattr(target, key, _not_found_)
+                except Exception:
+                    val = _not_found_
 
-            if val is _not_found_:
+            if ignore_attribute or val is _not_found_:
                 try:
                     val = target[key]
                 except Exception:
@@ -128,6 +134,9 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_) 
 
         if val is _not_found_:
             break
+        else:
+            target = val
+
     if val is not _not_found_:
         return val
     elif default_value is _not_defined_:
@@ -161,7 +170,7 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_) 
     #     target._prefix = []
 
 
-def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
+def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, ignore_attribute=True, **kwargs):
     if isinstance(target, Entry):
         if target.writable:
             target.p
@@ -187,7 +196,7 @@ def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
     return target
 
 
-def ht_erase(target, path: Optional[_TPath] = None, *args, **kwargs):
+def ht_erase(target, path: Optional[_TPath] = None, *args, ignore_attribute=True, **kwargs):
 
     if isinstance(target, Entry):
         return target.remove(path, *args, **kwargs)
@@ -226,7 +235,7 @@ def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
             raise TypeError(f"Not countable! {type(target)}")
 
 
-def ht_contains(target, v,  *args, **kwargs) -> bool:
+def ht_contains(target, v,  *args, ignore_attribute=True, **kwargs) -> bool:
     return v in target.get(*args, **kwargs)
 
 

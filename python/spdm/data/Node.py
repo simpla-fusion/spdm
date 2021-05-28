@@ -84,40 +84,45 @@ class Node(Generic[_TObject]):
     def empty(self) -> bool:
         return ht_count(self._cache) == 0
 
-    # class Category(IntFlag):
-    #     UNKNOWN = 0
-    #     ITEM = 0x000
-    #     DICT = 0x100
-    #     LIST = 0x200
-    #     ENTRY = 0x400
-    #     ARRAY = 0x010
-    #     INT = 0x001
-    #     FLOAT = 0x002
-    #     COMPLEX = 0x004
-    #     STRING = 0x008
-    # @staticmethod
-    # def __type_category__(d) -> IntFlag:
-    #     flag = Node.Category.UNKNOWN
-    #     if isinstance(d, (Entry)):
-    #         flag |= Node.Category.ENTRY
-    #     elif hasattr(d,  "__array__"):
-    #         flag |= Node.Category.ARRAY
-    #         # if np.issubdtype(d.dtype, np.int64):
-    #         #     flag |= Node.Category.INT
-    #         # elif np.issubdtype(d.dtype, np.float64):
-    #         #     flag |= Node.Category.FLOAT
-    #     elif isinstance(d, collections.abc.Mapping):
-    #         flag |= Node.Category.DICT
-    #     elif isinstance(d, collections.abc.Sequence):
-    #         flag |= Node.Category.LIST
-    #     elif isinstance(d, int):
-    #         flag |= Node.Category.INT
-    #     elif isinstance(d, float):
-    #         flag |= Node.Category.FLOAT
-    #     elif isinstance(d, str):
-    #         flag |= Node.Category.STRING
+    class Category(IntFlag):
+        UNKNOWN = 0
+        ITEM = 0x000
+        DICT = 0x100
+        LIST = 0x200
+        ENTRY = 0x400
+        ARRAY = 0x010
+        INT = 0x001
+        FLOAT = 0x002
+        COMPLEX = 0x004
+        STRING = 0x008
 
-    #     return flag
+    @staticmethod
+    def __type_category__(d) -> IntFlag:
+        flag = Node.Category.UNKNOWN
+        if hasattr(d,  "__array__"):
+            flag |= Node.Category.ARRAY
+            # if np.issubdtype(d.dtype, np.int64):
+            #     flag |= Node.Category.INT
+            # elif np.issubdtype(d.dtype, np.float64):
+            #     flag |= Node.Category.FLOAT
+        elif isinstance(d, collections.abc.Mapping):
+            flag |= Node.Category.DICT
+        elif isinstance(d, collections.abc.Sequence):
+            flag |= Node.Category.LIST
+        elif isinstance(d, int):
+            flag |= Node.Category.INT
+        elif isinstance(d, float):
+            flag |= Node.Category.FLOAT
+        elif isinstance(d, str):
+            flag |= Node.Category.STRING
+        # if isinstance(d, (Entry)):
+        #     flag |= Node.Category.ENTRY
+
+        return flag
+
+    @property
+    def __category__(self) -> Category:
+        return Node.__type_category__(self._cache)
 
     """
         @startuml
@@ -145,9 +150,6 @@ class Node(Generic[_TObject]):
 
         @enduml
     """
-    # @property
-    # def __category__(self) -> Category:
-    #     return Node.__type_category__(self._cache)
 
     def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Union[_TObject]:
         if self._default_factory is None:
@@ -287,14 +289,14 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
-    def __getitem__(self, key: _TKey) -> _TObject:
-        return self.__post_process__(ht_get(self._cache, key, default_value=_not_found_))
+    def __getitem__(self, path: _TKey) -> _TObject:
+        return self.__post_process__(ht_get(self._cache, path))
 
-    def __setitem__(self, key: _TKey, value: _TObject) -> None:
-        return self.__post_process__(ht_get(self._cache, key))
+    def __setitem__(self, path: _TKey, value: _TObject) -> None:
+        ht_insert(self._cache, path,  self.__pre_process__(value), assign_if_exists=True)
 
-    def __delitem__(self, key: _TKey) -> None:
-        ht_erase(self._cache, key)
+    def __delitem__(self, path: _TKey) -> None:
+        ht_erase(self._cache, path)
 
     def __iter__(self) -> Iterator[str]:
         yield from self.keys()
