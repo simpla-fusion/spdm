@@ -5,7 +5,7 @@ from spdm.util.logger import logger
 
 
 class TestNode(unittest.TestCase):
-    def test_node_initialize(self):
+    def test_dict_initialize(self):
         d = Dict({
             "c": "I'm {age}!",
             "d": {
@@ -14,7 +14,7 @@ class TestNode(unittest.TestCase):
             }
         })
 
-    def test_node_get(self):
+    def test_dict_get(self):
         cache = {
             "a": [
                 "hello world {name}!",
@@ -39,7 +39,7 @@ class TestNode(unittest.TestCase):
 
         self.assertTrue(d["f"]["g"].empty)
 
-    def test_node_set(self):
+    def test_dict_insert(self):
         cache = {}
 
         d = Dict(cache)
@@ -57,6 +57,27 @@ class TestNode(unittest.TestCase):
         d["e"]["g"] = 6
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
+
+    def test_dict_update(self):
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ],
+            "c": "I'm {age}!",
+            "d": {
+                "e": "{name} is {age}",
+                "f": "{address}"
+            }
+        }
+        d = Dict(cache)
+
+        d.update({"d": {"g": 5}})
+
+        self.assertEqual(cache["d"]["e"], "{name} is {age}")
+        self.assertEqual(cache["d"]["f"], "{address}")
+        self.assertEqual(cache["d"]["g"], 5)
 
     def test_node_insert(self):
         cache = {"this_is_a_cache": True}

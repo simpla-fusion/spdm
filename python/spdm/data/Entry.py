@@ -183,10 +183,10 @@ def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, ignore_attr
     # elif rpath is None:
     #     target.put(value)
     else:
-        obj = target.get(rpath, _not_found_)
+        obj = ht_get(target, rpath, _not_found_)
         if isinstance(obj, collections.abc.MutableMapping):
             for k, v in value.items():
-                target = obj.setdefault(k, v)
+                target = ht_insert(obj, k, v)
                 if target is v:
                     pass
                 elif hasattr(target.__class__, 'update'):
@@ -196,7 +196,7 @@ def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, ignore_attr
 
             # obj.update(value)
         else:
-            target.put(value, rpath)
+            ht_insert(target, rpath, value, assign_if_exists=True)
     return target
 
 
