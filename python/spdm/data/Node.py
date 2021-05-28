@@ -15,9 +15,10 @@ from spdm.util.utilities import normalize_path
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
-from .Entry import (Entry, EntryWrapper, _next_, _TObject, _TPath, ht_compare,
-                    ht_contains, ht_count, ht_erase, ht_get, ht_insert, _TIndex, _TKey,
-                    ht_items, ht_iter, _LIST_TYPE_, _DICT_TYPE_)
+from .Entry import (_DICT_TYPE_, _LIST_TYPE_, _next_, _TIndex, _TKey, _TObject,
+                    _TPath, ht_compare, ht_contains, ht_count, ht_erase,
+                    ht_get, ht_insert, ht_items, ht_iter, ht_keys, ht_update,
+                    ht_values)
 
 
 class Node(Generic[_TObject]):
@@ -58,19 +59,16 @@ class Node(Generic[_TObject]):
         # return pprint.pformat(self.__serialize__())
 
     def __serialize__(self) -> Mapping:
-        if isinstance(self._cache, Entry):
-            return f"<{self.__class__.__name__} type={self._cache.__class__.__name__} path={ self._cache._prefix}>"
-        else:
-            return serialize(self._cache.get(default_value=_not_found_))
+        return serialize(ht_get(self._cache, full=True))
 
     def __duplicate__(self, desc=None) -> object:
         return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
 
     def _as_dict(self) -> Mapping:
-        return {k: self.__post_process__(v) for k, v in self._cache.items()}
+        return {k: self.__post_process__(v) for k, v in ht_items(self._cache)}
 
     def _as_list(self) -> Sequence:
-        return [self.__post_process__(v) for v in self._cache]
+        return [self.__post_process__(v) for v in ht_values(self._cache)]
 
     @property
     def __parent__(self) -> object:
@@ -82,47 +80,44 @@ class Node(Generic[_TObject]):
     def __clear__(self) -> None:
         self._cache = _not_found_
 
-    class Category(IntFlag):
-        UNKNOWN = 0
-        ITEM = 0x000
-        DICT = 0x100
-        LIST = 0x200
-        ENTRY = 0x400
-
-        ARRAY = 0x010
-
-        INT = 0x001
-        FLOAT = 0x002
-        COMPLEX = 0x004
-        STRING = 0x008
-
-    @staticmethod
-    def __type_category__(d) -> IntFlag:
-        flag = Node.Category.UNKNOWN
-        if isinstance(d, (Entry)):
-            flag |= Node.Category.ENTRY
-        elif hasattr(d,  "__array__"):
-            flag |= Node.Category.ARRAY
-            # if np.issubdtype(d.dtype, np.int64):
-            #     flag |= Node.Category.INT
-            # elif np.issubdtype(d.dtype, np.float64):
-            #     flag |= Node.Category.FLOAT
-        elif isinstance(d, collections.abc.Mapping):
-            flag |= Node.Category.DICT
-        elif isinstance(d, collections.abc.Sequence):
-            flag |= Node.Category.LIST
-        elif isinstance(d, int):
-            flag |= Node.Category.INT
-        elif isinstance(d, float):
-            flag |= Node.Category.FLOAT
-        elif isinstance(d, str):
-            flag |= Node.Category.STRING
-
-        return flag
-
     @property
     def empty(self) -> bool:
         return ht_count(self._cache) == 0
+
+    # class Category(IntFlag):
+    #     UNKNOWN = 0
+    #     ITEM = 0x000
+    #     DICT = 0x100
+    #     LIST = 0x200
+    #     ENTRY = 0x400
+    #     ARRAY = 0x010
+    #     INT = 0x001
+    #     FLOAT = 0x002
+    #     COMPLEX = 0x004
+    #     STRING = 0x008
+    # @staticmethod
+    # def __type_category__(d) -> IntFlag:
+    #     flag = Node.Category.UNKNOWN
+    #     if isinstance(d, (Entry)):
+    #         flag |= Node.Category.ENTRY
+    #     elif hasattr(d,  "__array__"):
+    #         flag |= Node.Category.ARRAY
+    #         # if np.issubdtype(d.dtype, np.int64):
+    #         #     flag |= Node.Category.INT
+    #         # elif np.issubdtype(d.dtype, np.float64):
+    #         #     flag |= Node.Category.FLOAT
+    #     elif isinstance(d, collections.abc.Mapping):
+    #         flag |= Node.Category.DICT
+    #     elif isinstance(d, collections.abc.Sequence):
+    #         flag |= Node.Category.LIST
+    #     elif isinstance(d, int):
+    #         flag |= Node.Category.INT
+    #     elif isinstance(d, float):
+    #         flag |= Node.Category.FLOAT
+    #     elif isinstance(d, str):
+    #         flag |= Node.Category.STRING
+
+    #     return flag
 
     """
         @startuml
@@ -150,29 +145,35 @@ class Node(Generic[_TObject]):
 
         @enduml
     """
-    @property
-    def __category__(self) -> Category:
-        return Node.__type_category__(self._cache)
+    # @property
+    # def __category__(self) -> Category:
+    #     return Node.__type_category__(self._cache)
 
-    def __new_child__(self, value: Any, *args, parent=None,  **kwargs) -> Union[_TObject, Any]:
+    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Union[_TObject]:
         if self._default_factory is None:
+            factory = _not_found_
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
                 factory = get_args(self.__orig_class__)
                 if factory is not None and len(factory) > 0 and inspect.isclass(factory[0]):
                     factory = factory[0]
-            else:
-                def factory(value, *args, parent=None,  **kwargs):
-                    if isinstance(value, collections.abc.Sequence) and not isinstance(value, collections.abc.ByteString):
-                        value = List(value, *args, parent=parent, **kwargs)
-                    elif isinstance(value, collections.abc.MutableMapping):
-                        value = Dict(value, *args, parent=parent, **kwargs)
-                    elif isinstance(value, Entry):
-                        value = Node(value)
-                    return value
             self._default_factory = factory
-        return self._default_factory(value, *args,  parent=parent if parent is not None else self, ** kwargs)
+
+        parent = parent if parent is not None else self
+
+        if self._default_factory is not _not_found_:
+            value = self._default_factory(value, *args,  parent=parent, ** kwargs)
+        elif isinstance(value, (int, str, np.ndarray)):
+            pass
+        elif isinstance(value, collections.abc.Sequence):
+            value = List(value, *args, parent=parent, **kwargs)
+        elif isinstance(value, collections.abc.Mapping):
+            value = Dict(value, *args, parent=parent, **kwargs)
+        else:
+            value = Node(value, *args, parent=parent, **kwargs)
+
+        return value
 
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
@@ -230,47 +231,23 @@ class List(Node[_TObject], Sequence[_TObject]):
         return super().__category__ | Node.Category.LIST
 
     def __len__(self) -> int:
-        return Node.__len__(self)
+        return ht_count(self._cache)
 
-    def __setitem__(self, k: _TIndex, v: _TObject) -> None:
-        Node.__setitem__(self, k, v)
+    def __setitem__(self, path: _TPath, v: _TObject) -> None:
+        ht_insert(self._cache, path, self.__pre_process__(v), assign_if_exists=True)
 
-    def __getitem__(self, k: _TIndex) -> _TObject:
-        return Node.__getitem__(self, k)
+    def __getitem__(self, path: _TPath) -> _TObject:
+        return self.__post_process__(ht_get(self._cache, path))
 
-    def __delitem__(self, k: _TIndex) -> None:
-        Node.__delitem__(self, k)
+    def __delitem__(self, path: _TPath) -> None:
+        ht_erase(self._cache, path)
 
     def __iter__(self) -> Iterator[_TObject]:
-        yield from Node.__iter__(self)
+        yield from self.values()
 
     def __iadd__(self, other):
-        self._cache.append(self.__pre_process__(other))
+        ht_insert(self._cache, _next_, self.__pre_process__(other))
         return self
-
-    def insert(self, idx, value=None, sorted=True) -> _TObject:
-        if value is None:
-            value = idx
-            idx = None
-        if value is None:
-            pass
-        elif not self.__check_template__(value.__class__):
-            value = self.__new_child__(value)
-
-        if idx is not None:
-            self._cache.put(value, idx)
-        elif not sorted:
-            self._cache.put(value, -1)
-        elif isinstance(self._cache, Entry):
-            data = self._cache._data
-            if not isinstance(data, collections.abc.MutableSequence):
-                raise NotImplementedError(f"{type(data)} is not  MutableSequence!")
-            else:
-                idx = bisect.bisect_right(data, value)
-                data.insert(idx, value)
-        else:
-            raise TypeError(type(self._cache))
-        return value
 
     def find_first(self, func):
         idx, v = next(filter(lambda t: func(t[1]), enumerate(self._cache)))
@@ -295,8 +272,8 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
 
         Node.__init__(self, cache, *args, **kwargs)
 
-    def __serialize__(self, properties: Optional[Sequence] = None) -> Mapping:
-        return {k: serialize(v) for k, v in self._as_dict().items() if properties is None or k in properties}
+    def __serialize__(self) -> Mapping:
+        return {k: serialize(v) for k, v in self._as_dict().items()}
 
     @classmethod
     def __deserialize__(cls, desc: Mapping) -> _TObject:
@@ -311,48 +288,44 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         return super().__category__ | Node.Category.LIST
 
     def __getitem__(self, key: _TKey) -> _TObject:
-        return Node.__getitem__(self, key)
+        return self.__post_process__(ht_get(self._cache, key, default_value=_not_found_))
 
     def __setitem__(self, key: _TKey, value: _TObject) -> None:
-        Node.__setitem__(self, key, value)
+        return self.__post_process__(ht_get(self._cache, key))
 
     def __delitem__(self, key: _TKey) -> None:
-        return Node.__delitem__(self, key)
+        ht_erase(self._cache, key)
 
-    def __iter__(self) -> Iterator[_TObject]:
-        yield from Node.__iter__(self)
+    def __iter__(self) -> Iterator[str]:
+        yield from self.keys()
 
     def __len__(self) -> int:
-        return Node.__len__(self)
+        return ht_count(self._cache)
 
     def __eq__(self, o: object) -> bool:
-        return Node.__eq__(self, o)
+        return ht_count(self._cache, o)
 
     def __contains__(self, o: object) -> bool:
-        return Node.__contains__(self, o)
+        return ht_contains(self._cache, o)
 
     def __ior__(self, other):
-        self.update(other)
-        return self
+        return self.update(other)
 
     def update(self, d: Mapping) -> None:
-        if not self._cache.writable:
-            self._cache = EntryChain(d, self._cache)
-        else:
-            self._cache.update(d)
+        self._cache = ht_update(self._cache, d)
 
     def get(self, key: _TPath, default_value=_not_found_) -> _TObject:
-        return self.__post_process__(self._cache.get(key, default_value=default_value))
+        return self.__post_process__(ht_get(self._cache, key, default_value=default_value))
 
     def items(self) -> Iterator[Tuple[str, _TObject]]:
-        for k, v in self._cache.items():
+        for k, v in ht_items(self._cache):
             yield k, self.__post_process__(v)
 
     def keys(self) -> Iterator[str]:
-        yield self._cache.keys()
+        yield from ht_keys(self._cache)
 
     def values(self) -> Iterator[_TObject]:
-        for v in self._cache.values():
+        for v in ht_values(self._cache):
             yield self.__post_process__(v)
 
     # def _as_dict(self) -> Mapping:
@@ -426,14 +399,11 @@ class _SpProperty(Generic[_TObject]):
         if isinstance(val, Node):
             logger.debug((self.attrname, type(val._cache), type(cache), val._cache._data is cache._data))
 
-        if isinstance(cache, Entry):
-            cache.put(val, self.attrname)
-        else:
-            try:
-                cache[self.attrname] = val
-            except TypeError as error:
-                # logger.error(f"Can not put value to '{self.attrname}'")
-                raise TypeError(error) from None
+        try:
+            ht_insert(cache, self.attrname, val)
+        except TypeError as error:
+            # logger.error(f"Can not put value to '{self.attrname}'")
+            raise TypeError(error) from None
 
     def __get__(self, instance: Any, owner=None) -> _TObject:
         cache = getattr(instance, "_cache", instance.__dict__)

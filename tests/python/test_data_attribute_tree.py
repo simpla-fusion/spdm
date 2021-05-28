@@ -16,7 +16,6 @@ class TestAttributeTree(unittest.TestCase):
         })
 
     def test_attribute_get(self):
-
         cache = {
             "a": [
                 "hello world {name}!",

@@ -162,6 +162,9 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_) 
 
 
 def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
+    if isinstance(target, Entry):
+        if target.writable:
+            target.p
     if not isinstance(value, collections.abc.Mapping):
         target.put(value, rpath)
     # elif rpath is None:
@@ -181,6 +184,7 @@ def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
             # obj.update(value)
         else:
             target.put(value, rpath)
+    return target
 
 
 def ht_erase(target, path: Optional[_TPath] = None, *args, **kwargs):
