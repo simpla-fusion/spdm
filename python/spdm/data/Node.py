@@ -15,10 +15,10 @@ from spdm.util.utilities import normalize_path
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, _next_, _TIndex, _TKey, _TObject,
-                    _TPath, ht_compare, ht_contains, ht_count, ht_erase,
-                    ht_get, ht_insert, ht_items, ht_iter, ht_keys, ht_update,
-                    ht_values)
+from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, _next_, _TIndex, _TKey,
+                    _TObject, _TPath, ht_compare, ht_contains, ht_count,
+                    ht_erase, ht_get, ht_insert, ht_items, ht_iter, ht_keys,
+                    ht_update, ht_values)
 
 
 class Node(Generic[_TObject]):
@@ -153,7 +153,7 @@ class Node(Generic[_TObject]):
 
     def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Union[_TObject]:
         if self._child_cls is None:
-            child_cls = self.__class__
+            child_cls = None
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
@@ -165,20 +165,18 @@ class Node(Generic[_TObject]):
 
         parent = parent if parent is not None else self
 
-        if isinstance(value, (int, str, np.ndarray)):
-            pass
-        elif isinstance(value, collections.abc.Sequence):
-            if issubclass(self._child_cls, List):
+        if isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+            if self._child_cls is not None and issubclass(self._child_cls, List):
                 value = self._child_cls(value, *args, parent=parent, **kwargs)
             else:
                 value = List[self._child_cls](value, *args, parent=parent, **kwargs)
         elif isinstance(value, collections.abc.Mapping):
-            if issubclass(self._child_cls, Dict):
+            if self._child_cls is not None and issubclass(self._child_cls, Dict):
                 value = self._child_cls(value, *args, parent=parent, **kwargs)
             else:
                 value = Dict[self._child_cls](value, *args, parent=parent, **kwargs)
-        else:
-            if issubclass(self._child_cls, Node):
+        elif isinstance(value, Entry):
+            if self._child_cls is not None and issubclass(self._child_cls, Node):
                 value = self._child_cls(value, *args, parent=parent, **kwargs)
             else:
                 value = Node[self._child_cls](value, *args, parent=parent, **kwargs)
@@ -421,12 +419,12 @@ class _SpProperty(Generic[_TObject]):
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
 
-        val = cache.get(self.attrname, _not_found_)
+        val = ht_get(cache, self.attrname, _not_found_, ignore_attribute=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, _not_found_)
+                val = ht_get(cache, self.attrname, _not_found_, ignore_attribute=True)
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
@@ -437,7 +435,7 @@ class _SpProperty(Generic[_TObject]):
                     elif self._return_type is not None:
                         val = self._return_type(val)
                     try:
-                        self.__put__(cache, val)
+                        ht_insert(cache, self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
                     except Exception:
                         logger.error(f"Can not put value to '{self.attrname}'!")
 
@@ -446,7 +444,7 @@ class _SpProperty(Generic[_TObject]):
     def __set__(self, instance: Any, value: Any):
         with self.lock:
             cache = getattr(instance, "_cache", instance.__dict__)
-            self.__put__(cache, value)
+            ht_insert(cache, self.attrname, value, assign_if_exists=True, ignore_attribute=True)
 
     # def __del__(self, instance: Any):
     #     with self.lock:

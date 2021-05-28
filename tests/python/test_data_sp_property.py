@@ -5,7 +5,7 @@ from spdm.data.Node import Dict, Node, _TObject, sp_property
 from spdm.util.logger import logger
 
 
-class Foo(Dict[Node]):
+class Foo(Dict):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -14,7 +14,7 @@ class Foo(Dict[Node]):
         return self["a"]
 
 
-class Doo(Dict[Node]):
+class Doo(Dict):
     def __init__(self, *args,   **kwargs):
         super().__init__(*args,  **kwargs)
 
@@ -31,12 +31,17 @@ class TestXML(unittest.TestCase):
     def test_get(self):
         cache = {"foo": {"a": 1234}}
         d = Doo(cache)
+
+        self.assertFalse(isinstance(cache["foo"], Foo))
+        self.assertTrue(isinstance(d.foo, Foo))
         self.assertTrue(isinstance(cache["foo"], Foo))
+
         self.assertEqual(d.foo.a, cache["foo"]["a"])
 
-    def test_put(self):
+    def test_insert(self):
         cache = {"foo": {"a": 1234}}
         d = Doo(cache)
+        self.assertEqual(cache["foo"]["a"], 1234)
         d.foo.a = 45678
         self.assertEqual(cache["foo"]["a"], 45678)
 

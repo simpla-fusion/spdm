@@ -76,7 +76,11 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
 
             if ignore_attribute or val is _not_found_:
                 try:
-                    val = target.setdefault(key, child)
+                    if assign_if_exists:
+                        target[key] = child
+                        val = target[key]
+                    else:
+                        val = target.setdefault(key, child)
                 except Exception as error:
                     logger.debug(error)
                     val = _not_found_

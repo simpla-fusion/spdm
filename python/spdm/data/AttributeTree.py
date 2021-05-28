@@ -96,7 +96,7 @@ class AttributeTree(Dict[Node]):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
+        self._child_cls = AttributeTree
     # def __new_child__(self, value, *args, parent: Optional[Node] = None,  **kwargs) -> Node:
     #     parent = parent if parent is not None else self
 
