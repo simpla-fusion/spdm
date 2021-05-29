@@ -174,14 +174,11 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_, 
     #     target._prefix = []
 
 
-def ht_update(target,  value, rpath: Optional[_TPath] = None, *args, ignore_attribute=True, **kwargs):
+def ht_update(target,  rpath: Optional[_TPath], value, *args, **kwargs):
     if isinstance(target, Entry):
-        if target.writable:
-            target.p
+        target.update(rpath, value, *args, **kwargs)
     if not isinstance(value, collections.abc.Mapping):
-        target.put(value, rpath)
-    # elif rpath is None:
-    #     target.put(value)
+        ht_insert(target, value, rpath, assign_if_exists=True, **kwargs)
     else:
         obj = ht_get(target, rpath, _not_found_)
         if isinstance(obj, collections.abc.MutableMapping):

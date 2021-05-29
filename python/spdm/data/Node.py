@@ -15,7 +15,7 @@ from spdm.util.utilities import normalize_path
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.utilities import _not_defined_, _not_found_, serialize
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, _next_, _TIndex, _TKey,
+from .Entry import (EntryWrapper, _DICT_TYPE_, _LIST_TYPE_, Entry, _next_, _TIndex, _TKey,
                     _TObject, _TPath, ht_compare, ht_contains, ht_count,
                     ht_erase, ht_get, ht_insert, ht_items, ht_iter, ht_keys,
                     ht_update, ht_values)
@@ -52,10 +52,14 @@ class Node(Generic[_TObject]):
         self._child_cls = None
         if isinstance(cache, Node):
             cache = cache._cache
+
+        if isinstance(cache, Entry) and not cache.writable:
+            cache = EntryWrapper(cache)
+
         self._cache = cache
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} />"
+        return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} />"
         # return pprint.pformat(self.__serialize__())
 
     def __serialize__(self) -> Mapping:
@@ -190,6 +194,17 @@ class Node(Generic[_TObject]):
         return self.__new_child__(value, *args, **kwargs)
 
     def __setitem__(self, path: _TPath, value: Any) -> None:
+        if self._cache is None:
+            if isinstance(path, collections.abc.Sequence):
+                k = path[0]
+            else:
+                k = path
+                
+            if isinstance(k, (int, slice)):
+                self._cache = _LIST_TYPE_()
+            elif isinstance(k, str):
+                self._cache = _DICT_TYPE_()
+
         ht_insert(self._cache, path,  self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> Any:
@@ -320,7 +335,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         return self.update(other)
 
     def update(self, d: Mapping) -> None:
-        self._cache = ht_update(self._cache, d)
+        self._cache = ht_update(self._cache, None, d)
 
     def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
         return self.__post_process__(ht_get(self._cache, key, default_value=default_value, **kwargs))
@@ -390,9 +405,7 @@ class _SpProperty(Generic[_TObject]):
         self._return_type = func.__annotations__.get("return", None)
 
     def _isinstance(self, obj) -> bool:
-        return obj is not _not_found_ and \
-            (self._return_type is None or obj.__class__ == self._return_type
-             or (not hasattr(self._return_type, "__origin__") and isinstance(obj, self._return_type)))
+        return (self._return_type is None or getattr(obj, "__orig_class__", obj.__class__) == self._return_type)
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
@@ -418,6 +431,9 @@ class _SpProperty(Generic[_TObject]):
 
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
+        elif isinstance(cache, Entry) and not cache.writable:
+            logger.error(f"Attribute cache is not writable!")
+            raise AttributeError(self.attrname)
 
         val = ht_get(cache, self.attrname, _not_found_, ignore_attribute=True)
 
@@ -428,16 +444,18 @@ class _SpProperty(Generic[_TObject]):
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
-                    if self._isinstance(val):
-                        pass
-                    elif inspect.isclass(self._return_type) and issubclass(self._return_type, Node):
-                        val = self._return_type(val, parent=instance)
-                    elif self._return_type is not None:
-                        val = self._return_type(val)
+                    if not self._isinstance(val):
+                        origin_type = getattr(self._return_type, '__origin__', self._return_type)
+                        if inspect.isclass(origin_type) and issubclass(origin_type, Node):
+                            val = self._return_type(val, parent=instance)
+                        elif self._return_type is not None:
+                            val = self._return_type(val)
+
                     try:
                         ht_insert(cache, self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
                     except Exception:
                         logger.error(f"Can not put value to '{self.attrname}'!")
+                        raise AttributeError(self.attrname)
 
         return val
 

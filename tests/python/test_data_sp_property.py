@@ -1,11 +1,10 @@
 import unittest
-from typing import Generic
 
-from spdm.data.Node import Dict, Node, _TObject, sp_property
+from spdm.data.Node import Dict, _TObject, sp_property
 from spdm.util.logger import logger
 
 
-class Foo(Dict):
+class Foo(Dict[_TObject]):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -19,7 +18,7 @@ class Doo(Dict):
         super().__init__(*args,  **kwargs)
 
     @sp_property
-    def foo(self) -> Foo:
+    def foo(self) -> Foo[str]:
         return self["foo"]
 
     @sp_property
@@ -27,7 +26,7 @@ class Doo(Dict):
         return None
 
 
-class TestXML(unittest.TestCase):
+class TestSpProperty(unittest.TestCase):
     def test_get(self):
         cache = {"foo": {"a": 1234}}
         d = Doo(cache)
@@ -35,6 +34,7 @@ class TestXML(unittest.TestCase):
         self.assertFalse(isinstance(cache["foo"], Foo))
         self.assertTrue(isinstance(d.foo, Foo))
         self.assertTrue(isinstance(cache["foo"], Foo))
+        self.assertTrue(cache["foo"].__orig_class__== Foo[str])
 
         self.assertEqual(d.foo.a, cache["foo"]["a"])
 
