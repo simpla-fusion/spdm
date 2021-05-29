@@ -56,7 +56,7 @@ class Node(Generic[_TObject]):
         elif not cache.writable:
             self._entry = EntryWrapper(cache)
         else:
-            self._entry = cache
+            self._entry = cache.resolve()
 
     def __repr__(self) -> str:
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} />"
@@ -335,8 +335,8 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __ior__(self, other):
         return self.update(other)
 
-    def update(self, d: Mapping) -> None:
-        self._entry = self._entry.update(None, d)
+    def update(self, *args, **kwargs) -> None:
+        self._entry.update(None,  *args, **kwargs)
 
     def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
         return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs))
@@ -445,7 +445,15 @@ class _SpProperty(Generic[_TObject]):
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
+                    if isinstance(val, Node):
+                        val = val._entry
+                    if isinstance(val, Entry):
+                        logger.debug((cache._prefix+[self.attrname], val._prefix))
+                        if cache.extend([self.attrname]) == val:
+                            val = None
+
                     if not self._isinstance(val):
+
                         origin_type = getattr(self._return_type, '__origin__', self._return_type)
                         if inspect.isclass(origin_type) and issubclass(origin_type, Node):
                             val = self._return_type(val, parent=instance)

@@ -171,7 +171,7 @@ def ht_find(target,  path: Optional[_TPath] = None, default_value=_not_defined_,
 
 
 def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
-    logger.debug(path)
+    logger.debug((target.__class__.__name__, path))
     if path is not None and len(path) > 0:
         val = ht_insert(target, path, _not_found_, *args,  **kwargs)
     else:
@@ -185,7 +185,9 @@ def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
             if u is not v:
                 ht_update(u, None, v, *args, **kwargs)
 
-    elif hasattr(val.__class__, 'update'):
+    elif hasattr(val, '_entry'):
+
+        logger.debug(val.__class__)
         val.update(value, *args, **kwargs)
     else:
         ht_insert(target, path, value, *args, assign_if_exists=True, **kwargs)
@@ -316,6 +318,9 @@ class Entry(object):
     def is_relative(self):
         return len(self._prefix) > 0
 
+    def __eq__(self, o: Any) -> bool:
+        return isinstance(o, Entry) and self._data is o._data and self._prefix == o._prefix
+
     @property
     def empty(self):
         return (self._data is None and len(self._prefix) == 0) or self.find(default_value=_not_found_) is _not_found_
@@ -327,9 +332,13 @@ class Entry(object):
         if self._prefix is None:
             return self
 
-        data = self.find(default_value=_not_found_)
+        data = self.find(None, default_value=_not_found_)
 
         if isinstance(data, Entry):
+            return data
+        elif data is _not_found_:
+            return self
+        elif hasattr(data, "_entry"):
             return data
         else:
             return Entry(data, prefix=[])
@@ -338,15 +347,13 @@ class Entry(object):
         self._prefix += normalize_path(path)
 
     def extend(self, path):
-        res = self.__class__(self._data, prefix=self._prefix, parent=self._parent)
-        res.append(path)
-        return res
+        return self.__class__(self._data, prefix=self._prefix + normalize_path(path))
 
     def child(self, path, *args, **kwargs):
         if not path:
             return self
         else:
-            return self.__class__(self._data, prefix=self._prefix + normalize_path(path), parent=self._parent)
+            return self.__class__(self._data, prefix=self._prefix + normalize_path(path))
 
     def copy(self, other):
         raise NotImplementedError()
@@ -357,10 +364,20 @@ class Entry(object):
     def put(self,  rpath:  Optional[_TPath], value) -> Any:
         return self.insert(rpath, value, assign_if_exists=True)
 
-    def find(self, rpath: Optional[_TPath], *args, **kwargs) -> Any:
+    def find(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
         return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
+        if not(self._data is _not_found_ or self._data is None):
+            pass
+        elif rpath is None or len(rpath) == 0:
+            self._data = v
+            return v
+        elif isinstance(rpath[0], str):
+            self._data = _DICT_TYPE_()
+        else:
+            self._data = _LIST_TYPE_()
+
         return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)
 
     def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
