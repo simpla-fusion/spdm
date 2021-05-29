@@ -14,7 +14,7 @@ from spdm.util.utilities import normalize_path
 
 from ..numlib import np, scipy
 from ..util.logger import logger
-from ..util.utilities import _not_defined_, _not_found_, serialize
+from ..util.utilities import _undefined_, _not_found_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryWrapper, _next_,
                     _TIndex, _TKey, _TObject, _TPath)
 
@@ -47,14 +47,14 @@ class Node(Generic[_TObject]):
     def __init__(self, cache: Any = None, *args, parent=None, writable=True, **kwargs):
         super().__init__()
         self._parent = parent
-        self._child_cls = None
+        self._child_cls = _undefined_
 
         if isinstance(cache, Node):
             self._entry = cache._entry
         elif not isinstance(cache, Entry):
             self._entry = Entry(cache)
-        elif not cache.writable:
-            self._entry = EntryWrapper(cache)
+        # elif not cache.writable:
+        #     self._entry = EntryWrapper(cache)
         else:
             self._entry = cache.resolve()
 
@@ -156,7 +156,7 @@ class Node(Generic[_TObject]):
     """
 
     def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
-        if self._child_cls is None:
+        if self._child_cls is _undefined_:
             child_cls = None
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
@@ -168,8 +168,11 @@ class Node(Generic[_TObject]):
             self._child_cls = child_cls
 
         parent = parent if parent is not None else self
-
-        if isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+        if self._child_cls is None and isinstance(value, Node):
+            pass
+        elif inspect.isclass(self._child_cls) and isinstance(value, self._child_cls):
+            pass
+        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
             if self._child_cls is not None and issubclass(self._child_cls, List):
                 value = self._child_cls(value, *args, parent=parent, **kwargs)
             else:
@@ -432,9 +435,9 @@ class _SpProperty(Generic[_TObject]):
 
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
-        elif isinstance(cache, Entry) and not cache.writable:
-            logger.error(f"Attribute cache is not writable!")
-            raise AttributeError(self.attrname)
+        # elif isinstance(cache, Entry) and not cache.writable:
+        #     logger.error(f"Attribute cache is not writable!")
+        #     raise AttributeError(self.attrname)
 
         val = cache.find(self.attrname, _not_found_, ignore_attribute=True)
 
@@ -445,26 +448,24 @@ class _SpProperty(Generic[_TObject]):
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
-                    if isinstance(val, Node):
-                        val = val._entry
-                    if isinstance(val, Entry):
-                        logger.debug((cache._prefix+[self.attrname], val._prefix))
-                        if cache.extend([self.attrname]) == val:
-                            val = None
-
+                    logger.debug((val.__class__.__name__, self.attrname, getattr(val, '_entry', None)))
                     if not self._isinstance(val):
-
+                        if isinstance(val, Node):
+                            val = val._entry
+                        if isinstance(val, Entry):
+                            if cache.extend([self.attrname]) == val:
+                                val = None
                         origin_type = getattr(self._return_type, '__origin__', self._return_type)
                         if inspect.isclass(origin_type) and issubclass(origin_type, Node):
                             val = self._return_type(val, parent=instance)
                         elif self._return_type is not None:
                             val = self._return_type(val)
-
-                    try:
-                        cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
-                    except Exception:
-                        logger.error(f"Can not put value to '{self.attrname}'!")
-                        raise AttributeError(self.attrname)
+                    if isinstance(cache, Entry) and cache.writable:
+                        try:
+                            cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
+                        except Exception:
+                            logger.error(f"Can not put value to '{self.attrname}'!")
+                            raise AttributeError(self.attrname)
 
         return val
 

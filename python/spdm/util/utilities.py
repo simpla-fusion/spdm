@@ -31,7 +31,7 @@ _empty = object()
 
 _not_found_ = object()
 
-_not_defined_ = object()
+_undefined_ = object()
 
 
 def whoami(obj=None):

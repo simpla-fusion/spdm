@@ -8,7 +8,7 @@ from ..data.Entry import Entry
 from ..data.Node import Dict, List, Node, _TObject
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
-from ..util.utilities import (_empty, _not_defined_, _not_found_,
+from ..util.utilities import (_empty, _undefined_, _not_found_,
                               guess_class_name)
 from .Session import Session
 
@@ -33,7 +33,7 @@ class Actor(Dict[Node]):
         elif isinstance(desc, collections.abc.Mapping):
             cls_name = desc.get("code", {}).get("name", None)
         elif isinstance(desc, Entry):
-            cls_name = desc.get("code.name", _not_defined_)
+            cls_name = desc.get("code.name", _undefined_)
 
         if isinstance(cls_name, str):
             try:

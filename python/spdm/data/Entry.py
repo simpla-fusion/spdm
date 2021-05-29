@@ -6,7 +6,7 @@ from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
 
 from ..numlib import np
 from ..util.logger import logger
-from ..util.utilities import (_not_defined_, _not_found_, normalize_path,
+from ..util.utilities import (_undefined_, _not_found_, normalize_path,
                               serialize)
 
 _next_ = object()
@@ -96,7 +96,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
     return val
 
 
-def ht_find(target,  path: Optional[_TPath] = None, default_value=_not_defined_, ignore_attribute=True) -> Any:
+def ht_find(target,  path: Optional[_TPath] = None, default_value=_undefined_, ignore_attribute=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -139,7 +139,7 @@ def ht_find(target,  path: Optional[_TPath] = None, default_value=_not_defined_,
 
     if val is not _not_found_:
         return val
-    elif default_value is _not_defined_:
+    elif default_value is _undefined_:
         return Entry(target, prefix=path[idx:])
     else:
         return default_value
@@ -247,9 +247,13 @@ def ht_iter(target, *args, default_value=None, **kwargs):
         raise NotImplementedError(type(obj))
 
 
-def ht_items(target,  *args, **kwargs):
-    obj = target.find(*args, **kwargs)
-    if isinstance(obj, collections.abc.Mapping):
+def ht_items(target, path: Optional[_TPath], *args, **kwargs):
+    obj = ht_find(target, path, *args, **kwargs)
+    if ht_count(obj) == 0:
+        yield from {}
+    elif isinstance(obj, Entry):
+        yield from obj.items()
+    elif isinstance(obj, collections.abc.Mapping):
         yield from obj.items()
     elif isinstance(obj, collections.abc.MutableSequence):
         yield from enumerate(obj)
@@ -298,6 +302,9 @@ class Entry(object):
         self._data = data
         self._prefix = normalize_path(prefix)
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} data={type(self._data)} prefix={self._prefix} />"
+
     @property
     def writable(self) -> bool:
         return True
@@ -329,7 +336,7 @@ class Entry(object):
         return self.find(default_value=_not_found_)
 
     def resolve(self):
-        if self._prefix is None:
+        if self.__class__ is not Entry or self._prefix is None:
             return self
 
         data = self.find(None, default_value=_not_found_)
@@ -358,10 +365,10 @@ class Entry(object):
     def copy(self, other):
         raise NotImplementedError()
 
-    def get(self, rpath: Optional[_TPath] = None) -> Any:
-        return ht_find(self._data,  self._prefix + normalize_path(rpath))
+    # def get(self, *args, **kwargs) -> Any:
+    #     return self.find(*args, **kwargs)
 
-    def put(self,  rpath:  Optional[_TPath], value) -> Any:
+    # def put(self,  rpath:  Optional[_TPath], value) -> Any:
         return self.insert(rpath, value, assign_if_exists=True)
 
     def find(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
@@ -417,36 +424,14 @@ class Entry(object):
         else:
             raise NotImplementedError(type(obj))
 
-    def items(self,  *args, **kwargs):
-        obj = self.find(*args, **kwargs)
-        if isinstance(obj, collections.abc.Mapping):
-            yield from obj.items()
-        elif isinstance(obj, collections.abc.MutableSequence):
-            yield from enumerate(obj)
-        elif isinstance(obj, Entry):
-            yield from obj.items()
-        else:
-            raise TypeError(type(obj))
+    def items(self, path: Optional[_TPath] = None, * args, **kwargs):
+        yield from ht_items(self._data, self._prefix+normalize_path(path), *args, **kwargs)
 
-    def values(self,  *args, **kwargs):
-        obj = self.find(*args, **kwargs)
-        if isinstance(obj, collections.abc.Mapping):
-            yield from obj.values()
-        elif isinstance(obj, collections.abc.MutableSequence):
-            yield from obj
-        elif isinstance(obj, Entry):
-            yield from []
-        else:
-            yield obj
+    def values(self,  path: Optional[_TPath] = None,  *args, **kwargs):
+        yield from ht_values(self._data, self._prefix+normalize_path(path), *args, **kwargs)
 
-    def keys(self,  *args, **kwargs):
-        obj = self.find(*args, **kwargs)
-        if isinstance(obj, collections.abc.Mapping):
-            yield from obj.keys()
-        elif isinstance(obj, collections.abc.MutableSequence):
-            yield from range(len(obj))
-        else:
-            raise NotImplementedError()
+    def keys(self,  path: Optional[_TPath] = None, *args, **kwargs):
+        yield from ht_keys(self._data, self._prefix+normalize_path(path), *args, **kwargs)
 
     def __serialize__(self, *args, **kwargs):
         return [v for v in self.values(*args, **kwargs)]
@@ -458,7 +443,7 @@ class EntryWrapper(Entry):
         super().__init__(**kwargs)
         self._target = d
 
-    def get(self, rpath: Optional[_TPath] = None, *args, default_value=_not_defined_, **kwargs):
+    def get(self, rpath: Optional[_TPath] = None, *args, default_value=_undefined_, **kwargs):
         res = self._target.find(rpath, default_value=_not_found_)
         if res is _not_found_:
             res = super().find(rpath, default_value=default_value)

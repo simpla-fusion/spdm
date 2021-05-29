@@ -174,13 +174,14 @@ class XMLEntry(Entry):
     def put(self,  value,  path: Optional[_TPath] = None, only_one=False, **kwargs):
         logger.debug(f"{self.__class__.__name__} is not writable!")
 
-    def get(self,  path: Optional[_TPath] = None, *args, only_one=False, default_value=None, **kwargs):
+    def find(self,  path: Optional[_TPath], *args, only_one=False, default_value=None, projection=None, **kwargs):
         if not only_one:
-            res = PathTraverser(path).apply(lambda p: self.get(p, only_one=True, default_value=_not_found_, **kwargs))
+            res = PathTraverser(path).apply(lambda p: self.find(
+                p, only_one=True, default_value=_not_found_, projection=projection))
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            res = self._convert(xp.evaluate(self._root), lazy=True, path=path, envs=envs, ** kwargs)
+            res = self._convert(xp.evaluate(self._root), lazy=True, path=path, envs=envs, projection=projection)
 
         if res is _not_found_:
             res = default_value
