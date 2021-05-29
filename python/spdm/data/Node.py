@@ -448,7 +448,6 @@ class _SpProperty(Generic[_TObject]):
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
-                    logger.debug((val.__class__.__name__, self.attrname, getattr(val, '_entry', None)))
                     if not self._isinstance(val):
                         if isinstance(val, Node):
                             val = val._entry

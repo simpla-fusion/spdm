@@ -171,7 +171,6 @@ def ht_find(target,  path: Optional[_TPath] = None, default_value=_undefined_, i
 
 
 def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
-    logger.debug((target.__class__.__name__, path))
     if path is not None and len(path) > 0:
         val = ht_insert(target, path, _not_found_, *args,  **kwargs)
     else:
