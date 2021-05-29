@@ -293,7 +293,7 @@ class Entry(object):
     is_entry = True
     __slots__ = "_data", "_prefix"
 
-    def __init__(self, data=_not_found_,  *args, prefix=None,      **kwargs):
+    def __init__(self, data=None,  *args, prefix=None,      **kwargs):
         super().__init__()
         self._data = data
         self._prefix = normalize_path(prefix)
@@ -368,9 +368,10 @@ class Entry(object):
         return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
+        path = self._prefix + normalize_path(rpath)
         if not(self._data is _not_found_ or self._data is None):
             pass
-        elif rpath is None or len(rpath) == 0:
+        elif len(path) == 0:
             self._data = v
             return v
         elif isinstance(rpath[0], str):
@@ -378,7 +379,7 @@ class Entry(object):
         else:
             self._data = _LIST_TYPE_()
 
-        return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)
+        return ht_insert(self._data,  path, v, *args, **kwargs)
 
     def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
         ht_update(self._data, self._prefix + normalize_path(rpath), value, *args, **kwargs)
