@@ -180,10 +180,11 @@ def ht_update(target,  rpath: Optional[_TPath], value, *args, **kwargs):
     if not isinstance(value, collections.abc.Mapping):
         ht_insert(target, value, rpath, assign_if_exists=True, **kwargs)
     else:
-        obj = ht_get(target, rpath, _not_found_)
-        if isinstance(obj, collections.abc.MutableMapping):
+        if rpath is not None:
+            target = ht_get(target, rpath, _not_found_)
+        if isinstance(target, collections.abc.MutableMapping):
             for k, v in value.items():
-                target = ht_insert(obj, k, v)
+                target = ht_insert(target, k, v)
                 if target is v:
                     pass
                 elif hasattr(target.__class__, 'update'):
@@ -366,10 +367,11 @@ class Entry(object):
     def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
         return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)
 
-    def update(self,  value, rpath: Optional[_TPath] = None, *args, **kwargs):
-        raise NotImplementedError()
+    def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
+        ht_update(self._data, rpath, value, *args, **kwargs)
+        return self
 
-    def delete(self, rpath: Optional[_TPath] = None, *args, **kwargs):
+    def erase(self, rpath: Optional[_TPath] = None, *args, **kwargs):
         return ht_erase(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def count(self,  rpath: Optional[_TPath] = None,  *args, **kwargs) -> int:
@@ -388,7 +390,7 @@ class Entry(object):
             raise TypeError(f"'{type(obj)}' is not callable")
         return res
 
-    def equal(self, other) -> bool:
+    def compare(self, other) -> bool:
         return ht_compare(self.get(), other)
 
     def iter(self, *args, **kwargs):
