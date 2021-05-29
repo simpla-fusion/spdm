@@ -171,6 +171,7 @@ def ht_find(target,  path: Optional[_TPath] = None, default_value=_not_defined_,
 
 
 def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
+    logger.debug(path)
     if path is not None and len(path) > 0:
         val = ht_insert(target, path, _not_found_, *args,  **kwargs)
     else:
@@ -183,7 +184,7 @@ def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
             u = val.setdefault(k, v)
             if u is not v:
                 ht_update(u, None, v, *args, **kwargs)
-            
+
     elif hasattr(val.__class__, 'update'):
         val.update(value, *args, **kwargs)
     else:
@@ -350,11 +351,14 @@ class Entry(object):
     def copy(self, other):
         raise NotImplementedError()
 
-    def find(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
-        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
+    def get(self, rpath: Optional[_TPath] = None) -> Any:
+        return ht_find(self._data,  self._prefix + normalize_path(rpath))
 
-    # def put(self,  rpath:  Optional[_TPath],  *args, assign_if_exists=True, **kwargs):
-    #     return ht_insert(self._data,  self._prefix + normalize_path(rpath),  *args, assign_if_exists=assign_if_exists or True, **kwargs)
+    def put(self,  rpath:  Optional[_TPath], value) -> Any:
+        return self.insert(rpath, value, assign_if_exists=True)
+
+    def find(self, rpath: Optional[_TPath], *args, **kwargs) -> Any:
+        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
         return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)

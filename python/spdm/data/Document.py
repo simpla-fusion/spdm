@@ -28,7 +28,7 @@ class Document(DataObject):
             return self.entry.copy(other)
 
     @cached_property
-    def entry(self):
+    def entry(self)->Entry:
         return Entry(self)
 
     @property
