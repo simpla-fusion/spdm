@@ -62,7 +62,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
         elif isinstance(key,  slice):
             for idx in range(key.start, key.stop, key.step):
                 ht_insert(target, [idx]+path[idx+1:], value, assign_if_exists=assign_if_exists)
-            val = ht_get(target, key)
+            val = ht_find(target, key)
             break
         elif isinstance(key, str):
             if not ignore_attribute:
@@ -86,7 +86,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
                     val = _not_found_
             if val is _not_found_:
                 try:
-                    val = target.get(key, _not_found_)
+                    val = target.find(key, _not_found_)
                 except Exception:
                     val = _not_found_
 
@@ -100,20 +100,20 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
     return val
 
 
-def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_, ignore_attribute=True) -> Any:
+def ht_find(target,  path: Optional[_TPath] = None, default_value=_not_defined_, ignore_attribute=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
     """
     if isinstance(target, Entry):
-        return target.get(path, default_value=default_value)
+        return target.find(path, default_value=default_value)
 
     path = normalize_path(path)
 
     val = target
     for idx, key in enumerate(path):
         if isinstance(target, Entry):
-            val = target.get(path[idx:], default_value)
+            val = target.find(path[idx:], default_value)
             break
         elif key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
             val = Entry(target, prefix=path[idx:])
@@ -151,7 +151,7 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_, 
     # elif isinstance(obj, collections.abc.Mapping):
     #     if not isinstance(key, str):
     #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{path}\"")
-    #     tmp = obj.get(key, _not_found_)
+    #     tmp = obj.find(key, _not_found_)
     #     obj = tmp
     # elif isinstance(obj, collections.abc.MutableSequence):
     #     if not isinstance(key, (int, slice)):
@@ -166,36 +166,12 @@ def ht_get(target,  path: Optional[_TPath] = None, default_value=_not_defined_, 
     #         obj = obj._cache._data
     #         break
     #     else:
-    #         obj = obj._cache.get(path[idx:])
+    #         obj = obj._cache.find(path[idx:])
     #     break
 
     # if rpath is None:
     #     target._data = obj
     #     target._prefix = []
-
-
-def ht_update(target,  rpath: Optional[_TPath], value, *args, **kwargs):
-    if isinstance(target, Entry):
-        target.update(rpath, value, *args, **kwargs)
-    if not isinstance(value, collections.abc.Mapping):
-        ht_insert(target, value, rpath, assign_if_exists=True, **kwargs)
-    else:
-        if rpath is not None:
-            target = ht_get(target, rpath, _not_found_)
-        if isinstance(target, collections.abc.MutableMapping):
-            for k, v in value.items():
-                target = ht_insert(target, k, v)
-                if target is v:
-                    pass
-                elif hasattr(target.__class__, 'update'):
-                    target.update(v)
-                else:
-                    raise KeyError
-
-            # obj.update(value)
-        else:
-            ht_insert(target, rpath, value, assign_if_exists=True)
-    return target
 
 
 def ht_erase(target, path: Optional[_TPath] = None, *args, ignore_attribute=True, **kwargs):
@@ -208,7 +184,7 @@ def ht_erase(target, path: Optional[_TPath] = None, *args, ignore_attribute=True
     if len(path) == 0:
         return False
 
-    target = ht_get(target, path[:-1], _not_found_)
+    target = ht_find(target, path[:-1], _not_found_)
 
     if target is _not_found_:
         return
@@ -226,7 +202,7 @@ def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
     if isinstance(target, Entry):
         return target.count(*args, **kwargs)
     else:
-        target = ht_get(target, *args, default_value=default_value, **kwargs)
+        target = ht_find(target, *args, default_value=default_value, **kwargs)
         if target is None or target is _not_found_:
             return 0
         elif isinstance(target, (str, int, float, np.ndarray)):
@@ -238,11 +214,11 @@ def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
 
 
 def ht_contains(target, v,  *args, ignore_attribute=True, **kwargs) -> bool:
-    return v in target.get(*args, **kwargs)
+    return v in target.find(*args, **kwargs)
 
 
 def ht_iter(target, *args, default_value=None, **kwargs):
-    obj = target.get(*args, default_value=default_value if default_value is not None else [], **kwargs)
+    obj = target.find(*args, default_value=default_value if default_value is not None else [], **kwargs)
 
     if isinstance(obj, Entry):
         yield from obj.iter()
@@ -253,7 +229,7 @@ def ht_iter(target, *args, default_value=None, **kwargs):
 
 
 def ht_items(target,  *args, **kwargs):
-    obj = target.get(*args, **kwargs)
+    obj = target.find(*args, **kwargs)
     if isinstance(obj, collections.abc.Mapping):
         yield from obj.items()
     elif isinstance(obj, collections.abc.MutableSequence):
@@ -265,7 +241,7 @@ def ht_items(target,  *args, **kwargs):
 
 
 def ht_values(target,  *args, **kwargs):
-    obj = target.get(*args, **kwargs)
+    obj = target.find(*args, **kwargs)
     if isinstance(obj, collections.abc.Mapping):
         yield from obj.values()
     elif isinstance(obj, collections.abc.MutableSequence):
@@ -277,7 +253,7 @@ def ht_values(target,  *args, **kwargs):
 
 
 def ht_keys(target,  *args, **kwargs):
-    obj = target.get(*args, **kwargs)
+    obj = target.find(*args, **kwargs)
     if isinstance(obj, collections.abc.Mapping):
         yield from obj.keys()
     elif isinstance(obj, collections.abc.MutableSequence):
@@ -325,16 +301,16 @@ class Entry(object):
 
     @property
     def empty(self):
-        return (self._data is None and len(self._prefix) == 0) or self.get(default_value=_not_found_) is _not_found_
+        return (self._data is None and len(self._prefix) == 0) or self.find(default_value=_not_found_) is _not_found_
 
     def fetch(self):
-        return self.get(default_value=_not_found_)
+        return self.find(default_value=_not_found_)
 
     def resolve(self):
         if self._prefix is None:
             return self
 
-        data = self.get(default_value=_not_found_)
+        data = self.find(default_value=_not_found_)
 
         if isinstance(data, Entry):
             return data
@@ -358,17 +334,17 @@ class Entry(object):
     def copy(self, other):
         raise NotImplementedError()
 
-    def get(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
-        return ht_get(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
+    def find(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
+        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
-    def put(self,  rpath:  Optional[_TPath],  *args, assign_if_exists=True, **kwargs):
-        return ht_insert(self._data,  self._prefix + normalize_path(rpath),  *args, assign_if_exists=assign_if_exists or True, **kwargs)
+    # def put(self,  rpath:  Optional[_TPath],  *args, assign_if_exists=True, **kwargs):
+    #     return ht_insert(self._data,  self._prefix + normalize_path(rpath),  *args, assign_if_exists=assign_if_exists or True, **kwargs)
 
     def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
         return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)
 
     def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
-        ht_update(self._data, rpath, value, *args, **kwargs)
+        ht_insert(self._data, rpath, value, *args, assign_if_exists='update', **kwargs)
         return self
 
     def erase(self, rpath: Optional[_TPath] = None, *args, **kwargs):
@@ -381,7 +357,7 @@ class Entry(object):
         return ht_contains(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def call(self,   rpath: Optional[_TPath], *args, **kwargs) -> Any:
-        obj = self.get(rpath, _not_found_)
+        obj = self.find(rpath, _not_found_)
         if callable(obj):
             res = obj(*args, **kwargs)
         elif len(args)+len(kwargs) == 0:
@@ -391,10 +367,10 @@ class Entry(object):
         return res
 
     def compare(self, other) -> bool:
-        return ht_compare(self.get(), other)
+        return ht_compare(self.find(), other)
 
     def iter(self, *args, **kwargs):
-        obj = self.get(*args, **kwargs)
+        obj = self.find(*args, **kwargs)
 
         if isinstance(obj, Entry):
             yield from obj.iter()
@@ -404,7 +380,7 @@ class Entry(object):
             raise NotImplementedError(type(obj))
 
     def items(self,  *args, **kwargs):
-        obj = self.get(*args, **kwargs)
+        obj = self.find(*args, **kwargs)
         if isinstance(obj, collections.abc.Mapping):
             yield from obj.items()
         elif isinstance(obj, collections.abc.MutableSequence):
@@ -415,7 +391,7 @@ class Entry(object):
             raise TypeError(type(obj))
 
     def values(self,  *args, **kwargs):
-        obj = self.get(*args, **kwargs)
+        obj = self.find(*args, **kwargs)
         if isinstance(obj, collections.abc.Mapping):
             yield from obj.values()
         elif isinstance(obj, collections.abc.MutableSequence):
@@ -426,7 +402,7 @@ class Entry(object):
             yield obj
 
     def keys(self,  *args, **kwargs):
-        obj = self.get(*args, **kwargs)
+        obj = self.find(*args, **kwargs)
         if isinstance(obj, collections.abc.Mapping):
             yield from obj.keys()
         elif isinstance(obj, collections.abc.MutableSequence):
@@ -445,9 +421,9 @@ class EntryWrapper(Entry):
         self._target = d
 
     def get(self, rpath: Optional[_TPath] = None, *args, default_value=_not_defined_, **kwargs):
-        res = self._target.get(rpath, default_value=_not_found_)
+        res = self._target.find(rpath, default_value=_not_found_)
         if res is _not_found_:
-            res = super().get(rpath, default_value=default_value)
+            res = super().find(rpath, default_value=default_value)
         return res
 
     def put(self, value,  path: Optional[_TPath] = None, **kwargs):

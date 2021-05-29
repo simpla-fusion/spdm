@@ -8,7 +8,7 @@ from typing import Any, MutableSequence, Optional, Sequence
 
 
 from ..util.logger import logger
-from .Entry import Entry, _not_found_, ht_get
+from .Entry import Entry, _not_found_
 from .Node import Dict, List, Node, _next_, _TObject, sp_property, _SpProperty
 
 

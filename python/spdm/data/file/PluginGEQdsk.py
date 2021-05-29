@@ -308,7 +308,7 @@ class GEQdskDocument(File):
     def entry(self):
         if self._data is None:
             self._data = self.load(self.path)
-        return self._data._cache
+        return self._data._entry
 
     def flush(self, *args, **kwargs):
         if "x" in self.mode or "w" in self.mode:

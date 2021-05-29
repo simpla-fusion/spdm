@@ -63,7 +63,7 @@ class Node(Generic[_TObject]):
         # return pprint.pformat(self.__serialize__())
 
     def __serialize__(self) -> Mapping:
-        return serialize(self._entry.get(full=True))
+        return serialize(self._entry.find(full=True))
 
     def __duplicate__(self, desc=None) -> object:
         return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
@@ -155,7 +155,7 @@ class Node(Generic[_TObject]):
         @enduml
     """
 
-    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Union[_TObject]:
+    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
         if self._child_cls is None:
             child_cls = None
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
@@ -208,7 +208,7 @@ class Node(Generic[_TObject]):
         self._entry.insert(path,  self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> Any:
-        return self.__post_process__(self._entry.get(path))
+        return self.__post_process__(self._entry.find(path))
 
     def __delitem__(self, path: _TPath) -> None:
         self._entry.erase(path)
@@ -260,7 +260,7 @@ class List(Node[_TObject], Sequence[_TObject]):
         self._entry.insert(path, self.__pre_process__(v), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> _TObject:
-        return self.__post_process__(self._entry.get(path))
+        return self.__post_process__(self._entry.find(path))
 
     def __delitem__(self, path: _TPath) -> None:
         super().__delitem__(path)
@@ -312,7 +312,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         return super().__category__ | Node.Category.LIST
 
     def __getitem__(self, path: _TKey) -> _TObject:
-        return self.__post_process__(self._entry.get(path))
+        return self.__post_process__(self._entry.find(path))
 
     def __setitem__(self, path: _TKey, value: _TObject) -> None:
         self._entry.insert(path,  self.__pre_process__(value), assign_if_exists=True)
@@ -339,7 +339,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         self._entry = self._entry.update(None, d)
 
     def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
-        return self.__post_process__(self._entry.get(key, default_value=default_value, **kwargs))
+        return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs))
 
     def items(self) -> Iterator[Tuple[str, _TObject]]:
         for k, v in self._entry.items():
@@ -370,7 +370,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     #             else:
     #                 v = getattr(self, k, _not_found_)
     #             if v is _not_found_:
-    #                 v = self._entry.get(k)
+    #                 v = self._entry.find(k)
     #             if v is _not_found_ or isinstance(v, Entry):
     #                 continue
     #             # elif hasattr(v, "__serialize__"):
@@ -436,12 +436,12 @@ class _SpProperty(Generic[_TObject]):
             logger.error(f"Attribute cache is not writable!")
             raise AttributeError(self.attrname)
 
-        val = cache.get(self.attrname, _not_found_, ignore_attribute=True)
+        val = cache.find(self.attrname, _not_found_, ignore_attribute=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, _not_found_, ignore_attribute=True)
+                val = cache.find(self.attrname, _not_found_, ignore_attribute=True)
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
