@@ -30,13 +30,9 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
 
     path = normalize_path(path)
 
-    if len(path) > 0:  # and target._data is None:
-        pass
-    elif hasattr(target, "_cache"):
-        target._cache = value
-        return target
-    else:
-        raise RuntimeError(f"Empty path!")
+    if len(path) == 0:  # and target._data is None:
+        raise RuntimeError(f"Empty path! {type(target)}")
+
     val = _not_found_
     for idx, key in enumerate(path):
         if isinstance(target, Entry):
@@ -172,6 +168,26 @@ def ht_find(target,  path: Optional[_TPath] = None, default_value=_not_defined_,
     # if rpath is None:
     #     target._data = obj
     #     target._prefix = []
+
+
+def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
+    if path is not None and len(path) > 0:
+        val = ht_insert(target, path, _not_found_, *args,  **kwargs)
+    else:
+        val = target
+
+    if isinstance(val, Entry):
+        val.update(None, value, *args, **kwargs)
+    elif isinstance(val, dict):
+        for k, v in value.items():
+            u = val.setdefault(k, v)
+            if u is not v:
+                ht_update(u, None, v, *args, **kwargs)
+            
+    elif hasattr(val.__class__, 'update'):
+        val.update(value, *args, **kwargs)
+    else:
+        ht_insert(target, path, value, *args, assign_if_exists=True, **kwargs)
 
 
 def ht_erase(target, path: Optional[_TPath] = None, *args, ignore_attribute=True, **kwargs):
@@ -344,7 +360,7 @@ class Entry(object):
         return ht_insert(self._data,  self._prefix + normalize_path(rpath), v, *args, **kwargs)
 
     def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
-        ht_insert(self._data, rpath, value, *args, assign_if_exists='update', **kwargs)
+        ht_update(self._data, self._prefix + normalize_path(rpath), value, *args, **kwargs)
         return self
 
     def erase(self, rpath: Optional[_TPath] = None, *args, **kwargs):
