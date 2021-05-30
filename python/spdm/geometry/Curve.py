@@ -36,6 +36,7 @@ class Curve(GeoObject):
     def dl(self, u=None, *args, **kwargs):
         if u is None:
             u = self.uv[0]
+        x, y = self.point(u).T
 
         L = u[-1]
 
@@ -43,21 +44,19 @@ class Curve(GeoObject):
 
         a, b = self.derivative(*args, **kwargs)
 
-        x, y = self.point(u).T
-
         a = a[:-1]
         b = b[:-1]
-        x = x[1:]-x[:-1]
-        y = y[1:]-y[:-1]
+        dx = x[1:]-x[:-1]
+        dy = y[1:]-y[:-1]
 
-        m1 = (-a*y+b*x)/(a*x+b*y)
+        m1 = (-a*dy+b*dx)/(a*dx+b*dy)
 
         a = np.roll(a, 1, axis=0)
         b = np.roll(b, 1, axis=0)
 
-        m2 = (-a*y+b*x)/(a*x+b*y)
+        m2 = (-a*dy+b*dx)/(a*dx+b*dy)
 
-        d = np.sqrt(x**2+y**2)*(1 + (2.0*m1**2+2.0*m2**2-m1*m2)/30)
+        d = np.sqrt(dx**2+dy**2)*(1 + (2.0*m1**2+2.0*m2**2-m1*m2)/30)
 
         if self.is_closed:
             u = np.hstack([u, [u[0]+L]])

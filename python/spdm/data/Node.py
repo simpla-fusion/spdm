@@ -252,6 +252,9 @@ class List(Node[_TObject], Sequence[_TObject]):
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
+    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
+        return super().__new_child__(value, *args, parent=self._parent, **kwargs)
+
     @property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
@@ -463,7 +466,8 @@ class _SpProperty(Generic[_TObject]):
                         try:
                             cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
                         except Exception:
-                            logger.error(f"Can not put value to '{self.attrname}'!")
+                            logger.error(
+                                f"Can not insert value to {isinstance.__class__.__name__} as '{self.attrname}'  !")
                             raise AttributeError(self.attrname)
 
         return val

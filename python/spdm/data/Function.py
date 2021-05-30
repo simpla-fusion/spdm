@@ -33,9 +33,9 @@ class Function:
         self._x = np.asarray(x)
 
         if isinstance(y, Node):
-            y = y.__fetch__(default_value=0.0)
+            y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
-            y = y.get()
+            y = y.find()
 
         if isinstance(y, Function):
             self._y = None

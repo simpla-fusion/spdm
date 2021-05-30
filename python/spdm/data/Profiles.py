@@ -2,7 +2,7 @@ import collections
 
 from spdm.numlib import np
 from spdm.data.Function import Function
-from spdm.data.Node import Dict, Node
+from spdm.data.Node import Dict, Node, _TObject
 from spdm.util.logger import logger
 
 
@@ -33,3 +33,9 @@ class Profiles(Dict[Node]):
                 return value
 
         super().__init__(*args, default_factory=default_factory, **kwargs)
+
+    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
+        res = super().__new_child__(value, *args, parent=self._parent, **kwargs)
+        if not isinstance(res, Function):
+            res = Function(self._axis, res)
+        return res
