@@ -9,7 +9,7 @@ from spdm.util.logger import logger
 class Profiles(Dict[Node]):
     __slots__ = ("_axis",)
 
-    def __init__(self,   *args, axis=None, default_factory=None, ** kwargs):
+    def __init__(self,   *args, axis=None, ** kwargs):
         if isinstance(axis, int):
             axis = np.linspace(0, 1.0, axis)
         elif isinstance(axis, np.ndarray):
@@ -19,23 +19,18 @@ class Profiles(Dict[Node]):
 
         self._axis = axis
 
-        if default_factory is None:
-            def default_factory(value, *_args, axis=self._axis, **_kwargs):
-                if isinstance(value, Function):
-                    if value.x is not axis:
-                        value = Function(axis, np.asarray(value(axis)))
-                elif isinstance(value, (int, float)) or callable(value):
-                    value = Function(axis, value)
-                elif isinstance(value, np.ndarray):
-                    if value.shape != axis.shape:
-                        raise ValueError(f"The shape of arrays dismatch! {value.shape} !={axis.shape} ")
-                    value = Function(axis, value)
-                return value
+        super().__init__(*args, **kwargs)
 
-        super().__init__(*args, default_factory=default_factory, **kwargs)
+    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Function:
+        res = super().__new_child__(value, *args, parent=parent or self._parent, **kwargs)
 
-    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
-        res = super().__new_child__(value, *args, parent=self._parent, **kwargs)
-        if not isinstance(res, Function):
-            res = Function(self._axis, res)
-        return res
+        if isinstance(value, Function):
+            if value.x is not self._axis:
+                value = Function(self._axis, np.asarray(value(self._axis)))
+        elif isinstance(value, (int, float)) or callable(value):
+            value = Function(self._axis, value)
+        elif isinstance(value, np.ndarray):
+            if value.shape != self._axis.shape:
+                raise ValueError(f"The shape of arrays dismatch! {value.shape} !={self._axis.shape} ")
+            value = Function(self._axis, value)
+        return value

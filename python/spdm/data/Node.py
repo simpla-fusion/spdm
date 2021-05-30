@@ -412,7 +412,15 @@ class _SpProperty(Generic[_TObject]):
         self.return_type = func.__annotations__.get("return", None)
 
     def _isinstance(self, obj) -> bool:
-        return (self.return_type is None or getattr(obj, "__orig_class__", obj.__class__) == self.return_type)
+        res = True
+        if self.return_type is not None:
+            orig_class = getattr(obj, "__orig_class__", obj.__class__)
+            res = inspect.isclass(orig_class) \
+                and inspect.isclass(self.return_type) \
+                and issubclass(orig_class, self.return_type) \
+                or orig_class == self.return_type
+
+        return res
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
@@ -452,23 +460,28 @@ class _SpProperty(Generic[_TObject]):
                 if not self._isinstance(val):
                     val = self.func(instance)
                     if not self._isinstance(val):
-                        if isinstance(val, Node):
-                            val = val._entry
-                        if isinstance(val, Entry):
-                            if cache.extend([self.attrname]) == val:
-                                val = None
-                        origin_type = getattr(self.return_type, '__origin__', self.return_type)
-                        if inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                            val = self.return_type(val, parent=instance)
-                        elif self.return_type is not None:
-                            val = self.return_type(val)
+                        if not isinstance(val, Node) and hasattr(instance.__class__, '__new_child__'):
+                            val = instance.__new_child__(val)
+
+                        if not self._isinstance(val):
+                            if isinstance(val, Node):
+                                val = val._entry
+                            if isinstance(val, Entry):
+                                if cache.extend([self.attrname]) == val:
+                                    val = None
+
+                            origin_type = getattr(self.return_type, '__origin__', self.return_type)
+                            if inspect.isclass(origin_type) and issubclass(origin_type, Node):
+                                val = self.return_type(val, parent=instance)
+                            elif self.return_type is not None:
+                                val = self.return_type(val)
                     if isinstance(cache, Entry) and cache.writable:
-                        try:
-                            cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
-                        except Exception:
-                            logger.error(
-                                f"Can not insert value to {isinstance.__class__.__name__} as '{self.attrname}'  !")
-                            raise AttributeError(self.attrname)
+                        # try:
+                        cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
+                        # except Exception:
+                        #     logger.error(
+                        #         f"Can not insert value to {isinstance.__class__.__name__} as '{self.attrname}'  !")
+                        #     raise AttributeError(self.attrname)
 
         return val
 
