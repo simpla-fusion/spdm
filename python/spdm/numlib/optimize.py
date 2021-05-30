@@ -1,7 +1,6 @@
 import collections
 import os
 import pprint
-from functools import cached_property, lru_cache
 from typing import Callable
 
 from scipy import optimize
@@ -161,13 +160,3 @@ def find_critical_points(func: Callable[..., float], xmin: float, ymin: float, x
 
         yield xsol, ysol, func(xsol, ysol, grid=False), D
 
-
-def contour(func: Callable[..., float], fval: float, xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
-
-    def func_(p, _val=fval): return func(*p, grid=False)-_val
-
-    return np.asarray([(x, y) for x, y in minimize_filter(func_, xmin, ymin, xmax, ymax, tolerance=tolerance)])
-
-    # if not SP_EXPERIMENTAL:
-    # else:
-    #     yield from find_critical_points_2d_experimental(func,  xmin, ymin, xmax, ymax, tolerance=tolerance)
