@@ -14,20 +14,21 @@ class CubicSplineCurve(Curve):
         if isinstance(xy, collections.abc.MutableSequence):
             self._xy = np.c_[tuple(xy)]
         else:
-            self._xy = xy
+
+            self._xy = np.asarray(xy)
 
         if u is None:
-            u = xy.shape[0]
+            u = self._xy.shape[0]
 
         if isinstance(u, int):
             u = np.linspace(0, 1.0, u)
         elif not isinstance(u, (collections.abc.Sequence, np.ndarray)):
             u = [u]
         u = np.asarray(u)
-        if u.shape[0] == xy.shape[0]:
+        if u.shape[0] == self._xy.shape[0]:
             s = u
         else:
-            s = np.linspace(u[0], u[-1], xy.shape[0])
+            s = np.linspace(u[0], u[-1], self._xy.shape[0])
 
         self._spl = interpolate.CubicSpline(s, self._xy, bc_type="periodic" if self.is_closed else "not-a-knot")
         self._uv = [u]
