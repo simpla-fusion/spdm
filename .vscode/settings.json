@@ -77,5 +77,23 @@
         "csignal": "cpp",
         "*.ipp": "cpp",
         "propagate_const": "cpp"
-    }
+    },
+    "restructuredtext.confPath": "${workspaceFolder}/docs",
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./tests",
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": false,
+    "python.testing.promptToConfigure": false,
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/python",
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/python",
+    ],
 }

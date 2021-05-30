@@ -46,7 +46,7 @@ class CurvilinearMesh(StructuredMesh):
             raise TypeError(f"geo_mesh should be np.ndarray, Sequence[GeoObject] or GeoObject, not {type(geo_mesh)}")
 
         super().__init__(*args, shape=shape, rank=rank, ndims=ndims, **kwargs)
-        self._uv = uv
+        self._uv = np.asarray(uv)
         self._sub_surf = surf
 
     def axis(self, idx, axis=0):
@@ -64,12 +64,12 @@ class CurvilinearMesh(StructuredMesh):
             return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
 
     @property
-    def uv(self):
+    def uv(self) -> np.ndarray:
         return self._uv
 
     @cached_property
     def xy(self) -> np.ndarray:
-        return np.hstack([surf(self.uv[idx]) for idx, surf in enumerate(self._sub_surf)])
+        return np.stack([surf.point(self.uv[1]) for idx, surf in enumerate(self._sub_surf)], axis=0)
 
     # def pushforward(self, new_uv):
     #     new_shape = [len(u) for u in new_uv]

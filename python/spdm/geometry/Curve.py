@@ -29,7 +29,6 @@ class Curve(GeoObject):
     def is_closed(self):
         return all(np.isclose(self.xy[0], self.xy[-1]))
 
-
     @property
     def topology_rank(self):
         return 1
@@ -44,7 +43,7 @@ class Curve(GeoObject):
 
         a, b = self.derivative(*args, **kwargs)
 
-        x, y = self.xy(*args, **kwargs)
+        x, y = self.point(u).T
 
         a = a[:-1]
         b = b[:-1]

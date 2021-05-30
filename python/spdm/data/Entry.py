@@ -438,32 +438,43 @@ class Entry(object):
 
 class EntryWrapper(Entry):
 
-    def __init__(self, d: Entry, *args, **kwargs):
-        super().__init__(**kwargs)
-        self._target = d
+    def __init__(self,  *sources, **kwargs):
+        super().__init__(sources, **kwargs)
 
-    def get(self, rpath: Optional[_TPath] = None, *args, default_value=_undefined_, **kwargs):
-        res = self._target.find(rpath, default_value=_not_found_)
-        if res is _not_found_:
-            res = super().find(rpath, default_value=default_value)
+    def find(self, rpath: Optional[_TPath], *args, default_value=_undefined_, **kwargs):
+        path = self._prefix+normalize_path(rpath)
+        res = next(filter(lambda d: d is not _not_found_, map(
+            lambda d: ht_find(d, path, default_value=_not_found_), self._data)), default_value)
+        if res is _undefined_:
+            res = EntryWrapper(self._data, prefix=path)
         return res
 
-    def put(self, value,  path: Optional[_TPath] = None, **kwargs):
-        super().put(value, path, **kwargs)
+    def insert(self,  rpath: Optional[_TPath], value, *args, **kwargs):
+        return ht_insert(self._data[0], self._prefix+normalize_path(rpath), value, *args, **kwargs)
 
     def __len__(self) -> int:
-        try:
-            n = self._target.count()
-        except Exception:
-            n = super().count()
-        return n
+        return len(self.find())
 
-    def __contains__(self, key) -> bool:
-        return self._target.contains(key) or super().contains(key)
+    def __contains__(self, v) -> bool:
+        return next(filter(lambda d: ht_contains(d, v), self._data), False)
 
-    def __iter__(self):
-        yield from self._target.iter()
-        yield from super().iter()
+    def iter(self):
+        for d in self._data:
+            yield from d.iter()
+
+    def items(self):
+        for k in self.keys():
+            yield k, self.find(k)
+
+    def keys(self):
+        k = set()
+        for d in self._data:
+            k.add(d.keys())
+        yield from k
+
+    def values(self):
+        for k in self.keys():
+            yield self.find(k)
 
     #  def get(self, path=[], *args, default_value=_not_found_, **kwargs):
     #     path = self._prefix + normalize_path(path)

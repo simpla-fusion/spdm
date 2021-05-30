@@ -53,8 +53,8 @@ class Node(Generic[_TObject]):
             self._entry = cache._entry
         elif not isinstance(cache, Entry):
             self._entry = Entry(cache)
-        # elif not cache.writable:
-        #     self._entry = EntryWrapper(cache)
+        elif not cache.writable:
+            self._entry = EntryWrapper(Entry(), cache)
         else:
             self._entry = cache.resolve()
 
@@ -406,10 +406,10 @@ class _SpProperty(Generic[_TObject]):
         self.attrname = None
         self.__doc__ = func.__doc__
         self.lock = RLock()
-        self._return_type = func.__annotations__.get("return", None)
+        self.return_type = func.__annotations__.get("return", None)
 
     def _isinstance(self, obj) -> bool:
-        return (self._return_type is None or getattr(obj, "__orig_class__", obj.__class__) == self._return_type)
+        return (self.return_type is None or getattr(obj, "__orig_class__", obj.__class__) == self.return_type)
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
@@ -454,11 +454,11 @@ class _SpProperty(Generic[_TObject]):
                         if isinstance(val, Entry):
                             if cache.extend([self.attrname]) == val:
                                 val = None
-                        origin_type = getattr(self._return_type, '__origin__', self._return_type)
+                        origin_type = getattr(self.return_type, '__origin__', self.return_type)
                         if inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                            val = self._return_type(val, parent=instance)
-                        elif self._return_type is not None:
-                            val = self._return_type(val)
+                            val = self.return_type(val, parent=instance)
+                        elif self.return_type is not None:
+                            val = self.return_type(val)
                     if isinstance(cache, Entry) and cache.writable:
                         try:
                             cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
