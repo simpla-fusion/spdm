@@ -42,10 +42,10 @@ class Curve(GeoObject):
 
         u = (u[1:]+u[:-1])*0.5
 
-        a, b = self.derivative(*args, **kwargs)
+        a, b = self.derivative(u,*args, **kwargs)
 
-        a = a[:-1]
-        b = b[:-1]
+        # a = a[:-1]
+        # b = b[:-1]
         dx = x[1:]-x[:-1]
         dy = y[1:]-y[:-1]
 

@@ -99,9 +99,9 @@ class CurvilinearMesh(StructuredMesh):
             if all([np.var(x)/np.mean(x**2) < CurvilinearMesh.TOLERANCE for x in self.xy.T]):
                 gobj = Point(*[x[0] for x in self.xy.T])
             else:
-                gobj = CubicSplineCurve(self._uv[0], self.xy, is_closed=self.cycle[0])
+                gobj = CubicSplineCurve(self.xy, self._uv[0], is_closed=self.cycle[0])
         elif self.rank == 2:
-            gobj = BSplineSurface(self._uv, self.xy, is_closed=self.cycle)
+            gobj = BSplineSurface(self.xy, self._uv,  is_closed=self.cycle)
         else:
             raise NotImplementedError()
 

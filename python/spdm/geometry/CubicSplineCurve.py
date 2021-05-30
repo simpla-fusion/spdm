@@ -9,29 +9,46 @@ from .Curve import Curve
 
 
 class CubicSplineCurve(Curve):
-    def __init__(self, u: Union[int, np.ndarray], xy: np.ndarray, *args, **kwargs) -> None:
+    def __init__(self, xy: np.ndarray, u=None, /, *args, is_closed=True, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if isinstance(xy, collections.abc.MutableSequence):
-            self._xy = np.c_[tuple(xy)]
+            xy = np.c_[tuple(xy)]
         else:
-
-            self._xy = np.asarray(xy)
+            xy = np.asarray(xy)
 
         if u is None:
-            u = self._xy.shape[0]
+            u = xy.shape[0]
 
         if isinstance(u, int):
             u = np.linspace(0, 1.0, u)
         elif not isinstance(u, (collections.abc.Sequence, np.ndarray)):
             u = [u]
         u = np.asarray(u)
-        if u.shape[0] == self._xy.shape[0]:
-            s = u
-        else:
-            s = np.linspace(u[0], u[-1], self._xy.shape[0])
 
-        self._spl = interpolate.CubicSpline(s, self._xy, bc_type="periodic" if self.is_closed else "not-a-knot")
+        if all(np.isclose(xy[0], xy[-1])):
+            is_closed = True
+            xy = xy[:-1, :]
+            u = u[:-1]
+        p_min = np.argmin(u)
+        p_max = np.argmax(u)
+
+        if p_min == 0:
+            pass
+        elif p_min < p_max:
+            u[:p_min+1] += 1.0
+            u = np.flip(u)
+            xy = np.flip(xy, axis=0)
+        else:
+            # FIXME: need test
+            u[p_min+1:] += 1.0
+
+        if is_closed and not all(np.isclose(xy[0], xy[-1])):
+            u = np.hstack([u, [u[0]+1.0]])
+            xy = np.vstack([xy, xy[:1, :]])
+        
+        self._spl = interpolate.CubicSpline(u, xy, bc_type="periodic" if is_closed else "not-a-knot")
         self._uv = [u]
+        self._xy = xy
 
     @cached_property
     def ndims(self):
