@@ -466,12 +466,12 @@ class _SpProperty(Generic[_TObject]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.find(self.attrname, _not_found_, ignore_attribute=True)
+        val = cache.find(self.attrname, default_value=_not_found_, ignore_attribute=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.find(self.attrname, _not_found_, ignore_attribute=True)
+                val = cache.find(self.attrname, default_value=_not_found_, ignore_attribute=True)
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)

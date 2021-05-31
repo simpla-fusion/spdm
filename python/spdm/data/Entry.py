@@ -1,4 +1,4 @@
-
+import collections
 import collections.abc
 import functools
 import operator
@@ -97,13 +97,15 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
     return val
 
 
-def ht_find(target,  path: Optional[_TPath] = None, *args,  default_value=_undefined_, ignore_attribute=True) -> Any:
+def ht_find(target,  path: Optional[_TPath] = None, /,  default_value=_undefined_,   ignore_attribute=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
     """
     if isinstance(target, Entry):
         return target.find(path, default_value=default_value)
+    elif target is _not_found_:
+        return default_value
 
     path = normalize_path(path)
 
@@ -127,11 +129,39 @@ def ht_find(target,  path: Optional[_TPath] = None, *args,  default_value=_undef
                     val = target[key]
                 except Exception:
                     val = _not_found_
-        elif isinstance(key,  (int, slice)):
+        elif isinstance(key,  (int)):
             try:
                 val = target[key]
             except Exception:
                 val = _not_found_
+        elif isinstance(key, slice) and isinstance(target, np.ndarray):
+            val = target[key]
+        elif isinstance(key, slice):
+            if (isinstance(target, collections.abc.Sequence) and not isinstance(target, str)):
+                val = [ht_find(v, path[idx+1:], default_value=_not_found_,
+                               ignore_attribute=ignore_attribute) for v in val[key]]
+            elif isinstance(target, collections.abc.Mapping):
+                raise NotImplementedError(type(target))
+            else:
+                length = ht_count(target)
+                start = key.start if key.start is not None else 0
+                if key.stop is None:
+                    stop = length
+                elif key.stop < 0:
+                    stop = (key.stop+length) % length
+                else:
+                    stop = key.stop
+
+                step = key.step
+
+                val = [ht_find(target, [s]+path[idx:], default_value=_not_found_,
+                               ignore_attribute=ignore_attribute) for s in range(start, stop, step)]
+
+            break
+        elif isinstance(key, collections.abc.Mapping):
+            raise NotImplementedError()
+        else:
+            raise TypeError(type(key))
 
         if val is _not_found_:
             break
@@ -353,8 +383,8 @@ class Entry(object):
     # def put(self,  rpath:  Optional[_TPath], value) -> Any:
         return self.insert(rpath, value, assign_if_exists=True)
 
-    def find(self, rpath: Optional[_TPath] = None, *args, default_value=_undefined_, **kwargs) -> Any:
-        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args,  default_value=default_value, **kwargs)
+    def find(self, rpath: Optional[_TPath] = None, *args, default_value=_undefined_,  **kwargs) -> Any:
+        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args,   default_value=default_value, **kwargs)
 
     def _before_insert(self, path):
         if isinstance(path[0], str):
@@ -546,17 +576,22 @@ class EntryCombiner(Entry):
     def writable(self) -> bool:
         return False
 
-    def find(self, rpath: Optional[_TPath] = None, *args, default_value=None, **kwargs) -> Any:
-        path = self._prefix + normalize_path(rpath)
+    def find(self, rpath: Optional[_TPath] = None, *args, default_value=None,   **kwargs) -> Any:
 
-        cache = [ht_find(d, path, *args, default_value=_not_found_, **kwargs) for d in self._data]
-        cache = [d for d in cache if d is not _not_found_]
-        if len(cache) == 0:
+        cache = ht_find(self._data, [slice(None, None, None)] + self._prefix +
+                        normalize_path(rpath), *args, default_value=_not_found_, **kwargs)
+
+        if cache is _not_found_:
             return default_value
-        elif all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
+        elif isinstance(cache, collections.abc.Sequence):
+            cache = [d for d in cache if d is not _not_found_]
+            if len(cache) == 0:
+                return default_value
+
+        if all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
             return EntryCombiner(cache, reducer=self._reducer)
         else:
-            return functools.reduce(self._reducer, [d for d in cache if not isinstance(d, Entry)])
+            return functools.reduce(self._reducer, cache)
 
     def insert(self, *args, **kwargs):
         raise NotImplementedError()
