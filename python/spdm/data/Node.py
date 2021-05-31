@@ -11,11 +11,10 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
-from spdm.util.utilities import normalize_path
-
 from ..numlib import np, scipy
 from ..util.logger import logger
-from ..util.utilities import _undefined_, _not_found_, serialize
+from ..util.utilities import (_not_found_, _undefined_, normalize_path,
+                              serialize)
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryWrapper, _next_,
                     _TIndex, _TKey, _TObject, _TPath)
 
@@ -294,6 +293,20 @@ class List(Node[_TObject], Sequence[_TObject]):
             self._entry.sort()
         else:
             raise NotImplementedError()
+
+    def combine(self, path: _TPath, op=None, initial_value=None) -> Any:
+        if op is None:
+            op = np.add
+        res = initial_value
+        for idx in range(len(self)):
+            d = self._entry.find([idx]+normalize_path(path), _not_found_)
+            if d is _not_found_:
+                continue
+            elif res is None:
+                res = d
+            else:
+                res = self._op(res, d)
+        return res
 
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):

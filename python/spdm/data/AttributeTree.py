@@ -6,10 +6,10 @@ from functools import cached_property
 from logging import log
 from typing import Any, MutableSequence, Optional, Sequence
 
-
+from ..numlib import np
 from ..util.logger import logger
 from .Entry import Entry, _not_found_
-from .Node import Dict, List, Node, _next_, _TObject, sp_property, _SpProperty
+from .Node import Dict, List, Node, _next_, _SpProperty, _TObject, sp_property
 
 
 def do_getattr(obj, k):
@@ -110,7 +110,6 @@ class AttributeTree(Dict[Node]):
 
     def __getattr__(self, attr_name) -> Any:
         if attr_name[0] == '_':
-            bcls = self.__class__.__bases__[0]
             res = object.__getattr__(self, attr_name)
         else:
             res = self.__getitem__(attr_name)
@@ -124,3 +123,19 @@ class AttributeTree(Dict[Node]):
 
     def __delattr__(self, attr_name: str) -> None:
         return self.__delitem__(attr_name)
+
+
+class AttributeCombine(List[_TObject]):
+    def __init__(self,  *args, op=None,  initial_value=None, **kwargs) -> None:
+        super().__init__(*args,  **kwargs)
+        self._op = op
+        self._initial_value = initial_value
+
+    def __getattr__(self, attr_name) -> Any:
+        return self.combine(attr_name, op=self._op, initial_value=self._initial_value)
+
+    def __setattr__(self, attr_name: str, value: Any) -> None:
+        raise NotImplementedError()
+
+    def __delattr__(self, attr_name: str) -> None:
+        raise NotImplementedError()
