@@ -125,8 +125,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             elif len(y.shape) == 0:
                 y = np.full(x_axis.shape, y)
             elif x_axis.shape != y.shape:
-                logger.error(
-                    f"length of x,y  must be same! [{label}[{type(profile)}] {x_axis.shape}!={y.shape}]")
+                logger.error(f"length of x,y  must be same! [{label}[{type(profile)}] {x_axis.shape}!={y.shape}]")
 
             if index_slice is not None:
                 x = x_axis[index_slice]

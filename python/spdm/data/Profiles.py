@@ -29,8 +29,9 @@ class Profiles(Dict[Node]):
             value = super().__new_child__(value, *args, parent=parent or self._parent, **kwargs)
 
         if isinstance(value, Function):
-            if value.x is not self._axis:
-                value = Function(self._axis, np.asarray(value(self._axis)))
+            # if value.x is not self._axis:
+            #     value = Function(self._axis, np.asarray(value(self._axis)))
+            pass
         elif isinstance(value, np.ndarray) and value.shape == self._axis.shape:
             value = Function(self._axis, value)
         elif value is None or (isinstance(value, Node) and value.empty):
