@@ -4,6 +4,8 @@ from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
+from numpy.ma.core import default_fill_value
+
 from ..numlib import np
 from ..util.logger import logger
 from ..util.utilities import (_undefined_, _not_found_, normalize_path,
@@ -79,7 +81,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
 
             if val is _not_found_:
                 try:
-                    val = target.find(key, _not_found_)
+                    val = target.find(key, default_value=_not_found_)
                 except Exception:
                     val = _not_found_
 
@@ -93,7 +95,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
     return val
 
 
-def ht_find(target,  path: Optional[_TPath] = None, default_value=_undefined_, ignore_attribute=True) -> Any:
+def ht_find(target,  path: Optional[_TPath] = None, *args,  default_value=_undefined_, ignore_attribute=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -326,25 +328,7 @@ class Entry(object):
 
     @property
     def empty(self):
-        return (self._data is None and len(self._prefix) == 0) or self.find(default_value=_not_found_) is _not_found_
-
-    def fetch(self):
-        return self.find(default_value=_not_found_)
-
-    # def resolve(self):
-    #     if self.__class__ is not Entry or self._prefix is None:
-    #         return self
-
-    #     data = self.find(None, default_value=_not_found_)
-
-    #     if isinstance(data, Entry):
-    #         return data
-    #     elif data is _not_found_:
-    #         return self
-    #     elif hasattr(data, "_entry"):
-    #         return data
-    #     else:
-    #         return Entry(data, prefix=[])
+        return (self._data is None and len(self._prefix) == 0) or self.find(default_value=None) is None
 
     def append(self, path):
         self._prefix += normalize_path(path)
@@ -367,29 +351,45 @@ class Entry(object):
     # def put(self,  rpath:  Optional[_TPath], value) -> Any:
         return self.insert(rpath, value, assign_if_exists=True)
 
-    def find(self, rpath: Optional[_TPath] = None, *args, **kwargs) -> Any:
-        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
+    def find(self, rpath: Optional[_TPath] = None, *args, default_value=_undefined_, **kwargs) -> Any:
+        return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args,  default_value=default_value, **kwargs)
 
-    def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
-        if hasattr(v, '_entry') and self.extend(rpath) == v._entry:
-            v._entry = Entry(v._entry.fetch())
-
-        path = self._prefix + normalize_path(rpath)
-
-        if not(self._data is _not_found_ or self._data is None):
-            pass
-        elif len(path) == 0:
-            self._data = v
-            return v
-        elif isinstance(rpath[0], str):
+    def _before_insert(self, path):
+        if isinstance(path[0], str):
             self._data = _DICT_TYPE_()
         else:
             self._data = _LIST_TYPE_()
 
-        return ht_insert(self._data,  path, v, *args, **kwargs)
+    def insert(self, rpath: Optional[_TPath], value,  *args, **kwargs):
+        if hasattr(value, '_entry') and self.extend(rpath) == value._entry:
+            # break cycle reference
+            value._entry = Entry(value._entry.find(default_value=None))
+
+        path = self._prefix + normalize_path(rpath)
+
+        if len(path) == 0:
+            self._data = value
+            return value
+        else:
+            if self._data is None or self._data is _not_found_:
+                if isinstance(path[0], str):
+                    self._data = _DICT_TYPE_()
+                else:
+                    self._data = _LIST_TYPE_()
+
+            return ht_insert(self._data,  path, value, *args, **kwargs)
 
     def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
-        ht_update(self._data, self._prefix + normalize_path(rpath), value, *args, **kwargs)
+        path = self._prefix + normalize_path(rpath)
+        if len(path) == 0:
+            self._data = value
+        else:
+            if self._data is None or self._data is _not_found_:
+                if isinstance(path[0], str):
+                    self._data = _DICT_TYPE_()
+                else:
+                    self._data = _LIST_TYPE_()
+            ht_update(self._data, path, value, *args, **kwargs)
         return self
 
     def erase(self, rpath: Optional[_TPath] = None, *args, **kwargs):

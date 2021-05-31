@@ -242,18 +242,20 @@ class Node(Generic[_TObject]):
 
 
 class List(Node[_TObject], Sequence[_TObject]):
-    __slots__ = ()
+    __slots__ = ("_v_args")
 
-    def __init__(self, cache: Optional[Sequence] = None, *args,  **kwargs) -> None:
+    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None,  **kwargs) -> None:
         if cache is None or cache is _not_found_:
             cache = _LIST_TYPE_()
-        Node.__init__(self, cache, *args, **kwargs)
+        Node.__init__(self, cache, *args, parent=parent, **kwargs)
+        self._v_args = (args, kwargs)
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
-        return super().__new_child__(value, *args, parent=self._parent, **kwargs)
+    def __new_child__(self, value: _TObject, /, parent=None,  **kwargs) -> _TObject:
+        _args, _kwargs = self._v_args
+        return super().__new_child__(value,  *_args, parent=self._parent, **collections.ChainMap(kwargs, _kwargs))
 
     @property
     def __category__(self):
@@ -472,15 +474,15 @@ class _SpProperty(Generic[_TObject]):
                             if inspect.isclass(origin_type) and issubclass(origin_type, Node):
                                 val = self.return_type(val, parent=instance)
                             elif callable(self.return_type) is not None:
-                                val = self.return_type(val)
+                                try:
+                                    tmp = self.return_type(val)
+                                except Exception as error:
+                                    logger.error(f"{self.return_type}  : {error}")
+                                else:
+                                    val = tmp
 
                     if isinstance(cache, Entry) and cache.writable:
-                        # try:
                         cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
-                        # except Exception:
-                        #     logger.error(
-                        #         f"Can not insert value to {isinstance.__class__.__name__} as '{self.attrname}'  !")
-                        #     raise AttributeError(self.attrname)
 
         return val
 
