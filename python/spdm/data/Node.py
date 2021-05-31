@@ -15,8 +15,8 @@ from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.utilities import (_not_found_, _undefined_, normalize_path,
                               serialize)
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryWrapper, _next_,
-                    _TIndex, _TKey, _TObject, _TPath)
+from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
+                    EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath)
 
 
 class Node(Generic[_TObject]):
@@ -53,6 +53,8 @@ class Node(Generic[_TObject]):
             self._entry = cache._entry
         elif not isinstance(cache, Entry):
             self._entry = Entry(cache)
+        elif isinstance(cache, EntryCombiner):
+            self._entry = cache
         elif not cache.writable:
             self._entry = EntryWrapper(Entry(), cache)
         else:
@@ -195,7 +197,7 @@ class Node(Generic[_TObject]):
 
     def __post_process__(self, value: Any, key=None, /, *args, **kwargs) -> _TObject:
         obj = self.__new_child__(value, *args, **kwargs)
-        if key is not None and obj is not value:
+        if key is not None and obj is not value and self._entry.writable:
             self.__setitem__(key, obj)
         return obj
 
@@ -258,7 +260,7 @@ class List(Node[_TObject], Sequence[_TObject]):
 
     def __new_child__(self, value: _TObject, /, parent=None,  **kwargs) -> _TObject:
         _args, _kwargs = self._v_args
-        return super().__new_child__(value,  *_args, parent=self._parent, **collections.ChainMap(kwargs, _kwargs))
+        return super().__new_child__(value,  *_args, parent=parent or self._parent, **collections.ChainMap(kwargs, _kwargs))
 
     @property
     def __category__(self):
@@ -294,19 +296,9 @@ class List(Node[_TObject], Sequence[_TObject]):
         else:
             raise NotImplementedError()
 
-    def combine(self, path: _TPath, op=None, initial_value=None) -> Any:
-        if op is None:
-            op = np.add
-        res = initial_value
-        for idx in range(len(self)):
-            d = self._entry.find([idx]+normalize_path(path), _not_found_)
-            if d is _not_found_:
-                continue
-            elif res is None:
-                res = d
-            else:
-                res = self._op(res, d)
-        return res
+    @property
+    def combine(self) -> _TObject:
+        return self.__new_child__(EntryCombiner(self._entry))
 
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):

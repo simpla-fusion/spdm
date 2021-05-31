@@ -1,5 +1,7 @@
 
 import collections.abc
+import functools
+import operator
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
@@ -8,7 +10,7 @@ from numpy.ma.core import default_fill_value
 
 from ..numlib import np
 from ..util.logger import logger
-from ..util.utilities import (_undefined_, _not_found_, normalize_path,
+from ..util.utilities import (_not_found_, _undefined_, normalize_path,
                               serialize)
 
 _next_ = object()
@@ -328,7 +330,7 @@ class Entry(object):
 
     @property
     def empty(self):
-        return (self._data is None and len(self._prefix) == 0) or self.find(default_value=None) is None
+        return (self._data is None and len(self._prefix) == 0) or self.find(None, default_value=None) is None
 
     def append(self, path):
         self._prefix += normalize_path(path)
@@ -525,3 +527,42 @@ class EntryWrapper(Entry):
     #         obj[path[-1]] = value
 
     #     return obj[path[-1]]
+
+
+class EntryCombiner(Entry):
+    def __init__(self, data: Union[Entry, Sequence], *args, prefix=None, reducer=None, **kwargs):
+        prefix = normalize_path(prefix)
+        if isinstance(data, Entry):
+            prefix = data._prefix+prefix
+            data = data._data
+        if not isinstance(data, collections.abc.Sequence):
+            raise TypeError(type(data))
+
+        super().__init__(data, *args, prefix=prefix, **kwargs)
+
+        self._reducer = reducer if reducer is not None else operator.__add__
+
+    @property
+    def writable(self) -> bool:
+        return False
+
+    def find(self, rpath: Optional[_TPath] = None, *args, default_value=None, **kwargs) -> Any:
+        path = self._prefix + normalize_path(rpath)
+
+        cache = [ht_find(d, path, *args, default_value=_not_found_, **kwargs) for d in self._data]
+        cache = [d for d in cache if d is not _not_found_]
+        if len(cache) == 0:
+            return default_value
+        elif all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
+            return EntryCombiner(cache, reducer=self._reducer)
+        else:
+            return functools.reduce(self._reducer, [d for d in cache if not isinstance(d, Entry)])
+
+    def insert(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def update(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def erase(self, *args, **kwargs):
+        raise NotImplementedError()

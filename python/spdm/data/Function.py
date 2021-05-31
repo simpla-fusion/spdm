@@ -28,6 +28,7 @@ class Function:
                  x: np.ndarray,
                  y: Union[np.ndarray, float, Callable],
                  is_periodic=False,
+                 smooth=False,
                  func=None):
         self._is_periodic = is_periodic
         self._x = np.asarray(x)
@@ -35,7 +36,7 @@ class Function:
         if isinstance(y, Node):
             y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
-            y = y.find()
+            y = y.find(default_value=0.0)
 
         if isinstance(y, Function):
             self._y = None
@@ -140,15 +141,27 @@ class Function:
 
     def derivative(self, x=None):
         if x is None:
-            return Function(self._x, self._ppoly.derivative())
+            return Function(self._x, self._ppoly.derivative()(self._x))
         else:
             return self._ppoly.derivative()(x)
 
     def antiderivative(self, x=None):
         if x is None:
-            return Function(self._x, self._ppoly.antiderivative())
+            return Function(self._x, self._ppoly.antiderivative()(self._x))
         else:
             return self._ppoly.antiderivative()(x)
+
+    def dln(self, x=None):
+        if x is None:
+            v = self._ppoly(self._x)
+            x = (self._x[:-1]+self._x[1:])*0.5
+            return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self._x[1:]-self._x[:-1])*2.0)
+            # return Function(self._x, self._ppoly.derivative()(self._x)/self._ppoly(self._x))
+        else:
+            return self.dln()(x)
+            # v = self._ppoly(x)
+            # return Function((x[:-1]+x[1:])*0.5, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (x[1:] - x[:-1])*2.0)
+            # return self._ppoly.derivative()(x)/self._ppoly(x)
 
     def invert(self, x=None):
         if x is None:
@@ -200,6 +213,8 @@ class Function:
 
 _uni_ops = {
     '__neg__': np.negative,
+
+
 }
 for name, op in _uni_ops.items():
     setattr(Function,  name, lambda s, _op=op: _op(s))
