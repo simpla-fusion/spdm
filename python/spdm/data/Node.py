@@ -56,7 +56,7 @@ class Node(Generic[_TObject]):
         elif not cache.writable:
             self._entry = EntryWrapper(Entry(), cache)
         else:
-            self._entry = cache.resolve()
+            self._entry = cache
 
     def __repr__(self) -> str:
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} />"
@@ -466,15 +466,14 @@ class _SpProperty(Generic[_TObject]):
                         if not self._isinstance(val):
                             if isinstance(val, Node):
                                 val = val._entry
-                            if isinstance(val, Entry):
-                                if cache.extend([self.attrname]) == val:
-                                    val = None
 
                             origin_type = getattr(self.return_type, '__origin__', self.return_type)
+
                             if inspect.isclass(origin_type) and issubclass(origin_type, Node):
                                 val = self.return_type(val, parent=instance)
-                            elif self.return_type is not None:
+                            elif callable(self.return_type) is not None:
                                 val = self.return_type(val)
+
                     if isinstance(cache, Entry) and cache.writable:
                         # try:
                         cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)

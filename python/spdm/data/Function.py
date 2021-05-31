@@ -210,7 +210,14 @@ _bi_ops = {
     # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
     "__truediv__": np.divide,
     # Return x to the power p, (x**p).
-    "__pow__": np.power
+    "__pow__": np.power,
+    "__eq__": np.equal,
+    "__ne__": np.not_equal,
+    "__lt__": np.less,
+    "__le__": np.less_equal,
+    "__gt__": np.greater_equal,
+    "__ge__": np.greater_equal,
+
 }
 
 

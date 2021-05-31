@@ -331,20 +331,20 @@ class Entry(object):
     def fetch(self):
         return self.find(default_value=_not_found_)
 
-    def resolve(self):
-        if self.__class__ is not Entry or self._prefix is None:
-            return self
+    # def resolve(self):
+    #     if self.__class__ is not Entry or self._prefix is None:
+    #         return self
 
-        data = self.find(None, default_value=_not_found_)
+    #     data = self.find(None, default_value=_not_found_)
 
-        if isinstance(data, Entry):
-            return data
-        elif data is _not_found_:
-            return self
-        elif hasattr(data, "_entry"):
-            return data
-        else:
-            return Entry(data, prefix=[])
+    #     if isinstance(data, Entry):
+    #         return data
+    #     elif data is _not_found_:
+    #         return self
+    #     elif hasattr(data, "_entry"):
+    #         return data
+    #     else:
+    #         return Entry(data, prefix=[])
 
     def append(self, path):
         self._prefix += normalize_path(path)
@@ -371,7 +371,11 @@ class Entry(object):
         return ht_find(self._data,  self._prefix + normalize_path(rpath),  *args, **kwargs)
 
     def insert(self, rpath: Optional[_TPath], v,  *args, **kwargs):
+        if hasattr(v, '_entry') and self.extend(rpath) == v._entry:
+            v._entry = Entry(v._entry.fetch())
+
         path = self._prefix + normalize_path(rpath)
+
         if not(self._data is _not_found_ or self._data is None):
             pass
         elif len(path) == 0:

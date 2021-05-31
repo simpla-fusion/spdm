@@ -4,7 +4,7 @@ $id: /actors/physics/genray/{version}{tag}
 annotation:
   name: genray
   label: GenRray
-  version: "{version}"
+  version: "{version}_mt"
   tag: "{tag}"
   contributors:
     - Salmon
