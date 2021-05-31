@@ -194,8 +194,11 @@ class Node(Generic[_TObject]):
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, value: Any,  *args, **kwargs) -> _TObject:
-        return self.__new_child__(value, *args, **kwargs)
+    def __post_process__(self, value: Any, key=None, /, *args, **kwargs) -> _TObject:
+        obj = self.__new_child__(value, *args, **kwargs)
+        if key is not None and obj is not value:
+            self.__setitem__(key, obj)
+        return obj
 
     def __setitem__(self, path: _TPath, value: Any) -> None:
         if self._entry is None:
@@ -269,11 +272,7 @@ class List(Node[_TObject], Sequence[_TObject]):
         self._entry.insert(path, self.__pre_process__(v), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> _TObject:
-        val = self._entry.find(path)
-        res = self.__post_process__(val)
-        if res is not val:
-            self._entry.insert(path, res, assign_if_exists=True)
-        return res
+        return self.__post_process__(self._entry.find(path), path)
 
     def __delitem__(self, path: _TPath) -> None:
         super().__delitem__(path)
@@ -325,7 +324,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         return super().__category__ | Node.Category.LIST
 
     def __getitem__(self, path: _TKey) -> _TObject:
-        return self.__post_process__(self._entry.find(path))
+        return self.__post_process__(self._entry.find(path), path)
 
     def __setitem__(self, path: _TKey, value: _TObject) -> None:
         self._entry.insert(path,  self.__pre_process__(value), assign_if_exists=True)
@@ -352,18 +351,18 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         self._entry.update(None,  *args, **kwargs)
 
     def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
-        return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs))
+        return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs), key)
 
     def items(self) -> Iterator[Tuple[str, _TObject]]:
         for k, v in self._entry.items():
-            yield k, self.__post_process__(v)
+            yield k, self.__post_process__(v, k)
 
     def keys(self) -> Iterator[str]:
         yield from self._entry.keys()
 
     def values(self) -> Iterator[_TObject]:
-        for v in self._entry.values():
-            yield self.__post_process__(v)
+        for k, v in self._entry.items():
+            yield self.__post_process__(v, k)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
