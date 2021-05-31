@@ -300,6 +300,11 @@ class List(Node[_TObject], Sequence[_TObject]):
     def combine(self) -> _TObject:
         return self.__new_child__(EntryCombiner(self._entry))
 
+    def update(self, data=None, /,  **kwargs):
+        if data is not None:
+            super().update(data)
+        return sum([d.update(**kwargs) for d in self if hasattr(d.__class__, 'update')])
+
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):
     __slots__ = ()
