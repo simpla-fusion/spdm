@@ -11,20 +11,21 @@ class Profiles(Dict[Node]):
     __slots__ = ("_axis",)
 
     def __init__(self,   *args, axis=None, ** kwargs):
+
+        super().__init__(*args, **kwargs)
         if isinstance(axis, int):
             axis = np.linspace(0, 1.0, axis)
         elif isinstance(axis, np.ndarray):
             axis = axis.view(np.ndarray)
         else:
-            raise TypeError(type(axis))
+            axis = getattr(self._parent, "_axis", None)
         self._axis = axis
-        super().__init__(*args, **kwargs)
 
     def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> Function:
         if isinstance(value, Entry):
             value = value.find(default_value=None)
 
-        if value is not None and not isinstance(value, Node):
+        if value is not None and not isinstance(value, (Node, np.ndarray, Function)):
             value = super().__new_child__(value, *args, parent=parent or self._parent, **kwargs)
 
         if isinstance(value, Function):

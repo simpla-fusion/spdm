@@ -104,7 +104,8 @@ class Function:
         return res.view(np.ndarray)
 
     def __repr__(self) -> str:
-        return self.__array__().__repr__()
+        return f"<{self.__class__.__name__} />"
+        # self.__array__().__repr__()
 
     def __getitem__(self, idx):
         d = self.__array__()
@@ -137,17 +138,23 @@ class Function:
     def __len__(self):
         return len(self._x)
 
-    @cached_property
-    def derivative(self):
-        return Function(self._x, self._ppoly.derivative())
+    def derivative(self, x=None):
+        if x is None:
+            return Function(self._x, self._ppoly.derivative())
+        else:
+            return self._ppoly.derivative()(x)
 
-    @cached_property
-    def antiderivative(self):
-        return Function(self._x, self._ppoly.antiderivative())
+    def antiderivative(self, x=None):
+        if x is None:
+            return Function(self._x, self._ppoly.antiderivative())
+        else:
+            return self._ppoly.antiderivative()(x)
 
-    @cached_property
-    def invert(self):
-        return Function(self.__array__(), self._x, is_periodic=self.is_periodic)
+    def invert(self, x=None):
+        if x is None:
+            return Function(self.__array__(), self._x, is_periodic=self.is_periodic)
+        else:
+            return Function(self.__call__(x), x)
 
     def pullback(self, *args, **kwargs):
         if len(args) == 0:
@@ -208,7 +215,7 @@ _bi_ops = {
     # (x1, x2, / [, out, casting, order, …])   Matrix product of two arrays.
     "__matmul__": np.matmul,
     # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
-    "__truediv__": np.divide,
+    "__truediv__": np.true_divide,
     # Return x to the power p, (x**p).
     "__pow__": np.power,
     "__eq__": np.equal,
@@ -270,6 +277,15 @@ class Expression(Function):
         is_periodic = not any([not d.is_periodic for d in self._inputs if isinstance(d, Function)])
         super().__init__(x, y, is_periodic=is_periodic)
 
+    def __repr__(self) -> str:
+        def repr(expr):
+            if isinstance(expr, Function):
+                return expr.__repr__()
+            elif isinstance(expr, np.ndarray):
+                return f"<{expr.__class__.__name__} />"
+
+        return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._inputs]} </ {self.__class__.__name__}>"""
+
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
         if x is None:
             x = self._x
@@ -288,7 +304,7 @@ class Expression(Function):
         try:
             res = self._ufunc(*[wrap(x, d) for d in self._inputs])
         except Exception as error:
-            logger.error(f"Expression error: {self._ufunc.__name__}{ [type(a).__name__ for a in self._inputs] }  ")
+            logger.error(f"Expression error: {self._ufunc.__name__}   ")
             raise ValueError(error)
 
         return res

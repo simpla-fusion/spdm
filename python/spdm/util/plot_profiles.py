@@ -120,7 +120,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             elif callable(profile):
                 y = profile(x_axis)
 
-            if y is None:
+            if not isinstance(y, np.ndarray):
                 logger.error(f"Illegal profile '{label}' [{type(profile)}]!")
             elif len(y.shape) == 0:
                 y = np.full(x_axis.shape, y)

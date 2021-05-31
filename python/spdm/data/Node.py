@@ -1,6 +1,7 @@
 import bisect
 import collections
 import collections.abc
+import enum
 import inspect
 import pprint
 from _thread import RLock
@@ -268,14 +269,18 @@ class List(Node[_TObject], Sequence[_TObject]):
         self._entry.insert(path, self.__pre_process__(v), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> _TObject:
-        return self.__post_process__(self._entry.find(path))
+        val = self._entry.find(path)
+        res = self.__post_process__(val)
+        if res is not val:
+            self._entry.insert(path, res, assign_if_exists=True)
+        return res
 
     def __delitem__(self, path: _TPath) -> None:
         super().__delitem__(path)
 
     def __iter__(self) -> Iterator[_TObject]:
-        for val in self._entry.iter():
-            yield self.__post_process__(val)
+        for idx in range(len(self)):
+            yield self.__getitem__(idx)
 
     def __iadd__(self, other):
         self._entry.insert(_next_, self.__pre_process__(other))
@@ -477,7 +482,7 @@ class _SpProperty(Generic[_TObject]):
                                 try:
                                     tmp = self.return_type(val)
                                 except Exception as error:
-                                    logger.error(f"{self.return_type}  : {error}")
+                                    logger.error(f"{self.attrname} {self.return_type}  : {error}")
                                 else:
                                     val = tmp
 
