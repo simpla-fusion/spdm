@@ -64,29 +64,37 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  *
             target.append(child)
             val = target[-1]
         elif isinstance(key,  int):
-            if not isinstance(target, collections.abc.MutableSequence):
+            if not isinstance(target, (collections.abc.MutableSequence, np.ndarray)):
                 raise TypeError(type(target))
+            elif key >= len(target):
+                raise IndexError(f"Out of range! {key}>={len(target)}")
             elif if_exists:
                 target[key] = child
             val = target[key]
         elif isinstance(key,  slice):
-            for idx in range(key.start, key.stop, key.step):
-                ht_insert(target, [idx]+query[idx+1:], value, if_exists=if_exists, **kwargs)
-            val = ht_find(target, key)
-            break
+            if not isinstance(target, (np.ndarray)):
+                for idx in range(key.start, key.stop, key.step):
+                    ht_insert(target, [idx]+query[idx+1:], value, if_exists=if_exists, **kwargs)
+                val = ht_find(target, key)
+                break
+            elif if_exists:
+                target[key] = child
+            val = target[key]
         elif isinstance(key, str):
-
-            if if_exists:
+            if not if_exists:
+                val = target.setdefault(key, child)
+            else:
                 target[key] = child
                 val = target[key]
-            else:
-                val = target.setdefault(key, child)
 
             if val is _not_found_:
                 try:
                     val = target.find(key, default_value=_not_found_)
                 except Exception:
                     val = _not_found_
+        elif isinstance(key, collections.abc.Mapping):
+            val = ht_find(target, key, default_value=_not_found_)
+            
 
         if val is _not_found_:
             break
@@ -96,6 +104,27 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  *
     if val is _not_found_:
         raise KeyError(query[idx:])
     return val
+
+
+def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
+    if query is not None and len(query) > 0:
+        val = ht_insert(target, query, _not_found_,   **kwargs)
+    else:
+        val = target
+
+    if isinstance(val, Entry):
+        val.update(None, value,   **kwargs)
+    elif isinstance(val, dict):
+        for k, v in value.items():
+            u = val.setdefault(k, v)
+            if u is not v:
+                ht_update(u, None, v,  **kwargs)
+
+    elif hasattr(val, '_entry'):
+        logger.debug(val.__class__)
+        val.update(value, **kwargs)
+    else:
+        ht_insert(target, query, value, if_exists=True, **kwargs)
 
 
 def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True) -> Any:
@@ -203,27 +232,6 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
 
 def ht_check(target, condition: Mapping) -> bool:
     return all([ht_find(target, k, default_value=_not_found_) == v for k, v in condition.items() if k[0] != '_'])
-
-
-def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
-    if query is not None and len(query) > 0:
-        val = ht_insert(target, query, _not_found_,   **kwargs)
-    else:
-        val = target
-
-    if isinstance(val, Entry):
-        val.update(None, value,   **kwargs)
-    elif isinstance(val, dict):
-        for k, v in value.items():
-            u = val.setdefault(k, v)
-            if u is not v:
-                ht_update(u, None, v,  **kwargs)
-
-    elif hasattr(val, '_entry'):
-        logger.debug(val.__class__)
-        val.update(value, **kwargs)
-    else:
-        ht_insert(target, query, value, if_exists=True, **kwargs)
 
 
 def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):

@@ -239,10 +239,10 @@ class Node(Generic[_TObject]):
     def __eq__(self, other) -> bool:
         return self._entry.compare(other)
 
-    def __fetch__(self):
-        if hasattr(self._entry.__class__, "fecth"):
-            self._entry = self._entry.fetch()
-        return self._entry
+    # def __fetch__(self):
+    #     if hasattr(self._entry.__class__, "fecth"):
+    #         self._entry = self._entry.fetch()
+    #     return self._entry
 
     def __bool__(self) -> bool:
         return not self.empty and (not self.__fetch__())
@@ -250,16 +250,18 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, *query,  only_first=False, raw=False,  **kwargs) -> _TObject:
-        obj = self._entry.find(list(query), only_first=only_first,  **kwargs)
+    def find(self, *query,  raw=False,  **kwargs) -> _TObject:
+        obj = self._entry.find(list(query),  **kwargs)
         if raw is True:
             return obj
         else:
             return self.__post_process__(obj, query)
 
     def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
-        obj = self._entry.insert(query, value, **kwargs)
-        return self.__post_process__(obj, query)
+        return self.__post_process__(self._entry.insert(query, value, **kwargs), query)
+
+    def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
+        return self.__post_process__(self._entry.insert(query, value, if_exists=True, **kwargs), query)
 
     def get(self, query: _TQuery = None, /,   default_value=_not_found_):
         return self.find(query, only_first=True, default_value=default_value)
@@ -318,10 +320,10 @@ class List(Node[_TObject], Sequence[_TObject]):
     def combine(self) -> _TObject:
         return self.__new_child__(EntryCombiner(self._entry))
 
-    def update(self, data=None, /,  **kwargs):
+    def update(self, data=None, *args,  **kwargs):
         if data is not None:
             super().update(data)
-        return sum([d.update(**kwargs) for d in self if hasattr(d.__class__, 'update')])
+        return sum([d.update(*args, **kwargs) for d in self if hasattr(d.__class__, 'update')])
 
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):
