@@ -131,7 +131,12 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d0[{"name": "li si", "_only_first": True}]["age"], 22)
 
         d1 = Dict({"person": cache})
-        self.assertEqual(d1["person"][{"name": "li si"}]["age"], 22)
+
+        young = d1["person"][{"age": 22, "_only_first": False}]
+
+        self.assertEqual(len(young), 2)
+        self.assertEqual(young[0]["name"],  "wang liu")
+        self.assertEqual(young[1]["name"],  "li si")
 
     # def test_node_find_by_slice(self):
     #     pass
