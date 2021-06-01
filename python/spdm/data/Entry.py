@@ -606,7 +606,14 @@ class EntryCombiner(Entry):
         if all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
             return EntryCombiner(cache, reducer=self._reducer)
         else:
-            return functools.reduce(self._reducer, cache)
+            try:
+                data = [d for d in cache
+                        if not (isinstance(d, Entry) or hasattr(d, '_entry'))]
+
+                res = functools.reduce(self._reducer, data)
+            except Exception as error:
+                raise error
+            return res
 
     def insert(self, *args, **kwargs):
         raise NotImplementedError()

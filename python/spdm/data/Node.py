@@ -244,8 +244,8 @@ class Node(Generic[_TObject]):
     def __bool__(self) -> bool:
         return not self.empty and (not self.__fetch__())
 
-    def __array__(self) -> np.ndarray:
-        return np.asarray(self.__fetch__())
+    # def __array__(self) -> np.ndarray:
+    #     return np.asarray(self.__fetch__())
 
     def find(self, path: _TPath = None, /, only_first=False, **kwargs):
         path = normalize_path(path)+[kwargs]
