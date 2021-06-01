@@ -250,9 +250,8 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, *args, only_first=False, raw=False,  **kwargs):
-        query = list(args) + [kwargs]
-        obj = self._entry.find(query, only_first=only_first,  **kwargs)
+    def find(self, *query,  only_first=False, raw=False,  **kwargs) -> _TObject:
+        obj = self._entry.find(list(query), only_first=only_first,  **kwargs)
         if raw is True:
             return obj
         else:
@@ -485,12 +484,12 @@ class _SpProperty(Generic[_TObject]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.find(self.attrname, default_value=_not_found_, ignore_attribute=True)
+        val = cache.find(self.attrname, default_value=_not_found_)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.find(self.attrname, default_value=_not_found_, ignore_attribute=True)
+                val = cache.find(self.attrname, default_value=_not_found_)
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     val = self.func(instance)
@@ -515,14 +514,14 @@ class _SpProperty(Generic[_TObject]):
                                     val = tmp
 
                     if isinstance(cache, Entry) and cache.writable:
-                        cache.insert(self.attrname, val,  if_exists=True, ignore_attribute=True)
+                        cache.insert(self.attrname, val,  if_exists=True)
 
         return val
 
     def __set__(self, instance: Any, value: Any):
         with self.lock:
             cache = getattr(instance, "_entry", Entry(instance.__dict__))
-            cache.insert(self.attrname, value, if_exists=True, ignore_attribute=True)
+            cache.insert(self.attrname, value, if_exists=True)
 
     # def __del__(self, instance: Any):
     #     with self.lock:

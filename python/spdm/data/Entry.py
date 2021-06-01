@@ -34,7 +34,7 @@ def normalize_query(query):
     return query
 
 
-def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False, ignore_attribute=True, **kwargs) -> _TObject:
+def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  **kwargs) -> _TObject:
     """
         insert if the key does not exist, does nothing if the key exists.
         return value at key
@@ -75,21 +75,12 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False, ig
             val = ht_find(target, key)
             break
         elif isinstance(key, str):
-            if not ignore_attribute:
-                val = getattr(target, key, _not_found_)
-                if val is _not_found_ and if_exists:
-                    try:
-                        setattr(target, key, child)
-                        val = getattr(target, key, _not_found_)
-                    except AttributeError:
-                        val = _not_found_
 
-            if ignore_attribute or val is _not_found_:
-                if if_exists:
-                    target[key] = child
-                    val = target[key]
-                else:
-                    val = target.setdefault(key, child)
+            if if_exists:
+                target[key] = child
+                val = target[key]
+            else:
+                val = target.setdefault(key, child)
 
             if val is _not_found_:
                 try:
@@ -107,7 +98,7 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False, ig
     return val
 
 
-def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True,  ignore_attribute=True) -> Any:
+def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -128,17 +119,10 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
             val = Entry(target, prefix=query[idx:])
             break
         elif isinstance(key, str):
-            if not ignore_attribute:
-                try:
-                    val = getattr(target, key, _not_found_)
-                except Exception:
-                    val = _not_found_
-
-            if ignore_attribute or val is _not_found_:
-                try:
-                    val = target[key]
-                except Exception:
-                    val = _not_found_
+            try:
+                val = target[key]
+            except Exception:
+                val = _not_found_
         elif isinstance(key,  (int)):
             try:
                 val = target[key]
@@ -148,8 +132,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
             val = target[key]
         elif isinstance(key, slice):
             if (isinstance(target, collections.abc.Sequence) and not isinstance(target, str)):
-                val = [ht_find(v, query[idx+1:], default_value=_not_found_,
-                               ignore_attribute=ignore_attribute) for v in val[key]]
+                val = [ht_find(v, query[idx+1:], default_value=_not_found_) for v in val[key]]
             elif isinstance(target, collections.abc.Mapping):
                 raise NotImplementedError(type(target))
             else:
@@ -164,8 +147,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
 
                 step = key.step
 
-                val = [ht_find(target, [s]+query[idx:], default_value=_not_found_,
-                               ignore_attribute=ignore_attribute) for s in range(start, stop, step)]
+                val = [ht_find(target, [s]+query[idx:], default_value=_not_found_) for s in range(start, stop, step)]
 
             break
         elif isinstance(key, collections.abc.Mapping):
@@ -244,7 +226,7 @@ def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
         ht_insert(target, query, value, if_exists=True, **kwargs)
 
 
-def ht_erase(target, query: Optional[_TQuery] = None, *args, ignore_attribute=True, **kwargs):
+def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):
 
     if isinstance(target, Entry):
         return target.remove(query, *args, **kwargs)
@@ -283,7 +265,7 @@ def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
             raise TypeError(f"Not countable! {type(target)}")
 
 
-def ht_contains(target, v,  *args, ignore_attribute=True, **kwargs) -> bool:
+def ht_contains(target, v,  *args,  **kwargs) -> bool:
     return v in target.find(*args, **kwargs)
 
 
