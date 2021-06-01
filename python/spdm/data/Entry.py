@@ -97,7 +97,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
     return val
 
 
-def ht_find(target,  path: Optional[_TPath] = None, /,  default_value=_undefined_,   ignore_attribute=True) -> Any:
+def ht_find(target,  path: Optional[_TPath] = None, /,  default_value=_undefined_, only_first=True,  ignore_attribute=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -159,7 +159,15 @@ def ht_find(target,  path: Optional[_TPath] = None, /,  default_value=_undefined
 
             break
         elif isinstance(key, collections.abc.Mapping):
-            raise NotImplementedError()
+            if key.get("_only_first", only_first):
+                try:
+                    val = next(filter(lambda d: ht_check(d, key), ht_iter(target)))
+                except StopIteration:
+                    val = _not_found_
+            else:
+                val = [d for d in ht_iter(target) if ht_check(d, key)]
+                if len(val) == 0:
+                    val = _not_found_
         else:
             raise TypeError(type(key))
 
@@ -199,6 +207,10 @@ def ht_find(target,  path: Optional[_TPath] = None, /,  default_value=_undefined
     # if rpath is None:
     #     target._data = obj
     #     target._prefix = []
+
+
+def ht_check(target, condition: Mapping) -> bool:
+    return all([ht_find(target, k, default_value=_not_found_) == v for k, v in condition.items() if k[0] != '_'])
 
 
 def ht_update(target,  path: Optional[_TPath], value, *args, **kwargs) -> Any:
@@ -266,15 +278,18 @@ def ht_contains(target, v,  *args, ignore_attribute=True, **kwargs) -> bool:
     return v in target.find(*args, **kwargs)
 
 
-def ht_iter(target, *args, default_value=None, **kwargs):
-    obj = target.find(*args, default_value=default_value if default_value is not None else [], **kwargs)
-
-    if isinstance(obj, Entry):
-        yield from obj.iter()
-    elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
-        yield from obj
+def ht_iter(target, path=None, /,  **kwargs):
+    target = ht_find(target, path, default_value=_not_found_)
+    if target is _not_found_:
+        yield from []
+    elif isinstance(target, (int, float, np.ndarray)):
+        yield target
+    elif isinstance(target, (collections.abc.Mapping, collections.abc.Sequence)):
+        yield from target
+    elif isinstance(target, Entry):
+        yield from target.iter()
     else:
-        raise NotImplementedError(type(obj))
+        yield target
 
 
 def ht_items(target, path: Optional[_TPath], *args, **kwargs):
@@ -317,9 +332,9 @@ def ht_keys(target,  *args, **kwargs):
 
 def ht_compare(first, second) -> bool:
     if isinstance(first, Entry):
-        first = first.fetch()
+        first = first.find()
     if isinstance(second, Entry):
-        second = second.fetch()
+        second = second.find()
     return first == second
 
 
@@ -413,7 +428,7 @@ class Entry(object):
 
     def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
         path = self._prefix + normalize_path(rpath)
-        if len(path) == 0:
+        if len(path) == 0 and self._data is None:
             self._data = value
         else:
             if self._data is None or self._data is _not_found_:

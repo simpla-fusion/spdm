@@ -14,7 +14,7 @@ class TestNode(unittest.TestCase):
             }
         })
 
-    def test_dict_get(self):
+    def test_dict_find_by_key(self):
         cache = {
             "a": [
                 "hello world {name}!",
@@ -119,6 +119,22 @@ class TestNode(unittest.TestCase):
         del d["a"]
         self.assertTrue("a" not in cache)
 
+    def test_node_find_by_cond(self):
+        cache = [
+            {"name": "wang wu", "age": 21},
+            {"name": "wang liu", "age": 22},
+            {"name": "li si",    "age": 22},
+            {"name": "zhang san", "age": 24},
+        ]
+
+        d0 = List(cache)
+        self.assertEqual(d0[{"name": "li si", "_only_first": True}]["age"], 22)
+
+        d1 = Dict({"person": cache})
+        self.assertEqual(d1["person"][{"name": "li si"}]["age"], 22)
+
+    # def test_node_find_by_slice(self):
+    #     pass
     # def test_decorate(self):
 
     #     @as_node_tree

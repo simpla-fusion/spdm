@@ -98,10 +98,15 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         grp_opts = {}
         if not isinstance(profile_grp, list):
             profile_grp = [profile_grp]
-
+        ylabel = None
         for p_desc in profile_grp:
-            profile, label, *opts = p_desc  # parse_profile(p_desc, **kwargs)
-            opts = (opts or [{}])[0]
+            profile, label, *o_args = p_desc  # parse_profile(p_desc, **kwargs)
+            if len(o_args) == 0:
+                opts = {}
+            if len(o_args) >= 1:
+                opts = o_args[0]
+            if len(o_args) >= 2 and ylabel is None:
+                ylabel = o_args[1]
 
             y = None
             if isinstance(profile, Function):
@@ -141,8 +146,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         if grid:
             sub_plot[idx].grid()
 
-        if "ylabel" in grp_opts:
-            sub_plot[idx].set_ylabel(grp_opts["ylabel"], fontsize=fontsize).set_rotation(0)
+        if ylabel is not None:
+            sub_plot[idx].set_ylabel(ylabel, fontsize=fontsize)
         sub_plot[idx].labelsize = "media"
         sub_plot[idx].tick_params(labelsize=fontsize)
 

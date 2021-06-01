@@ -197,8 +197,10 @@ class Node(Generic[_TObject]):
 
     def __post_process__(self, value: Any, key=None, /, *args, **kwargs) -> _TObject:
         obj = self.__new_child__(value, *args, **kwargs)
-        if key is not None and obj is not value and self._entry.writable:
+
+        if isinstance(key, (int, str)) and obj is not value and self._entry.writable:
             self.__setitem__(key, obj)
+
         return obj
 
     def __setitem__(self, path: _TPath, value: Any) -> None:
@@ -273,7 +275,7 @@ class List(Node[_TObject], Sequence[_TObject]):
         self._entry.insert(path, self.__pre_process__(v), assign_if_exists=True)
 
     def __getitem__(self, path: _TPath) -> _TObject:
-        return self.__post_process__(self._entry.find(path), path)
+        return self.__post_process__(self._entry.find(path, only_first=True), path)
 
     def __delitem__(self, path: _TPath) -> None:
         super().__delitem__(path)
