@@ -13,9 +13,8 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 from ..numlib import np, scipy
 from ..util.logger import logger
-from ..util.utilities import (_not_found_, _undefined_, normalize_path,
-                              serialize)
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
+from ..util.utilities import (_not_found_, _undefined_,   serialize)
+from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner, _TQuery, normalize_query,
                     EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath)
 
 
@@ -207,28 +206,28 @@ class Node(Generic[_TObject]):
 
             return obj
 
-    def __setitem__(self, path: _TPath, value: Any) -> None:
+    def __setitem__(self, query: _TQuery, value: Any) -> None:
         if self._entry is None:
-            if isinstance(path, collections.abc.Sequence):
-                k = path[0]
+            if isinstance(query, collections.abc.Sequence):
+                k = query[0]
             else:
-                k = path
+                k = query
 
             if isinstance(k, (int, slice)):
                 self._entry = _LIST_TYPE_()
             elif isinstance(k, str):
                 self._entry = _DICT_TYPE_()
 
-        self._entry.insert(path,  self.__pre_process__(value), assign_if_exists=True)
+        self._entry.insert(query,  self.__pre_process__(value), if_exists=True)
 
-    def __getitem__(self, path: _TPath) -> Any:
-        return self.__post_process__(self._entry.find(path))
+    def __getitem__(self, query: _TQuery) -> Any:
+        return self.__post_process__(self._entry.find(query))
 
-    def __delitem__(self, path: _TPath) -> None:
-        self._entry.erase(path)
+    def __delitem__(self, query: _TQuery) -> None:
+        self._entry.erase(query)
 
-    def __contains__(self, path: _TPath) -> bool:
-        return self._entry.contains(path)
+    def __contains__(self, query: _TQuery) -> bool:
+        return self._entry.contains(query)
 
     def __len__(self) -> int:
         return self._entry.count()
@@ -251,26 +250,22 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, rpath: _TPath = None, /, only_first=False, raw=False, default_value=_not_found_, **kwargs):
-        path = normalize_path(rpath)
-        obj = self._entry.find(path, only_first=only_first, default_value=default_value, **kwargs)
+    def find(self, query: _TQuery = None, /, only_first=False, raw=False,  **kwargs):
+        obj = self._entry.find(query, only_first=only_first,  **kwargs)
         if raw is True:
             return obj
         else:
-            return self.__post_process__(obj, path)
+            return self.__post_process__(obj, query)
 
-    def insert(self, rpath: _TPath, value: Any, /, only_first=True, assign_if_exists=False, **kwargs) -> _TObject:
-        path = normalize_path(rpath)
-        if len(kwargs) > 0:
-            path = path + [kwargs]
-        obj = self._entry.insert(path, value, assign_if_exists=assign_if_exists, only_first=True, **kwargs)
-        return self.__post_process__(obj, rpath)
+    def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
+        obj = self._entry.insert(query, value, **kwargs)
+        return self.__post_process__(obj, query)
 
-    def get(self, path: _TPath = None, /,   default_value=_not_found_):
-        return self.find(path, only_first=True, default_value=default_value)
+    def get(self, query: _TQuery = None, /,   default_value=_not_found_):
+        return self.find(query, only_first=True, default_value=default_value)
 
-    def get_raw(self, path: _TPath = None, /,   default_value=_not_found_):
-        return self.find(path, only_first=True, raw=True, default_value=default_value)
+    def get_raw(self, query: _TQuery = None, /,   default_value=_not_found_):
+        return self.find(query, only_first=True, raw=True, default_value=default_value)
 
 
 class List(Node[_TObject], Sequence[_TObject]):
@@ -296,14 +291,14 @@ class List(Node[_TObject], Sequence[_TObject]):
     def __len__(self) -> int:
         return self._entry.count()
 
-    def __setitem__(self, path: _TPath, v: _TObject) -> None:
-        self._entry.insert(path, self.__pre_process__(v), assign_if_exists=True)
+    def __setitem__(self, query: _TQuery, v: _TObject) -> None:
+        self._entry.insert(query, self.__pre_process__(v), if_exists=True)
 
-    def __getitem__(self, path: _TPath) -> _TObject:
-        return self.__post_process__(self._entry.find(path, only_first=True), path)
+    def __getitem__(self, query: _TQuery) -> _TObject:
+        return self.__post_process__(self._entry.find(query, only_first=True), query)
 
-    def __delitem__(self, path: _TPath) -> None:
-        super().__delitem__(path)
+    def __delitem__(self, query: _TQuery) -> None:
+        super().__delitem__(query)
 
     def __iter__(self) -> Iterator[_TObject]:
         for idx in range(len(self)):
@@ -356,14 +351,14 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
-    def __getitem__(self, path: _TKey) -> _TObject:
-        return self.__post_process__(self._entry.find(path), path)
+    def __getitem__(self, query: _TKey) -> _TObject:
+        return self.__post_process__(self._entry.find(query), query)
 
-    def __setitem__(self, path: _TKey, value: _TObject) -> None:
-        self._entry.insert(path,  self.__pre_process__(value), assign_if_exists=True)
+    def __setitem__(self, query: _TKey, value: _TObject) -> None:
+        self._entry.insert(query,  self.__pre_process__(value), if_exists=True)
 
-    def __delitem__(self, path: _TKey) -> None:
-        self._entry.erase(path)
+    def __delitem__(self, query: _TKey) -> None:
+        self._entry.erase(query)
 
     def __iter__(self) -> Iterator[str]:
         yield from self.keys()
@@ -383,7 +378,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def update(self, value: Any = None, *args, **kwargs) -> None:
         self._entry.update(None, value, *args, **kwargs)
 
-    def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
+    def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _TObject:
         return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs), key)
 
     def items(self) -> Iterator[Tuple[str, _TObject]]:
@@ -519,14 +514,14 @@ class _SpProperty(Generic[_TObject]):
                                     val = tmp
 
                     if isinstance(cache, Entry) and cache.writable:
-                        cache.insert(self.attrname, val,  assign_if_exists=True, ignore_attribute=True)
+                        cache.insert(self.attrname, val,  if_exists=True, ignore_attribute=True)
 
         return val
 
     def __set__(self, instance: Any, value: Any):
         with self.lock:
             cache = getattr(instance, "_entry", Entry(instance.__dict__))
-            cache.insert(self.attrname, value, assign_if_exists=True, ignore_attribute=True)
+            cache.insert(self.attrname, value, if_exists=True, ignore_attribute=True)
 
     # def __del__(self, instance: Any):
     #     with self.lock:
