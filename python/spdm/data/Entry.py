@@ -8,14 +8,14 @@ from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
 
 from ..numlib import np
 from ..util.logger import logger
-from ..util.utilities import (_not_found_, _undefined_,  serialize)
+from ..util.utilities import _not_found_, _undefined_, serialize
 
 _next_ = object()
 _last_ = object()
 
 _TObject = TypeVar("_TObject")
-_TPath = TypeVar("_TPath", str, float, slice, Sequence)
-_TQuery = TypeVar("_TQuery", str, float, slice, Sequence, Mapping)
+_TPath = TypeVar("_TPath", int, slice, str,  Sequence)
+_TQuery = TypeVar("_TQuery", int,  slice, str, Sequence, Mapping)
 
 _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)

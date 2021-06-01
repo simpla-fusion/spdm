@@ -250,7 +250,8 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, query: _TQuery = None, /, only_first=False, raw=False,  **kwargs):
+    def find(self, *args, only_first=False, raw=False,  **kwargs):
+        query = list(args) + [kwargs]
         obj = self._entry.find(query, only_first=only_first,  **kwargs)
         if raw is True:
             return obj
