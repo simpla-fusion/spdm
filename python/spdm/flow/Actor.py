@@ -106,7 +106,7 @@ class Actor(Dict[Node]):
         self.flush()
         if time is None:
             time = self.time+(dt or 1.0)
-        logger.info(f"Advance actor to {self.time}. '{guess_class_name(self)}' ")
+        logger.debug(f"Advance actor to {self.time}. '{guess_class_name(self)}' ")
         return self.update(*args, time=time, **kwargs)
 
     def update(self, state: Optional[Mapping] = None, *args,   force=False, ** kwargs) -> float:
@@ -120,6 +120,6 @@ class Actor(Dict[Node]):
         
         self._time = self["time"]
 
-        logger.info(f"Update actor at time={self.time}. '{guess_class_name(self)}'")
+        logger.debug(f"Update actor at time={self.time}. '{guess_class_name(self)}'")
 
         return 0.0 if force else 0.0
