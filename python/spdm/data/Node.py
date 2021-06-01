@@ -247,6 +247,10 @@ class Node(Generic[_TObject]):
     def __array__(self) -> np.ndarray:
         return np.asarray(self.__fetch__())
 
+    def find(self, path: _TPath = None, /, only_first=False, **kwargs):
+        path = normalize_path(path)+[kwargs]
+        return self.__post_process__(self._entry.find(path, only_first=only_first), path)
+
 
 class List(Node[_TObject], Sequence[_TObject]):
     __slots__ = ("_v_args")
@@ -287,10 +291,6 @@ class List(Node[_TObject], Sequence[_TObject]):
     def __iadd__(self, other):
         self._entry.insert(_next_, self.__pre_process__(other))
         return self
-
-    def find_first(self, func):
-        idx, v = next(filter(lambda t: func(t[1]), enumerate(self._entry)))
-        return idx, v
 
     def sort(self):
         if hasattr(self._entry.__class__, "sort"):
