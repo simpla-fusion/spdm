@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from fytok.modules.transport.Equilibrium import Equilibrium
+from fytok.transport.Equilibrium import Equilibrium
 from spdm.data.File import File
 from spdm.numlib import np
 from spdm.util.logger import logger
