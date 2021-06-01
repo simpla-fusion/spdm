@@ -117,7 +117,7 @@ class Actor(Dict[Node]):
         if state is not None:
             super().update(state)
         # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
-
+        
         self._time = self["time"]
 
         logger.info(f"Update actor at time={self.time}. '{guess_class_name(self)}'")
