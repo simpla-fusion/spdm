@@ -24,13 +24,13 @@ _DICT_TYPE_ = dict
 _LIST_TYPE_ = list
 
 
-def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=False, ignore_attribute=True) -> _TObject:
+def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=False, ignore_attribute=True, **kwargs) -> _TObject:
     """
         insert if the key does not exist, does nothing if the key exists.
         return value at key
     """
     if isinstance(target, Entry):
-        return target.insert(path, value, assign_if_exists=assign_if_exists)
+        return target.insert(path, value, assign_if_exists=assign_if_exists, **kwargs)
 
     path = normalize_path(path)
 
@@ -40,7 +40,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
     val = _not_found_
     for idx, key in enumerate(path):
         if isinstance(target, Entry):
-            target = target.insert(path[idx:], value, assign_if_exists=assign_if_exists)
+            target = target.insert(path[idx:], value, assign_if_exists=assign_if_exists, **kwargs)
             break
 
         if idx == len(path)-1:
@@ -61,7 +61,7 @@ def ht_insert(target: Any, path: _TPath,  value: _TObject, assign_if_exists=Fals
             val = target[key]
         elif isinstance(key,  slice):
             for idx in range(key.start, key.stop, key.step):
-                ht_insert(target, [idx]+path[idx+1:], value, assign_if_exists=assign_if_exists)
+                ht_insert(target, [idx]+path[idx+1:], value, assign_if_exists=assign_if_exists, **kwargs)
             val = ht_find(target, key)
             break
         elif isinstance(key, str):
@@ -308,24 +308,24 @@ def ht_items(target, path: Optional[_TPath], *args, **kwargs):
         raise TypeError(type(obj))
 
 
-def ht_values(target,  *args, **kwargs):
-    obj = target.find(*args, **kwargs)
-    if isinstance(obj, collections.abc.Mapping):
-        yield from obj.values()
-    elif isinstance(obj, collections.abc.MutableSequence):
-        yield from obj
-    elif isinstance(obj, Entry):
-        yield from []
+def ht_values(target, path: _TPath = None, /, **kwargs):
+    target = ht_find(target, path, **kwargs)
+    if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
+        yield from target
+    elif isinstance(target, collections.abc.Mapping):
+        yield from target.values()
+    elif isinstance(target, Entry):
+        yield from target.iter()
     else:
-        yield obj
+        yield target
 
 
-def ht_keys(target,  *args, **kwargs):
-    obj = target.find(*args, **kwargs)
-    if isinstance(obj, collections.abc.Mapping):
-        yield from obj.keys()
-    elif isinstance(obj, collections.abc.MutableSequence):
-        yield from range(len(obj))
+def ht_keys(target, path: _TPath = None, /, **kwargs):
+    target = ht_find(target, path, **kwargs)
+    if isinstance(target, collections.abc.Mapping):
+        yield from target.keys()
+    elif isinstance(target, collections.abc.MutableSequence):
+        yield from range(len(target))
     else:
         raise NotImplementedError()
 
@@ -426,7 +426,7 @@ class Entry(object):
 
             return ht_insert(self._data,  path, value, *args, **kwargs)
 
-    def update(self, rpath: Optional[_TPath],   value, *args, **kwargs):
+    def update(self, rpath: Optional[_TPath],   value=None, *args, **kwargs):
         path = self._prefix + normalize_path(rpath)
         if len(path) == 0 and self._data is None:
             self._data = value

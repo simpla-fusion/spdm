@@ -196,12 +196,16 @@ class Node(Generic[_TObject]):
         return value
 
     def __post_process__(self, value: Any, key=None, /, *args, **kwargs) -> _TObject:
-        obj = self.__new_child__(value, *args, **kwargs)
 
-        if isinstance(key, (int, str)) and obj is not value and self._entry.writable:
-            self.__setitem__(key, obj)
+        if value is _not_found_:
+            return value
+        else:
+            obj = self.__new_child__(value, *args, **kwargs)
 
-        return obj
+            if isinstance(key, (int, str)) and obj is not value and self._entry.writable:
+                self.__setitem__(key, obj)
+
+            return obj
 
     def __setitem__(self, path: _TPath, value: Any) -> None:
         if self._entry is None:
@@ -247,9 +251,26 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, path: _TPath = None, /, only_first=False, **kwargs):
-        path = normalize_path(path)+[kwargs]
-        return self.__post_process__(self._entry.find(path, only_first=only_first), path)
+    def find(self, rpath: _TPath = None, /, only_first=False, raw=False, default_value=_not_found_, **kwargs):
+        path = normalize_path(rpath)
+        obj = self._entry.find(path, only_first=only_first, default_value=default_value, **kwargs)
+        if raw is True:
+            return obj
+        else:
+            return self.__post_process__(obj, path)
+
+    def insert(self, rpath: _TPath, value: Any, /, only_first=True, assign_if_exists=False, **kwargs) -> _TObject:
+        path = normalize_path(rpath)
+        if len(kwargs) > 0:
+            path = path + [kwargs]
+        obj = self._entry.insert(path, value, assign_if_exists=assign_if_exists, only_first=True, **kwargs)
+        return self.__post_process__(obj, rpath)
+
+    def get(self, path: _TPath = None, /,   default_value=_not_found_):
+        return self.find(path, only_first=True, default_value=default_value)
+
+    def get_raw(self, path: _TPath = None, /,   default_value=_not_found_):
+        return self.find(path, only_first=True, raw=True, default_value=default_value)
 
 
 class List(Node[_TObject], Sequence[_TObject]):
@@ -359,8 +380,8 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __ior__(self, other):
         return self.update(other)
 
-    def update(self, *args, **kwargs) -> None:
-        self._entry.update(None,  *args, **kwargs)
+    def update(self, value: Any = None, *args, **kwargs) -> None:
+        self._entry.update(None, value, *args, **kwargs)
 
     def get(self, key: _TPath, default_value=_not_found_, **kwargs) -> _TObject:
         return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs), key)
