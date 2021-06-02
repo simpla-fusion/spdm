@@ -269,11 +269,17 @@ class Node(Generic[_TObject]):
     def get_raw(self, query: _TQuery = None, /,   default_value=_not_found_):
         return self.find(query, only_first=True, raw=True, default_value=default_value)
 
+    def update(self,  *args,  **kwargs):
+        self._entry.update(*args, **kwargs)
+
+    def update_many(self,  *args,  **kwargs):
+        self._entry.update_many(*args,  **kwargs)
+
 
 class List(Node[_TObject], Sequence[_TObject]):
-    __slots__ = ("_v_args")
+    __slots__ = ("_v_args", )
 
-    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None,  **kwargs) -> None:
+    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None,   **kwargs) -> None:
         if cache is None or cache is _not_found_:
             cache = _LIST_TYPE_()
         Node.__init__(self, cache, *args, parent=parent, **kwargs)
@@ -319,11 +325,6 @@ class List(Node[_TObject], Sequence[_TObject]):
     @property
     def combine(self) -> _TObject:
         return self.__new_child__(EntryCombiner(self._entry))
-
-    def update(self, data=None, *args,  **kwargs):
-        if data is not None:
-            super().update(data)
-        return sum([d.update(*args, **kwargs) for d in self if hasattr(d.__class__, 'update')])
 
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):

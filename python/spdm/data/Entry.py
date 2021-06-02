@@ -94,7 +94,6 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  *
                     val = _not_found_
         elif isinstance(key, collections.abc.Mapping):
             val = ht_find(target, key, default_value=_not_found_)
-            
 
         if val is _not_found_:
             break
@@ -436,9 +435,11 @@ class Entry(object):
                 else:
                     self._data = _LIST_TYPE_()
             ht_update(self._data, query, value, **kwargs)
-        return self
 
-    def erase(self, rquery: Optional[_TQuery] = None, /, **kwargs):
+    def update_many(self, rquery: Optional[_TQuery],   value=None, /, **kwargs):
+        raise NotImplementedError()
+
+    def erase(self, rquery: Optional[_TQuery] = None, /, **kwargs) -> None:
         return ht_erase(self._data,  self._prefix + normalize_query(rquery),   **kwargs)
 
     def count(self,  rquery: Optional[_TQuery] = None,  /, **kwargs) -> int:

@@ -27,10 +27,7 @@ class Function:
     def __init__(self,
                  x: np.ndarray,
                  y: Union[np.ndarray, float, Callable],
-                 is_periodic=False,
-                 smooth=False,
                  func=None):
-        self._is_periodic = is_periodic
         self._x = np.asarray(x)
 
         if isinstance(y, Node):
@@ -53,14 +50,14 @@ class Function:
 
     @property
     def is_periodic(self):
-        return self._is_periodic
+        return np.allclose(self._y[0], self._y[-1])
 
     @property
     def x(self):
         return self._x
 
     def duplicate(self):
-        return Function(self._x, self.__array__(), is_periodic=self._is_periodic)
+        return Function(self._x, self.__array__())
 
     def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
         return Expression(ufunc, method, *inputs, **kwargs)
@@ -132,7 +129,7 @@ class Function:
         return x, y
 
     def insert(self, x, y=None):
-        res = Function(*self._prepare(x, y), is_periodic=self.is_periodic, func=self._func)
+        res = Function(*self._prepare(x, y), func=self._func)
         raise NotImplementedError('Insert points!')
         return res
 
@@ -165,27 +162,29 @@ class Function:
 
     def invert(self, x=None):
         if x is None:
-            return Function(self.__array__(), self._x, is_periodic=self.is_periodic)
+            return Function(self.__array__(), self._x)
         else:
             return Function(self.__call__(x), x)
 
-    def pullback(self, *args, **kwargs):
-        if len(args) == 0:
-            raise ValueError(f"missing arguments!")
-        elif len(args) == 2 and args[0].shape == args[1].shape:
-            x0, x1 = args
-            y = self(x0)
-        elif isinstance(args[0], Function) or callable(args[0]):
-            logger.warning(f"FIXME: not complete")
-            x1 = args[0](self.x)
-            y = self.view(np.ndarray)
-        elif isinstance(args[0], np.ndarray):
-            x1 = args[0]
-            y = self(x1)
-        else:
-            raise TypeError(f"{args}")
+    def pullback(self, source: np.ndarray, target: np.ndarray):
+        if source.shape != target.shape:
+            raise ValueError(f"The shapes of axies don't match! {source.shape}!={target.shape}")
+            # if len(args) == 0:
+            #     raise ValueError(f"missing arguments!")
+            # elif len(args) == 2 and args[0].shape == args[1].shape:
+            #     x0, x1 = args
+            #     y = self(x0)
+            # elif isinstance(args[0], Function) or callable(args[0]):
+            #     logger.warning(f"FIXME: not complete")
+            #     x1 = args[0](self.x)
+            #     y = self.view(np.ndarray)
+            # elif isinstance(args[0], np.ndarray):
+            #     x1 = args[0]
+            #     y = self(x1)
+            # else:
+            #     raise TypeError(f"{args}")
 
-        return Function(x1, y, is_periodic=self.is_periodic)
+        return Function(target, self(source).__array__())
 
     def integrate(self, a=None, b=None):
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
@@ -289,8 +288,7 @@ class Expression(Function):
 
         x = next(d.x for d in self._inputs if isinstance(d, Function))
         y = None
-        is_periodic = not any([not d.is_periodic for d in self._inputs if isinstance(d, Function)])
-        super().__init__(x, y, is_periodic=is_periodic)
+        super().__init__(x, y)
 
     def __repr__(self) -> str:
         def repr(expr):

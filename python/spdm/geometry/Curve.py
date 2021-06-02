@@ -42,7 +42,7 @@ class Curve(GeoObject):
 
         u = (u[1:]+u[:-1])*0.5
 
-        a, b = self.derivative(u,*args, **kwargs)
+        a, b = self.derivative(u, *args, **kwargs)
 
         # a = a[:-1]
         # b = b[:-1]
@@ -62,7 +62,7 @@ class Curve(GeoObject):
             u = np.hstack([u, [u[0]+L]])
             d = np.hstack([d, [d[0]]])
 
-        return Function(u, d, is_periodic=self.is_closed)
+        return Function(u, d)
 
     def integrate(self, fun, u=None):
         dl = self.dl(u)
