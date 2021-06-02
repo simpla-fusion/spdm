@@ -26,8 +26,9 @@ def sp_figure_signature(fig, signature=None):
     elif not isinstance(signature, str):
         signature = f"Create by SpDM at {datetime.datetime.now().isoformat()}. [user: '{getpass.getuser().capitalize()}']"
 
-    fig.suptitle(signature)
-    # fig.gca().axis('scaled')
+    # fig.suptitle(signature)
+    fig.text(0.5, 0.04, signature, va='center', ha='center', fontsize=plt.rcParams['axes.labelsize'])
+    # plt.xlabel(signature)
     return fig
 
 
@@ -101,12 +102,11 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         ylabel = None
         for p_desc in profile_grp:
             profile, label, *o_args = p_desc  # parse_profile(p_desc, **kwargs)
-            if len(o_args) == 0:
-                opts = {}
-            if len(o_args) >= 1:
-                opts = o_args[0]
-            if len(o_args) >= 2 and ylabel is None:
-                ylabel = o_args[1]
+            opts = {}
+            if len(o_args) >= 1 and ylabel is None:
+                ylabel = o_args[0]
+            if len(o_args) >= 2:
+                opts = o_args[1]
 
             y = None
             if isinstance(profile, Function):
@@ -156,7 +156,11 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
     else:
         sub_plot[-1].set_xlabel(x_label,  fontsize=fontsize)
 
-    return sp_figure_signature(fig, signature=signature)
+    fig.align_ylabels()
+    fig.tight_layout()
+
+    fig = sp_figure_signature(fig, signature=signature)
+    return fig
 
 
 def sp_figure(obj, *args, signature=None, **kwargs):
@@ -166,4 +170,8 @@ def sp_figure(obj, *args, signature=None, **kwargs):
     else:
         obj.plot(fig.gca(), *args, **kwargs)
 
-    return sp_figure_signature(fig, signature=signature)
+    fig = sp_figure_signature(fig, signature=signature)
+    # fig.tight_layout()
+    fig.gca().axis('scaled')
+
+    return fig

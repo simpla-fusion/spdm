@@ -44,8 +44,12 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  *
 
     query = normalize_query(query)
 
-    if len(query) == 0:  # and target._data is None:
-        raise RuntimeError(f"Empty query! {type(target)}")
+    if len(query) > 0:
+        pass
+    elif value is None:  # and target._data is None:
+        return target
+    else:
+        raise RuntimeError(f"Empty query! {type(target)} {type(value)}")
 
     val = _not_found_
     for idx, key in enumerate(query):
@@ -424,7 +428,7 @@ class Entry(object):
 
             return ht_insert(self._data,  query, value,  **kwargs)
 
-    def update(self, rquery: Optional[_TQuery],   value=None, /, **kwargs):
+    def update(self, rquery: Optional[_TQuery] = None,   value=None, /, **kwargs):
         query = self._prefix + normalize_query(rquery)
         if len(query) == 0 and self._data is None:
             self._data = value

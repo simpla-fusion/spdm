@@ -269,7 +269,7 @@ class Node(Generic[_TObject]):
     def get_raw(self, query: _TQuery = None, /,   default_value=_not_found_):
         return self.find(query, only_first=True, raw=True, default_value=default_value)
 
-    def update(self,  *args,  **kwargs):
+    def update(self, *args, **kwargs):
         self._entry.update(*args, **kwargs)
 
     def update_many(self,  *args,  **kwargs):
@@ -325,6 +325,12 @@ class List(Node[_TObject], Sequence[_TObject]):
     @property
     def combine(self) -> _TObject:
         return self.__new_child__(EntryCombiner(self._entry))
+
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+        for element in self.__iter__():
+            if hasattr(element.__class__, 'update'):
+                element.update(*args, **kwargs)
 
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):
@@ -506,13 +512,16 @@ class _SpProperty(Generic[_TObject]):
 
                             origin_type = getattr(self.return_type, '__origin__', self.return_type)
 
+                            # if isinstance(val, Entry) and val.empty:
+                            #     val = None
                             if inspect.isclass(origin_type) and issubclass(origin_type, Node):
                                 val = self.return_type(val, parent=instance)
                             elif callable(self.return_type) is not None:
                                 try:
                                     tmp = self.return_type(val)
                                 except Exception as error:
-                                    logger.error(f"{self.attrname} {self.return_type}  : {error}")
+                                    # logger.error(f"{self.attrname} {self.return_type} {type(val)} : {error}")
+                                    pass
                                 else:
                                     val = tmp
 

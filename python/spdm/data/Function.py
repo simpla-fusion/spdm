@@ -26,7 +26,7 @@ class Function:
 
     def __init__(self,
                  x: np.ndarray,
-                 y: Union[np.ndarray, float, Callable],
+                 y: Union[np.ndarray, float, Callable] = None,
                  func=None):
         self._x = np.asarray(x)
 
