@@ -96,7 +96,7 @@ class Actor(Dict[Node]):
 
         return self.update(self._s_deque.pop(), force=True)
 
-    def advance(self, *args, time: float = None, dt: float = None,   **kwargs) -> float:
+    def advance(self, *args, time: float = None, dt: float = None, update=False,  **kwargs) -> float:
         """
             Function: Advance the state of the Actor to the next time step. current -> next
             Return  : return the residual between the updated state and the previous state
@@ -104,10 +104,16 @@ class Actor(Dict[Node]):
                 2. update current state
         """
         self.flush()
+
         if time is None:
             time = self.time+(dt or 1.0)
-        logger.debug(f"Advance actor to {self.time}. '{guess_class_name(self)}' ")
-        return self.update(*args, time=time, **kwargs)
+
+        logger.debug(f"Advance actor '{guess_class_name(self)}' to {self.time}.  ")
+
+        if update:
+            self.update(*args, time=time, **kwargs)
+
+        return time
 
     def update(self, state: Optional[Mapping] = None, *args,   force=False, ** kwargs) -> float:
         """
@@ -117,9 +123,9 @@ class Actor(Dict[Node]):
         if state is not None:
             super().update(state)
         # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
-        
+
         self._time = self["time"]
 
-        logger.debug(f"Update actor at time={self.time}. '{guess_class_name(self)}'")
+        logger.debug(f"Update actor '{guess_class_name(self)}' at time={self.time}. ")
 
         return 0.0 if force else 0.0
