@@ -96,17 +96,7 @@ class AttributeTree(Dict[Node]):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._child_cls = AttributeTree
-    # def __new_child__(self, value, *args, parent: Optional[Node] = None,  **kwargs) -> Node:
-    #     parent = parent if parent is not None else self
-
-    #     if isinstance(value, (Entry, collections.abc.Mapping, Dict)):
-    #         res = AttributeTree(value, *args, parent=parent, **kwargs)
-    #     elif isinstance(value, (collections.abc.MutableSequence)):
-    #         res = List[AttributeTree](value, *args, parent=parent, **kwargs)
-    #     else:
-    #         res = super().__new_child__(value, *args, parent=parent, **kwargs)
-    #     return res
+        self.__new_child__ = AttributeTree
 
     def __getattr__(self, attr_name) -> Any:
         if attr_name[0] == '_':

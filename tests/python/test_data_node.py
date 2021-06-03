@@ -138,6 +138,20 @@ class TestNode(unittest.TestCase):
         self.assertEqual(young[0]["name"],  "wang liu")
         self.assertEqual(young[1]["name"],  "li si")
 
+    def test_node_insert_by_cond(self):
+        cache = [
+            {"name": "wang wu",   "age": 21},
+            {"name": "wang liu",  "age": 22},
+            {"name": "li si",     "age": 22},
+            {"name": "zhang san", "age": 24},
+        ]
+
+        d0 = List(cache)
+
+        d0[{"name": "wang wu"}]["address"] = "hefei"
+
+        self.assertEqual(cache[0]["address"],  "hefei")
+
     # def test_node_find_by_slice(self):
     #     pass
     # def test_decorate(self):

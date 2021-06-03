@@ -144,22 +144,24 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
 
     val = target
     for idx, key in enumerate(query):
-        if isinstance(target, Entry):
+        if target is None or target is _not_found_:
+            val = target
+            break
+        elif isinstance(target, Entry):
             val = target.find(query[idx:], default_value)
             break
         elif key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
             val = Entry(target, prefix=query[idx:])
             break
-        elif isinstance(key, str):
-            try:
-                val = target[key]
-            except Exception:
-                val = _not_found_
-        elif isinstance(key,  (int)):
-            try:
-                val = target[key]
-            except Exception:
-                val = _not_found_
+        elif isinstance(key, (int, str)):
+            if hasattr(target.__class__, 'get'):
+                val = target.get(key, _not_found_)
+            else:
+                try:
+                    val = target[key]
+                except Exception as error:
+                    logger.debug(f"Can not index {type(target)} by {key}! \nError: {error}")
+                    val = _not_found_
         elif isinstance(key, slice) and isinstance(target, np.ndarray):
             val = target[key]
         elif isinstance(key, slice):
@@ -195,12 +197,12 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
         else:
             raise TypeError(type(key))
 
-        if val is _not_found_:
+        if val is _not_found_ or val is None:
             break
         else:
             target = val
 
-    if val is not _not_found_:
+    if not (val is _not_found_ or val is None):
         return val
     elif default_value is _undefined_:
         return Entry(target, prefix=query[idx:])

@@ -7,6 +7,7 @@ from ..util.logger import logger
 from ..numlib import interpolate, np, scipy
 from .Entry import Entry
 from .Node import Node
+import warnings
 
 
 class Function:
@@ -28,8 +29,10 @@ class Function:
                  x: np.ndarray,
                  y: Union[np.ndarray, float, Callable] = None,
                  func=None):
-        self._x = np.asarray(x)
-
+        if x is not None:
+            self._x = np.asarray(x)
+        else:
+            self._x = np.asarray([])
         if isinstance(y, Node):
             y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
@@ -134,7 +137,7 @@ class Function:
         return res
 
     def __len__(self):
-        return len(self._x)
+        return len(self._x) if self._x is not None else 0
 
     def derivative(self, x=None):
         if x is None:
@@ -273,6 +276,9 @@ class PiecewiseFunction(Function):
     def __array__(self) -> np.ndarray:
         raise NotImplementedError()
 
+    def __len__(self):
+        return 0
+
     def __call__(self, x) -> np.ndarray:
         cond = [c(x) for c in self._cond]
         return np.piecewise(x, cond, self._func)
@@ -313,12 +319,13 @@ class Expression(Function):
             else:
                 raise ValueError(f"{self.x.shape} {d.shape}")
             return res
-
-        try:
-            res = self._ufunc(*[wrap(x, d) for d in self._inputs])
-        except Exception as error:
-            logger.error(f"Expression error: {self._ufunc.__name__}   ")
-            raise ValueError(error)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("always")
+            try:
+                res = self._ufunc(*[wrap(x, d) for d in self._inputs])
+            except Exception as error:
+                logger.error(f"Expression error: {self._ufunc.__name__}   ")
+                raise ValueError(error)
 
         return res
 

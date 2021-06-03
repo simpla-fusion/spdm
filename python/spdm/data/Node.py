@@ -41,12 +41,12 @@ class Node(Generic[_TObject]):
 
         @enduml
     """
-    __slots__ = "_parent", "_entry",  "__orig_class__", "_child_cls"
+    __slots__ = "_parent", "_entry",  "__orig_class__", "__new_child__"
 
-    def __init__(self, cache: Any = None, *args, parent=None, writable=True, **kwargs):
+    def __init__(self, cache: Any = None, *args, parent=None, new_child=_undefined_, writable=True, **kwargs):
         super().__init__()
         self._parent = parent
-        self._child_cls = _undefined_
+        self.__new_child__ = new_child
 
         if isinstance(cache, Node):
             self._entry = cache._entry
@@ -156,8 +156,14 @@ class Node(Generic[_TObject]):
         @enduml
     """
 
-    def __new_child__(self, value: _TObject, *args, parent=None,  **kwargs) -> _TObject:
-        if self._child_cls is _undefined_:
+    def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
+        return value
+
+    def __post_process__(self, d: Any, key=None, /, *args, parent=None, **kwargs) -> _TObject:
+        if d is _not_found_:
+            return d
+
+        if self.__new_child__ is _undefined_:
             child_cls = None
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
@@ -166,45 +172,40 @@ class Node(Generic[_TObject]):
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
                     child_cls = child_cls[0]
 
-            self._child_cls = child_cls
+            self.__new_child__ = child_cls
 
         parent = parent if parent is not None else self
-        if self._child_cls is None and isinstance(value, Node):
-            pass
-        elif inspect.isclass(self._child_cls) and isinstance(value, self._child_cls):
-            pass
+        value = d
+
+        if inspect.isclass(self.__new_child__):
+            if isinstance(value, self.__new_child__):
+                pass
+            elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str) and not issubclass(self.__new_child__, List):
+                value = List[self.__new_child__](value, *args, parent=parent, **kwargs)
+            elif isinstance(value, collections.abc.Mapping) and not issubclass(self.__new_child__, Dict):
+                value = Dict[self.__new_child__](value, *args, parent=parent, **kwargs)
+            elif issubclass(self.__new_child__, Node):
+                value = self.__new_child__(value, *args, parent=parent, **kwargs)
+            else:
+                logger.warning(f"{self.__new_child__} is not a 'Node'!")
+                value = self.__new_child__(value, *args, **kwargs)
+        elif callable(self.__new_child__):
+            value = self.__new_child__(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
+        elif self.__new_child__ is not None:
+            raise TypeError(f"Illegal type! {self.__new_child__}")
         elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            if self._child_cls is not None and issubclass(self._child_cls, List):
-                value = self._child_cls(value, *args, parent=parent, **kwargs)
-            else:
-                value = List[self._child_cls](value, *args, parent=parent, **kwargs)
+            value = List(value, *args, parent=parent, **kwargs)
         elif isinstance(value, collections.abc.Mapping):
-            if self._child_cls is not None and issubclass(self._child_cls, Dict):
-                value = self._child_cls(value, *args, parent=parent, **kwargs)
-            else:
-                value = Dict[self._child_cls](value, *args, parent=parent, **kwargs)
+            value = Dict(value, *args, parent=parent, **kwargs)
         elif isinstance(value, Entry):
-            if self._child_cls is not None and issubclass(self._child_cls, Node):
-                value = self._child_cls(value, *args, parent=parent, **kwargs)
-            else:
-                value = Node[self._child_cls](value, *args, parent=parent, **kwargs)
+            value = Node(value, *args, parent=parent, **kwargs)
 
+        if isinstance(key, (int, str)) and d is not value and self._entry.writable:
+            try:
+                self.__setitem__(key, value)
+            except Exception:
+                pass
         return value
-
-    def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
-        return value
-
-    def __post_process__(self, value: Any, key=None, /, *args, **kwargs) -> _TObject:
-
-        if value is _not_found_:
-            return value
-        else:
-            obj = self.__new_child__(value, *args, **kwargs)
-
-            if isinstance(key, (int, str)) and obj is not value and self._entry.writable:
-                self.__setitem__(key, obj)
-
-            return obj
 
     def __setitem__(self, query: _TQuery, value: Any) -> None:
         if self._entry is None:
@@ -250,24 +251,17 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, *query,  raw=False,  **kwargs) -> _TObject:
-        obj = self._entry.find(list(query),  **kwargs)
-        if raw is True:
-            return obj
-        else:
-            return self.__post_process__(obj, query)
+    def find(self, *query,  **kwargs) -> _TObject:
+        return self._entry.find(list(query),  **kwargs)
 
     def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
-        return self.__post_process__(self._entry.insert(query, value, **kwargs), query)
+        return self._entry.insert(query, value, **kwargs)
 
     def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
-        return self.__post_process__(self._entry.insert(query, value, if_exists=True, **kwargs), query)
+        return self._entry.insert(query, value, if_exists=True, **kwargs)
 
     def get(self, query: _TQuery = None, /,   default_value=_not_found_):
         return self.find(query, only_first=True, default_value=default_value)
-
-    def get_raw(self, query: _TQuery = None, /,   default_value=_not_found_):
-        return self.find(query, only_first=True, raw=True, default_value=default_value)
 
     def update(self, *args, **kwargs):
         self._entry.update(*args, **kwargs)
@@ -288,10 +282,6 @@ class List(Node[_TObject], Sequence[_TObject]):
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    def __new_child__(self, value: _TObject, /, parent=None,  **kwargs) -> _TObject:
-        _args, _kwargs = self._v_args
-        return super().__new_child__(value,  *_args, parent=parent or self._parent, **collections.ChainMap(kwargs, _kwargs))
-
     @property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
@@ -303,7 +293,7 @@ class List(Node[_TObject], Sequence[_TObject]):
         self._entry.insert(query, self.__pre_process__(v), if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> _TObject:
-        return self.__post_process__(self._entry.find(query, only_first=True), query)
+        return self.__post_process__(self._entry.find(query, only_first=True), query, parent=self._parent)
 
     def __delitem__(self, query: _TQuery) -> None:
         super().__delitem__(query)
@@ -388,7 +378,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         self._entry.update(None, value, *args, **kwargs)
 
     def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _TObject:
-        return self.__post_process__(self._entry.find(key, default_value=default_value, **kwargs), key)
+        return self._entry.find(key, default_value=default_value, **kwargs)
 
     def items(self) -> Iterator[Tuple[str, _TObject]]:
         for k, v in self._entry.items():
@@ -501,32 +491,24 @@ class _SpProperty(Generic[_TObject]):
                 val = cache.find(self.attrname, default_value=_not_found_)
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
-                    val = self.func(instance)
-                    if not self._isinstance(val):
-                        if not isinstance(val, Node) and hasattr(instance.__class__, '__new_child__'):
-                            val = instance.__new_child__(val)
+                    obj = self.func(instance)
+                    # if not self._isinstance(obj) and hasattr(instance.__class__, '__new_child__'):
+                    #     obj = instance.__new_child__(obj)
+                    if not self._isinstance(obj):
+                        origin_type = getattr(self.return_type, '__origin__', self.return_type)
+                        if inspect.isclass(origin_type) and issubclass(origin_type, Node):
+                            obj = self.return_type(obj, parent=instance)
+                        elif callable(self.return_type) is not None:
+                            try:
+                                tmp = self.return_type(obj)
+                            except Exception as error:
+                                logger.error(f"{self.attrname} {self.return_type} {type(val)} : {error}")
+                                raise error
+                            else:
+                                obj = tmp
 
-                        if not self._isinstance(val):
-                            if isinstance(val, Node):
-                                val = val._entry
-
-                            origin_type = getattr(self.return_type, '__origin__', self.return_type)
-
-                            # if isinstance(val, Entry) and val.empty:
-                            #     val = None
-                            if inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                                val = self.return_type(val, parent=instance)
-                            elif callable(self.return_type) is not None:
-                                try:
-                                    tmp = self.return_type(val)
-                                except Exception as error:
-                                    # logger.error(f"{self.attrname} {self.return_type} {type(val)} : {error}")
-                                    pass
-                                else:
-                                    val = tmp
-
-                    if isinstance(cache, Entry) and cache.writable:
-                        cache.insert(self.attrname, val,  if_exists=True)
+                    if obj is not val and isinstance(cache, Entry) and cache.writable:
+                        val = cache.insert(self.attrname, obj,  if_exists=True)
 
         return val
 

@@ -19,7 +19,7 @@ class Doo(Dict):
 
     @sp_property
     def foo(self) -> Foo[str]:
-        return self["foo"]
+        return self.get("foo", {})
 
     @sp_property
     def goo(self) -> None:
@@ -34,7 +34,7 @@ class TestSpProperty(unittest.TestCase):
         self.assertFalse(isinstance(cache["foo"], Foo))
         self.assertTrue(isinstance(d.foo, Foo))
         self.assertTrue(isinstance(cache["foo"], Foo))
-        self.assertTrue(cache["foo"].__orig_class__== Foo[str])
+        self.assertTrue(cache["foo"].__orig_class__ == Foo[str])
 
         self.assertEqual(d.foo.a, cache["foo"]["a"])
 
