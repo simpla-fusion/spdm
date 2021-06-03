@@ -1,6 +1,7 @@
 import collections
 import getpass
 import datetime
+from logging import log
 import matplotlib.pyplot as plt
 from spdm.numlib import np
 from spdm.data.Node import Dict
@@ -20,15 +21,13 @@ from spdm.util.utilities import try_get
 #     fig.subplots_adjust(bottom=fig.subplotpars.bottom+height)
 
 
-def sp_figure_signature(fig, signature=None):
+def sp_figure_signature(fig: plt.Figure, signature=None):
     if signature is False:
         return fig
     elif not isinstance(signature, str):
         signature = f"Create by SpDM at {datetime.datetime.now().isoformat()}. [user: '{getpass.getuser().capitalize()}']"
 
-    # fig.suptitle(signature)
-    fig.text(0.5, 0.04, signature, va='center', ha='center', fontsize=plt.rcParams['axes.labelsize'])
-    # plt.xlabel(signature)
+    fig.text(1.0, 0.1, signature, va='bottom', ha='right', fontsize='small', alpha=0.5, rotation='vertical')
     return fig
 
 
@@ -74,7 +73,7 @@ def parse_profile(desc, holder=None, **kwargs):
     return data, opts
 
 
-def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize=6,  grid=False, signature=None, **kwargs):
+def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
@@ -155,11 +154,11 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         sub_plot[0].set_xlabel(x_label,  fontsize=fontsize)
     else:
         sub_plot[-1].set_xlabel(x_label,  fontsize=fontsize)
-
+    if title is not None:
+        fig.suptitle(title, fontsize=fontsize)
+    fig = sp_figure_signature(fig, signature=signature)
     fig.align_ylabels()
     fig.tight_layout()
-
-    fig = sp_figure_signature(fig, signature=signature)
     return fig
 
 
@@ -172,6 +171,7 @@ def sp_figure(obj, *args, signature=None, **kwargs):
 
     fig = sp_figure_signature(fig, signature=signature)
     # fig.tight_layout()
-    fig.gca().axis('scaled')
-
+    # fig.gca().axis('scaled')
+    fig.align_ylabels()
+    fig.tight_layout()
     return fig
