@@ -17,7 +17,7 @@ from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
                     EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath,
-                    _TQuery, normalize_query)
+                    _TQuery, as_dataclass, normalize_query)
 
 
 class Node(Generic[_TObject]):
@@ -498,17 +498,7 @@ class _SpProperty(Generic[_TObject]):
                     if not self._isinstance(obj):
                         origin_type = getattr(self.return_type, '__origin__', self.return_type)
                         if dataclasses.is_dataclass(origin_type):
-                            if isinstance(obj, Node):
-                                obj = obj._entry
-                            if isinstance(obj, Entry):
-                                obj = origin_type(**{f.name: obj.find(f.name, None)
-                                                     for f in dataclasses.fields(origin_type)})
-                            elif isinstance(obj, (Node, collections.abc.Mapping)):
-                                obj = origin_type(**{f.name: obj.get(f.name, None)
-                                                     for f in dataclasses.fields(origin_type)})
-                            else:
-                                obj = origin_type(obj)
-
+                            obj = as_dataclass(origin_type, obj)
                         elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
                             obj = self.return_type(obj, parent=instance)
                         elif callable(self.return_type) is not None:

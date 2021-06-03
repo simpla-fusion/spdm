@@ -1,5 +1,6 @@
 import collections
 import collections.abc
+import dataclasses
 import functools
 import operator
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
@@ -633,3 +634,26 @@ class EntryCombiner(Entry):
 
     def erase(self, *args, **kwargs):
         raise NotImplementedError()
+
+
+def as_dataclass(dclass, obj):
+    if hasattr(obj, '_entry'):
+        obj = obj._entry
+    if obj is None or not dataclasses.is_dataclass(dclass) or isinstance(obj, dclass):
+        pass
+    elif dclass is np.ndarray:
+        obj = np.asarray(obj)
+    elif isinstance(obj, Entry):
+        obj = dclass(**{f.name: obj.find(f.name, None)
+                        for f in dataclasses.fields(dclass)})
+    elif hasattr(obj.__class__, 'get'):
+        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, None))
+                        for f in dataclasses.fields(dclass)})
+        
+    else:
+        try:
+            obj = dclass(obj)
+        except Exception as error:
+            logger.debug(f"{type(obj),dclass}")
+            raise error
+    return obj
