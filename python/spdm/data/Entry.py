@@ -34,13 +34,13 @@ def normalize_query(query):
     return query
 
 
-def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  **kwargs) -> _TObject:
+def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=False,  **kwargs) -> _TObject:
     """
         insert if the key does not exist, does nothing if the key exists.
         return value at key
     """
     if isinstance(target, Entry):
-        return target.insert(query, value, if_exists=if_exists, **kwargs)
+        return target.insert(query, value, assign_if_exists=assign_if_exists, **kwargs)
 
     query = normalize_query(query)
 
@@ -54,7 +54,7 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  *
     val = _not_found_
     for idx, key in enumerate(query):
         if isinstance(target, Entry):
-            target = target.insert(query[idx:], value, if_exists=if_exists, **kwargs)
+            target = target.insert(query[idx:], value, assign_if_exists=assign_if_exists, **kwargs)
             break
 
         if idx == len(query)-1:
@@ -72,20 +72,20 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, if_exists=False,  *
                 raise TypeError(type(target))
             elif key >= len(target):
                 raise IndexError(f"Out of range! {key}>={len(target)}")
-            elif if_exists:
+            elif assign_if_exists:
                 target[key] = child
             val = target[key]
         elif isinstance(key,  slice):
             if not isinstance(target, (np.ndarray)):
                 for idx in range(key.start, key.stop, key.step):
-                    ht_insert(target, [idx]+query[idx+1:], value, if_exists=if_exists, **kwargs)
+                    ht_insert(target, [idx]+query[idx+1:], value, assign_if_exists=assign_if_exists, **kwargs)
                 val = ht_find(target, key)
                 break
-            elif if_exists:
+            elif assign_if_exists:
                 target[key] = child
             val = target[key]
         elif isinstance(key, str):
-            if not if_exists:
+            if not assign_if_exists:
                 val = target.setdefault(key, child)
             else:
                 target[key] = child
@@ -127,7 +127,7 @@ def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
         logger.debug(val.__class__)
         val.update(value, **kwargs)
     else:
-        ht_insert(target, query, value, if_exists=True, **kwargs)
+        ht_insert(target, query, value, assign_if_exists=True, **kwargs)
 
 
 def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True) -> Any:
@@ -381,6 +381,10 @@ class Entry(object):
     def empty(self):
         return (self._data is None and len(self._prefix) == 0) or self.find(None, default_value=None) is None
 
+    @property
+    def invalid(self):
+        return self._data is None
+
     def append(self, query):
         self._prefix += normalize_query(query)
 
@@ -400,7 +404,7 @@ class Entry(object):
     #     return self.find(*args, **kwargs)
 
     # def put(self,  rquery:  Optional[_TQuery], value) -> Any:
-        return self.insert(rquery, value, if_exists=True)
+        return self.insert(rquery, value, assign_if_exists=True)
 
     def find(self, rquery: Optional[_TQuery] = None, /, default_value=_undefined_,  **kwargs) -> Any:
         return ht_find(self._data,  self._prefix + normalize_query(rquery), default_value=default_value, **kwargs)

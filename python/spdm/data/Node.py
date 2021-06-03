@@ -91,6 +91,10 @@ class Node(Generic[_TObject]):
     def empty(self) -> bool:
         return self._entry.empty or len(self) == 0
 
+    @property
+    def invalid(self) -> bool:
+        return self._entry is None or self._entry.invalid
+
     class Category(IntFlag):
         UNKNOWN = 0
         ITEM = 0x000
@@ -213,7 +217,7 @@ class Node(Generic[_TObject]):
         return value
 
     def __setitem__(self, query: _TQuery, value: Any) -> None:
-        self._entry.insert(query,  self.__pre_process__(value), if_exists=True)
+        self._entry.insert(query,  self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> Any:
         return self.__post_process__(self._entry.find(query))
@@ -252,7 +256,7 @@ class Node(Generic[_TObject]):
         return self._entry.insert(query, value, **kwargs)
 
     def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
-        return self._entry.insert(query, value, if_exists=True, **kwargs)
+        return self._entry.insert(query, value, assign_if_exists=True, **kwargs)
 
     def get(self, query: _TQuery = None,  default_value=_undefined_):
         return self.find(query, only_first=True, default_value=default_value)
@@ -287,7 +291,7 @@ class List(Node[_TObject], Sequence[_TObject]):
         return self._entry.count()
 
     def __setitem__(self, query: _TQuery, v: _TObject) -> None:
-        self._entry.insert(query, self.__pre_process__(v), if_exists=True)
+        self._entry.insert(query, self.__pre_process__(v), assign_if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> _TObject:
         return self.__post_process__(self._entry.find(query, only_first=True), query, parent=self._parent)
@@ -351,7 +355,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         return self.__post_process__(self._entry.find(query), query)
 
     def __setitem__(self, query: _TKey, value: _TObject) -> None:
-        self._entry.insert(query,  self.__pre_process__(value), if_exists=True)
+        self._entry.insert(query,  self.__pre_process__(value), assign_if_exists=True)
 
     def __delitem__(self, query: _TKey) -> None:
         self._entry.erase(query)
@@ -516,8 +520,8 @@ class _SpProperty(Generic[_TObject]):
                             else:
                                 obj = tmp
 
-                    if obj is not val and not getattr(obj, 'empty', False) and isinstance(cache, Entry) and cache.writable:
-                        val = cache.insert(self.attrname, obj,  if_exists=True)
+                    if obj is not val and not getattr(obj, 'invalid', False) and isinstance(cache, Entry) and cache.writable:
+                        val = cache.insert(self.attrname, obj,  assign_if_exists=True)
                     else:
                         val = obj
         return val
@@ -525,7 +529,7 @@ class _SpProperty(Generic[_TObject]):
     def __set__(self, instance: Any, value: Any):
         with self.lock:
             cache = getattr(instance, "_entry", Entry(instance.__dict__))
-            cache.insert(self.attrname, value, if_exists=True)
+            cache.insert(self.attrname, value, assign_if_exists=True)
 
     # def __del__(self, instance: Any):
     #     with self.lock:
