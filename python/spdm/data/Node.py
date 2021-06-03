@@ -1,6 +1,7 @@
 import bisect
 import collections
 import collections.abc
+import dataclasses
 import enum
 import inspect
 import pprint
@@ -13,9 +14,10 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 from ..numlib import np, scipy
 from ..util.logger import logger
-from ..util.utilities import (_not_found_, _undefined_,   serialize)
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner, _TQuery, normalize_query,
-                    EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath)
+from ..util.utilities import _not_found_, _undefined_, serialize
+from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
+                    EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath,
+                    _TQuery, normalize_query)
 
 
 class Node(Generic[_TObject]):
@@ -190,15 +192,18 @@ class Node(Generic[_TObject]):
                 logger.warning(f"{self.__new_child__} is not a 'Node'!")
                 value = self.__new_child__(value, *args, **kwargs)
         elif callable(self.__new_child__):
-            value = self.__new_child__(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
+            value = self.__new_child__(value, *args, parent=parent,  **kwargs)
         elif self.__new_child__ is not None:
             raise TypeError(f"Illegal type! {self.__new_child__}")
+
+        if isinstance(value, Node):
+            pass
         elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            value = List(value, *args, parent=parent, **kwargs)
+            value = List(value, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
         elif isinstance(value, collections.abc.Mapping):
-            value = Dict(value, *args, parent=parent, **kwargs)
+            value = Dict(value, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
         elif isinstance(value, Entry):
-            value = Node(value, *args, parent=parent, **kwargs)
+            value = Node(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
 
         if isinstance(key, (int, str)) and d is not value and self._entry.writable:
             try:
@@ -208,17 +213,6 @@ class Node(Generic[_TObject]):
         return value
 
     def __setitem__(self, query: _TQuery, value: Any) -> None:
-        if self._entry is None:
-            if isinstance(query, collections.abc.Sequence):
-                k = query[0]
-            else:
-                k = query
-
-            if isinstance(k, (int, slice)):
-                self._entry = _LIST_TYPE_()
-            elif isinstance(k, str):
-                self._entry = _DICT_TYPE_()
-
         self._entry.insert(query,  self.__pre_process__(value), if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> Any:
@@ -260,7 +254,7 @@ class Node(Generic[_TObject]):
     def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
         return self._entry.insert(query, value, if_exists=True, **kwargs)
 
-    def get(self, query: _TQuery = None, /,   default_value=_not_found_):
+    def get(self, query: _TQuery = None,  default_value=_undefined_):
         return self.find(query, only_first=True, default_value=default_value)
 
     def update(self, *args, **kwargs):
@@ -268,6 +262,9 @@ class Node(Generic[_TObject]):
 
     def update_many(self,  *args,  **kwargs):
         self._entry.update_many(*args,  **kwargs)
+
+    def fetch(self, query, /, default_value=None, **kwargs):
+        return self._entry.find(query, default_value=default_value, **kwargs)
 
 
 class List(Node[_TObject], Sequence[_TObject]):
@@ -314,7 +311,7 @@ class List(Node[_TObject], Sequence[_TObject]):
 
     @property
     def combine(self) -> _TObject:
-        return self.__new_child__(EntryCombiner(self._entry))
+        return self.__new_child__(EntryCombiner(self._entry), parent=self._parent)
 
     def update(self, *args, **kwargs):
         super().update(*args, **kwargs)
@@ -492,11 +489,23 @@ class _SpProperty(Generic[_TObject]):
                 # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
                 if not self._isinstance(val):
                     obj = self.func(instance)
-                    # if not self._isinstance(obj) and hasattr(instance.__class__, '__new_child__'):
-                    #     obj = instance.__new_child__(obj)
+                    if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
+                        obj = instance.__new_child__(obj)
                     if not self._isinstance(obj):
                         origin_type = getattr(self.return_type, '__origin__', self.return_type)
-                        if inspect.isclass(origin_type) and issubclass(origin_type, Node):
+                        if dataclasses.is_dataclass(origin_type):
+                            if isinstance(obj, Node):
+                                obj = obj._entry
+                            if isinstance(obj, Entry):
+                                obj = origin_type(**{f.name: obj.find(f.name, None)
+                                                     for f in dataclasses.fields(origin_type)})
+                            elif isinstance(obj, (Node, collections.abc.Mapping)):
+                                obj = origin_type(**{f.name: obj.get(f.name, None)
+                                                     for f in dataclasses.fields(origin_type)})
+                            else:
+                                obj = origin_type(obj)
+
+                        elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
                             obj = self.return_type(obj, parent=instance)
                         elif callable(self.return_type) is not None:
                             try:
@@ -509,7 +518,8 @@ class _SpProperty(Generic[_TObject]):
 
                     if obj is not val and isinstance(cache, Entry) and cache.writable:
                         val = cache.insert(self.attrname, obj,  if_exists=True)
-
+                    else:
+                        val=obj
         return val
 
     def __set__(self, instance: Any, value: Any):

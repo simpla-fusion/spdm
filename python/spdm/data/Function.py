@@ -302,6 +302,8 @@ class Expression(Function):
                 return expr.__repr__()
             elif isinstance(expr, np.ndarray):
                 return f"<{expr.__class__.__name__} />"
+            else:
+                return expr
 
         return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._inputs]} </ {self.__class__.__name__}>"""
 
@@ -324,7 +326,7 @@ class Expression(Function):
             try:
                 res = self._ufunc(*[wrap(x, d) for d in self._inputs])
             except Exception as error:
-                logger.error(f"Expression error: {self._ufunc.__name__}   ")
+                logger.error(f"Expression error: {self._ufunc.__name__}    ")
                 raise ValueError(error)
 
         return res

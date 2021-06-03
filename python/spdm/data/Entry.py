@@ -605,7 +605,7 @@ class EntryCombiner(Entry):
         if cache is _not_found_:
             return default_value
         elif isinstance(cache, collections.abc.Sequence):
-            cache = [d for d in cache if d is not _not_found_]
+            cache = [d for d in cache if (d is not None and d is not _not_found_)]
             if len(cache) == 0:
                 return default_value
 
@@ -616,7 +616,7 @@ class EntryCombiner(Entry):
                 data = [d for d in cache
                         if not (isinstance(d, Entry) or hasattr(d, '_entry'))]
 
-                res = functools.reduce(self._reducer, data)
+                res = functools.reduce(self._reducer, data[1:], data[0])
             except Exception as error:
                 raise error
             return res
