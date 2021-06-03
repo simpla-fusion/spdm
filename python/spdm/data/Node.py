@@ -516,10 +516,10 @@ class _SpProperty(Generic[_TObject]):
                             else:
                                 obj = tmp
 
-                    if obj is not val and isinstance(cache, Entry) and cache.writable:
+                    if obj is not val and not getattr(obj, 'empty', False) and isinstance(cache, Entry) and cache.writable:
                         val = cache.insert(self.attrname, obj,  if_exists=True)
                     else:
-                        val=obj
+                        val = obj
         return val
 
     def __set__(self, instance: Any, value: Any):
