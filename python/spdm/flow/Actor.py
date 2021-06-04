@@ -65,8 +65,9 @@ class Actor(Dict[Node]):
     def states(self) -> Sequence[State]:
         return self._s_deque
 
+    @property
     def previous_state(self) -> State:
-        return self._s_deque[-1]
+        return self._s_deque[-1] if len(self._s_deque) > 0 else self
 
     def current_state(self) -> State:
         """

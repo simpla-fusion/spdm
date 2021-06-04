@@ -3,6 +3,7 @@ import collections.abc
 import dataclasses
 import functools
 import operator
+import inspect
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
@@ -410,6 +411,10 @@ class Entry(object):
     def find(self, rquery: Optional[_TQuery] = None, /, default_value=_undefined_,  **kwargs) -> Any:
         return ht_find(self._data,  self._prefix + normalize_query(rquery), default_value=default_value, **kwargs)
 
+    def get(self, rquery: Optional[_TQuery] = None, /, default_value=_undefined_,  **kwargs) -> Any:
+        """ alias of find """
+        return self.find(rquery, default_value=default_value, **kwargs)
+
     def _before_insert(self, query):
         if isinstance(query[0], str):
             self._data = _DICT_TYPE_()
@@ -636,24 +641,43 @@ class EntryCombiner(Entry):
         raise NotImplementedError()
 
 
-def as_dataclass(dclass, obj):
-    if hasattr(obj, '_entry'):
+def as_dataclass(dclass, obj, default_value=None):
+    if dclass is dataclasses._MISSING_TYPE:
+        return obj
+    if default_value is dataclasses.MISSING:
+        default_value = None
+    elif hasattr(obj, '_entry'):
         obj = obj._entry
+    if obj is None:
+        obj = default_value
+
     if obj is None or not dataclasses.is_dataclass(dclass) or isinstance(obj, dclass):
         pass
+    # elif getattr(obj, 'empty', False):
+    #     obj = None
     elif dclass is np.ndarray:
         obj = np.asarray(obj)
-    elif isinstance(obj, Entry):
-        obj = dclass(**{f.name: obj.find(f.name, None)
-                        for f in dataclasses.fields(dclass)})
     elif hasattr(obj.__class__, 'get'):
-        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, None))
+        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, None), f.default)
                         for f in dataclasses.fields(dclass)})
-        
+    elif isinstance(obj, collections.abc.Sequence):
+        obj = dclass(*obj)
     else:
         try:
             obj = dclass(obj)
         except Exception as error:
-            logger.debug(f"{type(obj),dclass}")
+            logger.debug((type(obj), dclass))
             raise error
+    return obj
+
+
+def convert_from_entry(cls, obj, *args, **kwargs):
+    origin_type = getattr(cls, '__origin__', cls)
+    if dataclasses.is_dataclass(origin_type):
+        obj = as_dataclass(origin_type, obj)
+    elif inspect.isclass(origin_type):
+        obj = cls(obj, *args, **kwargs)
+    elif callable(cls) is not None:
+        obj = cls(obj, *args, **kwargs)
+
     return obj
