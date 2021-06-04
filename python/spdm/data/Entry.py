@@ -644,9 +644,8 @@ class EntryCombiner(Entry):
 def as_dataclass(dclass, obj, default_value=None):
     if dclass is dataclasses._MISSING_TYPE:
         return obj
-    if default_value is dataclasses.MISSING:
-        default_value = None
-    elif hasattr(obj, '_entry'):
+
+    if hasattr(obj, '_entry'):
         obj = obj._entry
     if obj is None:
         obj = default_value
@@ -658,7 +657,7 @@ def as_dataclass(dclass, obj, default_value=None):
     elif dclass is np.ndarray:
         obj = np.asarray(obj)
     elif hasattr(obj.__class__, 'get'):
-        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, None), f.default)
+        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name,  f.default if f.default is not dataclasses.MISSING else None))
                         for f in dataclasses.fields(dclass)})
     elif isinstance(obj, collections.abc.Sequence):
         obj = dclass(*obj)
