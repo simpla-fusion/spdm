@@ -32,7 +32,8 @@ class Function:
         if x is not None:
             self._x = np.asarray(x)
         else:
-            self._x = np.asarray([])
+            self._x = None
+
         if isinstance(y, Node):
             y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
@@ -56,44 +57,47 @@ class Function:
         return np.all(self._y[0] == self._y[-1])
 
     @property
-    def x(self):
+    def x(self) -> np.ndarray:
         return self._x
 
     def duplicate(self):
-        return Function(self._x, self.__array__())
+        return Function(self.x, self.__array__())
 
     def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
         return Expression(ufunc, method, *inputs, **kwargs)
 
     def __array__(self) -> np.ndarray:
         if self._y is None:
-            self._y = np.asarray(self.__call__(self._x))
+            self._y = np.asarray(self.__call__(self.x))
         return self._y
 
     def __real_array__(self) -> np.ndarray:
-        if not isinstance(self._y, np.ndarray) or self._y.shape != self._x.shape:
+        if self._y is None or isinstance(self._y, np.ndarray):
+            self._y = self.__array__()
+
+        if self._y.shape != self.x.shape:
             self._y = self.__array__()
             if len(self._y .shape) == 0:
-                self._y = np.full(self._x.shape, self._y)
-            elif self._y.shape != self._x.shape:
-                raise ValueError(f"{self._x.shape}!={self._y.shape}")
+                self._y = np.full(self.x.shape, self._y)
+            elif self._y.shape != self.x.shape:
+                raise ValueError(f"{self.x.shape}!={self._y.shape}")
         return self._y
 
     @cached_property
     def _ppoly(self):
         d = self.__real_array__()
 
-        if self._x.shape != d.shape:
-            raise RuntimeError(f"{self._x.shape }!={d.shape} {d}")
+        if self.x.shape != d.shape:
+            raise RuntimeError(f"{self.x.shape }!={d.shape} {d}")
         if d[0] == d[-1]:
-            ppoly = interpolate.CubicSpline(self._x, d, bc_type="periodic")
+            ppoly = interpolate.CubicSpline(self.x, d, bc_type="periodic")
         else:
-            ppoly = interpolate.CubicSpline(self._x, d)
+            ppoly = interpolate.CubicSpline(self.x, d)
         return ppoly
 
     def __call__(self, *args, **kwargs):
         if len(args) == 0:
-            args = [self._x]
+            args = [self.x]
         if callable(self._func):
             res = self._func(*args, **kwargs)
         elif self._y is not None:
@@ -137,26 +141,26 @@ class Function:
         return res
 
     def __len__(self):
-        return len(self._x) if self._x is not None else 0
+        return len(self.x) if self.x is not None else 0
 
     def derivative(self, x=None):
         if x is None:
-            return Function(self._x, self._ppoly.derivative()(self._x))
+            return Function(self.x, self._ppoly.derivative()(self.x))
         else:
             return self._ppoly.derivative()(x)
 
     def antiderivative(self, x=None):
         if x is None:
-            return Function(self._x, self._ppoly.antiderivative()(self._x))
+            return Function(self.x, self._ppoly.antiderivative()(self.x))
         else:
             return self._ppoly.antiderivative()(x)
 
     def dln(self, x=None):
         if x is None:
-            v = self._ppoly(self._x)
-            x = (self._x[:-1]+self._x[1:])*0.5
-            return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self._x[1:]-self._x[:-1])*2.0)
-            # return Function(self._x, self._ppoly.derivative()(self._x)/self._ppoly(self._x))
+            v = self._ppoly(self.x)
+            x = (self.x[:-1]+self.x[1:])*0.5
+            return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self.x[1:]-self.x[:-1])*2.0)
+            # return Function(self.x, self._ppoly.derivative()(self.x)/self._ppoly(self.x))
         else:
             return self.dln()(x)
             # v = self._ppoly(x)
@@ -165,7 +169,7 @@ class Function:
 
     def invert(self, x=None):
         if x is None:
-            return Function(self.__array__(), self._x)
+            return Function(self.__array__(), self.x)
         else:
             return Function(self.__call__(x), x)
 
@@ -307,12 +311,23 @@ class Expression(Function):
 
         return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._inputs]} </ {self.__class__.__name__}>"""
 
+    @cached_property
+    def x(self) -> np.ndarray:
+        try:
+            d = next(d.x for d in self._inputs if isinstance(d, Function) and d.x is not None)
+        except StopIteration:
+            logger.error([type(d) for d in self._inputs])
+            raise RuntimeError(f"Can not get 'x'!")
+        return d
+
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
-        if x is None:
+        if x is None or len(x) == 0:
             x = self.x
 
         def wrap(x, d):
-            if isinstance(d, Function):
+            if d is None:
+                res=0
+            elif isinstance(d, Function):
                 res = np.asarray(d(x))
             elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
                 res = d
