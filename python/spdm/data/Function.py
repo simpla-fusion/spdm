@@ -53,7 +53,7 @@ class Function:
 
     @property
     def is_periodic(self):
-        return np.allclose(self._y[0], self._y[-1])
+        return np.all(self._y[0] == self._y[-1])
 
     @property
     def x(self):
@@ -85,7 +85,7 @@ class Function:
 
         if self._x.shape != d.shape:
             raise RuntimeError(f"{self._x.shape }!={d.shape} {d}")
-        if self.is_periodic:
+        if d[0] == d[-1]:
             ppoly = interpolate.CubicSpline(self._x, d, bc_type="periodic")
         else:
             ppoly = interpolate.CubicSpline(self._x, d)
@@ -309,7 +309,7 @@ class Expression(Function):
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
         if x is None:
-            x = self._x
+            x = self.x
 
         def wrap(x, d):
             if isinstance(d, Function):
@@ -319,15 +319,11 @@ class Expression(Function):
             elif d.shape == self.x.shape:
                 res = np.asarray(Function(self.x, d)(x))
             else:
-                raise ValueError(f"{self.x.shape} {d.shape}")
+                raise ValueError(f"{self.x.shape} {type(d)} {d.shape}")
             return res
         with warnings.catch_warnings():
             warnings.filterwarnings("always")
-            try:
-                res = self._ufunc(*[wrap(x, d) for d in self._inputs])
-            except Exception as error:
-                logger.error(f"Expression error: {self._ufunc.__name__}    ")
-                raise ValueError(error)
+            res = self._ufunc(*[wrap(x, d) for d in self._inputs])
 
         return res
 

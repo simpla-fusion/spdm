@@ -87,11 +87,14 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=Fa
                 target[key] = child
             val = target[key]
         elif isinstance(key, str):
-            if not assign_if_exists:
-                val = target.setdefault(key, child)
-            else:
+            if (assign_if_exists and idx == (len(query)-1)):
                 target[key] = child
                 val = target[key]
+            else:
+                val = target.get(key, _not_found_)
+                if val is _not_found_:
+                    target[key] = child
+                    val = target[key]
 
             if val is _not_found_:
                 try:
