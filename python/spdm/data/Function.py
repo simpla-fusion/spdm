@@ -26,7 +26,7 @@ class Function:
         return obj
 
     def __init__(self,
-                 x: np.ndarray,
+                 x: np.ndarray = None,
                  y: Union[np.ndarray, float, Callable] = None,
                  func=None):
         if x is not None:
@@ -292,9 +292,9 @@ class Expression(Function):
         self._inputs = inputs
         self._kwargs = kwargs
 
-        x = next(d.x for d in self._inputs if isinstance(d, Function))
-        y = None
-        super().__init__(x, y)
+        # x = next(d.x for d in self._inputs if isinstance(d, Function))
+        # y = None
+        super().__init__()
 
     def __repr__(self) -> str:
         def repr(expr):

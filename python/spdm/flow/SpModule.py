@@ -103,7 +103,7 @@ class SpModule(Actor):
                 for line in iter(pipe.readline, b''):  # b'\n'-separated lines
                     logger.info(line)
 
-            exitcode = process.wait()
+            exitcode = process.wait() 
 
         except (OSError, subprocess.CalledProcessError) as error:
             logger.error(
