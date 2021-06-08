@@ -104,6 +104,10 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=Fa
         elif isinstance(key, collections.abc.Mapping):
             val = ht_find(target, key, default_value=_not_found_)
 
+            if val is _not_found_:
+                # FIXME: !!!! not complete !!!!
+                val = ht_insert(target, _next_, key)
+
         if val is _not_found_:
             break
         else:

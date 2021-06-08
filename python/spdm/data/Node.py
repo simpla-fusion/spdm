@@ -496,12 +496,14 @@ class _SpProperty(Generic[_TObject]):
                     if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
                         obj = instance.__new_child__(obj)
                     if not self._isinstance(obj):
-                        
+
                         origin_type = getattr(self.return_type, '__origin__', self.return_type)
                         if dataclasses.is_dataclass(origin_type):
                             obj = as_dataclass(origin_type, obj)
                         elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
                             obj = self.return_type(obj, parent=instance)
+                        elif origin_type is np.ndarray:
+                            obj = np.asarray(obj)
                         elif callable(self.return_type) is not None:
                             try:
                                 tmp = self.return_type(obj)
