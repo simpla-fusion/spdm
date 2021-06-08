@@ -95,7 +95,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         sub_plot = [sub_plot]
 
     for idx, profile_grp in enumerate(profile_list):
-        grp_opts = {}
+        
         if not isinstance(profile_grp, list):
             profile_grp = [profile_grp]
         ylabel = None

@@ -1,6 +1,6 @@
 """Boundary value problem solver."""
 from __future__ import division, print_function, absolute_import
-
+from ..util.logger import logger
 from warnings import warn
 
 from spdm.numlib import np
@@ -9,7 +9,6 @@ from numpy.linalg import norm, pinv
 from scipy.sparse import coo_matrix, csc_matrix
 from scipy.sparse.linalg import splu
 from scipy.optimize import OptimizeResult
-from ..util.logger import logger
 
 EPS = np.finfo(float).eps
 
@@ -1089,29 +1088,26 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
     while True:
         m = x.shape[0]
 
-        col_fun, jac_sys = prepare_sys(n, m, k, fun_wrapped, bc_wrapped,
-                                       fun_jac_wrapped, bc_jac_wrapped, x, h)
-        y, p, singular = solve_newton(n, m, h, col_fun, bc_wrapped, jac_sys,
-                                      y, p, B, tol, bc_tol)
+        col_fun, jac_sys = prepare_sys(n, m, k, fun_wrapped, bc_wrapped, fun_jac_wrapped, bc_jac_wrapped, x, h)
+        y, p, singular = solve_newton(n, m, h, col_fun, bc_wrapped, jac_sys,  y, p, B, tol, bc_tol)
         iteration += 1
 
-        col_res, y_middle, f, f_middle = collocation_fun(fun_wrapped, y,
-                                                         p, x, h)
+        col_res, y_middle, f, f_middle = collocation_fun(fun_wrapped, y,  p, x, h)
         bc_res = bc_wrapped(y[:, 0], y[:, -1], p)
         max_bc_res = np.max(abs(bc_res))
 
         # This relation is not trivial, but can be verified.
         r_middle = 1.5 * col_res / h
         sol = create_spline(y, f, x, h)
-        rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,
-                                         r_middle, f_middle)
+        rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,  r_middle, f_middle)
         ###########################
         # add by salmon
         if ignore_x is not None:
-            idx = np.argmax(x > ignore_x[0])
-            rms_res[idx-2] = rms_res[idx-3]
-            rms_res[idx-1] = rms_res[idx-2] #(rms_res[idx-2] + rms_res[idx+1])*0.5
-            rms_res[idx] = rms_res[idx+1]
+            idx = np.argmax(x >= ignore_x[0])
+            if idx < len(rms_res)-1:
+                rms_res[idx-2] = rms_res[idx-3]
+                rms_res[idx-1] = rms_res[idx-2]  # (rms_res[idx-2] + rms_res[idx+1])*0.5
+                rms_res[idx] = rms_res[idx+1]
 
         ###########################
         max_rms_res = np.max(rms_res)
@@ -1128,13 +1124,11 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
             status = 1
             if verbose == 2:
                 nodes_added = "({})".format(nodes_added)
-                print_iteration_progress(iteration, max_rms_res, max_bc_res,
-                                         m, nodes_added)
+                print_iteration_progress(iteration, max_rms_res, max_bc_res, m, nodes_added)
             break
 
         if verbose == 2:
-            print_iteration_progress(iteration, max_rms_res, max_bc_res, m,
-                                     nodes_added)
+            print_iteration_progress(iteration, max_rms_res, max_bc_res, m,   nodes_added)
 
         if nodes_added > 0:
             x = modify_mesh(x, insert_1, insert_2)

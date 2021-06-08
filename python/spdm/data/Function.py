@@ -92,7 +92,11 @@ class Function:
         if d[0] == d[-1]:
             ppoly = interpolate.CubicSpline(self.x, d, bc_type="periodic")
         else:
-            ppoly = interpolate.CubicSpline(self.x, d)
+            try:
+                ppoly = interpolate.CubicSpline(self.x, d)
+            except ValueError as error:
+                logger.debug(self.x)
+                raise error
         return ppoly
 
     def __call__(self, *args, **kwargs):
@@ -316,8 +320,9 @@ class Expression(Function):
         try:
             d = next(d.x for d in self._inputs if isinstance(d, Function) and d.x is not None)
         except StopIteration:
-            logger.error([type(d) for d in self._inputs])
-            raise RuntimeError(f"Can not get 'x'!")
+            # logger.error(f"{self._ufunc} {[type(d) for d in self._inputs]}")
+            # raise RuntimeError(f"Can not get 'x'!")
+            d = None
         return d
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
@@ -326,7 +331,7 @@ class Expression(Function):
 
         def wrap(x, d):
             if d is None:
-                res=0
+                res = 0
             elif isinstance(d, Function):
                 res = np.asarray(d(x))
             elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
