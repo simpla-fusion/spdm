@@ -3,6 +3,7 @@ import getpass
 import datetime
 from logging import log
 import matplotlib.pyplot as plt
+from numpy.lib.arraysetops import isin
 from spdm.numlib import np
 from spdm.data.Node import Dict
 from spdm.data.Function import Function
@@ -73,7 +74,7 @@ def parse_profile(desc, holder=None, **kwargs):
     return data, opts
 
 
-def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
+def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
@@ -86,8 +87,16 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         x_label = ""
         x_opts = {}
 
-    if isinstance(x_axis, Function):
+    if x_axis is None:
+        x_axis = [0, 1]
+    elif isinstance(x_axis, Function):
         x_axis = np.asarray(x_axis)
+
+    if isinstance(x_axis, np.ndarray):
+        x_min = x_axis[0]
+        x_max = x_axis[-1]
+    elif isinstance(x_axis, collections.abc.Sequence) and len(x_axis) == 2:
+        x_min, x_max = x_axis
 
     nprofiles = len(profile_list)
 
@@ -109,33 +118,27 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             if len(o_args) >= 2:
                 opts = o_args[1]
 
-            if index_slice is not None:
-                x = x_axis[index_slice]
-            else:
-                x = x_axis
             y = None
-            if isinstance(profile, Function):
-                if profile.x is x:
-                    y = profile.__array__()
-                elif profile.x is None:
-                    y = profile(x)
-                else:
-                    i_min = np.argmax(profile.x > x[0])
-                    i_max = np.argmax(profile.x > x[-1])
-                    if i_min > 0:
-                        i_min -= 1
-                    if i_max == 0:
-                        i_max = len(profile.x)
+            if isinstance(profile, Function) and isinstance(profile.x, np.ndarray):
+                i_min = np.argmax(profile.x > x_min)
+                i_max = np.argmax(profile.x > x_max)
+                if i_min > 0:
+                    i_min -= 1
+                if i_max == 0:
+                    i_max = len(profile.x)
+                x = profile.x[i_min:i_max]
+                y = np.asarray(profile[i_min:i_max])
+            elif isinstance(profile, Function):
+                x = np.linspace(x_min, x_max, default_num_of_points)
+                y = profile(x)
 
-                    x = profile.x[i_min:i_max]
-                    y = np.asarray(profile[i_min:i_max])
             elif isinstance(profile, np.ndarray):
-                if profile.shape != x.shape:
-                    raise ValueError(f"{profile.shape}!={x_axis.shape}")
+                x = np.linspace(x_min, x_max, len(profile))
                 y = profile
-            elif isinstance(profile, (int, float)):
-                y = np.full(x.shape, profile)
+            # elif isinstance(profile, (int, float)):
+            #     y = np.full(x.shape, profile)
             elif callable(profile):
+                x = np.linspace(x_min, x_max, default_num_of_points)
                 y = profile(x)
 
             if not isinstance(y, np.ndarray):
