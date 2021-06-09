@@ -1102,9 +1102,13 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
         rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,  r_middle, f_middle)
         ###########################
         # add by salmon
-        if ignore_x is not None:
-            idx = np.argmax(x >= ignore_x[0])
-            if idx < len(rms_res)-1:
+        if ignore_x is None:
+            ignore_x = []
+        for ix in ignore_x:
+            idx = np.argmax(x >= ix)
+            if idx == 0:
+                rms_res[0] = rms_res[1]
+            elif idx < len(rms_res)-1:
                 rms_res[idx-2] = rms_res[idx-3]
                 rms_res[idx-1] = rms_res[idx-2]  # (rms_res[idx-2] + rms_res[idx+1])*0.5
                 rms_res[idx] = rms_res[idx+1]

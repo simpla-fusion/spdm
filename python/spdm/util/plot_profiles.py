@@ -109,30 +109,41 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
             if len(o_args) >= 2:
                 opts = o_args[1]
 
+            if index_slice is not None:
+                x = x_axis[index_slice]
+            else:
+                x = x_axis
             y = None
             if isinstance(profile, Function):
-                y = np.asarray(profile(x_axis))
+                if profile.x is x:
+                    y = profile.__array__()
+                elif profile.x is None:
+                    y = profile(x)
+                else:
+                    i_min = np.argmax(profile.x > x[0])
+                    i_max = np.argmax(profile.x > x[-1])
+                    if i_min > 0:
+                        i_min -= 1
+                    if i_max == 0:
+                        i_max = len(profile.x)
+
+                    x = profile.x[i_min:i_max]
+                    y = np.asarray(profile[i_min:i_max])
             elif isinstance(profile, np.ndarray):
-                if profile.shape != x_axis.shape:
+                if profile.shape != x.shape:
                     raise ValueError(f"{profile.shape}!={x_axis.shape}")
                 y = profile
             elif isinstance(profile, (int, float)):
-                y = np.full(x_axis.shape, profile)
+                y = np.full(x.shape, profile)
             elif callable(profile):
-                y = profile(x_axis)
+                y = profile(x)
 
             if not isinstance(y, np.ndarray):
                 logger.error(f"Illegal profile '{label}' [{type(profile)}]!")
             elif len(y.shape) == 0:
                 y = np.full(x_axis.shape, y)
-            elif x_axis.shape != y.shape:
-                logger.error(f"length of x,y  must be same! [{label}[{type(profile)}] {x_axis.shape}!={y.shape}]")
-
-            if index_slice is not None:
-                x = x_axis[index_slice]
-                y = y[index_slice]
-            else:
-                x = x_axis
+            elif x.shape != y.shape:
+                logger.error(f"length of x,y  must be same! [{label}[{type(profile)}] {x.shape}!={y.shape}]")
 
             if y is not None:
                 sub_plot[idx].plot(x, y, label=label, **opts)
