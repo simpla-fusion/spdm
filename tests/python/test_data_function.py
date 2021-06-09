@@ -4,7 +4,7 @@ import sys
 import unittest
 from spdm.numlib import constants
 from spdm.numlib import np
-from spdm.data.Function import Function
+from spdm.data.Function import Function, Expression
 from spdm.util.logger import logger
 
 
@@ -13,7 +13,7 @@ class TestFunction(unittest.TestCase):
         x = np.linspace(0, 1.0, 128)
         y = np.sin(x*constants.pi*2.0)
 
-        fun = Function(x, y, is_periodic=True)
+        fun = Function(x, y)
 
         x2 = np.linspace(0, 1.0, 64)
         y2 = np.sin(x2*constants.pi*2.0)
@@ -43,10 +43,11 @@ class TestFunction(unittest.TestCase):
     def test_np_fun(self):
         x = np.linspace(0, 1, 128)
         y = np.linspace(0, 2, 128)
-        fun = Function(x, y, is_periodic=True)
+        fun = Function(x, y)
 
-        y2 = np.sin(fun)
-        logger.debug(type(y2))
+        self.assertTrue(type(fun+1) is Expression)
+        self.assertTrue(type(fun*2) is Expression)
+        self.assertTrue(type(np.sin(fun)) is Expression)
 
 
 if __name__ == '__main__':

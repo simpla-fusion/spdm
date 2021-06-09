@@ -78,14 +78,16 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         profile_list = [profile_list]
 
     # profile_list += args
-
-    if not isinstance(x_axis, np.ndarray):
+    if isinstance(x_axis, collections.abc.Sequence) and not isinstance(x_axis, np.ndarray):
         x_axis, x_label,  *x_opts = x_axis
         x_opts = (x_opts or [{}])[0]
     else:
         # x_axis = None
         x_label = ""
         x_opts = {}
+
+    if isinstance(x_axis, Function):
+        x_axis = np.asarray(x_axis)
 
     nprofiles = len(profile_list)
 
@@ -95,7 +97,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
         sub_plot = [sub_plot]
 
     for idx, profile_grp in enumerate(profile_list):
-        
+
         if not isinstance(profile_grp, list):
             profile_grp = [profile_grp]
         ylabel = None
@@ -109,15 +111,10 @@ def plot_profiles(profile_list, *args,   x_axis=None, index_slice=None, fontsize
 
             y = None
             if isinstance(profile, Function):
-                if (x_axis is profile.x) or (isinstance(x_axis, Function) and x_axis is profile.x) or len(x_axis) == len(profile):
-                    y = np.asarray(profile)
-                else:
-                    try:
-                        y = np.asarray(profile(x_axis))
-                    except ValueError as error:
-                        logger.error(f"Can not plot profile {label}! : {error}"),
-                        continue
+                y = np.asarray(profile(x_axis))
             elif isinstance(profile, np.ndarray):
+                if profile.shape != x_axis.shape:
+                    raise ValueError(f"{profile.shape}!={x_axis.shape}")
                 y = profile
             elif isinstance(profile, (int, float)):
                 y = np.full(x_axis.shape, profile)

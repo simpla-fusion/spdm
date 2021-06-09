@@ -11,7 +11,9 @@ import warnings
 
 
 class Function:
-
+    """
+        NOTE: Function is imutable!!!!
+    """
     def __new__(cls, x, y=None, *args, **kwargs):
         if cls is not Function:
             return object.__new__(cls)
@@ -25,127 +27,136 @@ class Function:
 
         return obj
 
-    def __init__(self,
-                 x: np.ndarray = None,
-                 y: Union[np.ndarray, float, Callable] = None,
-                 func=None):
+    def __init__(self, x: np.ndarray = None, y: Union[np.ndarray, float, Callable] = None):
+        if y is None:
+            y = x
+            x = None
+
         if x is not None:
             self._x = np.asarray(x)
         else:
             self._x = None
 
         if isinstance(y, Node):
-            y = y._entry.find(default_value=0.0)
+            self._y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
-            y = y.find(default_value=0.0)
-
-        if isinstance(y, Function):
-            self._y = None
-            self._func = y
-        elif callable(y):
-            self._y = None
-            self._func = y
-        elif isinstance(y, (int, float, np.ndarray, collections.abc.Sequence)):
-            self._y = np.asarray(y)
-            self._func = None
+            self._y = y.find(default_value=0.0)
         else:
-            self._y = None
-            self._func = func
+            self._y = y
 
-    @property
+        # if isinstance(y, Function):
+        #     self._y = None
+        #     self._func = y
+        # elif callable(y):
+        #     self._y = None
+        #     self._func = y
+        # elif isinstance(y, (int, float, np.ndarray, collections.abc.Sequence)):
+        #     self._y = np.asarray(y)
+        #     self._func = None
+        # else:
+        #     self._y = None
+        #     self._func = func
+
+    @cached_property
+    def is_constant(self):
+        return isinstance(self._y, (int, float))
+
+    @cached_property
     def is_periodic(self):
-        return np.all(self._y[0] == self._y[-1])
+        return self.is_constant or (isinstance(self._y, np.ndarray) and np.all(self._y[0] == self._y[-1]))
 
     @property
     def x(self) -> np.ndarray:
         return self._x
 
     def duplicate(self):
-        return Function(self.x, self.__array__())
+        return Function(self._x, self._y)
 
     def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
         return Expression(ufunc, method, *inputs, **kwargs)
 
     def __array__(self) -> np.ndarray:
-        if self._y is None:
-            self._y = np.asarray(self.__call__(self.x))
-        return self._y
-
-    def __real_array__(self) -> np.ndarray:
-        if self._y is None or isinstance(self._y, np.ndarray):
-            self._y = self.__array__()
-
-        if self._y.shape != self.x.shape:
-            self._y = self.__array__()
-            if len(self._y .shape) == 0:
-                self._y = np.full(self.x.shape, self._y)
-            elif self._y.shape != self.x.shape:
-                raise ValueError(f"{self.x.shape}!={self._y.shape}")
-        return self._y
+        if not isinstance(self._y, np.ndarray):
+            return np.asarray(self.__call__())
+        else:
+            return self._y
 
     @cached_property
-    def _ppoly(self):
-        d = self.__real_array__()
+    def _ppoly(self) -> interpolate.PPoly:
+        d = self.__call__(no_interpolation=True)
 
-        if self.x.shape != d.shape:
-            raise RuntimeError(f"{self.x.shape }!={d.shape} {d}")
-        if d[0] == d[-1]:
-            ppoly = interpolate.CubicSpline(self.x, d, bc_type="periodic")
+        bc_type = getattr(self, '_bc_type', None) or ("periodic" if d[0] == d[-1] else "not-a-knot")
+
+        return interpolate.CubicSpline(self.x, d, bc_type=bc_type)
+
+    def __call__(self, x=None, /, no_interpolation=False, **kwargs):
+        if x is None:
+            x = self.x
+
+        if isinstance(self._y, (int, float)):
+            if x is None or isinstance(x, (float, int)):
+                return self._y
+            elif isinstance(x, np.ndarray):
+                return np.full(x.shape, self._y)
+        elif isinstance(self._y, np.ndarray):
+            if x is self.x:
+                return self._y
+            elif not no_interpolation:
+                return self._ppoly(x)
+            else:
+                raise RuntimeError(f"Interpolation is disabled!")
+        elif callable(self._y):
+            return self._y(x)
         else:
-            try:
-                ppoly = interpolate.CubicSpline(self.x, d)
-            except ValueError as error:
-                logger.debug(self.x)
-                raise error
-        return ppoly
-
-    def __call__(self, *args, **kwargs):
-        if len(args) == 0:
-            args = [self.x]
-        if callable(self._func):
-            res = self._func(*args, **kwargs)
-        elif self._y is not None:
-            res = self._ppoly(*args, **kwargs)
-        else:
-            res = np.asarray(0.0)
-            # raise TypeError(type(self._y))
-
-        return res.view(np.ndarray)
+            raise TypeError(f"{type(self._y)}")
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} />"
-        # self.__array__().__repr__()
+        return f"<{self.__class__.__name__}  type={type(self._y)}/>"
 
+    def __float__(self) -> float:
+        if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
+            return float(self._y)
+        else:
+            raise TypeError(f"Can not convert {type(self._y)} to float. {getattr(self._y,'shape',None)}")
+
+    def __int__(self) -> int:
+        if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
+            return int(self._y)
+        else:
+            raise TypeError(f"Can not convert {type(self._y)} to float")
+
+    # def __bool__(self) -> bool:
+    #     if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
+    #         return bool(self._y)
+    #     else:
+    #         raise TypeError(f"Can not convert {type(self._y)} to float")
     def __getitem__(self, idx):
-        d = self.__array__()
-        if len(d.shape) == 0:
-            return d
+        if isinstance(self._y, np.ndarray):
+            return self._y[idx]
+        elif isinstance(self.x, np.ndarray):
+            return self.__call__(self.x[idx])
         else:
-            return d[idx]
-
-    def __setitem__(self, idx, value):
-        if hasattr(self, "_ppoly"):
-            delattr(self, "_ppoly")
-        self.__real_array__()[idx] = value
-
-    def _prepare(self, x, y):
-        if not isinstance(x, [collections.abc.Sequence, np.ndarray]):
-            x = np.asarray([x])
-        if isinstance(y, [collections.abc.Sequence, np.ndarray]):
-            y = np.asarray(y)
-        elif y is not None:
-            y = np.asarray([y])
-        else:
-            y = self.__call__(x)
-        return x, y
-
-    def insert(self, x, y=None):
-        res = Function(*self._prepare(x, y), func=self._func)
-        raise NotImplementedError('Insert points!')
-        return res
-
-    def __len__(self):
-        return len(self.x) if self.x is not None else 0
+            raise RuntimeError(f"x is {type(self.x)} ,y is {type(self._y)}")
+    # def __setitem__(self, idx, value):
+    #     if hasattr(self, "_ppoly"):
+    #         delattr(self, "_ppoly")
+    #     self.__real_array__()[idx] = value
+    # def _prepare(self, x, y):
+    #     if not isinstance(x, [collections.abc.Sequence, np.ndarray]):
+    #         x = np.asarray([x])
+    #     if isinstance(y, [collections.abc.Sequence, np.ndarray]):
+    #         y = np.asarray(y)
+    #     elif y is not None:
+    #         y = np.asarray([y])
+    #     else:
+    #         y = self.__call__(x)
+    #     return x, y
+    # def insert(self, x, y=None):
+    #     res = Function(*self._prepare(x, y), func=self._func)
+    #     raise NotImplementedError('Insert points!')
+    #     return res
+    # def __len__(self):
+    #     return len(self.x) if self.x is not None else 0
 
     def derivative(self, x=None):
         if x is None:
@@ -326,7 +337,8 @@ class Expression(Function):
         return d
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
-        if x is None or len(x) == 0:
+
+        if x is None or (isinstance(x, (collections.abc.Sequence, np.ndarray)) and len(x) == 0):
             x = self.x
 
         def wrap(x, d):
