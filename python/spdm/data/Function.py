@@ -19,8 +19,6 @@ class Function:
         NOTE: Function is imutable!!!!
     """
 
-    INIT_NUM_X_POINTS = 64
-
     def __init__(self, x: Union[np.ndarray, Sequence] = None, y: Union[np.ndarray, float, Callable] = None, /, **kwargs):
         if y is None:
             y = x
@@ -54,7 +52,6 @@ class Function:
         elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
             self._x_domain = list(set(x))
             self._x_axis = None
-            # np.linspace(self._x_domain[0], self._x_domain[1], getattr( self._y, 'shape', [Function.INIT_NUM_X_POINTS])[0])
         else:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None
@@ -176,7 +173,6 @@ class Function:
             return Function([x_min, x_max], self._y)
         else:
             raise TypeError(type(self._y))
-            # x_axis = np.linspace(x_min, x_max, Function.INIT_NUM_X_POINTS)
             # return x_axis, np.asarray(self.__call__(x_axis))
 
     def __repr__(self) -> str:

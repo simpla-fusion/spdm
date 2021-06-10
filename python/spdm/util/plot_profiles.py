@@ -76,7 +76,7 @@ def parse_profile(desc, holder=None, **kwargs):
     return data, opts
 
 
-def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=16, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
+def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
