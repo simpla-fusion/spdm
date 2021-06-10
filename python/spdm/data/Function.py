@@ -1,14 +1,15 @@
 import collections
 import collections.abc
 from functools import cached_property
+from logging import log
 from operator import is_
 from typing import Any, Callable, Optional, Sequence, Type, Union, Set
-
-from numpy.lib.function_base import kaiser
 
 
 from ..util.logger import logger
 from ..numlib import np, scipy
+from ..numlib.misc import float_unique
+
 from ..numlib.spline import create_spline, PPoly
 from .Entry import Entry
 from .Node import Node
@@ -46,6 +47,10 @@ class Function:
             if x is None:
                 x = y.x_domain
                 self._y = y._y
+        elif isinstance(y, PPoly):
+            self._y = y
+            if x is None:
+                x = y.x
         else:
             self._y = y
 
@@ -120,10 +125,10 @@ class Function:
         else:
             if isinstance(self._y,  np.ndarray):
                 y = self._y
-            elif callable(self._y):
-                y = np.asarray(self._y(self.x_axis))
             else:
-                raise TypeError(f"{type(self._y)}")
+                y = np.asarray(self.__call__(self.x_axis))
+            # else:
+            #     raise TypeError(f"{type(self._y)}")
 
             bc_type = getattr(self, '_bc_type', None) or ("periodic" if np.all(y[0] == y[-1]) else "not-a-knot")
             return create_spline(self.x_axis, y, bc_type=bc_type)
@@ -355,30 +360,42 @@ class PiecewiseFunction(Function):
         super().__init__(x, y, *args,    **kwargs)
         assert(len(x) == len(y)+1)
 
-    @cached_property
-    def x_axis(self):
-        return NotImplemented
-
     def __call__(self, x: Union[float, np.ndarray] = None) -> np.ndarray:
         if x is None:
             x = self.x_axis
+        if isinstance(x, np.ndarray) and len(x) == 1:
+            x = x[0]
+
         if isinstance(x, np.ndarray):
-            return np.piecewise(x, [lambda r: self._x[idx] <= r and r < self._x[idx+1] for idx in range(len(self._x)-1)], self._y)
+            cond_list = [np.logical_and(self.x_domain[idx] <= x, x < self.x_domain[idx+1])
+                         for idx in range(len(self.x_domain)-1)]
+
+            return np.piecewise(x, cond_list, self._y)
         elif isinstance(x, float):
-            idx = next(i for i, val in enumerate(self._x) if val > x)
+
+            if np.isclose(x, self.x_domain[0]):
+                idx = 0
+            elif np.isclose(x, self.x_domain[-1]):
+                idx = -1
+            else:
+                try:
+                    idx = next(i for i, val in enumerate(self.x_domain) if val >= x)-1
+                except StopIteration:
+                    idx = None
+            if idx is None:
+                raise ValueError(f"Out of range! {x} not in ({self.x_domain[0]},{self.x_domain[-1]})")
+
             return self._y[idx](x)
+        else:
+            raise TypeError(type(x))
 
 
 class Expression(Function):
     def __init__(self, ufunc, method, *inputs,  **kwargs) -> None:
-
         self._ufunc = ufunc
         self._method = method
         self._inputs = inputs
         self._kwargs = kwargs
-
-        # x = next(d.x for d in self._inputs if isinstance(d, Function))
-        # y = None
         super().__init__()
 
     def __repr__(self) -> str:
@@ -394,35 +411,23 @@ class Expression(Function):
 
     @cached_property
     def x_domain(self) -> list:
-        res = None
-        x_min = None
-        x_max = None
-        is_changed = False
+        res = []
+        x_min = -np.inf
+        x_max = np.inf
         for f in self._inputs:
-            if not isinstance(f, Function):
+            if not isinstance(f, Function) or f.x_domain is None:
                 continue
-            if res is None:
-                res = f.x_domain
-                x_min = res[0]
-                x_max = res[-1]
-            else:
-                is_changed = True
-                x_min = max(f.x_min, x_min)
-                x_max = min(f.x_max, x_max)
-                res.extend(f.x_domain)
-
-        if is_changed:
-            res = list(set(res))
-            res.sort()
-            res = [v for v in res if v >= x_min and v <= x_max]
-        return res
+            x_min = max(f.x_min, x_min)
+            x_max = min(f.x_max, x_max)
+            res.extend(f.x_domain)
+        return float_unique(res, x_min, x_max)
 
     @cached_property
     def x_axis(self) -> np.ndarray:
         axis = None
         is_changed = False
         for f in self._inputs:
-            if not isinstance(f, Function) or axis is f.x_axis:
+            if not isinstance(f, Function) or f.x_axis is None or axis is f.x_axis:
                 continue
             elif axis is None:
                 axis = f.x_axis
@@ -430,19 +435,17 @@ class Expression(Function):
                 axis = np.hstack([axis, f.x_axis])
                 is_changed = True
 
-        if axis is not None and len(axis) > 0:
-            if is_changed:
-                axis = np.sort(axis)
-                axis = axis[np.append(True, np.diff(axis)) > np.finfo(float).eps*10]
-            if axis[0] < self.x_min or axis[-1] > self.x_max:
-                axis = np.asarray([v for v in axis if v >= self.x_min and v <= self.x_max])
-
+        if is_changed:
+            axis = float_unique(axis, self.x_min, self.x_max)
         return axis
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
 
         if x is None or (isinstance(x, (collections.abc.Sequence, np.ndarray)) and len(x) == 0):
             x = self.x_axis
+
+        if x is None:
+            raise RuntimeError(f"Can not get x_axis!")
 
         def wrap(x, d):
             if d is None:
@@ -456,9 +459,6 @@ class Expression(Function):
             else:
                 raise ValueError(f"{getattr(self.x_axis,'shape',[])} {x.shape} {type(d)} {d.shape}")
             return res
-
-        if x is None:
-            raise ValueError(type(x))
 
         with warnings.catch_warnings():
             warnings.filterwarnings("always")

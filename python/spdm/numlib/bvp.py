@@ -5,7 +5,7 @@ from warnings import warn
 
 from spdm.numlib import np
 from numpy.linalg import norm, pinv
-from .spline import create_spline
+from .spline import create_spline_for_bvp
 from scipy.sparse import coo_matrix, csc_matrix
 from scipy.sparse.linalg import splu
 from scipy.optimize import OptimizeResult
@@ -1117,7 +1117,7 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
 
         # This relation is not trivial, but can be verified.
         r_middle = 1.5 * col_res / h
-        sol = create_spline(y, f, x, h, discontinuity)
+        sol = create_spline_for_bvp(y, f, x, h, discontinuity)
 
         rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,  r_middle, f_middle)
 

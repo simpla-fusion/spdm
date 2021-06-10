@@ -112,18 +112,23 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=16, 
             profile_grp = [profile_grp]
         ylabel = None
         for p_desc in profile_grp:
-            profile, label, *o_args = p_desc  # parse_profile(p_desc, **kwargs)
+            profile, label, *o_args = p_desc
             opts = {}
-            if len(o_args) >= 1 and ylabel is None:
+            if len(o_args) > 0 and ylabel is None:
                 ylabel = o_args[0]
-            if len(o_args) >= 2:
+            if len(o_args) > 1:
                 opts = o_args[1]
-
             y = None
             if isinstance(profile, Function):
+                
                 profile = profile.resample(x_min, x_max)
-                x = profile.x_axis
-                y = np.asarray(profile)
+                if profile.x_axis is None:
+                    x = x_axis
+                    y = np.asarray(profile(x_axis))
+                else:
+                    x = profile.x_axis
+                    y = np.asarray(profile())
+
             elif isinstance(profile, np.ndarray):
                 if len(profile) != len(x_axis):
                     x = np.linspace(x_min, x_max, len(profile))
@@ -139,10 +144,10 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=16, 
             else:
                 raise TypeError(type(profile))
 
-            if x.shape != y.shape:
-                logger.error(f"length of x,y  must be same! [{label}[{type(profile)}] {x.shape}!={y.shape}]")
-
-            sub_plot[idx].plot(x, y, label=label, **opts)
+            if not isinstance(x, np.ndarray) or x.shape != y.shape:
+                logger.error(f"length of x,y  must be same! [{label} [{type(profile)}] {x.shape}!={y.shape}]")
+            else:
+                sub_plot[idx].plot(x, y, label=label, **opts)
 
         sub_plot[idx].legend(fontsize=fontsize)
 

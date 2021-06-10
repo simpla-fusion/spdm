@@ -9,7 +9,7 @@ def create_spline(x, y, **kwargs) -> PPoly:
     return CubicSpline(x, y, **kwargs)
 
 
-def create_spline_experiment(y, yp, x, dx, discontinuity=[]):
+def create_spline_for_bvp(y, yp, x, dx, discontinuity=[]):
     """Create a cubic spline given values and derivatives.
 
     Formulas for the coefficients are taken from interpolate.CubicSpline.

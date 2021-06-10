@@ -13,7 +13,7 @@ from ..util.logger import logger
 
 SP_EXPERIMENTAL = os.environ.get("SP_EXPERIMENTAL", False)
 
-logger.info(f"SP_EXPERIMENTAL \t= {SP_EXPERIMENTAL}")
+logger.info(f"SP_EXPERIMENTAL \t: {SP_EXPERIMENTAL}")
 
 EPSILON = 1.0e-2
 
