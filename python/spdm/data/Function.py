@@ -1,37 +1,24 @@
 import collections
 import collections.abc
+import warnings
 from functools import cached_property
 from logging import log
 from operator import is_
-from typing import Any, Callable, Optional, Sequence, Type, Union, Set
+from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 
-
-from ..util.logger import logger
 from ..numlib import np, scipy
 from ..numlib.misc import float_unique
-
-from ..numlib.spline import create_spline, PPoly
+from ..numlib.spline import PPoly, create_spline
+from ..util.logger import logger
 from .Entry import Entry
 from .Node import Node
-import warnings
 
 
 class Function:
     """
         NOTE: Function is imutable!!!!
     """
-    # def __new__(cls, x, y=None, *args, **kwargs):
-    #     if cls is not Function:
-    #         return object.__new__(cls)
 
-    #     if isinstance(x, collections.abc.Sequence) and isinstance(y, collections.abc.Sequence):
-    #         obj = PiecewiseFunction(x, y, *args, **kwargs)
-    #     # elif not isinstance(x, np.ndarray):
-    #     #     raise TypeError(f"x should be np.ndarray not {type(x)}!")
-    #     else:
-    #         obj = object.__new__(cls)
-
-    #     return obj
     INIT_NUM_X_POINTS = 64
 
     def __init__(self, x: Union[np.ndarray, Sequence] = None, y: Union[np.ndarray, float, Callable] = None, /, **kwargs):
@@ -39,7 +26,9 @@ class Function:
             y = x
             x = None
 
-        if isinstance(y, Node):
+        if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
+            raise ValueError(f"y is None!")
+        elif isinstance(y, Node):
             self._y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
             self._y = y.find(default_value=0.0)
@@ -54,13 +43,18 @@ class Function:
         else:
             self._y = y
 
-        if isinstance(x, np.ndarray):
+        if x is None or len(x) == 0:
+            self._x_axis = None
+            self._x_domain = [-np.inf, np.inf]
+        elif isinstance(x, np.ndarray):
+            if len(x) == 0:
+                logger.error(f"{type(x)} {type(y)}")
             self._x_axis = x
             self._x_domain = [x[0], x[-1]]
-        elif x is not None:
+        elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
             self._x_domain = list(set(x))
-            self._x_axis = np.linspace(self._x_domain[0], self._x_domain[1], getattr(
-                self._y, 'shape', [Function.INIT_NUM_X_POINTS])[0])
+            self._x_axis = None
+            # np.linspace(self._x_domain[0], self._x_domain[1], getattr( self._y, 'shape', [Function.INIT_NUM_X_POINTS])[0])
         else:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None
@@ -122,62 +116,68 @@ class Function:
     def _ppoly(self) -> PPoly:
         if isinstance(self._y,  PPoly):
             return self._y
+        elif isinstance(self._y, np.ndarray):
+            return create_spline(self.x_axis,  self._y)
         else:
-            if isinstance(self._y,  np.ndarray):
-                y = self._y
-            else:
-                y = np.asarray(self.__call__(self.x_axis))
-            # else:
-            #     raise TypeError(f"{type(self._y)}")
-
-            bc_type = getattr(self, '_bc_type', None) or ("periodic" if np.all(y[0] == y[-1]) else "not-a-knot")
-            return create_spline(self.x_axis, y, bc_type=bc_type)
+            return create_spline(self.x_axis,  self.__call__())
 
     def __call__(self, x=None, /,  **kwargs) -> Union[np.ndarray, float]:
-        if x is not None:
-            pass
-        elif isinstance(self._y, np.ndarray) and len(kwargs) == 0:
-            return self._y
-        else:
-            x = self.x_axis
+        if x is None:
+            x = self._x_axis
 
-        if not isinstance(x, (float, int, np.ndarray)):
-            raise TypeError(f"Illegal x {type(x)}!")
+        if x is None:
+            raise RuntimeError(f"x_axis is None!")
+
+        if x is self._x_axis and isinstance(self._y, np.ndarray):
+            return self._y
+
+        if self._y is None:
+            raise RuntimeError(f"Illegal function! y is None")
         elif isinstance(self._y, (int, float)):
             if isinstance(x, np.ndarray):
                 return np.full(x.shape, self._y)
             else:
                 return self._y
-        elif callable(self._y) and 'dx' not in kwargs:
-            return self._y(x, **kwargs)
-        else:
+        elif callable(self._y):
+            return np.asarray(self._y(x, **kwargs))
+        elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
-
-    def _resample(self, x_min, x_max, /, tolerance=1.0e-3, init_num_points=16):
-        # TODO: Insert points in rapidly changing places.
-        x_min = max(self.x_min, x_min)
-        x_max = min(self.x_max, x_max)
-
-        if isinstance(self.x_axis, np.ndarray):
-            idx_min = np.argmax(self.x_axis >= x_min)
-            idx_max = np.argmax(self.x_axis <= x_max)+1
-            if isinstance(self._y, np.ndarray):
-                return self.x_axis[idx_min:idx_max], self._y[idx_min:idx_max]
-            else:
-                return self.x_axis[idx_min:idx_max],  self.__call__(self.x_axis[idx_min:idx_max])
         else:
-            x_axis = np.linspace(x_min, x_max, Function.INIT_NUM_X_POINTS)
-            return x_axis, np.asarray(self.__call__(x_axis))
+            raise TypeError((type(x), type(self._y)))
 
     def resample(self, x_min, x_max=None, /, **kwargs):
         if x_min is None or (x_max is not None and x_min <= self.x_min and self.x_max <= x_max):
             if len(kwargs) > 0:
                 logger.warning(f"ignore key-value arguments {kwargs.keys()}")
+                # TODO: Insert points in rapidly changing places.
             return self
         elif x_max is None:
             return Function(x_min, self.__call__(x_min, **kwargs))
+
+        x_min = max(self.x_min, x_min)
+        x_max = min(self.x_max, x_max)
+
+        if x_min > x_max or np.isclose(x_min, x_max) or x_max <= self.x_min:
+            raise ValueError(f"{x_min,x_max}  not in  {self.x_min,self.x_max}")
+        elif isinstance(self.x_axis, np.ndarray):
+            idx_min = np.argmax(self.x_axis >= x_min)
+            idx_max = np.argmax(self.x_axis > x_max)
+            if idx_max > idx_min:
+                pass
+            elif idx_max == 0 and np.isclose(self.x_axis[-1], x_max):
+                idx_max = -1
+            else:
+                logger.debug((x_min, x_max, idx_min, idx_max, self.x_axis))
+            if isinstance(self._y, np.ndarray):
+                return Function(self.x_axis[idx_min:idx_max], self._y[idx_min:idx_max])
+            else:
+                return Function(self.x_axis[idx_min:idx_max],  self.__call__(self.x_axis[idx_min:idx_max]))
+        elif callable(self._y):
+            return Function([x_min, x_max], self._y)
         else:
-            return Function(*self._resample(x_min, x_max, **kwargs))
+            raise TypeError(type(self._y))
+            # x_axis = np.linspace(x_min, x_max, Function.INIT_NUM_X_POINTS)
+            # return x_axis, np.asarray(self.__call__(x_axis))
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}  type={type(self._y)}/>"
@@ -194,11 +194,6 @@ class Function:
         else:
             raise TypeError(f"Can not convert {type(self._y)} to float")
 
-    # def __bool__(self) -> bool:
-    #     if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
-    #         return bool(self._y)
-    #     else:
-    #         raise TypeError(f"Can not convert {type(self._y)} to float")
     def __getitem__(self, idx):
         if isinstance(self._y, np.ndarray):
             return self._y[idx]
@@ -206,6 +201,7 @@ class Function:
             return self.__call__(self.x_axis[idx])
         else:
             raise RuntimeError(f"x is {type(self.x_axis)} ,y is {type(self._y)}")
+
     # def __setitem__(self, idx, value):
     #     if hasattr(self, "_ppoly"):
     #         delattr(self, "_ppoly")
@@ -260,6 +256,7 @@ class Function:
     def pullback(self, source: np.ndarray, target: np.ndarray):
         if source.shape != target.shape:
             raise ValueError(f"The shapes of axies don't match! {source.shape}!={target.shape}")
+
             # if len(args) == 0:
             #     raise ValueError(f"missing arguments!")
             # elif len(args) == 2 and args[0].shape == args[1].shape:
@@ -275,7 +272,7 @@ class Function:
             # else:
             #     raise TypeError(f"{args}")
 
-        return Function(target, self(source).__array__())
+        return Function(target, np.asarray(self(source)))
 
     def integrate(self, a=None, b=None):
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
@@ -303,9 +300,8 @@ class Function:
 
 _uni_ops = {
     '__neg__': np.negative,
-
-
 }
+
 for name, op in _uni_ops.items():
     setattr(Function,  name, lambda s, _op=op: _op(s))
 
@@ -329,15 +325,12 @@ _bi_ops = {
     "__le__": np.less_equal,
     "__gt__": np.greater_equal,
     "__ge__": np.greater_equal,
-
 }
-
 
 for name, op in _bi_ops.items():
     setattr(Function,  name, lambda s, other, _op=op: _op(s, other))
 
 _rbi_ops = {
-
     # Add arguments element-wise.
     "__radd__": np.add,
     # (x1, x2, / [, out, where, casting, …]) Subtract arguments, element-wise.
@@ -351,6 +344,7 @@ _rbi_ops = {
     # Return x to the power p, (x**p).
     "__rpow__": np.power
 }
+
 for name, op in _rbi_ops.items():
     setattr(Function,  name, lambda s, other, _op=op: _op(other, s))
 
@@ -360,16 +354,43 @@ class PiecewiseFunction(Function):
         super().__init__(x, y, *args,    **kwargs)
         assert(len(x) == len(y)+1)
 
+    def resample(self, x_min, x_max=None, /, **kwargs):
+        x_min = x_min or -np.inf
+        x_max = x_max or np.inf
+        if x_min <= self.x_min and x_max >= self.x_max:
+            return self
+        cond_list = []
+        func_list = []
+        for idx, xp in enumerate(self.x_domain[:-1]):
+            if x_max <= xp:
+                break
+            elif x_min >= self.x_domain[idx+1]:
+                continue
+
+            if x_min <= xp:
+                cond_list.append(xp)
+                func_list.append(self._y[idx])
+            if x_max < self.x_domain[idx+1]:
+                break
+        if len(cond_list) == 0:
+            return None
+        else:
+            cond_list.append(min(x_max, self.x_domain[-1]))
+            return PiecewiseFunction(cond_list, func_list)
+
     def __call__(self, x: Union[float, np.ndarray] = None) -> np.ndarray:
         if x is None:
             x = self.x_axis
+        elif not isinstance(x, (int, float, np.ndarray)):
+            x = np.asarray(x)
+
         if isinstance(x, np.ndarray) and len(x) == 1:
             x = x[0]
 
         if isinstance(x, np.ndarray):
             cond_list = [np.logical_and(self.x_domain[idx] <= x, x < self.x_domain[idx+1])
                          for idx in range(len(self.x_domain)-1)]
-
+            cond_list[-1] = np.logical_or(cond_list[-1], np.isclose(x, self.x_domain[-1]))
             return np.piecewise(x, cond_list, self._y)
         elif isinstance(x, float):
 
@@ -392,11 +413,10 @@ class PiecewiseFunction(Function):
 
 class Expression(Function):
     def __init__(self, ufunc, method, *inputs,  **kwargs) -> None:
+        super().__init__(inputs)
         self._ufunc = ufunc
         self._method = method
-        self._inputs = inputs
         self._kwargs = kwargs
-        super().__init__()
 
     def __repr__(self) -> str:
         def repr(expr):
@@ -407,14 +427,14 @@ class Expression(Function):
             else:
                 return expr
 
-        return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._inputs]} </ {self.__class__.__name__}>"""
+        return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._y]} </ {self.__class__.__name__}>"""
 
     @cached_property
     def x_domain(self) -> list:
         res = []
         x_min = -np.inf
         x_max = np.inf
-        for f in self._inputs:
+        for f in self._y:
             if not isinstance(f, Function) or f.x_domain is None:
                 continue
             x_min = max(f.x_min, x_min)
@@ -426,7 +446,7 @@ class Expression(Function):
     def x_axis(self) -> np.ndarray:
         axis = None
         is_changed = False
-        for f in self._inputs:
+        for f in self._y:
             if not isinstance(f, Function) or f.x_axis is None or axis is f.x_axis:
                 continue
             elif axis is None:
@@ -438,6 +458,10 @@ class Expression(Function):
         if is_changed:
             axis = float_unique(axis, self.x_min, self.x_max)
         return axis
+
+    def resample(self, x_min, x_max=None, /, **kwargs):
+        inputs = [(f.resample(x_min, x_max, **kwargs) if isinstance(f, Function) else f) for f in self._y]
+        return Expression(self._ufunc, self._method, *inputs, **self._kwargs)
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
 
@@ -462,10 +486,10 @@ class Expression(Function):
 
         with warnings.catch_warnings():
             warnings.filterwarnings("always")
-            res = self._ufunc(*[wrap(x, d) for d in self._inputs])
+            res = self._ufunc(*[wrap(x, d) for d in self._y])
 
         return res
 
         # if self._method != "__call__":
         #     op = getattr(self._ufunc, self._method)
-        #     res = op(*[wrap(x, d) for d in self._inputs])
+        #     res = op(*[wrap(x, d) for d in self._y])

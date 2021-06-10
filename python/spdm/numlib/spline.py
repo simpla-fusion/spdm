@@ -6,7 +6,8 @@ from scipy.interpolate import PPoly, CubicSpline
 
 
 def create_spline(x, y, **kwargs) -> PPoly:
-    return CubicSpline(x, y, **kwargs)
+    bc_type = "periodic" if np.all(y[0] == y[-1]) else "not-a-knot"
+    return CubicSpline(x, y, bc_type=bc_type)
 
 
 def create_spline_for_bvp(y, yp, x, dx, discontinuity=[]):

@@ -80,7 +80,6 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=16, 
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
-    # profile_list += args
     if isinstance(x_axis, collections.abc.Sequence) and not isinstance(x_axis, np.ndarray):
         x_axis, x_label,  *x_opts = x_axis
         x_opts = (x_opts or [{}])[0]
@@ -98,6 +97,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=16, 
     elif isinstance(x_axis, collections.abc.Sequence) and len(x_axis) == 2:
         x_min, x_max = x_axis
         x_axis = np.linspace(x_min, x_max, default_num_of_points)
+    else:
+        raise TypeError(x_axis)
 
     nprofiles = len(profile_list)
 

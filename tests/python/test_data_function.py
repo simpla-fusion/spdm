@@ -4,7 +4,7 @@ import sys
 import unittest
 from spdm.numlib import constants
 from spdm.numlib import np
-from spdm.data.Function import Function, Expression
+from spdm.data.Function import Function, Expression, PiecewiseFunction
 from spdm.util.logger import logger
 
 
@@ -60,12 +60,16 @@ class TestFunction(unittest.TestCase):
 
         self.assertEqual(y2.x_min, 1)
         self.assertEqual(y2.x_max, 2)
-        logger.debug(x0)
-        logger.debug(x1)
-        logger.debug(x2)
-        logger.debug(y2.x_axis)
 
         self.assertTrue(np.all(y2.x_axis == x2))
+
+    def test_picewise_function(self):
+        r_ped = 0.9001  # np.sqrt(0.88)
+        Cped = 0.2
+        Ccore = 0.4
+        chi = PiecewiseFunction([0, r_ped, 1.0],  [lambda x:x, lambda x: Cped])
+        x = np.linspace(0, 1, 101)
+        logger.debug((chi*2)(x))
 
 
 if __name__ == '__main__':
