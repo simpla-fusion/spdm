@@ -22,6 +22,9 @@ class Point(GeoObject):
     def map(self,  *args, **kwargs):
         return self._x
 
+    def point(self, *args, **kwargs):
+        return np.asarray([self._x])
+
     @property
     def points(self):
         return self._x

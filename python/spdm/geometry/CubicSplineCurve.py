@@ -16,37 +16,35 @@ class CubicSplineCurve(Curve):
         else:
             xy = np.asarray(xy)
 
-        if u is None:
-            u = xy.shape[0]
+        if isinstance(u, np.ndarray):
+            # if all(np.isclose(xy[0], xy[-1])):
+            #     is_closed = True
+            #     xy = xy[:-1, :]
+            #     u = u[:-1]
+            p_min = np.argmin(u)
+            p_max = np.argmax(u)
 
-        if isinstance(u, int):
-            u = np.linspace(0, 1.0, u)
-        elif not isinstance(u, (collections.abc.Sequence, np.ndarray)):
-            u = [u]
-        u = np.asarray(u)
+            if p_min == 0:
+                pass
+            elif p_min < p_max:
+                u[:p_min+1] += 1.0
+                u = np.flip(u)
+                xy = np.flip(xy, axis=0)
+            else:
+                # FIXME: need test
+                u[p_min+1:] += 1.0
+        elif u is None:
+            u = np.linspace(0, 1, xy.shape[0])
+        elif isinstance(u, int):
+            u = np.linspace(0, 1, u)
 
-        if all(np.isclose(xy[0], xy[-1])):
-            is_closed = True
-            xy = xy[:-1, :]
-            u = u[:-1]
-        p_min = np.argmin(u)
-        p_max = np.argmax(u)
+        is_closed = np.all(np.isclose(xy[0], xy[-1]))
+        try:
+            self._spl = interpolate.CubicSpline(u, xy, bc_type="periodic" if is_closed else "not-a-knot")
+        except ValueError as error:
+            logger.debug(u)
+            raise error
 
-        if p_min == 0:
-            pass
-        elif p_min < p_max:
-            u[:p_min+1] += 1.0
-            u = np.flip(u)
-            xy = np.flip(xy, axis=0)
-        else:
-            # FIXME: need test
-            u[p_min+1:] += 1.0
-
-        if is_closed and not all(np.isclose(xy[0], xy[-1])):
-            u = np.hstack([u, [u[0]+1.0]])
-            xy = np.vstack([xy, xy[:1, :]])
-        
-        self._spl = interpolate.CubicSpline(u, xy, bc_type="periodic" if is_closed else "not-a-knot")
         self._uv = [u]
         self._xy = xy
 

@@ -37,6 +37,9 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
     def coord_map(c):
         return np.asarray([[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c])
 
+    if isinstance(levels, int):
+        levels = range(levels)
+
     for val in levels:
         countours = measure.find_contours(z, val)
         surfs.append((val, [coord_map(c) for c in countours]))

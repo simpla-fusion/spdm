@@ -1,4 +1,5 @@
 from functools import cached_property
+import logging
 
 from ..data.Function import Function
 from ..numlib import np
@@ -22,7 +23,8 @@ class GeoObject:
         return NotImplemented
 
     def point(self, *args, **kwargs) -> np.ndarray:
-        return NotImplemented
+
+        raise NotImplementedError(f"{self.__class__.__name__}")
 
     @cached_property
     def xy(self) -> np.ndarray:
