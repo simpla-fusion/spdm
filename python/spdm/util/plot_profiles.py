@@ -1,7 +1,9 @@
 import collections
+import collections.abc
 import getpass
 import datetime
 from logging import log
+from typing import Type
 import matplotlib.pyplot as plt
 from numpy.lib.arraysetops import isin
 from spdm.numlib import np
@@ -74,7 +76,7 @@ def parse_profile(desc, holder=None, **kwargs):
     return data, opts
 
 
-def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
+def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=16, fontsize=6,  grid=False, signature=None, title=None, **kwargs):
     if not isinstance(profile_list, collections.abc.Sequence):
         profile_list = [profile_list]
 
@@ -83,13 +85,11 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
         x_axis, x_label,  *x_opts = x_axis
         x_opts = (x_opts or [{}])[0]
     else:
-        # x_axis = None
+        x_axis = [0, 1]
         x_label = ""
         x_opts = {}
 
-    if x_axis is None:
-        x_axis = [0, 1]
-    elif isinstance(x_axis, Function):
+    if isinstance(x_axis, Function):
         x_axis = np.asarray(x_axis)
 
     if isinstance(x_axis, np.ndarray):
@@ -97,6 +97,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
         x_max = x_axis[-1]
     elif isinstance(x_axis, collections.abc.Sequence) and len(x_axis) == 2:
         x_min, x_max = x_axis
+        x_axis = np.linspace(x_min, x_max, default_num_of_points)
 
     nprofiles = len(profile_list)
 
@@ -119,37 +120,29 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 opts = o_args[1]
 
             y = None
-            if isinstance(profile, Function) and isinstance(profile.x, np.ndarray):
-                i_min = np.argmax(profile.x > x_min)
-                i_max = np.argmax(profile.x > x_max)
-                if i_min > 0:
-                    i_min -= 1
-                if i_max == 0:
-                    i_max = len(profile.x)
-                x = profile.x[i_min:i_max]
-                y = np.asarray(profile[i_min:i_max])
-            elif isinstance(profile, Function):
-                x = np.linspace(x_min, x_max, default_num_of_points)
-                y = profile(x)
-
+            if isinstance(profile, Function):
+                profile = profile.resample(x_min, x_max)
+                x = profile.x_axis
+                y = np.asarray(profile)
             elif isinstance(profile, np.ndarray):
-                x = np.linspace(x_min, x_max, len(profile))
+                if len(profile) != len(x_axis):
+                    x = np.linspace(x_min, x_max, len(profile))
+                else:
+                    x = x_axis
                 y = profile
-            # elif isinstance(profile, (int, float)):
-            #     y = np.full(x.shape, profile)
+            elif isinstance(profile, (int, float)):
+                x = x_axis
+                y = np.full(x.shape, profile)
             elif callable(profile):
-                x = np.linspace(x_min, x_max, default_num_of_points)
+                x = x_axis
                 y = profile(x)
+            else:
+                raise TypeError(type(profile))
 
-            if not isinstance(y, np.ndarray):
-                logger.error(f"Illegal profile '{label}' [{type(profile)}]!")
-            elif len(y.shape) == 0:
-                y = np.full(x_axis.shape, y)
-            elif x.shape != y.shape:
+            if x.shape != y.shape:
                 logger.error(f"length of x,y  must be same! [{label}[{type(profile)}] {x.shape}!={y.shape}]")
 
-            if y is not None:
-                sub_plot[idx].plot(x, y, label=label, **opts)
+            sub_plot[idx].plot(x, y, label=label, **opts)
 
         sub_plot[idx].legend(fontsize=fontsize)
 

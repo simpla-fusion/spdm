@@ -5,7 +5,7 @@ from warnings import warn
 
 from spdm.numlib import np
 from numpy.linalg import norm, pinv
-
+from .spline import create_spline
 from scipy.sparse import coo_matrix, csc_matrix
 from scipy.sparse.linalg import splu
 from scipy.optimize import OptimizeResult
@@ -559,6 +559,7 @@ def estimate_rms_residuals(fun, sol, x, h, p, r_middle, f_middle):
         Control and the Maltab PSE", ACM Trans. Math. Softw., Vol. 27,
         Number 3, pp. 299-316, 2001.
     """
+
     x_middle = x[:-1] + 0.5 * h
     s = 0.5 * h * (3/7)**0.5
     x1 = x_middle + s
@@ -580,32 +581,47 @@ def estimate_rms_residuals(fun, sol, x, h, p, r_middle, f_middle):
     r2 = np.sum(np.real(r2 * np.conj(r2)), axis=0)
     r_middle = np.sum(np.real(r_middle * np.conj(r_middle)), axis=0)
 
-    return (0.5 * (32 / 45 * r_middle + 49 / 90 * (r1 + r2))) ** 0.5
+    rms_res = (0.5 * (32 / 45 * r_middle + 49 / 90 * (r1 + r2))) ** 0.5
+
+    return rms_res
 
 
-def create_spline(y, yp, x, h):
-    """Create a cubic spline given values and derivatives.
+# def create_spline(y, yp, x, h, discontinuity=[]):
+#     """Create a cubic spline given values and derivatives.
 
-    Formulas for the coefficients are taken from interpolate.CubicSpline.
+#     Formulas for the coefficients are taken from interpolate.CubicSpline.
 
-    Returns
-    -------
-    sol : PPoly
-        Constructed spline as a PPoly instance.
-    """
-    from scipy.interpolate import PPoly
+#     Returns
+#     -------
+#     sol : PPoly
+#         Constructed spline as a PPoly instance.
+#     """
+#     from scipy.interpolate import PPoly
 
-    n, m = y.shape
-    c = np.empty((4, n, m - 1), dtype=y.dtype)
-    slope = (y[:, 1:] - y[:, :-1]) / h
-    t = (yp[:, :-1] + yp[:, 1:] - 2 * slope) / h
-    c[0] = t / h
-    c[1] = (slope - yp[:, :-1]) / h - t
-    c[2] = yp[:, :-1]
-    c[3] = y[:, :-1]
-    c = np.rollaxis(c, 1)
+#     n, m = y.shape
+#     c = np.empty((4, n, m - 1), dtype=y.dtype)
+#     slope = (y[:, 1:] - y[:, :-1]) / h
+#     t = (yp[:, :-1] + yp[:, 1:] - 2 * slope) / h
+#     c[0] = t / h
+#     c[1] = (slope - yp[:, :-1]) / h - t
+#     c[2] = yp[:, :-1]
+#     c[3] = y[:, :-1]
+#     c = np.rollaxis(c, 1)
+#     # ###########################
+#     # # add by salmon
+#     # if discontinuity is None:
+#     #     discontinuity = []
+#     # for ix in discontinuity:
+#     #     idx = np.argmax(x >= ix)
+#     #     if idx == 0:
+#     #         rms_res[0] = rms_res[1]
+#     #     elif idx < len(rms_res)-1:
+#     #         rms_res[idx-2] = rms_res[idx-3]
+#     #         rms_res[idx-1] = rms_res[idx-2]  # (rms_res[idx-2] + rms_res[idx+1])*0.5
+#     #         rms_res[idx] = rms_res[idx+1]
 
-    return PPoly(c, x, extrapolate=True, axis=1)
+#     # ###########################
+#     return PPoly(c, x, extrapolate=True, axis=1)
 
 
 def modify_mesh(x, insert_1, insert_2):
@@ -718,7 +734,7 @@ def wrap_functions(fun, bc, fun_jac, bc_jac, k, a, S, D, dtype):
 
 
 def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
-              tol=1e-3, max_nodes=1000, verbose=0, bc_tol=None, ignore_x=None, **kwargs):
+              tol=1e-3, max_nodes=1000, verbose=0, bc_tol=None, discontinuity=None, **kwargs):
     """
         Solve a boundary-value problem for a system of ODEs.
 
@@ -831,6 +847,9 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
             value should satisfy ``abs(bc) < bc_tol`` component-wise. 
             Equals to `tol` by default. Up to 10 iterations are allowed to achieve this
             tolerance.
+        discontinuity: list *experimental*
+            NOTE: add by salmon 
+            List of discontinuity points
 
         Returns
         -------
@@ -1098,22 +1117,10 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
 
         # This relation is not trivial, but can be verified.
         r_middle = 1.5 * col_res / h
-        sol = create_spline(y, f, x, h)
-        rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,  r_middle, f_middle)
-        ###########################
-        # add by salmon
-        if ignore_x is None:
-            ignore_x = []
-        for ix in ignore_x:
-            idx = np.argmax(x >= ix)
-            if idx == 0:
-                rms_res[0] = rms_res[1]
-            elif idx < len(rms_res)-1:
-                rms_res[idx-2] = rms_res[idx-3]
-                rms_res[idx-1] = rms_res[idx-2]  # (rms_res[idx-2] + rms_res[idx+1])*0.5
-                rms_res[idx] = rms_res[idx+1]
+        sol = create_spline(y, f, x, h, discontinuity)
 
-        ###########################
+        rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,  r_middle, f_middle)
+
         max_rms_res = np.max(rms_res)
 
         if singular:
