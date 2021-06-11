@@ -16,24 +16,7 @@ class CubicSplineCurve(Curve):
 
         if not isinstance(self._mesh, collections.abc.Sequence):
             raise NotImplementedError(type(self._mesh))
-
-        u = self._mesh[0]
-
-        # prepare mesh, u must be strictly increased
-        p_min = np.argmin(u)
-        p_max = np.argmax(u)
-
-        if p_min == 0:
-            pass
-        elif p_min == p_max+1:
-            self._mesh = [np.roll(u, -p_min)]
-            self._points = np.roll(self._points, -p_min, axis=0)
-        elif p_min == p_max-1:
-            self._mesh = [np.flip(np.roll(u, -p_min-1))]
-            self._points = np.flip(np.roll(self._points, -p_min-1, axis=0), axis=0)
-        else:
-            raise ValueError(f"Can not convert 'u' to be strictly increased!")
-
+     
         self._spl = create_spline(self._mesh[0], self._points, bc_type="periodic" if self.is_closed else "not-a-knot")
 
     def points(self,  *args, **kwargs) -> np.ndarray:

@@ -13,6 +13,14 @@ class Point(GeoObject):
             args = args[0]
         super().__init__(args, **kwargs)
 
+    def points(self, *uv, **kwargs) -> np.ndarray:
+        """
+        """
+        if len(uv) == 0:
+            return super().points()
+        else:
+            return np.asarray([self._points]*len(uv[0]))
+
     def __call__(self, *args, **kwargs):
         return self._x
 

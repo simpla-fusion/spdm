@@ -69,7 +69,7 @@ class CurvilinearMesh(StructuredMesh):
 
     @cached_property
     def xy(self) -> np.ndarray:
-        return np.stack([surf.point(self.uv[1]) for idx, surf in enumerate(self._sub_surf)], axis=0)
+        return np.stack([surf.points(self.uv[1]) for idx, surf in enumerate(self._sub_surf)], axis=0)
 
     # def pushforward(self, new_uv):
     #     new_shape = [len(u) for u in new_uv]
