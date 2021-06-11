@@ -3,67 +3,44 @@ import collections
 from functools import cached_property
 from typing import Union
 
-from ..numlib import interpolate, np
+from spdm.numlib.spline import create_spline
+
+from ..numlib import np
 from ..util.logger import logger
 from .Curve import Curve
 
 
 class CubicSplineCurve(Curve):
-    def __init__(self, xy: np.ndarray, u=None, /, *args, is_closed=True, **kwargs) -> None:
+    def __init__(self,   *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if isinstance(xy, collections.abc.MutableSequence):
-            xy = np.c_[tuple(xy)]
+
+        if not isinstance(self._mesh, collections.abc.Sequence):
+            raise NotImplementedError(type(self._mesh))
+
+        u = self._mesh[0]
+
+        # prepare mesh, u must be strictly increased
+        p_min = np.argmin(u)
+        p_max = np.argmax(u)
+
+        if p_min == 0:
+            pass
+        elif p_min == p_max+1:
+            self._mesh = [np.roll(u, -p_min)]
+            self._points = np.roll(self._points, -p_min, axis=0)
+        elif p_min == p_max-1:
+            self._mesh = [np.flip(np.roll(u, -p_min-1))]
+            self._points = np.flip(np.roll(self._points, -p_min-1, axis=0), axis=0)
         else:
-            xy = np.asarray(xy)
+            raise ValueError(f"Can not convert 'u' to be strictly increased!")
 
-        if isinstance(u, np.ndarray):
-            # if all(np.isclose(xy[0], xy[-1])):
-            #     is_closed = True
-            #     xy = xy[:-1, :]
-            #     u = u[:-1]
-            p_min = np.argmin(u)
-            p_max = np.argmax(u)
+        self._spl = create_spline(self._mesh[0], self._points, bc_type="periodic" if self.is_closed else "not-a-knot")
 
-            if p_min == 0:
-                pass
-            elif p_min < p_max:
-                u[:p_min+1] += 1.0
-                u = np.flip(u)
-                xy = np.flip(xy, axis=0)
-            else:
-                # FIXME: need test
-                u[p_min+1:] += 1.0
-        elif u is None:
-            u = np.linspace(0, 1, xy.shape[0])
-        elif isinstance(u, int):
-            u = np.linspace(0, 1, u)
-
-        is_closed = np.all(np.isclose(xy[0], xy[-1]))
-        try:
-            self._spl = interpolate.CubicSpline(u, xy, bc_type="periodic" if is_closed else "not-a-knot")
-        except ValueError as error:
-            logger.debug(u)
-            raise error
-
-        self._uv = [u]
-        self._xy = xy
-
-    @cached_property
-    def ndims(self):
-        return len(self._xy[0])
-
-    @property
-    def uv(self):
-        return self._uv
-
-    def point(self,  *args, **kwargs):
+    def points(self,  *args, **kwargs) -> np.ndarray:
         if len(args) == 0:
-            args = self.uv
-        return self._spl(*args, **kwargs)
-
-    @property
-    def xy(self) -> np.ndarray:
-        return self._xy
+            return self._points
+        else:
+            return self._spl(*args, **kwargs)
 
     @cached_property
     def _derivative(self):

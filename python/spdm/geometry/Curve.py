@@ -9,30 +9,25 @@ from ..util.logger import logger
 
 
 class Curve(GeoObject):
-    @staticmethod
-    def __new__(cls, *args, type=None, **kwargs):
-        if len(args) == 0:
-            raise RuntimeError(f"Illegal input! {len(args)}")
-        shape = [(len(a) if isinstance(a, np.ndarray) else 1) for a in args]
-        if all([s == 1 for s in shape]):
-            return object.__new__(Point)
-        elif cls is not Curve:
-            return object.__new__(cls)
-        else:
-            # FIXME：　find module
-            return object.__new__(Curve)
+    # @staticmethod
+    # def __new__(cls, *args, type=None, **kwargs):
+    #     if len(args) == 0:
+    #         raise RuntimeError(f"Illegal input! {len(args)}")
+    #     shape = [(len(a) if isinstance(a, np.ndarray) else 1) for a in args]
+    #     if all([s == 1 for s in shape]):
+    #         return object.__new__(Point)
+    #     elif cls is not Curve:
+    #         return object.__new__(cls)
+    #     else:
+    #         # FIXME：　find module
+    #         return object.__new__(Curve)
 
-    def __init__(self,  *args,  **kwargs) -> None:
+    def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    @cached_property
-    def is_closed(self):
-        return all(np.isclose(self.xy[0], self.xy[-1]))
-
-    @property
-    def topology_rank(self):
-        return 1
-
+    def points(self, *args, **kwargs):
+        return super().points(*args, **kwargs)
+ 
     def dl(self, u=None, *args, **kwargs):
         if u is None:
             u = self.uv[0]

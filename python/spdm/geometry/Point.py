@@ -1,32 +1,22 @@
+import collections.abc
+from typing import Collection
+
+from spdm.numlib import np
+
 from ..util.logger import logger
 from .GeoObject import GeoObject
-from spdm.numlib import np
 
 
 class Point(GeoObject):
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self._x = args
-
-    @property
-    def topology_rank(self):
-        return 0
-
-    @property
-    def ndims(self):
-        return len(self._x)
+        if len(args) == 1 and isinstance(args[0], collections.abc.Sequence):
+            args = args[0]
+        super().__init__(args, **kwargs)
 
     def __call__(self, *args, **kwargs):
         return self._x
 
     def map(self,  *args, **kwargs):
-        return self._x
-
-    def point(self, *args, **kwargs):
-        return np.asarray([self._x])
-
-    @property
-    def points(self):
         return self._x
 
     def make_one_form(self, *args, **kwargs):

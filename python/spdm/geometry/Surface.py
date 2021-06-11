@@ -5,26 +5,11 @@ class Surface(GeoObject):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    @property
-    def topology_rank(self):
-        return 2
-
-    @property
-    def ndims(self):
-        return NotImplemented
-
-    @property
-    def points(self):
-        return self.map(self._u)
-
-    def point(self, u,  *args, **kwargs):
-        return NotImplemented
+    def points(self, *args, **kwargs):
+        return super().points(*args, **kwargs)
 
     def map(self, u, *args, **kwargs):
         return NotImplemented
-
-    def __call__(self, *args, **kwargs):
-        return self.map(*args, **kwargs)
 
     def derivative(self, u, *args, **kwargs):
         return NotImplemented
