@@ -27,11 +27,11 @@ class Curve(GeoObject):
 
     def points(self, *args, **kwargs):
         return super().points(*args, **kwargs)
- 
+
     def dl(self, u=None, *args, **kwargs):
         if u is None:
             u = self.uv[0]
-        x, y = self.point(u).T
+        x, y = np.moveaxis(self.points(u), -1, 0)
 
         L = u[-1]
 

@@ -93,10 +93,11 @@ class TestGeoObject(unittest.TestCase):
 
         pts1 = curv.points(u1)
 
-
         self.assertTrue(np.allclose(pts1[:, 0], np.sin((u1)*constants.pi*2), rtol=0.5/nu))
 
         self.assertTrue(np.allclose(pts1[:, 1], np.cos((u1)*constants.pi*2), rtol=0.5/nu))
+
+        self.assertTrue(np.allclose(curv.dl(u1), constants.pi*2/(2*nu), atol=0.5/nu))
 
 
 if __name__ == '__main__':
