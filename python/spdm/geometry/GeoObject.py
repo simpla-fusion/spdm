@@ -1,10 +1,12 @@
 import collections.abc
 from functools import cached_property
-from typing import Sequence, TypeVar, Union
+from typing import Callable, Sequence, TypeVar, Union
 
 from ..numlib import np
 
 _TMesh = TypeVar("_TMesh")
+
+_TCoord = TypeVar("_TCoord", float, np.ndarray)
 
 
 class GeoObject:
@@ -96,6 +98,16 @@ class GeoObject:
         return np.asarray(0)
 
     @cached_property
+    def length(self):
+        return np.sum(self.dl)
+
+    def integral(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+        return NotImplemented
+
+    def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+        return self.integral(func)/self.length
+
+    @cached_property
     def bbox(self) -> np.ndarray:
         """[[xmin,xmax],[ymin,ymax],...]"""
         return np.asarray([[d.min(), d.max()] for d in self.xyz])
@@ -111,10 +123,16 @@ class GeoObject:
         else:
             return np.allclose(self.xyz[:, 0], self.xyz[:, -1])
 
-    def enclosed(self, p: Sequence[float], tolerance=None) -> bool:
+    def trim(self):
+        return NotImplemented
 
+    def remesh(self, mesh_type=None, /, **kwargs):
+        return NotImplemented
+
+    def encloses_point(self, *x: float, tolerance=None) -> bool:
+        x = np.asarray(x)
         bbox = self.bbox
-        if np.any(p < bbox[:, 0]) or np.any(p > bbox[:, 1]):
+        if np.any(x < bbox[:, 0]) or np.any(x > bbox[:, 1]):
             return False
         elif tolerance is None:
             return True
@@ -133,6 +151,3 @@ class GeoObject:
 
         # return Function(args, func(*self.xyz(*args,   **kwargs)), is_period=self.is_closed)
         return NotImplemented
-
-    # def dl(self, u, *args, **kwargs):
-    #     return NotImplemented

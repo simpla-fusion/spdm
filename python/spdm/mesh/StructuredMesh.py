@@ -1,5 +1,6 @@
-from typing import Callable
+from typing import Callable, Iterator, Sequence, Type, Union
 
+from ..geometry.GeoObject import GeoObject
 from ..numlib.optimize import find_critical_points
 from ..util.logger import logger
 from .Mesh import Mesh
@@ -27,3 +28,7 @@ class StructuredMesh(Mesh):
         dx = (xmax-xmin)/X.shape[0]
         dy = (ymax-ymin)/X.shape[1]
         yield from find_critical_points(self.interpolator(Z),  xmin, ymin, xmax, ymax, tolerance=[dx, dy])
+
+    def sub_axis(self, axis=0) -> Iterator[GeoObject]:
+        for idx in range(self.shape[axis]):
+            yield self.axis(idx, axis=axis)

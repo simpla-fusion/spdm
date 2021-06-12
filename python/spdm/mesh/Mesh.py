@@ -1,7 +1,10 @@
 import collections
 from functools import cached_property
-from typing import Tuple, Sequence
+from typing import Callable, Iterator, Sequence, Tuple, Type, Union
+
 from spdm.numlib import np
+
+from ..geometry.GeoObject import GeoObject
 from ..util.logger import logger
 from ..util.SpObject import SpObject
 
@@ -100,3 +103,10 @@ class Mesh(SpObject):
 
     def interpolator(self, Z):
         return NotImplemented
+
+    def axis(self, *args, **kwargs) -> GeoObject:
+        return NotImplemented
+
+    def axis_iter(self, axis=0) -> Iterator[GeoObject]:
+        for idx in range(self.shape[axis]):
+            yield self.axis(idx, axis=axis)

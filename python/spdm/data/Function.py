@@ -172,7 +172,7 @@ class Function:
         elif callable(self._y):
             return Function([x_min, x_max], self._y)
         else:
-            raise TypeError(type(self._y))
+            raise TypeError((type(self.x_axis),type(self._y)))
             # return x_axis, np.asarray(self.__call__(x_axis))
 
     def __repr__(self) -> str:

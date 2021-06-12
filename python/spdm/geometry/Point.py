@@ -1,6 +1,9 @@
+from __future__ import print_function
 import collections.abc
-from typing import Collection
+from functools import cached_property
+from typing import Callable, Collection, TypeVar
 
+from spdm.geometry.GeoObject import GeoObject, _TCoord
 from spdm.numlib import np
 
 from ..util.logger import logger
@@ -27,11 +30,16 @@ class Point(GeoObject):
     def map(self,  *args, **kwargs):
         return self._x
 
-    def make_one_form(self, *args, **kwargs):
-        return lambda *_args: 0.0
+    @property
+    def dl(self):
+        return 0.0
 
-    def dl(self, u=None):
-        if u is None:
-            return np.asarray(0.0)
-        else:
-            return 0.0*u
+    @property
+    def length(self):
+        return 0
+
+    def integral(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+        return func(*self._points)
+
+    def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+        return func(*self._points)

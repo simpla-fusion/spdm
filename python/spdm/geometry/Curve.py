@@ -1,4 +1,5 @@
 from functools import cached_property
+from typing import Callable, TypeVar
 
 from spdm.numlib import np
 
@@ -6,6 +7,8 @@ from .GeoObject import GeoObject
 from .Point import Point
 from ..data.Function import Function
 from ..util.logger import logger
+
+from spdm.geometry.GeoObject import GeoObject, _TCoord
 
 
 class Curve(GeoObject):
@@ -28,44 +31,48 @@ class Curve(GeoObject):
     def points(self, *args, **kwargs):
         return super().points(*args, **kwargs)
 
-    def dl(self, u=None, *args, **kwargs):
-        if u is None:
-            u = self.uv[0]
-        x, y = np.moveaxis(self.points(u), -1, 0)
+    @cached_property
+    def dl(self) -> np.ndarray:
+        x, y = np.moveaxis(self.points(), -1, 0)
 
-        L = u[-1]
-
-        u = (u[1:]+u[:-1])*0.5
-
-        a, b = self.derivative(u, *args, **kwargs)
+        a, b = self.derivative()
 
         # a = a[:-1]
         # b = b[:-1]
         dx = x[1:]-x[:-1]
         dy = y[1:]-y[:-1]
 
-        m1 = (-a*dy+b*dx)/(a*dx+b*dy)
+        m1 = (-a[:-1]*dy+b[:-1]*dx)/(a[:-1]*dx+b[:-1]*dy)
 
-        a = np.roll(a, 1, axis=0)
-        b = np.roll(b, 1, axis=0)
+        # a = np.roll(a, 1, axis=0)
+        # b = np.roll(b, 1, axis=0)
 
-        m2 = (-a*dy+b*dx)/(a*dx+b*dy)
+        m2 = (-a[1:]*dy+b[1:]*dx)/(a[1:]*dx+b[1:]*dy)
 
-        d = np.sqrt(dx**2+dy**2)*(1 + (2.0*m1**2+2.0*m2**2-m1*m2)/30)
+        return np.sqrt(dx**2+dy**2)*(1 + (2.0*m1**2+2.0*m2**2-m1*m2)/30)
 
-        if self.is_closed:
-            u = np.hstack([u, [u[0]+L]])
-            d = np.hstack([d, [d[0]]])
+    @cached_property
+    def length(self):
+        return np.sum(self.dl)
 
-        return Function(u, d)
+    def integral(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+        x, y = self.xyz
+        val = func(x, y)
+        # c_pts = self.points((self._mesh[0][1:] + self._mesh[0][:-1])*0.5)
 
-    def integrate(self, fun, u=None):
-        dl = self.dl(u)
-        f = np.asarray([fun(*p) for p in self.point(dl.x)])
-        if self.is_closed:
-            return np.sum(((np.roll(f, 1)+f)*dl).view(np.ndarray))*0.5
-        else:
-            return np.sum((f[1:]+f[:-1])*dl[:-1])*0.5
+        return np.sum(0.5*(val[:-1]+val[1:]) * self.dl)
+
+    def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+        return self.integral(func)/self.length
+
+    def encloses_point(self, *x: float, **kwargs) -> bool:
+        return super().enclosed(**x, **kwargs)
+
+    def trim(self):
+        return NotImplemented
+
+    def remesh(self, mesh_type=None):
+        return NotImplemented
 
 
 class Line(Curve):

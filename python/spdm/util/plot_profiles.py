@@ -146,7 +146,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 raise TypeError(type(profile))
 
             if not isinstance(x, np.ndarray) or x.shape != y.shape:
-                logger.error(f"length of x,y  must be same! [{label} [{type(profile)}] {x.shape}!={y.shape}]")
+                logger.error(f"length of x,y  must be same! [{o_args} [{type(profile)}] {x.shape}!={y.shape}]")
             else:
                 sub_plot[idx].plot(x, y, label=label, **opts)
 

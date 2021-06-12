@@ -1,7 +1,7 @@
 import collections
 from functools import cached_property, lru_cache
 from math import log
-from typing import Sequence, Type, Union
+from typing import Iterator, Sequence, Type, Union
 from scipy.ndimage.interpolation import geometric_transform
 
 from spdm.numlib import interpolate, np
@@ -14,6 +14,7 @@ from ..geometry.Point import Point
 from ..util.logger import logger
 from ..util.utilities import convert_to_named_tuple
 from .StructuredMesh import StructuredMesh
+from .Mesh import Mesh
 
 
 class CurvilinearMesh(StructuredMesh):
