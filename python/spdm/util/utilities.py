@@ -1,3 +1,4 @@
+import numpy as np
 import collections
 import functools
 import importlib
@@ -11,6 +12,7 @@ import pwd
 import re
 import sys
 import re
+from typing import Sequence
 from .logger import logger
 import collections.abc
 from dataclasses import is_dataclass, fields
@@ -321,3 +323,10 @@ def guess_class_name(obj):
         cls_name = None
 
     return cls_name or f"{cls.__module__}.{cls.__name__}"
+
+
+def find_duplicate(l: Sequence, atol=1.0e-8):
+    for i, val in enumerate(l[:-1]):
+        idx = np.flatnonzero(np.abs(l[i+1:]-val) < atol)
+        if len(idx) > 2:
+            yield idx+i

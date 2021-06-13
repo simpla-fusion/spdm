@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Tuple
 
 from spdm.numlib import np
 
@@ -62,8 +62,8 @@ class Curve(GeoObject):
 
         return np.sum(0.5*(val[:-1]+val[1:]) * self.dl)
 
-    def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
-        return self.integral(func)/self.length
+    # def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+    #     return self.integral(func)/self.length
 
     def encloses_point(self, *x: float, **kwargs) -> bool:
         return super().enclosed(**x, **kwargs)
@@ -78,3 +78,12 @@ class Curve(GeoObject):
 class Line(Curve):
     def __init__(self, *args,   **kwargs) -> None:
         super().__init__(*args, is_closed=False, **kwargs)
+
+
+def intersect2d(a0: Point, a1: Point, b0: Point, b1: Point) -> Tuple[float, float]:
+    da = a1-a0
+    db = b1-b0
+    dp = a0-b0
+    dap = [-da[1], da[0]]
+    dbp = [-db[1], db[0]]
+    return (np.dot(dbp, dp) / np.dot(dbp, da).astype(float)), (np.dot(dap, dp) / np.dot(dap, db).astype(float))

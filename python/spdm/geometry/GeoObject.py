@@ -104,8 +104,8 @@ class GeoObject:
     def integral(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
         return NotImplemented
 
-    def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
-        return self.integral(func)/self.length
+    # def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+    #     return self.integral(func)/self.length
 
     @cached_property
     def bbox(self) -> np.ndarray:
