@@ -116,16 +116,16 @@ class Actor(Dict[Node]):
 
         return time
 
-    def update(self, state: Optional[Mapping] = None, *args,   force=False, ** kwargs) -> float:
+    def update(self, state: Optional[Mapping] = None, /,   force=False, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        if state is not None:
+        if isinstance(state, (collections.abc.Mapping, collections.abc.Sequence)) and len(state) > 0:
             super().update(state)
         # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
 
-        self._time = self["time"]
+        self._time = self.get("time", 0.0)
 
         logger.debug(f"Update actor '{guess_class_name(self)}' at time={self.time}. ")
 

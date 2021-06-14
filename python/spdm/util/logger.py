@@ -52,10 +52,7 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def sp_enable_logging(name=None, /, handler=None, prefix=None, formater=None):
-
-    if name is None:
-        name = __package__[:__package__.find('.')]
+def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
 
     m_logger = logging.getLogger(name)
 
@@ -84,7 +81,7 @@ def sp_enable_logging(name=None, /, handler=None, prefix=None, formater=None):
     return m_logger
 
 
-logger = sp_enable_logging(handler="STDOUT")
+logger = sp_enable_logging(__package__[:__package__.find('.')], handler="STDOUT")
 
 if not os.environ.get("SP_NO_DEBUG", None):
     logger.setLevel(logging.DEBUG)
