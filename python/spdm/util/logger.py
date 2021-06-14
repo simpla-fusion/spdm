@@ -1,3 +1,4 @@
+import collections
 import logging
 import logging.handlers
 import inspect
@@ -7,10 +8,6 @@ import os
 import sys
 from datetime import datetime
 
-
-logger = logging.getLogger(__package__[:__package__.find('.')])
-
-logger.setLevel(logging.DEBUG)
 
 default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
@@ -47,13 +44,20 @@ class CustomFormatter(logging.Formatter):
         logging.CRITICAL: bold_red + format_normal + reset
     }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
+        if isinstance(record.msg, collections.abc.Mapping):
+            record.msg = pprint.pformat(record.msg)
         return formatter.format(record)
 
 
-def sp_enable_logging(handler=None, prefix=None, formater=None):
+def sp_enable_logging(name=None, /, handler=None, prefix=None, formater=None):
+
+    if name is None:
+        name = __package__[:__package__.find('.')]
+
+    m_logger = logging.getLogger(name)
 
     # if prefix is None and isinstance(handler, str):
     #     prefix = handler
@@ -73,14 +77,17 @@ def sp_enable_logging(handler=None, prefix=None, formater=None):
     if issubclass(type(handler), logging.Handler):
         handler.setFormatter(formater or default_formater)
         handler.setLevel(logging.DEBUG)
-        logger.addHandler(handler)
+        m_logger.addHandler(handler)
     else:
         raise NotImplementedError()
 
+    return m_logger
+
+
+logger = sp_enable_logging(handler="STDOUT")
 
 if not os.environ.get("SP_NO_DEBUG", None):
-    sp_enable_logging("STDOUT")
-    # sp_enable_logging()
+    logger.setLevel(logging.DEBUG)
 
 
 def deprecated(func):
