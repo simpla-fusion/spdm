@@ -5,10 +5,9 @@ from functools import cached_property
 
 from spdm.numlib import np
 from spdm.util.logger import logger
-
+from ..Node import Dict
 from ..Entry import Entry, _next_
 from ..File import File
-from ..AttributeTree import AttributeTree
 
 
 def sp_read_geqdsk(file):
@@ -226,26 +225,26 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
     }
 
 
-def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
+def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     if eq is None:
-        eq = AttributeTree()
+        eq = Dict()
 
     # eq.time = 0.0
-    eq.vacuum_toroidal_field.r0 = geqdsk["rcentr"]
-    eq.vacuum_toroidal_field.b0 = geqdsk["bcentr"]
+    eq["vacuum_toroidal_field.r0"] = geqdsk["rcentr"]
+    eq["vacuum_toroidal_field.b0"] = geqdsk["bcentr"]
 
     # rleft = 0.0
-    eq.global_quantities.magnetic_axis.r = geqdsk["rmaxis"]
-    eq.global_quantities.magnetic_axis.z = geqdsk["zmaxis"]
-    eq.global_quantities.magnetic_axis.b_field_tor = geqdsk["bcentr"]
-    eq.global_quantities.psi_axis = geqdsk["simag"]
-    eq.global_quantities.psi_boundary = geqdsk["sibry"]
-    eq.global_quantities.ip = geqdsk["current"]
+    eq["global_quantities.magnetic_axis.r"] = geqdsk["rmaxis"]
+    eq["global_quantities.magnetic_axis.z"] = geqdsk["zmaxis"]
+    eq["global_quantities.magnetic_axis.b_field_tor"] = geqdsk["bcentr"]
+    eq["global_quantities.psi_axis"] = geqdsk["simag"]
+    eq["global_quantities.psi_boundary"] = geqdsk["sibry"]
+    eq["global_quantities.ip"] = geqdsk["current"]
 
     # boundary
 
-    eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
-    eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
+    eq["boundary.outline.r"] = geqdsk["bbsrz"][:, 0]
+    eq["boundary.outline.z"] = geqdsk["bbsrz"][:, 1]
 
     nw = geqdsk["nw"]
     nh = geqdsk["nh"]
@@ -254,11 +253,11 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
     zmin = geqdsk["zmid"] - geqdsk["zdim"]/2
     zmax = geqdsk["zmid"] + geqdsk["zdim"]/2
 
-    eq.profiles_2d.grid_type = "rectangular"
-    eq.profiles_2d.grid_index = 1
-    eq.profiles_2d.grid.dim1 = np.linspace(rmin, rmax, nw)
-    eq.profiles_2d.grid.dim2 = np.linspace(zmin, zmax, nh)
-    eq.profiles_2d.psi = geqdsk["psirz"].T
+    eq["profiles_2d.grid_type"] = "rectangular"
+    eq["profiles_2d.grid_index"] = 1
+    eq["profiles_2d.grid.dim1"] = np.linspace(rmin, rmax, nw)
+    eq["profiles_2d.grid.dim2"] = np.linspace(zmin, zmax, nh)
+    eq["profiles_2d.psi"] = geqdsk["psirz"].T
 
     # r, z = np.meshgrid(eq.profiles_2d.grid.dim1,
     #                    eq.profiles_2d.grid.dim2, indexing="ij")
@@ -289,12 +288,12 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
     #                  method='cubic').transpose()
 
     # profile
-    eq.profiles_1d.f = geqdsk["fpol"]
-    eq.profiles_1d.f_df_dpsi = geqdsk["ffprim"]
-    eq.profiles_1d.pressure = geqdsk["pres"]
-    eq.profiles_1d.dpressure_dpsi = geqdsk["pprim"]
-    eq.profiles_1d.q = geqdsk["qpsi"]
-    eq.profiles_1d.psi_norm = np.linspace(0, 1.0, nw)
+    eq["profiles_1d.f"] = geqdsk["fpol"]
+    eq["profiles_1d.f_df_dpsi"] = geqdsk["ffprim"]
+    eq["profiles_1d.pressure"] = geqdsk["pres"]
+    eq["profiles_1d.dpressure_dpsi"] = geqdsk["pprim"]
+    eq["profiles_1d.q"] = geqdsk["qpsi"]
+    eq["profiles_1d.psi_norm"] = np.linspace(0, 1.0, nw)
 
     return eq
 
