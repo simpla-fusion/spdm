@@ -244,8 +244,8 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: AttributeTree = None):
 
     # boundary
 
-    # eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
-    # eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
+    eq.boundary.outline.r = geqdsk["bbsrz"][:, 0]
+    eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
     nw = geqdsk["nw"]
     nh = geqdsk["nh"]

@@ -165,7 +165,7 @@ class Node(Generic[_TObject]):
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, d: Any, key=None, /, *args, parent=None, **kwargs) -> _TObject:
+    def __post_process__(self, d: Any, key=None, /, *args, parent=None, not_insert=False, **kwargs) -> _TObject:
         if d is _not_found_:
             return d
 
@@ -209,7 +209,7 @@ class Node(Generic[_TObject]):
         elif isinstance(value, Entry):
             value = Node(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
 
-        if isinstance(key, (int, str)) and d is not value and self._entry.writable:
+        if isinstance(key, (int, str)) and not not_insert and d is not value and self._entry.writable:
             try:
                 self.__setitem__(key, value)
             except Exception:
@@ -315,7 +315,7 @@ class List(Node[_TObject], Sequence[_TObject]):
 
     @property
     def combine(self) -> _TObject:
-        return self.__new_child__(EntryCombiner(self._entry), parent=self._parent)
+        return self.__post_process__(EntryCombiner(self._entry), parent=self._parent, not_insert=True)
 
     def update(self, *args, **kwargs):
         super().update(*args, **kwargs)
