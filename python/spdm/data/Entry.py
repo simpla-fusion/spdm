@@ -152,6 +152,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
     query = normalize_query(query)
 
     val = target
+    
     for idx, key in enumerate(query):
         if target is None or target is _not_found_:
             val = target

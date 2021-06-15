@@ -38,10 +38,10 @@ class Actor(Dict[Node]):
             cls_name = desc.find("code.name", default_value=_undefined_)
 
         if isinstance(cls_name, str):
-            try:
-                n_cls = sp_find_module(f"{prefix}{cls_name}")
-            except Exception:
-                logger.error(f"Can not find actor '{prefix}{cls_name}'!")
+            n_cls = sp_find_module(f"{prefix}{cls_name}")
+
+            if n_cls is None:
+                logger.error(f"Can not find actor '{prefix}{cls_name}'! ")
                 raise ModuleNotFoundError(f"{prefix}{cls_name}")
             else:
                 logger.info(f"Load actor '{prefix}{cls_name}={guess_class_name(n_cls)}'!")

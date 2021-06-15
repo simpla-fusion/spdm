@@ -29,17 +29,23 @@ class SpObject(object):
 
     @staticmethod
     def find_class(metadata,  *args,  **kwargs):
+        res = None
         if isinstance(metadata, str):
             n_cls = metadata
         elif isinstance(metadata, collections.abc.Mapping):
             n_cls = metadata.get("$class")
+
         if isinstance(n_cls, str):
             if n_cls.startswith("."):
                 n_cls = f"{SpObject._default_prefix}{n_cls}"
-            n_cls = sp_find_module(n_cls)
-        if not inspect.isclass(n_cls):
-            raise ModuleNotFoundError(metadata)
-        return n_cls
+            res = sp_find_module(n_cls)
+        elif inspect.isclass(n_cls):
+            res = n_cls
+
+        if res is None:
+            raise ModuleNotFoundError(n_cls)
+            
+        return res
 
     def __new__(cls,   *args,  **kwargs):
         if cls is not SpObject:

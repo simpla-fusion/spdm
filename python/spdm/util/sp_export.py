@@ -75,9 +75,8 @@ def sp_find_module(path, fragment=None, pythonpath=None):
             spec.loader.exec_module(module)
 
     if not isinstance(module, object):
-        raise ModuleNotFoundError(f"{path}")
-
-    if fragment is None:
+        module = None
+    elif fragment is None:
         module = getattr(module, SP_EXPORT_KEYWORD, None) or getattr(module, path.split('.')[-1], None) or module
     elif hasattr(module, fragment):
         module = getattr(module, fragment)

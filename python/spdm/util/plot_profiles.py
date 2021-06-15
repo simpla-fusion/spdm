@@ -121,7 +121,6 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 opts = o_args[1]
             y = None
             if isinstance(profile, Function):
-                
                 profile = profile.resample(x_min, x_max)
                 if profile.x_axis is None:
                     x = x_axis
@@ -143,7 +142,8 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 x = x_axis
                 y = profile(x)
             else:
-                raise TypeError(type(profile))
+                logger.warning(f"Illegal profile! {(type(profile), label, o_args)}")
+                continue
 
             if not isinstance(x, np.ndarray) or x.shape != y.shape:
                 logger.error(f"length of x,y  must be same! [{o_args} [{type(profile)}] {x.shape}!={y.shape}]")
