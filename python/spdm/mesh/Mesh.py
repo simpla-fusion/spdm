@@ -25,10 +25,11 @@ class Mesh(SpObject):
 
         return object.__new__(n_cls)
 
-    def __init__(self, mesh=None, *args, ndims=None, rank=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
+    def __init__(self, mesh=None, *args, ndims=None, uv=None, rank=None, shape=None, name=None, unit=None, cycle=None, **kwargs) -> None:
         self._rank = rank or len(shape or [])
         self._shape = shape or []
         self._ndims = ndims or self._rank
+        self._uv = uv
 
         name = name or [""] * self._ndims
         if isinstance(name, str):
@@ -108,5 +109,5 @@ class Mesh(SpObject):
         return NotImplemented
 
     def axis_iter(self, axis=0) -> Iterator[GeoObject]:
-        for idx in range(self.shape[axis]):
-            yield self.axis(idx, axis=axis)
+        for idx, u in enumerate(self._uv[axis]):
+            yield u, self.axis(idx, axis=axis)

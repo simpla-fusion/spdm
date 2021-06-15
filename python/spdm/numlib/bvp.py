@@ -734,7 +734,7 @@ def wrap_functions(fun, bc, fun_jac, bc_jac, k, a, S, D, dtype):
 
 
 def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
-              tol=1e-3, max_nodes=1000, verbose=0, bc_tol=None, discontinuity=None, **kwargs):
+              tol=1e-3, max_nodes=1000, verbose=0, bc_tol=None, bvp_rms_mask=None, **kwargs):
     """
         Solve a boundary-value problem for a system of ODEs.
 
@@ -843,12 +843,12 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
                 * 1 : display a termination report.
                 * 2 : display progress during iterations.
         bc_tol : float, optional
-            Desired absolute tolerance for the boundary condition residuals: `bc` 
-            value should satisfy ``abs(bc) < bc_tol`` component-wise. 
+            Desired absolute tolerance for the boundary condition residuals: `bc`
+            value should satisfy ``abs(bc) < bc_tol`` component-wise.
             Equals to `tol` by default. Up to 10 iterations are allowed to achieve this
             tolerance.
         discontinuity: list *experimental*
-            NOTE: add by salmon 
+            NOTE: add by salmon
             List of discontinuity points
 
         Returns
@@ -1025,6 +1025,7 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
         >>> plt.ylabel("y")
         >>> plt.show()
     """
+
     x = np.asarray(x, dtype=float)
     if x.ndim != 1:
         raise ValueError("`x` must be 1 dimensional.")
@@ -1117,18 +1118,37 @@ def solve_bvp(fun, bc, x, y, p=None, *args, S=None, fun_jac=None, bc_jac=None,
 
         # This relation is not trivial, but can be verified.
         r_middle = 1.5 * col_res / h
-        sol = create_spline_for_bvp(y, f, x, h, discontinuity)
+        sol = create_spline_for_bvp(y, f, x, h)
 
         rms_res = estimate_rms_residuals(fun_wrapped, sol, x, h, p,  r_middle, f_middle)
+        ########################################
+        # add by salmon 2021.6.15
+        
+        rms_mask = False
 
+        for xd in bvp_rms_mask or []:
+            rms_mask |= (x[:-1] <= xd) & (xd <= x[1:])
+
+        rms_mask_idx, = np.nonzero(rms_mask)
+
+        rms_res[rms_mask_idx] = 0.0
+        rms_res[:4]=0
+        ########################################
         max_rms_res = np.max(rms_res)
 
         if singular:
             status = 2
             break
 
-        insert_1, = np.nonzero((rms_res > tol) & (rms_res < 100 * tol))
-        insert_2, = np.nonzero(rms_res >= 100 * tol)
+        tag1 = (rms_res > tol) & (rms_res < 100 * tol)
+        tag2 = (rms_res >= 100 * tol)
+
+        # for xg in discontinuity or []:
+        #     tag1 &= (np.abs(x[:-1]-xg) > 1.0e-8) & (x[:-1] > 1.0e-8) & (np.abs((x[1:]-x[:-1])/(x[1:]+x[:-1])) > 1.0e-8)
+        #     tag2 &= (np.abs(x[:-1]-xg) > 1.0e-8) & (x[:-1] > 1.0e-8) & (np.abs((x[1:]-x[:-1])/(x[1:]+x[:-1])) > 1.0e-8)
+
+        insert_1, = np.nonzero(tag1)
+        insert_2, = np.nonzero(tag2)
         nodes_added = insert_1.shape[0] + 2 * insert_2.shape[0]
 
         if m + nodes_added > max_nodes:

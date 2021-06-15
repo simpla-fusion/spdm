@@ -388,7 +388,7 @@ class PiecewiseFunction(Function):
                          for idx in range(len(self.x_domain)-1)]
             cond_list[-1] = np.logical_or(cond_list[-1], np.isclose(x, self.x_domain[-1]))
             return np.piecewise(x, cond_list, self._y)
-        elif isinstance(x, float):
+        elif isinstance(x, (int,float)):
 
             if np.isclose(x, self.x_domain[0]):
                 idx = 0

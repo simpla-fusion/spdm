@@ -46,8 +46,7 @@ class CurvilinearMesh(StructuredMesh):
         else:
             raise TypeError(f"geo_mesh should be np.ndarray, Sequence[GeoObject] or GeoObject, not {type(geo_mesh)}")
 
-        super().__init__(*args, shape=shape, rank=rank, ndims=ndims, **kwargs)
-        self._uv = np.asarray(uv)
+        super().__init__(*args, uv=np.asarray(uv), shape=shape, rank=rank, ndims=ndims, **kwargs)
         self._sub_surf = surf
 
     def axis(self, idx, axis=0):
