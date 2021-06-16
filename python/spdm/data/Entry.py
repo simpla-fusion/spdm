@@ -139,7 +139,7 @@ def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
         ht_insert(target, query, value, assign_if_exists=True, **kwargs)
 
 
-def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True, check_attribute_first=False) -> Any:
+def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -164,17 +164,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
             val = Entry(target, prefix=query[idx:])
             break
         elif isinstance(key, str):
-            val = _not_found_
-            if check_attribute_first:
-                op = getattr(target.__class__, key, _not_found_)
-                if hasattr(op, '__get__'):
-                    val = op.__get__(target)
-                elif isinstance(op, property):
-                    val = op(target, "fget")(target)
-
-            if val is not _not_found_:
-                pass
-            elif hasattr(target.__class__, 'get'):
+            if hasattr(target.__class__, 'get'):
                 val = target.get(key, _not_found_)
             else:
                 try:

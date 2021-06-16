@@ -3,7 +3,9 @@ import collections
 import collections.abc
 import dataclasses
 import enum
+import functools
 import inspect
+import logging
 import pprint
 from _thread import RLock
 from enum import IntFlag
@@ -249,8 +251,8 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, *query,  **kwargs) -> _TObject:
-        return self._entry.find(list(query),  **kwargs)
+    def find(self, query, /, **kwargs) -> _TObject:
+        return self._entry.find(query,  **kwargs)
 
     def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
         return self._entry.insert(query, value, **kwargs)
@@ -262,7 +264,28 @@ class Node(Generic[_TObject]):
         return self.find(query, only_first=True, default_value=default_value)
 
     def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> Any:
-        return self.find(query, ** collections.ChainMap({"default_value": default_value, "check_attribute_first": True}, kwargs))
+        query = normalize_query(query)
+        if len(query) == 0:
+            return self
+
+        val = _not_found_
+
+        if isinstance(query[0], str):
+            val = getattr(self, query[0], _not_found_)
+
+        if val is _not_found_ and hasattr(self.__class__, '__getitem__'):
+            val = self[query[0]]
+
+        if val is _not_found_:
+            return self._entry.find(query, default_value=_undefined_, **kwargs)
+        elif len(query) == 1:
+            return val
+        elif isinstance(val, Node):
+            return val.fetch(query[1:], default_value=_undefined_, **kwargs)
+        else:
+            raise RuntimeError(f"{type(val)}, {query[1:]}")
+
+        return res
 
     def update(self, *args, **kwargs):
         self._entry.update(*args, **kwargs)
@@ -270,8 +293,8 @@ class Node(Generic[_TObject]):
     def update_many(self,  *args,  **kwargs):
         self._entry.update_many(*args,  **kwargs)
 
-    def fetch(self, query, /, default_value=None, **kwargs):
-        return self._entry.find(query, default_value=default_value, **kwargs)
+    # def fetch(self, query, /, default_value=None, **kwargs):
+    #     return self._entry.find(query, default_value=default_value, **kwargs)
 
 
 class List(Node[_TObject], Sequence[_TObject]):
