@@ -244,7 +244,7 @@ class Node(Generic[_TObject]):
     #     return self._entry
 
     def __bool__(self) -> bool:
-        return not self.empty and (not self.__fetch__())
+        return not self.empty  # and (not self.__fetch__())
 
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
@@ -258,8 +258,11 @@ class Node(Generic[_TObject]):
     def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
         return self._entry.insert(query, value, assign_if_exists=True, **kwargs)
 
-    def get(self, query: _TQuery = None,  default_value=_undefined_):
+    def get(self, query: _TQuery = None,  default_value=_undefined_) -> Any:
         return self.find(query, only_first=True, default_value=default_value)
+
+    def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> Any:
+        return self.find(query, ** collections.ChainMap({"default_value": default_value, "check_attribute_first": True}, kwargs))
 
     def update(self, *args, **kwargs):
         self._entry.update(*args, **kwargs)
