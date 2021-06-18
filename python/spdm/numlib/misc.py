@@ -15,14 +15,14 @@ def float_unique(d: np.ndarray, x_min=-np.inf, x_max=np.inf) -> np.ndarray:
     return d[tag]
 
 
-def array_like(d, x: np.ndarray):
+def array_like(x: np.ndarray, d):
     if isinstance(d, np.ndarray):
         return d
     elif isinstance(d, (int, float)):
         return np.full_like(x, d)
     elif callable(d):
         return np.asarray(d(x))
-    elif d is None:
-        return np.zeros_like(x)
     else:
-        raise TypeError(type(d))
+        return np.zeros_like(x)
+    # else:
+    #     raise TypeError(type(d))

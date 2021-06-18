@@ -476,7 +476,7 @@ class Expression(Function):
                 res = d
             elif self.x_axis is not None and d.shape == self.x_axis.shape:
                 res = np.asarray(Function(self.x_axis, d)(x))
-            elif self.x_axis is None and d.shape == x.shape:
+            elif d.shape == x.shape:
                 res = d
             else:
                 raise ValueError(f"{getattr(self.x_axis,'shape',[])} {x.shape} {type(d)} {d.shape}")
