@@ -172,7 +172,7 @@ class Function:
         elif callable(self._y):
             return Function([x_min, x_max], self._y)
         else:
-            raise TypeError((type(self.x_axis),type(self._y)))
+            raise TypeError((type(self.x_axis), type(self._y)))
             # return x_axis, np.asarray(self.__call__(x_axis))
 
     def __repr__(self) -> str:
@@ -388,7 +388,7 @@ class PiecewiseFunction(Function):
                          for idx in range(len(self.x_domain)-1)]
             cond_list[-1] = np.logical_or(cond_list[-1], np.isclose(x, self.x_domain[-1]))
             return np.piecewise(x, cond_list, self._y)
-        elif isinstance(x, (int,float)):
+        elif isinstance(x, (int, float)):
 
             if np.isclose(x, self.x_domain[0]):
                 idx = 0
@@ -476,6 +476,8 @@ class Expression(Function):
                 res = d
             elif self.x_axis is not None and d.shape == self.x_axis.shape:
                 res = np.asarray(Function(self.x_axis, d)(x))
+            elif self.x_axis is None and d.shape == x.shape:
+                res = d
             else:
                 raise ValueError(f"{getattr(self.x_axis,'shape',[])} {x.shape} {type(d)} {d.shape}")
             return res

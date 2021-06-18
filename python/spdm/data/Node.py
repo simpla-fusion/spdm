@@ -265,6 +265,7 @@ class Node(Generic[_TObject]):
 
     def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> Any:
         query = normalize_query(query)
+
         if len(query) == 0:
             return self
 
@@ -277,15 +278,13 @@ class Node(Generic[_TObject]):
             val = self[query[0]]
 
         if val is _not_found_:
-            return self._entry.find(query, default_value=_undefined_, **kwargs)
+            return self._entry.find(query, default_value=default_value, **kwargs)
         elif len(query) == 1:
             return val
         elif isinstance(val, Node):
-            return val.fetch(query[1:], default_value=_undefined_, **kwargs)
+            return val.fetch(query[1:], default_value=default_value, **kwargs)
         else:
             raise RuntimeError(f"{type(val)}, {query[1:]}")
-
-        return res
 
     def update(self, *args, **kwargs):
         self._entry.update(*args, **kwargs)

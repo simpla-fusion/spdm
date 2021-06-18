@@ -1,3 +1,4 @@
+from typing import Type
 import numpy as np
 from ..util.logger import logger
 
@@ -12,3 +13,16 @@ def float_unique(d: np.ndarray, x_min=-np.inf, x_max=np.inf) -> np.ndarray:
     rtag = np.logical_or(rtag, np.isclose(d, x_max, rtol=1e-8))
     tag = np.logical_and(tag, rtag)
     return d[tag]
+
+
+def array_like(d, x: np.ndarray):
+    if isinstance(d, np.ndarray):
+        return d
+    elif isinstance(d, (int, float)):
+        return np.full_like(x, d)
+    elif callable(d):
+        return np.asarray(d(x))
+    elif d is None:
+        return np.zeros_like(x)
+    else:
+        raise TypeError(type(d))
