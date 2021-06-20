@@ -124,23 +124,23 @@ class Function:
 
         if x is None:
             raise RuntimeError(f"x_axis is None!")
-
-        if x is self._x_axis and isinstance(self._y, np.ndarray):
+        _y = getattr(self, "_y", None)
+        if x is self._x_axis and isinstance(_y, np.ndarray):
             return self._y
 
-        if self._y is None:
-            raise RuntimeError(f"Illegal function! y is None")
-        elif isinstance(self._y, (int, float)):
+        if _y is None:
+            raise RuntimeError(f"Illegal function! y is None {self.__class__}")
+        elif isinstance(_y, (int, float)):
             if isinstance(x, np.ndarray):
-                return np.full(x.shape, self._y)
+                return np.full(x.shape, _y)
             else:
-                return self._y
-        elif callable(self._y):
-            return np.asarray(self._y(x, **kwargs))
-        elif x is not self._x_axis and isinstance(self._y, np.ndarray):
+                return _y
+        elif callable(_y):
+            return np.asarray(_y(x, **kwargs))
+        elif x is not self._x_axis and isinstance(_y, np.ndarray):
             return self._ppoly(x, **kwargs)
         else:
-            raise TypeError((type(x), type(self._y)))
+            raise TypeError((type(x), type(_y)))
 
     def resample(self, x_min, x_max=None, /, **kwargs):
         if x_min is None or (x_max is not None and x_min <= self.x_min and self.x_max <= x_max):
