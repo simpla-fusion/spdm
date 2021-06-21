@@ -280,6 +280,11 @@ class Function:
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
 
 
+def function_like(x, y) -> Function:
+    if isinstance(y, Function):
+        return y
+    else:
+        return Function(x, y)
 # __op_list__ = ['abs', 'add', 'and',
 #                #  'attrgetter',
 #                'concat',
@@ -299,6 +304,7 @@ class Function:
 #                'mul', 'ne', 'neg', 'not', 'or', 'pos', 'pow', 'rshift',
 #                #    'setitem',
 #                'sub', 'truediv', 'truth', 'xor']
+
 
 _uni_ops = {
     '__neg__': np.negative,
