@@ -442,11 +442,8 @@ class Entry(object):
         """ alias of find """
         return self.find(rquery, default_value=default_value, **kwargs)
 
-    def _before_insert(self, query):
-        if isinstance(query[0], str):
-            self._data = _DICT_TYPE_()
-        else:
-            self._data = _LIST_TYPE_()
+    def reset(self, value=None) -> None:
+        self._data = value
 
     def insert(self, rquery: Optional[_TQuery], value, /, **kwargs):
         if hasattr(value, '_entry') and self.extend(rquery) == value._entry:
@@ -467,14 +464,12 @@ class Entry(object):
 
             return ht_insert(self._data,  query, value,  **kwargs)
 
-    def update(self, rquery: Optional[_TQuery] = None,   value=None, /, reset=False, **kwargs):
-        if rquery is None and reset is True:
-            self._data = value
-            return
-        elif value is None:
+    def update(self, rquery: Optional[_TQuery] = None,   value=None, /, **kwargs) -> None:
+        if rquery is None and value is None:
             return
 
         query = self._prefix + normalize_query(rquery)
+
         if len(query) == 0 and self._data is None:
             self._data = value
         else:
@@ -624,37 +619,33 @@ class EntryWrapper(Entry):
 
 
 class EntryCombiner(Entry):
-    def __init__(self, data: Union[Entry, Sequence], *args, prefix=None, reducer=None, **kwargs):
+    def __init__(self, elements: Union[Entry, Sequence], *args, prefix=None, default_value=None, reducer=None, **kwargs):
+        super().__init__(default_value, *args,  **kwargs)
         prefix = normalize_query(prefix)
-        if isinstance(data, Entry):
-            prefix = data._prefix+prefix
-            data = data._data
-        if not isinstance(data, collections.abc.Sequence):
-            raise TypeError(type(data))
+        if isinstance(elements, Entry):
+            prefix = elements._prefix+prefix
+            elements = elements._data
+        if not isinstance(elements, collections.abc.Sequence):
+            raise TypeError(type(elements))
 
-        super().__init__(data, *args, prefix=prefix, **kwargs)
-
+        self._sub_elements = elements
+        self._sub_prefix = prefix
         self._reducer = reducer if reducer is not None else operator.__add__
-
-    @property
-    def writable(self) -> bool:
-        return False
 
     def find(self, rquery: Optional[_TQuery] = None, *args, default_value=None,   **kwargs) -> Any:
 
-        cache = ht_find(self._data, [slice(None, None, None)] + self._prefix +
-                        normalize_query(rquery), *args, default_value=_not_found_, **kwargs)
+        query = [slice(None, None, None)] + self._sub_prefix + normalize_query(rquery)
 
-        if cache is _not_found_:
-            return default_value
-        elif isinstance(cache, collections.abc.Sequence):
+        cache = ht_find(self._sub_elements, query, *args, default_value=_not_found_, **kwargs)
+
+        if isinstance(cache, collections.abc.Sequence):
             cache = [d for d in cache if (d is not None and d is not _not_found_)]
-            if len(cache) == 0:
-                return default_value
 
-        if all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
+        if cache is _not_found_ or len(cache) == 0:
+            return super().find(rquery, default_value=default_value)
+        elif all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
             return EntryCombiner(cache, reducer=self._reducer)
-        else:
+        elif isinstance(cache, collections.abc.Sequence):
             try:
                 data = [d for d in cache
                         if not (isinstance(d, Entry) or hasattr(d, '_entry'))]
@@ -663,15 +654,20 @@ class EntryCombiner(Entry):
             except Exception as error:
                 raise error
             return res
+        else:
+            raise KeyError(query)
 
-    def insert(self, *args, **kwargs):
-        raise NotImplementedError()
+    # def insert(self, *args, **kwargs):
+    #     raise NotImplementedError()
 
-    def update(self, *args, **kwargs):
-        raise NotImplementedError()
+    # def update(self, *args, **kwargs):
+    #     raise NotImplementedError()
 
-    def erase(self, *args, **kwargs):
-        raise NotImplementedError()
+    # def reset(self, *args, **kwargs) -> None:
+    #     raise NotImplementedError()
+
+    # def erase(self, *args, **kwargs) -> None:
+    #     raise NotImplementedError()
 
 
 def as_dataclass(dclass, obj, default_value=None):

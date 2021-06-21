@@ -297,13 +297,14 @@ class Node(Generic[_TObject]):
 
 
 class List(Node[_TObject], Sequence[_TObject]):
-    __slots__ = ("_v_args", )
+    __slots__ = ("_v_args", "_combine")
 
-    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None,   **kwargs) -> None:
+    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
         if cache is None or cache is _not_found_:
             cache = _LIST_TYPE_()
         Node.__init__(self, cache, *args, parent=parent, **kwargs)
         self._v_args = (args, kwargs)
+        self._combine = default_value_when_combine
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
@@ -340,13 +341,23 @@ class List(Node[_TObject], Sequence[_TObject]):
 
     @property
     def combine(self) -> _TObject:
-        return self.__post_process__(EntryCombiner(self._entry), parent=self._parent, not_insert=True)
+        if not isinstance(self._combine, Node):
+            self._combine = self.__post_process__(EntryCombiner(self._entry, default_value=self._combine),
+                                                  parent=self._parent, not_insert=True)
+        return self._combine
 
     def update(self, *args, **kwargs):
         super().update(*args, **kwargs)
         for element in self.__iter__():
             if hasattr(element.__class__, 'update'):
                 element.update(*args, **kwargs)
+
+    def reset(self, value=None):
+        if isinstance(value, (collections.abc.Sequence)):
+            super().reset(value)
+        else:
+            self._combine = value
+            super().reset()
 
 
 class Dict(Node[_TObject], Mapping[str, _TObject]):
@@ -402,6 +413,9 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
 
     def update(self,  *args,  ** kwargs) -> None:
         self._entry.update(None,  *args, **kwargs)
+
+    def reset(self, value=None) -> None:
+        self._entry.reset(value)
 
     def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _TObject:
         return self._entry.find(key, default_value=default_value, **kwargs)

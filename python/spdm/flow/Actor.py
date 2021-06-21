@@ -49,7 +49,11 @@ class Actor(Dict[Node]):
         return object.__new__(n_cls)
 
     def __init__(self, d=None,  *args, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
-        super().__init__(d, *args, **kwargs)
+        super().__init__(d or {},
+                         collections.ChainMap({
+                             "code": {"name": self.__class__.__name__}
+                         }), *args, **kwargs)
+
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
         self._s_entry = dumper
@@ -116,19 +120,19 @@ class Actor(Dict[Node]):
 
         return time
 
-    def update(self, value=None, /, ** kwargs) -> float:
+    def update(self, *args, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        super().update(
-
-            collections.ChainMap(value or {}, {
-                "code": self.get("code", {}),
-                "identifier": self.get("identify", {})
-            }
-            ), reset=True, **kwargs)
+        super().update(*args, **kwargs)
 
         self._time = self.get("time", 0.0)
 
         return self._time
+
+    def reset(self, value=None, /, **kwargs) -> None:
+        super().reset({"code": self.get("code", {}),
+                       "identifier": self.get("identify", {})})
+        if value is not None:
+            self.update(value, **kwargs)
