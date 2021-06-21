@@ -116,14 +116,19 @@ class Actor(Dict[Node]):
 
         return time
 
-    def update(self, state: Optional[Mapping] = None, /,   force=False, ** kwargs) -> float:
+    def update(self, value=None, /, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        if isinstance(state, (collections.abc.Mapping, collections.abc.Sequence)) and len(state) > 0:
-            super().update(state)
+        super().update(
+
+            collections.ChainMap(value or {}, {
+                "code": self.get("code", {}),
+                "identifier": self.get("identify", {})
+            }
+            ), reset=True, **kwargs)
 
         self._time = self.get("time", 0.0)
 
-        return 0.0 if force else 0.0
+        return self._time

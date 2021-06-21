@@ -400,8 +400,8 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __ior__(self, other):
         return self.update(other)
 
-    def update(self, value: Any = None, *args, **kwargs) -> None:
-        self._entry.update(None, value, *args, **kwargs)
+    def update(self,  *args,  ** kwargs) -> None:
+        self._entry.update(None,  *args, **kwargs)
 
     def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _TObject:
         return self._entry.find(key, default_value=default_value, **kwargs)
@@ -521,7 +521,6 @@ class _SpProperty(Generic[_TObject]):
                     if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
                         obj = instance.__new_child__(obj)
                     if not self._isinstance(obj):
-
                         origin_type = getattr(self.return_type, '__origin__', self.return_type)
                         if dataclasses.is_dataclass(origin_type):
                             obj = as_dataclass(origin_type, obj)
@@ -533,7 +532,7 @@ class _SpProperty(Generic[_TObject]):
                             try:
                                 tmp = self.return_type(obj)
                             except Exception as error:
-                                logger.error(f"{self.attrname} {self.return_type} {type(val)} : {error}")
+                                logger.error(f"{self.attrname} {self.return_type} {type(obj)} : {error}")
                                 raise error
                             else:
                                 obj = tmp

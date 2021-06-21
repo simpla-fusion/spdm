@@ -117,7 +117,7 @@ class Function:
 
         if isinstance(self._y,  PPoly):
             return self._y
-        elif self._x_axis is None:
+        elif self.x_axis is None:
             raise ValueError(f"x_axis is None")
         elif isinstance(self._y, np.ndarray):
             return create_spline(self.x_axis,  self._y)
@@ -239,9 +239,9 @@ class Function:
 
     def dln(self, x=None):
         if x is None:
-            v = self._ppoly(self.x)
-            x = (self.x[:-1]+self.x[1:])*0.5
-            return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self.x[1:]-self.x[:-1])*2.0)
+            v = self._ppoly(self.x_axis)
+            x = (self.x_axis[:-1]+self.x_axis[1:])*0.5
+            return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self.x_axis[1:]-self.x_axis[:-1])*2.0)
             # return Function(self.x, self._ppoly.derivative()(self.x)/self._ppoly(self.x))
         else:
             return self.dln()(x)

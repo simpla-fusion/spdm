@@ -467,9 +467,13 @@ class Entry(object):
 
             return ht_insert(self._data,  query, value,  **kwargs)
 
-    def update(self, rquery: Optional[_TQuery] = None,   value=None, /, **kwargs):
-        if rquery is None and value is None:
+    def update(self, rquery: Optional[_TQuery] = None,   value=None, /, reset=False, **kwargs):
+        if rquery is None and reset is True:
+            self._data = value
             return
+        elif value is None:
+            return
+
         query = self._prefix + normalize_query(rquery)
         if len(query) == 0 and self._data is None:
             self._data = value
