@@ -56,6 +56,9 @@ class Function:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None
 
+        if isinstance(self._y, np.ndarray) and self._x_axis is None:
+            raise ValueError(f"x_axis is None")
+
     @property
     def is_valid(self) -> bool:
         return self._x_axis is not None and self._y is not None
@@ -111,8 +114,11 @@ class Function:
 
     @cached_property
     def _ppoly(self) -> PPoly:
+
         if isinstance(self._y,  PPoly):
             return self._y
+        elif self._x_axis is None:
+            raise ValueError(f"x_axis is None")
         elif isinstance(self._y, np.ndarray):
             return create_spline(self.x_axis,  self._y)
         else:

@@ -7,7 +7,7 @@ import inspect
 from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
-
+from copy import deepcopy
 from ..numlib import np
 from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, serialize
@@ -31,6 +31,8 @@ def normalize_query(query):
     elif isinstance(query, str):
         # TODO: parse uri request
         query = query.split('.')
+    elif isinstance(query, tuple):
+        query = list(query)
     elif not isinstance(query, collections.abc.MutableSequence):
         query = [query]
     return query
@@ -106,7 +108,7 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=Fa
 
             if val is _not_found_:
                 # FIXME: !!!! not complete !!!!
-                val = ht_insert(target, _next_, key)
+                val = ht_insert(target, _next_, deepcopy(key))
 
         if val is _not_found_:
             break
@@ -252,7 +254,18 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
 
 
 def ht_check(target, condition: Mapping) -> bool:
-    return all([ht_find(target, k, default_value=_not_found_) == v for k, v in condition.items() if k[0] != '_'])
+    def _check_eq(l, r) -> bool:
+        if l is r:
+            return True
+        elif type(l) is not type(r):
+            return False
+        elif isinstance(l, np.ndarray):
+            return np.allclose(l, r)
+        else:
+            return l == r
+    d = [_check_eq(ht_find(target, k, default_value=_not_found_), v)
+         for k, v in condition.items() if not isinstance(k, str) or k[0] != '_']
+    return all(d)
 
 
 def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):

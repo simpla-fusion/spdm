@@ -123,10 +123,7 @@ class Actor(Dict[Node]):
         """
         if isinstance(state, (collections.abc.Mapping, collections.abc.Sequence)) and len(state) > 0:
             super().update(state)
-        # super().__reset__({f.name: d.get(f.name, _not_found_) for f in fields(self.State) if f.name in d})
 
         self._time = self.get("time", 0.0)
-
-        logger.debug(f"Update actor '{guess_class_name(self)}' at time={self.time}. ")
 
         return 0.0 if force else 0.0
