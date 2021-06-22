@@ -619,22 +619,21 @@ class EntryWrapper(Entry):
 
 
 class EntryCombiner(Entry):
-    def __init__(self, elements: Union[Entry, Sequence], *args, prefix=None, default_value=None, reducer=None, **kwargs):
+    def __init__(self, elements: Sequence, *args,   default_value=None, reducer=None, **kwargs):
         super().__init__(default_value, *args,  **kwargs)
-        prefix = normalize_query(prefix)
-        if isinstance(elements, Entry):
-            prefix = elements._prefix+prefix
-            elements = elements._data
-        if not isinstance(elements, collections.abc.Sequence):
+        if isinstance(elements, collections.abc.Sequence):
+            self._sub_elements = elements
+        else:
             raise TypeError(type(elements))
 
-        self._sub_elements = elements
-        self._sub_prefix = prefix
         self._reducer = reducer if reducer is not None else operator.__add__
+
+    def extend(self, query):
+        return self.__class__(self._sub_elements, default_value=self._data, reducer=self._reducer, prefix=self._prefix + normalize_query(query))
 
     def find(self, rquery: Optional[_TQuery] = None, *args, default_value=None,   **kwargs) -> Any:
 
-        query = [slice(None, None, None)] + self._sub_prefix + normalize_query(rquery)
+        query = [slice(None, None, None)] + self._prefix + normalize_query(rquery)
 
         cache = ht_find(self._sub_elements, query, *args, default_value=_not_found_, **kwargs)
 

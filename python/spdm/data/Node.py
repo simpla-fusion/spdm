@@ -63,6 +63,9 @@ class Node(Generic[_TObject]):
         else:
             self._entry = cache
 
+    def copy(self, parent=None):
+        return self.__class__(self._entry, parent=parent if parent is not None else self._parent, new_child=self.__new_child__)
+
     def __repr__(self) -> str:
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} />"
         # return pprint.pformat(self.__serialize__())
@@ -348,7 +351,11 @@ class List(Node[_TObject], Sequence[_TObject]):
     @property
     def combine(self) -> _TObject:
         if not isinstance(self._combine, Node):
-            self._combine = self.__post_process__(EntryCombiner(self._entry, default_value=self._combine),
+            if self._entry.__class__ is not Entry:
+                raise NotImplementedError(type(self._entry))
+            self._combine = self.__post_process__(EntryCombiner(self._entry._data,
+                                                                prefix=self._entry._prefix,
+                                                                default_value=self._combine),
                                                   parent=self._parent, not_insert=True)
         return self._combine
 
@@ -557,7 +564,7 @@ class _SpProperty(Generic[_TObject]):
                             else:
                                 obj = tmp
 
-                    if obj is not val and not getattr(obj, 'invalid', False) and isinstance(cache, Entry) and cache.writable:
+                    if obj is not val and isinstance(cache, Entry) and cache.writable:
                         val = cache.insert(self.attrname, obj,  assign_if_exists=True)
                     else:
                         val = obj

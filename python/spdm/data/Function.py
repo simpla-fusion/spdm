@@ -12,6 +12,7 @@ from ..numlib.spline import PPoly, create_spline
 from ..util.logger import logger
 from .Entry import Entry
 from .Node import Node
+from ..util.utilities import _undefined_
 
 
 class Function:
@@ -19,13 +20,13 @@ class Function:
         NOTE: Function is imutable!!!!
     """
 
-    def __init__(self, x: Union[np.ndarray, Sequence] = None, y: Union[np.ndarray, float, Callable] = None, /, **kwargs):
-        if y is None:
+    def __init__(self, x: Union[np.ndarray, Sequence] = None, y: Union[np.ndarray, float, Callable] = _undefined_, /, **kwargs):
+        if y is _undefined_:
             y = x
             x = None
 
         if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
-            raise ValueError(f"y is None!")
+            self._y = 0
         elif isinstance(y, Node):
             self._y = y._entry.find(default_value=0.0)
         elif isinstance(y, Entry):
@@ -285,6 +286,7 @@ def function_like(x, y) -> Function:
         return y
     else:
         return Function(x, y)
+
 # __op_list__ = ['abs', 'add', 'and',
 #                #  'attrgetter',
 #                'concat',

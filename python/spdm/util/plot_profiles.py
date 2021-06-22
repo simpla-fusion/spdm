@@ -119,34 +119,38 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 ylabel = o_args[0]
             if len(o_args) > 1:
                 opts = o_args[1]
+            
             y = None
-            if isinstance(profile, Function):
-                profile = profile.resample(x_min, x_max)
-                if profile.x_axis is None:
-                    x = x_axis
-                    y = np.asarray(profile(x_axis))
-                else:
-                    x = profile.x_axis
-                    y = np.asarray(profile())
 
-            elif isinstance(profile, np.ndarray):
-                if len(profile) != len(x_axis):
-                    x = np.linspace(x_min, x_max, len(profile))
-                else:
+            try:
+                if isinstance(profile, Function):
+                    profile = profile.resample(x_min, x_max)
+                    if profile.x_axis is None:
+                        x = x_axis
+                        y = np.asarray(profile(x_axis))
+                    else:
+                        x = profile.x_axis
+                        y = np.asarray(profile())
+                elif isinstance(profile, np.ndarray):
+                    if len(profile) != len(x_axis):
+                        x = np.linspace(x_min, x_max, len(profile))
+                    else:
+                        x = x_axis
+                    y = profile
+                elif isinstance(profile, (int, float)):
                     x = x_axis
-                y = profile
-            elif isinstance(profile, (int, float)):
+                    y = np.full(x.shape, profile)
+                elif callable(profile):
+                    x = x_axis
+                    y = profile(x)
+            except Exception as error:
+                y = None
                 x = x_axis
-                y = np.full(x.shape, profile)
-            elif callable(profile):
-                x = x_axis
-                y = profile(x)
-            else:
-                logger.warning(f"Illegal profile! {(type(profile), label, o_args)}")
+                logger.warning(error)
+
+            if not isinstance(y, np.ndarray) or not isinstance(x, np.ndarray) or x.shape != y.shape:
+                logger.warning(f"Illegal profile! {(type(profile), label, o_args)} ")
                 continue
-
-            if not isinstance(x, np.ndarray) or x.shape != y.shape:
-                logger.error(f"length of x,y  must be same! [{o_args} [{type(profile)}] {x.shape}!={y.shape}]")
             else:
                 sub_plot[idx].plot(x, y, label=label, **opts)
 
