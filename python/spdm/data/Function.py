@@ -239,10 +239,10 @@ class Function:
 
     def dln(self, x=None):
         if x is None:
-            v = self._ppoly(self.x_axis)
-            x = (self.x_axis[:-1]+self.x_axis[1:])*0.5
-            return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self.x_axis[1:]-self.x_axis[:-1])*2.0)
-            # return Function(self.x, self._ppoly.derivative()(self.x)/self._ppoly(self.x))
+            # v = self._ppoly(self.x_axis)
+            # x = (self.x_axis[:-1]+self.x_axis[1:])*0.5
+            # return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self.x_axis[1:]-self.x_axis[:-1])*2.0)
+            return Function(self.x_axis, self._ppoly.derivative()(self.x_axis)/self._ppoly(self.x_axis))
         else:
             return self.dln()(x)
             # v = self._ppoly(x)

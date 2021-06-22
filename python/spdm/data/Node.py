@@ -320,7 +320,13 @@ class List(Node[_TObject], Sequence[_TObject]):
         self._entry.insert(query, self.__pre_process__(v), assign_if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> _TObject:
-        return self.__post_process__(self._entry.find(query, only_first=True), query, parent=self._parent)
+        obj = self._entry.find(query)
+        if isinstance(obj, (collections.abc.Sequence, List)):
+            if len(obj) > 1:
+                obj = EntryCombiner(obj)
+            else:
+                obj = obj[0]
+        return self.__post_process__(obj, query, parent=self._parent)
 
     def __delitem__(self, query: _TQuery) -> None:
         super().__delitem__(query)
