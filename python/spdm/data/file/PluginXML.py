@@ -1,16 +1,18 @@
 import collections
 import pathlib
-from typing import Optional
 from functools import cached_property
+from typing import Optional
+
 from spdm.numlib import np
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ..Entry import Entry, _TPath
-from ..File import File
-from ..Node import _not_found_
 from ...util.utilities import normalize_path, serialize
+from ..Entry import Entry, _TEntry, _TPath
+from ..File import File
+from ..Node import _not_found_, _undefined_
+
 try:
     from lxml.etree import Comment as _XMLComment
     from lxml.etree import ParseError as _XMLParseError
@@ -87,6 +89,11 @@ class XMLEntry(Entry):
     def __init__(self, root, *args, **kwargs):
         super().__init__(None, *args,   **kwargs)
         self._root = root
+
+    def duplicate(self) -> _TEntry:
+        res = super().duplicate()
+        res._root = self._root
+        return res
 
     @property
     def writable(self) -> bool:
@@ -171,10 +178,27 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, envs)
         return res
 
-    def put(self,  value,  path: Optional[_TPath] = None, only_one=False, **kwargs):
+    def put(self,  value, only_one=False, **kwargs):
         logger.debug(f"{self.__class__.__name__} is not writable!")
 
-    def find(self,  path: Optional[_TPath], *args, only_one=False, default_value=None, projection=None, **kwargs):
+    def get(self, *args, only_one=False, default_value=_undefined_, projection=None, **kwargs):
+
+        xp, envs = self.xpath(self._path)
+
+        obj = xp.evaluate(self._root)
+
+        res = self._convert(obj, lazy=default_value is _undefined_, path=self._path, envs=envs, projection=projection)
+
+        if res is not _not_found_:
+            pass
+        elif default_value is not _undefined_:
+            res = default_value
+        else:
+            raise RuntimeError(self._path)
+
+        return res
+
+    def _find(self,  path: Optional[_TPath], *args, only_one=False, default_value=None, projection=None, **kwargs):
         if not only_one:
             res = PathTraverser(path).apply(lambda p: self.find(
                 p, only_one=True, default_value=_not_found_, projection=projection))
@@ -187,7 +211,7 @@ class XMLEntry(Entry):
             res = default_value
         return res
 
-    def get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
+    def _get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))

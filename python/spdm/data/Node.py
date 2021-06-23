@@ -61,10 +61,10 @@ class Node(Generic[_TObject]):
             self._entry = cache._entry
         elif not isinstance(cache, Entry):
             self._entry = Entry(cache)
-        elif isinstance(cache, EntryCombiner):
-            self._entry = cache
-        elif not cache.writable:
-            self._entry = EntryWrapper(Entry(), cache)
+        # elif isinstance(cache, EntryCombiner):
+        #     self._entry = cache
+        # elif not cache.writable:
+        #     self._entry = EntryWrapper(Entry(), cache)
         else:
             self._entry = cache
 
@@ -194,15 +194,11 @@ class Node(Generic[_TObject]):
         if inspect.isclass(self.__new_child__):
             if isinstance(value, self.__new_child__):
                 pass
-            elif value.is_list:
-                value = List[self.__new_child__](value, *args, parent=parent, **kwargs)
-            elif value.is_dict:
-                value = Dict[self.__new_child__](value, *args, parent=parent, **kwargs)
             elif issubclass(self.__new_child__, Node):
                 value = self.__new_child__(value, *args, parent=parent, **kwargs)
             else:
-                logger.warning(f"{self.__new_child__} is not a 'Node'!")
-                value = self.__new_child__(value, *args, **kwargs)
+                value = self.__new_child__(value, *args,  **kwargs)
+
         elif callable(self.__new_child__):
             value = self.__new_child__(value, *args, parent=parent,  **kwargs)
         elif self.__new_child__ is not None:
@@ -254,7 +250,7 @@ class Node(Generic[_TObject]):
     def find(self, query: _TQuery, /, only_first=False, **kwargs) -> _T:
         return self.__post_process__(self._entry.child(query).get(only_first=only_first, **kwargs))
 
-    def get(self, query: _TQuery = None, only_first=False,  default_value=_undefined_) -> Any:
+    def get(self, query: _TQuery = None,  default_value=_undefined_, only_first=False) -> Any:
         return self.__post_process__(self._entry.child(query).get(only_first=only_first, default_value=default_value))
 
     def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
@@ -424,7 +420,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     def reset(self, value=None) -> None:
         self._entry.reset(value)
 
-    def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _T:
+    def get(self, key: _TQuery, default_value=_undefined_, **kwargs) -> _T:
         return self._entry.child(key).get(default_value=default_value, **kwargs)
 
     def items(self) -> Iterator[Tuple[str, _T]]:

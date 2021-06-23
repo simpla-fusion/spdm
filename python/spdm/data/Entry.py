@@ -32,11 +32,12 @@ def normalize_query(query):
         query = []
     elif isinstance(query, str):
         # TODO: parse uri request
-        query = query.split('.')
+        query = [query]
     elif isinstance(query, tuple):
         query = list(query)
     elif not isinstance(query, collections.abc.MutableSequence):
         query = [query]
+    query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
     return query
 
 
@@ -143,7 +144,7 @@ def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
         ht_insert(target, query, value, assign_if_exists=True, **kwargs)
 
 
-def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=False) -> Any:
+def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=False, **kwargs) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -168,7 +169,9 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
             val = Entry(target, path=query[idx:])
             break
         elif isinstance(key, str):
-            if hasattr(target.__class__, 'get'):
+            if isinstance(target, Entry):
+                val = target.find(key, _not_found_)
+            elif hasattr(target.__class__, 'get'):
                 val = target.get(key, _not_found_)
             else:
                 try:
@@ -493,7 +496,7 @@ class Entry(object):
         else:
             value = ht_find(self._cache,  self._path, default_value=_not_found_, only_first=only_first, **kwargs)
 
-            if isinstance(value, (int, float, str, np.ndarray)):
+            if isinstance(value, (int, float, str, np.ndarray)) or hasattr(value, "_entry"):
                 return value
             elif isinstance(value, (collections.abc.Sequence)):
                 if isinstance(self._path[-1], collections.abc.Mapping):
@@ -523,7 +526,7 @@ class Entry(object):
 
             return ht_insert(self._cache,  self._path, value, assign_if_exists=assign_if_exists)
 
-    def find(self, query: _TQuery, default_value=_not_found_,  /, **kwargs) -> Any:
+    def find(self, query: _TQuery, default_value=_undefined_,   **kwargs) -> Any:
         return self.child(query).get(default_value=default_value, **kwargs)
 
     def insert(self, query: _TQuery, value: _T, /, **kwargs) -> _T:
