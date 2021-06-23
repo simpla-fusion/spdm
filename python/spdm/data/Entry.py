@@ -611,14 +611,14 @@ class EntryWrapper(Entry):
     def __init__(self,  *sources, **kwargs):
         super().__init__(sources, **kwargs)
 
-    def find(self,  *args, default_value=_undefined_, **kwargs):
+    def pull(self, default_value=_undefined_, **kwargs):
         res = next(filter(lambda d: d is not _not_found_, map(
             lambda d: ht_find(d, self._path, default_value=_not_found_), self._cache)), default_value)
         if res is _undefined_:
             res = EntryWrapper(self._cache, path=self._path)
         return res
 
-    def insert(self,    value, *args, **kwargs):
+    def push(self, value, *args, **kwargs):
         return ht_insert(self._cache[0], self._path, value, *args, **kwargs)
 
     def __len__(self) -> int:
@@ -706,11 +706,11 @@ class EntryCombiner(Entry):
     def duplicate(self):
         return self.__class__(self._d_list, cache=self._cache, reducer=self._reducer, path=self._path)
 
-    def pull(self,  *args, default_value=_not_found_, cache: str = "on",  **kwargs) -> Any:
+    def pull(self,  default_value=_not_found_, cache: str = "on",  **kwargs) -> Any:
         res = _not_found_
 
         if self._cache is not None and cache not in ("off", "no"):
-            res = super().pull(default_value=_not_found_,  **kwargs)
+            res = super().pull(_not_found_,  **kwargs)
             if res is not _not_found_ or cache == "only":
                 return res
 
