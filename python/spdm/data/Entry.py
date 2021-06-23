@@ -508,7 +508,7 @@ class Entry(object):
             else:
                 return self
 
-    def put(self,  value, /, assign_if_exists=True, **kwargs):
+    def put(self,  value, /, assign_if_exists=True):
         if not self._path:
             self._cache = value
             return value
@@ -519,7 +519,16 @@ class Entry(object):
                 else:
                     self._cache = _LIST_TYPE_()
 
-            return ht_insert(self._cache,  self._path, value, assign_if_exists=assign_if_exists, **kwargs)
+            return ht_insert(self._cache,  self._path, value, assign_if_exists=assign_if_exists)
+
+    def append(self, value) -> _TEntry:
+        target = self.put(_LIST_TYPE_(), assign_if_exists=False)
+
+        if not isinstance(target, collections.abc.Sequence):
+            raise ValueError(type(target))
+
+        target.append(value)
+        return Entry(target, path=[len(target)-1])
 
     def update(self, value=None, /, **kwargs) -> None:
         if not self._path and self._cache is None:

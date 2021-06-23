@@ -45,13 +45,13 @@ class TestNode(unittest.TestCase):
         d = Dict(cache)
 
         d["a"] = "hello world {name}!"
-        # d["c"][_next_] = 1.23455
-        # d["c"][_next_] = {"a": "hello world", "b": 3.141567}
-
+        d["c"][_next_] = 1.23455
+        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
+        logger.debug(cache)
         self.assertEqual(cache["a"], "hello world {name}!")
-        # self.assertEqual(cache["c"][0],  1.23455)
-        # self.assertEqual(cache["c"][1]["a"], "hello world")
-        # self.assertEqual(d["c"][1]["a"], "hello world")
+        self.assertEqual(cache["c"][0],  1.23455)
+        self.assertEqual(cache["c"][1]["a"], "hello world")
+        self.assertEqual(d["c"][1]["a"], "hello world")
 
         d["e"]["f"] = 5
         d["e"]["g"] = 6
@@ -92,14 +92,14 @@ class TestNode(unittest.TestCase):
 
         self.assertEqual(cache["c"][0],  1.23455)
 
-    # def test_node_append(self):
-    #     d = List()
-    #     d[_next_] = {"a": 1, "b": 2}
+    def test_node_append(self):
+        d = List()
+        d[_next_] = {"a": 1, "b": 2}
 
-    #     self.assertEqual(len(d), 1)
-    #     self.assertTrue(d.__category__ | Node.Category.LIST)
-    #     self.assertEqual(d[0]["a"], 1)
-    #     self.assertEqual(d[0]["b"], 2)
+        self.assertEqual(len(d), 1)
+        self.assertTrue(d.__category__ | Node.Category.LIST)
+        self.assertEqual(d[0]["a"], 1)
+        self.assertEqual(d[0]["b"], 2)
 
     def test_node_boolean(self):
         d = Dict()

@@ -217,10 +217,17 @@ class Node(Generic[_TObject]):
         return value
 
     def __setitem__(self, query: _TQuery, value: Any) -> None:
-        self._entry.child(query).put(self.__pre_process__(value), assign_if_exists=True)
+        if query is _next_:
+            self._entry.append(self.__pre_process__(value))
+        else:
+            self._entry.child(query).put(self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        return self.__post_process__(self._entry.child(query).get(only_first=_undefined_))
+        if query is _next_:
+            res = self._entry.append(None)
+        else:
+            res = self._entry.child(query).get(only_first=_undefined_)
+        return self.__post_process__(res)
 
     def __delitem__(self, query: _TQuery) -> None:
         self._entry.child(query).erase()
