@@ -220,7 +220,7 @@ class Node(Generic[_TObject]):
         self._entry.child(query).put(self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        return self.__post_process__(self._entry.child(query).get())
+        return self.__post_process__(self._entry.child(query).get(only_first=_undefined_))
 
     def __delitem__(self, query: _TQuery) -> None:
         self._entry.child(query).erase()
@@ -244,17 +244,17 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, query: _TQuery, /, **kwargs) -> _T:
-        return self._entry.child(query).get(**kwargs)
+    def find(self, query: _TQuery, /, only_first=False, **kwargs) -> _T:
+        return self.__post_process__(self._entry.child(query).get(only_first=only_first, **kwargs))
+
+    def get(self, query: _TQuery = None, only_first=False,  default_value=_undefined_) -> Any:
+        return self.__post_process__(self._entry.child(query).get(only_first=only_first, default_value=default_value))
 
     def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
         return self._entry.child(query).put(value, **kwargs)
 
     def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
         return self._entry.child(query).put(value, assign_if_exists=True, **kwargs)
-
-    def get(self, query: _TQuery = None,  default_value=_undefined_) -> Any:
-        return self._entry.child(query).get(only_first=True, default_value=default_value)
 
     def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> _TNode:
         query = normalize_query(query)
@@ -319,7 +319,7 @@ class List(Node[_T], Sequence[_T]):
                 obj = Entry(obj)
             else:
                 obj = obj[0]
-        return self.__post_process__(obj, query, parent=self._parent)
+        return self.__post_process__(obj, parent=self._parent)
 
     def __delitem__(self, query: _TQuery) -> None:
         super().__delitem__(query)

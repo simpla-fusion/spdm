@@ -19,12 +19,12 @@ class TestNodeList(unittest.TestCase):
 
         d1 = Dict({"person": cache})
 
-        young = d1.find(["person", {"age": 22}], only_first=False)
+        young = d1.find(["person", {"age": 22}])
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
         self.assertEqual(young[1]["name"],  "li si")
-        
+
         res = d1["person", {"age": 22}]
 
         logger.debug(type(res))

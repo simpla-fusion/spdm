@@ -205,7 +205,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
 
             break
         elif isinstance(key, collections.abc.Mapping):
-            if key.get("_only_first", only_first):
+            if only_first is True:
                 try:
                     val = next(filter(lambda d: ht_check(d, key), ht_iter(target)))
                 except StopIteration:
@@ -214,6 +214,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
                 val = [d for d in ht_iter(target) if ht_check(d, key)]
                 if len(val) == 0:
                     val = _not_found_
+
         else:
             raise TypeError(type(key))
 
@@ -479,20 +480,26 @@ class Entry(object):
 
     @property
     def count(self) -> int:
-        if not self._path:
+        if self._cache is None:
+            return 0
+        elif not self._path:
             return len(self._cache)
         else:
             return ht_count(self._cache,  self._path)
 
-    def get(self, /, default_value: _T = _undefined_, **kwargs) -> Union[_T, _TEntry]:
+    def get(self, /, default_value: _T = _undefined_, only_first=_undefined_, **kwargs) -> Union[_T, _TEntry]:
         if not self._path:
             return self._cache
         else:
-            value = ht_find(self._cache,  self._path, default_value=_not_found_, **kwargs)
+            value = ht_find(self._cache,  self._path, default_value=_not_found_, only_first=only_first, **kwargs)
 
             if isinstance(value, (int, float, str, np.ndarray)):
                 return value
-            elif isinstance(value, (collections.abc.Sequence, collections.abc.Mapping)):
+            elif isinstance(value, (collections.abc.Sequence)):
+                if only_first is not False and len(value) == 1:
+                    value = value[0]
+                return Entry(value)
+            elif isinstance(value,  collections.abc.Mapping):
                 return Entry(value)
             elif value is not _not_found_:
                 return value
