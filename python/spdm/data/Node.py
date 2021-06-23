@@ -14,12 +14,17 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
+from numpy.lib.arraysetops import isin
+
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
                     EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath,
                     _TQuery, as_dataclass, normalize_query)
+
+_TNode = TypeVar('_TNode', bound='Node')
+_T = TypeVar("_T")
 
 
 class Node(Generic[_TObject]):
@@ -63,7 +68,7 @@ class Node(Generic[_TObject]):
         else:
             self._entry = cache
 
-    def copy(self, parent=None):
+    def copy(self, parent=None) -> _TNode:
         return self.__class__(self._entry, parent=parent if parent is not None else self._parent, new_child=self.__new_child__)
 
     def __repr__(self) -> str:
@@ -71,7 +76,7 @@ class Node(Generic[_TObject]):
         # return pprint.pformat(self.__serialize__())
 
     def __serialize__(self) -> Mapping:
-        return serialize(self._entry.find(full=True))
+        return serialize(self._entry.get(full=True))
 
     def __duplicate__(self, desc=None) -> object:
         return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
@@ -170,9 +175,9 @@ class Node(Generic[_TObject]):
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, d: Any, key=None, /, *args, parent=None, not_insert=False, **kwargs) -> _TObject:
-        if d is _not_found_:
-            return d
+    def __post_process__(self, value: _T,   /, *args, parent=None,   **kwargs) -> Union[_T, _TNode]:
+        if not isinstance(value,  Entry):
+            return value
 
         if self.__new_child__ is _undefined_:
             child_cls = None
@@ -186,14 +191,12 @@ class Node(Generic[_TObject]):
             self.__new_child__ = child_cls
 
         parent = parent if parent is not None else self
-        value = d
-
         if inspect.isclass(self.__new_child__):
             if isinstance(value, self.__new_child__):
                 pass
-            elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str) and not issubclass(self.__new_child__, List):
+            elif value.is_list:
                 value = List[self.__new_child__](value, *args, parent=parent, **kwargs)
-            elif isinstance(value, collections.abc.Mapping) and not issubclass(self.__new_child__, Dict):
+            elif value.is_dict:
                 value = Dict[self.__new_child__](value, *args, parent=parent, **kwargs)
             elif issubclass(self.__new_child__, Node):
                 value = self.__new_child__(value, *args, parent=parent, **kwargs)
@@ -204,49 +207,36 @@ class Node(Generic[_TObject]):
             value = self.__new_child__(value, *args, parent=parent,  **kwargs)
         elif self.__new_child__ is not None:
             raise TypeError(f"Illegal type! {self.__new_child__}")
-
-        if isinstance(value, Node):
-            pass
-        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+        elif value.is_list:
             value = List(value, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
-        elif isinstance(value, collections.abc.Mapping):
+        elif value.is_dict:
             value = Dict(value, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
-        elif isinstance(value, Entry):
+        else:
             value = Node(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
 
-        if isinstance(key, (int, str)) and not not_insert and d is not value and self._entry.writable:
-            try:
-                self.__setitem__(key, value)
-            except Exception:
-                pass
         return value
 
     def __setitem__(self, query: _TQuery, value: Any) -> None:
-        self._entry.insert(query,  self.__pre_process__(value), assign_if_exists=True)
+        self._entry.child(query).put(self.__pre_process__(value), assign_if_exists=True)
 
-    def __getitem__(self, query: _TQuery) -> Any:
-        return self.__post_process__(self._entry.find(query))
+    def __getitem__(self, query: _TQuery) -> _TNode:
+        return self.__post_process__(self._entry.child(query).get())
 
     def __delitem__(self, query: _TQuery) -> None:
-        self._entry.erase(query)
+        self._entry.child(query).erase()
 
     def __contains__(self, query: _TQuery) -> bool:
-        return self._entry.contains(query)
+        return self._entry.child(query).exists
 
     def __len__(self) -> int:
-        return self._entry.count()
+        return self._entry.count
 
-    def __iter__(self) -> Iterator[_TObject]:
+    def __iter__(self) -> Iterator[_T]:
         for obj in self._entry.iter():
             yield self.__post_process__(obj)
 
     def __eq__(self, other) -> bool:
-        return self._entry.compare(other)
-
-    # def __fetch__(self):
-    #     if hasattr(self._entry.__class__, "fecth"):
-    #         self._entry = self._entry.fetch()
-    #     return self._entry
+        return self._entry.equal(other)
 
     def __bool__(self) -> bool:
         return not self.empty  # and (not self.__fetch__())
@@ -254,19 +244,19 @@ class Node(Generic[_TObject]):
     # def __array__(self) -> np.ndarray:
     #     return np.asarray(self.__fetch__())
 
-    def find(self, query, /, **kwargs) -> _TObject:
-        return self._entry.find(query,  **kwargs)
+    def find(self, query: _TQuery, /, **kwargs) -> _T:
+        return self._entry.child(query).get(**kwargs)
 
-    def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
-        return self._entry.insert(query, value, **kwargs)
+    def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
+        return self._entry.child(query).put(value, **kwargs)
 
-    def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _TObject:
-        return self._entry.insert(query, value, assign_if_exists=True, **kwargs)
+    def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
+        return self._entry.child(query).put(value, assign_if_exists=True, **kwargs)
 
     def get(self, query: _TQuery = None,  default_value=_undefined_) -> Any:
-        return self.find(query, only_first=True, default_value=default_value)
+        return self._entry.child(query).get(only_first=True, default_value=default_value)
 
-    def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> Any:
+    def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> _TNode:
         query = normalize_query(query)
 
         if len(query) == 0:
@@ -289,8 +279,8 @@ class Node(Generic[_TObject]):
         else:
             raise RuntimeError(f"{type(val)}, {query[1:]}")
 
-    def update(self, *args, **kwargs):
-        self._entry.update(*args, **kwargs)
+    def update(self, query: _TQuery = None, value: Any = None, /, **kwargs):
+        self._entry.child(query).update(value,   **kwargs)
 
     def update_many(self,  *args,  **kwargs):
         self._entry.update_many(*args,  **kwargs)
@@ -299,7 +289,7 @@ class Node(Generic[_TObject]):
     #     return self._entry.find(query, default_value=default_value, **kwargs)
 
 
-class List(Node[_TObject], Sequence[_TObject]):
+class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_args", "_combine")
 
     def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
@@ -312,21 +302,21 @@ class List(Node[_TObject], Sequence[_TObject]):
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    @property
+    @ property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
     def __len__(self) -> int:
-        return self._entry.count()
+        return super().__len__()
 
-    def __setitem__(self, query: _TQuery, v: _TObject) -> None:
-        self._entry.insert(query, self.__pre_process__(v), assign_if_exists=True)
+    def __setitem__(self, query: _TQuery, v: _T) -> None:
+        super().__setitem__(query, v)
 
-    def __getitem__(self, query: _TQuery) -> _TObject:
-        obj = self._entry.find(query)
-        if isinstance(obj, (collections.abc.Sequence, List)):
+    def __getitem__(self, query: _TQuery) -> _T:
+        obj = self._entry.child(query).get()
+        if isinstance(obj, (collections.abc.Sequence)) and not isinstance(obj, str):
             if len(obj) > 1:
-                obj = EntryCombiner(obj)
+                obj = Entry(obj)
             else:
                 obj = obj[0]
         return self.__post_process__(obj, query, parent=self._parent)
@@ -334,7 +324,7 @@ class List(Node[_TObject], Sequence[_TObject]):
     def __delitem__(self, query: _TQuery) -> None:
         super().__delitem__(query)
 
-    def __iter__(self) -> Iterator[_TObject]:
+    def __iter__(self) -> Iterator[_T]:
         for idx in range(len(self)):
             yield self.__getitem__(idx)
 
@@ -348,8 +338,8 @@ class List(Node[_TObject], Sequence[_TObject]):
         else:
             raise NotImplementedError()
 
-    @property
-    def combine(self) -> _TObject:
+    @ property
+    def combine(self) -> _T:
         if not isinstance(self._combine, Node):
             if self._entry.__class__ is not Entry:
                 raise NotImplementedError(type(self._entry))
@@ -373,7 +363,7 @@ class List(Node[_TObject], Sequence[_TObject]):
             super().reset()
 
 
-class Dict(Node[_TObject], Mapping[str, _TObject]):
+class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
@@ -388,35 +378,32 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __serialize__(self) -> Mapping:
         return {k: serialize(v) for k, v in self._as_dict().items()}
 
-    @classmethod
-    def __deserialize__(cls, desc: Mapping) -> _TObject:
+    @ classmethod
+    def __deserialize__(cls, desc: Mapping) -> _T:
         ids = desc.get("@ids", None)
         if ids is None:
             raise ValueError(desc)
         else:
             raise NotImplementedError(ids)
 
-    @property
+    @ property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
     def __getitem__(self, query: _TKey) -> _TObject:
-        return self.__post_process__(self._entry.find(query), query)
+        return super().__getitem__(query)
 
-    def __setitem__(self, query: _TKey, value: _TObject) -> None:
-        self._entry.insert(query,  self.__pre_process__(value), assign_if_exists=True)
+    def __setitem__(self, query: _TKey, value: _T) -> None:
+        super().__setitem__(query, value)
 
     def __delitem__(self, query: _TKey) -> None:
-        self._entry.erase(query)
+        super().__delitem__(query)
 
     def __iter__(self) -> Iterator[str]:
         yield from self.keys()
 
-    def __len__(self) -> int:
-        return self._entry.count()
-
     def __eq__(self, o: object) -> bool:
-        return self._entry.compare(o)
+        return self._entry.equal(o)
 
     def __contains__(self, o: object) -> bool:
         return self._entry.contains(o)
@@ -425,22 +412,22 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
         return self.update(other)
 
     def update(self,  *args,  ** kwargs) -> None:
-        self._entry.update(None,  *args, **kwargs)
+        self._entry.update(*args, **kwargs)
 
     def reset(self, value=None) -> None:
         self._entry.reset(value)
 
-    def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _TObject:
-        return self._entry.find(key, default_value=default_value, **kwargs)
+    def get(self, key: _TQuery, default_value=_not_found_, **kwargs) -> _T:
+        return self._entry.child(key).get(default_value=default_value, **kwargs)
 
-    def items(self) -> Iterator[Tuple[str, _TObject]]:
+    def items(self) -> Iterator[Tuple[str, _T]]:
         for k, v in self._entry.items():
             yield k, self.__post_process__(v, k)
 
     def keys(self) -> Iterator[str]:
         yield from self._entry.keys()
 
-    def values(self) -> Iterator[_TObject]:
+    def values(self) -> Iterator[_T]:
         for k, v in self._entry.items():
             yield self.__post_process__(v, k)
 
@@ -489,7 +476,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     #                 delattr(self, key)
 
 
-class _SpProperty(Generic[_TObject]):
+class _SpProperty(Generic[_T]):
     def __init__(self, func):
         self.func = func
         self.attrname = None
@@ -527,7 +514,7 @@ class _SpProperty(Generic[_TObject]):
             # logger.error(f"Can not put value to '{self.attrname}'")
             raise TypeError(error) from None
 
-    def __get__(self, instance: Any, owner=None) -> _TObject:
+    def __get__(self, instance: Any, owner=None) -> _T:
         cache = getattr(instance, "_entry", Entry(instance.__dict__))
 
         if self.attrname is None:
@@ -536,13 +523,13 @@ class _SpProperty(Generic[_TObject]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.find(self.attrname, default_value=_not_found_)
+        val = cache.find(self.attrname, default_value=_not_found_, shallow=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.find(self.attrname, default_value=_not_found_)
-                # FIXME: Thread safety cannot be guaranteed! solution: lock on cache
+                val = cache.find(self.attrname, default_value=_not_found_, shallow=True)
+                # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
                     obj = self.func(instance)
                     if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
@@ -589,5 +576,5 @@ class _SpProperty(Generic[_TObject]):
     #                 raise TypeError(error)
 
 
-def sp_property(func: Callable[..., _TObject]) -> _SpProperty[_TObject]:
-    return _SpProperty[_TObject](func)
+def sp_property(func: Callable[..., _T]) -> _SpProperty[_T]:
+    return _SpProperty[_T](func)

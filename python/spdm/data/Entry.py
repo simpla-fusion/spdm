@@ -2,12 +2,13 @@ import collections
 import collections.abc
 import dataclasses
 import functools
-import operator
 import inspect
-from typing import (Any, Generic, Iterator, Mapping, MutableMapping,
+import operator
+from copy import deepcopy
+from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
-from copy import deepcopy
+
 from ..numlib import np
 from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, serialize
@@ -15,6 +16,7 @@ from ..util.utilities import _not_found_, _undefined_, serialize
 _next_ = object()
 _last_ = object()
 
+_T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
 _TPath = TypeVar("_TPath", int, slice, str,  Sequence)
 _TQuery = TypeVar("_TQuery", int,  slice, str, Sequence, Mapping)
@@ -50,7 +52,7 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=Fa
 
     if len(query) > 0:
         pass
-    elif value is None:  # and target._data is None:
+    elif value is None:  # and target._cache is None:
         return target
     else:
         raise RuntimeError(f"Empty query! {type(target)} {type(value)}")
@@ -141,7 +143,7 @@ def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
         ht_insert(target, query, value, assign_if_exists=True, **kwargs)
 
 
-def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=True) -> Any:
+def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=False) -> Any:
     """
         Finds an element with key equivalent to key.
         return if key exists return element else return default_value
@@ -163,7 +165,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
             val = target.find(query[idx:], default_value)
             break
         elif key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
-            val = Entry(target, prefix=query[idx:])
+            val = Entry(target, path=query[idx:])
             break
         elif isinstance(key, str):
             if hasattr(target.__class__, 'get'):
@@ -223,7 +225,7 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
     if not (val is _not_found_ or val is None):
         return val
     elif default_value is _undefined_:
-        return Entry(target, prefix=query[idx:])
+        return Entry(target, path=query[idx:])
     else:
         return default_value
 
@@ -236,21 +238,21 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
     #     if not isinstance(key, (int, slice)):
     #         raise TypeError(
     #             f"list indices must be integers or slices, not {type(key).__name__}! \"{query[:idx+1]}\" {type(obj)}")
-    #     elif isinstance(key, int) and isinstance(target._data, collections.abc.MutableSequence) and key > len(target._data):
-    #         raise IndexError(f"Out of range! {key} > {len(target._data)}")
+    #     elif isinstance(key, int) and isinstance(target._cache, collections.abc.MutableSequence) and key > len(target._cache):
+    #         raise IndexError(f"Out of range! {key} > {len(target._cache)}")
     #     obj = obj[key]
     # elif hasattr(obj, "_cache"):
-    #     if obj._cache._data == target._data and obj._cache._prefix == query[:idx]:
+    #     if obj._cache._cache == target._cache and obj._cache._path == query[:idx]:
     #         suffix = query
-    #         obj = obj._cache._data
+    #         obj = obj._cache._cache
     #         break
     #     else:
     #         obj = obj._cache.find(query[idx:])
     #     break
 
     # if rquery is None:
-    #     target._data = obj
-    #     target._prefix = []
+    #     target._cache = obj
+    #     target._path = []
 
 
 def ht_check(target, condition: Mapping) -> bool:
@@ -308,7 +310,7 @@ def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
 
 
 def ht_contains(target, v,  *args,  **kwargs) -> bool:
-    return v in target.find(*args, **kwargs)
+    return v in ht_find(target,  *args,  **kwargs)
 
 
 def ht_iter(target, query=None, /,  **kwargs):
@@ -371,129 +373,177 @@ def ht_compare(first, second) -> bool:
     return first == second
 
 
+_TEntry = TypeVar('_TEntry', bound='Entry')
+
+
 class Entry(object):
     is_entry = True
-    __slots__ = "_data", "_prefix"
+    __slots__ = "_cache", "_path"
 
-    def __init__(self, data=None,  *args, prefix=None,      **kwargs):
+    def __init__(self, cache=None,  *args, path=None,      **kwargs):
         super().__init__()
-        self._data = data
-        self._prefix = normalize_query(prefix)
+        self._cache = None
+        self._path = normalize_query(path)
+        self.enable_cache(cache)
+
+    def duplicate(self) -> _TEntry:
+        return self.__class__(self._cache, path=self._path)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} data={type(self._data)} prefix={self._prefix} />"
+        return f"<{self.__class__.__name__} root={type(self._cache)} path={self._path} />"
 
     @property
     def writable(self) -> bool:
         return True
 
-    @property
-    def data(self):
-        return self._data
+    def enable_cache(self, cache: Union[bool, Mapping] = None) -> bool:
+        if cache is None:
+            pass
+        elif cache is False:
+            self._cache = None
+        elif cache is True:
+            if self._cache is None:
+                self._cache = _DICT_TYPE_()
+        else:
+            self._cache = cache
+
+        return self._cache is not None
 
     @property
-    def parent(self):
-        return self._parent
+    def cache(self) -> Any:
+        return self._cache
 
     @property
-    def prefix(self):
-        return self._prefix
+    def path(self) -> Sequence:
+        return self._path
 
     @property
-    def is_relative(self):
-        return len(self._prefix) > 0
-
-    def __eq__(self, o: Any) -> bool:
-        return isinstance(o, Entry) and self._data is o._data and self._prefix == o._prefix
+    def is_relative(self) -> bool:
+        return len(self._path) > 0
 
     @property
-    def empty(self):
-        return (self._data is None and len(self._prefix) == 0) or self.find(None, default_value=None) is None
+    def empty(self) -> bool:
+        return (self._cache is None and not self._path) or not self.exists
 
-    @property
-    def invalid(self):
-        return self._data is None
+    def predecessor(self) -> _TEntry:
+        return NotImplemented
 
-    def append(self, query):
-        self._prefix += normalize_query(query)
+    def successor(self) -> _TEntry:
+        return NotImplemented
 
-    def extend(self, query):
-        return self.__class__(self._data, prefix=self._prefix + normalize_query(query))
-
-    def child(self, query, *args, **kwargs):
-        if not query:
+    def child(self, rquery: _TQuery) -> _TEntry:
+        if rquery is None:
             return self
         else:
-            return self.__class__(self._data, prefix=self._prefix + normalize_query(query))
+            node = self.duplicate()
+            node._path = node._path + normalize_query(rquery)
+            return node
 
-    def copy(self, other):
-        raise NotImplementedError()
+    @property
+    def parent(self) -> _TEntry:
+        if not self._path:
+            raise RuntimeError(f"No parent")
+        node = self.duplicate()
+        node._path = node._path[:-1]
+        return node
 
-    # def get(self, *args, **kwargs) -> Any:
-    #     return self.find(*args, **kwargs)
+    @property
+    def siblings(self) -> _TEntry:
+        """
+            return next brother neighbour
+        """
+        return self.parent.child({"@not": self._path[-1]})
 
-    # def put(self,  rquery:  Optional[_TQuery], value) -> Any:
-        return self.insert(rquery, value, assign_if_exists=True)
+    def __next__(self) -> _TEntry:
+        return self.parent.child({"@next": self._path[-1]})
 
-    def find(self, rquery: Optional[_TQuery] = None, /, default_value=_undefined_,  **kwargs) -> Any:
-        return ht_find(self._data,  self._prefix + normalize_query(rquery), default_value=default_value, **kwargs)
+    def reset(self, value=None) -> _TEntry:
+        self._cache = value
+        self._path = []
+        return self
 
-    def get(self, rquery: Optional[_TQuery] = None, /, default_value=_undefined_,  **kwargs) -> Any:
-        """ alias of find """
-        return self.find(rquery, default_value=default_value, **kwargs)
+    @property
+    def exists(self) -> bool:
+        if not self._path:
+            return self._cache is not None
+        else:
+            return ht_find(self._cache, self._path, default_value=_not_found_) is not _not_found_
 
-    def reset(self, value=None) -> None:
-        self._data = value
+    @property
+    def is_list(self) -> bool:
+        return not self._path and isinstance(self._cache, collections.abc.Sequence) and not isinstance(self._cache, str)
 
-    def insert(self, rquery: Optional[_TQuery], value, /, **kwargs):
-        if hasattr(value, '_entry') and self.extend(rquery) == value._entry:
-            # break cycle reference
-            value._entry = Entry(value._entry.find(default_value=None))
+    @property
+    def is_dict(self) -> bool:
+        return not self._path and isinstance(self._cache, collections.abc.Mapping)
 
-        query = self._prefix + normalize_query(rquery)
+    @property
+    def count(self) -> int:
+        if not self._path:
+            return len(self._cache)
+        else:
+            return ht_count(self._cache,  self._path)
 
-        if len(query) == 0:
-            self._data = value
+    def get(self, /, default_value: _T = _undefined_, **kwargs) -> Union[_T, _TEntry]:
+        if not self._path:
+            return self._cache
+        else:
+            value = ht_find(self._cache,  self._path, default_value=_not_found_, **kwargs)
+
+            if isinstance(value, (int, float, str, np.ndarray)):
+                return value
+            elif isinstance(value, (collections.abc.Sequence, collections.abc.Mapping)):
+                return Entry(value)
+            elif value is not _not_found_:
+                return value
+            elif default_value is not _undefined_:
+                return default_value
+            else:
+                return self
+
+    def put(self,  value, /, assign_if_exists=True, **kwargs):
+        if not self._path:
+            self._cache = value
             return value
         else:
-            if self._data is None or self._data is _not_found_:
-                if isinstance(query[0], str):
-                    self._data = _DICT_TYPE_()
+            if self._cache is None:
+                if isinstance(self._path[0], str):
+                    self._cache = _DICT_TYPE_()
                 else:
-                    self._data = _LIST_TYPE_()
+                    self._cache = _LIST_TYPE_()
 
-            return ht_insert(self._data,  query, value,  **kwargs)
+            return ht_insert(self._cache,  self._path, value, assign_if_exists=assign_if_exists, **kwargs)
 
-    def update(self, rquery: Optional[_TQuery] = None,   value=None, /, **kwargs) -> None:
-        if rquery is None and value is None:
-            return
-
-        query = self._prefix + normalize_query(rquery)
-
-        if len(query) == 0 and self._data is None:
-            self._data = value
+    def update(self, value=None, /, **kwargs) -> None:
+        if not self._path and self._cache is None:
+            self._cache = value
+            return value
         else:
-            if self._data is None or self._data is _not_found_:
-                if isinstance(query[0], str):
-                    self._data = _DICT_TYPE_()
+            if self._cache is None or self._cache is _not_found_:
+                if isinstance(self._path[0], str):
+                    self._cache = _DICT_TYPE_()
                 else:
-                    self._data = _LIST_TYPE_()
-            ht_update(self._data, query, value, **kwargs)
+                    self._cache = _LIST_TYPE_()
+            return ht_update(self._cache,  self._path, value, **kwargs)
 
-    def update_many(self, rquery: Optional[_TQuery],   value=None, /, **kwargs):
+    def equal(self, other, /, **kwargs) -> bool:
+        if not self._path:
+            return self._cache == other
+        else:
+            return self.get() == other
+
+    def update_many(self, value=None, /, **kwargs):
         raise NotImplementedError()
 
-    def erase(self, rquery: Optional[_TQuery] = None, /, **kwargs) -> None:
-        return ht_erase(self._data,  self._prefix + normalize_query(rquery),   **kwargs)
+    def erase(self,   /, **kwargs) -> bool:
+        if not self._path:
+            self._cache = None
+            return True
+        else:
+            return ht_erase(self._cache,  self._path,   **kwargs)
 
-    def count(self,  rquery: Optional[_TQuery] = None,  /, **kwargs) -> int:
-        return ht_count(self._data,  self._prefix + normalize_query(rquery),    **kwargs)
-
-    def contains(self, v, rquery=None,  /, **kwargs) -> bool:
-        return ht_contains(self._data,  self._prefix + normalize_query(rquery),    **kwargs)
-
-    def call(self,   rquery: Optional[_TQuery], *args, **kwargs) -> Any:
-        obj = self.find(rquery, _not_found_)
+    def call(self,   *args, **kwargs) -> Any:
+        obj = self.fetch(default_value=_not_found_)
         if callable(obj):
             res = obj(*args, **kwargs)
         elif len(args)+len(kwargs) == 0:
@@ -502,11 +552,8 @@ class Entry(object):
             raise TypeError(f"'{type(obj)}' is not callable")
         return res
 
-    def compare(self, other) -> bool:
-        return ht_compare(self.find(), other)
-
-    def iter(self, *args, **kwargs):
-        obj = self.find(*args, **kwargs)
+    def iter(self,  **kwargs):
+        obj = self.fetch(**kwargs)
 
         if isinstance(obj, Entry):
             yield from obj.iter()
@@ -515,14 +562,14 @@ class Entry(object):
         else:
             raise NotImplementedError(type(obj))
 
-    def items(self, query: Optional[_TQuery] = None, * args, **kwargs):
-        yield from ht_items(self._data, self._prefix+normalize_query(query), *args, **kwargs)
+    def items(self,  **kwargs):
+        yield from ht_items(self._cache, self._path,  **kwargs)
 
-    def values(self,  query: Optional[_TQuery] = None,  *args, **kwargs):
-        yield from ht_values(self._data, self._prefix+normalize_query(query), *args, **kwargs)
+    def values(self,  **kwargs):
+        yield from ht_values(self._cache, self._path,   **kwargs)
 
-    def keys(self,  query: Optional[_TQuery] = None, *args, **kwargs):
-        yield from ht_keys(self._data, self._prefix+normalize_query(query), *args, **kwargs)
+    def keys(self,    **kwargs):
+        yield from ht_keys(self._cache, self._path,  **kwargs)
 
     def __serialize__(self, *args, **kwargs):
         return [v for v in self.values(*args, **kwargs)]
@@ -533,25 +580,24 @@ class EntryWrapper(Entry):
     def __init__(self,  *sources, **kwargs):
         super().__init__(sources, **kwargs)
 
-    def find(self, rquery: Optional[_TQuery], *args, default_value=_undefined_, **kwargs):
-        query = self._prefix+normalize_query(rquery)
+    def find(self,  *args, default_value=_undefined_, **kwargs):
         res = next(filter(lambda d: d is not _not_found_, map(
-            lambda d: ht_find(d, query, default_value=_not_found_), self._data)), default_value)
+            lambda d: ht_find(d, self._path, default_value=_not_found_), self._cache)), default_value)
         if res is _undefined_:
-            res = EntryWrapper(self._data, prefix=query)
+            res = EntryWrapper(self._cache, path=self._path)
         return res
 
-    def insert(self,  rquery: Optional[_TQuery], value, *args, **kwargs):
-        return ht_insert(self._data[0], self._prefix+normalize_query(rquery), value, *args, **kwargs)
+    def insert(self,    value, *args, **kwargs):
+        return ht_insert(self._cache[0], self._path, value, *args, **kwargs)
 
     def __len__(self) -> int:
         return len(self.find())
 
     def __contains__(self, v) -> bool:
-        return next(filter(lambda d: ht_contains(d, v), self._data), False)
+        return next(filter(lambda d: ht_contains(d, v), self._cache), False)
 
     def iter(self):
-        for d in self._data:
+        for d in self._cache:
             yield from d.iter()
 
     def items(self):
@@ -560,7 +606,7 @@ class EntryWrapper(Entry):
 
     def keys(self):
         k = set()
-        for d in self._data:
+        for d in self._cache:
             k.add(d.keys())
         yield from k
 
@@ -569,8 +615,8 @@ class EntryWrapper(Entry):
             yield self.find(k)
 
     #  def get(self, query=[], *args, default_value=_not_found_, **kwargs):
-    #     query = self._prefix + normalize_query(query)
-    #     obj = self._data
+    #     query = self._path + normalize_query(query)
+    #     obj = self._cache
     #     if obj is None:
     #         obj = self._parent
     #     for p in query:
@@ -588,8 +634,8 @@ class EntryWrapper(Entry):
     #     return obj
 
     # def put(self,  query, value, *args, **kwargs):
-    #     query = self._prefix + normalize_query(query)
-    #     obj = self._data
+    #     query = self._path + normalize_query(query)
+    #     obj = self._cache
     #     if len(query) == 0:
     #         return obj
     #     for p in query[:-1]:
@@ -619,54 +665,50 @@ class EntryWrapper(Entry):
 
 
 class EntryCombiner(Entry):
-    def __init__(self, elements: Sequence, *args,   default_value=None, reducer=None, **kwargs):
-        super().__init__(default_value, *args,  **kwargs)
-        if isinstance(elements, collections.abc.Sequence):
-            self._sub_elements = elements
-        else:
-            raise TypeError(type(elements))
-
+    def __init__(self, d_list: Sequence, *args,   cache=False, reducer=None, **kwargs):
+        super().__init__(cache, *args,  **kwargs)
+        if not isinstance(d_list, collections.abc.Sequence):
+            raise TypeError(type(d_list))
+        self._d_list = d_list
         self._reducer = reducer if reducer is not None else operator.__add__
 
-    def extend(self, query):
-        return self.__class__(self._sub_elements, default_value=self._data, reducer=self._reducer, prefix=self._prefix + normalize_query(query))
+    def duplicate(self):
+        return self.__class__(self._d_list, cache=self._cache, reducer=self._reducer, path=self._path)
 
-    def find(self, rquery: Optional[_TQuery] = None, *args, default_value=None,   **kwargs) -> Any:
+    def get(self,  *args, default_value=_not_found_, cache: str = "on",  **kwargs) -> Any:
+        res = _not_found_
 
-        query = [slice(None, None, None)] + self._prefix + normalize_query(rquery)
+        if self._cache is not None and cache not in ("off", "no"):
+            res = super().get(default_value=_not_found_,  **kwargs)
+            if res is not _not_found_ or cache == "only":
+                return res
 
-        cache = ht_find(self._sub_elements, query, *args, default_value=_not_found_, **kwargs)
+        query = [slice(None, None, None)] + self._path
+
+        cache = ht_find(self._d_list, query, *args, default_value=_not_found_, **kwargs)
 
         if isinstance(cache, collections.abc.Sequence):
-            cache = [d for d in cache if (d is not None and d is not _not_found_)]
+            cache = [d if not isinstance(d, Entry) else d.get()
+                     for d in cache if (d is not None and d is not _not_found_)]
 
-        if cache is _not_found_ or len(cache) == 0:
-            return super().find(rquery, default_value=default_value)
-        elif all([isinstance(d, (Entry, collections.abc.Mapping, collections.abc.Sequence)) or hasattr(d, "_entry") for d in cache]):
-            return EntryCombiner(cache, reducer=self._reducer)
-        elif isinstance(cache, collections.abc.Sequence):
-            try:
-                data = [d for d in cache
-                        if not (isinstance(d, Entry) or hasattr(d, '_entry'))]
-
-                res = functools.reduce(self._reducer, data[1:], data[0])
-            except Exception as error:
-                raise error
-            return res
+        if isinstance(cache, collections.abc.Sequence) and len(cache) > 0:
+            res = functools.reduce(self._reducer, cache[1:], cache[0])
+            if self._cache is not None:
+                super().put(res)
         else:
-            raise KeyError(query)
+            res = default_value
 
-    # def insert(self, *args, **kwargs):
-    #     raise NotImplementedError()
+        return res
 
-    # def update(self, *args, **kwargs):
-    #     raise NotImplementedError()
 
-    # def reset(self, *args, **kwargs) -> None:
-    #     raise NotImplementedError()
+class EntryIterator(Iterator[_TObject]):
+    def __init__(self, holder, index: int = 0, predicate: Callable[[_TObject], bool] = None) -> None:
+        super().__init__()
+        self._pos = index
+        self._predicate = predicate
 
-    # def erase(self, *args, **kwargs) -> None:
-    #     raise NotImplementedError()
+    def __next__(self) -> Iterator[_TObject]:
+        return super().__next__()
 
 
 def as_dataclass(dclass, obj, default_value=None):
