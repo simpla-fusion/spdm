@@ -45,13 +45,8 @@ class TestNode(unittest.TestCase):
         d = Dict(cache)
 
         d["a"] = "hello world {name}!"
-        d["c"][_next_] = 1.23455
-        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
-        logger.debug(cache)
+
         self.assertEqual(cache["a"], "hello world {name}!")
-        self.assertEqual(cache["c"][0],  1.23455)
-        self.assertEqual(cache["c"][1]["a"], "hello world")
-        self.assertEqual(d["c"][1]["a"], "hello world")
 
         d["e"]["f"] = 5
         d["e"]["g"] = 6

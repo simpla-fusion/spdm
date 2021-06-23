@@ -496,6 +496,9 @@ class Entry(object):
             if isinstance(value, (int, float, str, np.ndarray)):
                 return value
             elif isinstance(value, (collections.abc.Sequence)):
+                if isinstance(self._path[-1], collections.abc.Mapping):
+                    if only_first is not False and len(value) == 1:
+                        value = value[0]
                 return Entry(value)
             elif isinstance(value,  collections.abc.Mapping):
                 return Entry(value)
@@ -508,8 +511,9 @@ class Entry(object):
 
     def put(self,  value, /, assign_if_exists=True):
         if not self._path:
-            self._cache = value
-            return value
+            if assign_if_exists or self._cache is None:
+                self._cache = value
+            return self._cache
         else:
             if self._cache is None:
                 if isinstance(self._path[0], str):
@@ -544,7 +548,11 @@ class Entry(object):
         if not self._path:
             return self._cache == other
         else:
-            return self.get() == other
+            val = self.get()
+            if isinstance(val, Entry):
+                return val.equal(other)
+            else:
+                return val == other
 
     def update_many(self, value=None, /, **kwargs):
         raise NotImplementedError()

@@ -226,7 +226,7 @@ class Node(Generic[_TObject]):
         if query is _next_:
             res = self._entry.append(None)
         else:
-            res = self._entry.child(query).get(only_first=_undefined_)
+            res = self._entry.child(query).get()
         return self.__post_process__(res)
 
     def __delitem__(self, query: _TQuery) -> None:

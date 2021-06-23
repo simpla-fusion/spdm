@@ -5,6 +5,24 @@ from spdm.util.logger import logger
 
 
 class TestNodeList(unittest.TestCase):
+    def test_insert(self):
+        cache = {}
+
+        d = Dict(cache)
+
+        d["a"] = "hello world {name}!"
+        d["c"][_next_] = 1.23455
+        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
+        
+        self.assertEqual(cache["a"], "hello world {name}!")
+        self.assertEqual(cache["c"][0],  1.23455)
+        self.assertEqual(cache["c"][1]["a"], "hello world")
+        self.assertEqual(d["c"][1]["a"], "hello world")
+
+        d["e"]["f"] = 5
+        d["e"]["g"] = 6
+        self.assertEqual(cache["e"]["f"], 5)
+        self.assertEqual(cache["e"]["g"], 6)
 
     def test_list_find_by_cond(self):
         cache = [
@@ -15,7 +33,7 @@ class TestNodeList(unittest.TestCase):
         ]
 
         d0 = List(cache)
-        self.assertEqual(d0[{"name": "li si", "_only_first": True}]["age"], 22)
+        self.assertEqual(d0[{"name": "li si"}]["age"], 22)
 
         d1 = Dict({"person": cache})
 

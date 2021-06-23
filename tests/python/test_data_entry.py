@@ -69,7 +69,8 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(d.child(["d", "f"]).get(),             cache["d"]["f"])
         self.assertEqual(d.child(["a", 0]).get(),                 cache["a"][0])
         self.assertEqual(d.child(["a", 1]).get(),                 cache["a"][1])
-        self.assertEqual(d.child(["a", slice(2, 6)]).get(),        [1, 2, 3, 4])
+
+        self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
         self.assertFalse(d.child("f.g").exists)
 
     def test_update(self):
