@@ -523,6 +523,12 @@ class Entry(object):
 
             return ht_insert(self._cache,  self._path, value, assign_if_exists=assign_if_exists)
 
+    def find(self, query: _TQuery, default_value=_not_found_,  /, **kwargs) -> Any:
+        return self.child(query).get(default_value=default_value, **kwargs)
+
+    def insert(self, query: _TQuery, value: _T, /, **kwargs) -> _T:
+        return self.child(query).put(value, **kwargs)
+
     def append(self, value) -> _TEntry:
         target = self.put(_LIST_TYPE_(), assign_if_exists=False)
 

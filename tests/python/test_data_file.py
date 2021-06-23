@@ -1,53 +1,22 @@
-import json
-import pathlib
-import pprint
 import unittest
 
 from spdm.data.File import File
 from spdm.util.logger import logger
 
 
-class TestFlowBag(unittest.TestCase):
+class TestFile(unittest.TestCase):
+    def test_geqdsk(self):
+        gfile = File(
+            # "/home/salmon/workspace/fytok/examples/data/NF-076026/geqdsk_550s_partbench_case1",
+            "/home/salmon/workspace/data/15MA inductive - burn/Standard domain R-Z/High resolution - 257x513/g900003.00230_ITER_15MA_eqdsk16HR.txt",
+            # "/home/salmon/workspace/data/Limiter plasmas-7.5MA li=1.1/Limiter plasmas 7.5MA-EQDSK/Limiter_7.5MA_outbord.EQDSK",
+            format="geqdsk")
 
-    dict_data = {"glossary": {
-        "title": "example glossary",
-        "GlossDiv": {
-            "title": "S",
-            "GlossList": {
-                "GlossEntry": {
-                    "ID": "SGML",
-                    "SortAs": "SGML",
-                    "GlossTerm": "Standard Generalized Markup Language",
-                    "Acronym": "SGML",
-                    "Abbrev": "ISO 8879:1986",
-                    "GlossDef": {
-                        "para": "A meta-markup language, used to create markup languages such as DocBook.",
-                        "GlossSeeAlso": ["GML", "XML"]
-                    },
-                    "GlossSee": "markup"
-                }
-            }
-        }
-    }
-    }
+        self.assertEqual(gfile.entry.find("vacuum_toroidal_field.r0",  0), 6.2)
 
-    # def testFileRW(self):
-    #     fn = "~/test.json"
-    #     fp = pathlib.Path(fn).expanduser()
-
-    #     file_type = "json"
-
-    # bag.File(fn, schema={"file_type": file_type})\
-    #     .write(TestFlowBag.dict_data)
-
-    # d2 = json.load(open(fp))
-    # self.assertEqual(TestFlowBag.dict_data, d2)
-    # d3 = bag.File(fn, schema={"file_type": file_type}).read()
-    # self.assertEqual(TestFlowBag.dict_data, d3)
-
-    def test_xml_get(self):
-        entry = File(pathlib.Path(__file__).parent/"../data/test.xml").entry
-        self.assertEqual(entry.get(["timeslice", 0, "eq", "psi"]), "mdsplus://1.2.3.4/east")
+    def test_xml(self):
+        device = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml")
+        logger.debug(device.entry.find("wall", {}))
 
 
 if __name__ == '__main__':
