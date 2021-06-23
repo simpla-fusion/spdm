@@ -496,8 +496,6 @@ class Entry(object):
             if isinstance(value, (int, float, str, np.ndarray)):
                 return value
             elif isinstance(value, (collections.abc.Sequence)):
-                if only_first is not False and len(value) == 1:
-                    value = value[0]
                 return Entry(value)
             elif isinstance(value,  collections.abc.Mapping):
                 return Entry(value)
