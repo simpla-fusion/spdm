@@ -178,10 +178,10 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, envs)
         return res
 
-    def put(self,  value, only_one=False, **kwargs):
+    def push(self,  value, only_one=False, **kwargs):
         logger.debug(f"{self.__class__.__name__} is not writable!")
 
-    def get(self, *args, only_one=False, default_value=_undefined_, projection=None, **kwargs):
+    def pull(self, /, only_one=False, default_value=_undefined_, projection=None, **kwargs):
 
         xp, envs = self.xpath(self._path)
 

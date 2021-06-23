@@ -163,14 +163,14 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
             val = target
             break
         elif isinstance(target, Entry):
-            val = target.find(query[idx:], default_value)
+            val = target.get(query[idx:], default_value)
             break
         elif key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
             val = Entry(target, path=query[idx:])
             break
         elif isinstance(key, str):
             if isinstance(target, Entry):
-                val = target.find(key, _not_found_)
+                val = target.get(key, _not_found_)
             elif hasattr(target.__class__, 'get'):
                 val = target.get(key, _not_found_)
             else:
@@ -490,7 +490,7 @@ class Entry(object):
         else:
             return ht_count(self._cache,  self._path)
 
-    def get(self, /, default_value: _T = _undefined_, only_first=_undefined_, **kwargs) -> Union[_T, _TEntry]:
+    def pull(self,  default_value: _T = _undefined_, only_first=_undefined_, **kwargs) -> Union[_T, _TEntry]:
         if not self._path:
             return self._cache
         else:
@@ -512,7 +512,7 @@ class Entry(object):
             else:
                 return self
 
-    def put(self,  value, /, assign_if_exists=True):
+    def push(self,  value, /, assign_if_exists=True):
         if not self._path:
             if assign_if_exists or self._cache is None:
                 self._cache = value
@@ -526,14 +526,14 @@ class Entry(object):
 
             return ht_insert(self._cache,  self._path, value, assign_if_exists=assign_if_exists)
 
-    def find(self, query: _TQuery, default_value=_undefined_,   **kwargs) -> Any:
-        return self.child(query).get(default_value=default_value, **kwargs)
+    def get(self, query: _TQuery, default_value=_undefined_,   **kwargs) -> Any:
+        return self.child(query).pull(default_value=default_value, **kwargs)
 
     def insert(self, query: _TQuery, value: _T, /, **kwargs) -> _T:
-        return self.child(query).put(value, **kwargs)
+        return self.child(query).push(value, **kwargs)
 
     def append(self, value) -> _TEntry:
-        target = self.put(_LIST_TYPE_(), assign_if_exists=False)
+        target = self.push(_LIST_TYPE_(), assign_if_exists=False)
 
         if not isinstance(target, collections.abc.Sequence):
             raise ValueError(type(target))
@@ -557,7 +557,7 @@ class Entry(object):
         if not self._path:
             return self._cache == other
         else:
-            val = self.get()
+            val = self.pull()
             if isinstance(val, Entry):
                 return val.equal(other)
             else:
@@ -706,11 +706,11 @@ class EntryCombiner(Entry):
     def duplicate(self):
         return self.__class__(self._d_list, cache=self._cache, reducer=self._reducer, path=self._path)
 
-    def get(self,  *args, default_value=_not_found_, cache: str = "on",  **kwargs) -> Any:
+    def pull(self,  *args, default_value=_not_found_, cache: str = "on",  **kwargs) -> Any:
         res = _not_found_
 
         if self._cache is not None and cache not in ("off", "no"):
-            res = super().get(default_value=_not_found_,  **kwargs)
+            res = super().pull(default_value=_not_found_,  **kwargs)
             if res is not _not_found_ or cache == "only":
                 return res
 
@@ -725,7 +725,7 @@ class EntryCombiner(Entry):
         if isinstance(cache, collections.abc.Sequence) and len(cache) > 0:
             res = functools.reduce(self._reducer, cache[1:], cache[0])
             if self._cache is not None:
-                super().put(res)
+                super().push(res)
         else:
             res = default_value
 

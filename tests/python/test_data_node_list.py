@@ -13,7 +13,7 @@ class TestNodeList(unittest.TestCase):
         d["a"] = "hello world {name}!"
         d["c"][_next_] = 1.23455
         d["c"][_next_] = {"a": "hello world", "b": 3.141567}
-        
+
         self.assertEqual(cache["a"], "hello world {name}!")
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["a"], "hello world")
@@ -44,8 +44,6 @@ class TestNodeList(unittest.TestCase):
         self.assertEqual(young[1]["name"],  "li si")
 
         res = d1["person", {"age": 22}]
-
-        logger.debug(type(res))
 
         names = [d["name"] for d in res]
 

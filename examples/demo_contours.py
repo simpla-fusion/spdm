@@ -14,11 +14,11 @@ if __name__ == "__main__":
 
     equilibrium = Equilibrium({"time": 0.0,
                                "time_slice": {
-                                   "profiles_1d": eqdsk.entry.get("profiles_1d"),
-                                   "profiles_2d": eqdsk.entry.get("profiles_2d"),
+                                   "profiles_1d": eqdsk.entry.pull("profiles_1d"),
+                                   "profiles_2d": eqdsk.entry.pull("profiles_2d"),
                                    "coordinate_system": {"grid": {"dim1": 100, "dim2": 256}}
                                },
-                               "vacuum_toroidal_field":  eqdsk.entry.get("vacuum_toroidal_field"),
+                               "vacuum_toroidal_field":  eqdsk.entry.pull("vacuum_toroidal_field"),
                                })
 
     o_points, x_points = equilibrium.time_slice.coordinate_system.critical_points

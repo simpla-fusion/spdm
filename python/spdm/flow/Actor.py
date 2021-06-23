@@ -35,7 +35,7 @@ class Actor(Dict[Node]):
         elif isinstance(desc, EntryCombiner):
             cls_name = _undefined_
         elif isinstance(desc, Entry):
-            cls_name = desc.find("code.name", default_value=_undefined_)
+            cls_name = desc.get("code.name", _undefined_)
 
         if isinstance(cls_name, str):
             n_cls = sp_find_module(f"{prefix}{cls_name}")

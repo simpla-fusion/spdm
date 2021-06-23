@@ -12,11 +12,11 @@ class TestFile(unittest.TestCase):
             # "/home/salmon/workspace/data/Limiter plasmas-7.5MA li=1.1/Limiter plasmas 7.5MA-EQDSK/Limiter_7.5MA_outbord.EQDSK",
             format="geqdsk")
 
-        self.assertEqual(gfile.entry.find("vacuum_toroidal_field.r0"), 6.2)
+        self.assertEqual(gfile.entry.get("vacuum_toroidal_field.r0"), 6.2)
 
     def test_xml(self):
         device = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml")
-        retcangle = device.entry.child(["pf_active.coil",0,"element.geometry.rectangle"]).get(default_value={})
+        retcangle = device.entry.child(["pf_active.coil", 0, "element.geometry.rectangle"]).pull({})
 
         logger.debug(retcangle)
 

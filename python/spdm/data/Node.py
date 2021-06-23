@@ -76,7 +76,7 @@ class Node(Generic[_TObject]):
         # return pprint.pformat(self.__serialize__())
 
     def __serialize__(self) -> Mapping:
-        return serialize(self._entry.get(full=True))
+        return serialize(self._entry.pull(full=True))
 
     def __duplicate__(self, desc=None) -> object:
         return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
@@ -216,13 +216,13 @@ class Node(Generic[_TObject]):
         if query is _next_:
             self._entry.append(self.__pre_process__(value))
         else:
-            self._entry.child(query).put(self.__pre_process__(value), assign_if_exists=True)
+            self._entry.child(query).push(self.__pre_process__(value), assign_if_exists=True)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
         if query is _next_:
             res = self._entry.append(None)
         else:
-            res = self._entry.child(query).get()
+            res = self._entry.child(query).pull()
         return self.__post_process__(res)
 
     def __delitem__(self, query: _TQuery) -> None:
@@ -248,16 +248,16 @@ class Node(Generic[_TObject]):
     #     return np.asarray(self.__fetch__())
 
     def find(self, query: _TQuery, /, only_first=False, **kwargs) -> _T:
-        return self.__post_process__(self._entry.child(query).get(only_first=only_first, **kwargs))
+        return self.__post_process__(self._entry.child(query).pull(only_first=only_first, **kwargs))
 
     def get(self, query: _TQuery = None,  default_value=_undefined_, only_first=False) -> Any:
-        return self.__post_process__(self._entry.child(query).get(only_first=only_first, default_value=default_value))
+        return self.__post_process__(self._entry.child(query).pull(only_first=only_first, default_value=default_value))
 
     def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
-        return self._entry.child(query).put(value, **kwargs)
+        return self._entry.child(query).push(value, **kwargs)
 
     def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
-        return self._entry.child(query).put(value, assign_if_exists=True, **kwargs)
+        return self._entry.child(query).push(value, assign_if_exists=True, **kwargs)
 
     def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> _TNode:
         query = normalize_query(query)
@@ -316,7 +316,7 @@ class List(Node[_T], Sequence[_T]):
         super().__setitem__(query, v)
 
     def __getitem__(self, query: _TQuery) -> _T:
-        obj = self._entry.child(query).get()
+        obj = self._entry.child(query).pull()
         if isinstance(obj, (collections.abc.Sequence)) and not isinstance(obj, str):
             if len(obj) > 1:
                 obj = Entry(obj)
@@ -421,7 +421,7 @@ class Dict(Node[_T], Mapping[str, _T]):
         self._entry.reset(value)
 
     def get(self, key: _TQuery, default_value=_undefined_, **kwargs) -> _T:
-        return self._entry.child(key).get(default_value=default_value, **kwargs)
+        return self._entry.child(key).pull(default_value=default_value, **kwargs)
 
     def items(self) -> Iterator[Tuple[str, _T]]:
         for k, v in self._entry.items():
@@ -526,12 +526,12 @@ class _SpProperty(Generic[_T]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.find(self.attrname, default_value=_not_found_, shallow=True)
+        val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.find(self.attrname, default_value=_not_found_, shallow=True)
+                val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
                 # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
                     obj = self.func(instance)

@@ -10,17 +10,17 @@ class TestEntry(unittest.TestCase):
         cache = {}
         d = Entry(cache)
 
-        d.child(["a"]).put("hello world {name}!")
-        d.child(["c", _next_]).put(1.23455)
-        d.child(["c", _next_]).put({"a": "hello world", "b": 3.141567})
+        d.child(["a"]).push("hello world {name}!")
+        d.child(["c", _next_]).push(1.23455)
+        d.child(["c", _next_]).push({"a": "hello world", "b": 3.141567})
 
         self.assertEqual(cache["a"],                        "hello world {name}!")
         self.assertEqual(cache["c"][0],                                   1.23455)
         self.assertEqual(cache["c"][1]["a"],                        "hello world")
         self.assertEqual(cache["c"][1]["a"],                        "hello world")
 
-        d.child(["e", "f"]).put(5)
-        d.child(["e", "g"]).put(6)
+        d.child(["e", "f"]).push(5)
+        d.child(["e", "g"]).push(6)
 
         self.assertEqual(cache["e"]["f"],                                       5)
         self.assertEqual(cache["e"]["g"],                                       6)
@@ -64,11 +64,11 @@ class TestEntry(unittest.TestCase):
         }
         d = Entry(cache)
 
-        self.assertEqual(d.child("c").get(),                         cache["c"])
-        self.assertEqual(d.child(["d", "e"]).get(),             cache["d"]["e"])
-        self.assertEqual(d.child(["d", "f"]).get(),             cache["d"]["f"])
-        self.assertEqual(d.child(["a", 0]).get(),                 cache["a"][0])
-        self.assertEqual(d.child(["a", 1]).get(),                 cache["a"][1])
+        self.assertEqual(d.child("c").pull(),                         cache["c"])
+        self.assertEqual(d.child(["d", "e"]).pull(),             cache["d"]["e"])
+        self.assertEqual(d.child(["d", "f"]).pull(),             cache["d"]["f"])
+        self.assertEqual(d.child(["a", 0]).pull(),                 cache["a"][0])
+        self.assertEqual(d.child(["a", 1]).pull(),                 cache["a"][1])
 
         self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
         self.assertFalse(d.child("f.g").exists)
@@ -130,8 +130,8 @@ class TestEntryCombiner(unittest.TestCase):
 
     def test_get(self):
         d = EntryCombiner(self.data)
-        self.assertEqual(d.child("value").get(), sum([d["value"] for d in self.data]))
-        self.assertEqual(d.child("d.g").get(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+        self.assertEqual(d.child("value").pull(), sum([d["value"] for d in self.data]))
+        self.assertEqual(d.child("d.g").pull(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     def test_cache(self):
         cache = {}
@@ -139,14 +139,14 @@ class TestEntryCombiner(unittest.TestCase):
         expected = sum([d["value"] for d in self.data])
 
         c = d.child("value")
-        self.assertEqual(c.get(), expected)
+        self.assertEqual(c.pull(), expected)
         self.assertEqual(cache["value"], expected)
-        c.put(5)
+        c.push(5)
         self.assertEqual(cache["value"], 5)
 
-        d.child("test_cache").put("just test cache")
-        self.assertEqual(d.child("test_cache").get(cache="off", default_value=_undefined_), _undefined_)
-        self.assertEqual(d.child("test_cache").get(cache="on"), cache["test_cache"])
+        d.child("test_cache").push("just test cache")
+        self.assertEqual(d.child("test_cache").pull(cache="off", default_value=_undefined_), _undefined_)
+        self.assertEqual(d.child("test_cache").pull(cache="on"), cache["test_cache"])
 
 
 class TestEntryWrapper(unittest.TestCase):
