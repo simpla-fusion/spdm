@@ -82,7 +82,7 @@ class Node(EntryContainer[_TObject]):
         if not issubclass(new_cls, Node):
             raise TypeError(f"{new_cls.__name__} is not a 'Node'!")
 
-        obj = object.__new__(new_cls)
+        obj: Node = object.__new__(new_cls)
         obj.put(Entry.ops.assign, desc)
         return obj
 
@@ -92,17 +92,14 @@ class Node(EntryContainer[_TObject]):
         obj.__new_child__ = self.__new_child__
         return obj
 
-    @ property
+    @property
     def __parent__(self) -> object:
         return self._parent
 
     def __hash__(self) -> int:
         return NotImplemented
 
-    def __clear__(self) -> None:
-        self._entry.clear()
-
-    @ property
+    @property
     def empty(self) -> bool:
         return self.get(Entry.ops.exists)
 
@@ -212,7 +209,7 @@ class Node(EntryContainer[_TObject]):
         COMPLEX = 0x004
         STRING = 0x008
 
-    @ staticmethod
+    @staticmethod
     def __type_category__(d) -> IntFlag:
         flag = Node.Category.UNKNOWN
         if hasattr(d,  "__array__"):
@@ -236,7 +233,7 @@ class Node(EntryContainer[_TObject]):
 
         return flag
 
-    @ property
+    @property
     def __category__(self) -> Category:
         return Node.__type_category__(self._entry)
 
@@ -252,7 +249,7 @@ class List(Node[_T], Sequence[_T]):
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    @ property
+    @property
     def __category__(self):
         return super().__category__ | Node.Category.LIST
 
@@ -288,7 +285,7 @@ class List(Node[_T], Sequence[_T]):
         else:
             raise NotImplementedError()
 
-    @ property
+    @property
     def combine(self) -> _T:
         if not isinstance(self._combine, Node):
             if self._entry.__class__ is not Entry:
@@ -297,7 +294,7 @@ class List(Node[_T], Sequence[_T]):
                 EntryCombiner(self._entry._cache,
                               path=self._entry._path,
                               default_value=self._combine),
-                parent = self._parent, not_insert = True)
+                parent=self._parent, not_insert=True)
         return self._combine
 
     def update(self, *args, **kwargs):
@@ -306,21 +303,21 @@ class List(Node[_T], Sequence[_T]):
             if hasattr(element.__class__, 'update'):
                 element.update(*args, **kwargs)
 
-    def reset(self, value = None):
+    def reset(self, value=None):
         if isinstance(value, (collections.abc.Sequence)):
             super().reset(value)
         else:
-            self._combine=value
+            self._combine = value
             super().reset()
 
 
 class Dict(Node[_T], Mapping[str, _T]):
-    __slots__=()
+    __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
         Node.__init__(self, cache, *args, **kwargs)
 
-    @ property
+    @property
     def __category__(self):
         return super().__category__ | Node.Category.DICT
 
@@ -401,17 +398,17 @@ class Dict(Node[_T], Mapping[str, _T]):
 
 class _SpProperty(Generic[_T]):
     def __init__(self, func):
-        self.func=func
-        self.attrname=None
-        self.__doc__=func.__doc__
-        self.lock=RLock()
-        self.return_type=func.__annotations__.get("return", None)
+        self.func = func
+        self.attrname = None
+        self.__doc__ = func.__doc__
+        self.lock = RLock()
+        self.return_type = func.__annotations__.get("return", None)
 
     def _isinstance(self, obj) -> bool:
-        res=True
+        res = True
         if self.return_type is not None:
-            orig_class=getattr(obj, "__orig_class__", obj.__class__)
-            res=inspect.isclass(orig_class) \
+            orig_class = getattr(obj, "__orig_class__", obj.__class__)
+            res = inspect.isclass(orig_class) \
                 and inspect.isclass(self.return_type) \
                 and issubclass(orig_class, self.return_type) \
                 or orig_class == self.return_type
@@ -420,7 +417,7 @@ class _SpProperty(Generic[_T]):
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
-            self.attrname=name
+            self.attrname = name
         elif name != self.attrname:
             raise TypeError(
                 "Cannot assign the same cached_property to two different names "
@@ -437,8 +434,8 @@ class _SpProperty(Generic[_T]):
             # logger.error(f"Can not put value to '{self.attrname}'")
             raise TypeError(error) from None
 
-    def __get__(self, instance: Any, owner = None) -> _T:
-        cache=getattr(instance, "_entry", Entry(instance.__dict__))
+    def __get__(self, instance: Any, owner=None) -> _T:
+        cache = getattr(instance, "_entry", Entry(instance.__dict__))
 
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
@@ -446,44 +443,44 @@ class _SpProperty(Generic[_T]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val=cache.get(self.attrname, default_value = _not_found_, shallow = True)
+        val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val=cache.get(self.attrname, default_value = _not_found_, shallow = True)
+                val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
                 # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
-                    obj=self.func(instance)
+                    obj = self.func(instance)
                     if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
-                        obj=instance.__new_child__(obj)
+                        obj = instance.__new_child__(obj)
                     if not self._isinstance(obj):
-                        origin_type=getattr(self.return_type, '__origin__', self.return_type)
+                        origin_type = getattr(self.return_type, '__origin__', self.return_type)
                         if dataclasses.is_dataclass(origin_type):
-                            obj=as_dataclass(origin_type, obj)
+                            obj = as_dataclass(origin_type, obj)
                         elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                            obj=self.return_type(obj, parent = instance)
+                            obj = self.return_type(obj, parent=instance)
                         elif origin_type is np.ndarray:
-                            obj=np.asarray(obj)
+                            obj = np.asarray(obj)
                         elif callable(self.return_type) is not None:
                             try:
-                                tmp=self.return_type(obj)
+                                tmp = self.return_type(obj)
                             except Exception as error:
                                 logger.error(f"{self.attrname} {self.return_type} {type(obj)} : {error}")
                                 raise error
                             else:
-                                obj=tmp
+                                obj = tmp
 
                     if obj is not val and isinstance(cache, Entry) and cache.writable:
-                        val=cache.insert(self.attrname, obj,  assign_if_exists = True)
+                        val = cache.insert(self.attrname, obj,  assign_if_exists=True)
                     else:
-                        val=obj
+                        val = obj
         return val
 
     def __set__(self, instance: Any, value: Any):
         with self.lock:
-            cache=getattr(instance, "_entry", Entry(instance.__dict__))
-            cache.insert(self.attrname, value, assign_if_exists = True)
+            cache = getattr(instance, "_entry", Entry(instance.__dict__))
+            cache.insert(self.attrname, value, assign_if_exists=True)
 
     # def __del__(self, instance: Any):
     #     with self.lock:

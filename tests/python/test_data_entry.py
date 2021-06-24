@@ -64,14 +64,14 @@ class TestEntry(unittest.TestCase):
         }
         d = Entry(cache)
 
-        self.assertEqual(d.child("c").pull(),                         cache["c"])
-        self.assertEqual(d.child(["d", "e"]).pull(),             cache["d"]["e"])
-        self.assertEqual(d.child(["d", "f"]).pull(),             cache["d"]["f"])
-        self.assertEqual(d.child(["a", 0]).pull(),                 cache["a"][0])
-        self.assertEqual(d.child(["a", 1]).pull(),                 cache["a"][1])
+        self.assertEqual(d.get("c"),                         cache["c"])
+        self.assertEqual(d.get(["d", "e"]),             cache["d"]["e"])
+        self.assertEqual(d.get(["d", "f"]),             cache["d"]["f"])
+        self.assertEqual(d.get(["a", 0]),                 cache["a"][0])
+        self.assertEqual(d.get(["a", 1]),                 cache["a"][1])
 
-        self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
-        self.assertFalse(d.child("f.g").exists)
+        self.assertTrue(d.get(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
+        self.assertFalse(d.get("f.g").exists)
 
     def test_update(self):
         cache = {
@@ -130,8 +130,8 @@ class TestEntryCombiner(unittest.TestCase):
 
     def test_get(self):
         d = EntryCombiner(self.data)
-        self.assertEqual(d.child("value").pull(), sum([d["value"] for d in self.data]))
-        self.assertEqual(d.child("d.g").pull(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+        self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
+        self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     def test_cache(self):
         cache = {}
@@ -145,8 +145,8 @@ class TestEntryCombiner(unittest.TestCase):
         self.assertEqual(cache["value"], 5)
 
         d.child("test_cache").push("just test cache")
-        self.assertEqual(d.child("test_cache").pull(cache="off", default_value=_undefined_), _undefined_)
-        self.assertEqual(d.child("test_cache").pull(cache="on"), cache["test_cache"])
+        self.assertEqual(d.get("test_cache", cache="off", default_value=_undefined_), _undefined_)
+        self.assertEqual(d.get("test_cache", cache="on"), cache["test_cache"])
 
 
 class TestEntryWrapper(unittest.TestCase):
