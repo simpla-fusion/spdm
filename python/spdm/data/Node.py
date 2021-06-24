@@ -15,19 +15,20 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     Union, final, get_args)
 
 from numpy.lib.arraysetops import isin
-
+from ..util.sp_export import sp_find_module
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
-                    EntryWrapper, _next_, _TIndex, _TKey, _TObject, _TPath,
-                    _TQuery, as_dataclass, normalize_query)
+                    EntryContainer, _next_, _TKey, _TObject, _TQuery,
+                    as_dataclass)
 
 _TNode = TypeVar('_TNode', bound='Node')
+
 _T = TypeVar("_T")
 
 
-class Node(Generic[_TObject]):
+class Node(EntryContainer[_TObject]):
     r"""
         @startuml
 
@@ -50,44 +51,48 @@ class Node(Generic[_TObject]):
 
         @enduml
     """
-    __slots__ = "_parent", "_entry",  "__orig_class__", "__new_child__"
+    __slots__ = "_parent",   "__orig_class__", "__new_child__"
 
-    def __init__(self, cache: Any = None, *args, parent=None, new_child=_undefined_, writable=True, **kwargs):
-        super().__init__()
+    def __init__(self, cache: Any = None, *args, parent=None, new_child=_undefined_,   **kwargs):
+        super().__init__(cache)
         self._parent = parent
         self.__new_child__ = new_child
 
-        if isinstance(cache, Node):
-            self._entry = cache._entry
-        elif not isinstance(cache, Entry):
-            self._entry = Entry(cache)
-        # elif isinstance(cache, EntryCombiner):
-        #     self._entry = cache
-        # elif not cache.writable:
-        #     self._entry = EntryWrapper(Entry(), cache)
-        else:
-            self._entry = cache
-
-    def copy(self, parent=None) -> _TNode:
-        return self.__class__(self._entry, parent=parent if parent is not None else self._parent, new_child=self.__new_child__)
-
     def __repr__(self) -> str:
-        return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} />"
-        # return pprint.pformat(self.__serialize__())
-
-    def __serialize__(self) -> Mapping:
-        return serialize(self._entry.pull(full=True))
-
-    def __duplicate__(self, desc=None) -> object:
-        return self.__class__(collections.ChainMap(desc or {}, self.__serialize__()), parent=self._parent)
-
-    def _as_dict(self) -> Mapping:
-        return {k: self.__post_process__(v) for k, v in self._entry.items()}
-
-    def _as_list(self) -> Sequence:
-        return [self.__post_process__(v) for v in self._entry.values()]
+        return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} id='{self.nid}' />"
 
     @property
+    def nid(self) -> str:
+        id = self.get("@id", "")
+        if not not id:
+            id = f"id='{id}'"
+
+    def __serialize__(self) -> Any:
+        return serialize(self.get(Entry.ops.dump))
+
+    @classmethod
+    def __deserialize__(cls, desc: Any) -> _TNode:
+        module_path = getattr(cls, "_module_prefix", "") + desc.get("@ids", "")
+
+        if not module_path:
+            new_cls = cls
+        else:
+            new_cls = sp_find_module(module_path)
+
+        if not issubclass(new_cls, Node):
+            raise TypeError(f"{new_cls.__name__} is not a 'Node'!")
+
+        obj = object.__new__(new_cls)
+        obj.put(Entry.ops.assign, desc)
+        return obj
+
+    def __duplicate__(self) -> _TNode:
+        obj = super().__duplicate__()
+        obj._parent = self._parent
+        obj.__new_child__ = self.__new_child__
+        return obj
+
+    @ property
     def __parent__(self) -> object:
         return self._parent
 
@@ -97,53 +102,9 @@ class Node(Generic[_TObject]):
     def __clear__(self) -> None:
         self._entry.clear()
 
-    @property
+    @ property
     def empty(self) -> bool:
-        return self._entry.empty or len(self) == 0
-
-    @property
-    def invalid(self) -> bool:
-        return self._entry is None or self._entry.invalid
-
-    class Category(IntFlag):
-        UNKNOWN = 0
-        ITEM = 0x000
-        DICT = 0x100
-        LIST = 0x200
-        ENTRY = 0x400
-        ARRAY = 0x010
-        INT = 0x001
-        FLOAT = 0x002
-        COMPLEX = 0x004
-        STRING = 0x008
-
-    @staticmethod
-    def __type_category__(d) -> IntFlag:
-        flag = Node.Category.UNKNOWN
-        if hasattr(d,  "__array__"):
-            flag |= Node.Category.ARRAY
-            # if np.issubdtype(d.dtype, np.int64):
-            #     flag |= Node.Category.INT
-            # elif np.issubdtype(d.dtype, np.float64):
-            #     flag |= Node.Category.FLOAT
-        elif isinstance(d, collections.abc.Mapping):
-            flag |= Node.Category.DICT
-        elif isinstance(d, collections.abc.Sequence):
-            flag |= Node.Category.LIST
-        elif isinstance(d, int):
-            flag |= Node.Category.INT
-        elif isinstance(d, float):
-            flag |= Node.Category.FLOAT
-        elif isinstance(d, str):
-            flag |= Node.Category.STRING
-        # if isinstance(d, (Entry)):
-        #     flag |= Node.Category.ENTRY
-
-        return flag
-
-    @property
-    def __category__(self) -> Category:
-        return Node.__type_category__(self._entry)
+        return self.get(Entry.ops.exists)
 
     """
         @startuml
@@ -212,92 +173,78 @@ class Node(Generic[_TObject]):
 
         return value
 
-    def __setitem__(self, query: _TQuery, value: Any) -> None:
-        if query is _next_:
-            self._entry.append(self.__pre_process__(value))
-        else:
-            self._entry.child(query).push(self.__pre_process__(value), assign_if_exists=True)
+    def __setitem__(self, query: _TQuery, value: _T) -> _T:
+        return self.put([query, Entry.ops.assign], value)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        if query is _next_:
-            res = self._entry.append(None)
-        else:
-            res = self._entry.child(query).pull()
-        return self.__post_process__(res)
+        return self.get(query)
 
-    def __delitem__(self, query: _TQuery) -> None:
-        self._entry.child(query).erase()
+    def __delitem__(self, query: _TQuery) -> bool:
+        _, status = self.put([query, Entry.ops.erase])
+        return status
 
     def __contains__(self, query: _TQuery) -> bool:
-        return self._entry.child(query).exists
+        return self.get([query, Entry.ops.exists])
 
     def __len__(self) -> int:
-        return self._entry.count
+        return self.get(Entry.ops.count)
 
     def __iter__(self) -> Iterator[_T]:
         for obj in self._entry.iter():
             yield self.__post_process__(obj)
 
     def __eq__(self, other) -> bool:
-        return self._entry.equal(other)
+        val, _ = self.put(Entry.ops.equal, other)
+        return val
 
     def __bool__(self) -> bool:
         return not self.empty  # and (not self.__fetch__())
 
-    # def __array__(self) -> np.ndarray:
-    #     return np.asarray(self.__fetch__())
+    class Category(IntFlag):
+        UNKNOWN = 0
+        ITEM = 0x000
+        DICT = 0x100
+        LIST = 0x200
+        ENTRY = 0x400
+        ARRAY = 0x010
+        INT = 0x001
+        FLOAT = 0x002
+        COMPLEX = 0x004
+        STRING = 0x008
 
-    def find(self, query: _TQuery, /, only_first=False, **kwargs) -> _T:
-        return self.__post_process__(self._entry.child(query).pull(only_first=only_first, **kwargs))
+    @ staticmethod
+    def __type_category__(d) -> IntFlag:
+        flag = Node.Category.UNKNOWN
+        if hasattr(d,  "__array__"):
+            flag |= Node.Category.ARRAY
+            # if np.issubdtype(d.dtype, np.int64):
+            #     flag |= Node.Category.INT
+            # elif np.issubdtype(d.dtype, np.float64):
+            #     flag |= Node.Category.FLOAT
+        elif isinstance(d, collections.abc.Mapping):
+            flag |= Node.Category.DICT
+        elif isinstance(d, collections.abc.Sequence):
+            flag |= Node.Category.LIST
+        elif isinstance(d, int):
+            flag |= Node.Category.INT
+        elif isinstance(d, float):
+            flag |= Node.Category.FLOAT
+        elif isinstance(d, str):
+            flag |= Node.Category.STRING
+        # if isinstance(d, (Entry)):
+        #     flag |= Node.Category.ENTRY
 
-    def get(self, query: _TQuery = None,  default_value=_undefined_, only_first=False) -> Any:
-        return self.__post_process__(self._entry.child(query).pull(only_first=only_first, default_value=default_value))
+        return flag
 
-    def insert(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
-        return self._entry.child(query).push(value, **kwargs)
-
-    def insert_or_assign(self, query: _TQuery, value: Any, /,  **kwargs) -> _T:
-        return self._entry.child(query).push(value, assign_if_exists=True, **kwargs)
-
-    def fetch(self, query: _TQuery = None,  default_value=_undefined_, **kwargs) -> _TNode:
-        query = normalize_query(query)
-
-        if len(query) == 0:
-            return self
-
-        val = _not_found_
-
-        if isinstance(query[0], str):
-            val = getattr(self, query[0], _not_found_)
-
-        if val is _not_found_ and hasattr(self.__class__, '__getitem__'):
-            val = self[query[0]]
-
-        if val is _not_found_:
-            return self._entry.find(query, default_value=default_value, **kwargs)
-        elif len(query) == 1:
-            return val
-        elif isinstance(val, Node):
-            return val.fetch(query[1:], default_value=default_value, **kwargs)
-        else:
-            raise RuntimeError(f"{type(val)}, {query[1:]}")
-
-    def update(self, query: _TQuery = None, value: Any = None, /, **kwargs):
-        self._entry.child(query).update(value,   **kwargs)
-
-    def update_many(self,  *args,  **kwargs):
-        self._entry.update_many(*args,  **kwargs)
-
-    # def fetch(self, query, /, default_value=None, **kwargs):
-    #     return self._entry.find(query, default_value=default_value, **kwargs)
+    @ property
+    def __category__(self) -> Category:
+        return Node.__type_category__(self._entry)
 
 
 class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_args", "_combine")
 
     def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
-        if cache is None or cache is _not_found_:
-            cache = _LIST_TYPE_()
         Node.__init__(self, cache, *args, parent=parent, **kwargs)
         self._v_args = (args, kwargs)
         self._combine = default_value_when_combine
@@ -316,7 +263,7 @@ class List(Node[_T], Sequence[_T]):
         super().__setitem__(query, v)
 
     def __getitem__(self, query: _TQuery) -> _T:
-        obj = self._entry.child(query).pull()
+        obj = self.get(query)
         if isinstance(obj, (collections.abc.Sequence)) and not isinstance(obj, str):
             if len(obj) > 1:
                 obj = Entry(obj)
@@ -332,7 +279,7 @@ class List(Node[_T], Sequence[_T]):
             yield self.__getitem__(idx)
 
     def __iadd__(self, other):
-        self._entry.insert(_next_, self.__pre_process__(other))
+        self.put(_next_, other)
         return self
 
     def sort(self):
@@ -346,10 +293,11 @@ class List(Node[_T], Sequence[_T]):
         if not isinstance(self._combine, Node):
             if self._entry.__class__ is not Entry:
                 raise NotImplementedError(type(self._entry))
-            self._combine = self.__post_process__(EntryCombiner(self._entry._data,
-                                                                prefix=self._entry._prefix,
-                                                                default_value=self._combine),
-                                                  parent=self._parent, not_insert=True)
+            self._combine = self.__post_process__(
+                EntryCombiner(self._entry._cache,
+                              path=self._entry._path,
+                              default_value=self._combine),
+                parent = self._parent, not_insert = True)
         return self._combine
 
     def update(self, *args, **kwargs):
@@ -358,40 +306,23 @@ class List(Node[_T], Sequence[_T]):
             if hasattr(element.__class__, 'update'):
                 element.update(*args, **kwargs)
 
-    def reset(self, value=None):
+    def reset(self, value = None):
         if isinstance(value, (collections.abc.Sequence)):
             super().reset(value)
         else:
-            self._combine = value
+            self._combine=value
             super().reset()
 
 
 class Dict(Node[_T], Mapping[str, _T]):
-    __slots__ = ()
+    __slots__=()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
-
-        if cache is None or cache is _not_found_:
-            cache = _DICT_TYPE_()
-        elif isinstance(cache, Node):
-            cache = cache._entry
-
         Node.__init__(self, cache, *args, **kwargs)
-
-    def __serialize__(self) -> Mapping:
-        return {k: serialize(v) for k, v in self._as_dict().items()}
-
-    @ classmethod
-    def __deserialize__(cls, desc: Mapping) -> _T:
-        ids = desc.get("@ids", None)
-        if ids is None:
-            raise ValueError(desc)
-        else:
-            raise NotImplementedError(ids)
 
     @ property
     def __category__(self):
-        return super().__category__ | Node.Category.LIST
+        return super().__category__ | Node.Category.DICT
 
     def __getitem__(self, query: _TKey) -> _TObject:
         return super().__getitem__(query)
@@ -406,33 +337,22 @@ class Dict(Node[_T], Mapping[str, _T]):
         yield from self.keys()
 
     def __eq__(self, o: object) -> bool:
-        return self._entry.equal(o)
+        return super().__eq__(o)
 
     def __contains__(self, o: object) -> bool:
-        return self._entry.contains(o)
+        return super().__contains__(o)
 
     def __ior__(self, other):
-        return self.update(other)
-
-    def update(self,  *args,  ** kwargs) -> None:
-        self._entry.update(*args, **kwargs)
-
-    def reset(self, value=None) -> None:
-        self._entry.reset(value)
-
-    def get(self, key: _TQuery, default_value=_undefined_, **kwargs) -> _T:
-        return self._entry.child(key).pull(default_value=default_value, **kwargs)
+        return self.put(Entry.ops.update, other)
 
     def items(self) -> Iterator[Tuple[str, _T]]:
-        for k, v in self._entry.items():
-            yield k, self.__post_process__(v, k)
+        yield from super().items()
 
     def keys(self) -> Iterator[str]:
-        yield from self._entry.keys()
+        yield from super().keys()
 
     def values(self) -> Iterator[_T]:
-        for k, v in self._entry.items():
-            yield self.__post_process__(v, k)
+        yield super().items()
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
@@ -481,17 +401,17 @@ class Dict(Node[_T], Mapping[str, _T]):
 
 class _SpProperty(Generic[_T]):
     def __init__(self, func):
-        self.func = func
-        self.attrname = None
-        self.__doc__ = func.__doc__
-        self.lock = RLock()
-        self.return_type = func.__annotations__.get("return", None)
+        self.func=func
+        self.attrname=None
+        self.__doc__=func.__doc__
+        self.lock=RLock()
+        self.return_type=func.__annotations__.get("return", None)
 
     def _isinstance(self, obj) -> bool:
-        res = True
+        res=True
         if self.return_type is not None:
-            orig_class = getattr(obj, "__orig_class__", obj.__class__)
-            res = inspect.isclass(orig_class) \
+            orig_class=getattr(obj, "__orig_class__", obj.__class__)
+            res=inspect.isclass(orig_class) \
                 and inspect.isclass(self.return_type) \
                 and issubclass(orig_class, self.return_type) \
                 or orig_class == self.return_type
@@ -500,7 +420,7 @@ class _SpProperty(Generic[_T]):
 
     def __set_name__(self, owner, name):
         if self.attrname is None:
-            self.attrname = name
+            self.attrname=name
         elif name != self.attrname:
             raise TypeError(
                 "Cannot assign the same cached_property to two different names "
@@ -517,8 +437,8 @@ class _SpProperty(Generic[_T]):
             # logger.error(f"Can not put value to '{self.attrname}'")
             raise TypeError(error) from None
 
-    def __get__(self, instance: Any, owner=None) -> _T:
-        cache = getattr(instance, "_entry", Entry(instance.__dict__))
+    def __get__(self, instance: Any, owner = None) -> _T:
+        cache=getattr(instance, "_entry", Entry(instance.__dict__))
 
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
@@ -526,44 +446,44 @@ class _SpProperty(Generic[_T]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
+        val=cache.get(self.attrname, default_value = _not_found_, shallow = True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
+                val=cache.get(self.attrname, default_value = _not_found_, shallow = True)
                 # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
-                    obj = self.func(instance)
+                    obj=self.func(instance)
                     if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
-                        obj = instance.__new_child__(obj)
+                        obj=instance.__new_child__(obj)
                     if not self._isinstance(obj):
-                        origin_type = getattr(self.return_type, '__origin__', self.return_type)
+                        origin_type=getattr(self.return_type, '__origin__', self.return_type)
                         if dataclasses.is_dataclass(origin_type):
-                            obj = as_dataclass(origin_type, obj)
+                            obj=as_dataclass(origin_type, obj)
                         elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                            obj = self.return_type(obj, parent=instance)
+                            obj=self.return_type(obj, parent = instance)
                         elif origin_type is np.ndarray:
-                            obj = np.asarray(obj)
+                            obj=np.asarray(obj)
                         elif callable(self.return_type) is not None:
                             try:
-                                tmp = self.return_type(obj)
+                                tmp=self.return_type(obj)
                             except Exception as error:
                                 logger.error(f"{self.attrname} {self.return_type} {type(obj)} : {error}")
                                 raise error
                             else:
-                                obj = tmp
+                                obj=tmp
 
                     if obj is not val and isinstance(cache, Entry) and cache.writable:
-                        val = cache.insert(self.attrname, obj,  assign_if_exists=True)
+                        val=cache.insert(self.attrname, obj,  assign_if_exists = True)
                     else:
-                        val = obj
+                        val=obj
         return val
 
     def __set__(self, instance: Any, value: Any):
         with self.lock:
-            cache = getattr(instance, "_entry", Entry(instance.__dict__))
-            cache.insert(self.attrname, value, assign_if_exists=True)
+            cache=getattr(instance, "_entry", Entry(instance.__dict__))
+            cache.insert(self.attrname, value, assign_if_exists = True)
 
     # def __del__(self, instance: Any):
     #     with self.lock:

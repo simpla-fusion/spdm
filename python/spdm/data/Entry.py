@@ -27,18 +27,57 @@ _DICT_TYPE_ = dict
 _LIST_TYPE_ = list
 
 
-def normalize_query(query):
-    if query is None:
-        query = []
-    elif isinstance(query, str):
-        # TODO: parse uri request
-        query = [query]
-    elif isinstance(query, tuple):
-        query = list(query)
-    elif not isinstance(query, collections.abc.MutableSequence):
-        query = [query]
-    query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
-    return query
+_TContainer = TypeVar("_TContainer", bound="EntryContainer")
+
+
+class EntryContainer(Generic[_TObject]):
+    __slots__ = "_entry"
+
+    def __init__(self, entry, *args, **kwargs) -> None:
+        super().__init__()
+        if isinstance(entry, EntryContainer):
+            self._entry = entry._entry
+        elif not isinstance(entry, Entry):
+            self._entry = Entry(entry)
+        else:
+            self._entry = entry
+
+    def __duplicate__(self, desc=None) -> _TContainer:
+        return self.__class__(self._entry)
+
+    def __pre_process__(self, value: _T, /, **kwargs) -> _T:
+        return value
+
+    def __post_process__(self, value: _T, /, **kwargs) -> Union[_T, _TContainer]:
+        return value
+
+    def clear(self):
+        self._entry.clear()
+
+    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,  **kwargs) -> Union[_T, _TContainer]:
+        return self.__post_process__(self._entry.get(path, default_value, **kwargs))
+
+    def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
+        """
+            Put value to 'path',
+            return
+                val,status:
+                    val     : current value at path
+                    status  : if value is changed then True else False
+        """
+        return self._entry.put(path, self.__pre_process__(value),  **kwargs)
+
+    def reset(self, *args, **kwargs) -> None:
+        self.put(Entry.ops.reset, *args, **kwargs)
+
+    def update(self,  *args,  ** kwargs) -> None:
+        self.put([Entry.ops.update], *args, **kwargs)
+
+    def _as_dict(self) -> Mapping:
+        return {k: self.__post_process__(v) for k, v in self._entry.items()}
+
+    def _as_list(self) -> Sequence:
+        return [self.__post_process__(v) for v in self._entry.values()]
 
 
 def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=False,  **kwargs) -> _TObject:
@@ -48,8 +87,6 @@ def ht_insert(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=Fa
     """
     if isinstance(target, Entry):
         return target.insert(query, value, assign_if_exists=assign_if_exists, **kwargs)
-
-    query = normalize_query(query)
 
     if len(query) > 0:
         pass
@@ -153,8 +190,6 @@ def ht_find(target,  query: Optional[_TQuery] = None, /,  default_value=_undefin
         return target.find(query, default_value=default_value)
     elif target is _not_found_:
         return default_value
-
-    query = normalize_query(query)
 
     val = target
 
@@ -279,8 +314,6 @@ def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):
     if isinstance(target, Entry):
         return target.remove(query, *args, **kwargs)
 
-    query = normalize_query(query)
-
     if len(query) == 0:
         return False
 
@@ -377,6 +410,10 @@ def ht_compare(first, second) -> bool:
     return first == second
 
 
+class EntryOperator(object):
+    pass
+
+
 _TEntry = TypeVar('_TEntry', bound='Entry')
 
 
@@ -384,10 +421,35 @@ class Entry(object):
     is_entry = True
     __slots__ = "_cache", "_path"
 
+    class ops:
+        # write
+        assign = EntryOperator()
+        update = EntryOperator()
+        erase = EntryOperator()
+        # read
+        equal = EntryOperator()
+        count = EntryOperator()
+        exists = EntryOperator()
+        dump = EntryOperator()
+
+    @staticmethod
+    def normalize_query(query):
+        if query is None:
+            query = []
+        elif isinstance(query, str):
+            # TODO: parse uri request
+            query = [query]
+        elif isinstance(query, tuple):
+            query = list(query)
+        elif not isinstance(query, collections.abc.MutableSequence):
+            query = [query]
+        query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
+        return query
+
     def __init__(self, cache=None,  *args, path=None,      **kwargs):
         super().__init__()
         self._cache = None
-        self._path = normalize_query(path)
+        self._path = self.normalize_query(path)
         self.enable_cache(cache)
 
     def duplicate(self) -> _TEntry:
@@ -440,7 +502,7 @@ class Entry(object):
             return self
         else:
             node = self.duplicate()
-            node._path = node._path + normalize_query(rquery)
+            node._path = node._path + self.normalize_query(rquery)
             return node
 
     @property
@@ -512,7 +574,7 @@ class Entry(object):
             else:
                 return self
 
-    def push(self,  value, /, assign_if_exists=True):
+    def push(self,  value: _T, /, assign_if_exists=True) -> Union[_T, bool]:
         if not self._path:
             if assign_if_exists or self._cache is None:
                 self._cache = value
@@ -529,17 +591,11 @@ class Entry(object):
     def get(self, query: _TQuery, default_value=_undefined_,   **kwargs) -> Any:
         return self.child(query).pull(default_value=default_value, **kwargs)
 
-    def insert(self, query: _TQuery, value: _T, /, **kwargs) -> _T:
+    def put(self, query: _TQuery, value: _T, /, **kwargs) -> _T:
         return self.child(query).push(value, **kwargs)
 
     def append(self, value) -> _TEntry:
-        target = self.push(_LIST_TYPE_(), assign_if_exists=False)
-
-        if not isinstance(target, collections.abc.Sequence):
-            raise ValueError(type(target))
-
-        target.append(value)
-        return Entry(target, path=[len(target)-1])
+        return self.put(Entry.ops.append)
 
     def update(self, value=None, /, **kwargs) -> None:
         if not self._path and self._cache is None:
@@ -716,7 +772,7 @@ class EntryCombiner(Entry):
 
         query = [slice(None, None, None)] + self._path
 
-        cache = ht_find(self._d_list, query, *args, default_value=_not_found_, **kwargs)
+        cache = ht_find(self._d_list, query,  default_value=_not_found_, **kwargs)
 
         if isinstance(cache, collections.abc.Sequence):
             cache = [d if not isinstance(d, Entry) else d.get()
