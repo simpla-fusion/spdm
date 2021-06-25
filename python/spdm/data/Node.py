@@ -130,7 +130,9 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def __post_process__(self, value: _T,   /, *args, parent=None,   **kwargs) -> Union[_T, _TNode]:
-        if not isinstance(value,  Entry):
+        if isinstance(value, (collections.abc.Mapping, list)):
+            value = Entry(value)
+        elif not isinstance(value,  Entry):
             return value
 
         if self.__new_child__ is _undefined_:
@@ -186,8 +188,7 @@ class Node(EntryContainer[_TObject]):
             yield self.__post_process__(obj)
 
     def __eq__(self, other) -> bool:
-        val, _ = self.put(Entry.op_tag.equal, other)
-        return val
+        return self._entry.pull({Entry.op_tag.equal: other})
 
     def __bool__(self) -> bool:
         return not self.empty  # and (not self.__fetch__())
@@ -255,13 +256,7 @@ class List(Node[_T], Sequence[_T]):
         super().__setitem__(query, v)
 
     def __getitem__(self, query: _TQuery) -> _T:
-        obj = self.get(query)
-        if isinstance(obj, (collections.abc.Sequence)) and not isinstance(obj, str):
-            if len(obj) > 1:
-                obj = Entry(obj)
-            else:
-                obj = obj[0]
-        return self.__post_process__(obj, parent=self._parent)
+        return super().__getitem__(query)
 
     def __delitem__(self, query: _TQuery) -> None:
         super().__delitem__(query)

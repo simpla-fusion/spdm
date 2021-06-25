@@ -293,7 +293,10 @@ class Entry(object):
         return [v for v in self.values(*args, **kwargs)]
 
     def _op_assign(target, k, v):
-        target[k] = v
+        if k is _next_:
+            target.append(v)
+        else:
+            target[k] = v
         return v
 
     def _op_insert(target, k, v):
@@ -413,8 +416,7 @@ class Entry(object):
 
         res = [Entry._ops[k](val, v) for k, v in op.items()]
         val = res[0] if len(res) == 1 else res
-        # if lazy is True and isinstance(val, (collections.abc.Mapping, list)):
-        #     val = Entry(val)
+
         return val
 
         # elif isinstance(obj, collections.abc.Mapping):
@@ -463,10 +465,10 @@ class Entry(object):
             elif isinstance(target, (Entry,   EntryContainer)):
                 val = target.put(query[idx:], value)
                 break
-            elif isinstance(target, collections.abc.Sequence) and key is _next_:
-                target.append(None)
-                query[idx] = len(target)-1
-                continue
+            # elif isinstance(target, collections.abc.Sequence) and key is _next_:
+            #     target.append(None)
+            #     query[idx] = len(target)-1
+            #     continue
             elif idx == last_idx:
                 if isinstance(value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
                     val = [Entry._ops[k](target, key, v) for k, v in value.items()]
