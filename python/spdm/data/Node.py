@@ -171,20 +171,20 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self.put([query, Entry.ops.assign], value)
+        return self.put(query,  value)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
         return self.get(query)
 
     def __delitem__(self, query: _TQuery) -> bool:
-        _, status = self.put([query, Entry.ops.erase])
+        _, status = self.put(query, Entry.ops.erase)
         return status
 
     def __contains__(self, query: _TQuery) -> bool:
-        return self.get([query, Entry.ops.exists])
+        return self.get(query, Entry.ops.exists)
 
     def __len__(self) -> int:
-        return self.get(Entry.ops.count)
+        return self.get([], Entry.ops.count)
 
     def __iter__(self) -> Iterator[_T]:
         for obj in self._entry.iter():

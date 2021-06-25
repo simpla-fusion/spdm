@@ -1,10 +1,12 @@
 import collections
 import collections.abc
 import dataclasses
+import enum
 import functools
 import inspect
 import operator
 from copy import deepcopy
+from enum import Enum, Flag, auto
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
@@ -27,7 +29,6 @@ _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)
 _DICT_TYPE_ = dict
 _LIST_TYPE_ = list
-
 
 _TContainer = TypeVar("_TContainer", bound="EntryContainer")
 
@@ -70,10 +71,10 @@ class EntryContainer(Generic[_TObject]):
         return self._entry.put(path, self.__pre_process__(value),  **kwargs)
 
     def reset(self, *args, **kwargs) -> None:
-        self.put(Entry.ops.reset, *args, **kwargs)
+        self.put(Entry.op_tag.reset, *args, **kwargs)
 
     def update(self,  *args,  ** kwargs) -> None:
-        self.put([Entry.ops.update], *args, **kwargs)
+        self.put([Entry.op_tag.update], *args, **kwargs)
 
     def _as_dict(self) -> Mapping:
         return {k: self.__post_process__(v) for k, v in self._entry.items()}
@@ -82,376 +83,66 @@ class EntryContainer(Generic[_TObject]):
         return [self.__post_process__(v) for v in self._entry.values()]
 
 
-def _ht_put(target: Any, query: _TQuery,  value: _TObject, assign_if_exists=False,  **kwargs) -> _TObject:
-    """
-        insert if the key does not exist, does nothing if the key exists.
-        return value at key
-    """
-    if isinstance(target, Entry):
-        return target.insert(query, value, assign_if_exists=assign_if_exists, **kwargs)
+PRIMARY_TYPE = (int, float, str, np.ndarray)
 
-    if len(query) > 0:
-        pass
-    elif value is None:  # and target._cache is None:
-        return target
+
+def _slice_to_range(s: slice, length: int) -> range:
+    start = s.start if s.start is not None else 0
+    if s.stop is None:
+        stop = length
+    elif s.stop < 0:
+        stop = (s.stop+length) % length
     else:
-        raise RuntimeError(f"Empty query! {type(target)} {type(value)}")
-
-    val = _not_found_
-    for idx, key in enumerate(query):
-        if isinstance(target, Entry):
-            target = target.insert(query[idx:], value, assign_if_exists=assign_if_exists, **kwargs)
-            break
-
-        if idx == len(query)-1:
-            child = value
-        else:
-            child = _DICT_TYPE_() if isinstance(query[idx+1], str) else _LIST_TYPE_()
-
-        if key is _next_ or (isinstance(target, collections.abc.MutableSequence) and key == len(target)):
-            if not isinstance(target, collections.abc.MutableSequence):
-                raise TypeError(type(target))
-            target.append(child)
-            val = target[-1]
-        elif isinstance(key,  int):
-            if not isinstance(target, (collections.abc.MutableSequence, np.ndarray)):
-                raise TypeError(type(target))
-            elif key >= len(target):
-                raise IndexError(f"Out of range! {key}>={len(target)}")
-            elif assign_if_exists:
-                target[key] = child
-            val = target[key]
-        elif isinstance(key,  slice):
-            if not isinstance(target, (np.ndarray)):
-                for idx in range(key.start, key.stop, key.step):
-                    _ht_put(target, [idx]+query[idx+1:], value, assign_if_exists=assign_if_exists, **kwargs)
-                val = _ht_get(target, key)
-                break
-            elif assign_if_exists:
-                target[key] = child
-            val = target[key]
-        elif isinstance(key, str):
-            if (assign_if_exists and idx == (len(query)-1)):
-                target[key] = child
-                val = target[key]
-            else:
-                val = target.get(key, _not_found_)
-                if val is _not_found_:
-                    target[key] = child
-                    val = target[key]
-
-            if val is _not_found_:
-                try:
-                    val = target.find(key, default_value=_not_found_)
-                except Exception:
-                    val = _not_found_
-        elif isinstance(key, collections.abc.Mapping):
-            val = _ht_get(target, key, default_value=_not_found_)
-
-            if val is _not_found_:
-                # FIXME: !!!! not complete !!!!
-                val = _ht_put(target, _next_, deepcopy(key))
-
-        if val is _not_found_:
-            break
-        else:
-            target = val
-
-    if val is _not_found_:
-        raise KeyError(query[idx:])
-    return val
-
-
-# def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
-#     if query is not None and len(query) > 0:
-#         val = _ht_put(target, query, _not_found_,   **kwargs)
-#     else:
-#         val = target
-
-#     if isinstance(val, Entry):
-#         val.update(None, value,   **kwargs)
-#     elif isinstance(val, dict):
-#         for k, v in value.items():
-#             u = val.setdefault(k, v)
-#             if u is not v:
-#                 ht_update(u, None, v,  **kwargs)
-
-#     elif hasattr(val, '_entry'):
-#         logger.debug(val.__class__)
-#         val.update(value, **kwargs)
-#     else:
-#         _ht_put(target, query, value, assign_if_exists=True, **kwargs)
-
-
-def _ht_get(target,  query: Optional[_TQuery] = None, /,  default_value=_undefined_, only_first=False, **kwargs) -> Any:
-    """
-        Finds an element with key equivalent to key.
-        return if key exists return element else return default_value
-    """
-    if isinstance(target, Entry):
-        return target.find(query, default_value=default_value)
-    elif target is _not_found_:
-        return default_value
-
-    val = target
-
-    for idx, key in enumerate(query):
-        if target is None or target is _not_found_:
-            val = target
-            break
-        elif isinstance(target, Entry):
-            val = target.get(query[idx:], default_value)
-            break
-        elif key is _next_ or (isinstance(target, collections.abc.Sequence) and key == len(target)):
-            val = Entry(target, path=query[idx:])
-            break
-        elif isinstance(key, str):
-            if isinstance(target, Entry):
-                val = target.get(key, _not_found_)
-            elif hasattr(target.__class__, 'get'):
-                val = target.get(key, _not_found_)
-            else:
-                try:
-                    val = target[key]
-                except KeyError as error:
-                    logger.debug(f"Can not index {type(target)} by {key}! \nError: {error}")
-                    val = _not_found_
-        elif isinstance(key, int):
-            try:
-                val = target[key]
-            except IndexError as error:
-                logger.debug(f"Can not index {type(target)} by {key}! \nError: {error}")
-                val = _not_found_
-        elif isinstance(key, slice) and isinstance(target, np.ndarray):
-            val = target[key]
-        elif isinstance(key, slice):
-            if (isinstance(target, collections.abc.Sequence) and not isinstance(target, str)):
-                val = [_ht_get(v, query[idx+1:], default_value=_not_found_) for v in val[key]]
-            elif isinstance(target, collections.abc.Mapping):
-                raise NotImplementedError(type(target))
-            else:
-                length = ht_count(target)
-                start = key.start if key.start is not None else 0
-                if key.stop is None:
-                    stop = length
-                elif key.stop < 0:
-                    stop = (key.stop+length) % length
-                else:
-                    stop = key.stop
-
-                step = key.step
-
-                val = [_ht_get(target, [s]+query[idx:], default_value=_not_found_) for s in range(start, stop, step)]
-
-            break
-        elif isinstance(key, collections.abc.Mapping):
-            if only_first is True:
-                try:
-                    val = next(filter(lambda d: ht_check(d, key), ht_iter(target)))
-                except StopIteration:
-                    val = _not_found_
-            else:
-                val = [d for d in ht_iter(target) if ht_check(d, key)]
-                if len(val) == 0:
-                    val = _not_found_
-
-        else:
-            raise TypeError(type(key))
-
-        if val is _not_found_ or val is None:
-            break
-        else:
-            target = val
-
-    if not (val is _not_found_ or val is None):
-        return val
-    elif default_value is _undefined_:
-        return Entry(target, path=query[idx:])
-    else:
-        return default_value
-
-    # elif isinstance(obj, collections.abc.Mapping):
-    #     if not isinstance(key, str):
-    #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{query}\"")
-    #     tmp = obj.find(key, _not_found_)
-    #     obj = tmp
-    # elif isinstance(obj, collections.abc.MutableSequence):
-    #     if not isinstance(key, (int, slice)):
-    #         raise TypeError(
-    #             f"list indices must be integers or slices, not {type(key).__name__}! \"{query[:idx+1]}\" {type(obj)}")
-    #     elif isinstance(key, int) and isinstance(target._cache, collections.abc.MutableSequence) and key > len(target._cache):
-    #         raise IndexError(f"Out of range! {key} > {len(target._cache)}")
-    #     obj = obj[key]
-    # elif hasattr(obj, "_cache"):
-    #     if obj._cache._cache == target._cache and obj._cache._path == query[:idx]:
-    #         suffix = query
-    #         obj = obj._cache._cache
-    #         break
-    #     else:
-    #         obj = obj._cache.find(query[idx:])
-    #     break
-
-    # if rquery is None:
-    #     target._cache = obj
-    #     target._path = []
-
-
-# def ht_check(target, condition: Mapping) -> bool:
-#     def _check_eq(l, r) -> bool:
-#         if l is r:
-#             return True
-#         elif type(l) is not type(r):
-#             return False
-#         elif isinstance(l, np.ndarray):
-#             return np.allclose(l, r)
-#         else:
-#             return l == r
-#     d = [_check_eq(_ht_get(target, k, default_value=_not_found_), v)
-#          for k, v in condition.items() if not isinstance(k, str) or k[0] != '_']
-#     return all(d)
-
-
-# def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):
-
-#     if isinstance(target, Entry):
-#         return target.remove(query, *args, **kwargs)
-
-#     if len(query) == 0:
-#         return False
-
-#     target = _ht_get(target, query[:-1], _not_found_)
-
-#     if target is _not_found_:
-#         return
-#     elif isinstance(query[-1], str):
-#         try:
-#             delattr(target, query[-1])
-#         except Exception:
-#             try:
-#                 del target[query[-1]]
-#             except Exception:
-#                 raise KeyError(f"Can not delete '{query}'")
-
-
-# def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
-#     if isinstance(target, Entry):
-#         return target.count(*args, **kwargs)
-#     else:
-#         target = _ht_get(target, *args, default_value=default_value, **kwargs)
-#         if target is None or target is _not_found_:
-#             return 0
-#         elif isinstance(target, (str, int, float, np.ndarray)):
-#             return 1
-#         elif isinstance(target, (collections.abc.Sequence, collections.abc.Mapping)):
-#             return len(target)
-#         else:
-#             raise TypeError(f"Not countable! {type(target)}")
-
-
-# def ht_contains(target, v,  *args,  **kwargs) -> bool:
-#     return v in _ht_get(target,  *args,  **kwargs)
-
-
-# def ht_iter(target, query=None, /,  **kwargs):
-#     target = _ht_get(target, query, default_value=_not_found_)
-#     if target is _not_found_:
-#         yield from []
-#     elif isinstance(target, (int, float, np.ndarray)):
-#         yield target
-#     elif isinstance(target, (collections.abc.Mapping, collections.abc.Sequence)):
-#         yield from target
-#     elif isinstance(target, Entry):
-#         yield from target.iter()
-#     else:
-#         yield target
-
-
-# def ht_items(target, query: Optional[_TQuery], *args, **kwargs):
-#     obj = _ht_get(target, query, *args, **kwargs)
-#     if ht_count(obj) == 0:
-#         yield from {}
-#     elif isinstance(obj, Entry):
-#         yield from obj.items()
-#     elif isinstance(obj, collections.abc.Mapping):
-#         yield from obj.items()
-#     elif isinstance(obj, collections.abc.MutableSequence):
-#         yield from enumerate(obj)
-#     elif isinstance(obj, Entry):
-#         yield from obj.items()
-#     else:
-#         raise TypeError(type(obj))
-
-
-# def ht_values(target, query: _TQuery = None, /, **kwargs):
-#     target = _ht_get(target, query, **kwargs)
-#     if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
-#         yield from target
-#     elif isinstance(target, collections.abc.Mapping):
-#         yield from target.values()
-#     elif isinstance(target, Entry):
-#         yield from target.iter()
-#     else:
-#         yield target
-
-
-# def ht_keys(target, query: _TQuery = None, /, **kwargs):
-#     target = _ht_get(target, query, **kwargs)
-#     if isinstance(target, collections.abc.Mapping):
-#         yield from target.keys()
-#     elif isinstance(target, collections.abc.MutableSequence):
-#         yield from range(len(target))
-#     else:
-#         raise NotImplementedError()
-
-
-# def ht_compare(first, second) -> bool:
-#     if isinstance(first, Entry):
-#         first = first.find()
-#     if isinstance(second, Entry):
-#         second = second.find()
-#     return first == second
-
-
-class EntryOperator(object):
-    pass
+        stop = s.stop
+    step = s.step or 1
+    return range(start, stop, step)
 
 
 _TEntry = TypeVar('_TEntry', bound='Entry')
 
 
 class Entry(object):
-    is_entry = True
     __slots__ = "_cache", "_path"
 
-    class ops:
+    class op_tag(Flag):
         # write
-        assign = EntryOperator()
-        update = EntryOperator()
-        append = EntryOperator()
-        erase = EntryOperator()
+        insert = auto()  #
+        assign = auto()
+        update = auto()
+        append = auto()
+        erase = auto()
         # read
-        equal = EntryOperator()
-        count = EntryOperator()
-        exists = EntryOperator()
-        dump = EntryOperator()
+        fetch = auto()
+        equal = auto()
+        count = auto()
+        exists = auto()
+        dump = auto()
         # iter
-        next = EntryOperator()
-        parent = EntryOperator()
-        first_child = EntryOperator()
+        next = auto()
+        parent = auto()
+        first_child = auto()
 
     @staticmethod
     def normalize_query(query):
         if query is None:
             query = []
         elif isinstance(query, str):
-            # TODO: parse uri request
             query = [query]
         elif isinstance(query, tuple):
             query = list(query)
         elif not isinstance(query, collections.abc.MutableSequence):
             query = [query]
+
         query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
         return query
+        # def _op_convert(d):
+        #     if isinstance(d, str) and d[0] == '@':
+        #         d = Entry.op_tag.__members__.get(d[1:], d)
+        #     elif isinstance(d, collections.abc.Mapping):
+        #         d = {_op_convert(k): (_op_convert(v) if isinstance(v, collections.abc.Mapping) else v)
+        #              for k, v in d.items()}
+        #     return d
+        # return [_op_convert(d) for d in query]
 
     def __init__(self, cache=None,  *args, path=None,      **kwargs):
         super().__init__()
@@ -464,10 +155,6 @@ class Entry(object):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} root={type(self._cache)} path={self._path} />"
-
-    @property
-    def writable(self) -> bool:
-        return True
 
     def enable_cache(self, cache: Union[bool, Mapping] = None) -> bool:
         if cache is None:
@@ -504,31 +191,30 @@ class Entry(object):
     def successor(self) -> _TEntry:
         return NotImplemented
 
-    def child(self, rquery: _TQuery) -> _TEntry:
-        if rquery is None:
-            return self
-        else:
-            node = self.duplicate()
+    def extend(self, rquery: _TQuery) -> _TEntry:
+        node = self.duplicate()
+        if rquery is not None:
             node._path = node._path + self.normalize_query(rquery)
-            return node
+        return node
 
     @property
     def parent(self) -> _TEntry:
         if not self._path:
-            raise RuntimeError(f"No parent")
-        node = self.duplicate()
-        node._path = node._path[:-1]
-        return node
+            return self.pull(Entry.op_tag.parent)
+        else:
+            node = self.duplicate()
+            node._path = node._path[:-1]
+            return node
 
     @property
-    def siblings(self) -> _TEntry:
+    def first_child(self) -> _TEntry:
         """
             return next brother neighbour
         """
-        return self.parent.child({"@not": self._path[-1]})
+        return self.pull(Entry.op_tag.first_child)
 
     def __next__(self) -> _TEntry:
-        return self.parent.child({"@next": self._path[-1]})
+        return self.pull(Entry.op_tag.next)
 
     def reset(self, value=None) -> _TEntry:
         self._cache = value
@@ -537,7 +223,7 @@ class Entry(object):
 
     @property
     def exists(self) -> bool:
-        return self.get(Entry.ops.exists)
+        return self.pull(Entry.op_tag.exists)
 
     @property
     def is_list(self) -> bool:
@@ -548,90 +234,35 @@ class Entry(object):
         return not self._path and isinstance(self._cache, collections.abc.Mapping)
 
     def __len__(self) -> int:
-        return self.get(Entry.ops.count)
+        return self.pull(Entry.op_tag.count)
 
     @property
     def count(self) -> int:
-        return self.get(Entry.ops.count)
+        return self.pull(Entry.op_tag.count)
 
     def __contains__(self, k) -> bool:
-        return self.get([k, Entry.ops.exists])
-
-    def pull(self,  default_value: _T = _undefined_) -> Union[_T, _TEntry]:
-        if not self._path:
-            return self._cache
-        else:
-            value = _ht_get(self._cache,  self._path, default_value=_not_found_)
-
-            if isinstance(value, (int, float, str, np.ndarray)) or hasattr(value, "_entry"):
-                return value
-            elif isinstance(value, (collections.abc.Sequence)):
-                return Entry(value)
-            elif isinstance(value,  collections.abc.Mapping):
-                return Entry(value)
-            elif value is not _not_found_:
-                return value
-            elif default_value is not _undefined_:
-                return default_value
-            else:
-                return self
-
-    def push(self,  value: _T) -> Union[_T, bool]:
-        if not self._path:
-            self._cache = value
-            return self._cache
-        else:
-            if self._cache is None:
-                if isinstance(self._path[0], str):
-                    self._cache = _DICT_TYPE_()
-                else:
-                    self._cache = _LIST_TYPE_()
-
-            return _ht_put(self._cache,  self._path, value)
-
-    def get(self, query: _TQuery, default_value=_undefined_) -> Any:
-        return self.child(query).pull(default_value=default_value)
-
-    def put(self, query: _TQuery, value: _T) -> _T:
-        return self.child(query).push(value)
-
-    def append(self, value: _T) -> _T:
-        return self.put(Entry.ops.append, value)
-
-    def update(self, value: _T) -> _T:
-        return self.put(Entry.ops.update, value)
-        # if not self._path and self._cache is None:
-        #     self._cache = value
-        #     return value
-        # else:
-        #     if self._cache is None or self._cache is _not_found_:
-        #         if isinstance(self._path[0], str):
-        #             self._cache = _DICT_TYPE_()
-        #         else:
-        #             self._cache = _LIST_TYPE_()
-        #     return ht_update(self._cache,  self._path, value, **kwargs)
+        return self.pull({Entry.op_tag.exists: k})
 
     def equal(self, other) -> bool:
-        return self.get(Entry.ops.equal, other)
-        # if not self._path:
-        #     return self._cache == other
-        # else:
-        #     val = self.pull()
-        #     if isinstance(val, Entry):
-        #         return val.equal(other)
-        #     else:
-        #         return val == other
+        return self.pull({Entry.op_tag.equal: other})
+
+    def get(self, query: _TQuery, default_value=_undefined_) -> Any:
+        return self.extend(query).pull(default_value=default_value)
+
+    def put(self, query: _TQuery, value: _T) -> Tuple[_T, bool]:
+        return self.extend(query).push(value)
+
+    def append(self, value: _T) -> _T:
+        return self.push({Entry.op_tag.append: value})
+
+    def update(self, value: _T) -> _T:
+        return self.push({Entry.op_tag.update: value})
 
     def update_many(self, value=None):
         raise NotImplementedError()
 
-    def erase(self) -> bool:
-        return self.put(Entry.ops.erase, None)
-        # if not self._path:
-        #     self._cache = None
-        #     return True
-        # else:
-        #     return ht_erase(self._cache,  self._path,   **kwargs)
+    def erase(self):
+        self.push(Entry.op_tag.erase)
 
     def iter(self):
         obj = self.fetch(**kwargs)
@@ -654,6 +285,247 @@ class Entry(object):
 
     def __serialize__(self, *args, **kwargs):
         return [v for v in self.values(*args, **kwargs)]
+
+    def _op_assign(target, k, v):
+        target[k] = v
+        return v
+
+    def _op_insert(target, k, v):
+        if isinstance(target, collections.abc.Mapping):
+            val = target.get(k, _not_found_)
+        else:
+            val = target[k]
+
+        if val is _not_found_:
+            target[k] = v
+            val = v
+
+        return val
+
+    def _op_append(target, k, v):
+        if isinstance(target, collections.abc.Mapping):
+            val = target.get(k, _not_found_)
+        else:
+            val = target[k]
+
+        if val is _not_found_:
+            target[k] = _LIST_TYPE_()
+            val = target[k]
+
+        val.append(v)
+        return v
+
+    def _op_erase(target, k, *args):
+        try:
+            del target[k]
+        except Exception as error:
+            success = False
+        else:
+            success = True
+        return success
+
+    def _op_update(target, k, v):
+        if isinstance(target, collections.abc.Mapping):
+            val = target.get(k, _not_found_)
+        else:
+            val = target[k]
+
+        if val is _not_found_:
+            target[k] = v
+            val = v
+        elif isinstance(val, collections.abc.Mapping) and isinstance(v, collections.abc.Mapping):
+            raise NotImplementedError()
+
+        return val
+    _ops = {
+        op_tag.insert: _op_insert,
+        op_tag.assign: _op_assign,
+        op_tag.update: _op_update,
+        op_tag.append: _op_append,
+        op_tag.erase: _op_erase,  # lambda target, key, v: (del target[key]),
+
+        # read
+        op_tag.fetch: lambda v, *other: v,
+        op_tag.equal: lambda v, other: v == other,
+        op_tag.count: lambda v, *other: len(v) if isinstance(v, (collections.abc.Sequence, collections.abc.Mapping, np.ndarray)) else 1,
+        op_tag.exists: lambda v, *other: v is not _not_found_,
+        op_tag.dump: NotImplemented,
+
+        op_tag.next: None,
+        op_tag.parent: None,
+        op_tag.first_child: None,
+    }
+
+    @staticmethod
+    def _ht_get(target, query, op: op_tag = None, default_value: _T = _not_found_, lazy=False) -> _T:
+        """
+            Finds an element with key equivalent to key.
+            return if key exists return element else return default_value
+        """
+
+        last_idx = len(query)
+        val = target
+        for idx, key in enumerate(query):
+            val = _not_found_
+            if target is _not_found_ or target is None:
+                val = target
+                break
+            elif isinstance(target, Entry):
+                if lazy:
+                    val = target.extend(query[idx:])
+                else:
+                    val = target.get(query[idx:], default_value, lazy=False)
+                break
+            elif isinstance(target, EntryContainer):
+                if lazy:
+                    val == target._entry.extend(query[idx:])
+                else:
+                    val = target.get(query[idx:], default_value, lazy=False)
+
+                break
+
+            elif isinstance(key, collections.abc.Mapping):
+                # if only_first is True:
+                #     try:
+                #         val = next(filter(lambda d: ht_check(d, key), ht_iter(target)))
+                #     except StopIteration:
+                #         val = _not_found_
+                # else:
+                #     val = [d for d in ht_iter(target) if ht_check(d, key)]
+                #     if len(val) == 0:
+                #         val = _not_found_
+                raise NotImplementedError()
+            elif isinstance(target, (int, float, str)):
+                raise RuntimeError(f"Primary type element has not child node!")
+            elif isinstance(target, np.ndarray) and not isinstance(key, (str)):
+                val = target[key]
+            elif isinstance(target, collections.abc.Mapping) and isinstance(key, str):
+                val = target.get(key, _not_found_)
+            elif isinstance(target, collections.abc.Sequence):
+                if isinstance(key, int):
+                    val = target[key] if key < len(target) else _not_found_
+                elif idx == last_idx and isinstance(key, slice):
+                    val = target[key]
+                elif isinstance(key, slice):
+                    val = [Entry._ht_get(target, [s]+query[idx+1:], default_value=_not_found_, lazy=lazy)
+                           for s in _slice_to_range(key, len(target))]
+                    break
+            else:
+                raise TypeError(f"{type(target)} {type(key)}")
+
+            target = val
+
+        if isinstance(op, Entry.op_tag):
+            op = {op: None}
+        elif op is None:
+            op = {Entry.op_tag.fetch: default_value}
+
+        res = [Entry._ops[k](val, v) for k, v in op.items()]
+
+        return res[0] if len(res) == 1 else res
+
+        # elif isinstance(obj, collections.abc.Mapping):
+        #     if not isinstance(key, str):
+        #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{query}\"")
+        #     tmp = obj.find(key, _not_found_)
+        #     obj = tmp
+        # elif isinstance(obj, collections.abc.MutableSequence):
+        #     if not isinstance(key, (int, slice)):
+        #         raise TypeError(
+        #             f"list indices must be integers or slices, not {type(key).__name__}! \"{query[:idx+1]}\" {type(obj)}")
+        #     elif isinstance(key, int) and isinstance(target._cache, collections.abc.MutableSequence) and key > len(target._cache):
+        #         raise IndexError(f"Out of range! {key} > {len(target._cache)}")
+        #     obj = obj[key]
+        # elif hasattr(obj, "_cache"):
+        #     if obj._cache._cache == target._cache and obj._cache._path == query[:idx]:
+        #         suffix = query
+        #         obj = obj._cache._cache
+        #         break
+        #     else:
+        #         obj = obj._cache.find(query[idx:])
+        #     break
+
+        # if rquery is None:
+        #     target._cache = obj
+        #     target._path = []
+
+    @staticmethod
+    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True) -> Tuple[_T, bool]:
+        """
+            insert if the key does not exist, does nothing if the key exists.
+            return value at key
+        """
+        last_idx = len(query)-1
+        val = target
+
+        for idx, key in enumerate(query[:-1]):
+            val = _not_found_
+            if target is _not_found_ or target is None:
+                raise KeyError(query[:idx])
+            elif isinstance(target, (Entry,   EntryContainer)):
+                val = target.put(query[idx:], value)
+                break
+
+            elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
+                val = target.get(key, _not_found_)
+            elif isinstance(target, (np.ndarray)) and isinstance(key, (int, slice)):
+                val = target[key]
+            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
+                val = target[key]
+            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (slice, collections.abc.Sequence)):
+                if isinstance(key, slice):
+                    key = _slice_to_range(slice)
+                if isinstance(value, collections.abc.Sequence):
+                    val = [Entry._ht_put(target, [j]+query[idx+1:], value[i]) for i, j in enumerate(key)]
+                else:
+                    val = [Entry._ht_put(target, [j]+query[idx+1:], value) for i, j in enumerate(key)]
+                break
+            else:
+                raise TypeError(f"{type(target)} {type(key)}")
+
+            if val is not _not_found_:
+                pass
+            elif create_if_not_exists:
+                if isinstance(query[idx+1], str):
+                    val = _DICT_TYPE_()
+                    target[key] = val
+                else:
+                    val = _LIST_TYPE_()
+                    target[key] = val
+            else:
+                raise KeyError(query[:idx])
+
+            target = val
+
+        if target is _not_found_:
+            raise KeyError(query[:idx])
+
+        key = query[-1]
+
+        if isinstance(value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+            pass
+        elif isinstance(value, Entry.op_tag):
+            value = {value: None}
+        else:
+            value = {Entry.op_tag.assign: value}
+
+        res = [Entry._ops[k](target, key, v) for k, v in value.items()]
+
+        if len(res) == 0:
+            val = res[0]
+        return val
+
+    def pull(self, op: op_tag = None, default_value: _T = _not_found_, lazy=False) -> _T:
+        return self._ht_get(self._cache, self._path, op=op, default_value=default_value, lazy=lazy)
+
+    def push(self,  value: _T) -> Tuple[_T, bool]:
+        if self._cache is None:
+            if isinstance(self._path[0], str):
+                self._cache = _DICT_TYPE_()
+            else:
+                self._cache = _LIST_TYPE_()
+
+        return self._ht_put(self._cache,  self._path, value)
 
 
 class EntryWrapper(Entry):
@@ -825,3 +697,139 @@ def convert_from_entry(cls, obj, *args, **kwargs):
         obj = cls(obj, *args, **kwargs)
 
     return obj
+
+
+# def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
+#     if query is not None and len(query) > 0:
+#         val = _ht_put(target, query, _not_found_,   **kwargs)
+#     else:
+#         val = target
+
+#     if isinstance(val, Entry):
+#         val.update(None, value,   **kwargs)
+#     elif isinstance(val, dict):
+#         for k, v in value.items():
+#             u = val.setdefault(k, v)
+#             if u is not v:
+#                 ht_update(u, None, v,  **kwargs)
+
+#     elif hasattr(val, '_entry'):
+#         logger.debug(val.__class__)
+#         val.update(value, **kwargs)
+#     else:
+#         _ht_put(target, query, value, assign_if_exists=True, **kwargs)
+
+# def ht_check(target, condition: Mapping) -> bool:
+#     def _check_eq(l, r) -> bool:
+#         if l is r:
+#             return True
+#         elif type(l) is not type(r):
+#             return False
+#         elif isinstance(l, np.ndarray):
+#             return np.allclose(l, r)
+#         else:
+#             return l == r
+#     d = [_check_eq(_ht_get(target, k, default_value=_not_found_), v)
+#          for k, v in condition.items() if not isinstance(k, str) or k[0] != '_']
+#     return all(d)
+
+
+# def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):
+
+#     if isinstance(target, Entry):
+#         return target.remove(query, *args, **kwargs)
+
+#     if len(query) == 0:
+#         return False
+
+#     target = _ht_get(target, query[:-1], _not_found_)
+
+#     if target is _not_found_:
+#         return
+#     elif isinstance(query[-1], str):
+#         try:
+#             delattr(target, query[-1])
+#         except Exception:
+#             try:
+#                 del target[query[-1]]
+#             except Exception:
+#                 raise KeyError(f"Can not delete '{query}'")
+
+
+# def ht_count(target,    *args, default_value=_not_found_, **kwargs) -> int:
+#     if isinstance(target, Entry):
+#         return target.count(*args, **kwargs)
+#     else:
+#         target = _ht_get(target, *args, default_value=default_value, **kwargs)
+#         if target is None or target is _not_found_:
+#             return 0
+#         elif isinstance(target, (str, int, float, np.ndarray)):
+#             return 1
+#         elif isinstance(target, (collections.abc.Sequence, collections.abc.Mapping)):
+#             return len(target)
+#         else:
+#             raise TypeError(f"Not countable! {type(target)}")
+
+
+# def ht_contains(target, v,  *args,  **kwargs) -> bool:
+#     return v in _ht_get(target,  *args,  **kwargs)
+
+
+# def ht_iter(target, query=None, /,  **kwargs):
+#     target = _ht_get(target, query, default_value=_not_found_)
+#     if target is _not_found_:
+#         yield from []
+#     elif isinstance(target, (int, float, np.ndarray)):
+#         yield target
+#     elif isinstance(target, (collections.abc.Mapping, collections.abc.Sequence)):
+#         yield from target
+#     elif isinstance(target, Entry):
+#         yield from target.iter()
+#     else:
+#         yield target
+
+
+# def ht_items(target, query: Optional[_TQuery], *args, **kwargs):
+#     obj = _ht_get(target, query, *args, **kwargs)
+#     if ht_count(obj) == 0:
+#         yield from {}
+#     elif isinstance(obj, Entry):
+#         yield from obj.items()
+#     elif isinstance(obj, collections.abc.Mapping):
+#         yield from obj.items()
+#     elif isinstance(obj, collections.abc.MutableSequence):
+#         yield from enumerate(obj)
+#     elif isinstance(obj, Entry):
+#         yield from obj.items()
+#     else:
+#         raise TypeError(type(obj))
+
+
+# def ht_values(target, query: _TQuery = None, /, **kwargs):
+#     target = _ht_get(target, query, **kwargs)
+#     if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
+#         yield from target
+#     elif isinstance(target, collections.abc.Mapping):
+#         yield from target.values()
+#     elif isinstance(target, Entry):
+#         yield from target.iter()
+#     else:
+#         yield target
+
+
+# def ht_keys(target, query: _TQuery = None, /, **kwargs):
+#     target = _ht_get(target, query, **kwargs)
+#     if isinstance(target, collections.abc.Mapping):
+#         yield from target.keys()
+#     elif isinstance(target, collections.abc.MutableSequence):
+#         yield from range(len(target))
+#     else:
+#         raise NotImplementedError()
+
+
+# def ht_compare(first, second) -> bool:
+#     if isinstance(first, Entry):
+#         first = first.find()
+#     if isinstance(second, Entry):
+#         second = second.find()
+#     return first == second
