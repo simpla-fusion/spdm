@@ -76,7 +76,7 @@ class TestEntry(unittest.TestCase):
         d = Entry(cache)
 
         d.update({"d": {"g": 5}})
-        
+
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
         self.assertEqual(cache["d"]["f"], "{address}")
         self.assertEqual(cache["d"]["g"], 5)
@@ -95,44 +95,43 @@ class TestEntry(unittest.TestCase):
         d.extend("b").erase()
         self.assertTrue("b" not in cache)
 
-    #     #  # def test_put(self):
 
-    #     # class TestEntryCombiner(unittest.TestCase):
+class TestEntryCombiner(unittest.TestCase):
+    data = [
+        {"id": 0,
+            "value": 1.23,
+            "c": "I'm {age}!",
+            "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
+        {"id": 1,
+            "value": 2.23,
+            "c": "I'm {age}!",
+            "d": {"e": "{name} is {age}", "f": "{address}"}},
+        {"id": 2,
+            "value": 4.23,
+            "c": "I'm {age}!",
+            "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
+    ]
 
-    #     #     data = [
-    #     #         {"id": 0,
-    #     #          "value": 1.23,
-    #     #          "c": "I'm {age}!",
-    #     #          "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
-    #     #         {"id": 1,
-    #     #          "value": 2.23,
-    #     #          "c": "I'm {age}!",
-    #     #          "d": {"e": "{name} is {age}", "f": "{address}"}},
-    #     #         {"id": 2,
-    #     #          "value": 4.23,
-    #     #          "c": "I'm {age}!",
-    #     #          "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
-    #     #     ]
+    def test_get(self):
+        d = EntryCombiner(self.data)
+        self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
+        self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+        
 
-    #     #     def test_get(self):
-    #     #         d = EntryCombiner(self.data)
-    #     #         self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
-    #     #         self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+    def test_cache(self):
+        cache = {}
+        d = EntryCombiner(self.data, cache=cache)
+        expected = sum([d["value"] for d in self.data])
 
-    #     #     def test_cache(self):
-    #     #         cache = {}
-    #     #         d = EntryCombiner(self.data, cache=cache)
-    #     #         expected = sum([d["value"] for d in self.data])
+        c = d.extend("value")
+        self.assertEqual(c.pull(), expected)
+        self.assertEqual(cache["value"], expected)
+        c.push(5)
+        self.assertEqual(cache["value"], 5)
 
-    #     #         c = d.extend("value")
-    #     #         self.assertEqual(c.pull(), expected)
-    #     #         self.assertEqual(cache["value"], expected)
-    #     #         c.push(5)
-    #     #         self.assertEqual(cache["value"], 5)
-
-    #     #         d.extend("test_cache").push("just test cache")
-    #     #         self.assertEqual(d.get("test_cache", cache="off", default_value=_undefined_), _undefined_)
-    #     #         self.assertEqual(d.get("test_cache", cache="on"), cache["test_cache"])
+        d.extend("test_cache").push("just test cache")
+        self.assertEqual(d.get("test_cache", cache="off", default_value=_undefined_), _undefined_)
+        self.assertEqual(d.get("test_cache", cache="on"), cache["test_cache"])
 
     #     # class TestEntryWrapper(unittest.TestCase):
     #     #     data = [

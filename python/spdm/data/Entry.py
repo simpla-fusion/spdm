@@ -251,11 +251,11 @@ class Entry(object):
     def equal(self, other) -> bool:
         return self.pull({Entry.op_tag.equal: other})
 
-    def get(self, query: _TQuery, default_value=_undefined_, lazy=True) -> Any:
-        return self.extend(query).pull(default_value, lazy=lazy)
+    def get(self, query: _TQuery, default_value=_undefined_, lazy=True, **kwargs) -> Any:
+        return self.extend(query).pull(default_value, lazy=lazy, **kwargs)
 
-    def put(self, query: _TQuery, value: _T) -> Tuple[_T, bool]:
-        return self.extend(query).push(value)
+    def put(self, query: _TQuery, value: _T, **kwargs) -> Tuple[_T, bool]:
+        return self.extend(query).push(value, **kwargs)
 
     def append(self, value: _T) -> _T:
         return self.push({Entry.op_tag.append: value})
@@ -358,7 +358,7 @@ class Entry(object):
         op_tag.erase: _op_erase,  # lambda target, key, v: (del target[key]),
 
         # read
-        op_tag.fetch: lambda v, *other: v,
+        op_tag.fetch: lambda v, default_value: v if v is not _not_found_ else default_value,
         op_tag.equal: lambda v, other: v == other,
         op_tag.count: lambda v, *other: len(v) if isinstance(v, (collections.abc.Sequence, collections.abc.Mapping, np.ndarray)) else 1,
         op_tag.exists: lambda v, *other: v is not _not_found_,
@@ -559,55 +559,6 @@ class EntryWrapper(Entry):
         for k in self.keys():
             yield self.find(k)
 
-    #  def get(self, query=[], *args, default_value=_not_found_, **kwargs):
-    #     query = self._path + normalize_query(query)
-    #     obj = self._cache
-    #     if obj is None:
-    #         obj = self._parent
-    #     for p in query:
-    #         if type(p) is str and hasattr(obj, p):
-    #             obj = getattr(obj, p, _not_found_)
-    #         elif obj is not None:
-    #             try:
-    #                 obj = obj[p]
-    #             except IndexError:
-    #                 obj = _not_found_
-    #             except TypeError:
-    #                 obj = _not_found_
-    #         else:
-    #             raise KeyError(query)
-    #     return obj
-
-    # def put(self,  query, value, *args, **kwargs):
-    #     query = self._path + normalize_query(query)
-    #     obj = self._cache
-    #     if len(query) == 0:
-    #         return obj
-    #     for p in query[:-1]:
-    #         if type(p) is str and hasattr(obj, p):
-    #             obj = getattr(obj, p)
-    #         else:
-    #             try:
-    #                 t = obj[p]
-    #             except KeyError:
-    #                 obj[p] = {}
-    #                 obj = obj[p]
-    #             except IndexError as error:
-    #                 raise IndexError(f"{p} > {len(obj)}! {error}")
-    #             else:
-    #                 obj = t
-    #         # elif type(p) is int and p < len(obj):
-    #         #     obj = obj[p]
-    #         # else:
-    #         #     obj[p] = {}
-    #         #     obj = obj[p]
-    #     if hasattr(obj, query[-1]):
-    #         setattr(obj, query[-1], value)
-    #     else:
-    #         obj[query[-1]] = value
-
-    #     return obj[query[-1]]
-
 
 class EntryCombiner(Entry):
     def __init__(self, d_list: Sequence, *args,   cache=False, reducer=None, **kwargs):
@@ -620,7 +571,7 @@ class EntryCombiner(Entry):
     def duplicate(self):
         return self.__class__(self._d_list, cache=self._cache, reducer=self._reducer, path=self._path)
 
-    def pull(self,  default_value=_not_found_, cache: str = "on",  **kwargs) -> Any:
+    def pull(self,  op: Entry.op_tag = _not_found_, cache: str = "on",  **kwargs) -> Any:
         res = _not_found_
 
         if self._cache is not None and cache not in ("off", "no"):
@@ -630,10 +581,10 @@ class EntryCombiner(Entry):
 
         query = [slice(None, None, None)] + self._path
 
-        cache = _ht_get(self._d_list, query,   default_value=_not_found_, **kwargs)
-
+        cache = Entry._ht_get(self._d_list, query, {Entry.op_tag.fetch: _not_found_}, lazy=False )
+       
         if isinstance(cache, collections.abc.Sequence):
-            cache = [d if not isinstance(d, Entry) else d.get()
+            cache = [d if not isinstance(d, Entry) else d.pull()
                      for d in cache if (d is not None and d is not _not_found_)]
 
         if isinstance(cache, collections.abc.Sequence) and len(cache) > 0:
@@ -641,7 +592,7 @@ class EntryCombiner(Entry):
             if self._cache is not None:
                 super().push(res)
         else:
-            res = default_value
+            res = op
 
         return res
 
