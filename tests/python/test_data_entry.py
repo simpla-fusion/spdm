@@ -95,6 +95,19 @@ class TestEntry(unittest.TestCase):
         d.extend("b").erase()
         self.assertTrue("b" not in cache)
 
+    def test_append(self):
+        cache = {"this_is_a_cache": True}
+
+        d = Entry(cache)
+
+        d.put(["a"], "hello world {name}!")
+        d.put(["c", _next_], 1.23455)
+        d.put(["c", _next_],  "a")
+
+        self.assertEqual(cache["a"], "hello world {name}!")
+        self.assertEqual(cache["c"][0],  1.23455)
+        self.assertEqual(cache["c"][1],  "a")
+
 
 class TestEntryCombiner(unittest.TestCase):
     data = [
@@ -116,7 +129,6 @@ class TestEntryCombiner(unittest.TestCase):
         d = EntryCombiner(self.data)
         self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
         self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
-        
 
     def test_cache(self):
         cache = {}

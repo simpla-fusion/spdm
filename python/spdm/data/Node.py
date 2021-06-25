@@ -68,7 +68,7 @@ class Node(EntryContainer[_TObject]):
             id = f"id='{id}'"
 
     def __serialize__(self) -> Any:
-        return serialize(self.get(Entry.ops.dump))
+        return serialize(self.get(Entry.op_tag.dump))
 
     @classmethod
     def __deserialize__(cls, desc: Any) -> _TNode:
@@ -83,7 +83,7 @@ class Node(EntryContainer[_TObject]):
             raise TypeError(f"{new_cls.__name__} is not a 'Node'!")
 
         obj: Node = object.__new__(new_cls)
-        obj.put(Entry.ops.assign, desc)
+        obj.put(Entry.op_tag.assign, desc)
         return obj
 
     def __duplicate__(self) -> _TNode:
@@ -173,21 +173,20 @@ class Node(EntryContainer[_TObject]):
         return self.get(query, lazy=True)
 
     def __delitem__(self, query: _TQuery) -> bool:
-        _, status = self.put(query, Entry.ops.erase)
-        return status
+        return self.put(query, Entry.op_tag.erase)
 
     def __contains__(self, query: _TQuery) -> bool:
-        return self.get(query, Entry.ops.exists)
+        return self.get(query, Entry.op_tag.exists)
 
     def __len__(self) -> int:
-        return self.get([], Entry.ops.count)
+        return self._entry.pull(Entry.op_tag.count)
 
     def __iter__(self) -> Iterator[_T]:
         for obj in self._entry.iter():
             yield self.__post_process__(obj)
 
     def __eq__(self, other) -> bool:
-        val, _ = self.put(Entry.ops.equal, other)
+        val, _ = self.put(Entry.op_tag.equal, other)
         return val
 
     def __bool__(self) -> bool:
@@ -336,7 +335,7 @@ class Dict(Node[_T], Mapping[str, _T]):
         return super().__contains__(o)
 
     def __ior__(self, other):
-        return self.put(Entry.ops.update, other)
+        return self.put(Entry.op_tag.update, other)
 
     def items(self) -> Iterator[Tuple[str, _T]]:
         yield from super().items()

@@ -76,10 +76,10 @@ class EntryContainer(Generic[_TObject]):
         return self._entry.put(path, self.__pre_process__(value),  **kwargs)
 
     def reset(self, *args, **kwargs) -> None:
-        self.put(Entry.op_tag.reset, *args, **kwargs)
+        self._entry.push(Entry.op_tag.reset, *args, **kwargs)
 
-    def update(self,  *args,  ** kwargs) -> None:
-        self.put([Entry.op_tag.update], *args, **kwargs)
+    def update(self,  value: _T, *args,  ** kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.update: value}, *args, **kwargs)
 
     def _as_dict(self) -> Mapping:
         return {k: self.__post_process__(v) for k, v in self._entry.items()}
@@ -116,6 +116,7 @@ class Entry(object):
         update = auto()
         append = auto()
         erase = auto()
+        reset = auto()
         # read
         fetch = auto()
         equal = auto()
@@ -149,7 +150,7 @@ class Entry(object):
         #     return d
         # return [_op_convert(d) for d in query]
 
-    def __init__(self, cache=None,  *args, path=None,      **kwargs):
+    def __init__(self, cache=None,   path=None,      **kwargs):
         super().__init__()
         self._cache = None
         self._path = self.normalize_query(path)
@@ -404,16 +405,16 @@ class Entry(object):
             else:
                 raise TypeError(f"{type(target)} {type(key)} {query[:idx+1]}")
 
-            if val is not _not_found_ and idx != last_idx:
-                target = val
-            elif val is _not_found_ and lazy is True:
-                val = Entry(target, query[idx:], op=op)
+            if val is _not_found_:
+                if lazy is True:
+                    val = Entry(target, query[idx:])
                 break
-            else:
-                res = [Entry._ops[k](val, v) for k, v in op.items()]
-                val = res[0] if len(res) == 1 else res
-                break
+            target = val
 
+        res = [Entry._ops[k](val, v) for k, v in op.items()]
+        val = res[0] if len(res) == 1 else res
+        # if lazy is True and isinstance(val, (collections.abc.Mapping, list)):
+        #     val = Entry(val)
         return val
 
         # elif isinstance(obj, collections.abc.Mapping):
@@ -453,14 +454,19 @@ class Entry(object):
         last_idx = len(query)-1
 
         val = target
-
-        for idx, key in enumerate(query):
+        idx = 0
+        while idx <= last_idx:
+            key = query[idx]
             val = _not_found_
             if target is _not_found_ or target is None:
                 raise KeyError(query[:idx+1])
             elif isinstance(target, (Entry,   EntryContainer)):
                 val = target.put(query[idx:], value)
                 break
+            elif isinstance(target, collections.abc.Sequence) and key is _next_:
+                target.append(None)
+                query[idx] = len(target)-1
+                continue
             elif idx == last_idx:
                 if isinstance(value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
                     val = [Entry._ops[k](target, key, v) for k, v in value.items()]
@@ -500,6 +506,7 @@ class Entry(object):
                 raise TypeError(f"{type(target)} {type(key)}")
 
             target = val
+            idx = idx+1
 
         return val
 
@@ -581,8 +588,8 @@ class EntryCombiner(Entry):
 
         query = [slice(None, None, None)] + self._path
 
-        cache = Entry._ht_get(self._d_list, query, {Entry.op_tag.fetch: _not_found_}, lazy=False )
-       
+        cache = Entry._ht_get(self._d_list, query, {Entry.op_tag.fetch: _not_found_}, lazy=False)
+
         if isinstance(cache, collections.abc.Sequence):
             cache = [d if not isinstance(d, Entry) else d.pull()
                      for d in cache if (d is not None and d is not _not_found_)]

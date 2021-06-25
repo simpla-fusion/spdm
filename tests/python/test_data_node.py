@@ -74,6 +74,28 @@ class TestNode(unittest.TestCase):
         self.assertEqual(cache["d"]["f"], "{address}")
         self.assertEqual(cache["d"]["g"], 5)
 
+    def test_node_del(self):
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ]
+        }
+
+        d = Node(cache)
+        del d["a"]
+        self.assertTrue("a" not in cache)
+
+    # def test_node_append(self):
+    #     d = List()
+    #     d[_next_] = {"a": 1, "b": 2}
+
+    #     self.assertEqual(len(d), 1)
+    #     self.assertTrue(d.__category__ | Node.Category.LIST)
+    #     self.assertEqual(d[0]["a"], 1)
+    #     self.assertEqual(d[0]["b"], 2)
+
     def test_node_insert(self):
         cache = {"this_is_a_cache": True}
 
@@ -87,32 +109,10 @@ class TestNode(unittest.TestCase):
 
         self.assertEqual(cache["c"][0],  1.23455)
 
-    def test_node_append(self):
-        d = List()
-        d[_next_] = {"a": 1, "b": 2}
-
-        self.assertEqual(len(d), 1)
-        self.assertTrue(d.__category__ | Node.Category.LIST)
-        self.assertEqual(d[0]["a"], 1)
-        self.assertEqual(d[0]["b"], 2)
-
-    def test_node_boolean(self):
-        d = Dict()
-        self.assertTrue(d.empty)
-        self.assertTrue(d["a"] or 12.3, 12.3)
-
-    def test_node_del(self):
-        cache = {
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ]
-        }
-
-        d = Node(cache)
-        del d["a"]
-        self.assertTrue("a" not in cache)
+    # def test_node_boolean(self):
+    #     d = Dict()
+    #     self.assertTrue(d.empty)
+    #     self.assertTrue(d["a"] or 12.3, 12.3)
 
 
 if __name__ == '__main__':
