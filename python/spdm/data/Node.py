@@ -99,10 +99,6 @@ class Node(EntryContainer[_TObject]):
     def __hash__(self) -> int:
         return NotImplemented
 
-    @property
-    def empty(self) -> bool:
-        return self.get(Entry.ops.exists)
-
     """
         @startuml
         [*] --> Empty
@@ -174,7 +170,7 @@ class Node(EntryContainer[_TObject]):
         return self.put(query,  value)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        return self.get(query)
+        return self.get(query, lazy=True)
 
     def __delitem__(self, query: _TQuery) -> bool:
         _, status = self.put(query, Entry.ops.erase)

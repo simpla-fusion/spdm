@@ -48,6 +48,10 @@ class EntryContainer(Generic[_TObject]):
     def __duplicate__(self) -> _TContainer:
         return self.__class__(self._entry)
 
+    @property
+    def empty(self) -> bool:
+        return not self._entry.pull(Entry.op_tag.exists)
+
     def __pre_process__(self, value: _T, /, **kwargs) -> _T:
         return value
 
@@ -246,8 +250,8 @@ class Entry(object):
     def equal(self, other) -> bool:
         return self.pull({Entry.op_tag.equal: other})
 
-    def get(self, query: _TQuery, default_value=_undefined_) -> Any:
-        return self.extend(query).pull(default_value=default_value)
+    def get(self, query: _TQuery, default_value=_undefined_, lazy=True) -> Any:
+        return self.extend(query).pull(default_value, lazy=lazy)
 
     def put(self, query: _TQuery, value: _T) -> Tuple[_T, bool]:
         return self.extend(query).push(value)
@@ -357,72 +361,51 @@ class Entry(object):
     }
 
     @staticmethod
-    def _ht_get(target, query, op: op_tag = None, default_value: _T = _not_found_, lazy=False) -> _T:
+    def _ht_get(target, query, op: op_tag,   lazy=False) -> Any:
         """
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
         """
 
-        last_idx = len(query)
+        if not query:
+            query = [None]
+
+        last_idx = len(query)-1
         val = target
         for idx, key in enumerate(query):
             val = _not_found_
-            if target is _not_found_ or target is None:
+            if key is None:
                 val = target
+            elif isinstance(target, (Entry, EntryContainer)):
+                val = target.get(query[idx:], op, lazy=lazy)
                 break
-            elif isinstance(target, Entry):
-                if lazy:
-                    val = target.extend(query[idx:])
-                else:
-                    val = target.get(query[idx:], default_value, lazy=False)
-                break
-            elif isinstance(target, EntryContainer):
-                if lazy:
-                    val == target._entry.extend(query[idx:])
-                else:
-                    val = target.get(query[idx:], default_value, lazy=False)
-
-                break
-
-            elif isinstance(key, collections.abc.Mapping):
-                # if only_first is True:
-                #     try:
-                #         val = next(filter(lambda d: ht_check(d, key), ht_iter(target)))
-                #     except StopIteration:
-                #         val = _not_found_
-                # else:
-                #     val = [d for d in ht_iter(target) if ht_check(d, key)]
-                #     if len(val) == 0:
-                #         val = _not_found_
-                raise NotImplementedError()
-            elif isinstance(target, (int, float, str)):
-                raise RuntimeError(f"Primary type element has not child node!")
-            elif isinstance(target, np.ndarray) and not isinstance(key, (str)):
+            elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 val = target[key]
             elif isinstance(target, collections.abc.Mapping) and isinstance(key, str):
                 val = target.get(key, _not_found_)
-            elif isinstance(target, collections.abc.Sequence):
+            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
                 if isinstance(key, int):
                     val = target[key] if key < len(target) else _not_found_
                 elif idx == last_idx and isinstance(key, slice):
                     val = target[key]
                 elif isinstance(key, slice):
-                    val = [Entry._ht_get(target, [s]+query[idx+1:], default_value=_not_found_, lazy=lazy)
+                    val = [Entry._ht_get(target, [s]+query[idx+1:], op=op, lazy=lazy)
                            for s in _slice_to_range(key, len(target))]
                     break
             else:
-                raise TypeError(f"{type(target)} {type(key)}")
+                raise TypeError(f"{type(target)} {type(key)} {query[:idx+1]}")
 
-            target = val
+            if val is not _not_found_ and idx != last_idx:
+                target = val
+            elif val is _not_found_ and lazy is True:
+                val = Entry(target, query[idx:], op=op)
+                break
+            else:
+                res = [Entry._ops[k](val, v) for k, v in op.items()]
+                val = res[0] if len(res) == 1 else res
+                break
 
-        if isinstance(op, Entry.op_tag):
-            op = {op: None}
-        elif op is None:
-            op = {Entry.op_tag.fetch: default_value}
-
-        res = [Entry._ops[k](val, v) for k, v in op.items()]
-
-        return res[0] if len(res) == 1 else res
+        return val
 
         # elif isinstance(obj, collections.abc.Mapping):
         #     if not isinstance(key, str):
@@ -515,8 +498,15 @@ class Entry(object):
             val = res[0]
         return val
 
-    def pull(self, op: op_tag = None, default_value: _T = _not_found_, lazy=False) -> _T:
-        return self._ht_get(self._cache, self._path, op=op, default_value=default_value, lazy=lazy)
+    def pull(self, op: Union[op_tag, _T] = _not_found_, lazy=False) -> _T:
+        if isinstance(op, (Entry.op_tag)):
+            op = {op: None}
+        elif isinstance(op, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), op.keys())):
+            pass
+        else:
+            op = {Entry.op_tag.fetch: op}
+
+        return self._ht_get(self._cache, self._path,  op,  lazy=lazy)
 
     def push(self,  value: _T) -> Tuple[_T, bool]:
         if self._cache is None:
@@ -632,7 +622,7 @@ class EntryCombiner(Entry):
 
         query = [slice(None, None, None)] + self._path
 
-        cache = _ht_get(self._d_list, query,  default_value=_not_found_, **kwargs)
+        cache = _ht_get(self._d_list, query,   default_value=_not_found_, **kwargs)
 
         if isinstance(cache, collections.abc.Sequence):
             cache = [d if not isinstance(d, Entry) else d.get()
