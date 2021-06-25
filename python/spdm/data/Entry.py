@@ -12,6 +12,7 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     Union, final, get_args)
 
 from numpy.core.defchararray import count
+from numpy.lib.arraysetops import isin
 
 from ..numlib import np
 from ..util.logger import logger
@@ -328,18 +329,26 @@ class Entry(object):
             success = True
         return success
 
-    def _op_update(target, k, v):
-        if isinstance(target, collections.abc.Mapping):
-            val = target.get(k, _not_found_)
+    def _op_update(target, key, v):
+        if isinstance(v, collections.abc.Mapping):
+            if key is None:
+                val = target
+            elif isinstance(target, collections.abc.Mapping):
+                val = target.setdefault(key, _DICT_TYPE_())
+            else:
+                val = target[key]
+
+            for k, v in v.items():
+                Entry._ht_put(val, [k], {Entry.op_tag.update: v})
         else:
-            val = target[k]
+            if isinstance(target, collections.abc.Mapping):
+                val = target.get(key, _not_found_)
+            else:
+                val = target[key]
 
-        if val is _not_found_:
-            target[k] = v
-            val = v
-        elif isinstance(val, collections.abc.Mapping) and isinstance(v, collections.abc.Mapping):
-            raise NotImplementedError()
-
+            if val is _not_found_:
+                target[key] = v
+                val = v
         return val
     _ops = {
         op_tag.insert: _op_insert,
@@ -438,19 +447,42 @@ class Entry(object):
             insert if the key does not exist, does nothing if the key exists.
             return value at key
         """
+        if not query:
+            query = [None]
+
         last_idx = len(query)-1
+
         val = target
 
-        for idx, key in enumerate(query[:-1]):
+        for idx, key in enumerate(query):
             val = _not_found_
             if target is _not_found_ or target is None:
-                raise KeyError(query[:idx])
+                raise KeyError(query[:idx+1])
             elif isinstance(target, (Entry,   EntryContainer)):
                 val = target.put(query[idx:], value)
                 break
-
+            elif idx == last_idx:
+                if isinstance(value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+                    val = [Entry._ops[k](target, key, v) for k, v in value.items()]
+                    if len(val) == 0:
+                        val = val[0]
+                else:
+                    val = Entry._op_assign(target, key, value)
+            elif key is None:
+                val = target
             elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
+                if val is not _not_found_:
+                    pass
+                elif create_if_not_exists:
+                    if isinstance(query[idx+1], str):
+                        val = _DICT_TYPE_()
+                        target[key] = val
+                    else:
+                        val = _LIST_TYPE_()
+                        target[key] = val
+                else:
+                    raise KeyError(query[:idx+1])
             elif isinstance(target, (np.ndarray)) and isinstance(key, (int, slice)):
                 val = target[key]
             elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
@@ -458,6 +490,7 @@ class Entry(object):
             elif isinstance(target, collections.abc.Sequence) and isinstance(key, (slice, collections.abc.Sequence)):
                 if isinstance(key, slice):
                     key = _slice_to_range(slice)
+
                 if isinstance(value, collections.abc.Sequence):
                     val = [Entry._ht_put(target, [j]+query[idx+1:], value[i]) for i, j in enumerate(key)]
                 else:
@@ -466,36 +499,8 @@ class Entry(object):
             else:
                 raise TypeError(f"{type(target)} {type(key)}")
 
-            if val is not _not_found_:
-                pass
-            elif create_if_not_exists:
-                if isinstance(query[idx+1], str):
-                    val = _DICT_TYPE_()
-                    target[key] = val
-                else:
-                    val = _LIST_TYPE_()
-                    target[key] = val
-            else:
-                raise KeyError(query[:idx])
-
             target = val
 
-        if target is _not_found_:
-            raise KeyError(query[:idx])
-
-        key = query[-1]
-
-        if isinstance(value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
-            pass
-        elif isinstance(value, Entry.op_tag):
-            value = {value: None}
-        else:
-            value = {Entry.op_tag.assign: value}
-
-        res = [Entry._ops[k](target, key, v) for k, v in value.items()]
-
-        if len(res) == 0:
-            val = res[0]
         return val
 
     def pull(self, op: Union[op_tag, _T] = _not_found_, lazy=False) -> _T:
@@ -514,6 +519,9 @@ class Entry(object):
                 self._cache = _DICT_TYPE_()
             else:
                 self._cache = _LIST_TYPE_()
+
+        if isinstance(value, Entry.op_tag):
+            value = {value: None}
 
         return self._ht_put(self._cache,  self._path, value)
 

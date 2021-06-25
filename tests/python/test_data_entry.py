@@ -1,5 +1,5 @@
 import unittest
-
+from copy import copy
 from spdm.data.Entry import Entry, EntryCombiner, EntryWrapper,  _next_, _not_found_, _undefined_
 from spdm.util.logger import logger
 
@@ -28,9 +28,11 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(cache["a"],           "hello world {name}!")
 
         d.extend(["e", "f"]).push(5)
+
         d.extend(["e", "g"]).push(6)
 
         self.assertEqual(cache["e"]["f"],   5)
+
         self.assertEqual(cache["e"]["g"],   6)
 
     def test_get(self):
@@ -68,26 +70,16 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(cache["c"][1]["a"],           "hello world")
         self.assertEqual(cache["c"][1]["a"],           "hello world")
 
-    # def test_update(self):
-    #     cache = {
-    #         "a": [
-    #             "hello world {name}!",
-    #             "hello world2 {name}!",
-    #             1, 2, 3, 4
-    #         ],
-    #         "c": "I'm {age}!",
-    #         "d": {
-    #             "e": "{name} is {age}",
-    #             "f": "{address}"
-    #         }
-    #     }
-    #     d = Entry(cache)
+    def test_update(self):
+        cache = copy(self.data)
 
-    #     d.update({"d": {"g": 5}})
+        d = Entry(cache)
 
-    #     self.assertEqual(cache["d"]["e"], "{name} is {age}")
-    #     self.assertEqual(cache["d"]["f"], "{address}")
-    #     self.assertEqual(cache["d"]["g"], 5)
+        d.update({"d": {"g": 5}})
+        
+        self.assertEqual(cache["d"]["e"], "{name} is {age}")
+        self.assertEqual(cache["d"]["f"], "{address}")
+        self.assertEqual(cache["d"]["g"], 5)
 
     def test_erase(self):
         cache = {
