@@ -1,3 +1,4 @@
+from enum import Flag, auto
 import numpy as np
 import collections
 import functools
@@ -31,9 +32,14 @@ _empty = object()
 #         return None
 
 
-_not_found_ = object()
+class Tags(Flag):
+    not_found = auto()
+    undefined = auto()
 
-_undefined_ = object()
+
+_not_found_ = Tags.not_found
+
+_undefined_ = Tags.undefined
 
 
 def whoami(obj=None):

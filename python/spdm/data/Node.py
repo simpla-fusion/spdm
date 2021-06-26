@@ -238,7 +238,7 @@ class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_args", "_combine")
 
     def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
-        Node.__init__(self, cache or _LIST_TYPE_(), *args, parent=parent, **kwargs)
+        Node.__init__(self, cache  if cache is not None else  _LIST_TYPE_(), *args, parent=parent, **kwargs)
         self._v_args = (args, kwargs)
         self._combine = default_value_when_combine
 
@@ -262,8 +262,7 @@ class List(Node[_T], Sequence[_T]):
         super().__delitem__(query)
 
     def __iter__(self) -> Iterator[_T]:
-        for idx in range(len(self)):
-            yield self.__getitem__(idx)
+        yield from super().__iter__()
 
     def __iadd__(self, other):
         self.put(_next_, other)
@@ -305,7 +304,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
-        Node.__init__(self, cache or _DICT_TYPE_(), *args, **kwargs)
+        Node.__init__(self, cache  if cache is not None else _DICT_TYPE_(), *args, **kwargs)
 
     @property
     def __category__(self):
@@ -321,7 +320,7 @@ class Dict(Node[_T], Mapping[str, _T]):
         super().__delitem__(query)
 
     def __iter__(self) -> Iterator[str]:
-        yield from self.keys()
+        yield from super().__iter__()
 
     def __eq__(self, o: object) -> bool:
         return super().__eq__(o)
@@ -331,15 +330,6 @@ class Dict(Node[_T], Mapping[str, _T]):
 
     def __ior__(self, other):
         return self.put(Entry.op_tag.update, other)
-
-    def items(self) -> Iterator[Tuple[str, _T]]:
-        yield from super().items()
-
-    def keys(self) -> Iterator[str]:
-        yield from super().keys()
-
-    def values(self) -> Iterator[_T]:
-        yield super().items()
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
@@ -433,12 +423,12 @@ class _SpProperty(Generic[_T]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
+        val = cache.get(self.attrname, default_value=_not_found_, lazy=True)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, default_value=_not_found_, shallow=True)
+                val = cache.get(self.attrname, default_value=_not_found_, lazy=True)
                 # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
                     obj = self.func(instance)
@@ -461,8 +451,8 @@ class _SpProperty(Generic[_T]):
                             else:
                                 obj = tmp
 
-                    if obj is not val and isinstance(cache, Entry) and cache.writable:
-                        val = cache.insert(self.attrname, obj,  assign_if_exists=True)
+                    if obj is not val and isinstance(cache, Entry):
+                        val = cache.put(self.attrname, obj)
                     else:
                         val = obj
         return val

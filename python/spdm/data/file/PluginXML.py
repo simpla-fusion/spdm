@@ -174,8 +174,8 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, envs)
         return res
 
-    def push(self,  value, only_one=False, **kwargs):
-        logger.debug(f"{self.__class__.__name__} is not writable!")
+    def push(self,  *args, **kwargs):
+        return super().push(*args, **kwargs)
 
     def pull(self, default_value=_undefined_, only_one=False, projection=None, lazy=False, **kwargs):
 
@@ -183,7 +183,7 @@ class XMLEntry(Entry):
 
         obj = xp.evaluate(self._root)
 
-        res = self._convert(obj, lazy=lazy, path=self._path, envs=envs, projection=projection)
+        res = self._convert(obj, path=self._path, lazy=lazy, envs=envs, projection=projection)
 
         if res is not _not_found_:
             pass
@@ -219,8 +219,8 @@ class XMLEntry(Entry):
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
-    def iter(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
-        path = self._prefix+normalize_path(path)
+    def iter(self,  *args, envs=None, **kwargs):
+        path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._root):
@@ -229,8 +229,8 @@ class XMLEntry(Entry):
                 res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
                 yield res
 
-    def items(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
-        path = self._prefix+normalize_path(path)
+    def items(self,    *args, envs=None, **kwargs):
+        path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._root):
@@ -239,8 +239,8 @@ class XMLEntry(Entry):
                 res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
                 yield child.tag, res
 
-    def values(self,  path: Optional[_TPath] = None, *args, envs=None, **kwargs):
-        path = self._prefix+normalize_path(path)
+    def values(self,    *args, envs=None, **kwargs):
+        path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._root):

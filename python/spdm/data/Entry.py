@@ -159,6 +159,9 @@ class Entry(object):
     def duplicate(self) -> _TEntry:
         return self.__class__(self._cache, path=self._path)
 
+    def __serialize__(self, *args, **kwargs):
+        return NotImplemented
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} root={type(self._cache)} path={self._path} />"
 
@@ -271,7 +274,7 @@ class Entry(object):
         self.push(Entry.op_tag.erase)
 
     def iter(self):
-        obj = self.fetch(**kwargs)
+        obj = self.get(None, lazy=False)
 
         if isinstance(obj, Entry):
             yield from obj.iter()
@@ -279,18 +282,6 @@ class Entry(object):
             yield from obj
         else:
             raise NotImplementedError(type(obj))
-
-    def items(self):
-        yield from ht_items(self._cache, self._path)
-
-    def values(self):
-        yield from ht_values(self._cache, self._path)
-
-    def keys(self,    **kwargs):
-        yield from ht_keys(self._cache, self._path)
-
-    def __serialize__(self, *args, **kwargs):
-        return [v for v in self.values(*args, **kwargs)]
 
     def _op_assign(target, k, v):
         if k is _next_:
