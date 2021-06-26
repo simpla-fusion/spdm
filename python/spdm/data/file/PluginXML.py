@@ -90,6 +90,9 @@ class XMLEntry(Entry):
         super().__init__(None, *args,   **kwargs)
         self._root = root
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
+
     def duplicate(self) -> _TEntry:
         res = super().duplicate()
         res._root = self._root

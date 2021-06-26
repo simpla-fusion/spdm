@@ -2,9 +2,23 @@ import unittest
 
 from spdm.data.Node import Node, Dict, List, _next_, _not_found_
 from spdm.util.logger import logger
+from copy import copy, deepcopy
 
 
 class TestNode(unittest.TestCase):
+    data = {
+        "a": [
+            "hello world {name}!",
+            "hello world2 {name}!",
+            1, 2, 3, 4
+        ],
+        "c": "I'm {age}!",
+        "d": {
+            "e": "{name} is {age}",
+            "f": "{address}"
+        }
+    }
+
     def test_dict_initialize(self):
         d = Dict({
             "c": "I'm {age}!",
@@ -54,18 +68,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(cache["e"]["g"], 6)
 
     def test_dict_update(self):
-        cache = {
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ],
-            "c": "I'm {age}!",
-            "d": {
-                "e": "{name} is {age}",
-                "f": "{address}"
-            }
-        }
+        cache = deepcopy(self.data)
         d = Dict(cache)
 
         d.update({"d": {"g": 5}})
@@ -116,6 +119,19 @@ class TestNode(unittest.TestCase):
 
 
 class TestNodeList(unittest.TestCase):
+    data = {
+        "a": [
+            "hello world {name}!",
+            "hello world2 {name}!",
+            1, 2, 3, 4
+        ],
+        "c": "I'm {age}!",
+        "d": {
+            "e": "{name} is {age}",
+            "f": "{address}"
+        }
+    }
+
     def test_insert(self):
         cache = {}
 
@@ -173,6 +189,12 @@ class TestNodeList(unittest.TestCase):
         d0[{"name": "wang wu"}]["address"] = "hefei"
 
         self.assertEqual(cache[0]["address"],  "hefei")
+
+    def test_iter(self):
+        d = List(self.data["a"])
+
+        expected = [v for v in d]
+        self.assertEqual(self.data["a"], expected)
 
 
 if __name__ == '__main__':

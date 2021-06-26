@@ -18,7 +18,7 @@ from numpy.lib.arraysetops import isin
 from ..util.sp_export import sp_find_module
 from ..numlib import np, scipy
 from ..util.logger import logger
-from ..util.utilities import _not_found_, _undefined_, serialize
+from ..util.utilities import Tags, _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
                     EntryContainer, _next_, _TKey, _TObject, _TQuery,
                     as_dataclass)
@@ -169,10 +169,10 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self.put(query,  value)
+        return self.put(query,  self.__pre_process__(value))
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        return self.get(query, lazy=True)
+        return self.__post_process__(self.get(query, lazy=True))
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self.put(query, Entry.op_tag.erase)
@@ -238,7 +238,7 @@ class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_args", "_combine")
 
     def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
-        Node.__init__(self, cache  if cache is not None else  _LIST_TYPE_(), *args, parent=parent, **kwargs)
+        Node.__init__(self, cache if cache is not None else _LIST_TYPE_(), *args, parent=parent, **kwargs)
         self._v_args = (args, kwargs)
         self._combine = default_value_when_combine
 
@@ -304,7 +304,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
-        Node.__init__(self, cache  if cache is not None else _DICT_TYPE_(), *args, **kwargs)
+        Node.__init__(self, cache if cache is not None else _DICT_TYPE_(), *args, **kwargs)
 
     @property
     def __category__(self):
@@ -451,7 +451,7 @@ class _SpProperty(Generic[_T]):
                             else:
                                 obj = tmp
 
-                    if obj is not val and isinstance(cache, Entry):
+                    if obj is not _undefined_ and obj is not val and isinstance(cache, Entry):
                         val = cache.put(self.attrname, obj)
                     else:
                         val = obj

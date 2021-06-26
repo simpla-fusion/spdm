@@ -53,17 +53,13 @@ class EntryContainer(Generic[_TObject]):
     def empty(self) -> bool:
         return not self._entry.pull(Entry.op_tag.exists)
 
-    def __pre_process__(self, value: _T, /, **kwargs) -> _T:
-        return value
-
-    def __post_process__(self, value: _T, /, **kwargs) -> Union[_T, _TContainer]:
-        return value
+ 
 
     def clear(self):
         self._entry.clear()
 
-    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,  **kwargs) -> Union[_T, _TContainer]:
-        return self.__post_process__(self._entry.get(path, default_value, **kwargs))
+    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> Union[_T, _TContainer]:
+        return self._entry.get(path, default_value, **kwargs)
 
     def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
         """
@@ -73,7 +69,7 @@ class EntryContainer(Generic[_TObject]):
                     val     : current value at path
                     status  : if value is changed then True else False
         """
-        return self._entry.put(path, self.__pre_process__(value),  **kwargs)
+        return self._entry.put(path, value,  **kwargs)
 
     def reset(self, *args, **kwargs) -> None:
         self._entry.push(Entry.op_tag.reset, *args, **kwargs)
@@ -163,7 +159,7 @@ class Entry(object):
         return NotImplemented
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} root={type(self._cache)} path={self._path} />"
+        return f"<{self.__class__.__name__} cache={type(self._cache)} path={self._path} />"
 
     def enable_cache(self, cache: Union[bool, Mapping] = None) -> bool:
         if cache is None:
@@ -281,7 +277,7 @@ class Entry(object):
         elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
             yield from obj
         else:
-            raise NotImplementedError(type(obj))
+            raise NotImplementedError(obj)
 
     def _op_assign(target, k, v):
         if k is _next_:
@@ -477,7 +473,7 @@ class Entry(object):
             #     query[idx] = len(target)-1
             #     continue
             elif idx == last_idx:
-                if isinstance(value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+                if isinstance(value, (dict, collections.ChainMap)) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
                     val = [Entry._ops[k](target, key, v) for k, v in value.items()]
                     if len(val) == 0:
                         val = val[0]
@@ -530,6 +526,9 @@ class Entry(object):
         return self._ht_get(self._cache, self._path,  op,  lazy=lazy)
 
     def push(self,  value: _T) -> Tuple[_T, bool]:
+        if value is _undefined_:
+            raise ValueError(f"{self._path}")
+
         if self._cache is None:
             if isinstance(self._path[0], str):
                 self._cache = _DICT_TYPE_()
@@ -594,7 +593,6 @@ class EntryCombiner(Entry):
             res = super().pull(_not_found_,  **kwargs)
             if res is not _not_found_ or cache == "only":
                 return res
-
         query = [slice(None, None, None)] + self._path
 
         cache = Entry._ht_get(self._d_list, query, {Entry.op_tag.fetch: _not_found_}, lazy=False)

@@ -20,6 +20,9 @@ class TestFile(unittest.TestCase):
 
         self.assertEqual(retcangle["height"], 2.12)
 
+        wall_r = device.entry.extend(["wall.description_2d", 0, "vessel.annular.outline_inner.r"]).pull(lazy=False)
+        logger.debug(wall_r)
+
 
 if __name__ == '__main__':
     unittest.main()
