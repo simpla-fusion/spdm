@@ -16,7 +16,7 @@ class TestFile(unittest.TestCase):
 
     def test_xml(self):
         device = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml")
-        retcangle = device.entry.child(["pf_active.coil", 0, "element.geometry.rectangle"]).pull({})
+        retcangle = device.entry.extend(["pf_active.coil", 0, "element.geometry.rectangle"]).pull(lazy=False)
 
         logger.debug(retcangle)
 

@@ -95,9 +95,6 @@ class XMLEntry(Entry):
         res._root = self._root
         return res
 
-    @property
-    def writable(self) -> bool:
-        return False
 
     def xpath(self, path):
         envs = {}
@@ -181,7 +178,7 @@ class XMLEntry(Entry):
     def push(self,  value, only_one=False, **kwargs):
         logger.debug(f"{self.__class__.__name__} is not writable!")
 
-    def pull(self, /, only_one=False, default_value=_undefined_, projection=None, **kwargs):
+    def pull(self, default_value=_undefined_, only_one=False, projection=None, **kwargs):
 
         xp, envs = self.xpath(self._path)
 

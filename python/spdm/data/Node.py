@@ -238,7 +238,7 @@ class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_args", "_combine")
 
     def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
-        Node.__init__(self, cache, *args, parent=parent, **kwargs)
+        Node.__init__(self, cache or _LIST_TYPE_(), *args, parent=parent, **kwargs)
         self._v_args = (args, kwargs)
         self._combine = default_value_when_combine
 
@@ -305,7 +305,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
-        Node.__init__(self, cache, *args, **kwargs)
+        Node.__init__(self, cache or _DICT_TYPE_(), *args, **kwargs)
 
     @property
     def __category__(self):
