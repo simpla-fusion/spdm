@@ -108,9 +108,34 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1],  "a")
 
+    def test_list_find_by_cond(self):
+        cache = [
+            {"name": "wang wu", "age": 21},
+            {"name": "wang liu", "age": 22},
+            {"name": "li si",    "age": 22},
+            {"name": "zhang san", "age": 24},
+        ]
+
+        d0 = Entry(cache)
+        self.assertEqual(d0.get([{"name": "li si"}, "age"]), 22)
+
+        d1 = Entry({"person": cache})
+
+        young = d1.get(["person", {"age": 22}], lazy=True)
+
+        self.assertEqual(len(young), 2)
+        self.assertEqual(young[0]["name"],  "wang liu")
+        self.assertEqual(young[1]["name"],  "li si")
+
+        res=d1.get(["person", {"age": 22}])
+
+        names=[d["name"] for d in res]
+
+        self.assertEqual(len(names), 2)
+
 
 class TestEntryCombiner(unittest.TestCase):
-    data = [
+    data=[
         {"id": 0,
             "value": 1.23,
             "c": "I'm {age}!",

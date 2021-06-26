@@ -252,7 +252,7 @@ class Entry(object):
     def equal(self, other) -> bool:
         return self.pull({Entry.op_tag.equal: other})
 
-    def get(self, query: _TQuery, default_value=_undefined_, lazy=True, **kwargs) -> Any:
+    def get(self, query: _TQuery, default_value: _T = _undefined_, lazy=True, **kwargs) -> _T:
         return self.extend(query).pull(default_value, lazy=lazy, **kwargs)
 
     def put(self, query: _TQuery, value: _T, **kwargs) -> Tuple[_T, bool]:
@@ -354,6 +354,18 @@ class Entry(object):
                 target[key] = v
                 val = v
         return val
+
+    def _op_check(target, pred=None, *args) -> bool:
+        if pred is None:
+            return target is not None
+        elif isinstance(pred, str) and isinstance(target, collections.abc.Mapping):
+            return Entry._op_check(target.get(pred, _not_found_), *args)
+        elif isinstance(target, Entry.op_tag):
+            return Entry._ops[pred](target, *args)
+        elif isinstance(target, collections.abc.Mapping):
+            return all([Entry._op_check(target, k, v) for k, v in pred.items()])
+        else:
+            return target == pred
     _ops = {
         op_tag.insert: _op_insert,
         op_tag.assign: _op_assign,
@@ -405,6 +417,10 @@ class Entry(object):
                     val = [Entry._ht_get(target, [s]+query[idx+1:], op=op, lazy=lazy)
                            for s in _slice_to_range(key, len(target))]
                     break
+            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (collections.abc.Mapping)):
+                val = [v for v in target if Entry._op_check(v, key)]
+                if len(val) == 1:
+                    val = val[0]
             else:
                 raise TypeError(f"{type(target)} {type(key)} {query[:idx+1]}")
 
