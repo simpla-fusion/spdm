@@ -18,7 +18,7 @@ class TestFile(unittest.TestCase):
         device = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml")
         retcangle = device.entry.extend(["pf_active.coil", 0, "element.geometry.rectangle"]).pull(lazy=False)
 
-        logger.debug(retcangle)
+        self.assertEqual(retcangle["height"], 2.12)
 
 
 if __name__ == '__main__':

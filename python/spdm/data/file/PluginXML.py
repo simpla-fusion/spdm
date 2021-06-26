@@ -95,7 +95,6 @@ class XMLEntry(Entry):
         res._root = self._root
         return res
 
-
     def xpath(self, path):
         envs = {}
         res = "."
@@ -178,13 +177,13 @@ class XMLEntry(Entry):
     def push(self,  value, only_one=False, **kwargs):
         logger.debug(f"{self.__class__.__name__} is not writable!")
 
-    def pull(self, default_value=_undefined_, only_one=False, projection=None, **kwargs):
+    def pull(self, default_value=_undefined_, only_one=False, projection=None, lazy=False, **kwargs):
 
         xp, envs = self.xpath(self._path)
 
         obj = xp.evaluate(self._root)
 
-        res = self._convert(obj, lazy=default_value is _undefined_, path=self._path, envs=envs, projection=projection)
+        res = self._convert(obj, lazy=lazy, path=self._path, envs=envs, projection=projection)
 
         if res is not _not_found_:
             pass
