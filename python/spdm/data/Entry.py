@@ -63,7 +63,7 @@ class EntryContainer(Generic[_TObject]):
         return self._entry.put(path, value,  **kwargs)
 
     def reset(self, value: _T = None, **kwargs) -> None:
-        self._entry.push({Entry.op_tag.reset: value},  **kwargs)
+        self._entry.push({Entry.op_tag.assign: value},  **kwargs)
 
     def update(self,  value: _T,    ** kwargs) -> _T:
         return self._entry.push({Entry.op_tag.update: value},  **kwargs)
@@ -255,7 +255,7 @@ class Entry(object):
         self.push(Entry.op_tag.erase)
 
     def iter(self):
-        obj = self.get(None )
+        obj = self.get(None)
 
         if isinstance(obj, Entry):
             yield from obj.iter()
@@ -381,9 +381,9 @@ class Entry(object):
                 break
             elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 val = target[key]
-            elif isinstance(target, collections.abc.Mapping) and isinstance(key, str):
+            elif isinstance(target, (dict, collections.ChainMap)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
-            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
+            elif isinstance(target, list) and isinstance(key, (int, slice)):
                 if isinstance(key, int):
                     val = target[key] if key < len(target) else _not_found_
                 elif idx == last_idx and isinstance(key, slice):

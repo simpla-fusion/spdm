@@ -120,19 +120,19 @@ class Actor(Dict[Node]):
 
         return time
 
-    def update(self, *args, ** kwargs) -> float:
+    def refresh(self, *args, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        super().update(*args, **kwargs)
+        # super().update(*args, **kwargs)
 
-        self._time = self.get("time", 0.0)
+        # self._time = self.get("time", 0.0)
 
         return self._time
 
     def reset(self, value=None, /, **kwargs) -> None:
-        super().reset({"code": self.get("code", {}),
-                       "identifier": self.get("identify", {})})
+        # super().reset({"code": self.get("code", {}),
+        #                "identifier": self.get("identify", {})})
         if value is not None:
             self.update(value, **kwargs)

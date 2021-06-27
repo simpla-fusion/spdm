@@ -129,7 +129,7 @@ class Node(EntryContainer[_TObject]):
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, value: _T,   /, *args, parent=None,   **kwargs) -> Union[_T, _TNode]:
+    def __post_process__(self, value: _T,   *args, parent=None,   **kwargs) -> Union[_T, _TNode]:
         if isinstance(value, (collections.abc.Mapping, list)):
             value = Entry(value)
         elif not isinstance(value,  Entry):
@@ -169,7 +169,7 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
-        return super().get(path, default_value=default_value, **kwargs)
+        return super().get(path, default_value, **kwargs)
 
     def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
         return super().put(path, value,  **kwargs)
@@ -256,6 +256,11 @@ class List(Node[_T], Sequence[_T]):
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
+
+    def __post_process__(self, value: _T,   /,   parent=None,   **kwargs) -> Union[_T, _TNode]:
+        if parent is None:
+            parent = self._parent
+        return super().__post_process__(value, parent=parent, **kwargs)
 
     @property
     def __category__(self):
@@ -495,3 +500,13 @@ class _SpProperty(Generic[_T]):
 
 def sp_property(func: Callable[..., _T]) -> _SpProperty[_T]:
     return _SpProperty[_T](func)
+
+
+def chain_map(*args, **kwargs) -> collections.ChainMap:
+    d = []
+    for a in args:
+        if isinstance(d, collections.abc.Mapping):
+            d.append(a)
+        elif isinstance(d, Entry):
+            d.append(Dict(a))
+    return collections.ChainMap(*d, **kwargs)
