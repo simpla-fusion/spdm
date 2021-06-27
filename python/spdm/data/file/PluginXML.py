@@ -180,13 +180,13 @@ class XMLEntry(Entry):
     def push(self,  *args, **kwargs):
         return super().push(*args, **kwargs)
 
-    def pull(self, default_value=_undefined_, only_one=False, projection=None, lazy=False, **kwargs):
+    def pull(self, default_value=_undefined_, only_one=False, projection=None,  **kwargs):
 
         xp, envs = self.xpath(self._path)
 
         obj = xp.evaluate(self._root)
 
-        res = self._convert(obj, path=self._path, lazy=lazy, envs=envs, projection=projection)
+        res = self._convert(obj, path=self._path, lazy=default_value is _undefined_, envs=envs, projection=projection)
 
         if res is not _not_found_:
             pass

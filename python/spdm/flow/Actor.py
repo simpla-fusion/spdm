@@ -48,11 +48,11 @@ class Actor(Dict[Node]):
 
         return object.__new__(n_cls)
 
-    def __init__(self, d=None,  *args, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
-        super().__init__(d or {},
+    def __init__(self, d=None,  /, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
+        super().__init__(d,
                          collections.ChainMap({
                              "code": {"name": self.__class__.__name__}
-                         }), *args, **kwargs)
+                         }),  **kwargs)
 
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)

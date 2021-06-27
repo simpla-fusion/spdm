@@ -53,35 +53,20 @@ class EntryContainer(Generic[_TObject]):
     def empty(self) -> bool:
         return not self._entry.pull(Entry.op_tag.exists)
 
- 
-
     def clear(self):
         self._entry.clear()
 
-    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> Union[_T, _TContainer]:
+    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, **kwargs) -> _T:
         return self._entry.get(path, default_value, **kwargs)
 
     def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
-        """
-            Put value to 'path',
-            return
-                val,status:
-                    val     : current value at path
-                    status  : if value is changed then True else False
-        """
         return self._entry.put(path, value,  **kwargs)
 
-    def reset(self, *args, **kwargs) -> None:
-        self._entry.push(Entry.op_tag.reset, *args, **kwargs)
+    def reset(self, value: _T = None, **kwargs) -> None:
+        self._entry.push({Entry.op_tag.reset: value},  **kwargs)
 
-    def update(self,  value: _T, *args,  ** kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.update: value}, *args, **kwargs)
-
-    def _as_dict(self) -> Mapping:
-        return {k: self.__post_process__(v) for k, v in self._entry.items()}
-
-    def _as_list(self) -> Sequence:
-        return [self.__post_process__(v) for v in self._entry.values()]
+    def update(self,  value: _T,    ** kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.update: value},  **kwargs)
 
 
 PRIMARY_TYPE = (int, float, str, np.ndarray)
@@ -251,8 +236,8 @@ class Entry(object):
     def equal(self, other) -> bool:
         return self.pull({Entry.op_tag.equal: other})
 
-    def get(self, query: _TQuery, default_value: _T = _undefined_, lazy=True, **kwargs) -> _T:
-        return self.extend(query).pull(default_value, lazy=lazy, **kwargs)
+    def get(self, query: _TQuery, default_value: _T = _undefined_, **kwargs) -> _T:
+        return self.extend(query).pull(default_value,   **kwargs)
 
     def put(self, query: _TQuery, value: _T, **kwargs) -> Tuple[_T, bool]:
         return self.extend(query).push(value, **kwargs)
@@ -270,7 +255,7 @@ class Entry(object):
         self.push(Entry.op_tag.erase)
 
     def iter(self):
-        obj = self.get(None, lazy=False)
+        obj = self.get(None )
 
         if isinstance(obj, Entry):
             yield from obj.iter()
@@ -373,7 +358,7 @@ class Entry(object):
     }
 
     @staticmethod
-    def _ht_get(target, query, op: op_tag,   lazy=False) -> Any:
+    def _ht_get(target, query, default_value: Union[_T,  op_tag] = _undefined_) -> _T:
         """
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
@@ -381,15 +366,18 @@ class Entry(object):
 
         if not query:
             query = [None]
-
+        root = target
         last_idx = len(query)-1
         val = target
         for idx, key in enumerate(query):
             val = _not_found_
             if key is None:
                 val = target
-            elif isinstance(target, (Entry, EntryContainer)):
-                val = target.get(query[idx:], op, lazy=lazy)
+            elif isinstance(target, (Entry, )):
+                val = target.extend(query[idx:]).pull(default_value)
+                break
+            elif isinstance(target, EntryContainer):
+                val = target._entry.extend(query[idx:]).pull(default_value)
                 break
             elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 val = target[key]
@@ -401,7 +389,7 @@ class Entry(object):
                 elif idx == last_idx and isinstance(key, slice):
                     val = target[key]
                 elif isinstance(key, slice):
-                    val = [Entry._ht_get(target, [s]+query[idx+1:], op=op, lazy=lazy)
+                    val = [Entry._ht_get(target, [s]+query[idx+1:], default_value=default_value)
                            for s in _slice_to_range(key, len(target))]
                     break
             elif isinstance(target, collections.abc.Sequence) and isinstance(key, (collections.abc.Mapping)):
@@ -412,13 +400,18 @@ class Entry(object):
                 raise TypeError(f"{type(target)} {type(key)} {query[:idx+1]}")
 
             if val is _not_found_:
-                if lazy is True:
-                    val = Entry(target, query[idx:])
                 break
             target = val
 
-        res = [Entry._ops[k](val, v) for k, v in op.items()]
-        val = res[0] if len(res) == 1 else res
+        if default_value is _undefined_ and val is _not_found_:
+            val = Entry(target, query[idx:])
+        elif isinstance(default_value, Entry.op_tag):
+            val = Entry._ops[default_value](val)
+        elif isinstance(default_value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), default_value.keys())):
+            res = [Entry._ops[k](val, v) for k, v in default_value.items()]
+            val = res[0] if len(res) == 1 else res
+        elif val is _not_found_:
+            val = default_value
 
         return val
 
@@ -515,15 +508,15 @@ class Entry(object):
 
         return val
 
-    def pull(self, op: Union[op_tag, _T] = _not_found_, lazy=False) -> _T:
-        if isinstance(op, (Entry.op_tag)):
-            op = {op: None}
-        elif isinstance(op, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), op.keys())):
-            pass
-        else:
-            op = {Entry.op_tag.fetch: op}
+    def pull(self, default_value: Union[op_tag, _T] = _not_found_) -> _T:
+        # if isinstance(op, (Entry.op_tag)):
+        #     op = {op: None}
+        # elif isinstance(op, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), op.keys())):
+        #     pass
+        # else:
+        #     op = {Entry.op_tag.fetch: op}
 
-        return self._ht_get(self._cache, self._path,  op,  lazy=lazy)
+        return self._ht_get(self._cache, self._path,  default_value)
 
     def push(self,  value: _T) -> Tuple[_T, bool]:
         if value is _undefined_:
@@ -595,7 +588,7 @@ class EntryCombiner(Entry):
                 return res
         query = [slice(None, None, None)] + self._path
 
-        cache = Entry._ht_get(self._d_list, query, {Entry.op_tag.fetch: _not_found_}, lazy=False)
+        cache = Entry._ht_get(self._d_list, query, _not_found_)
 
         if isinstance(cache, collections.abc.Sequence):
             cache = [d if not isinstance(d, Entry) else d.pull()

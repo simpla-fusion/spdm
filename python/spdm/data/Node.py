@@ -168,11 +168,17 @@ class Node(EntryContainer[_TObject]):
 
         return value
 
+    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
+        return super().get(path, default_value=default_value, **kwargs)
+
+    def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
+        return super().put(path, value,  **kwargs)
+
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
         return self.put(query,  self.__pre_process__(value))
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        return self.__post_process__(self.get(query, lazy=True))
+        return self.__post_process__(self.get(query))
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self.put(query, Entry.op_tag.erase)
@@ -192,6 +198,12 @@ class Node(EntryContainer[_TObject]):
 
     def __bool__(self) -> bool:
         return not self.empty  # and (not self.__fetch__())
+
+    def _as_dict(self) -> Mapping:
+        return {k: self.__post_process__(v) for k, v in self._entry.items()}
+
+    def _as_list(self) -> Sequence:
+        return [self.__post_process__(v) for v in self._entry.values()]
 
     class Category(IntFlag):
         UNKNOWN = 0
@@ -415,7 +427,12 @@ class _SpProperty(Generic[_T]):
             raise TypeError(error) from None
 
     def __get__(self, instance: Any, owner=None) -> _T:
-        cache = getattr(instance, "_entry", Entry(instance.__dict__))
+        cache = getattr(instance, "_entry", _not_found_)
+        if cache is _not_found_:
+            cache = Entry(instance.__dict__)
+
+        if len(cache._path) > 0:
+            pass
 
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
@@ -423,12 +440,12 @@ class _SpProperty(Generic[_T]):
         #     logger.error(f"Attribute cache is not writable!")
         #     raise AttributeError(self.attrname)
 
-        val = cache.get(self.attrname, default_value=_not_found_, lazy=True)
+        val = cache.get(self.attrname, default_value=_not_found_)
 
         if not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, default_value=_not_found_, lazy=True)
+                val = cache.get(self.attrname, default_value=_not_found_)
                 # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
                     obj = self.func(instance)

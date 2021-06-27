@@ -121,7 +121,7 @@ class TestEntry(unittest.TestCase):
 
         d1 = Entry({"person": cache})
 
-        young = d1.get(["person", {"age": 22}], lazy=True)
+        young = d1.get(["person", {"age": 22}])
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
