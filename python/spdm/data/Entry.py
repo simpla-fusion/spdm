@@ -363,6 +363,8 @@ class Entry(object):
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
         """
+        if target is _not_found_ or target is None:
+            return default_value
 
         if not query:
             query = [None]
@@ -569,37 +571,41 @@ class EntryWrapper(Entry):
 
 
 class EntryCombiner(Entry):
-    def __init__(self, d_list: Sequence, *args,   cache=False, reducer=None, **kwargs):
+    def __init__(self, cache: Sequence, *args,  default_value=None,   reducer=None, **kwargs):
         super().__init__(cache, *args,  **kwargs)
-        if not isinstance(d_list, collections.abc.Sequence):
-            raise TypeError(type(d_list))
-        self._d_list = d_list
         self._reducer = reducer if reducer is not None else operator.__add__
+        self._default_value = default_value or _DICT_TYPE_()
+        self._l_cache = None
 
     def duplicate(self):
-        return self.__class__(self._d_list, cache=self._cache, reducer=self._reducer, path=self._path)
+        res = super().duplicate()
+        res._reducer = self._reducer
+        res._default_value = self._default_value
 
-    def pull(self,  op: Entry.op_tag = _not_found_, cache: str = "on",  **kwargs) -> Any:
-        res = _not_found_
+        return res
 
-        if self._cache is not None and cache not in ("off", "no"):
-            res = super().pull(_not_found_,  **kwargs)
-            if res is not _not_found_ or cache == "only":
-                return res
-        query = [slice(None, None, None)] + self._path
+    def push(self,  value: _T = _not_found_) -> _T:
+        if self._l_cache is None:
+            self._l_cache = _DICT_TYPE_()
+        return Entry._ht_put(self._l_cache, self._path, value)
 
-        cache = Entry._ht_get(self._d_list, query, _not_found_)
+    def pull(self,  default_value: _T = _not_found_) -> _T:
+        res = default_value
 
-        if isinstance(cache, collections.abc.Sequence):
-            cache = [d if not isinstance(d, Entry) else d.pull()
-                     for d in cache if (d is not None and d is not _not_found_)]
+        val = Entry._ht_get(self._l_cache, self._path, _not_found_)
 
-        if isinstance(cache, collections.abc.Sequence) and len(cache) > 0:
+        if val is _not_found_:
+            val = Entry._ht_get(self._cache, [slice(None, None, None)] + self._path, _not_found_)
+
+        if isinstance(val, collections.abc.Sequence):
+            cache = [d for d in val if (d is not None and d is not _not_found_)]
+
+        if any(map(lambda v: isinstance(v, (Entry, EntryContainer)), cache)):
+            res = EntryCombiner(cache)
+        elif len(cache) > 0:
             res = functools.reduce(self._reducer, cache[1:], cache[0])
-            if self._cache is not None:
-                super().push(res)
-        else:
-            res = op
+        elif self._default_value is not None:
+            res = Entry._ht_get(self._default_value, self._path, default_value)
 
         return res
 

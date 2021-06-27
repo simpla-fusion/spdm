@@ -247,12 +247,13 @@ class Node(EntryContainer[_TObject]):
 
 
 class List(Node[_T], Sequence[_T]):
-    __slots__ = ("_v_args", "_combine")
+    __slots__ = ("_v_args", "_combine", "_default_value")
 
-    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value_when_combine=None,  **kwargs) -> None:
+    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value=None,  **kwargs) -> None:
         Node.__init__(self, cache if cache is not None else _LIST_TYPE_(), *args, parent=parent, **kwargs)
         self._v_args = (args, kwargs)
-        self._combine = default_value_when_combine
+        self._default_value = default_value
+        self._combine = None
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
@@ -293,21 +294,22 @@ class List(Node[_T], Sequence[_T]):
 
     @property
     def combine(self) -> _T:
-        if not isinstance(self._combine, Node):
+        if self._combine is None:
             if self._entry.__class__ is not Entry:
                 raise NotImplementedError(type(self._entry))
             self._combine = self.__post_process__(
                 EntryCombiner(self._entry._cache,
                               path=self._entry._path,
-                              default_value=self._combine),
+                              default_value=self._default_value),
                 parent=self._parent, not_insert=True)
         return self._combine
 
-    def update(self, *args, **kwargs):
-        super().update(*args, **kwargs)
+    def refresh(self, *args, **kwargs):
+        # super().refresh(*args, **kwargs)
         for element in self.__iter__():
-            if hasattr(element.__class__, 'update'):
-                element.update(*args, **kwargs)
+            if hasattr(element.__class__, 'refresh'):
+                element.refresh(*args, **kwargs)
+        self._combine = None
 
     def reset(self, value=None):
         if isinstance(value, (collections.abc.Sequence)):

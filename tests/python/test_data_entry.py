@@ -155,20 +155,20 @@ class TestEntryCombiner(unittest.TestCase):
         self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
         self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
-    def test_cache(self):
-        cache = {}
-        d = EntryCombiner(self.data, cache=cache)
-        expected = sum([d["value"] for d in self.data])
+    # def test_cache(self):
+    #     cache = {}
+    #     d = EntryCombiner(self.data )
+    #     expected = sum([d["value"] for d in self.data])
 
-        c = d.extend("value")
-        self.assertEqual(c.pull(), expected)
-        self.assertEqual(cache["value"], expected)
-        c.push(5)
-        self.assertEqual(cache["value"], 5)
+    #     c = d.extend("value")
+    #     self.assertEqual(c.pull(), expected)
+    #     self.assertEqual(cache["value"], expected)
+    #     c.push(5)
+    #     self.assertEqual(cache["value"], 5)
 
-        d.extend("test_cache").push("just test cache")
-        self.assertEqual(d.get("test_cache", cache="off", default_value=_undefined_), _undefined_)
-        self.assertEqual(d.get("test_cache", cache="on"), cache["test_cache"])
+    #     d.extend("test_cache").push("just test cache")
+    #     self.assertEqual(d.get("test_cache",default_value=_undefined_), _undefined_)
+    #     self.assertEqual(d.get("test_cache"), cache["test_cache"])
 
     #     # class TestEntryWrapper(unittest.TestCase):
     #     #     data = [
