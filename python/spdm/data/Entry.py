@@ -571,41 +571,36 @@ class EntryWrapper(Entry):
 
 
 class EntryCombiner(Entry):
-    def __init__(self, cache: Sequence, *args,  default_value=None,   reducer=None, **kwargs):
-        super().__init__(cache, *args,  **kwargs)
+    def __init__(self, cache, d_list: Sequence = [], /, reducer=None, **kwargs):
+        super().__init__(cache,   **kwargs)
         self._reducer = reducer if reducer is not None else operator.__add__
-        self._default_value = default_value or _DICT_TYPE_()
-        self._l_cache = None
+        self._d_list = d_list
 
     def duplicate(self):
         res = super().duplicate()
         res._reducer = self._reducer
-        res._default_value = self._default_value
+        res._d_list = self._d_list
 
         return res
 
     def push(self,  value: _T = _not_found_) -> _T:
-        if self._l_cache is None:
-            self._l_cache = _DICT_TYPE_()
-        return Entry._ht_put(self._l_cache, self._path, value)
+        return super().push(value)
 
     def pull(self,  default_value: _T = _not_found_) -> _T:
         res = default_value
 
-        val = Entry._ht_get(self._l_cache, self._path, _not_found_)
+        val = super().pull(_not_found_)
 
         if val is _not_found_:
-            val = Entry._ht_get(self._cache, [slice(None, None, None)] + self._path, _not_found_)
+            val = Entry._ht_get(self._d_list, [slice(None, None, None)] + self._path, _not_found_)
 
         if isinstance(val, collections.abc.Sequence):
-            cache = [d for d in val if (d is not None and d is not _not_found_)]
+            val = [d for d in val if (d is not None and d is not _not_found_)]
 
-        if any(map(lambda v: isinstance(v, (Entry, EntryContainer)), cache)):
-            res = EntryCombiner(cache)
-        elif len(cache) > 0:
-            res = functools.reduce(self._reducer, cache[1:], cache[0])
-        elif self._default_value is not None:
-            res = Entry._ht_get(self._default_value, self._path, default_value)
+            if any(map(lambda v: isinstance(v, (Entry, EntryContainer)), val)):
+                val = EntryCombiner(val)
+            elif len(val) > 0:
+                val = functools.reduce(self._reducer, val[1:], val[0])
 
         return res
 

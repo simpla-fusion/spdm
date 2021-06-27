@@ -4,7 +4,7 @@ from typing import (Any, Deque, Generic, Iterator, Mapping, NewType, Optional,
                     Sequence, TypeVar)
 
 
-from ..data.Entry import Entry, EntryCombiner
+from ..data.Entry import Entry
 from ..data.Node import Dict, List, Node, _TObject
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
@@ -32,8 +32,8 @@ class Actor(Dict[Node]):
             pass
         elif isinstance(desc, collections.abc.Mapping):
             cls_name = desc.get("code", {}).get("name", None)
-        elif isinstance(desc, EntryCombiner):
-            cls_name = _undefined_
+        # elif isinstance(desc, EntryCombiner):
+        #     cls_name = _undefined_
         elif isinstance(desc, Entry):
             cls_name = desc.get("code.name", _undefined_)
 

@@ -274,13 +274,22 @@ class List(Node[_T], Sequence[_T]):
         super().__setitem__(query, v)
 
     def __getitem__(self, query: _TQuery) -> _T:
-        return super().__getitem__(query)
+        obj0 = self.get(query)
+        obj1 = self.__post_process__(obj0)
+        if obj1 is not obj0:
+            self._entry.extend(query).push(obj1)
+
+        return obj1
 
     def __delitem__(self, query: _TQuery) -> None:
         super().__delitem__(query)
 
     def __iter__(self) -> Iterator[_T]:
-        yield from super().__iter__()
+        for idx, obj in enumerate(self._entry.iter()):
+            obj1 = self.__post_process__(obj)
+            if obj1 is not obj:
+                self._entry.extend(idx).push(obj1)
+            yield obj1
 
     def __iadd__(self, other):
         self.put(_next_, other)
@@ -298,9 +307,7 @@ class List(Node[_T], Sequence[_T]):
             if self._entry.__class__ is not Entry:
                 raise NotImplementedError(type(self._entry))
             self._combine = self.__post_process__(
-                EntryCombiner(self._entry._cache,
-                              path=self._entry._path,
-                              default_value=self._default_value),
+                EntryCombiner(self._default_value, self),
                 parent=self._parent, not_insert=True)
         return self._combine
 
