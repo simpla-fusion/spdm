@@ -271,25 +271,17 @@ class List(Node[_T], Sequence[_T]):
         return super().__len__()
 
     def __setitem__(self, query: _TQuery, v: _T) -> None:
-        super().__setitem__(query, v)
+        super().put(query, self.__pre_process__(v))
 
     def __getitem__(self, query: _TQuery) -> _T:
-        obj0 = self.get(query)
-        obj1 = self.__post_process__(obj0)
-        if obj1 is not obj0:
-            self._entry.extend(query).push(obj1)
-
-        return obj1
+        return self.__post_process__(super().get(query, _not_found_))
 
     def __delitem__(self, query: _TQuery) -> None:
-        super().__delitem__(query)
+        return self.put(query, Entry.op_tag.erase)
 
     def __iter__(self) -> Iterator[_T]:
-        for idx, obj in enumerate(self._entry.iter()):
-            obj1 = self.__post_process__(obj)
-            if obj1 is not obj:
-                self._entry.extend(idx).push(obj1)
-            yield obj1
+        for obj in self._entry.iter():
+            yield self.__post_process__(obj)
 
     def __iadd__(self, other):
         self.put(_next_, other)
@@ -304,8 +296,6 @@ class List(Node[_T], Sequence[_T]):
     @property
     def combine(self) -> _T:
         if self._combine is None:
-            if self._entry.__class__ is not Entry:
-                raise NotImplementedError(type(self._entry))
             self._combine = self.__post_process__(
                 EntryCombiner(self._default_value, self),
                 parent=self._parent, not_insert=True)

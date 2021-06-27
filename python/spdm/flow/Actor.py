@@ -25,6 +25,10 @@ class Actor(Dict[Node]):
             pass
 
     def __new__(cls, desc=None, *args, **kwargs):
+
+        if cls is not Actor:
+            return super(Actor, cls).__new__(cls, desc, *args, **kwargs)
+
         prefix = getattr(cls, "_actor_module_prefix", None)
         n_cls = cls
         cls_name = None
@@ -46,7 +50,7 @@ class Actor(Dict[Node]):
             else:
                 logger.info(f"Load actor '{prefix}{cls_name}={guess_class_name(n_cls)}'!")
 
-        return object.__new__(n_cls)
+        return super(Actor, n_cls).__new__(n_cls)
 
     def __init__(self, d=None,  /, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
         super().__init__(d,  **kwargs)
