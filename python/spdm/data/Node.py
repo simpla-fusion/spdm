@@ -130,16 +130,6 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def __post_process__(self, value: _T,   *args, parent=None, query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
-        old_value = value
-        if isinstance(value, Node):
-            pass
-        elif isinstance(value, (collections.abc.Mapping, list)):
-            value = Entry(value)
-        elif not isinstance(value,  Entry):
-            return value
-        # elif isinstance(value,Node):
-        #     return value
-
         if self.__new_child__ is _undefined_:
             child_cls = None
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
@@ -151,29 +141,47 @@ class Node(EntryContainer[_TObject]):
 
             self.__new_child__ = child_cls
 
+        old_value = value
+
+        if inspect.isclass(self.__new_child__) and isinstance(value, self.__new_child__):
+            return value
+        elif isinstance(value, (int, float, str, np.ndarray, Node)):
+            return value
+        elif isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)):
+            entry = Entry(value)
+        elif isinstance(value, Entry):
+            entry = value
+        else:
+            raise TypeError(type(value))
+
         parent = parent if parent is not None else self
+
         if inspect.isclass(self.__new_child__):
-            if isinstance(value, self.__new_child__):
-                pass
-            elif issubclass(self.__new_child__, Node):
-                value = self.__new_child__(value, *args, parent=parent, **kwargs)
+            if issubclass(self.__new_child__, List):
+                # if entry.__class__ is Entry:
+                #     entry = Entry(entry.push({Entry.op_tag.try_insert: _LIST_TYPE_()}))
+                obj = self.__new_child__(entry, *args, parent=parent, **kwargs)
+            elif issubclass(self.__new_child__, Dict):
+                # if entry.__class__ is Entry:
+                #     entry = Entry(entry.push({Entry.op_tag.try_insert: _DICT_TYPE_()}))
+                obj = self.__new_child__(entry, *args, parent=parent, **kwargs)
             else:
-                value = self.__new_child__(value, *args,  **kwargs)
+                obj = self.__new_child__(entry, *args,  **kwargs)
 
         elif callable(self.__new_child__):
-            value = self.__new_child__(value, *args, parent=parent,  **kwargs)
+            obj = self.__new_child__(entry, *args, parent=parent,  **kwargs)
         elif self.__new_child__ is not None:
             raise TypeError(f"Illegal type! {self.__new_child__}")
-        elif value.is_list:
-            value = List(value, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
-        elif value.is_dict:
-            value = Dict(value, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
+        elif entry.is_list:
+            obj = List(entry, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
+        elif entry.is_dict:
+            obj = Dict(entry, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
         else:
-            value = Node(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
+            obj = Node(entry, *args, parent=parent, new_child=self.__new_child__, **kwargs)
 
-        if query is not _undefined_ and old_value is not value:
-            self.put(query, value)
-        return value
+        if query is not _undefined_ and old_value is not obj:
+            self.put(query, obj)
+        return obj
 
     def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
         return super().get(path, default_value, **kwargs)
@@ -474,7 +482,7 @@ class _SpProperty(Generic[_T]):
                             else:
                                 obj = tmp
 
-                    if obj is not _undefined_ and obj is not val and isinstance(cache, Entry):
+                    if obj is not _undefined_ and obj is not val and isinstance(cache, Entry):                       
                         val = cache.put(self.attrname, obj)
                     else:
                         val = obj

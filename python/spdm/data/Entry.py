@@ -98,6 +98,7 @@ class Entry(object):
         append = auto()
         erase = auto()
         reset = auto()
+        try_insert = auto()
         # read
         fetch = auto()
         equal = auto()
@@ -322,6 +323,18 @@ class Entry(object):
                 val = v
         return val
 
+    def _op_try_insert(target, key, v):
+        if isinstance(target, collections.abc.Mapping):
+            val = target.setdefault(key, v)
+        elif isinstance(target, collections.abc.Sequence):
+            val = target[key]
+            if val is None or val is _not_found_:
+                target[key] = v
+                val = v
+        else:
+            raise RuntimeError(type(target))
+        return val
+
     def _op_check(target, pred=None, *args) -> bool:
         if pred is None:
             return target is not None
@@ -340,6 +353,7 @@ class Entry(object):
         op_tag.update: _op_update,
         op_tag.append: _op_append,
         op_tag.erase: _op_erase,  # lambda target, key, v: (del target[key]),
+        op_tag.try_insert: _op_try_insert,  # lambda target, key, v: (del target[key]),
 
         # read
         op_tag.fetch: lambda v, default_value: v if v is not _not_found_ else default_value,
@@ -496,8 +510,24 @@ class Entry(object):
 
         if isinstance(value, Entry.op_tag):
             value = {value: None}
+        elif hasattr(value, "_entry") \
+                and value._entry._cache is self._cache \
+                and len(self._path) <= len(value._entry._path) \
+                and all([v == value._entry._path[idx] for idx, v in enumerate(self._path)]):
+            value._entry._cache = None
+            value._entry._path = value._entry._path[len(self._path):]
 
-        return self._ht_put(self._cache,  self._path, value)
+        return self._ht_put(self._cache, self._path, value)
+
+    def has_child(self, other: _TEntry) -> bool:
+        if other.__class__ is not Entry or self._cache is not other._cache or len(self._path) > len(other._path):
+            return False
+        else:
+            return all([v == other._path[idx] for idx, v in enumerate(self._path)])
+
+    def flush(self, v):
+        self._cache = self.push({Entry.op_tag.try_insert: v})
+        self._path = []
 
 
 class EntryCombiner(Entry):
