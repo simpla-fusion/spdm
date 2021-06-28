@@ -12,8 +12,10 @@ from ..util.utilities import (_empty, _undefined_, _not_found_,
                               guess_class_name)
 from .Session import Session
 
+_TState = TypeVar("_TState")
 
-class Actor(Dict[Node]):
+
+class Actor(Dict[Node], Generic[_TState]):
     """
         Action/Event: Objects whose state changes over time
     """

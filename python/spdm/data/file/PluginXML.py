@@ -87,7 +87,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 class XMLEntry(Entry):
     def __init__(self, root, *args, **kwargs):
-        super().__init__(None, *args,   **kwargs)
+        super().__init__({}, *args,   **kwargs)
         self._root = root
 
     def __repr__(self) -> str:

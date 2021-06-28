@@ -133,12 +133,15 @@ class Entry(object):
 
     def __init__(self, cache=None,   path=None,      **kwargs):
         super().__init__()
-        self._cache = None
+        self._cache = cache
         self._path = self.normalize_query(path)
-        self.enable_cache(cache)
+        # self.enable_cache(cache)
 
     def duplicate(self) -> _TEntry:
-        return self.__class__(self._cache, path=self._path)
+        obj = object.__new__(self.__class__)
+        obj._cache = self._cache
+        obj._path = self._path
+        return obj
 
     def __serialize__(self, *args, **kwargs):
         return NotImplemented
@@ -525,7 +528,7 @@ class Entry(object):
             raise ValueError(f"{self._path}")
 
         if self._cache is None:
-            if isinstance(self._path[0], str):
+            if len(self._path) > 0 and isinstance(self._path[0], str):
                 self._cache = _DICT_TYPE_()
             else:
                 self._cache = _LIST_TYPE_()
@@ -571,9 +574,10 @@ class EntryWrapper(Entry):
 
 
 class EntryCombiner(Entry):
-    def __init__(self, cache, d_list: Sequence = [], /, reducer=None, **kwargs):
-        super().__init__(cache,   **kwargs)
-        self._reducer = reducer if reducer is not None else operator.__add__
+    def __init__(self,  d_list: Sequence = [], /, default_value=None, reducer=_undefined_,  partition=_undefined_, **kwargs):
+        super().__init__(default_value,   **kwargs)
+        self._reducer = reducer if reducer is not _undefined_ else operator.__add__
+        self._partition = partition if partition is not _undefined_ else operator.__add__
         self._d_list = d_list
 
     def duplicate(self):
@@ -587,7 +591,6 @@ class EntryCombiner(Entry):
         return super().push(value)
 
     def pull(self,  default_value: _T = _not_found_) -> _T:
-        res = default_value
 
         val = super().pull(_not_found_)
 
@@ -602,7 +605,14 @@ class EntryCombiner(Entry):
             elif len(val) > 0:
                 val = functools.reduce(self._reducer, val[1:], val[0])
 
-        return res
+        return val
+
+
+class EntryScatter(Entry):
+    def __init__(self,  d_list: Sequence = [], /, default_value=None,  **kwargs):
+        super().__init__(default_value, **kwargs)
+        self._partition = partition if partition is not _undefined_ else operator.__add__
+        self._d_list = d_list
 
 
 class EntryIterator(Iterator[_TObject]):

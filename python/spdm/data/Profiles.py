@@ -12,16 +12,12 @@ from spdm.util.utilities import _not_found_
 class Profiles(Dict[_TObject]):
     __slots__ = ("_axis",)
 
-    def __init__(self,   *args, axis=None, ** kwargs):
-
-        super().__init__(*args, **kwargs)
-        if isinstance(axis, int):
-            axis = np.linspace(0, 1.0, axis)
-        elif isinstance(axis, np.ndarray):
-            axis = axis.view(np.ndarray)
-        else:
-            axis = getattr(self._parent, "_axis", None)
+    def __init__(self,  d, /, axis: np.ndarray, ** kwargs):
+        def new_child(value, _axis=axis):
+            return Function(_axis, value) if isinstance(value, np.ndarray) and value.shape == _axis.shape else value
+        super().__init__(d, new_child=new_child, **kwargs)
         self._axis = axis
 
-        self.__new_child__ = lambda value, parent=self: Function(parent._axis, value) if isinstance(
-            value, np.ndarray) and value.shape == parent._axis.shape else value
+    @property
+    def axis(self) -> np.ndarray:
+        return self._axis

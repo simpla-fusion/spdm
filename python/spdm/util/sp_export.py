@@ -7,7 +7,7 @@ import pathlib
 import sys
 import pkgutil
 from .logger import logger
-from .utilities import getattr_r
+from .utilities import getattr_r, _not_found_
 
 SP_EXPORT_KEYWORD = "__SP_EXPORT__"
 

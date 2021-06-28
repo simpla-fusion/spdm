@@ -53,7 +53,7 @@ class Node(EntryContainer[_TObject]):
     """
     __slots__ = "_parent",   "__orig_class__", "__new_child__"
 
-    def __init__(self, cache: Any = None, *args, parent=None, new_child=_undefined_,   **kwargs):
+    def __init__(self, cache: Any = None, /, parent=None, new_child=_undefined_):
         super().__init__(cache)
         self._parent = parent
         self.__new_child__ = new_child
@@ -247,21 +247,17 @@ class Node(EntryContainer[_TObject]):
 
 
 class List(Node[_T], Sequence[_T]):
-    __slots__ = ("_v_args", "_combine", "_default_value")
+    __slots__ = ("_v_kwargs")
 
-    def __init__(self, cache: Optional[Sequence] = None, *args, parent=None, default_value=None,  **kwargs) -> None:
-        Node.__init__(self, cache if cache is not None else _LIST_TYPE_(), *args, parent=parent, **kwargs)
-        self._v_args = (args, kwargs)
-        self._default_value = default_value
-        self._combine = None
+    def __init__(self, cache: Optional[Sequence] = None, /,  parent=None,  **kwargs) -> None:
+        Node.__init__(self, cache if cache is not None else _LIST_TYPE_(),  parent=parent)
+        self._v_kwargs = kwargs
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    def __post_process__(self, value: _T,   /,   parent=None,   **kwargs) -> Union[_T, _TNode]:
-        if parent is None:
-            parent = self._parent
-        return super().__post_process__(value, parent=parent, **kwargs)
+    def __post_process__(self, value: _TObject,   /,   parent: Node = None, **kwargs) -> _T:
+        return super().__post_process__(value, parent=parent if parent is not None else self._parent,  **collections.ChainMap(kwargs, self._v_kwargs))
 
     @property
     def __category__(self):
@@ -293,20 +289,14 @@ class List(Node[_T], Sequence[_T]):
         else:
             raise NotImplementedError()
 
-    @property
-    def combine(self) -> _T:
-        if self._combine is None:
-            self._combine = self.__post_process__(
-                EntryCombiner(self._default_value, self),
-                parent=self._parent, not_insert=True)
-        return self._combine
+    def combine(self, default_value=None, reducer=_undefined_, partition=_undefined_) -> _T:
+        return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition), parent=self._parent)
 
-    def refresh(self, *args, **kwargs):
-        # super().refresh(*args, **kwargs)
+    def refresh(self, d=None, /, **kwargs):
+        # super().update(d)
         for element in self.__iter__():
             if hasattr(element.__class__, 'refresh'):
-                element.refresh(*args, **kwargs)
-        self._combine = None
+                element.refresh(**kwargs)
 
     def reset(self, value=None):
         if isinstance(value, (collections.abc.Sequence)):
@@ -319,8 +309,8 @@ class List(Node[_T], Sequence[_T]):
 class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ()
 
-    def __init__(self, cache: Optional[Mapping] = None, *args,  **kwargs):
-        Node.__init__(self, cache if cache is not None else _DICT_TYPE_(), *args, **kwargs)
+    def __init__(self, cache: Optional[Mapping] = None,  /, **kwargs):
+        Node.__init__(self, cache if cache is not None else _DICT_TYPE_(),   **kwargs)
 
     @property
     def __category__(self):
