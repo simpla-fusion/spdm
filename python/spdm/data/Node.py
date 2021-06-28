@@ -293,7 +293,7 @@ class List(Node[_T], Sequence[_T]):
         return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition), parent=self._parent)
 
     def refresh(self, d=None, /, **kwargs):
-        # super().update(d)
+        super().update(d)
         for element in self.__iter__():
             if hasattr(element.__class__, 'refresh'):
                 element.refresh(**kwargs)

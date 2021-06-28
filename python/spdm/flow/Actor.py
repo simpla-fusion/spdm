@@ -19,17 +19,10 @@ class Actor(Dict[Node], Generic[_TState]):
     """
         Action/Event: Objects whose state changes over time
     """
-    @dataclass
-    class State:
-        time: float
-
-        def update(self, *args, **kwargs):
-            pass
 
     def __new__(cls, desc=None, *args, **kwargs):
-
-        if cls is not Actor:
-            return super(Actor, cls).__new__(cls, desc, *args, **kwargs)
+        # if cls is not Actor:
+        #     return super(Actor, cls).__new__(cls, desc, *args, **kwargs)
 
         prefix = getattr(cls, "_actor_module_prefix", None)
         n_cls = cls
@@ -38,8 +31,6 @@ class Actor(Dict[Node], Generic[_TState]):
             pass
         elif isinstance(desc, collections.abc.Mapping):
             cls_name = desc.get("code", {}).get("name", None)
-        # elif isinstance(desc, EntryCombiner):
-        #     cls_name = _undefined_
         elif isinstance(desc, Entry):
             cls_name = desc.get("code.name", _undefined_)
 
@@ -52,15 +43,21 @@ class Actor(Dict[Node], Generic[_TState]):
             else:
                 logger.info(f"Load actor '{prefix}{cls_name}={guess_class_name(n_cls)}'!")
 
-        return super(Actor, n_cls).__new__(n_cls)
+        return super(Actor, n_cls).__new__(n_cls, desc, *args, **kwargs)
 
     def __init__(self, d=None,  /, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
+
         super().__init__(d,  **kwargs)
+
+        logger.debug(f"Inititalize Actor {guess_class_name(self.__class__)}")
 
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
         self._s_entry = dumper
         self._s_deque = collections.deque(maxlen=maxlen)
+
+    def __del__(self):
+        logger.debug(f"Delete Actor {guess_class_name(self.__class__)}")
 
     @property
     def time(self):
@@ -69,24 +66,23 @@ class Actor(Dict[Node], Generic[_TState]):
     def job_id(self):
         return self._job_id
 
-    def states(self) -> Sequence[State]:
+    def states(self) -> Sequence[_TState]:
         return self._s_deque
 
     @property
-    def previous_state(self) -> State:
+    def previous_state(self) -> _TState:
         return self._s_deque[-1] if len(self._s_deque) > 0 else self
 
-    def current_state(self) -> State:
+    def current_state(self) -> _TState:
         """
             Function:  gather current state based on the dataclass ‘State’
             Return  :  state
         """
-        assert(is_dataclass(self.State))
 
-        return self.State(**collections.ChainMap({"time": self._time},
-                                                 {f.name: getattr(self, f.name, _not_found_) for f in fields(self.__class__.State)}))
+        return collections.ChainMap({"time": self._time},
+                                    {f.name: getattr(self, f.name, _not_found_) for f in fields(self.__class__.State)})
 
-    def flush(self) -> State:
+    def flush(self) -> _TState:
         current_state = self.current_state
         if self._s_entry is not None:
             next(self._s_entry).__reset__(current_state)
@@ -128,11 +124,11 @@ class Actor(Dict[Node], Generic[_TState]):
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        super().update(value, *args, **kwargs)
+        logger.debug(f"Refresh Actor {guess_class_name(self.__class__)}")
+
+        # super().update(value, *args, **kwargs)
 
         self._time = self.get("time", 0.0)
-
-        return self._time
 
     def reset(self, value=None, /, **kwargs) -> None:
         super().reset()

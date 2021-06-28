@@ -65,7 +65,7 @@ class EntryContainer(Generic[_TObject]):
     def reset(self, value: _T = None, **kwargs) -> None:
         self._entry.push({Entry.op_tag.assign: value},  **kwargs)
 
-    def update(self,  value: _T,    ** kwargs) -> _T:
+    def update(self,  value: _T,  ** kwargs) -> _T:
         return self._entry.push({Entry.op_tag.update: value},  **kwargs)
 
 
