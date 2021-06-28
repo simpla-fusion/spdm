@@ -122,14 +122,6 @@ class Entry(object):
 
         query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
         return query
-        # def _op_convert(d):
-        #     if isinstance(d, str) and d[0] == '@':
-        #         d = Entry.op_tag.__members__.get(d[1:], d)
-        #     elif isinstance(d, collections.abc.Mapping):
-        #         d = {_op_convert(k): (_op_convert(v) if isinstance(v, collections.abc.Mapping) else v)
-        #              for k, v in d.items()}
-        #     return d
-        # return [_op_convert(d) for d in query]
 
     def __init__(self, cache=None,   path=None,      **kwargs):
         super().__init__()
@@ -341,6 +333,7 @@ class Entry(object):
             return all([Entry._op_check(target, k, v) for k, v in pred.items()])
         else:
             return target == pred
+
     _ops = {
         op_tag.insert: _op_insert,
         op_tag.assign: _op_assign,
@@ -420,31 +413,6 @@ class Entry(object):
 
         return val
 
-        # elif isinstance(obj, collections.abc.Mapping):
-        #     if not isinstance(key, str):
-        #         raise TypeError(f"mapping indices must be str, not {type(key).__name__}! \"{query}\"")
-        #     tmp = obj.find(key, _not_found_)
-        #     obj = tmp
-        # elif isinstance(obj, collections.abc.MutableSequence):
-        #     if not isinstance(key, (int, slice)):
-        #         raise TypeError(
-        #             f"list indices must be integers or slices, not {type(key).__name__}! \"{query[:idx+1]}\" {type(obj)}")
-        #     elif isinstance(key, int) and isinstance(target._cache, collections.abc.MutableSequence) and key > len(target._cache):
-        #         raise IndexError(f"Out of range! {key} > {len(target._cache)}")
-        #     obj = obj[key]
-        # elif hasattr(obj, "_cache"):
-        #     if obj._cache._cache == target._cache and obj._cache._path == query[:idx]:
-        #         suffix = query
-        #         obj = obj._cache._cache
-        #         break
-        #     else:
-        #         obj = obj._cache.find(query[idx:])
-        #     break
-
-        # if rquery is None:
-        #     target._cache = obj
-        #     target._path = []
-
     @staticmethod
     def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True) -> Tuple[_T, bool]:
         """
@@ -514,13 +482,6 @@ class Entry(object):
         return val
 
     def pull(self, default_value: Union[op_tag, _T] = _not_found_) -> _T:
-        # if isinstance(op, (Entry.op_tag)):
-        #     op = {op: None}
-        # elif isinstance(op, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), op.keys())):
-        #     pass
-        # else:
-        #     op = {Entry.op_tag.fetch: op}
-
         return self._ht_get(self._cache, self._path,  default_value)
 
     def push(self,  value: _T) -> Tuple[_T, bool]:
@@ -537,6 +498,45 @@ class Entry(object):
             value = {value: None}
 
         return self._ht_put(self._cache,  self._path, value)
+
+
+class EntryCombiner(Entry):
+    def __init__(self,  d_list: Sequence = [], /, default_value=None, reducer=_undefined_,  partition=_undefined_, **kwargs):
+        super().__init__(default_value,   **kwargs)
+        self._reducer = reducer if reducer is not _undefined_ else operator.__add__
+        self._partition = partition if partition is not _undefined_ else operator.__add__
+        self._d_list = d_list
+
+    def duplicate(self):
+        res = super().duplicate()
+        res._reducer = self._reducer
+        res._d_list = self._d_list
+
+        return res
+
+    def push(self,  value: _T = _not_found_) -> _T:
+        return super().push(value)
+
+    def pull(self,  default_value: _T = _not_found_) -> _T:
+
+        val = super().pull(_not_found_)
+
+        if val is _not_found_:
+            val = Entry._ht_get(self._d_list, [slice(None, None, None)] + self._path, _not_found_)
+
+        if isinstance(val, collections.abc.Sequence):
+            val = [d for d in val if (d is not None and d is not _not_found_)]
+
+            if any(map(lambda v: isinstance(v, (Entry, EntryContainer)), val)):
+                val = EntryCombiner(val)
+            elif len(val) > 0:
+                val = functools.reduce(self._reducer, val[1:], val[0])
+            else:
+                val = _not_found_
+
+        if val is _not_found_:
+            val = default_value
+        return val
 
 
 class EntryWrapper(Entry):
@@ -571,48 +571,6 @@ class EntryWrapper(Entry):
     def values(self):
         for k in self.keys():
             yield self.find(k)
-
-
-class EntryCombiner(Entry):
-    def __init__(self,  d_list: Sequence = [], /, default_value=None, reducer=_undefined_,  partition=_undefined_, **kwargs):
-        super().__init__(default_value,   **kwargs)
-        self._reducer = reducer if reducer is not _undefined_ else operator.__add__
-        self._partition = partition if partition is not _undefined_ else operator.__add__
-        self._d_list = d_list
-
-    def duplicate(self):
-        res = super().duplicate()
-        res._reducer = self._reducer
-        res._d_list = self._d_list
-
-        return res
-
-    def push(self,  value: _T = _not_found_) -> _T:
-        return super().push(value)
-
-    def pull(self,  default_value: _T = _not_found_) -> _T:
-
-        val = super().pull(_not_found_)
-
-        if val is _not_found_:
-            val = Entry._ht_get(self._d_list, [slice(None, None, None)] + self._path, _not_found_)
-
-        if isinstance(val, collections.abc.Sequence):
-            val = [d for d in val if (d is not None and d is not _not_found_)]
-
-            if any(map(lambda v: isinstance(v, (Entry, EntryContainer)), val)):
-                val = EntryCombiner(val)
-            elif len(val) > 0:
-                val = functools.reduce(self._reducer, val[1:], val[0])
-
-        return val
-
-
-class EntryScatter(Entry):
-    def __init__(self,  d_list: Sequence = [], /, default_value=None,  **kwargs):
-        super().__init__(default_value, **kwargs)
-        self._partition = partition if partition is not _undefined_ else operator.__add__
-        self._d_list = d_list
 
 
 class EntryIterator(Iterator[_TObject]):

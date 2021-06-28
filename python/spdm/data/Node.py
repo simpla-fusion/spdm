@@ -129,11 +129,16 @@ class Node(EntryContainer[_TObject]):
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, value: _T,   *args, parent=None,   **kwargs) -> Union[_T, _TNode]:
-        if isinstance(value, (collections.abc.Mapping, list)):
+    def __post_process__(self, value: _T,   *args, parent=None, query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+        old_value = value
+        if isinstance(value, Node):
+            pass
+        elif isinstance(value, (collections.abc.Mapping, list)):
             value = Entry(value)
         elif not isinstance(value,  Entry):
             return value
+        # elif isinstance(value,Node):
+        #     return value
 
         if self.__new_child__ is _undefined_:
             child_cls = None
@@ -166,6 +171,8 @@ class Node(EntryContainer[_TObject]):
         else:
             value = Node(value, *args, parent=parent, new_child=self.__new_child__, **kwargs)
 
+        if query is not _undefined_ and old_value is not value:
+            self.put(query, value)
         return value
 
     def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
@@ -178,7 +185,10 @@ class Node(EntryContainer[_TObject]):
         return self.put(query,  self.__pre_process__(value))
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        return self.__post_process__(self.get(query))
+        res = self.__post_process__(self.get(query, _not_found_), query=query)
+        if res is _not_found_:
+            raise KeyError(query)
+        return res
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self.put(query, Entry.op_tag.erase)
@@ -190,8 +200,8 @@ class Node(EntryContainer[_TObject]):
         return self._entry.pull(Entry.op_tag.count)
 
     def __iter__(self) -> Iterator[_T]:
-        for obj in self._entry.iter():
-            yield self.__post_process__(obj)
+        for idx, obj in enumerate(self._entry.iter()):
+            yield self.__post_process__(obj, query=[idx])
 
     def __eq__(self, other) -> bool:
         return self._entry.pull({Entry.op_tag.equal: other})
@@ -200,10 +210,10 @@ class Node(EntryContainer[_TObject]):
         return not self.empty  # and (not self.__fetch__())
 
     def _as_dict(self) -> Mapping:
-        return {k: self.__post_process__(v) for k, v in self._entry.items()}
+        return {k: self.__post_process__(v, query=[k]) for k, v in self._entry.items()}
 
     def _as_list(self) -> Sequence:
-        return [self.__post_process__(v) for v in self._entry.values()]
+        return [self.__post_process__(v, query=[idx]) for idx, v in enumerate(self._entry.values())]
 
     class Category(IntFlag):
         UNKNOWN = 0
@@ -250,6 +260,8 @@ class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_kwargs")
 
     def __init__(self, cache: Optional[Sequence] = None, /,  parent=None,  **kwargs) -> None:
+        if not isinstance(cache, (collections.abc.Sequence, Entry)) or isinstance(cache, str):
+            cache = [cache]
         Node.__init__(self, cache if cache is not None else _LIST_TYPE_(),  parent=parent)
         self._v_kwargs = kwargs
 
@@ -267,17 +279,17 @@ class List(Node[_T], Sequence[_T]):
         return super().__len__()
 
     def __setitem__(self, query: _TQuery, v: _T) -> None:
-        super().put(query, self.__pre_process__(v))
+        super().__setitem__(query, v)
 
     def __getitem__(self, query: _TQuery) -> _T:
-        return self.__post_process__(super().get(query, _not_found_))
+        return super().__getitem__(query)
 
     def __delitem__(self, query: _TQuery) -> None:
-        return self.put(query, Entry.op_tag.erase)
+        return super().__delitem__(query)
 
     def __iter__(self) -> Iterator[_T]:
-        for obj in self._entry.iter():
-            yield self.__post_process__(obj)
+        for idx, obj in enumerate(self._entry.iter()):
+            yield self.__post_process__(obj, query=[idx])
 
     def __iadd__(self, other):
         self.put(_next_, other)
@@ -293,7 +305,7 @@ class List(Node[_T], Sequence[_T]):
         return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition), parent=self._parent)
 
     def refresh(self, d=None, /, **kwargs):
-        super().update(d)
+        # super().update(d)
         for element in self.__iter__():
             if hasattr(element.__class__, 'refresh'):
                 element.refresh(**kwargs)
