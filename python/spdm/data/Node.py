@@ -130,6 +130,9 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def __post_process__(self, value: _T,   *args, parent=None, query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+        if isinstance(value, (int, float, str, np.ndarray, Node)) or value in (None, _not_found_, _undefined_):
+            return value
+
         if self.__new_child__ is _undefined_:
             child_cls = None
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
@@ -145,8 +148,7 @@ class Node(EntryContainer[_TObject]):
 
         if inspect.isclass(self.__new_child__) and isinstance(value, self.__new_child__):
             return value
-        elif isinstance(value, (int, float, str, np.ndarray, Node)):
-            return value
+
         elif isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)):
             entry = Entry(value)
         elif isinstance(value, Entry):
@@ -169,7 +171,7 @@ class Node(EntryContainer[_TObject]):
                 obj = self.__new_child__(entry, *args,  **kwargs)
 
         elif callable(self.__new_child__):
-            obj = self.__new_child__(entry, *args, parent=parent,  **kwargs)
+            obj = self.__new_child__(entry, *args,   **kwargs)
         elif self.__new_child__ is not None:
             raise TypeError(f"Illegal type! {self.__new_child__}")
         elif entry.is_list:
@@ -183,20 +185,20 @@ class Node(EntryContainer[_TObject]):
             self.put(query, obj)
         return obj
 
-    def get(self, path: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
-        return super().get(path, default_value, **kwargs)
+    def get(self, query: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
+        return self.__post_process__(super().get(query, default_value, **kwargs), query=query)
 
-    def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
-        return super().put(path, value,  **kwargs)
+    def put(self, query: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
+        return super().put(query,  self.__pre_process__(value))
 
-    def remove(self, path: _TQuery, /, **kwargs) -> None:
-        return super().remove(path,  **kwargs)
+    def remove(self, query: _TQuery, /, **kwargs) -> None:
+        return super().remove(query,  **kwargs)
 
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self.put(query,  self.__pre_process__(value))
+        return self.put(query,  value)
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        res = self.__post_process__(self.get(query, _not_found_), query=query)
+        res = self.get(query)
         if res is _not_found_:
             raise KeyError(query)
         return res

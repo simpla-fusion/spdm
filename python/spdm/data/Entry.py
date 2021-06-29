@@ -305,7 +305,9 @@ class Entry(object):
         return success
 
     def _op_update(target, key, v):
-        if isinstance(v, collections.abc.Mapping):
+        if v is _undefined_:
+            val = Entry._ht_get(target, key, _not_found_)
+        elif isinstance(v, collections.abc.Mapping):
             if key is None:
                 val = target
             elif isinstance(target, collections.abc.Mapping):
@@ -456,9 +458,11 @@ class Entry(object):
             #     query[idx] = len(target)-1
             #     continue
             elif idx == last_idx:
-                if isinstance(value, (dict, collections.ChainMap)) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+                if hasattr(value, "_entry"):
+                    val = Entry._op_assign(target, key, value)
+                elif isinstance(value, (collections.abc.Mapping)) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
                     val = [Entry._ops[k](target, key, v) for k, v in value.items()]
-                    if len(val) == 0:
+                    if len(val) == 1:
                         val = val[0]
                 else:
                     val = Entry._op_assign(target, key, value)
