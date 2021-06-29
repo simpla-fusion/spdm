@@ -254,7 +254,7 @@ class Entry(object):
         self.push(Entry.op_tag.erase)
 
     def iter(self):
-        obj = self.get(None)
+        obj = self.pull()
 
         if isinstance(obj, Entry):
             yield from obj.iter()
@@ -262,6 +262,25 @@ class Entry(object):
             yield from obj
         else:
             raise NotImplementedError(obj)
+
+    def _op_by_filter(target, pred, op,  *args, on_fail: Callable = _undefined_):
+        if not isinstance(target, collections.abc.Sequence):
+            raise TypeError(type(target))
+
+        if isinstance(pred, collections.abc.Mapping):
+            def pred(val, _cond=pred):
+                if not isinstance(val, collections.abc.Mapping):
+                    return False
+                else:
+                    return all([val.get(k, _not_found_) == v for k, v in _cond.items()])
+
+        res = [op(target, idx, *args) for idx, val in enumerate(target) if pred(val)]
+
+        if len(res) == 1:
+            res = res[0]
+        elif len(res) == 0 and on_fail is not _undefined_:
+            res = on_fail(target)
+        return res
 
     def _op_assign(target, k, v):
         if k is _next_:
@@ -458,10 +477,13 @@ class Entry(object):
             #     query[idx] = len(target)-1
             #     continue
             elif idx == last_idx:
-                if hasattr(value, "_entry"):
+                if isinstance(key, collections.abc.Mapping):
+                    val = Entry._op_by_filter(target, key, Entry._op_assign, deepcopy(key))
+                elif hasattr(value, "_entry"):
                     val = Entry._op_assign(target, key, value)
-                elif isinstance(value, (collections.abc.Mapping)) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
-                    val = [Entry._ops[k](target, key, v) for k, v in value.items()]
+                elif isinstance(value, (collections.abc.Mapping)):
+                    if any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+                        val = [Entry._ops[k](target, key, v) for k, v in value.items()]
                     if len(val) == 1:
                         val = val[0]
                 else:
@@ -494,8 +516,17 @@ class Entry(object):
                 else:
                     val = [Entry._ht_put(target, [j]+query[idx+1:], value) for i, j in enumerate(key)]
                 break
+            elif isinstance(target, collections.abc.Sequence) and isinstance(key, dict):
+                def _on_fail(o, v=key):
+                    v = deepcopy(v)
+                    o.append(v)
+                    return v
+
+                def _fetch(val, idx):
+                    return val[idx]
+                val = Entry._op_by_filter(target, key, _fetch, on_fail=_on_fail)
             else:
-                raise TypeError(f"{type(target)} {type(key)}")
+                raise TypeError(f"{type(target)} {key}")
 
             target = val
             idx = idx+1
@@ -571,7 +602,9 @@ class EntryCombiner(Entry):
 
             if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
                 val = EntryCombiner(val)
-            elif len(val) > 0:
+            elif len(val) == 1:
+                val = val[0]
+            elif len(val) > 1:
                 val = functools.reduce(self._reducer, val[1:], val[0])
             else:
                 val = _not_found_

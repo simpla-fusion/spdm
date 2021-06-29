@@ -130,8 +130,14 @@ class Node(EntryContainer[_TObject]):
         return value
 
     def __post_process__(self, value: _T,   *args,   query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
-
-        if isinstance(value, (int, float, str, np.ndarray, Node)) or value in (None, _not_found_, _undefined_):
+        if isinstance(query, list) and len(query) > 1:
+            val = self
+            for idx, key in enumerate(query):
+                if not isinstance(val, Node):
+                    raise KeyError(query[:idx])
+                val = val.__post_process__(super(Node, val).get(key, _not_found_), query=key)
+            return val
+        elif isinstance(value, (int, float, str, np.ndarray, Node)) or value in (None, _not_found_, _undefined_):
             return value
         elif isinstance(value, collections.abc.Sequence):
             value = List(value, *args, parent=self, **kwargs)
@@ -258,21 +264,20 @@ class List(Node[_T], Sequence[_T]):
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    def __post_process__(self, value: _T,  /,  query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+    def __post_process__(self, value: _T,  /,  query=_undefined_, parent=_undefined_,  **kwargs) -> Union[_T, _TNode]:
         if isinstance(value, (int, float, str, np.ndarray, Node)) \
                 or value in (None, _not_found_, _undefined_):
             return value
         elif (isinstance(query, list) and (len(query) == 0 or isinstance(query[-1], str))):
             return value
+        elif isinstance(query, list) and len(query) > 1:
+            return super().__post_process__(value, query=query, **kwargs)
         elif not isinstance(query, list):
             parent = self
             key = query
         elif len(query) == 1:
             parent = self
             key = query[0]
-        else:
-            parent = super().get(query[:-1])
-            key = query[-1]
 
         if self.__new_child__ is _undefined_:
             child_cls = None
@@ -284,7 +289,8 @@ class List(Node[_T], Sequence[_T]):
                     child_cls = child_cls[0]
             self.__new_child__ = child_cls
 
-        n_value = self._as_type(self.__new_child__, value, **collections.ChainMap(kwargs, self._v_kwargs))
+        n_value = self._as_type(self.__new_child__, value, parent=parent if parent is not _undefined_ else self._parent,
+                                **collections.ChainMap(kwargs, self._v_kwargs))
         if n_value is not value and key is not _undefined_:
             parent.put(key, n_value)
         return n_value
@@ -343,22 +349,20 @@ class Dict(Node[_T], Mapping[str, _T]):
         Node.__init__(self, cache if cache is not None else _DICT_TYPE_(),   **kwargs)
         self.__new_child__ = new_child
 
-    def __post_process__(self, value: _T,   *args, parent=None, query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+    def __post_process__(self, value: _T,   *args, parent=_undefined_, query=_undefined_,   **kwargs) -> Union[_T, _TNode]:
         if isinstance(value, (int, float, str, np.ndarray, Node)) \
                 or value in (None, _not_found_, _undefined_) \
                 or not isinstance(query, (list, str)) \
-                or len(query) == 0 \
-                or not isinstance(query[-1], str):
+                or len(query) == 0:
             return value
+        elif isinstance(query, list) and len(query) > 1:
+            return super().__post_process__(value, query=query, parent=parent, **kwargs)
         elif not isinstance(query, list):
             parent = self
             key = query
         elif len(query) == 1:
             parent = self
             key = query[0]
-        else:
-            parent = super().get(query[:-1])
-            key = query[-1]
 
         if self.__new_child__ is not None:
             n_value = self._as_type(self.__new_child__, value, **kwargs)
@@ -372,7 +376,7 @@ class Dict(Node[_T], Mapping[str, _T]):
             elif isinstance(prop, (property)):
                 prop_type = prop.fget.__annotations__.get("return", None)
 
-            n_value = self._as_type(prop_type, value, **kwargs)
+            n_value = self._as_type(prop_type, value, parent=parent, **kwargs)
 
         if n_value is not value:
             parent.put(key, n_value)
@@ -507,7 +511,7 @@ class _SpProperty(Generic[_T]):
                     obj = self.func(instance)
                     if not self._isinstance(obj):
                         val = instance.__post_process__(obj, query=self.attrname)
-                    elif obj is not _undefined_ and obj is not val and isinstance(cache, Entry):
+                    elif obj is not _undefined_ and obj is not val and isinstance(cache, (Entry, Node)):
                         val = cache.put(self.attrname, obj)
                     else:
                         val = obj
