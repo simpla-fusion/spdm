@@ -13,8 +13,9 @@ from functools import cached_property
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
+import dataclasses
 
-from numpy.lib.arraysetops import isin
+from numpy.lib.arraysetops import _isin_dispatcher, isin
 from ..util.sp_export import sp_find_module
 from ..numlib import np, scipy
 from ..util.logger import logger
@@ -51,12 +52,11 @@ class Node(EntryContainer[_TObject]):
 
         @enduml
     """
-    __slots__ = "_parent",   "__orig_class__", "__new_child__"
+    __slots__ = "_parent",   "__orig_class__"
 
-    def __init__(self, cache: Any = None, /, parent=None, new_child=_undefined_):
+    def __init__(self, cache: Any = None, /, parent=None):
         super().__init__(cache)
         self._parent = parent
-        self.__new_child__ = new_child
 
     def __repr__(self) -> str:
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} id='{self.nid}' />"
@@ -129,79 +129,36 @@ class Node(EntryContainer[_TObject]):
     def __pre_process__(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def __post_process__(self, value: _T,   *args, parent=None, query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+    def __post_process__(self, value: _T,   *args,   query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+
         if isinstance(value, (int, float, str, np.ndarray, Node)) or value in (None, _not_found_, _undefined_):
             return value
-
-        if self.__new_child__ is _undefined_:
-            child_cls = None
-            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-            orig_class = getattr(self, "__orig_class__", None)
-            if orig_class is not None:
-                child_cls = get_args(self.__orig_class__)
-                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    child_cls = child_cls[0]
-
-            self.__new_child__ = child_cls
-
-        old_value = value
-
-        if inspect.isclass(self.__new_child__) and isinstance(value, self.__new_child__):
-            return value
-
-        elif isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)):
-            entry = Entry(value)
+        elif isinstance(value, collections.abc.Sequence):
+            value = List(value, *args, parent=self, **kwargs)
+        elif isinstance(value, collections.abc.Mapping):
+            value = Dict(value, *args, parent=self, **kwargs)
         elif isinstance(value, Entry):
-            entry = value
-        else:
-            raise TypeError(type(value))
+            value = Node(value, *args, parent=self, **kwargs)
 
-        parent = parent if parent is not None else self
+        return value
 
-        if inspect.isclass(self.__new_child__):
-            if issubclass(self.__new_child__, List):
-                # if entry.__class__ is Entry:
-                #     entry = Entry(entry.push({Entry.op_tag.try_insert: _LIST_TYPE_()}))
-                obj = self.__new_child__(entry, *args, parent=parent, **kwargs)
-            elif issubclass(self.__new_child__, Dict):
-                # if entry.__class__ is Entry:
-                #     entry = Entry(entry.push({Entry.op_tag.try_insert: _DICT_TYPE_()}))
-                obj = self.__new_child__(entry, *args, parent=parent, **kwargs)
-            else:
-                obj = self.__new_child__(entry, *args,  **kwargs)
-
-        elif callable(self.__new_child__):
-            obj = self.__new_child__(entry, *args,   **kwargs)
-        elif self.__new_child__ is not None:
-            raise TypeError(f"Illegal type! {self.__new_child__}")
-        elif entry.is_list:
-            obj = List(entry, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
-        elif entry.is_dict:
-            obj = Dict(entry, *args, parent=parent, new_child=self.__new_child__,  **kwargs)
-        else:
-            obj = Node(entry, *args, parent=parent, new_child=self.__new_child__, **kwargs)
-
-        if query is not _undefined_ and old_value is not obj:
-            self.put(query, obj)
-        return obj
-
-    def get(self, query: _TQuery = None,  default_value: _T = _undefined_, /,   **kwargs) -> _T:
-        return self.__post_process__(super().get(query, default_value, **kwargs), query=query)
+    def get(self, query: _TQuery = None,  default_value: _T = _undefined_,  **kwargs) -> _T:
+        return super().get(query, default_value, **kwargs)
 
     def put(self, query: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
-        return super().put(query,  self.__pre_process__(value))
+        return super().put(query,  value)
+
+    def fetch(self, query: _TQuery = None,  default_value: _T = _undefined_,  **kwargs) -> _T:
+        return self.__post_process__(super().get(query, default_value, **kwargs), query=query)
 
     def remove(self, query: _TQuery, /, **kwargs) -> None:
         return super().remove(query,  **kwargs)
 
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self.put(query,  value)
+        return self.put(query,  self.__pre_process__(value))
 
     def __getitem__(self, query: _TQuery) -> _TNode:
-        res = self.get(query)
-        if res is _not_found_:
-            raise KeyError(query)
-        return res
+        return self.__post_process__(self.get(query), query=query)
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self.put(query, Entry.op_tag.erase)
@@ -227,6 +184,21 @@ class Node(EntryContainer[_TObject]):
 
     def _as_list(self) -> Sequence:
         return [self.__post_process__(v, query=[idx]) for idx, v in enumerate(self._entry.values())]
+
+    def _as_type(self, prop_type, value, parent=None, **kwargs):
+        if (inspect.isclass(prop_type) and issubclass(prop_type, Node)) or issubclass(getattr(prop_type, '__origin__', type(None)), Node):
+            return prop_type(value, parent=parent, **kwargs)
+        elif dataclasses.is_dataclass(prop_type):
+            if isinstance(value, collections.abc.Mapping):
+                return prop_type(**{k: value.get(k, None) for k in prop_type.__dataclass_fields__})
+            elif isinstance(value, prop_type):
+                return value
+            else:
+                raise TypeError(type(value))
+        elif callable(prop_type):
+            return prop_type(value,  **kwargs)
+        else:
+            return value
 
     class Category(IntFlag):
         UNKNOWN = 0
@@ -270,19 +242,48 @@ class Node(EntryContainer[_TObject]):
 
 
 class List(Node[_T], Sequence[_T]):
-    __slots__ = ("_v_kwargs")
+    __slots__ = ("_v_kwargs", "__new_child__")
 
-    def __init__(self, cache: Optional[Sequence] = None, /,  parent=None,  **kwargs) -> None:
+    def __init__(self, cache: Optional[Sequence] = None, /,  parent=None, new_child=_undefined_, **kwargs) -> None:
         if not isinstance(cache, (collections.abc.Sequence, Entry)) or isinstance(cache, str):
             cache = [cache]
         Node.__init__(self, cache if cache is not None else _LIST_TYPE_(),  parent=parent)
         self._v_kwargs = kwargs
+        self.__new_child__ = new_child
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    def __post_process__(self, value: _TObject,   /,   parent: Node = None, **kwargs) -> _T:
-        return super().__post_process__(value, parent=parent if parent is not None else self._parent,  **collections.ChainMap(kwargs, self._v_kwargs))
+    def __post_process__(self, value: _T,  /,  query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+        if isinstance(value, (int, float, str, np.ndarray, Node)) \
+                or value in (None, _not_found_, _undefined_):
+            return value
+        elif (isinstance(query, list) and (len(query) == 0 or isinstance(query[-1], str))):
+            return value
+        elif not isinstance(query, list):
+            parent = self
+            key = query
+        elif len(query) == 1:
+            parent = self
+            key = query[0]
+        else:
+            parent = super().get(query[:-1])
+            key = query[-1]
+
+        if self.__new_child__ is _undefined_:
+            child_cls = None
+            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+            orig_class = getattr(self, "__orig_class__", None)
+            if orig_class is not None:
+                child_cls = get_args(self.__orig_class__)
+                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
+                    child_cls = child_cls[0]
+            self.__new_child__ = child_cls
+
+        n_value = self._as_type(self.__new_child__, value, **collections.ChainMap(kwargs, self._v_kwargs))
+        if n_value is not value and key is not _undefined_:
+            parent.put(key, n_value)
+        return n_value
 
     @property
     def __category__(self):
@@ -292,7 +293,7 @@ class List(Node[_T], Sequence[_T]):
         return super().__len__()
 
     def __setitem__(self, query: _TQuery, v: _T) -> None:
-        super().__setitem__(query, v)
+        super().__setitem__(query,  v)
 
     def __getitem__(self, query: _TQuery) -> _T:
         return super().__getitem__(query)
@@ -315,7 +316,7 @@ class List(Node[_T], Sequence[_T]):
             raise NotImplementedError()
 
     def combine(self, default_value=None, reducer=_undefined_, partition=_undefined_) -> _T:
-        return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition), parent=self._parent)
+        return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition),  parent=self._parent)
 
     def refresh(self, d=None, /, **kwargs):
         # super().update(d)
@@ -332,10 +333,44 @@ class List(Node[_T], Sequence[_T]):
 
 
 class Dict(Node[_T], Mapping[str, _T]):
-    __slots__ = ()
+    __slots__ = ("__new_child__")
 
-    def __init__(self, cache: Optional[Mapping] = None,  /, **kwargs):
+    def __init__(self, cache: Optional[Mapping] = None,  /, new_child: Callable = None, **kwargs):
         Node.__init__(self, cache if cache is not None else _DICT_TYPE_(),   **kwargs)
+        self.__new_child__ = new_child
+
+    def __post_process__(self, value: _T,   *args, parent=None, query=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+        if isinstance(value, (int, float, str, np.ndarray, Node)) \
+                or value in (None, _not_found_, _undefined_) \
+                or not isinstance(query, (list, str)) \
+                or len(query) == 0 \
+                or not isinstance(query[-1], str):
+            return value
+        elif not isinstance(query, list):
+            parent = self
+            key = query
+        else:
+            parent = super().get(query[:-1])
+            key = query[-1]
+
+        if self.__new_child__ is not None:
+            n_value = self._as_type(self.__new_child__, value, **kwargs)
+        else:
+            # FIXME: Needs optimization
+            prop = dict(inspect.getmembers(parent.__class__)).get(key, _not_found_)
+
+            prop_type = _undefined_
+            if isinstance(prop, (_SpProperty, cached_property)):
+                prop_type = prop.func.__annotations__.get("return", None)
+            elif isinstance(prop, (property)):
+                prop_type = prop.fget.__annotations__.get("return", None)
+
+            n_value = self._as_type(prop_type, value, **kwargs)
+
+        if n_value is not value:
+            parent.put(key, n_value)
+
+        return n_value
 
     @property
     def __category__(self):
@@ -445,19 +480,14 @@ class _SpProperty(Generic[_T]):
             # logger.error(f"Can not put value to '{self.attrname}'")
             raise TypeError(error) from None
 
-    def __get__(self, instance: Any, owner=None) -> _T:
-        cache = getattr(instance, "_entry", _not_found_)
-        if cache is _not_found_:
+    def __get__(self, instance: Node, owner=None) -> _T:
+        if not isinstance(instance, Node):
             cache = Entry(instance.__dict__)
-
-        if len(cache._path) > 0:
-            pass
+        else:
+            cache = instance
 
         if self.attrname is None:
             raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
-        # elif isinstance(cache, Entry) and not cache.writable:
-        #     logger.error(f"Attribute cache is not writable!")
-        #     raise AttributeError(self.attrname)
 
         val = cache.get(self.attrname, default_value=_not_found_)
 
@@ -468,29 +498,31 @@ class _SpProperty(Generic[_T]):
                 # FIXME: Thread safety is not guaranteed! solution: lock on cache???
                 if not self._isinstance(val):
                     obj = self.func(instance)
-                    if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
-                        obj = instance.__new_child__(obj)
                     if not self._isinstance(obj):
-                        origin_type = getattr(self.return_type, '__origin__', self.return_type)
-                        if dataclasses.is_dataclass(origin_type):
-                            obj = as_dataclass(origin_type, obj)
-                        elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                            obj = self.return_type(obj, parent=instance)
-                        elif origin_type is np.ndarray:
-                            obj = np.asarray(obj)
-                        elif callable(self.return_type) is not None:
-                            try:
-                                tmp = self.return_type(obj)
-                            except Exception as error:
-                                logger.error(f"{self.attrname} {self.return_type} {type(obj)} : {error}")
-                                raise error
-                            else:
-                                obj = tmp
-
-                    if obj is not _undefined_ and obj is not val and isinstance(cache, Entry):
+                        val = instance.__post_process__(obj, query=self.attrname)
+                    elif obj is not _undefined_ and obj is not val and isinstance(cache, Entry):
                         val = cache.put(self.attrname, obj)
                     else:
                         val = obj
+                    # if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
+                    #     obj = instance.__new_child__(obj)
+                    # if not self._isinstance(obj):
+                    #     origin_type = getattr(self.return_type, '__origin__', self.return_type)
+                    #     if dataclasses.is_dataclass(origin_type):
+                    #         obj = as_dataclass(origin_type, obj)
+                    #     elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
+                    #         obj = self.return_type(obj, parent=instance)
+                    #     elif origin_type is np.ndarray:
+                    #         obj = np.asarray(obj)
+                    #     elif callable(self.return_type) is not None:
+                    #         try:
+                    #             tmp = self.return_type(obj)
+                    #         except Exception as error:
+                    #             logger.error(f"{self.attrname} {self.return_type} {type(obj)} : {error}")
+                    #             raise error
+                    #         else:
+                    #             obj = tmp
+
         return val
 
     def __set__(self, instance: Any, value: Any):

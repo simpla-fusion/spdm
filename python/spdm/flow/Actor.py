@@ -49,7 +49,7 @@ class Actor(Dict[Node], Generic[_TState]):
 
         super().__init__(d,  **kwargs)
 
-        logger.debug(f"Inititalize Actor {guess_class_name(self.__class__)}")
+        # logger.debug(f"Inititalize Actor {guess_class_name(self.__class__)}")
 
         self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
@@ -57,7 +57,8 @@ class Actor(Dict[Node], Generic[_TState]):
         self._s_deque = collections.deque(maxlen=maxlen)
 
     def __del__(self):
-        logger.debug(f"Delete Actor {guess_class_name(self.__class__)}")
+        # logger.debug(f"Delete Actor {guess_class_name(self.__class__)}")
+        pass
 
     @property
     def time(self):
