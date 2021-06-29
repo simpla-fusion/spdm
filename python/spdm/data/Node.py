@@ -189,6 +189,9 @@ class Node(EntryContainer[_TObject]):
     def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
         return super().put(path, value,  **kwargs)
 
+    def remove(self, path: _TQuery, /, **kwargs) -> None:
+        return super().remove(path,  **kwargs)
+
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
         return self.put(query,  self.__pre_process__(value))
 
@@ -482,7 +485,7 @@ class _SpProperty(Generic[_T]):
                             else:
                                 obj = tmp
 
-                    if obj is not _undefined_ and obj is not val and isinstance(cache, Entry):                       
+                    if obj is not _undefined_ and obj is not val and isinstance(cache, Entry):
                         val = cache.put(self.attrname, obj)
                     else:
                         val = obj

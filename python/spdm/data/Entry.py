@@ -62,6 +62,9 @@ class EntryContainer(Generic[_TObject]):
     def put(self, path: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
         return self._entry.put(path, value,  **kwargs)
 
+    def remove(self, path: _TQuery, /, **kwargs) -> None:
+        return self._entry.put(path, Entry.op_tag.erase, **kwargs)
+
     def reset(self, value: _T = None, **kwargs) -> None:
         self._entry.push({Entry.op_tag.assign: value},  **kwargs)
 
@@ -510,12 +513,17 @@ class Entry(object):
 
         if isinstance(value, Entry.op_tag):
             value = {value: None}
-        elif hasattr(value, "_entry") \
-                and value._entry._cache is self._cache \
-                and len(self._path) <= len(value._entry._path) \
-                and all([v == value._entry._path[idx] for idx, v in enumerate(self._path)]):
-            value._entry._cache = None
-            value._entry._path = value._entry._path[len(self._path):]
+        else:
+            v_entry: Entry = value if isinstance(value, Entry) else getattr(value, "_entry", _not_found_)
+
+            # remove cycle reference
+            if v_entry is not _not_found_ \
+                    and v_entry._cache is self._cache \
+                    and len(self._path) <= len(v_entry._path) \
+                    and all([v == v_entry._path[idx] for idx, v in enumerate(self._path)]):
+                v_entry._cache = self._ht_get(self._cache, self._path, None)
+                v_entry._path = v_entry._path[len(self._path):]
+                logger.debug((v_entry._cache, self._path, v_entry._path))
 
         return self._ht_put(self._cache, self._path, value)
 
@@ -557,7 +565,7 @@ class EntryCombiner(Entry):
         if isinstance(val, collections.abc.Sequence):
             val = [d for d in val if (d is not None and d is not _not_found_)]
 
-            if any(map(lambda v: isinstance(v, (Entry, EntryContainer)), val)):
+            if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
                 val = EntryCombiner(val)
             elif len(val) > 0:
                 val = functools.reduce(self._reducer, val[1:], val[0])

@@ -146,7 +146,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
             except Exception as error:
                 y = None
                 x = x_axis
-                logger.warning(error)
+                logger.exception(error)
 
             if not isinstance(y, np.ndarray) or not isinstance(x, np.ndarray) or x.shape != y.shape:
                 logger.warning(f"Illegal profile! {(type(profile), label, o_args)} ")

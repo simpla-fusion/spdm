@@ -73,4 +73,4 @@ def smooth_1d(x, y, i_begin=0, i_end=None,  **kwargs):
 
 
 def rms_residual(a, b):
-    return np.abs((a-b)/(a+b)*2)
+    return np.abs((a-b)/(a+b)*2)*100

@@ -119,7 +119,7 @@ class Actor(Dict[Node], Generic[_TState]):
 
         return time
 
-    def refresh(self, value=None, *args, ** kwargs) -> float:
+    def refresh(self,   *args, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
