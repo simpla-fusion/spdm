@@ -186,7 +186,11 @@ class Node(EntryContainer[_TObject]):
         return [self.__post_process__(v, query=[idx]) for idx, v in enumerate(self._entry.values())]
 
     def _as_type(self, prop_type, value, parent=None, **kwargs):
-        if (inspect.isclass(prop_type) and issubclass(prop_type, Node)) or issubclass(getattr(prop_type, '__origin__', type(None)), Node):
+        if prop_type in (int, float):
+            return prop_type(value)
+        elif prop_type is np.ndarray:
+            return np.asarray(value)
+        elif (inspect.isclass(prop_type) and issubclass(prop_type, Node)) or issubclass(getattr(prop_type, '__origin__', type(None)), Node):
             return prop_type(value, parent=parent, **kwargs)
         elif dataclasses.is_dataclass(prop_type):
             if isinstance(value, collections.abc.Mapping):
@@ -349,6 +353,9 @@ class Dict(Node[_T], Mapping[str, _T]):
         elif not isinstance(query, list):
             parent = self
             key = query
+        elif len(query) == 1:
+            parent = self
+            key = query[0]
         else:
             parent = super().get(query[:-1])
             key = query[-1]
