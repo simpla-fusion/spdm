@@ -334,6 +334,8 @@ class Entry(object):
             else:
                 val = target[key]
 
+            if not isinstance(val, (collections.abc.Mapping, Entry)):
+                raise TypeError(f"{target} {key} {val} ")
             for k, v in v.items():
                 Entry._ht_put(val, [k], {Entry.op_tag.update: v})
         else:

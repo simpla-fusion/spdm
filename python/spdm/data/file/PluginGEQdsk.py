@@ -236,7 +236,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     # rleft = 0.0
     eq["global_quantities.magnetic_axis.r"] = geqdsk["rmaxis"]
     eq["global_quantities.magnetic_axis.z"] = geqdsk["zmaxis"]
-    eq["global_quantities.magnetic_axis.b_field_tor"] = geqdsk["bcentr"]
+    # eq["global_quantities.magnetic_axis.b_field_tor"] = geqdsk["bcentr"]
     eq["global_quantities.psi_axis"] = geqdsk["simag"]
     eq["global_quantities.psi_boundary"] = geqdsk["sibry"]
     eq["global_quantities.ip"] = geqdsk["current"]
@@ -259,41 +259,13 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     eq["profiles_2d.grid.dim2"] = np.linspace(zmin, zmax, nh)
     eq["profiles_2d.psi"] = geqdsk["psirz"].T
 
-    # r, z = np.meshgrid(eq.profiles_2d.grid.dim1,
-    #                    eq.profiles_2d.grid.dim2, indexing="ij")
-    # eq.profiles_2d.r = r
-    # eq.profiles_2d.z = z
-
-    # coord_r = eq.coordinate_system.r
-    # coord_z = eq.coordinate_system.z
-    # rleft = coord_r.min()
-    # rdim = coord_r.max() - coord_r.min()
-    # zdim = coord_z.max() - coord_z.min()
-
-    # bbsrz = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape(
-    #     [1, rbbs.size]), axis=0).transpose()
-    # # psi
-
-    # grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
-    #                           1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
-    # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
-    #     coord_r.shape[0], 1), axis=1)
-    # coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(
-    #     coord_z.shape[0], 1), axis=1)
-    # points = np.append(coord_r.reshape(
-    #     [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    # psi = eq.profiles_2d[1].psi
-    # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    # psirz = interpolate.griddata(points, values, (grid_r, grid_z),
-    #                  method='cubic').transpose()
-
     # profile
     eq["profiles_1d.f"] = geqdsk["fpol"]
     eq["profiles_1d.f_df_dpsi"] = geqdsk["ffprim"]
     eq["profiles_1d.pressure"] = geqdsk["pres"]
     eq["profiles_1d.dpressure_dpsi"] = geqdsk["pprim"]
     eq["profiles_1d.q"] = geqdsk["qpsi"]
-    eq["profiles_1d.psi_norm"] = np.linspace(0, 1.0, nw)
+    eq["profiles_1d.psi"] = np.linspace(geqdsk["simag"], geqdsk["sibry"], nw)
 
     return eq
 

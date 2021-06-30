@@ -28,9 +28,9 @@ class Function:
         if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
             self._y = 0
         elif isinstance(y, Node):
-            self._y = y._entry.find(default_value=0.0)
+            self._y = y._entry.pull(0.0)
         elif isinstance(y, Entry):
-            self._y = y.find(default_value=0.0)
+            self._y = y.pull(0.0)
         elif isinstance(y, Function):
             if x is None:
                 x = y.x_domain
@@ -52,7 +52,10 @@ class Function:
             self._x_domain = [x[0], x[-1]]
         elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
             self._x_domain = list(set(x))
-            self._x_axis = None
+            if isinstance(y, np.ndarray):
+                self._x_axis = np.linspace(self._x_domain[0], self._x_domain[-1], len(y))
+            else:
+                self._x_axis = None
         else:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None

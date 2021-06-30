@@ -125,7 +125,7 @@ class Actor(Dict[Node], Generic[_TState]):
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        logger.debug(f"Refresh Actor {guess_class_name(self.__class__)}")
+        # logger.debug(f"Refresh Actor {guess_class_name(self.__class__)}")
 
         # super().update(value, *args, **kwargs)
 
