@@ -500,9 +500,13 @@ class Expression(Function):
             return res
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("always")
-            res = self._ufunc(*[wrap(x, d) for d in self._y])
-
+            warnings.filterwarnings("error")
+            try:
+                res = self._ufunc(*[wrap(x, d) for d in self._y])
+            except RuntimeWarning as warning:
+                logger.error((self._ufunc, [wrap(x, d) for d in self._y]))
+                logger.exception(warning)
+                raise RuntimeError(warning)
         return res
 
         # if self._method != "__call__":
