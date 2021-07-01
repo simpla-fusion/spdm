@@ -13,12 +13,12 @@ from functools import cached_property
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
-import dataclasses
 
 from numpy.lib.arraysetops import _isin_dispatcher, isin
-from ..util.sp_export import sp_find_module
+
 from ..numlib import np, scipy
 from ..util.logger import logger
+from ..util.sp_export import sp_find_module
 from ..util.utilities import Tags, _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
                     EntryContainer, _next_, _TKey, _TObject, _TQuery,
@@ -54,8 +54,8 @@ class Node(EntryContainer[_TObject]):
     """
     __slots__ = "_parent",   "__orig_class__"
 
-    def __init__(self, cache: Any = None, /, parent=None):
-        super().__init__(cache)
+    def __init__(self, entry: Any = None, /, parent=None):
+        super().__init__(entry)
         self._parent = parent
 
     def __repr__(self) -> str:
@@ -206,7 +206,7 @@ class Node(EntryContainer[_TObject]):
             else:
                 raise TypeError(type(value))
         elif callable(prop_type):
-            return prop_type(value,  **kwargs)
+            return prop_type(value, **kwargs)
         else:
             return value
 
@@ -264,7 +264,7 @@ class List(Node[_T], Sequence[_T]):
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
 
-    def __post_process__(self, value: _T,  /,  query=_undefined_, parent=_undefined_,  **kwargs) -> Union[_T, _TNode]:
+    def __post_process__(self, value: _T,  /,  query=_undefined_,   **kwargs) -> _T:
         if isinstance(value, (int, float, str, np.ndarray, Node)) \
                 or value in (None, _not_found_, _undefined_):
             return value
@@ -273,10 +273,8 @@ class List(Node[_T], Sequence[_T]):
         elif isinstance(query, list) and len(query) > 1:
             return super().__post_process__(value, query=query, **kwargs)
         elif not isinstance(query, list):
-            parent = self
             key = query
         elif len(query) == 1:
-            parent = self
             key = query[0]
 
         if self.__new_child__ is _undefined_:
@@ -289,10 +287,11 @@ class List(Node[_T], Sequence[_T]):
                     child_cls = child_cls[0]
             self.__new_child__ = child_cls
 
-        n_value = self._as_type(self.__new_child__, value, parent=parent if parent is not _undefined_ else self._parent,
+        n_value = self._as_type(self.__new_child__, value, parent=self._parent,
                                 **collections.ChainMap(kwargs, self._v_kwargs))
-        if n_value is not value and key is not _undefined_:
-            parent.put(key, n_value)
+
+        if n_value is not value and  key not in (_undefined_, None):
+            self.put(key, n_value)
         return n_value
 
     @property
@@ -326,9 +325,9 @@ class List(Node[_T], Sequence[_T]):
             raise NotImplementedError()
 
     def combine(self, default_value=None, reducer=_undefined_, partition=_undefined_) -> _T:
-        return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition),  parent=self._parent)
+        return self.__post_process__(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition))
 
-    def refresh(self, d=None, /, **kwargs):
+    def refresh(self, *args, **kwargs):
         # super().update(d)
         for element in self.__iter__():
             if hasattr(element.__class__, 'refresh'):
@@ -349,26 +348,24 @@ class Dict(Node[_T], Mapping[str, _T]):
         Node.__init__(self, cache if cache is not None else _DICT_TYPE_(),   **kwargs)
         self.__new_child__ = new_child
 
-    def __post_process__(self, value: _T,   *args, parent=_undefined_, query=_undefined_,   **kwargs) -> Union[_T, _TNode]:
+    def __post_process__(self, value: _T,   *args,  query=_undefined_,   **kwargs) -> _T:
         if isinstance(value, (int, float, str, np.ndarray, Node)) \
                 or value in (None, _not_found_, _undefined_) \
                 or not isinstance(query, (list, str)) \
                 or len(query) == 0:
             return value
         elif isinstance(query, list) and len(query) > 1:
-            return super().__post_process__(value, query=query, parent=parent, **kwargs)
+            return super().__post_process__(value, query=query,  **kwargs)
         elif not isinstance(query, list):
-            parent = self
             key = query
         elif len(query) == 1:
-            parent = self
             key = query[0]
 
         if self.__new_child__ is not None:
-            n_value = self._as_type(self.__new_child__, value, **kwargs)
+            n_value = self._as_type(self.__new_child__, value, parent=self, **kwargs)
         else:
             # FIXME: Needs optimization
-            prop = dict(inspect.getmembers(parent.__class__)).get(key, _not_found_)
+            prop = dict(inspect.getmembers(self.__class__)).get(key, _not_found_)
 
             prop_type = _undefined_
             if isinstance(prop, (_SpProperty, cached_property)):
@@ -376,10 +373,10 @@ class Dict(Node[_T], Mapping[str, _T]):
             elif isinstance(prop, (property)):
                 prop_type = prop.fget.__annotations__.get("return", None)
 
-            n_value = self._as_type(prop_type, value, parent=parent, **kwargs)
+            n_value = self._as_type(prop_type, value, parent=self, **kwargs)
 
-        if n_value is not value:
-            parent.put(key, n_value)
+        if n_value is not value and key not in (_undefined_, None):
+            self.put(key, n_value)
 
         return n_value
 
@@ -454,7 +451,7 @@ class Dict(Node[_T], Mapping[str, _T]):
 
 
 class _SpProperty(Generic[_T]):
-    def __init__(self, func):
+    def __init__(self, func: Callable[..., _T]):
         self.func = func
         self.attrname = None
         self.__doc__ = func.__doc__
@@ -472,15 +469,6 @@ class _SpProperty(Generic[_T]):
 
         return res
 
-    def __set_name__(self, owner, name):
-        if self.attrname is None:
-            self.attrname = name
-        elif name != self.attrname:
-            raise TypeError(
-                "Cannot assign the same cached_property to two different names "
-                f"({self.attrname!r} and {name!r})."
-            )
-
     def __put__(self, cache: Any, val: Any):
         if isinstance(val, Node):
             logger.debug((self.attrname, type(val._entry), type(cache), val._entry._data is cache._data))
@@ -491,68 +479,44 @@ class _SpProperty(Generic[_T]):
             # logger.error(f"Can not put value to '{self.attrname}'")
             raise TypeError(error) from None
 
-    def __get__(self, instance: Node, owner=None) -> _T:
-        if not isinstance(instance, Node):
-            cache = Entry(instance.__dict__)
-        else:
-            cache = instance
-
-        if self.attrname is None:
-            raise TypeError("Cannot use _SpProperty instance without calling __set_name__ on it.")
-
-        val = cache.get(self.attrname, default_value=_not_found_)
-
-        if not self._isinstance(val):
-            with self.lock:
-                # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, default_value=_not_found_)
-                # FIXME: Thread safety is not guaranteed! solution: lock on cache???
-                if not self._isinstance(val):
-                    obj = self.func(instance)
-                    if not self._isinstance(obj):
-                        val = instance.__post_process__(obj, query=self.attrname)
-                    elif obj is not _undefined_ and obj is not val and isinstance(cache, (Entry, Node)):
-                        val = cache.put(self.attrname, obj)
-                    else:
-                        val = obj
-                    # if not self._isinstance(obj) and getattr(instance, '__new_child__', None) not in (None, _not_found_, _undefined_):
-                    #     obj = instance.__new_child__(obj)
-                    # if not self._isinstance(obj):
-                    #     origin_type = getattr(self.return_type, '__origin__', self.return_type)
-                    #     if dataclasses.is_dataclass(origin_type):
-                    #         obj = as_dataclass(origin_type, obj)
-                    #     elif inspect.isclass(origin_type) and issubclass(origin_type, Node):
-                    #         obj = self.return_type(obj, parent=instance)
-                    #     elif origin_type is np.ndarray:
-                    #         obj = np.asarray(obj)
-                    #     elif callable(self.return_type) is not None:
-                    #         try:
-                    #             tmp = self.return_type(obj)
-                    #         except Exception as error:
-                    #             logger.error(f"{self.attrname} {self.return_type} {type(obj)} : {error}")
-                    #             raise error
-                    #         else:
-                    #             obj = tmp
-
-        return val
-
     def __set__(self, instance: Any, value: Any):
         with self.lock:
             cache = getattr(instance, "_entry", Entry(instance.__dict__))
             cache.insert(self.attrname, value, assign_if_exists=True)
 
-    # def __del__(self, instance: Any):
-    #     with self.lock:
-    #         cache = getattr(instance, "_entry", instance.__dict__)
+    def __set_name__(self, owner, name):
+        if self.attrname is None:
+            self.attrname = name
+        elif name != self.attrname:
+            raise TypeError(
+                "Cannot assign the same cached_property to two different names "
+                f"({self.attrname!r} and {name!r})."
+            )
 
-    #         try:
-    #             cache.delete(self.attrname)
-    #         except Exception:
-    #             try:
-    #                 del cache[self.attrname]
-    #             except TypeError as error:
-    #                 logger.error(f"Can not delete '{self.attrname}'")
-    #                 raise TypeError(error)
+    def __get__(self, instance: Node, owner=None) -> _T:
+        if instance is None:
+            return self
+
+        if not isinstance(instance, Node):
+            raise TypeError(f"{type(instance)} {self.attrname}")
+
+        if self.attrname is None:
+            raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
+
+        val = instance.get(self.attrname, _not_found_)
+        if val is _not_found_ or not self._isinstance(val):
+            with self.lock:
+                # check if another thread filled cache while we awaited lock
+                val = instance.get(self.attrname, _not_found_)
+                if val is _not_found_ or not self._isinstance(val):
+                    val = self.func(instance)
+
+                    if not self._isinstance(val):
+                        val = instance.__post_process__(val, query=self.attrname)
+
+                    instance.put(self.attrname, val)
+
+        return val
 
 
 def sp_property(func: Callable[..., _T]) -> _SpProperty[_T]:

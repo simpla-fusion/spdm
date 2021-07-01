@@ -35,6 +35,8 @@ class Function:
             if x is None:
                 x = y.x_domain
                 self._y = y._y
+            else:
+                self._y = y
         elif isinstance(y, PPoly):
             self._y = y
             if x is None:

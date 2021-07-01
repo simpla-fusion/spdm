@@ -336,6 +336,7 @@ class Entry(object):
 
             if not isinstance(val, (collections.abc.Mapping, Entry)):
                 raise TypeError(f"{target} {key} {val} ")
+
             for k, v in v.items():
                 Entry._ht_put(val, [k], {Entry.op_tag.update: v})
         else:
@@ -362,14 +363,11 @@ class Entry(object):
         return val
 
     def _op_check(target, pred=None, *args) -> bool:
-        if pred is None:
-            return target is not None
-        elif isinstance(pred, str) and isinstance(target, collections.abc.Mapping):
-            return Entry._op_check(target.get(pred, _not_found_), *args)
-        elif isinstance(target, Entry.op_tag):
+
+        if isinstance(pred, Entry.op_tag):
             return Entry._ops[pred](target, *args)
-        elif isinstance(target, collections.abc.Mapping):
-            return all([Entry._op_check(target, k, v) for k, v in pred.items()])
+        elif isinstance(pred, collections.abc.Mapping):
+            return all([Entry._op_check(Entry._ht_get(target, Entry.normalize_query(k), _not_found_), v) for k, v in pred.items()])
         else:
             return target == pred
 
@@ -431,9 +429,11 @@ class Entry(object):
                            for s in _slice_to_range(key, len(target))]
                     break
             elif isinstance(target, collections.abc.Sequence) and isinstance(key, (collections.abc.Mapping)):
-                val = [v for v in target if Entry._op_check(v, key)]
+                val = [v for v in target if isinstance(v, collections.abc.Mapping) and Entry._op_check(v, key)]
                 if len(val) == 1:
                     val = val[0]
+                elif len(val) == 0:
+                    val = _not_found_
             else:
                 raise TypeError(f"{type(target)} {type(key)} {query[:idx+1]}")
 
