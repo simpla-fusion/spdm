@@ -377,6 +377,9 @@ class Dict(Node[_T], Mapping[str, _T]):
             elif isinstance(prop, (property)):
                 prop_type = prop.fget.__annotations__.get("return", None)
 
+            if prop_type is _undefined_:
+                prop_type = Node
+
             n_value = self._as_type(prop_type, value, parent=self, **kwargs)
 
         return n_value

@@ -18,8 +18,14 @@ from ..numlib import np
 from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, serialize
 
-_next_ = object()
-_last_ = object()
+
+class EntryTags(Flag):
+    next = auto()
+    last = auto()
+
+
+_next_ = EntryTags.next
+_last_ = EntryTags.last
 
 _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
@@ -483,13 +489,11 @@ class Entry(object):
                     val = Entry._op_by_filter(target, key, Entry._op_assign, deepcopy(key))
                 elif hasattr(value, "_entry"):
                     val = Entry._op_assign(target, key, value)
-                elif isinstance(value, (collections.abc.Mapping)):
-                    if any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
-                        val = [Entry._ops[k](target, key, v) for k, v in value.items()]
-                        if len(val) == 1:
-                            val = val[0]
-                    else:
-                        val = value
+                elif isinstance(value, (collections.abc.Mapping)) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+                    val = [Entry._ops[k](target, key, v) for k, v in value.items()]
+                    if len(val) == 1:
+                        val = val[0]
+
                 else:
                     val = Entry._op_assign(target, key, value)
             elif key is None:
