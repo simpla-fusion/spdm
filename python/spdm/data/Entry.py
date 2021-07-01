@@ -43,7 +43,9 @@ _TContainer = TypeVar("_TContainer", bound="EntryContainer")
 class EntryContainer(Generic[_TObject]):
     __slots__ = "_entry"
 
-    def __init__(self, entry, *args, **kwargs) -> None:
+    PRIMARY_TYPE = (int, float, str, np.ndarray)
+
+    def __init__(self, entry ) -> None:
         super().__init__()
         if isinstance(entry, EntryContainer):
             self._entry = entry._entry
@@ -52,7 +54,7 @@ class EntryContainer(Generic[_TObject]):
         else:
             self._entry = entry
 
-    def __duplicate__(self) -> _TContainer:
+    def _duplicate(self) -> _TContainer:
         return self.__class__(self._entry)
 
     @property
@@ -74,11 +76,11 @@ class EntryContainer(Generic[_TObject]):
     def reset(self, value: _T = None, **kwargs) -> None:
         self._entry.push({Entry.op_tag.assign: value},  **kwargs)
 
-    def update(self,  value: _T,  ** kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.update: value},  **kwargs)
+    def update(self,  value: _T,  condition: Mapping = _undefined_, ** kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.update: value}, condition=condition,  **kwargs)
 
-
-PRIMARY_TYPE = (int, float, str, np.ndarray)
+    def find(self,  predication: Mapping,  ** kwargs) -> _T:
+        return self._entry.pull(predication=predication, **kwargs)
 
 
 def _slice_to_range(s: slice, length: int) -> range:
