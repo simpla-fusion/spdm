@@ -335,7 +335,7 @@ class Entry(object):
                 val = target[key]
 
             if not isinstance(val, (collections.abc.Mapping, Entry)):
-                raise TypeError(f"{target} {key} {val} ")
+                raise TypeError(f"{type(target)} {key} {type(val)} ")
 
             for k, v in v.items():
                 Entry._ht_put(val, [k], {Entry.op_tag.update: v})
@@ -392,7 +392,7 @@ class Entry(object):
     }
 
     @staticmethod
-    def _ht_get(target, query, default_value: Union[_T,  op_tag] = _undefined_) -> _T:
+    def _ht_get(target, query, default_value: Union[_T,  op_tag] = _undefined_, condition=_undefined_, only_first=True) -> _T:
         """
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
@@ -454,7 +454,7 @@ class Entry(object):
         return val
 
     @staticmethod
-    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True) -> Tuple[_T, bool]:
+    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True, predication=_undefined_, only_first=True) -> Tuple[_T, bool]:
         """
             insert if the key does not exist, does nothing if the key exists.
             return value at key
@@ -486,8 +486,10 @@ class Entry(object):
                 elif isinstance(value, (collections.abc.Mapping)):
                     if any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
                         val = [Entry._ops[k](target, key, v) for k, v in value.items()]
-                    if len(val) == 1:
-                        val = val[0]
+                        if len(val) == 1:
+                            val = val[0]
+                    else:
+                        val = value
                 else:
                     val = Entry._op_assign(target, key, value)
             elif key is None:
@@ -535,10 +537,10 @@ class Entry(object):
 
         return val
 
-    def pull(self, default_value: Union[op_tag, _T] = _not_found_) -> _T:
-        return self._ht_get(self._cache, self._path,  default_value)
+    def pull(self, default_value: Union[op_tag, _T] = _not_found_, **kwargs) -> _T:
+        return self._ht_get(self._cache, self._path,  default_value, **kwargs)
 
-    def push(self,  value: _T) -> Tuple[_T, bool]:
+    def push(self,  value: _T,  **kwargs) -> Tuple[_T, bool]:
         if value is _undefined_:
             raise ValueError(f"{self._path}")
 
@@ -562,7 +564,7 @@ class Entry(object):
                 v_entry._path = v_entry._path[len(self._path):]
                 logger.debug((v_entry._cache, self._path, v_entry._path))
 
-        return self._ht_put(self._cache, self._path, value)
+        return self._ht_put(self._cache, self._path, value, **kwargs)
 
     def has_child(self, other: _TEntry) -> bool:
         if other.__class__ is not Entry or self._cache is not other._cache or len(self._path) > len(other._path):

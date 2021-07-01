@@ -254,9 +254,7 @@ class Node(EntryContainer[_TObject]):
 class List(Node[_T], Sequence[_T]):
     __slots__ = ("_v_kwargs", "__new_child__")
 
-    def __init__(self, cache: Optional[Sequence] = None, /,  parent=None, new_child=_undefined_, **kwargs) -> None:
-        if not isinstance(cache, (collections.abc.Sequence, Entry)) or isinstance(cache, str):
-            cache = [cache]
+    def __init__(self, cache: Union[Sequence, Entry] = None, /,  parent=None, new_child=_undefined_, **kwargs) -> None:
         Node.__init__(self, cache if cache is not None else _LIST_TYPE_(),  parent=parent)
         self._v_kwargs = kwargs
         self.__new_child__ = new_child
@@ -265,6 +263,9 @@ class List(Node[_T], Sequence[_T]):
         return [serialize(v) for v in self._as_list()]
 
     def __post_process__(self, value: _T,  /,  query=_undefined_,   **kwargs) -> _T:
+        if value is None or value is _not_found_:
+            raise KeyError(query)
+
         if isinstance(value, (int, float, str, np.ndarray, Node)) \
                 or value in (None, _not_found_, _undefined_):
             return value
@@ -290,13 +291,7 @@ class List(Node[_T], Sequence[_T]):
         n_value = self._as_type(self.__new_child__, value, parent=self._parent,
                                 **collections.ChainMap(kwargs, self._v_kwargs))
 
-        if n_value is not value and  key not in (_undefined_, None):
-            self.put(key, n_value)
         return n_value
-
-    @property
-    def __category__(self):
-        return super().__category__ | Node.Category.LIST
 
     def __len__(self) -> int:
         return super().__len__()
@@ -340,6 +335,12 @@ class List(Node[_T], Sequence[_T]):
             self._combine = value
             super().reset()
 
+    def find(self, condition,  only_first=True) -> _T:
+        return self.__post_process__(self._entry.pull(condition=condition, only_first=only_first))
+
+    def update(self, d, predication=_undefined_, only_first=False) -> int:
+        return self._entry.push(self.__pre_process__(d), predication=predication, only_first=only_first)
+
 
 class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ("__new_child__")
@@ -349,6 +350,9 @@ class Dict(Node[_T], Mapping[str, _T]):
         self.__new_child__ = new_child
 
     def __post_process__(self, value: _T,   *args,  query=_undefined_,   **kwargs) -> _T:
+        if value is None or value is _not_found_:
+            raise KeyError(query)
+
         if isinstance(value, (int, float, str, np.ndarray, Node)) \
                 or value in (None, _not_found_, _undefined_) \
                 or not isinstance(query, (list, str)) \
@@ -374,9 +378,6 @@ class Dict(Node[_T], Mapping[str, _T]):
                 prop_type = prop.fget.__annotations__.get("return", None)
 
             n_value = self._as_type(prop_type, value, parent=self, **kwargs)
-
-        if n_value is not value and key not in (_undefined_, None):
-            self.put(key, n_value)
 
         return n_value
 
@@ -496,6 +497,11 @@ class _SpProperty(Generic[_T]):
     def __get__(self, instance: Node, owner=None) -> _T:
         if instance is None:
             return self
+        try:
+            cache = instance._entry
+        except AttributeError as error:
+            logger.exception(error)
+            raise AttributeError(error)
 
         if not isinstance(instance, Node):
             raise TypeError(f"{type(instance)} {self.attrname}")
@@ -503,18 +509,18 @@ class _SpProperty(Generic[_T]):
         if self.attrname is None:
             raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
 
-        val = instance.get(self.attrname, _not_found_)
+        val = cache.get(self.attrname, _not_found_)
         if val is _not_found_ or not self._isinstance(val):
             with self.lock:
                 # check if another thread filled cache while we awaited lock
-                val = instance.get(self.attrname, _not_found_)
+                val = cache.get(self.attrname, _not_found_)
                 if val is _not_found_ or not self._isinstance(val):
                     val = self.func(instance)
 
                     if not self._isinstance(val):
                         val = instance.__post_process__(val, query=self.attrname)
 
-                    instance.put(self.attrname, val)
+                    cache.put(self.attrname, val)
 
         return val
 

@@ -119,7 +119,7 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 ylabel = o_args[0]
             if len(o_args) > 1:
                 opts = o_args[1]
-            
+
             y = None
 
             try:
@@ -148,8 +148,11 @@ def plot_profiles(profile_list, *args,   x_axis=None, default_num_of_points=128,
                 x = x_axis
                 logger.exception(error)
 
-            if not isinstance(y, np.ndarray) or not isinstance(x, np.ndarray) or x.shape != y.shape:
-                logger.warning(f"Illegal profile! {(type(profile), label, o_args)} ")
+            if not isinstance(y, np.ndarray) or not isinstance(x, np.ndarray):
+                logger.warning(f"Illegal profile! {(type(y),type(x) ,label, o_args)} ")
+                continue
+            elif x.shape != y.shape:
+                logger.warning(f"Illegal profile! {x.shape} !={y.shape} ")
                 continue
             else:
                 sub_plot[idx].plot(x, y, label=label, **opts)
