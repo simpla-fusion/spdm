@@ -32,14 +32,14 @@ _empty = object()
 #         return None
 
 
-class Tags(Flag):
+class _tags(Flag):
     not_found = auto()
     undefined = auto()
 
 
-_not_found_ = Tags.not_found
+_not_found_ = _tags.not_found
 
-_undefined_ = Tags.undefined
+_undefined_ = _tags.undefined
 
 
 def whoami(obj=None):

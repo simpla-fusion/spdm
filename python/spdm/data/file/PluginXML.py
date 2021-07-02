@@ -121,17 +121,18 @@ class XMLEntry(Entry):
             raise NotImplementedError()
         return res, envs
 
-    def _convert(self, element, path=[], lazy=True, envs=None, projection=None):
-
-        if isinstance(element, collections.abc.MutableSequence) and len(element) == 1 and "id" not in element[0].attrib:
-            element = element[0]
-
+    def _convert(self, element, path=[], lazy=True, envs=None, **kwargs):
         res = None
 
-        if isinstance(element, collections.abc.MutableSequence):
-            res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
-        elif len(element) > 0 and lazy:
-            res = XMLEntry(element, prefix=[])
+        if isinstance(element, list):
+            if len(element) == 1 and "id" not in element[0].attrib:
+                element = element[0]
+
+        if isinstance(element, list):
+            if lazy:
+                res = XMLEntry(element, prefix=[])
+            else:
+                res = [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
 
@@ -152,7 +153,7 @@ class XMLEntry(Entry):
             else:
                 res = np.array(res)
         else:
-            res = {child.tag: self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy)
+            res = {child.tag: self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy, **kwargs)
                    for child in element if child.tag is not _XMLComment}
             for k, v in element.attrib.items():
                 res[f"@{k}"] = v
@@ -180,13 +181,16 @@ class XMLEntry(Entry):
     def push(self,  *args, **kwargs):
         return super().push(*args, **kwargs)
 
-    def pull(self, default_value=_undefined_, only_one=False, projection=None,  **kwargs):
+    def pull(self, default_value=_undefined_,  lazy=_undefined_, **kwargs):
 
         xp, envs = self.xpath(self._path)
 
         obj = xp.evaluate(self._root)
 
-        res = self._convert(obj, path=self._path, lazy=default_value is _undefined_, envs=envs, projection=projection)
+        if lazy is _undefined_:
+            lazy = default_value is _undefined_
+
+        res = self._convert(obj, path=self._path, lazy=lazy, envs=envs, **kwargs)
 
         if res is not _not_found_:
             pass

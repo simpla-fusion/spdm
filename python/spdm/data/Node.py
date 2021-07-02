@@ -14,15 +14,12 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
-from numpy.lib.arraysetops import _isin_dispatcher, isin
-
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
-from ..util.utilities import Tags, _not_found_, _undefined_, serialize
+from ..util.utilities import _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
-                    EntryContainer, _next_, _TKey, _TObject, _TQuery,
-                    as_dataclass)
+                    EntryContainer, _next_, _TKey, _TObject, _TQuery)
 
 _TNode = TypeVar('_TNode', bound='Node')
 
@@ -80,9 +77,18 @@ class Node(EntryContainer[_TObject]):
 
     __slots__ = "__orig_class__", "_parent",  "_new_child"
 
-    def __init__(self, entry: Any = None, /, parent=None, **kwargs):
-        super().__init__(entry, **kwargs)
+    def __init__(self, entry: Any = None, /, parent=None, new_child=_undefined_, **kwargs):
+
+        super().__init__(entry)
+
         self._parent = parent
+
+        if new_child is _undefined_:
+            new_child = kwargs
+        elif len(kwargs) > 0:
+            logger.warning(f"Ignore kwargs: {kwargs}")
+
+        self._new_child = new_child
 
     def __repr__(self) -> str:
         annotation = [f"{k}='{v}'" for k, v in self.annotation.items() if v is not None]
@@ -99,18 +105,16 @@ class Node(EntryContainer[_TObject]):
     def nid(self) -> str:
         return self.get("@id", None)
 
-    def _property_type(self, property_name=_undefined_) -> _T:
-        prop_type = _undefined_
+    def _attribute_type(self, attribute=_undefined_) -> _T:
+        attr_type = _undefined_
 
-        if property_name is not _undefined_:
-            prop = dict(inspect.getmembers(self.__class__)).get(property_name, _not_found_)
-
-            if isinstance(prop, (_SpProperty, cached_property)):
-                prop_type = prop.func.__annotations__.get("return", None)
-            elif isinstance(prop, (property)):
-                prop_type = prop.fget.__annotations__.get("return", None)
-
-        elif self._new_child is _undefined_:
+        if isinstance(attribute, str):
+            attr = dict(inspect.getmembers(self.__class__)).get(attribute, _not_found_)
+            if isinstance(attr, (_sp_property, cached_property)):
+                attr_type = attr.func.__annotations__.get("return", None)
+            elif isinstance(attr, (property)):
+                attr_type = attr.fget.__annotations__.get("return", None)
+        elif attribute is _undefined_:
             child_cls = Node
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
@@ -118,42 +122,68 @@ class Node(EntryContainer[_TObject]):
                 child_cls = get_args(self.__orig_class__)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
                     child_cls = child_cls[0]
-            self._new_child = child_cls
-            prop_type = self._new_child
+            attr_type = child_cls
         else:
-            prop_type = self._new_child
+            raise NotImplementedError(attribute)
 
-        return prop_type
+        return attr_type
 
-    def _convert(self, value: _T,   *args,  property_type=_undefined_, property_name=_undefined_,  **kwargs) -> Union[_T, _TObject]:
-        if property_type is not _undefined_:
-            pass
-        elif isinstance(value, (int, float, str, np.ndarray, Node)) or value in (None, _not_found_, _undefined_):
+    def _convert(self, value: _T, *args,  attribute=_undefined_, parent=_undefined_, **kwargs) -> Union[_T, _TObject]:
+        if parent is _undefined_:
+            parent = self
+
+        if isinstance(value, EntryContainer.PRIMARY_TYPE) or value in (None, _not_found_, _undefined_):
             return value
-        elif isinstance(value, collections.abc.Sequence):
-            return List(value, *args, parent=self, **kwargs)
-        elif isinstance(value, collections.abc.Mapping):
-            return Dict(value, *args, parent=self, **kwargs)
-        elif isinstance(value, Entry):
-            return Node(value, *args, parent=self, **kwargs)
-
-        elif prop_type in (int, float):
-            return prop_type(value)
-        elif prop_type is np.ndarray:
-            return np.asarray(value)
-        elif (inspect.isclass(prop_type) and issubclass(prop_type, Node)) or issubclass(getattr(prop_type, '__origin__', type(None)), Node):
-            return prop_type(value, parent=parent, **kwargs)
-        elif dataclasses.is_dataclass(prop_type):
-            if isinstance(value, collections.abc.Mapping):
-                return prop_type(**{k: value.get(k, None) for k in prop_type.__dataclass_fields__})
-            elif isinstance(value, prop_type):
-                return value
+        elif inspect.isclass(self._new_child):
+            if issubclass(self._new_child, Node):
+                return self._new_child(value, parent=parent, **kwargs)
             else:
-                raise TypeError(type(value))
-        elif callable(prop_type):
-            return prop_type(value, **kwargs)
+                return self._new_child(value, **kwargs)
+        elif callable(self._new_child):
+            return self._new_child(value, **kwargs)
+        elif isinstance(self._new_child, collections.abc.Mapping):
+            kwargs = collections.ChainMap(kwargs, self._new_child)
+        elif self._new_child is not _undefined_:
+            logger.warning(f"Ignored!  {type(self._new_child)}")
+
+        if isinstance(attribute, str) or attribute is _undefined_:
+            attribute_type = self._attribute_type(attribute)
         else:
-            return value
+            attribute_type = attribute
+
+        if inspect.isclass(attribute_type):
+            if isinstance(value, attribute_type):
+                res = value
+            elif attribute_type in (int, float):
+                res = attribute_type(value)
+            elif attribute_type is np.ndarray:
+                res = np.asarray(value)
+            elif dataclasses.is_dataclass(attribute_type):
+                if isinstance(value, collections.abc.Mapping):
+                    res = attribute_type(**{k: value.get(k, None) for k in attribute_type.__dataclass_fields__})
+                elif isinstance(value, collections.abc.Sequence):
+                    res = attribute_type(*value)
+            elif issubclass(attribute_type, Node):
+                res = attribute_type(value, parent=parent, **kwargs)
+            else:
+                res = attribute_type(value, **kwargs)
+        elif hasattr(attribute_type, '__origin__'):
+            if issubclass(attribute_type.__origin__, Node):
+                res = attribute_type(value, parent=parent, **kwargs)
+            else:
+                res = attribute_type(value, **kwargs)
+        elif callable(attribute_type):
+            res = attribute_type(value, **kwargs)
+        elif attribute_type is not _undefined_:
+            raise TypeError(attribute_type)
+        elif isinstance(value, collections.abc.Sequence):
+            res = List(value, parent=self, **kwargs)
+        elif isinstance(value, collections.abc.Mapping):
+            res = Dict(value, parent=self, **kwargs)
+        elif isinstance(value, Entry):
+            res = Node(value, parent=self, **kwargs)
+
+        return res
 
     def _serialize(self) -> Any:
         return serialize(self.get(Entry.op_tag.dump))
@@ -185,7 +215,7 @@ class Node(EntryContainer[_TObject]):
     def _pre_process(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def _post_process(self, value: _T,   *args,     **kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T,   *args, **kwargs) -> Union[_T, _TNode]:
         return self._convert(value, *args, **kwargs)
 
     def get(self, query: _TQuery = None,  default_value: _T = _undefined_,  **kwargs) -> _T:
@@ -231,60 +261,59 @@ class Node(EntryContainer[_TObject]):
     def _as_list(self) -> Sequence:
         return [self._post_process(v) for v in self._entry.values()]
 
-    class Category(IntFlag):
-        UNKNOWN = 0
-        ITEM = 0x000
-        DICT = 0x100
-        LIST = 0x200
-        ENTRY = 0x400
-        ARRAY = 0x010
-        INT = 0x001
-        FLOAT = 0x002
-        COMPLEX = 0x004
-        STRING = 0x008
+    # class Category(IntFlag):
+    #     UNKNOWN = 0
+    #     ITEM = 0x000
+    #     DICT = 0x100
+    #     LIST = 0x200
+    #     ENTRY = 0x400
+    #     ARRAY = 0x010
+    #     INT = 0x001
+    #     FLOAT = 0x002
+    #     COMPLEX = 0x004
+    #     STRING = 0x008
 
-    @staticmethod
-    def __type_category__(d) -> IntFlag:
-        flag = Node.Category.UNKNOWN
-        if hasattr(d,  "__array__"):
-            flag |= Node.Category.ARRAY
-            # if np.issubdtype(d.dtype, np.int64):
-            #     flag |= Node.Category.INT
-            # elif np.issubdtype(d.dtype, np.float64):
-            #     flag |= Node.Category.FLOAT
-        elif isinstance(d, collections.abc.Mapping):
-            flag |= Node.Category.DICT
-        elif isinstance(d, collections.abc.Sequence):
-            flag |= Node.Category.LIST
-        elif isinstance(d, int):
-            flag |= Node.Category.INT
-        elif isinstance(d, float):
-            flag |= Node.Category.FLOAT
-        elif isinstance(d, str):
-            flag |= Node.Category.STRING
-        # if isinstance(d, (Entry)):
-        #     flag |= Node.Category.ENTRY
+    # @staticmethod
+    # def __type_category__(d) -> IntFlag:
+    #     flag = Node.Category.UNKNOWN
+    #     if hasattr(d,  "__array__"):
+    #         flag |= Node.Category.ARRAY
+    #         # if np.issubdtype(d.dtype, np.int64):
+    #         #     flag |= Node.Category.INT
+    #         # elif np.issubdtype(d.dtype, np.float64):
+    #         #     flag |= Node.Category.FLOAT
+    #     elif isinstance(d, collections.abc.Mapping):
+    #         flag |= Node.Category.DICT
+    #     elif isinstance(d, collections.abc.Sequence):
+    #         flag |= Node.Category.LIST
+    #     elif isinstance(d, int):
+    #         flag |= Node.Category.INT
+    #     elif isinstance(d, float):
+    #         flag |= Node.Category.FLOAT
+    #     elif isinstance(d, str):
+    #         flag |= Node.Category.STRING
+    #     # if isinstance(d, (Entry)):
+    #     #     flag |= Node.Category.ENTRY
 
-        return flag
+    #     return flag
 
-    @property
-    def __category__(self) -> Category:
-        return Node.__type_category__(self._entry)
+    # @property
+    # def __category__(self) -> Category:
+    #     return Node.__type_category__(self._entry)
 
 
 class List(Node[_T], Sequence[_T]):
     __slots__ = ()
 
-    def __init__(self, cache: Union[Sequence, Entry] = None, /,   **kwargs) -> None:
+    def __init__(self, cache: Union[Sequence, Entry] = None, /, parent=_undefined_,   **kwargs) -> None:
+        if isinstance(cache, Entry):
+            cache = cache.pull(_LIST_TYPE_())
         if cache is None:
             cache = _LIST_TYPE_()
-        elif isinstance(cache, Entry):
-            cache = cache.pull(_LIST_TYPE_())
+        elif not isinstance(cache, (Entry, list)):
+            cache = [cache]
 
-        Node.__init__(self, cache, **kwargs)
-
-        if isinstance(cache, collections.abc.Sequence):
-            cache = [self._convert(v) for v in cache]
+        Node.__init__(self, cache, parent=parent, **kwargs)
 
     def _serialize(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
@@ -292,6 +321,11 @@ class List(Node[_T], Sequence[_T]):
     @classmethod
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
+
+    def _convert(self, value: _T,  parent=_undefined_, **kwargs) -> Union[_T, _TObject]:
+        if parent is _undefined_:
+            parent = self._parent
+        return super()._convert(value, parent=parent, **kwargs)
 
     def __len__(self) -> int:
         return super().__len__()
@@ -336,10 +370,10 @@ class List(Node[_T], Sequence[_T]):
             super().reset()
 
     def find(self, condition,  only_first=True) -> _T:
-        return self._post_process(self._entry.pull(condition=condition, only_first=only_first))
+        return self._post_process(self._entry.find(condition=condition, only_first=only_first))
 
-    def update(self, d, predication=_undefined_, only_first=False) -> int:
-        return self._entry.push(self._pre_process(d), predication=predication, only_first=only_first)
+    def update(self, d, filter=_undefined_, only_first=False) -> int:
+        return self._entry.update(self._pre_process(d), filter=filter, only_first=only_first)
 
 
 class Dict(Node[_T], Mapping[str, _T]):
@@ -426,7 +460,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     #                 delattr(self, key)
 
 
-class _SpProperty(Generic[_T]):
+class _sp_property(Generic[_T]):
     def __init__(self, func: Callable[..., _T]):
         self.func = func
         self.attrname = None
@@ -438,10 +472,10 @@ class _SpProperty(Generic[_T]):
         res = True
         if self.return_type is not None:
             orig_class = getattr(obj, "__orig_class__", obj.__class__)
-            res = inspect.isclass(orig_class) \
-                and inspect.isclass(self.return_type) \
-                and issubclass(orig_class, self.return_type) \
-                or orig_class == self.return_type
+            res = orig_class == self.return_type \
+                or (inspect.isclass(orig_class)
+                    and inspect.isclass(self.return_type)
+                    and issubclass(orig_class, self.return_type))
 
         return res
 
@@ -493,15 +527,15 @@ class _SpProperty(Generic[_T]):
                     val = self.func(instance)
 
                     if not self._isinstance(val):
-                        val = instance._post_process(val, query=self.attrname)
+                        val = instance._convert(val, attribute=self.return_type)
 
                     cache.put(self.attrname, val)
 
         return val
 
 
-def sp_property(func: Callable[..., _T]) -> _SpProperty[_T]:
-    return _SpProperty[_T](func)
+def sp_property(func: Callable[..., _T]) -> _sp_property[_T]:
+    return _sp_property[_T](func)
 
 
 def chain_map(*args, **kwargs) -> collections.ChainMap:

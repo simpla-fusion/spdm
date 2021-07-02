@@ -9,7 +9,7 @@ from typing import Any, MutableSequence, Optional, Sequence
 from ..numlib import np
 from ..util.logger import logger
 from .Entry import Entry, _not_found_
-from .Node import Dict, List, Node, _next_, _SpProperty, _TObject, sp_property
+from .Node import Dict, List, Node, _next_,  _TObject, sp_property, _sp_property
 
 
 def do_getattr(obj, k):
@@ -24,7 +24,7 @@ def do_getattr(obj, k):
 
         if isinstance(res, property):
             res = getattr(res, "fget")(obj)
-        elif isinstance(res, (_SpProperty, cached_property)):
+        elif isinstance(res, (_sp_property, cached_property)):
             res = res.__get__(obj)
         else:
             res = ht_get(obj, k, ignore_attribute=True)

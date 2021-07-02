@@ -45,7 +45,7 @@ class EntryContainer(Generic[_TObject]):
 
     PRIMARY_TYPE = (int, float, str, np.ndarray)
 
-    def __init__(self, entry ) -> None:
+    def __init__(self, entry) -> None:
         super().__init__()
         if isinstance(entry, EntryContainer):
             self._entry = entry._entry
@@ -76,11 +76,11 @@ class EntryContainer(Generic[_TObject]):
     def reset(self, value: _T = None, **kwargs) -> None:
         self._entry.push({Entry.op_tag.assign: value},  **kwargs)
 
-    def update(self,  value: _T,  condition: Mapping = _undefined_, ** kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.update: value}, condition=condition,  **kwargs)
+    def update(self,  value: _T,  filter: Mapping = _undefined_, ** kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.update: value}, filter=filter,  **kwargs)
 
-    def find(self,  predication: Mapping,  ** kwargs) -> _T:
-        return self._entry.pull(predication=predication, **kwargs)
+    def find(self,  filter: Mapping,  ** kwargs) -> _T:
+        return self._entry.pull(filter=filter, **kwargs)
 
 
 def _slice_to_range(s: slice, length: int) -> range:
@@ -252,11 +252,11 @@ class Entry(object):
     def append(self, value: _T) -> _T:
         return self.push({Entry.op_tag.append: value})
 
-    def update(self, value: _T) -> _T:
-        return self.push({Entry.op_tag.update: value})
+    def update(self, value: _T, filter=None) -> _T:
+        return self.push(value, filter=filter)
 
-    def update_many(self, value=None):
-        raise NotImplementedError()
+    def find(self, filter) -> _T:
+        return self.pull(filter=filter)
 
     def erase(self):
         self.push(Entry.op_tag.erase)
@@ -400,7 +400,7 @@ class Entry(object):
     }
 
     @staticmethod
-    def _ht_get(target, query, default_value: Union[_T,  op_tag] = _undefined_, condition=_undefined_, only_first=True) -> _T:
+    def _ht_get(target, query, default_value: Union[_T,  op_tag] = _undefined_,  filter=_undefined_, only_first=True) -> _T:
         """
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
@@ -462,7 +462,7 @@ class Entry(object):
         return val
 
     @staticmethod
-    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True, predication=_undefined_, only_first=True) -> Tuple[_T, bool]:
+    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True, filter=_undefined_, only_first=True) -> Tuple[_T, bool]:
         """
             insert if the key does not exist, does nothing if the key exists.
             return value at key
@@ -543,40 +543,34 @@ class Entry(object):
 
         return val
 
-    def pull(self, default_value: Union[op_tag, _T] = _not_found_, **kwargs) -> _T:
-        return self._ht_get(self._cache, self._path,  default_value, **kwargs)
+    def pull(self, default_value=_undefined_, **kwargs) -> _T:
+        return self._ht_get(self._cache, self._path, default_value=default_value,  **kwargs)
 
     def push(self,  value: _T,  **kwargs) -> Tuple[_T, bool]:
-        if value is _undefined_:
-            raise ValueError(f"{self._path}")
-
         if self._cache is None:
             if len(self._path) > 0 and isinstance(self._path[0], str):
                 self._cache = _DICT_TYPE_()
             else:
                 self._cache = _LIST_TYPE_()
 
-        if isinstance(value, Entry.op_tag):
-            value = {value: None}
-        else:
-            v_entry: Entry = value if isinstance(value, Entry) else getattr(value, "_entry", _not_found_)
-
-            # remove cycle reference
-            if v_entry is not _not_found_ \
-                    and v_entry._cache is self._cache \
-                    and len(self._path) <= len(v_entry._path) \
-                    and all([v == v_entry._path[idx] for idx, v in enumerate(self._path)]):
-                v_entry._cache = self._ht_get(self._cache, self._path, None)
-                v_entry._path = v_entry._path[len(self._path):]
-                logger.debug((v_entry._cache, self._path, v_entry._path))
-
         return self._ht_put(self._cache, self._path, value, **kwargs)
 
-    def has_child(self, other: _TEntry) -> bool:
-        if other.__class__ is not Entry or self._cache is not other._cache or len(self._path) > len(other._path):
-            return False
-        else:
-            return all([v == other._path[idx] for idx, v in enumerate(self._path)])
+        # if isinstance(value, Entry.op_tag):
+        #     value = {value: None}
+        # else:
+        #     v_entry: Entry = value if isinstance(value, Entry) else getattr(value, "_entry", _not_found_)
+
+        #     # remove cycle reference
+        #     if v_entry is not _not_found_ \
+        #             and v_entry._cache is self._cache \
+        #             and len(self._path) <= len(v_entry._path) \
+        #             and all([v == v_entry._path[idx] for idx, v in enumerate(self._path)]):
+        #         v_entry._cache = self._ht_get(self._cache, self._path, None)
+        #         v_entry._path = v_entry._path[len(self._path):]
+        #         logger.debug((v_entry._cache, self._path, v_entry._path))
+
+    def has_child(self, member_name) -> bool:
+        return self._ht_get(self._cache, self._path+[member_name],  Entry.op_tag.exists)
 
     def flush(self, v):
         self._cache = self.push({Entry.op_tag.try_insert: v})
