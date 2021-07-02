@@ -132,7 +132,7 @@ class Node(EntryContainer[_TObject]):
         if parent is _undefined_:
             parent = self
 
-        if isinstance(value, EntryContainer.PRIMARY_TYPE) or value in (None, _not_found_, _undefined_):
+        if isinstance(value, Entry.PRIMARY_TYPE) or value in (None, _not_found_, _undefined_):
             return value
         elif inspect.isclass(self._new_child):
             if issubclass(self._new_child, Node):
@@ -237,7 +237,7 @@ class Node(EntryContainer[_TObject]):
         return self._post_process(self.get(query))
 
     def __delitem__(self, query: _TQuery) -> bool:
-        return self.put(query, op=Entry.op_tag.erase)
+        return self._entry.extend(query).erase()
 
     def __contains__(self, query: _TQuery) -> bool:
         return self.get(query, op=Entry.op_tag.exists)
@@ -369,11 +369,11 @@ class List(Node[_T], Sequence[_T]):
             self._combine = value
             super().reset()
 
-    def find(self, condition,  only_first=True) -> _T:
-        return self._post_process(self._entry.find(condition=condition, only_first=only_first))
+    def find(self, predication,  only_first=True) -> _T:
+        return self._post_process(self._entry.find(predication, only_first=only_first))
 
-    def update(self, d, filter=_undefined_, only_first=False) -> int:
-        return self._entry.update(self._pre_process(d), filter=filter, only_first=only_first)
+    def update(self, d, predication=_undefined_, only_first=False) -> int:
+        return self._entry.update(self._pre_process(d), predication=predication, only_first=only_first)
 
 
 class Dict(Node[_T], Mapping[str, _T]):

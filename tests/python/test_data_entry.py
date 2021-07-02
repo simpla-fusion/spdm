@@ -1,3 +1,4 @@
+from logging import log
 import unittest
 from copy import copy
 from spdm.data.Entry import Entry, EntryCombiner, EntryWrapper,  _next_, _not_found_, _undefined_
@@ -28,7 +29,7 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(d.get(["a", 0]),        self.data["a"][0])
         self.assertEqual(d.get(["a", 1]),        self.data["a"][1])
 
-    def test_list_find_by_cond(self):
+    def test_find_by_cond(self):
         cache = [
             {"name": "wang wu", "age": 21},
             {"name": "wang liu", "age": 22},
@@ -47,6 +48,21 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(young[0]["name"],  "wang liu")
         self.assertEqual(young[1]["name"],  "li si")
 
+    def test_update_by_cond(self):
+        cache = [
+            {"name": "wang wu",   "age": 21},
+            {"name": "wang liu",  "age": 22},
+            {"name": "li si",     "age": 22},
+            {"name": "zhang san", "age": 24},
+        ]
+
+        d0 = Entry(cache)
+
+        d0.update({"address": "hefei"}, predication={"name": "wang wu"})
+
+        self.assertEqual(cache[0]["address"],  "hefei")
+        self.assertEqual(cache[0]["age"],  21)
+    
     def test_put(self):
         cache = {}
 

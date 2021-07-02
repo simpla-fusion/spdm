@@ -69,16 +69,16 @@ class EntryContainer(Generic[_TObject]):
         return self._entry.put(path, value,  **kwargs)
 
     def remove(self, path: _TQuery, /, **kwargs) -> None:
-        return self._entry.put(path, Entry.op_tag.erase, **kwargs)
+        return self._entry.put(path, op=Entry.op_tag.erase, **kwargs)
 
     def reset(self, value: _T = None, **kwargs) -> None:
-        self._entry.push({Entry.op_tag.assign: value},  **kwargs)
+        self._entry.push(value,  **kwargs)
 
     def update(self,  value: _T,  predication: Mapping = _undefined_, ** kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.update: value}, predication=predication,  **kwargs)
+        return self._entry.update(value,  predication=predication,  **kwargs)
 
-    def find(self,  predication: Mapping,  ** kwargs) -> _T:
-        return self._entry.pull(predication=predication, **kwargs)
+    def find(self,  *args, ** kwargs) -> _T:
+        return self._entry.find(*args,   **kwargs)
 
 
 def _slice_to_range(s: slice, length: int) -> range:
@@ -252,11 +252,19 @@ class Entry(object):
     def append(self, value: _T) -> _T:
         return self.push(value, op=Entry.op_tag.append)
 
-    def update(self, value: _T, predication=None) -> _T:
-        return self.push(value, op=Entry.op_tag.update, predication=predication)
+    def update(self, value: _T, predication=None, only_first=False) -> _T:
+        return self.push(value, op=Entry.op_tag.update, predication=predication, only_first=only_first)
 
     def find(self, predication, only_first=False) -> _T:
-        return self.pull(predication=predication, only_first=only_first)
+        entry = self
+        if isinstance(predication, list):
+            if len(predication) > 1:
+                entry = self.extend(predication[:-1])
+                predication = predication[-1]
+            elif len(predication) == 1:
+                predication = predication[0]
+
+        return entry.pull(predication=predication, only_first=only_first)
 
     def erase(self):
         self.push(op=Entry.op_tag.erase)
@@ -402,7 +410,7 @@ class Entry(object):
             return val
 
         def _filter(d):
-            return all([Entry._ht_get(d, k, default_value=_not_found_) == v for k, v in predication.items()])
+            return all([Entry._ht_get(d, Entry.normalize_query(k), default_value=_not_found_) == v for k, v in predication.items()])
 
         if only_first:
             val = next(filter(_filter, val))
@@ -500,7 +508,7 @@ class Entry(object):
         if not query:
             query = []
 
-        if predication is _undefined_:
+        if predication is _undefined_ and len(query) > 0:
             last_idx = len(query)-1
             target_key = query[-1]
         else:
@@ -553,9 +561,17 @@ class Entry(object):
             return target
         elif isinstance(val, Entry.PRIMARY_TYPE):
             return target
+        elif target_key is _next_:
+            target.append(value)
+            return target[-1]
         else:
             target = Entry._apply_filter(target, predication=predication, only_first=only_first)
-            target = Entry._apply_op(op if op is not _undefined_ else Entry.op_tag.assign, target, target_key, value)
+            if not only_first and isinstance(target, list):
+                target = [Entry._apply_op(op if op is not _undefined_ else Entry.op_tag.assign,
+                                          d, target_key, value) for d in target]
+            else:
+                target = Entry._apply_op(op if op is not _undefined_ else Entry.op_tag.assign,
+                                         target, target_key, value)
             return target
 
     def pull(self, default_value=_undefined_, **kwargs) -> _T:

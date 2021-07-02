@@ -140,7 +140,7 @@ class TestNodeList(unittest.TestCase):
         d["a"] = "hello world {name}!"
         d["c"][_next_] = 1.23455
         d["c"][_next_] = {"a": "hello world", "b": 3.141567}
-        
+
         self.assertEqual(cache["a"], "hello world {name}!")
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["a"], "hello world")
@@ -160,17 +160,17 @@ class TestNodeList(unittest.TestCase):
         ]
 
         d0 = List(cache)
-        self.assertEqual(d0[{"name": "li si"}]["age"], 22)
+        self.assertEqual(d0.find({"name": "li si"})["age"], 22)
 
         d1 = Dict({"person": cache})
 
-        young = d1.get(["person", {"age": 22}])
+        young = d1.get("person", predication={"age": 22})
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
         self.assertEqual(young[1]["name"],  "li si")
 
-        res = d1["person", {"age": 22}]
+        res = d1["person"].find({"age": 22})
 
         names = [d["name"] for d in res]
 
@@ -186,7 +186,7 @@ class TestNodeList(unittest.TestCase):
 
         d0 = List(cache)
 
-        d0[{"name": "wang wu"}]["address"] = "hefei"
+        d0.update({"address": "hefei"}, predication={"name": "wang wu"})
 
         self.assertEqual(cache[0]["address"],  "hefei")
 
