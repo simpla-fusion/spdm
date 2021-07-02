@@ -18,23 +18,6 @@ class TestEntry(unittest.TestCase):
         }
     }
 
-    def test_put(self):
-        cache = {}
-
-        d = Entry(cache)
-
-        d.extend(["a"]).push("hello world {name}!")
-
-        self.assertEqual(cache["a"],           "hello world {name}!")
-
-        d.extend(["e", "f"]).push(5)
-
-        d.extend(["e", "g"]).push(6)
-
-        self.assertEqual(cache["e"]["f"],   5)
-
-        self.assertEqual(cache["e"]["g"],   6)
-
     def test_get(self):
 
         d = Entry(self.data)
@@ -45,26 +28,62 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(d.get(["a", 0]),        self.data["a"][0])
         self.assertEqual(d.get(["a", 1]),        self.data["a"][1])
 
+    def test_list_find_by_cond(self):
+        cache = [
+            {"name": "wang wu", "age": 21},
+            {"name": "wang liu", "age": 22},
+            {"name": "li si",    "age": 22},
+            {"name": "zhang san", "age": 24},
+        ]
+
+        d0 = Entry(cache)
+        self.assertEqual(d0.find({"name": "li si"}, only_first=True)["age"], 22)
+
+        d1 = Entry({"person": cache})
+
+        young = d1.get("person", predication={"age": 22})
+
+        self.assertEqual(len(young), 2)
+        self.assertEqual(young[0]["name"],  "wang liu")
+        self.assertEqual(young[1]["name"],  "li si")
+
+    def test_put(self):
+        cache = {}
+
+        d = Entry(cache)
+
+        d.extend(["a"]).push("hello world {name}!")
+
+        self.assertEqual(cache["a"],           "hello world {name}!")
+
+        d.put(["e", "f"], 5)
+
+        d.put(["e", "g"], 6)
+
+        self.assertEqual(cache["e"]["f"],   5)
+
+        self.assertEqual(cache["e"]["g"],   6)
+
     def test_operator(self):
         d = Entry(self.data)
 
         self.assertTrue(d.exists)
-        self.assertTrue(d.extend("a").exists)
-        self.assertTrue(d.extend("d.e").exists)
-        self.assertFalse(d.extend("b.h").exists)
+        self.assertTrue(d.get("a", op=Entry.op_tag.exists))
+        self.assertTrue(d.get("d.e", op=Entry.op_tag.exists))
+        self.assertFalse(d.get("b.h", op=Entry.op_tag.exists))
 
         self.assertEqual(d.count,              3)
-        self.assertEqual(d.extend("a").count,   6)
-        self.assertEqual(d.extend("d").count,   2)
+        self.assertEqual(d.get("a", op=Entry.op_tag.count),   6)
+        self.assertEqual(d.get("d", op=Entry.op_tag.count),   2)
 
-        self.assertTrue(d.extend(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
-        self.assertFalse(d.extend("f.g").exists)
+        self.assertTrue(d.get(["a", slice(2, 6)], op={Entry.op_tag.equal: [1, 2, 3, 4]}))
+        self.assertFalse(d.get("f.g", op=Entry.op_tag.exists))
 
     def test_append(self):
         cache = {}
         d = Entry(cache)
-        d.put("c", {Entry.op_tag.append: 1.23455})
-        d.put("c", {Entry.op_tag.append: {"a": "hello world", "b": 3.141567}})
+        d.put("c", 1.23455, op=Entry.op_tag.append)
+        d.put("c", {"a": "hello world", "b": 3.141567}, op=Entry.op_tag.append)
 
         self.assertEqual(cache["c"][0],                      1.23455)
         self.assertEqual(cache["c"][1]["a"],           "hello world")
@@ -95,65 +114,27 @@ class TestEntry(unittest.TestCase):
         d.extend("b").erase()
         self.assertTrue("b" not in cache)
 
-    def test_append(self):
-        cache = {"this_is_a_cache": True}
 
-        d = Entry(cache)
+# class TestEntryCombiner(unittest.TestCase):
+#     data = [
+#         {"id": 0,
+#             "value": 1.23,
+#             "c": "I'm {age}!",
+#             "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
+#         {"id": 1,
+#             "value": 2.23,
+#             "c": "I'm {age}!",
+#             "d": {"e": "{name} is {age}", "f": "{address}"}},
+#         {"id": 2,
+#             "value": 4.23,
+#             "c": "I'm {age}!",
+#             "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
+#     ]
 
-        d.put(["a"], "hello world {name}!")
-        d.put(["c", _next_], 1.23455)
-        d.put(["c", _next_],  "a")
-
-        self.assertEqual(cache["a"], "hello world {name}!")
-        self.assertEqual(cache["c"][0],  1.23455)
-        self.assertEqual(cache["c"][1],  "a")
-
-    def test_list_find_by_cond(self):
-        cache = [
-            {"name": "wang wu", "age": 21},
-            {"name": "wang liu", "age": 22},
-            {"name": "li si",    "age": 22},
-            {"name": "zhang san", "age": 24},
-        ]
-
-        d0 = Entry(cache)
-        self.assertEqual(d0.get([{"name": "li si"}, "age"]), 22)
-
-        d1 = Entry({"person": cache})
-
-        young = d1.get(["person", {"age": 22}])
-
-        self.assertEqual(len(young), 2)
-        self.assertEqual(young[0]["name"],  "wang liu")
-        self.assertEqual(young[1]["name"],  "li si")
-
-        res=d1.get(["person", {"age": 22}])
-
-        names=[d["name"] for d in res]
-
-        self.assertEqual(len(names), 2)
-
-
-class TestEntryCombiner(unittest.TestCase):
-    data=[
-        {"id": 0,
-            "value": 1.23,
-            "c": "I'm {age}!",
-            "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
-        {"id": 1,
-            "value": 2.23,
-            "c": "I'm {age}!",
-            "d": {"e": "{name} is {age}", "f": "{address}"}},
-        {"id": 2,
-            "value": 4.23,
-            "c": "I'm {age}!",
-            "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
-    ]
-
-    def test_get(self):
-        d = EntryCombiner(self.data)
-        self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
-        self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+#     def test_get(self):
+#         d = EntryCombiner(self.data)
+#         self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
+#         self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     # def test_cache(self):
     #     cache = {}
@@ -222,7 +203,6 @@ class TestEntryCombiner(unittest.TestCase):
     #     #     #     # self.assertTrue(d.__category__ | Entry.Category.LIST)
     #     #     #     self.assertEqual(d.extend([0, "a"]).get(), 1)
     #     #     #     self.assertEqual(d.extend([0, "b"]).get(), 2)
-
 
 if __name__ == '__main__':
     unittest.main()

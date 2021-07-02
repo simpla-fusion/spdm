@@ -43,8 +43,6 @@ _TContainer = TypeVar("_TContainer", bound="EntryContainer")
 class EntryContainer(Generic[_TObject]):
     __slots__ = "_entry"
 
-    PRIMARY_TYPE = (int, float, str, np.ndarray)
-
     def __init__(self, entry) -> None:
         super().__init__()
         if isinstance(entry, EntryContainer):
@@ -76,11 +74,11 @@ class EntryContainer(Generic[_TObject]):
     def reset(self, value: _T = None, **kwargs) -> None:
         self._entry.push({Entry.op_tag.assign: value},  **kwargs)
 
-    def update(self,  value: _T,  filter: Mapping = _undefined_, ** kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.update: value}, filter=filter,  **kwargs)
+    def update(self,  value: _T,  predication: Mapping = _undefined_, ** kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.update: value}, predication=predication,  **kwargs)
 
-    def find(self,  filter: Mapping,  ** kwargs) -> _T:
-        return self._entry.pull(filter=filter, **kwargs)
+    def find(self,  predication: Mapping,  ** kwargs) -> _T:
+        return self._entry.pull(predication=predication, **kwargs)
 
 
 def _slice_to_range(s: slice, length: int) -> range:
@@ -100,6 +98,8 @@ _TEntry = TypeVar('_TEntry', bound='Entry')
 
 class Entry(object):
     __slots__ = "_cache", "_path"
+
+    PRIMARY_TYPE = (int, float, str, np.ndarray)
 
     class op_tag(Flag):
         # write
@@ -197,7 +197,7 @@ class Entry(object):
     @property
     def parent(self) -> _TEntry:
         if not self._path:
-            return self.pull(Entry.op_tag.parent)
+            return self.pull(op=Entry.op_tag.parent)
         else:
             node = self.duplicate()
             node._path = node._path[:-1]
@@ -208,10 +208,10 @@ class Entry(object):
         """
             return next brother neighbour
         """
-        return self.pull(Entry.op_tag.first_child)
+        return self.pull(op=Entry.op_tag.first_child)
 
     def __next__(self) -> _TEntry:
-        return self.pull(Entry.op_tag.next)
+        return self.pull(op=Entry.op_tag.next)
 
     def reset(self, value=None) -> _TEntry:
         self._cache = value
@@ -220,7 +220,7 @@ class Entry(object):
 
     @property
     def exists(self) -> bool:
-        return self.pull(Entry.op_tag.exists)
+        return self.pull(op=Entry.op_tag.exists)
 
     @property
     def is_list(self) -> bool:
@@ -231,17 +231,17 @@ class Entry(object):
         return not self._path and isinstance(self._cache, collections.abc.Mapping)
 
     def __len__(self) -> int:
-        return self.pull(Entry.op_tag.count)
+        return self.pull(op=Entry.op_tag.count)
 
     @property
     def count(self) -> int:
-        return self.pull(Entry.op_tag.count)
+        return self.pull(op=Entry.op_tag.count)
 
     def __contains__(self, k) -> bool:
-        return self.pull({Entry.op_tag.exists: k})
+        return self.pull(op={Entry.op_tag.exists: k})
 
     def equal(self, other) -> bool:
-        return self.pull({Entry.op_tag.equal: other})
+        return self.pull(op={Entry.op_tag.equal: other})
 
     def get(self, query: _TQuery, default_value: _T = _undefined_, **kwargs) -> _T:
         return self.extend(query).pull(default_value,   **kwargs)
@@ -250,16 +250,16 @@ class Entry(object):
         return self.extend(query).push(value, **kwargs)
 
     def append(self, value: _T) -> _T:
-        return self.push({Entry.op_tag.append: value})
+        return self.push(value, op=Entry.op_tag.append)
 
-    def update(self, value: _T, filter=None) -> _T:
-        return self.push(value, filter=filter)
+    def update(self, value: _T, predication=None) -> _T:
+        return self.push(value, op=Entry.op_tag.update, predication=predication)
 
-    def find(self, filter) -> _T:
-        return self.pull(filter=filter)
+    def find(self, predication, only_first=False) -> _T:
+        return self.pull(predication=predication, only_first=only_first)
 
     def erase(self):
-        self.push(Entry.op_tag.erase)
+        self.push(op=Entry.op_tag.erase)
 
     def iter(self):
         obj = self.pull()
@@ -331,32 +331,29 @@ class Entry(object):
             success = True
         return success
 
-    def _op_update(target, key, v):
-        if v is _undefined_:
+    def _op_update(target, key, value):
+
+        if key not in (None, _undefined_, _not_found_):
             val = Entry._ht_get(target, key, _not_found_)
-        elif isinstance(v, collections.abc.Mapping):
-            if key is None:
-                val = target
-            elif isinstance(target, collections.abc.Mapping):
-                val = target.setdefault(key, _DICT_TYPE_())
+            if not isinstance(target, (Entry, EntryContainer, collections.abc.Mapping)) or not isinstance(value, collections.abc.Mapping):
+                return Entry._ht_put(target, key, value, op=Entry.op_tag.update)
             else:
-                val = target[key]
+                target = val
+                key = None
 
-            if not isinstance(val, (collections.abc.Mapping, Entry)):
-                raise TypeError(f"{type(target)} {key} {type(val)} ")
-
-            for k, v in v.items():
-                Entry._ht_put(val, [k], {Entry.op_tag.update: v})
+        if isinstance(target, Entry):
+            return Entry._ht_put(target, None, value, op=Entry.op_tag.update)
+        elif isinstance(target, EntryContainer):
+            return target.update(value)
+        elif isinstance(target, collections.abc.Mapping) and isinstance(value, collections.abc.Mapping):
+            for k, v in value.items():
+                if isinstance(v, collections.abc.Mapping):
+                    Entry._ht_put(target, k, v, op=Entry.op_tag.update)
+                else:
+                    target.setdefault(k, v)
+            return target
         else:
-            if isinstance(target, collections.abc.Mapping):
-                val = target.get(key, _not_found_)
-            else:
-                val = target[key]
-
-            if val is _not_found_:
-                target[key] = v
-                val = v
-        return val
+            raise TypeError((type(target), type(value)))
 
     def _op_try_insert(target, key, v):
         if isinstance(target, collections.abc.Mapping):
@@ -400,7 +397,37 @@ class Entry(object):
     }
 
     @staticmethod
-    def _ht_get(target, query, default_value: Union[_T,  op_tag] = _undefined_,  filter=_undefined_, only_first=True) -> _T:
+    def _apply_filter(val, predication: collections.abc.Mapping, only_first=True):
+        if not isinstance(predication, collections.abc.Mapping):
+            return val
+
+        def _filter(d):
+            return all([Entry._ht_get(d, k, default_value=_not_found_) == v for k, v in predication.items()])
+
+        if only_first:
+            val = next(filter(_filter, val))
+        else:
+            val = list(filter(_filter, val))
+        return val
+
+    @staticmethod
+    def _apply_op(op: Union[collections.abc.Mapping, op_tag], target, *args):
+        if op in (None, _undefined_, _not_found_):
+            return target
+
+        if isinstance(op, Entry.op_tag):
+            return Entry._ops[op](target, *args)
+        elif isinstance(op, collections.abc.Mapping) and len(op) > 0:
+            val = [Entry._ops[k](target, v, *args) for k, v in op.items() if isinstance(k, Entry.op_tag)]
+            if len(val) == 1:
+                val = val[0]
+        elif op is not _undefined_:
+            raise NotImplementedError(op)
+
+        return val
+
+    @staticmethod
+    def _ht_get(target, query, op: op_tag = _undefined_, default_value: _T = _undefined_,  predication=_undefined_, only_first=False) -> _T:
         """
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
@@ -408,40 +435,39 @@ class Entry(object):
         if target is _not_found_ or target is None:
             return default_value
 
-        if not query:
-            query = [None]
-        root = target
-        last_idx = len(query)-1
+        if query is None:
+            query = []
+        elif not isinstance(query, list):
+            query = [query]
+
         val = target
         for idx, key in enumerate(query):
             val = _not_found_
             if key is None:
                 val = target
             elif isinstance(target, (Entry, )):
-                val = target.extend(query[idx:]).pull(default_value)
+                val = target.extend(query[idx:]).pull(default_value, predication=predication, only_first=only_first)
                 break
             elif isinstance(target, EntryContainer):
-                val = target._entry.extend(query[idx:]).pull(default_value)
+                val = target._entry.extend(query[idx:]).pull(
+                    default_value, predication=predication, only_first=only_first)
                 break
             elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 val = target[key]
-            elif isinstance(target, (dict, collections.ChainMap)) and isinstance(key, str):
+            elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
-            elif isinstance(target, list) and isinstance(key, (int, slice)):
-                if isinstance(key, int):
-                    val = target[key] if key < len(target) else _not_found_
-                elif idx == last_idx and isinstance(key, slice):
-                    val = target[key]
-                elif isinstance(key, slice):
+            elif isinstance(target, (collections.abc.Sequence)) and isinstance(key, (int, slice)):
+                if any([isinstance(v, (Entry, EntryContainer)) for v in target]):
                     val = [Entry._ht_get(target, [s]+query[idx+1:], default_value=default_value)
                            for s in _slice_to_range(key, len(target))]
                     break
-            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (collections.abc.Mapping)):
-                val = [v for v in target if isinstance(v, collections.abc.Mapping) and Entry._op_check(v, key)]
-                if len(val) == 1:
-                    val = val[0]
-                elif len(val) == 0:
-                    val = _not_found_
+                else:
+                    try:
+                        val = target[key]
+                    except IndexError as error:
+                        logger.exception(error)
+                        val = _not_found_
+                        break
             else:
                 raise TypeError(f"{type(target)} {type(key)} {query[:idx+1]}")
 
@@ -449,104 +475,93 @@ class Entry(object):
                 break
             target = val
 
-        if default_value is _undefined_ and val is _not_found_:
-            val = Entry(target, query[idx:])
-        elif isinstance(default_value, Entry.op_tag):
-            val = Entry._ops[default_value](val)
-        elif isinstance(default_value, collections.abc.Mapping) and any(map(lambda k: isinstance(k, Entry.op_tag), default_value.keys())):
-            res = [Entry._ops[k](val, v) for k, v in default_value.items()]
-            val = res[0] if len(res) == 1 else res
-        elif val is _not_found_:
-            val = default_value
+        if isinstance(val, Entry):
+            return val.pull(op=op, predication=predication, only_first=only_first)
+        elif isinstance(val, EntryContainer):
+            return val.get(op=op, predication=predication, only_first=only_first)
 
-        return val
+        val = Entry._apply_filter(val, predication=predication, only_first=only_first)
+
+        val = Entry._apply_op(op, val)
+
+        if val is not _not_found_:
+            return val
+        elif default_value is _undefined_:
+            return Entry(target, query)
+        else:
+            return default_value
 
     @staticmethod
-    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True, filter=_undefined_, only_first=True) -> Tuple[_T, bool]:
+    def _ht_put(target: Any, query: _TQuery, value: _T, create_if_not_exists=True, op=_undefined_,  predication=_undefined_, only_first=False) -> Tuple[_T, bool]:
         """
             insert if the key does not exist, does nothing if the key exists.
             return value at key
         """
         if not query:
-            query = [None]
+            query = []
 
-        last_idx = len(query)-1
+        if predication is _undefined_:
+            last_idx = len(query)-1
+            target_key = query[-1]
+        else:
+            last_idx = len(query)
+            target_key = None
 
         val = target
         idx = 0
-        while idx <= last_idx:
+        while idx < last_idx:
             key = query[idx]
             val = _not_found_
-            if target is _not_found_ or target is None:
-                raise KeyError(query[:idx+1])
-            elif isinstance(target, (Entry,   EntryContainer)):
-                val = target.put(query[idx:], value)
-                break
-            # elif isinstance(target, collections.abc.Sequence) and key is _next_:
-            #     target.append(None)
-            #     query[idx] = len(target)-1
-            #     continue
-            elif idx == last_idx:
-                if isinstance(key, collections.abc.Mapping):
-                    val = Entry._op_by_filter(target, key, Entry._op_assign, deepcopy(key))
-                elif hasattr(value, "_entry"):
-                    val = Entry._op_assign(target, key, value)
-                elif isinstance(value, (collections.abc.Mapping)) and any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
-                    val = [Entry._ops[k](target, key, v) for k, v in value.items()]
-                    if len(val) == 1:
-                        val = val[0]
 
-                else:
-                    val = Entry._op_assign(target, key, value)
-            elif key is None:
-                val = target
+            if target is _not_found_ or target is None:
+                break
+            elif isinstance(target, (Entry,   EntryContainer)):
+                val = target.put(query[idx:], value,
+                                 op=op,
+                                 create_if_not_exists=create_if_not_exists,
+                                 predication=predication,
+                                 only_first=only_first)
+                idx = last_idx+1
             elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
                 if val is not _not_found_:
                     pass
-                elif create_if_not_exists:
-                    if isinstance(query[idx+1], str):
-                        val = _DICT_TYPE_()
-                        target[key] = val
-                    else:
-                        val = _LIST_TYPE_()
-                        target[key] = val
+                elif not create_if_not_exists or idx == (len(query)-1):
+                    break
+                elif isinstance(query[idx+1], str):
+                    val = _DICT_TYPE_()
+                    target[key] = val
                 else:
-                    raise KeyError(query[:idx+1])
+                    val = _LIST_TYPE_()
+                    target[key] = val
             elif isinstance(target, (np.ndarray)) and isinstance(key, (int, slice)):
                 val = target[key]
-            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
-                val = target[key]
-            elif isinstance(target, collections.abc.Sequence) and isinstance(key, (slice, collections.abc.Sequence)):
-                if isinstance(key, slice):
-                    key = _slice_to_range(slice)
-
-                if isinstance(value, collections.abc.Sequence):
-                    val = [Entry._ht_put(target, [j]+query[idx+1:], value[i]) for i, j in enumerate(key)]
-                else:
-                    val = [Entry._ht_put(target, [j]+query[idx+1:], value) for i, j in enumerate(key)]
-                break
-            elif isinstance(target, collections.abc.Sequence) and isinstance(key, dict):
-                def _on_fail(o, v=key):
-                    v = deepcopy(v)
-                    o.append(v)
-                    return v
-
-                def _fetch(val, idx):
-                    return val[idx]
-                val = Entry._op_by_filter(target, key, _fetch, on_fail=_on_fail)
+            elif isinstance(target, collections.abc.Sequence):
+                if isinstance(key, (int, slice)):
+                    val = target[key]
+                elif isinstance(key, (collections.abc.Sequence)):
+                    val = [target[i] for i in key]
             else:
                 raise TypeError(f"{type(target)} {key}")
 
             target = val
             idx = idx+1
 
-        return val
+        if idx < last_idx:
+            raise KeyError(query[idx:])
+        elif idx > last_idx:
+            return target
+        elif isinstance(val, Entry.PRIMARY_TYPE):
+            return target
+        else:
+            target = Entry._apply_filter(target, predication=predication, only_first=only_first)
+            target = Entry._apply_op(op if op is not _undefined_ else Entry.op_tag.assign, target, target_key, value)
+            return target
 
     def pull(self, default_value=_undefined_, **kwargs) -> _T:
         return self._ht_get(self._cache, self._path, default_value=default_value,  **kwargs)
 
-    def push(self,  value: _T,  **kwargs) -> Tuple[_T, bool]:
+    def push(self,  value: _T = None,  **kwargs) -> Tuple[_T, bool]:
         if self._cache is None:
             if len(self._path) > 0 and isinstance(self._path[0], str):
                 self._cache = _DICT_TYPE_()
@@ -570,10 +585,10 @@ class Entry(object):
         #         logger.debug((v_entry._cache, self._path, v_entry._path))
 
     def has_child(self, member_name) -> bool:
-        return self._ht_get(self._cache, self._path+[member_name],  Entry.op_tag.exists)
+        return self._ht_get(self._cache, self._path+[member_name], op=Entry.op_tag.exists)
 
     def flush(self, v):
-        self._cache = self.push({Entry.op_tag.try_insert: v})
+        self._cache = self.push(v, op=Entry.op_tag.try_insert)
         self._path = []
 
 

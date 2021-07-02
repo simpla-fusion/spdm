@@ -237,20 +237,20 @@ class Node(EntryContainer[_TObject]):
         return self._post_process(self.get(query))
 
     def __delitem__(self, query: _TQuery) -> bool:
-        return self.put(query, Entry.op_tag.erase)
+        return self.put(query, op=Entry.op_tag.erase)
 
     def __contains__(self, query: _TQuery) -> bool:
-        return self.get(query, Entry.op_tag.exists)
+        return self.get(query, op=Entry.op_tag.exists)
 
     def __len__(self) -> int:
-        return self._entry.pull(Entry.op_tag.count)
+        return self._entry.pull(op=Entry.op_tag.count)
 
     def __iter__(self) -> Iterator[_T]:
         for obj in self._entry.iter():
             yield self._post_process(obj)
 
     def __eq__(self, other) -> bool:
-        return self._entry.pull({Entry.op_tag.equal: other})
+        return self._entry.pull(op={Entry.op_tag.equal: other})
 
     def __bool__(self) -> bool:
         return not self.empty  # and (not self.__fetch__())
@@ -413,7 +413,7 @@ class Dict(Node[_T], Mapping[str, _T]):
         return super().__contains__(o)
 
     def __ior__(self, other):
-        return self.put(Entry.op_tag.update, other)
+        return self.put(op={Entry.op_tag.update: other})
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
