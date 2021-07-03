@@ -135,7 +135,9 @@ class Node(EntryContainer[_TObject]):
         if isinstance(value, Entry.PRIMARY_TYPE) or value in (None, _not_found_, _undefined_):
             return value
         elif inspect.isclass(self._new_child):
-            if issubclass(self._new_child, Node):
+            if isinstance(value, self._new_child):
+                return value
+            elif issubclass(self._new_child, Node):
                 return self._new_child(value, parent=parent, **kwargs)
             else:
                 return self._new_child(value, **kwargs)
@@ -225,7 +227,27 @@ class Node(EntryContainer[_TObject]):
         return super().put(query,  value)
 
     def fetch(self, query: _TQuery = None,  default_value: _T = _undefined_,  **kwargs) -> _T:
-        return self._post_process(super().get(query, default_value, **kwargs))
+        query = Entry.normalize_query(query)
+        target = self
+        val = _not_found_
+
+        for key in query:
+            val = _not_found_
+            if isinstance(key, str):
+                val = getattr(target, key, _not_found_)
+            if val is not _not_found_:
+                target = val
+                continue
+            val = target.get(key, _not_found_, **kwargs)
+            if val is _not_found_:
+                break
+            else:
+                val = target._post_process(val)
+                target = val
+        if val is _not_found_:
+            return default_value
+        else:
+            return val
 
     def remove(self, query: _TQuery, /, **kwargs) -> None:
         return super().remove(query,  **kwargs)
@@ -306,7 +328,7 @@ class List(Node[_T], Sequence[_T]):
     __slots__ = ()
 
     def __init__(self, cache: Union[Sequence, Entry] = None, /, parent=_undefined_,   **kwargs) -> None:
-        if isinstance(cache, Entry):
+        if cache.__class__ is Entry:
             cache = cache.pull(_LIST_TYPE_())
         if cache is None:
             cache = _LIST_TYPE_()
@@ -357,8 +379,8 @@ class List(Node[_T], Sequence[_T]):
         return self._post_process(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition))
 
     def refresh(self, *args, **kwargs):
-        # super().update(d)
-        for element in self.__iter__():
+        self._entry = Entry([self._post_process(d) for d in self._entry.iter()])
+        for element in self._entry.iter():
             if hasattr(element.__class__, 'refresh'):
                 element.refresh(**kwargs)
 
@@ -382,7 +404,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     def __init__(self, cache: Optional[Mapping] = None,  /,  **kwargs):
         if cache is None:
             cache = _DICT_TYPE_()
-        elif isinstance(cache, Entry):
+        elif cache.__class__ is Entry:
             cache = cache.pull(_DICT_TYPE_())
 
         Node.__init__(self, cache,   **kwargs)
@@ -390,7 +412,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     def _serialize(self) -> Mapping:
         return {k: serialize(v) for k, v in self._as_dict()}
 
-    @classmethod
+    @ classmethod
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
 

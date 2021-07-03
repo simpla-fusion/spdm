@@ -38,7 +38,10 @@ class TestEntry(unittest.TestCase):
         ]
 
         d0 = Entry(cache)
+        
         self.assertEqual(d0.find({"name": "li si"}, only_first=True)["age"], 22)
+        
+        self.assertEqual(d0.get([{"name": "li si"}, "age"], only_first=True), 22)
 
         d1 = Entry({"person": cache})
 
@@ -62,7 +65,7 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(cache[0]["address"],  "hefei")
         self.assertEqual(cache[0]["age"],  21)
-    
+
     def test_put(self):
         cache = {}
 
