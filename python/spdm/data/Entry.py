@@ -478,9 +478,9 @@ class Entry(object):
         return res
 
     def pull(self, op=_undefined_, default_value=_undefined_, lazy=False, predication=_undefined_, only_first=False, ** kwargs) -> _T:
-        try:
-            val = Entry._eval_path(self._cache, self._path, read_only=True)
-        except (IndexError, KeyError) as error:
+
+        val = Entry._eval_path(self._cache, self._path, default_value=_not_found_, read_only=True)
+        if val is _not_found_:
             if lazy:
                 val = Entry(self._cache, self._path)
             else:
@@ -589,7 +589,7 @@ class EntryContainer:
         return self._entry.moveto(query, force=True).push(self._pre_process(value))
 
     def __getitem__(self, query: _TQuery) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.moveto(query).pull(), query=query)
+        return self._post_process(self._entry.moveto(query).pull(lazy=True), query=query)
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self._entry.moveto(query).erase()
@@ -615,6 +615,9 @@ class EntryContainer:
 
     def _as_list(self) -> Sequence:
         return [self._post_process(v) for v in self._entry.values()]
+
+    def update(self, value):
+        return self._entry.push({Entry.op_tag.update: value})
 
 
 def _slice_to_range(s: slice, length: int) -> range:
