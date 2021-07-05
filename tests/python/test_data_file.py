@@ -16,11 +16,11 @@ class TestFile(unittest.TestCase):
 
     def test_xml(self):
         device = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml")
-        retcangle = device.entry.extend(["pf_active.coil", 0, "element.geometry.rectangle"]).pull(lazy=False)
+        retcangle = device.entry.moveto(["pf_active.coil", 0, "element.geometry.rectangle"]).pull(lazy=False)
 
         self.assertEqual(retcangle["height"], 2.12)
 
-        wall_r = device.entry.extend(["wall.description_2d", 0, "vessel.annular.outline_inner.r"]).pull(lazy=False)
+        wall_r = device.entry.moveto(["wall.description_2d", 0, "vessel.annular.outline_inner.r"]).pull(lazy=False)
         logger.debug(wall_r)
 
 

@@ -19,37 +19,17 @@ class TestNode(unittest.TestCase):
         }
     }
 
-    def test_dict_initialize(self):
-        d = Dict({
-            "c": "I'm {age}!",
-            "d": {
-                "e": "{name} is {age}",
-                "f": "{address}"
-            }
-        })
+    def test_find_by_key(self):
 
-    def test_dict_find_by_key(self):
-        cache = {
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ],
-            "c": "I'm {age}!",
-            "d": {
-                "e": "{name} is {age}",
-                "f": "{address}"
-            }
-        }
-        d = Dict(cache)
+        d = Dict(self.data)
 
-        self.assertEqual(len(d["a"]),                 6)
-        self.assertEqual(d["c"],             cache["c"])
-        self.assertEqual(d["d"]["e"],   cache["d"]["e"])
-        self.assertEqual(d["d"]["f"],   cache["d"]["f"])
-        self.assertEqual(d["a"][0],       cache["a"][0])
-        self.assertEqual(d["a"][1],       cache["a"][1])
-        self.assertEqual(d["a"][2:6],      [1, 2, 3, 4])
+        self.assertEqual(len(d["a"]),                     6)
+        self.assertEqual(d["c"],             self.data["c"])
+        self.assertEqual(d["d"]["e"],   self.data["d"]["e"])
+        self.assertEqual(d["d"]["f"],   self.data["d"]["f"])
+        self.assertEqual(d["a"][0],       self.data["a"][0])
+        self.assertEqual(d["a"][1],       self.data["a"][1])
+        self.assertEqual(d["a"][2:6],          [1, 2, 3, 4])
 
         # self.assertTrue(d["f"]["g"].empty)
 
@@ -90,14 +70,13 @@ class TestNode(unittest.TestCase):
         del d["a"]
         self.assertTrue("a" not in cache)
 
-    # def test_node_append(self):
-    #     d = List()
-    #     d[_next_] = {"a": 1, "b": 2}
+    def test_node_append(self):
+        d = List()
+        d[_next_] = {"a": 1, "b": 2}
 
-    #     self.assertEqual(len(d), 1)
-    #     self.assertTrue(d.__category__ | Node.Category.LIST)
-    #     self.assertEqual(d[0]["a"], 1)
-    #     self.assertEqual(d[0]["b"], 2)
+        self.assertEqual(len(d), 1)
+        self.assertEqual(d[0]["a"], 1)
+        self.assertEqual(d[0]["b"], 2)
 
     def test_node_insert(self):
         cache = {"this_is_a_cache": True}
@@ -138,8 +117,8 @@ class TestNodeList(unittest.TestCase):
         d = Dict(cache)
 
         d["a"] = "hello world {name}!"
-        d["c"][_next_] = 1.23455
-        d["c"][_next_] = {"a": "hello world", "b": 3.141567}
+        d["c", _next_] = 1.23455
+        d["c", _next_] = {"a": "hello world", "b": 3.141567}
 
         self.assertEqual(cache["a"], "hello world {name}!")
         self.assertEqual(cache["c"][0],  1.23455)
@@ -151,7 +130,7 @@ class TestNodeList(unittest.TestCase):
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
 
-    def test_list_find_by_cond(self):
+    def test_find_by_cond(self):
         cache = [
             {"name": "wang wu", "age": 21},
             {"name": "wang liu", "age": 22},
@@ -160,23 +139,23 @@ class TestNodeList(unittest.TestCase):
         ]
 
         d0 = List(cache)
-        self.assertEqual(d0.find({"name": "li si"})["age"], 22)
+        self.assertEqual(d0[{"name": "li si"}, "age"], 22)
 
         d1 = Dict({"person": cache})
 
-        young = d1.get("person", predication={"age": 22})
+        young = d1["person", {"age": 22}]
 
         self.assertEqual(len(young), 2)
-        self.assertEqual(young[0]["name"],  "wang liu")
-        self.assertEqual(young[1]["name"],  "li si")
+        self.assertEqual(young[0, "name"],  "wang liu")
+        self.assertEqual(young[1, "name"],  "li si")
 
-        res = d1["person"].find({"age": 22})
+        res = d1["person", {"age": 22}]
 
         names = [d["name"] for d in res]
 
         self.assertEqual(len(names), 2)
 
-    def test_list_insert_by_cond(self):
+    def test_insert_by_cond(self):
         cache = [
             {"name": "wang wu",   "age": 21},
             {"name": "wang liu",  "age": 22},
@@ -186,7 +165,7 @@ class TestNodeList(unittest.TestCase):
 
         d0 = List(cache)
 
-        d0.update({"address": "hefei"}, predication={"name": "wang wu"})
+        d0[{"name": "wang wu"}] = {"address": "hefei"}
 
         self.assertEqual(cache[0]["address"],  "hefei")
 

@@ -26,7 +26,7 @@ _TNode = TypeVar('_TNode', bound='Node')
 _T = TypeVar("_T")
 
 
-class Node(EntryContainer[_TObject]):
+class Node(EntryContainer, Generic[_TObject]):
     r"""
         @startuml
 
@@ -217,16 +217,10 @@ class Node(EntryContainer[_TObject]):
     def _pre_process(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def _post_process(self, value: _T,   *args, **kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T,   *args, query=_undefined_, **kwargs) -> Union[_T, _TNode]:
         return self._convert(value, *args, **kwargs)
 
-    def get(self, query: _TQuery = None,  default_value: _T = _undefined_,  **kwargs) -> _T:
-        return super().get(query, default_value, **kwargs)
-
-    def put(self, query: _TQuery, value: _T, /, **kwargs) -> Tuple[_T, bool]:
-        return super().put(query,  value)
-
-    def fetch(self, query: _TQuery = None,  default_value: _T = _undefined_,  **kwargs) -> _T:
+    def fetch(self, query: _TQuery = None,  **kwargs) -> _T:
         query = Entry.normalize_query(query)
         target = self
         val = _not_found_
@@ -237,51 +231,13 @@ class Node(EntryContainer[_TObject]):
                 val = getattr(target, key, _not_found_)
             if val is not _not_found_:
                 target = val
-                continue
-            val = target.get(key, _not_found_, **kwargs)
-            if val is _not_found_:
-                break
             else:
-                val = target._post_process(val)
-                target = val
-        if val is _not_found_:
-            return default_value
-        else:
-            return val
+                target = target[key]
 
-    def remove(self, query: _TQuery, /, **kwargs) -> None:
-        return super().remove(query,  **kwargs)
+        return target
 
-    def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self.put(query,  self._pre_process(value))
-
-    def __getitem__(self, query: _TQuery) -> _TNode:
-        return self._post_process(self.get(query))
-
-    def __delitem__(self, query: _TQuery) -> bool:
-        return self._entry.extend(query).erase()
-
-    def __contains__(self, query: _TQuery) -> bool:
-        return self.get(query, op=Entry.op_tag.exists)
-
-    def __len__(self) -> int:
-        return self._entry.pull(op=Entry.op_tag.count)
-
-    def __iter__(self) -> Iterator[_T]:
-        for obj in self._entry.iter():
-            yield self._post_process(obj)
-
-    def __eq__(self, other) -> bool:
-        return self._entry.pull(op={Entry.op_tag.equal: other})
-
-    def __bool__(self) -> bool:
-        return not self.empty  # and (not self.__fetch__())
-
-    def _as_dict(self) -> Mapping:
-        return {k: self._post_process(v) for k, v in self._entry.items()}
-
-    def _as_list(self) -> Sequence:
-        return [self._post_process(v) for v in self._entry.values()]
+    def bind(self, query: _TQuery, n_cls: _T) -> _T:
+        return NotImplemented
 
     # class Category(IntFlag):
     #     UNKNOWN = 0
@@ -328,10 +284,15 @@ class List(Node[_T], Sequence[_T]):
     __slots__ = ()
 
     def __init__(self, cache: Union[Sequence, Entry] = None, /, parent=_undefined_,   **kwargs) -> None:
-        if cache.__class__ is Entry:
-            cache = cache.pull(_LIST_TYPE_())
         if cache is None:
             cache = _LIST_TYPE_()
+        # elif cache.__class__ is Entry:
+        #     tmp = cache.pull(_not_found_)
+        #     if tmp is _not_found_:
+        #         tmp = _LIST_TYPE_()
+        #         cache.push(tmp)
+        #     cache = tmp
+
         elif not isinstance(cache, (Entry, list)):
             cache = [cache]
 
@@ -402,10 +363,14 @@ class Dict(Node[_T], Mapping[str, _T]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None,  /,  **kwargs):
+        # if cache.__class__ is Entry:
+        #     tmp = cache.pull(_not_found_)
+        #     if tmp is _not_found_:
+        #         tmp = __class__()
+        #         cache.push(tmp)
+        #     cache = tmp
         if cache is None:
             cache = _DICT_TYPE_()
-        elif cache.__class__ is Entry:
-            cache = cache.pull(_DICT_TYPE_())
 
         Node.__init__(self, cache,   **kwargs)
 
@@ -435,7 +400,7 @@ class Dict(Node[_T], Mapping[str, _T]):
         return super().__contains__(o)
 
     def __ior__(self, other):
-        return self.put(op={Entry.op_tag.update: other})
+        return self.put(None, {Entry.op_tag.update: other})
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
@@ -490,6 +455,15 @@ class _sp_property(Generic[_T]):
         self.lock = RLock()
         self.return_type = func.__annotations__.get("return", None)
 
+    def __set_name__(self, owner, name):
+        if self.attrname is None:
+            self.attrname = name
+        elif name != self.attrname:
+            raise TypeError(
+                "Cannot assign the same cached_property to two different names "
+                f"({self.attrname!r} and {name!r})."
+            )
+
     def _isinstance(self, obj) -> bool:
         res = True
         if self.return_type is not None:
@@ -501,35 +475,20 @@ class _sp_property(Generic[_T]):
 
         return res
 
-    def __put__(self, cache: Any, val: Any):
-        if isinstance(val, Node):
-            logger.debug((self.attrname, type(val._entry), type(cache), val._entry._data is cache._data))
-
-        try:
-            cache.insert(self.attrname, val)
-        except TypeError as error:
-            # logger.error(f"Can not put value to '{self.attrname}'")
-            raise TypeError(error) from None
-
     def __set__(self, instance: Any, value: Any):
         with self.lock:
-            cache = getattr(instance, "_entry", Entry(instance.__dict__))
-            cache.insert(self.attrname, value, assign_if_exists=True)
-
-    def __set_name__(self, owner, name):
-        if self.attrname is None:
-            self.attrname = name
-        elif name != self.attrname:
-            raise TypeError(
-                "Cannot assign the same cached_property to two different names "
-                f"({self.attrname!r} and {name!r})."
-            )
+            cache = getattr(instance, "_entry", None)
+            if cache is None:
+                cache = Entry(instance.__dict__)
+            cache.insert(self.attrname, value, op=Entry.op_tag.assign)
 
     def __get__(self, instance: Node, owner=None) -> _T:
         if instance is None:
             return self
         try:
-            cache = instance._entry
+            cache = getattr(instance, "_entry", None)
+            if cache is None:
+                cache = Entry(instance.__dict__)
         except AttributeError as error:
             logger.exception(error)
             raise AttributeError(error)

@@ -1,6 +1,6 @@
 from logging import log
 import unittest
-from copy import copy
+from copy import deepcopy
 from spdm.data.Entry import Entry, EntryCombiner, EntryWrapper,  _next_, _not_found_, _undefined_
 from spdm.util.logger import logger
 
@@ -38,9 +38,9 @@ class TestEntry(unittest.TestCase):
         ]
 
         d0 = Entry(cache)
-        
+
         self.assertEqual(d0.find({"name": "li si"}, only_first=True)["age"], 22)
-        
+
         self.assertEqual(d0.get([{"name": "li si"}, "age"], only_first=True), 22)
 
         d1 = Entry({"person": cache})
@@ -61,7 +61,7 @@ class TestEntry(unittest.TestCase):
 
         d0 = Entry(cache)
 
-        d0.update({"address": "hefei"}, predication={"name": "wang wu"})
+        d0.put({"name": "wang wu"}, {Entry.op_tag.update: {"address": "hefei"}})
 
         self.assertEqual(cache[0]["address"],  "hefei")
         self.assertEqual(cache[0]["age"],  21)
@@ -71,9 +71,9 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.extend(["a"]).push("hello world {name}!")
+        d.moveto(["a"]).push("hello world {name}!")
 
-        self.assertEqual(cache["a"],           "hello world {name}!")
+        self.assertEqual(cache["a"], "hello world {name}!")
 
         d.put(["e", "f"], 5)
 
@@ -87,29 +87,29 @@ class TestEntry(unittest.TestCase):
         d = Entry(self.data)
 
         self.assertTrue(d.exists)
-        self.assertTrue(d.get("a", op=Entry.op_tag.exists))
-        self.assertTrue(d.get("d.e", op=Entry.op_tag.exists))
-        self.assertFalse(d.get("b.h", op=Entry.op_tag.exists))
+        self.assertTrue(d.get("a", Entry.op_tag.exists))
+        self.assertTrue(d.get("d.e", Entry.op_tag.exists))
+        self.assertFalse(d.get("b.h", Entry.op_tag.exists))
 
         self.assertEqual(d.count,              3)
-        self.assertEqual(d.get("a", op=Entry.op_tag.count),   6)
-        self.assertEqual(d.get("d", op=Entry.op_tag.count),   2)
+        self.assertEqual(d.get("a", Entry.op_tag.count),   6)
+        self.assertEqual(d.get("d", Entry.op_tag.count),   2)
 
         self.assertTrue(d.get(["a", slice(2, 6)], op={Entry.op_tag.equal: [1, 2, 3, 4]}))
-        self.assertFalse(d.get("f.g", op=Entry.op_tag.exists))
+        self.assertFalse(d.get("f.g", Entry.op_tag.exists))
 
     def test_append(self):
         cache = {}
         d = Entry(cache)
-        d.put("c", 1.23455, op=Entry.op_tag.append)
-        d.put("c", {"a": "hello world", "b": 3.141567}, op=Entry.op_tag.append)
+        d.put(["c", _next_],  1.23455)
+        d.put(["c", _next_], {"a": "hello world", "b": 3.141567})
 
         self.assertEqual(cache["c"][0],                      1.23455)
         self.assertEqual(cache["c"][1]["a"],           "hello world")
-        self.assertEqual(cache["c"][1]["a"],           "hello world")
+        self.assertEqual(cache["c"][1]["b"],                3.141567)
 
     def test_update(self):
-        cache = copy(self.data)
+        cache = deepcopy(self.data)
 
         d = Entry(cache)
 
@@ -130,8 +130,8 @@ class TestEntry(unittest.TestCase):
         }
 
         d = Entry(cache)
-        d.extend("b").erase()
-        self.assertTrue("b" not in cache)
+        d.moveto("b").erase()
+        self.assertTrue(cache["b"], _undefined_)
 
 
 # class TestEntryCombiner(unittest.TestCase):
