@@ -385,7 +385,9 @@ class Entry(object):
             Finds an element with key equivalent to key.
             return if key exists return element else return default_value
         """
-        if path is None or not path:
+        if target in (_not_found_, None, _undefined_):
+            return default_value
+        elif path is None or not path:
             return target
         elif not isinstance(path, list):
             path = [path]
@@ -445,8 +447,11 @@ class Entry(object):
             if val is _not_found_:
                 if not force:
                     if read_only:
-                        raise IndexError(path[:idx+1])
-                    else:
+                        if default_value is _undefined_:
+                            raise IndexError(path[:idx+1])
+                        else:
+                            return default_value
+                    elif default_value is _undefined_:
                         return Entry(target, path[idx:])
                 elif idx < n_path-1:
                     val = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
@@ -487,7 +492,7 @@ class Entry(object):
         if op is not _undefined_:
             val = Entry._apply_op(op, val)
 
-        if val is not _not_found_:
+        if val not in (_not_found_, _undefined_, None):
             return val
         elif default_value is not _undefined_:
             return default_value
@@ -649,7 +654,8 @@ class EntryCombiner(Entry):
         val = super().pull(default_value=_not_found_)
 
         if val is _not_found_:
-            val = [Entry._eval_path(d, self._path, default_value=_not_found_, **kwargs) for d in self._d_list]
+            val = [Entry._eval_path(d, self._path, default_value=_not_found_, read_only=True, **kwargs)
+                   for d in self._d_list]
 
         if isinstance(val, collections.abc.Sequence):
             val = [d for d in val if (d is not None and d is not _not_found_)]
