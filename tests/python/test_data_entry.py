@@ -41,11 +41,11 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(d0.find({"name": "li si"}, only_first=True)["age"], 22)
 
-        self.assertEqual(d0.get([{"name": "li si"}, "age"], only_first=True), 22)
+        self.assertEqual(d0.get([{"name": "li si"}, "age"]), 22)
 
         d1 = Entry({"person": cache})
 
-        young = d1.get("person", predication={"age": 22})
+        young = d1.get(["person", {"age": 22}])
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
@@ -95,7 +95,7 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(d.get("a", Entry.op_tag.count),   6)
         self.assertEqual(d.get("d", Entry.op_tag.count),   2)
 
-        self.assertTrue(d.get(["a", slice(2, 6)], op={Entry.op_tag.equal: [1, 2, 3, 4]}))
+        self.assertTrue(d.get(["a", slice(2, 6)], {Entry.op_tag.equal: [1, 2, 3, 4]}))
         self.assertFalse(d.get("f.g", Entry.op_tag.exists))
 
     def test_append(self):
@@ -131,7 +131,7 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
         d.moveto("b").erase()
-        self.assertTrue(cache["b"], _undefined_)
+        self.assertTrue("b" not in cache)
 
 
 class TestEntryCombiner(unittest.TestCase):
