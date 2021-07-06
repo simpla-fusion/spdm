@@ -141,7 +141,6 @@ class TestEntryCombiner(unittest.TestCase):
             "c": "I'm {age}!",
             "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
         {"id": 1,
-            "value": 2.23,
             "c": "I'm {age}!",
             "d": {"e": "{name} is {age}", "f": "{address}"}},
         {"id": 2,
@@ -152,7 +151,7 @@ class TestEntryCombiner(unittest.TestCase):
 
     def test_get(self):
         d = EntryCombiner(self.data)
-        self.assertEqual(d.pull("value"), sum([d["value"] for d in self.data]))
+        self.assertEqual(d.pull("value"), sum([d.get("value", 0.0) for d in self.data]))
         self.assertEqual(d.pull("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     # def test_cache(self):

@@ -373,7 +373,7 @@ class Entry(object):
         elif not isinstance(path, list):
             return target, path
         elif target in (_not_found_, None, _undefined_):
-            raise TypeError(type(target))
+            return _not_found_, None
 
         last_index = len(path)-1
 
@@ -623,13 +623,18 @@ class EntryCombiner(Entry):
 
     def pull(self, query=None, value=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
 
-        val = super().pull(query)
+        val = super().pull(query, lazy=lazy, predication=predication, only_first=only_first)
 
         if val in (_not_found_, None, _undefined_):
-            val = [Entry._eval_path(d, self._path,  force=False) for d in self._d_list]
+            val = [Entry._eval_path(d, self._path+Entry.normalize_query(query)+[None],  force=False)
+                   for d in self._d_list]
+            val = [d for d, p in val if p is None]
+
+        if predication is not _undefined_:
+            logger.warning("NotImplemented")
 
         if isinstance(val, collections.abc.Sequence):
-            val = [d for d in val if (d is not None and d is not _not_found_)]
+            val = [d for d in val if (d not in (None, _not_found_, _undefined_))]
 
             if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
                 val = EntryCombiner(val)
@@ -641,7 +646,7 @@ class EntryCombiner(Entry):
                 val = _not_found_
 
         if val is _not_found_:
-            val = default_value
+            val = value
         return val
 
 
