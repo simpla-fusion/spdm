@@ -1,15 +1,15 @@
-from ast import copy_location
 import collections
 import collections.abc
 import dataclasses
 import enum
 import functools
 import inspect
-from logging import log
 import operator
+from ast import copy_location
 from copy import deepcopy
 from enum import Enum, Flag, auto
-from os import read
+from logging import log
+from os import initgroups, read
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
@@ -59,33 +59,22 @@ class Entry(object):
     class op_tag(Flag):
         # write
         try_insert = auto()
+        assign = auto()
         update = auto()
         append = auto()
-        erase = auto()
+        remove = auto()
         reset = auto()
         # read
+        find = auto()
         equal = auto()
         count = auto()
         exists = auto()
+        contains = auto()
         dump = auto()
         # iter
         next = auto()
         parent = auto()
         first_child = auto()
-
-    @staticmethod
-    def normalize_query(query):
-        if query is None:
-            query = []
-        elif isinstance(query, str):
-            query = [query]
-        elif isinstance(query, tuple):
-            query = list(query)
-        elif not isinstance(query, collections.abc.MutableSequence):
-            query = [query]
-
-        query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
-        return query
 
     def __init__(self, cache=None,   path=None,      **kwargs):
         super().__init__()
@@ -99,24 +88,16 @@ class Entry(object):
         obj._path = self._path
         return obj
 
+    def reset(self, value=None) -> _TEntry:
+        self._cache = value
+        self._path = []
+        return self
+
     def __serialize__(self, *args, **kwargs):
-        return NotImplemented
+        return self.pull(Entry.op_tag.dump)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} cache={type(self._cache)} path={self._path} />"
-
-    def enable_cache(self, cache: Union[bool, Mapping] = None) -> bool:
-        if cache is None:
-            pass
-        elif cache is False:
-            self._cache = None
-        elif cache is True:
-            if self._cache is None:
-                self._cache = _DICT_TYPE_()
-        else:
-            self._cache = cache
-
-        return self._cache is not None
 
     @property
     def cache(self) -> Any:
@@ -127,8 +108,8 @@ class Entry(object):
         return self._path
 
     @property
-    def is_relative(self) -> bool:
-        return len(self._path) > 0
+    def level(self):
+        return len(self._path)
 
     @property
     def empty(self) -> bool:
@@ -150,63 +131,30 @@ class Entry(object):
             return node
 
     @property
-    def first_child(self) -> _TEntry:
+    def first_child(self) -> Iterator[_TEntry]:
         """
             return next brother neighbour
         """
         return self.pull(op=Entry.op_tag.first_child)
 
-    def __next__(self) -> _TEntry:
-        return self.pull(op=Entry.op_tag.next)
+    def __iter__(self) -> _TEntry:
+        return self.first_child
 
-    def reset(self, value=None) -> _TEntry:
-        self._cache = value
-        self._path = []
-        return self
-
-    @property
-    def is_list(self) -> bool:
-        return not self._path and isinstance(self._cache, collections.abc.Sequence) and not isinstance(self._cache, str)
-
-    @property
-    def is_dict(self) -> bool:
-        return not self._path and isinstance(self._cache, collections.abc.Mapping)
-
-    @property
-    def count(self) -> int:
-        return self.pull(Entry.op_tag.count)
-
-    def contains(self, k) -> bool:
-        return self.pull({Entry.op_tag.exists: k})
-
-    @property
-    def exists(self) -> bool:
-        return self.pull(op=Entry.op_tag.exists)
-
-    def equal(self, other) -> bool:
-        return self.pull({Entry.op_tag.equal: other})
-
-    def append(self, value: _T) -> _T:
-        return self.push({Entry.op_tag.append: value})
-
-    def update(self, value: _T, predication=_undefined_, only_first=False) -> _T:
-        return self.push({Entry.op_tag.update: value}, predication=predication, only_first=only_first)
-
-    def find(self, predication, only_first=False) -> _T:
-        return self.pull(predication=predication, only_first=only_first)
-
-    def erase(self):
-        self.push(Entry.op_tag.erase)
-
-    def iter(self):
-        obj = self.pull()
-
-        if isinstance(obj, Entry):
-            yield from obj.iter()
-        elif isinstance(obj, (collections.abc.Mapping, collections.abc.MutableSequence)):
-            yield from obj
+    def _op_find(target, k, default_value=_undefined_):
+        obj, key = Entry._eval_path(target, k, force=False, lazy=False)
+        if obj is _not_found_:
+            obj = default_value
+        elif isinstance(key, (int, str, slice)):
+            obj = obj[key]
+        elif isinstance(key, list):
+            obj = [obj[idx] for idx in key]
         else:
-            raise NotImplementedError(obj)
+            raise TypeError(type(key))
+        return obj
+        # if isinstance(target, collections.abc.Mapping):
+        # elif isinstance(target, collections.abc.Sequence):
+        # else:
+        #     raise NotImplementedError(type(target))
 
     def _op_by_filter(target, pred, op,  *args, on_fail: Callable = _undefined_):
         if not isinstance(target, collections.abc.Sequence):
@@ -227,11 +175,13 @@ class Entry(object):
             res = on_fail(target)
         return res
 
-    def _op_assign(target, k, v):
-        if k is _next_:
-            target.append(v)
-        else:
-            target[k] = v
+    def _op_assign(target, path, v):
+        target, key = Entry._eval_path(target,  Entry.normalize_query(path), force=True, lazy=False)
+        if not isinstance(key, (int, str, slice)):
+            raise KeyError(path)
+        elif not isinstance(target, (collections.abc.Mapping, collections.abc.Sequence)):
+            raise TypeError(type(target))
+        target[key] = v
         return v
 
     def _op_insert(target, k, v):
@@ -259,7 +209,7 @@ class Entry(object):
 
         return v
 
-    def _op_erase(target, k, *args):
+    def _op_remove(target, k, *args):
         try:
             del target[k]
         except Exception as error:
@@ -268,18 +218,7 @@ class Entry(object):
             success = True
         return success
 
-    def _op_update(target, k, value):
-        if k not in (None, _not_found_, _undefined_):
-            try:
-                tmp = target[k]
-            except (IndexError, KeyError):
-                tmp = None
-
-            if tmp is None or not isinstance(value, collections.abc.Mapping):
-                target[k] = value
-                return value
-            else:
-                target = tmp
+    def _op_update(target, value):
 
         if not isinstance(target, collections.abc.Mapping):
             raise TypeError(type(target))
@@ -292,7 +231,7 @@ class Entry(object):
             elif not isinstance(tmp, collections.abc.Mapping):
                 target[k] = v
             else:
-                Entry._op_update(tmp, None, v)
+                Entry._op_update(tmp,  v)
 
         return target
 
@@ -317,25 +256,62 @@ class Entry(object):
         else:
             return target == pred
 
+    def _op_exist(target, path, *args):
+        if path in (None, _not_found_, _undefined_):
+            return target not in (None, _not_found_, _undefined_)
+        else:
+            target, path = Entry._eval_path(target, Entry.normalize_query(path), force=False)
+            if isinstance(path, str):
+                return path in target
+            elif isinstance(path, int):
+                return path < len(target)
+            else:
+                return False
+
+    def _op_equal(target, value):
+        return target == value
+
+    def _op_count(target, path):
+        if path not in (None, _not_found_, _undefined_):
+            target, path = Entry._eval_path(target, Entry.normalize_query(path), force=False)
+            try:
+                target = target[path]
+            except Exception:
+                return 0
+        return len(target)
+
     _ops = {
-        # op_tag.insert: _op_insert,
-        # op_tag.assign: _op_assign,
+        op_tag.assign: _op_assign,
         op_tag.update: _op_update,
         op_tag.append: _op_append,
-        op_tag.erase: _op_erase,  # lambda target, key, v: (del target[key]),
-        op_tag.try_insert: _op_try_insert,  # lambda target, key, v: (del target[key]),
+        op_tag.remove: _op_remove,
+        op_tag.try_insert: _op_try_insert,
 
         # read
-        # op_tag.fetch: lambda v, default_value: v if v is not _not_found_ else default_value,
-        op_tag.equal: lambda target, other, *argrs: target == other,
-        op_tag.count: lambda target, *others:   len(target),
-        op_tag.exists: lambda target,  *others: target is not _not_found_,
+        op_tag.find: _op_find,
+        op_tag.equal: lambda target, value: target == value,
+        op_tag.count: lambda target, *args: len(target) if target not in (None, _not_found_, _undefined_) else 0,
+        op_tag.exists: lambda target, *args: target not in (None, _not_found_, _undefined_),
         op_tag.dump: NotImplemented,
 
         op_tag.next: None,
         op_tag.parent: None,
         op_tag.first_child: None,
     }
+
+    @staticmethod
+    def normalize_query(query):
+        if query is None:
+            query = []
+        elif isinstance(query, str):
+            query = [query]
+        elif isinstance(query, tuple):
+            query = list(query)
+        elif not isinstance(query, collections.abc.MutableSequence):
+            query = [query]
+
+        query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
+        return query
 
     @staticmethod
     def _predicate(val, predication: collections.abc.Mapping):
@@ -356,23 +332,9 @@ class Entry(object):
         return all([do_check(op, val, args) for op, args in predication.items()])
 
     @staticmethod
-    def _apply_filter(target, predication, only_first=False):
-        if not isinstance(predication, collections.abc.Mapping):
-            predication = {predication: None}
-        if only_first:
-            try:
-                val = next(filter(lambda d: Entry._predicate(d, predication), target))
-            except StopIteration:
-                val = _not_found_
-        else:
-            val = [d for d in target if Entry._predicate(d, predication)]
-            if len(val) == 0:
-                val = _not_found_
-        return val
-
-    @staticmethod
     def _update(target, key, value):
-        if not isinstance(value, collections.abc.Mapping) or not any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
+        if not isinstance(value, collections.abc.Mapping) \
+                or not any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
             try:
                 target[key] = value
             except (KeyError, IndexError) as error:
@@ -387,59 +349,44 @@ class Entry(object):
         return target
 
     @staticmethod
-    def _eval_op(op: Union[collections.abc.Mapping, op_tag], target, *args):
-        if isinstance(op, Entry.op_tag):
-            val = Entry._ops[op](target,  *args)
-        elif isinstance(op, collections.abc.Mapping):
-            val = [Entry._ops[k](target, v, *args) for k, v in op.items() if isinstance(k, Entry.op_tag)]
-            if len(val) == 1:
-                val = val[0]
-        else:
-            raise NotImplementedError(op)
-
-        return val
-
-    @staticmethod
-    def _eval_path(target, path, force=False, as_entry=False) -> Union[_TEntry, Any]:
+    def _eval_path(target, path, force=False, lazy=False) -> Tuple[Any, Any]:
         """
-            Finds an element by path
-            Return:
-                if lazy is False:
-                    create node when node does not exist.
-                else:                  
-                    return entry when node does not exist.
+            Return: 返回path中最后一个key，这个key所属于的Tree node
 
-                if as_entry is True then 
-                    return entry directly point to last element
-                else
-                    return value of last element
+            if force is Ture then:
+                当中间node不存在时，根据key的类型创建之，
+                    key is str => node is dict
+                    key is int => node is list
+            else:
+                当中间node不存在时，返回最后一个有效node和后续path
+
+            if key is _next_:
+                append _undefined_ to current node and set key =len(curren node)
+            if isisntance(key,dict)
+                filter(current node, predication=key)
+                key is the index of first node
         """
         if isinstance(target, Entry):
             raise NotImplementedError()
-        elif target in (_not_found_, None, _undefined_) or path is None or not path:
-            if as_entry:
-                return Entry(target)
-            else:
-                return target
+        elif path in (None, _not_found_, _undefined_) or not path:
+            return target, []
         elif not isinstance(path, list):
-            path = [path]
+            return target, path
+        elif target in (_not_found_, None, _undefined_):
+            raise TypeError(type(target))
 
         last_index = len(path)-1
 
-        if last_index < 0:
-            return Entry(target, None)
-
         val = target
 
-        for idx in range(last_index+1):
-            key = path[idx]
+        for idx, key in enumerate(path):
             val = _not_found_
             if key is None:
                 val = target
             elif isinstance(target, Entry):
-                return target.moveto(path[idx:],  lazy=lazy)
+                return target.moveto(path[idx:]), []
             elif isinstance(target, EntryContainer):
-                return target.get(path[idx:-1], default_value=default_value, force=force,  last_idx=last_idx)
+                return target.get(path[idx:-1]), []
             elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 try:
                     val = target[key]
@@ -450,7 +397,7 @@ class Entry(object):
                 val = target.get(key, _not_found_)
             elif isinstance(target, (collections.abc.Sequence)) and not isinstance(key, str):
                 if key is _next_:
-                    target.append(_not_found_)
+                    target.append(_undefined_)
                     key = len(target)-1
                     val = _not_found_
                 elif not isinstance(key, dict):
@@ -465,7 +412,7 @@ class Entry(object):
                     iv_list = [[i, v] for i, v in enumerate(target) if Entry._predicate(v, predication=key)]
 
                     if len(iv_list) == 0:
-                        if not lazy:
+                        if force:
                             val = deepcopy(key)
                             target.append(val)
                             key = len(target)-1
@@ -479,181 +426,158 @@ class Entry(object):
             else:
                 raise NotImplementedError(f"{type(target)} {type(key)} {path[:idx+1]}")
 
-            if val is _not_found_:
-                if idx == last_index or not force:
-                    if as_entry:
-                        target = Entry(target, [key] + path[idx+1:])
+            if idx < last_index:
+                if val is _not_found_:
+                    if force:
+                        val = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
+                        target[key] = val
                     else:
-                        target = _not_found_
-                    break
-                else:
-                    val = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
-                    target[key] = val
-
-            if idx == last_index and as_entry and not isinstance(val, Entry):
-                target = Entry(target, key)
-            else:
+                        key = path[idx:]
+                        break
                 target = val
 
-        return target
+        return target, key
 
-    @property
-    def level(self):
-        return len(self._path)
+    def moveto(self, rpath: _TQuery = None, force=True, lazy=True) -> _TEntry:
+        target, key = Entry._eval_path(self._cache,
+                                       self._path + self.normalize_query(rpath), lazy=lazy, force=force)
+        self._cache = target
+        self._path = [key] if not isinstance(key, list) else key
 
-    def moveto(self, rpath: _TQuery = None, lazy=True,  force=False) -> _TEntry:
-        res = self.duplicate()
-        if rpath is not None:
-            res._path = res._path + self.normalize_query(rpath)
-        if not lazy:
-            res._cache = Entry._eval_path(res._cache, res._path,  force=force)
-            res._path = []
-        return res
+        if not lazy and len(self._path) > 0:
+            if self._cache in (None, _not_found_, _undefined_):
+                logger.warning(f"'{self._path}' points to a null node")
 
-    def pull(self, op=_undefined_, default_value=_undefined_, force=False, predication=_undefined_, only_first=False) -> _T:
-        if predication is not _undefined_:
-            val = Entry._eval_path(self._cache, self._path, as_entry=False, force=force)
-            if not isinstance(val, list):
-                raise NotImplementedError(type(val))
-            elif only_first:
-                try:
-                    val = next(filter(lambda d: Entry._predicate(d, predication), val))
-                except StopIteration:
-                    val = _not_found_
-            else:
-                val = [d for d in val if Entry._predicate(d, predication)]
-                if len(val) == 0:
-                    val = _not_found_
-        elif len(self._path) > 0:
-            val = Entry._eval_path(self._cache, self._path, as_entry=False, force=False)
+        return self
+
+    @staticmethod
+    def _eval_op(target, op,  value=None, default_op=_undefined_):
+        if op in (None, _not_found_, _undefined_):
+            return target
+        elif isinstance(op, collections.abc.Mapping) and all([not isinstance(k, Entry.op_tag) for k in op.keys()]):
+            value = op
+            op = Entry.op_tag.update
+        elif isinstance(op, str) and op[0] == '@':
+            op = Entry.op_tag.__members__[op[1:]]
+
+        if isinstance(op, Entry.op_tag):
+            return Entry._ops[op](target, value)
+        elif not isinstance(op, collections.abc.Mapping):
+            if default_op is _undefined_:
+                logger.warning(f"Ignore unsported argument {op}:{(value)}")
+            return Entry._ops[default_op](target, op, value)
         else:
-            val = self._cache
-
-        if op is not _undefined_:
-            val = Entry._eval_op(op, val, None)
-
-        if val is _not_found_:
-            if default_value is _undefined_:
-                return self
-            else:
-                return default_value
-        else:
+            val = [Entry._eval_op(target, sub_op,  v, default_op=default_op) for sub_op, v in op.items()]
+            if len(val) == 1:
+                val = val[0]
+            elif len(val) == 0:
+                if value is _undefined_:
+                    return _not_found_
+                else:
+                    return value
             return val
 
-    def push(self, value: _T = None,  predication=_undefined_, only_first=False) -> _T:
-        if isinstance(value, Entry.op_tag):
-            value = {value: None}
-
-        if predication is not _undefined_:
-            target = Entry._eval_path(self._cache, self._path, force=True, as_entry=False)
-            if not isinstance(target, list):
-                raise NotImplementedError(type(target))
-
-            for idx, val in target:
-                if not Entry._predicate(val, predication):
-                    continue
-                else:
-                    Entry._update(target, idx, value)
-                    if only_first:
-                        break
-
+    @staticmethod
+    def _eval_pull(target, query, value=None):
+        if query in (None, _not_found_, _undefined_):
             return target
-        else:
+        elif isinstance(query, Entry.op_tag):
+            query = {query: value}
+        elif not isinstance(query, collections.abc.Mapping):
+            raise TypeError(type(query))
 
-            target: Entry = Entry._eval_path(self._cache, self._path, force=True, as_entry=True)
+        def apply_op(target, op, v):
+            if isinstance(op, str) and op[0] == '@':
+                op = Entry.op_tag.__members__[query[1:]]
 
-            if len(target._path) == 0:
-                key = None
-            elif len(target._path) == 1:
-                key = target._path[0]
+            if isinstance(op, Entry.op_tag):
+                return Entry._ops[op](target, v)
             else:
-                raise KeyError(target._path)
+                target, p = Entry._eval_path(target, Entry.normalize_query(op)+[None], force=False)
 
-            return Entry._update(target._cache, key, value)
+                if p is not None:
+                    target = _not_found_
 
-    def put(self, query, *args, **kwargs) -> Any:
-        return self.moveto(query).push(*args, **kwargs)
+                if v in (None, _not_found_, _undefined_):
+                    return target
+                else:
+                    return Entry._eval_pull(target, v)
 
-    def get(self, query, *args, **kwargs) -> Any:
-        return self.moveto(query).pull(*args, **kwargs)
+        val = [apply_op(target, op,  v) for op, v in query.items()]
 
-    def has_child(self, member_name) -> bool:
-        return self._eval_path(self._cache, self._path+[member_name], op=Entry.op_tag.exists)
+        if len(val) == 1:
+            val = val[0]
+        elif len(val) == 0:
+            val = _not_found_
 
-    def flush(self, v):
-        self._cache = self.push(v, op=Entry.op_tag.try_insert)
-        self._path = []
+        return val
 
+    def pull(self, query=None, value=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
+        path = self._path
 
-class EntryContainer:
-    __slots__ = "_entry"
+        if isinstance(query, (int, str, slice, collections.abc.Sequence)):
+            path = path + Entry.normalize_query(query)
+            query = value
+            value = _undefined_
 
-    def __init__(self, entry) -> None:
-        super().__init__()
-        if isinstance(entry, EntryContainer):
-            self._entry = entry._entry
-        elif not isinstance(entry, Entry):
-            self._entry = Entry(entry)
+        target, p = Entry._eval_path(self._cache, path+[None], force=False)
+
+        if p is not None:
+            target = _not_found_
+
+        if predication is _undefined_:
+            val = Entry._eval_pull(target, query, value)
+        elif not isinstance(target, list):
+            raise TypeError(f"If predication is defined, target must be list! {type(target)}")
+        elif only_first:
+            try:
+                target = next(filter(lambda d: Entry._predicate(d, predication), target))
+            except StopIteration:
+                target = _not_found_
+            else:
+                val = Entry._eval_pull(target, query, value)
         else:
-            self._entry = entry
+            val = [Entry._eval_pull(d, query, value) for d in target if Entry._predicate(d, predication)]
+            if len(val) == 0:
+                val = _not_found_
 
-    def _duplicate(self) -> _TContainer:
-        return self.__class__(self._entry)
+        return val
 
-    def clear(self):
-        self._entry.push(Entry.op_tag.reset)
+    def push(self, query: _T = None, value=_undefined_, force=False, predication=_undefined_, only_first=False) -> _T:
+        self.moveto(lazy=False, force=True)
 
-    def _pre_process(self, value: Any, *args, **kwargs) -> Any:
-        return value
+        if len(self._path) > 0:
+            raise KeyError(self._path)
 
-    def _post_process(self, value: _T,   *args,  **kwargs) -> _T:
-        return value
+        target = self._cache
 
-    def _remove(self, path: _TQuery, /, **kwargs) -> None:
-        return self._entry.moveto(path).push(Entry.op_tag.erase, **kwargs)
+        if predication is _undefined_:
+            val = Entry._eval_op(target, query, value, default_op=Entry.op_tag.assign)
+        elif not isinstance(target, list):
+            raise TypeError(f"If predication is defined, target must be list! {type(target)}")
+        elif only_first:
+            try:
+                target = next(filter(lambda d: Entry._predicate(d, predication), target))
+            except StopIteration:
+                val = _not_found_
+            else:
+                val = Entry._eval_op(target, query, value,  default_op=Entry.op_tag.assign)
+        else:
+            val = [Entry._eval_op(d, query, value, default_op=Entry.op_tag.assign)
+                   for d in target if Entry._predicate(d, predication)]
+            if len(val) == 0:
+                val = _not_found_
 
-    def _reset(self, value: _T = None, **kwargs) -> None:
-        self._entry.push(value,  **kwargs)
+        return val
 
-    def __ior__(self,  value: _T) -> _T:
-        return self._entry.push({Entry.op_tag.update: value})
+    def remove(self, query):
+        return self.push({Entry.op_tag.remove: query})
 
-    def get(self, query, default_value=_undefined_) -> _TObject:
-        return self._entry.moveto(query).pull(default_value)
+    def count(self, query: _TQuery = None):
+        return self.pull({Entry.op_tag.count: query})
 
-    def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self._entry.moveto(query, force=True).push(self._pre_process(value))
-
-    def __getitem__(self, query: _TQuery) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.moveto(query).pull(default_value=_undefined_, force=False), query=query)
-
-    def __delitem__(self, query: _TQuery) -> bool:
-        return self._entry.moveto(query).erase()
-
-    def __contains__(self, query: _TQuery) -> bool:
-        return self._entry.moveto(query).pull(Entry.op_tag.exists)
-
-    def __len__(self) -> int:
-        return self._entry.pull(Entry.op_tag.count)
-
-    def __iter__(self) -> Iterator[_T]:
-        for idx, obj in enumerate(self._entry.iter()):
-            yield self._post_process(obj, idx)
-
-    def __eq__(self, other) -> bool:
-        return self._entry.pull({Entry.op_tag.equal: other})
-
-    def __bool__(self) -> bool:
-        return self.__len__() > 0
-
-    def _as_dict(self) -> Mapping:
-        return {k: self._post_process(v) for k, v in self._entry.items()}
-
-    def _as_list(self) -> Sequence:
-        return [self._post_process(v) for v in self._entry.values()]
-
-    def update(self, value):
-        return self._entry.push({Entry.op_tag.update: value})
+    def exist(self, query: _TQuery = None):
+        return self.pull({Entry.op_tag.exists: query})
 
 
 def _slice_to_range(s: slice, length: int) -> range:
@@ -685,7 +609,7 @@ class EntryCombiner(Entry):
     def __len__(self):
         return len(self._d_list)
 
-    def iter(self):
+    def __iter__(self) -> Iterator[Entry]:
         raise NotImplementedError()
 
     def push(self,  value: _T = _not_found_, **kwargs) -> _T:
@@ -696,7 +620,7 @@ class EntryCombiner(Entry):
         val = super().pull(default_value=_not_found_)
 
         if val in (_not_found_, None, _undefined_):
-            val = [Entry._eval_path(d, self._path,  force=False, as_entry=False) for d in self._d_list]
+            val = [Entry._eval_path(d, self._path,  force=False) for d in self._d_list]
 
         if isinstance(val, collections.abc.Sequence):
             val = [d for d in val if (d is not None and d is not _not_found_)]
@@ -757,6 +681,74 @@ class EntryIterator(Iterator[_TObject]):
 
     def __next__(self) -> Iterator[_TObject]:
         return super().__next__()
+
+
+class EntryContainer:
+    __slots__ = "_entry"
+
+    def __init__(self, entry) -> None:
+        super().__init__()
+        if isinstance(entry, EntryContainer):
+            self._entry = entry._entry
+        elif not isinstance(entry, Entry):
+            self._entry = Entry(entry)
+        else:
+            self._entry = entry
+
+    def _duplicate(self) -> _TContainer:
+        return self.__class__(self._entry)
+
+    def _pre_process(self, value: Any, *args, **kwargs) -> Any:
+        return value
+
+    def _post_process(self, value: _T,   *args,  **kwargs) -> _T:
+        return value
+
+    def __ior__(self,  value: _T) -> _T:
+        return self._entry.push({Entry.op_tag.update: value})
+
+    def clear(self):
+        self._entry.push(Entry.op_tag.reset)
+
+    def remove(self, query: _TQuery = None) -> bool:
+        return self._entry.push({Entry.op_tag.remove: query})
+
+    def update(self, value: _T, **kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.update: value}, **kwargs)
+
+    def find(self, query: _TQuery, **kwargs) -> _TObject:
+        return self._entry.pull({Entry.op_tag.find: query},  **kwargs)
+
+    def try_insert(self, query: _TQuery, value: _T, **kwargs) -> _T:
+        return self._entry.push({Entry.op_tag.try_insert: {query: value}},  **kwargs)
+
+    def count(self, query: _TQuery, **kwargs) -> int:
+        return self._entry.pull({Entry.op_tag.count: query}, **kwargs)
+
+    def dump(self) -> Union[Sequence, Mapping]:
+        return self._entry.pull(Entry.op_tag.dump)
+
+    def get(self, query: _TQuery, **kwargs) -> _TObject:
+        return self.find(query,  **kwargs)
+
+    def __setitem__(self, query: _TQuery, value: _T) -> _T:
+        return self._entry.push(query, self._pre_process(value), force=True)
+
+    def __getitem__(self, query: _TQuery) -> Union[_TEntry, Any]:
+        return self._post_process(self._entry.pull(query, default_value=_undefined_, lazy=True), query=query)
+
+    def __delitem__(self, query: _TQuery) -> bool:
+        return self._entry.push({Entry.op_tag.remove: query})
+
+    def __contains__(self, query: _TQuery) -> bool:
+        return self._entry.pull({Entry.op_tag.contains: query})
+
+    def __len__(self) -> int:
+        return self._entry.pull(Entry.op_tag.count)
+
+    def __iter__(self) -> Iterator[_T]:
+        for idx, obj in enumerate(self._entry.first_child()):
+            yield self._post_process(obj, idx)
 
 
 def as_dataclass(dclass, obj, default_value=None):
@@ -835,7 +827,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
 #     return all(d)
 
 
-# def ht_erase(target, query: Optional[_TQuery] = None, *args,  **kwargs):
+# def ht_remove(target, query: Optional[_TQuery] = None, *args,  **kwargs):
 
 #     if isinstance(target, Entry):
 #         return target.remove(query, *args, **kwargs)

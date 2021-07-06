@@ -217,7 +217,7 @@ class Node(EntryContainer, Generic[_TObject]):
     def _pre_process(self, value: Any, *args, **kwargs) -> Any:
         return value
 
-    def _post_process(self, value: _T,   *args, query=_undefined_, **kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T,   *args, key: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
         return self._convert(value, *args, **kwargs)
 
     def fetch(self, query: _TQuery = None,  **kwargs) -> _T:
@@ -323,11 +323,11 @@ class List(Node[_T], Sequence[_T]):
         return super().__delitem__(query)
 
     def __iter__(self) -> Iterator[_T]:
-        for obj in self._entry.iter():
-            yield self._post_process(obj)
+        for idx in range(self.__len__()):
+            yield self.__getitem__(idx)
 
     def __iadd__(self, other):
-        self.put(_next_, other)
+        self._entry.put(_next_, other)
         return self
 
     def sort(self):
@@ -340,10 +340,10 @@ class List(Node[_T], Sequence[_T]):
         return self._post_process(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition))
 
     def refresh(self, *args, **kwargs):
-        self._entry = Entry([self._post_process(d) for d in self._entry.iter()])
-        for element in self._entry.iter():
+        # self._entry = Entry([d for d in self._entry.iter()])
+        for element in self.__iter__():
             if hasattr(element.__class__, 'refresh'):
-                element.refresh(**kwargs)
+                element.refresh(*args, **kwargs)
 
     def reset(self, value=None):
         if isinstance(value, (collections.abc.Sequence)):
@@ -381,8 +381,8 @@ class Dict(Node[_T], Mapping[str, _T]):
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
 
-    def __getitem__(self, key: str) -> _T:
-        return super().__getitem__(key)
+    def __getitem__(self, query: _TQuery) -> _T:
+        return super().__getitem__(query)
 
     def __setitem__(self, key: str, value: _T) -> None:
         super().__setitem__(key, value)
@@ -391,7 +391,7 @@ class Dict(Node[_T], Mapping[str, _T]):
         super().__delitem__(key)
 
     def __iter__(self) -> Iterator[str]:
-        yield from super().__iter__()
+        raise NotImplementedError()
 
     def __eq__(self, o: object) -> bool:
         return super().__eq__(o)

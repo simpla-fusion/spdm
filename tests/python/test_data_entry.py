@@ -23,11 +23,11 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.get("c"),                self.data["c"])
-        self.assertEqual(d.get(["d", "e"]),    self.data["d"]["e"])
-        self.assertEqual(d.get(["d", "f"]),    self.data["d"]["f"])
-        self.assertEqual(d.get(["a", 0]),        self.data["a"][0])
-        self.assertEqual(d.get(["a", 1]),        self.data["a"][1])
+        self.assertEqual(d.pull("c"),                self.data["c"])
+        self.assertEqual(d.pull(["d", "e"]),    self.data["d"]["e"])
+        self.assertEqual(d.pull(["d", "f"]),    self.data["d"]["f"])
+        self.assertEqual(d.pull(["a", 0]),        self.data["a"][0])
+        self.assertEqual(d.pull(["a", 1]),        self.data["a"][1])
 
     def test_find_by_cond(self):
         cache = [
@@ -39,13 +39,13 @@ class TestEntry(unittest.TestCase):
 
         d0 = Entry(cache)
 
-        self.assertEqual(d0.find({"name": "li si"}, only_first=True)["age"], 22)
+        self.assertEqual(d0.pull(predication={"name": "li si"}, only_first=True)["age"], 22)
 
-        self.assertEqual(d0.get([{"name": "li si"}, "age"]), 22)
+        self.assertEqual(d0.pull([{"name": "li si"}, "age"]), 22)
 
         d1 = Entry({"person": cache})
 
-        young = d1.get(["person", {"age": 22}])
+        young = d1.pull(["person", {"age": 22}])
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
@@ -61,7 +61,7 @@ class TestEntry(unittest.TestCase):
 
         d0 = Entry(cache)
 
-        d0.put({"name": "wang wu"}, {Entry.op_tag.update: {"address": "hefei"}})
+        d0.push({Entry.op_tag.update: {"address": "hefei"}}, predication={"name": "wang wu"})
 
         self.assertEqual(cache[0]["address"],  "hefei")
         self.assertEqual(cache[0]["age"],  21)
@@ -71,13 +71,13 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.moveto(["a"]).push("hello world {name}!")
+        d.push({"a": "hello world {name}!"})
 
         self.assertEqual(cache["a"], "hello world {name}!")
 
-        d.put(["e", "f"], 5)
+        d.push(["e", "f"], 5)
 
-        d.put(["e", "g"], 6)
+        d.push(["e", "g"], 6)
 
         self.assertEqual(cache["e"]["f"],   5)
 
@@ -86,23 +86,23 @@ class TestEntry(unittest.TestCase):
     def test_operator(self):
         d = Entry(self.data)
 
-        self.assertTrue(d.exists)
-        self.assertTrue(d.get("a", Entry.op_tag.exists))
-        self.assertTrue(d.get("d.e", Entry.op_tag.exists))
-        self.assertFalse(d.get("b.h", Entry.op_tag.exists))
+        self.assertTrue(d.pull(Entry.op_tag.exists))
+        self.assertTrue(d.pull({"a": Entry.op_tag.exists}))
+        self.assertTrue(d.pull({"d.e": Entry.op_tag.exists}))
+        self.assertFalse(d.pull({"b.h": Entry.op_tag.exists}))
+        self.assertFalse(d.pull({"f.g": Entry.op_tag.exists}))
 
-        self.assertEqual(d.count,              3)
-        self.assertEqual(d.get("a", Entry.op_tag.count),   6)
-        self.assertEqual(d.get("d", Entry.op_tag.count),   2)
+        self.assertEqual(d.pull(Entry.op_tag.count),          3)
+        self.assertEqual(d.pull({"a": Entry.op_tag.count}),   6)
+        self.assertEqual(d.pull({"d": Entry.op_tag.count}),   2)
 
-        self.assertTrue(d.get(["a", slice(2, 6)], {Entry.op_tag.equal: [1, 2, 3, 4]}))
-        self.assertFalse(d.get("f.g", Entry.op_tag.exists))
+        self.assertTrue(d.pull(["a", slice(2, 6)], {Entry.op_tag.equal: [1, 2, 3, 4]}))
 
     def test_append(self):
         cache = {}
         d = Entry(cache)
-        d.put(["c", _next_],  1.23455)
-        d.put(["c", _next_], {"a": "hello world", "b": 3.141567})
+        d.push(["c", _next_],  1.23455)
+        d.push(["c", _next_], {"a": "hello world", "b": 3.141567})
 
         self.assertEqual(cache["c"][0],                      1.23455)
         self.assertEqual(cache["c"][1]["a"],           "hello world")
@@ -113,7 +113,7 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.update({"d": {"g": 5}})
+        d.push({"d": {"g": 5}})
 
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
         self.assertEqual(cache["d"]["f"], "{address}")
@@ -130,7 +130,7 @@ class TestEntry(unittest.TestCase):
         }
 
         d = Entry(cache)
-        d.moveto("b").erase()
+        d.remove("b")
         self.assertTrue("b" not in cache)
 
 
@@ -152,8 +152,8 @@ class TestEntryCombiner(unittest.TestCase):
 
     def test_get(self):
         d = EntryCombiner(self.data)
-        self.assertEqual(d.get("value"), sum([d["value"] for d in self.data]))
-        self.assertEqual(d.get("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+        self.assertEqual(d.pull("value"), sum([d["value"] for d in self.data]))
+        self.assertEqual(d.pull("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     # def test_cache(self):
     #     cache = {}
