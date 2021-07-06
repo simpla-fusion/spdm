@@ -512,21 +512,27 @@ class Entry(object):
 
         return val
 
-    def pull(self, query=None, value=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
+    def pull(self, query=_undefined_, *args, lazy=False, predication=_undefined_, only_first=False) -> _T:
+
         path = self._path
 
-        if isinstance(query, (int, str, slice, collections.abc.Sequence)):
+        if not isinstance(query, (Entry.op_tag, collections.abc.Mapping)) and query not in (None, _undefined_, _not_found_):
             path = path + Entry.normalize_query(query)
-            query = value
-            value = _undefined_
+            if len(args) > 0:
+                query = args[0]
+                args = args[1:]
+            else:
+                query = _undefined_
 
-        target, p = Entry._eval_path(self._cache, path+[None], force=False)
+        target, path = Entry._eval_path(self._cache, path+[None], force=False)
 
-        if p is not None:
+        if path is None:
+            pass
+        else:
             target = _not_found_
 
         if predication is _undefined_:
-            val = Entry._eval_pull(target, query, value)
+            val = Entry._eval_pull(target, query, *args)
         elif not isinstance(target, list):
             raise TypeError(f"If predication is defined, target must be list! {type(target)}")
         elif only_first:
@@ -535,9 +541,9 @@ class Entry(object):
             except StopIteration:
                 target = _not_found_
             else:
-                val = Entry._eval_pull(target, query, value)
+                val = Entry._eval_pull(target, query, *args)
         else:
-            val = [Entry._eval_pull(d, query, value) for d in target if Entry._predicate(d, predication)]
+            val = [Entry._eval_pull(d, query, *args) for d in target if Entry._predicate(d, predication)]
             if len(val) == 0:
                 val = _not_found_
 
@@ -615,9 +621,9 @@ class EntryCombiner(Entry):
     def push(self,  value: _T = _not_found_, **kwargs) -> _T:
         return super().push(value, **kwargs)
 
-    def pull(self,  default_value: _T = _not_found_, **kwargs) -> _T:
+    def pull(self, query=None, value=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
 
-        val = super().pull(default_value=_not_found_)
+        val = super().pull(query)
 
         if val in (_not_found_, None, _undefined_):
             val = [Entry._eval_path(d, self._path,  force=False) for d in self._d_list]
