@@ -451,33 +451,6 @@ class Entry(object):
         return self
 
     @staticmethod
-    def _eval_op(target, op,  value=None, default_op=_undefined_):
-        if op in (None, _not_found_, _undefined_):
-            return target
-        elif isinstance(op, collections.abc.Mapping) and all([not isinstance(k, Entry.op_tag) for k in op.keys()]):
-            value = op
-            op = Entry.op_tag.update
-        elif isinstance(op, str) and op[0] == '@':
-            op = Entry.op_tag.__members__[op[1:]]
-
-        if isinstance(op, Entry.op_tag):
-            return Entry._ops[op](target, value)
-        elif not isinstance(op, collections.abc.Mapping):
-            if default_op is _undefined_:
-                logger.warning(f"Ignore unsported argument {op}:{(value)}")
-            return Entry._ops[default_op](target, op, value)
-        else:
-            val = [Entry._eval_op(target, sub_op,  v, default_op=default_op) for sub_op, v in op.items()]
-            if len(val) == 1:
-                val = val[0]
-            elif len(val) == 0:
-                if value is _undefined_:
-                    return _not_found_
-                else:
-                    return value
-            return val
-
-    @staticmethod
     def _eval_pull(target, query, value=None):
         if query in (None, _not_found_, _undefined_):
             return target
@@ -528,6 +501,8 @@ class Entry(object):
 
         if path is None:
             pass
+        elif lazy:
+            return Entry(target, path[:-1])
         else:
             target = _not_found_
 
@@ -549,16 +524,35 @@ class Entry(object):
 
         return val
 
-    def push(self, query: _T = None, value=_undefined_, force=False, predication=_undefined_, only_first=False) -> _T:
-        self.moveto(lazy=False, force=True)
+    @staticmethod
+    def _eval_push(target, query,  *args):
+        if query in (None, _not_found_, _undefined_):
+            return target
+        elif isinstance(query, str) and query[0] == '@':
+            query = Entry.op_tag.__members__[query[1:]]
 
-        if len(self._path) > 0:
-            raise KeyError(self._path)
+        if isinstance(query, Entry.op_tag):
+            val = Entry._ops[query](target, *args)
+        elif isinstance(query, collections.abc.Mapping):
+            val = [Entry._ops[op](target, *args, v) for op, v in query.items()]
+            if len(val) == 1:
+                val = val[0]
+        else:
+            raise TypeError(type(query))
 
-        target = self._cache
+        return val
+
+    def push(self, query: _T = None,   *args,  predication=_undefined_, only_first=False) -> _T:
+        path = self._path
+
+        if not isinstance(query, (Entry.op_tag, collections.abc.Mapping)) and query not in (None, _undefined_, _not_found_):
+            path = path + Entry.normalize_query(query)
+            query = Entry.op_tag.assign
+
+        target, path = Entry._eval_path(self._cache, path, force=True)
 
         if predication is _undefined_:
-            val = Entry._eval_op(target, query, value, default_op=Entry.op_tag.assign)
+            val = Entry._eval_push(target, query, path,  * args)
         elif not isinstance(target, list):
             raise TypeError(f"If predication is defined, target must be list! {type(target)}")
         elif only_first:
@@ -567,9 +561,9 @@ class Entry(object):
             except StopIteration:
                 val = _not_found_
             else:
-                val = Entry._eval_op(target, query, value,  default_op=Entry.op_tag.assign)
+                val = Entry._eval_push(target, query, *args)
         else:
-            val = [Entry._eval_op(d, query, value, default_op=Entry.op_tag.assign)
+            val = [Entry._eval_push(d, query, *args)
                    for d in target if Entry._predicate(d, predication)]
             if len(val) == 0:
                 val = _not_found_
@@ -743,10 +737,10 @@ class EntryContainer:
         return self.find(query,  **kwargs)
 
     def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self._entry.push(query, self._pre_process(value), force=True)
+        return self._entry.push(query, self._pre_process(value))
 
     def __getitem__(self, query: _TQuery) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.pull(query, default_value=_undefined_, lazy=True), query=query)
+        return self._post_process(self._entry.pull(query, lazy=True), query=query)
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self._entry.push({Entry.op_tag.remove: query})
