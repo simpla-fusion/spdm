@@ -143,10 +143,10 @@ class Node(EntryContainer, Generic[_TObject]):
                 return self._new_child(value, **kwargs)
         elif callable(self._new_child):
             return self._new_child(value, **kwargs)
-        elif isinstance(self._new_child, collections.abc.Mapping) and len(self._new_child)>0:            
+        elif isinstance(self._new_child, collections.abc.Mapping) and len(self._new_child) > 0:
             kwargs = collections.ChainMap(kwargs, self._new_child)
-        elif self._new_child is not _undefined_:
-            logger.warning(f"Ignored!  {type(self._new_child)}")
+        elif self._new_child is not _undefined_ and not not self._new_child:
+            logger.warning(f"Ignored!  { (self._new_child)}")
 
         if isinstance(attribute, str) or attribute is _undefined_:
             attribute_type = self._attribute_type(attribute)

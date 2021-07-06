@@ -524,14 +524,19 @@ class Entry(object):
                 val = [d for d in val if Entry._predicate(d, predication)]
                 if len(val) == 0:
                     val = _not_found_
-        else:
+        elif len(self._path) > 0:
             val = Entry._eval_path(self._cache, self._path, as_entry=False, force=False)
+        else:
+            val = self._cache
 
         if op is not _undefined_:
             val = Entry._eval_op(op, val, None)
 
         if val is _not_found_:
-            return default_value
+            if default_value is _undefined_:
+                return self
+            else:
+                return default_value
         else:
             return val
 
@@ -620,7 +625,7 @@ class EntryContainer:
         return self._entry.moveto(query, force=True).push(self._pre_process(value))
 
     def __getitem__(self, query: _TQuery) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.moveto(query).pull(), query=query)
+        return self._post_process(self._entry.moveto(query).pull(default_value=_undefined_, force=False), query=query)
 
     def __delitem__(self, query: _TQuery) -> bool:
         return self._entry.moveto(query).erase()
