@@ -327,9 +327,9 @@ class Entry(object):
 
         # read
         # op_tag.fetch: lambda v, default_value: v if v is not _not_found_ else default_value,
-        op_tag.equal: lambda target, key,  other: target[key] == other,
-        op_tag.count: lambda target, key, *others: len(target[key]) if isinstance(key is not None) else len(target),
-        op_tag.exists: lambda target,   *others: target is not _not_found_,
+        op_tag.equal: lambda target, other, *argrs: target == other,
+        op_tag.count: lambda target, *others:   len(target),
+        op_tag.exists: lambda target,  *others: target is not _not_found_,
         op_tag.dump: NotImplemented,
 
         op_tag.next: None,
@@ -372,7 +372,6 @@ class Entry(object):
 
     @staticmethod
     def _update(target, key, value):
-
         if not isinstance(value, collections.abc.Mapping) or not any(map(lambda k: isinstance(k, Entry.op_tag), value.keys())):
             try:
                 target[key] = value
@@ -388,12 +387,11 @@ class Entry(object):
         return target
 
     @staticmethod
-    def _eval_op(op: Union[collections.abc.Mapping, op_tag], target, key, *args):
-
+    def _eval_op(op: Union[collections.abc.Mapping, op_tag], target, *args):
         if isinstance(op, Entry.op_tag):
-            val = Entry._ops[op](target, key, *args)
+            val = Entry._ops[op](target,  *args)
         elif isinstance(op, collections.abc.Mapping):
-            val = [Entry._ops[k](target, key, v, *args) for k, v in op.items() if isinstance(k, Entry.op_tag)]
+            val = [Entry._ops[k](target, v, *args) for k, v in op.items() if isinstance(k, Entry.op_tag)]
             if len(val) == 1:
                 val = val[0]
         else:
@@ -692,9 +690,8 @@ class EntryCombiner(Entry):
 
         val = super().pull(default_value=_not_found_)
 
-        if val is _not_found_:
-            val = [Entry._eval_path(d, self._path, default_value=_not_found_, read_only=True, **kwargs)
-                   for d in self._d_list]
+        if val in (_not_found_, None, _undefined_):
+            val = [Entry._eval_path(d, self._path,  force=False, as_entry=False) for d in self._d_list]
 
         if isinstance(val, collections.abc.Sequence):
             val = [d for d in val if (d is not None and d is not _not_found_)]
