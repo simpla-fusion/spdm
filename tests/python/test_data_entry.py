@@ -39,7 +39,7 @@ class TestEntry(unittest.TestCase):
 
         d0 = Entry(cache)
 
-        self.assertEqual(d0.pull(predication={"name": "li si"}, only_first=True)["age"], 22)
+        # self.assertEqual(d0.pull(predication={"name": "li si"}, only_first=True)["age"], 22)
 
         self.assertEqual(d0.pull([{"name": "li si"}, "age"]), 22)
 
@@ -87,14 +87,14 @@ class TestEntry(unittest.TestCase):
         d = Entry(self.data)
 
         self.assertTrue(d.pull(Entry.op_tag.exists))
-        self.assertTrue(d.pull({"a": Entry.op_tag.exists}))
-        self.assertTrue(d.pull({"d.e": Entry.op_tag.exists}))
-        self.assertFalse(d.pull({"b.h": Entry.op_tag.exists}))
-        self.assertFalse(d.pull({"f.g": Entry.op_tag.exists}))
+        self.assertTrue(d.pull("a", Entry.op_tag.exists))
+        self.assertTrue(d.pull("d.e", Entry.op_tag.exists))
+        self.assertFalse(d.pull("b.h", Entry.op_tag.exists))
+        self.assertFalse(d.pull("f.g", Entry.op_tag.exists))
 
         self.assertEqual(d.pull(Entry.op_tag.count),          3)
-        self.assertEqual(d.pull({"a": Entry.op_tag.count}),   6)
-        self.assertEqual(d.pull({"d": Entry.op_tag.count}),   2)
+        self.assertEqual(d.pull("a", Entry.op_tag.count),   6)
+        self.assertEqual(d.pull("d", Entry.op_tag.count),   2)
 
         self.assertTrue(d.pull(["a", slice(2, 6)], {Entry.op_tag.equal: [1, 2, 3, 4]}))
 
