@@ -317,6 +317,14 @@ class List(Node[_T], Sequence[_T]):
             parent = self._parent
         return super()._convert(value, parent=parent, **kwargs)
 
+    def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
+        n_value = super()._post_process(value, *args, **kwargs)
+        if n_value is value:
+            pass
+        elif isinstance(path, int) or (isinstance(path, list) and len(path) == 1 and isinstance(path[0], int)):
+            n_value = self.put(path, n_value)
+        return n_value
+
     def __len__(self) -> int:
         return super().__len__()
 
@@ -360,10 +368,10 @@ class List(Node[_T], Sequence[_T]):
             super().reset()
 
     def find(self, predication,  only_first=True) -> _T:
-        return self._post_process(self._entry.find(predication, only_first=only_first))
+        return self._post_process(self._entry.pull(predication=predication, only_first=only_first))
 
     def update(self, d, predication=_undefined_, only_first=False) -> int:
-        return self._entry.update(self._pre_process(d), predication=predication, only_first=only_first)
+        return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
 
 
 class Dict(Node[_T], Mapping[str, _T]):
@@ -387,6 +395,15 @@ class Dict(Node[_T], Mapping[str, _T]):
     @ classmethod
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
+
+    def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
+        n_value = super()._post_process(value, *args, **kwargs)
+
+        if n_value is value:
+            pass
+        elif isinstance(path, str) or (isinstance(path, list) and len(path) == 1 and isinstance(path[0], str)):
+            n_value = self.put(path, n_value)
+        return n_value
 
     def __getitem__(self, path: _TPath) -> _T:
         return super().__getitem__(path)

@@ -221,6 +221,8 @@ class Entry(object):
 
         if not isinstance(target, collections.abc.Mapping):
             raise TypeError(type(target))
+        elif value is None or value is _undefined_:
+            return target
 
         for k, v in value.items():
             tmp = target.setdefault(k, v)
@@ -324,7 +326,7 @@ class Entry(object):
                 res = Entry._ops[op](value, args)
             else:
                 try:
-                    res = value[op] == args
+                    res = Entry._eval_pull(value, Entry.normalize_path(op), _not_found_) == args
                 except (IndexError, KeyError):
                     res = False
 
@@ -488,7 +490,7 @@ class Entry(object):
             if key is not None:
                 val = query
         else:
-            val = {k: Entry._eval_pull(target, [k], v, *args)
+            val = {k: Entry._eval_pull(target, Entry.normalize_path(k), v, *args)
                    for k, v in query.items() if not isinstance(k, Entry.op_tag)}
             if len(val) == 0:
                 val = [Entry._ops[op](target, v, *args)
@@ -514,7 +516,7 @@ class Entry(object):
             target, key = Entry._eval_path(self._cache, path+[None], force=False)
             if key is not None:
                 val = Entry._eval_pull(_not_found_, [],  query)
-            elif not isinstance(target, list) or path is not None:
+            elif not isinstance(target, list):
                 raise TypeError(f"If predication is defined, target must be list! {type(target)}")
             elif only_first:
                 try:
@@ -786,6 +788,9 @@ class EntryContainer:
     def dump(self) -> Union[Sequence, Mapping]:
         return self._entry.pull(Entry.op_tag.dump)
 
+    def put(self, path: _TPath, value, *args, **kwargs) -> _TObject:
+        return self._entry.put(path, value, *args, **kwargs)
+
     def get(self, path: _TPath, *args, **kwargs) -> _TObject:
         return self._entry.get(path, *args, **kwargs)
 
@@ -796,7 +801,7 @@ class EntryContainer:
         return self._entry.push(path, self._pre_process(value))
 
     def __getitem__(self, path: _TPath) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.pull(path, lazy=True), path=path)
+        return self._post_process(self._entry.pull(path, query=None, lazy=True), path=path)
 
     def __delitem__(self, path: _TPath) -> bool:
         return self._entry.push({Entry.op_tag.remove: path})
