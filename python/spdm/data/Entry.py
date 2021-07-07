@@ -365,9 +365,13 @@ class Entry(object):
                 filter(current node, predication=key)
                 key is the index of first node
         """
+
         if isinstance(target, Entry):
             raise NotImplementedError()
-        elif path is _undefined_ or target is _undefined_:
+        elif target is _undefined_:
+            return _not_found_, None
+
+        elif path is _undefined_:
             return target, None
         elif not isinstance(path, list):
             path = [path]
@@ -463,7 +467,7 @@ class Entry(object):
         else:
             target = _not_found_
 
-        if query in (None, _not_found_, _undefined_):
+        if query is _undefined_:
             val = target
         elif isinstance(query, str) and query[0] == '@':
             query = Entry.op_tag.__members__[query[1:]]
@@ -650,7 +654,7 @@ class EntryCombiner(Entry):
 
         val = super().pull(path, lazy=lazy, predication=predication, only_first=only_first)
 
-        if val is _not_found_ or val is _undefined_:
+        if val is _not_found_:
             val = [Entry._eval_path(d, self._path+Entry.normalize_path(path)+[None],  force=False)
                    for d in self._d_list]
             val = [d for d, p in val if p is None]
