@@ -38,8 +38,7 @@ _append_ = EntryTags.append
 
 _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
-_TPath = TypeVar("_TPath", int, slice, str,  Sequence)
-_TQuery = TypeVar("_TQuery", int,  slice, str, Sequence, Mapping)
+_TPath = TypeVar("_TPath", int,  slice, str, Sequence, Mapping)
 
 _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)
@@ -124,7 +123,7 @@ class Entry(object):
     @property
     def parent(self) -> _TEntry:
         if not self._path:
-            return self.pull(op=Entry.op_tag.parent)
+            return self.pull(Entry.op_tag.parent)
         else:
             node = self.duplicate()
             node._path = node._path[:-1]
@@ -135,7 +134,7 @@ class Entry(object):
         """
             return next brother neighbour
         """
-        return self.pull(op=Entry.op_tag.first_child)
+        return self.pull(Entry.op_tag.first_child)
 
     def __iter__(self) -> _TEntry:
         return self.first_child
@@ -289,7 +288,7 @@ class Entry(object):
 
         # read
         op_tag.find: _op_find,
-        op_tag.equal: lambda target, value: target == value,
+        op_tag.equal: lambda target, other: target == other,
         op_tag.count: lambda target, *args: len(target) if target not in (None, _not_found_, _undefined_) else 0,
         op_tag.exists: lambda target, *args: target not in (None, _not_found_, _undefined_),
         op_tag.dump: NotImplemented,
@@ -300,18 +299,18 @@ class Entry(object):
     }
 
     @staticmethod
-    def normalize_path(query):
-        if query is None:
-            query = []
-        elif isinstance(query, str):
-            query = [query]
-        elif isinstance(query, tuple):
-            query = list(query)
-        elif not isinstance(query, collections.abc.MutableSequence):
-            query = [query]
+    def normalize_path(path):
+        if path is None:
+            path = []
+        elif isinstance(path, str):
+            path = [path]
+        elif isinstance(path, tuple):
+            path = list(path)
+        elif not isinstance(path, collections.abc.MutableSequence):
+            path = [path]
 
-        query = sum([d.split('.') if isinstance(d, str) else [d] for d in query], [])
-        return query
+        path = sum([d.split('.') if isinstance(d, str) else [d] for d in path], [])
+        return path
 
     @staticmethod
     def _predicate(val, predication: collections.abc.Mapping):
@@ -436,7 +435,7 @@ class Entry(object):
 
         return target, key
 
-    def moveto(self, rpath: _TQuery = None, force=True, lazy=True) -> _TEntry:
+    def moveto(self, rpath: _TPath = None, force=True, lazy=True) -> _TEntry:
         target, key = Entry._eval_path(self._cache,
                                        self._path + self.normalize_path(rpath), lazy=lazy, force=force)
         self._cache = target
@@ -450,9 +449,14 @@ class Entry(object):
 
     @staticmethod
     def _eval_pull(target, path: list, query, *args, lazy=False):
+
         target, key = Entry._eval_path(target, path+[None], force=False)
 
-        if key is not None:
+        if key is None:
+            pass
+        elif lazy is True:
+            return Entry(target, key[:-1])
+        else:
             target = _not_found_
 
         if query in (None, _not_found_, _undefined_):
@@ -578,10 +582,10 @@ class Entry(object):
     def remove(self, query):
         return self.push(query, Entry.op_tag.remove)
 
-    def count(self, query: _TQuery = None):
+    def count(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.count)
 
-    def exist(self, query: _TQuery = None):
+    def exist(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.exists)
 
 
@@ -720,38 +724,41 @@ class EntryContainer:
     def clear(self):
         self._entry.push(Entry.op_tag.reset)
 
-    def remove(self, query: _TQuery = None) -> bool:
+    def remove(self, query: _TPath = None) -> bool:
         return self._entry.push({Entry.op_tag.remove: query})
 
     def update(self, value: _T, **kwargs) -> _T:
         return self._entry.push({Entry.op_tag.update: value}, **kwargs)
 
-    def find(self, query: _TQuery, **kwargs) -> _TObject:
+    def find(self, query: _TPath, **kwargs) -> _TObject:
         return self._entry.pull({Entry.op_tag.find: query},  **kwargs)
 
-    def try_insert(self, query: _TQuery, value: _T, **kwargs) -> _T:
+    def try_insert(self, query: _TPath, value: _T, **kwargs) -> _T:
         return self._entry.push({Entry.op_tag.try_insert: {query: value}},  **kwargs)
 
-    def count(self, query: _TQuery, **kwargs) -> int:
+    def count(self, query: _TPath, **kwargs) -> int:
         return self._entry.pull({Entry.op_tag.count: query}, **kwargs)
 
     def dump(self) -> Union[Sequence, Mapping]:
         return self._entry.pull(Entry.op_tag.dump)
 
-    def get(self, query: _TQuery, **kwargs) -> _TObject:
-        return self.find(query,  **kwargs)
+    def get(self, path: _TPath, **kwargs) -> _TObject:
+        return self.find(path,  **kwargs)
 
-    def __setitem__(self, query: _TQuery, value: _T) -> _T:
-        return self._entry.push(query, self._pre_process(value))
+    def equal(self, path: _TPath, other) -> bool:
+        return self._entry.pull(path, {Entry.op_tag.equal: other})
 
-    def __getitem__(self, query: _TQuery) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.pull(query, lazy=True), query=query)
+    def __setitem__(self, path: _TPath, value: _T) -> _T:
+        return self._entry.push(path, self._pre_process(value))
 
-    def __delitem__(self, query: _TQuery) -> bool:
-        return self._entry.push({Entry.op_tag.remove: query})
+    def __getitem__(self, path: _TPath) -> Union[_TEntry, Any]:
+        return self._post_process(self._entry.pull(path, lazy=True), path=path)
 
-    def __contains__(self, query: _TQuery) -> bool:
-        return self._entry.pull({Entry.op_tag.contains: query})
+    def __delitem__(self, path: _TPath) -> bool:
+        return self._entry.push({Entry.op_tag.remove: path})
+
+    def __contains__(self, path: _TPath) -> bool:
+        return self._entry.pull({Entry.op_tag.contains: path})
 
     def __len__(self) -> int:
         return self._entry.pull(Entry.op_tag.count)
@@ -802,7 +809,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
     return obj
 
 
-# def ht_update(target,  query: Optional[_TQuery], value, /,  **kwargs) -> Any:
+# def ht_update(target,  query: Optional[_TPath], value, /,  **kwargs) -> Any:
 #     if query is not None and len(query) > 0:
 #         val = _ht_put(target, query, _not_found_,   **kwargs)
 #     else:
@@ -837,7 +844,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
 #     return all(d)
 
 
-# def ht_remove(target, query: Optional[_TQuery] = None, *args,  **kwargs):
+# def ht_remove(target, query: Optional[_TPath] = None, *args,  **kwargs):
 
 #     if isinstance(target, Entry):
 #         return target.remove(query, *args, **kwargs)
@@ -892,7 +899,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
 #         yield target
 
 
-# def ht_items(target, query: Optional[_TQuery], *args, **kwargs):
+# def ht_items(target, query: Optional[_TPath], *args, **kwargs):
 #     obj = _ht_get(target, query, *args, **kwargs)
 #     if ht_count(obj) == 0:
 #         yield from {}
@@ -908,7 +915,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
 #         raise TypeError(type(obj))
 
 
-# def ht_values(target, query: _TQuery = None, /, **kwargs):
+# def ht_values(target, query: _TPath = None, /, **kwargs):
 #     target = _ht_get(target, query, **kwargs)
 #     if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
 #         yield from target
@@ -920,7 +927,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
 #         yield target
 
 
-# def ht_keys(target, query: _TQuery = None, /, **kwargs):
+# def ht_keys(target, query: _TPath = None, /, **kwargs):
 #     target = _ht_get(target, query, **kwargs)
 #     if isinstance(target, collections.abc.Mapping):
 #         yield from target.keys()

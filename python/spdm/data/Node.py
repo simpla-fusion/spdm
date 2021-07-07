@@ -14,12 +14,14 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
+from numpy.lib.arraysetops import isin
+
 from ..numlib import np, scipy
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
 from ..util.utilities import _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
-                    EntryContainer, _next_, _TKey, _TObject, _TQuery)
+                    EntryContainer, _next_, _TKey, _TObject, _TPath)
 
 _TNode = TypeVar('_TNode', bound='Node')
 
@@ -134,6 +136,8 @@ class Node(EntryContainer, Generic[_TObject]):
 
         if isinstance(value, Entry.PRIMARY_TYPE) or value in (None, _not_found_, _undefined_):
             return value
+        # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
+        #     return value
         elif inspect.isclass(self._new_child):
             if isinstance(value, self._new_child):
                 return value
@@ -220,12 +224,12 @@ class Node(EntryContainer, Generic[_TObject]):
     def _post_process(self, value: _T,   *args, key: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
         return self._convert(value, *args, **kwargs)
 
-    def fetch(self, query: _TQuery = None,  **kwargs) -> _T:
-        query = Entry.normalize_query(query)
+    def fetch(self, path: _TPath = None,  **kwargs) -> _T:
+        path = Entry.normalize_path(path)
         target = self
         val = _not_found_
 
-        for key in query:
+        for key in path:
             val = _not_found_
             if isinstance(key, str):
                 val = getattr(target, key, _not_found_)
@@ -236,8 +240,11 @@ class Node(EntryContainer, Generic[_TObject]):
 
         return target
 
-    def bind(self, query: _TQuery, n_cls: _T) -> _T:
+    def bind(self, path: _TPath, n_cls: _T) -> _T:
         return NotImplemented
+
+    def __eq__(self, other) -> bool:
+        return self.equal([], other)
 
     # class Category(IntFlag):
     #     UNKNOWN = 0
@@ -313,14 +320,14 @@ class List(Node[_T], Sequence[_T]):
     def __len__(self) -> int:
         return super().__len__()
 
-    def __setitem__(self, query: _TQuery, v: _T) -> None:
-        super().__setitem__(query,  v)
+    def __setitem__(self, path: _TPath, v: _T) -> None:
+        super().__setitem__(path,  v)
 
-    def __getitem__(self, query: _TQuery) -> _T:
-        return super().__getitem__(query)
+    def __getitem__(self, path: _TPath) -> _T:
+        return super().__getitem__(path)
 
-    def __delitem__(self, query: _TQuery) -> None:
-        return super().__delitem__(query)
+    def __delitem__(self, path: _TPath) -> None:
+        return super().__delitem__(path)
 
     def __iter__(self) -> Iterator[_T]:
         for idx in range(self.__len__()):
@@ -381,8 +388,8 @@ class Dict(Node[_T], Mapping[str, _T]):
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
 
-    def __getitem__(self, query: _TQuery) -> _T:
-        return super().__getitem__(query)
+    def __getitem__(self, path: _TPath) -> _T:
+        return super().__getitem__(path)
 
     def __setitem__(self, key: str, value: _T) -> None:
         super().__setitem__(key, value)

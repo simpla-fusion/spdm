@@ -1,5 +1,5 @@
 import unittest
-
+from spdm.numlib import np
 from spdm.data.Node import Node, Dict, List, _next_, _not_found_
 from spdm.util.logger import logger
 from copy import copy, deepcopy
@@ -10,7 +10,7 @@ class TestNode(unittest.TestCase):
         "a": [
             "hello world {name}!",
             "hello world2 {name}!",
-            1, 2, 3, 4
+            1.0, 2, 3, 4
         ],
         "c": "I'm {age}!",
         "d": {
@@ -29,9 +29,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d["d"]["f"],   self.data["d"]["f"])
         self.assertEqual(d["a"][0],       self.data["a"][0])
         self.assertEqual(d["a"][1],       self.data["a"][1])
-        self.assertEqual(d["a"][2:6],          [1, 2, 3, 4])
-
-        # self.assertTrue(d["f"]["g"].empty)
+        self.assertEqual(d["a"][2:6],        [1.0, 2, 3, 4])
 
     def test_dict_insert(self):
         cache = {}
@@ -144,16 +142,13 @@ class TestNodeList(unittest.TestCase):
         d1 = Dict({"person": cache})
 
         young = d1["person", {"age": 22}]
-        # logger.debug(young)
-        # self.assertEqual(len(young), 2)
+      
         self.assertEqual(young[0, "name"],  "wang liu")
         self.assertEqual(young[1, "name"],  "li si")
 
-        res = d1["person", {"age": 22}]
-
-        names = [d["name"] for d in res]
-
-        self.assertEqual(len(names), 2)
+        # res = d1["person", {"age": 22}]
+        # names = [d["name"] for d in res]
+        # self.assertEqual(len(names), 2)
 
     def test_insert_by_cond(self):
         cache = [
