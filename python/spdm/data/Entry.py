@@ -225,12 +225,14 @@ class Entry(object):
         for k, v in value.items():
             tmp = target.setdefault(k, v)
 
-            if tmp is v:
+            if tmp is v or v is _undefined_:
                 pass
             elif not isinstance(tmp, collections.abc.Mapping):
                 target[k] = v
-            else:
+            elif isinstance(v, collections.abc.Mapping):
                 Entry._op_update(tmp,  v)
+            else:
+                raise TypeError(type(v))
 
         return target
 
@@ -581,7 +583,7 @@ class Entry(object):
             val = Entry._eval_push(target, [key] if key is not None else [], value)
         else:
             target, key = Entry._eval_path(self._cache, path+[None], force=True)
-            if key is not None:
+            if key is not None or target is _not_found_:
                 raise KeyError(path)
             elif not isinstance(target, list):
                 raise TypeError(f"If predication is defined, target must be list! {type(target)}")
