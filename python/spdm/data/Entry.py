@@ -391,9 +391,9 @@ class Entry(object):
             elif target is _not_found_:
                 break
             elif isinstance(target, Entry):
-                return target.moveto(path[idx:], _not_found_), None
+                return target.moveto(path[idx:-1], _not_found_),  path[-1]
             elif isinstance(target, EntryContainer):
-                return target.get(path[idx:-1], _not_found_), None
+                return target.get(path[idx:-1], _not_found_), path[-1]
             elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 try:
                     val = target[key]
