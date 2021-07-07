@@ -513,11 +513,6 @@ class Entry(object):
 
     @staticmethod
     def _eval_push(target, path: list, query, *args):
-        if path in (None, _not_found_, _undefined_):
-            path = []
-        elif not isinstance(path, list):
-            path = [path]
-
         if query in (None, _not_found_, _undefined_):
             val = query
         elif isinstance(query, collections.abc.Mapping):
@@ -572,9 +567,9 @@ class Entry(object):
                 except StopIteration:
                     val = _not_found_
                 else:
-                    val = Entry._eval_push(target, None, value)
+                    val = Entry._eval_push(target, [], value)
             else:
-                val = [Entry._eval_push(d, None, value) for d in target if Entry._predicate(d, predication)]
+                val = [Entry._eval_push(d, [], value) for d in target if Entry._predicate(d, predication)]
                 if len(val) == 0:
                     val = _not_found_
 
