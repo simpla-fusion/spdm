@@ -140,7 +140,7 @@ class TestEntryCombiner(unittest.TestCase):
             "value": 1.23,
             "c": "I'm {age}!",
             "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
-        {"id": 1,
+        {"id": 1, 
             "c": "I'm {age}!",
             "d": {"e": "{name} is {age}", "f": "{address}"}},
         {"id": 2,

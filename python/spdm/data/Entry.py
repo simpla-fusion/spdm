@@ -400,7 +400,7 @@ class Entry(object):
                 val = target.get(key, _not_found_)
             elif isinstance(target, (collections.abc.Sequence)) and not isinstance(key, str):
                 if key is _next_:
-                    target.append(_undefined_)
+                    target.append(_not_found_)
                     key = len(target)-1
                     val = _not_found_
                 elif not isinstance(key, dict):
@@ -411,6 +411,7 @@ class Entry(object):
                     except (IndexError, KeyError, TypeError) as error:
                         logger.exception(error)
                         val = _not_found_
+
                 else:
                     iv_list = [[i, v] for i, v in enumerate(target) if Entry._predicate(v, predication=key)]
 
@@ -427,10 +428,10 @@ class Entry(object):
                         if any(filter(lambda d:  isinstance(d, Entry), val)):
                             val = EntryCombiner(val, path[idx+1:])
             else:
-                raise NotImplementedError(f"{target} {type(key)} {path[:idx+1]}")
+                raise NotImplementedError(f"{type(target)} {type(key)} {path[:idx+1]}")
 
             if idx < last_index:
-                if val is _not_found_ or val is _undefined_:
+                if val is _not_found_:
                     if force:
                         val = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
                         target[key] = val
@@ -457,6 +458,12 @@ class Entry(object):
 
     @staticmethod
     def _eval_pull(target, path: list, query, *args, lazy=False):
+        """
+            if path is found then
+                return value
+            else
+                if lazy then return Entry(target,path) else return _not_found_
+        """
 
         target, key = Entry._eval_path(target, path+[None], force=False)
 
@@ -467,7 +474,7 @@ class Entry(object):
         else:
             target = _not_found_
 
-        if query is _undefined_:
+        if query is _undefined_ or query is _not_found_:
             val = target
         elif isinstance(query, str) and query[0] == '@':
             query = Entry.op_tag.__members__[query[1:]]
@@ -477,7 +484,7 @@ class Entry(object):
         elif not isinstance(query, dict):
             val, key = Entry._eval_path(target, Entry.normalize_path(query)+[None], force=False)
             if key is not None:
-                val = _not_found_
+                val = query
         else:
             val = {k: Entry._eval_pull(target, [k], v, *args)
                    for k, v in query.items() if not isinstance(k, Entry.op_tag)}
@@ -601,12 +608,14 @@ class Entry(object):
     def exist(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.exists)
 
-    def get(self, *args, default_value=_not_found_, **kwargs) -> Any:
-        obj = self.pull(*args, **kwargs)
-        if obj is _not_found_ or obj is _undefined_:
+    def get(self, path, default_value=_undefined_, *args, **kwargs) -> Any:
+        obj = self.pull(path, *args,  **kwargs)
+        if obj is not _not_found_:
+            return obj
+        elif default_value is not _undefined_:
             return default_value
         else:
-            return obj
+            raise KeyError(path)
 
     def put(self, *args, **kwargs) -> Any:
         return self.push(*args, **kwargs)
@@ -768,12 +777,8 @@ class EntryContainer:
     def dump(self) -> Union[Sequence, Mapping]:
         return self._entry.pull(Entry.op_tag.dump)
 
-    def get(self, path: _TPath, default_value=_undefined_, **kwargs) -> _TObject:
-        obj = self._entry.pull(path,  **kwargs)
-        if obj is _not_found_:
-            return default_value
-        else:
-            return obj
+    def get(self, path: _TPath, *args, **kwargs) -> _TObject:
+        return self._entry.get(path, *args, **kwargs)
 
     def equal(self, path: _TPath, other) -> bool:
         return self._entry.pull(path, {Entry.op_tag.equal: other})
