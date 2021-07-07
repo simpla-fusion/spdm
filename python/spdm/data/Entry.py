@@ -442,8 +442,8 @@ class Entry(object):
                         break
                 target = val
 
-        if target is _not_found_:
-            raise KeyError((path, target))
+        # if target is _not_found_:
+        #     raise KeyError((path, target))
         return target, key
 
     def moveto(self, rpath: _TPath = None, force=True, lazy=True) -> _TEntry:
@@ -553,6 +553,8 @@ class Entry(object):
                 val = val[0]
         else:
             target, p = Entry._eval_path(target, path, force=True)
+            if target is _not_found_:
+                raise KeyError(path)
             if isinstance(query, Entry.op_tag):
                 val = Entry._ops[query](target, p, *args)
             elif isinstance(query, str) and query[0] == '@':
@@ -574,11 +576,16 @@ class Entry(object):
             path = None
 
         path = self._path + Entry.normalize_path(path)
+        if self._cache is _not_found_ or self._cache is _undefined_:
+            if len(path) > 0 and isinstance(path[0], str):
+                self._cache = _DICT_TYPE_()
+            else:
+                self._cache = _LIST_TYPE_()
 
         if predication is _undefined_:
             target, key = Entry._eval_path(self._cache, path, force=True)
 
-            if isinstance(key, list):
+            if target is _not_found_ or isinstance(key, list):
                 raise KeyError(path)
             val = Entry._eval_push(target, [key] if key is not None else [], value)
         else:
@@ -617,7 +624,7 @@ class Entry(object):
         elif default_value is not _undefined_:
             return default_value
         else:
-            raise KeyError(path)
+            raise KeyError((path, default_value))
 
     def put(self, *args, **kwargs) -> Any:
         return self.push(*args, **kwargs)
@@ -668,13 +675,13 @@ class EntryCombiner(Entry):
         if val is _not_found_:
             val = [Entry._eval_path(d, self._path+Entry.normalize_path(path)+[None],  force=False)
                    for d in self._d_list]
-            val = [d for d, p in val if p is None]
+            val = [d for d, p in val if p is None and d is not _not_found_]
 
         if predication is not _undefined_:
             logger.warning("NotImplemented")
 
         if isinstance(val, collections.abc.Sequence):
-            val = [d for d in val if (d not in (None, _not_found_))]
+            val = [d for d in val if (d is not _not_found_ and d is not None)]
 
             if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
                 val = EntryCombiner(val)
@@ -685,8 +692,8 @@ class EntryCombiner(Entry):
             else:
                 val = _not_found_
 
-        if val is _not_found_:
-            val = query
+        # val = Entry._eval_pull(val, [], query, lazy=False)
+
         return val
 
 
