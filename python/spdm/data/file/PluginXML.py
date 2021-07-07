@@ -181,23 +181,23 @@ class XMLEntry(Entry):
     def push(self,  *args, **kwargs):
         return super().push(*args, **kwargs)
 
-    def pull(self, default_value=_undefined_,  lazy=_undefined_, **kwargs):
-
-        xp, envs = self.xpath(self._path)
+    def pull(self, path, default_value=_undefined_,  lazy=_undefined_, **kwargs):
+        path = self._path + Entry.normalize_path(path)
+        xp, envs = self.xpath(path)
 
         obj = xp.evaluate(self._root)
 
         if lazy is _undefined_:
             lazy = default_value is _undefined_
 
-        res = self._convert(obj, path=self._path, lazy=lazy, envs=envs, **kwargs)
+        res = self._convert(obj, path=path, lazy=lazy, envs=envs, **kwargs)
 
         if res is not _not_found_:
             pass
         elif default_value is not _undefined_:
             res = default_value
         else:
-            raise RuntimeError(self._path)
+            raise RuntimeError(path)
 
         return res
 
