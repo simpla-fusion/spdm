@@ -352,7 +352,7 @@ class Entry(object):
         return target
 
     @staticmethod
-    def _eval_path(target, path: list, force=False, lazy=False) -> Tuple[Any, Any]:
+    def _eval_path(target, path: list, force=False) -> Tuple[Any, Any]:
         """
             Return: 返回path中最后一个key，这个key所属于的Tree node
 
@@ -459,6 +459,22 @@ class Entry(object):
                 logger.warning(f"'{self._path}' points to a null node")
 
         return self
+
+    @staticmethod
+    def _eval_filter(target: _T, predication=_undefined_, only_first=False) -> _T:
+        if not isinstance(target, list) or predication is _undefined_:
+            return [target]
+        if only_first:
+            try:
+                val = next(filter(lambda d: Entry._predicate(d, predication), target))
+            except StopIteration:
+                val = _not_found_
+            else:
+                val = [val]
+        else:
+            val = [d for d in target if Entry._predicate(d, predication)]
+
+        return val
 
     @staticmethod
     def _eval_pull(target, path: list, query, *args, lazy=False):
@@ -651,12 +667,13 @@ class EntryCombiner(Entry):
                  partition=_undefined_, **kwargs):
         super().__init__(default_value, **kwargs)
         self._reducer = reducer if reducer is not _undefined_ else operator.__add__
-        self._partition = partition if partition is not _undefined_ else operator.__add__
+        self._partition = partition
         self._d_list = d_list
 
     def duplicate(self):
         res = super().duplicate()
         res._reducer = self._reducer
+        res._partition = self.partition
         res._d_list = self._d_list
 
         return res
@@ -668,33 +685,38 @@ class EntryCombiner(Entry):
         raise NotImplementedError()
 
     def push(self,   *args, **kwargs) -> _T:
-        return super().push(*args, **kwargs)
+        if self._partition is _undefined_:
+            return super().push(*args, **kwargs)
+        else:
+            raise NotImplementedError()
 
     def pull(self, path=None, query=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
 
-        val = super().pull(path, lazy=lazy, predication=predication, only_first=only_first)
-
-        if predication is not _undefined_:
-            logger.warning("NotImplemented")
+        val = super().pull(path, query=query, lazy=False, predication=predication, only_first=only_first)
 
         if val is not _not_found_:
             return val
 
-        val = [Entry._eval_path(d, self._path+Entry.normalize_path(path)+[None],  force=False)
-               for d in self._d_list]
-        val = [d for d, p in val if p is None and d is not _not_found_]
+        path = self._path+Entry.normalize_path(path)
 
-        if isinstance(val, collections.abc.Sequence):
-            val = [d for d in val if (d is not _not_found_ and d is not None)]
+        val = []
+        for d in self._d_list:
+            target, p = Entry._eval_path(d, path+[None], force=False)
+            if target is _not_found_ or p is not None:
+                continue
+            target = Entry._eval_filter(target, predication=predication, only_first=only_first)
+            if target is _not_found_ or len(target) == 0:
+                continue
+            val.extend([Entry._eval_pull(d, [], query=query, lazy=lazy) for d in target])
 
-            if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
-                val = EntryCombiner(val)
-            elif len(val) == 1:
-                val = val[0]
-            elif len(val) > 1:
-                val = functools.reduce(self._reducer, val[1:], val[0])
-            else:
-                val = _not_found_
+        if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
+            val = EntryCombiner(val)
+        elif len(val) == 1:
+            val = val[0]
+        elif len(val) > 1:
+            val = functools.reduce(self._reducer, val[1:], val[0])
+        else:
+            val = _not_found_
 
         # val = Entry._eval_pull(val, [], query, lazy=False)
 
