@@ -674,13 +674,15 @@ class EntryCombiner(Entry):
 
         val = super().pull(path, lazy=lazy, predication=predication, only_first=only_first)
 
-        if val is _not_found_:
-            val = [Entry._eval_path(d, self._path+Entry.normalize_path(path)+[None],  force=False)
-                   for d in self._d_list]
-            val = [d for d, p in val if p is None and d is not _not_found_]
-
         if predication is not _undefined_:
             logger.warning("NotImplemented")
+
+        if val is not _not_found_:
+            return val
+
+        val = [Entry._eval_path(d, self._path+Entry.normalize_path(path)+[None],  force=False)
+               for d in self._d_list]
+        val = [d for d, p in val if p is None and d is not _not_found_]
 
         if isinstance(val, collections.abc.Sequence):
             val = [d for d in val if (d is not _not_found_ and d is not None)]

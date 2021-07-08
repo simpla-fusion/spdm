@@ -99,7 +99,7 @@ class Node(EntryContainer, Generic[_TObject]):
     @property
     def annotation(self) -> dict:
         return {
-            "id": self.get("@id", None),
+            "id": self.nid,
             "type":  self._entry.__class__.__name__
         }
 
@@ -224,7 +224,7 @@ class Node(EntryContainer, Generic[_TObject]):
     def _post_process(self, value: _T,   *args, key: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
         return self._convert(value, *args, **kwargs)
 
-    def fetch(self, path: _TPath = None,  **kwargs) -> _T:
+    def fetch(self, path: _TPath = None, *args, **kwargs) -> _T:
         path = Entry.normalize_path(path)
         target = self
         val = _not_found_
