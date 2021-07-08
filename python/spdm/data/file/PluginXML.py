@@ -128,6 +128,11 @@ class XMLEntry(Entry):
             if len(element) == 1 and "id" not in element[0].attrib:
                 element = element[0]
 
+        # if isinstance(element, list):
+        #     res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
+        # elif len(element) > 0 and lazy:
+        #     res = XMLEntry(element, prefix=[])
+
         if isinstance(element, list):
             if lazy:
                 res = XMLEntry(element, prefix=[])
