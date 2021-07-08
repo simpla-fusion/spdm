@@ -317,22 +317,25 @@ class Entry(object):
         return path
 
     @staticmethod
-    def _predicate(val, predication: collections.abc.Mapping):
+    def _match(val, predication: collections.abc.Mapping):
         if not isinstance(predication, collections.abc.Mapping):
             predication = {predication: None}
 
-        def do_check(op, value, args):
+        def do_match(op, value, expected):
+            res = False
             if isinstance(op, Entry.op_tag):
-                res = Entry._ops[op](value, args)
+                res = Entry._ops[op](value, expected)
             else:
                 try:
-                    res = Entry._eval_pull(value, Entry.normalize_path(op), _not_found_) == args
+                    actual, p = Entry._eval_path(value, Entry.normalize_path(op)+[None])
+                    res = p is None and (actual == expected)
                 except (IndexError, KeyError):
                     res = False
 
             return res
 
-        return all([do_check(op, val, args) for op, args in predication.items()])
+        success = all([do_match(op, val, args) for op, args in predication.items()])
+        return success
 
     @staticmethod
     def _update(target, key, value):
@@ -417,7 +420,7 @@ class Entry(object):
                         val = _not_found_
 
                 else:
-                    iv_list = [[i, v] for i, v in enumerate(target) if Entry._predicate(v, predication=key)]
+                    iv_list = [[i, v] for i, v in enumerate(target) if Entry._match(v, predication=key)]
 
                     if len(iv_list) == 0:
                         if force:
@@ -466,18 +469,18 @@ class Entry(object):
             return [target]
         if only_first:
             try:
-                val = next(filter(lambda d: Entry._predicate(d, predication), target))
+                val = next(filter(lambda d: Entry._match(d, predication), target))
             except StopIteration:
                 val = _not_found_
             else:
                 val = [val]
         else:
-            val = [d for d in target if Entry._predicate(d, predication)]
+            val = [d for d in target if Entry._match(d, predication)]
 
         return val
 
     @staticmethod
-    def _eval_pull(target, path: list, query, *args, lazy=False):
+    def _eval_pull(target, path: list, query=_undefined_, *args, lazy=False):
         """
             if path is found then
                 return value
@@ -536,13 +539,13 @@ class Entry(object):
                 raise TypeError(f"If predication is defined, target must be list! {type(target)}")
             elif only_first:
                 try:
-                    target = next(filter(lambda d: Entry._predicate(d, predication), target))
+                    target = next(filter(lambda d: Entry._match(d, predication), target))
                 except StopIteration:
                     target = _not_found_
 
                 val = Entry._eval_pull(target, [],  query)
             else:
-                val = [Entry._eval_pull(d, [],  query) for d in target if Entry._predicate(d, predication)]
+                val = [Entry._eval_pull(d, [],  query) for d in target if Entry._match(d, predication)]
                 if len(val) == 0:
                     val = Entry._eval_pull(_not_found_, [],  query)
                 elif len(val) == 1:
@@ -614,13 +617,13 @@ class Entry(object):
                 raise TypeError(f"If predication is defined, target must be list! {type(target)}")
             elif only_first:
                 try:
-                    target = next(filter(lambda d: Entry._predicate(d, predication), target))
+                    target = next(filter(lambda d: Entry._match(d, predication), target))
                 except StopIteration:
                     val = _not_found_
                 else:
                     val = Entry._eval_push(target, [], value)
             else:
-                val = [Entry._eval_push(d, [], value) for d in target if Entry._predicate(d, predication)]
+                val = [Entry._eval_push(d, [], value) for d in target if Entry._match(d, predication)]
                 if len(val) == 0:
                     val = _not_found_
 
