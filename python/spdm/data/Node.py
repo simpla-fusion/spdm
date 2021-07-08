@@ -169,6 +169,8 @@ class Node(EntryContainer, Generic[_TObject]):
                     res = attribute_type(**{k: value.get(k, None) for k in attribute_type.__dataclass_fields__})
                 elif isinstance(value, collections.abc.Sequence):
                     res = attribute_type(*value)
+                else:
+                    res = attribute_type(value)
             elif issubclass(attribute_type, Node):
                 res = attribute_type(value, parent=parent, **kwargs)
             else:

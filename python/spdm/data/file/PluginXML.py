@@ -128,19 +128,10 @@ class XMLEntry(Entry):
             if len(element) == 1 and "id" not in element[0].attrib:
                 element = element[0]
 
-        # if isinstance(element, list):
-        #     res = [self._convert(e, path=path, lazy=lazy, envs=envs, projection=property) for e in element]
-        # elif len(element) > 0 and lazy:
-        #     res = XMLEntry(element, prefix=[])
-
         if isinstance(element, list):
-            if lazy:
-                res = XMLEntry(element, prefix=[])
-            else:
-                res = [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
+            res = [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
-
             if dtype == "string" or dtype is None:
                 res = [element.text]
             elif dtype == "int":
@@ -157,9 +148,24 @@ class XMLEntry(Entry):
                 res = np.array(res).reshape(dims)
             else:
                 res = np.array(res)
-        else:
-            res = {child.tag: self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy, **kwargs)
-                   for child in element if child.tag is not _XMLComment}
+
+        elif not lazy:
+
+            res = {}
+            for child in element:
+                if child.tag is _XMLComment:
+                    continue
+                obj = self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy, **kwargs)
+                tmp = res.setdefault(child.tag, obj)
+                if tmp is obj:
+                    continue
+                elif isinstance(tmp, list):
+                    tmp.append(obj)
+                else:
+                    res[child.tag] = [tmp, obj]
+
+            # res = {child.tag: self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy, **kwargs)
+            #        for child in element if child.tag is not _XMLComment}
             for k, v in element.attrib.items():
                 res[f"@{k}"] = v
 
@@ -178,6 +184,8 @@ class XMLEntry(Entry):
                 #     fstr = collections.ChainMap(query, self.envs.fragment.__data__, self.envs.query.__data__ or {})
                 # format_string_recursive(text, fstr)  # text.format_map(fstr)
                 res["@text"] = text
+        else:
+            res = XMLEntry(element, prefix=[])
 
         if envs is not None and isinstance(res, (str, collections.abc.Mapping)):
             res = format_string_recursive(res, envs)

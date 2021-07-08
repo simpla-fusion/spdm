@@ -504,10 +504,13 @@ class Entry(object):
             val = Entry._ops[query](target, *args)
         elif isinstance(query, Entry.op_tag):
             val = Entry._ops[query](target, *args)
+        elif query is None or query is _undefined_:
+            val = target
         elif not isinstance(query, dict):
-            val, key = Entry._eval_path(target, Entry.normalize_path(query)+[None], force=False)
-            if key is not None:
-                val = query
+            raise NotImplementedError(query)
+            # val, key = Entry._eval_path(target, Entry.normalize_path(query)+[None], force=False)
+            # if key is not None:
+            #     val = query
         else:
             val = {k: Entry._eval_pull(target, Entry.normalize_path(k), v, *args)
                    for k, v in query.items() if not isinstance(k, Entry.op_tag)}
@@ -638,8 +641,10 @@ class Entry(object):
     def exist(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.exists)
 
-    def get(self, path, default_value=_undefined_, *args, **kwargs) -> Any:
-        obj = self.pull(path, *args,  **kwargs)
+    def get(self, path, default_value=_undefined_, *args, lazy=_undefined_, **kwargs) -> Any:
+        if lazy is _undefined_:
+            lazy = default_value is _undefined_
+        obj = self.pull(path, *args, lazy=lazy, **kwargs)
         if obj is not _not_found_:
             return obj
         elif default_value is not _undefined_:
