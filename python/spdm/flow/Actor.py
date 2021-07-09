@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 from dataclasses import dataclass, fields, is_dataclass
 from typing import (Any, Deque, Generic, Iterator, Mapping, NewType, Optional,
                     Sequence, TypeVar)
@@ -21,8 +21,6 @@ class Actor(Dict[Node], Generic[_TState]):
     """
 
     def __new__(cls, desc=None, *args, **kwargs):
-        # if cls is not Actor:
-        #     return super(Actor, cls).__new__(cls, desc, *args, **kwargs)
 
         prefix = getattr(cls, "_actor_module_prefix", None)
         n_cls = cls
@@ -120,7 +118,7 @@ class Actor(Dict[Node], Generic[_TState]):
 
         return time
 
-    def refresh(self,   *args, ** kwargs)  :
+    def refresh(self,   *args, ** kwargs):
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state

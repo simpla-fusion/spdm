@@ -321,7 +321,7 @@ class List(Node[_T], Sequence[_T]):
 
     def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
         n_value = super()._post_process(value, *args, **kwargs)
-        if n_value is value:
+        if n_value is value or (isinstance(value, Entry) and value.level > 0):
             pass
         elif isinstance(path, int) or (isinstance(path, list) and len(path) == 1 and isinstance(path[0], int)):
             n_value = self.put(path, n_value)
@@ -394,17 +394,18 @@ class Dict(Node[_T], Mapping[str, _T]):
     def _serialize(self) -> Mapping:
         return {k: serialize(v) for k, v in self._as_dict()}
 
-    @ classmethod
+    @classmethod
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
 
     def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
         n_value = super()._post_process(value, *args, **kwargs)
 
-        if n_value is value:
+        if n_value is value or (isinstance(value, Entry) and value.level > 0):
             pass
         elif isinstance(path, str) or (isinstance(path, list) and len(path) == 1 and isinstance(path[0], str)):
             n_value = self.put(path, n_value)
+
         return n_value
 
     def __getitem__(self, path: _TPath) -> _T:
@@ -500,18 +501,14 @@ class _sp_property(Generic[_T]):
                 and issubclass(orig_class, self.return_type))
 
     def _convert(self, instance: Node, value: _T) -> _T:
-
-        if not self._check_type(value):
-            value = self.func(instance)
-
         if self._check_type(value):
-            pass
+            n_value = value
         elif hasattr(instance, "_convert"):
-            value = instance._convert(value, attribute=self.return_type)
+            n_value = instance._convert(value, attribute=self.return_type)
         else:
-            value = self.return_type(value)
+            n_value = self.return_type(value)
 
-        return value
+        return n_value
 
     def _entry(self, instance: Node) -> Entry:
         try:
@@ -528,8 +525,7 @@ class _sp_property(Generic[_T]):
         if instance is None:
             return self
         with self.lock:
-            entry = self._entry(instance)
-            entry.put(self.attrname, self._convert(instance, value))
+            self._entry(instance).put(self.attrname, self._convert(instance, value))
 
     def __get__(self, instance: Node, owner=None) -> _T:
         if instance is None:
@@ -540,12 +536,22 @@ class _sp_property(Generic[_T]):
 
         with self.lock:
             entry = self._entry(instance)
-            val = entry.get(self.attrname, _not_found_)
-            n_val = self._convert(instance, val)
-            if n_val is not val:
-                entry.put(self.attrname, n_val)
 
-        return n_val
+            value = entry.get(self.attrname, _not_found_)
+
+            if not self._check_type(value):
+                n_value = self._convert(instance, self.func(instance))
+
+                if n_value is value or (isinstance(value, Entry) and value.level > 0):
+                    pass
+                else:
+                    entry.put(self.attrname, n_value)
+            else:
+                n_value = value
+                
+            return n_value
+
+        return n_value
 
     def __delete__(self, instance: Node) -> None:
         if instance is None:

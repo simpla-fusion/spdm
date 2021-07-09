@@ -4,14 +4,13 @@ from spdm.data.Node import Dict, _TObject, sp_property
 from spdm.util.logger import logger
 
 
-class Foo:
+class Foo(Dict):
     def __init__(self, data: dict, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._data = data
+        super().__init__(data, *args, **kwargs)
 
     @sp_property
     def a(self) -> float:
-        return self._data.get("a")
+        return self.get("a")
 
 
 class Doo(Dict):

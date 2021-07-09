@@ -533,7 +533,7 @@ class Entry(object):
         path = self._path+Entry.normalize_path(path)
 
         if predication is _undefined_:
-            return Entry._eval_pull(self._cache, path, query, lazy=lazy)
+            val = Entry._eval_pull(self._cache, path, query, lazy=lazy)
         else:
             target, key = Entry._eval_path(self._cache, path+[None], force=False)
             if key is not None:
