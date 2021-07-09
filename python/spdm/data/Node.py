@@ -474,6 +474,7 @@ class Dict(Node[_T], Mapping[str, _T]):
 
 
 class _sp_property(Generic[_T]):
+
     def __init__(self, func: Callable[..., _T]):
         self.func = func
         self.attrname = None
@@ -490,55 +491,68 @@ class _sp_property(Generic[_T]):
                 f"({self.attrname!r} and {name!r})."
             )
 
-    def _isinstance(self, obj) -> bool:
-        res = True
-        if self.return_type is not None:
-            orig_class = getattr(obj, "__orig_class__", obj.__class__)
-            res = orig_class == self.return_type \
-                or (inspect.isclass(orig_class)
-                    and inspect.isclass(self.return_type)
-                    and issubclass(orig_class, self.return_type))
+    def _check_type(self, value):
+        orig_class = getattr(value, "__orig_class__", value.__class__)
+        return self.return_type is None \
+            or orig_class == self.return_type \
+            or (inspect.isclass(orig_class)
+                and inspect.isclass(self.return_type)
+                and issubclass(orig_class, self.return_type))
 
-        return res
+    def _convert(self, instance: Node, value: _T) -> _T:
 
-    def __set__(self, instance: Any, value: Any):
-        with self.lock:
-            cache = getattr(instance, "_entry", None)
-            if cache is None:
-                cache = Entry(instance.__dict__)
-            cache.insert(self.attrname, value, op=Entry.op_tag.assign)
+        if not self._check_type(value):
+            value = self.func(instance)
 
-    def __get__(self, instance: Node, owner=None) -> _T:
-        if instance is None:
-            return self
+        if self._check_type(value):
+            pass
+        elif hasattr(instance, "_convert"):
+            value = instance._convert(value, attribute=self.return_type)
+        else:
+            value = self.return_type(value)
+
+        return value
+
+    def _entry(self, instance: Node) -> Entry:
         try:
-            cache = getattr(instance, "_entry", None)
-            if cache is None:
-                cache = Entry(instance.__dict__)
+            entry = getattr(instance, "_entry", _not_found_)
+            if entry is _not_found_:
+                entry = Entry(instance.__dict__)
         except AttributeError as error:
             logger.exception(error)
             raise AttributeError(error)
 
-        if not isinstance(instance, Node):
-            raise TypeError(f"{type(instance)} {self.attrname}")
+        return entry
+
+    def __set__(self, instance: Node, value: Any):
+        if instance is None:
+            return self
+        with self.lock:
+            entry = self._entry(instance)
+            entry.put(self.attrname, self._convert(instance, value))
+
+    def __get__(self, instance: Node, owner=None) -> _T:
+        if instance is None:
+            return self
 
         if self.attrname is None:
             raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
 
-        val = cache.get(self.attrname, _not_found_)
-        if val is _not_found_ or not self._isinstance(val):
-            with self.lock:
-                # check if another thread filled cache while we awaited lock
-                val = cache.get(self.attrname, _not_found_)
-                if val is _not_found_ or not self._isinstance(val):
-                    val = self.func(instance)
+        with self.lock:
+            entry = self._entry(instance)
+            val = entry.get(self.attrname, _not_found_)
+            n_val = self._convert(instance, val)
+            if n_val is not val:
+                entry.put(self.attrname, n_val)
 
-                    if not self._isinstance(val):
-                        val = instance._convert(val, attribute=self.return_type)
+        return n_val
 
-                    cache.put(self.attrname, val)
-
-        return val
+    def __delete__(self, instance: Node) -> None:
+        if instance is None:
+            return
+        with self.lock:
+            entry = self._entry(instance)
+            entry.remove(self.attrname)
 
 
 def sp_property(func: Callable[..., _T]) -> _sp_property[_T]:

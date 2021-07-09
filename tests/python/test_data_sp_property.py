@@ -4,13 +4,14 @@ from spdm.data.Node import Dict, _TObject, sp_property
 from spdm.util.logger import logger
 
 
-class Foo(Dict[_TObject]):
-    def __init__(self,  *args, **kwargs):
+class Foo:
+    def __init__(self, data: dict, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._data = data
 
     @sp_property
     def a(self) -> float:
-        return self["a"]
+        return self._data.get("a")
 
 
 class Doo(Dict):
@@ -18,12 +19,13 @@ class Doo(Dict):
         super().__init__(*args,  **kwargs)
 
     @sp_property
-    def foo(self) -> Foo[str]:
+    def foo(self) -> Foo:
+        logger.debug("Call foo")
         return self.get("foo", {})
 
     @sp_property
-    def goo(self) -> None:
-        return None
+    def goo(self) -> Foo:
+        return {"a": 3.14}
 
 
 class TestSpProperty(unittest.TestCase):
@@ -34,16 +36,26 @@ class TestSpProperty(unittest.TestCase):
         self.assertFalse(isinstance(cache["foo"], Foo))
         self.assertTrue(isinstance(d.foo, Foo))
         self.assertTrue(isinstance(cache["foo"], Foo))
-        self.assertTrue(cache["foo"].__orig_class__ == Foo[str])
 
-        self.assertEqual(d.foo.a, cache["foo"]["a"])
+        self.assertEqual(d.foo.a, cache["foo"].a)
+        d.goo.a
+        self.assertEqual(cache["goo"].a, 3.14)
 
-    def test_insert(self):
+        logger.debug(cache)
+
+    def test_set(self):
         cache = {"foo": {"a": 1234}}
         d = Doo(cache)
         self.assertEqual(cache["foo"]["a"], 1234)
         d.foo.a = 45678
-        self.assertEqual(cache["foo"]["a"], 45678)
+        self.assertEqual(cache["foo"].a, 45678)
+
+    def test_delete(self):
+        cache = {"foo": {"a": 1234}}
+        d = Doo(cache)
+        self.assertEqual(cache["foo"]["a"], 1234)
+        del d.foo
+        self.assertTrue("foo" not in cache)
 
 
 if __name__ == '__main__':
