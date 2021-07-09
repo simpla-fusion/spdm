@@ -480,7 +480,7 @@ class Expression(Function):
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
 
-        if x is None or (isinstance(x, (collections.abc.Sequence, np.ndarray)) and len(x) == 0):
+        if x is None or (isinstance(x, list) and len(x) == 0):
             x = self.x_axis
 
         if x is None:
