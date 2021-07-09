@@ -19,7 +19,6 @@ class Doo(Dict):
 
     @sp_property
     def foo(self) -> Foo:
-        logger.debug("Call foo")
         return self.get("foo", {})
 
     @sp_property
