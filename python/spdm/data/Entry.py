@@ -375,7 +375,7 @@ class Entry(object):
 
         if isinstance(target, Entry):
             raise NotImplementedError()
-        elif target is _undefined_:
+        elif target is _undefined_ or target is None or target is _not_found_:
             return _not_found_, None
 
         elif path is _undefined_:
@@ -453,7 +453,7 @@ class Entry(object):
 
     def moveto(self, rpath: _TPath = None, force=True, lazy=True) -> _TEntry:
         target, key = Entry._eval_path(self._cache,
-                                       self._path + self.normalize_path(rpath), lazy=lazy, force=force)
+                                       self._path + self.normalize_path(rpath),   force=force)
         self._cache = target
         self._path = [key] if not isinstance(key, list) else key
 
@@ -487,8 +487,11 @@ class Entry(object):
             else
                 if lazy then return Entry(target,path) else return _not_found_
         """
-
-        target, key = Entry._eval_path(target, path+[None], force=False)
+        if target is _not_found_ or target is None:
+            target = _not_found_
+            key = None
+        else:
+            target, key = Entry._eval_path(target, path+[None], force=False)
 
         if key is None:
             pass
@@ -558,6 +561,11 @@ class Entry(object):
 
     @staticmethod
     def _eval_push(target, path: list, query=_undefined_, *args):
+        if isinstance(target, Entry):
+            return target.push(path, query, *args)
+        elif isinstance(target, EntryContainer):
+            return target.put(path,  query, *args)
+
         if path is _undefined_:
             path = []
         elif not isinstance(path, list):
@@ -584,6 +592,10 @@ class Entry(object):
             elif isinstance(query, str) and query[0] == '@':
                 query = Entry.op_tag.__members__[query[1:]]
                 val = Entry._ops[query](target, p, *args)
+            elif isinstance(target, Entry):
+                val = target.push([p], query)
+            elif isinstance(target, EntryContainer):
+                val = target.put([p],  query)
             else:
                 val = query
                 try:
@@ -600,7 +612,8 @@ class Entry(object):
             path = None
 
         path = self._path + Entry.normalize_path(path)
-        if self._cache is _not_found_ or self._cache is _undefined_:
+
+        if self._cache is _not_found_ or self._cache is _undefined_ or self._cache is None:
             if len(path) > 0 and isinstance(path[0], str):
                 self._cache = _DICT_TYPE_()
             else:
@@ -632,6 +645,9 @@ class Entry(object):
 
         return val
 
+    def replace(self, path, value: _T, **kwargs) -> _T:
+        return self.push(path, value, **kwargs)
+
     def remove(self, query):
         return self.push(query, Entry.op_tag.remove)
 
@@ -647,6 +663,8 @@ class Entry(object):
         obj = self.pull(path, *args, lazy=lazy, **kwargs)
         if obj is not _not_found_:
             return obj
+        elif lazy is True and default_value is _undefined_:
+            return self.duplicate().moveto(path)
         elif default_value is not _undefined_:
             return default_value
         else:
@@ -676,12 +694,12 @@ class EntryCombiner(Entry):
         super().__init__(default_value, **kwargs)
         self._reducer = reducer if reducer is not _undefined_ else operator.__add__
         self._partition = partition
-        self._d_list = d_list
+        self._d_list: Sequence[Entry] = d_list
 
     def duplicate(self):
         res = super().duplicate()
         res._reducer = self._reducer
-        res._partition = self.partition
+        res._partition = self._partition
         res._d_list = self._d_list
 
         return res
@@ -692,11 +710,13 @@ class EntryCombiner(Entry):
     def __iter__(self) -> Iterator[Entry]:
         raise NotImplementedError()
 
-    def push(self,   *args, **kwargs) -> _T:
-        if self._partition is _undefined_:
-            return super().push(*args, **kwargs)
-        else:
-            raise NotImplementedError()
+    def replace(self, path, value: _T,   *args, **kwargs) -> _T:
+        return super().push(path, value, *args, **kwargs)
+
+    def push(self, path, value: _T,  *args, **kwargs) -> _T:
+        path = self._path+Entry.normalize_path(path)
+        for d in self._d_list:
+            Entry._eval_push(d, path, value, *args, **kwargs)
 
     def pull(self, path=None, query=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
 
@@ -726,7 +746,8 @@ class EntryCombiner(Entry):
         else:
             val = _not_found_
 
-        # val = Entry._eval_pull(val, [], query, lazy=False)
+        if val is _not_found_ and lazy is True and query is _undefined_ and predication is _undefined_:
+            val = self.duplicate().moveto(path)
 
         return val
 
@@ -825,6 +846,9 @@ class EntryContainer:
 
     def get(self, path: _TPath, *args, **kwargs) -> _TObject:
         return self._entry.get(path, *args, **kwargs)
+
+    def replace(self, path, value: _T, *args, **kwargs) -> _T:
+        return self._entry.replace(path, value, *args, **kwargs)
 
     def equal(self, path: _TPath, other) -> bool:
         return self._entry.pull(path, {Entry.op_tag.equal: other})

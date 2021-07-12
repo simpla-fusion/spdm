@@ -79,7 +79,7 @@ class Node(EntryContainer, Generic[_TObject]):
 
     __slots__ = "__orig_class__", "_parent",  "_new_child"
 
-    def __init__(self, entry: Any = None, /, parent=None, new_child=_undefined_, **kwargs):
+    def __init__(self, entry: Any = None, /, parent=None, new_child=_undefined_, **kwargs) -> None:
 
         super().__init__(entry)
 
@@ -107,7 +107,7 @@ class Node(EntryContainer, Generic[_TObject]):
     def nid(self) -> str:
         return self.get("@id", None)
 
-    def _attribute_type(self, attribute=_undefined_) -> _T:
+    def _attribute_type(self, attribute=_undefined_):
         attr_type = _undefined_
 
         if isinstance(attribute, str):
@@ -220,13 +220,13 @@ class Node(EntryContainer, Generic[_TObject]):
     def __hash__(self) -> int:
         return NotImplemented
 
-    def _pre_process(self, value: Any, *args, **kwargs) -> Any:
+    def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
-    def _post_process(self, value: _T,   *args, key: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T,   *args, **kwargs) -> Union[_T, _TObject]:
         return self._convert(value, *args, **kwargs)
 
-    def fetch(self, path: _TPath = None, *args, **kwargs) -> _T:
+    def fetch(self, path: _TPath = None) -> _TObject:
         path = Entry.normalize_path(path)
         target = self
         val = _not_found_
@@ -241,9 +241,6 @@ class Node(EntryContainer, Generic[_TObject]):
                 target = target[key]
 
         return target
-
-    def bind(self, path: _TPath, n_cls: _T) -> _T:
-        return NotImplemented
 
     def __eq__(self, other) -> bool:
         return self.equal([], other)
@@ -289,7 +286,7 @@ class Node(EntryContainer, Generic[_TObject]):
     #     return Node.__type_category__(self._entry)
 
 
-class List(Node[_T], Sequence[_T]):
+class List(Node[_TObject], Sequence[_TObject]):
     __slots__ = ()
 
     def __init__(self, cache: Union[Sequence, Entry] = None, /, parent=_undefined_,   **kwargs) -> None:
@@ -319,12 +316,12 @@ class List(Node[_T], Sequence[_T]):
             parent = self._parent
         return super()._convert(value, parent=parent, **kwargs)
 
-    def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> _TObject:
         n_value = super()._post_process(value, *args, **kwargs)
         if n_value is value or (isinstance(value, Entry) and value.level > 0):
             pass
         elif isinstance(path, int) or (isinstance(path, list) and len(path) == 1 and isinstance(path[0], int)):
-            n_value = self.put(path, n_value)
+            n_value = self.replace(path, n_value)
         return n_value
 
     def __len__(self) -> int:
@@ -333,13 +330,13 @@ class List(Node[_T], Sequence[_T]):
     def __setitem__(self, path: _TPath, v: _T) -> None:
         super().__setitem__(path,  v)
 
-    def __getitem__(self, path: _TPath) -> _T:
+    def __getitem__(self, path: _TPath) -> _TObject:
         return super().__getitem__(path)
 
     def __delitem__(self, path: _TPath) -> None:
         return super().__delitem__(path)
 
-    def __iter__(self) -> Iterator[_T]:
+    def __iter__(self) -> Iterator[_TObject]:
         for idx in range(self.__len__()):
             yield self.__getitem__(idx)
 
@@ -353,8 +350,12 @@ class List(Node[_T], Sequence[_T]):
         else:
             raise NotImplementedError()
 
-    def combine(self, default_value=None, reducer=_undefined_, partition=_undefined_) -> _T:
-        return self._post_process(EntryCombiner(self, default_value=default_value,  reducer=reducer, partition=partition))
+    def combine(self, default_value=None, predication=_undefined_, reducer=_undefined_, partition=_undefined_) -> _TObject:
+        if predication is not _undefined_:
+            target = self.get([], predication=predication)
+        else:
+            target = self
+        return self._post_process(EntryCombiner(target, default_value=default_value,  reducer=reducer, partition=partition))
 
     def refresh(self, *args, **kwargs):
         # self._entry = Entry([d for d in self._entry.iter()])
@@ -369,14 +370,14 @@ class List(Node[_T], Sequence[_T]):
             self._combine = value
             super().reset()
 
-    def find(self, predication,  only_first=True) -> _T:
+    def find(self, predication,  only_first=True) -> _TObject:
         return self._post_process(self._entry.pull(predication=predication, only_first=only_first))
 
     def update(self, d, predication=_undefined_, only_first=False) -> int:
         return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
 
 
-class Dict(Node[_T], Mapping[str, _T]):
+class Dict(Node[_TObject], Mapping[str, _TObject]):
     __slots__ = ()
 
     def __init__(self, cache: Optional[Mapping] = None,  /,  **kwargs):
@@ -398,17 +399,17 @@ class Dict(Node[_T], Mapping[str, _T]):
     def _deserialize(cls, desc: Any) -> _TNode:
         return NotImplemented
 
-    def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> Union[_T, _TObject]:
         n_value = super()._post_process(value, *args, **kwargs)
 
         if n_value is value or (isinstance(value, Entry) and value.level > 0):
             pass
         elif isinstance(path, str) or (isinstance(path, list) and len(path) == 1 and isinstance(path[0], str)):
-            n_value = self.put(path, n_value)
+            n_value = self.replace(path, n_value)
 
         return n_value
 
-    def __getitem__(self, path: _TPath) -> _T:
+    def __getitem__(self, path: _TPath) -> _TObject:
         return super().__getitem__(path)
 
     def __setitem__(self, key: str, value: _T) -> None:
@@ -426,7 +427,7 @@ class Dict(Node[_T], Mapping[str, _T]):
     def __contains__(self, o: object) -> bool:
         return super().__contains__(o)
 
-    def __ior__(self, other):
+    def __ior__(self, other) -> _TNode:
         return self.put(None, {Entry.op_tag.update: other})
 
     # def _as_dict(self) -> Mapping:
@@ -548,7 +549,7 @@ class _sp_property(Generic[_T]):
                     entry.put(self.attrname, n_value)
             else:
                 n_value = value
-                
+
             return n_value
 
         return n_value
