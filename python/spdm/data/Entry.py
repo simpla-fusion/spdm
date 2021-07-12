@@ -374,7 +374,7 @@ class Entry(object):
         """
 
         if isinstance(target, Entry):
-            raise NotImplementedError()
+            raise NotImplementedError("Entry._eval_path do not accept Entry")
         elif target is _undefined_ or target is None or target is _not_found_:
             return _not_found_, None
 
@@ -490,6 +490,14 @@ class Entry(object):
         if target is _not_found_ or target is None:
             target = _not_found_
             key = None
+        elif len(path) == 0:
+            key = None
+        elif isinstance(target, Entry):
+            target = target.get(path[:-1],  *args, lazy=lazy)
+            key = path[-1]
+        elif isinstance(target, EntryContainer):
+            target = target.get(path[:-1], *args, lazy=lazy)
+            key = path[-1]
         else:
             target, key = Entry._eval_path(target, path+[None], force=False)
 
@@ -729,7 +737,11 @@ class EntryCombiner(Entry):
 
         val = []
         for d in self._d_list:
-            target, p = Entry._eval_path(d, path+[None], force=False)
+            if isinstance(d, (Entry, EntryContainer)):
+                target = Entry._eval_pull(d, path)
+                p = None
+            else:
+                target, p = Entry._eval_path(d, path+[None], force=False)
             if target is _not_found_ or p is not None:
                 continue
             target = Entry._eval_filter(target, predication=predication, only_first=only_first)
