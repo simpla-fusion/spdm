@@ -83,7 +83,9 @@ def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
 
 logger = sp_enable_logging(__package__[:__package__.find('.')], handler="STDOUT")
 
-if not os.environ.get("SP_NO_DEBUG", None):
+SP_NO_DEBUG = os.environ.get("SP_NO_DEBUG", False)
+
+if not SP_NO_DEBUG:
     logger.setLevel(logging.DEBUG)
 
 
