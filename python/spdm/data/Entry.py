@@ -451,11 +451,16 @@ class Entry(object):
         #     raise KeyError((path, target))
         return target, key
 
-    def moveto(self, rpath: _TPath = None, force=True, lazy=True) -> _TEntry:
-        target, key = Entry._eval_path(self._cache,
-                                       self._path + self.normalize_path(rpath),   force=force)
+    def moveto(self, rpath: _TPath = None, force=True, lazy=True, default_value=_undefined_) -> _TEntry:
+        path = self._path + self.normalize_path(rpath)
+        target, key = Entry._eval_path(self._cache, path, force=force)
         self._cache = target
-        self._path = [key] if not isinstance(key, list) else key
+        if not key:
+            self._path = []
+        elif isinstance(key, list):
+            self._path = key
+        else:
+            self._paht = [key]
 
         if not lazy and len(self._path) > 0:
             if self._cache in (None, _not_found_, _undefined_):
@@ -587,8 +592,9 @@ class Entry(object):
             val = [Entry._ops[op](target, v, *args)
                    for op, v in value.items() if isinstance(op, Entry.op_tag)]
 
-            if len(val) == 1:
-                val = val[0]
+            # if len(val) == 1:
+            #     val = val[0]
+            val = target
         else:
             target, p = Entry._eval_path(target, path, force=True)
             if target is _not_found_:
@@ -599,7 +605,7 @@ class Entry(object):
                 value = Entry.op_tag.__members__[value[1:]]
                 val = Entry._ops[value](target, p, *args)
             elif isinstance(target, Entry):
-                val = target.push([p], value)
+                val = target.put([p], value)
             elif isinstance(target, EntryContainer):
                 val = target.put([p],  value)
             else:
@@ -652,6 +658,8 @@ class Entry(object):
         return val
 
     def replace(self, path, value: _T, **kwargs) -> _T:
+        if isinstance(value, EntryContainer) and value._entry._cache is self._cache:
+            value.flush()
         return self.push(path, value, **kwargs)
 
     def remove(self, query):
@@ -829,6 +837,22 @@ class EntryContainer:
 
     def __ior__(self,  value: _T) -> _T:
         return self._entry.push({Entry.op_tag.update: value})
+
+    @property
+    def _is_list(self) -> bool:
+        return False
+
+    @property
+    def _is_dict(self) -> bool:
+        return False
+
+    def flush(self):
+        if self._entry.level == 0:
+            return
+        elif self._is_dict:
+            self._entry.moveto([""])
+        else:
+            self._entry.moveto(None)
 
     def clear(self):
         self._entry.push(Entry.op_tag.reset)

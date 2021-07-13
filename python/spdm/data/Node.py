@@ -324,6 +324,10 @@ class List(Node[_TObject], Sequence[_TObject]):
             n_value = self.replace(path, n_value)
         return n_value
 
+    @property
+    def _is_list(self) -> bool:
+        return True
+
     def __len__(self) -> int:
         return self._entry.count()
 
@@ -391,6 +395,10 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
             cache = _DICT_TYPE_()
 
         Node.__init__(self, cache,   **kwargs)
+
+    @property
+    def _is_dict(self) -> bool:
+        return True
 
     def _serialize(self) -> Mapping:
         return {k: serialize(v) for k, v in self._as_dict()}
@@ -541,12 +549,9 @@ class _sp_property(Generic[_T]):
             value = entry.get(self.attrname, _not_found_)
 
             if not self._check_type(value):
-                n_value = self._convert(instance, self.func(instance))
+                n_value = self._convert(instance,  self.func(instance))
 
-                if n_value is value or (isinstance(value, Entry) and value.level > 0):
-                    pass
-                else:
-                    entry.replace(self.attrname, n_value)
+                entry.replace(self.attrname, n_value)
             else:
                 n_value = value
 
