@@ -376,7 +376,7 @@ class Entry(object):
         if isinstance(target, Entry):
             raise NotImplementedError("Entry._eval_path do not accept Entry")
         elif target is _undefined_ or target is None or target is _not_found_:
-            return _not_found_, None
+            return _not_found_, path
 
         elif path is _undefined_:
             return target, None
@@ -487,30 +487,25 @@ class Entry(object):
             else
                 if lazy then return Entry(target,path) else return _not_found_
         """
-        if target is _not_found_ or target is None:
-            target = _not_found_
-            key = None
-        elif len(path) == 0:
-            key = None
-        elif isinstance(target, Entry):
-            target = target.get(path[:-1],  *args, lazy=lazy)
-            key = path[-1]
+        if isinstance(target, Entry):
+            return target.get(path, default_value=_not_found_, *args, query=query, lazy=lazy)
         elif isinstance(target, EntryContainer):
-            target = target.get(path[:-1], *args, lazy=lazy)
-            key = path[-1]
-        else:
-            target, key = Entry._eval_path(target, path+[None], force=False)
+            return target.get(path, default_value=_not_found_, *args,  query=query, lazy=lazy)
 
-        if key is None:
-            pass
-        elif lazy is True:
-            return Entry(target, key[:-1])
-        else:
+        target, key = Entry._eval_path(target, path+[None], force=False)
+
+        if query is _undefined_ or query is _not_found_ or query is None:
+            if key is None:
+                return target
+            elif lazy is True:
+                return Entry(target, key[:-1])
+            else:
+                return _not_found_
+
+        if key is not None:
             target = _not_found_
 
-        if query is _undefined_ or query is _not_found_:
-            val = target
-        elif isinstance(query, str) and query[0] == '@':
+        if isinstance(query, str) and query[0] == '@':
             query = Entry.op_tag.__members__[query[1:]]
             val = Entry._ops[query](target, *args)
         elif isinstance(query, Entry.op_tag):
@@ -556,14 +551,9 @@ class Entry(object):
                     target = next(filter(lambda d: Entry._match(d, predication), target))
                 except StopIteration:
                     target = _not_found_
-
                 val = Entry._eval_pull(target, [],  query)
             else:
                 val = [Entry._eval_pull(d, [],  query) for d in target if Entry._match(d, predication)]
-                if len(val) == 0:
-                    val = Entry._eval_pull(_not_found_, [],  query)
-                elif len(val) == 1:
-                    val = val[0]
 
         return val
 
@@ -835,11 +825,11 @@ class EntryContainer:
     def clear(self):
         self._entry.push(Entry.op_tag.reset)
 
-    def remove(self, query: _TPath = None) -> bool:
-        return self._entry.push({Entry.op_tag.remove: query})
+    def remove(self, path: _TPath = None) -> bool:
+        return self._entry.push(path, Entry.op_tag.remove)
 
     def update(self, value: _T, **kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.update: value}, **kwargs)
+        return self._entry.push([], {Entry.op_tag.update: value}, **kwargs)
 
     def find(self, query: _TPath, **kwargs) -> _TObject:
         return self._entry.pull({Entry.op_tag.find: query},  **kwargs)
@@ -869,7 +859,7 @@ class EntryContainer:
         return self._entry.push(path, self._pre_process(value))
 
     def __getitem__(self, path: _TPath) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.pull(path, query=None, lazy=True), path=path)
+        return self._post_process(self._entry.pull(path, lazy=True), path=path)
 
     def __delitem__(self, path: _TPath) -> bool:
         return self._entry.push({Entry.op_tag.remove: path})
