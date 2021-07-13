@@ -405,37 +405,37 @@ class Entry(object):
                     val = _not_found_
             elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
-            elif isinstance(target, (collections.abc.Sequence)) and not isinstance(key, str):
-                if key is _next_:
-                    target.append(_not_found_)
-                    key = len(target)-1
-                    val = _not_found_
-                elif not isinstance(key, dict):
-                    if key is _last_:
-                        key = len(target)-1
-                    try:
-                        val = target[key]
-                    except (IndexError, KeyError, TypeError) as error:
-                        logger.exception(error)
-                        val = _not_found_
-
-                else:
-                    iv_list = [[i, v] for i, v in enumerate(target) if Entry._match(v, predication=key)]
-
-                    if len(iv_list) == 0:
-                        if force:
-                            val = deepcopy(key)
-                            target.append(val)
-                            key = len(target)-1
-                    elif len(iv_list) == 1:
-                        key, val = iv_list[0]
-                    else:
-                        key = [i for i, v in iv_list]
-                        val = [v for i, v in iv_list]
-                        if any(filter(lambda d:  isinstance(d, Entry), val)):
-                            val = EntryCombiner(val, path[idx+1:])
-            else:
+            elif not isinstance(target, (collections.abc.Sequence)):
                 raise NotImplementedError(f"{type(target)} {type(key)} {path[:idx+1]}")
+            elif key is _next_:
+                target.append(_not_found_)
+                key = len(target)-1
+                val = _not_found_
+            elif key is _last_:
+                val = target[-1]
+                key = len(target)-1
+            elif isinstance(key, (int, slice)):
+                try:
+                    val = target[key]
+                except (IndexError, KeyError, TypeError) as error:
+                    logger.exception(error)
+                    val = _not_found_
+            elif isinstance(key, dict):
+                iv_list = [[i, v] for i, v in enumerate(target) if Entry._match(v, predication=key)]
+                if len(iv_list) == 0:
+                    if force:
+                        val = deepcopy(key)
+                        target.append(val)
+                        key = len(target)-1
+                elif len(iv_list) == 1:
+                    key, val = iv_list[0]
+                else:
+                    key = [i for i, v in iv_list]
+                    val = [v for i, v in iv_list]
+                    if any(filter(lambda d:  isinstance(d, Entry), val)):
+                        val = EntryCombiner(val, path[idx+1:])
+            else:
+                val = [Entry._eval_path(d, key, force=force) for d in target]
 
             if idx < last_index:
                 if val is _not_found_:
@@ -494,6 +494,14 @@ class Entry(object):
 
         target, key = Entry._eval_path(target, path+[None], force=False)
 
+        if any(filter(lambda d: isinstance(d, dict), path)):
+            if not isinstance(target, list):
+                pass
+            elif len(target) == 1:
+                target = target[0]
+            elif len(target) == 0:
+                target = _not_found_
+
         if query is _undefined_ or query is _not_found_ or query is None:
             if key is None:
                 return target
@@ -532,7 +540,7 @@ class Entry(object):
         return val
 
     def pull(self, path=None, query=_undefined_,  lazy=False, predication=_undefined_, only_first=False) -> _T:
-        if isinstance(path, (Entry.op_tag, collections.abc.Mapping)) and query is _undefined_:
+        if isinstance(path, (Entry.op_tag)) and query is _undefined_:
             query = path
             path = None
 
@@ -558,26 +566,26 @@ class Entry(object):
         return val
 
     @staticmethod
-    def _eval_push(target, path: list, query=_undefined_, *args):
+    def _eval_push(target, path: list, value=_undefined_, *args):
         if isinstance(target, Entry):
-            return target.push(path, query, *args)
+            return target.push(path, value, *args)
         elif isinstance(target, EntryContainer):
-            return target.put(path,  query, *args)
+            return target.put(path,  value, *args)
 
         if path is _undefined_:
             path = []
         elif not isinstance(path, list):
             path = [path]
-        if not isinstance(query, np.ndarray) and query is _undefined_:
-            val = query
-        elif isinstance(query, dict):
+        if not isinstance(value, np.ndarray) and value is _undefined_:
+            val = value
+        elif isinstance(value, dict):
             target, p = Entry._eval_path(target, path+[""], force=True)
             if p != "":
                 raise KeyError(path)
             val_changed = [Entry._eval_push(target, [k], v, *args)
-                           for k, v in query.items() if not isinstance(k, Entry.op_tag)]
+                           for k, v in value.items() if not isinstance(k, Entry.op_tag)]
             val = [Entry._ops[op](target, v, *args)
-                   for op, v in query.items() if isinstance(op, Entry.op_tag)]
+                   for op, v in value.items() if isinstance(op, Entry.op_tag)]
 
             if len(val) == 1:
                 val = val[0]
@@ -585,17 +593,17 @@ class Entry(object):
             target, p = Entry._eval_path(target, path, force=True)
             if target is _not_found_:
                 raise KeyError(path)
-            if isinstance(query, Entry.op_tag):
-                val = Entry._ops[query](target, p, *args)
-            elif isinstance(query, str) and query[0] == '@':
-                query = Entry.op_tag.__members__[query[1:]]
-                val = Entry._ops[query](target, p, *args)
+            if isinstance(value, Entry.op_tag):
+                val = Entry._ops[value](target, p, *args)
+            elif isinstance(value, str) and value[0] == '@':
+                value = Entry.op_tag.__members__[value[1:]]
+                val = Entry._ops[value](target, p, *args)
             elif isinstance(target, Entry):
-                val = target.push([p], query)
+                val = target.push([p], value)
             elif isinstance(target, EntryContainer):
-                val = target.put([p],  query)
+                val = target.put([p],  value)
             else:
-                val = query
+                val = value
                 try:
                     target[p] = val
                 except (KeyError, IndexError) as error:

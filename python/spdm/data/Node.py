@@ -325,7 +325,7 @@ class List(Node[_TObject], Sequence[_TObject]):
         return n_value
 
     def __len__(self) -> int:
-        return super().__len__()
+        return self._entry.count()
 
     def __setitem__(self, path: _TPath, v: _T) -> None:
         super().__setitem__(path,  v)
@@ -546,7 +546,7 @@ class _sp_property(Generic[_T]):
                 if n_value is value or (isinstance(value, Entry) and value.level > 0):
                     pass
                 else:
-                    entry.put(self.attrname, n_value)
+                    entry.replace(self.attrname, n_value)
             else:
                 n_value = value
 
