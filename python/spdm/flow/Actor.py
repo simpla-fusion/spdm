@@ -1,4 +1,5 @@
 import collections.abc
+import collections
 from dataclasses import dataclass, fields, is_dataclass
 from typing import (Any, Deque, Generic, Iterator, Mapping, NewType, Optional,
                     Sequence, TypeVar)
@@ -20,7 +21,11 @@ class Actor(Dict[Node], Generic[_TState]):
         Action/Event: Objects whose state changes over time
     """
 
-    def __new__(cls, desc=None, *args, **kwargs):
+    def __new__(cls, desc=None, /, **kwargs):
+        if desc is None:
+            desc = kwargs
+        elif len(kwargs) > 0 and isinstance(desc, collections.abc.Mapping):
+            desc = collections.ChainMap(kwargs, desc)
 
         prefix = getattr(cls, "_actor_module_prefix", None)
         n_cls = cls
@@ -41,18 +46,16 @@ class Actor(Dict[Node], Generic[_TState]):
             else:
                 logger.info(f"Load actor '{prefix}{cls_name}={guess_class_name(n_cls)}'!")
 
-        return super(Actor, n_cls).__new__(n_cls, desc, *args, **kwargs)
+        return super(Actor, n_cls).__new__(n_cls, desc,   **kwargs)
 
-    def __init__(self, d=None,  /, time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None, **kwargs) -> None:
-
+    def __init__(self, d=None,  /, **kwargs) -> None:
+        #  time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None,
         super().__init__(d,  **kwargs)
-
-        # logger.debug(f"Inititalize Actor {guess_class_name(self.__class__)}")
-
-        self._time = time if time is not None else 0.0
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
-        self._s_entry = dumper
-        self._s_deque = collections.deque(maxlen=maxlen)
+        # logger.debug(f"Inititalize Actor {guess_class_name(self.__class__)}")
+        # self._time = time if time is not None else 0.0
+        # self._s_entry = dumper
+        # self._s_deque = collections.deque(maxlen=maxlen)
 
     def __del__(self):
         # logger.debug(f"Delete Actor {guess_class_name(self.__class__)}")
@@ -70,7 +73,8 @@ class Actor(Dict[Node], Generic[_TState]):
 
     @property
     def previous_state(self) -> _TState:
-        return self._s_deque[-1] if len(self._s_deque) > 0 else self
+        logger.debug("NOT IMPLEMENTED!")
+        return self # self._s_deque[-1] if len(self._s_deque) > 0 else self
 
     def current_state(self) -> _TState:
         """

@@ -17,5 +17,5 @@ if __name__ == '__main__':
 
     logger.debug(entry.equilibrium.vacuum_toroidal_field())
     logger.debug(entry.equilibrium.vacuum_toroidal_field.b0())
-    # logger.debug(entry.equilibrium.time_slice.profiles_1d())
-    # logger.debug(entry.equilibrium.time_slice.profiles_1d.dpressure_dpsi())
+    # logger.debug(entry.equilibrium.profiles_1d())
+    # logger.debug(entry.equilibrium.profiles_1d.dpressure_dpsi())

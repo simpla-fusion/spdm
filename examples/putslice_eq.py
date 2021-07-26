@@ -107,7 +107,7 @@ def put_ids():
 
     # Mandatory to define this property
     imas_obj.equilibrium.ids_properties.homogeneous_time = 1
-    imas_obj.equilibrium.time_slice.resize(1)
+    imas_obj.equilibrium.resize(1)
     imas_obj.equilibrium.time_slice[0].profiles_2d.resize(2)
     imas_obj.equilibrium.time_slice[0].profiles_2d[0].grid_type.name = 'GRID TYPE 1A'
     imas_obj.equilibrium.time_slice[0].profiles_2d[1].grid_type.name = 'GRID TYPE 2B'

@@ -21,15 +21,15 @@ if __name__ == "__main__":
                                "vacuum_toroidal_field":  eqdsk.entry.pull("vacuum_toroidal_field"),
                                })
 
-    o_points, x_points = equilibrium.time_slice.coordinate_system.critical_points
+    o_points, x_points = equilibrium.coordinate_system.critical_points
     psi_axis = o_points[0].psi
     psi_bdry = x_points[0].psi
     psi = np.linspace(psi_axis, psi_bdry, 16)
-    # psirz = equilibrium.time_slice.coordinate_system._psirz
+    # psirz = equilibrium.coordinate_system._psirz
     # data = psirz.__array__()
     # R, Z = psirz.mesh.points
     # logger.debug(type(data))
-    contour_set = equilibrium.time_slice.coordinate_system.find_surface(psi)
+    contour_set = equilibrium.coordinate_system.find_surface(psi)
 
     fig = plt.figure()
     # contour_set = plt.contour(R, Z, data, levels=np.linspace(psi_axis, psi_bdry, 16))

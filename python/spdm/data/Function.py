@@ -62,8 +62,8 @@ class Function:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None
 
-        if isinstance(self._y, np.ndarray) and self._x_axis is None:
-            raise ValueError(f"x_axis is None")
+        if isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
+            raise ValueError(f"x.shape  != y.shape")
 
     @property
     def is_valid(self) -> bool:

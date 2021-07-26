@@ -79,17 +79,9 @@ class Node(EntryContainer, Generic[_TObject]):
 
     __slots__ = "__orig_class__", "_parent",  "_new_child"
 
-    def __init__(self, entry: Any = None, /, parent=None, new_child=_undefined_, **kwargs) -> None:
-
+    def __init__(self, entry: Any = None, /, parent=None, new_child=_undefined_) -> None:
         super().__init__(entry)
-
         self._parent = parent
-
-        if new_child is _undefined_:
-            new_child = kwargs
-        elif len(kwargs) > 0:
-            logger.warning(f"Ignore kwargs: {kwargs}")
-
         self._new_child = new_child
 
     def __repr__(self) -> str:
@@ -287,22 +279,15 @@ class Node(EntryContainer, Generic[_TObject]):
 
 
 class List(Node[_TObject], Sequence[_TObject]):
-    __slots__ = ()
+    __slots__ = ("_common_kwargs")
 
-    def __init__(self, cache: Union[Sequence, Entry] = None, /, parent=_undefined_,   **kwargs) -> None:
+    def __init__(self, cache: Union[Sequence, Entry] = None, /, parent=_undefined_, new_child=_undefined_,  **kwargs) -> None:
         if cache is None:
             cache = _LIST_TYPE_()
-        # elif cache.__class__ is Entry:
-        #     tmp = cache.pull(_not_found_)
-        #     if tmp is _not_found_:
-        #         tmp = _LIST_TYPE_()
-        #         cache.push(tmp)
-        #     cache = tmp
-
         elif not isinstance(cache, (Entry, list)):
             cache = [cache]
-
-        Node.__init__(self, cache, parent=parent, **kwargs)
+        Node.__init__(self, cache, parent=parent, new_child=new_child)
+        self._common_kwargs = kwargs
 
     def _serialize(self) -> Sequence:
         return [serialize(v) for v in self._as_list()]
@@ -314,7 +299,7 @@ class List(Node[_TObject], Sequence[_TObject]):
     def _convert(self, value: _T,  parent=_undefined_, **kwargs) -> Union[_T, _TObject]:
         if parent is _undefined_:
             parent = self._parent
-        return super()._convert(value, parent=parent, **kwargs)
+        return super()._convert(value, parent=parent, **collections.ChainMap(kwargs, self._common_kwargs))
 
     def _post_process(self, value: _T,   *args, path: Union[int, str] = _undefined_, **kwargs) -> _TObject:
         n_value = super()._post_process(value, *args, **kwargs)
@@ -384,17 +369,19 @@ class List(Node[_TObject], Sequence[_TObject]):
 class Dict(Node[_TObject], Mapping[str, _TObject]):
     __slots__ = ()
 
-    def __init__(self, cache: Optional[Mapping] = None,  /,  **kwargs):
-        # if cache.__class__ is Entry:
-        #     tmp = cache.pull(_not_found_)
-        #     if tmp is _not_found_:
-        #         tmp = __class__()
-        #         cache.push(tmp)
-        #     cache = tmp
+    def __init__(self, cache: Optional[Mapping] = None,  /, parent=None, new_child=None,  **kwargs):
+
         if cache is None:
             cache = _DICT_TYPE_()
 
-        Node.__init__(self, cache,   **kwargs)
+        if len(kwargs) > 0:
+            if isinstance(cache, collections.abc.Mapping):
+                logger.warning(f"TODO: deep update")
+                cache.update(kwargs)
+            else:
+                logger.warning(f"ignore kwargs: {kwargs.keys()}")
+
+        Node.__init__(self, cache,  parent=parent, new_child=new_child)
 
     @property
     def _is_dict(self) -> bool:
