@@ -14,9 +14,8 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
-from numpy.lib.arraysetops import isin
-
 from ..numlib import np, scipy
+from ..util.dict_util import deep_merge_dict
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
 from ..util.utilities import _not_found_, _undefined_, serialize
@@ -376,8 +375,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
 
         if len(kwargs) > 0:
             if isinstance(cache, collections.abc.Mapping):
-                logger.warning(f"TODO: deep update")
-                cache.update(kwargs)
+                deep_merge_dict(cache, kwargs)
             else:
                 logger.warning(f"ignore kwargs: {kwargs.keys()}")
 
