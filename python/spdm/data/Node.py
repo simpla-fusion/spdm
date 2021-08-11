@@ -214,7 +214,7 @@ class Node(EntryContainer, Generic[_TObject]):
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
-    def _post_process(self, value: _T,   *args, **kwargs) -> Union[_T, _TObject]:
+    def _post_process(self, value: _T,   *args, path: _TPath = None, **kwargs) -> Union[_T, _TObject]:
         return self._convert(value, *args, **kwargs)
 
     def fetch(self, path: _TPath = None) -> _TObject:

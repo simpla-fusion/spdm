@@ -418,7 +418,7 @@ class Entry(object):
                 try:
                     val = target[key]
                 except (IndexError, KeyError, TypeError) as error:
-                    logger.exception(error)
+                    # logger.exception(error)
                     val = _not_found_
             elif isinstance(key, dict):
                 iv_list = [[i, v] for i, v in enumerate(target) if Entry._match(v, predication=key)]
@@ -608,6 +608,11 @@ class Entry(object):
                 val = target.put([p], value)
             elif isinstance(target, EntryContainer):
                 val = target.put([p],  value)
+            elif isinstance(target, list) and isinstance(p, int):
+                val = value
+                if p >= len(target):
+                    target.extend([None]*(p-len(target)+1))
+                target[p] = val
             else:
                 val = value
                 try:
@@ -686,6 +691,13 @@ class Entry(object):
 
     def put(self, *args, **kwargs) -> Any:
         return self.push(*args, **kwargs)
+
+    def get_many(self, key_list, /, **kwargs) -> Mapping:
+        cache = _DICT_TYPE_()
+        res = Entry(cache)
+        for key in key_list:
+            res.push(key, self.pull(key),  **kwargs)
+        return cache
 
 
 def _slice_to_range(s: slice, length: int) -> range:
@@ -904,7 +916,7 @@ class EntryContainer:
 
     def __iter__(self) -> Iterator[_T]:
         for idx, obj in enumerate(self._entry.first_child()):
-            yield self._post_process(obj, idx)
+            yield self._post_process(obj, path=[idx])
 
 
 def as_dataclass(dclass, obj, default_value=None):
