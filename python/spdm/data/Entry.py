@@ -838,8 +838,8 @@ class EntryContainer:
         else:
             self._entry = entry
 
-    def _duplicate(self) -> _TContainer:
-        return self.__class__(self._entry)
+    def _duplicate(self, *args, **kwargs) -> _TContainer:
+        return self.__class__(self._entry, *args, **kwargs)
 
     def _pre_process(self, value: Any, *args, **kwargs) -> Any:
         return value
@@ -871,6 +871,19 @@ class EntryContainer:
 
     def remove(self, path: _TPath = None) -> bool:
         return self._entry.push(path, Entry.op_tag.remove)
+
+    def reset(self, cache=None, ** kwargs) -> None:
+        if isinstance(cache, Entry):
+            self._entry = cache
+        elif cache is not None:
+            self._entry = Entry(cache)
+
+        if len(kwargs) == 0:
+            pass
+        elif self._entry.empty:
+            self._entry = Entry(kwargs)
+        else:
+            self.update(**kwargs)
 
     def update(self, value: _T, **kwargs) -> _T:
         return self._entry.push([], {Entry.op_tag.update: value}, **kwargs)

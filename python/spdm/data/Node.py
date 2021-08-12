@@ -203,10 +203,8 @@ class Node(EntryContainer, Generic[_TObject]):
         obj.put(Entry.op_tag.assign, desc)
         return obj
 
-    def _duplicate(self) -> _TNode:
-        obj = super()._duplicate()
-        obj._parent = self._parent
-        return obj
+    def _duplicate(self, *args, parent=None,  **kwargs) -> _TNode:
+        return super()._duplicate(*args, parent=parent if parent is not None else self._parent, **kwargs)
 
     def __hash__(self) -> int:
         return NotImplemented
@@ -504,7 +502,7 @@ class _sp_property(Generic[_T]):
 
         return n_value
 
-    def _entry(self, instance: Node) -> Entry:
+    def _get_entry(self, instance: Node) -> Entry:
         try:
             entry = getattr(instance, "_entry", _not_found_)
             if entry is _not_found_:
@@ -519,7 +517,14 @@ class _sp_property(Generic[_T]):
         if instance is None:
             return self
         with self.lock:
-            self._entry(instance).put(self.attrname, self._convert(instance, value))
+            if self._check_type(value):
+                if value._parent is None:
+                    value._parent = instance
+                else:
+                    value = value._duplicate(parent=instance)
+                self._get_entry(instance).put(self.attrname, value)
+            else:
+                self._get_entry(instance).put(self.attrname, self._convert(instance, value))
 
     def __get__(self, instance: Node, owner=None) -> _T:
         if instance is None:
@@ -529,7 +534,7 @@ class _sp_property(Generic[_T]):
             raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            entry = self._entry(instance)
+            entry = self._get_entry(instance)
 
             value = entry.get(self.attrname, _not_found_)
 
@@ -548,7 +553,7 @@ class _sp_property(Generic[_T]):
         if instance is None:
             return
         with self.lock:
-            entry = self._entry(instance)
+            entry = self._get_entry(instance)
             entry.remove(self.attrname)
 
 

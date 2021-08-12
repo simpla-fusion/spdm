@@ -48,12 +48,12 @@ class Actor(Dict[Node], Generic[_TState]):
 
         return super(Actor, n_cls).__new__(n_cls, desc,   **kwargs)
 
-    def __init__(self, d=None,  /, **kwargs) -> None:
+    def __init__(self, d=None,  /, time=None, **kwargs) -> None:
         #  time: Optional[float] = None, maxlen: Optional[int] = None, dumper=None,
         super().__init__(d,  **kwargs)
         self._job_id = 0  # Session.current().job_id(self.__class__.__name__)
         # logger.debug(f"Inititalize Actor {guess_class_name(self.__class__)}")
-        # self._time = time if time is not None else 0.0
+        self._time = time if time is not None else 0.0
         # self._s_entry = dumper
         # self._s_deque = collections.deque(maxlen=maxlen)
 
@@ -63,7 +63,7 @@ class Actor(Dict[Node], Generic[_TState]):
 
     @property
     def time(self):
-        return 0.0  # self._time
+        return self._time
 
     def job_id(self):
         return self._job_id
@@ -74,7 +74,7 @@ class Actor(Dict[Node], Generic[_TState]):
     @property
     def previous_state(self) -> _TState:
         logger.debug("NOT IMPLEMENTED!")
-        return self # self._s_deque[-1] if len(self._s_deque) > 0 else self
+        return self  # self._s_deque[-1] if len(self._s_deque) > 0 else self
 
     def current_state(self) -> _TState:
         """
@@ -87,10 +87,10 @@ class Actor(Dict[Node], Generic[_TState]):
 
     def flush(self) -> _TState:
         current_state = self.current_state
-        if self._s_entry is not None:
-            next(self._s_entry).__reset__(current_state)
+        # if self._s_entry is not None:
+        #     next(self._s_entry).__reset__(current_state)
 
-        self._s_deque.append(current_state)
+        # self._s_deque.append(current_state)
         return current_state
 
     def rollback(self) -> bool:
