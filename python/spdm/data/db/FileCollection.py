@@ -11,7 +11,6 @@ from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urisplit, uriunsplit
 
 from ..Document import Document
-from ..Plugin import find_plugin
 from ..Collection import Collection
 from ..File import File
 

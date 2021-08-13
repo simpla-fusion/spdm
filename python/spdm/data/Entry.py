@@ -623,10 +623,10 @@ class Entry(object):
 
         return val
 
-    def push(self, path, value=None, predication=_undefined_, only_first=False) -> _T:
-        if value is None:
+    def push(self, path, value=_undefined_, predication=_undefined_, only_first=False) -> _T:
+        if value is _undefined_:
             value = path
-            path = None
+            path = []
 
         path = self._path + Entry.normalize_path(path)
 

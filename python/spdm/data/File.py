@@ -29,11 +29,12 @@ class File(Document):
         "file.txt": ".data.file.PluginTXT",
         "file.csv": ".data.file.PluginCSV",
         "file.numpy": ".data.file.PluginNumPy",
-        "file.geqdsk": ".data.file.PluginGEQdsk",
-        "file.gfile": ".data.file.PluginGEQdsk",
-        "file.mds": ".data.db.MDSplus#MDSplusDocument",
-        "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
-        "db.imas": ".data.db.IMAS#IMASDocument",
+
+        # "file.mds": ".data.db.MDSplus#MDSplusDocument",
+        # "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+        # "file.gfile": ".data.file.PluginGEQdsk",
+        # "file.geqdsk": ".data.file.PluginGEQdsk",
+        # "db.imas": ".data.db.IMAS#IMASDocument",
     }
     is_interface = True
 
@@ -72,9 +73,10 @@ class File(Document):
                 self._path /= f"{uuid.uuid1()}{self.extension_name or '.txt' }"
             self._path = self._path.expanduser().resolve()
 
+        logger.debug(f"Loading File [{self.__class__.__module__}.{self.__class__.__name__}] : {path}")
+
     @classmethod
     def deserialize(cls, metadata):
-
         return super().deserialize(metadata)
 
     @property

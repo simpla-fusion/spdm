@@ -70,7 +70,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
     if path.exists() and path.is_file():
         try:
             root = parse_xml(path.as_posix()).getroot()
-            logger.debug(f"Loading XML file from {path}")
+            # logger.debug(f"Loading XML file from {path}")
         except _XMLParseError as msg:
             raise RuntimeError(f"ParseError: {path}: {msg}")
     else:

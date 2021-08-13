@@ -63,7 +63,7 @@ class Function:
             self._x_axis = None
 
         if isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
-            raise ValueError(f"x.shape  != y.shape")
+            raise ValueError(f"x.shape  != y.shape {x.shape}!={y.shape}")
 
     @property
     def is_valid(self) -> bool:
