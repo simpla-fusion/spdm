@@ -3,7 +3,7 @@ import collections
 from dataclasses import dataclass, fields, is_dataclass
 from typing import (Any, Deque, Generic, Iterator, Mapping, NewType, Optional,
                     Sequence, TypeVar)
-
+import numpy as np
 
 from ..data.Entry import Entry
 from ..data.Node import Dict, List, Node, _TObject
@@ -76,6 +76,7 @@ class Actor(Dict[Node], Generic[_TState]):
         logger.debug("NOT IMPLEMENTED!")
         return self  # self._s_deque[-1] if len(self._s_deque) > 0 else self
 
+    @property
     def current_state(self) -> _TState:
         """
             Function:  gather current state based on the dataclass ‘State’
@@ -85,52 +86,44 @@ class Actor(Dict[Node], Generic[_TState]):
         return collections.ChainMap({"time": self._time},
                                     {f.name: getattr(self, f.name, _not_found_) for f in fields(self.__class__.State)})
 
-    def flush(self) -> _TState:
-        current_state = self.current_state
-        # if self._s_entry is not None:
-        #     next(self._s_entry).__reset__(current_state)
-
-        # self._s_deque.append(current_state)
-        return current_state
-
     def rollback(self) -> bool:
         """
             Function : Roll back to the previous state
             Return   : if success return True
         """
-        if self._s_deque.count() == 0 and self._s_entry is not None:
-            self._s_deque.append(self._s_entry.fetch())
+        raise NotImplementedError()
+        # if self._s_deque.count() == 0 and self._s_entry is not None:
+        #     self._s_deque.append(self._s_entry.fetch())
 
-        return self.update(self._s_deque.pop(), force=True)
+        # return self.update(self._s_deque.pop(), force=True)
 
-    def advance(self, *args, time: float = None, dt: float = None, update=False,  **kwargs) -> float:
+    def advance(self, *args, time: float = None, dt: float = None,   **kwargs) -> _TState:
         """
             Function: Advance the state of the Actor to the next time step. current -> next
             Return  : return the residual between the updated state and the previous state
                 1. push current state to deque
-                2. update current state
+                2. refresh current state
         """
-        self.flush()
+        if dt is None and time is None:
+            dt = 0.0
+        elif time is None:
+            time = self.time + dt
+        else:
+            dt = time-self.time
 
-        if time is None:
-            time = self.time+(dt or 1.0)
+        if not np.isclose(dt, 0.0):
+            # self._s_deque.append(self._serialize())
+            logger.debug(f"Advance actor '{guess_class_name(self)}' to dt={dt}.  ")
 
-        logger.debug(f"Advance actor '{guess_class_name(self)}' to {self.time}.  ")
+        self.refresh(*args, time=time, **kwargs)
 
-        if update:
-            self.update(*args, time=time, **kwargs)
+        return self
 
-        return time
-
-    def refresh(self,   *args, ** kwargs):
+    def refresh(self,  *args, time=_undefined_, ** kwargs) -> float:
         """
             Function: update the current state of the Actor without advancing the time.
             Return  : return the residual between the updated state and the previous state
         """
-        # logger.debug(f"Refresh Actor {self.__class__}")
-        return
-
-    def reset(self, value=None, /, **kwargs) -> None:
-        super().reset()
-        if value is not None:
-            self.update(value, **kwargs)
+        if time is not _undefined_:
+            self._time = time
+        return 0.0

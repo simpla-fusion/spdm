@@ -460,7 +460,7 @@ class Entry(object):
         elif isinstance(key, list):
             self._path = key
         else:
-            self._paht = [key]
+            self._path = [key]
 
         if not lazy and len(self._path) > 0:
             if self._cache in (None, _not_found_, _undefined_):

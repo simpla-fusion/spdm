@@ -343,12 +343,6 @@ class List(Node[_TObject], Sequence[_TObject]):
             target = self
         return self._post_process(EntryCombiner(target, default_value=default_value,  reducer=reducer, partition=partition))
 
-    def refresh(self, *args, **kwargs):
-        # self._entry = Entry([d for d in self._entry.iter()])
-        for element in self.__iter__():
-            if hasattr(element.__class__, 'refresh'):
-                element.refresh(*args, **kwargs)
-
     def reset(self, value=None):
         if isinstance(value, (collections.abc.Sequence)):
             super().reset(value)
@@ -376,6 +370,7 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
                 deep_merge_dict(cache, kwargs)
             else:
                 logger.warning(f"ignore kwargs: {kwargs.keys()}")
+                raise RuntimeError(kwargs.keys())
 
         Node.__init__(self, cache,  parent=parent, new_child=new_child)
 
