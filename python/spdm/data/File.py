@@ -32,8 +32,8 @@ class File(Document):
 
         # "file.mds": ".data.db.MDSplus#MDSplusDocument",
         # "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
-        # "file.gfile": ".data.file.PluginGEQdsk",
-        # "file.geqdsk": ".data.file.PluginGEQdsk",
+        "file.gfile": ".data.file.PluginGEQdsk",
+        "file.geqdsk": ".data.file.PluginGEQdsk",
         # "db.imas": ".data.db.IMAS#IMASDocument",
     }
     is_interface = True
