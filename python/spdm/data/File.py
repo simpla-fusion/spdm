@@ -30,10 +30,11 @@ class File(Document):
         "file.csv": ".data.file.PluginCSV",
         "file.numpy": ".data.file.PluginNumPy",
 
-        # "file.mds": ".data.db.MDSplus#MDSplusDocument",
-        # "file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
         "file.gfile": ".data.file.PluginGEQdsk",
         "file.geqdsk": ".data.file.PluginGEQdsk",
+
+        "file.mds": ".data.db.PluginMDSplus#MDSplusDocument",
+        "file.mdsplus": ".data.db.PluginMDSplus#MDSplusDocument",
         # "db.imas": ".data.db.IMAS#IMASDocument",
     }
     is_interface = True

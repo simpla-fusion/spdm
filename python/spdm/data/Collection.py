@@ -24,13 +24,13 @@ class Collection(SpObject):
         "mapping": f"{__package__}.Mapping#MappingCollection",
         "local": f"{__package__}.Collection#CollectionLocalFile",
 
-        "mds": f"{__package__}.db.MDSplus#MDSplusCollection",
-        "mdsplus": f"{__package__}.db.MDSplus#MDSplusCollection",
+        "mds": f"{__package__}.db.PluginMDSplus#MDSplusCollection",
+        "mdsplus": f"{__package__}.db.PluginMDSplus#MDSplusCollection",
 
-        "mongo": f"{__package__}.db.MongoDB",
-        "mongodb": f"{__package__}.db.MongoDB",
+        # "mongo": f"{__package__}.db.MongoDB",
+        # "mongodb": f"{__package__}.db.MongoDB",
 
-        "imas": f"{__package__}.db.IMAS",
+        "imas": f"{__package__}.db.PluginIMAS",
     }
 
     @staticmethod
