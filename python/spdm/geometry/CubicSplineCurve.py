@@ -2,11 +2,10 @@
 import collections
 from functools import cached_property
 from typing import Union
-from scipy.interpolate.interpolate import PPoly
 
-from spdm.numlib.spline import create_spline
+from scipy.interpolate import CubicSpline, PPoly
 
-from ..numlib import np, constants
+from ..numlib import constants, np
 from ..util.logger import logger
 from .Curve import Curve
 
@@ -29,7 +28,7 @@ class CubicSplineCurve(Curve):
     def _spl(self) -> PPoly:
         if self._mesh is None:
             self._mesh = [np.linspace(0, 1, len(self._points))]
-        return create_spline(self._mesh[0], self._points, bc_type="periodic" if self.is_closed else "not-a-knot")
+        return CubicSpline(self._mesh[0], self._points, bc_type="periodic" if self.is_closed else "not-a-knot")
 
     @cached_property
     def _derivative(self):

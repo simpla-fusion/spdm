@@ -6,14 +6,25 @@ from logging import log
 from operator import is_
 from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 
+from scipy.interpolate import CubicSpline, PPoly
+from spdm.util.logger import logger
+
 from ..numlib import np, scipy
 from ..numlib.misc import float_unique
-from ..numlib.spline import PPoly, create_spline
 from ..util.logger import logger
+from ..util.utilities import _undefined_
 from .Entry import Entry
 from .Node import Node
-from ..util.utilities import _undefined_
 
+
+def create_spline(x, y, **kwargs) -> PPoly:
+    bc_type = "periodic" if np.all(y[0] == y[-1]) else "not-a-knot"
+    try:
+        res = CubicSpline(x, y, bc_type=bc_type)
+    except ValueError as error:
+        logger.error((x, y))
+        raise error
+    return res
 
 class Function:
     """

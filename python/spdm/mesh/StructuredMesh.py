@@ -1,7 +1,6 @@
 from typing import Callable, Iterator, Sequence, Type, Union
 
 from ..geometry.GeoObject import GeoObject
-from ..numlib.optimize import find_critical_points
 from ..util.logger import logger
 from .Mesh import Mesh
 
