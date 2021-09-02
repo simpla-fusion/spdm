@@ -1,6 +1,6 @@
 import unittest
 
-from spdm.data.AttributeTree import AttributeTree, _next_
+, _next_
 from spdm.data.Node import Node, _not_found_
 from spdm.util.logger import logger
 
