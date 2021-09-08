@@ -1,11 +1,11 @@
 from functools import cached_property, lru_cache
 from typing import Sequence, Tuple
 
-from spdm.numlib import np
+import numpy as np
+from scipy.interpolate import interpolate
 
 from ..geometry.Curve import Line
 from ..geometry.Point import Point
-from ..numlib import interpolate
 from ..util.logger import logger
 from .StructuredMesh import StructuredMesh
 

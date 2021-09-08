@@ -2,8 +2,8 @@ import pprint
 import sys
 
 import matplotlib.pyplot as plt
-from spdm.numlib import np
-from spdm.numlib import constants as constants
+import numpy as np
+from scipy import constants as constants
 
 
 if __name__ == "__main__":

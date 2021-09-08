@@ -1,7 +1,7 @@
 from __future__ import division, print_function, absolute_import
 from ..util.logger import logger
 from scipy import interpolate
-from spdm.numlib import np
+import numpy as np
 from scipy.interpolate import PPoly, CubicSpline
 
 

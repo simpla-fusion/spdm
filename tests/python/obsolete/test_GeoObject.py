@@ -4,7 +4,7 @@ from spdm.geometry.Point import Point
 from spdm.geometry.Curve import Curve
 from spdm.geometry.Surface import Surface
 from spdm.geometry.CubicSplineCurve import CubicSplineCurve
-from spdm.numlib import np, constants
+import numpy as np, constants
 from spdm.util.logger import logger
 
 

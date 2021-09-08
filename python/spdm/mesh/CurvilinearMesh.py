@@ -2,19 +2,20 @@ import collections
 from functools import cached_property, lru_cache
 from math import log
 from typing import Iterator, Sequence, Type, Union
-from scipy.ndimage.interpolation import geometric_transform
 
-from spdm.numlib import interpolate, np
+import numpy as np
+from scipy import interpolate
+from scipy.ndimage.interpolation import geometric_transform
 
 from ..geometry.BSplineSurface import BSplineSurface
 from ..geometry.CubicSplineCurve import CubicSplineCurve
-from ..geometry.GeoObject import GeoObject
 from ..geometry.Curve import Curve
+from ..geometry.GeoObject import GeoObject
 from ..geometry.Point import Point
 from ..util.logger import logger
 from ..util.utilities import convert_to_named_tuple
-from .StructuredMesh import StructuredMesh
 from .Mesh import Mesh
+from .StructuredMesh import StructuredMesh
 
 
 class CurvilinearMesh(StructuredMesh):
@@ -30,7 +31,8 @@ class CurvilinearMesh(StructuredMesh):
         shape = [len(d) for d in uv]
         if isinstance(geo_mesh, np.ndarray):
             if geo_mesh.shape[:-1] != tuple(shape):
-                raise ValueError(f"Illegal shape!  {geo_mesh.shape[:-1]} != {tuple(shape)}")
+                raise ValueError(
+                    f"Illegal shape!  {geo_mesh.shape[:-1]} != {tuple(shape)}")
             ndims = geo_mesh.shape[-1]
             xy = geo_mesh
             surf = None
@@ -39,14 +41,17 @@ class CurvilinearMesh(StructuredMesh):
         elif isinstance(geo_mesh, collections.abc.Sequence) and isinstance(geo_mesh[0], GeoObject):
             ndims = geo_mesh[0].ndims
             if len(uv[0]) != len(geo_mesh):
-                raise ValueError(f"Illegal number of sub-surface {len(self[uv[0]])} != {len(geo_mesh)}")
+                raise ValueError(
+                    f"Illegal number of sub-surface {len(self[uv[0]])} != {len(geo_mesh)}")
             surf = geo_mesh
         elif isinstance(geo_mesh, GeoObject):
             raise NotImplementedError(type(geo_mesh))
         else:
-            raise TypeError(f"geo_mesh should be np.ndarray, Sequence[GeoObject] or GeoObject, not {type(geo_mesh)}")
+            raise TypeError(
+                f"geo_mesh should be np.ndarray, Sequence[GeoObject] or GeoObject, not {type(geo_mesh)}")
 
-        super().__init__(*args, uv=np.asarray(uv), shape=shape, rank=rank, ndims=ndims, **kwargs)
+        super().__init__(*args, uv=np.asarray(uv),
+                         shape=shape, rank=rank, ndims=ndims, **kwargs)
         self._sub_surf = surf
 
     def axis(self, idx, axis=0):
@@ -58,8 +63,10 @@ class CurvilinearMesh(StructuredMesh):
             s = s+[slice(None, None, None)]
 
             sub_xy = self.xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
-            sub_uv = [self._uv[(axis+i) % self.ndims] for i in range(1, self.ndims)]
-            sub_cycle = [self.cycle[(axis+i) % self.ndims] for i in range(1, self.ndims)]
+            sub_uv = [self._uv[(axis+i) % self.ndims]
+                      for i in range(1, self.ndims)]
+            sub_cycle = [self.cycle[(axis+i) % self.ndims]
+                         for i in range(1, self.ndims)]
 
             return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
 
@@ -82,9 +89,11 @@ class CurvilinearMesh(StructuredMesh):
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.ndims == 1:
-            interp = interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+            interp = interpolate.InterpolatedUnivariateSpline(
+                self._dims[0], value,  **kwargs)
         elif self.ndims == 2:
-            interp = interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value, ** kwargs)
+            interp = interpolate.RectBivariateSpline(
+                self._dims[0], self._dims[1], value, ** kwargs)
         else:
             raise NotImplementedError(f"NDIMS {self.ndims}>2")
         return interp
@@ -99,7 +108,8 @@ class CurvilinearMesh(StructuredMesh):
             if all([np.var(x)/np.mean(x**2) < CurvilinearMesh.TOLERANCE for x in self.xy.T]):
                 gobj = Point(*[x[0] for x in self.xy.T])
             else:
-                gobj = CubicSplineCurve(self.xy, self._uv[0], is_closed=self.cycle[0])
+                gobj = CubicSplineCurve(
+                    self.xy, self._uv[0], is_closed=self.cycle[0])
         elif self.rank == 2:
             gobj = BSplineSurface(self.xy, self._uv,  is_closed=self.cycle)
         else:

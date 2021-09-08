@@ -1,7 +1,7 @@
 from functools import cached_property
 from typing import Callable, TypeVar, Tuple
 
-from spdm.numlib import np
+import numpy as np
 
 from .GeoObject import GeoObject
 from .Point import Point

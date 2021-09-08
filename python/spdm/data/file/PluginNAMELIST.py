@@ -2,7 +2,7 @@ import collections
 from typing import Any, Dict
 
 import f90nml
-from spdm.numlib import np
+import numpy as np
 from spdm.util.dict_util import normalize_data
 from spdm.util.logger import logger
 

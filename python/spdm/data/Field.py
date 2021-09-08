@@ -2,7 +2,7 @@ import collections
 from functools import cached_property
 from typing import Mapping, Union
 
-from spdm.numlib import constants, np, scipy
+import numpy as np
 
 from ..mesh.Mesh import Mesh
 from ..util.logger import logger
@@ -104,7 +104,8 @@ class Field(object):
     #     return Quantity(value, axis=self.axis)
 
     def plot(self, axis, *args, linewidths=0.1, **kwargs):
-        axis.contour(*self._mesh.xy,  self.__array__(), linewidths=linewidths, **kwargs)
+        axis.contour(*self._mesh.xy,  self.__array__(),
+                     linewidths=linewidths, **kwargs)
         return axis
 
 # def derivative_n(self, n, *args, **kwargs):

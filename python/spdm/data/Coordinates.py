@@ -1,7 +1,7 @@
 import collections
 import pprint
 
-from spdm.numlib import np
+import numpy as np
 
 from ..mesh.Mesh import Mesh
 from .Unit import Unit

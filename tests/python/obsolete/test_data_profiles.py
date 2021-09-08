@@ -6,7 +6,7 @@ import unittest
 from spdm.data.Function import Function
 from spdm.data.Node import _next_
 from spdm.data.Profiles import Profiles
-from spdm.numlib import np
+import numpy as np
 from spdm.util.logger import logger
 
 

@@ -6,7 +6,7 @@ from functools import cached_property
 from logging import log
 from typing import Any, MutableSequence, Optional, Sequence
 
-from ..numlib import np
+import numpy as np
 from ..util.logger import logger
 from .Entry import Entry, _not_found_
 from .Node import Dict, List, Node, _next_,  _TObject, sp_property, _sp_property

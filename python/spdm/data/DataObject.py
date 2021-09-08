@@ -1,7 +1,8 @@
 import collections
 from typing import Type
 
-from ..numlib import  np
+import numpy as np
+
 from ..util.logger import logger
 from ..util.SpObject import SpObject
 from ..util.urilib import urisplit

@@ -2,8 +2,8 @@ import logging
 import pprint
 import sys
 import unittest
-from spdm.numlib import constants
-from spdm.numlib import np
+from scipy import constants
+import numpy as np
 from spdm.data.Function import Function, Expression, PiecewiseFunction
 from spdm.util.logger import logger
 

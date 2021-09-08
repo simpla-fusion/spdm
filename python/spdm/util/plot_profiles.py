@@ -6,7 +6,7 @@ from logging import log
 from typing import Type
 import matplotlib.pyplot as plt
 from numpy.lib.arraysetops import isin
-from spdm.numlib import np
+import numpy as np
 from spdm.data.Node import Dict
 from spdm.data.Function import Function
 from spdm.util.logger import logger

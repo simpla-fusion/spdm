@@ -3,7 +3,7 @@ from __future__ import division, print_function, absolute_import
 from ..util.logger import logger
 from warnings import warn
 
-from spdm.numlib import np
+import numpy as np
 from numpy.linalg import norm, pinv
 from .spline import create_spline_for_bvp
 from scipy.sparse import coo_matrix, csc_matrix

@@ -2,7 +2,7 @@ import pprint
 import sys
 import unittest
 
-from spdm.numlib import np
+import numpy as np
 import scipy.integrate
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 

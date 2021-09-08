@@ -3,9 +3,10 @@ import collections
 from functools import cached_property
 from typing import Union
 
+import numpy as np
+from scipy import constants
 from scipy.interpolate import CubicSpline, PPoly
 
-from ..numlib import constants, np
 from ..util.logger import logger
 from .Curve import Curve
 

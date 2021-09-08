@@ -19,7 +19,7 @@ from numpy.lib.arraysetops import isin
 from numpy.lib.function_base import insert
 from spdm.util.LazyProxy import LazyProxy
 
-from ..numlib import np
+import numpy as np
 from ..util.logger import logger
 from ..util.utilities import _not_found_, _undefined_, normalize_path, serialize
 

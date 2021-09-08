@@ -9,8 +9,9 @@ from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 from scipy.interpolate import CubicSpline, PPoly
 from spdm.util.logger import logger
 
-from ..numlib import np, scipy
-from ..numlib.misc import float_unique
+import numpy as np
+import scipy
+from ..util.misc import float_unique
 from ..util.logger import logger
 from ..util.utilities import _undefined_
 from .Entry import Entry
@@ -25,6 +26,7 @@ def create_spline(x, y, **kwargs) -> PPoly:
         logger.error((x, y))
         raise error
     return res
+
 
 class Function:
     """
@@ -66,7 +68,8 @@ class Function:
         elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
             self._x_domain = list(set(x))
             if isinstance(y, np.ndarray):
-                self._x_axis = np.linspace(self._x_domain[0], self._x_domain[-1], len(y))
+                self._x_axis = np.linspace(
+                    self._x_domain[0], self._x_domain[-1], len(y))
             else:
                 self._x_axis = None
         else:
@@ -118,7 +121,8 @@ class Function:
         if self.x_axis is not None:
             return len(self.x_axis)
         else:
-            raise RuntimeError(f"Can not get length from {type(self._y)} or {type(self.x_axis)}")
+            raise RuntimeError(
+                f"Can not get length from {type(self._y)} or {type(self.x_axis)}")
 
     def duplicate(self):
         return self.__class__(self.x_axis, self._y)
@@ -205,7 +209,8 @@ class Function:
         if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
             return float(self._y)
         else:
-            raise TypeError(f"Can not convert {type(self._y)} to float. {getattr(self._y,'shape',None)}")
+            raise TypeError(
+                f"Can not convert {type(self._y)} to float. {getattr(self._y,'shape',None)}")
 
     def __int__(self) -> int:
         if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
@@ -219,7 +224,8 @@ class Function:
         elif isinstance(self.x_axis, np.ndarray):
             return self.__call__(self.x_axis[idx])
         else:
-            raise RuntimeError(f"x is {type(self.x_axis)} ,y is {type(self._y)}")
+            raise RuntimeError(
+                f"x is {type(self.x_axis)} ,y is {type(self._y)}")
 
     # def __setitem__(self, idx, value):
     #     if hasattr(self, "_ppoly"):
@@ -274,7 +280,8 @@ class Function:
 
     def pullback(self, source: np.ndarray, target: np.ndarray):
         if source.shape != target.shape:
-            raise ValueError(f"The shapes of axies don't match! {source.shape}!={target.shape}")
+            raise ValueError(
+                f"The shapes of axies don't match! {source.shape}!={target.shape}")
 
             # if len(args) == 0:
             #     raise ValueError(f"missing arguments!")
@@ -416,7 +423,8 @@ class PiecewiseFunction(Function):
         if isinstance(x, np.ndarray):
             cond_list = [np.logical_and(self.x_domain[idx] <= x, x < self.x_domain[idx+1])
                          for idx in range(len(self.x_domain)-1)]
-            cond_list[-1] = np.logical_or(cond_list[-1], np.isclose(x, self.x_domain[-1]))
+            cond_list[-1] = np.logical_or(cond_list[-1],
+                                          np.isclose(x, self.x_domain[-1]))
             return np.piecewise(x, cond_list, self._y)
         elif isinstance(x, (int, float)):
 
@@ -426,11 +434,13 @@ class PiecewiseFunction(Function):
                 idx = -1
             else:
                 try:
-                    idx = next(i for i, val in enumerate(self.x_domain) if val >= x)-1
+                    idx = next(i for i, val in enumerate(
+                        self.x_domain) if val >= x)-1
                 except StopIteration:
                     idx = None
             if idx is None:
-                raise ValueError(f"Out of range! {x} not in ({self.x_domain[0]},{self.x_domain[-1]})")
+                raise ValueError(
+                    f"Out of range! {x} not in ({self.x_domain[0]},{self.x_domain[-1]})")
 
             return self._y[idx](x)
         else:
@@ -486,7 +496,8 @@ class Expression(Function):
         return axis
 
     def resample(self, x_min, x_max=None, /, **kwargs):
-        inputs = [(f.resample(x_min, x_max, **kwargs) if isinstance(f, Function) else f) for f in self._y]
+        inputs = [(f.resample(x_min, x_max, **kwargs)
+                   if isinstance(f, Function) else f) for f in self._y]
         return Expression(self._ufunc, self._method, *inputs, **self._kwargs)
 
     def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
@@ -509,7 +520,8 @@ class Expression(Function):
             elif d.shape == x.shape:
                 res = d
             else:
-                raise ValueError(f"{getattr(self.x_axis,'shape',[])} {x.shape} {type(d)} {d.shape}")
+                raise ValueError(
+                    f"{getattr(self.x_axis,'shape',[])} {x.shape} {type(d)} {d.shape}")
             return res
 
         with warnings.catch_warnings():

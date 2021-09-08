@@ -1,7 +1,7 @@
 import collections
 from typing import Generic
 
-from spdm.numlib import np
+import numpy as np
 from spdm.data.Function import Function
 from spdm.data.Node import Dict, Node, _TObject, _TKey
 from spdm.data.Entry import Entry

@@ -2,7 +2,7 @@ import collections.abc
 from functools import cached_property
 from typing import Callable, Sequence, TypeVar, Union
 
-from ..numlib import np
+import numpy as np
 
 _TMesh = TypeVar("_TMesh")
 

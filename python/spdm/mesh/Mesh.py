@@ -2,7 +2,7 @@ import collections
 from functools import cached_property
 from typing import Callable, Iterator, Sequence, Tuple, Type, Union
 
-from spdm.numlib import np
+import numpy as np
 
 from ..geometry.GeoObject import GeoObject
 from ..util.logger import logger

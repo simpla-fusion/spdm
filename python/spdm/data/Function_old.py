@@ -1,6 +1,6 @@
 from functools import cached_property
 
-from spdm.numlib import np
+import numpy as np
 import scipy.interpolate
 from scipy.interpolate.interpolate import PPoly
 

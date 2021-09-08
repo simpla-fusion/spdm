@@ -6,7 +6,7 @@ from typing import Callable
 from scipy import optimize
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
-from spdm.numlib import np
+import numpy as np
 
 from ..numlib import fsolve, minimize, root_scalar
 from ..util.logger import logger

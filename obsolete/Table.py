@@ -1,4 +1,4 @@
-from spdm.numlib import np
+import numpy as np
 from spdm.util.logger import logger
 
 from ..File import File

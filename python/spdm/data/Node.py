@@ -14,7 +14,7 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
-from ..numlib import np, scipy
+import numpy as np, scipy
 from ..util.dict_util import deep_merge_dict
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
