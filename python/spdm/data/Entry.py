@@ -1,27 +1,20 @@
 import collections
 import collections.abc
 import dataclasses
-import enum
 import functools
 import inspect
 import operator
-from ast import copy_location
 from copy import deepcopy
 from enum import Enum, Flag, auto
-from logging import log
-from os import initgroups, read
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
-                    Union, final, get_args)
-
-from numpy.core.defchararray import count
-from numpy.lib.arraysetops import isin
-from numpy.lib.function_base import insert
-from spdm.util.LazyProxy import LazyProxy
+                    Union)
 
 import numpy as np
+
 from ..util.logger import logger
-from ..util.utilities import _not_found_, _undefined_, normalize_path, serialize
+from ..util.utilities import (_not_found_, _undefined_, normalize_path,
+                              serialize)
 
 
 class EntryTags(Flag):
@@ -166,7 +159,8 @@ class Entry(object):
                 else:
                     return all([val.get(k, _not_found_) == v for k, v in _cond.items()])
 
-        res = [op(target, idx, *args) for idx, val in enumerate(target) if pred(val)]
+        res = [op(target, idx, *args)
+               for idx, val in enumerate(target) if pred(val)]
 
         if len(res) == 1:
             res = res[0]
@@ -175,7 +169,8 @@ class Entry(object):
         return res
 
     def _op_assign(target, path, v):
-        target, key = Entry._eval_path(target,  Entry.normalize_path(path), force=True, lazy=False)
+        target, key = Entry._eval_path(
+            target,  Entry.normalize_path(path), force=True, lazy=False)
         if not isinstance(key, (int, str, slice)):
             raise KeyError(path)
         elif not isinstance(target, (collections.abc.Mapping, collections.abc.Sequence)):
@@ -263,7 +258,8 @@ class Entry(object):
         if path in (None, _not_found_, _undefined_):
             return target not in (None, _not_found_, _undefined_)
         else:
-            target, path = Entry._eval_path(target, Entry.normalize_path(path), force=False)
+            target, path = Entry._eval_path(
+                target, Entry.normalize_path(path), force=False)
             if isinstance(path, str):
                 return path in target
             elif isinstance(path, int):
@@ -276,7 +272,8 @@ class Entry(object):
 
     def _op_count(target, path):
         if path not in (None, _not_found_, _undefined_):
-            target, path = Entry._eval_path(target, Entry.normalize_path(path), force=False)
+            target, path = Entry._eval_path(
+                target, Entry.normalize_path(path), force=False)
             try:
                 target = target[path]
             except Exception:
@@ -313,7 +310,8 @@ class Entry(object):
         elif not isinstance(path, collections.abc.MutableSequence):
             path = [path]
 
-        path = sum([d.split('.') if isinstance(d, str) else [d] for d in path], [])
+        path = sum([d.split('.') if isinstance(d, str) else [d]
+                   for d in path], [])
         return path
 
     @staticmethod
@@ -327,14 +325,16 @@ class Entry(object):
                 res = Entry._ops[op](value, expected)
             else:
                 try:
-                    actual, p = Entry._eval_path(value, Entry.normalize_path(op)+[None])
+                    actual, p = Entry._eval_path(
+                        value, Entry.normalize_path(op)+[None])
                     res = p is None and (actual == expected)
                 except (IndexError, KeyError):
                     res = False
 
             return res
 
-        success = all([do_match(op, val, args) for op, args in predication.items()])
+        success = all([do_match(op, val, args)
+                      for op, args in predication.items()])
         return success
 
     @staticmethod
@@ -406,7 +406,8 @@ class Entry(object):
             elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
             elif not isinstance(target, (collections.abc.Sequence)):
-                raise NotImplementedError(f"{type(target)} {type(key)} {path[:idx+1]}")
+                raise NotImplementedError(
+                    f"{type(target)} {type(key)} {path[:idx+1]}")
             elif key is _next_:
                 target.append(_not_found_)
                 key = len(target)-1
@@ -421,7 +422,8 @@ class Entry(object):
                     # logger.exception(error)
                     val = _not_found_
             elif isinstance(key, dict):
-                iv_list = [[i, v] for i, v in enumerate(target) if Entry._match(v, predication=key)]
+                iv_list = [[i, v] for i, v in enumerate(
+                    target) if Entry._match(v, predication=key)]
                 if len(iv_list) == 0:
                     if force:
                         val = deepcopy(key)
@@ -440,7 +442,8 @@ class Entry(object):
             if idx < last_index:
                 if val is _not_found_:
                     if force:
-                        val = _DICT_TYPE_() if isinstance(path[idx+1], str) else _LIST_TYPE_()
+                        val = _DICT_TYPE_() if isinstance(
+                            path[idx+1], str) else _LIST_TYPE_()
                         target[key] = val
                     else:
                         key = path[idx:]
@@ -474,7 +477,8 @@ class Entry(object):
             return [target]
         if only_first:
             try:
-                val = next(filter(lambda d: Entry._match(d, predication), target))
+                val = next(
+                    filter(lambda d: Entry._match(d, predication), target))
             except StopIteration:
                 val = _not_found_
             else:
@@ -554,19 +558,23 @@ class Entry(object):
         if predication is _undefined_:
             val = Entry._eval_pull(self._cache, path, query, lazy=lazy)
         else:
-            target, key = Entry._eval_path(self._cache, path+[None], force=False)
+            target, key = Entry._eval_path(
+                self._cache, path+[None], force=False)
             if key is not None:
                 val = Entry._eval_pull(_not_found_, [],  query)
             elif not isinstance(target, list):
-                raise TypeError(f"If predication is defined, target must be list! {type(target)}")
+                raise TypeError(
+                    f"If predication is defined, target must be list! {type(target)}")
             elif only_first:
                 try:
-                    target = next(filter(lambda d: Entry._match(d, predication), target))
+                    target = next(
+                        filter(lambda d: Entry._match(d, predication), target))
                 except StopIteration:
                     target = _not_found_
                 val = Entry._eval_pull(target, [],  query)
             else:
-                val = [Entry._eval_pull(d, [],  query) for d in target if Entry._match(d, predication)]
+                val = [Entry._eval_pull(d, [],  query)
+                       for d in target if Entry._match(d, predication)]
 
         return val
 
@@ -641,22 +649,27 @@ class Entry(object):
 
             if target is _not_found_ or isinstance(key, list):
                 raise KeyError(path)
-            val = Entry._eval_push(target, [key] if key is not None else [], value)
+            val = Entry._eval_push(
+                target, [key] if key is not None else [], value)
         else:
-            target, key = Entry._eval_path(self._cache, path+[None], force=True)
+            target, key = Entry._eval_path(
+                self._cache, path+[None], force=True)
             if key is not None or target is _not_found_:
                 raise KeyError(path)
             elif not isinstance(target, list):
-                raise TypeError(f"If predication is defined, target must be list! {type(target)}")
+                raise TypeError(
+                    f"If predication is defined, target must be list! {type(target)}")
             elif only_first:
                 try:
-                    target = next(filter(lambda d: Entry._match(d, predication), target))
+                    target = next(
+                        filter(lambda d: Entry._match(d, predication), target))
                 except StopIteration:
                     val = _not_found_
                 else:
                     val = Entry._eval_push(target, [], value)
             else:
-                val = [Entry._eval_push(d, [], value) for d in target if Entry._match(d, predication)]
+                val = [Entry._eval_push(d, [], value)
+                       for d in target if Entry._match(d, predication)]
                 if len(val) == 0:
                     val = _not_found_
 
@@ -746,7 +759,8 @@ class EntryCombiner(Entry):
 
     def pull(self, path=None, query=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
 
-        val = super().pull(path, query=query, lazy=False, predication=predication, only_first=only_first)
+        val = super().pull(path, query=query, lazy=False,
+                           predication=predication, only_first=only_first)
 
         if val is not _not_found_:
             return val
@@ -762,10 +776,12 @@ class EntryCombiner(Entry):
                 target, p = Entry._eval_path(d, path+[None], force=False)
             if target is _not_found_ or p is not None:
                 continue
-            target = Entry._eval_filter(target, predication=predication, only_first=only_first)
+            target = Entry._eval_filter(
+                target, predication=predication, only_first=only_first)
             if target is _not_found_ or len(target) == 0:
                 continue
-            val.extend([Entry._eval_pull(d, [], query=query, lazy=lazy) for d in target])
+            val.extend([Entry._eval_pull(d, [], query=query, lazy=lazy)
+                       for d in target])
 
         if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
             val = EntryCombiner(val)
