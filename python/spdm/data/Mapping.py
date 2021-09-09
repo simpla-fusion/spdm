@@ -2,7 +2,6 @@ import collections
 import os
 import pathlib
 
-from ..util.LazyProxy import LazyProxy
 from ..util.logger import logger
 from ..util.PathTraverser import PathTraverser
 from ..util.urilib import urisplit

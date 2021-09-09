@@ -1,8 +1,7 @@
-import collections
-import pprint
-from functools import cached_property
+import collections.abc
 
-from scipy import constants, scipy
+import numpy as np
+from scipy import constants
 
 from ..util.logger import logger
 from .Node import Dict, Node
@@ -99,7 +98,8 @@ class Quantity(np.ndarray):
                                                     [(in_.view(np.ndarray) if isinstance(in_, np.ndarray) else in_) for in_ in inputs], **kwargs)
 
         res = Quantity(res)
-        res._unit = Unit.calculate(ufunc, method, *[getattr(a, 'unit', None) for a in inputs])
+        res._unit = Unit.calculate(
+            ufunc, method, *[getattr(a, 'unit', None) for a in inputs])
         return res
 
     # if isinstance(start, np.ndarray) and isinstance(stop, np.ndarray):

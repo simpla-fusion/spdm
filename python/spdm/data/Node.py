@@ -29,51 +29,7 @@ _T = TypeVar("_T")
 
 class Node(EntryContainer, Generic[_TObject]):
     r"""
-        @startuml
-
-        class Node{
-            name    : String
-            parent  : Node
-            value   : Group or Data
-        }
-
-        class Group{
-            children : Node[*]
-        }
-
-        Node *--  Node  : parent
-
-        Node o--  Group : value
-        Node o--  Data  : value
-
-        Group *-- "*" Node
-
-        @enduml
-
-        @startuml
-        [*] --> Empty
-        Empty       --> Sequence        : as_sequence, __update__(list), __setitem__(int,v),__getitem__(int)
-        Empty       --> Mapping         : as_mapping , __update__(dict), __setitem__(str,v),__getitem__(str)
-        Empty       --> Empty           : clear
-
-
-        Item        --> Item            : "__fetch__"
-        Item        --> Empty           : clear
-        Item        --> Sequence        : __setitem__(_next_,v),__getitem__(_next_),as_sequence
-        Item        --> Illegal         : as_mapping
-
-        Sequence    --> Empty           : clear
-        Sequence    --> Sequence        : as_sequence
-        Sequence    --> Illegal         : as_mapping
-
-        Mapping     --> Empty           : clear
-        Mapping     --> Mapping         : as_mapping
-        Mapping     --> Sequence        :  __setitem__(_next_,v),__getitem__(_next_),as_sequence
-
-
-        Illegal     --> [*]             : Error
-
-        @enduml
+       Tree Node
     """
 
     __slots__ = "__orig_class__", "_parent",  "_new_child"

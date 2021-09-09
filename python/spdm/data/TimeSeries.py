@@ -5,8 +5,7 @@ from typing import (Any, Generic, Mapping, MutableMapping, Sequence, TypeVar,
 import numpy as np
 
 from ..util.logger import logger
-from .AoS import AoS, SoA
-from .Node import Dict, List, _TIndex,  _TObject
+from .Node import Dict, List, _TIndex, _TObject
 
 
 class TimeSlice(Dict[_TObject]):
@@ -77,7 +76,8 @@ class TimeSeries(List[_TObject]):
 
         if not self.__check_template__(obj.__class__):
             n = len(self)
-            obj = self.__new_child__(obj, time=self._time_start+((k+n) % n)*self._time_step)
+            obj = self.__new_child__(
+                obj, time=self._time_start+((k+n) % n)*self._time_step)
             self._entry.push(k, obj)
         return obj
 
@@ -127,13 +127,15 @@ class TimeSeries(List[_TObject]):
             t_slice = self[-1]
         else:
             try:
-                idx, t_slice_next = self.find_first(lambda t_slice: t_slice.time >= time)
+                idx, t_slice_next = self.find_first(
+                    lambda t_slice: t_slice.time >= time)
             except Exception:
                 raise RuntimeError(f"Out of range! {self[-1].time} < {time}")
             else:
                 if t_slice_next.time > time:
                     t_slice_prev = self[idx-1]
-                    logger.debug(f"Time interpolation {t_slice_prev.time} < {time} < {t_slice_next.time}")
+                    logger.debug(
+                        f"Time interpolation {t_slice_prev.time} < {time} < {t_slice_next.time}")
                     raise NotImplementedError()
                 else:
                     t_slice = t_slice_next
