@@ -1,16 +1,18 @@
-from .util.logger import logger
+
 
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
+from .version import __version__ 
+
+from .util.logger import logger
 import numpy as np
+
 import scipy
+
 logger.info(f"Using SciPy \t: {scipy.__version__}")
 logger.info(f"Using NumPy \t: {np.version.full_version}")
 
-__version__ = '0.0.0'
 
-
-logger.info(f"Using SpDB \t: {__version__}")
 
 # ENABLE_JAX = os.environ.get("SP_JAX", False)
 
