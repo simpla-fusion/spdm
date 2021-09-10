@@ -1,5 +1,9 @@
 import collections
 from copy import deepcopy
+from typing import Union
+
+import numpy as np
+
 from .logger import logger
 
 
@@ -145,4 +149,22 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
     elif isinstance(d, collections.abc.MutableSequence):
         return [convert_to_named_tuple(v) for v in d]
     else:
+        return d
+
+
+def as_native(d, enable_ndarray=True) -> Union[str, bool, float, int, np.ndarray, dict, list]:
+    """
+        convert d to native data type str,bool,float, int, dict, list
+    """
+    if isinstance(d, (bool, int, float, str)):
+        return d
+    elif isinstance(d, np.ndarray):
+        return d.tolist() if not enable_ndarray else d
+    elif isinstance(d, collections.abc.Mapping):
+        return {as_native(k): as_native(v, enable_ndarray=enable_ndarray) for k, v in d.items()}
+    elif isinstance(d, collections.abc.Sequence):
+        return [as_native(v, enable_ndarray=enable_ndarray) for v in d]
+
+    else:
+        logger.debug(type(d))
         return d

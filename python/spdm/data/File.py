@@ -11,7 +11,6 @@ from ..common.SpObject import create_object
 from ..plugins.data.file import association as file_association
 from ..util.logger import logger
 from .Connection import Connection
-from .Document import Document
 from .Entry import Entry
 
 _TFile = TypeVar('_TFile', bound='File')
@@ -23,10 +22,11 @@ class FileHandler(object):
         self._metadata: Mapping = metadata
 
     def read(self, lazy=False) -> Entry:
-        return None
+        raise NotImplementedError()
 
     def write(self, data, lazy=False) -> None:
-        return None
+        raise NotImplementedError()
+        
 
 
 class File(Connection):
@@ -73,8 +73,6 @@ class File(Connection):
         return self._metadata.get("path", None)
 
     def open(self, *args, **kwargs) -> _TFile:
-        if self.is_open:
-            return self
 
         Connection.open(self)
 
@@ -116,13 +114,18 @@ class File(Connection):
         self._holder = None
         Connection.close(self)
 
-    def read(self, lazy=False) -> Document:
-        self.open()
-        return Document(self._holder.read())
+    def read(self, lazy=False) -> Entry:
+        if self._holder is None:
+            self.open()
+        return self._holder.read(lazy=lazy)
 
     def write(self, *args, **kwargs):
-        self.open()
+        if not self.is_open:
+            self.open()
         self._holder.write(*args, **kwargs)
+
+    def __enter__(self) -> _TFile:
+        return super().__enter__()
 
 
 __SP_EXPORT__ = File

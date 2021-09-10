@@ -1,6 +1,7 @@
 import collections
 import inspect
 import io
+from logging import log
 import uuid
 from copy import deepcopy
 from functools import cached_property
@@ -100,11 +101,10 @@ def create_object(metadata, *args, **kwargs) -> object:
             cls_name = f"{SpObject._default_prefix}{cls_name}"
         n_cls = sp_find_module(cls_name)
 
-    if inspect.isclass(cls_name) or callable(n_cls):
-        pass
+    if inspect.isclass(n_cls) or callable(n_cls):
+        logger.debug(f"Load plugin {cls_name}")
     else:
         raise ModuleNotFoundError(metadata)
-
     return n_cls(*args, **kwargs)
 
 

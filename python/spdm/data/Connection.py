@@ -24,15 +24,15 @@ class Connection(SpObject):
         return False
 
     def open(self) -> _TConnection:
-        logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
+        # logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
         return self
 
     def close(self) -> None:
-        logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
+        # logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
+        return
 
     def __enter__(self) -> _TConnection:
         return self.open()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.is_valid:
-            self.close()
+        self.close()

@@ -14,7 +14,7 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
-import numpy as np, scipy
+import numpy as np
 from ..util.dict_util import deep_merge_dict
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
@@ -40,7 +40,8 @@ class Node(EntryContainer, Generic[_TObject]):
         self._new_child = new_child
 
     def __repr__(self) -> str:
-        annotation = [f"{k}='{v}'" for k, v in self.annotation.items() if v is not None]
+        annotation = [f"{k}='{v}'" for k,
+                      v in self.annotation.items() if v is not None]
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} {' '.join(annotation)}/>"
 
     @property
@@ -58,7 +59,8 @@ class Node(EntryContainer, Generic[_TObject]):
         attr_type = _undefined_
 
         if isinstance(attribute, str):
-            attr = dict(inspect.getmembers(self.__class__)).get(attribute, _not_found_)
+            attr = dict(inspect.getmembers(self.__class__)
+                        ).get(attribute, _not_found_)
             if isinstance(attr, (_sp_property, cached_property)):
                 attr_type = attr.func.__annotations__.get("return", None)
             elif isinstance(attr, (property)):
@@ -113,7 +115,8 @@ class Node(EntryContainer, Generic[_TObject]):
                 res = np.asarray(value)
             elif dataclasses.is_dataclass(attribute_type):
                 if isinstance(value, collections.abc.Mapping):
-                    res = attribute_type(**{k: value.get(k, None) for k in attribute_type.__dataclass_fields__})
+                    res = attribute_type(
+                        **{k: value.get(k, None) for k in attribute_type.__dataclass_fields__})
                 elif isinstance(value, collections.abc.Sequence):
                     res = attribute_type(*value)
                 else:
@@ -171,6 +174,9 @@ class Node(EntryContainer, Generic[_TObject]):
     def _post_process(self, value: _T,   *args, path: _TPath = None, **kwargs) -> Union[_T, _TObject]:
         return self._convert(value, *args, **kwargs)
 
+    def __eq__(self, other) -> bool:
+        return self.equal([], other)
+
     def fetch(self, path: _TPath = None) -> _TObject:
         path = Entry.normalize_path(path)
         target = self
@@ -187,8 +193,9 @@ class Node(EntryContainer, Generic[_TObject]):
 
         return target
 
-    def __eq__(self, other) -> bool:
-        return self.equal([], other)
+    @property
+    def entry(self) -> Entry:
+        return self._entry
 
     # class Category(IntFlag):
     #     UNKNOWN = 0
@@ -475,14 +482,16 @@ class _sp_property(Generic[_T]):
                     value = value._duplicate(parent=instance)
                 self._get_entry(instance).put(self.attrname, value)
             else:
-                self._get_entry(instance).put(self.attrname, self._convert(instance, value))
+                self._get_entry(instance).put(
+                    self.attrname, self._convert(instance, value))
 
     def __get__(self, instance: Node, owner=None) -> _T:
         if instance is None:
             return self
 
         if self.attrname is None:
-            raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
+            raise TypeError(
+                "Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
             entry = self._get_entry(instance)

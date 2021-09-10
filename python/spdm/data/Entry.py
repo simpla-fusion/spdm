@@ -15,6 +15,7 @@ import numpy as np
 from ..util.logger import logger
 from ..util.utilities import (_not_found_, _undefined_, normalize_path,
                               serialize)
+from ..util.dict_util import as_native, deep_merge_dict
 
 
 class EntryTags(Flag):
@@ -292,7 +293,7 @@ class Entry(object):
         op_tag.equal: lambda target, other: target == other,
         op_tag.count: lambda target, *args: len(target) if target not in (None, _not_found_, _undefined_) else 0,
         op_tag.exists: lambda target, *args: target not in (None, _not_found_, _undefined_),
-        op_tag.dump: NotImplemented,
+        op_tag.dump: lambda target, *args: as_native(target),
 
         op_tag.next: None,
         op_tag.parent: None,
@@ -712,31 +713,33 @@ class Entry(object):
             res.push(key, self.pull(key),  **kwargs)
         return cache
 
-    @classmethod
-    def create(cls,  metadata=None, *args, **kwargs) -> _TEntry:
-        if metadata is not None and not isinstance(metadata, collections.abc.Mapping):
-            metadata = {"path": metadata}
-        metadata = collections.ChainMap(metadata, kwargs)
-        n_cls = metadata.get("$class", None)
+    def dump(self, *args, **kwargs):
+        """
+            convert data in cache to python native type and np.ndarray           
+            [str, bool, float, int, np.ndarray, Sequence, Mapping]:      
+        """
 
-        if not n_cls:
-            file_format = metadata.get("format", None)
-            if not file_format:
-                path = pathlib.Path(metadata.get("path", ""))
+        return as_native(self._cache, *args, **kwargs)
 
-                if not path.suffix:
-                    raise ValueError(
-                        f"Can not guess file format from path! {path}")
-                file_format = path.suffix[1:]
-
-            n_cls = f"file.{file_format.lower()}"
-            metadata["$class"] = Entry.association.get(n_cls, None) or n_cls
-
-        n_cls = SpObject.find_class(metadata)
-        if issubclass(n_cls, cls):
-            return object.__new__(n_cls)
+    def write(self, target, /, **kwargs):
+        """
+            save data to target     
+        """
+        if isinstance(target, Entry):
+            return target.load(self.dump())
         else:
-            return n_cls(metadata, *args, **kwargs)
+            raise NotImplementedError()
+
+    def read(self, source, /, **kwargs):
+        """
+            read data from source and merge to cache
+        """
+        if isinstance(source, collections.abc.Mapping):
+            deep_merge_dict(self._cache, source, in_place=True)
+        elif isinstance(source, Entry):
+            deep_merge_dict(self._cache, source.dump(), in_place=True)
+        else:
+            raise NotImplementedError()
 
 
 def _slice_to_range(s: slice, length: int) -> range:
@@ -940,8 +943,8 @@ class EntryContainer:
     def count(self, query: _TPath, **kwargs) -> int:
         return self._entry.pull({Entry.op_tag.count: query}, **kwargs)
 
-    def dump(self) -> Union[Sequence, Mapping]:
-        return self._entry.pull(Entry.op_tag.dump)
+    # def dump(self) -> Union[Sequence, Mapping]:
+    #     return self._entry.pull(Entry.op_tag.dump)
 
     def put(self, path: _TPath, value, *args, **kwargs) -> _TObject:
         return self._entry.put(path, value, *args, **kwargs)

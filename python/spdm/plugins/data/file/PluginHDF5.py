@@ -1,13 +1,14 @@
-from ..Collection import FileCollection
-from ..Document import Document
-from ..Entry import Entry
-import h5py
-import numpy
+# from spdm.data.Collection import FileCollection
 import collections
 import pathlib
-from typing import (Dict, Any)
-from spdm.util.logger import logger
+from typing import Any, Dict
+
+import h5py
+import numpy
+from spdm.data.Entry import Entry
+from spdm.data.File import FileHandler, File
 from spdm.util.LazyProxy import LazyProxy
+from spdm.util.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 128
 
@@ -105,14 +106,17 @@ def h5_get_value(obj, path=None, projection=None):
             if obj.attrs.get("__is_list__", False):
                 res = [h5_get_value(obj[k]) for k in obj]
             else:
-                res = {**(h5_get_value(obj.attrs)), **{k: h5_get_value(obj[k]) for k in obj}}
+                res = {**(h5_get_value(obj.attrs)), **
+                       {k: h5_get_value(obj[k]) for k in obj}}
         elif isinstance(obj, h5py.AttributeManager):
-            res = {k: h5_get_value(obj[k]) for k in obj if not k.startswith("__")}
+            res = {k: h5_get_value(obj[k])
+                   for k in obj if not k.startswith("__")}
         else:
             res = obj
     elif isinstance(projection, str):
         if isinstance(obj, h5py.Group):
-            res = h5_get_value(obj.attrs, projection) or h5_get_value(obj.get(projection, None))
+            res = h5_get_value(obj.attrs, projection) or h5_get_value(
+                obj.get(projection, None))
         elif isinstance(obj, h5py.AttributeManager):
             res = h5_get_value(obj.get(projection, None))
 
@@ -123,17 +127,19 @@ def h5_get_value(obj, path=None, projection=None):
             res = {**h5_get_value(obj.attrs, projection),
                    **{k: h5_get_value(obj[k]) for k, v in projection.items() if v > 0 and k in obj}}
     elif isinstance(obj, h5py.AttributeManager):
-        res = {k: h5_get_value(obj[k]) for k, v in projection.items() if v > 0 and k in obj}
+        res = {k: h5_get_value(obj[k])
+               for k, v in projection.items() if v > 0 and k in obj}
     else:
         res = obj
 
     return res
 
 
-class HDF5Node(Entry):
+class H5Entry(Entry):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, holder, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.holder = holder
 
     def copy(self, other):
         if isinstance(other, LazyProxy):
@@ -152,41 +158,33 @@ class HDF5Node(Entry):
         raise NotImplementedError()
 
 
-class HDF5Document(Document):
-    def __init__(self, path, *args, mode="r", **kwargs):
-        super().__init__(path, *args, mode=mode, **kwargs)
-        self._path = None
-        if self._path is not None:
-            self.load(path)
-
-    def load(self,  path=None, *args, mode=None, **kwargs):
-        if path == self._path and self.root._holder is not None:
-            return
-
-        self._path = path or self._path
+class H5File(FileHandler):
+    def __init__(self,  *args,  **kwargs):
+        super().__init__(*args,   **kwargs)
+        path = self._metadata.get("path", "")
+        mode = self._metadata.get("mode", "r")
+        mode = ''.join([(m.name) for m in list(File.Mode) if m & mode])
         try:
-            logger.debug(f"Open HDF5 File {self._path}")
-            self._root = HDF5Node(h5py.File(self._path,  mode=mode or self.mode or "r"))
+            fid = h5py.File(path,  mode=mode)
         except OSError as error:
-            raise FileExistsError(f"Can not open file {self._path}! {error}")
-
-    def save(self,   path=None, *args, mode=None, **kwargs):
-        if (path is None or path == self._path) and isinstance(self.root._holder, h5py.File):
-            self.root._holder.flush()
-        elif isinstance(self.root._holder, collections.abc.Mapping):
-            d = self.root._holder
-            self.load(path, mode=mode or "w")
-            self.copy(d)
+            raise FileExistsError(f"Can not open file {path}! {error}")
         else:
-            raise NotImplementedError()
+            logger.debug(f"Open HDF5 File {path} mode={mode}")
+
+        self._entry = H5Entry(fid)
+
+    def read(self, lazy=True) -> Entry:
+        return self._entry
+
+    def write(self, *args, **kwargs):
+        self._entry.put([], *args, **kwargs)
 
 
-class HDF5Collection(FileCollection):
-    def __init__(self, uri, *args, **kwargs):
-        super().__init__(uri, *args,
-                         file_extension=".h5",
-                         file_factory=lambda *a, **k: HDF5Document(*a, **k),
-                         ** kwargs)
+# class HDF5Collection(FileCollection):
+#     def __init__(self, uri, *args, **kwargs):
+#         super().__init__(uri, *args,
+#                          file_extension=".h5",
+#                          file_factory=lambda *a, **k: H5File(*a, **k),
+#                          ** kwargs)
 
-
-__SP_EXPORT__ = HDF5Collection
+__SP_EXPORT__ = H5File
