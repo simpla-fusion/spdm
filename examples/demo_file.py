@@ -11,12 +11,20 @@ if __name__ == '__main__':
         doc = fid.read()
         # logger.debug(doc.dump())
 
+    with File("../output/test.json", mode="w") as oid:
+        oid.write(doc.dump())
+
     with File("../output/test.h5", mode="w") as oid:
         oid.write(doc.dump())
 
-    with File("../output/test.h5", mode="r") as oid:
-        h5doc = oid.read()
-        logger.debug(h5doc.dump())
+    # with File("../output/test.h5", mode="r") as oid:
+    #     h5doc = oid.read()
+    #     logger.debug(h5doc.dump())
+
+    # with File("../output/test.json", mode="r") as oid:
+    #     h5doc = oid.read()
+    #     logger.debug(h5doc.dump())
+
     # with open("../output/test.json", mode="w") as fp:
     #     d = doc.dump(enable_ndarray=False)
     #     json.dump(d, fp)

@@ -19,7 +19,7 @@ association = {
     "gfile":    ".plugins.data.file.PluginGEQdsk",
     "geqdsk":   ".plugins.data.file.PluginGEQdsk",
 
-    "mds": "spdm.plugins.data.db.PluginMDSplus#MDSplusDocument",
-    "mdsplus": "spdm.plugins.data.db.PluginMDSplus#MDSplusDocument",
+    "mds": "spdm.plugins.data.db.PluginMDSplus#MDSplusFile",
+    "mdsplus": "spdm.plugins.data.db.PluginMDSplus#MDSplusFile",
     # "db.imas":".spdm.plugins.data.db.IMAS#IMASDocument",
 }

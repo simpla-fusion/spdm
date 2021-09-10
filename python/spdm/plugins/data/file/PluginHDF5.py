@@ -172,9 +172,8 @@ class H5Entry(Entry):
 class H5File(FileHandler):
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args,   **kwargs)
-        path = self._metadata.get("path", "")
-        mode = self._metadata.get("mode", "r")
-        mode = ''.join([(m.name) for m in list(File.Mode) if m & mode])
+        path = self.path
+        mode = self.mode_str
         try:
             fid = h5py.File(path,  mode=mode)
         except OSError as error:

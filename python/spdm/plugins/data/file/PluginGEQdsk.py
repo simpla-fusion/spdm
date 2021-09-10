@@ -285,10 +285,8 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
 class GEQdskFile(FileHandler):
     def __init__(self, path, *args, mode="r", **kwargs):
         super().__init__(path, mode=mode)
-        self._data = None
-        path = self._metadata.get("path", "")
-        mode = self._metadata.get("mode", "r")
-        mode = ''.join([(m.name) for m in list(File.Mode) if m & mode])
+        path = self.path
+        mode = self.mode_str
         try:
             self._fid = open(path,  mode=mode)
         except OSError as error:

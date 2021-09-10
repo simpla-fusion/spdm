@@ -1,4 +1,5 @@
 import collections
+import functools
 import pathlib
 from enum import Flag, auto
 from functools import cached_property, reduce
@@ -19,14 +20,32 @@ _TFile = TypeVar('_TFile', bound='File')
 class FileHandler(object):
     def __init__(self, metadata: Mapping, *args, **kwargs) -> None:
         super().__init__()
-        self._metadata: Mapping = metadata
+        self._metadata: Mapping = metadata or {}
+
+    @property
+    def path(self):
+        return self._metadata.get("path", "")
+
+    @property
+    def mode(self):
+        mode = self._metadata.get("mode", "r")
+        if isinstance(mode, str):
+            mode = functools.reduce(lambda a, b: a | b, [
+                                    File.Mode.__members__[a] for a in mode])
+        elif not isinstance(mode, File.Mode):
+            raise TypeError(mode)
+        return mode
+
+    @property
+    def mode_str(self):
+        mode = self.mode
+        return ''.join([(m.name) for m in list(File.Mode) if m & mode])
 
     def read(self, lazy=False) -> Entry:
         raise NotImplementedError()
 
     def write(self, data, lazy=False) -> None:
         raise NotImplementedError()
-        
 
 
 class File(Connection):
