@@ -712,6 +712,32 @@ class Entry(object):
             res.push(key, self.pull(key),  **kwargs)
         return cache
 
+    @classmethod
+    def create(cls,  metadata=None, *args, **kwargs) -> _TEntry:
+        if metadata is not None and not isinstance(metadata, collections.abc.Mapping):
+            metadata = {"path": metadata}
+        metadata = collections.ChainMap(metadata, kwargs)
+        n_cls = metadata.get("$class", None)
+
+        if not n_cls:
+            file_format = metadata.get("format", None)
+            if not file_format:
+                path = pathlib.Path(metadata.get("path", ""))
+
+                if not path.suffix:
+                    raise ValueError(
+                        f"Can not guess file format from path! {path}")
+                file_format = path.suffix[1:]
+
+            n_cls = f"file.{file_format.lower()}"
+            metadata["$class"] = Entry.association.get(n_cls, None) or n_cls
+
+        n_cls = SpObject.find_class(metadata)
+        if issubclass(n_cls, cls):
+            return object.__new__(n_cls)
+        else:
+            return n_cls(metadata, *args, **kwargs)
+
 
 def _slice_to_range(s: slice, length: int) -> range:
     start = s.start if s.start is not None else 0
@@ -874,6 +900,10 @@ class EntryContainer:
     def _is_dict(self) -> bool:
         return False
 
+    @property
+    def is_valid(self) -> bool:
+        return self._entry is not None
+
     def flush(self):
         if self._entry.level == 0:
             return
@@ -888,18 +918,15 @@ class EntryContainer:
     def remove(self, path: _TPath = None) -> bool:
         return self._entry.push(path, Entry.op_tag.remove)
 
-    def reset(self, cache=None, ** kwargs) -> None:
+    def reset(self, cache=_undefined_, ** kwargs) -> None:
         if isinstance(cache, Entry):
             self._entry = cache
-        elif cache is not None:
+        elif cache is None:
+            self._entry = None
+        elif cache is not _undefined_:
             self._entry = Entry(cache)
-
-        if len(kwargs) == 0:
-            pass
-        elif self._entry.empty:
-            self._entry = Entry(kwargs)
         else:
-            self.update(**kwargs)
+            self._entry = Entry(kwargs)
 
     def update(self, value: _T, **kwargs) -> _T:
         return self._entry.push([], {Entry.op_tag.update: value}, **kwargs)

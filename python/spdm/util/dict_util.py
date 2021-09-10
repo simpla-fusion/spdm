@@ -1,4 +1,5 @@
 import collections
+from copy import deepcopy
 from .logger import logger
 
 
@@ -68,7 +69,10 @@ def normalize_data(data, types=(int, float, str)):
         return str(data)
 
 
-def deep_merge_dict(first, second, level=-1):
+def deep_merge_dict(first, second, level=-1, in_place=False):
+    if not in_place:
+        first = deepcopy(first)
+
     if level == 0:
         return
     elif isinstance(first, collections.abc.Sequence):
@@ -122,3 +126,23 @@ class DictTemplate:
 
     def apply(self, data):
         return tree_apply_recursive(data, lambda s, _template=self: s.format_map(_template), str)[0]
+
+
+def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
+    if d is None and len(kwargs) > 0:
+        d = kwargs
+    if d is None:
+        return d
+    elif hasattr(ntuple, "_fields") and isinstance(ntuple, type):
+        return ntuple(*[try_get(d, k) for k in ntuple._fields])
+    elif isinstance(d, collections.abc.Mapping):
+        keys = [k.replace('$', 's_') for k in d.keys()]
+        values = [convert_to_named_tuple(v) for v in d.values()]
+        if not isinstance(ntuple, str):
+            ntuple = "__"+("_".join(keys))
+        ntuple = ntuple.replace('$', '_')
+        return collections.namedtuple(ntuple, keys)(*values)
+    elif isinstance(d, collections.abc.MutableSequence):
+        return [convert_to_named_tuple(v) for v in d]
+    else:
+        return d

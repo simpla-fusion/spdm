@@ -1,0 +1,59 @@
+@startuml
+
+class Entry{
+
+}
+
+class Node{
+    root: Entry
+    get(path:Path): Node
+}
+
+class Path{
+
+}
+
+class Query{
+}
+
+class Document{
+
+}
+
+Document-|>Node
+
+class Collection{
+    find(query:Query):Document
+    insert(document:Document, query:Query):ID
+    update(document:Document, query:Query):ID
+    remove(query:Query):ID
+}
+
+class Connection{
+    path:str
+    open()
+    close()
+    __enter__()
+    __exit__()
+}
+
+class File{
+
+}
+
+class Database{
+
+}
+
+File -|> Document
+File -|> Connection
+
+Database -|> Connection
+Database -|> Collection
+
+Document *-- "1" Entry
+
+Collection "1" *-- "n" Document
+
+
+@enduml

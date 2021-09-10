@@ -9,26 +9,33 @@ Feature:
 import collections
 import pathlib
 import re
-
+from typing import List, Union
 from .logger import logger
 from .utilities import convert_to_named_tuple
 _rfc3986 = re.compile(
-    r"^((?P<schema>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+    r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
 
-def urisplit(uri):
+def urisplit_as_dict(uri) -> dict:
     if uri is None:
         uri = ""
     res = _rfc3986.match(uri).groupdict()
     if isinstance(res["query"], str) and res["query"] != "":
-        res["query"] = dict([tuple(item.split("=")) for item in str(res["query"]).split(',')])
+        res["query"] = dict([tuple(item.split("="))
+                            for item in str(res["query"]).split(',')])
     if isinstance(res["fragment"], str):
         fragments = res["fragment"].split(',')
         if len(fragments) == 1:
             res["fragment"] = fragments[0]
         elif len(fragments) > 1:
-            res["fragment"] = dict([tuple(item.split("=")) for item in fragments])
-    return convert_to_named_tuple(res)
+            res["fragment"] = dict([tuple(item.split("="))
+                                   for item in fragments])
+
+    return res
+
+
+def urisplit(uri):
+    return convert_to_named_tuple(urisplit_as_dict(uri))
 
 
 def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
@@ -43,7 +50,8 @@ def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
 
 
 def urijoin(base, uri):
-    o0 = urisplit(base) if not isinstance(base, collections.abc.Mapping) else base
+    o0 = urisplit(base) if not isinstance(
+        base, collections.abc.Mapping) else base
     o1 = urisplit(uri) if not isinstance(uri, collections.abc.Mapping) else uri
     if o1.schema is not None and o1.schema != o0.schema:
         return uri
@@ -183,3 +191,9 @@ def getvalue_r(obj, path):
 
 def setvalue_r(obj, path, data):
     return setitem_by_path(obj, path, data, try_attribute=True)
+
+
+def pathslit(path: Union[List, str], delimiter='/') -> List:
+    if isinstance(path, str):
+        path = path.split(delimiter)
+    return path

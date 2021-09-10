@@ -101,12 +101,12 @@ class Collection(SpObject):
     def next_id(self):
         raise NotImplementedError()
 
-    def open(self, *args, mode=None, **kwargs):
-        mode = mode or self.mode
-        if "x" in mode:
-            return self.insert_one(*args,  **kwargs)
-        else:
-            return self.find_one(*args,   **kwargs)
+    # def open(self, *args, mode=None, **kwargs):
+    #     mode = mode or self.mode
+    #     if "x" in mode:
+    #         return self.insert_one(*args,  **kwargs)
+    #     else:
+    #         return self.find_one(*args,   **kwargs)
 
     def create(self, *args, **kwargs):
         return self.insert_one(*args, mode="x", **kwargs)

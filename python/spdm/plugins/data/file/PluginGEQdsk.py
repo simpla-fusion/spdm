@@ -7,7 +7,7 @@ import numpy as np
 from spdm.util.logger import logger
 from spdm.data.Node import Dict
 from spdm.data.Entry import Entry, _next_
-from spdm.data.File import File
+from spdm.data.File import File, FileHandler
 
 
 def sp_read_geqdsk(file):
@@ -184,13 +184,18 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
         [1, rbbs.size]), axis=0).transpose()
     # psi
 
-    grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw * 1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
-    coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(coord_r.shape[0], 1), axis=1)
-    coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(coord_z.shape[0], 1), axis=1)
-    points = np.append(coord_r.reshape([coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
+    grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
+                              1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
+    coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
+        coord_r.shape[0], 1), axis=1)
+    coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(
+        coord_z.shape[0], 1), axis=1)
+    points = np.append(coord_r.reshape(
+        [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
     psi = eq.profiles_2d[1].psi
     values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    psirz = interpolate.griddata(points, values, (grid_r, grid_z), method='cubic').transpose()
+    psirz = interpolate.griddata(
+        points, values, (grid_r, grid_z), method='cubic').transpose()
 
     # profile
 
@@ -277,30 +282,28 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     return eq
 
 
-class GEQdskDocument(File):
+class GEQdskFile(FileHandler):
     def __init__(self, path, *args, mode="r", **kwargs):
-        super().__init__(path=path, mode=mode)
+        super().__init__(path, mode=mode)
         self._data = None
-
-    @property
-    def entry(self):
-        if self._data is None:
-            self._data = self.load(self.path)
-        return self._data._entry
 
     def flush(self, *args, **kwargs):
         if "x" in self.mode or "w" in self.mode:
             self.save(self.path)
 
-    def load(self, p, eq=None):
-        with open(p or self._path, mode="r") as fp:
+    def read(self, lazy=False) -> Entry:
+        eq = Dict()
+        path = self._metadata.get("path", "")
+        mode = self._metadata.get("mode", "r")
+        mode = ''.join([(m.name) for m in list(File.Mode) if m & mode])
+        with open(path, mode=mode) as fp:
             eq = sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
-        return eq
+        return eq._entry
 
-    def save(self, p):
+    def write(self, p):
         geqdsk = sp_imas_equilibrium_to_geqdsk(self._data)
         with open(p or self._path, mode="w") as fp:
             sp_write_geqdsk(geqdsk, fp)
 
 
-__SP_EXPORT__ = GEQdskDocument
+__SP_EXPORT__ = GEQdskFile

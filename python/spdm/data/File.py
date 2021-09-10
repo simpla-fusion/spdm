@@ -1,165 +1,128 @@
 import collections
-import contextlib
 import pathlib
-import shutil
-import uuid
+from enum import Flag, auto
+from functools import cached_property, reduce
+from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
+                    MutableSequence, Optional, Protocol, Sequence, Tuple, Type,
+                    TypeVar, Union)
 
+from ..common.SpObject import create_object
+
+from ..plugins.data.file import association as file_association
 from ..util.logger import logger
-from ..util.urilib import urisplit
-from ..util.SpObject import SpObject
+from .Connection import Connection
 from .Document import Document
+from .Entry import Entry
+
+_TFile = TypeVar('_TFile', bound='File')
 
 
-class File(Document):
-    """ 
-        Default entry for file-like object
+class FileHandler(object):
+    def __init__(self, metadata: Mapping, *args, **kwargs) -> None:
+        super().__init__()
+        self._metadata: Mapping = metadata
+
+    def read(self, lazy=False) -> Entry:
+        return None
+
+    def write(self, data, lazy=False) -> None:
+        return None
+
+
+class File(Connection):
     """
-    associtaion = {
-        "file.table": ".data.file.PluginTable",
-        "file.bin": ".data.file.PluginBinary",
-        "file.h5": ".data.file.PluginHDF5",
-        "file.hdf5": ".data.file.PluginHDF5",
-        "file.nc": ".data.file.PluginNetCDF",
-        "file.netcdf": ".data.file.PluginNetCDF",
-        "file.namelist": ".data.file.PluginNamelist",
-        "file.nml": ".data.file.PluginNamelist",
-        "file.xml": ".data.file.PluginXML",
-        "file.json":  ".data.file.PluginJSON",
-        "file.yaml": ".data.file.PluginYAML",
-        "file.txt": ".data.file.PluginTXT",
-        "file.csv": ".data.file.PluginCSV",
-        "file.numpy": ".data.file.PluginNumPy",
+        File like object
+    """
+    class Mode(Flag):
+        r = auto()  # open for reading (default)
+        w = auto()  # open for writing, truncating the file first
+        x = auto()  # open for exclusive creation, failing if the file already exists
+        a = auto()  # open for writing, appending to the end of the file if it exists
 
-        "file.gfile": ".data.file.PluginGEQdsk",
-        "file.geqdsk": ".data.file.PluginGEQdsk",
+    def __init__(self,   metadata=None, /, mode="r", **kwargs):
 
-        "file.mds": ".data.db.PluginMDSplus#MDSplusDocument",
-        "file.mdsplus": ".data.db.PluginMDSplus#MDSplusDocument",
-        # "db.imas": ".data.db.IMAS#IMASDocument",
-    }
-    is_interface = True
-
-    def __new__(cls,  metadata=None, *args, **kwargs):
-        if cls is not File:
-            return super(File, cls).__new__(cls, metadata, *args, **kwargs)
-
-        if metadata is not None and not isinstance(metadata, collections.abc.Mapping):
+        if isinstance(metadata, pathlib.PosixPath):
             metadata = {"path": metadata}
-        metadata = collections.ChainMap(metadata, kwargs)
-        n_cls = metadata.get("$class", None)
 
-        if not n_cls:
-            file_format = metadata.get("format", None)
-            if not file_format:
-                path = pathlib.Path(metadata.get("path", ""))
+        if isinstance(mode, str):
+            mode = reduce(lambda a, b: a | b, [File.Mode[a] for a in mode])
+        elif not isinstance(mode, File.Mode):
+            raise TypeError(mode)
 
-                if not path.suffix:
-                    raise ValueError(f"Can not guess file format from path! {path}")
-                file_format = path.suffix[1:]
+        super().__init__(metadata, mode=mode, **kwargs)
 
-            n_cls = f"file.{file_format.lower()}"
-            metadata["$class"] = File.associtaion.get(n_cls, None) or n_cls
-
-        n_cls = SpObject.find_class(metadata)
-        if issubclass(n_cls, cls):
-            return object.__new__(n_cls)
-        else:
-            return n_cls(metadata, *args, **kwargs)
-
-    def __init__(self, path=None, *args,  **kwargs):
-        super().__init__(*args, path=path, ** kwargs)
-        if isinstance(self._path, str):
-            self._path = pathlib.Path.cwd() / self._path
-            if self.path.is_dir():
-                self._path /= f"{uuid.uuid1()}{self.extension_name or '.txt' }"
-            self._path = self._path.expanduser().resolve()
-
-        logger.debug(f"Loading File [{self.__class__.__module__}.{self.__class__.__name__}] : {path}")
-
-    @classmethod
-    def deserialize(cls, metadata):
-        return super().deserialize(metadata)
-
-    @property
-    def extension_name(self):
-        return self.metadata.get("extension_name", '.txt')
+        self._holder: FileHandler = None
 
     def __repr__(self):
-        return str(self.path)
-
-    def __str__(self):
-        return str(self.path)
+        return f"<{self.__class__.__name__} path={self.path}>"
 
     @property
-    def template(self):
-        p = getattr(self, "_template", None) or self.metadata.template
-        if isinstance(p, str):
-            return pathlib.Path(p).resolve()
-        elif isinstance(p, pathlib.PosixPath):
-            return p
-        elif not p:
-            return None
-        else:
-            raise ValueError(p)
+    def is_valid(self) -> bool:
+        return self._holder is not None
 
     @property
-    def is_writable(self):
-        return "w" in self.mode or "x" in self.mode
+    def is_open(self) -> bool:
+        return self._holder is not None
 
-    def flush(self, *args, **kwargs):
-        pass
+    @property
+    def mode(self) -> Mode:
+        return self._metadata.get("mode", File.Mode.r)
 
-    def copy(self, path=None):
-        if path is None:
-            path = f"{self._path.stem}_copy{self._path.suffix}"
-        elif isinstance(path, str):
+    @property
+    def path(self) -> Union[str, pathlib.Path]:
+        return self._metadata.get("path", None)
+
+    def open(self, *args, **kwargs) -> _TFile:
+        if self.is_open:
+            return self
+
+        Connection.open(self)
+
+        protocol = self._metadata.get("protocol", None)
+
+        if protocol in ("http", "https", "ssh"):
+            raise NotImplementedError(
+                f"TODO: Access to remote files [{protocol}] is not yet implemented!")
+        elif protocol not in ("local", "file", None):
+            raise NotImplementedError(f"Unsupported protocol {protocol}")
+
+        path = pathlib.Path(self._metadata.get("path", ""))
+
+        if isinstance(path, str):
             path = pathlib.Path(path)
-            if path.is_dir() and path != self._path.parent:
-                path = path/self._path.name
-        shutil.copy(self._path, path.as_posix())
-        res = self.__class__(path)
-        res._mode = self._mode
-        res._buffering = self._buffering
-        res._encoding = self._encoding
-        res._errors = self._errors
-        res._newline = self._newline
-        res._schema = self._schema
-        return res
+        elif not isinstance(path, pathlib.PosixPath):
+            raise RuntimeError(f"Illegal path:{path}")
 
-    @contextlib.contextmanager
-    def open(self, mode=None, buffering=None, encoding=None, newline=None):
-        if isinstance(self._path, pathlib.Path):
-            path = self._path
-        else:
-            o = urisplit(self._path)
-            path = pathlib.Path(o.path)
+        path = (pathlib.Path.cwd() / path).expanduser().resolve()
 
-        fid = path.open(mode=mode or self._mode)
+        self._metadata["path"] = path
 
-        yield fid
+        file_format = self._metadata.get("format", None)
 
-        if fid is not None:
-            fid.close()
+        if not file_format:
+            if not path.suffix:
+                raise ValueError(
+                    f"Can not guess file format from path! {path}")
+            file_format = path.suffix[1:]
 
-    def read(self, *args, **kwargs):
-        with self.open(mode="r") as fid:
-            res = fid.read(*args, **kwargs)
-        return res
+        file_class = file_association.get(file_format.lower(), None)
 
-    def write(self, d, *args, **kwargs):
-        with self.open() as fid:
-            fid.write(d, *args, **kwargs)
+        self._holder = create_object(file_class, self._metadata,
+                                     *args, **kwargs)
 
-    def update(self, d, *args, **kwargs):
-        if isinstance(d, pathlib.PosixPath):
-            self._path = d
-        else:
-            super().update(d)
-        # old_d = self.read()
-        # old_d.update(d)
-        # self.write(old_d)
+        return self
 
+    def close(self):
+        self._holder = None
+        Connection.close(self)
 
-SpObject.schema['file'] = File
+    def read(self, lazy=False) -> Document:
+        self.open()
+        return Document(self._holder.read())
+
+    def write(self, *args, **kwargs):
+        self.open()
+        self._holder.write(*args, **kwargs)
+
 
 __SP_EXPORT__ = File
