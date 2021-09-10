@@ -10,7 +10,7 @@ from spdm.data.File import FileHandler, File
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
-SPDM_LIGHTDATA_MAX_LENGTH = 128
+SPDM_LIGHTDATA_MAX_LENGTH = 64
 
 
 def h5_require_group(grp, path):
@@ -111,6 +111,8 @@ def h5_get_value(obj, path=None, projection=None):
         elif isinstance(obj, h5py.AttributeManager):
             res = {k: h5_get_value(obj[k])
                    for k in obj if not k.startswith("__")}
+        elif isinstance(obj, h5py.Dataset):
+            res = obj[:]
         else:
             res = obj
     elif isinstance(projection, str):
@@ -129,10 +131,16 @@ def h5_get_value(obj, path=None, projection=None):
     elif isinstance(obj, h5py.AttributeManager):
         res = {k: h5_get_value(obj[k])
                for k, v in projection.items() if v > 0 and k in obj}
+    elif isinstance(obj, h5py.Dataset):
+        res = obj[:]
     else:
         res = obj
 
     return res
+
+
+def h5_dump(grp):
+    return h5_get_value(grp, [])
 
 
 class H5Entry(Entry):
@@ -153,6 +161,9 @@ class H5Entry(Entry):
 
     def get(self, path=[], projection=None, *args, **kwargs):
         return h5_get_value(self.holder, path, projection=projection)
+
+    def dump(self):
+        return h5_dump(self.holder)
 
     def iter(self,  path, *args, **kwargs):
         raise NotImplementedError()

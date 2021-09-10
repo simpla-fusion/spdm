@@ -286,24 +286,26 @@ class GEQdskFile(FileHandler):
     def __init__(self, path, *args, mode="r", **kwargs):
         super().__init__(path, mode=mode)
         self._data = None
+        path = self._metadata.get("path", "")
+        mode = self._metadata.get("mode", "r")
+        mode = ''.join([(m.name) for m in list(File.Mode) if m & mode])
+        try:
+            self._fid = open(path,  mode=mode)
+        except OSError as error:
+            raise FileExistsError(f"Can not open file {path}! {error}")
+        else:
+            logger.debug(f"Open HDF5 File {path} mode={mode}")
 
     def flush(self, *args, **kwargs):
         if "x" in self.mode or "w" in self.mode:
             self.save(self.path)
 
     def read(self, lazy=False) -> Entry:
-        eq = Dict()
-        path = self._metadata.get("path", "")
-        mode = self._metadata.get("mode", "r")
-        mode = ''.join([(m.name) for m in list(File.Mode) if m & mode])
-        with open(path, mode=mode) as fp:
-            eq = sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(fp), eq)
-        return eq._entry
+        return sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(self._fid)).entry
 
-    def write(self, p):
-        geqdsk = sp_imas_equilibrium_to_geqdsk(self._data)
-        with open(p or self._path, mode="w") as fp:
-            sp_write_geqdsk(geqdsk, fp)
+    def write(self, d):
+        geqdsk = sp_imas_equilibrium_to_geqdsk(d)
+        sp_write_geqdsk(geqdsk, self._fid)
 
 
 __SP_EXPORT__ = GEQdskFile
