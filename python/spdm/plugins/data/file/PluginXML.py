@@ -8,26 +8,16 @@ from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 
-from ...util.utilities import normalize_path, serialize
-from ..Entry import Entry, _TEntry, _TPath
-from ..File import File
-from ..Node import _not_found_, _undefined_
+from spdm.util.utilities import normalize_path, serialize
+from spdm.data.Entry import Entry, _TEntry, _TPath, EntryCombiner
+from spdm.data.File import File, FileHandler
+from spdm.data.Node import _not_found_, _undefined_
 
-try:
-    from lxml.etree import Comment as _XMLComment
-    from lxml.etree import ParseError as _XMLParseError
-    from lxml.etree import XPath as _XPath
-    from lxml.etree import _Element as _XMLElement
-    from lxml.etree import parse as parse_xml
-
-    _HAS_LXML = True
-except ImportError:
-    from xml.etree.ElementTree import Comment as _XMLComment
-    from xml.etree.ElementTree import Element as _XMLElement
-    from xml.etree.ElementTree import ParseError as _XMLParseError
-    from xml.etree.ElementTree import parse as parse_xml
-    _XPath = str
-    _HAS_LXML = False
+from lxml.etree import Comment as _XMLComment
+from lxml.etree import ParseError as _XMLParseError
+from lxml.etree import XPath as _XPath
+from lxml.etree import _Element as _XMLElement
+from lxml.etree import parse as parse_xml
 
 
 def merge_xml(first, second):
@@ -36,7 +26,8 @@ def merge_xml(first, second):
     elif second is None:
         return first
     elif first.tag != second.tag:
-        raise ValueError(f"Try to merge tree to different tag! {first.tag}<={second.tag}")
+        raise ValueError(
+            f"Try to merge tree to different tag! {first.tag}<={second.tag}")
 
     for child in second:
         if child.tag is _XMLComment:
@@ -88,10 +79,12 @@ def load_xml(path, *args,  mode="r", **kwargs):
 class XMLEntry(Entry):
     def __init__(self, root, *args, **kwargs):
         super().__init__({}, *args,   **kwargs)
-        self._root = root
+        self._root: _XMLElement = root
+        self._prefix = []
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
+        # return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
+        return self._root.tag
 
     def duplicate(self) -> _TEntry:
         res = super().duplicate()
@@ -106,19 +99,19 @@ class XMLEntry(Entry):
             if type(p) is int:
                 res += f"[ @id='{p}' or position()= {p+1} or @id='*']"
                 envs[prev] = p
-            elif isinstance(p, str) and p[0] == '@':
-                res += f"[{p}]"
             elif isinstance(p, str):
-                res += f"/{p}"
-                prev = p
+                if p[0] == '@':
+                    res += f"[{p}]"
+                else:
+                    res += f"/{p}"
+                    prev = p
             else:
-                # TODO: handle slice
-                raise TypeError(f"Illegal path type! {type(p)} {path}")
+                envs[prev] = p
+                # # TODO: handle slice
+                # raise TypeError(f"Illegal path type! {type(p)} {path}")
 
-        if _HAS_LXML:
-            res = _XPath(res)
-        else:
-            raise NotImplementedError()
+        res = _XPath(res)
+
         return res, envs
 
     def _convert(self, element, path=[], lazy=True, envs=None, **kwargs):
@@ -129,19 +122,23 @@ class XMLEntry(Entry):
                 element = element[0]
 
         if isinstance(element, list):
-            res = [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
+            res = [self._convert(e, path=path, lazy=lazy,
+                                 envs=envs, **kwargs) for e in element]
         elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
             dtype = element.attrib.get("dtype", None)
             if dtype == "string" or dtype is None:
                 res = [element.text]
             elif dtype == "int":
-                res = [int(v.strip()) for v in element.text.strip(',').split(',')]
+                res = [int(v.strip())
+                       for v in element.text.strip(',').split(',')]
             elif dtype == "float":
-                res = [float(v.strip()) for v in element.text.strip(',').split(',')]
+                res = [float(v.strip())
+                       for v in element.text.strip(',').split(',')]
             else:
                 raise NotImplementedError(f"Not supported dtype {dtype}!")
 
-            dims = [int(v) for v in element.attrib.get("dims", "").split(',') if v != '']
+            dims = [int(v) for v in element.attrib.get(
+                "dims", "").split(',') if v != '']
             if len(dims) == 0 and len(res) == 1:
                 res = res[0]
             elif len(dims) > 0 and len(res) != 0:
@@ -155,7 +152,8 @@ class XMLEntry(Entry):
             for child in element:
                 if child.tag is _XMLComment:
                     continue
-                obj = self._convert(child, path=path+[child.tag], envs=envs, lazy=lazy, **kwargs)
+                obj = self._convert(
+                    child, path=path+[child.tag], envs=envs, lazy=lazy, **kwargs)
                 tmp = res.setdefault(child.tag, obj)
                 if tmp is obj:
                     continue
@@ -221,7 +219,8 @@ class XMLEntry(Entry):
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            res = self._convert(xp.evaluate(self._root), lazy=True, path=path, envs=envs, projection=projection)
+            res = self._convert(xp.evaluate(
+                self._root), lazy=True, path=path, envs=envs, projection=projection)
 
         if res is _not_found_:
             res = default_value
@@ -230,7 +229,7 @@ class XMLEntry(Entry):
     def _get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
-            return PathTraverser(path).apply(lambda p: self.get_value(p, only_one=True, **kwargs))
+            return PathTraverser(path).apply(lambda p: self._get_value(p, only_one=True, **kwargs))
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
@@ -246,7 +245,8 @@ class XMLEntry(Entry):
             for child in xp.evaluate(self._root):
                 if child.tag is _XMLComment:
                     continue
-                res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+                res = self._convert(child, path=spath,
+                                    envs=collections.ChainMap(s_envs, envs))
                 yield res
 
     def items(self,    *args, envs=None, **kwargs):
@@ -256,7 +256,8 @@ class XMLEntry(Entry):
             for child in xp.evaluate(self._root):
                 if child.tag is _XMLComment:
                     continue
-                res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+                res = self._convert(child, path=spath,
+                                    envs=collections.ChainMap(s_envs, envs))
                 yield child.tag, res
 
     def values(self,    *args, envs=None, **kwargs):
@@ -266,23 +267,25 @@ class XMLEntry(Entry):
             for child in xp.evaluate(self._root):
                 if child.tag is _XMLComment:
                     continue
-                res = self._convert(child, path=spath, envs=collections.ChainMap(s_envs, envs))
+                res = self._convert(child, path=spath,
+                                    envs=collections.ChainMap(s_envs, envs))
                 yield res
 
     def __serialize__(self, *args, **kwargs):
         return serialize(self.get_value(*args, **kwargs))
 
 
-class XMLFile(File):
+class XMLFile(FileHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._root = None
+        self._root = load_xml(self.path, mode=self.mode)
 
-    @cached_property
-    def entry(self):
-        if self._root is None:
-            self._root = load_xml(self.path)
-        return XMLEntry(self._root, writable=False, parent=self)
+    def read(self, lazy=True) -> Entry:
+
+        return XMLEntry(self._root, writable=False)
+
+    def write(self, data, lazy) -> None:
+        raise NotImplementedError()
 
 
 __SP_EXPORT__ = XMLFile

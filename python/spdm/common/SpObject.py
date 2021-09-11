@@ -1,4 +1,5 @@
 import collections
+import functools
 import inspect
 import io
 from logging import log
@@ -87,6 +88,18 @@ class SpObject(object):
         return f"<{self.__class__.__name__}   />"
 
 
+@functools.lru_cache
+def find_class_by_name(cls_name: str):
+    if cls_name.startswith("."):
+        cls_name = f"{SpObject._default_prefix}{cls_name}"
+    n_cls = sp_find_module(cls_name)
+    if inspect.isclass(n_cls) or callable(n_cls):
+        logger.debug(f"Load plugin {cls_name}")
+    else:
+        raise ModuleNotFoundError(cls_name)
+    return n_cls
+
+
 def create_object(metadata, *args, **kwargs) -> object:
     if isinstance(metadata, str):
         cls_name = metadata
@@ -94,17 +107,13 @@ def create_object(metadata, *args, **kwargs) -> object:
         cls_name = metadata.get("$class")
 
     n_cls = None
-    if inspect.isclass(cls_name):
+    if inspect.isclass(cls_name) or callable(cls_name):
         n_cls = cls_name
     elif isinstance(cls_name, str):
-        if cls_name.startswith("."):
-            cls_name = f"{SpObject._default_prefix}{cls_name}"
-        n_cls = sp_find_module(cls_name)
-
-    if inspect.isclass(n_cls) or callable(n_cls):
-        logger.debug(f"Load plugin {cls_name}")
+        n_cls = find_class_by_name(cls_name)
     else:
         raise ModuleNotFoundError(metadata)
+
     return n_cls(*args, **kwargs)
 
 

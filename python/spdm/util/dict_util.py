@@ -167,4 +167,4 @@ def as_native(d, enable_ndarray=True) -> Union[str, bool, float, int, np.ndarray
 
     else:
         logger.debug(type(d))
-        return d
+        return str(d)

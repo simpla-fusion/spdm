@@ -690,9 +690,8 @@ class Entry(object):
     def exist(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.exists)
 
-    def get(self, path, default_value=_undefined_, *args, lazy=_undefined_, **kwargs) -> Any:
-        if lazy is _undefined_:
-            lazy = default_value is _undefined_
+    def get(self, path, default_value=_undefined_, *args, lazy=False, **kwargs) -> Any:
+      
         obj = self.pull(path, *args, lazy=lazy, **kwargs)
         if obj is not _not_found_:
             return obj

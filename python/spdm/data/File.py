@@ -60,7 +60,7 @@ class File(Connection):
 
     def __init__(self,   metadata=None, /, mode="r", **kwargs):
 
-        if isinstance(metadata, pathlib.PosixPath):
+        if isinstance(metadata, (pathlib.PosixPath, list)):
             metadata = {"path": metadata}
 
         if isinstance(mode, str):
@@ -77,11 +77,11 @@ class File(Connection):
 
     @property
     def is_valid(self) -> bool:
-        return self._holder is not None
+        return getattr(self, "_holder", None) is not None
 
     @property
     def is_open(self) -> bool:
-        return self._holder is not None
+        return getattr(self, "_holder", None) is not None
 
     @property
     def mode(self) -> Mode:
@@ -103,21 +103,25 @@ class File(Connection):
         elif protocol not in ("local", "file", None):
             raise NotImplementedError(f"Unsupported protocol {protocol}")
 
-        path = pathlib.Path(self._metadata.get("path", ""))
+        # path =self._metadata.get("path", "")
 
-        if isinstance(path, str):
-            path = pathlib.Path(path)
-        elif not isinstance(path, pathlib.PosixPath):
-            raise RuntimeError(f"Illegal path:{path}")
+        # if isinstance(path, str):
+        #     path = pathlib.Path(path)
+        # elif not isinstance(path, pathlib.PosixPath):
+        #     raise RuntimeError(f"Illegal path:{path}")
 
-        path = (pathlib.Path.cwd() / path).expanduser().resolve()
+        # path = (pathlib.Path.cwd() / path).expanduser().resolve()
 
-        self._metadata["path"] = path
+        # self._metadata["path"] = path
 
         file_format = self._metadata.get("format", None)
 
         if not file_format:
-            if not path.suffix:
+            path = self._metadata.get("path", "")
+            if isinstance(path, str):
+                path = pathlib.Path(path)
+                
+            if not isinstance(path, pathlib.PosixPath) or not not path.suffix:
                 raise ValueError(
                     f"Can not guess file format from path! {path}")
             file_format = path.suffix[1:]
