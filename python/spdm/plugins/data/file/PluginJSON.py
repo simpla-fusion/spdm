@@ -3,14 +3,16 @@ import json
 
 import numpy as np
 from spdm.data.Entry import Entry
-from spdm.data.File import FileHandler
+from spdm.data.File import File
 from spdm.util.dict_util import as_native
 from spdm.util.logger import logger
 
 
-class JSONFile(FileHandler):
+class JSONFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def open(self):
         path = self.path
         mode = self.mode_str
         try:
@@ -18,9 +20,13 @@ class JSONFile(FileHandler):
         except OSError as error:
             raise FileExistsError(f"Can not open file {path}! {error}")
         else:
-            logger.debug(f"Open HDF5 File {path} mode={mode}")
+            logger.debug(
+                f"Open {self.__class__.__name__} File {path} mode={mode}")
+        return self
 
     def read(self, *args,   **kwargs) -> Entry:
+        if not hasattr(self, "_fid"):
+            self.open()
         return Entry(json.load(self._fid))
 
     def write(self,   d, *args,  **kwargs):

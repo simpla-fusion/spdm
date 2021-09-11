@@ -6,11 +6,14 @@ from logging import log
 import uuid
 from copy import deepcopy
 from functools import cached_property
-from typing import TypeVar, Mapping
+from typing import Type, TypeVar, Mapping
 from ..data.AttributeTree import AttributeTree
 from ..util.dict_util import deep_merge_dict
 from ..util.logger import logger
-from ..util.sp_export import sp_find_module
+from ..util.sp_export import sp_find_module, sp_find_module_by_name
+
+
+_TSpObject = TypeVar('_TSpObject', bound='SpObject')
 
 
 class SpObject(object):
@@ -23,28 +26,28 @@ class SpObject(object):
     """
     _default_prefix = ".".join(__package__.split('.')[:-1])
 
-    def __init__(self, metadata=None, /, **kwargs):
+    association = {}
+
+    def __init__(self, *args, **kwargs):
         super().__init__()
+        if getattr(self, "_metadata", None) is None:
+            self._metadata = {}
 
-        if metadata is None:
-            metadata = {}
-        elif not isinstance(metadata, collections.abc.Mapping):
-            raise TypeError(f"Illegal metadata {type(metadata)}")
+        # if len(kwargs) > 0:
+        #     metadata = deep_merge_dict(metadata, kwargs)
+        # else:
+        #     metadata = deepcopy(metadata)
 
-        if len(kwargs) > 0:
-            metadata = deep_merge_dict(metadata, kwargs)
-        else:
-            metadata = deepcopy(metadata)
+        # self._metadata: Mapping = metadata
 
-        self._metadata: Mapping = metadata
+    def serialize(self):
+        return {"$schema": self._schema,
+                "$class": self._class,
+                "$id":  self._oid,
+                }
 
     @classmethod
-    def deserialize(cls, spec):
-        # @classmethod
-        # def parse_metadata(cls,  metadata=None, *args, **kwargs):
-
-        # return n_cls
-
+    def deserialize(cls, spec) -> _TSpObject:
         if hasattr(cls, "_factory"):
             return cls._factory.create(spec)
         elif isinstance(spec, str):
@@ -56,12 +59,44 @@ class SpObject(object):
         spec.setdefault("name", spec.get("name", cls.__name__))
         return cls(**spec)
 
-    def serialize(self):
-        return {"$schema": self._schema,
-                "$class": self._class,
-                "$id":  self._oid,
-                "attributes": self._attributes.__as_native__(),
-                }
+    @classmethod
+    def create(cls, metadata, *args,  **kwargs) -> _TSpObject:
+        n_obj = SpObject.new_object(metadata)
+        if isinstance(n_obj, SpObject):
+            n_obj.__init__(*args, **kwargs)
+
+        return n_obj
+
+    @classmethod
+    def new_object(cls, metadata) -> _TSpObject:
+        if isinstance(metadata, str):
+            metadata = {"$class": metadata}
+
+        if not isinstance(metadata, collections.abc.Mapping):
+            raise TypeError(type(metadata))
+
+        n_cls = metadata.get("$class", None)
+
+        if inspect.isclass(n_cls) or callable(n_cls):
+            pass
+        elif not isinstance(n_cls, str):
+            raise RuntimeError(f"$class is not defined!")
+        else:
+            if n_cls.startswith("."):
+                n_cls = SpObject.association.get(n_cls, n_cls)
+            if n_cls.startswith("."):
+                n_cls = f"spdm.plugins{n_cls}"
+                metadata["$class"] = n_cls
+
+            n_cls = sp_find_module_by_name(n_cls)
+
+        if not inspect.isclass(n_cls):
+            raise ModuleNotFoundError(metadata)
+
+        obj = SpObject.__new__(n_cls)
+        obj._metadata = metadata
+
+        return obj
 
     @classmethod
     def from_json(cls, spec, *args, **kwargs):
@@ -86,35 +121,6 @@ class SpObject(object):
 
     def __str__(self):
         return f"<{self.__class__.__name__}   />"
-
-
-@functools.lru_cache
-def find_class_by_name(cls_name: str):
-    if cls_name.startswith("."):
-        cls_name = f"{SpObject._default_prefix}{cls_name}"
-    n_cls = sp_find_module(cls_name)
-    if inspect.isclass(n_cls) or callable(n_cls):
-        logger.debug(f"Load plugin {cls_name}")
-    else:
-        raise ModuleNotFoundError(cls_name)
-    return n_cls
-
-
-def create_object(metadata, *args, **kwargs) -> object:
-    if isinstance(metadata, str):
-        cls_name = metadata
-    elif isinstance(metadata, collections.abc.Mapping):
-        cls_name = metadata.get("$class")
-
-    n_cls = None
-    if inspect.isclass(cls_name) or callable(cls_name):
-        n_cls = cls_name
-    elif isinstance(cls_name, str):
-        n_cls = find_class_by_name(cls_name)
-    else:
-        raise ModuleNotFoundError(metadata)
-
-    return n_cls(*args, **kwargs)
 
 
 __SP_EXPORT__ = SpObject

@@ -1,25 +1,26 @@
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
+from spdm.common.SpObject import SpObject
 
-association = {
-    "table":    ".plugins.data.file.PluginTable",
-    "bin":      ".plugins.data.file.PluginBinary",
-    "h5":       ".plugins.data.file.PluginHDF5",
-    "hdf5":     ".plugins.data.file.PluginHDF5",
-    "nc":       ".plugins.data.file.PluginNetCDF",
-    "netcdf":   ".plugins.data.file.PluginNetCDF",
-    "namelist": ".plugins.data.file.PluginNamelist",
-    "nml":      ".plugins.data.file.PluginNamelist",
-    "xml":      ".plugins.data.file.PluginXML",
-    "json":     ".plugins.data.file.PluginJSON",
-    "yaml":     ".plugins.data.file.PluginYAML",
-    "txt":      ".plugins.data.file.PluginTXT",
-    "csv":      ".plugins.data.file.PluginCSV",
-    "numpy":    ".plugins.data.file.PluginNumPy",
-    "gfile":    ".plugins.data.file.PluginGEQdsk",
-    "geqdsk":   ".plugins.data.file.PluginGEQdsk",
+SpObject.association.update({
+    ".data.file.table":    ".data.file.PluginTable",
+    ".data.file.bin":      ".data.file.PluginBinary",
+    ".data.file.h5":       ".data.file.PluginHDF5",
+    ".data.file.hdf5":     ".data.file.PluginHDF5",
+    ".data.file.nc":       ".data.file.PluginNetCDF",
+    ".data.file.netcdf":   ".data.file.PluginNetCDF",
+    ".data.file.namelist": ".data.file.PluginNamelist",
+    ".data.file.nml":      ".data.file.PluginNamelist",
+    ".data.file.xml":      ".data.file.PluginXML",
+    ".data.file.json":     ".data.file.PluginJSON",
+    ".data.file.yaml":     ".data.file.PluginYAML",
+    ".data.file.txt":      ".data.file.PluginTXT",
+    ".data.file.csv":      ".data.file.PluginCSV",
+    ".data.file.numpy":    ".data.file.PluginNumPy",
+    ".data.file.gfile":    ".data.file.PluginGEQdsk",
+    ".data.file.geqdsk":   ".data.file.PluginGEQdsk",
 
-    "mds": "spdm.plugins.data.db.PluginMDSplus#MDSplusFile",
-    "mdsplus": "spdm.plugins.data.db.PluginMDSplus#MDSplusFile",
+    ".data.file.mds": ".data.db.PluginMDSplus#MDSplusFile",
+    ".data.file.mdsplus": ".data.db.PluginMDSplus#MDSplusFile",
     # "db.imas":".spdm.plugins.data.db.IMAS#IMASDocument",
-}
+})

@@ -63,7 +63,8 @@ def sp_find_module(path, fragment=None, pythonpath=None):
                 if not(mod_path.exists() and mod_path.is_file()):
                     continue
                 try:
-                    spec = importlib.util.spec_from_file_location(mod_name, mod_path)
+                    spec = importlib.util.spec_from_file_location(
+                        mod_name, mod_path)
                 except ModuleNotFoundError:
                     spec = None
                 else:
@@ -77,7 +78,8 @@ def sp_find_module(path, fragment=None, pythonpath=None):
     if not isinstance(module, object):
         module = None
     elif fragment is None:
-        module = getattr(module, SP_EXPORT_KEYWORD, None) or getattr(module, path.split('.')[-1], None) or module
+        module = getattr(module, SP_EXPORT_KEYWORD, None) or getattr(
+            module, path.split('.')[-1], None) or module
     elif hasattr(module, fragment):
         module = getattr(module, fragment)
     elif hasattr(module, SP_EXPORT_KEYWORD):
@@ -86,6 +88,16 @@ def sp_find_module(path, fragment=None, pythonpath=None):
         module = None
 
     return module
+
+
+@functools.lru_cache
+def sp_find_module_by_name(cls_name: str):
+    n_cls = sp_find_module(cls_name)
+    if inspect.isclass(n_cls) or callable(n_cls):
+        logger.debug(f"Load module {cls_name}")
+    else:
+        raise ModuleNotFoundError(cls_name)
+    return n_cls
 
 
 def sp_find_subclass(cls, path: list):

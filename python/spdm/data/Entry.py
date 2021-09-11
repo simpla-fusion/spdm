@@ -69,6 +69,15 @@ class Entry(object):
         parent = auto()
         first_child = auto()
 
+    @classmethod
+    def create(cls, metadata, *args, **kwargs) -> _TEntry:
+        n_cls = sp_find_module(metadata, prefix="spdm.plugin.data")
+
+        if not (inspect.isclass(n_cls) or callable(n_cls)):
+            raise NotImplementedError(metadata)
+
+        return n_cls(*args, **kwargs)
+
     def __init__(self, cache=None,   path=None,      **kwargs):
         super().__init__()
         self._cache = cache
@@ -691,7 +700,7 @@ class Entry(object):
         return self.pull(query, Entry.op_tag.exists)
 
     def get(self, path, default_value=_undefined_, *args, lazy=False, **kwargs) -> Any:
-      
+
         obj = self.pull(path, *args, lazy=lazy, **kwargs)
         if obj is not _not_found_:
             return obj

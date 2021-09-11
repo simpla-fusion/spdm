@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     mapping = Mapping(mapping_path="/home/salmon/workspace/fytokdata/mapping")
 
-    entry = mapping.find("EAST", "imas/3")
+    entry = mapping.map("mdsplus:///home/salmon/public_data/efit_east", "EAST")
 
     logger.debug(
         entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
@@ -44,8 +44,7 @@ if __name__ == '__main__':
     #     plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
     #                                        rect.height/2.0), rect.width, rect.height, fill=False))
 
-    logger.debug(
-        entry.get(["equilibrium.time_slice", {"index": 0}, "profiles_2d.psi"]))
+    logger.debug(entry.get(["equilibrium.time_slice", 0, "profiles_2d.psi"]))
 
     # plt.contour(
     #     entry.equilibrium.time_slice[1].profiles_2d.grid.dim1.__value__(),

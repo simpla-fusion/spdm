@@ -6,7 +6,7 @@ from typing import Any, Dict
 import h5py
 import numpy
 from spdm.data.Entry import Entry
-from spdm.data.File import FileHandler, File
+from spdm.data.File import File
 from spdm.util.LazyProxy import LazyProxy
 from spdm.util.logger import logger
 
@@ -169,25 +169,35 @@ class H5Entry(Entry):
         raise NotImplementedError()
 
 
-class H5File(FileHandler):
+class H5File(File):
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args,   **kwargs)
+
+    @property
+    def is_open(self):
+        return hasattr(self, "_fid")
+
+    def open(self):
         path = self.path
         mode = self.mode_str
         try:
-            fid = h5py.File(path,  mode=mode)
+            self._fid = h5py.File(path,  mode=mode)
         except OSError as error:
             raise FileExistsError(f"Can not open file {path}! {error}")
         else:
             logger.debug(f"Open HDF5 File {path} mode={mode}")
 
-        self._entry = H5Entry(fid)
+        return self
 
     def read(self, lazy=True) -> Entry:
-        return self._entry
+        if not self.is_open:
+            self.open()
+        return H5Entry(self._fid)
 
     def write(self, *args, **kwargs):
-        self._entry.put([], *args, **kwargs)
+        if not self.is_open:
+            self.open()
+        H5Entry(self._fid).put([], *args, **kwargs)
 
 
 # class HDF5Collection(FileCollection):

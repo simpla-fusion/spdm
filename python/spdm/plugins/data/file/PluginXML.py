@@ -4,20 +4,18 @@ from functools import cached_property
 from typing import Optional
 
 import numpy as np
-from spdm.util.dict_util import format_string_recursive
-from spdm.util.logger import logger
-from spdm.util.PathTraverser import PathTraverser
-
-from spdm.util.utilities import normalize_path, serialize
-from spdm.data.Entry import Entry, _TEntry, _TPath, EntryCombiner
-from spdm.data.File import File, FileHandler
-from spdm.data.Node import _not_found_, _undefined_
-
 from lxml.etree import Comment as _XMLComment
 from lxml.etree import ParseError as _XMLParseError
 from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
 from lxml.etree import parse as parse_xml
+from spdm.data.Entry import Entry, EntryCombiner, _TEntry, _TPath
+from spdm.data.File import File
+from spdm.data.Node import _not_found_, _undefined_
+from spdm.util.dict_util import format_string_recursive
+from spdm.util.logger import logger
+from spdm.util.PathTraverser import PathTraverser
+from spdm.util.utilities import normalize_path, serialize
 
 
 def merge_xml(first, second):
@@ -275,7 +273,7 @@ class XMLEntry(Entry):
         return serialize(self.get_value(*args, **kwargs))
 
 
-class XMLFile(FileHandler):
+class XMLFile(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
         self._root = load_xml(self.path, mode=self.mode)

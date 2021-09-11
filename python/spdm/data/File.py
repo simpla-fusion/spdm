@@ -1,26 +1,119 @@
 import collections
+from copy import deepcopy
 import functools
 import pathlib
-from enum import Flag, auto
 from functools import cached_property, reduce
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Protocol, Sequence, Tuple, Type,
                     TypeVar, Union)
 
-from ..common.SpObject import create_object
+from spdm.util.urilib import urisplit_as_dict
 
-from ..plugins.data.file import association as file_association
+from ..common.SpObject import SpObject
+
 from ..util.logger import logger
 from .Connection import Connection
 from .Entry import Entry
 
+from ..plugins.data import file as file_plugins
+
 _TFile = TypeVar('_TFile', bound='File')
 
 
-class FileHandler(object):
-    def __init__(self, metadata: Mapping, *args, **kwargs) -> None:
-        super().__init__()
-        self._metadata: Mapping = metadata or {}
+class File(Connection):
+    """
+        File like object
+    """
+
+    def __new__(cls, path, *args, format=None, mode="r", **kwargs):
+        if cls is not File:
+            return SpObject.__new__(cls)
+
+        if isinstance(path, collections.abc.Mapping):
+            metadata = deepcopy(path)
+        elif isinstance(path, str):
+            metadata = urisplit_as_dict(path)
+        elif isinstance(path, (list, pathlib.PosixPath)):
+            metadata = {"path": path}
+
+        if metadata.get("protocol", None) is None:
+            metadata["protocol"] = "file"
+
+        if mode is not None:
+            metadata["mode"] = mode
+
+        cls_name = metadata.get("$class", None)
+
+        if cls_name is None:
+            format = metadata.get("format", format)
+            if format is None:
+                path = metadata.get("path", "")
+                if isinstance(path, str):
+                    format = pathlib.Path(path).suffix[1:]
+                elif isinstance(path, pathlib.PosixPath):
+                    format = path.suffix[1:]
+                else:
+                    format = "text"
+            cls_name = f".data.file.{format}"
+        metadata["$class"] = cls_name
+
+        return SpObject.new_object(metadata)
+
+    def __init__(self,  *args,   **kwargs):
+        super().__init__(*args, **kwargs)
+
+        logger.debug(f"Create {self.__class__.__name__}: {self.path}")
+
+        protocol = self._metadata.get("protocol", None)
+
+        if protocol in ("local",  None):
+            self._metadata["protocol"] = "file"
+        elif protocol in ("http", "https", "ssh"):
+            raise NotImplementedError(
+                f"TODO: Access to remote files [{protocol}] is not yet implemented!")
+        elif protocol != "file":
+            raise NotImplementedError(f"Unsupported protocol {protocol}")
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} path={self.path}>"
+
+    @property
+    def is_valid(self) -> bool:
+        return getattr(self, "_holder", None) is not None
+
+    @property
+    def is_open(self) -> bool:
+        return getattr(self, "_holder", None) is not None
+
+    @property
+    def mode(self) -> Connection.Mode:
+        return self._metadata.get("mode", File.Mode.r)
+
+    @property
+    def path(self) -> Union[str, pathlib.Path]:
+        return self._metadata.get("path", None)
+
+    def open(self, *args, **kwargs) -> _TFile:
+        Connection.open(self)
+        self._holder = SpObject.create(self._metadata, *args, **kwargs)
+        return self
+
+    def close(self):
+        self._holder = None
+        Connection.close(self)
+
+    def read(self, lazy=False) -> Entry:
+        if self._holder is None:
+            self.open()
+        return self._holder.read(lazy=lazy)
+
+    def write(self, *args, **kwargs):
+        if not self.is_open:
+            self.open()
+        self._holder.write(*args, **kwargs)
+
+    def __enter__(self) -> _TFile:
+        return super().__enter__()
 
     @property
     def path(self):
@@ -46,109 +139,6 @@ class FileHandler(object):
 
     def write(self, data, lazy=False) -> None:
         raise NotImplementedError()
-
-
-class File(Connection):
-    """
-        File like object
-    """
-    class Mode(Flag):
-        r = auto()  # open for reading (default)
-        w = auto()  # open for writing, truncating the file first
-        x = auto()  # open for exclusive creation, failing if the file already exists
-        a = auto()  # open for writing, appending to the end of the file if it exists
-
-    def __init__(self,   metadata=None, /, mode="r", **kwargs):
-
-        if isinstance(metadata, (pathlib.PosixPath, list)):
-            metadata = {"path": metadata}
-
-        if isinstance(mode, str):
-            mode = reduce(lambda a, b: a | b, [File.Mode[a] for a in mode])
-        elif not isinstance(mode, File.Mode):
-            raise TypeError(mode)
-
-        super().__init__(metadata, mode=mode, **kwargs)
-
-        self._holder: FileHandler = None
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} path={self.path}>"
-
-    @property
-    def is_valid(self) -> bool:
-        return getattr(self, "_holder", None) is not None
-
-    @property
-    def is_open(self) -> bool:
-        return getattr(self, "_holder", None) is not None
-
-    @property
-    def mode(self) -> Mode:
-        return self._metadata.get("mode", File.Mode.r)
-
-    @property
-    def path(self) -> Union[str, pathlib.Path]:
-        return self._metadata.get("path", None)
-
-    def open(self, *args, **kwargs) -> _TFile:
-
-        Connection.open(self)
-
-        protocol = self._metadata.get("protocol", None)
-
-        if protocol in ("http", "https", "ssh"):
-            raise NotImplementedError(
-                f"TODO: Access to remote files [{protocol}] is not yet implemented!")
-        elif protocol not in ("local", "file", None):
-            raise NotImplementedError(f"Unsupported protocol {protocol}")
-
-        # path =self._metadata.get("path", "")
-
-        # if isinstance(path, str):
-        #     path = pathlib.Path(path)
-        # elif not isinstance(path, pathlib.PosixPath):
-        #     raise RuntimeError(f"Illegal path:{path}")
-
-        # path = (pathlib.Path.cwd() / path).expanduser().resolve()
-
-        # self._metadata["path"] = path
-
-        file_format = self._metadata.get("format", None)
-
-        if not file_format:
-            path = self._metadata.get("path", "")
-            if isinstance(path, str):
-                path = pathlib.Path(path)
-                
-            if not isinstance(path, pathlib.PosixPath) or not not path.suffix:
-                raise ValueError(
-                    f"Can not guess file format from path! {path}")
-            file_format = path.suffix[1:]
-
-        file_class = file_association.get(file_format.lower(), None)
-
-        self._holder = create_object(file_class, self._metadata,
-                                     *args, **kwargs)
-
-        return self
-
-    def close(self):
-        self._holder = None
-        Connection.close(self)
-
-    def read(self, lazy=False) -> Entry:
-        if self._holder is None:
-            self.open()
-        return self._holder.read(lazy=lazy)
-
-    def write(self, *args, **kwargs):
-        if not self.is_open:
-            self.open()
-        self._holder.write(*args, **kwargs)
-
-    def __enter__(self) -> _TFile:
-        return super().__enter__()
 
 
 __SP_EXPORT__ = File

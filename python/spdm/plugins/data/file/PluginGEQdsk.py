@@ -7,7 +7,7 @@ import numpy as np
 from spdm.util.logger import logger
 from spdm.data.Node import Dict
 from spdm.data.Entry import Entry, _next_
-from spdm.data.File import File, FileHandler
+from spdm.data.File import File
 
 
 def sp_read_geqdsk(file):
@@ -282,9 +282,9 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     return eq
 
 
-class GEQdskFile(FileHandler):
-    def __init__(self, path, *args, mode="r", **kwargs):
-        super().__init__(path, mode=mode)
+class GEQdskFile(File):
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
         path = self.path
         mode = self.mode_str
         try:
@@ -292,7 +292,7 @@ class GEQdskFile(FileHandler):
         except OSError as error:
             raise FileExistsError(f"Can not open file {path}! {error}")
         else:
-            logger.debug(f"Open HDF5 File {path} mode={mode}")
+            logger.debug(f"Open File {path} mode={mode}")
 
     def flush(self, *args, **kwargs):
         if "x" in self.mode or "w" in self.mode:

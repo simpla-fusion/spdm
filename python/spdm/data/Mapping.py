@@ -1,17 +1,17 @@
 import collections
+import collections.abc
 import os
 import pathlib
 
 from ..common.SpObject import SpObject
-
 from ..util.logger import logger
 from ..util.PathTraverser import PathTraverser
 from ..util.urilib import urisplit
+from ..util.utilities import _undefined_
 from .Collection import Collection
 from .Document import Document
 from .Entry import Entry, EntryCombiner
 from .File import File
-from ..util.utilities import _undefined_
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 
@@ -67,17 +67,37 @@ class MappingEntry(Entry):
 class Mapping(SpObject):
     DEFAULT_GLOBAL_SCHEMA = "imas/3"
 
-    def __init__(self, *args, mapping_path="",   **kwargs):
+    def __init__(self, *args, mapping_path="", global_schema=_undefined_,   **kwargs):
         super().__init__(*args, **kwargs)
         if isinstance(mapping_path, str):
             mapping_path = mapping_path.split(":")
         self._mapping_path = mapping_path + \
             os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
+        if global_schema is _undefined_:
+            self._global_schema = Mapping.DEFAULT_GLOBAL_SCHEMA
 
-    def map(self, source: Entry, source_schema=None, target_schema=_undefined_):
-        return MappingEntry(source, mapping=self.find(source_schema, target_schema))
+    def map(self, source: Entry, source_schema=None, **kwargs):
+        if isinstance(source, Document):
+            source_schema = getattr(source, "schema", source_schema)
+            source = source.entry
+        elif isinstance(source, Entry):
+            pass
+        elif isinstance(source, collections.abc.Sequence):
+            source = Entry.create(source)
+        elif isinstance(source, collections.abc.Mapping):
+            if "$class" in source:
+                source_schema = source.get("schema", None)
+                source = Entry.create(source)
+            else:
+                raise NotImplementedError(f"TODO: Multi-sources mapper ")
+        else:
+            raise NotImplementedError()
+
+        return MappingEntry(source, mapping=self.find(source_schema, **kwargs))
 
     def find(self,  source_schema: str = None, target_schema: str = _undefined_) -> Entry:
+        if target_schema is _undefined_:
+            target_schema = self._global_schema
 
         map_tag = f"{source_schema}/{target_schema}"
 
