@@ -705,7 +705,7 @@ class Entry(object):
     def put(self, *args, **kwargs) -> Any:
         return self.push(*args, **kwargs)
 
-    def get_many(self, key_list, /, **kwargs) -> Mapping:
+    def get_many(self, key_list) -> Mapping:
         return {key: self.get(key, None) for key in key_list}
 
     def dump(self, *args, **kwargs):

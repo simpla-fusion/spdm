@@ -62,7 +62,7 @@ class File(Connection):
     def __init__(self,  *args,   **kwargs):
         super().__init__(*args, **kwargs)
 
-        logger.debug(f"Create {self.__class__.__name__}: {self.path}")
+        logger.debug(f"Open {self.__class__.__name__}: {self.path}")
 
         protocol = self._metadata.get("protocol", None)
 
