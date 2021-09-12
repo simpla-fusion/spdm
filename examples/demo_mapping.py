@@ -7,13 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.Entry import Entry
 from spdm.data.Mapping import Mapping
+from spdm.data.File import File
 from spdm.util.logger import logger
 
 if __name__ == '__main__':
 
     mapping = Mapping(mapping_path="/home/salmon/workspace/fytokdata/mapping")
 
-    entry = mapping.map("mdsplus:///home/salmon/public_data/efit_east", "EAST")
+    entry = mapping.find("EAST")
 
     logger.debug(
         entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
@@ -21,6 +22,8 @@ if __name__ == '__main__':
     logger.debug(
         entry.get("wall.description_2d.vessel.annular.outline_outer.z"))
 
+    m_entry = mapping.map(File(
+        "/home/salmon/public_data/efit_east", format="mdsplus").read(), source_schema="EAST")
     # db = Collection("mapping://",
     #                 source="mdsplus:///home/salmon/public_data/efit_east",
     #                 id_hasher="{shot}",  #

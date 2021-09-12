@@ -69,15 +69,6 @@ class Entry(object):
         parent = auto()
         first_child = auto()
 
-    @classmethod
-    def create(cls, metadata, *args, **kwargs) -> _TEntry:
-        n_cls = sp_find_module(metadata, prefix="spdm.plugin.data")
-
-        if not (inspect.isclass(n_cls) or callable(n_cls)):
-            raise NotImplementedError(metadata)
-
-        return n_cls(*args, **kwargs)
-
     def __init__(self, cache=None,   path=None,      **kwargs):
         super().__init__()
         self._cache = cache
@@ -709,17 +700,13 @@ class Entry(object):
         elif default_value is not _undefined_:
             return default_value
         else:
-            raise KeyError((path, default_value))
+            raise KeyError(path)
 
     def put(self, *args, **kwargs) -> Any:
         return self.push(*args, **kwargs)
 
     def get_many(self, key_list, /, **kwargs) -> Mapping:
-        cache = _DICT_TYPE_()
-        res = Entry(cache)
-        for key in key_list:
-            res.push(key, self.pull(key),  **kwargs)
-        return cache
+        return {key: self.get(key, None) for key in key_list}
 
     def dump(self, *args, **kwargs):
         """

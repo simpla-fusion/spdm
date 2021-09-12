@@ -1,17 +1,18 @@
 import collections
+import collections.abc
 import functools
 import inspect
 import io
-from logging import log
 import uuid
 from copy import deepcopy
 from functools import cached_property
-from typing import Type, TypeVar, Mapping
+from logging import log
+from typing import Mapping, Type, TypeVar
+
 from ..data.AttributeTree import AttributeTree
 from ..util.dict_util import deep_merge_dict
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module, sp_find_module_by_name
-
 
 _TSpObject = TypeVar('_TSpObject', bound='SpObject')
 
@@ -77,13 +78,12 @@ class SpObject(object):
 
         n_cls = metadata.get("$class", None)
 
-        if inspect.isclass(n_cls) or callable(n_cls):
+        if inspect.isclass(n_cls):
             pass
         elif not isinstance(n_cls, str):
             raise RuntimeError(f"$class is not defined!")
         else:
-            if n_cls.startswith("."):
-                n_cls = SpObject.association.get(n_cls, n_cls)
+            n_cls = SpObject.association.get(n_cls, n_cls)
             if n_cls.startswith("."):
                 n_cls = f"spdm.plugins{n_cls}"
                 metadata["$class"] = n_cls

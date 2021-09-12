@@ -18,25 +18,15 @@ class Connection(SpObject):
         x = auto()  # open for exclusive creation, failing if the file already exists
         a = auto()  # open for writing, appending to the end of the file if it exists
 
-    def __new__(cls, uri, *args, **kwargs):
-        if isinstance(uri, str):
-            metadata = urisplit_as_dict(uri)
-        elif isinstance(uri, collections.abc.Mapping):
-            metadata = deepcopy(uri)
-        elif isinstance(uri, (collections.abc.Sequence, pathlib.Path)):
-            metadata = {"path": uri}
-
-        return SpObject.create(metadata, uri, *args, **kwargs)
-
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def __del__(self):
-        if self.is_valid:
+        if self.is_open:
             self.close()
 
     @property
-    def is_valid(self) -> bool:
+    def is_open(self) -> bool:
         return False
 
     def open(self) -> _TConnection:

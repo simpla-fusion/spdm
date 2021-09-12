@@ -326,14 +326,9 @@ class Dict(Node[_TObject], Mapping[str, _TObject]):
     def __init__(self, cache: Optional[Mapping] = None,  /, parent=None, new_child=None,  **kwargs):
 
         if cache is None:
-            cache = _DICT_TYPE_()
-
-        if len(kwargs) > 0:
-            if isinstance(cache, collections.abc.Mapping):
-                deep_merge_dict(cache, kwargs)
-            else:
-                logger.warning(f"ignore kwargs: {kwargs.keys()}")
-                raise RuntimeError(kwargs.keys())
+            cache = kwargs
+        elif isinstance(cache, collections.abc.Mapping) and len(kwargs) > 0:
+            deep_merge_dict(cache, kwargs, in_place=True)
 
         Node.__init__(self, cache,  parent=parent, new_child=new_child)
 

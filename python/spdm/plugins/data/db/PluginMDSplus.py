@@ -8,7 +8,7 @@ import MDSplus as mds
 import numpy as np
 from spdm.data.Collection import Collection
 from spdm.data.Entry import Entry
-from spdm.data.File import FileHandler, File
+from spdm.data.File import  File
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
@@ -48,7 +48,7 @@ def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
     return tree
 
 
-class MDSplusFile(FileHandler):
+class MDSplusFile(File):
     MDS_MODE = {
         File.Mode.r: "ReadOnly",
         File.Mode.w: "Normal",

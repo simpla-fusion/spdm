@@ -55,7 +55,7 @@ class File(Connection):
                 else:
                     format = "text"
             cls_name = f".data.file.{format}"
-        metadata["$class"] = cls_name
+        metadata["$class"] = cls_name.lower()
 
         return SpObject.new_object(metadata)
 
