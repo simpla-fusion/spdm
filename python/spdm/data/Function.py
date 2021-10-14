@@ -1,20 +1,21 @@
 import collections
 import collections.abc
+import functools
+import inspect
+import operator
 import warnings
 from functools import cached_property
-from logging import log
-from operator import is_
 from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 
+import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 from spdm.util.logger import logger
+from spdm.util.misc import array_like
 
-import numpy as np
-import scipy
-from ..util.misc import float_unique
 from ..util.logger import logger
+from ..util.misc import float_unique
 from ..util.utilities import _undefined_
-from .Entry import Entry
+from .Entry import Entry, EntryCombiner
 from .Node import Node
 
 
@@ -30,7 +31,7 @@ def create_spline(x, y, **kwargs) -> PPoly:
 
 class Function:
     """
-        NOTE: Function is imutable!!!!
+        NOTE: Function is immutable!!!!
     """
 
     def __init__(self, x: Union[np.ndarray, Sequence] = None, y: Union[np.ndarray, float, Callable] = _undefined_, /, **kwargs):
@@ -41,9 +42,9 @@ class Function:
         if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
             self._y = 0
         elif isinstance(y, Node):
-            self._y = y._entry.pull(0.0)
+            self._y = y._entry
         elif isinstance(y, Entry):
-            self._y = y.pull(0.0)
+            self._y = y
         elif isinstance(y, Function):
             if x is None:
                 x = y.x_domain
@@ -151,23 +152,26 @@ class Function:
 
         if x is None:
             raise RuntimeError(f"x_axis is None!")
-        _y = getattr(self, "_y", None)
-        if x is self._x_axis and isinstance(_y, np.ndarray):
+
+        if x is self._x_axis and isinstance(self._y, np.ndarray):
             return self._y
 
-        if _y is None:
+        if self._y is None:
             raise RuntimeError(f"Illegal function! y is None {self.__class__}")
-        elif isinstance(_y, (int, float)):
+        elif isinstance(self._y, (int, float)):
             if isinstance(x, np.ndarray):
-                return np.full(x.shape, _y)
+                return np.full(x.shape, self._y)
             else:
-                return _y
-        elif callable(_y):
-            return np.asarray(_y(x, **kwargs))
-        elif x is not self._x_axis and isinstance(_y, np.ndarray):
+                return self._y
+        elif isinstance(self._y, EntryCombiner):
+            val = [array_like(x, d) for d in self._y._d_list]
+            return functools.reduce(operator.__add__, val[1:], val[0])
+        elif callable(self._y):
+            return np.asarray(self._y(x, **kwargs))
+        elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
         else:
-            raise TypeError((type(x), type(_y)))
+            raise TypeError((type(x), type(self._y)))
 
     def resample(self, x_min, x_max=None, /, **kwargs):
         if x_min is None or (x_max is not None and x_min <= self.x_min and self.x_max <= x_max):
@@ -196,7 +200,7 @@ class Function:
                 return Function(self.x_axis[idx_min:idx_max], self._y[idx_min:idx_max])
             else:
                 return Function(self.x_axis[idx_min:idx_max],  self.__call__(self.x_axis[idx_min:idx_max]))
-        elif callable(self._y):
+        elif callable(self._y) or isinstance(self._y, Entry):
             return Function([x_min, x_max], self._y)
         else:
             raise TypeError((type(self.x_axis), type(self._y)))

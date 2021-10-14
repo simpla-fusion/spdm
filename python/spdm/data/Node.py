@@ -485,13 +485,12 @@ class _sp_property(Generic[_T]):
             return self
 
         if self.attrname is None:
-            raise TypeError(
-                "Cannot use sp_property instance without calling __set_name__ on it.")
+            raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
             entry = self._get_entry(instance)
 
-            value = entry.get(self.attrname, _not_found_)
+            value = entry.get(self.attrname, _not_found_, type_hint=self.return_type)
 
             if not self._check_type(value):
                 n_value = self._convert(instance,  self.func(instance))

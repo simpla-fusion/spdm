@@ -12,10 +12,10 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 import numpy as np
 
+from ..util.dict_util import as_native, deep_merge_dict
 from ..util.logger import logger
 from ..util.utilities import (_not_found_, _undefined_, normalize_path,
                               serialize)
-from ..util.dict_util import as_native, deep_merge_dict
 
 
 class EntryTags(Flag):
@@ -407,8 +407,7 @@ class Entry(object):
             elif isinstance(target, (collections.abc.Mapping)) and isinstance(key, str):
                 val = target.get(key, _not_found_)
             elif not isinstance(target, (collections.abc.Sequence)):
-                raise NotImplementedError(
-                    f"{type(target)} {type(key)} {path[:idx+1]}")
+                raise NotImplementedError(f"{type(target)} {type(key)} {path[:idx+1]}")
             elif key is _next_:
                 target.append(_not_found_)
                 key = len(target)-1
@@ -549,7 +548,7 @@ class Entry(object):
 
         return val
 
-    def pull(self, path=None, query=_undefined_,  lazy=False, predication=_undefined_, only_first=False) -> _T:
+    def pull(self, path=None, query=_undefined_,  lazy=False, predication=_undefined_, only_first=False, type_hint=_undefined_) -> Any:
         if isinstance(path, (Entry.op_tag)) and query is _undefined_:
             query = path
             path = None
@@ -781,10 +780,9 @@ class EntryCombiner(Entry):
         for d in self._d_list:
             Entry._eval_push(d, path, value, *args, **kwargs)
 
-    def pull(self, path=None, query=_undefined_, lazy=False, predication=_undefined_, only_first=False) -> _T:
+    def pull(self, path=None, query=_undefined_, lazy=False, predication=_undefined_, only_first=False, type_hint=_undefined_) -> Any:
 
-        val = super().pull(path, query=query, lazy=False,
-                           predication=predication, only_first=only_first)
+        val = super().pull(path, query=query, lazy=False, predication=predication, only_first=only_first)
 
         if val is not _not_found_:
             return val
@@ -800,21 +798,26 @@ class EntryCombiner(Entry):
                 target, p = Entry._eval_path(d, path+[None], force=False)
             if target is _not_found_ or p is not None:
                 continue
-            target = Entry._eval_filter(
-                target, predication=predication, only_first=only_first)
+            target = Entry._eval_filter(target, predication=predication, only_first=only_first)
             if target is _not_found_ or len(target) == 0:
                 continue
-            val.extend([Entry._eval_pull(d, [], query=query, lazy=lazy)
-                       for d in target])
+            val.extend([Entry._eval_pull(d, [], query=query, lazy=lazy) for d in target])
 
-        if any(map(lambda v: isinstance(v, (Entry, EntryContainer, collections.abc.Mapping)), val)):
-            val = EntryCombiner(val)
+        if len(val) == 0:
+            val = _not_found_
         elif len(val) == 1:
             val = val[0]
-        elif len(val) > 1:
+        elif (inspect.isclass(type_hint) and issubclass(type_hint, EntryContainer)):
+            val = EntryCombiner(val)
+        elif type_hint in (int, float):
             val = functools.reduce(self._reducer, val[1:], val[0])
+        elif type_hint is np.ndarray :
+            val = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
         else:
-            val = _not_found_
+            val = EntryCombiner(val)
+        # elif any(map(lambda v: not isinstance(v, (int, float, np.ndarray)), val)):
+        # else:
+        #     val = functools.reduce(self._reducer, val[1:], val[0])
 
         if val is _not_found_ and lazy is True and query is _undefined_ and predication is _undefined_:
             val = self.duplicate().moveto(path)
