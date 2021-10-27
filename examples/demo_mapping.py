@@ -16,14 +16,11 @@ if __name__ == '__main__':
 
     entry = mapping.find("EAST")
 
-    logger.debug(
-        entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
+    logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
 
-    logger.debug(
-        entry.get("wall.description_2d.vessel.annular.outline_outer.z"))
+    logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.z"))
 
-    m_entry = mapping.map(File(
-        "/home/salmon/public_data/efit_east", format="mdsplus").read(), source_schema="EAST")
+    m_entry = mapping.map(File("/home/salmon/public_data/efit_east", format="mdsplus").read(), source_schema="EAST")
     # db = Collection("mapping://",
     #                 source="mdsplus:///home/salmon/public_data/efit_east",
     #                 id_hasher="{shot}",  #
