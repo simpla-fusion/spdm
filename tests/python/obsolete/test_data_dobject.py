@@ -4,7 +4,7 @@ import sys
 import unittest
 import numpy as np
 
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.data.Quantity import Quantity
 dobj = Quantity
 

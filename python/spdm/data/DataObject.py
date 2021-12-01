@@ -4,7 +4,7 @@ from typing import Mapping, Type
 import numpy as np
 
 from ..common.SpObject import SpObject
-from ..util.logger import logger
+from ..common.logger import logger
 
 
 def load_ndarray(desc, value, *args, **kwargs):

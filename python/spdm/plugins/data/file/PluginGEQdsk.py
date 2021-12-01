@@ -4,7 +4,7 @@ import pprint
 from functools import cached_property
 
 import numpy as np
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.data.Node import Dict
 from spdm.data.Entry import Entry, _next_
 from spdm.data.File import File

@@ -2,7 +2,7 @@ from logging import log
 import unittest
 from copy import deepcopy
 from spdm.data.Entry import Entry, EntryCombiner, EntryWrapper,  _next_, _not_found_, _undefined_
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
 
 class TestEntry(unittest.TestCase):

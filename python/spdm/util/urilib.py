@@ -10,7 +10,7 @@ import collections
 import pathlib
 import re
 from typing import List, Union
-from .logger import logger
+from ..common.logger import logger
 from .utilities import convert_to_named_tuple
 _rfc3986 = re.compile(
     r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")

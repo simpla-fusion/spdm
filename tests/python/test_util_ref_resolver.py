@@ -23,6 +23,6 @@ class TestRefResolver(unittest.TestCase):
 
 if __name__ == '__main__':
     from spdm.util.RefResolver import RefResolver
-    from spdm.util.logger import logger
+    from spdm.common.logger import logger
 
     unittest.main()

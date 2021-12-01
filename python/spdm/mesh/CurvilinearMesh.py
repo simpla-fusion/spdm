@@ -12,7 +12,7 @@ from ..geometry.CubicSplineCurve import CubicSplineCurve
 from ..geometry.Curve import Curve
 from ..geometry.GeoObject import GeoObject
 from ..geometry.Point import Point
-from ..util.logger import logger
+from ..common.logger import logger
 from ..util.utilities import convert_to_named_tuple
 from .Mesh import Mesh
 from .StructuredMesh import StructuredMesh

@@ -8,7 +8,7 @@ import numpy
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.util.LazyProxy import LazyProxy
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 64
 

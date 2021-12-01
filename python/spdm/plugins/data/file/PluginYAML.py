@@ -2,10 +2,10 @@ import collections
 import yaml
 
 import numpy
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
-from ..Collection import FileCollection
-from ..Document import Document
+from spdm.data.Collection import FileCollection
+from spdm.data.Document import Document
 
 
 class YAMLDocument(Document):

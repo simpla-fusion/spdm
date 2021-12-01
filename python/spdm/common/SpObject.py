@@ -6,13 +6,10 @@ import io
 import uuid
 from copy import deepcopy
 from functools import cached_property
-from logging import log
 from typing import Mapping, Type, TypeVar
 
-from ..data.AttributeTree import AttributeTree
-from ..util.dict_util import deep_merge_dict
-from ..util.logger import logger
-from ..util.sp_export import sp_find_module, sp_find_module_by_name
+from .logger import logger
+from .sp_export import sp_find_module_by_name
 
 _TSpObject = TypeVar('_TSpObject', bound='SpObject')
 
@@ -105,9 +102,9 @@ class SpObject(object):
     def to_json(self):
         return self.serialize()
 
-    @cached_property
-    def metadata(self) -> AttributeTree:
-        return AttributeTree(self._metadata)
+    @property
+    def metadata(self):
+        return self._metadata
 
     @cached_property
     def uuid(self) -> uuid. UUID:

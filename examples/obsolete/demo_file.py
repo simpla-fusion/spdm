@@ -2,7 +2,7 @@
 import sys
 
 from spdm.data.File import File
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
 if __name__ == '__main__':
 

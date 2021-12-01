@@ -2,7 +2,7 @@ import collections
 from functools import cached_property
 from typing import Any, Dict, List
 
-from ..util.logger import logger
+from ..common.logger import logger
 from .DataObject import DataObject
 from .Entry import Entry
 from .Node import Dict

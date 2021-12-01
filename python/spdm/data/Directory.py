@@ -5,10 +5,11 @@ import shutil
 import tempfile
 import uuid
 
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.util.urilib import urisplit
-from .Document import Document
+
 from .DataObject import DataObject
+from .Document import Document
 
 
 class Directory(DataObject):

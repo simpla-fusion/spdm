@@ -4,10 +4,10 @@ import os
 import pathlib
 
 from ..common.SpObject import SpObject
-from ..util.logger import logger
+from ..common.logger import logger
 from ..util.PathTraverser import PathTraverser
 from ..util.urilib import urisplit
-from ..util.utilities import _undefined_
+from ..common.tags import _undefined_
 from .Collection import Collection
 from .Document import Document
 from .Entry import Entry, EntryCombiner

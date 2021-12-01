@@ -4,7 +4,7 @@ from typing import Union
 
 import numpy as np
 
-from .logger import logger
+from spdm.common.logger import logger
 
 
 class DefaultDict(dict):

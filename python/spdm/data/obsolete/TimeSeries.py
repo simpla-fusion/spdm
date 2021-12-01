@@ -4,7 +4,7 @@ from typing import (Any, Generic, Mapping, MutableMapping, Sequence, TypeVar,
 
 import numpy as np
 
-from ..util.logger import logger
+from ..common.logger import logger
 from .Node import Dict, List, _TIndex, _TObject
 
 

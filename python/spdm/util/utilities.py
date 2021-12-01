@@ -1,6 +1,5 @@
-from enum import Flag, auto
-import numpy as np
 import collections
+import collections.abc
 import functools
 import importlib
 import inspect
@@ -12,13 +11,16 @@ import pkgutil
 import pwd
 import re
 import sys
-import re
+from dataclasses import fields, is_dataclass
+from enum import Flag, auto
 from typing import Sequence
-from .logger import logger
-import collections.abc
-from dataclasses import is_dataclass, fields
 
-_empty = object()
+import numpy as np
+
+from ..common.logger import logger
+from ..common.tags import _empty, _not_found_, _undefined_
+
+# _empty = object()
 
 
 # class _NOT_FOUND_:
@@ -32,14 +34,14 @@ _empty = object()
 #         return None
 
 
-class _tags(Flag):
-    not_found = auto()
-    undefined = auto()
+# class _tags(Flag):
+#     not_found = auto()
+#     undefined = auto()
 
 
-_not_found_ = _tags.not_found
+# _not_found_ = _tags.not_found
 
-_undefined_ = _tags.undefined
+# _undefined_ = _tags.undefined
 
 
 def whoami(obj=None):

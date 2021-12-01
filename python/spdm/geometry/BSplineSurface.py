@@ -1,7 +1,7 @@
 
 
 from ..data.Function import Function
-from ..util.logger import logger
+from ..common.logger import logger
 from .Surface import Surface
 
 

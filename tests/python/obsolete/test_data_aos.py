@@ -1,7 +1,7 @@
 import unittest
 from typing import Any, Iterator, Mapping
 
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.data.AoS import AoS, SoA
 from spdm.data.Node import Node
 

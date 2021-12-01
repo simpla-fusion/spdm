@@ -1,7 +1,7 @@
 import unittest
 
 from spdm.data.Node import Dict, _TObject, sp_property
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
 
 class Foo(Dict):

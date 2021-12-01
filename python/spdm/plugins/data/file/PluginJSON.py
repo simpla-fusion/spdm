@@ -5,7 +5,7 @@ import numpy as np
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.util.dict_util import as_native
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
 
 class JSONFile(File):

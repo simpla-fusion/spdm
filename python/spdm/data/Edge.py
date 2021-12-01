@@ -1,6 +1,6 @@
 from .Node import Node
 from ..util.LazyProxy import LazyProxy
-from ..util.logger import logger
+from ..common.logger import logger
 from ..util.utilities import _empty
 from ..util.SpObject import SpObject
 # from .State import SpStage, SpState

@@ -5,7 +5,7 @@ from typing import Mapping, Union
 import numpy as np
 
 from ..mesh.Mesh import Mesh
-from ..util.logger import logger
+from ..common.logger import logger
 
 
 class Field(object):

@@ -4,10 +4,11 @@ import importlib
 import inspect
 import os
 import pathlib
-import sys
 import pkgutil
+import sys
+
+from .tags import _not_found_
 from .logger import logger
-from .utilities import getattr_r, _not_found_
 
 SP_EXPORT_KEYWORD = "__SP_EXPORT__"
 
@@ -63,8 +64,7 @@ def sp_find_module(path, fragment=None, pythonpath=None):
                 if not(mod_path.exists() and mod_path.is_file()):
                     continue
                 try:
-                    spec = importlib.util.spec_from_file_location(
-                        mod_name, mod_path)
+                    spec = importlib.util.spec_from_file_location(mod_name, mod_path)
                 except ModuleNotFoundError:
                     spec = None
                 else:
@@ -167,7 +167,7 @@ def make_canonical_path_list(path):
     return [p for p in new_path if p is not None]
 
 
-def absoluate_path_dot(path, prefix):
+def absolute_path_dot(path, prefix):
     if isinstance(path, str):
         path = path.split('.')
     if isinstance(prefix, str):
@@ -179,7 +179,7 @@ def absoluate_path_dot(path, prefix):
     return ".".join([p for p in path if p != ''])
 
 
-def absoluate_path_slash(path, prefix):
+def absolute_path_slash(path, prefix):
     if isinstance(path, str):
         path = path.split('/')
     if isinstance(prefix, str):
@@ -194,6 +194,6 @@ def absoluate_path_slash(path, prefix):
     return "/"+"/".join([p for p in path if p != ''])
 
 
-def relativce_module_path(cls, base):
+def relative_module_path(cls, base):
     return [p.__name__.lower()
             for p in inspect.getmro(cls) if issubclass(p, base) and p is not base and p is not cls][:: -1]+[cls.__name__]

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     from spdm.data.Document import Document
     from spdm.data.Collection import Collection
     from spdm.data.File import File
-    from spdm.util.logger import logger
+    from spdm.common.logger import logger
 
     doc = Collection("EAST+mdsplus:///home/salmon/public_data/~t/?tree_name=efit_east")\
         .open(shot=55555, time_slice=20, mode="r")

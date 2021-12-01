@@ -3,7 +3,7 @@ from copy import deepcopy
 from enum import Flag, auto
 from typing import Mapping, TypeVar, Union
 import pathlib
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.util.urilib import urisplit_as_dict
 
 from ..common.SpObject import SpObject

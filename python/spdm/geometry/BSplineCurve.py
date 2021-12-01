@@ -5,7 +5,7 @@ from operator import is_
 from fytok.numlib import interpolate, np
 
 from ..data.Function import Function
-from ..util.logger import logger
+from ..common.logger import logger
 from .Curve import Curve
 
 

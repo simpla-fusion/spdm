@@ -22,5 +22,9 @@ SpObject.association.update({
 
     ".data.file.mds": ".data.db.PluginMDSplus#MDSplusFile",
     ".data.file.mdsplus": ".data.db.PluginMDSplus#MDSplusFile",
+    # ".data.file.mds": ".data.db.MDSplus#MDSplusDocument",
+    # ".data.file.mdsplus": ".data.db.MDSplus#MDSplusDocument",
+    # ".data.file.gfile": ".data.file.PluginGEQdsk",
+    # ".data.file.geqdsk": ".data.file.PluginGEQdsk",
     # "db.imas":".spdm.plugins.data.db.IMAS#IMASDocument",
 })

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pathlib
 from spdm.data.File import File
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 import sys
 
 

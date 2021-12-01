@@ -6,7 +6,7 @@ import numpy as np
 
 from ..common.SpObject import SpObject
 from ..geometry.GeoObject import GeoObject
-from ..util.logger import logger
+from ..common.logger import logger
 
 
 class Mesh(SpObject):

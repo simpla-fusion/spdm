@@ -6,7 +6,7 @@ import urllib
 from typing import Any, Dict, List, NewType, Tuple
 
 import numpy
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.util.sp_export import sp_find_module
 from spdm.util.urilib import urisplit, uriunsplit
 

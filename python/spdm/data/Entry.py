@@ -13,7 +13,7 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 import numpy as np
 
 from ..util.dict_util import as_native, deep_merge_dict
-from ..util.logger import logger
+from ..common.logger import logger
 from ..util.utilities import (_not_found_, _undefined_, normalize_path,
                               serialize)
 
@@ -47,7 +47,7 @@ _TContainer = TypeVar("_TContainer", bound="EntryContainer")
 class Entry(object):
     __slots__ = "_cache", "_path"
 
-    PRIMARY_TYPE = (int, float, str, np.ndarray)
+    PRIMARY_TYPE = (bool, int, float, str, np.ndarray)
 
     class op_tag(Flag):
         # write
@@ -126,7 +126,7 @@ class Entry(object):
     @property
     def first_child(self) -> Iterator[_TEntry]:
         """
-            return next brother neighbour
+            return next brother neighbor
         """
         return self.pull(Entry.op_tag.first_child)
 
@@ -811,7 +811,7 @@ class EntryCombiner(Entry):
             val = EntryCombiner(val)
         elif type_hint in (int, float):
             val = functools.reduce(self._reducer, val[1:], val[0])
-        elif type_hint is np.ndarray :
+        elif type_hint is np.ndarray:
             val = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
         else:
             val = EntryCombiner(val)

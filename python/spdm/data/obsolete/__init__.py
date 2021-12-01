@@ -1,5 +1,5 @@
 from .version import __version__
 
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 
 logger.info(f"Using SpDB:Data \t: {__version__}")

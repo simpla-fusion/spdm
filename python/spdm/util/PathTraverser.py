@@ -1,6 +1,8 @@
-from spdm.util.utilities import normalize_path
-from .logger import logger
 import functools
+
+from spdm.util.utilities import normalize_path
+
+from ..common.logger import logger
 
 
 class PathTraverser:

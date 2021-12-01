@@ -15,10 +15,10 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     Union, final, get_args)
 
 import numpy as np
+
+from ..common.logger import logger
+from ..common.tags import _not_found_, _undefined_
 from ..util.dict_util import deep_merge_dict
-from ..util.logger import logger
-from ..util.sp_export import sp_find_module
-from ..util.utilities import _not_found_, _undefined_, serialize
 from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry, EntryCombiner,
                     EntryContainer, _next_, _TKey, _TObject, _TPath)
 

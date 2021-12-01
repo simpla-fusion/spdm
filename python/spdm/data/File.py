@@ -11,7 +11,7 @@ from spdm.util.urilib import urisplit_as_dict
 
 from ..common.SpObject import SpObject
 
-from ..util.logger import logger
+from ..common.logger import logger
 from .Connection import Connection
 from .Entry import Entry
 
@@ -62,7 +62,7 @@ class File(Connection):
     def __init__(self,  *args,   **kwargs):
         super().__init__(*args, **kwargs)
 
-        logger.debug(f"Open {self.__class__.__name__}: {self.path}")
+        logger.debug(f"Open {self.__class__.__name__}: {self.path} mode='{kwargs.get('mode','r')}'")
 
         protocol = self._metadata.get("protocol", None)
 

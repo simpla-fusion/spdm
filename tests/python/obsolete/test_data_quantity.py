@@ -5,7 +5,7 @@ import numpy as np
 from spdm.data.Node import Node, _next_
 from spdm.data.Quantity import Quantity
 from spdm.data.Coordinates import Coordinates
-from spdm.util.logger import logger
+from spdm.common.logger import logger
 from spdm.data.Unit import Unit
 import pprint
 
