@@ -712,7 +712,6 @@ class Entry(object):
             convert data in cache to python native type and np.ndarray           
             [str, bool, float, int, np.ndarray, Sequence, Mapping]:      
         """
-
         return as_native(self._cache, *args, **kwargs)
 
     def write(self, target, /, **kwargs):

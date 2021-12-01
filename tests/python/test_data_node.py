@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from spdm.data.Node import Node, Dict, List, _next_, _not_found_
+from spdm.data.Node import Node, Dict, List, _next_
 from spdm.common.logger import logger
 from copy import copy, deepcopy
 
@@ -142,7 +142,7 @@ class TestNodeList(unittest.TestCase):
         d1 = Dict({"person": cache})
 
         young = d1["person", {"age": 22}]
-      
+
         self.assertEqual(young[0, "name"],  "wang liu")
         self.assertEqual(young[1, "name"],  "li si")
 

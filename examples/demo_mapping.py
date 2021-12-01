@@ -5,10 +5,9 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from spdm.data.Entry import Entry
-from spdm.data.Mapping import Mapping
-from spdm.data.File import File
 from spdm.common.logger import logger
+from spdm.data.File import File
+from spdm.data.Mapping import Mapping
 
 if __name__ == '__main__':
 

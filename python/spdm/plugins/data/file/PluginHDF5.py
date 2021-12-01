@@ -7,7 +7,6 @@ import h5py
 import numpy
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.util.LazyProxy import LazyProxy
 from spdm.common.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 64
@@ -150,9 +149,7 @@ class H5Entry(Entry):
         self.holder = holder
 
     def copy(self, other):
-        if isinstance(other, LazyProxy):
-            other = other.__real_value__()
-        elif isinstance(other, Entry):
+        if isinstance(other, Entry):
             other = other.entry.__real_value__()
         self.put(None, other)
 
