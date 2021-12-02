@@ -1,10 +1,10 @@
 from .Edge import Edge
-from .Node import List, Dict, _TKey, _TObject
+from .Node import List, Dict,   Node
+from typing import (Generic,   TypeVar)
+_TObject = TypeVar("_TObject")
 
-_TPath = List[_TKey]
 
-
-class Graph(Dict[_TKey, _TObject]):
+class Graph(Node, Dict[_TKey, _TObject]):
     """Represents '''Graph'''.
         * defines namespace for the '''Node'''s
         * Graph is a Node
@@ -27,6 +27,8 @@ class Graph(Dict[_TKey, _TObject]):
 
 
 __SP_EXPORT__ = Graph
+
+
 # class FunctionWrapperGraph(Graph):
 #     def __init__(self, func, *args, **kwargs):
 #         super().__init__(*args, signature=inspect.signature(func), **kwargs)
