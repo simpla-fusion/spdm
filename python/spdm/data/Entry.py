@@ -6,16 +6,17 @@ import inspect
 import operator
 from copy import deepcopy
 from enum import Enum, Flag, auto
-from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
-                    MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
-                    Union)
+from functools import cached_property
+from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
+                    Type, TypeVar, Union)
 
 import numpy as np
 
-from ..util.dict_util import as_native, deep_merge_dict
 from ..common.logger import logger
-from ..util.utilities import (_not_found_, _undefined_, normalize_path,
-                              serialize)
+from ..common.tags import _not_found_, _undefined_
+from ..util.dict_util import as_native, deep_merge_dict
+from ..util.utilities import serialize
+from .Path import Path
 
 
 class EntryTags(Flag):
@@ -34,14 +35,14 @@ _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
 _TPath = TypeVar("_TPath", int,  slice, str, Sequence, Mapping)
 
+_TStandardForm = TypeVar("_TStandardForm", bool, int,  float, str, np.ndarray, list, dict)
+
 _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)
 _DICT_TYPE_ = dict
 _LIST_TYPE_ = list
 
 _TEntry = TypeVar('_TEntry', bound='Entry')
-
-_TContainer = TypeVar("_TContainer", bound="EntryContainer")
 
 
 class Entry(object):
@@ -69,11 +70,10 @@ class Entry(object):
         parent = auto()
         first_child = auto()
 
-    def __init__(self, cache=None,   path=None,      **kwargs):
-        super().__init__()
+    def __init__(self, cache=None, path=None, **kwargs):
+        # super().__init__()
+        self._path = Path(path)
         self._cache = cache
-        self._path = self.normalize_path(path)
-        # self.enable_cache(cache)
 
     def duplicate(self) -> _TEntry:
         obj = object.__new__(self.__class__)
@@ -97,31 +97,68 @@ class Entry(object):
         return self._cache
 
     @property
-    def path(self) -> Sequence:
+    def path(self) -> Path:
         return self._path
 
     @property
-    def level(self):
-        return len(self._path)
+    def is_leaf(self) -> bool:
+        return self._path.is_closed
 
     @property
-    def empty(self) -> bool:
-        return (self._cache is None and not self._path) or not self.exists
-
-    def predecessor(self) -> _TEntry:
-        return NotImplemented
-
-    def successor(self) -> _TEntry:
-        return NotImplemented
+    def is_root(self) -> bool:
+        return self._path.empty
 
     @property
     def parent(self) -> _TEntry:
-        if not self._path:
-            return self.pull(Entry.op_tag.parent)
+        return self.__class__(self._cache, self._path.parent)
+
+    def child(self,  *args) -> _TEntry:
+        return self.__class__(self._cache, self._path.append(*args))
+
+    def get_value(self, default=_undefined_, lazy=True, setdefault=False) -> Any:
+        return self if lazy else self.fetch()
+
+    def set_value(self, value: any) -> None:
+        return self
+
+    def remove(self, *args) -> bool:
+        return False
+
+    def equal(self, other) -> bool:
+        return False
+
+    def move_to(self,  force=True, lazy=True, default_value=_undefined_) -> _TEntry:
+        target, key = Entry._eval_path(self._cache, self._path, force=force)
+        self._cache = target
+        if not key:
+            self._path = []
+        elif isinstance(key, list):
+            self._path = key
         else:
-            node = self.duplicate()
-            node._path = node._path[:-1]
-            return node
+            self._path = [key]
+
+        if not lazy and len(self._path) > 0:
+            if self._cache in (None, _not_found_, _undefined_):
+                logger.warning(f"'{self._path}' points to a null node")
+        return self
+
+    def flush(self, value: _TStandardForm) -> _TEntry:
+        return self
+
+    def dump(self) -> _TStandardForm:
+        return {}
+
+    @property
+    def exists(self) -> bool:
+        return False
+
+    @property
+    def empty(self) -> bool:
+        return self.exists and self.count == 0
+
+    @property
+    def count(self) -> int:
+        return 0
 
     @property
     def first_child(self) -> Iterator[_TEntry]:
@@ -129,9 +166,6 @@ class Entry(object):
             return next brother neighbor
         """
         return self.pull(Entry.op_tag.first_child)
-
-    def __iter__(self) -> _TEntry:
-        return self.first_child
 
     def _op_find(target, k, default_value=_undefined_):
         obj, key = Entry._eval_path(target, k, force=False, lazy=False)
@@ -301,21 +335,6 @@ class Entry(object):
     }
 
     @staticmethod
-    def normalize_path(path):
-        if path is None:
-            path = []
-        elif isinstance(path, str):
-            path = [path]
-        elif isinstance(path, tuple):
-            path = list(path)
-        elif not isinstance(path, collections.abc.MutableSequence):
-            path = [path]
-
-        path = sum([d.split('.') if isinstance(d, str) else [d]
-                   for d in path], [])
-        return path
-
-    @staticmethod
     def _match(val, predication: collections.abc.Mapping):
         if not isinstance(predication, collections.abc.Mapping):
             predication = {predication: None}
@@ -395,9 +414,9 @@ class Entry(object):
             elif target is _not_found_:
                 break
             elif isinstance(target, Entry):
-                return target.moveto(path[idx:-1], _not_found_),  path[-1]
-            elif isinstance(target, EntryContainer):
-                return target.get(path[idx:-1], _not_found_), path[-1]
+                return target.move_to(path[idx:-1], _not_found_),  path[-1]
+            # elif isinstance(target, EntryContainer):
+            #     return target.get(path[idx:-1], _not_found_), path[-1]
             elif isinstance(target, np.ndarray) and isinstance(key, (int, slice)):
                 try:
                     val = target[key]
@@ -454,23 +473,6 @@ class Entry(object):
         #     raise KeyError((path, target))
         return target, key
 
-    def moveto(self, rpath: _TPath = None, force=True, lazy=True, default_value=_undefined_) -> _TEntry:
-        path = self._path + self.normalize_path(rpath)
-        target, key = Entry._eval_path(self._cache, path, force=force)
-        self._cache = target
-        if not key:
-            self._path = []
-        elif isinstance(key, list):
-            self._path = key
-        else:
-            self._path = [key]
-
-        if not lazy and len(self._path) > 0:
-            if self._cache in (None, _not_found_, _undefined_):
-                logger.warning(f"'{self._path}' points to a null node")
-
-        return self
-
     @staticmethod
     def _eval_filter(target: _T, predication=_undefined_, only_first=False) -> _T:
         if not isinstance(target, list) or predication is _undefined_:
@@ -498,8 +500,8 @@ class Entry(object):
         """
         if isinstance(target, Entry):
             return target.get(path, default_value=_not_found_, *args, query=query, lazy=lazy)
-        elif isinstance(target, EntryContainer):
-            return target.get(path, default_value=_not_found_, *args,  query=query, lazy=lazy)
+        # elif isinstance(target, EntryContainer):
+        #     return target.get(path, default_value=_not_found_, *args,  query=query, lazy=lazy)
 
         target, key = Entry._eval_path(target, path+[None], force=False)
 
@@ -582,8 +584,8 @@ class Entry(object):
     def _eval_push(target, path: list, value=_undefined_, *args):
         if isinstance(target, Entry):
             return target.push(path, value, *args)
-        elif isinstance(target, EntryContainer):
-            return target.put(path,  value, *args)
+        # elif isinstance(target, EntryContainer):
+        #     return target.put(path,  value, *args)
 
         if path is _undefined_:
             path = []
@@ -631,12 +633,8 @@ class Entry(object):
 
         return val
 
-    def push(self, path, value=_undefined_, predication=_undefined_, only_first=False) -> _T:
-        if value is _undefined_:
-            value = path
-            path = []
-
-        path = self._path + Entry.normalize_path(path)
+    def push(self, path, value, predication=_undefined_, only_first=False) -> _T:
+        path = self._path / path
 
         if self._cache is _not_found_ or self._cache is _undefined_ or self._cache is None:
             if len(path) > 0 and isinstance(path[0], str):
@@ -649,27 +647,22 @@ class Entry(object):
 
             if target is _not_found_ or isinstance(key, list):
                 raise KeyError(path)
-            val = Entry._eval_push(
-                target, [key] if key is not None else [], value)
+            val = Entry._eval_push(target, [key] if key is not None else [], value)
         else:
-            target, key = Entry._eval_path(
-                self._cache, path+[None], force=True)
+            target, key = Entry._eval_path(self._cache, path+[None], force=True)
             if key is not None or target is _not_found_:
                 raise KeyError(path)
             elif not isinstance(target, list):
-                raise TypeError(
-                    f"If predication is defined, target must be list! {type(target)}")
+                raise TypeError(f"If predication is defined, target must be list! {type(target)}")
             elif only_first:
                 try:
-                    target = next(
-                        filter(lambda d: Entry._match(d, predication), target))
+                    target = next(filter(lambda d: Entry._match(d, predication), target))
                 except StopIteration:
                     val = _not_found_
                 else:
                     val = Entry._eval_push(target, [], value)
             else:
-                val = [Entry._eval_push(d, [], value)
-                       for d in target if Entry._match(d, predication)]
+                val = [Entry._eval_push(d, [], value) for d in target if Entry._match(d, predication)]
                 if len(val) == 0:
                     val = _not_found_
 
@@ -686,7 +679,7 @@ class Entry(object):
     def count(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.count)
 
-    def exist(self, query: _TPath = None):
+    def contains(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.exists)
 
     def get(self, path, default_value=_undefined_, *args, lazy=False, **kwargs) -> Any:
@@ -695,7 +688,7 @@ class Entry(object):
         if obj is not _not_found_:
             return obj
         elif lazy is True and default_value is _undefined_:
-            return self.duplicate().moveto(path)
+            return self.duplicate().move_to(path)
         elif default_value is not _undefined_:
             return default_value
         else:
@@ -819,7 +812,7 @@ class EntryCombiner(Entry):
         #     val = functools.reduce(self._reducer, val[1:], val[0])
 
         if val is _not_found_ and lazy is True and query is _undefined_ and predication is _undefined_:
-            val = self.duplicate().moveto(path)
+            val = self.duplicate().move_to(path)
 
         return val
 
@@ -866,113 +859,6 @@ class EntryIterator(Iterator[_TObject]):
 
     def __next__(self) -> Iterator[_TObject]:
         return super().__next__()
-
-
-class EntryContainer:
-    __slots__ = "_entry"
-
-    def __init__(self, entry) -> None:
-        super().__init__()
-        if isinstance(entry, EntryContainer):
-            self._entry = entry._entry
-        elif not isinstance(entry, Entry):
-            self._entry = Entry(entry)
-        else:
-            self._entry = entry
-
-    def _duplicate(self, *args, **kwargs) -> _TContainer:
-        return self.__class__(self._entry, *args, **kwargs)
-
-    def _pre_process(self, value: Any, *args, **kwargs) -> Any:
-        return value
-
-    def _post_process(self, value: _T,   *args,  **kwargs) -> _T:
-        return value
-
-    def __ior__(self,  value: _T) -> _T:
-        return self._entry.push({Entry.op_tag.update: value})
-
-    @property
-    def _is_list(self) -> bool:
-        return False
-
-    @property
-    def _is_dict(self) -> bool:
-        return False
-
-    @property
-    def is_valid(self) -> bool:
-        return self._entry is not None
-
-    def flush(self):
-        if self._entry.level == 0:
-            return
-        elif self._is_dict:
-            self._entry.moveto([""])
-        else:
-            self._entry.moveto(None)
-
-    def clear(self):
-        self._entry.push(Entry.op_tag.reset)
-
-    def remove(self, path: _TPath = None) -> bool:
-        return self._entry.push(path, Entry.op_tag.remove)
-
-    def reset(self, cache=_undefined_, ** kwargs) -> None:
-        if isinstance(cache, Entry):
-            self._entry = cache
-        elif cache is None:
-            self._entry = None
-        elif cache is not _undefined_:
-            self._entry = Entry(cache)
-        else:
-            self._entry = Entry(kwargs)
-
-    def update(self, value: _T, **kwargs) -> _T:
-        return self._entry.push([], {Entry.op_tag.update: value}, **kwargs)
-
-    def find(self, query: _TPath, **kwargs) -> _TObject:
-        return self._entry.pull({Entry.op_tag.find: query},  **kwargs)
-
-    def try_insert(self, query: _TPath, value: _T, **kwargs) -> _T:
-        return self._entry.push({Entry.op_tag.try_insert: {query: value}},  **kwargs)
-
-    def count(self, query: _TPath, **kwargs) -> int:
-        return self._entry.pull({Entry.op_tag.count: query}, **kwargs)
-
-    # def dump(self) -> Union[Sequence, Mapping]:
-    #     return self._entry.pull(Entry.op_tag.dump)
-
-    def put(self, path: _TPath, value, *args, **kwargs) -> _TObject:
-        return self._entry.put(path, value, *args, **kwargs)
-
-    def get(self, path: _TPath, *args, **kwargs) -> _TObject:
-        return self._entry.get(path, *args, **kwargs)
-
-    def replace(self, path, value: _T, *args, **kwargs) -> _T:
-        return self._entry.replace(path, value, *args, **kwargs)
-
-    def equal(self, path: _TPath, other) -> bool:
-        return self._entry.pull(path, {Entry.op_tag.equal: other})
-
-    def __setitem__(self, path: _TPath, value: _T) -> _T:
-        return self._entry.push(path, self._pre_process(value))
-
-    def __getitem__(self, path: _TPath) -> Union[_TEntry, Any]:
-        return self._post_process(self._entry.pull(path, lazy=True), path=path)
-
-    def __delitem__(self, path: _TPath) -> bool:
-        return self._entry.push({Entry.op_tag.remove: path})
-
-    def __contains__(self, path: _TPath) -> bool:
-        return self._entry.pull({Entry.op_tag.contains: path})
-
-    def __len__(self) -> int:
-        return self._entry.pull(Entry.op_tag.count)
-
-    def __iter__(self) -> Iterator[_T]:
-        for idx, obj in enumerate(self._entry.first_child()):
-            yield self._post_process(obj, path=[idx])
 
 
 def as_dataclass(dclass, obj, default_value=None):

@@ -1,14 +1,18 @@
-from .Node import Node
-from ..util.LazyProxy import LazyProxy
-from ..common.logger import logger
-from ..util.utilities import _empty
-from ..util.SpObject import SpObject
 # from .State import SpStage, SpState
 import collections
 import inspect
+from typing import Generic, TypeVar
+
+from ..common.logger import logger
+from ..common.SpObject import SpObject
+from ..common.tags import _empty
+from .Node import Node
+
+_TSource = TypeVar("_TSource", Node)
+_TTarget = TypeVar("_TTarget", Node)
 
 
-class Edge:
+class Edge(SpObject, Generic[_TSource, _TTarget]):
 
     """
      Description:
