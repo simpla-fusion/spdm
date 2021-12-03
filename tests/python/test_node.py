@@ -8,6 +8,11 @@ from spdm.data.List import List, _next_
 from spdm.data.Node import Node
 
 
+class Foo(Dict):
+    def __init__(self,   *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 class TestNode(unittest.TestCase):
     data = {
         "a": [
@@ -81,19 +86,28 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d[0]["a"], 1)
         self.assertEqual(d[0]["b"], 2)
 
-    def test_node_insert(self):
-        cache = {"this_is_a_cache": True}
+    # def test_node_insert(self):
+    #     cache = {"this_is_a_cache": True}
 
-        d = Dict(cache)
+    #     d = Dict(cache)
 
-        d["a"] = "hello world {name}!"
-        self.assertEqual(cache["a"], "hello world {name}!")
+    #     d["a"] = "hello world {name}!"
+    #     self.assertEqual(cache["a"], "hello world {name}!")
 
-        d["c"] .append(1.23455)
-        d["c"] .append({"a": "hello world", "b": 3.141567})
+    #     d["c"] .append(1.23455)
+    #     d["c"] .append({"a": "hello world", "b": 3.141567})
 
-        self.assertEqual(cache["c"][0],  1.23455)
+    #     self.assertEqual(cache["c"][0],  1.23455)
 
+    def test_child_type_convert_list(self):
+
+        cache = [{"a": 1234}, {"b": 1234}, {"c": 1234}, {"d": 1234}]
+
+        d = List[Foo](cache)
+
+        self.assertFalse(isinstance(cache[1], Foo))
+        self.assertTrue(isinstance(d[1], Foo))
+    #     self.assertTrue(isinstance(cache[1], Foo))
 
 #     # def test_node_boolean(self):
 #     #     d = Dict()

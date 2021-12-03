@@ -4,17 +4,13 @@ import dataclasses
 import inspect
 from _thread import RLock
 from functools import cached_property
-from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
-                    MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
-                    Union, final, get_args)
+from typing import Any, Callable, Generic, TypeVar, Union, final, get_args
 
 import numpy as np
 
 from ..common.logger import logger
-from ..common.SpObject import SpObject
 from ..common.tags import _not_found_, _undefined_
 from .Entry import Entry
-
 from .Node import Node
 
 _TObject = TypeVar("_TObject")
@@ -50,12 +46,12 @@ class _sp_property(Generic[_TObject]):
     def _convert(self, value: _T, parent=None) -> _T:
         # if self._check_type(value):
         #     n_value = value
-        # # elif hasattr(instance, "_convert"):
-        # #     n_value = instance._convert(value, parent=instance, attribute=self.return_type)
         # else:
         #     n_value = self.return_type(value)
         if inspect.isclass(self.return_type) and issubclass(self.return_type, Node):
             return self.return_type(value, parent=parent)
+        # elif hasattr(parent, "_convert"):
+        #     return parent._convert(value, parent=parent, attribute=self.return_type)
         else:
             return self.return_type(value)
 

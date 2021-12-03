@@ -23,7 +23,7 @@ class List(Container[_TObject], Sequence[_TObject]):
     def __init__(self, data: Sequence = None, /,   **kwargs) -> None:
         super().__init__(data if data is not None else list(), **kwargs)
 
-    def _serialize(self) -> Sequence:
+    def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self.__iter__()]
 
     @property

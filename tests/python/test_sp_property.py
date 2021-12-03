@@ -28,10 +28,14 @@ class Doo(Dict):
     def goo(self) -> Foo:
         return {"a": 3.14}
 
+    @sp_property
+    def foo_list(self) -> List[Foo]:
+        return self.get("foo_list", [])
+
 
 class TestSpProperty(unittest.TestCase):
     def test_get(self):
-        cache = {"foo": {"a": 1234}}
+        cache = {"foo": {"a": 1234}, }
         d = Doo(cache)
 
         self.assertFalse(isinstance(cache["foo"], Foo))
@@ -42,7 +46,18 @@ class TestSpProperty(unittest.TestCase):
         d.goo.a
         self.assertEqual(cache["goo"].a, 3.14)
 
-        logger.debug(cache)
+    def test_get_list(self):
+
+        cache = {"foo_list": [{"a": 1234}, {"b": 1234}, {"c": 1234}, ]}
+
+        d = Doo(cache)
+
+        self.assertFalse(isinstance(cache["foo_list"], Foo))
+        self.assertTrue(isinstance(d.foo_list, List))
+        self.assertTrue(isinstance(cache["foo_list"], List))
+        self.assertTrue(isinstance(d.foo_list[0], Foo))
+
+        self.assertEqual(d.foo_list[0]["a"], 1234)
 
     def test_set(self):
         cache = {"foo": {"a": 1234}}
