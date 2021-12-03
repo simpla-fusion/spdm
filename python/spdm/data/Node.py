@@ -52,6 +52,10 @@ class Node(SpObject):
     def nid(self) -> str:
         return self._nid
 
+    @property
+    def entry(self) -> Entry:
+        return self._entry
+
     def reset(self):
         self._entry = None
 

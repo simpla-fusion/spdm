@@ -18,6 +18,7 @@ from .Entry import Entry
 from .Node import Node
 
 _TObject = TypeVar("_TObject")
+_T = TypeVar("_T")
 
 
 class _sp_property(Generic[_TObject]):

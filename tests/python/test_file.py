@@ -1,11 +1,10 @@
-import unittest
-import numpy as np
-from spdm.data.Node import Node, Dict, List, _next_, _not_found_
-from spdm.common.logger import logger
-from copy import copy, deepcopy
-from spdm.data.File import File
 import tempfile
+import unittest
+
 import h5py
+import numpy as np
+from spdm.common.logger import logger
+from spdm.data.File import File
 
 
 class TestFile(unittest.TestCase):
@@ -46,10 +45,15 @@ class TestFile(unittest.TestCase):
         self.assertListEqual(list(res.get("a")), self.data["a"])
         self.assertListEqual(list(res.get("b")), self.data["b"])
         self.assertEqual(res.get("d.e"), self.data["d"]["e"])
-        logger.debug(res.get("d"))
+
         self.assertDictEqual(res.get("d"), self.data["d"])
 
         self.assertTrue(np.array_equal(res.get("h"), self.data["h"]))
+
+    def test_xml(self):
+        device_desc = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml",
+                           format="XML").read()
+        logger.debug(device_desc.get({"wall", "pf_active", "tf", "magnetics"}).dump())
 
 
 if __name__ == '__main__':

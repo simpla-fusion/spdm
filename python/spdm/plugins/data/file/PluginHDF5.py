@@ -5,9 +5,11 @@ from typing import Any, Dict
 
 import h5py
 import numpy
+from spdm.common.logger import logger
+from spdm.common.tags import _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.common.logger import logger
+from spdm.data.Path import Path
 
 SPDM_LIGHTDATA_MAX_LENGTH = 64
 
@@ -31,7 +33,9 @@ def h5_put_value(grp, path, value):
     res = None
     if path is None:
         path = []
-    elif type(path) is not list:
+    elif isinstance(path, Path):
+        path = path.as_list()
+    elif not isinstance(path, list):
         path = [path]
 
     if isinstance(value, collections.abc.Mapping):
@@ -76,7 +80,14 @@ def h5_put_value(grp, path, value):
     return res
 
 
-def h5_get_value(obj, path=None, projection=None):
+def h5_get_value(obj, path=None, projection=None, default=_undefined_, **kwargs):
+    if path is None:
+        path = []
+    elif isinstance(path, Path):
+        path = path.as_list()
+    elif not isinstance(path, list):
+        path = [path]
+
     if obj is None:
         raise RuntimeError("None group")
 
@@ -144,23 +155,28 @@ def h5_dump(grp):
 
 class H5Entry(Entry):
 
-    def __init__(self, holder, *args, **kwargs):
+    def __init__(self,   *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.holder = holder
 
     def copy(self, other):
         if isinstance(other, Entry):
             other = other.entry.__real_value__()
         self.put(None, other)
 
-    def put(self, path, value, *args, **kwargs):
-        return h5_put_value(self.holder, path, value)
+    # def put(self, path, value, *args, **kwargs):
+    #     return h5_put_value(self._cache, path, value)
 
-    def get(self, path=[], projection=None, *args, **kwargs):
-        return h5_get_value(self.holder, path, projection=projection)
+    # def get(self, path=[], projection=None, *args, **kwargs):
+    #     return h5_get_value(self._cache, path, projection=projection)
+
+    def push(self,  value, *args, **kwargs):
+        return h5_put_value(self._cache, self._path, value, *args, **kwargs)
+
+    def pull(self, default=_undefined_, *args, **kwargs) -> Any:
+        return h5_get_value(self._cache, self._path, *args, default=default, **kwargs)
 
     def dump(self):
-        return h5_dump(self.holder)
+        return h5_dump(self._cache)
 
     def iter(self,  path, *args, **kwargs):
         raise NotImplementedError()
@@ -194,7 +210,7 @@ class H5File(File):
     def write(self, *args, **kwargs):
         if not self.is_open:
             self.open()
-        H5Entry(self._fid).put([], *args, **kwargs)
+        H5Entry(self._fid).push(*args, **kwargs)
 
 
 # class HDF5Collection(FileCollection):

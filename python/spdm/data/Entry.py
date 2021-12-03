@@ -49,7 +49,7 @@ class Entry(object):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
-    def __init__(self, cache, path=[]):
+    def __init__(self, cache=None, path=[], **kwargs):
         super().__init__()
         self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache
@@ -217,8 +217,10 @@ class Entry(object):
             return key.apply(obj)
         elif isinstance(key, (int, str, slice)):
             return obj[key]
+        elif isinstance(key, set):
+            return {k: Entry.normal_get(obj, k) for k in key}
         elif isinstance(key, collections.abc.Sequence):
-            return [Entry.normal_get(obj, i) for i in key]
+            return [Entry.normal_get(obj, k) for k in key]
         elif isinstance(key, collections.abc.Mapping):
             return {k: Entry.normal_get(obj, v) for k, v in key.items()}
         else:
@@ -260,6 +262,12 @@ class Entry(object):
                 Entry.normal_set(obj, i, Entry.normal_get(value, v), update=update)
         else:
             raise NotImplemented
+
+    def get(self, path, default=_undefined_) -> any:
+        return self.child(path).pull(default)
+
+    def put(self, path, value) -> None:
+        self.child(path).push(value)
 
 
 def _slice_to_range(s: slice, length: int) -> range:
