@@ -31,10 +31,10 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         return {k: serialize(v) for k, v in self._entry.first_child()}
 
     def __getitem__(self, key: str) -> _TObject:
-        return self._post_process(self._entry.child(key).get_value(), path=key)
+        return self._post_process(self._entry.child(key).pull(), path=key)
 
     def __setitem__(self, key: str, value: _T) -> None:
-        return self._entry.child(key).set_value(self._pre_process(value))
+        return self._entry.child(key).push(self._pre_process(value))
 
     def __delitem__(self, key: str) -> None:
         self._entry.child(key).erase()
@@ -67,7 +67,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             _T: [description]
         """
-        self._entry.set_value(d, update=True)
+        self._entry.push(d, update=True)
         return self
 
     def get(self, key, *args) -> Any:
@@ -80,7 +80,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).get_value(*args), path=key)
+        return self._post_process(self._entry.child(key).pull(*args), path=key)
 
     def setdefault(self, key, *args) -> Any:
         """If key is in the dictionary, return its value. If not, insert key with a value of default and return default. default defaults to None.

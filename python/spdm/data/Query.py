@@ -18,7 +18,7 @@ class Query(object):
     def dump(self) -> dict:
         return self._query
 
-    def eval(self, obj) -> Any:
+    def apply(self, obj, prefix=None) -> Any:
         if len(self._query) == 0:
             return None
         else:

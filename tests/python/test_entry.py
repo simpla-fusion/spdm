@@ -3,6 +3,8 @@ import unittest
 from copy import deepcopy
 from spdm.data.Entry import Entry, EntryCombiner,   _next_
 from spdm.common.logger import logger
+from spdm.common.tags import _not_found_
+from spdm.data.Query import Query
 
 
 class TestEntry(unittest.TestCase):
@@ -23,11 +25,11 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.pull("c"),                self.data["c"])
-        self.assertEqual(d.pull(["d", "e"]),    self.data["d"]["e"])
-        self.assertEqual(d.pull(["d", "f"]),    self.data["d"]["f"])
-        self.assertEqual(d.pull(["a", 0]),        self.data["a"][0])
-        self.assertEqual(d.pull(["a", 1]),        self.data["a"][1])
+        self.assertEqual(d.child("c").pull(),           self.data["c"])
+        self.assertEqual(d.child("d", "e").pull(),      self.data["d"]["e"])
+        self.assertEqual(d.child("d", "f").pull(),      self.data["d"]["f"])
+        self.assertEqual(d.child("a", 0).pull(),        self.data["a"][0])
+        self.assertEqual(d.child("a", 1).pull(),        self.data["a"][1])
 
     def test_find_by_cond(self):
         cache = [
@@ -41,7 +43,7 @@ class TestEntry(unittest.TestCase):
 
         # self.assertEqual(d0.pull(predication={"name": "li si"}, only_first=True)["age"], 22)
 
-        self.assertEqual(d0.pull([{"name": "li si"}, "age"]), 22)
+        self.assertEqual(d0.child(Query({"name": "li si"}), "age").pull(), 22)
 
         d1 = Entry({"person": cache})
 
@@ -61,7 +63,7 @@ class TestEntry(unittest.TestCase):
 
         d0 = Entry(cache)
 
-        d0.push({Entry.op_tag.update: {"address": "hefei"}}, predication={"name": "wang wu"})
+        d0.child(Query({"name": "wang wu"})).push({"address": "hefei"}, update=True)
 
         self.assertEqual(cache[0]["address"],  "hefei")
         self.assertEqual(cache[0]["age"],  21)
@@ -71,13 +73,13 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.push({"a": "hello world {name}!"})
+        d.push({"a": "hello world {name}!"}, update=True)
 
         self.assertEqual(cache["a"], "hello world {name}!")
 
-        d.push(["e", "f"], 5)
+        d.child("e.f").push(5)
 
-        d.push(["e", "g"], 6)
+        d.child("e.g").push(6)
 
         self.assertEqual(cache["e"]["f"],   5)
 
@@ -86,23 +88,25 @@ class TestEntry(unittest.TestCase):
     def test_operator(self):
         d = Entry(self.data)
 
-        self.assertTrue(d.pull(Entry.op_tag.exists))
-        self.assertTrue(d.pull("a", Entry.op_tag.exists))
-        self.assertTrue(d.pull("d.e", Entry.op_tag.exists))
-        self.assertFalse(d.pull("b.h", Entry.op_tag.exists))
-        self.assertFalse(d.pull("f.g", Entry.op_tag.exists))
+        self.assertTrue(d.exists())
+        self.assertTrue(d.child("a").exists())
+        self.assertTrue(d.child("d.e").exists())
+        self.assertFalse(d.child("b.h").exists())
+        self.assertFalse(d.child("f.g").exists())
 
-        self.assertEqual(d.pull(Entry.op_tag.count),          3)
-        self.assertEqual(d.pull("a", Entry.op_tag.count),   6)
-        self.assertEqual(d.pull("d", Entry.op_tag.count),   2)
+        self.assertEqual(d.count(),          3)
+        self.assertEqual(d.child("a").count(),   6)
+        self.assertEqual(d.child("d").count(),   2)
 
-        self.assertTrue(d.pull(["a", slice(2, 6)], {Entry.op_tag.equal: [1, 2, 3, 4]}))
+        # self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
 
     def test_append(self):
         cache = {}
         d = Entry(cache)
-        d.push(["c", _next_],  1.23455)
-        d.push(["c", _next_], {"a": "hello world", "b": 3.141567})
+
+        d.child("c").push([1.23455], extend=True)
+
+        d.child("c").push([{"a": "hello world", "b": 3.141567}], extend=True)
 
         self.assertEqual(cache["c"][0],                      1.23455)
         self.assertEqual(cache["c"][1]["a"],           "hello world")
@@ -113,7 +117,7 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.push({"d": {"g": 5}})
+        d.push({"d": {"g": 5}}, update=True)
 
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
         self.assertEqual(cache["d"]["f"], "{address}")
@@ -130,12 +134,12 @@ class TestEntry(unittest.TestCase):
         }
 
         d = Entry(cache)
-        d.remove("b")
+        d.child("b").erase()
         self.assertTrue("b" not in cache)
 
     def test_get_many(self):
         d = Entry(self.data)
-        res = d.get_many([["a", 0], "c", "d.e"])
+        res = d.child([["a", 0], "c", "d.e"]).pull()
         logger.debug(res)
 
 

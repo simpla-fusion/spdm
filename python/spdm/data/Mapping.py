@@ -42,13 +42,13 @@ class MappingEntry(Entry):
         return self.__post_process__(self._mapping.get(path, *args, only_one=True, **kwargs))
 
     def get_value(self,  path, *args,  is_raw_path=False,  **kwargs):
-        return self.__post_process__(self._mapping.get_value(path, *args, **kwargs))
+        return self.__post_process__(self._mapping.pull(path, *args, **kwargs))
 
     def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
         if not is_raw_path:
             return PathTraverser(path).apply(lambda p: self.get(p, is_raw_path=True, **kwargs))
         else:
-            request = self._mapping.get_value(path, *args, **kwargs)
+            request = self._mapping.pull(path, *args, **kwargs)
 
             if isinstance(request, str):
                 self._data.update(request, value, is_raw_path=True)

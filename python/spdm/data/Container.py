@@ -61,7 +61,7 @@ class Container(Node, Generic[_TObject]):
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
     def __setitem__(self, key: Any, value: _T) -> _T:
-        return self._entry.child(key).set_value(self._pre_process(value))
+        return self._entry.child(key).push(self._pre_process(value))
 
     def __getitem__(self, key: Any) -> Any:
         return self._post_process(self._entry.child(key), path=key)
@@ -70,30 +70,28 @@ class Container(Node, Generic[_TObject]):
         return self._entry.child(key).erase()
 
     def __contains__(self, key: Any) -> bool:
-        return self._entry.child(key).get_value(_not_found_) is not _not_found_
+        return self._entry.child(key).exists()
 
     def __eq__(self, other) -> bool:
-        res = self._entry.get_value(_not_found_)
-        return res == other if not isinstance(res, Node) else False
+        return self._entry.equal(other)
 
     def __len__(self) -> int:
-        res = self._entry.get_value(_not_found_)
-        return len(res) if res is not _not_found_ else 0
+        return self._entry.count()
 
     def __iter__(self) -> Iterator[_T]:
         for idx, obj in enumerate(self._entry):
             yield self._post_process(obj, path=[idx])
 
     def append(self, value) -> _TContainer:
-        self._entry.set_value([value], extend=True)
+        self._entry.push([value], extend=True)
         return self
 
     def extend(self, value) -> _TContainer:
-        self._entry.set_value(value, extend=True)
+        self._entry.push(value, extend=True)
         return self
 
     def __ior__(self, obj) -> _TContainer:
-        self._entry.set_value(obj, update=True)
+        self._entry.push(obj, update=True)
         return self
     # @property
     # def entry(self) -> Entry:
@@ -161,6 +159,7 @@ class Container(Node, Generic[_TObject]):
 
     # def replace(self, path, value: _T, *args, **kwargs) -> _T:
     #     return self._entry.replace(path, value, *args, **kwargs)
+
 
     # def equal(self, path: _TPath, other) -> bool:
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})

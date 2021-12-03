@@ -34,10 +34,10 @@ class List(Container[_TObject], Sequence[_TObject]):
         return super().__len__()
 
     def __setitem__(self, idx, v: _T) -> None:
-        return self._entry.child(idx).set_value(v)
+        return self._entry.child(idx).push(v)
 
     def __getitem__(self, idx) -> _TObject:
-        return self._post_process(self._entry.child(idx).get_value(), path=idx)
+        return self._post_process(self._entry.child(idx).pull(), path=idx)
 
     def __delitem__(self, idx) -> None:
         self._entry.child(idx).erase()
@@ -47,7 +47,7 @@ class List(Container[_TObject], Sequence[_TObject]):
             yield self._post_process(v, path=idx)
 
     def __iadd__(self, other) -> _TList:
-        self._entry.set_value(other, append=True)
+        self._entry.push(other, append=True)
         return self
 
     def sort(self) -> None:

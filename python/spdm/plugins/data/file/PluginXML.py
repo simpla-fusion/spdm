@@ -270,7 +270,7 @@ class XMLEntry(Entry):
                 yield res
 
     def __serialize__(self, *args, **kwargs):
-        return serialize(self.get_value(*args, **kwargs))
+        return serialize(self.pull(*args, **kwargs))
 
 
 class XMLFile(File):

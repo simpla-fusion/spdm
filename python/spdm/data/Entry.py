@@ -94,11 +94,16 @@ class Entry(object):
     def child(self, *args) -> _TEntry:
         return self.__class__(self._cache, self._path.duplicate().append(*args))
 
+    def query(self, q: Query) -> Any:
+        if not isinstance(q, Query):
+            q = Query(q)
+        return q.apply(self._cache, self._path)
+
     def first_child(self) -> Iterator[_TEntry]:
         """
             return next brother neighbor
         """
-        d = self.get_value()
+        d = self.pull()
         if isinstance(d, collections.abc.Sequence):
             yield from d
         elif isinstance(d, collections.abc.Mapping):
@@ -108,7 +113,7 @@ class Entry(object):
         else:
             raise NotImplementedError(type(d))
 
-    def make_parents(self) -> _TEntry:
+    def _make_parents(self) -> _TEntry:
         if len(self._path) == 1:
             if self._cache is not None:
                 pass
@@ -133,7 +138,7 @@ class Entry(object):
         self._path = Path(self._path[-1])
         return self
 
-    def get_value(self, default=_undefined_, strict=False) -> Any:
+    def pull(self, default=_undefined_, strict=False) -> Any:
         if self._path.empty:
             return self._cache
 
@@ -155,13 +160,13 @@ class Entry(object):
 
         return obj
 
-    def set_value(self, value: any, update=False, extend=False) -> None:
+    def push(self, value: any, update=False, extend=False) -> None:
         if extend:
-            target = self.get_value(_not_found_)
+            target = self.pull(_not_found_)
             if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
                 target.extend(value)
             else:
-                self.set_value(value)
+                self.push(value)
         elif self._path.empty:
             if update and isinstance(self._cache, collections.abc.Mapping):
                 Entry.normal_set(self._cache, None, value, update=update)
@@ -170,7 +175,7 @@ class Entry(object):
         elif len(self._path) == 1:
             Entry.normal_set(self._cache, self._path[0], value, update=update)
         else:
-            self.make_parents().set_value(value, update=update)
+            self._make_parents().push(value, update=update)
         return None
 
     def erase(self, *args) -> bool:
@@ -191,14 +196,25 @@ class Entry(object):
 
         return True
 
+    def count(self) -> int:
+        res = self.pull(_not_found_)
+        return len(res) if res is not _not_found_ else 0
+
+    def exists(self) -> bool:
+        return self.pull(_not_found_) is not _not_found_
+
+    def equal(self, other) -> bool:
+        res = self.pull(_not_found_)
+        return res == other
+
     @staticmethod
     def normal_get(obj, key):
         if isinstance(obj, Entry):
-            return obj.child(key).get_value()
+            return obj.child(key).pull()
         elif key is None:
             return obj
         elif isinstance(key, Query):
-            return key.eval(obj)
+            return key.apply(obj)
         elif isinstance(key, (int, str, slice)):
             return obj[key]
         elif isinstance(key, collections.abc.Sequence):
@@ -211,7 +227,7 @@ class Entry(object):
     @staticmethod
     def normal_set(obj, key, value, update=True):
         if isinstance(obj, Entry):
-            obj.child(key).set_value(value, update=update)
+            obj.child(key).push(value, update=update)
         elif isinstance(key, (int, str, slice)):
             if not update:
                 obj[key] = value
@@ -289,9 +305,8 @@ class EntryCombiner(Entry):
         for d in self._d_list:
             Entry._eval_push(d, path, value, *args, **kwargs)
 
-    def pull(self, path=None, query=_undefined_, lazy=False, predication=_undefined_, only_first=False, type_hint=_undefined_) -> Any:
-
-        val = super().pull(path, query=query, lazy=False, predication=predication, only_first=only_first)
+    def pull(self, **kwargs) -> Any:
+        val = super().pull(**kwargs)
 
         if val is not _not_found_:
             return val
