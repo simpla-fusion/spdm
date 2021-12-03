@@ -4,8 +4,9 @@ from typing import Mapping, Union
 
 import numpy as np
 
-from ..mesh.Mesh import Mesh
+
 from ..common.logger import logger
+from ..mesh.Mesh import Mesh
 
 
 class Field(object):

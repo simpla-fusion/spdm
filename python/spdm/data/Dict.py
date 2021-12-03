@@ -18,42 +18,42 @@ _TDict = TypeVar('_TDict', bound='Dict')
 _TObject = TypeVar("_TObject")
 
 
-class Dict(Container, Mapping[str, _TObject]):
+class Dict(Container[_TObject], Mapping[str, _TObject]):
 
-    def __init__(self, cache: Union[Mapping, Entry] = None,  /,  **kwargs):
-        super().__init__(cache if cache is not None else _DICT_TYPE_(),  **kwargs)
+    def __init__(self, data: Mapping = None,  /,  **kwargs):
+        super().__init__(data if data is not None else dict(), **kwargs)
 
     @property
     def _is_dict(self) -> bool:
         return True
 
     def _serialize(self) -> Mapping:
-        return {k: serialize(v) for k, v in self._as_dict()}
+        return {k: serialize(v) for k, v in self._entry.first_child()}
 
-    def __getitem__(self, path: _TPath) -> _TObject:
-        return super().__getitem__(path)
+    def __getitem__(self, key: str) -> _TObject:
+        return self._post_process(self._entry.child(key).get_value(), path=key)
 
     def __setitem__(self, key: str, value: _T) -> None:
-        return super().__setitem__(key, value)
+        return self._entry.child(key).set_value(self._pre_process(value))
 
     def __delitem__(self, key: str) -> None:
-        return super().__delitem__(key)
+        self._entry.child(key).remove()
 
     def __iter__(self) -> Iterator[str]:
-        yield from super().__iter__()
+        yield from self._entry.first_child()
 
     def __eq__(self, o: Any) -> bool:
-        return super().__eq__(o)
+        return self._entry.equal(o)
 
     def __contains__(self, key) -> bool:
-        return super().__contains__(key)
+        return self._entry.child(key).exists
 
     def __ior__(self, other) -> _TDict:
         self.update(other)
         return self
 
     def __len__(self) -> int:
-        return super().__len__()
+        return len(self._data)
 
     def update(self, *args, **kwargs) -> _TDict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. Return self.
@@ -67,7 +67,7 @@ class Dict(Container, Mapping[str, _TObject]):
         self._entry.update(*args, ** kwargs)
         return self
 
-    def get(self, path, default=_undefined_) -> Any:
+    def get(self, key, *args) -> Any:
         """Return the value for key if key is in the dictionary, else default. If default is not given, it defaults to None, so that this method never raises a KeyError.
 
         Args:
@@ -77,9 +77,9 @@ class Dict(Container, Mapping[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(path).get_value(default, setdefault=False))
+        return self._post_process(self._entry.child(key).get_value(*args), path=key)
 
-    def setdefault(self, path, default=_undefined_) -> Any:
+    def setdefault(self, key, *args) -> Any:
         """If key is in the dictionary, return its value. If not, insert key with a value of default and return default. default defaults to None.
 
         Args:
@@ -89,7 +89,7 @@ class Dict(Container, Mapping[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(path).get_value(default, setdefault=False))
+        return self._post_process(self._entry.child(key).setdefault(*args), path=key)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
@@ -134,6 +134,9 @@ class Dict(Container, Mapping[str, _TObject]):
     #         for key in d:
     #             if isinstance(key, str) and hasattr(self, key) and isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
     #                 delattr(self, key)
+
+
+Node._MAPPING_TYPE_ = Dict[Node]
 
 
 def chain_map(*args, **kwargs) -> collections.ChainMap:

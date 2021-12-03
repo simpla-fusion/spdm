@@ -1,5 +1,7 @@
-from typing import TypeVar
 import collections.abc
+from copy import deepcopy
+from typing import TypeVar
+
 _TPath = TypeVar("_TPath", bound="Path")
 
 
@@ -7,59 +9,69 @@ class Path(object):
     SEPERATOR = '.'
 
     def __init__(self, d=None, *args, **kwargs):
-        self._path = list(d) if d is not None else []
+        self._items = list(d) if d is not None else []
 
     def __repr__(self):
-        return Path.SEPERATOR.join([str(d) for d in self._path])
+        return Path.SEPERATOR.join([str(d) for d in self._items])
+
+    def duplicate(self) -> _TPath:
+        return Path(self._items)
 
     def append(self, *args) -> _TPath:
         for item in args:
             if isinstance(item, str):
-                self._path.extend(item.split(Path.SEPERATOR))
+                self._items.extend(item.split(Path.SEPERATOR))
             else:
-                self._path.append(item)
+                self._items.append(item)
         return self
 
     def parent(self) -> _TPath:
-        return Path(self._path[:-1])
+        return Path(self._items[:-1])
 
     def __len__(self):
-        return len(self._path)
+        return len(self._items)
 
     def __iter__(self) -> None:
-        yield from self._path
+        yield from self._items
 
     def __true_div__(self, other) -> _TPath:
-        return Path(self._path).append(other)
+        return self.duplicate().append(other)
 
     def __add__(self, other) -> _TPath:
-        return Path(self._path).append(other)
+        return self.duplicate().append(other)
+
+    def __iadd__(self, other) -> _TPath:
+        return self.append(other)
 
     def __getitem__(self, idx):
-        return self._path[idx]
+        return self._items[idx]
 
     def __setitem__(self, idx, item):
-        self._path[idx] = item
+        self._items[idx] = item
 
+    def reset(self, p=[]):
+        self._items = p
+
+    @property
     def empty(self) -> bool:
-        return len(self._path) == 0
+        return self._items is None or len(self._items) == 0
 
     def as_list(self) -> list:
-        return self._path
+        return self._items
 
     def normalize(self) -> _TPath:
-        if self._path is None:
-            self._path = []
-        elif isinstance(self._path, str):
-            self._path = [self._path]
-        elif isinstance(self._path, tuple):
-            self._path = list(self._path)
-        elif not isinstance(self._path, collections.abc.MutableSequence):
-            self._path = [self._path]
+        if self._items is None:
+            self._items = []
+        elif isinstance(self._items, str):
+            self._items = [self._items]
+        elif isinstance(self._items, tuple):
+            self._items = list(self._items)
+        elif not isinstance(self._items, collections.abc.MutableSequence):
+            self._items = [self._items]
 
-        self._path = sum([d.split(Path.SEPERATOR) if isinstance(d, str) else [d] for d in self._path], [])
+        self._items = sum([d.split(Path.SEPERATOR) if isinstance(d, str) else [d] for d in self._items], [])
         return self
 
     @property
     def is_closed(self) -> bool:
-        return len(self._path) > 0 and self._path[-1] is None
+        return len(self._items) > 0 and self._items[-1] is None

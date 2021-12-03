@@ -10,29 +10,22 @@ import numpy as np
 from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry,   _next_,
-                    _TPath)
+from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry,   _next_, _TPath)
 from .Node import Node
+from .Path import Path
 
 _TObject = TypeVar("_TObject")
 _TContainer = TypeVar("_TContainer", bound="Container")
 _T = TypeVar("_T")
 
 
-class Container(Node):
+class Container(Node, Generic[_TObject]):
     r"""
        Container Node
     """
 
-    __slots__ = "_entry"
-
-    def __init__(self, data: Any = None, /,  **kwargs) -> None:
-        super().__init__(**kwargs)
-        if isinstance(data, Container):
-            data = data._entry
-        elif not isinstance(data, Entry):
-            data = Entry(data)
-        self._entry: Entry = data
+    def __init__(self, *args,  **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         annotation = [f"{k}='{v}'" for k, v in self.annotation.items() if v is not None]
@@ -72,93 +65,23 @@ class Container(Node):
 
         return attr_type
 
-    def _convert(self, value: _T, *args,  attribute=_undefined_, parent=_undefined_, **kwargs) -> Union[_T, _TObject]:
-        if parent is _undefined_:
-            parent = self
-
-        if isinstance(value, Entry.PRIMARY_TYPE) or value in (None, _not_found_, _undefined_):
-            return value
-        # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
-        #     return value
-        # elif inspect.isclass(self._new_child):
-        #     if isinstance(value, self._new_child):
-        #         return value
-        #     elif issubclass(self._new_child, Node):
-        #         return self._new_child(value, parent=parent, **kwargs)
-        #     else:
-        #         return self._new_child(value, **kwargs)
-        # elif callable(self._new_child):
-        #     return self._new_child(value, **kwargs)
-        # elif isinstance(self._new_child, collections.abc.Mapping) and len(self._new_child) > 0:
-        #     kwargs = collections.ChainMap(kwargs, self._new_child)
-        # elif self._new_child is not _undefined_ and not not self._new_child:
-        #     logger.warning(f"Ignored!  { (self._new_child)}")
-
-        if isinstance(attribute, str) or attribute is _undefined_:
-            attribute_type = self._attribute_type(attribute)
-        else:
-            attribute_type = attribute
-
-        if inspect.isclass(attribute_type):
-            if isinstance(value, attribute_type):
-                res = value
-            elif attribute_type in (int, float):
-                res = attribute_type(value)
-            elif attribute_type is np.ndarray:
-                res = np.asarray(value)
-            elif dataclasses.is_dataclass(attribute_type):
-                if isinstance(value, collections.abc.Mapping):
-                    res = attribute_type(
-                        **{k: value.get(k, None) for k in attribute_type.__dataclass_fields__})
-                elif isinstance(value, collections.abc.Sequence):
-                    res = attribute_type(*value)
-                else:
-                    res = attribute_type(value)
-            elif issubclass(attribute_type, Node):
-                res = attribute_type(value, parent=parent, **kwargs)
-            else:
-                res = attribute_type(value, **kwargs)
-        elif hasattr(attribute_type, '__origin__'):
-            if issubclass(attribute_type.__origin__, Node):
-                res = attribute_type(value, parent=parent, **kwargs)
-            else:
-                res = attribute_type(value, **kwargs)
-        elif callable(attribute_type):
-            res = attribute_type(value, **kwargs)
-        elif attribute_type is not _undefined_:
-            raise TypeError(attribute_type)
-        elif isinstance(value, collections.abc.Sequence):
-            res = List(value, parent=self, **kwargs)
-        elif isinstance(value, collections.abc.Mapping):
-            res = Dict(value, parent=self, **kwargs)
-        elif isinstance(value, Entry):
-            res = Node(value, parent=self, **kwargs)
-
-        return res
-
     def _serialize(self) -> Any:
         return serialize(self._entry.dump())
 
     def _duplicate(self, *args, parent=None, **kwargs) -> _TContainer:
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
-    def _pre_process(self, value: _T, *args, **kwargs) -> _T:
-        return value
+    def __setitem__(self, key: Any, value: _T) -> _T:
+        return self._entry.child(key).set_value(self._pre_process(value))
 
-    def _post_process(self, value: _T,   *args, path: _TPath = None, **kwargs) -> Union[_T, _TObject]:
-        return self._convert(value, *args, **kwargs)
+    def __getitem__(self, key: Any) -> Any:
+        return self._post_process(self._entry.child(key), path=key)
 
-    def __setitem__(self, path: Any, value: _T) -> _T:
-        return self._entry.child(path).set_value(self._pre_process(value))
+    def __delitem__(self, key: Any) -> bool:
+        return self._entry.child(key).remove()
 
-    def __getitem__(self, path: Any) -> Any:
-        return self._post_process(self._entry.child(path).get_value(lazy=True), path=path)
-
-    def __delitem__(self, path: Any) -> bool:
-        return self._entry.child(path).remove()
-
-    def __contains__(self, path: Any) -> bool:
-        return self._entry.child(path).exists
+    def __contains__(self, obj: Any) -> bool:
+        return self._entry.child(obj).exists
 
     def __eq__(self, other) -> bool:
         return self._entry.equal(other)
@@ -167,10 +90,10 @@ class Container(Node):
         return self._entry.count
 
     def __iter__(self) -> Iterator[_T]:
-        for idx, obj in enumerate(self._entry.first_child):
+        for idx, obj in enumerate(self._entry):
             yield self._post_process(obj, path=[idx])
 
-    # @propertywx
+    # @property
     # def entry(self) -> Entry:
     #     return self._entry
 
@@ -237,5 +160,7 @@ class Container(Node):
     # def replace(self, path, value: _T, *args, **kwargs) -> _T:
     #     return self._entry.replace(path, value, *args, **kwargs)
 
+
     # def equal(self, path: _TPath, other) -> bool:
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})
+Node._CONTAINER_TYPE_ = Container[Node]

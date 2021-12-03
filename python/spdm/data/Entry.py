@@ -7,6 +7,7 @@ import operator
 from copy import deepcopy
 from enum import Enum, Flag, auto
 from functools import cached_property
+from sys import excepthook
 from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
                     Type, TypeVar, Union)
 
@@ -48,31 +49,9 @@ _TEntry = TypeVar('_TEntry', bound='Entry')
 class Entry(object):
     __slots__ = "_cache", "_path"
 
-    PRIMARY_TYPE = (bool, int, float, str, np.ndarray)
-
-    class op_tag(Flag):
-        # write
-        try_insert = auto()
-        assign = auto()
-        update = auto()
-        append = auto()
-        remove = auto()
-        reset = auto()
-        # read
-        find = auto()
-        equal = auto()
-        count = auto()
-        exists = auto()
-        contains = auto()
-        dump = auto()
-        # iter
-        next = auto()
-        parent = auto()
-        first_child = auto()
-
-    def __init__(self, cache=None, path=None, **kwargs):
-        # super().__init__()
-        self._path = Path(path)
+    def __init__(self, cache, path=[]):
+        super().__init__()
+        self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache
 
     def duplicate(self) -> _TEntry:
@@ -112,20 +91,70 @@ class Entry(object):
     def parent(self) -> _TEntry:
         return self.__class__(self._cache, self._path.parent)
 
-    def child(self,  *args) -> _TEntry:
-        return self.__class__(self._cache, self._path.append(*args))
+    def child(self, *args) -> _TEntry:
+        return self.__class__(self._cache, self._path.duplicate().append(*args))
 
-    def get_value(self, default=_undefined_, lazy=True, setdefault=False) -> Any:
-        return self if lazy else self.fetch()
+    def get_value(self, strict=False) -> Any:
+        if self._path.empty:
+            return self._cache
+
+        obj = self._cache
+
+        for idx, key in enumerate(self._path):
+            try:
+                next_obj = Entry._get_by_key(obj, key)
+            except (IndexError, KeyError):
+                if strict:
+                    raise KeyError(self._path[:idx])
+                else:
+                    return Entry(obj, self._path[idx:])
+
+            obj = next_obj
+
+        self._cache = obj
+        self._path.reset()
+
+        return obj
+
+    def make_parents(self) -> _TEntry:
+        if len(self._path) == 1:
+            if self._cache is not None:
+                pass
+            elif isinstance(self._path[0], str):
+                self._cache = {}
+            else:
+                self._cache = []
+            return self
+
+        obj = self._cache
+        for idx, key in enumerate(self._path[:-1]):
+            if not isinstance(obj, collections.abc.Mapping) or self._path[idx+1] in obj:
+                try:
+                    obj = self._get_by_key(obj, key)
+                except (IndexError, KeyError):
+                    raise KeyError(self._path[:idx+1])
+            elif isinstance(self._path[idx+1], str):
+                obj = obj.setdefault(key, {})
+            else:
+                obj = obj.setdefault(key, [])
+        self._cache = obj
+        self._path = Path(self._path[-1])
+        return self
 
     def set_value(self, value: any) -> None:
-        return self
+        if self._path.empty:
+            self._cache = value
+        elif len(self._path) == 1:
+            Entry._set_by_key(self._cache, self._path[0], value)
+        else:
+            self.make_parents().set_value(value)
+        return None
 
     def remove(self, *args) -> bool:
         return False
 
     def equal(self, other) -> bool:
-        return False
+        return self.get_value() == other
 
     def move_to(self,  force=True, lazy=True, default_value=_undefined_) -> _TEntry:
         target, key = Entry._eval_path(self._cache, self._path, force=force)
@@ -160,12 +189,39 @@ class Entry(object):
     def count(self) -> int:
         return 0
 
-    @property
     def first_child(self) -> Iterator[_TEntry]:
         """
             return next brother neighbor
         """
-        return self.pull(Entry.op_tag.first_child)
+        d = self.get_value()
+        if isinstance(d, collections.abc.Sequence):
+            yield from d
+        elif isinstance(d, collections.abc.Mapping):
+            yield from d.items()
+
+    @staticmethod
+    def _get_by_key(obj, key):
+        if isinstance(key, (int, str, slice)):
+            return obj[key]
+        elif isinstance(key, collections.abc.Sequence):
+            return [Entry._get_by_key(obj, i) for i in key]
+        elif isinstance(key, collections.abc.Mapping):
+            return {k: Entry._get_by_key(obj, v) for k, v in key.items()}
+        else:
+            raise NotImplemented(type(key))
+
+    @staticmethod
+    def _set_by_key(obj, key, value):
+        if isinstance(key, (int, str, slice)):
+            obj[key] = value
+        elif isinstance(key, collections.abc.Sequence):
+            for i in key:
+                Entry._set_by_key(obj, i, value)
+        elif isinstance(key, collections.abc.Mapping):
+            for i, v in key:
+                Entry._set_by_key(obj, i, Entry._get_by_key(value, v))
+        else:
+            raise NotImplemented(type(key))
 
     def _op_find(target, k, default_value=_undefined_):
         obj, key = Entry._eval_path(target, k, force=False, lazy=False)
@@ -315,24 +371,24 @@ class Entry(object):
                 return 0
         return len(target)
 
-    _ops = {
-        op_tag.assign: _op_assign,
-        op_tag.update: _op_update,
-        op_tag.append: _op_append,
-        op_tag.remove: _op_remove,
-        op_tag.try_insert: _op_try_insert,
+    # _ops = {
+    #     op_tag.assign: _op_assign,
+    #     op_tag.update: _op_update,
+    #     op_tag.append: _op_append,
+    #     op_tag.remove: _op_remove,
+    #     op_tag.try_insert: _op_try_insert,
 
-        # read
-        op_tag.find: _op_find,
-        op_tag.equal: lambda target, other: target == other,
-        op_tag.count: lambda target, *args: len(target) if target not in (None, _not_found_, _undefined_) else 0,
-        op_tag.exists: lambda target, *args: target not in (None, _not_found_, _undefined_),
-        op_tag.dump: lambda target, *args: as_native(target),
+    #     # read
+    #     op_tag.find: _op_find,
+    #     op_tag.equal: lambda target, other: target == other,
+    #     op_tag.count: lambda target, *args: len(target) if target not in (None, _not_found_, _undefined_) else 0,
+    #     op_tag.exists: lambda target, *args: target not in (None, _not_found_, _undefined_),
+    #     op_tag.dump: lambda target, *args: as_native(target),
 
-        op_tag.next: None,
-        op_tag.parent: None,
-        op_tag.first_child: None,
-    }
+    #     op_tag.next: None,
+    #     op_tag.parent: None,
+    #     op_tag.first_child: None,
+    # }
 
     @staticmethod
     def _match(val, predication: collections.abc.Mapping):
@@ -673,11 +729,11 @@ class Entry(object):
             value.flush()
         return self.push(path, value, **kwargs)
 
-    def remove(self, query):
-        return self.push(query, Entry.op_tag.remove)
+    def remove(self):
+        return None
 
-    def count(self, query: _TPath = None):
-        return self.pull(query, Entry.op_tag.count)
+    def count(self):
+        return len(self.get_value())
 
     def contains(self, query: _TPath = None):
         return self.pull(query, Entry.op_tag.exists)

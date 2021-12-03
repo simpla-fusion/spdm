@@ -9,7 +9,22 @@ from spdm.data.Path import Path
 
 
 if __name__ == '__main__':
+    cache = {
+        "a": [
+            "hello world {name}!",
+            "hello world2 {name}!",
+            1.0, 2, 3, 4
+        ],
+        "c": "I'm {age}!",
+        "d": {
+            "e": "{name} is {age}",
+            "f": "{address}"
+        }
+    }
+    d = Dict(cache)
 
-    d = List(["a"])
+    print(d["d"]["e"])
 
-    print(d[0])
+    d["b"] = "hello world {name}!"
+
+    print(cache["b"])
