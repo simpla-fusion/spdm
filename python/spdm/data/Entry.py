@@ -18,6 +18,7 @@ from ..common.tags import _not_found_, _undefined_
 from ..util.dict_util import as_native, deep_merge_dict
 from ..util.utilities import serialize
 from .Path import Path
+from .Query import Query
 
 
 class EntryTags(Flag):
@@ -102,7 +103,7 @@ class Entry(object):
 
         for idx, key in enumerate(self._path):
             try:
-                next_obj = Entry._get_by_key(obj, key)
+                next_obj = Entry.normal_get(obj, key)
             except (IndexError, KeyError):
                 if strict:
                     raise KeyError(self._path[:idx])
@@ -130,7 +131,7 @@ class Entry(object):
         for idx, key in enumerate(self._path[:-1]):
             if not isinstance(obj, collections.abc.Mapping) or self._path[idx+1] in obj:
                 try:
-                    obj = self._get_by_key(obj, key)
+                    obj = self.normal_get(obj, key)
                 except (IndexError, KeyError):
                     raise KeyError(self._path[:idx+1])
             elif isinstance(self._path[idx+1], str):
@@ -145,7 +146,7 @@ class Entry(object):
         if self._path.empty:
             self._cache = value
         elif len(self._path) == 1:
-            Entry._set_by_key(self._cache, self._path[0], value)
+            Entry.normal_set(self._cache, self._path[0], value)
         else:
             self.make_parents().set_value(value)
         return None
@@ -198,28 +199,55 @@ class Entry(object):
             yield from d
         elif isinstance(d, collections.abc.Mapping):
             yield from d.items()
+        elif hasattr(d.__class__, "__iter__"):
+            yield from d.__iter__()
+        else:
+            raise NotImplementedError(type(d))
 
     @staticmethod
-    def _get_by_key(obj, key):
-        if isinstance(key, (int, str, slice)):
+    def normal_get(obj, key):
+        if isinstance(obj, Entry):
+            return obj.child(key).get_value()
+        elif key is None:
+            return obj
+        elif isinstance(key, Query):
+            return key.eval(obj)
+        elif isinstance(key, (int, str, slice)):
             return obj[key]
         elif isinstance(key, collections.abc.Sequence):
-            return [Entry._get_by_key(obj, i) for i in key]
+            return [Entry.normal_get(obj, i) for i in key]
         elif isinstance(key, collections.abc.Mapping):
-            return {k: Entry._get_by_key(obj, v) for k, v in key.items()}
+            return {k: Entry.normal_get(obj, v) for k, v in key.items()}
         else:
             raise NotImplemented(type(key))
 
     @staticmethod
-    def _set_by_key(obj, key, value):
-        if isinstance(key, (int, str, slice)):
+    def normal_set(obj, key, value):
+        if isinstance(obj, Entry):
+            return obj.child(key).set_value(value)
+
+        # @experiment begin
+        elif key is None and isinstance(value, collections.abc.Mapping):
+            for k, v in value.items():
+                Entry.normal_set(obj, k, v)
+        elif key is None and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+            for k, v in enumerate(value):
+                Entry.normal_set(obj, k, v)
+        # @experiment end
+        
+        elif key is None:
+            raise KeyError(key)
+        elif isinstance(key, Query):
+            for k, o in key.query_as(obj):
+                Entry.normal_set(o, k, value)
+        elif isinstance(key, (int, str, slice)):
             obj[key] = value
         elif isinstance(key, collections.abc.Sequence):
             for i in key:
-                Entry._set_by_key(obj, i, value)
+                Entry.normal_set(obj, i, value)
         elif isinstance(key, collections.abc.Mapping):
             for i, v in key:
-                Entry._set_by_key(obj, i, Entry._get_by_key(value, v))
+                Entry.normal_set(obj, i, Entry.normal_get(value, v))
         else:
             raise NotImplemented(type(key))
 
