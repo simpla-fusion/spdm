@@ -75,14 +75,12 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLEntry(Entry):
-    def __init__(self, root, *args, **kwargs):
-        super().__init__({}, *args,   **kwargs)
-        self._root: _XMLElement = root
-        self._prefix = []
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args,   **kwargs)
 
     def __repr__(self) -> str:
         # return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
-        return self._root.tag
+        return f"<{self._cache.tag}  path=\"{self._path}\" />"
 
     def duplicate(self) -> _TEntry:
         res = super().duplicate()
@@ -188,23 +186,24 @@ class XMLEntry(Entry):
         return res
 
     def push(self,  *args, **kwargs):
+        raise NotImplementedError("Writing XML is not supported,yet!")
         return super().push(*args, **kwargs)
 
-    def pull(self, path, default_value=_undefined_,  lazy=_undefined_, **kwargs):
-        path = self._path + Entry.normalize_path(path)
+    def pull(self,  default=_undefined_,  lazy=_undefined_, **kwargs):
+        path = self._path.as_list()
         xp, envs = self.xpath(path)
 
-        obj = xp.evaluate(self._root)
+        obj = xp.evaluate(self._cache)
 
         if lazy is _undefined_:
-            lazy = default_value is _undefined_
+            lazy = default is _undefined_
 
         res = self._convert(obj, path=path, lazy=lazy, envs=envs, **kwargs)
 
         if res is not _not_found_:
             pass
-        elif default_value is not _undefined_:
-            res = default_value
+        elif default is not _undefined_:
+            res = default
         else:
             raise RuntimeError(path)
 
@@ -217,8 +216,7 @@ class XMLEntry(Entry):
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            res = self._convert(xp.evaluate(
-                self._root), lazy=True, path=path, envs=envs, projection=projection)
+            res = self._convert(xp.evaluate(self._cache), lazy=True, path=path, envs=envs, projection=projection)
 
         if res is _not_found_:
             res = default_value
@@ -231,7 +229,7 @@ class XMLEntry(Entry):
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            obj = xp.evaluate(self._root)
+            obj = xp.evaluate(self._cache)
             if isinstance(obj, collections.abc.Sequence) and len(obj) == 1:
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
@@ -240,7 +238,7 @@ class XMLEntry(Entry):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._root):
+            for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath,
@@ -251,7 +249,7 @@ class XMLEntry(Entry):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._root):
+            for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath,
@@ -262,15 +260,15 @@ class XMLEntry(Entry):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._root):
+            for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath,
                                     envs=collections.ChainMap(s_envs, envs))
                 yield res
 
-    def __serialize__(self, *args, **kwargs):
-        return serialize(self.pull(*args, **kwargs))
+    def __serialize__(self):
+        return serialize(self.pull(_not_found_))
 
 
 class XMLFile(File):

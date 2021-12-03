@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 from spdm.common.logger import logger
 from spdm.data.File import File
+from spdm.data.Path import Path
 
 
 class TestFile(unittest.TestCase):
@@ -53,7 +54,9 @@ class TestFile(unittest.TestCase):
     def test_xml(self):
         device_desc = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml",
                            format="XML").read()
-        logger.debug(device_desc.get({"wall", "pf_active", "tf", "magnetics"}).dump())
+        # logger.debug(device_desc.get({"wall", "pf_active", "tf", "magnetics"}).dump())
+        # {"wall", "pf_active", "tf", "magnetics"}
+        logger.debug(device_desc.child("wall", 'description_2d', 'limiter').pull().dump())
 
 
 if __name__ == '__main__':

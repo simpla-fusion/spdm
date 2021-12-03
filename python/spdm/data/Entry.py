@@ -65,9 +65,6 @@ class Entry(object):
         self._path = []
         return self
 
-    def dump(self) -> Any:
-        return self._cache
-
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} cache={type(self._cache)} path={self._path} />"
 
@@ -268,6 +265,12 @@ class Entry(object):
 
     def put(self, path, value) -> None:
         self.child(path).push(value)
+
+    def dump(self) -> Any:
+        return self.__serialize__()
+
+    def __serialize__(self) -> Any:
+        return serialize(self._cache)
 
 
 def _slice_to_range(s: slice, length: int) -> range:

@@ -51,7 +51,7 @@ class _sp_property(Generic[_TObject]):
         if self._check_type(value):
             n_value = value
         elif hasattr(instance, "_convert"):
-            n_value = instance._convert(value, attribute=self.return_type)
+            n_value = instance._convert(value, parent=instance, attribute=self.return_type)
         else:
             n_value = self.return_type(value)
 
@@ -92,12 +92,12 @@ class _sp_property(Generic[_TObject]):
         with self.lock:
             entry = self._get_entry(instance)
 
-            value = entry.get(self.attrname, _not_found_, type_hint=self.return_type)
+            value = entry.get(self.attrname, _not_found_)
 
             if not self._check_type(value):
                 n_value = self._convert(instance,  self.func(instance))
 
-                entry.replace(self.attrname, n_value)
+                entry.put(self.attrname, n_value)
             else:
                 n_value = value
 
