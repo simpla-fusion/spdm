@@ -178,7 +178,7 @@ class Entry(object):
             self._make_parents().push(value, update=update)
         return None
 
-    def erase(self, *args) -> bool:
+    def erase(self) -> bool:
         if self._path.empty:
             self._cache = None
             return
@@ -249,8 +249,9 @@ class Entry(object):
             else:
                 raise KeyError(key)
         elif isinstance(key, Query):
-            for k, o in key.query_as(obj):
-                Entry.normal_set(o, k, value, update=update)
+            logger.debug(key.apply(obj))
+            # for k, o in key.apply(obj):
+            #     Entry.normal_set(o, k, value, update=update)
         elif isinstance(key, collections.abc.Sequence):
             for i in key:
                 Entry.normal_set(obj, i, value, update=update)
@@ -347,50 +348,6 @@ class EntryCombiner(Entry):
             val = self.duplicate().move_to(path)
 
         return val
-
-
-class EntryWrapper(Entry):
-
-    def __init__(self,  *sources, **kwargs):
-        super().__init__(sources, **kwargs)
-
-    def pull(self, default_value=_undefined_, **kwargs):
-        res = next(filter(lambda d: d is not _not_found_, map(
-            lambda d: _ht_get(d, self._path, default_value=_not_found_), self._cache)), default_value)
-        if res is _undefined_:
-            res = EntryWrapper(self._cache, path=self._path)
-        return res
-
-    def push(self, value, *args, **kwargs):
-        return _ht_put(self._cache[0], self._path, value, *args, **kwargs)
-
-    def iter(self):
-        for d in self._cache:
-            yield from d.iter()
-
-    def items(self):
-        for k in self.keys():
-            yield k, self.find(k)
-
-    def keys(self):
-        k = set()
-        for d in self._cache:
-            k.add(d.keys())
-        yield from k
-
-    def values(self):
-        for k in self.keys():
-            yield self.find(k)
-
-
-class EntryIterator(Iterator[_TObject]):
-    def __init__(self, holder, index: int = 0, predicate: Callable[[_TObject], bool] = None) -> None:
-        super().__init__()
-        self._pos = index
-        self._predicate = predicate
-
-    def __next__(self) -> Iterator[_TObject]:
-        return super().__next__()
 
 
 def as_dataclass(dclass, obj, default_value=None):

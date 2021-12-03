@@ -31,7 +31,7 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(d.child("a", 0).pull(),        self.data["a"][0])
         self.assertEqual(d.child("a", 1).pull(),        self.data["a"][1])
 
-    def test_find_by_cond(self):
+    def test_find_by_query(self):
         cache = [
             {"name": "wang wu", "age": 21},
             {"name": "wang liu", "age": 22},
@@ -47,7 +47,7 @@ class TestEntry(unittest.TestCase):
 
         d1 = Entry({"person": cache})
 
-        young = d1.pull(["person", {"age": 22}])
+        young = d1.child("person", Query({"age": 22})).pull()
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
@@ -63,9 +63,10 @@ class TestEntry(unittest.TestCase):
 
         d0 = Entry(cache)
 
-        d0.child(Query({"name": "wang wu"})).push({"address": "hefei"}, update=True)
+        d0.child(Query({"name": "wang wu"}), "address").push("hefei")
 
         self.assertEqual(cache[0]["address"],  "hefei")
+
         self.assertEqual(cache[0]["age"],  21)
 
     def test_put(self):
@@ -139,7 +140,7 @@ class TestEntry(unittest.TestCase):
 
     def test_get_many(self):
         d = Entry(self.data)
-        res = d.child([["a", 0], "c", "d.e"]).pull()
+        res = d.child([["a", 0], "c", "d", "e"]).pull()
         logger.debug(res)
 
 
@@ -160,7 +161,7 @@ class TestEntryCombiner(unittest.TestCase):
 
     def test_get(self):
         d = EntryCombiner(self.data)
-        self.assertEqual(d.pull("value"), sum([d.get("value", 0.0) for d in self.data]))
+        self.assertEqual(d.pull(), sum([v.get("value", 0.0) for v in self.data]))
         self.assertEqual(d.pull("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     # def test_cache(self):

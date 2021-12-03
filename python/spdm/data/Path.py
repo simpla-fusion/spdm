@@ -1,6 +1,6 @@
 import collections.abc
 from copy import deepcopy
-from typing import TypeVar
+from typing import Sequence, TypeVar
 
 _TPath = TypeVar("_TPath", bound="Path")
 
@@ -9,7 +9,7 @@ class Path(object):
     SEPERATOR = '.'
 
     def __init__(self, d=None, *args, **kwargs):
-        self._items = list(d) if d is not None else []
+        self._items = list(d) if isinstance(d, collections.abc.Sequence) and not isinstance(d, str) else [d]
 
     def __repr__(self):
         return Path.SEPERATOR.join([str(d) for d in self._items])
