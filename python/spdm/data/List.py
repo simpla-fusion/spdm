@@ -10,7 +10,7 @@ from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Container import Container
-from .Entry import (_LIST_TYPE_, Entry, EntryCombiner, _next_,  _TPath)
+from .Entry import (Entry, EntryCombiner, _next_,  _TPath)
 from .Node import Node
 
 _TList = TypeVar('_TList', bound='List')
@@ -31,7 +31,7 @@ class List(Container[_TObject], Sequence[_TObject]):
         return True
 
     def __len__(self) -> int:
-        return self._entry.count()
+        return super().__len__()
 
     def __setitem__(self, idx, v: _T) -> None:
         return self._entry.child(idx).set_value(v)
@@ -40,16 +40,15 @@ class List(Container[_TObject], Sequence[_TObject]):
         return self._post_process(self._entry.child(idx).get_value(), path=idx)
 
     def __delitem__(self, idx) -> None:
-        self._entry.child(idx).remove()
+        self._entry.child(idx).erase()
 
     def __iter__(self) -> Iterator:
         for idx, v in enumerate(self._entry.first_child()):
-            yield self._post_process(self._entry, path=idx)
+            yield self._post_process(v, path=idx)
 
     def __iadd__(self, other) -> _TList:
-        self._entry.extend(other)
+        self._entry.set_value(other, append=True)
         return self
-    
 
     def sort(self) -> None:
         self._entry.sort()
@@ -67,4 +66,4 @@ class List(Container[_TObject], Sequence[_TObject]):
         return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
 
 
-Node._SEQUENCE_TYPE_ = List[Node]
+Node._SEQUENCE_TYPE_ = List

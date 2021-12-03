@@ -48,49 +48,52 @@ class TestNode(unittest.TestCase):
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
 
-#     def test_dict_update(self):
-#         cache = deepcopy(self.data)
-#         d = Dict(cache)
+    def test_dict_update(self):
+        cache = deepcopy(self.data)
+        d = Dict(cache)
 
-#         d.update({"d": {"g": 5}})
+        d.update({"d": {"g": 5}})
 
-#         self.assertEqual(cache["d"]["e"], "{name} is {age}")
-#         self.assertEqual(cache["d"]["f"], "{address}")
-#         self.assertEqual(cache["d"]["g"], 5)
+        self.assertEqual(cache["d"]["e"], "{name} is {age}")
+        self.assertEqual(cache["d"]["f"], "{address}")
+        self.assertEqual(cache["d"]["g"], 5)
 
-#     def test_node_del(self):
-#         cache = {
-#             "a": [
-#                 "hello world {name}!",
-#                 "hello world2 {name}!",
-#                 1, 2, 3, 4
-#             ]
-#         }
+    def test_node_del(self):
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ]
+        }
 
-#         d = Node(cache)
-#         del d["a"]
-#         self.assertTrue("a" not in cache)
+        d = Node(cache)
 
-#     def test_node_append(self):
-#         d = List()
-#         d[_next_] = {"a": 1, "b": 2}
+        del d["a"]
 
-#         self.assertEqual(len(d), 1)
-#         self.assertEqual(d[0]["a"], 1)
-#         self.assertEqual(d[0]["b"], 2)
+        self.assertTrue("a" not in cache)
 
-#     def test_node_insert(self):
-#         cache = {"this_is_a_cache": True}
+    def test_node_append(self):
+        d = List()
+        d.append({"a": 1, "b": 2})
 
-#         d = Dict(cache)
+        self.assertEqual(len(d), 1)
+        self.assertEqual(d[0]["a"], 1)
+        self.assertEqual(d[0]["b"], 2)
 
-#         d["a"] = "hello world {name}!"
-#         self.assertEqual(cache["a"], "hello world {name}!")
+    def test_node_insert(self):
+        cache = {"this_is_a_cache": True}
 
-#         d["c"][_next_] = 1.23455
-#         d["c"][_next_] = {"a": "hello world", "b": 3.141567}
+        d = Dict(cache)
 
-#         self.assertEqual(cache["c"][0],  1.23455)
+        d["a"] = "hello world {name}!"
+        self.assertEqual(cache["a"], "hello world {name}!")
+
+        d["c"] .append(1.23455)
+        d["c"] .append({"a": "hello world", "b": 3.141567})
+
+        self.assertEqual(cache["c"][0],  1.23455)
+
 
 #     # def test_node_boolean(self):
 #     #     d = Dict()
@@ -172,7 +175,6 @@ class TestNode(unittest.TestCase):
 
 #         expected = [v for v in d]
 #         self.assertEqual(self.data["a"], expected)
-
 
 if __name__ == '__main__':
     unittest.main()

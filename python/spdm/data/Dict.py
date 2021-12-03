@@ -10,7 +10,7 @@ from ..util.dict_util import deep_merge_dict
 from ..util.utilities import serialize
 
 from .Container import Container
-from .Entry import Entry, _TPath, _DICT_TYPE_
+from .Entry import Entry
 from .Node import Node
 
 _T = TypeVar("_T")
@@ -27,7 +27,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     def _is_dict(self) -> bool:
         return True
 
-    def _serialize(self) -> Mapping:
+    def __serialize__(self) -> Mapping:
         return {k: serialize(v) for k, v in self._entry.first_child()}
 
     def __getitem__(self, key: str) -> _TObject:
@@ -37,7 +37,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         return self._entry.child(key).set_value(self._pre_process(value))
 
     def __delitem__(self, key: str) -> None:
-        self._entry.child(key).remove()
+        self._entry.child(key).erase()
 
     def __iter__(self) -> Iterator[str]:
         yield from self._entry.first_child()
@@ -48,14 +48,17 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     def __contains__(self, key) -> bool:
         return self._entry.child(key).exists
 
+    def __iadd__(self, other) -> _TDict:
+        return super().__iadd__(other)
+        self
+
     def __ior__(self, other) -> _TDict:
-        self.update(other)
-        return self
+        return super().__ior__(other)
 
     def __len__(self) -> int:
         return len(self._data)
 
-    def update(self, *args, **kwargs) -> _TDict:
+    def update(self, d) -> _TDict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. Return self.
 
         Args:
@@ -64,7 +67,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             _T: [description]
         """
-        self._entry.update(*args, ** kwargs)
+        self._entry.set_value(d, update=True)
         return self
 
     def get(self, key, *args) -> Any:
@@ -136,7 +139,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     #                 delattr(self, key)
 
 
-Node._MAPPING_TYPE_ = Dict[Node]
+Node._MAPPING_TYPE_ = Dict
 
 
 def chain_map(*args, **kwargs) -> collections.ChainMap:

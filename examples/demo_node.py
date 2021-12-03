@@ -27,4 +27,9 @@ if __name__ == '__main__':
 
     d["b"] = "hello world {name}!"
 
-    print(cache["b"])
+    d["h"].append(1234)
+    d["h"].append(5678)
+
+    d.update({"d": {"g": 5}})
+
+    print(cache)

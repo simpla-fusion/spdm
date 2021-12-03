@@ -24,7 +24,7 @@ class Node(SpObject):
     _SEQUENCE_TYPE_ = list
     _CONTAINER_TYPE_ = None
 
-    def __new__(cls, data, *args, **kwargs):
+    def __new__(cls, data=None, *args, **kwargs):
         if cls is not Node:
             n_cls = cls
         elif isinstance(data, collections.abc.Sequence):
@@ -36,18 +36,30 @@ class Node(SpObject):
         else:
             n_cls = cls
 
-        return object.__new__(cls)
+        return object.__new__(n_cls)
 
     def __init__(self, data, *args, parent=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._parent = parent
         self._entry = data if isinstance(data, Entry) else Entry(data)
+        self._nid = None
+
+    @property
+    def annotation(self) -> dict:
+        return {"id": self.nid,   "type":  self._entry.__class__.__name__}
+
+    @property
+    def nid(self) -> str:
+        return self._nid
+
+    def reset(self):
+        self._entry = None
 
     def dump(self):
-        return self._serialize()
+        return self._entry.dump()
 
-    def _serialize(self):
-        return serialize(self._entry)
+    def __serialize__(self):
+        return self._entry.dump()
 
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
@@ -123,6 +135,3 @@ class Node(SpObject):
         #     raise TypeError(attribute_type)
 
         return res
-
-    def reset(self):
-        self._entry = None

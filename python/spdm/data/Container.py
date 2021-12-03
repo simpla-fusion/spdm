@@ -10,7 +10,7 @@ import numpy as np
 from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
-from .Entry import (_DICT_TYPE_, _LIST_TYPE_, Entry,   _next_, _TPath)
+from .Entry import (Entry,   _next_, _TPath)
 from .Node import Node
 from .Path import Path
 
@@ -30,17 +30,6 @@ class Container(Node, Generic[_TObject]):
     def __repr__(self) -> str:
         annotation = [f"{k}='{v}'" for k, v in self.annotation.items() if v is not None]
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} {' '.join(annotation)}/>"
-
-    @property
-    def annotation(self) -> dict:
-        return {
-            "id": self.nid,
-            "type":  self._entry.__class__.__name__
-        }
-
-    @property
-    def nid(self) -> str:
-        return self.get("@id", None)
 
     def _attribute_type(self, attribute=_undefined_):
         attr_type = _undefined_
@@ -65,7 +54,7 @@ class Container(Node, Generic[_TObject]):
 
         return attr_type
 
-    def _serialize(self) -> Any:
+    def __serialize__(self) -> Any:
         return serialize(self._entry.dump())
 
     def _duplicate(self, *args, parent=None, **kwargs) -> _TContainer:
@@ -78,21 +67,34 @@ class Container(Node, Generic[_TObject]):
         return self._post_process(self._entry.child(key), path=key)
 
     def __delitem__(self, key: Any) -> bool:
-        return self._entry.child(key).remove()
+        return self._entry.child(key).erase()
 
-    def __contains__(self, obj: Any) -> bool:
-        return self._entry.child(obj).exists
+    def __contains__(self, key: Any) -> bool:
+        return self._entry.child(key).get_value(_not_found_) is not _not_found_
 
     def __eq__(self, other) -> bool:
-        return self._entry.equal(other)
+        res = self._entry.get_value(_not_found_)
+        return res == other if not isinstance(res, Node) else False
 
     def __len__(self) -> int:
-        return self._entry.count
+        res = self._entry.get_value(_not_found_)
+        return len(res) if res is not _not_found_ else 0
 
     def __iter__(self) -> Iterator[_T]:
         for idx, obj in enumerate(self._entry):
             yield self._post_process(obj, path=[idx])
 
+    def append(self, value) -> _TContainer:
+        self._entry.set_value([value], extend=True)
+        return self
+
+    def extend(self, value) -> _TContainer:
+        self._entry.set_value(value, extend=True)
+        return self
+
+    def __ior__(self, obj) -> _TContainer:
+        self._entry.set_value(obj, update=True)
+        return self
     # @property
     # def entry(self) -> Entry:
     #     return self._entry
@@ -159,7 +161,6 @@ class Container(Node, Generic[_TObject]):
 
     # def replace(self, path, value: _T, *args, **kwargs) -> _T:
     #     return self._entry.replace(path, value, *args, **kwargs)
-
 
     # def equal(self, path: _TPath, other) -> bool:
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})
