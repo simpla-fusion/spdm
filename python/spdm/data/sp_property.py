@@ -47,15 +47,17 @@ class _sp_property(Generic[_TObject]):
                 and inspect.isclass(self.return_type)
                 and issubclass(orig_class, self.return_type))
 
-    def _convert(self, instance: Node, value: _T) -> _T:
-        if self._check_type(value):
-            n_value = value
-        elif hasattr(instance, "_convert"):
-            n_value = instance._convert(value, parent=instance, attribute=self.return_type)
+    def _convert(self, value: _T, parent=None) -> _T:
+        # if self._check_type(value):
+        #     n_value = value
+        # # elif hasattr(instance, "_convert"):
+        # #     n_value = instance._convert(value, parent=instance, attribute=self.return_type)
+        # else:
+        #     n_value = self.return_type(value)
+        if inspect.isclass(self.return_type) and issubclass(self.return_type, Node):
+            return self.return_type(value, parent=parent)
         else:
-            n_value = self.return_type(value)
-
-        return n_value
+            return self.return_type(value)
 
     def _get_entry(self, instance: Node) -> Entry:
         try:
@@ -79,8 +81,7 @@ class _sp_property(Generic[_TObject]):
                     value = value._duplicate(parent=instance)
                 self._get_entry(instance).put(self.attrname, value)
             else:
-                self._get_entry(instance).put(
-                    self.attrname, self._convert(instance, value))
+                self._get_entry(instance).put(self.attrname, self._convert(value, instance))
 
     def __get__(self, instance: Node, owner=None) -> _T:
         if instance is None:
@@ -95,7 +96,7 @@ class _sp_property(Generic[_TObject]):
             value = entry.get(self.attrname, _not_found_)
 
             if not self._check_type(value):
-                n_value = self._convert(instance,  self.func(instance))
+                n_value = self._convert(self.func(instance), instance)
 
                 entry.put(self.attrname, n_value)
             else:
@@ -109,8 +110,7 @@ class _sp_property(Generic[_TObject]):
         if instance is None:
             return
         with self.lock:
-            entry = self._get_entry(instance)
-            entry.remove(self.attrname)
+            self._get_entry(instance).child(self.attrname).erase()
 
 
 def sp_property(func: Callable[..., _TObject]) -> _sp_property[_TObject]:

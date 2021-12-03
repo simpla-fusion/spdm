@@ -72,21 +72,23 @@ class Node(SpObject):
         return Node._convert(value, self, *args,  **kwargs)
 
     @staticmethod
-    def _convert(value: _T,    parent, *args, **kwargs) -> Union[_T, _TNode]:
+    def _convert(value: _T, parent=_undefined_, /, **kwargs) -> Union[_T, _TNode]:
 
         if isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            res = Node._SEQUENCE_TYPE_(value, *args, parent=parent, **kwargs)
+            res = Node._SEQUENCE_TYPE_(value,  parent=parent, **kwargs)
         elif isinstance(value, collections.abc.Mapping):
-            res = Node._MAPPING_TYPE_(value, *args, parent=parent, **kwargs)
+            res = Node._MAPPING_TYPE_(value,   parent=parent, **kwargs)
         elif isinstance(value, Entry):
             if Node._CONTAINER_TYPE_ is not None:
-                res = Node._CONTAINER_TYPE_(value, *args, parent=parent, **kwargs)
+                res = Node._CONTAINER_TYPE_(value,  parent=parent, **kwargs)
             else:
-                res = Node(value, *args, parent=parent, **kwargs)
+                res = Node(value,  parent=parent, **kwargs)
         # if isinstance(value, (Node._PRIMARY_TYPE_, Node)) or value in (None, _not_found_, _undefined_):
         #     res = value
         else:
             res = value
+
+        return res
 
         # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
         #     return value
@@ -137,5 +139,3 @@ class Node(SpObject):
         #     res = attribute_type(value, **kwargs)
         # elif attribute_type is not _undefined_:
         #     raise TypeError(attribute_type)
-
-        return res
