@@ -71,84 +71,73 @@ class Container(Node, Generic[_TObject]):
         self._entry.push(obj, update=True)
         return self
 
-    def _attribute_type(self, attribute=_undefined_):
-        attr_type = _undefined_
+    @cached_property
+    def _child_type(self):
 
-        if isinstance(attribute, str):
-            attr = dict(inspect.getmembers(self.__class__)).get(attribute, _not_found_)
-            if isinstance(attr, (_sp_property, cached_property)):
-                attr_type = attr.func.__annotations__.get("return", None)
-            elif isinstance(attr, (property)):
-                attr_type = attr.fget.__annotations__.get("return", None)
-        elif attribute is _undefined_:
-            child_cls = Node
-            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-            orig_class = getattr(self, "__orig_class__", None)
-            if orig_class is not None:
-                child_cls = get_args(self.__orig_class__)
-                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    child_cls = child_cls[0]
-            attr_type = child_cls
-        else:
-            raise NotImplementedError(attribute)
+        child_type = Node
+        #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
+            child_type = get_args(self.__orig_class__)
+            if child_type is not None and len(child_type) > 0 and inspect.isclass(child_type[0]):
+                child_type = child_type[0]
 
-        return attr_type
+        return child_type
 
-    def create_child(self, value: _T, *args, type_hint=_undefined_,  **kwargs) -> Union[_T, Node]:
-        # if type_hint is _undefined_:
-        #     type_hint = self._attribute_type
+    def create_child(self, value: _T, *args, parent=_undefined_, type_hint=_undefined_, **kwargs) -> Union[_T, Node]:
+        return super().create_child(value, *args,
+                                    parent=parent if parent is not _undefined_ else self,  # self._parent, @FIXME: how to define the parent of item in container
+                                    type_hint=type_hint if type_hint is not _undefined_ else self._child_type, **kwargs)
 
-        return super().create_child(value, *args, type_hint=type_hint, **kwargs)
+    # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
+    #     return value
+    # elif inspect.isclass(self._new_child):
+    #     if isinstance(value, self._new_child):
+    #         return value
+    #     elif issubclass(self._new_child, Node):
+    #         return self._new_child(value, parent=parent, **kwargs)
+    #     else:
+    #         return self._new_child(value, **kwargs)
+    # elif callable(self._new_child):
+    #     return self._new_child(value, **kwargs)
+    # elif isinstance(self._new_child, collections.abc.Mapping) and len(self._new_child) > 0:
+    #     kwargs = collections.ChainMap(kwargs, self._new_child)
+    # elif self._new_child is not _undefined_ and not not self._new_child:
+    #     logger.warning(f"Ignored!  { (self._new_child)}")
 
-        # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
-        #     return value
-        # elif inspect.isclass(self._new_child):
-        #     if isinstance(value, self._new_child):
-        #         return value
-        #     elif issubclass(self._new_child, Node):
-        #         return self._new_child(value, parent=parent, **kwargs)
-        #     else:
-        #         return self._new_child(value, **kwargs)
-        # elif callable(self._new_child):
-        #     return self._new_child(value, **kwargs)
-        # elif isinstance(self._new_child, collections.abc.Mapping) and len(self._new_child) > 0:
-        #     kwargs = collections.ChainMap(kwargs, self._new_child)
-        # elif self._new_child is not _undefined_ and not not self._new_child:
-        #     logger.warning(f"Ignored!  { (self._new_child)}")
+    # if isinstance(attribute, str) or attribute is _undefined_:
+    #     attribute_type = self._attribute_type(attribute)
+    # else:
+    #     attribute_type = attribute
 
-        # if isinstance(attribute, str) or attribute is _undefined_:
-        #     attribute_type = self._attribute_type(attribute)
-        # else:
-        #     attribute_type = attribute
-
-        # if inspect.isclass(attribute_type):
-        #     if isinstance(value, attribute_type):
-        #         res = value
-        #     elif attribute_type in (int, float):
-        #         res = attribute_type(value)
-        #     elif attribute_type is np.ndarray:
-        #         res = np.asarray(value)
-        #     elif dataclasses.is_entryclass(attribute_type):
-        #         if isinstance(value, collections.abc.Mapping):
-        #             res = attribute_type(
-        #                 **{k: value.get(k, None) for k in attribute_type.__entryclass_fields__})
-        #         elif isinstance(value, collections.abc.Sequence):
-        #             res = attribute_type(*value)
-        #         else:
-        #             res = attribute_type(value)
-        #     elif issubclass(attribute_type, Node):
-        #         res = attribute_type(value, parent=parent, **kwargs)
-        #     else:
-        #         res = attribute_type(value, **kwargs)
-        # elif hasattr(attribute_type, '__origin__'):
-        #     if issubclass(attribute_type.__origin__, Node):
-        #         res = attribute_type(value, parent=parent, **kwargs)
-        #     else:
-        #         res = attribute_type(value, **kwargs)
-        # elif callable(attribute_type):
-        #     res = attribute_type(value, **kwargs)
-        # elif attribute_type is not _undefined_:
-        #     raise TypeError(attribute_type)
+    # if inspect.isclass(attribute_type):
+    #     if isinstance(value, attribute_type):
+    #         res = value
+    #     elif attribute_type in (int, float):
+    #         res = attribute_type(value)
+    #     elif attribute_type is np.ndarray:
+    #         res = np.asarray(value)
+    #     elif dataclasses.is_entryclass(attribute_type):
+    #         if isinstance(value, collections.abc.Mapping):
+    #             res = attribute_type(
+    #                 **{k: value.get(k, None) for k in attribute_type.__entryclass_fields__})
+    #         elif isinstance(value, collections.abc.Sequence):
+    #             res = attribute_type(*value)
+    #         else:
+    #             res = attribute_type(value)
+    #     elif issubclass(attribute_type, Node):
+    #         res = attribute_type(value, parent=parent, **kwargs)
+    #     else:
+    #         res = attribute_type(value, **kwargs)
+    # elif hasattr(attribute_type, '__origin__'):
+    #     if issubclass(attribute_type.__origin__, Node):
+    #         res = attribute_type(value, parent=parent, **kwargs)
+    #     else:
+    #         res = attribute_type(value, **kwargs)
+    # elif callable(attribute_type):
+    #     res = attribute_type(value, **kwargs)
+    # elif attribute_type is not _undefined_:
+    #     raise TypeError(attribute_type)
 
     # @property
     # def entry(self) -> Entry:

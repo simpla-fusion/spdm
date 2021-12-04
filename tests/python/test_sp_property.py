@@ -48,7 +48,8 @@ class TestSpProperty(unittest.TestCase):
         self.assertTrue(isinstance(cache["balaaa"], Foo))
 
         self.assertEqual(d.foo.a, cache["foo"].a)
-        d.goo.a
+
+        self.assertEqual(d.goo.a, 3.14)
         self.assertEqual(cache["goo"].a, 3.14)
 
     def test_get_list(self):

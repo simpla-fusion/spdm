@@ -1,9 +1,6 @@
-import collections
 import collections.abc
-import dataclasses
 import inspect
 from _thread import RLock
-from functools import cached_property
 from typing import Any, Callable, Generic, Type, TypeVar, Union, final, get_args
 
 import numpy as np
@@ -28,7 +25,7 @@ class sp_property(Generic[_TObject]):
         Generic ([type]): [description]
     """
 
-    def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_, default_value=_undefined_, **kwargs):
+    def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_, default_value=_undefined_, validator=_undefined_, **kwargs):
         self.lock = RLock()
 
         self.getter = getter
@@ -41,6 +38,8 @@ class sp_property(Generic[_TObject]):
         self.property_type = _undefined_
 
         self.default_value = default_value
+        self.validator = validator
+        self.opts = kwargs
 
     def __set_name__(self, owner, name):
 
@@ -51,7 +50,7 @@ class sp_property(Generic[_TObject]):
         elif callable(self.getter):
             self.__doc__ = self.getter.__doc__
         else:
-            self.__doc__ = f"property '{self.property_name}' is not documented! "
+            self.__doc__ = f"property:{self.property_name}"
 
         if self.property_cache_key is _undefined_:
             self.property_cache_key = name
@@ -71,13 +70,18 @@ class sp_property(Generic[_TObject]):
             logger.warning(
                 f"The attribute name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
-    def _check_type(self, value):
-        orig_class = getattr(value, "__orig_class__", value.__class__)
-        return self.property_type in [None, _undefined_]  \
-            or orig_class == self.property_type \
-            or (inspect.isclass(orig_class)
-                and inspect.isclass(self.property_type)
-                and issubclass(orig_class, self.property_type))
+    def validate(self, value):
+
+        if self.validator is not _undefined_:
+            return self.validator(value,  self.property_type)
+        else:
+            orig_class = getattr(value, "__orig_class__", value.__class__)
+
+            return self.property_type in [None, _undefined_]  \
+                or orig_class == self.property_type \
+                or (inspect.isclass(orig_class)
+                    and inspect.isclass(self.property_type)
+                    and issubclass(orig_class, self.property_type))
 
     def __set__(self, instance: Node, value: Any):
         if not isinstance(instance, Node):
@@ -86,8 +90,8 @@ class sp_property(Generic[_TObject]):
         with self.lock:
             if callable(self.setter):
                 self.setter(value)
-            else:
-                instance._entry.put(self.property_cache_key,  value)
+
+            instance._entry.put(self.property_cache_key,  value)
 
     def __get__(self, instance: Node, owner=None) -> _T:
         if not isinstance(instance, Node):
@@ -99,13 +103,13 @@ class sp_property(Generic[_TObject]):
         with self.lock:
             value = instance._entry.get(self.property_cache_key, _not_found_)
 
-            if not self._check_type(value):
+            if not self.validate(value):
                 if callable(self.getter):
-                    value = self.getter(instance)
+                    value = self.getter(instance, **self.opts)
                 elif value is _not_found_:
                     value = self.default_value
 
-                value = instance.update_child(value, self.property_cache_key, type_hint=self.property_type)
+                value = instance.update_child(value, self.property_cache_key, type_hint=self.property_type, **self.opts)
 
         return value
 
@@ -116,5 +120,4 @@ class sp_property(Generic[_TObject]):
         with self.lock:
             if callable(self.deleter):
                 self.deleter()
-            else:
-                instance._entry.child(self.property_cache_key).erase()
+            instance._entry.child(self.property_cache_key).erase()

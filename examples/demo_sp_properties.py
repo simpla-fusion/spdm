@@ -40,7 +40,7 @@ class Doo(Dict):
 
     # # not support until Python 3.9
     # @sp_property[Foo]
-    # def foo1(self) -> :
+    # def foo1(self)  :
     #     return self.get("foo", {})
 
 
