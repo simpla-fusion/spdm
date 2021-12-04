@@ -210,4 +210,3 @@ class Container(Node, Generic[_TObject]):
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})
 
 
-Node._CONTAINER_TYPE_ = Container[Node]

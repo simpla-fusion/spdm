@@ -139,7 +139,6 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     #                 delattr(self, key)
 
 
-Node._MAPPING_TYPE_ = Dict
 
 
 def chain_map(*args, **kwargs) -> collections.ChainMap:

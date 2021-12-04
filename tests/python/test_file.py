@@ -4,8 +4,7 @@ import unittest
 import h5py
 import numpy as np
 from spdm.common.logger import logger
-from spdm.data.File import File
-from spdm.data.Path import Path
+from spdm.data import Dict, File, Link, List, Node, Path, Query, sp_property,Function
 
 
 class TestFile(unittest.TestCase):

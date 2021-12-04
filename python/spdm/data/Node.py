@@ -110,7 +110,7 @@ class Node(SpObject):
 
         if obj is _undefined_:
             obj = value
-        elif key is not _undefined_:
+        elif key is not _undefined_ and not isinstance(value, Entry):
             self._entry.child(key).push(obj)
 
         return obj

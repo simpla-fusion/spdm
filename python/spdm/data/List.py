@@ -66,4 +66,3 @@ class List(Container[_TObject], Sequence[_TObject]):
         return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
 
 
-Node._SEQUENCE_TYPE_ = List

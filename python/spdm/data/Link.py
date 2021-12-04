@@ -139,4 +139,3 @@ class Link(Node):
 
     # def equal(self, path: _TPath, other) -> bool:
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})
-Node._LINK_TYPE_ = Link

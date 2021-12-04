@@ -1,7 +1,6 @@
 import unittest
 
 from spdm.common.logger import logger
-from spdm.data.Dict import Dict
 from spdm.data.List import List
 from spdm.data.Node import Node
 from spdm.data.sp_property import sp_property

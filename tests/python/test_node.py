@@ -3,9 +3,7 @@ from copy import copy, deepcopy
 
 import numpy as np
 from spdm.common.logger import logger
-from spdm.data.Dict import Dict
-from spdm.data.List import List, _next_
-from spdm.data.Node import Node
+from spdm.data import Dict, List, Node, Link, Path, Query
 
 
 class Foo(Dict):
@@ -48,7 +46,6 @@ class TestNode(unittest.TestCase):
         self.assertTrue(isinstance(d.create_child([1, 2, 3, 4, 5]), List))
         self.assertTrue(isinstance(d.create_child((1, 2, 3, 4, 5)), List))
         self.assertTrue(isinstance(d.create_child({"a": 1, "b": 2, "c": 3}), Dict))
-
 
     def test_find_by_key(self):
 

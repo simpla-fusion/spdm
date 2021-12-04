@@ -2,9 +2,8 @@
 
 import numpy as np
 from spdm.common.logger import logger
-from spdm.data.Dict import Dict
-from spdm.data.Entry import Entry
-from spdm.data.File import File
+from spdm.data import (Dict, Entry, File, Link, List, Node, Path, Query,
+                       sp_property)
 
 
 def sp_read_geqdsk(file):
