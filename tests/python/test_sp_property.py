@@ -32,6 +32,8 @@ class Doo(Dict):
     def foo_list(self) -> List[Foo]:
         return self.get("foo_list", [])
 
+    balaaa = sp_property[Foo](default_value={"bala": 1})
+
 
 class TestSpProperty(unittest.TestCase):
     def test_get(self):
@@ -41,6 +43,9 @@ class TestSpProperty(unittest.TestCase):
         self.assertFalse(isinstance(cache["foo"], Foo))
         self.assertTrue(isinstance(d.foo, Foo))
         self.assertTrue(isinstance(cache["foo"], Foo))
+
+        self.assertTrue(isinstance(d.balaaa, Foo))
+        self.assertTrue(isinstance(cache["balaaa"], Foo))
 
         self.assertEqual(d.foo.a, cache["foo"].a)
         d.goo.a

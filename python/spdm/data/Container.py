@@ -71,12 +71,6 @@ class Container(Node, Generic[_TObject]):
         self._entry.push(obj, update=True)
         return self
 
-    def _pre_process(self, value: _T, *args, **kwargs) -> _T:
-        return value
-
-    def _post_process(self, value: _T, *args,   **kwargs) -> Union[_T, Node]:
-        return Container.create(value, self, *args,  **kwargs)
-
     def _attribute_type(self, attribute=_undefined_):
         attr_type = _undefined_
 
@@ -100,9 +94,11 @@ class Container(Node, Generic[_TObject]):
 
         return attr_type
 
-    @classmethod
-    def create(cls, value: _T, /, parent=_undefined_, type_hint=_undefined_, **kwargs) -> Union[_T, Node]:
-        return Node.create(value, parent=parent, **kwargs)
+    def create_child(self, value: _T, *args, type_hint=_undefined_,  **kwargs) -> Union[_T, Node]:
+        # if type_hint is _undefined_:
+        #     type_hint = self._attribute_type
+
+        return super().create_child(value, *args, type_hint=type_hint, **kwargs)
 
         # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
         #     return value
@@ -221,7 +217,8 @@ class Container(Node, Generic[_TObject]):
     # def replace(self, path, value: _T, *args, **kwargs) -> _T:
     #     return self._entry.replace(path, value, *args, **kwargs)
 
-
     # def equal(self, path: _TPath, other) -> bool:
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})
+
+
 Node._CONTAINER_TYPE_ = Container[Node]

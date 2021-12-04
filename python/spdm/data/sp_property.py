@@ -4,7 +4,7 @@ import dataclasses
 import inspect
 from _thread import RLock
 from functools import cached_property
-from typing import Any, Callable, Generic, TypeVar, Union, final, get_args
+from typing import Any, Callable, Generic, Type, TypeVar, Union, final, get_args
 
 import numpy as np
 
@@ -17,97 +17,104 @@ _TObject = TypeVar("_TObject")
 _T = TypeVar("_T")
 
 
-class _sp_property(Generic[_TObject]):
+class sp_property(Generic[_TObject]):
+    """return a sp_property attribute.
 
-    def __init__(self, func: Callable[..., _TObject]):
-        self.func = func
-        self.attrname = None
-        self.__doc__ = func.__doc__
+       用于辅助为Node定义property。
+       - 在读取时将cache中的data转换为类型_TObject
+       - 缓存property function,并缓存其输出
+
+    Args:
+        Generic ([type]): [description]
+    """
+
+    def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_, default_value=_undefined_, **kwargs):
         self.lock = RLock()
-        self.return_type = func.__annotations__.get("return", None)
+
+        self.getter = getter
+        self.setter = setter
+        self.deleter = deleter
+        self.__doc__ = doc
+
+        self.property_cache_key = getter if not callable(getter) else _undefined_
+        self.property_name = _undefined_
+        self.property_type = _undefined_
+
+        self.default_value = default_value
 
     def __set_name__(self, owner, name):
-        if self.attrname is None:
-            self.attrname = name
-        elif name != self.attrname:
-            raise TypeError(
-                "Cannot assign the same cached_property to two different names "
-                f"({self.attrname!r} and {name!r})."
-            )
+
+        self.property_name = name
+
+        if self.__doc__ is not _undefined_:
+            pass
+        elif callable(self.getter):
+            self.__doc__ = self.getter.__doc__
+        else:
+            self.__doc__ = f"property '{self.property_name}' is not documented! "
+
+        if self.property_cache_key is _undefined_:
+            self.property_cache_key = name
+
+        if self.property_type is _undefined_ and inspect.isfunction(self.getter):
+            self.property_type = self.getter.__annotations__.get("return", _undefined_)
+        else:
+            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+            orig_class = getattr(self, "__orig_class__", None)
+            if orig_class is not None:
+                child_cls = get_args(self.__orig_class__)
+                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
+                    child_cls = child_cls[0]
+            self.property_type = child_cls
+
+        if self.property_name != self.property_cache_key:
+            logger.warning(
+                f"The attribute name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
     def _check_type(self, value):
         orig_class = getattr(value, "__orig_class__", value.__class__)
-        return self.return_type is None \
-            or orig_class == self.return_type \
+        return self.property_type in [None, _undefined_]  \
+            or orig_class == self.property_type \
             or (inspect.isclass(orig_class)
-                and inspect.isclass(self.return_type)
-                and issubclass(orig_class, self.return_type))
-
-    def _convert(self, value: _T, parent=None) -> _T:
-        # if self._check_type(value):
-        #     n_value = value
-        # else:
-        #     n_value = self.return_type(value)
-        if inspect.isclass(self.return_type) and issubclass(self.return_type, Node):
-            return self.return_type(value, parent=parent)
-        # elif hasattr(parent, "_convert"):
-        #     return parent._convert(value, parent=parent, attribute=self.return_type)
-        else:
-            return self.return_type(value)
-
-    def _get_entry(self, instance: Node) -> Entry:
-        try:
-            entry = getattr(instance, "_entry", _not_found_)
-            if entry is _not_found_:
-                entry = Entry(instance.__dict__)
-        except AttributeError as error:
-            logger.exception(error)
-            raise AttributeError(error)
-
-        return entry
+                and inspect.isclass(self.property_type)
+                and issubclass(orig_class, self.property_type))
 
     def __set__(self, instance: Node, value: Any):
-        if instance is None:
-            return self
+        if not isinstance(instance, Node):
+            raise TypeError(type(instance))
+
         with self.lock:
-            if self._check_type(value):
-                if value._parent is None:
-                    value._parent = instance
-                else:
-                    value = value._duplicate(parent=instance)
-                self._get_entry(instance).put(self.attrname, value)
+            if callable(self.setter):
+                self.setter(value)
             else:
-                self._get_entry(instance).put(self.attrname, self._convert(value, instance))
+                instance._entry.put(self.property_cache_key,  value)
 
     def __get__(self, instance: Node, owner=None) -> _T:
-        if instance is None:
-            return self
+        if not isinstance(instance, Node):
+            raise TypeError(type(instance))
 
-        if self.attrname is None:
-            raise TypeError("Cannot use sp_property instance without calling __set_name__ on it.")
+        if self.property_name is None:
+            logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            entry = self._get_entry(instance)
-
-            value = entry.get(self.attrname, _not_found_)
+            value = instance._entry.get(self.property_cache_key, _not_found_)
 
             if not self._check_type(value):
-                n_value = self._convert(self.func(instance), instance)
+                if callable(self.getter):
+                    value = self.getter(instance)
+                elif value is _not_found_:
+                    value = self.default_value
 
-                entry.put(self.attrname, n_value)
-            else:
-                n_value = value
+                value = instance.update_child(value, self.property_cache_key, type_hint=self.property_type)
 
-            return n_value
-
-        return n_value
+        return value
 
     def __delete__(self, instance: Node) -> None:
-        if instance is None:
-            return
+        if not isinstance(instance, Node):
+            raise TypeError(type(instance))
+
         with self.lock:
-            self._get_entry(instance).child(self.attrname).erase()
-
-
-def sp_property(func: Callable[..., _TObject]) -> _sp_property[_TObject]:
-    return _sp_property[_TObject](func)
+            if callable(self.deleter):
+                self.deleter()
+            else:
+                instance._entry.child(self.property_cache_key).erase()
