@@ -125,7 +125,7 @@ class Node(SpObject):
             elif issubclass(type_hint, Node):
                 obj = type_hint(value, **kwargs)
         elif hasattr(type_hint, "__origin__"):
-
+            obj = type_hint(value, **kwargs)
         else:
             obj = type_hint(value, **kwargs)
 

@@ -10,7 +10,7 @@ from ..util.dict_util import deep_merge_dict
 from ..util.utilities import serialize
 
 from .Container import Container
-from .Entry import Entry
+from .Entry import Entry, EntryChain
 from .Node import Node
 
 _T = TypeVar("_T")
@@ -20,8 +20,16 @@ _TObject = TypeVar("_TObject")
 
 class Dict(Container[_TObject], Mapping[str, _TObject]):
 
-    def __init__(self, data: Mapping = _undefined_,  /,  **kwargs):
-        super().__init__(data if data is not _undefined_ else kwargs)
+    def __init__(self, cache: Mapping = _undefined_,  /,  **kwargs):
+        if cache is _undefined_:
+            cache = kwargs
+        elif len(kwargs) > 0:
+            if isinstance(cache, Dict):
+                cache = EntryChain([kwargs, cache._entry])
+            elif isinstance(cache, collections.abc.Mapping):
+                cache = EntryChain([kwargs, cache])
+
+        super().__init__(cache)
 
     @property
     def _is_dict(self) -> bool:

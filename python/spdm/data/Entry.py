@@ -49,7 +49,7 @@ class Entry(object):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
-    def __init__(self, cache=None, path=[], **kwargs):
+    def __init__(self, cache=None,   path=[], **kwargs):
         super().__init__()
         self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache
@@ -86,10 +86,10 @@ class Entry(object):
 
     @property
     def parent(self) -> _TEntry:
-        return self.__class__(self._cache, self._path.parent)
+        return self.__class__(self._cache, path=self._path.parent)
 
     def child(self, *args) -> _TEntry:
-        return self.__class__(self._cache, self._path.duplicate().append(*args))
+        return self.__class__(self._cache, path=self._path.duplicate().append(*args))
 
     def query(self, q: Query) -> Any:
         if not isinstance(q, Query):
@@ -365,6 +365,24 @@ class EntryCombiner(Entry):
             val = self.duplicate().move_to(path)
 
         return val
+
+
+class EntryChain(Entry):
+    def __init__(self, cache,   **kwargs):
+        cache = [(a if isinstance(a, Entry) else Entry(a)) for a in cache]
+
+        super().__init__(cache,   **kwargs)
+
+    def push(self,   value: _T, **kwargs) -> _T:
+        self._cache[0].child(self._path).push(value, **kwargs)
+
+    def pull(self, default=_undefined_) -> Any:
+        obj = _not_found_
+        for e in self._cache:
+            obj = e.child(self._path).pull(_not_found_)
+            if obj is not _not_found_:
+                break
+        return obj if obj is not _not_found_ else default
 
 
 def as_dataclass(dclass, obj, default_value=None):

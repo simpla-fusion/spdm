@@ -21,6 +21,8 @@ class Path(object):
         for item in args:
             if isinstance(item, str):
                 self._items.extend(item.split(Path.SEPERATOR))
+            elif isinstance(item, Path):
+                self._items.extend(item._items)
             else:
                 self._items.append(item)
         return self

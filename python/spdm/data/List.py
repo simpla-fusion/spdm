@@ -1,5 +1,6 @@
 import collections
 import collections.abc
+from logging import log
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
@@ -25,7 +26,10 @@ class List(Container[_TObject], Sequence[_TObject]):
         elif isinstance(args[0], Entry):
             args = args[0]
         elif isinstance(args[0], Sequence) and not isinstance(args[0], str):
+            args = list(args[0])
+        else:
             args = list(args)
+
         super().__init__(args)
 
     def __serialize__(self) -> Sequence:

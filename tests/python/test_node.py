@@ -129,6 +129,15 @@ class TestNode(unittest.TestCase):
         self.assertTrue(isinstance(d[1], Foo))
     #     self.assertTrue(isinstance(cache[1], Foo))
 
+    def test_chain_mapping(self):
+        cache = {"a": 1234, "b": 1234, "c": 12343, "d": 12345}
+        d = Dict(cache, a=5, b=4)
+        self.assertEqual(d["a"], 5)
+        self.assertEqual(d["b"], 4)
+
+        self.assertEqual(d["c"], cache["c"])
+        self.assertEqual(d["d"], cache["d"])
+
 #     # def test_node_boolean(self):
 #     #     d = Dict()
 #     #     self.assertTrue(d.empty)
