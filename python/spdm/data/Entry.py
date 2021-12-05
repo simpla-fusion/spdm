@@ -221,12 +221,15 @@ class Entry(object):
         elif isinstance(key, collections.abc.Mapping):
             return {k: Entry.normal_get(obj, v) for k, v in key.items()}
         else:
-            raise NotImplemented(type(key))
+            raise NotImplementedError(type(key))
 
     @staticmethod
     def normal_set(obj, key, value, update=True):
         if isinstance(obj, Entry):
-            obj.child(key).push(value, update=update)
+            if key is not None:
+                obj.child(key).push(value, update=update)
+            else:
+                obj.push(value, update=update)
         elif isinstance(key, (int, str, slice)):
             if not update:
                 obj[key] = value
@@ -236,8 +239,11 @@ class Entry(object):
                 except (KeyError, IndexError):
                     obj[key] = value
                 else:
-                    Entry.normal_set(new_obj, None, value, update=True)
-
+                    if isinstance(new_obj, collections.abc.Mapping) and \
+                            isinstance(new_obj, collections.abc.Mapping):
+                        Entry.normal_set(new_obj, None, value, update=True)
+                    else:
+                        obj[key] = value
         elif key is None:
             if isinstance(value, collections.abc.Mapping):
                 for k, v in value.items():
@@ -246,7 +252,7 @@ class Entry(object):
                 for k, v in enumerate(value):
                     Entry.normal_set(obj, k, v, update=update)
             else:
-                raise KeyError(key)
+                raise KeyError(type(value))
         elif isinstance(key, Query):
             logger.debug(key.apply(obj))
             # for k, o in key.apply(obj):

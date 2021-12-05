@@ -1,9 +1,7 @@
 import unittest
 
 from spdm.common.logger import logger
-from spdm.data.List import List
-from spdm.data.Node import Node
-from spdm.data.sp_property import sp_property
+from spdm.data import List, Dict, Node, sp_property
 
 
 class Foo(Dict):
@@ -19,23 +17,15 @@ class Doo(Dict):
     def __init__(self, *args,   **kwargs):
         super().__init__(*args,  **kwargs)
 
-    # @sp_property
-    # def foo(self) -> Foo:
-    #     return self.get("foo", {})
+    f0 = sp_property(type_hint=Foo)
 
-    # @sp_property
-    # def goo(self) -> Foo:
-    #     return {"a": 3.14}
+    f1: Foo = sp_property() # recommend
 
-    # @sp_property
-    # def foo_list(self) -> List[Foo]:
-    #     return self.get("foo_list", [])
-
-    foo = sp_property[Foo]()
+    f2 = sp_property[Foo]()
 
     @sp_property
-    def foo1(self) -> Foo:
-        return self.get("foo", {})
+    def f3(self) -> Foo:
+        return self.get("f3", {})
 
     # # not support until Python 3.9
     # @sp_property[Foo]
@@ -44,8 +34,18 @@ class Doo(Dict):
 
 
 if __name__ == '__main__':
-    cache = {"foo": {"a": 1234}, "foo_list": []}
+    cache = {
+        "f0": {"a":  0},
+        "f1": {"a":  1},
+        "f2": {"a":  2},
+        "f3": {"a":  3},
+
+        "foo": {"a": 1234},
+        "foo_list": []}
 
     doo = Doo(cache)
 
-    logger.debug(doo.foo)
+    logger.debug(doo.f0.dump())
+    logger.debug(doo.f1.dump())
+    logger.debug(doo.f2.dump())
+    logger.debug(doo.f3.dump())

@@ -10,8 +10,7 @@ from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Container import Container
-from .Entry import (Entry, EntryCombiner, _next_,  _TPath)
-from .Node import Node
+from .Entry import Entry, EntryCombiner, _TPath
 
 _TList = TypeVar('_TList', bound='List')
 _TObject = TypeVar("_TObject")
@@ -20,8 +19,12 @@ _T = TypeVar("_T")
 
 class List(Container[_TObject], Sequence[_TObject]):
 
-    def __init__(self, data: Sequence = None, /,   **kwargs) -> None:
-        super().__init__(data if data is not None else list(), **kwargs)
+    def __init__(self,  *args) -> None:
+        if len(args) != 1:
+            args = list(args)
+        elif isinstance(args[0], Entry) or isinstance(args[0], Sequence) and not isinstance(args[0], str):
+            args = args[0]
+        super().__init__(args)
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self.__iter__()]
@@ -42,7 +45,7 @@ class List(Container[_TObject], Sequence[_TObject]):
     def __delitem__(self, idx) -> None:
         self._entry.child(idx).erase()
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> Iterator[_TObject]:
         for idx, v in enumerate(self._entry.first_child()):
             yield self._post_process(v, path=idx)
 
@@ -64,5 +67,3 @@ class List(Container[_TObject], Sequence[_TObject]):
 
     def update(self, d, predication=_undefined_, only_first=False) -> int:
         return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
-
-

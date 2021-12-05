@@ -19,7 +19,7 @@ class Connection(SpObject):
         a = auto()  # open for writing, appending to the end of the file if it exists
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__()
 
     def __del__(self):
         if self.is_open:

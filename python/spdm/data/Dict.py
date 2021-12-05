@@ -20,8 +20,8 @@ _TObject = TypeVar("_TObject")
 
 class Dict(Container[_TObject], Mapping[str, _TObject]):
 
-    def __init__(self, data: Mapping = None,  /,  **kwargs):
-        super().__init__(data if data is not None else dict(), **kwargs)
+    def __init__(self, data: Mapping = _undefined_,  /,  **kwargs):
+        super().__init__(data if data is not _undefined_ else kwargs)
 
     @property
     def _is_dict(self) -> bool:
@@ -70,17 +70,17 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         self._entry.push(d, update=True)
         return self
 
-    def get(self, key, *args) -> Any:
+    def get(self, key,  default=_undefined_) -> Any:
         """Return the value for key if key is in the dictionary, else default. If default is not given, it defaults to None, so that this method never raises a KeyError.
 
         Args:
             path ([type]): [description]
-            default_value ([type], optional): [description]. Defaults to _undefined_.
+            default ([type], optional): [description]. Defaults to _undefined_.
 
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).pull(*args), path=key)
+        return self._post_process(self._entry.child(key).pull(default), path=key)
 
     def setdefault(self, key, *args) -> Any:
         """If key is in the dictionary, return its value. If not, insert key with a value of default and return default. default defaults to None.
@@ -137,8 +137,6 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     #         for key in d:
     #             if isinstance(key, str) and hasattr(self, key) and isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
     #                 delattr(self, key)
-
-
 
 
 def chain_map(*args, **kwargs) -> collections.ChainMap:

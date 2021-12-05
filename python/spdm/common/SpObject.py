@@ -26,7 +26,7 @@ class SpObject(object):
 
     association = {}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         super().__init__()
         if getattr(self, "_metadata", None) is None:
             self._metadata = {}

@@ -1,5 +1,6 @@
 import collections
 import collections.abc
+import dataclasses
 import inspect
 from typing import (Any, Generic, Iterator, Mapping, TypeVar, Union, final,
                     get_args)
@@ -26,25 +27,32 @@ class Node(SpObject):
     _CONTAINER_TYPE_ = None
     _LINK_TYPE_ = None
 
-    def __new__(cls, value=None, *args, **kwargs):
+    def __new__(cls,  *args, **kwargs):
         if cls is not Node:
             obj = object.__new__(cls)
-        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+        elif len(args) == 1:
+            if isinstance(args[0], collections.abc.Sequence) and not isinstance(args[0], str):
+                obj = object.__new__(Node._SEQUENCE_TYPE_)
+            elif isinstance(args[0], collections.abc.Mapping):
+                obj = object.__new__(Node._MAPPING_TYPE_)
+            elif isinstance(args[0], Entry) and Node._LINK_TYPE_ is not None:
+                obj = object.__new__(Node._LINK_TYPE_)
+            else:
+                obj = object.__new__(cls)
+        elif len(args) > 1:
             obj = object.__new__(Node._SEQUENCE_TYPE_)
-        elif isinstance(value, collections.abc.Mapping):
+        elif len(kwargs) > 0:
             obj = object.__new__(Node._MAPPING_TYPE_)
-        elif isinstance(value, Entry) and Node._LINK_TYPE_ is not None:
-            obj = object.__new__(Node._LINK_TYPE_)
         else:
             obj = object.__new__(cls)
 
         return obj
 
-    def __init__(self, data, *args, parent=None, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self._parent = parent
+    def __init__(self, data=None) -> None:
+        super().__init__()
         self._entry = data if isinstance(data, Entry) else Entry(data)
         self._nid = None
+        self._parent = None
 
     @property
     def annotation(self) -> dict:
@@ -70,16 +78,16 @@ class Node(SpObject):
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
-    def _post_process(self, value: _T, key=_undefined_, *args,   ** kwargs) -> Union[_T, _TNode]:
-        return self.update_child(value, key=key, *args, **kwargs)
+    def _post_process(self, value: _T, path=_undefined_, *args,   ** kwargs) -> Union[_T, _TNode]:
+        return self.update_child(value, *args, path=path,  **kwargs)
 
-    def update_child(self, value: _T, key=_undefined_, *args,   ** kwargs) -> Union[_T, _TNode]:
-        if value is _undefined_ and key is not _undefined_:
-            value = self._entry.child(key).pull(_undefined_)
+    def update_child(self, value: _T, path=_undefined_, *args,   ** kwargs) -> Union[_T, _TNode]:
+        if value is _undefined_ and path is not _undefined_:
+            value = self._entry.child(path).pull(_undefined_)
 
-        return self.create_child(value, key, *args, **kwargs)
+        return self.create_child(value, path, *args, **kwargs)
 
-    def create_child(self, value: _T,  key=_undefined_,
+    def create_child(self, value: _T,  path=_undefined_,
                      *args,
                      parent=_undefined_,
                      type_hint=_undefined_,
@@ -88,30 +96,61 @@ class Node(SpObject):
         if not always_node and isinstance(value, Node._PRIMARY_TYPE_):
             return value
 
-        obj = _undefined_
-
         if parent is _undefined_:
             parent = self
 
-        if type_hint is _undefined_:
-            type_hint = Node
+        obj = _undefined_
 
-        if inspect.isclass(type_hint):
-            if issubclass(type_hint, Node):
-                obj = type_hint(value, *args, parent=parent, **kwargs)
+        # if type_hint is _undefined_:
+        #     type_hint = Node
+        if type_hint is _undefined_:
+            # if always_node:
+            #     obj = Node(value, *args, parent=parent, **kwargs)
+            # else:
+            obj = value
+        elif not inspect.isclass(type_hint):
+            if callable(type_hint):
+                obj = type_hint(value, *args,  **kwargs)
             else:
+                raise TypeError(type_hint)
+        elif isinstance(value, type_hint):
+            obj = value
+        elif type_hint in (int, float, bool):
+            obj = type_hint(value)
+        elif type_hint is np.ndarray:
+            obj = np.asarray(value)
+        elif dataclasses.is_dataclass(type_hint):
+            if isinstance(value, collections.abc.Mapping):
+                obj = type_hint(**{k: value.get(k, None) for k in type_hint.__dataclass_fields__})
+            elif isinstance(value, collections.abc.Sequence):
+                obj = type_hint(*value)
+            else:
+                logger.debug(value)
                 obj = type_hint(value)
-        elif callable(type_hint):
+        elif issubclass(type_hint, Node):
             obj = type_hint(value, **kwargs)
         else:
-            if always_node:
-                obj = Node(value, *args, parent=parent, **kwargs)
-            logger.warning(f"Ignore type_hint={type(type_hint)}!")
+            obj = type_hint(value, **kwargs)
+
+        # elif hasattr(type_hint, '__origin__'):
+            # if issubclass(type_hint.__origin__, Node):
+            #     obj = type_hint(value, parent=parent, **kwargs)
+            # else:
+            #     obj = type_hint(value, **kwargs)
+        # if inspect.isclass(type_hint):
+        #     if issubclass(type_hint, Node):
+        #         obj = type_hint(value, *args, parent=parent, **kwargs)
+        # elif callable(type_hint):
+        #     obj = type_hint(value, **kwargs)
+        # else:
+        #     if always_node:
+        #         obj = Node(value, *args, parent=parent, **kwargs)
+        #     logger.warning(f"Ignore type_hint={type(type_hint)}!")
 
         if obj is _undefined_:
             obj = value
-        elif key is not _undefined_ and not isinstance(value, Entry):
-            self._entry.child(key).push(obj)
+        elif path is not _undefined_ and not isinstance(value, Entry):
+            self._entry.child(path).push(obj)
 
         return obj
 
