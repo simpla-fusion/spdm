@@ -22,8 +22,10 @@ class List(Container[_TObject], Sequence[_TObject]):
     def __init__(self,  *args) -> None:
         if len(args) != 1:
             args = list(args)
-        elif isinstance(args[0], Entry) or isinstance(args[0], Sequence) and not isinstance(args[0], str):
+        elif isinstance(args[0], Entry):
             args = args[0]
+        elif isinstance(args[0], Sequence) and not isinstance(args[0], str):
+            args = list(args)
         super().__init__(args)
 
     def __serialize__(self) -> Sequence:

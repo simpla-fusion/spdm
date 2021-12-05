@@ -103,17 +103,8 @@ class Node(SpObject):
 
         # if type_hint is _undefined_:
         #     type_hint = Node
+
         if type_hint is _undefined_:
-            # if always_node:
-            #     obj = Node(value, *args, parent=parent, **kwargs)
-            # else:
-            obj = value
-        elif not inspect.isclass(type_hint):
-            if callable(type_hint):
-                obj = type_hint(value, *args,  **kwargs)
-            else:
-                raise TypeError(type_hint)
-        elif isinstance(value, type_hint):
             obj = value
         elif type_hint in (int, float, bool):
             obj = type_hint(value)
@@ -125,10 +116,16 @@ class Node(SpObject):
             elif isinstance(value, collections.abc.Sequence):
                 obj = type_hint(*value)
             else:
-                logger.debug(value)
                 obj = type_hint(value)
-        elif issubclass(type_hint, Node):
-            obj = type_hint(value, **kwargs)
+        elif inspect.isfunction(type_hint):
+            obj = type_hint(value, *args,  **kwargs)
+        elif inspect.isclass(type_hint):
+            if isinstance(value, type_hint):
+                obj = value
+            elif issubclass(type_hint, Node):
+                obj = type_hint(value, **kwargs)
+        elif hasattr(type_hint, "__origin__"):
+
         else:
             obj = type_hint(value, **kwargs)
 
