@@ -3,15 +3,16 @@ import collections.abc
 import dataclasses
 import inspect
 from functools import cached_property
-from typing import Any, Generic, Iterator, TypeVar, Union, final, get_args, Mapping
+from typing import (Any, Generic, Iterator, Mapping, TypeVar, Union, final,
+                    get_args)
 
 import numpy as np
 
 from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
-from .Entry import (Entry,   _next_, _TPath)
-from .Node import Node
+from .Entry import Entry
+from .Node import Node, _TKey
 from .Path import Path
 
 _TObject = TypeVar("_TObject")
@@ -37,16 +38,16 @@ class Container(Node, Generic[_TObject]):
     def _duplicate(self, *args, parent=None, **kwargs) -> _TContainer:
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
-    def __setitem__(self, key: Any, value: _T) -> _T:
+    def __setitem__(self, key: _TKey, value: _T) -> _T:
         return self._entry.child(key).push(self._pre_process(value))
 
-    def __getitem__(self, key: Any) -> Any:
-        return self._post_process(self._entry.child(key), path=key)
+    def __getitem__(self, key: _TKey) -> Any:
+        return self._post_process(self._entry.child(key), key=key)
 
-    def __delitem__(self, key: Any) -> bool:
+    def __delitem__(self, key: _TKey) -> bool:
         return self._entry.child(key).erase()
 
-    def __contains__(self, key: Any) -> bool:
+    def __contains__(self, key: _TKey) -> bool:
         return self._entry.child(key).exists()
 
     def __eq__(self, other) -> bool:
@@ -57,7 +58,7 @@ class Container(Node, Generic[_TObject]):
 
     def __iter__(self) -> Iterator[_T]:
         for idx, obj in enumerate(self._entry):
-            yield self._post_process(obj, path=[idx])
+            yield self._post_process(obj, key=[idx])
 
     def append(self, value) -> _TContainer:
         self._entry.push([value], extend=True)
@@ -74,20 +75,22 @@ class Container(Node, Generic[_TObject]):
     @cached_property
     def _child_type(self):
 
-        child_type = Node
+        child_type = _undefined_
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-        orig_class = getattr(self, "__orig_class__", None)
-        if orig_class is not None:
+        orig_class = getattr(self, "__orig_class__", _not_found_)
+        if orig_class is not _not_found_:
             child_type = get_args(self.__orig_class__)
-            if child_type is not None and len(child_type) > 0 and inspect.isclass(child_type[0]):
+            if len(child_type) > 0 and inspect.isclass(child_type[0]):
                 child_type = child_type[0]
-
         return child_type
 
-    def create_child(self, value: _T, *args, parent=_undefined_, type_hint=_undefined_, **kwargs) -> Union[_T, Node]:
-        return super().create_child(value, *args,
-                                    parent=parent if parent is not _undefined_ else self,  # self._parent, @FIXME: how to define the parent of item in container
-                                    type_hint=type_hint if type_hint is not _undefined_ else self._child_type, **kwargs)
+    def update_child(self, key: _TKey, value: _T = _undefined_,   type_hint=_undefined_, *args, **kwargs) -> Union[_T, Node]:
+        return super().update_child(key,
+                                    value,
+                                    type_hint=type_hint if type_hint is not _undefined_ else self._child_type,
+                                    *args, **kwargs)
+
+
 
     # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
     #     return value
@@ -208,5 +211,3 @@ class Container(Node, Generic[_TObject]):
 
     # def equal(self, path: _TPath, other) -> bool:
     #     return self._entry.pull(path, {Entry.op_tag.equal: other})
-
-

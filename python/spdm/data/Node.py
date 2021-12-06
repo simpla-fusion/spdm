@@ -2,10 +2,11 @@ import collections
 import collections.abc
 import dataclasses
 import inspect
-from typing import (Any, Generic, Iterator, Mapping, TypeVar, Union, final,
-                    get_args)
+from typing import (Any, Callable, Generic, Iterator, Mapping, TypeVar, Union,
+                    get_args, get_origin)
 
 import numpy as np
+from numpy.lib.arraysetops import isin
 
 from ..common.logger import logger
 from ..common.SpObject import SpObject
@@ -16,6 +17,7 @@ from .Entry import Entry
 _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
 _TNode = TypeVar("_TNode", bound="Node")
+_TKey = TypeVar("_TKey")
 
 
 class Node(SpObject):
@@ -78,56 +80,61 @@ class Node(SpObject):
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
-    def _post_process(self, value: _T, path=_undefined_, *args,   ** kwargs) -> Union[_T, _TNode]:
-        return self.update_child(value, *args, path=path,  **kwargs)
+    def _post_process(self, value: _T, key, *args, ** kwargs) -> Union[_T, _TNode]:
+        return self.update_child(key, value, *args, **kwargs)
 
-    def update_child(self, value: _T, path=_undefined_, *args,   ** kwargs) -> Union[_T, _TNode]:
-        if value is _undefined_ and path is not _undefined_:
-            value = self._entry.child(path).pull(_undefined_)
-
-        return self.create_child(value, path, *args, **kwargs)
-
-    def create_child(self, value: _T,  path=_undefined_,
-                     *args,
-                     parent=_undefined_,
+    def update_child(self,
+                     key: _TKey,
+                     value: _T = _undefined_,
                      type_hint=_undefined_,
-                     always_node=False, **kwargs) -> Union[_T, _TNode]:
+                     default_value=_undefined_,
+                     getter: Callable = _undefined_,
+                     *args, **kwargs) -> Union[_T, _TNode]:
 
-        if not always_node and isinstance(value, Node._PRIMARY_TYPE_):
-            return value
+        is_changed = True
 
-        if parent is _undefined_:
-            parent = self
+        if value is _undefined_ and key is not _undefined_:
+            value = self._entry.get(key, _undefined_)
+            is_changed = value is _undefined_
 
-        obj = _undefined_
+        if value is _undefined_ and getter is not _undefined_:
+            value = getter(self)
 
-        # if type_hint is _undefined_:
-        #     type_hint = Node
+        if value is _undefined_:
+            value = default_value
 
-        if type_hint is _undefined_:
+        ###################################################################
+        # value, is_converted = try_convert(value, type_hint, *args, **kwargs)
+
+        v_orig_class = getattr(value, "__orig_class__", value.__class__)
+
+        if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(type_hint, v_orig_class):
             obj = value
-        elif type_hint in (int, float, bool):
-            obj = type_hint(value)
+        elif get_origin(type_hint) is not None and get_origin(v_orig_class) is get_origin(type_hint) and get_args(v_orig_class) == get_args(type_hint):
+            obj = value
+        elif type_hint is _undefined_:
+            if isinstance(value, (collections.abc.Sequence, collections.abc.Mapping, Entry)) and not isinstance(value, str):
+                obj = Node(value, *args, **kwargs)
+            else:
+                obj = value
+            # obj = value if not isinstance(value, Entry) else value.dump()
+        elif type_hint in (int, float, bool, str):
+            obj = type_hint(value if not isinstance(value, Entry) else value.dump())
         elif type_hint is np.ndarray:
-            obj = np.asarray(value)
+            obj = np.asarray(value if not isinstance(value, Entry) else value.dump())
         elif dataclasses.is_dataclass(type_hint):
             if isinstance(value, collections.abc.Mapping):
                 obj = type_hint(**{k: value.get(k, None) for k in type_hint.__dataclass_fields__})
-            elif isinstance(value, collections.abc.Sequence):
+            elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
                 obj = type_hint(*value)
             else:
                 obj = type_hint(value)
         elif inspect.isfunction(type_hint):
             obj = type_hint(value, *args,  **kwargs)
-        elif inspect.isclass(type_hint):
-            if isinstance(value, type_hint):
-                obj = value
-            elif issubclass(type_hint, Node):
-                obj = type_hint(value, **kwargs)
-        elif hasattr(type_hint, "__origin__"):
-            obj = type_hint(value, **kwargs)
+        elif inspect.isclass(type_hint) or get_origin(type_hint) is not None:
+            obj = type_hint(value, *args, **kwargs)
         else:
-            obj = type_hint(value, **kwargs)
+            raise NotImplementedError(type_hint)
 
         # elif hasattr(type_hint, '__origin__'):
             # if issubclass(type_hint.__origin__, Node):
@@ -144,10 +151,17 @@ class Node(SpObject):
         #         obj = Node(value, *args, parent=parent, **kwargs)
         #     logger.warning(f"Ignore type_hint={type(type_hint)}!")
 
-        if obj is _undefined_:
-            obj = value
-        elif path is not _undefined_ and not isinstance(value, Entry):
-            self._entry.child(path).push(obj)
+        is_changed |= obj is not value
+
+        ###################################################################
+
+        if key is not _undefined_ and is_changed:
+            if isinstance(value, Entry) and self._entry._cache is value._cache:
+                pass
+            else:
+                self._entry.put(key, obj)
+                if isinstance(obj, Node):
+                    obj._parent = self
 
         return obj
 

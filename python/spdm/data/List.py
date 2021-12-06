@@ -46,14 +46,14 @@ class List(Container[_TObject], Sequence[_TObject]):
         return self._entry.child(idx).push(v)
 
     def __getitem__(self, idx) -> _TObject:
-        return self._post_process(self._entry.child(idx).pull(), path=idx)
+        return self._post_process(self._entry.child(idx).pull(), key=idx)
 
     def __delitem__(self, idx) -> None:
         self._entry.child(idx).erase()
 
     def __iter__(self) -> Iterator[_TObject]:
         for idx, v in enumerate(self._entry.first_child()):
-            yield self._post_process(v, path=idx)
+            yield self._post_process(v, key=idx)
 
     def __iadd__(self, other) -> _TList:
         self._entry.push(other, append=True)

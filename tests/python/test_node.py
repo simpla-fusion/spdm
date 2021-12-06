@@ -34,18 +34,18 @@ class TestNode(unittest.TestCase):
         self.assertTrue(isinstance(Node({"a": 1, "b": 2, "c": 3}), Dict))
         self.assertFalse(isinstance(Node({1, 2, 3, 4, 5}), List))
 
-    def test_create(self):
-        cache = []
-        d = Node(cache)
-        self.assertEqual(d.create_child("hello"), "hello")
-        self.assertEqual(d.create_child(1), 1)
-        v = np.ones([10, 20])
-        self.assertIs(d.create_child(v), v)
-        self.assertTrue(isinstance(d.create_child("hello", always_node=True), Node))
+    # def test_create(self):
+    #     cache = []
+    #     d = Node(cache)
+    #     self.assertEqual(d.create_child("hello"), "hello")
+    #     self.assertEqual(d.create_child(1), 1)
+    #     v = np.ones([10, 20])
+    #     self.assertIs(d.create_child(v), v)
+    #     self.assertTrue(isinstance(d.create_child("hello", always_node=True), Node))
 
-        self.assertTrue(isinstance(d.create_child([1, 2, 3, 4, 5]), List))
-        self.assertTrue(isinstance(d.create_child((1, 2, 3, 4, 5)), List))
-        self.assertTrue(isinstance(d.create_child({"a": 1, "b": 2, "c": 3}), Dict))
+    #     self.assertTrue(isinstance(d.create_child([1, 2, 3, 4, 5]), List))
+    #     self.assertTrue(isinstance(d.create_child((1, 2, 3, 4, 5)), List))
+    #     self.assertTrue(isinstance(d.create_child({"a": 1, "b": 2, "c": 3}), Dict))
 
     def test_find_by_key(self):
 

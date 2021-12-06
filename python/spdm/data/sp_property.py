@@ -79,7 +79,6 @@ class sp_property(Generic[_TObject]):
 
     def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_,
                  default_value=_undefined_,
-                 validator=_undefined_,
                  type_hint=_undefined_,
                  **kwargs):
         self.lock = RLock()
@@ -94,7 +93,6 @@ class sp_property(Generic[_TObject]):
         self.type_hint = type_hint
 
         self.default_value = default_value
-        self.validator = validator
         self.opts = kwargs
 
     def __set_name__(self, owner, name):
@@ -129,18 +127,6 @@ class sp_property(Generic[_TObject]):
         if self.type_hint is _undefined_ and inspect.isfunction(self.getter):
             self.type_hint = self.getter.__annotations__.get("return", _undefined_)
 
-    def validate(self, value):
-
-        if self.validator is not _undefined_:
-            return self.validator(value,  self.type_hint)
-        else:
-            orig_class = getattr(value, "__orig_class__", value.__class__)
-
-            return self.type_hint in [None, _undefined_]  \
-                or orig_class == self.type_hint \
-                or (inspect.isclass(orig_class)
-                    and inspect.isclass(self.type_hint)
-                    and issubclass(orig_class, self.type_hint))
 
     def __set__(self, instance: Node, value: Any):
         if not isinstance(instance, Node):
@@ -148,9 +134,9 @@ class sp_property(Generic[_TObject]):
 
         with self.lock:
             if callable(self.setter):
-                self.setter(value)
-
-            instance._entry.put(self.property_cache_key,  value)
+                self.setter(instance, value)
+            else:
+                instance._entry.put(self.property_cache_key,  value)
 
     def __get__(self, instance: Node, owner=None) -> _TObject:
         if not isinstance(instance, Node):
@@ -160,15 +146,11 @@ class sp_property(Generic[_TObject]):
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            value = instance._entry.get(self.property_cache_key, _not_found_)
-
-            if not self.validate(value):
-                if callable(self.getter):
-                    value = self.getter(instance, **self.opts)
-                elif value is _not_found_:
-                    value = self.default_value
-
-                value = instance.update_child(value, self.property_cache_key, type_hint=self.type_hint, **self.opts)
+            value = instance.update_child(key=self.property_cache_key,
+                                          type_hint=self.type_hint,
+                                          default_value=self.default_value,
+                                          getter=self.getter,
+                                          **self.opts)
 
         return value
 
@@ -178,5 +160,6 @@ class sp_property(Generic[_TObject]):
 
         with self.lock:
             if callable(self.deleter):
-                self.deleter()
-            instance._entry.child(self.property_cache_key).erase()
+                self.deleter(instance)
+            else:
+                instance._entry.erase(self.property_cache_key)

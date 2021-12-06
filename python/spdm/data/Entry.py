@@ -157,7 +157,7 @@ class Entry(object):
 
         return obj
 
-    def push(self, value: any, update=False, extend=False) -> None:
+    def push(self, value: _T, update=False, extend=False) -> _T:
         if extend:
             target = self.pull(_not_found_)
             if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
@@ -173,25 +173,32 @@ class Entry(object):
             Entry.normal_set(self._cache, self._path[0], value, update=update)
         else:
             self._make_parents().push(value, update=update)
-        return None
 
-    def erase(self) -> bool:
+        return value
+
+    def erase(self, key=_undefined_) -> bool:
         if self._path.empty:
             self._cache = None
             return
 
         obj = self._cache
 
-        for key in self._path[:-1]:
+        if key is not _undefined_:
+            path = self._path.append(key)
+        else:
+            path = self._path
+
+        for key in path[:-1]:
             try:
                 obj = Entry.normal_get(obj, key)
             except (IndexError, KeyError):
                 return False
 
         if isinstance(obj, (collections.abc.Mapping, collections.abc.Sequence)) and not isinstance(obj, str):
-            del obj[self._path[-1]]
-
-        return True
+            del obj[path[-1]]
+            return True
+        else:
+            return False
 
     def count(self) -> int:
         res = self.pull(_not_found_)

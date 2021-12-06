@@ -11,11 +11,10 @@ from ..util.utilities import serialize
 
 from .Container import Container
 from .Entry import Entry, EntryChain
-from .Node import Node
+from .Node import Node, _TKey,_TObject
 
 _T = TypeVar("_T")
 _TDict = TypeVar('_TDict', bound='Dict')
-_TObject = TypeVar("_TObject")
 
 
 class Dict(Container[_TObject], Mapping[str, _TObject]):
@@ -39,7 +38,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         return {k: serialize(v) for k, v in self._entry.first_child()}
 
     def __getitem__(self, key: str) -> _TObject:
-        return self._post_process(self._entry.child(key).pull(), path=key)
+        return self._post_process(self._entry.child(key).pull(), key=key)
 
     def __setitem__(self, key: str, value: _T) -> None:
         return self._entry.child(key).push(self._pre_process(value))
@@ -88,7 +87,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).pull(default), path=key)
+        return self._post_process(self._entry.child(key).pull(default), key=key)
 
     def setdefault(self, key, *args) -> Any:
         """If key is in the dictionary, return its value. If not, insert key with a value of default and return default. default defaults to None.
@@ -100,7 +99,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).setdefault(*args), path=key)
+        return self._post_process(self._entry.child(key).setdefault(*args), key=key)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
