@@ -118,6 +118,7 @@ class Node(SpObject):
                 value = getter(self)
             elif value is _undefined_:
                 value = default_value
+            is_changed = True
             is_valid = self.validate(value, type_hint)
 
         if is_valid:
