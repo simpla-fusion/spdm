@@ -12,7 +12,7 @@ from ..common.logger import logger
 from ..common.SpObject import SpObject
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
-from .Entry import Entry
+from .Entry import Entry, as_entry
 
 _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
@@ -52,7 +52,7 @@ class Node(SpObject):
 
     def __init__(self, data=None) -> None:
         super().__init__()
-        self._entry = data if isinstance(data, Entry) else Entry(data)
+        self._entry = as_entry(data)
         self._nid = None
         self._parent = None
 
@@ -83,6 +83,20 @@ class Node(SpObject):
     def _post_process(self, value: _T, key, *args, ** kwargs) -> Union[_T, _TNode]:
         return self.update_child(key, value, *args, **kwargs)
 
+    def validate(self, value, type_hint) -> bool:
+        if value is _undefined_ or type_hint is _undefined_:
+            return False
+        else:
+            v_orig_class = getattr(value, "__orig_class__", value.__class__)
+
+            if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(v_orig_class, type_hint):
+                res = True
+            elif get_origin(type_hint) is not None and get_origin(v_orig_class) is get_origin(type_hint) and get_args(v_orig_class) == get_args(type_hint):
+                res = True
+            else:
+                res = False
+        return res
+
     def update_child(self,
                      key: _TKey,
                      value: _T = _undefined_,
@@ -97,20 +111,16 @@ class Node(SpObject):
             value = self._entry.get(key, _undefined_)
             is_changed = value is _undefined_
 
-        if value is _undefined_ and getter is not _undefined_:
-            value = getter(self)
+        is_valid = self.validate(value, type_hint)
 
-        if value is _undefined_:
-            value = default_value
+        if not is_valid:
+            if getter is not _undefined_:
+                value = getter(self)
+            elif value is _undefined_:
+                value = default_value
+            is_valid = self.validate(value, type_hint)
 
-        ###################################################################
-        # value, is_converted = try_convert(value, type_hint, *args, **kwargs)
-
-        v_orig_class = getattr(value, "__orig_class__", value.__class__)
-
-        if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(type_hint, v_orig_class):
-            obj = value
-        elif get_origin(type_hint) is not None and get_origin(v_orig_class) is get_origin(type_hint) and get_args(v_orig_class) == get_args(type_hint):
+        if is_valid:
             obj = value
         elif type_hint is _undefined_:
             if isinstance(value, (collections.abc.Sequence, collections.abc.Mapping, Entry)) and not isinstance(value, str):
@@ -131,7 +141,11 @@ class Node(SpObject):
                 obj = type_hint(value)
         elif inspect.isfunction(type_hint):
             obj = type_hint(value, *args,  **kwargs)
-        elif inspect.isclass(type_hint) or get_origin(type_hint) is not None:
+        elif inspect.isclass(type_hint):
+            obj = object.__new__(type_hint)
+            obj._parent = self
+            obj.__init__(value, *args, **kwargs)
+        elif get_origin(type_hint) is not None:
             obj = type_hint(value, *args, **kwargs)
         else:
             raise NotImplementedError(type_hint)

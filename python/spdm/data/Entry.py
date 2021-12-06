@@ -53,6 +53,8 @@ class Entry(object):
         super().__init__()
         self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache
+        if hasattr(cache, "_entry") or isinstance(cache, Entry):
+            raise RuntimeError(type(cache))
 
     def duplicate(self) -> _TEntry:
         obj = object.__new__(self.__class__)
@@ -136,25 +138,48 @@ class Entry(object):
         return self
 
     def pull(self, default=_undefined_, strict=False) -> Any:
+        """ 查找self._cache中位于self._path的值。
+            if  value exists then self._cache=value,self._path=[] and return value
+            elif default is not _undefined_ return default
+            else Entry which is closest to target，
+
+
+
+        Args:
+            default ([type], optional): [description]. Defaults to _undefined_.
+            strict (bool, optional): [description]. Defaults to False.
+
+        Raises:
+            KeyError: [description]
+
+        Returns:
+            Any: [description]
+        """
         if self._path.empty:
             return self._cache
 
         obj = self._cache
 
         for idx, key in enumerate(self._path):
-            try:
-                next_obj = Entry.normal_get(obj, key)
-            except (IndexError, KeyError):
-                if default is not _undefined_:
-                    return default
+            if isinstance(obj, Entry):
+                obj = obj.append(self._path[idx:])
+                break
+            else:
+                try:
+                    next_obj = Entry.normal_get(obj, key)
+                except (IndexError, KeyError):
+                    obj = Entry(obj, self._path[idx:])
+                    break
                 else:
-                    return Entry(obj, self._path[idx:])
+                    obj = next_obj
 
-            obj = next_obj
-
-        self._cache = obj
-        self._path.reset()
-
+        if not isinstance(obj, Entry):
+            self._cache = obj
+            self._path.reset()
+        elif default is not _undefined_:
+            obj = default
+        elif hasattr(obj, "_entry"):
+            raise RuntimeError(type(obj))
         return obj
 
     def push(self, value: _T, update=False, extend=False) -> _T:
@@ -208,7 +233,10 @@ class Entry(object):
         return self.pull(_not_found_) is not _not_found_
 
     def equal(self, other) -> bool:
+
         res = self.pull(_not_found_)
+        if isinstance(res, Entry) or hasattr(res, "_entry"):
+            raise NotImplementedError((type(res), type(other)))
         return res == other
 
     @staticmethod
@@ -298,6 +326,15 @@ def _slice_to_range(s: slice, length: int) -> range:
     return range(start, stop, step)
 
 
+def as_entry(obj) -> Entry:
+    if isinstance(obj, Entry):
+        return obj
+    elif hasattr(obj, "_entry"):
+        return obj._entry
+    else:
+        return Entry(obj)
+
+
 class EntryCombiner(Entry):
     def __init__(self,  d_list: Sequence = [], /,
                  default_value=_undefined_,
@@ -375,10 +412,8 @@ class EntryCombiner(Entry):
 
 
 class EntryChain(Entry):
-    def __init__(self, cache,   **kwargs):
-        cache = [(a if isinstance(a, Entry) else Entry(a)) for a in cache]
-
-        super().__init__(cache,   **kwargs)
+    def __init__(self, cache: collections.abc.Sequence,   **kwargs):
+        super().__init__([as_entry(a) for a in cache],   **kwargs)
 
     def push(self,   value: _T, **kwargs) -> _T:
         self._cache[0].child(self._path).push(value, **kwargs)

@@ -4,6 +4,11 @@ import numpy as np
 from spdm.common.logger import logger
 from spdm.data import Dict, List, Node
 
+
+class Foo:
+    pass
+
+
 if __name__ == '__main__':
     cache = {
         "a": [
@@ -17,7 +22,7 @@ if __name__ == '__main__':
             "f": "{address}"
         }
     }
-    d = Dict(cache)
+    d = Dict[Foo](cache)
 
     print(d["d"]["e"])
 

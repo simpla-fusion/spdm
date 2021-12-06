@@ -11,7 +11,7 @@ from ..util.utilities import serialize
 
 from .Container import Container
 from .Entry import Entry, EntryChain
-from .Node import Node, _TKey,_TObject
+from .Node import Node, _TKey, _TObject
 
 _T = TypeVar("_T")
 _TDict = TypeVar('_TDict', bound='Dict')
@@ -23,10 +23,8 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         if cache is _undefined_:
             cache = kwargs
         elif len(kwargs) > 0:
-            if isinstance(cache, Dict):
-                cache = EntryChain([kwargs, cache._entry])
-            elif isinstance(cache, collections.abc.Mapping):
-                cache = EntryChain([kwargs, cache])
+
+            cache = EntryChain([kwargs, cache])
 
         super().__init__(cache)
 

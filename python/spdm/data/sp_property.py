@@ -127,7 +127,6 @@ class sp_property(Generic[_TObject]):
         if self.type_hint is _undefined_ and inspect.isfunction(self.getter):
             self.type_hint = self.getter.__annotations__.get("return", _undefined_)
 
-
     def __set__(self, instance: Node, value: Any):
         if not isinstance(instance, Node):
             raise TypeError(type(instance))
@@ -140,9 +139,9 @@ class sp_property(Generic[_TObject]):
 
     def __get__(self, instance: Node, owner=None) -> _TObject:
         if not isinstance(instance, Node):
-            raise TypeError(type(instance))
+            raise TypeError(f"sp_property is only valid for 'Node', not for {type(instance)}.")
 
-        if self.property_name is None:
+        if self.property_name is _undefined_ or self.property_cache_key is _undefined_:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
