@@ -77,11 +77,15 @@ class Node(SpObject):
     def __serialize__(self):
         return self._entry.dump()
 
+    @property
+    def value(self) -> Any:
+        return self.update_child(_undefined_, self._entry.pull(_undefined_))
+
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
     def _post_process(self, value: _T, key, *args, ** kwargs) -> Union[_T, _TNode]:
-        return self.update_child(key, value, *args, **kwargs)
+        return self.update_child(key, value, *args, in_place=False, ** kwargs)
 
     def validate(self, value, type_hint) -> bool:
         if value is _undefined_ or type_hint is _undefined_:
@@ -103,6 +107,7 @@ class Node(SpObject):
                      type_hint=_undefined_,
                      default_value=_undefined_,
                      getter: Callable = _undefined_,
+                     in_place=True,
                      *args, **kwargs) -> Union[_T, _TNode]:
 
         is_changed = True
@@ -173,7 +178,7 @@ class Node(SpObject):
         if key is not _undefined_ and is_changed:
             if isinstance(value, Entry) and self._entry._cache is value._cache:
                 pass
-            else:
+            elif in_place:
                 self._entry.put(key, obj)
                 if isinstance(obj, Node):
                     obj._parent = self

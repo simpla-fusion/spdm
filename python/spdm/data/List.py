@@ -46,7 +46,7 @@ class List(Container[_TObject], Sequence[_TObject]):
         return self._entry.child(idx).push(v)
 
     def __getitem__(self, idx) -> _TObject:
-        return self._post_process(self._entry.child(idx).pull(), key=idx)
+        return self._post_process(self._entry.child(idx), key=idx)
 
     def __delitem__(self, idx) -> None:
         self._entry.child(idx).erase()

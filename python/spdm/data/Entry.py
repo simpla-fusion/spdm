@@ -90,7 +90,11 @@ class Entry(object):
     def parent(self) -> _TEntry:
         return self.__class__(self._cache, path=self._path.parent)
 
-    def child(self, *args) -> _TEntry:
+    def child(self, first, *args) -> _TEntry:
+        if isinstance(first, tuple):
+            args = list(first)+list(args)
+        else:
+            args = [first]+list(args)
         return self.__class__(self._cache, path=self._path.duplicate().append(*args))
 
     def query(self, q: Query) -> Any:
@@ -159,45 +163,70 @@ class Entry(object):
             return self._cache
 
         obj = self._cache
-
+        is_found = True
         for idx, key in enumerate(self._path):
             if isinstance(obj, Entry):
-                obj = obj.append(self._path[idx:])
+                obj = obj.child(self._path[idx:]).pull(default)
+                is_found = False
                 break
             else:
                 try:
                     next_obj = Entry.normal_get(obj, key)
                 except (IndexError, KeyError):
-                    obj = Entry(obj, self._path[idx:])
+                    is_found = False
+
+                    if default is _undefined_:
+                        obj = Entry(obj, self._path[idx:])
+                    else:
+                        obj = default
                     break
                 else:
                     obj = next_obj
 
-        if not isinstance(obj, Entry):
+        if is_found and not isinstance(obj, Entry):
             self._cache = obj
             self._path.reset()
-        elif default is not _undefined_:
-            obj = default
         elif hasattr(obj, "_entry"):
             raise RuntimeError(type(obj))
         return obj
 
-    def push(self, value: _T, update=False, extend=False) -> _T:
-        if extend:
-            target = self.pull(_not_found_)
-            if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
-                target.extend(value)
-            else:
-                self.push(value)
-        elif self._path.empty:
-            if update and isinstance(self._cache, collections.abc.Mapping):
-                Entry.normal_set(self._cache, None, value, update=update)
+    def push(self, value: _T, **kwargs) -> _T:
+        if self._path.empty:
+            if self._cache is not _undefined_:
+                Entry.normal_set(self._cache, _undefined_, value, **kwargs)
             else:
                 self._cache = value
-        elif len(self._path) == 1:
-            Entry.normal_set(self._cache, self._path[0], value, update=update)
-        else:
-            self._make_parents().push(value, update=update)
+            return value
+
+        obj = self._cache
+        for idx, key in enumerate(self._path[:-1]):
+            if isinstance(obj, Entry):
+                obj.child(*self.path[idx+1:]).push(value, **kwargs)
+                obj = _undefined_
+                break
+            elif isinstance(key, Query):
+                for k, o in key.filter(obj):
+                    Entry(o, self._path[idx+1:]).push(value, **kwargs)
+                obj = _undefined_
+                break
+            elif not isinstance(obj, collections.abc.Mapping):
+                try:
+                    obj = self.normal_get(obj, key)
+                except (IndexError, KeyError):
+                    raise KeyError(self._path[:idx+1])
+            elif isinstance(self._path[idx+1], str):
+                obj = obj.setdefault(key, {})
+            else:
+                obj = obj.setdefault(key, [])
+
+        if obj is not _undefined_:
+            Entry.normal_set(obj, self._path[-1], value, **kwargs)
+
+        # elif len(self._path) == 1:
+        #     Entry.normal_set(self._cache, self._path[0], value, update=update)
+        # self._make_parents().push(value, update=update)
+        # self._cache = obj
+        # self._path = Path(self._path[-1])
 
         return value
 
@@ -240,58 +269,52 @@ class Entry(object):
         return res == other
 
     @staticmethod
-    def normal_get(obj, key):
+    def normal_get(obj, key, default=_not_found_):
         if isinstance(obj, Entry):
-            return obj.child(key).pull()
+            return obj.child(key).pull(default)
         elif key is None:
             return obj
         elif isinstance(key, Query):
-            return key.apply(obj)
-        elif isinstance(key, (int, str, slice)):
+            return [v for k, v in key.filter(obj)]
+        elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
             return obj[key]
+        elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Mapping):
+            return {k: Entry.normal_get(v, key, default) for k, v in obj.items()}
+        elif isinstance(key, str) and isinstance(obj, collections.abc.Mapping):
+            return obj.get(key, default)
+        elif isinstance(key, str) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+            return [Entry.normal_get(v, key, default) for v in obj]
         elif isinstance(key, set):
-            return {k: Entry.normal_get(obj, k) for k in key}
+            return {k: Entry.normal_get(obj, k, default) for k in key}
         elif isinstance(key, collections.abc.Sequence):
-            return [Entry.normal_get(obj, k) for k in key]
+            return [Entry.normal_get(obj, k, default) for k in key]
         elif isinstance(key, collections.abc.Mapping):
-            return {k: Entry.normal_get(obj, v) for k, v in key.items()}
+            return {k: Entry.normal_get(obj, v, default) for k, v in key.items()}
         else:
-            raise NotImplementedError(type(key))
+            raise NotImplementedError(key)
 
     @staticmethod
-    def normal_set(obj, key, value, update=True):
-        if isinstance(obj, Entry):
-            if key is not None:
-                obj.child(key).push(value, update=update)
+    def normal_set(obj, key, value, update=False, extend=False):
+        if isinstance(obj, Entry) or hasattr(obj, '_entry'):
+            raise RuntimeError(obj)
+        elif (update or extend) and key is not _undefined_:
+            tmp = Entry.normal_get(obj, key, _not_found_)
+            if tmp is not _not_found_:
+                Entry.normal_set(tmp, _undefined_, value, update=update, extend=extend)
             else:
-                obj.push(value, update=update)
-        elif isinstance(key, (int, str, slice)):
-            if not update:
-                obj[key] = value
-            else:
-                try:
-                    new_obj = obj[key]
-                except (KeyError, IndexError):
-                    obj[key] = value
-                else:
-                    if isinstance(new_obj, collections.abc.Mapping) and \
-                            isinstance(new_obj, collections.abc.Mapping):
-                        Entry.normal_set(new_obj, None, value, update=True)
-                    else:
-                        obj[key] = value
-        elif key is None:
-            if isinstance(value, collections.abc.Mapping):
+                Entry.normal_set(obj, key, value)
+        elif key is _undefined_:
+            if isinstance(obj, collections.abc.Mapping) and isinstance(value, collections.abc.Mapping):
                 for k, v in value.items():
                     Entry.normal_set(obj, k, v, update=update)
-            elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-                for k, v in enumerate(value):
-                    Entry.normal_set(obj, k, v, update=update)
+            elif isinstance(obj, collections.abc.Sequence) and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                obj.extend(value)
+                # for k, v in enumerate(value):
+                #     Entry.normal_set(obj, k, v, update=update)
             else:
                 raise KeyError(type(value))
-        elif isinstance(key, Query):
-            logger.debug(key.apply(obj))
-            # for k, o in key.apply(obj):
-            #     Entry.normal_set(o, k, value, update=update)
+        elif isinstance(key, (int, str, slice)):
+            obj[key] = value
         elif isinstance(key, collections.abc.Sequence):
             for i in key:
                 Entry.normal_set(obj, i, value, update=update)
@@ -336,20 +359,19 @@ def as_entry(obj) -> Entry:
 
 
 class EntryCombiner(Entry):
-    def __init__(self,  d_list: Sequence = [], /,
-                 default_value=_undefined_,
+    def __init__(self,  cache: Sequence = [], /,
                  reducer=_undefined_,
                  partition=_undefined_, **kwargs):
-        super().__init__(default_value, **kwargs)
+        if not isinstance(cache, collections.abc.Sequence) or isinstance(cache, str):
+            raise TypeError(type(cache))
+        super().__init__([as_entry(a) for a in cache], **kwargs)
         self._reducer = reducer if reducer is not _undefined_ else operator.__add__
         self._partition = partition
-        self._d_list: Sequence[Entry] = d_list
 
     def duplicate(self):
         res = super().duplicate()
         res._reducer = self._reducer
         res._partition = self._partition
-        res._d_list = self._d_list
 
         return res
 
@@ -362,52 +384,34 @@ class EntryCombiner(Entry):
     def replace(self, path, value: _T,   *args, **kwargs) -> _T:
         return super().push(path, value, *args, **kwargs)
 
-    def push(self, path, value: _T,  *args, **kwargs) -> _T:
-        path = self._path+Entry.normalize_path(path)
-        for d in self._d_list:
-            Entry._eval_push(d, path, value, *args, **kwargs)
+    def push(self, value: _T,  *args, **kwargs) -> _T:
+        # path = self._path+Entry.normalize_path(path)
+        # for d in self._d_list:
+        #     Entry._eval_push(d, path, value, *args, **kwargs)
+        raise NotImplementedError()
 
-    def pull(self, **kwargs) -> Any:
-        val = super().pull(**kwargs)
-
-        if val is not _not_found_:
-            return val
-
-        path = self._path+Entry.normalize_path(path)
+    def pull(self, default: _T = _undefined_, **kwargs) -> _T:
 
         val = []
-        for d in self._d_list:
-            if isinstance(d, (Entry, EntryContainer)):
-                target = Entry._eval_pull(d, path)
-                p = None
-            else:
-                target, p = Entry._eval_path(d, path+[None], force=False)
-            if target is _not_found_ or p is not None:
+        type_hint = _undefined_
+        for e in self._cache:
+            v = e.child(self._path).pull(_not_found_)
+            if v is _not_found_:
                 continue
-            target = Entry._eval_filter(target, predication=predication, only_first=only_first)
-            if target is _not_found_ or len(target) == 0:
-                continue
-            val.extend([Entry._eval_pull(d, [], query=query, lazy=lazy) for d in target])
+            elif isinstance(v, Entry):
+                raise RuntimeError(v)
+
+            val.append(v)
+            type_hint = type(v)
 
         if len(val) == 0:
-            val = _not_found_
+            val = default
         elif len(val) == 1:
             val = val[0]
-        elif (inspect.isclass(type_hint) and issubclass(type_hint, EntryContainer)):
-            val = EntryCombiner(val)
-        elif type_hint in (int, float):
-            val = functools.reduce(self._reducer, val[1:], val[0])
         elif type_hint is np.ndarray:
             val = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
         else:
-            val = EntryCombiner(val)
-        # elif any(map(lambda v: not isinstance(v, (int, float, np.ndarray)), val)):
-        # else:
-        #     val = functools.reduce(self._reducer, val[1:], val[0])
-
-        if val is _not_found_ and lazy is True and query is _undefined_ and predication is _undefined_:
-            val = self.duplicate().move_to(path)
-
+            val = functools.reduce(self._reducer, val[1:], val[0])
         return val
 
 

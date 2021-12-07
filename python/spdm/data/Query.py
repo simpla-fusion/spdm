@@ -18,20 +18,18 @@ class Query(object):
     def dump(self) -> dict:
         return self._query
 
-    def apply(self, obj, on_fail=_undefined_) -> Any:
-        if len(self._query) == 0:
-            return None
-        elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-            res = [val for val in obj if Query.normal_check(val, self._query)]
-            if len(res) == 1:
-                res = res[0]
-            elif len(res) == 0 and on_fail is not _undefined_:
-                res = on_fail(obj)
-        elif isinstance(obj, collections.abc.Mapping):
-            return NotImplemented
-        else:
-            return NotImplemented
-        return res
+    def filter(self, obj: Sequence, on_fail=_undefined_) -> Iterator[Tuple[int, Any]]:
+        # if len(self._query) == 0:
+        #     return []
+        # elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+        #     return [val for val in obj if Query.normal_check(val, self._query)]
+        # elif isinstance(obj, collections.abc.Mapping):
+        #     return NotImplemented
+        # else:
+        #     return NotImplemented
+        for idx, val in enumerate(obj):
+            if Query.normal_check(val, self._query):
+                yield idx, val
 
     @staticmethod
     def normal_check(obj, query, expect=None) -> bool:

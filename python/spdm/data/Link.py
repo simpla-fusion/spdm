@@ -41,7 +41,7 @@ class Link(Node):
         return self._entry.child(key).push(self._pre_process(value))
 
     def __getitem__(self, key: Any) -> Any:
-        return self._post_process(self._entry.child(key), path=key)
+        return self._post_process(self._entry.child(key), key=key)
 
     def __delitem__(self, key: Any) -> bool:
         return self._entry.child(key).erase()
@@ -57,7 +57,7 @@ class Link(Node):
 
     def __iter__(self) -> Iterator[_T]:
         for idx, obj in enumerate(self._entry):
-            yield self._post_process(obj, path=[idx])
+            yield self._post_process(obj, key=[idx])
 
     def append(self, value) -> _TLink:
         self._entry.push([value], extend=True)
