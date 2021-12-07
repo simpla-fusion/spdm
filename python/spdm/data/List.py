@@ -11,7 +11,8 @@ from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Container import Container
-from .Entry import Entry, EntryCombiner, _TPath
+from .Entry import Entry, EntryChain, EntryCombiner, _TPath
+from .Node import Node
 
 _TList = TypeVar('_TList', bound='List')
 _TObject = TypeVar("_TObject")
@@ -62,14 +63,20 @@ class List(Container[_TObject], Sequence[_TObject]):
     def sort(self) -> None:
         self._entry.sort()
 
-    def filter(self, predication) -> _TList:
-        return self.__class__(self._entry.filter(predication))
+    def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_) -> _TObject:
+        e = EntryCombiner([m for m in self.__iter__()], reducer=reducer, partition=partition)
+        default = default if default is not _undefined_ else {}
 
-    def combine(self, default_value=None, predication=_undefined_, reducer=_undefined_, partition=_undefined_) -> _TObject:
-        return self._post_process(EntryCombiner(self._entry, default_value=default_value,  reducer=reducer, partition=partition))
+        return self._post_process(EntryChain([default, e]), key=_undefined_)
 
     def find(self, predication,  only_first=True) -> _TObject:
         return self._post_process(self._entry.pull(predication=predication, only_first=only_first))
 
     def update(self, d, predication=_undefined_, only_first=False) -> int:
         return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
+
+    def _post_process(self, value: _T, key, *args,  ** kwargs) -> Union[_T, Node]:
+        obj = super()._post_process(value, key, *args,  ** kwargs)
+        if isinstance(obj, Node):
+            obj._parent = self._parent
+        return obj

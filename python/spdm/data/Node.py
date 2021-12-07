@@ -84,8 +84,8 @@ class Node(SpObject):
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
-    def _post_process(self, value: _T, key, *args, ** kwargs) -> Union[_T, _TNode]:
-        return self.update_child(key, value, *args, in_place=False, ** kwargs)
+    def _post_process(self, value: _T, key, *args,  ** kwargs) -> Union[_T, _TNode]:
+        return self.update_child(key, value, *args,  ** kwargs)
 
     def validate(self, value, type_hint) -> bool:
         if value is _undefined_ or type_hint is _undefined_:
@@ -113,7 +113,7 @@ class Node(SpObject):
         is_changed = True
 
         if value is _undefined_ and key is not _undefined_:
-            value = self._entry.get(key, _undefined_)
+            value = self._entry.child(key).pull(_undefined_)
             is_changed = value is _undefined_
 
         is_valid = self.validate(value, type_hint)
@@ -135,9 +135,9 @@ class Node(SpObject):
                 obj = value
             # obj = value if not isinstance(value, Entry) else value.dump()
         elif type_hint in (int, float, bool, str):
-            obj = type_hint(value if not isinstance(value, Entry) else value.dump())
+            obj = type_hint(value)
         elif type_hint is np.ndarray:
-            obj = np.asarray(value if not isinstance(value, Entry) else value.dump())
+            obj = np.asarray(value)
         elif dataclasses.is_dataclass(type_hint):
             if isinstance(value, collections.abc.Mapping):
                 obj = type_hint(**{k: value.get(k, None) for k in type_hint.__dataclass_fields__})
@@ -176,12 +176,12 @@ class Node(SpObject):
         ###################################################################
 
         if key is not _undefined_ and is_changed:
-            if isinstance(value, Entry) and self._entry._cache is value._cache:
+            if isinstance(obj, Entry) or isinstance(value, Entry):  # and self._entry._cache is value._cache:
                 pass
-            elif in_place:
+            elif in_place and isinstance(key, (int, str)):
                 self._entry.put(key, obj)
-                if isinstance(obj, Node):
-                    obj._parent = self
+        if isinstance(obj, Node):
+            obj._parent = self
 
         return obj
 

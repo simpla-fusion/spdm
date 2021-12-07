@@ -49,12 +49,13 @@ class Entry(object):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
-    def __init__(self, cache=None,   path=[], **kwargs):
+    def __init__(self, cache=_undefined_,   path=[], **kwargs):
         super().__init__()
         self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache
         if hasattr(cache, "_entry") or isinstance(cache, Entry):
-            raise RuntimeError(type(cache))
+            #     raise RuntimeError(type(cache))
+            logger.error(type(cache))
 
     def duplicate(self) -> _TEntry:
         obj = object.__new__(self.__class__)
@@ -90,11 +91,9 @@ class Entry(object):
     def parent(self) -> _TEntry:
         return self.__class__(self._cache, path=self._path.parent)
 
-    def child(self, first, *args) -> _TEntry:
-        if isinstance(first, tuple):
-            args = list(first)+list(args)
-        else:
-            args = [first]+list(args)
+    def child(self,  *args) -> _TEntry:
+        if len(args) == 1 and isinstance(args[0], tuple):
+            args = list(args[0])
         return self.__class__(self._cache, path=self._path.duplicate().append(*args))
 
     def query(self, q: Query) -> Any:
@@ -201,6 +200,14 @@ class Entry(object):
                 self._cache = value
             return value
 
+        if self._cache in (_not_found_, _undefined_):
+            if isinstance(self._path[0], str):
+                self._cache = {}
+            elif isinstance(self._path[0], (int, slice)):
+                self._cache = []
+            else:
+                raise ValueError(self._path)
+
         obj = self._cache
         for idx, key in enumerate(self._path[:-1]):
             if isinstance(obj, Entry):
@@ -209,7 +216,7 @@ class Entry(object):
                 break
             elif isinstance(key, Query):
                 for k, o in key.filter(obj):
-                    Entry(o, self._path[idx+1:]).push(value, **kwargs)
+                    as_entry(o, *self._path[idx+1:]).push(value, **kwargs)
                 obj = _undefined_
                 break
             elif not isinstance(obj, collections.abc.Mapping):
@@ -296,8 +303,10 @@ class Entry(object):
 
     @staticmethod
     def normal_set(obj, key, value, update=False, extend=False):
-        if isinstance(obj, Entry) or hasattr(obj, '_entry'):
+        if isinstance(obj, Entry):
             raise RuntimeError(obj)
+        elif hasattr(obj, '_entry'):
+            obj[key] = value
         elif (update or extend) and key is not _undefined_:
             tmp = Entry.normal_get(obj, key, _not_found_)
             if tmp is not _not_found_:
@@ -325,7 +334,7 @@ class Entry(object):
         else:
             raise NotImplemented
 
-    def get(self, path, default=_undefined_) -> any:
+    def get(self, path, default=_undefined_) -> Any:
         return self.child(path).pull(default)
 
     def put(self, path, value) -> None:
@@ -350,70 +359,13 @@ def _slice_to_range(s: slice, length: int) -> range:
     return range(start, stop, step)
 
 
-def as_entry(obj) -> Entry:
+def as_entry(obj, *path) -> Entry:
     if isinstance(obj, Entry):
-        return obj
+        return obj.child(*path)
     elif hasattr(obj, "_entry"):
-        return obj._entry
+        return obj._entry.child(*path)
     else:
-        return Entry(obj)
-
-
-class EntryCombiner(Entry):
-    def __init__(self,  cache: Sequence = [], /,
-                 reducer=_undefined_,
-                 partition=_undefined_, **kwargs):
-        if not isinstance(cache, collections.abc.Sequence) or isinstance(cache, str):
-            raise TypeError(type(cache))
-        super().__init__([as_entry(a) for a in cache], **kwargs)
-        self._reducer = reducer if reducer is not _undefined_ else operator.__add__
-        self._partition = partition
-
-    def duplicate(self):
-        res = super().duplicate()
-        res._reducer = self._reducer
-        res._partition = self._partition
-
-        return res
-
-    def __len__(self):
-        return len(self._d_list)
-
-    def __iter__(self) -> Iterator[Entry]:
-        raise NotImplementedError()
-
-    def replace(self, path, value: _T,   *args, **kwargs) -> _T:
-        return super().push(path, value, *args, **kwargs)
-
-    def push(self, value: _T,  *args, **kwargs) -> _T:
-        # path = self._path+Entry.normalize_path(path)
-        # for d in self._d_list:
-        #     Entry._eval_push(d, path, value, *args, **kwargs)
-        raise NotImplementedError()
-
-    def pull(self, default: _T = _undefined_, **kwargs) -> _T:
-
-        val = []
-        type_hint = _undefined_
-        for e in self._cache:
-            v = e.child(self._path).pull(_not_found_)
-            if v is _not_found_:
-                continue
-            elif isinstance(v, Entry):
-                raise RuntimeError(v)
-
-            val.append(v)
-            type_hint = type(v)
-
-        if len(val) == 0:
-            val = default
-        elif len(val) == 1:
-            val = val[0]
-        elif type_hint is np.ndarray:
-            val = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
-        else:
-            val = functools.reduce(self._reducer, val[1:], val[0])
-        return val
+        return Entry(obj, path)
 
 
 class EntryChain(Entry):
@@ -430,6 +382,56 @@ class EntryChain(Entry):
             if obj is not _not_found_:
                 break
         return obj if obj is not _not_found_ else default
+
+
+class EntryCombiner(EntryChain):
+    def __init__(self,  cache, *args,
+                 reducer=_undefined_,
+                 partition=_undefined_, **kwargs):
+        super().__init__(cache, *args, **kwargs)
+        self._reducer = reducer if reducer is not _undefined_ else operator.__add__
+        self._partition = partition
+
+    def duplicate(self):
+        res = super().duplicate()
+        res._reducer = self._reducer
+        res._partition = self._partition
+
+        return res
+
+    def __len__(self):
+        raise NotImplementedError()
+
+    def __iter__(self) -> Iterator[Entry]:
+        raise NotImplementedError()
+
+    def pull(self, default: _T = _undefined_, **kwargs) -> _T:
+        if not self._path.empty:
+            val = EntryCombiner([e.child(self._path) for e in self._cache])
+        else:
+            val = []
+            type_hint = _undefined_
+            for e in self._cache:
+                v = e.pull(_not_found_)
+                if v is _not_found_:
+                    continue
+                elif isinstance(v, Entry):
+                    raise RuntimeError(v)
+
+                val.append(v)
+                type_hint = type(v)
+
+            if len(val) == 0:
+                val = default
+            elif len(val) == 1:
+                val = val[0]
+            elif type_hint is np.ndarray:
+                val = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
+            elif type_hint in [int, float, bool, str]:
+                val = functools.reduce(self._reducer, val[1:], val[0])
+            else:
+                val = EntryCombiner(val, reducer=self._reducer, partition=self._partition)
+        return val
 
 
 def as_dataclass(dclass, obj, default_value=None):

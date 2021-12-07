@@ -47,8 +47,12 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         return super().__delitem__(key)
         # self._entry.child(key).erase()
 
+    def __len__(self) -> int:
+        return super().__len__()
+
     def __iter__(self) -> Iterator[str]:
-        yield from self._entry.first_child()
+        yield from super().__iter__()
+        # yield from self._entry.first_child()
 
     def __eq__(self, o: Any) -> bool:
         return self._entry.equal(o)
@@ -62,9 +66,6 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
 
     def __ior__(self, other) -> _TDict:
         return super().__ior__(other)
-
-    def __len__(self) -> int:
-        return len(self._data)
 
     def update(self, d) -> _TDict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. Return self.
