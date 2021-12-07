@@ -28,7 +28,7 @@ class TestNodeList(unittest.TestCase):
         d["a"] = "hello world {name}!"
         d["c"].append(1.23455)
         d["c"].append({"a": "hello world", "b": 3.141567})
-        logger.debug(cache)
+     
         self.assertEqual(cache["a"], "hello world {name}!")
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["a"], "hello world")
@@ -48,7 +48,7 @@ class TestNodeList(unittest.TestCase):
         ]
 
         d0 = List(cache)
-        self.assertEqual(d0[Query({"name": "li si"}), "age"].value, 22)
+        self.assertEqual(d0[Query({"name": "li si"}), "age"].value, [22])
 
         d1 = Dict({"person": cache})
 
@@ -71,8 +71,8 @@ class TestNodeList(unittest.TestCase):
 
         d0 = List(cache)
 
-        d0[Query({"name": "wang wu"})]["address"] = "hefei"
-        logger.debug(cache)
+        d0[Query({"name": "wang wu"}), "address"] = "hefei"
+
         self.assertEqual(cache[0]["address"],  "hefei")
 
     def test_iter(self):

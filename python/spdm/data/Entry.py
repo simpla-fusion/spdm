@@ -163,12 +163,15 @@ class Entry(object):
             return self._cache
 
         obj = self._cache
-        is_found = True
+        cachable = True
         for idx, key in enumerate(self._path):
             if isinstance(obj, Entry):
                 obj = obj.child(self._path[idx:]).pull(default)
-                is_found = False
+                cachable = False
                 break
+            elif isinstance(key, Query):
+                obj = [v for idx, v in key.filter(obj)]
+                cachable = False
             else:
                 try:
                     next_obj = Entry.normal_get(obj, key)
@@ -183,7 +186,7 @@ class Entry(object):
                 else:
                     obj = next_obj
 
-        if is_found and not isinstance(obj, Entry):
+        if cachable and not isinstance(obj, Entry):
             self._cache = obj
             self._path.reset()
         elif hasattr(obj, "_entry"):
@@ -274,8 +277,6 @@ class Entry(object):
             return obj.child(key).pull(default)
         elif key is None:
             return obj
-        elif isinstance(key, Query):
-            return [v for k, v in key.filter(obj)]
         elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
             return obj[key]
         elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Mapping):

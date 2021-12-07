@@ -11,9 +11,10 @@ _T = TypeVar("_T")
 
 
 class Query(object):
-    def __init__(self, d: Mapping = None, **kwargs) -> None:
+    def __init__(self, d: Mapping = None, only_first=False, **kwargs) -> None:
         super().__init__()
         self._query = deep_merge_dict(d, kwargs) if d is not None else kwargs
+        self._only_first = only_first
 
     def dump(self) -> dict:
         return self._query
@@ -30,6 +31,8 @@ class Query(object):
         for idx, val in enumerate(obj):
             if Query.normal_check(val, self._query):
                 yield idx, val
+                if self._only_first:
+                    break
 
     @staticmethod
     def normal_check(obj, query, expect=None) -> bool:
