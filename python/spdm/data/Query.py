@@ -5,7 +5,7 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
 
 from ..common.tags import _not_found_, _undefined_
 from ..util.dict_util import deep_merge_dict
-
+from .normal_util import normal_get, normal_put
 _TQuery = TypeVar("_TQuery", bound="Query")
 _T = TypeVar("_T")
 
@@ -22,39 +22,39 @@ class Query(object):
     def dump(self) -> dict:
         return self._query
 
-    def filter(self, obj: Sequence, on_fail=_undefined_) -> Iterator[Tuple[int, Any]]:
-        # if len(self._query) == 0:
-        #     return []
-        # elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-        #     return [val for val in obj if Query.normal_check(val, self._query)]
-        # elif isinstance(obj, collections.abc.Mapping):
-        #     return NotImplemented
-        # else:
-        #     return NotImplemented
-        for idx, val in enumerate(obj):
-            if Query.normal_check(val, self._query):
-                yield idx, val
-                if self._only_first:
-                    break
+    # def filter(self, obj: Sequence, on_fail=_undefined_) -> Iterator[Tuple[int, Any]]:
+    #     # if len(self._query) == 0:
+    #     #     return []
+    #     # elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+    #     #     return [val for val in obj if Query.normal_check(val, self._query)]
+    #     # elif isinstance(obj, collections.abc.Mapping):
+    #     #     return NotImplemented
+    #     # else:
+    #     #     return NotImplemented
+    #     for idx, val in enumerate(obj):
+    #         if Query.normal_check(val, self._query):
+    #             yield idx, val
+    #             if self._only_first:
+    #                 break
 
-    @staticmethod
-    def normal_check(obj, query, expect=None) -> bool:
-        if query in [_undefined_, None, _not_found_]:
-            return obj
-        elif isinstance(query, str):
-            if query[0] == '$':
-                return Query._op_tag(query, obj, expect)
-            elif isinstance(obj, collections.abc.Mapping):
-                return obj.get(query, _not_found_) == expect
-            else:
-                raise TypeError(obj)
+    # @staticmethod
+    # def normal_check(obj, query, expect=None) -> bool:
+    #     if query in [_undefined_, None, _not_found_]:
+    #         return obj
+    #     elif isinstance(query, str):
+    #         if query[0] == '$':
+    #             return Query._op_tag(query, obj, expect)
+    #         elif isinstance(obj, collections.abc.Mapping):
+    #             return normal_get(obj, query, _not_found_) == expect
+    #         else:
+    #             raise TypeError(obj)
 
-        elif isinstance(query, collections.abc.Mapping):
-            return all([Query.normal_check(obj, k, v) for k, v in query.items()])
-        elif isinstance(query, collections.abc.Sequence):
-            return all([Query.normal_check(obj, k) for k in query])
-        else:
-            raise NotImplemented(query)
+    #     elif isinstance(query, collections.abc.Mapping):
+    #         return all([Query.normal_check(obj, k, v) for k, v in query.items()])
+    #     elif isinstance(query, collections.abc.Sequence):
+    #         return all([Query.normal_check(obj, k) for k in query])
+    #     else:
+    #         raise NotImplemented(query)
 
     def update(self, **kwargs):
         self._query.update(kwargs)

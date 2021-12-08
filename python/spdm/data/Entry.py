@@ -19,6 +19,7 @@ from ..util.dict_util import as_native, deep_merge_dict
 from ..util.utilities import serialize
 from .Path import Path
 from .Query import Query
+from .normal_util import normal_get, normal_put, normal_filter
 
 
 class EntryTags(Flag):
@@ -99,7 +100,7 @@ class Entry(object):
     def query(self, q: Query) -> Any:
         if not isinstance(q, Query):
             q = Query(q)
-        return q.apply(self._cache, self._path)
+        return q.filter(self._cache, self._path)
 
     def first_child(self) -> Iterator[_TEntry]:
         """
@@ -169,7 +170,7 @@ class Entry(object):
                 cachable = False
                 break
             elif isinstance(key, Query):
-                next_obj = [v for idx, v in key.filter(obj) ]
+                next_obj = [v for idx, v in normal_filter(obj, key, only_first=key._only_first)]
                 if len(next_obj) == 0:
                     next_obj = _undefined_
                 elif key._only_first:
@@ -177,7 +178,7 @@ class Entry(object):
                 cachable = False
             else:
                 try:
-                    next_obj = Entry.normal_get(obj, key)
+                    next_obj = normal_get(obj, key)
                 except (IndexError, KeyError):
                     next_obj = _undefined_
 
@@ -202,7 +203,7 @@ class Entry(object):
     def push(self, value: _T, **kwargs) -> _T:
         if self._path.empty:
             if self._cache is not _undefined_:
-                Entry.normal_set(self._cache, _undefined_, value, **kwargs)
+                normal_put(self._cache, _undefined_, value, **kwargs)
             else:
                 self._cache = value
             return value
@@ -222,13 +223,13 @@ class Entry(object):
                 obj = _undefined_
                 break
             elif isinstance(key, Query):
-                for k, o in key.filter(obj):
+                for k, o in normal_filter(obj, key, only_first=key._only_first):
                     as_entry(o, *self._path[idx+1:]).push(value, **kwargs)
                 obj = _undefined_
                 break
             elif not isinstance(obj, collections.abc.Mapping):
                 try:
-                    obj = self.normal_get(obj, key)
+                    obj = normal_get(obj, key)
                 except (IndexError, KeyError):
                     raise KeyError(self._path[:idx+1])
             elif isinstance(self._path[idx+1], str):
@@ -237,10 +238,10 @@ class Entry(object):
                 obj = obj.setdefault(key, [])
 
         if obj is not _undefined_:
-            Entry.normal_set(obj, self._path[-1], value, **kwargs)
+            normal_put(obj, self._path[-1], value, **kwargs)
 
         # elif len(self._path) == 1:
-        #     Entry.normal_set(self._cache, self._path[0], value, update=update)
+        #     normal_set(self._cache, self._path[0], value, update=update)
         # self._make_parents().push(value, update=update)
         # self._cache = obj
         # self._path = Path(self._path[-1])
@@ -261,7 +262,7 @@ class Entry(object):
 
         for key in path[:-1]:
             try:
-                obj = Entry.normal_get(obj, key)
+                obj = normal_get(obj, key)
             except (IndexError, KeyError):
                 return False
 
@@ -284,62 +285,6 @@ class Entry(object):
         if isinstance(res, Entry) or hasattr(res, "_entry"):
             raise NotImplementedError((type(res), type(other)))
         return res == other
-
-    @staticmethod
-    def normal_get(obj, key, default=_not_found_):
-        if isinstance(obj, Entry):
-            return obj.child(key).pull(default)
-        elif key is None:
-            return obj
-        elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-            return obj[key]
-        elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Mapping):
-            return {k: Entry.normal_get(v, key, default) for k, v in obj.items()}
-        elif isinstance(key, str) and isinstance(obj, collections.abc.Mapping):
-            return obj.get(key, default)
-        elif isinstance(key, str) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-            return [Entry.normal_get(v, key, default) for v in obj]
-        elif isinstance(key, set):
-            return {k: Entry.normal_get(obj, k, default) for k in key}
-        elif isinstance(key, collections.abc.Sequence):
-            return [Entry.normal_get(obj, k, default) for k in key]
-        elif isinstance(key, collections.abc.Mapping):
-            return {k: Entry.normal_get(obj, v, default) for k, v in key.items()}
-        else:
-            raise NotImplementedError(key)
-
-    @staticmethod
-    def normal_set(obj, key, value, update=False, extend=False):
-        if isinstance(obj, Entry):
-            raise RuntimeError(obj)
-        elif hasattr(obj, '_entry'):
-            obj[key] = value
-        elif (update or extend) and key is not _undefined_:
-            tmp = Entry.normal_get(obj, key, _not_found_)
-            if tmp is not _not_found_:
-                Entry.normal_set(tmp, _undefined_, value, update=update, extend=extend)
-            else:
-                Entry.normal_set(obj, key, value)
-        elif key is _undefined_:
-            if isinstance(obj, collections.abc.Mapping) and isinstance(value, collections.abc.Mapping):
-                for k, v in value.items():
-                    Entry.normal_set(obj, k, v, update=update)
-            elif isinstance(obj, collections.abc.Sequence) and isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-                obj.extend(value)
-                # for k, v in enumerate(value):
-                #     Entry.normal_set(obj, k, v, update=update)
-            else:
-                raise KeyError(type(value))
-        elif isinstance(key, (int, str, slice)):
-            obj[key] = value
-        elif isinstance(key, collections.abc.Sequence):
-            for i in key:
-                Entry.normal_set(obj, i, value, update=update)
-        elif isinstance(key, collections.abc.Mapping):
-            for i, v in key:
-                Entry.normal_set(obj, i, Entry.normal_get(value, v), update=update)
-        else:
-            raise NotImplemented
 
     def get(self, path, default=_undefined_) -> Any:
         return self.child(path).pull(default)

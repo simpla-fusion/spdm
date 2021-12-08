@@ -155,7 +155,7 @@ class Node(SpObject):
         elif inspect.isfunction(type_hint):
             obj = type_hint(value, *args,  **kwargs)
         elif inspect.isclass(type_hint):
-            obj = object.__new__(type_hint)
+            obj = type_hint.__new__(type_hint, value, *args, **kwargs)
             obj._parent = self
             obj.__init__(value, *args, **kwargs)
         elif get_origin(type_hint) is not None:
