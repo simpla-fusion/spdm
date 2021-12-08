@@ -53,9 +53,9 @@ class Entry(object):
         super().__init__()
         self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache
-        if hasattr(cache, "_entry") or isinstance(cache, Entry):
-            #     raise RuntimeError(type(cache))
-            logger.error(type(cache))
+        # if hasattr(cache, "_entry") or isinstance(cache, Entry):
+        #     raise RuntimeError((cache))
+        # logger.error(cache)
 
     def duplicate(self) -> _TEntry:
         obj = object.__new__(self.__class__)
@@ -200,7 +200,7 @@ class Entry(object):
                 self._cache = value
             return value
 
-        if self._cache in (_not_found_, _undefined_):
+        if self._cache is _undefined_:
             if isinstance(self._path[0], str):
                 self._cache = {}
             elif isinstance(self._path[0], (int, slice)):
@@ -360,17 +360,25 @@ def _slice_to_range(s: slice, length: int) -> range:
 
 
 def as_entry(obj, *path) -> Entry:
+
     if isinstance(obj, Entry):
-        return obj.child(*path)
+        entry = obj
     elif hasattr(obj, "_entry"):
-        return obj._entry.child(*path)
+        entry = obj._entry
     else:
-        return Entry(obj, path)
+        entry = Entry(obj)
+    if len(path) > 0:
+        entry = entry.child(*path)
+
+    return entry
 
 
 class EntryChain(Entry):
     def __init__(self, cache: collections.abc.Sequence,   **kwargs):
         super().__init__([as_entry(a) for a in cache],   **kwargs)
+
+    def child(self,  *args) -> _TEntry:
+        return EntryChain([e.child(*args) for e in self._cache])
 
     def push(self,   value: _T, **kwargs) -> _T:
         self._cache[0].child(self._path).push(value, **kwargs)
@@ -398,6 +406,10 @@ class EntryCombiner(EntryChain):
         res._partition = self._partition
 
         return res
+
+    def child(self,  *args) -> _TEntry:
+        return EntryCombiner([e.child(*args) for e in self._cache],
+                             reducer=self._reducer, partition=self._partition)
 
     def __len__(self):
         raise NotImplementedError()

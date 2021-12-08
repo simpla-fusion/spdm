@@ -108,6 +108,7 @@ class Node(SpObject):
                      default_value=_undefined_,
                      getter: Callable = _undefined_,
                      in_place=True,
+                     force=True,
                      *args, **kwargs) -> Union[_T, _TNode]:
 
         is_changed = True
@@ -134,10 +135,16 @@ class Node(SpObject):
             else:
                 obj = value
             # obj = value if not isinstance(value, Entry) else value.dump()
-        elif type_hint in (int, float, bool, str):
-            obj = type_hint(value)
-        elif type_hint is np.ndarray:
-            obj = np.asarray(value)
+        elif type_hint in Node._PRIMARY_TYPE_:  # (int, float, bool, str):
+            if isinstance(value, Entry):
+                value = value.pull(_undefined_)
+            if value is _undefined_ or isinstance(Entry):
+                raise TypeError(value)
+            elif type_hint is np.ndarray:
+                obj = np.asarray(value)
+            else:
+                obj = type_hint(value)
+
         elif dataclasses.is_dataclass(type_hint):
             if isinstance(value, collections.abc.Mapping):
                 obj = type_hint(**{k: value.get(k, None) for k in type_hint.__dataclass_fields__})
@@ -180,6 +187,7 @@ class Node(SpObject):
                 pass
             elif in_place and isinstance(key, (int, str)):
                 self._entry.put(key, obj)
+
         if isinstance(obj, Node):
             obj._parent = self
 

@@ -28,6 +28,8 @@ class List(Container[_TObject], Sequence[_TObject]):
             args = args[0]
         elif isinstance(args[0], Sequence) and not isinstance(args[0], str):
             args = list(args[0])
+        elif args[0] is _undefined_ or args[0] is _not_found_:
+            args = []
         else:
             args = list(args)
 

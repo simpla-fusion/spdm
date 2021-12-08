@@ -44,7 +44,7 @@ class Query(object):
             elif isinstance(obj, collections.abc.Mapping):
                 return obj.get(query, _not_found_) == expect
             else:
-                raise TypeError(type(obj))
+                raise TypeError(obj)
 
         elif isinstance(query, collections.abc.Mapping):
             return all([Query.normal_check(obj, k, v) for k, v in query.items()])

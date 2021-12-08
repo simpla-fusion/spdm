@@ -80,6 +80,7 @@ class sp_property(Generic[_TObject]):
     def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_,
                  default_value=_undefined_,
                  type_hint=_undefined_,
+                 force=False,
                  **kwargs):
         self.lock = RLock()
 
@@ -93,7 +94,7 @@ class sp_property(Generic[_TObject]):
         self.type_hint = type_hint
 
         self.default_value = default_value
-        self.opts = kwargs
+        self.kwargs = kwargs
 
     def __set_name__(self, owner, name):
 
@@ -149,7 +150,7 @@ class sp_property(Generic[_TObject]):
                                           type_hint=self.type_hint,
                                           default_value=self.default_value,
                                           getter=self.getter,
-                                          **self.opts)
+                                          **self.kwargs)
 
         return value
 

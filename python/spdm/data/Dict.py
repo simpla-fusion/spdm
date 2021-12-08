@@ -20,10 +20,9 @@ _TDict = TypeVar('_TDict', bound='Dict')
 class Dict(Container[_TObject], Mapping[str, _TObject]):
 
     def __init__(self, cache: Mapping = _undefined_,  /,  **kwargs):
-        if cache is _undefined_:
+        if cache is _undefined_ or cache is _not_found_:
             cache = kwargs
         elif len(kwargs) > 0:
-
             cache = EntryChain([kwargs, cache])
 
         super().__init__(cache)
