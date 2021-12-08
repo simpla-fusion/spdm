@@ -169,27 +169,34 @@ class Entry(object):
                 cachable = False
                 break
             elif isinstance(key, Query):
-                obj = [v for idx, v in key.filter(obj)]
+                next_obj = [v for idx, v in key.filter(obj) ]
+                if len(next_obj) == 0:
+                    next_obj = _undefined_
+                elif key._only_first:
+                    next_obj = next_obj[0]
                 cachable = False
             else:
                 try:
                     next_obj = Entry.normal_get(obj, key)
                 except (IndexError, KeyError):
-                    is_found = False
+                    next_obj = _undefined_
 
-                    if default is _undefined_:
-                        obj = Entry(obj, self._path[idx:])
-                    else:
-                        obj = default
-                    break
-                else:
-                    obj = next_obj
+            if next_obj is not _undefined_:
+                obj = next_obj
+            else:
+                if default is _undefined_:
+                    raise KeyError(self._path[:idx+1])
+                obj = default
+                # else:
+                #     obj = _not_found_  # Entry(obj, self._path[idx:])
+                cachable = False
+                break
 
         if cachable and not isinstance(obj, Entry):
             self._cache = obj
             self._path.reset()
-        elif hasattr(obj, "_entry"):
-            raise RuntimeError(type(obj))
+        # elif hasattr(obj, "_entry"):
+        #     raise RuntimeError(type(obj))
         return obj
 
     def push(self, value: _T, **kwargs) -> _T:

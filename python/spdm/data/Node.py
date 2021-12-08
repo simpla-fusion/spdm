@@ -138,7 +138,7 @@ class Node(SpObject):
         elif type_hint in Node._PRIMARY_TYPE_:  # (int, float, bool, str):
             if isinstance(value, Entry):
                 value = value.pull(_undefined_)
-            if value is _undefined_ or isinstance(Entry):
+            if value is _undefined_ or isinstance(value, Entry):
                 raise TypeError(value)
             elif type_hint is np.ndarray:
                 obj = np.asarray(value)

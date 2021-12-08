@@ -11,10 +11,13 @@ _T = TypeVar("_T")
 
 
 class Query(object):
-    def __init__(self, d: Mapping = None, only_first=False, **kwargs) -> None:
+    def __init__(self, d: Mapping = None, only_first=True, **kwargs) -> None:
         super().__init__()
         self._query = deep_merge_dict(d, kwargs) if d is not None else kwargs
         self._only_first = only_first
+
+    def __repr__(self) -> str:
+        return f"<Query>{self._query}</Query>"
 
     def dump(self) -> dict:
         return self._query
