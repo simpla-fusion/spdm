@@ -49,15 +49,15 @@ class TestNode(unittest.TestCase):
 
     def test_find_by_key(self):
 
-        d = Dict(self.data)
+        d = Dict[Node](self.data)
 
         self.assertEqual(len(d["a"]),                     6)
         self.assertEqual(d["c"].value,             self.data["c"])
         self.assertEqual(d["d"]["e"].value,   self.data["d"]["e"])
         self.assertEqual(d["d"]["f"].value,   self.data["d"]["f"])
-        self.assertEqual(d["a"][0].value,       self.data["a"][0])
-        self.assertEqual(d["a"][1].value,       self.data["a"][1])
-        self.assertEqual(d["a"][2:6].value,        [1.0, 2, 3, 4])
+        self.assertEqual(d["a", 0].value,       self.data["a"][0])
+        self.assertEqual(d["a", 1].value,       self.data["a"][1])
+        self.assertEqual(d["a", 2:6].value,        [1.0, 2, 3, 4])
 
     def test_dict_insert(self):
         cache = {}

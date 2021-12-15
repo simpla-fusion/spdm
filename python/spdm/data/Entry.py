@@ -308,9 +308,10 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
     elif isinstance(path, str) and isinstance(obj, collections.abc.Mapping):
         if op is Entry.op_tags.assign:
             obj[path] = value
+
         else:
             n_obj = obj.get(path, _not_found_)
-            if n_obj is _not_found_:
+            if n_obj is _not_found_ or not isinstance(n_obj, (collections.abc.Mapping, collections.abc.MutableSequence, Entry)):
                 if op is Entry.op_tags.append:
                     obj[path] = [value]
                 else:
@@ -350,10 +351,11 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
         error_message = False
 
     if error_message is False:
-        error_message = f"Illegal operation!object={type(obj)} key={path} value={type(value)}"
+        error_message = f"Illegal operation!"
 
     if error_message:
-        raise RuntimeError(f"Operate Error [{op._name_}]:{error_message}")
+        raise RuntimeError(
+            f"Operate Error [{op._name_}]:{error_message} [object={type(obj)} key={path} value={type(value)}]")
 
 
 def normal_get(obj, path):
@@ -382,8 +384,7 @@ def normal_get(obj, path):
             obj = _not_found_
         elif path._only_first:
             obj = obj[0]
-        if len(obj) == 0:
-            obj = _not_found_
+
         return obj
     elif isinstance(path, (int, slice)) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
         return obj[path]

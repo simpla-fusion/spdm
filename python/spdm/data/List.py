@@ -45,14 +45,14 @@ class List(Container[_TObject], Sequence[_TObject]):
     def __len__(self) -> int:
         return super().__len__()
 
-    def __setitem__(self, idx, v: _T) -> None:
-        return self._entry.child(idx).push(v)
+    def __getitem__(self, key) -> _TObject:
+        return super().__getitem__(key)
 
-    def __getitem__(self, idx) -> _TObject:
-        return self._post_process(self._entry.child(idx), key=idx)
+    def __setitem__(self, key, value: _T) -> None:
+        super().__setitem__(key, value)
 
-    def __delitem__(self, idx) -> None:
-        self._entry.child(idx).erase()
+    def __delitem__(self,  key) -> None:
+        super().__delitem__(key)
 
     def __iter__(self) -> Iterator[_TObject]:
         for idx, v in enumerate(self._entry.first_child()):

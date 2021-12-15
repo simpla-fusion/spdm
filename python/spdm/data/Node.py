@@ -82,7 +82,7 @@ class Node(SpObject):
 
     @property
     def value(self) -> Any:
-        return self.update_child(_undefined_, self._entry.pull(_undefined_))
+        return self.update_child(_undefined_, self._entry.pull(_not_found_))
 
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value

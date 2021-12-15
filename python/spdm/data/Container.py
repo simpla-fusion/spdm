@@ -39,13 +39,22 @@ class Container(Node, Generic[_TObject]):
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
     def __setitem__(self, key: _TKey, value: _T) -> _T:
-        return self._entry.child(key).push(self._pre_process(value))
+        if isinstance(key, tuple):
+            return self._entry.child(*key).push(self._pre_process(value))
+        else:
+            return self._entry.child(key).push(self._pre_process(value))
 
-    def __getitem__(self, key: _TKey) -> Any:
-        return self._post_process(self._entry.child(key), key=key)
+    def __getitem__(self, key) -> Any:
+        if isinstance(key, tuple):
+            return self._post_process(self._entry.child(*key), key=key)
+        else:
+            return self._post_process(self._entry.child(key), key=key)
 
-    def __delitem__(self, key: _TKey) -> bool:
-        return self._entry.child(key).erase()
+    def __delitem__(self, key) -> bool:
+        if isinstance(key, tuple):
+            return self._entry.child(*key).erase()
+        else:
+            return self._entry.child(key).erase()
 
     def __contains__(self, key: _TKey) -> bool:
         return self._entry.child(key).exists()

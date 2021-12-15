@@ -34,17 +34,14 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     def __serialize__(self) -> Mapping:
         return {k: serialize(v) for k, v in self._entry.first_child()}
 
-    def __getitem__(self, key: str) -> _TObject:
+    def __getitem__(self, key) -> _TObject:
         return super().__getitem__(key)
-        # return self._post_process(self._entry.child(key), key=key)
 
     def __setitem__(self, key: str, value: _T) -> None:
         return super().__setitem__(key, value)
-        # return self._entry.child(key).push(self._pre_process(value))
 
-    def __delitem__(self, key: str) -> None:
+    def __delitem__(self,  key) -> None:
         return super().__delitem__(key)
-        # self._entry.child(key).erase()
 
     def __len__(self) -> int:
         return super().__len__()
