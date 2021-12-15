@@ -1,3 +1,13 @@
+import unittest
+from copy import deepcopy
+from logging import log
+
+from spdm.common.logger import logger
+from spdm.common.tags import _not_found_
+from spdm.data.Entry import Entry, EntryCombiner, _next_
+from spdm.data.Path import Path
+from spdm.data.Query import Query
+
 
 class TestEntryCombiner(unittest.TestCase):
     data = [
@@ -16,8 +26,8 @@ class TestEntryCombiner(unittest.TestCase):
 
     def test_get(self):
         d = EntryCombiner(self.data)
-        self.assertEqual(d.pull(), sum([v.get("value", 0.0) for v in self.data]))
-        self.assertEqual(d.pull("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+        self.assertEqual(d.child("value").pull(), sum([v.get("value", 0.0) for v in self.data]))
+        self.assertEqual(d.child("d.g").pull(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
     # def test_cache(self):
     #     cache = {}

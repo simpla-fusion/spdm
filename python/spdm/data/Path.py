@@ -43,7 +43,7 @@ class Path(object):
     def append(self, *args) -> _TPath:
         if len(args) == 0:
             return self
-        self._items.extend([Path.parser(a) for a in args if a is not None])
+        self._items.extend([Path.parser(a) for a in args if a])
         return self
 
     def parent(self) -> _TPath:

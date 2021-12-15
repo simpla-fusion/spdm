@@ -1,6 +1,7 @@
 import collections
 import collections.abc
 import dataclasses
+import enum
 import functools
 import inspect
 import operator
@@ -96,7 +97,7 @@ class Entry(object):
     def child(self,  *args) -> _TEntry:
         if len(args) == 0:
             return self
-        elif self._path is None:
+        elif self._path is None or self._path.empty:
             return self.__class__(self._cache, path=Path(*args))
         else:
             return self.__class__(self._cache, path=self._path.duplicate().append(*args))
@@ -248,10 +249,8 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
     elif not isinstance(obj, (collections.abc.MutableMapping, collections.abc.MutableSequence)):
         error_message = f"Can not put value to {type(obj)}!"
     elif path != 0 and not path:  # is None , empty, [],{},""
-        if op is Entry.op_tags.assign:
-            error_message = f"Can not assign value without key!"
-        elif isinstance(obj, collections.abc.Sequence):
-            if op in (Entry.op_tags.extend, Entry.op_tags.update):
+        if isinstance(obj, collections.abc.Sequence):
+            if op in (Entry.op_tags.extend, Entry.op_tags.update, Entry.op_tags.assign):
                 if iterable(value) and not isinstance(value, str):
                     obj.extend(value)
                 else:
@@ -270,7 +269,7 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
             else:
                 error_message = False
         else:
-            error_message = False
+            error_message = f"Can not assign value without key!"
     elif isinstance(path, Path) and len(path) == 1:
         normal_put(obj, path[0], value, op)
     elif isinstance(path, Path) and len(path) > 1:
@@ -306,30 +305,52 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
             obj.append(value)
         else:
             error_message = False
-    elif isinstance(path, (int, str, slice)):
+    elif isinstance(path, str) and isinstance(obj, collections.abc.Mapping):
         if op is Entry.op_tags.assign:
             obj[path] = value
         else:
-            target = normal_get(obj, path)
-            if target is not _not_found_:
-                normal_put(target, _undefined_, value, op)
-            elif op in (Entry.op_tags.update, Entry.op_tags.assign, Entry.op_tags.extend):
-                normal_put(obj, path, value, Entry.op_tags.assign)
-            elif op is Entry.op_tags.append:
-                normal_put(obj, path, [value], Entry.op_tags.assign)
+            n_obj = obj.get(path, _not_found_)
+            if n_obj is _not_found_:
+                if op is Entry.op_tags.append:
+                    obj[path] = [value]
+                else:
+                    obj[path] = value
             else:
-                error_message = False
+                normal_put(n_obj, _undefined_, value, op)
+    elif isinstance(path, str) and isinstance(obj, collections.abc.MutableSequence):
+        for v in obj:
+            normal_put(v, path, value, op)
+    elif isinstance(path, int) and isinstance(obj, collections.abc.MutableSequence):
+        if path < 0 or path >= len(obj):
+            error_message = False
+        elif op is Entry.op_tags.assign:
+            obj[path] = value
+        else:
+            normal_put(obj[path], _undefined_, value, op)
+    elif isinstance(path, slice) and isinstance(obj, collections.abc.MutableSequence):
+        if op is Entry.op_tags.assign:
+            obj[path] = value
+        else:
+            for v in obj[path]:
+                normal_put(v, _undefined_, value, op)
     elif isinstance(path, collections.abc.Sequence):
         for i in path:
             normal_put(obj, i, value, op)
     elif isinstance(path, collections.abc.Mapping):
         for i, v in path.items():
             normal_put(obj, i, normal_get(value, v), op)
+    elif isinstance(path, Query):
+        if isinstance(obj, collections.abc.Sequence):
+            for idx, v in enumerate(obj):
+                if normal_check(v, path):
+                    normal_put(obj, idx, value, op)
+        else:
+            error_message = f"Only list can accept Query as path!"
     else:
         error_message = False
 
     if error_message is False:
-        error_message = f"Illegal operation!object={type(obj)} value={type(value)}"
+        error_message = f"Illegal operation!object={type(obj)} key={path} value={type(value)}"
 
     if error_message:
         raise RuntimeError(f"Operate Error [{op._name_}]:{error_message}")
