@@ -1,9 +1,11 @@
-from logging import log
 import unittest
 from copy import deepcopy
-from spdm.data.Entry import Entry, EntryCombiner,   _next_
+from logging import log
+
 from spdm.common.logger import logger
 from spdm.common.tags import _not_found_
+from spdm.data.Entry import Entry, EntryCombiner, _next_
+from spdm.data.Path import Path
 from spdm.data.Query import Query
 
 
@@ -47,7 +49,7 @@ class TestEntry(unittest.TestCase):
 
         d1 = Entry({"person": cache})
 
-        young = d1.child("person", Query({"age": 22})).pull()
+        young = d1.child("person", Query({"age": 22}, only_first=False)).pull()
 
         self.assertEqual(len(young), 2)
         self.assertEqual(young[0]["name"],  "wang liu")
@@ -74,7 +76,7 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.push({"a": "hello world {name}!"}, update=True)
+        d.update({"a": "hello world {name}!"})
 
         self.assertEqual(cache["a"], "hello world {name}!")
 
@@ -105,9 +107,9 @@ class TestEntry(unittest.TestCase):
         cache = {}
         d = Entry(cache)
 
-        d.child("c").push([1.23455], extend=True)
+        d.child("c").append(1.23455)
 
-        d.child("c").push([{"a": "hello world", "b": 3.141567}], extend=True)
+        d.child("c").extend([{"a": "hello world", "b": 3.141567}])
 
         self.assertEqual(cache["c"][0],                      1.23455)
         self.assertEqual(cache["c"][1]["a"],           "hello world")
@@ -118,7 +120,7 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(cache)
 
-        d.push({"d": {"g": 5}}, update=True)
+        d.update({"d": {"g": 5}})
 
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
         self.assertEqual(cache["d"]["f"], "{address}")
@@ -140,97 +142,8 @@ class TestEntry(unittest.TestCase):
 
     def test_get_many(self):
         d = Entry(self.data)
-        res = d.child([["a", 0], "c", "d", "e"]).pull()
-        logger.debug(res)
-
-
-class TestEntryCombiner(unittest.TestCase):
-    data = [
-        {"id": 0,
-            "value": 1.23,
-            "c": "I'm {age}!",
-            "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
-        {"id": 1,
-            "c": "I'm {age}!",
-            "d": {"e": "{name} is {age}", "f": "{address}"}},
-        {"id": 2,
-            "value": 4.23,
-            "c": "I'm {age}!",
-            "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
-    ]
-
-    def test_get(self):
-        d = EntryCombiner(self.data)
-        self.assertEqual(d.pull(), sum([v.get("value", 0.0) for v in self.data]))
-        self.assertEqual(d.pull("d.g"), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
-
-    # def test_cache(self):
-    #     cache = {}
-    #     d = EntryCombiner(self.data )
-    #     expected = sum([d["value"] for d in self.data])
-
-    #     c = d.extend("value")
-    #     self.assertEqual(c.pull(), expected)
-    #     self.assertEqual(cache["value"], expected)
-    #     c.push(5)
-    #     self.assertEqual(cache["value"], 5)
-
-    #     d.extend("test_cache").push("just test cache")
-    #     self.assertEqual(d.get("test_cache",default_value=_undefined_), _undefined_)
-    #     self.assertEqual(d.get("test_cache"), cache["test_cache"])
-
-# class TestEntryWrapper(unittest.TestCase):
-#     data = [
-#         {"id": 0,
-#          "value": 1.23,
-#          "c": "I'm {age}!",
-#          "d": {"e": "{name} is {age}", "f": "{address}", "g": [1, 2, 3]}},
-#         {"id": 1,
-#          "value": 2.23,
-#          "c": "I'm {age}!",
-#          "d": {"e": "{name} is {age}", "f": "{address}"}},
-#         {"id": 2,
-#          "value": 4.23,
-#          "c": "I'm {age}!",
-#          "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
-#     ]
-
-#     def test_get(self):
-#         entry = Entry(self.data)
-#         d = EntryWrapper(entry)
-
-#     def test_property(self):
-#         entry = Entry(self.data)
-#         d = EntryWrapper(entry)
-
-#     def test_put(self):
-#         entry = Entry(self.data)
-#         d = EntryWrapper(entry)
-
-#     def test_erase(self):
-#         entry = Entry(self.data)
-#         d = EntryWrapper(entry)
-
-#     def test_cache(self):
-#         entry = Entry(self.data)
-#         d = EntryWrapper(entry)
-#     #     d = Entry(cache)
-
-#     #     d.extend("a").put("hello world {name}!")
-#     #     self.assertEqual(cache["a"], "hello world {name}!")
-
-#     #     d["c"][_next_] = 1.23455
-#     #     d["c"][_next_] = {"a": "hello world", "b": 3.141567}
-
-#     #     self.assertEqual(cache["c"][0],  1.23455)
-#     # def test_append(self):
-#     #     d = Entry()
-#     #     d.extend(_next_).put({"a": 1, "b": 2})
-
-#     #     self.assertEqual(d.count, 1)
-#     #     # self.assertTrue(d.__category__ | Entry.Category.LIST)
-#     #     self.assertEqual(d.extend([0, "a"]).get(), 1)
-#     #     self.assertEqual(d.extend([0, "b"]).get(), 2)
+        res = d.child([Path("a", 2), "c", Path("d.e"), "e"]).pull()
+        self.assertListEqual(res, [1, "I'm {age}!", "{name} is {age}",  _not_found_])
 
 
 if __name__ == '__main__':

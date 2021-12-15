@@ -30,7 +30,7 @@ class Doo(Dict):
     def foo_list(self) -> List[Foo]:
         return self.get("foo_list", [])
 
-    balaaa = sp_property[Foo](default_value={"bala": 1})
+    balaaa = sp_property[Foo](default={"bala": 1})
 
 
 class TestSpProperty(unittest.TestCase):

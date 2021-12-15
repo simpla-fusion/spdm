@@ -12,7 +12,7 @@ from ..common.logger import logger
 from ..common.SpObject import SpObject
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
-from .Entry import Entry, as_entry
+from .Entry import Entry,  as_entry
 
 _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")
@@ -21,7 +21,7 @@ _TKey = TypeVar("_TKey")
 
 
 class Node(SpObject):
-    __slots__ = "_entry"
+    # __slots__ = "_entry"
 
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
     _MAPPING_TYPE_ = dict
@@ -66,10 +66,13 @@ class Node(SpObject):
 
     @property
     def entry(self) -> Entry:
+        return self.__entry__()
+
+    def __entry__(self) -> Entry:
         return self._entry
 
     def reset(self):
-        self._entry = None
+        self._entry = Entry()
 
     def dump(self):
         return self._entry.dump()
@@ -114,7 +117,7 @@ class Node(SpObject):
         is_changed = True
 
         if value is _undefined_ and key is not _undefined_:
-            value = self._entry.child(key).pull(_undefined_)
+            value = self._entry.child(key).pull()
             is_changed = value is _undefined_
 
         is_valid = self.validate(value, type_hint)
@@ -138,6 +141,8 @@ class Node(SpObject):
         elif type_hint in Node._PRIMARY_TYPE_:  # (int, float, bool, str):
             if isinstance(value, Entry):
                 value = value.pull(_undefined_)
+            elif hasattr(value, "_entry"):
+                value = value.value
             if value is _undefined_ or isinstance(value, Entry):
                 raise TypeError(value)
             elif type_hint is np.ndarray:
@@ -186,7 +191,7 @@ class Node(SpObject):
             if isinstance(obj, Entry) or isinstance(value, Entry):  # and self._entry._cache is value._cache:
                 pass
             elif in_place and isinstance(key, (int, str)):
-                self._entry.put(key, obj)
+                self._entry.child(key).push(obj)
 
         if isinstance(obj, Node):
             obj._parent = self

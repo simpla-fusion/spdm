@@ -5,7 +5,7 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
 
 from ..common.tags import _not_found_, _undefined_
 from ..util.dict_util import deep_merge_dict
-from .normal_util import normal_get, normal_put
+
 _TQuery = TypeVar("_TQuery", bound="Query")
 _T = TypeVar("_T")
 
@@ -17,7 +17,7 @@ class Query(object):
         self._only_first = only_first
 
     def __repr__(self) -> str:
-        return f"<Query>{self._query}</Query>"
+        return f"?{self._query}"
 
     def dump(self) -> dict:
         return self._query

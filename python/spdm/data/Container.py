@@ -61,15 +61,15 @@ class Container(Node, Generic[_TObject]):
             yield self._post_process(obj, key=[idx])
 
     def append(self, value) -> _TContainer:
-        self._entry.push([value], extend=True)
+        self._entry.extend([value])
         return self
 
     def extend(self, value) -> _TContainer:
-        self._entry.push(value, extend=True)
+        self._entry.extend(value)
         return self
 
     def __ior__(self, obj) -> _TContainer:
-        self._entry.push(obj, update=True)
+        self._entry.update(obj)
         return self
 
     @cached_property
@@ -89,8 +89,6 @@ class Container(Node, Generic[_TObject]):
                                     value,
                                     type_hint=type_hint if type_hint is not _undefined_ else self._child_type,
                                     *args, **kwargs)
-
-
 
     # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
     #     return value

@@ -9,6 +9,7 @@ from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from .Entry import Entry
 from .Node import Node
+from .Dict import Dict
 
 _TObject = TypeVar("_TObject")
 _T = TypeVar("_T")
@@ -78,7 +79,7 @@ class sp_property(Generic[_TObject]):
     """
 
     def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_,
-                 default_value=_undefined_,
+                 default=_undefined_,
                  type_hint=_undefined_,
                  force=False,
                  **kwargs):
@@ -93,10 +94,18 @@ class sp_property(Generic[_TObject]):
         self.property_name = _undefined_
         self.type_hint = type_hint
 
-        self.default_value = default_value
+        self.default_value = default
         self.kwargs = kwargs
 
     def __set_name__(self, owner, name):
+        if not issubclass(owner, Dict):
+            raise RuntimeError(f"'sp_property' only can be define as a property of Dict! [name={name} owner={owner}]")
+        # elif not hasattr(owner, '_properties'):
+        #     owner._properties = {name}
+        # elif name in owner._properties:
+        #     raise RuntimeError(f"The property {name} has already been defined! {owner}:{owner._properties} ")
+        # else:
+        #     owner._properties.add(name)
 
         self.property_name = name
 

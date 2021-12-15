@@ -10,7 +10,7 @@ from ..util.dict_util import deep_merge_dict
 from ..util.utilities import serialize
 
 from .Container import Container
-from .Entry import Entry, EntryChain
+from .Entry import Entry, EntryChain, as_entry
 from .Node import Node, _TKey, _TObject
 
 _T = TypeVar("_T")
@@ -66,6 +66,39 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
     def __ior__(self, other) -> _TDict:
         return super().__ior__(other)
 
+    class DictAsEntry(Entry):
+        def __init__(self, cache, **kwargs):
+            super().__init__(cache, **kwargs)
+
+        def pull(self, default=...) -> Any:
+            if len(self._path) > 0 and isinstance(self._path[0], str):
+                obj = getattr(self._cache, self._path[0], _not_found_)
+                if obj is _not_found_:
+                    return self._cache._entry.child(self._path).pull(default)
+                elif len(self._path) == 1:
+                    return obj
+                else:
+                    obj = as_entry(obj).child(self._path[1:]).pull(_not_found_)
+                    if obj in [_not_found_, _undefined_]:
+                        return default
+                    else:
+                        self._cache = obj
+                        self._path.reset()
+                        return self._cache
+            else:
+                return self._cache._entry.child(self._path).pull(default)
+
+        def push(self, value: Any, **kwargs) -> None:
+            self._cache._entry.child(self._path).push(value, **kwargs)
+
+        def erase(self) -> bool:
+            if len(self._path) == 1 and not isinstance(self._path[0], str) and self._path[0] in self._cache._properties:
+                delattr(self._cache, self._path[0])
+            return self._cache._entry.child(self._path).erase()
+
+    def __entry__(self) -> Entry:
+        return Dict.DictAsEntry(self)
+
     def update(self, d) -> _TDict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. Return self.
 
@@ -75,7 +108,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             _T: [description]
         """
-        self._entry.push(d, update=True)
+        self._entry.update(d)
         return self
 
     def get(self, key,  default=_undefined_) -> Any:
@@ -90,7 +123,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         """
         return self._post_process(self._entry.child(key).pull(default), key=key)
 
-    def setdefault(self, key, *args) -> Any:
+    def setdefault(self, key, value) -> Any:
         """If key is in the dictionary, return its value. If not, insert key with a value of default and return default. default defaults to None.
 
         Args:
@@ -100,7 +133,7 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).setdefault(*args), key=key)
+        return self._post_process(self._entry.child(key).push(value), key=key)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__

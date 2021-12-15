@@ -1,7 +1,9 @@
+from logging import log
 import unittest
 
 from spdm.common.logger import logger
 from spdm.data import List, Dict, Node, sp_property
+from spdm.data.Entry import as_entry
 
 
 class Foo(Dict):
@@ -19,7 +21,7 @@ class Doo(Dict):
 
     f0 = sp_property(type_hint=Foo)
 
-    f1: Foo = sp_property() # recommend
+    f1: Foo = sp_property()  # recommend
 
     f2 = sp_property[Foo]()
 
@@ -45,7 +47,13 @@ if __name__ == '__main__':
 
     doo = Doo(cache)
 
-    logger.debug(doo.f0.dump())
-    logger.debug(doo.f1.dump())
-    logger.debug(doo.f2.dump())
-    logger.debug(doo.f3.dump())
+    # logger.debug(doo.f0.dump())
+    # logger.debug(doo.f1.dump())
+    # logger.debug(doo.f2.dump())
+    # logger.debug(doo.f3.dump())
+
+    entry = as_entry(doo)
+
+    logger.debug(type(entry.child("f0").pull()))
+    logger.debug(type(entry.child("f1").pull()))
+    logger.debug(cache)

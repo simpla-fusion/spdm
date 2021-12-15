@@ -1,34 +1,56 @@
 import collections.abc
 from copy import deepcopy
 from typing import Sequence, TypeVar
-
+from ..common.tags import _undefined_
 _TPath = TypeVar("_TPath", bound="Path")
 
 
 class Path(object):
     SEPERATOR = '.'
 
-    def __init__(self, d=None, *args, **kwargs):
-        self._items = list(d) if isinstance(d, collections.abc.Sequence) and not isinstance(d, str) else [d]
+    def __init__(self, *args, **kwargs):
+        self._items = [Path.parser(a) for a in args if a is not None]
 
     def __repr__(self):
-        return Path.SEPERATOR.join([str(d) for d in self._items])
+        return "@"+Path.SEPERATOR.join([str(d) for d in self._items])
+
+    @staticmethod
+    def parser(path) -> list:
+        if path in (_undefined_,  None):
+            return None
+        elif isinstance(path, str):
+            s_list = path.split(Path.SEPERATOR)
+            if len(s_list) == 1:
+                return s_list[0]
+            else:
+                res = Path()
+                res._items = s_list
+                return res
+        elif isinstance(path, set):
+            return {Path.parser(item) for item in path}
+        elif isinstance(path, collections.abc.Sequence):
+            return [Path.parser(item) for item in path]
+        elif isinstance(path, collections.abc.Mapping):
+            return {Path.parser(k): v for k, v in path}
+        else:
+            return path
 
     def duplicate(self) -> _TPath:
-        return Path(self._items)
+        res = Path()
+        res._items = deepcopy(self._items)
+        return res
 
     def append(self, *args) -> _TPath:
-        for item in args:
-            if isinstance(item, str):
-                self._items.extend(item.split(Path.SEPERATOR))
-            elif isinstance(item, Path):
-                self._items.extend(item._items)
-            else:
-                self._items.append(item)
+        if len(args) == 0:
+            return self
+        self._items.extend([Path.parser(a) for a in args if a is not None])
         return self
 
     def parent(self) -> _TPath:
         return Path(self._items[:-1])
+
+    def __bool__(self) -> bool:
+        return not self.empty
 
     def __len__(self):
         return len(self._items)
@@ -46,7 +68,10 @@ class Path(object):
         return self.append(other)
 
     def __getitem__(self, idx):
-        return self._items[idx]
+        if isinstance(idx, slice):
+            return Path(self._items[idx])
+        else:
+            return self._items[idx]
 
     def __setitem__(self, idx, item):
         self._items[idx] = item

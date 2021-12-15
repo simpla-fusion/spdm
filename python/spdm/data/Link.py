@@ -56,7 +56,7 @@ class Link(Node):
         return self._entry.count()
 
     def __iter__(self) -> Iterator[_T]:
-        for idx, obj in enumerate(self._entry):
+        for idx, obj in enumerate(self._entry.first_child()):
             yield self._post_process(obj, key=[idx])
 
     def append(self, value) -> _TLink:

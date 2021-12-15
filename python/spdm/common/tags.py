@@ -9,6 +9,6 @@ class tags(Flag):
 
 _not_found_ = tags.not_found
 
-_undefined_ = tags.undefined
+_undefined_ = ...
 
 _empty = tags.empty

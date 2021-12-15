@@ -164,7 +164,7 @@ class Function:
             else:
                 return self._y
         elif isinstance(self._y, EntryCombiner):
-            val = [array_like(x, d) for d in self._y._d_list]
+            val = [array_like(x, d) for d in self._y._cache]
             return functools.reduce(operator.__add__, val[1:], val[0])
         elif callable(self._y):
             return np.asarray(self._y(x, **kwargs))

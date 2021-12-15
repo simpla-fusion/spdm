@@ -7,13 +7,13 @@ import operator
 from copy import deepcopy
 from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
                     Type, TypeVar, Union)
+
 from ..common.tags import _not_found_, _undefined_
+from .Path import Path
 
 
 def normal_get(obj, key, default=_not_found_):
-    if hasattr(obj, "get"):
-        return obj.get(key, default)
-    elif key is None:
+    if key is None:
         return obj
     elif isinstance(key, (int, slice)) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
         return obj[key]
@@ -29,6 +29,8 @@ def normal_get(obj, key, default=_not_found_):
         return [normal_get(obj, k, default) for k in key]
     elif isinstance(key, collections.abc.Mapping):
         return {k: normal_get(obj, v, default) for k, v in key.items()}
+    elif hasattr(obj, "get") and isinstance(key, str):
+        return obj.get(key, default)
     else:
         raise NotImplementedError(key)
 
@@ -60,13 +62,13 @@ def normal_put(obj, key, value, update=False, extend=False):
         for i in key:
             normal_put(obj, i, value, update=update)
     elif isinstance(key, collections.abc.Mapping):
-        for i, v in key:
+        for i, v in key.items():
             normal_put(obj, i, normal_get(value, v), update=update)
     else:
-        raise NotImplemented
+        raise NotImplementedError((obj, key))
 
 
-def normal_filter(obj: Sequence, query, on_fail=_undefined_, only_first=True) -> Iterator[Tuple[int, Any]]:
+def normal_filter(obj: Sequence, query,  only_first=True) -> Iterator[Tuple[int, Any]]:
     for idx, val in enumerate(obj):
         if normal_check(val, query):
             yield idx, val
@@ -83,12 +85,14 @@ def normal_check(obj, query, expect=None) -> bool:
             # return _op_tag(query, obj, expect)
         elif isinstance(obj, collections.abc.Mapping):
             return normal_get(obj, query, _not_found_) == expect
+        elif hasattr(obj, "_entry"):
+            return normal_get(obj._entry, query, _not_found_) == expect
         else:
-            raise TypeError(obj)
+            raise TypeError(query)
 
     elif isinstance(query, collections.abc.Mapping):
         return all([normal_check(obj, k, v) for k, v in query.items()])
     elif isinstance(query, collections.abc.Sequence):
         return all([normal_check(obj, k) for k in query])
     else:
-        raise NotImplemented(query)
+        raise NotImplementedError(query)
