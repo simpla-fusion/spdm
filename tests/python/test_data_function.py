@@ -2,10 +2,11 @@ import logging
 import pprint
 import sys
 import unittest
-from scipy import constants
+
 import numpy as np
-from spdm.data.Function import Function, Expression, PiecewiseFunction
+from scipy import constants
 from spdm.common.logger import logger
+from spdm.data.Function import Expression, Function, PiecewiseFunction
 
 
 class TestFunction(unittest.TestCase):

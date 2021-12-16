@@ -171,4 +171,4 @@ class sp_property(Generic[_TObject]):
             if callable(self.deleter):
                 self.deleter(instance)
             else:
-                instance._entry.erase(self.property_cache_key)
+                instance._entry.child(self.property_cache_key).erase()
