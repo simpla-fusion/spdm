@@ -10,7 +10,7 @@ from ..util.urilib import urisplit
 from ..common.tags import _undefined_
 from .Collection import Collection
 from .Document import Document
-from .Entry import Entry, EntryCombiner
+from .Entry import Entry, EntryCombine
 from .File import File
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"

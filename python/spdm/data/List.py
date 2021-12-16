@@ -11,7 +11,7 @@ from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Container import Container
-from .Entry import Entry, EntryChain, EntryCombiner, as_entry
+from .Entry import Entry, EntryChain, EntryCombine, as_entry
 from .Node import Node
 
 _TList = TypeVar('_TList', bound='List')
@@ -91,7 +91,7 @@ class List(Container[_TObject], Sequence[_TObject]):
         self._entry.sort()
 
     def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_) -> _TObject:
-        e = EntryCombiner([m for m in self.__iter__()], reducer=reducer, partition=partition)
+        e = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition)
         default = default if default is not _undefined_ else {}
 
         return self._post_process(EntryChain([default, e]), key=_undefined_)

@@ -13,7 +13,12 @@ _T = TypeVar("_T")
 class Query(object):
     def __init__(self, d: Mapping = None, only_first=True, **kwargs) -> None:
         super().__init__()
-        self._query = deep_merge_dict(d, kwargs) if d is not None else kwargs
+        if d is None:
+            self._query = kwargs
+        elif isinstance(d, collections.abc.Mapping):
+            self._query = deepcopy(d)
+            self._query.update(kwargs)
+
         self._only_first = only_first
 
     def __repr__(self) -> str:

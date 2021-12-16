@@ -21,11 +21,12 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
 
     def __init__(self, cache: Mapping = _undefined_,  /,  **kwargs):
         if cache is _undefined_ or cache is _not_found_:
-            cache = kwargs
-        elif len(kwargs) > 0:
-            cache = EntryChain([kwargs, cache])
+            cache = {}
 
         super().__init__(cache)
+
+        if len(kwargs) > 0:
+            self.update(kwargs)
 
     @property
     def _is_dict(self) -> bool:
@@ -94,7 +95,10 @@ class Dict(Container[_TObject], Mapping[str, _TObject]):
             return self._cache._entry.child(self._path).erase()
 
     def __entry__(self) -> Entry:
-        return Dict.DictAsEntry(self)
+        if self.__class__ is not Dict or getattr(self, "__orig_class__", _not_found_) is not _not_found_:
+            return Dict.DictAsEntry(self)
+        else:
+            return self._entry
 
     def update(self, d) -> _TDict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. Return self.

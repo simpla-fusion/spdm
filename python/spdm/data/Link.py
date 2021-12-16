@@ -11,7 +11,7 @@ from ..common.logger import logger
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Entry import (Entry,   _next_, _TPath)
-from .Node import Node
+from .Node import Node, _TKey
 from .Path import Path
 
 _TObject = TypeVar("_TObject")
@@ -37,17 +37,30 @@ class Link(Node):
     def _duplicate(self, *args, parent=None, **kwargs) -> _TLink:
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
-    def __setitem__(self, key: Any, value: _T) -> _T:
-        return self._entry.child(key).push(self._pre_process(value))
+    def __setitem__(self, key: _TKey, value: _T) -> _T:
+        if isinstance(key, tuple):
+            return self._entry.child(*key).push(self._pre_process(value))
+        else:
+            return self._entry.child(key).push(self._pre_process(value))
 
-    def __getitem__(self, key: Any) -> Any:
-        return self._post_process(self._entry.child(key), key=key)
+    def __getitem__(self, key) -> Any:
+        if isinstance(key, tuple):
+            return self._post_process(self._entry.child(*key), key=key)
+        else:
+            return self._post_process(self._entry.child(key), key=key)
 
-    def __delitem__(self, key: Any) -> bool:
-        return self._entry.child(key).erase()
+    def __delitem__(self, key) -> bool:
+        if isinstance(key, tuple):
+            return self._entry.child(*key).erase()
+        else:
+            return self._entry.child(key).erase()
 
-    def __contains__(self, key: Any) -> bool:
-        return self._entry.child(key).exists()
+    def __contains__(self, key: _TKey) -> bool:
+        if isinstance(key, tuple):
+            return self._entry.child(*key).exists()
+        else:
+            return self._entry.child(key).exists()
+
 
     def __eq__(self, other) -> bool:
         return self._entry.equal(other)
@@ -60,15 +73,15 @@ class Link(Node):
             yield self._post_process(obj, key=[idx])
 
     def append(self, value) -> _TLink:
-        self._entry.push([value], extend=True)
+        self._entry.append(value)
         return self
 
     def extend(self, value) -> _TLink:
-        self._entry.push(value, extend=True)
+        self._entry.extend(value)
         return self
 
     def __ior__(self, obj) -> _TLink:
-        self._entry.push(obj, update=True)
+        self._entry.update(obj)
         return self
     # @property
     # def entry(self) -> Entry:

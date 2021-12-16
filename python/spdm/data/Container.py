@@ -14,13 +14,14 @@ from ..util.utilities import serialize
 from .Entry import Entry
 from .Node import Node, _TKey
 from .Path import Path
+from .Link import Link
 
 _TObject = TypeVar("_TObject")
 _TContainer = TypeVar("_TContainer", bound="Container")
 _T = TypeVar("_T")
 
 
-class Container(Node, Generic[_TObject]):
+class Container(Link, Generic[_TObject]):
     r"""
        Container Node
     """
@@ -38,26 +39,17 @@ class Container(Node, Generic[_TObject]):
     def _duplicate(self, *args, parent=None, **kwargs) -> _TContainer:
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
-    def __setitem__(self, key: _TKey, value: _T) -> _T:
-        if isinstance(key, tuple):
-            return self._entry.child(*key).push(self._pre_process(value))
-        else:
-            return self._entry.child(key).push(self._pre_process(value))
+    def __getitem__(self, key) -> _TObject:
+        return super().__getitem__(key)
 
-    def __getitem__(self, key) -> Any:
-        if isinstance(key, tuple):
-            return self._post_process(self._entry.child(*key), key=key)
-        else:
-            return self._post_process(self._entry.child(key), key=key)
+    def __setitem__(self, key, value: _T) -> None:
+        super().__setitem__(key, value)
 
-    def __delitem__(self, key) -> bool:
-        if isinstance(key, tuple):
-            return self._entry.child(*key).erase()
-        else:
-            return self._entry.child(key).erase()
+    def __delitem__(self,  key) -> None:
+        super().__delitem__(key)
 
-    def __contains__(self, key: _TKey) -> bool:
-        return self._entry.child(key).exists()
+    def __contains__(self,  key) -> None:
+        return super().__contains__(key)
 
     def __eq__(self, other) -> bool:
         return self._entry.equal(other)

@@ -1,12 +1,13 @@
-import unittest
-from copy import deepcopy
-from logging import log
 
-from spdm.common.logger import logger
-from spdm.common.tags import _not_found_
-from spdm.data.Entry import Entry, EntryCombiner, _next_
-from spdm.data.Path import Path
 from spdm.data.Query import Query
+from spdm.data.Path import Path
+from spdm.data.Entry import Entry, EntryCombine
+from spdm.common.tags import _not_found_
+from spdm.common.logger import logger
+import pathlib
+import sys
+import unittest
+import numpy as np
 
 
 class TestEntryCombiner(unittest.TestCase):
@@ -23,11 +24,50 @@ class TestEntryCombiner(unittest.TestCase):
             "c": "I'm {age}!",
             "d": {"e": "{name} is {age}", "f": "{address}", "g": [4, 5, 7]}}
     ]
+    atoms = [
+        {"label": "H", "z": 1, "element": [{"a": 1, "z_n": 1, "atoms_n": 1}], },
+        {"label": "D", "z": 1, "element": [{"a": 2, "z_n": 1, "atoms_n": 1}], },
+        {"label": "T", "z": 1, "element": [{"a": 3, "z_n": 1, "atoms_n": 1}], },
+    ]
+    models = [
+        {
+            "code": {"name": "dummy0"},
+            "profiles_1d": {"ion": atoms}
+        },
+        {
+            "code": {"name": "dummy1"},
+            "profiles_1d": {
+                "ion": [
+                    {"label": "H", "density": np.random.random(128)},
+                    {"label": "D", },
+                    {"label": "T", "density":  np.random.random(128)},
+                ]
+            }
+        },
+        {
+            "code": {"name": "dummy2"},
+            "profiles_1d": {
+                "ion": [
+                    {"label": "D", "density": np.random.random(128)},
+                    {"label": "T", "temperature": np.random.random(128)},
+                    {"label": "H", "density": np.random.random(128)},
+                ]
+            }
+        },
 
-    def test_get(self):
-        d = EntryCombiner(self.data)
-        self.assertEqual(d.child("value").pull(), sum([v.get("value", 0.0) for v in self.data]))
-        self.assertEqual(d.child("d.g").pull(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+    ]
+
+    # def test_get(self):
+    #     d = EntryCombine(self.data)
+    #     self.assertEqual(d.child("value").pull(), sum([v.get("value", 0.0) for v in self.data]))
+    #     self.assertEqual(d.child("d.g").pull(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
+
+    def test_pull(self):
+        d = EntryCombine(self.models)
+        self.assertTrue(np.array_equal(d.child("profiles_1d", "ion", Query(label="H"), "density").pull(),
+                        self.models[1]["profiles_1d"]["ion"][0]["density"] +
+                        self.models[2]["profiles_1d"]["ion"][2]["density"])
+                        )
 
     # def test_cache(self):
     #     cache = {}

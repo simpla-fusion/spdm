@@ -4,7 +4,7 @@ from logging import log
 
 from spdm.common.logger import logger
 from spdm.common.tags import _not_found_
-from spdm.data.Entry import Entry, EntryCombiner, _next_
+from spdm.data.Entry import Entry, EntryCombine, _next_
 from spdm.data.Path import Path
 from spdm.data.Query import Query
 
@@ -38,7 +38,7 @@ class TestEntry(unittest.TestCase):
             {"name": "wang wu", "age": 21},
             {"name": "wang liu", "age": 22},
             {"name": "li si",    "age": 22},
-            {"name": "zhang san", "age": 24},
+            {"name": "Zhang san", "age": 24},
         ]
 
         d0 = Entry(cache)

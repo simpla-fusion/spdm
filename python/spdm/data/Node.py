@@ -117,10 +117,10 @@ class Node(SpObject):
         is_changed = True
 
         if value is _undefined_ and key is not _undefined_:
-            value = self._entry.child(key).pull()
-            is_changed = value is _undefined_
+            value = self._entry.child(key).pull(_not_found_)
+            is_changed = value is _not_found_
 
-        is_valid = self.validate(value, type_hint)
+        is_valid = self.validate(value, type_hint) if value is not _not_found_ else False
 
         if not is_valid:
             if getter is not _undefined_:

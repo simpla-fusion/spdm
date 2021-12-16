@@ -28,11 +28,10 @@ class TestNodeList(unittest.TestCase):
         d["a"] = "hello world {name}!"
         d["c"].append(1.23455)
         d["c"].append({"a": "hello world", "b": 3.141567})
-     
         self.assertEqual(cache["a"], "hello world {name}!")
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["a"], "hello world")
-        self.assertEqual(d["c"][1]["a"].value, "hello world")
+        self.assertEqual(d["c"][1]["a"].value, cache["c"][1]["a"])
 
         d["e"]["f"] = 5
         d["e"]["g"] = 6
@@ -48,11 +47,11 @@ class TestNodeList(unittest.TestCase):
         ]
 
         d0 = List(cache)
-        self.assertEqual(d0[Query({"name": "li si"}), "age"].value, [22])
+        self.assertEqual(d0[Query({"name": "li si"}), "age"].value, 22)
 
         d1 = Dict({"person": cache})
 
-        young = d1["person", Query({"age": 22})]
+        young = d1["person", Query({"age": 22}, only_first=False)]
 
         self.assertEqual(young[0, "name"].value,  "wang liu")
         self.assertEqual(young[1, "name"].value,  "li si")

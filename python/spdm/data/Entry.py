@@ -299,7 +299,7 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
                 and op in (Entry.op_tags.update, Entry.op_tags.extend, Entry.op_tags.append):
             for k, v in value.items():
                 normal_put(obj, k, v, op)
-        elif op in (Entry.op_tags.update, Entry.op_tags.extend, Entry.op_tags.append):
+        elif op in (Entry.op_tags.update, Entry.op_tags.extend):
             obj.extend(value)
         elif op in (Entry.op_tags.append):
             obj.append(value)
@@ -508,7 +508,7 @@ class EntryChain(Entry):
         return obj if obj is not _not_found_ else default
 
 
-class EntryCombiner(EntryChain):
+class EntryCombine(EntryChain):
     def __init__(self,  cache, *args,
                  reducer=_undefined_,
                  partition=_undefined_, **kwargs):
@@ -524,8 +524,8 @@ class EntryCombiner(EntryChain):
         return res
 
     def child(self,  *args) -> _TEntry:
-        return EntryCombiner([e.child(*args) for e in self._cache],
-                             reducer=self._reducer, partition=self._partition)
+        return EntryCombine([e.child(*args) for e in self._cache],
+                            reducer=self._reducer, partition=self._partition)
 
     def __len__(self):
         raise NotImplementedError()
@@ -533,9 +533,12 @@ class EntryCombiner(EntryChain):
     def __iter__(self) -> Iterator[Entry]:
         raise NotImplementedError()
 
+    def push(self, *args, **kwargs):
+        raise NotImplementedError()
+
     def pull(self, default: _T = _undefined_, **kwargs) -> _T:
         if not self._path.empty:
-            val = EntryCombiner([e.child(self._path) for e in self._cache])
+            val = EntryCombine([e.child(self._path) for e in self._cache])
         else:
             val = []
             type_hint = _undefined_
@@ -558,7 +561,7 @@ class EntryCombiner(EntryChain):
             elif type_hint in [int, float, bool, str]:
                 val = functools.reduce(self._reducer, val[1:], val[0])
             else:
-                val = EntryCombiner(val, reducer=self._reducer, partition=self._partition)
+                val = EntryCombine(val, reducer=self._reducer, partition=self._partition)
         return val
 
 

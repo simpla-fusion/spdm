@@ -15,7 +15,7 @@ from spdm.util.misc import array_like
 from ..common.logger import logger
 from ..util.misc import float_unique
 from ..common.tags import _undefined_
-from .Entry import Entry, EntryCombiner
+from .Entry import Entry, EntryCombine
 from .Node import Node
 
 
@@ -163,7 +163,7 @@ class Function:
                 return np.full(x.shape, self._y)
             else:
                 return self._y
-        elif isinstance(self._y, EntryCombiner):
+        elif isinstance(self._y, EntryCombine):
             val = [array_like(x, d) for d in self._y._cache]
             return functools.reduce(operator.__add__, val[1:], val[0])
         elif callable(self._y):
