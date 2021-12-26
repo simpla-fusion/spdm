@@ -7,7 +7,7 @@ import numpy as np
 from scipy import constants
 from scipy.interpolate import CubicSpline, PPoly
 
-from ..common.logger import logger
+from spdm.common.logger import logger
 from .Curve import Curve
 
 TWOPI = 2.0*constants.pi

@@ -6,13 +6,12 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, TypeVar, Union,
                     get_args, get_origin)
 
 import numpy as np
-from numpy.lib.arraysetops import isin
 
 from ..common.logger import logger
 from ..common.SpObject import SpObject
 from ..common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
-from .Entry import Entry,  as_entry
+from .Entry import Entry, as_entry
 
 _T = TypeVar("_T")
 _TObject = TypeVar("_TObject")

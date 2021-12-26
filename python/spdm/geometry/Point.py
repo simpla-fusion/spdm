@@ -6,7 +6,7 @@ from typing import Callable, Collection, TypeVar
 from spdm.geometry.GeoObject import GeoObject, _TCoord
 import numpy as np
 
-from ..common.logger import logger
+from spdm.common.logger import logger
 from .GeoObject import GeoObject
 
 

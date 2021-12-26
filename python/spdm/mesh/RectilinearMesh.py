@@ -6,7 +6,7 @@ from scipy.interpolate import interpolate
 
 from ..geometry.Curve import Line
 from ..geometry.Point import Point
-from ..common.logger import logger
+from spdm.common.logger import logger
 from .StructuredMesh import StructuredMesh
 
 

@@ -6,7 +6,7 @@ import numpy as np
 from .GeoObject import GeoObject
 from .Point import Point
 from ..data.Function import Function
-from ..common.logger import logger
+from spdm.common.logger import logger
 
 from spdm.geometry.GeoObject import GeoObject, _TCoord
 

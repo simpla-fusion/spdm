@@ -16,9 +16,8 @@
     "-p",
 
     "test_*.py"
-  ]
-
-  // "terminal.integrated.env.linux": {
-  //   "PYTHONPATH": "${workspaceFolder}/python:${env:PYTHONPATH}"
-  // }
+  ],
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}/python:${env:PYTHONPATH}"
+  }
 }

@@ -2,7 +2,7 @@ import functools
 
 from spdm.util.utilities import normalize_path
 
-from ..common.logger import logger
+from spdm.common.logger import logger
 
 
 class PathTraverser:

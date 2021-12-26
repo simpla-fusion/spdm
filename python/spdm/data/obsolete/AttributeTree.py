@@ -7,9 +7,12 @@ from logging import log
 from typing import Any, MutableSequence, Optional, Sequence
 
 import numpy as np
-from ..common.logger import logger
-from .Entry import Entry, _not_found_
-from .Node import Dict, List, Node, _next_,  _TObject, sp_property, _sp_property
+from spdm.common.logger import logger
+from ..Entry import Entry, _not_found_
+from ..Entry import Dict
+from ..List import List
+from ..Node import Node
+from ..sp_property import sp_property
 
 
 def do_getattr(obj, k):

@@ -6,7 +6,7 @@ import pathlib
 from spdm.common.logger import logger
 from spdm.util.urilib import urisplit_as_dict
 
-from ..common.SpObject import SpObject
+from spdm.common.SpObject import SpObject
 
 _TConnection = TypeVar('_TConnection', bound='Connection')
 

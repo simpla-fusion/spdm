@@ -3,9 +3,9 @@ import collections
 import inspect
 from typing import Generic, TypeVar
 
-from ..common.logger import logger
-from ..common.SpObject import SpObject
-from ..common.tags import _empty
+from spdm.common.logger import logger
+from spdm.common.SpObject import SpObject
+from spdm.common.tags import _empty
 from .Node import Node
 
 _TSource = TypeVar("_TSource", Node)

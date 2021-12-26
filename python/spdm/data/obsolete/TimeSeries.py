@@ -4,8 +4,7 @@ from typing import (Any, Generic, Mapping, MutableMapping, Sequence, TypeVar,
 
 import numpy as np
 
-from ..common.logger import logger
-from .Node import Dict, List, _TIndex, _TObject
+from spdm.common.logger import logger
 
 
 class TimeSlice(Dict[_TObject]):

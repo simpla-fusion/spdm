@@ -1,7 +1,7 @@
 import collections.abc
 from copy import deepcopy
 from typing import Sequence, TypeVar
-from ..common.tags import _undefined_
+from spdm.common.tags import _undefined_
 _TPath = TypeVar("_TPath", bound="Path")
 
 

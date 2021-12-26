@@ -7,8 +7,8 @@ from typing import Type
 import matplotlib.pyplot as plt
 from numpy.lib.arraysetops import isin
 import numpy as np
-from spdm.data.Node import Dict
-from spdm.data.Function import Function
+from spdm.data import Dict
+from spdm.data import Function
 from spdm.common.logger import logger
 from spdm.util.utilities import try_get
 

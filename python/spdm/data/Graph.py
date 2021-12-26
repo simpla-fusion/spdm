@@ -1,7 +1,13 @@
+from typing import Generic, TypeVar
+
+from .Dict import Dict
 from .Edge import Edge
-from .Node import List, Dict,   Node
-from typing import (Generic,   TypeVar)
+from .List import List
+from .Node import Node
+
 _TObject = TypeVar("_TObject")
+_TPath = TypeVar("_TPath")
+_TKey = TypeVar("_TKey")
 
 
 class Graph(Node, Dict[_TKey, _TObject]):

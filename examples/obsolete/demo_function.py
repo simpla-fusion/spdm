@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import constants
 from spdm.util.plot_profiles import plot_profiles
-from spdm.data.Function import Function
+from spdm.data import Function
 from spdm.common.logger import logger
 
 if __name__ == '__main__':

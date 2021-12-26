@@ -8,8 +8,8 @@ from typing import (Any, Generic, Iterator, Mapping, TypeVar, Union, final,
 
 import numpy as np
 
-from ..common.logger import logger
-from ..common.tags import _not_found_, _undefined_
+from spdm.common.logger import logger
+from spdm.common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Entry import Entry
 from .Node import Node, _TKey

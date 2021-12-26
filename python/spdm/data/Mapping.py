@@ -3,11 +3,11 @@ import collections.abc
 import os
 import pathlib
 
-from ..common.SpObject import SpObject
-from ..common.logger import logger
+from spdm.common.SpObject import SpObject
+from spdm.common.logger import logger
 from ..util.PathTraverser import PathTraverser
 from ..util.urilib import urisplit
-from ..common.tags import _undefined_
+from spdm.common.tags import _undefined_
 from .Collection import Collection
 from .Document import Document
 from .Entry import Entry, EntryCombine

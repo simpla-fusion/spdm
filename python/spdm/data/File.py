@@ -9,9 +9,9 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 from spdm.util.urilib import urisplit_as_dict
 
-from ..common.SpObject import SpObject
+from spdm.common.SpObject import SpObject
 
-from ..common.logger import logger
+from spdm.common.logger import logger
 from .Connection import Connection
 from .Entry import Entry
 

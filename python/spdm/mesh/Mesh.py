@@ -4,9 +4,9 @@ from typing import Callable, Iterator, Sequence, Tuple, Type, Union
 
 import numpy as np
 
-from ..common.SpObject import SpObject
+from spdm.common.SpObject import SpObject
 from ..geometry.GeoObject import GeoObject
-from ..common.logger import logger
+from spdm.common.logger import logger
 
 
 class Mesh(SpObject):

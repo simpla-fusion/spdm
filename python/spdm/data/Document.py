@@ -1,12 +1,13 @@
 import collections
 from functools import cached_property
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypeVar
 
-from ..common.logger import logger
+from spdm.common.logger import logger
+
 from .DataObject import DataObject
+from .Dict import Dict
 from .Entry import Entry
-from .Node import Dict
-from typing import TypeVar
+
 _TDocument = TypeVar("_TDocument", bound="Document")
 
 

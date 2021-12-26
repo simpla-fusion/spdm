@@ -16,8 +16,8 @@ import numpy as np
 from numpy.lib.function_base import iterable
 from spdm.data.normal_util import normal_get
 
-from ..common.logger import logger
-from ..common.tags import _not_found_, _undefined_
+from spdm.common.logger import logger
+from spdm.common.tags import _not_found_, _undefined_
 from ..util.dict_util import as_native, deep_merge_dict
 from ..util.utilities import serialize
 from .Path import Path

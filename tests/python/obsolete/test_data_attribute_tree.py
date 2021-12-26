@@ -1,7 +1,7 @@
 import unittest
 
 , _next_
-from spdm.data.Node import Node, _not_found_
+from spdm.data  import Node, _not_found_
 from spdm.common.logger import logger
 
 

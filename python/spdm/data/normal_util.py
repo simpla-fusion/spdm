@@ -8,7 +8,7 @@ from copy import deepcopy
 from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
                     Type, TypeVar, Union)
 
-from ..common.tags import _not_found_, _undefined_
+from spdm.common.tags import _not_found_, _undefined_
 from .Path import Path
 
 

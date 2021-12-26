@@ -4,7 +4,7 @@ import sys
 import unittest
 
 import numpy as np
-from spdm.data.Node import Node, _next_
+from spdm.data  import Node, _next_
 from spdm.data.Profiles import Profiles
 from spdm.data.TimeSeries import TimeSeries, TimeSlice
 from spdm.common.logger import logger

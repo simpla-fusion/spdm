@@ -1,10 +1,11 @@
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
+from .Collection import Collection
 from .Container import Container
 from .Dict import Dict
-
 from .Entry import Entry
-from .Function import Function,function_like
+from .File import File
+from .Function import Function, function_like
 from .Link import Link
 from .List import List
 from .Node import Node
@@ -12,7 +13,6 @@ from .Path import Path
 from .Query import Query
 from .sp_property import sp_property
 
-from .File import File
 # from .Directory import Directory
 # from .Collection import Collection
 # from .Edge import Edge

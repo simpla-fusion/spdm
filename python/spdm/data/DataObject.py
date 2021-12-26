@@ -3,8 +3,8 @@ from typing import Mapping, Type
 
 import numpy as np
 
-from ..common.SpObject import SpObject
-from ..common.logger import logger
+from spdm.common.SpObject import SpObject
+from spdm.common.logger import logger
 
 
 def load_ndarray(desc, value, *args, **kwargs):

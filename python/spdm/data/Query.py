@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
                     Type, TypeVar, Union)
 
-from ..common.tags import _not_found_, _undefined_
+from spdm.common.tags import _not_found_, _undefined_
 from ..util.dict_util import deep_merge_dict
 
 _TQuery = TypeVar("_TQuery", bound="Query")

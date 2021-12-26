@@ -1,7 +1,7 @@
 
 
 from ..data.Function import Function
-from ..common.logger import logger
+from spdm.common.logger import logger
 from .Surface import Surface
 
 

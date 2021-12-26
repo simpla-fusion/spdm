@@ -3,8 +3,8 @@ import pprint
 import sys
 import unittest
 
-from spdm.data.Function import Function
-from spdm.data.Node import _next_
+from spdm.data import Function
+from spdm.data  import _next_
 from spdm.data.Profiles import Profiles
 import numpy as np
 from spdm.common.logger import logger

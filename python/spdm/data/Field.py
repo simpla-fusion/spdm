@@ -5,7 +5,7 @@ from typing import Mapping, Union
 import numpy as np
 
 
-from ..common.logger import logger
+from spdm.common.logger import logger
 from ..mesh.Mesh import Mesh
 
 

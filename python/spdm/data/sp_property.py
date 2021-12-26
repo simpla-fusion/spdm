@@ -5,8 +5,8 @@ from typing import Any, Callable, Generic, Type, TypeVar, Union, final, get_args
 
 import numpy as np
 
-from ..common.logger import logger
-from ..common.tags import _not_found_, _undefined_
+from spdm.common.logger import logger
+from spdm.common.tags import _not_found_, _undefined_
 from .Entry import Entry
 from .Node import Node
 from .Dict import Dict
@@ -149,7 +149,11 @@ class sp_property(Generic[_TObject]):
 
     def __get__(self, instance: Node, owner=None) -> _TObject:
         if not isinstance(instance, Node):
-            raise TypeError(f"sp_property is only valid for 'Node', not for {type(instance)}.")
+            if instance is None:
+                return None
+            else:
+                raise RuntimeError(f"sp_property is only valid for 'Node', not for {type(instance)} '{self.property_name}'.")
+            # return {}
 
         if self.property_name is _undefined_ or self.property_cache_key is _undefined_:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")

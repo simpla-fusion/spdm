@@ -7,8 +7,8 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 import numpy as np
 
-from ..common.logger import logger
-from ..common.tags import _not_found_, _undefined_
+from spdm.common.logger import logger
+from spdm.common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Container import Container
 from .Entry import Entry, EntryChain, EntryCombine, as_entry
