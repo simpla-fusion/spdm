@@ -4,30 +4,31 @@ import pathlib
 import re
 from functools import cached_property
 
-import MDSplus as mds
 import numpy as np
-from spdm.data.Collection import Collection
-from spdm.data.Entry import Entry
-from spdm.data.File import  File
-from spdm.util.dict_util import format_string_recursive
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
+
+import MDSplus as mds
+
+from spdm.data.Collection import Collection
+from spdm.data.Document import Document
+from spdm.data.Entry import Entry
+from ...util.dict_util import format_string_recursive
 
 
 class MDSplusEntry(Entry):
 
-    def __init__(self, holder,  /, **kwargs):
-        super().__init__(**kwargs)
-        self._holder: MDSplusFile = holder
+    def __init__(self,  *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def get(self,  *args, **kwargs):
-        return self._holder.fetch(*args, **kwargs)
+        return self._parent.fetch(*args, **kwargs)
 
     def put(self,  path, value, *args, **kwargs):
-        return self._holder.update({path: value}, *args, **kwargs)
+        return self._parent.update({path: value}, *args, **kwargs)
 
     def iter(self,  path, *args, **kwargs):
-        return self._holder.iter(path, *args, **kwargs)
+        return self._parent.iter(path, *args, **kwargs)
 
 
 def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
@@ -35,8 +36,7 @@ def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
         raise ValueError(f"Treename is empty!")
     try:
         shot = int(shot)
-        logger.info(
-            f"Open MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
+        logger.info(f"Open MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
         tree = mds.Tree(tree_name, shot, mode=mode, path=path)
     except mds.mdsExceptions.TreeFOPENR as error:
         # tree_path = os.environ.get(f"{tree_name}_path", None)
@@ -48,41 +48,30 @@ def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
     return tree
 
 
-class MDSplusFile(File):
+class MDSplusDocument(Document):
     MDS_MODE = {
-        File.Mode.r: "ReadOnly",
-        File.Mode.w: "Normal",
-        File.Mode.r | File.Mode.w: "Normal",
-        File.Mode.a: "Edit",
-        File.Mode.x: "New"
+        "r": "ReadOnly",
+        "rw": "Normal",
+        "w": "Normal",
+        "w+": "Edit",
+        "x": "New"
     }
 
     def __init__(self, *args, tree_name=None,   **kwargs):
         super().__init__(*args,  ** kwargs)
 
-        self._envs = {}
-        # {k: (v if not isinstance(v, slice) else f"{v.start}:{v.stop}:{v.step}")
-        #   for k, v in self._envs.items()}
+        self._envs = {k: (v if not isinstance(v, slice) else f"{v.start}:{v.stop}:{v.step}")
+                      for k, v in self._envs.items()}
 
-        query = self._metadata.get("query", None) or {}
-
-        if tree_name is None:
-            tree_name = query.get("tree_name", None)
-
-        self._mds_mode = MDSplusFile.MDS_MODE[self.mode]
-        self._tree_name = tree_name
-        self._shot = query.get("shot", 0)
-        self._path = self.path
-        self._entry = MDSplusEntry(self)
+        self._mds_mode = MDSplusDocument.MDS_MODE.get(self.mode, "NORMAL")
+        self._tree_name = tree_name or self.metadata.get("query", {}).get("tree_name", None)
 
     def __del__(self):
         pass
 
-    def read(self, lazy=True) -> Entry:
-        return self._entry
-
-    def write(self, d):
-        raise NotImplementedError()
+    @property
+    def entry(self):
+        return MDSplusEntry(parent=self)
 
     def fetch(self, request, *args,   **kwargs):
         tree_name = self._tree_name
@@ -102,8 +91,8 @@ class MDSplusFile(File):
         tdi = tdi.format_map(self._envs)
 
         mode = self._mds_mode
-        shot = self._shot
-        path = self.path
+        shot = self.fid
+        path = self.metadata.get("path", None)
 
         res = None
         try:
@@ -141,14 +130,12 @@ class MDSplusCollection(Collection):
         super().__init__(*args,  **kwargs)
 
     def insert_one(self, fid=None, *args,  query=None, mode=None, **kwargs):
-        fid = fid or self.guess_id(
-            *args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
-        return MDSplusFile(self.metadata, fid=fid, mode=mode or "w", **kwargs)
+        fid = fid or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
+        return MDSplusDocument(self.metadata, fid=fid, mode=mode or "w", **kwargs)
 
     def find_one(self, fid=None, *args, query=None, projection=None, mode=None, **kwargs):
-        fid = fid or self.guess_id(
-            *args, **collections.ChainMap((query or {}), kwargs))
-        return MDSplusFile(self.metadata, fid=fid, mode=mode or "w", **kwargs).fetch(projection)
+        fid = fid or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs))
+        return MDSplusDocument(self.metadata, fid=fid, mode=mode or "w", **kwargs).fetch(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()
@@ -191,4 +178,4 @@ class MDSplusCollection(Collection):
     #     return shot
 
 
-__SP_EXPORT__ = MDSplusFile
+__SP_EXPORT__ = MDSplusDocument

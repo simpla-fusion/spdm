@@ -7,9 +7,9 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, TypeVar, Union,
 
 import numpy as np
 
-from ..common.logger import logger
-from ..common.SpObject import SpObject
-from ..common.tags import _not_found_, _undefined_
+from spdm.logger import logger
+from spdm.SpObject import SpObject
+from spdm.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Entry import Entry, as_entry
 

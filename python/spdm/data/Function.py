@@ -9,12 +9,12 @@ from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.util.misc import array_like
 
-from spdm.common.logger import logger
+from spdm.logger import logger
 from ..util.misc import float_unique
-from spdm.common.tags import _undefined_
+from spdm.tags import _undefined_
 from .Entry import Entry, EntryCombine
 from .Node import Node
 

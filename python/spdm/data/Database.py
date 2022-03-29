@@ -4,7 +4,7 @@ import pathlib
 import shutil
 import uuid
 
-from spdm.common.logger import logger
+from spdm.logger import logger
 from .Collection import Collection
 from .Connection import Connection
 

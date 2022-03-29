@@ -5,7 +5,7 @@ from spdm.geometry.Curve import Curve
 from spdm.geometry.Surface import Surface
 from spdm.geometry.CubicSplineCurve import CubicSplineCurve
 import numpy as np, constants
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 
 class TestGeoObject(unittest.TestCase):

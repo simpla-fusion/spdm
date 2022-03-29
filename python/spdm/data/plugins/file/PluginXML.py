@@ -13,7 +13,7 @@ from spdm.data.Entry import Entry, EntryCombine, _TEntry, _TPath
 from spdm.data.File import File
 from spdm.data  import _not_found_, _undefined_
 from spdm.util.dict_util import format_string_recursive
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.util.PathTraverser import PathTraverser
 from spdm.util.utilities import normalize_path, serialize
 

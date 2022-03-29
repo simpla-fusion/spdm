@@ -7,7 +7,7 @@ import numpy as np
 from spdm.data  import Node, _next_
 from spdm.data.Profiles import Profiles
 from spdm.data.TimeSeries import TimeSeries, TimeSlice
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 
 class TestTimeSeries(unittest.TestCase):

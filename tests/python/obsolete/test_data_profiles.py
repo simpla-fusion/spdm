@@ -7,7 +7,7 @@ from spdm.data import Function
 from spdm.data  import _next_
 from spdm.data.Profiles import Profiles
 import numpy as np
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 
 class TestProfiles(unittest.TestCase):

@@ -9,13 +9,13 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 from spdm.util.urilib import urisplit_as_dict
 
-from spdm.common.SpObject import SpObject
+from spdm.SpObject import SpObject
 
-from spdm.common.logger import logger
+from spdm.logger import logger
 from .Connection import Connection
 from .Entry import Entry
 
-from ..plugins.data import file as file_plugins
+from .plugins import file as file_plugins
 
 _TFile = TypeVar('_TFile', bound='File')
 

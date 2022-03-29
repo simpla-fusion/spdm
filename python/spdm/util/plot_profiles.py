@@ -9,7 +9,7 @@ from numpy.lib.arraysetops import isin
 import numpy as np
 from spdm.data import Dict
 from spdm.data import Function
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.util.utilities import try_get
 
 

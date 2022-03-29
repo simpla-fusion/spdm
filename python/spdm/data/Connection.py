@@ -3,10 +3,10 @@ from copy import deepcopy
 from enum import Flag, auto
 from typing import Mapping, TypeVar, Union
 import pathlib
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.util.urilib import urisplit_as_dict
 
-from spdm.common.SpObject import SpObject
+from spdm.SpObject import SpObject
 
 _TConnection = TypeVar('_TConnection', bound='Connection')
 

@@ -3,7 +3,7 @@ import unittest
 
 import h5py
 import numpy as np
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.data import Dict, File, Link, List, Node, Path, Query, sp_property,Function
 
 

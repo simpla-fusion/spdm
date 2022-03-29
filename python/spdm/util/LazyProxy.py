@@ -6,7 +6,7 @@ import operator
 import re
 import uuid
 
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 
 ELEMENT_TYPE_LIST = [int, float, str]

@@ -7,8 +7,8 @@ from typing import Any, Generic, Iterator, TypeVar, Union, final, get_args, Mapp
 
 import numpy as np
 
-from spdm.common.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
+from spdm.logger import logger
+from spdm.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Entry import (Entry,   _next_, _TPath)
 from .Node import Node, _TKey

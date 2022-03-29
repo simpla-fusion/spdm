@@ -2,7 +2,7 @@ import collections
 import os
 import pathlib
 
-from spdm.common.logger import logger
+from spdm.logger import logger
 from ..util.PathTraverser import PathTraverser
 from ..util.urilib import urisplit
 from .Collection import Collection

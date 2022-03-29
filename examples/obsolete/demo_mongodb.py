@@ -4,7 +4,7 @@ import pathlib
 import numpy as np
 
 from spdm.data import io
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 if __name__ == "__main__":
 

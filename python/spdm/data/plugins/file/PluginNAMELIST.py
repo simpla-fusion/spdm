@@ -4,7 +4,7 @@ from typing import Any, Dict
 import f90nml
 import numpy as np
 from spdm.util.dict_util import normalize_data
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 from spdm.data.File import File
 

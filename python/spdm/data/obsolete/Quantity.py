@@ -3,7 +3,7 @@ import collections.abc
 import numpy as np
 from scipy import constants
 
-from spdm.common.logger import logger
+from spdm.logger import logger
 from .Node import Dict, Node
 from .Unit import Unit
 

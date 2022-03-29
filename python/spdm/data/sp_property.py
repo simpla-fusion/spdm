@@ -5,8 +5,8 @@ from typing import Any, Callable, Generic, Type, TypeVar, Union, final, get_args
 
 import numpy as np
 
-from spdm.common.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
+from spdm.logger import logger
+from spdm.tags import _not_found_, _undefined_
 from .Entry import Entry
 from .Node import Node
 from .Dict import Dict
@@ -74,7 +74,7 @@ class sp_property(Generic[_TObject]):
             f4 = sp_property(get_f4,set_f4,del_f4,"I'm f4",type_hint=Foo)
         ```
 
-    Args:
+        Args:
         Generic ([type]): [description]
     """
 
@@ -83,6 +83,10 @@ class sp_property(Generic[_TObject]):
                  type_hint=_undefined_,
                  force=False,
                  **kwargs):
+        if isinstance(getter, str):
+            doc = getter
+            getter = _undefined_
+
         self.lock = RLock()
 
         self.getter = getter
@@ -152,7 +156,8 @@ class sp_property(Generic[_TObject]):
             if instance is None:
                 return None
             else:
-                raise RuntimeError(f"sp_property is only valid for 'Node', not for {type(instance)} '{self.property_name}'.")
+                raise RuntimeError(
+                    f"sp_property is only valid for 'Node', not for {type(instance)} '{self.property_name}'.")
             # return {}
 
         if self.property_name is _undefined_ or self.property_cache_key is _undefined_:

@@ -1,7 +1,7 @@
 import unittest
 
 from spdm.data  import Node, Dict, List, _next_, _not_found_, sp_property
-from spdm.common.logger import logger
+from spdm.logger import logger
 from copy import copy, deepcopy
 
 

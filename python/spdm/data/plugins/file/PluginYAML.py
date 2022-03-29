@@ -2,7 +2,7 @@ import collections
 import yaml
 
 import numpy
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 from spdm.data.Collection import FileCollection
 from spdm.data.Document import Document

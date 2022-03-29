@@ -3,8 +3,8 @@ import pathlib
 from functools import cached_property
 from typing import Any, Dict, List, NewType, Tuple
 
-from spdm.common.logger import logger
-from spdm.common.SpObject import SpObject
+from spdm.logger import logger
+from spdm.SpObject import SpObject
 from spdm.util.urilib import urisplit, uriunsplit
 
 from .Document import Document

@@ -6,7 +6,7 @@ import numpy as np
 from scipy import constants
 from spdm.util.plot_profiles import plot_profiles
 from spdm.data import Function
-from spdm.common.logger import logger
+from spdm.logger import logger
 
 if __name__ == '__main__':
 

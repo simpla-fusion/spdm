@@ -5,7 +5,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.data.File import File
 from spdm.data.Mapping import Mapping
 

@@ -1,7 +1,7 @@
 import sys
 sys.path.append("/home/salmon/workspace/SpDev/SpCommon")
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
-from spdm.common.logger import logger
+from spdm.logger import logger
 from spdm.data import connect
 import matplotlib.pyplot as pyplot
 

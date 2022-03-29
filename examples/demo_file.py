@@ -1,7 +1,7 @@
 import sys
 import pathlib
 from spdm.data.File import File
-from spdm.common.logger import logger
+from spdm.logger import logger
 import json
 DATA_PATH = pathlib.Path(__file__).parent/"data"
 

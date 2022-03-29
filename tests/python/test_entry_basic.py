@@ -2,8 +2,8 @@ import unittest
 from copy import deepcopy
 from logging import log
 
-from spdm.common.logger import logger
-from spdm.common.tags import _not_found_
+from spdm.logger import logger
+from spdm.tags import _not_found_
 from spdm.data.Entry import Entry, EntryCombine
 from spdm.data.Path import Path
 from spdm.data.Query import Query

@@ -4,8 +4,8 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Sequence, Tuple, Type, TypeVar,
                     Union, final, get_args)
 
-from spdm.common.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
+from spdm.logger import logger
+from spdm.tags import _not_found_, _undefined_
 
 from ..util.dict_util import deep_merge_dict
 from ..util.utilities import serialize

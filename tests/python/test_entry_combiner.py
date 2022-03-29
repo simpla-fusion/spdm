@@ -1,9 +1,10 @@
 
+from typing import List
 from spdm.data.Query import Query
 from spdm.data.Path import Path
 from spdm.data.Entry import Entry, EntryCombine
-from spdm.common.tags import _not_found_
-from spdm.common.logger import logger
+from spdm.tags import _not_found_
+from spdm.logger import logger
 import pathlib
 import sys
 import unittest
@@ -62,11 +63,35 @@ class TestEntryCombiner(unittest.TestCase):
     #     self.assertEqual(d.child("value").pull(), sum([v.get("value", 0.0) for v in self.data]))
     #     self.assertEqual(d.child("d.g").pull(), self.data[0]["d"]["g"]+self.data[2]["d"]["g"])
 
-    def test_pull(self):
-        d = EntryCombine(self.models)
-        self.assertTrue(np.array_equal(d.child("profiles_1d", "ion", Query(label="H"), "density").pull(),
-                        self.models[1]["profiles_1d"]["ion"][0]["density"] +
-                        self.models[2]["profiles_1d"]["ion"][2]["density"])
+    def test_combine(self):
+        models = [
+        {
+            "code": {"name": "dummy1"},
+            "profiles_1d": {
+                "ion": [
+                    {"label": "H", "density": np.random.random(128)},
+                    {"label": "D", },
+                    {"label": "T", "density":  np.random.random(128)},
+                ]
+            }
+        },
+        {
+            "code": {"name": "dummy2"},
+            "profiles_1d": {
+                "ion": [
+                    {"label": "D", "density": np.random.random(128)},
+                    {"label": "T", "temperature": np.random.random(128)},
+                    {"label": "H", "density": np.random.random(128)},
+                ]
+            }
+        },
+
+    ]
+        d = List(models)
+        self.assertTrue(np.array_equal(
+                 d["profiles_1d", "ion", Query(label="H"), "density"].combine.value,
+                        models[1]["profiles_1d"]["ion"][0]["density"] +
+                        models[2]["profiles_1d"]["ion"][2]["density"])
                         )
 
     # def test_cache(self):

@@ -17,8 +17,8 @@ from typing import Sequence
 
 import numpy as np
 
-from spdm.common.logger import logger
-from spdm.common.tags import _empty, _not_found_, _undefined_
+from spdm.logger import logger
+from spdm.tags import _empty, _not_found_, _undefined_
 
 # _empty = object()
 
