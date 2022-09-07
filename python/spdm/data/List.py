@@ -91,10 +91,12 @@ class List(Container[_TObject], Sequence[_TObject]):
         self._entry.sort()
 
     def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_) -> _TObject:
-        e = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition)
-        default = default if default is not _undefined_ else {}
+        # e = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition)
+        # default = default if default is not _undefined_ else {}
 
-        return self._post_process(EntryChain([default, e]), key=_undefined_)
+        e = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition, default=default)
+
+        return self._post_process(e, key=_undefined_)
 
     def find(self, predication,  only_first=True) -> _TObject:
         return self._post_process(self._entry.pull(predication=predication, only_first=only_first))

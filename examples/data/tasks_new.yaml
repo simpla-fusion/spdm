@@ -1,0 +1,17 @@
+tasks:
+- args:
+  - -g
+  - ${file}
+  - -o
+  - ${fileDirname}/${fileBasenameNoExtension}
+  command: /fuyun/software/GCCcore/8.3.0/bin/g++
+  group:
+    isDefault: true
+    kind: build
+  label: 'C/C++: g++ build active file'
+  options:
+    cwd: ${workspaceFolder}
+  problemMatcher:
+  - $gcc
+  type: shell
+version: 2.0.0.1

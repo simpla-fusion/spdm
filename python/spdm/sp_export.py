@@ -31,6 +31,11 @@ def sp_load_module(filepath, name=None, export_entry: str = None):
 
 
 def sp_find_module(path, fragment=None, pythonpath=None):
+    """
+
+     paht= sympy/tensor/tensor
+     paht= sympy.tensor.tensor#Matrix
+    """
     if path is None:
         return None
     if not isinstance(path, str) and isinstance(path, collections.abc.Sequence):

@@ -15,7 +15,7 @@ from spdm.logger import logger
 from .Connection import Connection
 from .Entry import Entry
 
-from .plugins import file as file_plugins
+from ..plugins.data import file as file_plugins
 
 _TFile = TypeVar('_TFile', bound='File')
 
