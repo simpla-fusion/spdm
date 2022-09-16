@@ -10,11 +10,9 @@ from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 from spdm.logger import logger
-from spdm.util.misc import array_like
-
-from spdm.logger import logger
-from ..util.misc import float_unique
 from spdm.tags import _undefined_
+
+from ..util.misc import array_like, float_unique
 from .Entry import Entry, EntryCombine
 from .Node import Node
 
@@ -34,7 +32,8 @@ class Function:
         NOTE: Function is immutable!!!!
     """
 
-    def __init__(self, x: Union[np.ndarray, Sequence] = None, y: Union[np.ndarray, float, Callable] = _undefined_, /, **kwargs):
+    def __init__(self, x: Union[np.ndarray, Sequence] = None,
+                 y: Union[np.ndarray, float, Callable] = _undefined_, /, **kwargs):
         if y is _undefined_:
             y = x
             x = None
@@ -78,6 +77,7 @@ class Function:
             self._x_axis = None
 
         if isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
+            print(type(self._y))
             raise ValueError(f"x.shape  != y.shape {x.shape}!={y.shape}")
 
     @property
@@ -132,7 +132,7 @@ class Function:
         return Expression(ufunc, method, *inputs, **kwargs)
 
     def __array__(self) -> np.ndarray:
-        return self._y if isinstance(self._y, np.ndarray) else np.asarray(self.__call__())
+        return self._y if isinstance(self._y, np.ndarray) else np.asarray(self.__call__(), dtype=float)
 
     @cached_property
     def _ppoly(self) -> PPoly:
@@ -142,9 +142,10 @@ class Function:
         elif self.x_axis is None:
             raise ValueError(f"x_axis is None")
         elif isinstance(self._y, np.ndarray):
-            return create_spline(self.x_axis,  self._y)
+            assert(self._x_axis.size == self._y.size)
+            return create_spline(self._x_axis,  self._y)
         else:
-            return create_spline(self.x_axis,  self.__call__())
+            return create_spline(self._x_axis,  self.__call__())
 
     def __call__(self, x=None, /,  **kwargs) -> Union[np.ndarray, float]:
         if x is None:
@@ -167,7 +168,7 @@ class Function:
             val = [array_like(x, d) for d in self._y._cache]
             return functools.reduce(operator.__add__, val[1:], val[0])
         elif callable(self._y):
-            return np.asarray(self._y(x, **kwargs))
+            return np.asarray(self._y(x, **kwargs), dtype=float)
         elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
         else:
@@ -204,7 +205,7 @@ class Function:
             return Function([x_min, x_max], self._y)
         else:
             raise TypeError((type(self.x_axis), type(self._y)))
-            # return x_axis, np.asarray(self.__call__(x_axis))
+            # return x_axis, np.asarray(self.__call__(x_axis), dtype=float)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}  type={type(self._y)}/>"
@@ -252,13 +253,13 @@ class Function:
     # def __len__(self):
     #     return len(self.x) if self.x is not None else 0
 
-    def derivative(self, x=None):
+    def derivative(self, x=None) -> np.ndarray:
         if x is None:
             return Function(self._ppoly.derivative())
         else:
             return self._ppoly.derivative()(x)
 
-    def antiderivative(self, x=None):
+    def antiderivative(self, x=None) -> np.ndarray:
         if x is None:
             return Function(self._ppoly.antiderivative())
         else:
@@ -302,7 +303,7 @@ class Function:
             # else:
             #     raise TypeError(f"{args}")
 
-        return Function(target, np.asarray(self(source)))
+        return Function(target, np.asarray(self(source), dtype=float))
 
     def integrate(self, a=None, b=None):
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
@@ -419,7 +420,7 @@ class PiecewiseFunction(Function):
         if x is None:
             x = self.x_axis
         elif not isinstance(x, (int, float, np.ndarray)):
-            x = np.asarray(x)
+            x = np.asarray(x, dtype=float)
 
         if isinstance(x, np.ndarray) and len(x) == 1:
             x = x[0]
@@ -516,11 +517,11 @@ class Expression(Function):
             if d is None:
                 res = 0
             elif isinstance(d, Function):
-                res = np.asarray(d(x))
+                res = np.asarray(d(x), dtype=float)
             elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
                 res = d
             elif self.x_axis is not None and d.shape == self.x_axis.shape:
-                res = np.asarray(Function(self.x_axis, d)(x))
+                res = np.asarray(Function(self.x_axis, d)(x), dtype=float)
             elif d.shape == x.shape:
                 res = d
             else:
