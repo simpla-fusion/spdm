@@ -1,7 +1,7 @@
 #ifndef SPDB_DATABASE_H_
 #define SPDB_DATABASE_H_
-#include "Collection.h"
-#include "Document.h"
+#include "Collection.hpp"
+#include "Document.hpp"
 #include <vector>
 namespace sp::db
 {

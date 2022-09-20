@@ -1,10 +1,10 @@
-#include "../db/Cursor.h"
-#include "../db/Entry.h"
-#include "../db/Node.h"
-#include "../db/NodePlugin.h"
-#include "../db/XPath.h"
-#include "../utility/Factory.h"
-#include "../utility/Logger.h"
+#include "../db/Cursor.hpp"
+#include "../db/Entry.hpp"
+#include "../db/Node.hpp"
+#include "../db/NodePlugin.hpp"
+#include "../db/XPath.hpp"
+#include "../utility/Factory.hpp"
+#include "../utility/Logger.hpp"
 
 #include <variant>
 namespace sp::db

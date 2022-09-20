@@ -1,6 +1,7 @@
-#include "Document.h"
-#include "../utility/Factory.h"
-#include "Entry.h"
+#include "Document.hpp"
+#include "../utility/Factory.hpp"
+#include "Entry.hpp"
+
 namespace sp::db
 {
 Document::OID::OID() : m_id_(reinterpret_cast<unsigned long>(this)) {}

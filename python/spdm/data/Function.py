@@ -13,7 +13,7 @@ from spdm.logger import logger
 from spdm.tags import _undefined_
 
 from ..util.misc import array_like, float_unique
-from .Entry import Entry, EntryCombine
+from .Entry import Entry
 from .Node import Node
 
 
@@ -164,9 +164,11 @@ class Function:
                 return np.full(x.shape, self._y)
             else:
                 return self._y
-        elif isinstance(self._y, EntryCombine):
-            val = [array_like(x, d) for d in self._y._cache]
-            return functools.reduce(operator.__add__, val[1:], val[0])
+        elif hasattr(self._y, "__array__"):
+            return self._y.__array__()
+        # elif isinstance(self._y, EntryCombine):
+        #     val = [array_like(x, d) for d in self._y._cache]
+        #     return functools.reduce(operator.__add__, val[1:], val[0])
         elif callable(self._y):
             return np.asarray(self._y(x, **kwargs), dtype=float)
         elif x is not self._x_axis and isinstance(self._y, np.ndarray):
