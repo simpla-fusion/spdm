@@ -9,9 +9,10 @@ from spdm.logger import logger
 from spdm.data.File import File
 from spdm.data.Mapping import Mapping
 
+
 if __name__ == '__main__':
 
-    mapping = Mapping(mapping_path="/home/salmon/workspace/fytokdata/mapping")
+    mapping = Mapping(mapping_path="/home/salmon/workspace/fytok_data/mapping")
 
     entry = mapping.find("EAST")
 
@@ -19,7 +20,6 @@ if __name__ == '__main__':
 
     logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.z"))
 
-    m_entry = mapping.map(File("/home/salmon/public_data/efit_east", format="mdsplus").read(), source_schema="EAST")
     # db = Collection("mapping://",
     #                 source="mdsplus:///home/salmon/public_data/efit_east",
     #                 id_hasher="{shot}",  #
@@ -32,18 +32,21 @@ if __name__ == '__main__':
 
     # entry = db.open(shot=55555).entry
 
-    fg = plt.figure()
-
     plt.gca().add_patch(plt.Polygon(np.array([entry.get("wall.description_2d.vessel.annular.outline_outer.r"),
                                               entry.get("wall.description_2d.vessel.annular.outline_outer.z")]).transpose([1, 0]),
                                     fill=False, closed=True))
 
-    # for coil in entry.pf_active.coil:
-    #     rect = coil.element[0].geometry.rectangle.__value__()
-    #     plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
-    #                                        rect.height/2.0), rect.width, rect.height, fill=False))
+    for coil in entry.get("pf_active.coil"):
+        rect = coil.get(["element", 0, "geometry","rectangle"]).dump_named()
+        plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
+                                           rect.height/2.0), rect.width, rect.height, fill=False))
+    plt.axis('scaled')
 
-    logger.debug(entry.get(["equilibrium.time_slice", 0, "profiles_2d.psi"]))
+    m_entry = mapping.map(File("/home/salmon/public_data/efit_east", format="mdsplus").read(), source_schema="EAST")
+
+    logger.debug(m_entry.get(["equilibrium","time_slice", 0, "profiles_2d","psi"]).pull())
+    
+    # logger.debug(entry.get(["equilibrium.time_slice", 0, "profiles_2d.psi"]))
 
     # plt.contour(
     #     entry.equilibrium.time_slice[1].profiles_2d.grid.dim1.__value__(),

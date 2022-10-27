@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import collections.abc
 from copy import deepcopy
 from typing import Sequence, TypeVar
@@ -9,30 +10,38 @@ class Path(object):
     SEPERATOR = '.'
 
     def __init__(self, *args, **kwargs):
-        self._items = [Path.parser(a) for a in args if a is not None]
+        self._items = Path.parser(args)
 
     def __repr__(self):
-        return "@"+Path.SEPERATOR.join([str(d) for d in self._items])
+        return Path.SEPERATOR.join([str(d) for d in self._items])
 
     @staticmethod
     def parser(path) -> list:
         if path in (_undefined_,  None):
-            return None
+            return []
         elif isinstance(path, str):
             s_list = path.split(Path.SEPERATOR)
             if len(s_list) == 1:
                 return s_list[0]
             else:
-                res = Path()
-                res._items = s_list
-                return res
+                return s_list
         elif isinstance(path, set):
             return {Path.parser(item) for item in path}
+        elif isinstance(path, tuple):
+            s_list = []
+            for item in path:
+                v = Path.parser(item)
+                if isinstance(v, list):
+                    s_list.extend(v)
+                else:
+                    s_list.append(v)
+            return s_list
         elif isinstance(path, collections.abc.Sequence):
             return [Path.parser(item) for item in path]
         elif isinstance(path, collections.abc.Mapping):
             return {Path.parser(k): v for k, v in path}
         else:
+            # logger.warning(f"Unkonwn Path type [{type(path)}]!")
             return path
 
     def duplicate(self) -> _TPath:

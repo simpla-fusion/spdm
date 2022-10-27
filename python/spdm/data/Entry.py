@@ -11,7 +11,7 @@ from functools import cached_property
 from sys import excepthook
 from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
                     Type, TypeVar, Union)
-
+from types import SimpleNamespace
 import numpy as np
 from numpy.lib.function_base import iterable
 from spdm.data.normal_util import normal_get
@@ -208,14 +208,21 @@ class Entry(object):
             raise NotImplementedError((type(res), type(other)))
         return res == other
 
-    def get(self, path, default=...) -> Any:
+    def get(self, path, default=..., **kwargs) -> Any:
         return self.child(path).pull(default)
 
-    def put(self, path, value) -> None:
+    def put(self, path, value, **kwargs) -> None:
         self.child(path).push(value)
 
     def dump(self) -> Any:
+
         return self.__serialize__()
+
+    def dump_named(self) -> Any:
+        res = self.dump()
+        if isinstance(res, collections.abc.Mapping):
+            return SimpleNamespace(**res)
+        return res
 
     def __serialize__(self) -> Any:
         if self._path is None or self._path.empty:

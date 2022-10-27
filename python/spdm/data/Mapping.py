@@ -1,16 +1,17 @@
 import collections
 import collections.abc
+from linecache import lazycache
 import os
 import pathlib
 
-from spdm.SpObject import SpObject
 from spdm.logger import logger
-from ..util.PathTraverser import PathTraverser
-from ..util.urilib import urisplit
+from spdm.plugins.data.file.PluginXML import XMLEntry
+from spdm.SpObject import SpObject
 from spdm.tags import _undefined_
-from .Collection import Collection
+
+from ..util.PathTraverser import PathTraverser
 from .Document import Document
-from .Entry import Entry, EntryCombine
+from .Entry import Entry
 from .File import File
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
@@ -22,15 +23,20 @@ class MappingEntry(Entry):
         self._mapping = mapping  # self._data._mapping.entry
         self._source = source
 
-    def __post_process__(self, request, *args, **kwargs):
+    def __post_process__(self, request, *args, lazy=True, **kwargs):
         if isinstance(request, Entry):
-            res = MappingEntry(source=self._source, mapping=request)
+            if lazy:
+                res = MappingEntry(source=self._source, mapping=request)
+            else:
+                res = self.__post_process__(request.pull(lazy=False), *args, lazy=False, ** kwargs)
         elif isinstance(request, collections.abc.Mapping) and len(request) == 1:
+            logger.debug(request)
             k, v = next(iter(request.items()))
             if k[0] == "{":
-                res = self._source.fetch(k, v)
+                res = self._source.get(v)
             else:
-                res = super().__post_process__(request, *args, **kwargs)
+                logger.warning("INCOMPLETE IMPLEMENDENT!")
+                res = {k: self.get(v, lazy=lazy, **kwargs) for k, v in request.items()}
         else:
             res = super().__post_process__(request, *args, **kwargs)
         return res
@@ -40,9 +46,6 @@ class MappingEntry(Entry):
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
         return self.__post_process__(self._mapping.get(path, *args, only_one=True, **kwargs))
-
-    def get_value(self,  path, *args,  is_raw_path=False,  **kwargs):
-        return self.__post_process__(self._mapping.pull(path, *args, **kwargs))
 
     def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
         if not is_raw_path:
@@ -62,6 +65,12 @@ class MappingEntry(Entry):
     def iter(self,  request, *args, **kwargs):
         for source_req in self._mapping.iter(request, *args, **kwargs):
             yield self.__post_process__(source_req)
+
+    def pull(self):
+        return self.__post_process__(self._mapping.pull(), lazy=False)
+
+    def push(self, value, *args, **kwargs):
+        return self.put(None, value, *args, **kwargs)
 
 
 class Mapping(SpObject):
@@ -93,7 +102,7 @@ class Mapping(SpObject):
         else:
             raise NotImplementedError()
 
-        return MappingEntry(source, mapping=self.find(source_schema, **kwargs))
+        return MappingEntry(source=source, mapping=self.find(source_schema, **kwargs))
 
     def find(self,  source_schema: str = None, target_schema: str = _undefined_) -> Entry:
         if target_schema is _undefined_:
