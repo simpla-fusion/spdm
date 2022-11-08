@@ -164,8 +164,6 @@ class Function:
                 return np.full(x.shape, self._y)
             else:
                 return self._y
-        elif hasattr(self._y, "__array__"):
-            return self._y.__array__()
         # elif isinstance(self._y, EntryCombine):
         #     val = [array_like(x, d) for d in self._y._cache]
         #     return functools.reduce(operator.__add__, val[1:], val[0])
@@ -173,6 +171,8 @@ class Function:
             return np.asarray(self._y(x, **kwargs), dtype=float)
         elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
+        # elif hasattr(self._y, "__array__"):
+        #     return self._y.__array__()           
         else:
             raise TypeError((type(x), type(self._y)))
 
