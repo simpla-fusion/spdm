@@ -186,8 +186,10 @@ class XMLEntry(Entry):
         return res
 
     def push(self,  *args, **kwargs):
-        raise NotImplementedError("Writing XML is not supported,yet!")
-        return super().push(*args, **kwargs)
+        # raise NotImplementedError("Writing XML is not supported,yet!")
+        # return super().push(*args, **kwargs)
+        logger.warning("NOT IMPLEMENTED!")
+        return None
 
     def pull(self,  default=_undefined_,  lazy=_undefined_, **kwargs):
         path = self._path.as_list()
