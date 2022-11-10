@@ -8,7 +8,7 @@ import MDSplus as mds
 import numpy as np
 from spdm.data.Collection import Collection
 from spdm.data.Entry import Entry
-from spdm.data.File import  File
+from spdm.data.File import File
 from spdm.util.dict_util import format_string_recursive
 from spdm.logger import logger
 from spdm.util.urilib import urisplit, uriunsplit
@@ -85,16 +85,24 @@ class MDSplusFile(File):
         raise NotImplementedError()
 
     def fetch(self, request, *args,   **kwargs):
-        tree_name = self._tree_name
         if not request:
             return self
-        elif isinstance(request, collections.abc.Mapping):
-            tree_name = request.get("@tree", None)
-            tdi = request.get("@text", None)
-        elif isinstance(request, str):
-            tdi = request
-        else:
-            raise ValueError(request)
+
+        if isinstance(request, str):
+            request = {"query": request}
+
+        request = collections.ChainMap(request, kwargs)
+
+        # elif isinstance(request, collections.abc.Mapping):
+
+        tree_name = request.get("@tree", self._tree_name)
+        
+        tdi = request.get("query", None) or request.get("@text", None)
+        
+        # elif isinstance(request, str):
+        #     tdi = request
+        # else:
+        #     raise ValueError(request)
 
         if not tdi:
             return self.entry

@@ -15,6 +15,7 @@ from .Entry import Entry
 from .File import File
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
+SPDB_TAG = "spdb"
 
 
 class MappingEntry(Entry):
@@ -23,29 +24,35 @@ class MappingEntry(Entry):
         self._mapping = mapping  # self._data._mapping.entry
         self._source = source
 
-    def __post_process__(self, request, *args, lazy=True, **kwargs):
-        if isinstance(request, Entry):
-            if lazy:
-                res = MappingEntry(source=self._source, mapping=request)
+    def __post_process__(self, value, *args, lazy=True, **kwargs):
+        if isinstance(value, Entry):
+            if value.attribute.get(SPDB_TAG, None) is not None:
+                res = self._source.get(value.pull(lazy=False))
+            elif lazy:
+                res = MappingEntry(source=self._source, mapping=value)
             else:
-                res = self.__post_process__(request.pull(lazy=False), *args, lazy=False, ** kwargs)
-        elif isinstance(request, collections.abc.Mapping) and len(request) == 1:
-            logger.debug(request)
-            k, v = next(iter(request.items()))
+                res = self.__post_process__(value.pull(lazy=False), *args, lazy=False, ** kwargs)
+        elif isinstance(value, collections.abc.Mapping) and len(value) == 1:
+            k, v = next(iter(value.items()))
             if k[0] == "{":
                 res = self._source.get(v)
             else:
                 logger.warning("INCOMPLETE IMPLEMENDENT!")
-                res = {k: self.get(v, lazy=lazy, **kwargs) for k, v in request.items()}
+                res = {k: self.get(v, lazy=lazy, **kwargs) for k, v in value.items()}
+        # elif getattr(value, "tag", None) is not None:
+        #     res = self._source.get(value)
+            # raise TypeError(f"[{type(request)}]{request}")
+            # res = super().__post_process__(request, *args, **kwargs)
         else:
-            res = super().__post_process__(request, *args, **kwargs)
+            res = value
+
         return res
 
     def child(self, path, *args, **kwargs):
         return MappingEntry(source=self._source, mapping=self._mapping.child(path, *args, **kwargs))
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
-        return self.__post_process__(self._mapping.get(path, *args, only_one=True, **kwargs))
+        return self.__post_process__(self._mapping.get(path, *args, **kwargs))
 
     def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
         if not is_raw_path:

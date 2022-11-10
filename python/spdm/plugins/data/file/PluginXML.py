@@ -1,4 +1,5 @@
 import collections
+from collections import ChainMap
 import pathlib
 from functools import cached_property
 from typing import Optional
@@ -75,8 +76,9 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 
 class XMLEntry(Entry):
-    def __init__(self,  *args, **kwargs):
-        super().__init__(*args,   **kwargs)
+    def __init__(self,  *args, envs={}, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._envs = envs
 
     def __repr__(self) -> str:
         # return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
@@ -84,7 +86,6 @@ class XMLEntry(Entry):
 
     def duplicate(self) -> _TEntry:
         res = super().duplicate()
-        res._root = self._root
         return res
 
     def xpath(self, path):
@@ -110,40 +111,44 @@ class XMLEntry(Entry):
 
         return res, envs
 
-    def _convert(self, element, path=[], lazy=True, envs=None, **kwargs):
+    def _convert(self, element: _XMLElement, path=[], lazy=True, envs=None, only_one=False, **kwargs):
+        if not isinstance(element, list):
+            pass
+        elif len(element) == 0:
+            return None
+        elif (len(element) == 1 and "id" not in element[0].attrib) or only_one:
+            return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
+        else:
+            return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
+
         res = None
 
-        if isinstance(element, list):
-            if len(element) == 1 and "id" not in element[0].attrib:
-                element = element[0]
+        if element.text is not None and len(element.text.strip()) > 0:
+            if "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
+                dtype = element.attrib.get("dtype", None)
+                if dtype == "string" or dtype is None:
+                    res = [element.text]
+                elif dtype == "int":
+                    res = [int(v.strip())
+                           for v in element.text.strip(',').split(',')]
+                elif dtype == "float":
+                    res = [float(v.strip())
+                           for v in element.text.strip(',').split(',')]
+                else:
+                    raise NotImplementedError(f"Not supported dtype {dtype}!")
 
-        if isinstance(element, list):
-            res = [self._convert(e, path=path, lazy=lazy,
-                                 envs=envs, **kwargs) for e in element]
-        elif element.text is not None and "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
-            dtype = element.attrib.get("dtype", None)
-            if dtype == "string" or dtype is None:
-                res = [element.text]
-            elif dtype == "int":
-                res = [int(v.strip())
-                       for v in element.text.strip(',').split(',')]
-            elif dtype == "float":
-                res = [float(v.strip())
-                       for v in element.text.strip(',').split(',')]
+                dims = [int(v) for v in element.attrib.get(
+                    "dims", "").split(',') if v != '']
+                if len(dims) == 0 and len(res) == 1:
+                    res = res[0]
+                elif len(dims) > 0 and len(res) != 0:
+                    res = np.array(res).reshape(dims)
+                else:
+                    res = np.array(res)
             else:
-                raise NotImplementedError(f"Not supported dtype {dtype}!")
-
-            dims = [int(v) for v in element.attrib.get(
-                "dims", "").split(',') if v != '']
-            if len(dims) == 0 and len(res) == 1:
-                res = res[0]
-            elif len(dims) > 0 and len(res) != 0:
-                res = np.array(res).reshape(dims)
-            else:
-                res = np.array(res)
+                res = element.text
 
         elif not lazy:
-
             res = {}
             for child in element:
                 if child.tag is _XMLComment:
@@ -179,10 +184,10 @@ class XMLEntry(Entry):
                 # format_string_recursive(text, fstr)  # text.format_map(fstr)
                 res["@text"] = text
         else:
-            res = XMLEntry(element, prefix=[])
+            res = XMLEntry(element, prefix=[], envs=envs)
 
         if envs is not None and isinstance(res, (str, collections.abc.Mapping)):
-            res = format_string_recursive(res, envs)
+            res = format_string_recursive(res, collections.ChainMap(envs, self._envs))
         return res
 
     def push(self,  *args, **kwargs):
@@ -268,6 +273,10 @@ class XMLEntry(Entry):
                 res = self._convert(child, path=spath,
                                     envs=collections.ChainMap(s_envs, envs))
                 yield res
+
+    @property
+    def attribute(self):
+        return self._cache.attrib
 
     def __serialize__(self):
         return serialize(self.pull(_not_found_))

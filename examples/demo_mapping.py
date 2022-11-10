@@ -14,8 +14,11 @@ if __name__ == '__main__':
 
     mapping = Mapping(mapping_path="/home/salmon/workspace/fytok_data/mapping")
 
-    entry = mapping.find("EAST")
-
+    # entry = mapping.find("EAST")
+    
+    entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
+                               format="mdsplus").read(), source_schema="EAST")
+    
     logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
 
     logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.z"))
@@ -37,15 +40,16 @@ if __name__ == '__main__':
                                     fill=False, closed=True))
 
     for coil in entry.get("pf_active.coil"):
-        rect = coil.get(["element", 0, "geometry","rectangle"]).dump_named()
+        rect = coil.get(["element", 0, "geometry", "rectangle"]).dump_named()
         plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
                                            rect.height/2.0), rect.width, rect.height, fill=False))
     plt.axis('scaled')
 
-    m_entry = mapping.map(File("/home/salmon/public_data/efit_east", format="mdsplus").read(), source_schema="EAST")
+    # m_entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
+    #                            format="mdsplus").read(), source_schema="EAST")
 
-    logger.debug(m_entry.get(["equilibrium","time_slice", 0, "profiles_2d","psi"]).pull())
-    
+    logger.debug(entry.get(["equilibrium", "time_slice", 2, "profiles_2d", "psi"]))
+
     # logger.debug(entry.get(["equilibrium.time_slice", 0, "profiles_2d.psi"]))
 
     # plt.contour(

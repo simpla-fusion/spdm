@@ -94,6 +94,10 @@ class Entry(object):
     def parent(self) -> _TEntry:
         return self.__class__(self._cache, path=self._path.parent)
 
+    @property
+    def attribute(self) -> Any:
+        return NotImplemented
+
     def child(self,  *args) -> _TEntry:
         if len(args) == 0:
             return self
@@ -209,10 +213,10 @@ class Entry(object):
         return res == other
 
     def get(self, path, default=..., **kwargs) -> Any:
-        return self.child(path).pull(default)
+        return self.child(path).pull(default, **kwargs)
 
     def put(self, path, value, **kwargs) -> None:
-        self.child(path).push(value)
+        self.child(path).push(value, **kwargs)
 
     def dump(self) -> Any:
 
