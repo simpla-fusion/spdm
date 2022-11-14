@@ -9,7 +9,7 @@ from copy import deepcopy
 from enum import Enum, Flag, auto
 from functools import cached_property
 from sys import excepthook
-from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple,
+from typing import (Any, Callable, Generic, Iterator, Mapping, Sequence, Tuple, List,
                     Type, TypeVar, Union)
 from types import SimpleNamespace
 import numpy as np
@@ -46,6 +46,13 @@ _TKey = TypeVar('_TKey', int, str)
 _TIndex = TypeVar('_TIndex', int, slice)
 
 _TEntry = TypeVar('_TEntry', bound='Entry')
+
+
+def as_path(p, *args, delimiter='.'):
+    if isinstance(p, str):
+        p = p.split(delimiter)
+    if isinstance(p, Sequence):
+        p += args
 
 
 class Entry(object):
@@ -219,7 +226,6 @@ class Entry(object):
         self.child(path).push(value, **kwargs)
 
     def dump(self) -> Any:
-
         return self.__serialize__()
 
     def dump_named(self) -> Any:

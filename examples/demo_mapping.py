@@ -15,10 +15,19 @@ if __name__ == '__main__':
     mapping = Mapping(mapping_path="/home/salmon/workspace/fytok_data/mapping")
 
     # entry = mapping.find("EAST")
-    
+
     entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
-                               format="mdsplus").read(), source_schema="EAST")
+                             format="mdsplus").read(), source_schema="EAST")
+
+    entry_pcs = mapping.map(File("/home/salmon/workspace/data/pcs_east?tree_name=pcs_east,shot=38300",
+                                 format="mdsplus").read(), source_schema="EAST")
+
+    # current = [entry_pcs.get(["pf_active", "coil", id, "current", "data"]) for id in range(16)]
     
+    current = [coil.get(["current", "data"]) for coil in entry_pcs.get("pf_active.coil")]
+    
+    logger.debug(current)
+
     logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
 
     logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.z"))

@@ -39,6 +39,8 @@ class MappingEntry(Entry):
             else:
                 logger.warning("INCOMPLETE IMPLEMENDENT!")
                 res = {k: self.get(v, lazy=lazy, **kwargs) for k, v in value.items()}
+        elif isinstance(value, list):
+            res = [self.__post_process__(v, *args, lazy=lazy, **kwargs) for v in value]
         # elif getattr(value, "tag", None) is not None:
         #     res = self._source.get(value)
             # raise TypeError(f"[{type(request)}]{request}")
@@ -78,6 +80,9 @@ class MappingEntry(Entry):
 
     def push(self, value, *args, **kwargs):
         return self.put(None, value, *args, **kwargs)
+
+    def __serialize__(self):
+        return self.__post_process__(self._mapping.__serialize__())
 
 
 class Mapping(SpObject):
