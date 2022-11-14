@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # entry = mapping.find("EAST")
 
-    entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
+    entry_efit = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
                              format="mdsplus").read(), source_schema="EAST")
 
     entry_pcs = mapping.map(File("/home/salmon/workspace/data/pcs_east?tree_name=pcs_east,shot=38300",
@@ -28,9 +28,9 @@ if __name__ == '__main__':
     
     logger.debug(current)
 
-    logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.r"))
+    logger.debug(entry_efit.get("wall.description_2d.vessel.annular.outline_outer.r"))
 
-    logger.debug(entry.get("wall.description_2d.vessel.annular.outline_outer.z"))
+    logger.debug(entry_efit.get("wall.description_2d.vessel.annular.outline_outer.z"))
 
     # db = Collection("mapping://",
     #                 source="mdsplus:///home/salmon/public_data/efit_east",
@@ -44,11 +44,11 @@ if __name__ == '__main__':
 
     # entry = db.open(shot=55555).entry
 
-    plt.gca().add_patch(plt.Polygon(np.array([entry.get("wall.description_2d.vessel.annular.outline_outer.r"),
-                                              entry.get("wall.description_2d.vessel.annular.outline_outer.z")]).transpose([1, 0]),
+    plt.gca().add_patch(plt.Polygon(np.array([entry_efit.get("wall.description_2d.vessel.annular.outline_outer.r"),
+                                              entry_efit.get("wall.description_2d.vessel.annular.outline_outer.z")]).transpose([1, 0]),
                                     fill=False, closed=True))
 
-    for coil in entry.get("pf_active.coil"):
+    for coil in entry_efit.get("pf_active.coil"):
         rect = coil.get(["element", 0, "geometry", "rectangle"]).dump_named()
         plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
                                            rect.height/2.0), rect.width, rect.height, fill=False))
@@ -56,8 +56,9 @@ if __name__ == '__main__':
 
     # m_entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
     #                            format="mdsplus").read(), source_schema="EAST")
+    logger.debug(entry_efit.get(["equilibrium", "time_slice", 12]).dump())
 
-    logger.debug(entry.get(["equilibrium", "time_slice", 2, "profiles_2d", "psi"]))
+    logger.debug(entry_efit.get(["equilibrium", "time_slice", 2, "profiles_2d", "psi"]))
 
     # logger.debug(entry.get(["equilibrium.time_slice", 0, "profiles_2d.psi"]))
 

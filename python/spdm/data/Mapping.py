@@ -32,13 +32,17 @@ class MappingEntry(Entry):
                 res = MappingEntry(source=self._source, mapping=value)
             else:
                 res = self.__post_process__(value.pull(lazy=False), *args, lazy=False, ** kwargs)
-        elif isinstance(value, collections.abc.Mapping) and len(value) == 1:
-            k, v = next(iter(value.items()))
-            if k[0] == "{":
-                res = self._source.get(v)
+        elif isinstance(value, collections.abc.Mapping):
+            if f"@{SPDB_TAG}" in value:
+                res = self._source.get(value)
             else:
-                logger.warning("INCOMPLETE IMPLEMENDENT!")
-                res = {k: self.get(v, lazy=lazy, **kwargs) for k, v in value.items()}
+                res = {k: self.__post_process__(v, lazy=lazy, **kwargs) for k, v in value.items()}
+            # k, v = next(iter(value.items()))
+            # if k[0] == "{":
+            #     res = self._source.get(v)
+            # else:
+            #     logger.warning("INCOMPLETE IMPLEMENDENT!")
+            #     res = {k: self.get(v, lazy=lazy, **kwargs) for k, v in value.items()}
         elif isinstance(value, list):
             res = [self.__post_process__(v, *args, lazy=lazy, **kwargs) for v in value]
         # elif getattr(value, "tag", None) is not None:

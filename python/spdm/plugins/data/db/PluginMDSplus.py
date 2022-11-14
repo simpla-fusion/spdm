@@ -96,9 +96,9 @@ class MDSplusFile(File):
         # elif isinstance(request, collections.abc.Mapping):
 
         tree_name = request.get("@tree", self._tree_name)
-        
+
         tdi = request.get("query", None) or request.get("@text", None)
-        
+
         # elif isinstance(request, str):
         #     tdi = request
         # else:
@@ -117,15 +117,14 @@ class MDSplusFile(File):
         try:
             with mds.Tree(tree_name, int(shot), mode=mode, path=path) as tree:
                 res = tree.tdiExecute(tdi).data()
-
         except mds.mdsExceptions.TdiException as error:
             raise RuntimeError(f"MDSplus TDI error [{tdi}]! {error}")
         except mds.mdsExceptions.TreeFOPENR as error:
-            raise FileNotFoundError(
-                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={path} mode={mode} \n {error}")
+            raise FileNotFoundError( f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={path} mode={mode} \n {error}")
         except mds.mdsExceptions.TreeNOPATH as error:
-            raise FileNotFoundError(
-                f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
+            raise FileNotFoundError( f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
+        except mds.mdsExceptions.TreeNODATA as error:
+            logger.error(f"No data! tree_name={tree_name} shot={shot} tdi=\"{tdi}\" \n {error}")
         except Exception as error:
             raise error
 

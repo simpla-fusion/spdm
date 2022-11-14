@@ -116,7 +116,7 @@ class XMLEntry(Entry):
             pass
         elif len(element) == 0:
             return None
-        elif (len(element) == 1 and "id" not in element[0].attrib) or only_one:
+        elif (len(element) == 1 ) or only_one:
             return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
         else:
             return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
@@ -147,7 +147,6 @@ class XMLEntry(Entry):
                     res = np.array(res)
             else:
                 res = element.text
-
         elif not lazy:
             res = {}
             for child in element:
