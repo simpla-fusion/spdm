@@ -220,7 +220,10 @@ class Entry(object):
         return res == other
 
     def get(self, path, default=..., **kwargs) -> Any:
-        return self.child(path).pull(default, **kwargs)
+        res = self.child(path).pull(default, **kwargs)
+        if res is _not_found_:
+            raise ValueError(f"Can not find {path}!")
+        return res
 
     def put(self, path, value, **kwargs) -> None:
         self.child(path).push(value, **kwargs)

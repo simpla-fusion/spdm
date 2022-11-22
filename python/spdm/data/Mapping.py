@@ -79,8 +79,8 @@ class MappingEntry(Entry):
         for source_req in self._mapping.iter(request, *args, **kwargs):
             yield self.__post_process__(source_req)
 
-    def pull(self):
-        return self.__post_process__(self._mapping.pull(), lazy=False)
+    def pull(self,*args,**kwargs):
+        return self.__post_process__(self._mapping.pull(), *args,lazy=False,**kwargs)
 
     def push(self, value, *args, **kwargs):
         return self.put(None, value, *args, **kwargs)

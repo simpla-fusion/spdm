@@ -8,29 +8,60 @@ import numpy as np
 from spdm.logger import logger
 from spdm.data.File import File
 from spdm.data.Mapping import Mapping
+from fytok.modules.transport.Equilibrium import Equilibrium
+from fytok.modules.device.PFActive import PFActive
+from fytok.modules.device.Wall import Wall
 
 
 if __name__ == '__main__':
 
     mapping = Mapping(mapping_path="/home/salmon/workspace/fytok_data/mapping")
 
-    # entry = mapping.find("EAST")
-
-    entry_efit = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
+    entry = mapping.map(File("/home/salmon/workspace/data/~t/?tree_name=efit_east,shot=38300",
                              format="mdsplus").read(), source_schema="EAST")
 
-    entry_pcs = mapping.map(File("/home/salmon/workspace/data/pcs_east?tree_name=pcs_east,shot=38300",
-                                 format="mdsplus").read(), source_schema="EAST")
+    fig = plt.figure()
+    axis = fig.gca()
 
-    # current = [entry_pcs.get(["pf_active", "coil", id, "current", "data"]) for id in range(16)]
-    
-    current = [coil.get(["current", "data"]) for coil in entry_pcs.get("pf_active.coil")]
-    
-    logger.debug(current)
+    time_slice = 50
 
-    logger.debug(entry_efit.get("wall.description_2d.vessel.annular.outline_outer.r"))
+    desc = entry.get(["equilibrium", "time_slice", time_slice]).dump()
 
-    logger.debug(entry_efit.get("wall.description_2d.vessel.annular.outline_outer.z"))
+    desc["time"] = 1.2345
+
+    desc["vacuum_toroidal_field"] = {
+        "b0": entry.get(["equilibrium", "vacuum_toroidal_field", "b0"])[time_slice],
+        "r0": entry.get(["equilibrium", "vacuum_toroidal_field", "r0"])[time_slice],
+    }
+
+    eq = Equilibrium(desc)
+
+    logger.debug(eq.time)
+    logger.debug(desc["global_quantities"]["ip"])
+
+    eq.plot(axis, contour=np.linspace(0, 5, 50))
+
+    pf_active = PFActive(entry.get(["pf_active"]).dump())
+
+    for coil in pf_active.coil:
+        logger.debug(coil.element[0].geometry.rectangle)
+        logger.debug(coil.current.data[100])
+
+    pf_active.plot(axis)
+
+    wall = Wall(entry.get(["wall"]).dump())
+
+    wall.plot(axis)
+
+    axis.set_aspect('equal')
+    axis.axis('scaled')
+    axis.set_xlabel(r"Major radius $R$ [m]")
+    axis.set_ylabel(r"Height $Z$ [m]")
+
+    fig.savefig("/home/salmon/workspace/output/tokamak.svg", transparent=True)
+
+    # logger.debug(eq.vacuum_toroidal_field.r0)
+    # logger.debug(eq.profiles_1d.f(np.linspace(0, 1.0, 32)))
 
     # db = Collection("mapping://",
     #                 source="mdsplus:///home/salmon/public_data/efit_east",
@@ -44,21 +75,21 @@ if __name__ == '__main__':
 
     # entry = db.open(shot=55555).entry
 
-    plt.gca().add_patch(plt.Polygon(np.array([entry_efit.get("wall.description_2d.vessel.annular.outline_outer.r"),
-                                              entry_efit.get("wall.description_2d.vessel.annular.outline_outer.z")]).transpose([1, 0]),
-                                    fill=False, closed=True))
+    # plt.gca().add_patch(plt.Polygon(np.array([entry_efit.get("wall.description_2d.vessel.annular.outline_outer.r"),
+    #                                           entry_efit.get("wall.description_2d.vessel.annular.outline_outer.z")]).transpose([1, 0]),
+    #                                 fill=False, closed=True))
 
-    for coil in entry_efit.get("pf_active.coil"):
-        rect = coil.get(["element", 0, "geometry", "rectangle"]).dump_named()
-        plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
-                                           rect.height/2.0), rect.width, rect.height, fill=False))
-    plt.axis('scaled')
+    # for coil in entry_efit.get("pf_active.coil"):
+    #     rect = coil.get(["element", 0, "geometry", "rectangle"]).dump_named()
+    #     plt.gca().add_patch(plt.Rectangle((rect.r-rect.width/2.0, rect.z -
+    #                                        rect.height/2.0), rect.width, rect.height, fill=False))
+    # plt.axis('scaled')
 
-    # m_entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
-    #                            format="mdsplus").read(), source_schema="EAST")
-    logger.debug(entry_efit.get(["equilibrium", "time_slice", 12]).dump())
+    # # m_entry = mapping.map(File("/home/salmon/workspace/data/efit_east?tree_name=efit_east,shot=38300",
+    # #                            format="mdsplus").read(), source_schema="EAST")
+    # logger.debug(entry_efit.get(["equilibrium", "time_slice", 12]).dump())
 
-    logger.debug(entry_efit.get(["equilibrium", "time_slice", 2, "profiles_2d", "psi"]))
+    # logger.debug(entry_efit.get(["equilibrium", "time_slice", 2, "profiles_2d", "psi"]))
 
     # logger.debug(entry.get(["equilibrium.time_slice", 0, "profiles_2d.psi"]))
 
