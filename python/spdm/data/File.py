@@ -1,21 +1,20 @@
 import collections
-from copy import deepcopy
 import functools
 import pathlib
+from copy import deepcopy
 from functools import cached_property, reduce
 from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Protocol, Sequence, Tuple, Type,
                     TypeVar, Union)
 
+from spdm.logger import logger
+from spdm.SpObject import SpObject
 from spdm.util.urilib import urisplit_as_dict
 
-from spdm.SpObject import SpObject
-
-from spdm.logger import logger
+from ..plugins.data import file as file_plugins
+from ..util.urilib import URITuple
 from .Connection import Connection
 from .Entry import Entry
-
-from ..plugins.data import file as file_plugins
 
 _TFile = TypeVar('_TFile', bound='File')
 
@@ -31,7 +30,7 @@ class File(Connection):
 
         if isinstance(path, collections.abc.Mapping):
             metadata = deepcopy(path)
-        elif isinstance(path, str):
+        elif isinstance(path, (str, URITuple)):
             metadata = urisplit_as_dict(path)
         elif isinstance(path, (list, pathlib.PosixPath)):
             metadata = {"path": path}
@@ -101,6 +100,13 @@ class File(Connection):
     def close(self):
         self._holder = None
         Connection.close(self)
+
+    @property
+    def entry(self) -> Entry:
+        if self.mode is File.Mode.r:
+            return self.read()
+        else:
+            return self.write()
 
     def read(self, lazy=False) -> Entry:
         if self._holder is None:

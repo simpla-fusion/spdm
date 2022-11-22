@@ -70,7 +70,9 @@ class MDSplusFile(File):
 
         self._mds_mode = MDSplusFile.MDS_MODE[self.mode]
         self._tree_name = tree_name
-        self._shot = query.get("shot", 0)
+        self._shot = query.get("shot", None)
+        if self._shot is None:
+            self._shot = self._metadata.get("fragment", 0)
         self._path = self.path
         self._entry = MDSplusEntry(self)
 

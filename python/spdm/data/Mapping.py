@@ -79,8 +79,8 @@ class MappingEntry(Entry):
         for source_req in self._mapping.iter(request, *args, **kwargs):
             yield self.__post_process__(source_req)
 
-    def pull(self,*args,**kwargs):
-        return self.__post_process__(self._mapping.pull(), *args,lazy=False,**kwargs)
+    def pull(self, *args, **kwargs):
+        return self.__post_process__(self._mapping.pull(), *args, lazy=False, **kwargs)
 
     def push(self, value, *args, **kwargs):
         return self.put(None, value, *args, **kwargs)
@@ -92,8 +92,8 @@ class MappingEntry(Entry):
 class Mapping(SpObject):
     DEFAULT_GLOBAL_SCHEMA = "imas/3"
 
-    def __init__(self, *args, mapping_path="", global_schema=_undefined_,   **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, mapping_path="", global_schema=_undefined_,   **kwargs):
+        super().__init__( **kwargs)
         if isinstance(mapping_path, str):
             mapping_path = mapping_path.split(":")
         self._mapping_path = mapping_path + \

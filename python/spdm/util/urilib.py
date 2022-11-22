@@ -5,21 +5,40 @@ Feature:
  * This module support extended 'Path' syntax, supports bracket '[]' in the path.
  TODO (salmon.20190919): support  quoting
 """
-
 import collections
 import pathlib
 import re
+from dataclasses import dataclass
 from typing import List, Union
+
 from spdm.logger import logger
+
 from .utilities import convert_to_named_tuple
+
 _rfc3986 = re.compile(
     r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+_rfc3986_ext = re.compile(
+    r"^((?P<protocol>[^:/?#\+]+)?(\+(?P<format>[^:/?#\+\[\]]+))?(\[(?P<schema>[^:/?#\+\[\]]*)\])?:)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+
+
+@dataclass
+class URITuple:
+    protocol: str
+    authority: str
+    path: str
+    query: str
+    fragment: str
+
+    format: str = ""
+    schema: str = ""
 
 
 def urisplit_as_dict(uri) -> dict:
     if uri is None:
         uri = ""
-    res = _rfc3986.match(uri).groupdict()
+    elif isinstance(uri, URITuple):
+        return uri.__dict__
+    res = _rfc3986_ext.match(uri).groupdict()
     if isinstance(res["query"], str) and res["query"] != "":
         res["query"] = dict([tuple(item.split("="))
                             for item in str(res["query"]).split(',')])
@@ -34,8 +53,8 @@ def urisplit_as_dict(uri) -> dict:
     return res
 
 
-def urisplit(uri):
-    return convert_to_named_tuple(urisplit_as_dict(uri))
+def urisplit(uri: Union[str, URITuple]) -> URITuple:
+    return URITuple(**urisplit_as_dict(uri)) if not isinstance(uri, URITuple) else uri
 
 
 def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):

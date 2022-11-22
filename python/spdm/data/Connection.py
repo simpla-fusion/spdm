@@ -3,10 +3,11 @@ from copy import deepcopy
 from enum import Flag, auto
 from typing import Mapping, TypeVar, Union
 import pathlib
-from spdm.logger import logger
-from spdm.util.urilib import urisplit_as_dict
+from ..logger import logger
+from ..util.urilib import urisplit_as_dict
 
-from spdm.SpObject import SpObject
+from ..SpObject import SpObject
+from .Entry import Entry
 
 _TConnection = TypeVar('_TConnection', bound='Connection')
 
@@ -29,6 +30,10 @@ class Connection(SpObject):
     def is_open(self) -> bool:
         return False
 
+    @property
+    def mode(self):
+        return Connection.Mode.r
+
     def open(self) -> _TConnection:
         # logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
         return self
@@ -36,6 +41,10 @@ class Connection(SpObject):
     def close(self) -> None:
         # logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
         return
+
+    @property
+    def entry(self) -> Entry:
+        return NotImplemented
 
     def __enter__(self) -> _TConnection:
         return self.open()
