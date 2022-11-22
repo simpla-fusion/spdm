@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     eq.plot(axis, contour=np.linspace(0, 5, 50))
 
-    pf_active = PFActive(entry.get(["pf_active"]).dump())
+    pf_active = PFActive(entry.get(["pf_active"]))
 
     for coil in pf_active.coil:
         logger.debug(coil.element[0].geometry.rectangle)
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     pf_active.plot(axis)
 
-    wall = Wall(entry.get(["wall"]).dump())
+    wall = Wall(entry.get(["wall"]))
 
     wall.plot(axis)
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     axis.set_xlabel(r"Major radius $R$ [m]")
     axis.set_ylabel(r"Height $Z$ [m]")
 
-    fig.savefig("/home/salmon/workspace/output/tokamak.svg", transparent=True)
+    fig.savefig("/home/salmon/workspace/output/tokamak.png", transparent=True)
 
     # logger.debug(eq.vacuum_toroidal_field.r0)
     # logger.debug(eq.profiles_1d.f(np.linspace(0, 1.0, 32)))
