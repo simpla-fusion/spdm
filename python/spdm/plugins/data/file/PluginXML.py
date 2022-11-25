@@ -94,8 +94,10 @@ class XMLEntry(Entry):
         prev = None
         for p in path:
             if type(p) is int:
-                res += f"[ @id='{p}' or position()= {p+1} or @id='*']"
+                res += f"[position()= {p+1} or @id='*']"
                 envs[prev] = p
+            elif isinstance(p, slice):
+                raise NotImplementedError("XML DO NOT SUPPORT SLICE!")
             elif isinstance(p, str):
                 if p[0] == '@':
                     res += f"[{p}]"
@@ -116,7 +118,7 @@ class XMLEntry(Entry):
             pass
         elif len(element) == 0:
             return None
-        elif (len(element) == 1 ) or only_one:
+        elif (len(element) == 1) or only_one:
             return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
         else:
             return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
