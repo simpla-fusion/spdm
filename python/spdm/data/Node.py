@@ -9,7 +9,7 @@ import numpy as np
 
 from spdm.logger import logger
 from spdm.SpObject import SpObject
-from spdm.tags import _not_found_, _undefined_
+from spdm.tags import _not_found_, _undefined_, tags
 from ..util.utilities import serialize
 from .Entry import Entry, as_entry
 
@@ -146,6 +146,8 @@ class Node(SpObject):
                 raise TypeError(value)
             elif type_hint is np.ndarray:
                 obj = np.asarray(value)
+            elif isinstance(value, tags):
+                raise ValueError(f"Tags is not a value! key={key} tags={value}")
             else:
                 obj = type_hint(value)
 

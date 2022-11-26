@@ -11,6 +11,7 @@ from .List import List
 from .Node import Node
 from .Path import Path
 from .Query import Query
+from .Signal import Signal
 from .sp_property import sp_property
 
 # from .Directory import Directory

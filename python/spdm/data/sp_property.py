@@ -78,21 +78,23 @@ class sp_property(Generic[_TObject]):
         Generic ([type]): [description]
     """
 
-    def __init__(self, getter=_undefined_, setter=_undefined_, deleter=_undefined_, doc=_undefined_,
+    def __init__(self,
+                 getter=_undefined_,
+                 setter=_undefined_,
+                 deleter=_undefined_,
                  default=_undefined_,
                  type_hint=_undefined_,
+                 doc=_undefined_,
                  force=False,
                  **kwargs):
-        if isinstance(getter, str):
-            doc = getter
-            getter = _undefined_
 
         self.lock = RLock()
 
         self.getter = getter
         self.setter = setter
         self.deleter = deleter
-        self.__doc__ = doc
+        if doc is not _undefined_:
+            self.__doc__ = doc
 
         self.property_cache_key = getter if not callable(getter) else _undefined_
         self.property_name = _undefined_
