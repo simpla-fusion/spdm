@@ -21,7 +21,7 @@ _T = TypeVar("_T")
 
 class List(Container[_TObject], Sequence[_TObject]):
 
-    def __init__(self,  *args) -> None:
+    def __init__(self,  *args, combiner={}, **kwargs) -> None:
         if len(args) != 1:
             args = list(args)
         elif isinstance(args[0], Entry):
@@ -34,6 +34,8 @@ class List(Container[_TObject], Sequence[_TObject]):
             args = list(args)
 
         super().__init__(args)
+
+        self._combiner = combiner
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self.__iter__()]
@@ -90,13 +92,11 @@ class List(Container[_TObject], Sequence[_TObject]):
     def sort(self) -> None:
         self._entry.sort()
 
-    def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_) -> _TObject:
-        # e = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition)
-        # default = default if default is not _undefined_ else {}
-
-        e = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition, default=default)
-
-        return self._post_process(e, key=_undefined_)
+    def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_, **kwargs) -> _TObject:
+        res = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition,
+                           default=default if default is not _undefined_ else self._combiner,
+                           **kwargs)
+        return self._post_process(res, key=_undefined_)
 
     def find(self, predication,  only_first=True) -> _TObject:
         return self._post_process(self._entry.pull(predication=predication, only_first=only_first))

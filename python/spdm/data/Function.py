@@ -15,6 +15,8 @@ from spdm.tags import _undefined_
 from ..util.misc import array_like, float_unique
 from .Entry import Entry
 from .Node import Node
+from .Dict import Dict
+from .List import List
 
 
 def create_spline(x, y, **kwargs) -> PPoly:
@@ -172,7 +174,7 @@ class Function:
         elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
         # elif hasattr(self._y, "__array__"):
-        #     return self._y.__array__()           
+        #     return self._y.__array__()
         else:
             raise TypeError((type(x), type(self._y)))
 
@@ -309,6 +311,37 @@ class Function:
 
     def integrate(self, a=None, b=None):
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
+
+
+class FunctionDict(Dict[Function]):
+    """
+        collection of Function with same x_axis
+    """
+
+    def __init__(self,   x_axis, *args,  **kwargs):
+        super().__init__(*args,  **kwargs)
+        self._x_axis = x_axis
+
+    def _post_process(self, value: Any, key, *args,  ** kwargs) -> Function:
+
+        if not isinstance(value, Function):
+            value = Function(self._x_axis, value)
+        return super()._post_process(value, key, *args, **kwargs)
+
+
+class FunctionList(List[Function]):
+    """
+        collection of Function with same x_axis
+    """
+
+    def __init__(self,   x_axis, *args,  **kwargs):
+        super().__init__(*args,  **kwargs)
+        self._x_axis = x_axis
+
+    def _post_process(self, value: Any, key, *args,  ** kwargs) -> Function:
+        if not isinstance(value, Function):
+            value = Function(self._x_axis, value)
+        return super()._post_process(value, key, *args, **kwargs)
 
 
 def function_like(x, y) -> Function:

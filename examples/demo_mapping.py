@@ -25,7 +25,7 @@ if __name__ == '__main__':
     magnetics = Magnetics(entry.get(["magnetics"]))
     pf_active = PFActive(entry.get(["pf_active"]))
 
-    print(magnetics.b_field_tor_probe[2].field(1.2))
+    print(magnetics.bpol_probe[2].field(1.2))
 
     fig = plt.figure()
     axis = fig.gca()
@@ -45,7 +45,9 @@ if __name__ == '__main__':
     psi_norm = np.linspace(0.01, 0.995, 16)
     logger.debug(eq.time)
     logger.debug(eq.global_quantities.ip)
-    logger.debug(eq.profiles_1d.f(psi_norm))
+    logger.debug(eq.profiles_1d.dvolume_dpsi(psi_norm))
+
+
     eq.plot(axis, contour=np.linspace(0, 5, 50))
 
     pf_active = PFActive(entry.get(["pf_active"]))
