@@ -4,12 +4,12 @@ from linecache import lazycache
 import os
 import pathlib
 
-from spdm.logger import logger
+from ..util.logger import logger
 from spdm.plugins.data.file.PluginXML import XMLEntry
-from spdm.SpObject import SpObject
-from spdm.tags import _undefined_
+from .SpObject import SpObject
+from spdm.common.tags import _undefined_
 
-from ..util.PathTraverser import PathTraverser
+from ..common.PathTraverser import PathTraverser
 from .Document import Document
 from .Entry import Entry
 from .File import File

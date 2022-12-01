@@ -1,6 +1,6 @@
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
-from spdm.SpObject import SpObject
+from spdm.data.SpObject import SpObject
 
 SpObject.association.update({
     ".data.file.table":    ".data.file.PluginTable",

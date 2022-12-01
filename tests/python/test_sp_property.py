@@ -1,6 +1,6 @@
 import unittest
 
-from spdm.logger import logger
+from spdm.util.logger import logger
 
 from spdm.data import Dict, List, Node, Link, Path, Query, sp_property
 

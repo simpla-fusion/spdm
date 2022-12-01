@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from fytok.transport.Equilibrium import Equilibrium
 from spdm.data.File import File
 import numpy as np
-from spdm.logger import logger
+from ..util.logger import logger
 
 if __name__ == "__main__":
 

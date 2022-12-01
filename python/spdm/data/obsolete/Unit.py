@@ -1,5 +1,5 @@
 import sympy.physics.units as units
-from spdm.logger import logger
+from ..util.logger import logger
 from sympy.physics.units.systems.si import dimsys_SI
 
 

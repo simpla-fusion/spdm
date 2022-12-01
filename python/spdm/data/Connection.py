@@ -1,13 +1,13 @@
 import collections.abc
+import pathlib
 from copy import deepcopy
 from enum import Flag, auto
 from typing import Mapping, TypeVar, Union
-import pathlib
-from ..logger import logger
-from ..util.urilib import urisplit_as_dict
 
-from ..SpObject import SpObject
+from ..util.logger import logger
+from ..util.urilib import urisplit_as_dict
 from .Entry import Entry
+from .SpObject import SpObject
 
 _TConnection = TypeVar('_TConnection', bound='Connection')
 

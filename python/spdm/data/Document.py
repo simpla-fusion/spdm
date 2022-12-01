@@ -2,8 +2,7 @@ import collections
 from functools import cached_property
 from typing import Any, Dict, List, TypeVar
 
-from spdm.logger import logger
-
+from ..util.logger import logger
 from .DataObject import DataObject
 from .Dict import Dict
 from .Entry import Entry

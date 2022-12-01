@@ -9,9 +9,7 @@ import numpy as np
 from spdm.data.Collection import Collection
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.util.dict_util import format_string_recursive
-from spdm.logger import logger
-from spdm.util.urilib import urisplit, uriunsplit
+from spdm.util.logger import logger
 
 
 class MDSplusEntry(Entry):

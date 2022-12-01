@@ -4,6 +4,8 @@ import unittest
 
 import numpy as np
 import scipy.integrate
+from spdm.util.RefResolver import RefResolver
+
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
 npoints = 129
@@ -22,7 +24,7 @@ class TestRefResolver(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    from spdm.util.logger import logger
     from spdm.util.RefResolver import RefResolver
-    from spdm.logger import logger
 
     unittest.main()

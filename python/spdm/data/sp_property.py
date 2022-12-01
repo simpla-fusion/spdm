@@ -1,15 +1,16 @@
 import collections.abc
 import inspect
 from _thread import RLock
-from typing import Any, Callable, Generic, Type, TypeVar, Union, final, get_args, get_type_hints
+from typing import (Any, Callable, Generic, Type, TypeVar, Union, final,
+                    get_args, get_type_hints)
 
 import numpy as np
 
-from spdm.logger import logger
-from spdm.tags import _not_found_, _undefined_
+from ..common.tags import _not_found_, _undefined_
+from ..util.logger import logger
+from .Dict import Dict
 from .Entry import Entry
 from .Node import Node
-from .Dict import Dict
 
 _TObject = TypeVar("_TObject")
 _T = TypeVar("_T")

@@ -5,7 +5,7 @@ import shutil
 import tempfile
 import uuid
 
-from spdm.logger import logger
+from ..util.logger import logger
 from spdm.util.urilib import urisplit
 
 from .DataObject import DataObject

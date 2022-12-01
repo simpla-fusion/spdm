@@ -11,14 +11,14 @@ import re
 from dataclasses import dataclass
 from typing import List, Union
 
-from spdm.logger import logger
+from ..util.logger import logger
 
 from .utilities import convert_to_named_tuple
 
 _rfc3986 = re.compile(
     r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 _rfc3986_ext = re.compile(
-    r"^((?P<protocol>[^:/?#\+]+)?(\+(?P<format>[^:/?#\+\[\]]+))?(\[(?P<schema>[^:/?#\+\[\]]*)\])?:)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+    r"^((?P<protocol>[^:/?#\+\[\]]+)?(\+(?P<format>[^:/?#\+\[\]]+))?(\[(?P<schema>[^:/?#\+\[\]]*)\])?:)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
 
 @dataclass

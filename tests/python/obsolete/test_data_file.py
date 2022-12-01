@@ -1,7 +1,7 @@
 import unittest
 
 from spdm.data.File import File
-from spdm.logger import logger
+from spdm.util.logger import logger
 
 
 class TestFile(unittest.TestCase):

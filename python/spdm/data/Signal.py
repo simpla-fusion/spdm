@@ -1,6 +1,7 @@
 import numpy as np
+
+from ..common.tags import _not_found_
 from .Function import Function
-from ..tags import _not_found_
 
 
 class Signal(Function):

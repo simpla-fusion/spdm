@@ -9,8 +9,8 @@ from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
-from spdm.logger import logger
-from spdm.tags import _undefined_
+from ..util.logger import logger
+from spdm.common.tags import _undefined_
 
 from ..util.misc import array_like, float_unique
 from .Entry import Entry
@@ -218,8 +218,7 @@ class Function:
         if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
             return float(self._y)
         else:
-            raise TypeError(
-                f"Can not convert {type(self._y)} to float. {getattr(self._y,'shape',None)}")
+            raise TypeError(f"Can not convert {type(self._y)} to float. {getattr(self._y,'shape',None)}")
 
     def __int__(self) -> int:
         if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
@@ -233,8 +232,7 @@ class Function:
         elif isinstance(self.x_axis, np.ndarray):
             return self.__call__(self.x_axis[idx])
         else:
-            raise RuntimeError(
-                f"x is {type(self.x_axis)} ,y is {type(self._y)}")
+            raise RuntimeError(f"x is {type(self.x_axis)} ,y is {type(self._y)}")
 
     # def __setitem__(self, idx, value):
     #     if hasattr(self, "_ppoly"):

@@ -1,7 +1,7 @@
 import collections
 import inspect
 
-from .logger import logger
+from ..util.logger import logger
 
 
 class Signature(inspect.Signature):

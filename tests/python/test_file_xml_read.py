@@ -3,7 +3,7 @@ import unittest
 
 import h5py
 import numpy as np
-from spdm.logger import logger
+from spdm.util.logger import logger
 from spdm.data import Dict, File, Link, List, Node, Path, Query, sp_property,Function
 
 
@@ -31,24 +31,6 @@ class TestFile(unittest.TestCase):
         self.temp_dir.cleanup()
         self.temp_dir = None
         return super().tearDown()
-
-    def test_h5(self):
-        f_name = "/home/salmon/workspace/output/test.h5"
-        # f_name = f"{self.temp_dir.name}/test.h5"
-
-        with File(f_name, mode="w") as f_out:
-            f_out.write(self.data)
-
-        with File(f_name, mode="r") as f_in:
-            res = f_in.read()
-
-        self.assertListEqual(list(res.get("a")), self.data["a"])
-        self.assertListEqual(list(res.get("b")), self.data["b"])
-        self.assertEqual(res.get("d.e"), self.data["d"]["e"])
-
-        self.assertDictEqual(res.get("d"), self.data["d"])
-
-        self.assertTrue(np.array_equal(res.get("h"), self.data["h"]))
 
     def test_xml(self):
         device_desc = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml",

@@ -1,7 +1,7 @@
 import unittest
 
 from spdm.data  import Node, Dict, List, _next_, _not_found_
-from spdm.logger import logger
+from spdm.util.logger import logger
 
 
 class TestFile(unittest.TestCase):

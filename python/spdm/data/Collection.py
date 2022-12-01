@@ -3,12 +3,11 @@ import pathlib
 from functools import cached_property
 from typing import Any, Dict, List, NewType, Tuple
 
-from spdm.logger import logger
-from spdm.SpObject import SpObject
-from spdm.util.urilib import urisplit, uriunsplit
-
+from ..util.logger import logger
+from ..util.urilib import urisplit, uriunsplit
 from .Document import Document
 from .File import File
+from .SpObject import SpObject
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")

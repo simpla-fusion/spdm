@@ -5,8 +5,8 @@ from typing import Any, Dict
 
 import h5py
 import numpy
-from spdm.logger import logger
-from spdm.tags import _undefined_
+from spdm.util.logger import logger
+from spdm.common.tags import _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.data.Path import Path

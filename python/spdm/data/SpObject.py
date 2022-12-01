@@ -8,8 +8,8 @@ from copy import deepcopy
 from functools import cached_property
 from typing import Mapping, Type, TypeVar
 
-from .logger import logger
-from .sp_export import sp_find_module_by_name
+from ..util.logger import logger
+from ..util.sp_export import sp_find_module_by_name
 
 _TSpObject = TypeVar('_TSpObject', bound='SpObject')
 

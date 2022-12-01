@@ -1,8 +1,10 @@
-from asyncio.log import logger
 import collections.abc
+from asyncio.log import logger
 from copy import deepcopy
 from typing import Sequence, TypeVar
-from spdm.tags import _undefined_
+
+from ..common.tags import _undefined_
+
 _TPath = TypeVar("_TPath", bound="Path")
 
 

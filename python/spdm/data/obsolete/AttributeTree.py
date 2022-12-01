@@ -7,7 +7,7 @@ from logging import log
 from typing import Any, MutableSequence, Optional, Sequence
 
 import numpy as np
-from spdm.logger import logger
+from ..util.logger import logger
 from ..Entry import Entry, _not_found_
 from ..Entry import Dict
 from ..List import List

@@ -1,6 +1,6 @@
 import collections
-from collections import ChainMap
 import pathlib
+from collections import ChainMap
 from functools import cached_property
 from typing import Optional
 
@@ -10,12 +10,12 @@ from lxml.etree import ParseError as _XMLParseError
 from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
 from lxml.etree import parse as parse_xml
+from spdm.common.PathTraverser import PathTraverser
+from spdm.common.tags import _not_found_, _undefined_
 from spdm.data.Entry import Entry, EntryCombine, _TEntry, _TPath
 from spdm.data.File import File
-from spdm.logger import logger
-from spdm.tags import _not_found_, _undefined_
 from spdm.util.dict_util import format_string_recursive
-from spdm.util.PathTraverser import PathTraverser
+from spdm.util.logger import logger
 from spdm.util.utilities import normalize_path, serialize
 
 

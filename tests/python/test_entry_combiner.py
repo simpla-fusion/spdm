@@ -3,8 +3,8 @@ from typing import List
 from spdm.data.Query import Query
 from spdm.data.Path import Path
 from spdm.data.Entry import Entry, EntryCombine
-from spdm.tags import _not_found_
-from spdm.logger import logger
+from spdm.common.tags import _not_found_
+from spdm.util.logger import logger
 import pathlib
 import sys
 import unittest

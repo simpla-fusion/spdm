@@ -13,11 +13,11 @@ from copy import copy
 
 import jsonschema
 
+from ..common.Alias import Alias
+from ..common.Multimap import Multimap
 from . import io
-from .Alias import Alias
 from .dict_util import format_string_recursive
 from .logger import logger
-from .Multimap import Multimap
 from .sp_export import sp_pkg_data_path
 from .urilib import getvalue_r, uridefrag, urijoin, urisplit, uriunsplit
 

@@ -4,7 +4,7 @@ import os
 from spdm.data.File import File
 from spdm.flow.ModuleRepository import ModuleRepository
 from spdm.flow.SpModule import SpModule
-from spdm.logger import logger
+from ..util.logger import logger
 import pprint
 
 if __name__ == "__main__":

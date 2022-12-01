@@ -7,12 +7,11 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
                     MutableSequence, Optional, Protocol, Sequence, Tuple, Type,
                     TypeVar, Union)
 
-from spdm.logger import logger
-from spdm.SpObject import SpObject
-from spdm.util.urilib import urisplit_as_dict
-
+from .SpObject import SpObject
+from ..common.tags import _undefined_
 from ..plugins.data import file as file_plugins
-from ..util.urilib import URITuple
+from ..util.logger import logger
+from ..util.urilib import URITuple, urisplit_as_dict
 from .Connection import Connection
 from .Entry import Entry
 
@@ -24,7 +23,7 @@ class File(Connection):
         File like object
     """
 
-    def __new__(cls, path, *args, format=None, mode="r", **kwargs):
+    def __new__(cls, path, *args, format=_undefined_,   **kwargs):
         if cls is not File:
             return SpObject.__new__(cls)
 
@@ -35,16 +34,16 @@ class File(Connection):
         elif isinstance(path, (list, pathlib.PosixPath)):
             metadata = {"path": path}
 
+        if format is not _undefined_:
+            metadata["format"] = format
+
         if metadata.get("protocol", None) is None:
             metadata["protocol"] = "file"
-
-        if mode is not None:
-            metadata["mode"] = mode
 
         cls_name = metadata.get("$class", None)
 
         if cls_name is None:
-            format = metadata.get("format", format)
+            format = metadata.get("format", None)
             if format is None:
                 path = metadata.get("path", "")
                 if isinstance(path, str):
@@ -67,9 +66,6 @@ class File(Connection):
 
         if protocol in ("local",  None):
             self._metadata["protocol"] = "file"
-        elif protocol in ("http", "https", "ssh"):
-            raise NotImplementedError(
-                f"TODO: Access to remote files [{protocol}] is not yet implemented!")
         elif protocol != "file":
             raise NotImplementedError(f"Unsupported protocol {protocol}")
 

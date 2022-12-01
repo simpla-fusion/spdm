@@ -1,7 +1,7 @@
 from logging import log
 import unittest
 
-from spdm.logger import logger
+from ..util.logger import logger
 from spdm.data import List, Dict, Node, sp_property
 from spdm.data.Entry import as_entry
 
