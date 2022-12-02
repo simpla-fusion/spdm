@@ -183,34 +183,59 @@ class H5Entry(Entry):
 
 
 class H5File(File):
+
+    MOD_MAP = {File.Mode.read: "r",
+               File.Mode.read | File.Mode.write: "r+",
+               File.Mode.write: "w-",
+               File.Mode.write | File.Mode.create: "w",
+               File.Mode.read | File.Mode.write | File.Mode.create: "a",
+               }
+
+    """
+        r       Readonly, file must exist (default)
+        r+      Read/write, file must exist
+        w       Create file, truncate if exists
+        w- or x Create file, fail if exists
+        a       Read/write if exists, create otherwise
+    """
+
     def __init__(self,  *args,  **kwargs):
         super().__init__(*args,   **kwargs)
+        self._fid = None
 
     @property
-    def is_open(self):
-        return hasattr(self, "_fid")
+    def mode_str(self) -> str:
+        return H5File.MOD_MAP[self.mode]
 
-    def open(self):
-        super().open()
-        mode = self.mode_str
+    def open(self) -> File:
+        if self.is_open:
+            return self
+
         try:
-            self._fid = h5py.File(self.path,  mode=mode)
+            if self._fid is None:
+                self._fid = h5py.File(self.path,  mode=self.mode_str)
         except OSError as error:
             raise FileExistsError(f"Can not open file {self.path}! {error}")
         else:
-            logger.debug(f"Open HDF5 File {self.path} mode={mode}")
-
+            logger.debug(f"Open HDF5 File {self.path} mode={self.mode}")
+        
+        super().open()
+        
         return self
 
-    def read(self, lazy=True) -> Entry:
+    def close(self):
         if not self.is_open:
-            self.open()
-        return H5Entry(self._fid)
+            return
+        if self._fid is not None:
+            self._fid.close()
+        self._fid = None
+        return super().close()
+
+    def read(self, lazy=True) -> Entry:
+        return H5Entry(self.open()._fid)
 
     def write(self, *args, **kwargs):
-        if not self.is_open:
-            self.open()
-        H5Entry(self._fid).push(*args, **kwargs)
+        H5Entry(self.open()._fid).push(*args, **kwargs)
 
 
 # class HDF5Collection(FileCollection):

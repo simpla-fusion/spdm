@@ -19,6 +19,20 @@ class File(Connection):
     """
         File like object
     """
+    MOD_MAP = {Connection.Mode.read: "r",
+               Connection.Mode.read | Connection.Mode.write: "rw",
+               Connection.Mode.write: "w",
+               Connection.Mode.write | Connection.Mode.create: "w",
+               Connection.Mode.read | Connection.Mode.write | Connection.Mode.create: "a",
+               }
+
+    """
+        r       Readonly, file must exist (default)
+        rw      Read/write, file must exist
+        w       Create file, truncate if exists
+        x       Create file, fail if exists
+        a       Read/write if exists, create otherwise
+    """
 
     def __new__(cls, path, *args, **kwargs):
         if cls is not File:
@@ -45,22 +59,12 @@ class File(Connection):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @property
-    def is_valid(self) -> bool:
-        return getattr(self, "_holder", None) is not None
 
     @property
-    def is_open(self) -> bool:
-        return getattr(self, "_holder", None) is not None
+    def mode_str(self) -> str:
+        return File.MOD_MAP[self.mode]
 
-    def open(self, *args, **kwargs) -> _TFile:
-        super().open()
-        return self
-
-    def close(self):
-
-        super().close()
-
+ 
     @property
     def entry(self) -> Entry:
         if self.is_readable:

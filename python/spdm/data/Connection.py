@@ -18,8 +18,15 @@ class Connection(SpObject):
         read = auto()       # open for reading (default)
         write = auto()      # open for writing, truncating the file first
         create = auto()     # open for exclusive creation, failing if the file already exists
-        append = auto()     # open for writing, appending to the end of the file if it exists
+        append = read | write | create
         temporary = auto()  # is temporary
+    """
+        r       Readonly, file must exist (default)
+        r+      Read/write, file must exist
+        w       Create file, truncate if exists
+        w- or x Create file, fail if exists
+        a       Read/write if exists, create otherwise
+    """
 
     class Status(Flag):
         opened = auto()
@@ -50,9 +57,9 @@ class Connection(SpObject):
     def mode(self) -> Mode:
         return self._mode
 
-    @property
-    def mode_str(self) -> str:
-        return ''.join([(m.name[0]) for m in list(Connection.Mode) if m & self._mode])
+    # @property
+    # def mode_str(self) -> str:
+    #     return ''.join([(m.name[0]) for m in list(Connection.Mode) if m & self._mode])
 
     @property
     def is_readable(self) -> bool:
