@@ -19,7 +19,7 @@ from . import io
 from .dict_util import format_string_recursive
 from .logger import logger
 from .sp_export import sp_pkg_data_path
-from .urilib import getvalue_r, uridefrag, urijoin, urisplit, uriunsplit
+from .urilib import getvalue_r, uridefrag, uri_join, uri_split, uri_merge
 
 
 def _extend_with_default(validator_class):
@@ -81,7 +81,7 @@ class RefResolver(object):
         self._scopes_stack = [base_uri] if len(
             base_uri) > 0 and base_uri[-1] == '/' else [base_uri+"/"]
         self._default_file_ext = default_file_ext
-        self._default_schema = urijoin(base_uri, default_schema)
+        self._default_schema = uri_join(base_uri, default_schema)
         self._enable_remote = enable_remote
         self._enable_validate = enable_validate
         self._enable_envs_template = enable_envs_template
@@ -122,7 +122,7 @@ class RefResolver(object):
             uri = "/".join(uri)
         else:
             raise TypeError(f"Illegal type {type(uri).__name__}")
-        return urijoin(self.resolution_scope, uri)
+        return uri_join(self.resolution_scope, uri)
 
     def remove_prefix(self, p: str):
         return self.relative_path(p)
@@ -235,7 +235,7 @@ class RefResolver(object):
         return cls_()
 
     def push_scope(self, scope):
-        self._scopes_stack.append(urijoin(self.resolution_scope, scope))
+        self._scopes_stack.append(uri_join(self.resolution_scope, scope))
 
     def pop_scope(self):
         try:
@@ -276,7 +276,7 @@ class RefResolver(object):
         return self.fetch(uri, no_validate=True)
 
     def resolve_local(self, local_path):
-        return self.fetch(urijoin("local://", local_path), no_validate=True)
+        return self.fetch(uri_join("local://", local_path), no_validate=True)
 
     def resolve_fragment(self, obj, fragment):
         return getvalue_r(obj, fragment)

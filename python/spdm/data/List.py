@@ -7,8 +7,8 @@ from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
 
 import numpy as np
 
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
 from ..util.utilities import serialize
 from .Container import Container
 from .Entry import Entry, EntryChain, EntryCombine, as_entry
@@ -21,7 +21,7 @@ _T = TypeVar("_T")
 
 class List(Container[_TObject], Sequence[_TObject]):
 
-    def __init__(self,  *args, combiner={}, **kwargs) -> None:
+    def __init__(self,  *args,  **kwargs) -> None:
         if len(args) != 1:
             args = list(args)
         elif isinstance(args[0], Entry):
@@ -34,8 +34,6 @@ class List(Container[_TObject], Sequence[_TObject]):
             args = list(args)
 
         super().__init__(args)
-
-        self._combiner = combiner
 
     def __serialize__(self) -> Sequence:
         return [serialize(v) for v in self.__iter__()]

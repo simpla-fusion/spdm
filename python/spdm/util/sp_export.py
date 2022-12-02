@@ -95,12 +95,12 @@ def sp_find_module(path, fragment=None, pythonpath=None):
 
 
 @functools.lru_cache
-def sp_find_module_by_name(cls_name: str):
+def sp_load_module(cls_name: str):
     n_cls = sp_find_module(cls_name)
     if inspect.isclass(n_cls) or callable(n_cls):
         logger.debug(f"Load module {cls_name}")
     else:
-        raise ModuleNotFoundError(cls_name)
+        raise ModuleNotFoundError(f"Load module {cls_name} failed!")
     return n_cls
 
 

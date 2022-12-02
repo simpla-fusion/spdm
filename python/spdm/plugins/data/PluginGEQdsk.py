@@ -282,17 +282,16 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
 class GEQdskFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        path = self.path
-        mode = self.mode_str
+
         try:
-            self._fid = open(path,  mode=mode)
+            self._fid = open(self.uri.path,  mode=self.mode_str)
         except OSError as error:
-            raise FileExistsError(f"Can not open file {path}! {error}")
+            raise FileExistsError(f"Can not open file {self.uri}! {error}")
         else:
-            logger.debug(f"Open File {path} mode={mode}")
+            logger.debug(f"Open File {self.uri} mode={self.mode}")
 
     def flush(self, *args, **kwargs):
-        if "x" in self.mode or "w" in self.mode:
+        if self.mode & File.Mode.write:
             self.save(self.path)
 
     def read(self, lazy=False) -> Entry:

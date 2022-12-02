@@ -5,6 +5,7 @@ from .Container import Container
 from .Dict import Dict
 from .Entry import Entry
 from .File import File
+from .Directory import Directory
 from .Function import Function, FunctionDict, FunctionList, function_like
 from .Link import Link
 from .List import List

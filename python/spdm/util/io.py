@@ -7,7 +7,7 @@ import requests
 import yaml
 from .logger import logger
 from .sp_export import sp_pkg_data_path
-from .urilib import urisplit
+from .urilib import uri_split
 from .dict_util import deep_merge_dict
 FAIL_SAFE = None
 ENABLE_REMOTE = False
@@ -15,7 +15,7 @@ ENABLE_REMOTE = False
 
 def write(path, content, force=True):
     success = True
-    o = urisplit(path)
+    o = uri_split(path)
     if o.schema in ["local", "file", None]:
         p = pathlib.Path(o.path)
         if not p.parent.exists():
@@ -39,7 +39,7 @@ def _read(uri, **kwargs):
     if isinstance(uri, pathlib.PosixPath):
         path = [uri]
     else:
-        o = urisplit(uri)
+        o = uri_split(uri)
         if o.schema in [None, 'file', 'local']:
             path = [pathlib.Path(o.path).expanduser()]
         elif o.schema in ['pkgdata']:
@@ -78,7 +78,7 @@ def read(path, **kwargs):
 
 def glob(n_uri):
 
-    o = urisplit(n_uri)
+    o = uri_split(n_uri)
     path_list = []
     prefix, suffix = o.path.split('%_PATH_%')
     if o.schema in [None, 'file', 'local']:

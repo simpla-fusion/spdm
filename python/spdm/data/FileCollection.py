@@ -5,17 +5,16 @@ import re
 import urllib
 from typing import Any, Dict, List, NewType, Tuple
 
-import numpy
 from ..util.logger import logger
-from spdm.util.sp_export import sp_find_module
-from spdm.util.urilib import urisplit, uriunsplit
+from ..util.uri_utils import uri_merge, uri_split
+from .Collection import Collection
+from .Directory import Directory
+from .Document import Document
+from .File import File
+from .Entry import Entry
 
-from ..Document import Document
-from ..Collection import Collection
-from ..File import File
 
-
-class FileCollection(Collection):
+class FileCollection(Directory, Collection):
 
     def __init__(self, uri, *args,
                  file_extension=".dat",
@@ -25,7 +24,7 @@ class FileCollection(Collection):
         super().__init__(uri, *args, **kwargs)
 
         if isinstance(uri, str):
-            uri = urisplit(uri)
+            uri = uri_split(uri)
 
         path = getattr(uri, "path", ".").replace("*", "{_id}")
 
@@ -73,7 +72,7 @@ class FileCollection(Collection):
         doc.update(data or kwargs)
         return doc
 
-    def find_one(self, predicate=None, projection=None, **kwargs):
+    def find_one(self, predicate=None, projection=None, **kwargs) -> Entry:
         fpath = self.guess_filepath(predicate or kwargs)
 
         doc = None
@@ -107,5 +106,56 @@ class FileCollection(Collection):
 
         return len(list(self._path.parent.glob(self._path.name.format(_id="*"))))
 
+class CollectionLocalFile(Collection):
+    """
+        Collection of local files.
+    """
+
+    def __init__(self,   *args, file_format=None, mask=None,   **kwargs):
+        super().__init__(*args, schema="local", **kwargs)
+
+        logger.debug(self.metadata)
+
+        self._path = pathlib.Path(self.metadata.get("authority", "") +
+                                  self.metadata.get("path", ""))  # .replace("*", Collection.ID_TAG)
+
+        self._file_format = file_format
+
+        prefix = self._path
+
+        while "*" in prefix.name or "{" in prefix.name:
+            prefix = prefix.parent
+
+        self._prefix = prefix
+        self._filename = self._path.relative_to(self._prefix).as_posix()
+
+        if "x" in self._mode:
+            self._prefix.mkdir(parents=True, exist_ok=True, mode=mask or 0o777)
+        elif not self._prefix.is_dir():
+            raise NotADirectoryError(self._prefix)
+        elif not self._prefix.exists():
+            raise FileNotFoundError(self._prefix)
+
+        self._path = self._path.as_posix().replace("*", "{id:06}")
+
+    @property
+    def next_id(self):
+        pattern = self._filename if "*" in self._filename else "*"
+        return len(list(self._prefix.glob(pattern)))
+
+    def guess_path(self, *args, fid=None, **kwargs):
+        return self._path.format(id=fid or self.next_id, **kwargs)
+
+    def find_one(self, *args, projection=None, **kwargs):
+        return File(self.guess_path(*args, **kwargs), mode=self.mode).fetch(projection)
+
+    def insert_one(self, *args, projection=None, **kwargs):
+        return File(self.guess_path(*args, **kwargs), mode="x")
+
+    def update_one(self, predicate, update,  *args, **kwargs):
+        raise NotImplementedError()
+
+    def delete_one(self, predicate,  *args, **kwargs):
+        raise NotImplementedError()
 
 __SP_EXPORT__ = FileCollection

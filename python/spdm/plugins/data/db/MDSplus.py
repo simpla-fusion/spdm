@@ -6,7 +6,7 @@ from functools import cached_property
 
 import numpy as np
 from ..util.logger import logger
-from spdm.util.urilib import urisplit, uriunsplit
+from spdm.util.urilib import uri_split, uri_merge
 
 import MDSplus as mds
 

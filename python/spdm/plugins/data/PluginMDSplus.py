@@ -47,11 +47,11 @@ def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
 
 class MDSplusFile(File):
     MDS_MODE = {
-        File.Mode.r: "ReadOnly",
-        File.Mode.w: "Normal",
-        File.Mode.r | File.Mode.w: "Normal",
-        File.Mode.a: "Edit",
-        File.Mode.x: "New"
+        File.Mode.read: "ReadOnly",
+        File.Mode.write: "Normal",
+        File.Mode.read | File.Mode.write: "Normal",
+        File.Mode.append: "Edit",
+        File.Mode.create: "New"
     }
 
     def __init__(self, *args, tree_name=None,   **kwargs):
@@ -61,7 +61,7 @@ class MDSplusFile(File):
         # {k: (v if not isinstance(v, slice) else f"{v.start}:{v.stop}:{v.step}")
         #   for k, v in self._envs.items()}
 
-        query = self._metadata.get("query", None) or {}
+        query = self.uri.query
 
         if tree_name is None:
             tree_name = query.get("tree_name", None)
@@ -70,8 +70,8 @@ class MDSplusFile(File):
         self._tree_name = tree_name
         self._shot = query.get("shot", None)
         if self._shot is None:
-            self._shot = self._metadata.get("fragment", 0)
-        self._path = self.path
+            self._shot = self.uri.fragment or 0
+        self._path = self.uri.path
         self._entry = MDSplusEntry(self)
 
     def __del__(self):
@@ -110,7 +110,7 @@ class MDSplusFile(File):
 
         mode = self._mds_mode
         shot = self._shot
-        path = self.path
+        path = self.uri.path
 
         res = None
         try:

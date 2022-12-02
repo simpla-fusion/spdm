@@ -286,7 +286,7 @@ class XMLEntry(Entry):
 class XMLFile(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._root = load_xml(self.path, mode=self.mode)
+        self._root = load_xml(self.uri.path, mode=self.mode)
 
     def read(self, lazy=True) -> Entry:
 

@@ -9,7 +9,8 @@ import collections
 import pathlib
 import re
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Union, Any
+from pathlib import Path
 
 from ..util.logger import logger
 
@@ -23,17 +24,17 @@ _rfc3986_ext = re.compile(
 
 @dataclass
 class URITuple:
-    protocol: str
-    authority: str
-    path: str
-    query: str
-    fragment: str
+    protocol: str = "local"
+    authority: str = ""
+    path: str = ""
+    query: Any = None
+    fragment: str = ""
 
     format: str = ""
     schema: str = ""
 
 
-def urisplit_as_dict(uri) -> dict:
+def uri_split_as_dict(uri) -> dict:
     if uri is None:
         uri = ""
     elif isinstance(uri, URITuple):
@@ -53,11 +54,18 @@ def urisplit_as_dict(uri) -> dict:
     return res
 
 
-def urisplit(uri: Union[str, URITuple]) -> URITuple:
-    return URITuple(**urisplit_as_dict(uri)) if not isinstance(uri, URITuple) else uri
+def uri_split(uri: Union[str, URITuple, Path]) -> URITuple:
+    if isinstance(uri, URITuple):
+        return uri
+    elif isinstance(uri, str):
+        return URITuple(**uri_split_as_dict(uri))
+    elif isinstance(uri, (collections.abc.Sequence, Path)):
+        return URITuple(path=uri)
+    else:
+        raise TypeError(uri)
 
 
-def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
+def uri_merge(schema, authority=None, path=None,  query=None, fragment=None):
 
     return "".join([
         schema+"://" if schema is not None else "",
@@ -68,10 +76,10 @@ def uriunsplit(schema, authority=None, path=None,  query=None, fragment=None):
     ])
 
 
-def urijoin(base, uri):
-    o0 = urisplit(base) if not isinstance(
+def uri_join(base, uri):
+    o0 = uri_split(base) if not isinstance(
         base, collections.abc.Mapping) else base
-    o1 = urisplit(uri) if not isinstance(uri, collections.abc.Mapping) else uri
+    o1 = uri_split(uri) if not isinstance(uri, collections.abc.Mapping) else uri
     if o1.schema is not None and o1.schema != o0.schema:
         return uri
     elif o1.authority is not None and o1.authority != o0.authority:
@@ -89,12 +97,12 @@ def urijoin(base, uri):
         else:
             path = o0.path[:o0.path.rfind('/')]+"/"+o1.path
 
-    return uriunsplit(schema, authority, path, o1.query, o1.fragment)
+    return uri_merge(schema, authority, path, o1.query, o1.fragment)
 
 
 def uridefrag(uri):
-    o = urisplit(uri)
-    return uriunsplit(o.schema, o.authority, o.path, None, None), o.fragment
+    o = uri_split(uri)
+    return uri_merge(o.schema, o.authority, o.path, None, None), o.fragment
 
 
 _r_path_item = re.compile(

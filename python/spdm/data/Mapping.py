@@ -1,18 +1,16 @@
 import collections
 import collections.abc
-from linecache import lazycache
 import os
 import pathlib
 
-from ..util.logger import logger
-from spdm.plugins.data.file.PluginXML import XMLEntry
-from .SpObject import SpObject
-from spdm.common.tags import _undefined_
-
 from ..common.PathTraverser import PathTraverser
+from ..common.tags import _undefined_
+from ..util.logger import logger
 from .Document import Document
 from .Entry import Entry
 from .File import File
+from .SpObject import SpObject
+from .Connection import Connection
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 SPDB_TAG = "spdb"
@@ -93,7 +91,7 @@ class Mapping(SpObject):
     DEFAULT_GLOBAL_SCHEMA = "imas/3"
 
     def __init__(self, mapping_path="", global_schema=_undefined_,   **kwargs):
-        super().__init__( **kwargs)
+        super().__init__(**kwargs)
         if isinstance(mapping_path, str):
             mapping_path = mapping_path.split(":")
         self._mapping_path = mapping_path + \
@@ -141,4 +139,4 @@ class Mapping(SpObject):
                     mapping_files.append(p)
 
         # return EntryCombiner([File(fid, mode="r", format="XML").read() for fid in mapping_conf_files])
-        return File(mapping_files, mode="r", format="XML").read()
+        return File(mapping_files, mode=File.Mode.read, format="XML").read()

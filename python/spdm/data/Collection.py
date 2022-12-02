@@ -4,14 +4,14 @@ from functools import cached_property
 from typing import Any, Dict, List, NewType, Tuple
 
 from ..util.logger import logger
-from ..util.urilib import urisplit, uriunsplit
+from ..util.uri_utils import uri_split, uri_merge
 from .Document import Document
 from .File import File
 from .SpObject import SpObject
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
-UpdateResult = collections.namedtuple("UpdateResult", "upserted_id success")
+UpdateResult = collections.namedtuple("UpdateResult", "inserted_id success")
 DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 
 
@@ -19,63 +19,15 @@ class Collection(SpObject):
     ''' Collection of documents
     '''
 
-    associations = {
-        "mapping": f"{__package__}.Mapping#MappingCollection",
-        "local": f"{__package__}.Collection#CollectionLocalFile",
-
-        "mds": f"{__package__}.db.PluginMDSplus#MDSplusCollection",
-        "mdsplus": f"{__package__}.db.PluginMDSplus#MDSplusCollection",
-
-        # "mongo": f"{__package__}.db.MongoDB",
-        # "mongodb": f"{__package__}.db.MongoDB",
-
-        "imas": f"{__package__}.db.PluginIMAS",
-    }
-
-    @staticmethod
-    def __new__(cls, _metadata=None, *args, schema=None,  **kwargs):
-        if cls is not Collection:
-            return object.__new__(cls)
-
-        if not schema:
-            if isinstance(_metadata, str):
-                schemas = urisplit(_metadata)["schema"]
-            elif isinstance(_metadata, collections.abc.Mapping):
-                schemas = _metadata.get("$class", None) or _metadata.get("schema", None)
-            elif _metadata is None:
-                schemas = ""
-
-            schemas = (schemas or "").split('+')
-
-            if not schemas:
-                raise ValueError(_metadata)
-            elif len(schemas) > 1:
-                schema = "mapping"
-            else:
-                schema = schemas[0]
-
-        n_cls = Collection.associations.get(schema.lower(), None)   # f"{__package__}.db.{schema}"
-
-        if n_cls is not None:
-            return SpObject.__new__(Collection, n_cls)
-        else:
-            return SpObject.__new__(CollectionLocalFile)
-
-    def __init__(self, metadata, *args, mode="rw", envs=None,   **kwargs):
+    def __init__(self, *args, mode="rw", envs=None,   **kwargs):
         super().__init__()
-        if isinstance(metadata, str):
-            metadata = urisplit(metadata)
-        self._metadata = metadata
+
         self._mode = mode
         self._envs = collections.ChainMap(kwargs, envs or {})
         logger.info(f"Create {self.__class__.__name__} : {self._metadata}")
 
     def __del__(self):
         logger.info(f"Close  {self.__class__.__name__} : {self._metadata}")
-
-    @property
-    def metadata(self):
-        return self._metadata
 
     @property
     def schema(self):
@@ -171,57 +123,4 @@ class Collection(SpObject):
         raise NotImplementedError()
 
     def list_indexes(self, session=None):
-        raise NotImplementedError()
-
-
-class CollectionLocalFile(Collection):
-    """
-        Collection of local files.
-    """
-
-    def __init__(self,   *args, file_format=None, mask=None,   **kwargs):
-        super().__init__(*args, schema="local", **kwargs)
-
-        logger.debug(self.metadata)
-
-        self._path = pathlib.Path(self.metadata.get("authority", "") +
-                                  self.metadata.get("path", ""))  # .replace("*", Collection.ID_TAG)
-
-        self._file_format = file_format
-
-        prefix = self._path
-
-        while "*" in prefix.name or "{" in prefix.name:
-            prefix = prefix.parent
-
-        self._prefix = prefix
-        self._filename = self._path.relative_to(self._prefix).as_posix()
-
-        if "x" in self._mode:
-            self._prefix.mkdir(parents=True, exist_ok=True, mode=mask or 0o777)
-        elif not self._prefix.is_dir():
-            raise NotADirectoryError(self._prefix)
-        elif not self._prefix.exists():
-            raise FileNotFoundError(self._prefix)
-
-        self._path = self._path.as_posix().replace("*", "{id:06}")
-
-    @property
-    def next_id(self):
-        pattern = self._filename if "*" in self._filename else "*"
-        return len(list(self._prefix.glob(pattern)))
-
-    def guess_path(self, *args, fid=None, **kwargs):
-        return self._path.format(id=fid or self.next_id, **kwargs)
-
-    def find_one(self, *args, projection=None, **kwargs):
-        return File(self.guess_path(*args, **kwargs), mode=self.mode).fetch(projection)
-
-    def insert_one(self, *args, projection=None, **kwargs):
-        return File(self.guess_path(*args, **kwargs), mode="x")
-
-    def update_one(self, predicate, update,  *args, **kwargs):
-        raise NotImplementedError()
-
-    def delete_one(self, predicate,  *args, **kwargs):
         raise NotImplementedError()

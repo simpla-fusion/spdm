@@ -191,14 +191,14 @@ class H5File(File):
         return hasattr(self, "_fid")
 
     def open(self):
-        path = self.path
+        super().open()
         mode = self.mode_str
         try:
-            self._fid = h5py.File(path,  mode=mode)
+            self._fid = h5py.File(self.path,  mode=mode)
         except OSError as error:
-            raise FileExistsError(f"Can not open file {path}! {error}")
+            raise FileExistsError(f"Can not open file {self.path}! {error}")
         else:
-            logger.debug(f"Open HDF5 File {path} mode={mode}")
+            logger.debug(f"Open HDF5 File {self.path} mode={mode}")
 
         return self
 
