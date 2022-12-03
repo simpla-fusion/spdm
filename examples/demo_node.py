@@ -1,7 +1,7 @@
 from copy import copy, deepcopy
 
 import numpy as np
-from ..util.logger import logger
+from spdm.util.logger import logger
 from spdm.data import Dict, List, Node
 
 

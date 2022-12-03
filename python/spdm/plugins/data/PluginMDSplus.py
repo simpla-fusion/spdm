@@ -50,42 +50,71 @@ class MDSplusFile(File):
         File.Mode.read: "ReadOnly",
         File.Mode.write: "Normal",
         File.Mode.read | File.Mode.write: "Normal",
-        File.Mode.append: "Edit",
-        File.Mode.create: "New"
+        File.Mode.read | File.Mode.write | File.Mode.create: "Edit",
+        File.Mode.write | File.Mode.create: "New"
     }
 
-    def __init__(self, *args, tree_name=None,   **kwargs):
+    def __init__(self, *args, fid=None, shot=None, tree_name=None,   **kwargs):
         super().__init__(*args,  ** kwargs)
 
         self._envs = {}
         # {k: (v if not isinstance(v, slice) else f"{v.start}:{v.stop}:{v.step}")
         #   for k, v in self._envs.items()}
 
-        query = self.uri.query
-
-        if tree_name is None:
-            tree_name = query.get("tree_name", None)
+        query = self.uri.query or {}
 
         self._mds_mode = MDSplusFile.MDS_MODE[self.mode]
-        self._tree_name = tree_name
-        self._shot = query.get("shot", None)
-        if self._shot is None:
-            self._shot = self.uri.fragment or 0
-        self._path = self.uri.path
+
+        self._default_tree_name = tree_name if tree_name is not None else query.get("tree_name", None)
+
+        path = self.uri.path.rstrip('/')
+        if self.uri.authority != "":
+            path = f"{self.uri.authority}::{path}"
+
+        self._default_tree_path = path
+
+        self._shot = shot if shot is not None else (fid if fid is not None else query.get("shot", self.uri.fragment))
+
+        self._trees = {}
         self._entry = MDSplusEntry(self)
 
     def __del__(self):
-        pass
+        del self._trees
+        self._trees = None
 
-    def read(self, lazy=True) -> Entry:
+    @property
+    def entry(self, lazy=True) -> Entry:
         return self._entry
 
-    def write(self, d):
-        raise NotImplementedError()
+    def get_tree(self, name=None, path=None):
+        if name is None:
+            name = self._default_tree_name
+        if path is None:
+            path = self._default_tree_path
+        tag = f"{path}/{name}"
+        if tag in self._trees:
+            return self._trees[tag]
 
-    def fetch(self, request, *args,   **kwargs):
+        mode = self._mds_mode
+
+        shot = self._shot
+
+        try:
+            tree = mds.Tree(name, int(shot), mode=mode, path=path)
+        except mds.mdsExceptions.TreeFOPENR as error:
+            raise FileNotFoundError(
+                f"Can not open mdsplus tree! tree_name={name} shot={shot} tree_path={path} mode={mode} \n {error}")
+        except mds.mdsExceptions.TreeNOPATH as error:
+            raise FileNotFoundError(f"{name}_path is not defined! tree_name={name} shot={shot}  \n {error}")
+        else:
+            logger.debug(f"Open MDSplus Tree [{tag}]")
+        self._trees[tag] = tree
+
+        return tree
+
+    def fetch(self, request, *args,   **kwargs) -> Entry:
         if not request:
-            return self
+            return self.entry
 
         if isinstance(request, str):
             request = {"query": request}
@@ -94,37 +123,23 @@ class MDSplusFile(File):
 
         # elif isinstance(request, collections.abc.Mapping):
 
-        tree_name = request.get("@tree", self._tree_name)
+        tree_name = request.get("@tree", None)
+        tree_path = request.get("@tree_path", None)
 
         tdi = request.get("query", None) or request.get("@text", None)
-
-        # elif isinstance(request, str):
-        #     tdi = request
-        # else:
-        #     raise ValueError(request)
 
         if not tdi:
             return self
 
         tdi = tdi.format_map(self._envs)
 
-        mode = self._mds_mode
-        shot = self._shot
-        path = self.uri.path
-
         res = None
         try:
-            with mds.Tree(tree_name, int(shot), mode=mode, path=path) as tree:
-                res = tree.tdiExecute(tdi).data()
+            res = self.get_tree(tree_name, tree_path).tdiExecute(tdi).data()
         except mds.mdsExceptions.TdiException as error:
             raise RuntimeError(f"MDSplus TDI error [{tdi}]! {error}")
-        except mds.mdsExceptions.TreeFOPENR as error:
-            raise FileNotFoundError(
-                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={path} mode={mode} \n {error}")
-        except mds.mdsExceptions.TreeNOPATH as error:
-            raise FileNotFoundError(f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
         except mds.mdsExceptions.TreeNODATA as error:
-            logger.error(f"No data! tree_name={tree_name} shot={shot} tdi=\"{tdi}\" \n {error}")
+            logger.error(f"No data! tree_name={tree_name} shot={self._shot} tdi=\"{tdi}\" \n {error}")
         except Exception as error:
             raise error
 
@@ -150,12 +165,12 @@ class MDSplusCollection(Collection):
     def insert_one(self, fid=None, *args,  query=None, mode=None, **kwargs):
         fid = fid or self.guess_id(
             *args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
-        return MDSplusFile(self.metadata, fid=fid, mode=mode or "w", **kwargs)
+        return MDSplusFile(self.uri, fid=fid, mode=mode or "w", **kwargs)
 
-    def find_one(self, fid=None, *args, query=None, projection=None, mode=None, **kwargs):
+    def find_one(self, fid=None, *args, query=None, projection=None, mode=None, **kwargs) -> Entry:
         fid = fid or self.guess_id(
             *args, **collections.ChainMap((query or {}), kwargs))
-        return MDSplusFile(self.metadata, fid=fid, mode=mode or "w", **kwargs).fetch(projection)
+        return self._mapping(MDSplusFile(self.uri, fid=fid, mode=mode or "r", **kwargs).entry).get(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()

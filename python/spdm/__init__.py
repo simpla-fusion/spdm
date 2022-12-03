@@ -3,7 +3,7 @@ __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
 from .version import __version__
 
-from .data.open_entry import open_entry
+from .data.open_entry import open_entry, open_db
 
 # import numpy as np
 # import scipy

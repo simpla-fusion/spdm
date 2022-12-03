@@ -1,49 +1,48 @@
 import collections
 import pathlib
 from functools import cached_property
-from typing import Any, Dict, List, NewType, Tuple
+from typing import Any,  NewType, Tuple, Union
 
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-from ..util.uri_utils import uri_split, uri_merge
-from .Document import Document
+from ..util.uri_utils import URITuple, uri_merge, uri_split
+from .Connection import Connection
+from .Entry import Entry
 from .File import File
+from .Mapper import Mapper
 from .SpObject import SpObject
-
+from .List import List
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
 UpdateResult = collections.namedtuple("UpdateResult", "inserted_id success")
 DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 
 
-class Collection(SpObject):
+class Collection(Connection):
     ''' Collection of documents
     '''
+    def __new__(cls, path, *args, **kwargs):
+        if cls is not Collection:
+            return object.__new__(cls)
 
-    def __init__(self, *args, mode="rw", envs=None,   **kwargs):
-        super().__init__()
+        if "protocol" in kwargs:
+            protocol = kwargs.get("protocol")
+            n_cls_name = f".{protocol.lower()}"
+        elif isinstance(path, collections.abc.Mapping):
+            n_cls_name = path.get("$class", None)
+        elif isinstance(path, (str, URITuple)):
+            uri = uri_split(path)
+            n_cls_name = f".{uri.protocol.lower()}"
 
-        self._mode = mode
-        self._envs = collections.ChainMap(kwargs, envs or {})
-        logger.info(f"Create {self.__class__.__name__} : {self._metadata}")
+        return Collection.object_new(n_cls_name)
 
-    def __del__(self):
-        logger.info(f"Close  {self.__class__.__name__} : {self._metadata}")
-
-    @property
-    def schema(self):
-        return self._metadata.get("schema", None)
-
-    @cached_property
-    def envs(self):
-        return self._envs
-
-    @property
-    def mode(self):
-        return self._mode
+    def __init__(self, uri, *args,  mapper: Mapper = _undefined_,   **kwargs):
+        super().__init__(uri, *args, **kwargs)
+        self._mapper = mapper
 
     @property
-    def is_writable(self):
-        return "w" in self.mode or 'x' in self.mode
+    def mapper(self) -> Mapper:
+        return self._mapper
 
     def guess_id(self, *args, **kwargs):
         return NotImplemented
@@ -52,36 +51,46 @@ class Collection(SpObject):
     def next_id(self):
         raise NotImplementedError()
 
-    # def open(self, *args, mode=None, **kwargs):
-    #     mode = mode or self.mode
-    #     if "x" in mode:
-    #         return self.insert_one(*args,  **kwargs)
-    #     else:
-    #         return self.find_one(*args,   **kwargs)
+    def _mapping(self, entry: Entry) -> Entry:
+        return self.mapper.map(entry) if self.mapper is not None else entry
 
-    def create(self, *args, **kwargs):
+    def create_one(self, *args, **kwargs):
         return self.insert_one(*args, mode="x", **kwargs)
 
-    def insert(self, data, *args, **kwargs):
-        if isinstance(data, list):
-            return self.insert_many(data, *args, **kwargs)
+    def create_many(self, docs: List[Any], *args, **kwargs):
+        return [self.create_one(doc, *args, mode="x", **kwargs) for doc in docs]
+
+    def create(self, docs, *args, **kwargs):
+        if isinstance(docs, collections.abc.Sequence):
+            return self.create_many(docs, *args, **kwargs)
         else:
-            return self.insert_one(data, *args, **kwargs)
+            return self.create_one(docs, *args, **kwargs)
 
-    def insert_one(self, data, * args,  **kwargs) -> InsertOneResult:
-        doc = Document(self.guess_id(*args, **kwargs) or self.next_id, **kwargs)
-        if data is not None:
-            doc.update(data)
-        return doc
-
-    def insert_many(self, documents, *args, **kwargs) -> InsertManyResult:
-        return [self.insert_one(doc, *args, **kwargs) for doc in documents]
-
-    def find_one(self, *args, predicate=None, **kwargs):
-        return Document(self.guess_id(*args, **kwargs), **kwargs).fetch(predicate)
-
-    def find(self, predicate=None, projection=None, *args, **kwargs):
+    def insert_one(self, doc, * args,  **kwargs) -> InsertOneResult:
         raise NotImplementedError()
+
+    def insert_many(self, docs: List[Any], *args, **kwargs) -> InsertManyResult:
+        return [self.insert_one(doc, *args, **kwargs) for doc in docs]
+
+    def insert(self, docs, *args, **kwargs):
+        if isinstance(docs, collections.abc.Sequence):
+            return self.insert_many(docs, *args, **kwargs)
+        else:
+            return self.insert_one(docs, *args, **kwargs)
+
+    def find_one(self, *args, **kwargs) -> Entry:
+        res = self.find(*args, only_one=True, **kwargs)
+        return res[0] if len(res) > 0 else None
+
+    def find_many(self, *args, **kwargs) -> List[Entry]:
+        res = self.find(*args, only_one=True, **kwargs)
+        return res[0] if len(res) > 0 else None
+
+    def find(self, predicate=None, projection=None, *args, **kwargs) -> Union[Entry, List[Entry]]:
+        if not isinstance(predicate, str) and isinstance(predicate, collections.abc.Sequence):
+            return self.find_many(predicate=None, projection=None, *args, **kwargs)
+        else:
+            return self.find_one(predicate=None, projection=None, *args, **kwargs)
 
     def replace_one(self, predicate, replacement,  *args, **kwargs) -> UpdateResult:
         raise NotImplementedError()

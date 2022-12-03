@@ -1,20 +1,18 @@
 import collections
-from functools import cached_property
 from typing import Any, Dict, List, TypeVar
 
 from ..util.logger import logger
-from .DataObject import DataObject
 from .Dict import Dict
 from .Entry import Entry
 
 _TDocument = TypeVar("_TDocument", bound="Document")
 
 
-class Document(DataObject, Dict):
+class Document(Entry):
 
     def __init__(self,  *args,  fid=None, envs=None, schema=None, **kwargs):
-        super(DataObject, self).__init__()
-        super(Dict, self).__init__(*args, **kwargs)
+
+        super(Entry, self).__init__(*args, **kwargs)
 
         # self._fid = fid
         # self._path = path

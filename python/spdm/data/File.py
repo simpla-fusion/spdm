@@ -5,7 +5,6 @@ from copy import deepcopy
 from typing import TypeVar, Union
 
 from ..common.tags import _undefined_
-from ..plugins.data import file as file_plugins
 from ..util.logger import logger
 from ..util.uri_utils import URITuple, uri_split
 from .Connection import Connection
@@ -21,18 +20,16 @@ class File(Connection):
     """
     MOD_MAP = {Connection.Mode.read: "r",
                Connection.Mode.read | Connection.Mode.write: "rw",
-               Connection.Mode.write: "w",
+               Connection.Mode.write: "x",
                Connection.Mode.write | Connection.Mode.create: "w",
                Connection.Mode.read | Connection.Mode.write | Connection.Mode.create: "a",
                }
-
-    """
-        r       Readonly, file must exist (default)
-        rw      Read/write, file must exist
-        w       Create file, truncate if exists
-        x       Create file, fail if exists
-        a       Read/write if exists, create otherwise
-    """
+    INV_MOD_MAP = {"r": Connection.Mode.read,
+                   "rw": Connection.Mode.read | Connection.Mode.write,
+                   "x": Connection.Mode.write,
+                   "w": Connection.Mode.write | Connection.Mode.create,
+                   "a": Connection.Mode.read | Connection.Mode.write | Connection.Mode.create,
+                   }
 
     def __new__(cls, path, *args, **kwargs):
         if cls is not File:
@@ -56,15 +53,22 @@ class File(Connection):
             n_cls_name = ".text"
         return File.object_new(n_cls_name)
 
-    def __init__(self,  *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(self,  *args, mode="r", ** kwargs):
+        """
+         r       Readonly, file must exist (default)
+         rw      Read/write, file must exist
+         w       Create file, truncate if exists
+         x       Create file, fail if exists
+         a       Read/write if exists, create otherwise
+        """
+        if isinstance(mode, str):
+            mode = File.INV_MOD_MAP.get(mode, File.Mode.read)
+        super().__init__(*args, mode=mode, **kwargs)
 
     @property
     def mode_str(self) -> str:
-        return File.MOD_MAP[self.mode]
+        return File.MOD_MAP.get(self.mode, "r")
 
- 
     @property
     def entry(self) -> Entry:
         if self.is_readable:

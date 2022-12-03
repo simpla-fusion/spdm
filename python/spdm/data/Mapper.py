@@ -10,14 +10,13 @@ from .Document import Document
 from .Entry import Entry
 from .File import File
 from .SpObject import SpObject
-from .Connection import Connection
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 SPDB_TAG = "spdb"
 
 
-class MappingEntry(Entry):
-    def __init__(self, *args, mapping: Entry = None, source: Entry = None,  ** kwargs):
+class MapperEntry(Entry):
+    def __init__(self, source: Entry, *args, mapping: Entry = None,  ** kwargs):
         super().__init__(*args, **kwargs)
         self._mapping = mapping  # self._data._mapping.entry
         self._source = source
@@ -27,7 +26,7 @@ class MappingEntry(Entry):
             if value.attribute.get(SPDB_TAG, None) is not None:
                 res = self._source.get(value.pull(lazy=False))
             elif lazy:
-                res = MappingEntry(source=self._source, mapping=value)
+                res = MapperEntry(self._source, mapping=value)
             else:
                 res = self.__post_process__(value.pull(lazy=False), *args, lazy=False, ** kwargs)
         elif isinstance(value, collections.abc.Mapping):
@@ -53,7 +52,7 @@ class MappingEntry(Entry):
         return res
 
     def child(self, path, *args, **kwargs):
-        return MappingEntry(source=self._source, mapping=self._mapping.child(path, *args, **kwargs))
+        return MapperEntry(self._source, mapping=self._mapping.child(path, *args, **kwargs))
 
     def get(self,  path, *args,  is_raw_path=False,  **kwargs):
         return self.__post_process__(self._mapping.get(path, *args, **kwargs))
@@ -87,40 +86,56 @@ class MappingEntry(Entry):
         return self.__post_process__(self._mapping.__serialize__())
 
 
-class Mapping(SpObject):
-    DEFAULT_GLOBAL_SCHEMA = "imas/3"
+class Mapper(SpObject):
 
-    def __init__(self, mapping_path="", global_schema=_undefined_,   **kwargs):
-        super().__init__(**kwargs)
-        if isinstance(mapping_path, str):
-            mapping_path = mapping_path.split(":")
-        self._mapping_path = mapping_path + \
-            os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
-        if global_schema is _undefined_:
-            self._global_schema = Mapping.DEFAULT_GLOBAL_SCHEMA
+    def __init__(self, mapping=[],
+                 source_schema=_undefined_,
+                 target_schema=_undefined_,
+                 envs=None):
+        super().__init__()
+        if isinstance(mapping, str):
+            mapping = mapping.split(":")
+        elif isinstance(mapping, pathlib.Path):
+            mapping = [mapping]
+        elif mapping in (None, _undefined_):
+            mapping = []
 
-    def map(self, source: Entry, source_schema=None, **kwargs):
-        if isinstance(source, Document):
-            source_schema = getattr(source, "schema", source_schema)
-            source = source.entry
-        elif isinstance(source, Entry):
-            pass
-        elif isinstance(source, collections.abc.Sequence):
-            source = Entry.create(source)
-        elif isinstance(source, collections.abc.Mapping):
-            if "$class" in source:
-                source_schema = source.get("schema", None)
-                source = Entry.create(source)
-            else:
-                raise NotImplementedError(f"TODO: Multi-sources mapper ")
+        mapping += os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
+
+        self._mapping_path = [pathlib.Path(p) for p in mapping if p not in ('', "")]
+
+        if len(self._mapping_path) == 0:
+            raise RuntimeError(f"No mapping file!")
+
+        self._default_source_schema = source_schema if source_schema is not _undefined_ else "EAST"
+        self._default_target_schema = target_schema if target_schema is not _undefined_ else "imas/3"
+        self._envs = envs
+
+    @property
+    def source_schema(self) -> str:
+        return self._default_source_schema
+
+    @property
+    def target_schema(self) -> str:
+        return self._default_target_schema
+
+    def map(self, source: Entry, *args, **kwargs) -> MapperEntry:
+        mapping = self.find_mapping(*args, **kwargs)
+        if isinstance(mapping, Entry):
+            return MapperEntry(source, mapping=mapping)
+        elif mapping is None:
+            return source
         else:
-            raise NotImplementedError()
+            raise FileNotFoundError(f"Can not find mapping file!")
 
-        return MappingEntry(source=source, mapping=self.find(source_schema, **kwargs))
-
-    def find(self,  source_schema: str = None, target_schema: str = _undefined_) -> Entry:
+    def find_mapping(self,  source_schema: str = _undefined_, target_schema: str = _undefined_) -> Entry:
+        if source_schema is _undefined_:
+            source_schema = self._default_source_schema
         if target_schema is _undefined_:
-            target_schema = self._global_schema
+            target_schema = self._default_target_schema
+
+        if source_schema == target_schema:
+            return None
 
         map_tag = f"{source_schema}/{target_schema}"
 
@@ -138,5 +153,14 @@ class Mapping(SpObject):
                 if p.exists():
                     mapping_files.append(p)
 
-        # return EntryCombiner([File(fid, mode="r", format="XML").read() for fid in mapping_conf_files])
-        return File(mapping_files, mode=File.Mode.read, format="XML").read()
+        if len(mapping_files) == 0:
+            raise FileNotFoundError(f"Can not find mapping files for {map_tag}!")
+
+        return File(mapping_files, mode="r", format="XML").read()
+
+
+def create_mapper(*args,  source_schema=_undefined_, target_schema=_undefined_, **kwargs) -> Mapper:
+    if len(args) > 0 and isinstance(args[0], Mapper):
+        return args[0]
+    else:
+        return Mapper(*args, source_schema=source_schema, target_schema=target_schema, **kwargs)
