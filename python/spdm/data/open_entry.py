@@ -12,11 +12,13 @@ from .Collection import Collection
 from .FileCollection import FileCollection
 
 
-def open_db(uri: Union[str, URITuple], *args, source_schema=_undefined_, target_schema=_undefined_, mapper=None, ** kwargs) -> Union[Entry, Collection]:
+def open_db(uri: Union[str, URITuple], *args,
+            source_schema=_undefined_,
+            target_schema=_undefined_, mapper=None, ** kwargs) -> Collection:
     uri = uri_split(uri)
     if uri.protocol is None:
         uri.protocol = "localdb"
-        
+
     if source_schema is _undefined_ and uri.schema != "":
         source_schema = uri.schema
 
@@ -64,4 +66,4 @@ def open_entry(uri: Union[str, URITuple], *args, source_schema=_undefined_, targ
         return entry
     else:
         db = open_db(uri, *args, mapper=mapper, **kwargs)
-        return db.find_one(query=uri.query, fragment=uri.fragment)
+        return db.find_one(uri.query, fragment=uri.fragment)

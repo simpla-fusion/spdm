@@ -44,8 +44,15 @@ class Collection(Connection):
     def mapper(self) -> Mapper:
         return self._mapper
 
-    def guess_id(self, *args, **kwargs):
-        return NotImplemented
+    def guess_id(self, predicate, *args, fragment: int = None, **kwargs) -> int:
+        if isinstance(predicate, int):
+            return predicate
+        elif isinstance(predicate, str):
+            return int(predicate)
+        elif fragment is not None:
+            return int(fragment) if isinstance(fragment, str) else fragment
+        else:
+            raise NotImplementedError(f"predicate={predicate} fragment={fragment}")
 
     @property
     def next_id(self):
@@ -79,18 +86,17 @@ class Collection(Connection):
             return self.insert_one(docs, *args, **kwargs)
 
     def find_one(self, *args, **kwargs) -> Entry:
-        res = self.find(*args, only_one=True, **kwargs)
-        return res[0] if len(res) > 0 else None
+        raise NotImplementedError()
 
     def find_many(self, *args, **kwargs) -> List[Entry]:
-        res = self.find(*args, only_one=True, **kwargs)
-        return res[0] if len(res) > 0 else None
+        raise NotImplementedError()
 
-    def find(self, predicate=None, projection=None, *args, **kwargs) -> Union[Entry, List[Entry]]:
-        if not isinstance(predicate, str) and isinstance(predicate, collections.abc.Sequence):
-            return self.find_many(predicate=None, projection=None, *args, **kwargs)
+    def find(self, predicate, projection=None, only_one=False, **kwargs) -> Union[Entry, List[Entry]]:
+        # if not isinstance(predicate, str) and isinstance(predicate, collections.abc.Sequence):
+        if not only_one:
+            return self.find_many(predicate, projection,  **kwargs)
         else:
-            return self.find_one(predicate=None, projection=None, *args, **kwargs)
+            return self.find_one(predicate, projection,  **kwargs)
 
     def replace_one(self, predicate, replacement,  *args, **kwargs) -> UpdateResult:
         raise NotImplementedError()

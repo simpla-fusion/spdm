@@ -27,15 +27,27 @@ class Connection(SpObject):
         w- or x Create file, fail if exists
         a       Read/write if exists, create otherwise
     """
+    MOD_MAP = {Mode.read: "r",
+               Mode.read | Mode.write: "rw",
+               Mode.write: "x",
+               Mode.write | Mode.create: "w",
+               Mode.read | Mode.write | Mode.create: "a",
+               }
+    INV_MOD_MAP = {"r": Mode.read,
+                   "rw": Mode.read | Mode.write,
+                   "x": Mode.write,
+                   "w": Mode.write | Mode.create,
+                   "a": Mode.read | Mode.write | Mode.create,
+                   }
 
     class Status(Flag):
         opened = auto()
         closed = auto()
 
-    def __init__(self, uri, *args, mode=Mode.read, **kwargs):
+    def __init__(self, uri, /, mode=Mode.read, **kwargs):
         super().__init__()
         self._uri = uri_split(uri)
-        self._mode = Connection.Mode(mode) if not isinstance(mode, Connection.Mode) else mode
+        self._mode = Connection.INV_MOD_MAP[mode] if isinstance(mode, str) else mode
         self._is_open = False
 
     def __del__(self):
@@ -68,6 +80,10 @@ class Connection(SpObject):
     @property
     def is_writable(self) -> bool:
         return bool(self._mode & Connection.Mode.write)
+
+    @property
+    def is_creatable(self) -> bool:
+        return bool(self._mode & Connection.Mode.create)
 
     @property
     def is_temporary(self) -> bool:

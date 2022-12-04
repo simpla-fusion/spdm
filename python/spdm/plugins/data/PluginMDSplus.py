@@ -97,17 +97,16 @@ class MDSplusFile(File):
 
         mode = self._mds_mode
 
-        shot = self._shot
+        shot = int(self._shot) if isinstance(self._shot, str) else self._shot
 
         try:
-            tree = mds.Tree(name, int(shot), mode=mode, path=path)
+            tree = mds.Tree(name, shot, mode=mode, path=path)
         except mds.mdsExceptions.TreeFOPENR as error:
-            raise FileNotFoundError(
-                f"Can not open mdsplus tree! tree_name={name} shot={shot} tree_path={path} mode={mode} \n {error}")
+            raise FileNotFoundError(f"Can not open mdsplus tree! tree_name={name} shot={shot} tree_path={path} mode={mode} \n {error}")
         except mds.mdsExceptions.TreeNOPATH as error:
             raise FileNotFoundError(f"{name}_path is not defined! tree_name={name} shot={shot}  \n {error}")
         else:
-            logger.debug(f"Open MDSplus Tree [{tag}]")
+            logger.debug(f"Open MDSplus Tree [{tag}] shot={shot}")
         self._trees[tag] = tree
 
         return tree
@@ -163,14 +162,16 @@ class MDSplusCollection(Collection):
         super().__init__(*args,  **kwargs)
 
     def insert_one(self, fid=None, *args,  query=None, mode=None, **kwargs):
-        fid = fid or self.guess_id(
-            *args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
+        fid = fid or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
         return MDSplusFile(self.uri, fid=fid, mode=mode or "w", **kwargs)
 
-    def find_one(self, fid=None, *args, query=None, projection=None, mode=None, **kwargs) -> Entry:
-        fid = fid or self.guess_id(
-            *args, **collections.ChainMap((query or {}), kwargs))
-        return self._mapping(MDSplusFile(self.uri, fid=fid, mode=mode or "r", **kwargs).entry).get(projection)
+    def find_one(self, predicate, projection=None, only_one=False, **kwargs) -> Entry:
+        fid = self.guess_id(predicate, ** kwargs)
+        entry = self._mapping(MDSplusFile(self.uri, fid=fid, **kwargs).entry)
+        if projection is None:
+            return entry
+        else:
+            return entry.get(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()

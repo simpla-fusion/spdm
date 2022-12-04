@@ -3,7 +3,7 @@ import inspect
 import pathlib
 import re
 import urllib
-from typing import Any, Dict, List, NewType, Tuple
+from typing import Any, Dict, List, NewType, Tuple, Union
 
 from ..util.logger import logger
 from ..util.uri_utils import uri_merge, uri_split
@@ -12,44 +12,40 @@ from .Directory import Directory
 from .Document import Document
 from .File import File
 from .Entry import Entry
+from ..common.tags import _undefined_
+from .Collection import InsertOneResult
 
 
-class FileCollection(Directory, Collection):
+class FileCollection(Directory):
 
-    def __init__(self, uri, *args,
-                 file_extension=".dat",
-                 file_factory=None,
-                 **kwargs):
+    def __init__(self, *args, file_name=_undefined_, ** kwargs):
+        """
+        Example:
+            file_name="{*}"
+        """
 
-        super().__init__(uri, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        if isinstance(uri, str):
-            uri = uri_split(uri)
+        if file_name not in ("", _undefined_, None):
+            self._file_name = file_name
+        if self.glob == "":
+            self._file_name = "{_id_}"
+        else:
+            self._file_name = self.glob.replace("*", "{_id_}")
 
-        path = getattr(uri, "path", ".").replace("*", "{_id}")
+        # if self._path.suffix == '':
+        #     self._path = self._path.with_suffix(extension)
 
-        if isinstance(path, str) and path.find("{_id}") < 0:  # not path.endswith(file_extension):
-            path = f"{path}{{_id}}{file_extension}"
+        # if "{_id}" not in self._path.stem:
+        #     self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
 
-        self._path = pathlib.Path(path).resolve().expanduser()
-
-        logger.debug(self._path)
-
-        if self._path.suffix == '':
-            self._path = self._path.with_suffix(file_extension)
-
-        if "{_id}" not in self._path.stem:
-            self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
-
-        if not self._path.parent.exists():
-            if "w" not in self._mode:
-                raise RuntimeError(f"Can not make dir {self._path}")
-            else:
-                self._path.parent.mkdir()
-        elif not self._path.parent.is_dir():
-            raise NotADirectoryError(self._path.parent)
-
-        self._file_factory = file_factory or File
+        # if not self._path.parent.exists():
+        #     if "w" not in self._mode:
+        #         raise RuntimeError(f"Can not make dir {self._path}")
+        #     else:
+        #         self._path.parent.mkdir()
+        # elif not self._path.parent.is_dir():
+        #     raise NotADirectoryError(self._path.parent)
 
     def guess_id(self, d, auto_inc=True):
         fid = super().guess_id(d, auto_inc=auto_inc)
@@ -60,19 +56,19 @@ class FileCollection(Directory, Collection):
         return fid
 
     def guess_filepath(self, *args, **kwargs):
-        return self._path.with_name(self._path.name.format(_id=self.guess_id(*args, **kwargs)))
+        return self.path/self._file_name.name.format(_id=self.guess_id(*args, **kwargs))
 
     def open_document(self, fid, mode=None):
-        fpath = self.guess_filepath({"_id": fid})
-        logger.debug(f"Open Document: {fpath} mode=\"{ mode or self.metadata.mode}\"")
-        return Document(root=self._file_factory(fpath, mode or self.metadata.mode), fid=fid, envs=self.envs, handler=self._handler)
+        fpath = self.guess_filepath({"_id_": fid})
+        logger.debug(f"Open Document: {fpath} mode=\"{ mode or self.mode}\"")
+        return File(fpath, mode=mode if mode is not _undefined_ else self.mode).entry
 
-    def insert_one(self, data=None, *args,  **kwargs):
-        doc = self.open_document(self.guess_id(data or kwargs, auto_inc=True), mode="w")
-        doc.update(data or kwargs)
+    def insert_one(self, predicate, *args,  **kwargs) -> InsertOneResult:
+        doc = self.open_document(self.guess_id(predicate or kwargs, auto_inc=True))
+        
         return doc
 
-    def find_one(self, predicate=None, projection=None, **kwargs) -> Entry:
+    def find_one(self, predicate, projection=None, **kwargs) -> Entry:
         fpath = self.guess_filepath(predicate or kwargs)
 
         doc = None
@@ -105,6 +101,7 @@ class FileCollection(Directory, Collection):
             logger.warning("NOT IMPLEMENTED! count by predicate")
 
         return len(list(self._path.parent.glob(self._path.name.format(_id="*"))))
+
 
 class CollectionLocalFile(Collection):
     """
@@ -157,5 +154,6 @@ class CollectionLocalFile(Collection):
 
     def delete_one(self, predicate,  *args, **kwargs):
         raise NotImplementedError()
+
 
 __SP_EXPORT__ = FileCollection

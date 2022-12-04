@@ -18,18 +18,6 @@ class File(Connection):
     """
         File like object
     """
-    MOD_MAP = {Connection.Mode.read: "r",
-               Connection.Mode.read | Connection.Mode.write: "rw",
-               Connection.Mode.write: "x",
-               Connection.Mode.write | Connection.Mode.create: "w",
-               Connection.Mode.read | Connection.Mode.write | Connection.Mode.create: "a",
-               }
-    INV_MOD_MAP = {"r": Connection.Mode.read,
-                   "rw": Connection.Mode.read | Connection.Mode.write,
-                   "x": Connection.Mode.write,
-                   "w": Connection.Mode.write | Connection.Mode.create,
-                   "a": Connection.Mode.read | Connection.Mode.write | Connection.Mode.create,
-                   }
 
     def __new__(cls, path, *args, **kwargs):
         if cls is not File:
