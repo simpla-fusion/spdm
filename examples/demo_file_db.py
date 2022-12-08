@@ -12,12 +12,13 @@ os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
 
 if __name__ == '__main__':
 
-    db = open_db("localdb+hdf5:///home/salmon/workspace/output/local_db/{shot}_{run}", mode="rw")
+    # db = open_db("localdb+hdf5:///home/salmon/workspace/output/local_db/{shot}_{run}", mode="rw")
+    entry = open_entry("mdsplus[EAST]://202.127.204.12?tree_name=efit_east#38300")
+    # entry = open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east#38300")
+    logger.debug(entry.get(["equilibrium","time_slice",100,"profiles_1d"]).dump())
 
-    entry = open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east#38300")
-    # logger.debug(entry2.get(["magnetics"]).dump())
-
-    db.insert_one(
-        {"equilibrium": entry.get(["equilibrium"]).dump()},
-        shot=123, run=2
-    )
+    del entry
+    # db.insert_one(
+    #     {"equilibrium": entry.get(["equilibrium"]).dump()},
+    #     shot=123, run=2
+    # )

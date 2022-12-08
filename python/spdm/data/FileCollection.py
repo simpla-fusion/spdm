@@ -5,20 +5,18 @@ import re
 import urllib
 from typing import Any, Dict, List, NewType, Tuple, Union
 
+from ..common.tags import _undefined_
 from ..util.logger import logger
-from ..util.uri_utils import uri_merge, uri_split
-from .Collection import Collection
+from .Collection import Collection, InsertOneResult
 from .Directory import Directory
 from .Document import Document
-from .File import File
 from .Entry import Entry
-from ..common.tags import _undefined_
-from .Collection import InsertOneResult
+from .File import File
 
 
-class FileCollection(Directory):
+class FileCollection(Collection):
 
-    def __init__(self, *args, file_name=_undefined_, ** kwargs):
+    def __init__(self, *args, glob: str = _undefined_, ** kwargs):
         """
         Example:
             file_name="{*}"
@@ -26,26 +24,20 @@ class FileCollection(Directory):
 
         super().__init__(*args, **kwargs)
 
-        if file_name not in ("", _undefined_, None):
-            self._file_name = file_name
-        if self.glob == "":
-            self._file_name = "{_id_}"
+        if glob is not _undefined_:
+            self._glob = glob
         else:
-            self._file_name = self.glob.replace("*", "{_id_}")
+            parts = pathlib.Path(self.uri.path).parts
 
-        # if self._path.suffix == '':
-        #     self._path = self._path.with_suffix(extension)
+            idx, _ = next(filter(lambda s: '{' in s[1], enumerate(parts)))
 
-        # if "{_id}" not in self._path.stem:
-        #     self._path = self._path.with_name(f"{self._path.stem}{{_id}}{self._path.suffix}")
+            self.uri.path = pathlib.Path(*list(parts)[:idx])
 
-        # if not self._path.parent.exists():
-        #     if "w" not in self._mode:
-        #         raise RuntimeError(f"Can not make dir {self._path}")
-        #     else:
-        #         self._path.parent.mkdir()
-        # elif not self._path.parent.is_dir():
-        #     raise NotADirectoryError(self._path.parent)
+            self._glob = "/".join(parts[idx:])
+
+    @property
+    def glob(self) -> str:
+        return self._glob
 
     def guess_id(self, d, auto_inc=True):
         fid = super().guess_id(d, auto_inc=auto_inc)
@@ -55,17 +47,17 @@ class FileCollection(Directory):
 
         return fid
 
-    def guess_filepath(self, *args, **kwargs):
-        return self.path/self._file_name.name.format(_id=self.guess_id(*args, **kwargs))
+    def guess_filepath(self, **kwargs) -> pathlib.Path:
+        return self.path/self._glob.format(**kwargs)
 
-    def open_document(self, fid, mode=None):
+    def open_document(self, fid, mode=None) -> Entry:
         fpath = self.guess_filepath({"_id_": fid})
         logger.debug(f"Open Document: {fpath} mode=\"{ mode or self.mode}\"")
         return File(fpath, mode=mode if mode is not _undefined_ else self.mode).entry
 
     def insert_one(self, predicate, *args,  **kwargs) -> InsertOneResult:
         doc = self.open_document(self.guess_id(predicate or kwargs, auto_inc=True))
-        
+
         return doc
 
     def find_one(self, predicate, projection=None, **kwargs) -> Entry:
@@ -96,7 +88,6 @@ class FileCollection(Directory):
         raise NotImplementedError()
 
     def count(self, predicate=None,   *args, **kwargs) -> int:
-
         if predicate is None:
             logger.warning("NOT IMPLEMENTED! count by predicate")
 

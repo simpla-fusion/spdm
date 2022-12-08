@@ -79,18 +79,19 @@ class MDSplusFile(File):
         self._entry = MDSplusEntry(self)
 
     def __del__(self):
-        del self._trees
-        self._trees = None
+        # del self._trees
+        for k, tree in self._trees.items():
+            tree.close()
+            logger.debug(f"Close MDS Tree:{k}")
+
+        self._trees = {}
 
     @property
     def entry(self, lazy=True) -> Entry:
         return self._entry
 
     def get_tree(self, name=None, path=None):
-        if name is None:
-            name = self._default_tree_name
-        if path is None:
-            path = self._default_tree_path
+
         tag = f"{path}/{name}"
         if tag in self._trees:
             return self._trees[tag]
@@ -102,7 +103,8 @@ class MDSplusFile(File):
         try:
             tree = mds.Tree(name, shot, mode=mode, path=path)
         except mds.mdsExceptions.TreeFOPENR as error:
-            raise FileNotFoundError(f"Can not open mdsplus tree! tree_name={name} shot={shot} tree_path={path} mode={mode} \n {error}")
+            raise FileNotFoundError(
+                f"Can not open mdsplus tree! tree_name={name} shot={shot} tree_path={path} mode={mode} \n {error}")
         except mds.mdsExceptions.TreeNOPATH as error:
             raise FileNotFoundError(f"{name}_path is not defined! tree_name={name} shot={shot}  \n {error}")
         else:
@@ -125,6 +127,12 @@ class MDSplusFile(File):
         tree_name = request.get("@tree", None)
         tree_path = request.get("@tree_path", None)
 
+        if tree_name is None:
+            tree_name = self._default_tree_name
+
+        if tree_path is None:
+            tree_path = self._default_tree_path
+
         tdi = request.get("query", None) or request.get("@text", None)
 
         if not tdi:
@@ -133,14 +141,19 @@ class MDSplusFile(File):
         tdi = tdi.format_map(self._envs)
 
         res = None
+        tree = self.get_tree(tree_name, tree_path)
         try:
-            res = self.get_tree(tree_name, tree_path).tdiExecute(tdi).data()
+            res = tree.tdiExecute(tdi).data()
         except mds.mdsExceptions.TdiException as error:
-            raise RuntimeError(f"MDSplus TDI error [{tdi}]! {error}")
+            # raise RuntimeError(f"MDSplus TDI error [{tdi}]! {error}")
+            logger.warning(f"MDS TDI error! tree_name={tree_name} shot={self._shot} tdi=\"{tdi}\" \n {error}")
+
         except mds.mdsExceptions.TreeNODATA as error:
-            logger.error(f"No data! tree_name={tree_name} shot={self._shot} tdi=\"{tdi}\" \n {error}")
+            logger.warning(f"MDS No data! tree_name={tree_name} shot={self._shot} tdi=\"{tdi}\" \n {error}")
+
         except Exception as error:
-            raise error
+            logger.warning(f"mds.mdsExceptions! tree_name={tree_name} shot={self._shot} tdi=\"{tdi}\" \n {error}")
+            # raise error
 
         if not isinstance(res, np.ndarray):
             pass
