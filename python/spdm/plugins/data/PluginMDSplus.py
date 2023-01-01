@@ -54,7 +54,7 @@ class MDSplusFile(File):
         File.Mode.write | File.Mode.create: "New"
     }
 
-    def __init__(self, *args, fid=None, shot=None, tree_name=None,   **kwargs):
+    def __init__(self, *args, fid=None, shot: int = None, tree_name: str = None, subtree_list=None,   **kwargs):
         super().__init__(*args,  ** kwargs)
 
         self._envs = {}
@@ -65,7 +65,17 @@ class MDSplusFile(File):
 
         self._mds_mode = MDSplusFile.MDS_MODE[self.mode]
 
-        self._default_tree_name = tree_name if tree_name is not None else query.get("tree_name", None)
+        if tree_name is None:
+            tree_name = query.get("tree_name", None)
+
+        if '[' in tree_name:
+            pos = tree_name.find('[')
+            self._default_tree_name = tree_name[:pos]
+            self._subtree_list = tree_name[pos+1:-1].split(',')
+
+        else:
+            self._default_tree_name = tree_name
+            self._subtree_list = subtree_list
 
         path = self.uri.path.rstrip('/')
         if self.uri.authority != "":
@@ -76,6 +86,7 @@ class MDSplusFile(File):
         self._shot = shot if shot is not None else (fid if fid is not None else query.get("shot", self.uri.fragment))
 
         self._trees = {}
+
         self._entry = MDSplusEntry(self)
 
     def __del__(self):
@@ -90,23 +101,36 @@ class MDSplusFile(File):
     def entry(self, lazy=True) -> Entry:
         return self._entry
 
-    def get_tree(self, name=None, path=None):
+    def get_tree(self, tree_name: str = None, tree_path: str = None):
 
-        tag = f"{path}/{name}"
+        if tree_name is None:
+            tree_name = self._default_tree_name
+
+        if tree_path is None:
+            tree_path = self._default_tree_path
+
+        tag = tree_path.replace("~t", tree_name)
+
         if tag in self._trees:
             return self._trees[tag]
 
+        if tree_name == self._default_tree_name and self._subtree_list is not None:
+            for sub_tree in self._subtree_list:
+                s_tag = f"{sub_tree}_path"
+                if s_tag not in os.environ:
+                    os.environ[s_tag] = tree_path.replace("~t", f"{tree_name}/{sub_tree}")              
+            
         mode = self._mds_mode
 
         shot = int(self._shot) if isinstance(self._shot, str) else self._shot
 
         try:
-            tree = mds.Tree(name, shot, mode=mode, path=path)
+            tree = mds.Tree(tree_name, shot, mode=mode, path=tree_path)
         except mds.mdsExceptions.TreeFOPENR as error:
             raise FileNotFoundError(
-                f"Can not open mdsplus tree! tree_name={name} shot={shot} tree_path={path} mode={mode} \n {error}")
+                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} mode={mode} \n {error}")
         except mds.mdsExceptions.TreeNOPATH as error:
-            raise FileNotFoundError(f"{name}_path is not defined! tree_name={name} shot={shot}  \n {error}")
+            raise FileNotFoundError(f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
         else:
             logger.debug(f"Open MDSplus Tree [{tag}] shot={shot}")
         self._trees[tag] = tree
@@ -126,12 +150,6 @@ class MDSplusFile(File):
 
         tree_name = request.get("@tree", None)
         tree_path = request.get("@tree_path", None)
-
-        if tree_name is None:
-            tree_name = self._default_tree_name
-
-        if tree_path is None:
-            tree_path = self._default_tree_path
 
         tdi = request.get("query", None) or request.get("@text", None)
 

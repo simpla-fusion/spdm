@@ -42,7 +42,7 @@ def uri_split_as_dict(uri) -> dict:
     res = _rfc3986_ext.match(uri).groupdict()
     if isinstance(res["query"], str) and res["query"] != "":
         res["query"] = dict([tuple(item.split("="))
-                            for item in str(res["query"]).split(',')])
+                            for item in str(res["query"]).split('&')])
     if isinstance(res["fragment"], str):
         fragments = res["fragment"].split(',')
         if len(fragments) == 1:

@@ -9,14 +9,14 @@ from typing import Any, Callable, Optional, Sequence, Set, Type, Union
 
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
-from ..util.logger import logger
-from spdm.common.tags import _undefined_
 
+from ..common.tags import _undefined_
+from ..util.logger import logger
 from ..util.misc import array_like, float_unique
-from .Entry import Entry
-from .Node import Node
 from .Dict import Dict
+from .Entry import Entry
 from .List import List
+from .Node import Node
 
 
 def create_spline(x, y, **kwargs) -> PPoly:
