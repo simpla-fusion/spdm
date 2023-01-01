@@ -54,7 +54,7 @@ class MDSplusFile(File):
         File.Mode.write | File.Mode.create: "New"
     }
 
-    def __init__(self, *args, fid=None, shot: int = None, tree_name: str = None, subtree_list=None,   **kwargs):
+    def __init__(self, *args, fid=None, shot: int = None, tree_name: str = None, **kwargs):
         super().__init__(*args,  ** kwargs)
 
         self._envs = {}
@@ -65,23 +65,37 @@ class MDSplusFile(File):
 
         self._mds_mode = MDSplusFile.MDS_MODE[self.mode]
 
-        if tree_name is None:
-            tree_name = query.get("tree_name", None)
-
-        if tree_name is not None and '[' in tree_name:
-            pos = tree_name.find('[')
-            self._default_tree_name = tree_name[:pos]
-            self._subtree_list = tree_name[pos+1:-1].split(',')
-
-        else:
-            self._default_tree_name = tree_name
-            self._subtree_list = subtree_list
-
         path = self.uri.path.rstrip('/')
+
         if self.uri.authority != "":
             path = f"{self.uri.authority}::{path}"
 
+        if self.uri.protocol in ('ssh'):
+            path = f"{self.uri.protocol}://"+path
+
+        if len(path) == 0:
+            path = None
+
         self._default_tree_path = path
+
+        if tree_name is None:
+            tree_name = query.get("tree_name", None)
+
+        self._old_env = {}
+
+        if tree_name is None:
+            self._default_tree_name = None
+        elif self._default_tree_path is not None:
+            tree_name = tree_name.split(',')
+            self._default_tree_name = tree_name[0]
+            for p in tree_name:
+                env_path = f"{p}_path"
+                if env_path in os.environ:
+                    self._old_env[env_path] = os.environ[env_path]
+                    os.environ[f"{p}_path"] = f"{path}:{self._old_env[env_path]}"
+                else:
+                    self._old_env[env_path] = None
+                    os.environ[f"{p}_path"] = path
 
         self._shot = shot if shot is not None else (fid if fid is not None else query.get("shot", self.uri.fragment))
 
@@ -97,6 +111,12 @@ class MDSplusFile(File):
 
         self._trees = {}
 
+        for k, v in self._old_env.items():
+            if v is None:
+                del os.environ[k]
+            else:
+                os.environ[k] = v
+
     @property
     def entry(self, lazy=True) -> Entry:
         return self._entry
@@ -106,23 +126,15 @@ class MDSplusFile(File):
         if tree_name is None:
             tree_name = self._default_tree_name
 
-        if tree_path is None:
-            tree_path = self._default_tree_path
-
-        tag = tree_path.replace("~t", tree_name)
-
-        if tag in self._trees:
-            return self._trees[tag]
-
-        if tree_name == self._default_tree_name and self._subtree_list is not None:
-            for sub_tree in self._subtree_list:
-                s_tag = f"{sub_tree}_path"
-                if s_tag not in os.environ:
-                    os.environ[s_tag] = tree_path.replace("~t", f"{tree_name}/{sub_tree}")
+        if tree_name in self._trees:
+            return self._trees[tree_name]
 
         mode = self._mds_mode
 
         shot = int(self._shot) if isinstance(self._shot, str) else self._shot
+
+        if tree_path is None:
+            tree_path = self._default_tree_path
 
         try:
             tree = mds.Tree(tree_name, shot, mode=mode, path=tree_path)
@@ -132,8 +144,9 @@ class MDSplusFile(File):
         except mds.mdsExceptions.TreeNOPATH as error:
             raise FileNotFoundError(f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
         else:
-            logger.debug(f"Open MDSplus Tree [{tag}] shot={shot}")
-        self._trees[tag] = tree
+            logger.debug(f"Open MDSplus Tree [{tree_name}] shot={shot}")
+
+        self._trees[tree_name] = tree
 
         return tree
 

@@ -42,11 +42,6 @@ def open_entry(uri: Union[str, URITuple], *args, source_schema=_undefined_, targ
 
     uri = uri_split(uri)
 
-    if uri.protocol is None:
-        uri.protocol = "local"
-
-    uri.protocol = uri.protocol.lower()
-
     if source_schema is _undefined_ and uri.schema != "":
         source_schema = uri.schema
 
@@ -57,9 +52,9 @@ def open_entry(uri: Union[str, URITuple], *args, source_schema=_undefined_, targ
 
     if uri.protocol in ("http", "https"):
         raise NotImplementedError(f"TODO: Access to remote files [{uri.protocol}] is not yet implemented!")
-    elif uri.protocol in ("ssh", "scp"):
-        raise NotImplementedError(f"TODO: Access to remote files [{uri.protocol}] is not yet implemented!")
-    elif uri.protocol in ("file", "local"):
+    # elif uri.protocol in ():
+    #     raise NotImplementedError(f"TODO: Access to remote files [{uri.protocol}] is not yet implemented!")
+    elif uri.protocol in ("file", "local", "ssh", "scp", None):
         entry = File(uri, *args, **kwargs).entry
         if mapper is not None:
             entry = mapper.map(entry)
