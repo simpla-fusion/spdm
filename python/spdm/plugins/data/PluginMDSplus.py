@@ -68,7 +68,7 @@ class MDSplusFile(File):
         if tree_name is None:
             tree_name = query.get("tree_name", None)
 
-        if '[' in tree_name:
+        if tree_name is not None and '[' in tree_name:
             pos = tree_name.find('[')
             self._default_tree_name = tree_name[:pos]
             self._subtree_list = tree_name[pos+1:-1].split(',')
@@ -118,8 +118,8 @@ class MDSplusFile(File):
             for sub_tree in self._subtree_list:
                 s_tag = f"{sub_tree}_path"
                 if s_tag not in os.environ:
-                    os.environ[s_tag] = tree_path.replace("~t", f"{tree_name}/{sub_tree}")              
-            
+                    os.environ[s_tag] = tree_path.replace("~t", f"{tree_name}/{sub_tree}")
+
         mode = self._mds_mode
 
         shot = int(self._shot) if isinstance(self._shot, str) else self._shot
