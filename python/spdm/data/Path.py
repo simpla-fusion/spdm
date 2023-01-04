@@ -9,20 +9,22 @@ _TPath = TypeVar("_TPath", bound="Path")
 
 
 class Path(object):
-    SEPERATOR = '.'
+    DELIMITER = '.'
 
     def __init__(self, *args, **kwargs):
         self._items = Path.parser(args)
 
     def __repr__(self):
-        return Path.SEPERATOR.join([str(d) for d in self._items])
+        return Path.DELIMITER.join([str(d) for d in self._items])
 
     @staticmethod
     def parser(path) -> list:
         if path in (_undefined_,  None):
             return []
+        elif isinstance(path, Path):
+            return path._items
         elif isinstance(path, str):
-            s_list = path.split(Path.SEPERATOR)
+            s_list = path.split(Path.DELIMITER)
             if len(s_list) == 1:
                 return s_list[0]
             else:
@@ -69,7 +71,7 @@ class Path(object):
     def __iter__(self) -> None:
         yield from self._items
 
-    def __true_div__(self, other) -> _TPath:
+    def __truediv__(self, other: str) -> _TPath:
         return self.duplicate().append(other)
 
     def __add__(self, other) -> _TPath:
@@ -97,6 +99,18 @@ class Path(object):
     def as_list(self) -> list:
         return self._items
 
+    def join(self, delimiter=_undefined_) -> str:
+        if delimiter is _undefined_:
+            delimiter = self.DELIMITER
+        return delimiter.join(map(str, self._items))
+
+    # def split(self) -> list:
+    #     if not isinstance(path, str):
+    #         return path
+    #     else:
+    #         path = path.split(delimiter)
+    #         return list(map(lambda p: int(p) if p.isnumeric() else p, path))
+
     def normalize(self) -> _TPath:
         if self._items is None:
             self._items = []
@@ -107,7 +121,7 @@ class Path(object):
         elif not isinstance(self._items, collections.abc.MutableSequence):
             self._items = [self._items]
 
-        self._items = sum([d.split(Path.SEPERATOR) if isinstance(d, str) else [d] for d in self._items], [])
+        self._items = sum([d.split(Path.DELIMITER) if isinstance(d, str) else [d] for d in self._items], [])
         return self
 
     @property

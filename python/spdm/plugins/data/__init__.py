@@ -17,6 +17,8 @@ SpObject.association.update({
     "spdm.data.file.txt":       ".data.PluginTXT",
     "spdm.data.file.csv":       ".data.PluginCSV",
     "spdm.data.file.numpy":     ".data.PluginNumPy",
+
+
     "spdm.data.file.gfile":     ".data.PluginGEQdsk",
     "spdm.data.file.geqdsk":    ".data.PluginGEQdsk",
 

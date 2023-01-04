@@ -16,9 +16,9 @@ from enum import Flag, auto
 from typing import Sequence
 
 import numpy as np
+from spdm.common.tags import _empty, _not_found_, _undefined_
 
 from ..util.logger import logger
-from spdm.common.tags import _empty, _not_found_, _undefined_
 
 # _empty = object()
 

@@ -13,6 +13,8 @@ if __name__ == '__main__':
     with File("../output/test.json", mode="w") as oid:
         oid.write(doc.dump())
         oid.close()
+    with File("../output/test.json", mode="r") as oid:
+        logger.debug(oid.read().dump())
 
     with File("../output/test.h5", mode="w") as oid:
         oid.write(doc.dump())
@@ -21,7 +23,10 @@ if __name__ == '__main__':
     with File("../output/test.h5", mode="r") as oid:
         logger.debug(oid.read().dump())
 
-    with File("../output/test.json", mode="r") as oid:
+    with File("../output/test.nc", mode="w") as oid:
+        oid.write(doc.dump())
+        oid.close()
+    with File("../output/test.nc", mode="r") as oid:
         logger.debug(oid.read().dump())
 
     # with open("../output/test.json", mode="w") as fp:

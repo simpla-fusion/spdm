@@ -141,6 +141,7 @@ def parse_url_iter(path, with_position=False):
             yield idx
 
 
+
 def normalize_path_to_list(path, split=True):
     if isinstance(path, str):
         if split:
