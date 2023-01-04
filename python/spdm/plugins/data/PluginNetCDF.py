@@ -39,7 +39,7 @@ def nc_put_value(grp, path, value,  **kwargs):
         for idx, d in enumerate(value.shape):
             parent.createDimension(f"{key}__dim_{idx}", d)
             dimensions.append(f"{key}__dim_{idx}")
-        logger.debug(path)
+        
         d = parent.createVariable(path.join('/'), value.dtype, tuple(dimensions))
         d[:] = value
 
