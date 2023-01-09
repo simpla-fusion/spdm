@@ -42,13 +42,13 @@ def open_entry(uri: Union[str, URITuple], *args, source_schema=_undefined_, targ
 
     uri = uri_split(uri)
 
-    if source_schema is _undefined_ and uri.schema != "":
+    if source_schema is _undefined_:
         source_schema = uri.schema
 
-    if source_schema == target_schema:
-        mapper = None
-    else:
+    if source_schema is not None and source_schema != target_schema:
         mapper = create_mapper(mapper, source_schema=source_schema, target_schema=target_schema)
+    else:
+        mapper = None
 
     if uri.protocol in ("http", "https"):
         raise NotImplementedError(f"TODO: Access to remote files [{uri.protocol}] is not yet implemented!")

@@ -194,7 +194,7 @@ def sp_imas_to_geqdsk(d: Dict, nw=128, nh=128):
     # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(coord_r.shape[0], 1), axis=1)
     # coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(coord_z.shape[0], 1), axis=1)
     # points = np.append(coord_r.reshape([coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    psirz = eq.profiles_2d.psi(grid_r, grid_z).transpose()
+    psirz = eq.profiles_2d.psi(grid_r, grid_z)
     # psi = np.append(psi[:, :], psi[:, 0].reshape(psi.shape[0], 1), axis=1)
     # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
     # psirz = interpolate.griddata(points, values, (grid_r, grid_z), method='cubic').transpose()
@@ -265,7 +265,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     eq["profiles_2d.grid_type.index"] = 1
     eq["profiles_2d.grid.dim1"] = np.linspace(rmin, rmax, nw)
     eq["profiles_2d.grid.dim2"] = np.linspace(zmin, zmax, nh)
-    eq["profiles_2d.psi"] = geqdsk["psirz"].T
+    eq["profiles_2d.psi"] = geqdsk["psirz"]
 
     # profile
 

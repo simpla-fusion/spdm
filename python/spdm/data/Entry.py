@@ -59,7 +59,7 @@ class Entry(object):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
-    def __init__(self, cache=_undefined_, path=None, **kwargs):
+    def __init__(self, cache=_undefined_, path=None, in_place=True, **kwargs):
         super().__init__()
         self._path = path if isinstance(path, Path) else Path(path)
         self._cache = cache

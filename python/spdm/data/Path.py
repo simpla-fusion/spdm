@@ -43,7 +43,7 @@ class Path(object):
         elif isinstance(path, collections.abc.Sequence):
             return [Path.parser(item) for item in path]
         elif isinstance(path, collections.abc.Mapping):
-            return {Path.parser(k): v for k, v in path}
+            return {Path.parser(k): v for k, v in path.items()}
         else:
             # logger.warning(f"Unkonwn Path type [{type(path)}]!")
             return path
