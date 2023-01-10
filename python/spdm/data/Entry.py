@@ -61,7 +61,7 @@ class Entry(object):
 
     def __init__(self, cache=_undefined_, path=None, in_place=True, **kwargs):
         super().__init__()
-        self._path = path if isinstance(path, Path) else Path(path)
+        self._path = Path(path)
         self._cache = cache
         # if hasattr(cache, "_entry") or isinstance(cache, Entry):
         #     raise RuntimeError((cache))
@@ -105,13 +105,8 @@ class Entry(object):
     def attribute(self) -> Any:
         return NotImplemented
 
-    def child(self,  *args) -> _TEntry:
-        if len(args) == 0:
-            return self
-        elif self._path is None or self._path.empty:
-            return self.__class__(self._cache, path=Path(*args))
-        else:
-            return self.__class__(self._cache, path=self._path.duplicate().append(*args))
+    def child(self,  path) -> _TEntry:
+        return self.__class__(self._cache, path=self._path.duplicate().append(path))
 
     def query(self, q: Query) -> Any:
         return normal_filter(self.pull(_not_found_), q)

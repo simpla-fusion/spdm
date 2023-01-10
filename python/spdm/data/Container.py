@@ -2,76 +2,28 @@ import collections
 import collections.abc
 import dataclasses
 import inspect
+import typing
 from functools import cached_property
-from typing import (Any, Generic, Iterator, Mapping, TypeVar, Union, final,
-                    get_args)
 
 import numpy as np
 
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
-from ..util.utilities import serialize
-from .Entry import Entry
-from .Node import Node, _TKey
-from .Path import Path
-from .Link import Link
+from .Node import Node
 
-_TObject = TypeVar("_TObject")
-_TContainer = TypeVar("_TContainer", bound="Container")
-_T = TypeVar("_T")
+_TKey = typing.TypeVar("_TKey")
+_TObject = typing.TypeVar("_TObject")
+_TContainer = typing.TypeVar("_TContainer", bound="Container")
+_T = typing.TypeVar("_T")
 
 
-class Container(Link, Generic[_TObject]):
+class Container(Node, typing.Generic[_TObject]):
     r"""
        Container Node
     """
 
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-    def __repr__(self) -> str:
-        annotation = [f"{k}='{v}'" for k, v in self.annotation.items() if v is not None]
-        return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} {' '.join(annotation)}/>"
-
-    def __serialize__(self) -> Any:
-        return serialize(self._entry.dump())
-
-    def _duplicate(self, *args, parent=None, **kwargs) -> _TContainer:
-        return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
-
-    def __getitem__(self, key) -> _TObject:
-        return super().__getitem__(key)
-
-    def __setitem__(self, key, value: _T) -> None:
-        super().__setitem__(key, value)
-
-    def __delitem__(self,  key) -> None:
-        super().__delitem__(key)
-
-    def __contains__(self,  key) -> None:
-        return super().__contains__(key)
-
-    def __eq__(self, other) -> bool:
-        return self._entry.equal(other)
-
-    def __len__(self) -> int:
-        return self._entry.count()
-
-    def __iter__(self) -> Iterator[_T]:
-        for idx, obj in enumerate(self._entry):
-            yield self._post_process(obj, key=[idx])
-
-    def append(self, value) -> _TContainer:
-        self._entry.extend([value])
-        return self
-
-    def extend(self, value) -> _TContainer:
-        self._entry.extend(value)
-        return self
-
-    def __ior__(self, obj) -> _TContainer:
-        self._entry.update(obj)
-        return self
 
     @cached_property
     def _child_type(self):
@@ -80,12 +32,12 @@ class Container(Link, Generic[_TObject]):
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
         orig_class = getattr(self, "__orig_class__", _not_found_)
         if orig_class is not _not_found_:
-            child_type = get_args(self.__orig_class__)
+            child_type = typing.get_args(self.__orig_class__)
             if len(child_type) > 0 and inspect.isclass(child_type[0]):
                 child_type = child_type[0]
         return child_type
 
-    def update_child(self, key: _TKey, value: _T = _undefined_,   type_hint=_undefined_, *args, **kwargs) -> Union[_T, Node]:
+    def update_child(self, key: _TKey, value: _T = _undefined_,   type_hint=_undefined_, *args, **kwargs) -> typing.Union[_T, Node]:
         return super().update_child(key,
                                     value,
                                     type_hint=type_hint if type_hint is not _undefined_ else self._child_type,
@@ -187,7 +139,7 @@ class Container(Link, Generic[_TObject]):
     # def update(self, value: _T, **kwargs) -> _T:
     #     return self._entry.push([], {Entry.op_tag.update: value}, **kwargs)
 
-    # def find(self, query: _TPath, **kwargs) -> _TObject:
+    # def find(self, query: _TPath, **kwargs) -> _T:
     #     return self._entry.pull({Entry.op_tag.find: query},  **kwargs)
 
     # def try_insert(self, query: _TPath, value: _T, **kwargs) -> _T:
@@ -199,10 +151,10 @@ class Container(Link, Generic[_TObject]):
     # # def dump(self) -> Union[Sequence, Mapping]:
     # #     return self._entry.pull(Entry.op_tag.dump)
 
-    # def put(self, path: _TPath, value, *args, **kwargs) -> _TObject:
+    # def put(self, path: _TPath, value, *args, **kwargs) -> _T:
     #     return self._entry.put(path, value, *args, **kwargs)
 
-    # def get(self, path: _TPath, *args, **kwargs) -> _TObject:
+    # def get(self, path: _TPath, *args, **kwargs) -> _T:
     #     return self._entry.get(path, *args, **kwargs)
 
     # def replace(self, path, value: _T, *args, **kwargs) -> _T:

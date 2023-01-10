@@ -18,6 +18,8 @@ class Query(object):
         elif isinstance(d, collections.abc.Mapping):
             self._query = deepcopy(d)
             self._query.update(kwargs)
+        else:
+            self._query = d
 
         self._only_first = only_first
 

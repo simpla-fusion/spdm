@@ -3,7 +3,7 @@ from copy import copy, deepcopy
 
 import numpy as np
 from spdm.util.logger import logger
-from spdm.data import Dict, List, Node, Link, Path, Query
+from spdm.data import Dict, List, Node,  Path, Query
 
 
 class TestNodeList(unittest.TestCase):

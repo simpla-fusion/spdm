@@ -7,7 +7,6 @@ from .Entry import Entry
 from .File import File
 from .Directory import Directory
 from .Function import Function, FunctionDict, FunctionList, function_like
-from .Link import Link
 from .List import List
 from .Node import Node
 from .Path import Path
@@ -23,5 +22,4 @@ from ..plugins import data
 
 Node._SEQUENCE_TYPE_ = List
 Node._MAPPING_TYPE_ = Dict
-Node._LINK_TYPE_ = Link
 Node._CONTAINER_TYPE_ = Container[Node]

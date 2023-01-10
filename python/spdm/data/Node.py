@@ -26,7 +26,6 @@ class Node(SpObject):
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
     _CONTAINER_TYPE_ = None
-    _LINK_TYPE_ = None
 
     def __new__(cls,  *args, **kwargs):
         if cls is not Node:
@@ -71,10 +70,10 @@ class Node(SpObject):
         return self._entry
 
     def reset(self):
-        self._entry = Entry()
+        self._entry.reset()
 
     def dump(self):
-        return self._entry.dump()
+        return self.__serialize__()
 
     def __serialize__(self):
         return self._entry.dump()

@@ -32,3 +32,4 @@ if __name__ == '__main__':
     # with open("../output/test.json", mode="w") as fp:
     #     d = doc.dump(enable_ndarray=False)
     #     json.dump(d, fp)
+
