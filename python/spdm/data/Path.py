@@ -48,7 +48,6 @@ class Path(object):
     def _from_str(v: str) -> typing.Any:
         v = v.strip(' ')
 
-       
         if v.startswith('?'):
             res = Query(v)
         elif ':' in v:
@@ -134,7 +133,7 @@ class Path(object):
         raise NotImplementedError("Path should be immutable!")
 
     def __eq__(self, other: _TPath) -> bool:
-        return self._items == other._items
+        return self._items == other._items if isinstance(other,Path) else False
 
     @property
     def empty(self) -> bool:

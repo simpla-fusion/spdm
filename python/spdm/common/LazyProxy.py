@@ -1,13 +1,11 @@
 
 import collections
+import collections.abc
 import copy
 import inspect
 import operator
-import re
 import uuid
-
 from ..util.logger import logger
-
 
 ELEMENT_TYPE_LIST = [int, float, str]
 

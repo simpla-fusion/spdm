@@ -34,7 +34,9 @@ def open_db(uri: Union[str, URITuple], *args,
     return db
 
 
-def open_entry(uri: Union[str, URITuple], *args, source_schema=_undefined_, target_schema=_undefined_, mapper=None, ** kwargs) -> Union[Entry, Collection]:
+def open_entry(uri: Union[str, URITuple], *args,
+               source_schema=_undefined_, target_schema=_undefined_,
+               mapper=None, ** kwargs) -> Union[Entry, Collection]:
     """
     Example:
       entry=open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east,shot=38300")

@@ -16,6 +16,8 @@ if __name__ == '__main__':
 
     entry = open_entry("mdsplus[EAST]://202.127.204.12?tree_name=pcs_east#70754")
 
+    
+
     ip = entry.get(["tf", "coil",  "current", "data"])
     pf = entry.get(["pf_active"]).dump()
 

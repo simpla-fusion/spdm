@@ -11,6 +11,6 @@ from fytok.transport.Equilibrium import Equilibrium
 
 if __name__ == '__main__':
 
-    entry = open_entry("file+geqdsk[EAST]:///home/salmon/workspace/SpDB/examples/data/g080307.63000")
+    entry = open_entry("file+geqdsk[EAST]:///<Data path>/g080307.63000")
 
     logger.debug(entry.dump())

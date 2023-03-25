@@ -27,49 +27,11 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.child("c").pull(),           self.data["c"])
-        self.assertEqual(d.child("d", "e").pull(),      self.data["d"]["e"])
-        self.assertEqual(d.child("d", "f").pull(),      self.data["d"]["f"])
-        self.assertEqual(d.child("a", 0).pull(),        self.data["a"][0])
-        self.assertEqual(d.child("a", 1).pull(),        self.data["a"][1])
-
-    def test_find_by_query(self):
-        cache = [
-            {"name": "wang wu", "age": 21},
-            {"name": "wang liu", "age": 22},
-            {"name": "li si",    "age": 22},
-            {"name": "Zhang san", "age": 24},
-        ]
-
-        d0 = Entry(cache)
-
-        # self.assertEqual(d0.pull(predication={"name": "li si"}, only_first=True)["age"], 22)
-
-        self.assertEqual(d0.child(Query({"name": "li si"}), "age").pull(), 22)
-
-        d1 = Entry({"person": cache})
-
-        young = d1.child("person", Query({"age": 22}, only_first=False)).pull()
-
-        self.assertEqual(len(young), 2)
-        self.assertEqual(young[0]["name"],  "wang liu")
-        self.assertEqual(young[1]["name"],  "li si")
-
-    def test_update_by_cond(self):
-        cache = [
-            {"name": "wang wu",   "age": 21},
-            {"name": "wang liu",  "age": 22},
-            {"name": "li si",     "age": 22},
-            {"name": "zhang san", "age": 24},
-        ]
-
-        d0 = Entry(cache)
-
-        d0.child(Query({"name": "wang wu"}), "address").push("hefei")
-
-        self.assertEqual(cache[0]["address"],  "hefei")
-
-        self.assertEqual(cache[0]["age"],  21)
+        self.assertEqual(d.get("c"),           self.data["c"])
+        self.assertEqual(d.get("d/e"),      self.data["d"]["e"])
+        self.assertEqual(d.get("d/f"),      self.data["d"]["f"])
+        self.assertEqual(d.get("a/0"),        self.data["a"][0])
+        self.assertEqual(d.get("a/1"),        self.data["a"][1])
 
     def test_put(self):
         cache = {}
@@ -80,9 +42,9 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(cache["a"], "hello world {name}!")
 
-        d.child("e.f").push(5)
+        d.put("e/f", 5)
 
-        d.child("e.g").push(6)
+        d.put("e/g", 6)
 
         self.assertEqual(cache["e"]["f"],   5)
 
@@ -93,9 +55,9 @@ class TestEntry(unittest.TestCase):
 
         self.assertTrue(d.exists())
         self.assertTrue(d.child("a").exists())
-        self.assertTrue(d.child("d.e").exists())
-        self.assertFalse(d.child("b.h").exists())
-        self.assertFalse(d.child("f.g").exists())
+        self.assertTrue(d.child("d/e").exists())
+        self.assertFalse(d.child("b/h").exists())
+        self.assertFalse(d.child("f/g").exists())
 
         self.assertEqual(d.count(),          3)
         self.assertEqual(d.child("a").count(),   6)
@@ -137,13 +99,19 @@ class TestEntry(unittest.TestCase):
         }
 
         d = Entry(cache)
-        d.child("b").erase()
+        d.erase("b")
         self.assertTrue("b" not in cache)
 
     def test_get_many(self):
         d = Entry(self.data)
-        res = d.child([Path("a", 2), "c", Path("d.e"), "e"]).pull()
-        self.assertListEqual(res, [1, "I'm {age}!", "{name} is {age}",  _not_found_])
+
+        self.assertEqual(d.get('a/2'), self.data['a'][2])
+
+        res = d.get(["a/2", "c",  "d/e", "e"])
+        self.assertListEqual(res, [self.data['a'][2],
+                                   self.data['c'],
+                                   self.data['d']['e'],
+                                   _not_found_])
 
 
 if __name__ == '__main__':

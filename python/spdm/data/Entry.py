@@ -59,9 +59,9 @@ class Entry(object):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
-    def __init__(self, cache=_undefined_, path=None, in_place=True, **kwargs):
+    def __init__(self, cache=_undefined_, path: Path = None, in_place=True, **kwargs):
         super().__init__()
-        self._path = Path(path)
+        self._path = Path(path) if not isinstance(path, Path) else path
         self._cache = cache
         # if hasattr(cache, "_entry") or isinstance(cache, Entry):
         #     raise RuntimeError((cache))
@@ -106,10 +106,10 @@ class Entry(object):
         return NotImplemented
 
     def child(self,  path) -> _TEntry:
-        return self.__class__(self._cache, path=self._path.duplicate().append(path))
+        return self.__class__(self._cache, path=self._path.append(path))
 
     def query(self, q: Query) -> Any:
-        return normal_filter(self.pull(_not_found_), q)
+        return q.filter(self.pull(_not_found_))
 
     def first_child(self) -> Iterator[_TEntry]:
         """
@@ -127,14 +127,11 @@ class Entry(object):
         else:
             raise NotImplementedError(type(d))
 
-    def pull(self, default=..., set_default=False) -> Any:
+    def pull(self, default=..., setdefault=False) -> Any:
         """ 查找self._cache中位于self._path的值。
             if  value exists then self._cache=value,self._path=[] and return value
             elif default is not _undefined_ return default
             else Entry which is closest to target，
-
-
-
             Args:
                 default ([type], optional): [description]. Defaults to _undefined_.
                 strict (bool, optional): [description]. Defaults to False.
@@ -149,17 +146,18 @@ class Entry(object):
         obj = normal_get(self._cache, self._path)
 
         if obj is _not_found_:
-            if set_default:
-                self._cache = default
-                self._path = None
-            return default
+            if default is ellipsis:
+                raise IndexError(f"Can not find {self._path}!")
+            else:
+                self.push(default)
+                return self.pull()
         else:
             self._cache = obj
-            self._path = None
+            self._path = Path()
             return obj
 
-    def set_default(self, default) -> Any:
-        return self.pull(default, set_default=True)
+    def setdefault(self, default) -> Any:
+        return self.pull(default, setdefault=True)
 
     class op_tags(Flag):
         null = auto()
@@ -194,19 +192,27 @@ class Entry(object):
     def update(self, value: _T) -> _T:
         return self.push(value, Entry.op_tags.update)
 
-    def erase(self) -> None:
-        if self._path is None or self._path.empty:
+    def erase(self, *args, **kwargs) -> None:
+        if len(args) > 0:
+            self.child(*args).erase(**kwargs)
+        elif self._path is None or self._path.empty:
             self._cache = _undefined_
         else:
-            normal_erase(self._cache, self._path)
+            normal_erase(self._cache, self._path, **kwargs)
         return
 
-    def count(self) -> int:
-        res = self.pull(_not_found_)
-        return len(res) if res is not _not_found_ else 0
+    def count(self, *args, **kwargs) -> int:
+        if len(args) > 0:
+            return self.child(*args).count(**kwargs)
+        else:
+            res = self.pull(_not_found_)
+            return len(res) if res is not _not_found_ else 0
 
-    def exists(self) -> bool:
-        return self.pull(_not_found_) is not _not_found_
+    def exists(self, *args) -> bool:
+        if len(args) > 0:
+            return self.child(*args).exists()
+        else:
+            return self.pull(_not_found_) is not _not_found_
 
     def equal(self, other) -> bool:
         res = self.pull(_not_found_)
@@ -220,8 +226,9 @@ class Entry(object):
             raise ValueError(f"Can not find {path}!")
         return res
 
-    def put(self, path, value, **kwargs) -> None:
-        self.child(path).push(value, **kwargs)
+    def put(self, *args, **kwargs) -> None:
+        assert(len(args) > 0)
+        self.child(args[:-1]).push(args[-1], **kwargs)
 
     def dump(self) -> Any:
         return self.__serialize__()
@@ -374,84 +381,46 @@ def normal_put(obj, path, value, op: Entry.op_tags = Entry.op_tags.assign):
 
 
 def normal_get(obj, path):
-    if path is None:
-        return obj
-    elif obj in (None, _not_found_, _undefined_):
-        return _not_found_
+    if path is None or (isinstance(path, collections.abc.Sequence) and len(path) == 0) or obj in (None, _not_found_, _undefined_):
+        res = obj
     elif isinstance(obj, Entry):
-        return obj.child(path).pull(_not_found_)
+        res = obj.get(path, _not_found_)
     elif hasattr(obj.__class__, "__entry__"):
-        return obj.__entry__().child(path).pull(_not_found_)
-    elif isinstance(path, Path):
-        for idx, key in enumerate(path._items):
-            if isinstance(obj, Entry):
-                obj = obj.child(path[idx:]).pull(_not_found_)
+        res = obj.__entry__().get(path, _not_found_)
+    elif isinstance(path, (Path, tuple)):
+        res = obj
+        for idx, key in enumerate(path):
+            if isinstance(res, Entry):
+                res = res.get(path[idx:], _not_found_)
                 break
             else:
-                obj = normal_get(obj, key)
-
-            if obj is _not_found_:
+                res = normal_get(res, key)
+            if res is _not_found_:
                 break
-        return obj
-    elif isinstance(path, Query):
-        obj = [v for idx, v in normal_filter(obj, path)]
-        if len(obj) == 0:
-            obj = _not_found_
-        elif path._only_first:
-            obj = obj[0]
-
-        return obj
+    elif isinstance(path, (Query, collections.abc.Mapping)):  # Mapping => Query
+        res = [v for idx, v in normal_filter(obj, path)]
+        if len(res) == 0:
+            res = _not_found_
     elif isinstance(path, (int, slice)) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-        return obj[path]
-    elif isinstance(path, (int, slice)) and isinstance(obj, collections.abc.Mapping):
-        return {k: normal_get(v, path) for k, v in obj.items()}
+        res = obj[path]
     elif isinstance(path, str) and isinstance(obj, collections.abc.Mapping):
-        return obj.get(path, _not_found_)
-    elif isinstance(path, str) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
-        return [normal_get(v, path) for v in obj]
-    elif isinstance(path, set):
-        return {k: normal_get(obj, k) for k in path}
-    elif isinstance(path, collections.abc.Sequence):
-        return [normal_get(obj, k) for k in path]
-    elif isinstance(path, collections.abc.Mapping):
-        return {k: normal_get(obj, v) for k, v in path.items()}
+        res = obj.get(path, _not_found_)
+    elif isinstance(path, set):  # set => Mapping
+        res = {k: normal_get(obj, k) for k in path}
+    elif isinstance(path, collections.abc.Sequence):  # list => list
+        res = [normal_get(obj, k) for k in path]
     elif hasattr(obj, "get") and isinstance(path, str):
-        return obj.get(path, _not_found_)
+        res = obj.get(path, _not_found_)
+    # elif isinstance(path, (int, slice)) and isinstance(obj, collections.abc.Mapping):
+    #     # res = {k: normal_get(v, path) for k, v in obj.items()}
+    #     raise IndexError(f"Can not index Mapping by int or slice! object type={type(obj)} path type={type(path)}")
+    # elif isinstance(path, str) and isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+    #     # res = [normal_get(v, path) for v in obj]
+    #     raise IndexError(f"Can not index Sequence by str! object type={type(obj)} path type={type(path)}")
     else:
-        raise NotImplementedError(path)
+        raise IndexError(f"Can not index {type(obj)} by {type(path)}")
 
-
-def normal_filter(obj: Sequence, query: Query) -> Iterator[Tuple[int, Any]]:
-    only_first = True if not isinstance(query, Query) else query._only_first
-    for idx, val in enumerate(obj):
-        if normal_check(val, query):
-            yield idx, val
-            if only_first:
-                break
-
-
-def normal_check(obj, query, expect=None) -> bool:
-    if isinstance(query, Query):
-        query = query._query
-
-    if query in [_undefined_, None, _not_found_]:
-        return obj
-    elif isinstance(query, str):
-        if query[0] == '$':
-            raise NotImplementedError(query)
-            # return _op_tag(query, obj, expect)
-        elif isinstance(obj, collections.abc.Mapping):
-            return normal_get(obj, query) == expect
-        elif hasattr(obj, "_entry"):
-            return normal_get(obj._entry, query, _not_found_) == expect
-        else:
-            raise TypeError(query)
-    elif isinstance(query, collections.abc.Mapping):
-        return all([normal_check(obj, k, v) for k, v in query.items()])
-    elif isinstance(query, collections.abc.Sequence):
-        return all([normal_check(obj, k) for k in query])
-    else:
-        raise NotImplementedError(query)
+    return res
 
 
 def _slice_to_range(s: slice, length: int) -> range:

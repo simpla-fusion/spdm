@@ -19,5 +19,10 @@
   ],
   "terminal.integrated.env.linux": {
     "PYTHONPATH": "${workspaceFolder}/python:${env:PYTHONPATH}"
-  }
+  },
+  "cSpell.words": [
+    "efit",
+    "geqdsk",
+    "mdsplus"
+  ]
 }

@@ -35,8 +35,8 @@ class Node(SpObject):
                 obj = object.__new__(Node._SEQUENCE_TYPE_)
             elif isinstance(args[0], collections.abc.Mapping):
                 obj = object.__new__(Node._MAPPING_TYPE_)
-            elif isinstance(args[0], Entry) and Node._LINK_TYPE_ is not None:
-                obj = object.__new__(Node._LINK_TYPE_)
+            # elif isinstance(args[0], Entry) and Node._LINK_TYPE_ is not None:
+            #     obj = object.__new__(Node._LINK_TYPE_)
             else:
                 obj = object.__new__(cls)
         elif len(args) > 1:

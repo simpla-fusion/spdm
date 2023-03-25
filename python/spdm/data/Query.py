@@ -10,6 +10,30 @@ _TQuery = TypeVar("_TQuery", bound="Query")
 _T = TypeVar("_T")
 
 
+def normal_check(obj, query, expect=None) -> bool:
+    if isinstance(query, Query):
+        query = query._query
+
+    if query in [_undefined_, None, _not_found_]:
+        return obj
+    elif isinstance(query, str):
+        if query[0] == '$':
+            raise NotImplementedError(query)
+            # return _op_tag(query, obj, expect)
+        elif isinstance(obj, collections.abc.Mapping):
+            return normal_get(obj, query) == expect
+        elif hasattr(obj, "_entry"):
+            return normal_get(obj._entry, query, _not_found_) == expect
+        else:
+            raise TypeError(query)
+    elif isinstance(query, collections.abc.Mapping):
+        return all([normal_check(obj, k, v) for k, v in query.items()])
+    elif isinstance(query, collections.abc.Sequence):
+        return all([normal_check(obj, k) for k in query])
+    else:
+        raise NotImplementedError(query)
+
+
 class Query(object):
     def __init__(self, d: Mapping = None, only_first=True, **kwargs) -> None:
         super().__init__()
@@ -28,6 +52,14 @@ class Query(object):
 
     def dump(self) -> dict:
         return self._query
+
+    def filter(obj: Sequence, query: _TQuery) -> Iterator[Tuple[int, Any]]:
+        only_first = True if not isinstance(query, Query) else query._only_first
+        for idx, val in enumerate(obj):
+            if normal_check(val, query):
+                yield idx, val
+                if only_first:
+                    break
 
     # def filter(self, obj: Sequence, on_fail=_undefined_) -> Iterator[Tuple[int, Any]]:
     #     # if len(self._query) == 0:

@@ -2,9 +2,7 @@
 
 import numpy as np
 from spdm.util.logger import logger
-from spdm.data import (Dict, Entry, File, Link, List, Node, Path, Query,
-                       sp_property)
-from spdm.data.Function import function_like
+from spdm.data import (Dict, Entry, File)
 from scipy import interpolate
 
 
