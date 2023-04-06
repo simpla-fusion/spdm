@@ -6,7 +6,7 @@ from typing import Any, Generic, MutableSequence, Sequence
 import numpy as np
 
 from ..util.logger import logger
-from ..util.utilities import normalize_path, try_get
+from ..util.misc import normalize_path, try_get
 from .Entry import Entry
 from .Function import Function
 from .Node import Node

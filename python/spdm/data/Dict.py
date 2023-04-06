@@ -2,12 +2,11 @@ import collections
 import collections.abc
 import typing
 
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
-
-from ..util.utilities import serialize
+from ..util.misc import serialize
 from .Container import Container
-from .Entry import Entry, EntryChain, as_entry
+from .Entry import Entry,  as_entry
 
 _T = typing.TypeVar("_T")
 _TKey = typing.TypeVar("_TKey")
@@ -102,7 +101,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
             return self._cache.erase(self._path)
 
     def __entry__(self) -> Entry:
-        if self.__class__ is not Dict or typing.getattr(self, "__orig_class__", _not_found_) is not _not_found_:
+        if self.__class__ is not Dict or getattr(self, "__orig_class__", _not_found_) is not _not_found_:
             return Dict.DictAsEntry(self)
         else:
             return self._entry

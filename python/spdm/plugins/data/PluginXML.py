@@ -9,14 +9,14 @@ from lxml.etree import Comment as _XMLComment
 from lxml.etree import ParseError as _XMLParseError
 from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
-from lxml.etree import parse as parse_xml
+from lxml.etree import parse as parse_xml, fromstring
 from spdm.common.PathTraverser import PathTraverser
 from spdm.common.tags import _not_found_, _undefined_
-from spdm.data.Entry import Entry, EntryCombine, _TEntry, _TPath
+from spdm.data.Entry import Entry, EntryCombine,  _TPath
 from spdm.data.File import File
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.logger import logger
-from spdm.util.utilities import normalize_path, serialize
+from spdm.util.misc import normalize_path, serialize
 
 
 def merge_xml(first, second):
@@ -59,7 +59,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
     root = None
     if path.exists() and path.is_file():
         try:
-            root = parse_xml(path.as_posix()).getroot()
+            root = parse_xml(path).getroot()
             # logger.debug(f"Loading XML file from {path}")
         except _XMLParseError as msg:
             raise RuntimeError(f"ParseError: {path}: {msg}")
@@ -75,18 +75,27 @@ def load_xml(path, *args,  mode="r", **kwargs):
     return root
 
 
+@Entry.register("xml")
 class XMLEntry(Entry):
-    def __init__(self,  *args, envs={}, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, data, *args, envs={}, **kwargs):
+        if not isinstance(data, str):
+            pass
+        elif not data.strip(" ").startswith("<"):
+            data = load_xml(data)
+        else:
+            data = fromstring(data)
+
+        super().__init__(data, *args, **kwargs)
         self._envs = envs
 
     def __repr__(self) -> str:
         # return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
         return f"<{self._cache.tag}  path=\"{self._path}\" />"
 
-    def duplicate(self) -> _TEntry:
-        res = super().duplicate()
-        return res
+    def duplicate(self) -> Entry:
+        other = super().duplicate()
+        other._envs = self._envs
+        return other
 
     def xpath(self, path):
         envs = {}
@@ -124,23 +133,22 @@ class XMLEntry(Entry):
             return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
 
         res = None
-
-        if element.text is not None and len(element.text.strip()) > 0:
+        text = element.text.strip() if element.text is not None else None
+        if text is not None and len(text) > 0:
             if "dtype" in element.attrib or (len(element) == 0 and len(element.attrib) == 0):
                 dtype = element.attrib.get("dtype", None)
                 if dtype == "string" or dtype is None:
-                    res = [element.text]
+                    res = [text]
                 elif dtype == "int":
                     res = [int(v.strip())
-                           for v in element.text.strip(',').split(',')]
+                           for v in text.strip(',').split(',')]
                 elif dtype == "float":
                     res = [float(v.strip())
-                           for v in element.text.strip(',').split(',')]
+                           for v in text.strip(',').split(',')]
                 else:
                     raise NotImplementedError(f"Not supported dtype {dtype}!")
 
-                dims = [int(v) for v in element.attrib.get(
-                    "dims", "").split(',') if v != '']
+                dims = [int(v) for v in element.attrib.get("dims", "").split(',') if v != '']
                 if len(dims) == 0 and len(res) == 1:
                     res = res[0]
                 elif len(dims) > 0 and len(res) != 0:
@@ -148,7 +156,7 @@ class XMLEntry(Entry):
                 else:
                     res = np.array(res)
             else:
-                res = element.text
+                res = text
         elif not lazy:
             res = {}
             for child in element:
@@ -197,7 +205,7 @@ class XMLEntry(Entry):
         logger.warning("NOT IMPLEMENTED!")
         return None
 
-    def pull(self,  default=_undefined_,  lazy=_undefined_, **kwargs):
+    def pull(self, /, default=_undefined_,  lazy=_undefined_, **kwargs):
         path = self._path.as_list()
         xp, envs = self.xpath(path)
 
@@ -289,7 +297,6 @@ class XMLFile(File):
         self._root = load_xml(self.uri.path, mode=self.mode)
 
     def read(self, lazy=True) -> Entry:
-
         return XMLEntry(self._root, writable=False)
 
     def write(self, data, lazy) -> None:

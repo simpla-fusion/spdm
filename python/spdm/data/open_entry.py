@@ -2,14 +2,15 @@ import collections.abc
 from dataclasses import dataclass
 from typing import Sequence, TypeVar, Union
 
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
+from ..util.misc import fetch_request
 from ..util.uri_utils import URITuple, uri_merge, uri_split
+from .Collection import Collection
 from .Entry import Entry
 from .File import File
-from .Mapper import create_mapper, Mapper
-from ..common.tags import _not_found_, _undefined_
-from .Collection import Collection
 from .FileCollection import FileCollection
+from .Mapper import Mapper, create_mapper
 
 
 def open_db(uri: Union[str, URITuple], *args,
@@ -53,9 +54,8 @@ def open_entry(uri: Union[str, URITuple], *args,
         mapper = None
 
     if uri.protocol in ("http", "https"):
-        raise NotImplementedError(f"TODO: Access to remote files [{uri.protocol}] is not yet implemented!")
-    # elif uri.protocol in ():
-    #     raise NotImplementedError(f"TODO: Access to remote files [{uri.protocol}] is not yet implemented!")
+        return Entry(fetch_request(uri))
+
     elif uri.protocol in ("file", "local", "ssh", "scp", None):
         entry = File(uri, *args, **kwargs).entry
         if mapper is not None:

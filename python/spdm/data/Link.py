@@ -1,21 +1,10 @@
-import collections
-import collections.abc
-import dataclasses
-import inspect
-from functools import cached_property
-from typing import Any, Generic, Iterator, TypeVar, Union, final, get_args, Mapping
+from __future__ import annotations
 
-import numpy as np
+from typing import Any, Iterator, TypeVar
 
-from ..util.logger import logger
-from spdm.common.tags import _not_found_, _undefined_
-from ..util.utilities import serialize
-from .Entry import (Entry,   _next_, _TPath)
+from ..util.misc import serialize
 from .Node import Node, _TKey
-from .Path import Path
 
-_TObject = TypeVar("_TObject")
-_TLink = TypeVar("_TLink", bound="Link")
 _T = TypeVar("_T")
 
 
@@ -34,7 +23,7 @@ class Link(Node):
     def __serialize__(self) -> Any:
         return serialize(self._entry.dump())
 
-    def _duplicate(self, *args, parent=None, **kwargs) -> _TLink:
+    def _duplicate(self, *args, parent=None, **kwargs) -> Link:
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
     def __setitem__(self, key: _TKey, value: _T) -> _T:
@@ -61,7 +50,6 @@ class Link(Node):
         else:
             return self._entry.child(key).exists()
 
-
     def __eq__(self, other) -> bool:
         return self._entry.equal(other)
 
@@ -72,15 +60,15 @@ class Link(Node):
         for idx, obj in enumerate(self._entry.first_child()):
             yield self._post_process(obj, key=[idx])
 
-    def append(self, value) -> _TLink:
+    def append(self, value) -> Link:
         self._entry.append(value)
         return self
 
-    def extend(self, value) -> _TLink:
+    def extend(self, value) -> Link:
         self._entry.extend(value)
         return self
 
-    def __ior__(self, obj) -> _TLink:
+    def __ior__(self, obj) -> Link:
         self._entry.update(obj)
         return self
     # @property

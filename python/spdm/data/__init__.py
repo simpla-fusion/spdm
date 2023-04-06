@@ -13,13 +13,13 @@ from .Path import Path
 from .Query import Query
 from .Signal import Signal
 from .sp_property import sp_property
-from ..plugins import data
+# from ..plugins import data
 # from .Directory import Directory
 # from .Collection import Collection
 # from .Edge import Edge
 # from .Graph import Graph
 
 
-Node._SEQUENCE_TYPE_ = List
-Node._MAPPING_TYPE_ = Dict
-Node._CONTAINER_TYPE_ = Container[Node]
+# Node._SEQUENCE_TYPE_ = List
+# Node._MAPPING_TYPE_ = Dict
+# Node._CONTAINER_TYPE_ = Container[Node]

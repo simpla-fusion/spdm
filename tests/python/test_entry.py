@@ -1,12 +1,8 @@
 import unittest
 from copy import deepcopy
-from logging import log
 
-from spdm.util.logger import logger
 from spdm.common.tags import _not_found_
-from spdm.data.Entry import Entry, EntryCombine
-from spdm.data.Path import Path
-from spdm.data.Query import Query
+from spdm.data.Entry import Entry
 
 
 class TestEntry(unittest.TestCase):
@@ -99,7 +95,7 @@ class TestEntry(unittest.TestCase):
         }
 
         d = Entry(cache)
-        d.erase("b")
+        del d["b"]
         self.assertTrue("b" not in cache)
 
     def test_get_many(self):

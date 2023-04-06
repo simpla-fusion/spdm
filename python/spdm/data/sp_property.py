@@ -17,9 +17,8 @@ _T = TypeVar("_T")
 
 
 class sp_property(Generic[_TObject]):
-    """return a sp_property attribute.
-
-       用于辅助为Node定义property。
+    """
+    用于辅助为Node定义property。
        - 在读取时将cache中的data转换为类型_TObject
        - 缓存property function,并缓存其输出
 

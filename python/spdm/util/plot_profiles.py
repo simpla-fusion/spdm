@@ -10,7 +10,7 @@ import numpy as np
 from spdm.data import Dict
 from spdm.data import Function
 from ..util.logger import logger
-from spdm.util.utilities import try_get
+from spdm.util.misc import try_get
 
 
 # def signaturebar(fig, text, fontsize=10, pad=5, xpos=20, ypos=7.5,

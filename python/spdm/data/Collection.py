@@ -34,7 +34,7 @@ class Collection(Connection):
             uri = uri_split(path)
             n_cls_name = f".{uri.protocol.lower()}"
 
-        return Collection.object_new(n_cls_name)
+        return Collection.create(n_cls_name)
 
     def __init__(self, uri, *args,  mapper: Mapper = _undefined_,   **kwargs):
         super().__init__(uri, *args, **kwargs)

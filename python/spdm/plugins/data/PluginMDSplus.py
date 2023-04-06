@@ -1,8 +1,6 @@
 import collections
 import os
-import pathlib
-import re
-from functools import cached_property
+
 
 import MDSplus as mds
 import numpy as np
@@ -10,22 +8,30 @@ from spdm.data.Collection import Collection
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.util.logger import logger
+from spdm.data.Path import Path
 
 
+@Entry.register("mdsplus")
 class MDSplusEntry(Entry):
 
-    def __init__(self, holder,  /, **kwargs):
-        super().__init__(**kwargs)
-        self._holder: MDSplusFile = holder
+    def __init__(self, cache, *args, **kwargs):
+        if isinstance(cache, MDSplusFile):
+            pass
+        elif isinstance(cache, str):
+            cache = MDSplusFile(cache)
+        else:
+            raise TypeError(f"cache must be MDSplusFile or str, but got {type(cache)}")
 
-    def get(self,  *args, **kwargs):
-        return self._holder.fetch(*args, **kwargs)
+        super().__init__(cache, *args,  **kwargs)
 
-    def put(self,  path, value, *args, **kwargs):
-        return self._holder.update({path: value}, *args, **kwargs)
+    def pull(self, **kwargs):
+        return self._cache.fetch(self._path, **kwargs)
+
+    def push(self,  value, *args, **kwargs):
+        return self._cache.update({self._path: value}, *args, **kwargs)
 
     def iter(self,  path, *args, **kwargs):
-        return self._holder.iter(path, *args, **kwargs)
+        return self._cache.iter(path, *args, **kwargs)
 
 
 def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):

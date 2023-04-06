@@ -39,7 +39,7 @@ class File(Connection):
                 n_cls_name = pathlib.PosixPath(uri.path).suffix.lower()
         if n_cls_name == ".":
             n_cls_name = ".text"
-        return File.object_new(n_cls_name)
+        return File.create(n_cls_name)
 
     def __init__(self,  *args, mode="r", ** kwargs):
         """

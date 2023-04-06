@@ -1,21 +1,18 @@
+from __future__ import annotations
+
 import collections
 import collections.abc
 import dataclasses
 import inspect
-from typing import (Any, Callable, Generic, Iterator, Mapping, TypeVar, Union,
-                    get_args, get_origin)
+from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
 import numpy as np
 
-from .SpObject import SpObject
 from ..common.tags import _not_found_, _undefined_, tags
-from ..util.logger import logger
-from ..util.utilities import serialize
 from .Entry import Entry, as_entry
+from .SpObject import SpObject
 
 _T = TypeVar("_T")
-_TObject = TypeVar("_TObject")
-_TNode = TypeVar("_TNode", bound="Node")
 _TKey = TypeVar("_TKey")
 
 
@@ -85,7 +82,7 @@ class Node(SpObject):
     def _pre_process(self, value: _T, *args, **kwargs) -> _T:
         return value
 
-    def _post_process(self, value: _T, key, *args,  ** kwargs) -> Union[_T, _TNode]:
+    def _post_process(self, value: _T, key, *args,  ** kwargs) -> Union[_T, Node]:
         return self.update_child(key, value, *args,  ** kwargs)
 
     def validate(self, value, type_hint) -> bool:
@@ -110,7 +107,7 @@ class Node(SpObject):
                      getter: Callable = _undefined_,
                      in_place=True,
                      force=True,
-                     *args, **kwargs) -> Union[_T, _TNode]:
+                     *args, **kwargs) -> Union[_T, Node]:
 
         is_changed = True
 
@@ -148,7 +145,10 @@ class Node(SpObject):
             elif isinstance(value, tags):
                 raise ValueError(f"Tags is not a value! key={key} tags={value}")
             else:
-                obj = type_hint(value)
+                try:
+                    obj = type_hint(value)
+                except TypeError as err:
+                    raise TypeError(f"Can't convert value {value} to {type_hint}") from err
 
         elif dataclasses.is_dataclass(type_hint):
             if isinstance(value, collections.abc.Mapping):

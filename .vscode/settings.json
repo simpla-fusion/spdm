@@ -24,5 +24,6 @@
     "efit",
     "geqdsk",
     "mdsplus"
-  ]
+  ],
+  "python.analysis.typeCheckingMode": "basic"
 }

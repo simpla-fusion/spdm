@@ -4,7 +4,7 @@ import typing
 
 from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-from ..util.utilities import serialize
+from ..util.misc import serialize
 from .Container import Container
 from .Entry import Entry, EntryCombine, as_entry
 from .Node import Node

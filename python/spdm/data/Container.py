@@ -13,7 +13,6 @@ from .Node import Node
 
 _TKey = typing.TypeVar("_TKey")
 _TObject = typing.TypeVar("_TObject")
-_TContainer = typing.TypeVar("_TContainer", bound="Container")
 _T = typing.TypeVar("_T")
 
 

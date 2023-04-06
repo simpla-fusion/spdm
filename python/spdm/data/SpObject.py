@@ -1,16 +1,11 @@
+from __future__ import annotations
+
 import collections
 import collections.abc
 import inspect
-import io
-import uuid
-from copy import deepcopy
-from typing import Mapping, Type, TypeVar
 
 from ..common.tags import _not_found_
-from ..util.logger import logger
 from ..util.sp_export import sp_load_module
-
-_TSpObject = TypeVar('_TSpObject', bound='SpObject')
 
 SP_MODULE_NAME = "spdm"
 
@@ -28,7 +23,7 @@ class SpObject(object):
     association = {}
 
     @classmethod
-    def object_new(cls, n_cls: str) -> _TSpObject:
+    def create(cls, n_cls: str) -> SpObject:
         if not isinstance(n_cls, str):
             raise TypeError(f"$class is not a string! {n_cls}")
 
@@ -61,7 +56,7 @@ class SpObject(object):
         if not isinstance(spec, collections.abc.Mapping) or "$class" not in spec:
             raise ValueError(spec)
 
-        return SpObject.object_new(spec.get("$class"))
+        return SpObject.create(spec.get("$class"))
 
     def to_json(self) -> dict:
         return self.serialize()

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import collections.abc
 import os
@@ -6,27 +8,61 @@ import pathlib
 from ..common.PathTraverser import PathTraverser
 from ..common.tags import _undefined_
 from ..util.logger import logger
-from .Document import Document
 from .Entry import Entry
 from .File import File
+from .Path import Path
 from .SpObject import SpObject
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 SPDB_TAG = "spdb"
 
 
-class MapperEntry(Entry):
-    def __init__(self, source: Entry, *args, mapping: Entry = None,  ** kwargs):
+class PathMapper(Path):
+    def __init__(self, mapper: Entry, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._mapping = mapping  # self._data._mapping.entry
-        self._source = source
+        self._mapper = mapper
+
+    def duplicate(self) -> PathMapper:
+        other: PathMapper = super().duplicate()
+        other._mapper = self._mapper
+        return other
+
+    def as_request(self) -> dict:
+        return self._mapper.get(self)
+
+
+class EntryMapper(Entry):
+
+    # def child(self, path, *args, **kwargs):
+    #     return MapperEntry(self._source, mapping=self._mapping.child(path, *args, **kwargs))
+    # def get(self,  path, *args,  is_raw_path=False,  **kwargs):
+    #     return self.__post_process__(self._mapping.get(path, *args, **kwargs))
+
+    # def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
+    #     if not is_raw_path:
+    #         return PathTraverser(path).apply(lambda p: self.get(p, is_raw_path=True, **kwargs))
+    #     else:
+    #         request = self._mapping.pull(path, *args, **kwargs)
+
+    #         if isinstance(request, str):
+    #             self._data.update(request, value, is_raw_path=True)
+    #         elif isinstance(request, collections.abc.Sequence):
+    #             raise NotImplementedError()
+    #         elif isinstance(request, collections.abc.Mapping):
+    #             raise NotImplementedError()
+    #         elif request is not None:
+    #    raise RuntimeError(f"Can not write to non-empty entry! {path}")
+
+    def iter(self,  request, *args, **kwargs):
+        for source_req in self._path.iter(request, *args, **kwargs):
+            yield self.__post_process__(source_req)
 
     def __post_process__(self, value, *args, lazy=True, **kwargs):
         if isinstance(value, Entry):
             if value.attribute.get(SPDB_TAG, None) is not None:
                 res = self._source.get(value.pull(lazy=False))
             elif lazy:
-                res = MapperEntry(self._source, mapping=value)
+                res = EntryMapper(self._source, mapping=value)
             else:
                 res = self.__post_process__(value.pull(lazy=False), *args, lazy=False, ** kwargs)
         elif isinstance(value, collections.abc.Mapping):
@@ -51,36 +87,21 @@ class MapperEntry(Entry):
 
         return res
 
-    def child(self, path, *args, **kwargs):
-        return MapperEntry(self._source, mapping=self._mapping.child(path, *args, **kwargs))
-
-    def get(self,  path, *args,  is_raw_path=False,  **kwargs):
-        return self.__post_process__(self._mapping.get(path, *args, **kwargs))
-
-    def put(self,  path, value, *args, is_raw_path=False,   **kwargs):
+    def push(self, value, *args, is_raw_path=False, **kwargs):
+        path = self._path
         if not is_raw_path:
             return PathTraverser(path).apply(lambda p: self.get(p, is_raw_path=True, **kwargs))
         else:
-            request = self._mapping.pull(path, *args, **kwargs)
+            request = self._path.as_request()
 
             if isinstance(request, str):
-                self._data.update(request, value, is_raw_path=True)
+                self._cache.update(request, value, is_raw_path=True)
             elif isinstance(request, collections.abc.Sequence):
                 raise NotImplementedError()
             elif isinstance(request, collections.abc.Mapping):
                 raise NotImplementedError()
             elif request is not None:
                 raise RuntimeError(f"Can not write to non-empty entry! {path}")
-
-    def iter(self,  request, *args, **kwargs):
-        for source_req in self._mapping.iter(request, *args, **kwargs):
-            yield self.__post_process__(source_req)
-
-    def pull(self, *args, **kwargs):
-        return self.__post_process__(self._mapping.pull(), *args, lazy=False, **kwargs)
-
-    def push(self, value, *args, **kwargs):
-        return self.put(None, value, *args, **kwargs)
 
     def __serialize__(self):
         return self.__post_process__(self._mapping.__serialize__())
@@ -111,18 +132,18 @@ class Mapper(SpObject):
         self._default_target_schema = target_schema if target_schema is not _undefined_ else "imas/3"
         self._envs = envs
 
-    @property
+    @ property
     def source_schema(self) -> str:
         return self._default_source_schema
 
-    @property
+    @ property
     def target_schema(self) -> str:
         return self._default_target_schema
 
-    def map(self, source: Entry, *args, **kwargs) -> MapperEntry:
+    def map(self, source: Entry, *args, **kwargs) -> EntryMapper:
         mapping = self.find_mapping(*args, **kwargs)
         if isinstance(mapping, Entry):
-            return MapperEntry(source, mapping=mapping)
+            return EntryMapper(source, mapping=mapping)
         elif mapping is None:
             return source
         else:

@@ -14,7 +14,7 @@ from pathlib import Path
 
 from ..util.logger import logger
 
-from .utilities import convert_to_named_tuple
+from .misc import convert_to_named_tuple
 
 _rfc3986 = re.compile(
     r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
