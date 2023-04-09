@@ -13,8 +13,8 @@ class JSONFile(File):
         super().__init__(*args, **kwargs)
         self._fid: typing.Optional[typing.IO[typing.Any]] = None
 
-    def reopen(self) -> File:
-        super().reopen()
+    def open(self) -> File:
+        super().open()
         try:
             self._fid = open(self.path,  mode=self.mode_str)
         except OSError as error:

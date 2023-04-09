@@ -118,8 +118,10 @@ class Path(list):
             m_str = ','.join([f"{k}:{Path._to_str(v)}" for k, v in p.items()])
             return f"?{{{m_str}}}"
         elif isinstance(p, list):
+            return '/'.join(map(Path._to_str, p))
+        elif isinstance(p, tuple):
             m_str = ','.join(map(Path._to_str, p))
-            return f"[{m_str}]"
+            return f"({m_str})"
         elif isinstance(p, set):
             m_str = ','.join(map(Path._to_str, p))
             return f"{{{m_str}}}"
@@ -177,15 +179,16 @@ class Path(list):
         return self.__str__().__hash__()
 
     def duplicate(self, new_value=None) -> Path:
-        obj = Path.__new__(self.__class__)
         if new_value is not None:
-            obj.append(new_value)
+            return Path(new_value)
         else:
-            obj.extend(self[:])  # copy
-        return obj
+            return Path(self[:])
 
     def as_list(self) -> list:
         return self[:]
+
+    def as_url(self) -> str:
+        return '/'.join(map(Path._to_str, self))
 
     @property
     def is_closed(self) -> bool:
@@ -242,7 +245,8 @@ class Path(list):
     def append(self, p) -> Path:
         if self.is_closed:
             raise ValueError(f"Cannot append to a closed path {self}")
-        super().extend(Path.normalize(p))
+        p = Path.normalize(p)
+        super().extend([p] if not isinstance(p, list) else p)
         return self
 
     def __truediv__(self, p) -> Path:

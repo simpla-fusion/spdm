@@ -64,10 +64,6 @@ class File(Connection):
         else:
             raise NotImplementedError(f"Cannot create file for {path}")
 
-    @classmethod
-    def open(cls, *args, **kwargs):
-        return cls.create(*args, **kwargs)
-
     def __init__(self,  *args, mode="r", ** kwargs):
         """
          r       Readonly, file must exist (default)

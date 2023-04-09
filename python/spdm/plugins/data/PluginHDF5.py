@@ -211,7 +211,7 @@ class HDF5File(File):
     def mode_str(self) -> str:
         return HDF5File.MOD_MAP[self.mode]
 
-    def reopen(self) -> File:
+    def open(self) -> File:
         if self.is_open:
             return self
 
@@ -223,7 +223,7 @@ class HDF5File(File):
         else:
             logger.debug(f"Open HDF5 File {self.path} mode={self.mode}")
 
-        super().reopen()
+        super().open()
 
         return self
 
@@ -236,10 +236,10 @@ class HDF5File(File):
         return super().close()
 
     def read(self, lazy=True) -> Entry:
-        return H5Entry(self.reopen()._fid)
+        return H5Entry(self.open()._fid)
 
     def write(self, *args, **kwargs):
-        H5Entry(self.reopen()._fid).insert(*args, **kwargs)
+        H5Entry(self.open()._fid).insert(*args, **kwargs)
 
 
 # class HDF5Collection(FileCollection):

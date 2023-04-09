@@ -93,7 +93,7 @@ class Connection(SpObject):
     def is_open(self) -> bool:
         return self._is_open
 
-    def reopen(self) -> Connection:
+    def open(self) -> Connection:
         self._is_open = True
         return self
 
@@ -106,7 +106,7 @@ class Connection(SpObject):
         raise NotImplementedError()
 
     def __enter__(self) -> Connection:
-        return self.reopen()
+        return self.open()
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()

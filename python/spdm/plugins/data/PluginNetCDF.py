@@ -27,8 +27,7 @@ def nc_put_value(grp, path, value,  **kwargs):
         else:
             for k, v in enumerate(value):
                 nc_put_value(grp, path/k, v)
-    elif type(value) is np.ndarray and len(value) > SPDM_LIGHTDATA_MAX_LENGTH:
-        # path = path.join('/')
+    elif type(value) is np.ndarray and len(value) > SPDM_LIGHTDATA_MAX_LENGTH:        
         parent = path.parent.__str__()
         key = path[-1]
         if len(parent) == 0:
@@ -41,11 +40,11 @@ def nc_put_value(grp, path, value,  **kwargs):
             parent.createDimension(f"{key}__dim_{idx}", d)
             dimensions.append(f"{key}__dim_{idx}")
 
-        d = parent.createVariable('/'.join(path), value.dtype, tuple(dimensions))
+        d = parent.createVariable(path.as_url(), value.dtype, tuple(dimensions))
         d[:] = value
 
     else:  # type(value) in [str, int, float]:
-        p = path.parent.__str__()
+        p = path.parent.as_url()
         if len(p) > 0:
             obj = grp.createGroup(p)
         else:
