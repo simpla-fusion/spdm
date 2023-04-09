@@ -1,17 +1,13 @@
 import collections
-import pathlib
-from functools import cached_property
-from typing import Any,  NewType, Tuple, Union
+import collections.abc
+import typing
 
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
-from ..util.uri_utils import URITuple, uri_merge, uri_split
+from ..util.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
-from .File import File
-from .Mapper import Mapper
-from .SpObject import SpObject
 from .List import List
+from .Mapper import Mapper
+
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
 UpdateResult = collections.namedtuple("UpdateResult", "inserted_id success")
@@ -21,9 +17,33 @@ DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 class Collection(Connection):
     ''' Collection of documents
     '''
-    def __new__(cls, path, *args, **kwargs):
+    _registry = {}
+
+    @classmethod
+    def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
+        """
+        Decorator to register a class to the registry.
+        """
+        if other_cls is not None:
+            if isinstance(name, str):
+                cls._registry[name] = other_cls
+            elif isinstance(name, collections.abc.Sequence):
+                for n in name:
+                    cls._registry[n] = other_cls
+
+            return other_cls
+        else:
+            def decorator(o_cls):
+                Collection.register(name, o_cls)
+                return o_cls
+            return decorator
+
+    @classmethod
+    def create(cls, path, *args, **kwargs):
         if cls is not Collection:
-            return object.__new__(cls)
+            return cls(cls, path, *args, **kwargs)
+
+        n_cls_name = None
 
         if "protocol" in kwargs:
             protocol = kwargs.get("protocol")
@@ -34,14 +54,18 @@ class Collection(Connection):
             uri = uri_split(path)
             n_cls_name = f".{uri.protocol.lower()}"
 
-        return Collection.create(n_cls_name)
+        n_cls = cls._registry.get(n_cls_name, None)
+        if n_cls is not None:
+            return n_cls(path, *args, **kwargs)
+        else:
+            raise NotImplementedError(f"Cannot create collection for {path}")
 
-    def __init__(self, uri, *args,  mapper: Mapper = _undefined_,   **kwargs):
+    def __init__(self, uri, *args,  mapper: typing.Optional[Mapper] = None,   **kwargs):
         super().__init__(uri, *args, **kwargs)
         self._mapper = mapper
 
     @property
-    def mapper(self) -> Mapper:
+    def mapper(self) -> typing.Optional[Mapper]:
         return self._mapper
 
     def guess_id(self, predicate, *args, fragment: int = None, **kwargs) -> int:
@@ -64,10 +88,10 @@ class Collection(Connection):
     def create_one(self, *args, **kwargs):
         return self.insert_one(*args, mode="x", **kwargs)
 
-    def create_many(self, docs: List[Any], *args, **kwargs):
+    def create_many(self, docs: typing.List[typing.Any], *args, **kwargs):
         return [self.create_one(doc, *args, mode="x", **kwargs) for doc in docs]
 
-    def create(self, docs, *args, **kwargs):
+    def create_doc(self, docs, *args, **kwargs):
         if isinstance(docs, collections.abc.Sequence):
             return self.create_many(docs, *args, **kwargs)
         else:
@@ -76,7 +100,7 @@ class Collection(Connection):
     def insert_one(self, doc, * args,  **kwargs) -> InsertOneResult:
         raise NotImplementedError()
 
-    def insert_many(self, docs: List[Any], *args, **kwargs) -> InsertManyResult:
+    def insert_many(self, docs: typing. List[typing.Any], *args, **kwargs) -> InsertManyResult:
         return [self.insert_one(doc, *args, **kwargs) for doc in docs]
 
     def insert(self, docs, *args, **kwargs):
@@ -88,10 +112,10 @@ class Collection(Connection):
     def find_one(self, *args, **kwargs) -> Entry:
         raise NotImplementedError()
 
-    def find_many(self, *args, **kwargs) -> List[Entry]:
+    def find_many(self, *args, **kwargs) -> typing.List[Entry]:
         raise NotImplementedError()
 
-    def find(self, predicate, projection=None, only_one=False, **kwargs) -> Union[Entry, List[Entry]]:
+    def find(self, predicate, projection=None, only_one=False, **kwargs) -> typing.Union[Entry,  typing.List[Entry]]:
         # if not isinstance(predicate, str) and isinstance(predicate, collections.abc.Sequence):
         if not only_one:
             return self.find_many(predicate, projection,  **kwargs)

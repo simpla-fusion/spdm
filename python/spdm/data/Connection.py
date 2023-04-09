@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 import collections.abc
+import functools
 import pathlib
 from copy import deepcopy
 from enum import Flag, auto
-from typing import Mapping, TypeVar, Union, Any
-import functools
+import typing
 from ..util.logger import logger
+from ..util.uri_utils import URITuple, uri_merge, uri_split
 from .Entry import Entry
 from .SpObject import SpObject
-from ..util.uri_utils import URITuple, uri_merge, uri_split
-
-_TConnection = TypeVar('_TConnection', bound='Connection')
 
 
 class Connection(SpObject):
@@ -93,7 +93,7 @@ class Connection(SpObject):
     def is_open(self) -> bool:
         return self._is_open
 
-    def open(self) -> _TConnection:
+    def reopen(self) -> Connection:
         self._is_open = True
         return self
 
@@ -105,8 +105,8 @@ class Connection(SpObject):
     def entry(self) -> Entry:
         raise NotImplementedError()
 
-    def __enter__(self) -> _TConnection:
-        return self.open()
+    def __enter__(self) -> Connection:
+        return self.reopen()
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()

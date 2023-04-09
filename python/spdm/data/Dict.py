@@ -11,7 +11,7 @@ from .Entry import Entry,  as_entry
 _T = typing.TypeVar("_T")
 _TKey = typing.TypeVar("_TKey")
 _TObject = typing.TypeVar("_TObject")
-_TDict = typing.TypeVar('_TDict', bound='Dict')
+Dict = typing.TypeVar('Dict', bound='Dict')
 
 
 class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
@@ -32,24 +32,25 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         return {k: serialize(v) for k, v in self._entry.first_child()}
 
     def __setitem__(self, key, value: _T) -> _T:
-        return self._entry.child(key).push(self._pre_process(value))
+        self._entry.child(key).insert(self._pre_process(value))
+        return value
 
-    def __getitem__(self, key) -> _TObject:
+    def __getitem__(self, key) -> typing.Any:
         return self._post_process(self._entry.child(key), key=key)
 
     def __delitem__(self, key) -> bool:
-        return self._entry.child(key).erase()
+        return self._entry.child(key).remove() > 0
 
     def __contains__(self, key) -> bool:
-        return self._entry.child(key).exists()
+        return self._entry.child(key).exists
 
     def __eq__(self, other) -> bool:
         return self._entry.equal(other)
 
     def __len__(self) -> int:
-        return self._entry.count()
+        return self._entry.count
 
-    def __iter__(self) -> typing.Iterator[_TKey]:
+    def __iter__(self) -> typing.Iterator[typing.Any]:
         yield self.keys()
 
     def items(self) -> typing.Iterator[typing.Tuple[_TKey, _TObject]]:
@@ -64,14 +65,14 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         for key, value in self._entry.first_child():
             yield self._post_process(value, key=key)
 
-    def __iadd__(self, other: typing.Mapping) -> _TDict:
+    def __iadd__(self, other: typing.Mapping) -> Dict:
         return self.update(other)
 
-    def __ior__(self, other) -> _TDict:
+    def __ior__(self, other) -> Dict:
         return self.update(other, force=False)
 
     class DictAsEntry(Entry):
-        def __init__(self, cache: _TDict, **kwargs):
+        def __init__(self, cache: Dict, **kwargs):
             super().__init__(cache, **kwargs)
 
         def pull(self, default=...) -> typing.Any:
@@ -106,7 +107,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         else:
             return self._entry
 
-    def update(self, d) -> _TDict:
+    def update(self, d, *args, **kwargs) -> Dict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. 
            Return self.
 
@@ -116,7 +117,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         Returns:
             _T: [description]
         """
-        self._entry.update(d)
+        self._entry.update(d, *args, **kwargs)
         return self
 
     def get(self, key,  default=_undefined_) -> typing.Any:

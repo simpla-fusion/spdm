@@ -4,10 +4,10 @@ import collections
 import collections.abc
 import os
 import pathlib
+import typing
 
 from ..common.PathTraverser import PathTraverser
 from ..common.tags import _undefined_
-from ..util.logger import logger
 from .Entry import Entry
 from .File import File
 from .Path import Path
@@ -87,7 +87,7 @@ class EntryMapper(Entry):
 
         return res
 
-    def push(self, value, *args, is_raw_path=False, **kwargs):
+    def insert(self, value, *args, is_raw_path=False, **kwargs):
         path = self._path
         if not is_raw_path:
             return PathTraverser(path).apply(lambda p: self.get(p, is_raw_path=True, **kwargs))
@@ -110,8 +110,8 @@ class EntryMapper(Entry):
 class Mapper(SpObject):
 
     def __init__(self, mapping=[],
-                 source_schema=_undefined_,
-                 target_schema=_undefined_,
+                 source_schema: typing.Optional[str] = None,
+                 target_schema: typing.Optional[str] = None,
                  envs=None):
         super().__init__()
         if isinstance(mapping, str):
@@ -128,8 +128,8 @@ class Mapper(SpObject):
         if len(self._mapping_path) == 0:
             raise RuntimeError(f"No mapping file!")
 
-        self._default_source_schema = source_schema if source_schema is not _undefined_ else "EAST"
-        self._default_target_schema = target_schema if target_schema is not _undefined_ else "imas/3"
+        self._default_source_schema: str = source_schema if source_schema is not None else "EAST"
+        self._default_target_schema: str = target_schema if target_schema is not None else "imas/3"
         self._envs = envs
 
     @ property
@@ -140,7 +140,7 @@ class Mapper(SpObject):
     def target_schema(self) -> str:
         return self._default_target_schema
 
-    def map(self, source: Entry, *args, **kwargs) -> EntryMapper:
+    def map(self, source: Entry, *args, **kwargs) -> Entry:
         mapping = self.find_mapping(*args, **kwargs)
         if isinstance(mapping, Entry):
             return EntryMapper(source, mapping=mapping)
@@ -149,10 +149,10 @@ class Mapper(SpObject):
         else:
             raise FileNotFoundError(f"Can not find mapping file!")
 
-    def find_mapping(self,  source_schema: str = _undefined_, target_schema: str = _undefined_) -> Entry:
-        if source_schema is _undefined_:
+    def find_mapping(self,  source_schema: typing.Optional[str] = None, target_schema: typing.Optional[str] = None) -> typing.Optional[Entry]:
+        if source_schema is None:
             source_schema = self._default_source_schema
-        if target_schema is _undefined_:
+        if target_schema is None:
             target_schema = self._default_target_schema
 
         if source_schema == target_schema:
@@ -180,7 +180,7 @@ class Mapper(SpObject):
         return File(mapping_files, mode="r", format="XML").read()
 
 
-def create_mapper(*args,  source_schema=_undefined_, target_schema=_undefined_, **kwargs) -> Mapper:
+def create_mapper(*args,  source_schema: typing.Optional[str] = None, target_schema: typing.Optional[str] = None, **kwargs) -> Mapper:
     if len(args) > 0 and isinstance(args[0], Mapper):
         return args[0]
     else:

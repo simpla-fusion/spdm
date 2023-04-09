@@ -1,21 +1,19 @@
 import collections
 import pathlib
-from collections import ChainMap
-from functools import cached_property
-from typing import Optional
+import typing
 
 import numpy as np
 from lxml.etree import Comment as _XMLComment
 from lxml.etree import ParseError as _XMLParseError
 from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
-from lxml.etree import parse as parse_xml, fromstring
+from lxml.etree import fromstring
+from lxml.etree import parse as parse_xml
 from spdm.common.PathTraverser import PathTraverser
 from spdm.common.tags import _not_found_, _undefined_
-from spdm.data.Entry import Entry, EntryCombine,  _TPath
+from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.util.dict_util import format_string_recursive
-from spdm.util.logger import logger
 from spdm.util.misc import normalize_path, serialize
 
 
@@ -199,33 +197,36 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, collections.ChainMap(envs, self._envs))
         return res
 
-    def push(self,  *args, **kwargs):
-        # raise NotImplementedError("Writing XML is not supported,yet!")
-        # return super().push(*args, **kwargs)
-        logger.warning("NOT IMPLEMENTED!")
-        return None
+    def insert(self,  *args, **kwargs):
+        raise NotImplementedError("XML DO NOT SUPPORT INSERT!")
 
-    def pull(self, /, default=_undefined_,  lazy=_undefined_, **kwargs):
-        path = self._path.as_list()
+    def update(self,  *args, **kwargs):
+        raise NotImplementedError("XML DO NOT SUPPORT update!")
+
+    def remove(self,  *args, **kwargs):
+        raise NotImplementedError("XML DO NOT SUPPORT remove!")
+
+    def query(self, *, default_value: typing.Any = _undefined_,  lazy=_undefined_, **kwargs):
+        path = self._path[:]
         xp, envs = self.xpath(path)
 
         obj = xp.evaluate(self._cache)
 
         if lazy is _undefined_:
-            lazy = default is _undefined_
+            lazy = default_value is _undefined_
 
         res = self._convert(obj, path=path, lazy=lazy, envs=envs, **kwargs)
 
         if res is not _not_found_:
             pass
-        elif default is not _undefined_:
-            res = default
+        elif default_value is not _undefined_:
+            res = default_value
         else:
             raise RuntimeError(path)
 
         return res
 
-    def _find(self,  path: Optional[_TPath], *args, only_one=False, default_value=None, projection=None, **kwargs):
+    def _find(self,  path, *args, only_one=False, default_value=None, projection=None, **kwargs):
         if not only_one:
             res = PathTraverser(path).apply(lambda p: self.find(
                 p, only_one=True, default_value=_not_found_, projection=projection))
@@ -250,8 +251,8 @@ class XMLEntry(Entry):
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
-    def iter(self,  *args, envs=None, **kwargs):
-        path = self._path
+    def find(self,  *args, envs={}, **kwargs):
+        path = self._path[:]
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._cache):
@@ -261,7 +262,7 @@ class XMLEntry(Entry):
                                     envs=collections.ChainMap(s_envs, envs))
                 yield res
 
-    def items(self,    *args, envs=None, **kwargs):
+    def items(self,    *args, envs={}, **kwargs):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
@@ -272,7 +273,7 @@ class XMLEntry(Entry):
                                     envs=collections.ChainMap(s_envs, envs))
                 yield child.tag, res
 
-    def values(self,    *args, envs=None, **kwargs):
+    def values(self,    *args, envs={}, **kwargs):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
@@ -288,7 +289,7 @@ class XMLEntry(Entry):
         return self._cache.attrib
 
     def __serialize__(self):
-        return serialize(self.pull(_not_found_))
+        return serialize(self.query(default_value=_not_found_))
 
 
 class XMLFile(File):

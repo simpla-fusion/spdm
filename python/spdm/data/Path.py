@@ -184,6 +184,9 @@ class Path(list):
             obj.extend(self[:])  # copy
         return obj
 
+    def as_list(self) -> list:
+        return self[:]
+
     @property
     def is_closed(self) -> bool:
         return len(self) > 0 and self[-1] is None
@@ -349,7 +352,7 @@ class Path(list):
             else:
                 raise TypeError(f"Cannot search {type(target)}")
         elif "default_value" in kwargs:
-                yield kwargs["default_value"]
+            yield kwargs["default_value"]
         else:
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
 

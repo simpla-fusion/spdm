@@ -1,6 +1,6 @@
 import collections
 import os
-
+import typing
 
 import MDSplus as mds
 import numpy as np
@@ -11,46 +11,7 @@ from spdm.util.logger import logger
 from spdm.data.Path import Path
 
 
-@Entry.register("mdsplus")
-class MDSplusEntry(Entry):
-
-    def __init__(self, cache, *args, **kwargs):
-        if isinstance(cache, MDSplusFile):
-            pass
-        elif isinstance(cache, str):
-            cache = MDSplusFile(cache)
-        else:
-            raise TypeError(f"cache must be MDSplusFile or str, but got {type(cache)}")
-
-        super().__init__(cache, *args,  **kwargs)
-
-    def pull(self, **kwargs):
-        return self._cache.fetch(self._path, **kwargs)
-
-    def push(self,  value, *args, **kwargs):
-        return self._cache.update({self._path: value}, *args, **kwargs)
-
-    def iter(self,  path, *args, **kwargs):
-        return self._cache.iter(path, *args, **kwargs)
-
-
-def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
-    if tree_name is None:
-        raise ValueError(f"Treename is empty!")
-    try:
-        shot = int(shot)
-        logger.info(f"Open MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
-        tree = mds.Tree(tree_name, shot, mode=mode, path=path)
-    except mds.mdsExceptions.TreeFOPENR as error:
-        # tree_path = os.environ.get(f"{tree_name}_path", None)
-        raise FileNotFoundError(
-            f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={path} mode={mode} \n {error}")
-    except mds.mdsExceptions.TreeNOPATH as error:
-        raise FileNotFoundError(
-            f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
-    return tree
-
-
+@File.register("mdsplus")
 class MDSplusFile(File):
     MDS_MODE = {
         File.Mode.read: "ReadOnly",
@@ -207,6 +168,7 @@ class MDSplusFile(File):
         raise NotImplementedError()
 
 
+@Collection.register("mdsplus")
 class MDSplusCollection(Collection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args,  **kwargs)
@@ -262,6 +224,43 @@ class MDSplusCollection(Collection):
     #     MDSplusEntry(self._tree_name, shot, mode="x").update(document)
 
     #     return shot
+
+
+@Entry.register("mdsplus")
+class MDSplusEntry(Entry):
+
+    def __init__(self, cache: typing.Union[MDSplusFile, str], *args, **kwargs):
+        if isinstance(cache, str):
+            cache: MDSplusFile = MDSplusFile(cache)
+        if not isinstance(cache, MDSplusFile):
+            raise TypeError(f"cache must be MDSplusFile or str, but got {type(cache)}")
+        super().__init__(cache, *args,  **kwargs)
+
+    def query(self, *args, **kwargs):
+        return self._cache.fetch(self._path, *args, **kwargs)
+
+    def update(self,  value, *args, **kwargs):
+        return self._cache.update({self._path: value}, *args, **kwargs)
+
+    def iter(self,  path, *args, **kwargs):
+        return self._cache.iter(path, *args, **kwargs)
+
+
+def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):
+    if tree_name is None:
+        raise ValueError(f"Treename is empty!")
+    try:
+        shot = int(shot)
+        logger.info(f"Open MDSTree: tree_name={tree_name} shot={shot} mode=\"{mode}\" path='{path}'")
+        tree = mds.Tree(tree_name, shot, mode=mode, path=path)
+    except mds.mdsExceptions.TreeFOPENR as error:
+        # tree_path = os.environ.get(f"{tree_name}_path", None)
+        raise FileNotFoundError(
+            f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={path} mode={mode} \n {error}")
+    except mds.mdsExceptions.TreeNOPATH as error:
+        raise FileNotFoundError(
+            f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
+    return tree
 
 
 __SP_EXPORT__ = MDSplusFile

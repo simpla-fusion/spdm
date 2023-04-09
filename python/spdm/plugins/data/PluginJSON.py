@@ -1,6 +1,6 @@
 import collections
 import json
-
+import typing
 import numpy as np
 from spdm.data.Entry import Entry
 from spdm.data.File import File
@@ -11,10 +11,10 @@ from spdm.util.logger import logger
 class JSONFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._fid = None
+        self._fid: typing.Optional[typing.IO[typing.Any]] = None
 
-    def open(self) -> File:
-        super().open()
+    def reopen(self) -> File:
+        super().reopen()
         try:
             self._fid = open(self.path,  mode=self.mode_str)
         except OSError as error:

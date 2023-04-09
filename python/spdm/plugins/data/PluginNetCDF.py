@@ -1,7 +1,8 @@
 import collections
-import pathlib
-from typing import Any, Dict
+import collections.abc
 
+import pathlib
+import typing
 import netCDF4 as nc
 import numpy as np
 from spdm.util.logger import logger
@@ -28,7 +29,7 @@ def nc_put_value(grp, path, value,  **kwargs):
                 nc_put_value(grp, path/k, v)
     elif type(value) is np.ndarray and len(value) > SPDM_LIGHTDATA_MAX_LENGTH:
         # path = path.join('/')
-        parent = path.parent().join('/')
+        parent = path.parent.__str__()
         key = path[-1]
         if len(parent) == 0:
             parent = grp
@@ -39,12 +40,12 @@ def nc_put_value(grp, path, value,  **kwargs):
         for idx, d in enumerate(value.shape):
             parent.createDimension(f"{key}__dim_{idx}", d)
             dimensions.append(f"{key}__dim_{idx}")
-        
-        d = parent.createVariable(path.join('/'), value.dtype, tuple(dimensions))
+
+        d = parent.createVariable('/'.join(path), value.dtype, tuple(dimensions))
         d[:] = value
 
     else:  # type(value) in [str, int, float]:
-        p = path.parent().join('/')
+        p = path.parent.__str__()
         if len(p) > 0:
             obj = grp.createGroup(p)
         else:
@@ -92,15 +93,15 @@ class NetCDFEntry(Entry):
         super().__init__(*args, **kwargs)
 
     def copy(self, other):
-        if isinstance(other, Entry):
-            other = other.entry.__real_value__()
-        self.put(None, other)
+        if hasattr(other, "__entry__"):
+            other = other.__entry__.__value__
+        self.update(other)
 
-    def push(self,  value, *args, **kwargs):
+    def insert(self,  value, *args, **kwargs):
         return nc_put_value(self._cache, self._path, value, *args, **kwargs)
 
-    def pull(self, default=_undefined_, *args, **kwargs) -> Any:
-        return nc_get_value(self._cache, self._path, *args, default=default, **kwargs)
+    def query(self,   *args, **kwargs) -> typing.Any:
+        return nc_get_value(self._cache, self._path, *args, **kwargs)
 
     def dump(self):
         return nc_dump(self._cache)
@@ -162,7 +163,7 @@ class NetCDFFile(File):
         return NetCDFEntry(self.open()._fid)
 
     def write(self, *args, **kwargs):
-        NetCDFEntry(self.open()._fid).push(*args, **kwargs)
+        NetCDFEntry(self.open()._fid).insert(*args, **kwargs)
 
 
 # class NetCDFCollection(FileCollection):

@@ -7,7 +7,7 @@ from ..util.misc import normalize_path
 class PathTraverser:
     MAX_SLICE_LENGTH = 10
 
-    def __init__(self, path="", *args, **kwargs):
+    def __init__(self, path, *args, **kwargs):
         self._path = normalize_path(path)
 
     @property

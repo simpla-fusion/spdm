@@ -1,15 +1,16 @@
 # from spdm.data.Collection import FileCollection
 import collections
+import collections.abc
 import pathlib
-from typing import Any, Dict
+import typing
 
 import h5py
 import numpy
-from spdm.util.logger import logger
 from spdm.common.tags import _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.data.Path import Path
+from spdm.util.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 64
 
@@ -23,8 +24,10 @@ def h5_require_group(grp, path):
                 num = len(grp)
                 p = p % num
             p = f"__index__{p}"
-
-        grp = grp.require_group(p)
+        if grp is not None:
+            grp = grp.require_group(p)
+        else:
+            raise KeyError(f"Cannot create group for {p}")
 
     return grp
 
@@ -34,7 +37,7 @@ def h5_put_value(grp, path, value):
     if path is None:
         path = []
     elif isinstance(path, Path):
-        path = path.as_list()
+        path = path[:]
     elif not isinstance(path, list):
         path = [path]
 
@@ -84,7 +87,7 @@ def h5_get_value(obj, path=None, projection=None, default=_undefined_, **kwargs)
     if path is None:
         path = []
     elif isinstance(path, Path):
-        path = path.as_list()
+        path = path[:]
     elif not isinstance(path, list):
         path = [path]
 
@@ -169,11 +172,11 @@ class H5Entry(Entry):
     # def get(self, path=[], projection=None, *args, **kwargs):
     #     return h5_get_value(self._cache, path, projection=projection)
 
-    def push(self,  value, *args, **kwargs):
+    def insert(self,  value, *args, **kwargs):
         return h5_put_value(self._cache, self._path, value, *args, **kwargs)
 
-    def pull(self, default=_undefined_, *args, **kwargs) -> Any:
-        return h5_get_value(self._cache, self._path, *args, default=default, **kwargs)
+    def query(self,   *args, **kwargs) -> typing.Any:
+        return h5_get_value(self._cache, self._path, *args,  **kwargs)
 
     def dump(self):
         return h5_dump(self._cache)
@@ -182,7 +185,8 @@ class H5Entry(Entry):
         raise NotImplementedError()
 
 
-class H5File(File):
+@File.register(["h5", "hdf5", "HDF5"])
+class HDF5File(File):
 
     MOD_MAP = {File.Mode.read: "r",
                File.Mode.read | File.Mode.write: "r+",
@@ -205,9 +209,9 @@ class H5File(File):
 
     @property
     def mode_str(self) -> str:
-        return H5File.MOD_MAP[self.mode]
+        return HDF5File.MOD_MAP[self.mode]
 
-    def open(self) -> File:
+    def reopen(self) -> File:
         if self.is_open:
             return self
 
@@ -218,9 +222,9 @@ class H5File(File):
             raise FileExistsError(f"Can not open file {self.path}! {error}")
         else:
             logger.debug(f"Open HDF5 File {self.path} mode={self.mode}")
-        
-        super().open()
-        
+
+        super().reopen()
+
         return self
 
     def close(self):
@@ -232,10 +236,10 @@ class H5File(File):
         return super().close()
 
     def read(self, lazy=True) -> Entry:
-        return H5Entry(self.open()._fid)
+        return H5Entry(self.reopen()._fid)
 
     def write(self, *args, **kwargs):
-        H5Entry(self.open()._fid).push(*args, **kwargs)
+        H5Entry(self.reopen()._fid).insert(*args, **kwargs)
 
 
 # class HDF5Collection(FileCollection):
@@ -245,4 +249,4 @@ class H5File(File):
 #                          file_factory=lambda *a, **k: H5File(*a, **k),
 #                          ** kwargs)
 
-__SP_EXPORT__ = H5File
+__SP_EXPORT__ = HDF5File

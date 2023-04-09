@@ -1,9 +1,13 @@
 
 
+import typing
+
 import numpy as np
-from spdm.util.logger import logger
-from spdm.data import (Dict, Entry, File)
 from scipy import interpolate
+from spdm.data.Dict import Dict
+from spdm.data.Entry import Entry
+from spdm.data.File import File
+from spdm.util.logger import logger
 
 
 def sp_read_geqdsk(file):
@@ -231,26 +235,26 @@ def sp_imas_to_geqdsk(d: Dict, nw=128, nh=128):
     }
 
 
-def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
+def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: typing.Optional[Dict] = None) -> Dict:
     if eq is None:
         eq = Dict()
 
     # eq.time = 0.0
-    eq["vacuum_toroidal_field.r0"] = geqdsk["rcentr"]
-    eq["vacuum_toroidal_field.b0"] = geqdsk["bcentr"]
+    eq["vacuum_toroidal_field/r0"] = geqdsk["rcentr"]
+    eq["vacuum_toroidal_field/b0"] = geqdsk["bcentr"]
 
     # rleft = 0.0
-    eq["global_quantities.magnetic_axis.r"] = geqdsk["rmaxis"]
-    eq["global_quantities.magnetic_axis.z"] = geqdsk["zmaxis"]
+    eq["global_quantities/magnetic_axis/r"] = geqdsk["rmaxis"]
+    eq["global_quantities/magnetic_axis/z"] = geqdsk["zmaxis"]
     # eq["global_quantities.magnetic_axis.b_field_tor"] = geqdsk["bcentr"]
-    eq["global_quantities.psi_axis"] = geqdsk["simag"]
-    eq["global_quantities.psi_boundary"] = geqdsk["sibry"]
-    eq["global_quantities.ip"] = geqdsk["current"]
+    eq["global_quantities/psi_axis"] = geqdsk["simag"]
+    eq["global_quantities/psi_boundary"] = geqdsk["sibry"]
+    eq["global_quantities/ip"] = geqdsk["current"]
 
     # boundary
 
-    eq["boundary.outline.r"] = geqdsk["bbsrz"][:, 0]
-    eq["boundary.outline.z"] = geqdsk["bbsrz"][:, 1]
+    eq["boundary/outline/r"] = geqdsk["bbsrz"][:, 0]
+    eq["boundary/outline/z"] = geqdsk["bbsrz"][:, 1]
 
     nw = geqdsk["nw"]
     nh = geqdsk["nh"]
@@ -259,24 +263,25 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: Dict = None) -> Dict:
     zmin = geqdsk["zmid"] - geqdsk["zdim"]/2
     zmax = geqdsk["zmid"] + geqdsk["zdim"]/2
 
-    eq["profiles_2d.grid_type.name"] = "rectangular"
-    eq["profiles_2d.grid_type.index"] = 1
-    eq["profiles_2d.grid.dim1"] = np.linspace(rmin, rmax, nw)
-    eq["profiles_2d.grid.dim2"] = np.linspace(zmin, zmax, nh)
-    eq["profiles_2d.psi"] = geqdsk["psirz"]
+    eq["profiles_2d/grid_type/name"] = "rectangular"
+    eq["profiles_2d/grid_type/index"] = 1
+    eq["profiles_2d/grid.dim1"] = np.linspace(rmin, rmax, nw)
+    eq["profiles_2d/grid.dim2"] = np.linspace(zmin, zmax, nh)
+    eq["profiles_2d/psi"] = geqdsk["psirz"]
 
     # profile
 
-    eq["profiles_1d.f"] = geqdsk["fpol"]
-    eq["profiles_1d.f_df_dpsi"] = geqdsk["ffprim"]
-    eq["profiles_1d.pressure"] = geqdsk["pres"]
-    eq["profiles_1d.dpressure_dpsi"] = geqdsk["pprim"]
-    eq["profiles_1d.q"] = geqdsk["qpsi"]
-    eq["profiles_1d.psi"] = np.linspace(geqdsk["simag"], geqdsk["sibry"], nw)
+    eq["profiles_1d/f"] = geqdsk["fpol"]
+    eq["profiles_1d/f_df_dpsi"] = geqdsk["ffprim"]
+    eq["profiles_1d/pressure"] = geqdsk["pres"]
+    eq["profiles_1d/dpressure_dpsi"] = geqdsk["pprim"]
+    eq["profiles_1d/q"] = geqdsk["qpsi"]
+    eq["profiles_1d/psi"] = np.linspace(geqdsk["simag"], geqdsk["sibry"], nw)
 
     return eq
 
 
+@File.register("GEQdsk")
 class GEQdskFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)

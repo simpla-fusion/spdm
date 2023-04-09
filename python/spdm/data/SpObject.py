@@ -23,7 +23,7 @@ class SpObject(object):
     association = {}
 
     @classmethod
-    def create(cls, n_cls: str) -> SpObject:
+    def create(cls, n_cls: str, *args, **kwargs) -> SpObject:
         if not isinstance(n_cls, str):
             raise TypeError(f"$class is not a string! {n_cls}")
 
@@ -42,9 +42,11 @@ class SpObject(object):
             raise ModuleNotFoundError(n_cls)
 
         if inspect.isclass(n_module):
-            return object.__new__(n_module)
+            obj = object.__new__(n_module)
+            obj.__init__(*args, **kwargs)
+            return obj
         elif callable(n_module):
-            return n_module()
+            return n_module(*args, **kwargs)
         else:
             raise ModuleNotFoundError(n_cls)
 

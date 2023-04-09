@@ -1,45 +1,72 @@
+from __future__ import annotations
+
 import collections
-
+import collections.abc
 import pathlib
-from copy import deepcopy
-from typing import TypeVar, Union
-
-from ..common.tags import _undefined_
-from ..util.logger import logger
+import typing
 from ..util.uri_utils import URITuple, uri_split
+from ..util.sp_export import sp_load_module
 from .Connection import Connection
 from .Entry import Entry
-from .SpObject import SpObject
-
-_TFile = TypeVar('_TFile', bound='File')
 
 
 class File(Connection):
     """
         File like object
     """
+    _registry = {}
 
-    def __new__(cls, path, *args, **kwargs):
+    @classmethod
+    def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
+        """
+        Decorator to register a class to the registry.
+        """
+        if other_cls is not None:
+            if isinstance(name, str):
+                cls._registry[name] = other_cls
+            elif isinstance(name, collections.abc.Sequence):
+                for n in name:
+                    cls._registry[n] = other_cls
+
+            return other_cls
+        else:
+            def decorator(o_cls):
+                File.register(name, o_cls)
+                return o_cls
+            return decorator
+
+    @classmethod
+    def create(cls, path, *args, **kwargs):
         if cls is not File:
-            return object.__new__(cls)
+            return cls(cls, path, *args, **kwargs)
 
         n_cls_name = '.'
         if "format" in kwargs:
-            format = kwargs.get("format")
-            n_cls_name = f".{format.lower()}"
+            n_cls_name = kwargs.get("format")
         elif isinstance(path, collections.abc.Mapping):
             n_cls_name = path.get("$class", None)
         elif isinstance(path,   pathlib.PosixPath):
-            n_cls_name = path.suffix.lower()
+            n_cls_name = path.suffix[1:].upper()
         elif isinstance(path, (str, URITuple)):
             uri = uri_split(path)
             if isinstance(uri.format, str):
-                n_cls_name = f".{uri.format.lower()}"
+                n_cls_name = uri.format
             else:
-                n_cls_name = pathlib.PosixPath(uri.path).suffix.lower()
+                n_cls_name = pathlib.PosixPath(uri.path).suffix[1:].upper()
         if n_cls_name == ".":
             n_cls_name = ".text"
-        return File.create(n_cls_name)
+
+        n_cls = cls._registry.get(n_cls_name, None)
+        if n_cls is None:
+            n_cls = sp_load_module(f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File")
+        if n_cls is not None:
+            return n_cls(path, *args, **kwargs)
+        else:
+            raise NotImplementedError(f"Cannot create file for {path}")
+
+    @classmethod
+    def open(cls, *args, **kwargs):
+        return cls.create(*args, **kwargs)
 
     def __init__(self,  *args, mode="r", ** kwargs):
         """
@@ -74,7 +101,7 @@ class File(Connection):
             self.open()
         self._holder.write(*args, **kwargs)
 
-    def __enter__(self) -> _TFile:
+    def __enter__(self) -> File:
         return super().__enter__()
 
     def read(self, lazy=False) -> Entry:

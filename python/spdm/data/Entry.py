@@ -27,20 +27,18 @@ class Entry(object):
     _registry = {}
 
     @classmethod
-    def register(cls: typing.Type[Entry], name: str):
+    def register(cls, name: str, other_cls=None):
         """
         Decorator to register a class to the registry.
         """
-        def decorator(cls: Entry) -> Entry:
-            if isinstance(name, list):
-                for n in name:
-                    cls._registry[n] = cls
-            elif isinstance(name, str):
-                cls._registry[name] = cls
-            else:
-                raise TypeError(f"Invalid name type: {type(name)}")
-            return cls
-        return decorator
+        if other_cls is not None:
+            cls._registry[name] = other_cls
+            return other_cls
+        else:
+            def decorator(o_cls):
+                cls._registry[name] = o_cls
+                return o_cls
+            return decorator
 
     @classmethod
     def create(cls, *args, scheme=None, **kwargs):
@@ -117,6 +115,11 @@ class Entry(object):
         other._path = self._path.children
         return other
 
+    def first_child(self) -> typing.Generator[typing.Any, None, None]:
+        other = self.duplicate()
+        other._path.append(slice(None))
+        yield from other.find()
+
     def filter(self, **kwargs) -> Entry:
         return self.duplicate().child(kwargs)
 
@@ -152,13 +155,13 @@ class Entry(object):
         """
         yield from self._path.find(self._cache, *args, **kwargs)
 
-    def query(self, *args, **kwargs) -> typing.Any:
+    def query(self, *args, default_value=None, **kwargs) -> typing.Any:
         """
         Query the Entry. 
         Same function as `find`, but put result into a contianer. 
         Could be overridden by subclasses.
         """
-        return self._path.query(self._cache, *args, **kwargs)
+        return self._path.query(self._cache, *args,  default_value=default_value, **kwargs)
 
     def insert(self, *args, **kwargs) -> int:
         return self._path.insert(self._cache, *args, **kwargs)
@@ -166,7 +169,7 @@ class Entry(object):
     def update(self, *args, **kwargs) -> int:
         return self._path.update(self._cache, *args,   **kwargs)
 
-    def delete(self) -> int:
+    def remove(self) -> int:
         return self._path.remove(self._cache)
     ###########################################################
 

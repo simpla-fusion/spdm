@@ -1,12 +1,6 @@
 import os
-import pathlib
-import pprint
-import sys
 
-import matplotlib.pyplot as plt
-import numpy as np
 from spdm.util.logger import logger
-from spdm.data.Connection import Connection
 from spdm.data.open_entry import open_db
 
 
@@ -19,9 +13,9 @@ if __name__ == '__main__':
     # entry = db.find_one(38300)
 
     # logger.debug(entry.get(["pf_active"]).dump())
-    
+
     db = open_db("mdsplus[EAST]://202.127.204.12?tree_name=efit_east")
 
     entry = db.find_one(114730)
 
-    logger.debug(entry.get(["pf_active"]).dump())
+    logger.debug(entry.child("pf_active").__value__)

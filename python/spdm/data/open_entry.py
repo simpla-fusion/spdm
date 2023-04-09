@@ -1,6 +1,6 @@
 import collections.abc
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Union
+import typing
 
 from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
@@ -13,14 +13,14 @@ from .FileCollection import FileCollection
 from .Mapper import Mapper, create_mapper
 
 
-def open_db(uri: Union[str, URITuple], *args,
-            source_schema=_undefined_,
-            target_schema=_undefined_, mapper=None, ** kwargs) -> Collection:
+def open_db(uri: typing.Union[str, URITuple], *args,
+            source_schema=None,
+            target_schema=None, mapper=None, ** kwargs) -> Collection:
     uri = uri_split(uri)
     if uri.protocol is None:
         uri.protocol = "localdb"
 
-    if source_schema is _undefined_ and uri.schema != "":
+    if source_schema is None and uri.schema != "":
         source_schema = uri.schema
 
     if source_schema == target_schema:
@@ -31,13 +31,13 @@ def open_db(uri: Union[str, URITuple], *args,
     if uri.protocol == "localdb":
         db = FileCollection(uri, *args, mapper=mapper, **kwargs)
     else:
-        db = Collection(uri, *args, mapper=mapper, **kwargs)
+        db = Collection.create(uri, *args, mapper=mapper, **kwargs)
     return db
 
 
-def open_entry(uri: Union[str, URITuple], *args,
-               source_schema=_undefined_, target_schema=_undefined_,
-               mapper=None, ** kwargs) -> Union[Entry, Collection]:
+def open_entry(uri: typing.Union[str, URITuple], *args,
+               source_schema=None, target_schema=None,
+               mapper=None, ** kwargs) -> Entry:
     """
     Example:
       entry=open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east,shot=38300")
@@ -45,7 +45,7 @@ def open_entry(uri: Union[str, URITuple], *args,
 
     uri = uri_split(uri)
 
-    if source_schema is _undefined_:
+    if source_schema is None:
         source_schema = uri.schema
 
     if source_schema is not None and source_schema != target_schema:
