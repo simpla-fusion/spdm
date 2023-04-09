@@ -1,15 +1,17 @@
 from __future__ import annotations
-from itertools import chain
+
+import ast
 import collections.abc
 import pprint
+import re
 import typing
 from copy import deepcopy
 from enum import Flag, auto
+
 import numpy as np
-from ..common.tags import _undefined_
+
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-import re
-import ast
 
 
 class Path(list):
@@ -64,9 +66,18 @@ class Path(list):
         parent = auto()
         root = auto()
 
+        append = auto()
+        extend = auto()
+        update = auto()
+        deep_update = auto()
+        setdefault = auto()
         # predicate 谓词
         count = auto()
         equal = auto()
+        le = auto()
+        ge = auto()
+        less = auto()
+        greater = auto()
 
     @classmethod
     def normalize(cls, p: typing.Any, raw=False) -> typing.Any:
@@ -85,7 +96,7 @@ class Path(list):
         elif isinstance(p, collections.abc.Set):
             res = set(map(Path.normalize, p))
         elif isinstance(p, collections.abc.Mapping):
-            res = {k: Path.normalize(v, raw=True) for k, v in p.items()}
+            res = {Path.normalize(k): Path.normalize(v, raw=True) for k, v in p.items()}
         else:
             res = p
             # raise TypeError(f"Path.normalize() only support str or Path, not {type(p)}")
@@ -296,22 +307,33 @@ class Path(list):
 
     def _find(self, target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target, pos = self._traversal(target, path)
+
+        def concate_path(p, others: list):
+            if not isinstance(p, list):
+                return [p]+others
+            else:
+                return p+others
         if len(path) == pos:
             yield target  # target is the last node
         elif hasattr(target, "__entry__"):
             yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
         elif isinstance(path[pos], str):
-            raise TypeError(f"{type(path[pos])}")
+            if "default_value" in kwargs:
+                yield target.get(path[pos], kwargs["default_value"])
+            else:
+                raise TypeError(f"{type(path[pos])}")
         elif isinstance(path[pos], set):
-            yield from ((k, self._find(target, [k]+path[pos+1:],  *args, **kwargs)) for k in path[pos])
-        elif isinstance(path[pos], collections.abc.Sequence):
-            yield from (self._find(target, [k]+path[pos+1:],  *args, **kwargs) for k in path[pos])
+            yield from ((k, self._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs)) for k in path[pos])
+        elif isinstance(path[pos], tuple):
+            yield from (self._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs) for k in path[pos])
         elif isinstance(path[pos], slice):
             if isinstance(target, (np.ndarray)):
                 yield from self._find(target[path[pos]], path[pos+1:],  *args, **kwargs)
             elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
                 for item in target[path[pos]]:
                     yield from self._find(item, path[pos+1:],  *args, **kwargs)
+            elif "default_value" in kwargs:
+                yield kwargs["default_value"]
             else:
                 raise TypeError(f"Cannot slice {type(target)}")
         elif isinstance(path[pos], collections.abc.Mapping):
@@ -322,8 +344,12 @@ class Path(list):
                         yield from self._find(element,  path[pos+1:],  *args, **kwargs)
                         if only_first:
                             break
+            elif "default_value" in kwargs:
+                yield kwargs["default_value"]
             else:
                 raise TypeError(f"Cannot search {type(target)}")
+        elif "default_value" in kwargs:
+                yield kwargs["default_value"]
         else:
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
 
@@ -354,14 +380,29 @@ class Path(list):
 
         if hasattr(target, "__entry__"):
             return target.__entry__.child(path[pos:]).query(op, *args, **kwargs)
-        elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
-            return [self._query(d, path[pos+1:], *args, **kwargs) for d in self._find(target, path[pos], **kwargs)]
+        elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
+            return [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, path[pos], **kwargs)]
+        elif pos == len(path) - 1 and not isinstance(path[pos], (int, str)):
+            target = self._expand(self._find(target, path[pos:], **kwargs))
+            return self._query(target, [], op, *args, **kwargs)
         elif op is None:
-            return self._expand(self._find(target, path[pos:], **kwargs))
+            if pos < len(path):  # Not found
+                return kwargs.get("default_value", _not_found_)
+            else:
+                return self._expand(self._find(target, path[pos:], **kwargs))
         elif op == Path.tags.count:
-            return 1
+            if pos == len(path):
+                if isinstance(target, str):
+                    return 1
+                else:
+                    return len(target)
+            else:
+                return 0
         elif op == Path.tags.equal:
-            return target == args[0]
+            if pos == len(path):
+                return target == args[0]
+            else:
+                return False
         else:
             raise NotImplementedError(f"Not implemented yet!{op}")
 
@@ -370,6 +411,8 @@ class Path(list):
 
         if hasattr(target, "__entry__"):
             return target.__entry__.child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
+        elif len(path) == 0:
+            return self._update(target, value, *args, **kwargs)
         elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
             return sum(self._insert(d, path[pos+1:], value, *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs))
         elif not parents:
@@ -384,10 +427,14 @@ class Path(list):
         """
         Remove target by path.
         """
+
         target, pos = self._traversal(target, path[:-1])
 
         if hasattr(target, "__entry__"):
             return target.__entry__.child(path[pos:]).delete(*args, **kwargs)
+        elif len(path) == 0:
+            target.clear()
+            return 1
         elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
             return sum(self._remove(d, path[pos+1:], *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs))
         elif pos < len(path)-1:
@@ -396,22 +443,59 @@ class Path(list):
             del target[path[-1]]
             return 1
 
-    def _update(self, target: typing.Any, path: typing.List[typing.Any], value:  typing.Any, *args, deep=False, overwrite=False, **kwargs) -> int:
+    def _update_or_replace(self, target: typing.Any, actions: collections.abc.Mapping,
+                           force=False, replace=True, **kwargs) -> typing.Any:
+        if not isinstance(actions, collections.abc.Mapping):
+            return actions
+
+        for op, args in actions.items():
+            if isinstance(op, str) and op.startswith("$"):
+                op = Path.tags[op[1:]]
+
+            if isinstance(op, str):
+                if target is None:
+                    target = {}
+                self._update(target, [op], args, force=force, **kwargs)
+            elif op in (Path.tags.append,  Path.tags.extend):
+                new_obj = self._update_or_replace(None, args, force=True, replace=True)
+                if op is Path.tags.append:
+                    new_obj = [new_obj]
+
+                if isinstance(target, list):
+                    target += new_obj
+                elif replace:
+                    target = [target] + new_obj
+                else:
+                    raise IndexError(f"Can't append {new_obj} to {target}!")
+            else:
+                raise NotImplementedError(f"Not implemented yet!{op}")
+
+        return target
+
+    def _update(self, target: typing.Any, path: typing.List[typing.Any], value:  typing.Any, *args,  force=False, **kwargs) -> int:
         """
         Update target by path with value.
         """
-        target, pos = self._traversal(target, path)
+        target, pos = self._traversal(target, path[:-1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).update(value,  *args, deep=deep, overwrite=overwrite, **kwargs)
-        elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
-            return sum(self._update(d, path[pos+1:], value, *args, deep=deep, overwrite=overwrite, **kwargs)
-                       for d in self._find(target, [path[pos]], **kwargs))
-        elif isinstance(target, dict):
-            target.update(value, **kwargs)
+            return target.__entry__.child(path[pos:]).update(value,  *args, overwrite=force, **kwargs)
+        elif len(path) == 0:
+            self._update_or_replace(target, value, force=force, replace=False, **kwargs)
             return 1
-        else:
-            raise IndexError(f"Can't update {type(target)} by {path[:pos]}!")
+        elif not isinstance(path[pos], (int, str)):
+            return sum(self._update(d, path[pos+1:], value, *args,  force=force, **kwargs)
+                       for d in self._find(target, [path[pos]], **kwargs))
+        elif not isinstance(value, collections.abc.Mapping):
+            return self._insert(target, path[pos:], value, *args, force=force, **kwargs)
+        elif pos < len(path)-1:
+            return self._insert(target, path[pos:], self._update_or_replace(None, value), force=force, **kwargs)
+        else:  # pos == len(path)-1
+            n_target, n_pos = self._traversal(target, path[pos:])
+            if n_pos == 0:
+                return self._update(target, [], value, force=force, **kwargs)
+            else:
+                return self._insert(target, path[pos:], self._update_or_replace(n_target, value), force=force, **kwargs)
 
     def _expand(self, target: typing.Any):
         if isinstance(target, collections.abc.Generator):

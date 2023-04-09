@@ -20,7 +20,7 @@ class TestPath(unittest.TestCase):
 
         self.assertEqual(Path.parser("a/(1,2,3,'a')/h")[:], ["a", (1, 2, 3, 'a'), "h"])
         self.assertEqual(Path.parser("a/{1,2,3,'a'}/h")[:], ["a", {1, 2, 3, 'a'}, "h"])
-        self.assertEqual(Path.parser("a/[{'$le':[1,2]}]/h")[:],  ["a", {'$le': [1, 2]}, "h"])
+        self.assertEqual(Path.parser("a/[{'$le':[1,2]}]/h")[:],  ["a", {Path.tags.le: [1, 2]}, "h"])
         self.assertEqual(Path.parser("a/[1:10:-3]/h")[:], ["a", slice(1, 10, -3), "h"])
         self.assertEqual(Path.parser("a/[1:10:-3]/$next")[:], ["a", slice(1, 10, -3), Path.tags.next])
 
@@ -50,19 +50,20 @@ class TestPath(unittest.TestCase):
         self.assertEqual(Path("a/0").query(self.data),        self.data["a"][0])
         self.assertEqual(Path(["a", 1]).query(self.data),        self.data["a"][1])
         self.assertEqual(Path("a/[2:4:1]").query(self.data),        self.data["a"][2:4])
+        self.assertEqual(Path("d/k").query(self.data, default_value=_not_found_),      _not_found_)
 
     def test_query_op(self):
 
-        self.assertTrue(Path("a").query(self.data,    Path.tags.count) > 0)
-        self.assertTrue(Path("d/e").query(self.data,  Path.tags.count) > 0)
-        self.assertFalse(Path("b/h").query(self.data, Path.tags.count) > 0)
-        self.assertFalse(Path("f/g").query(self.data, Path.tags.count) > 0)
+        self.assertEqual(Path("a").query(self.data,    Path.tags.count), 6)
+        self.assertEqual(Path("d/e").query(self.data,  Path.tags.count), 1)
+        self.assertEqual(Path("b/h").query(self.data, Path.tags.count), 0)
+        self.assertEqual(Path("f/g").query(self.data, Path.tags.count), 0)
 
         self.assertEqual(Path().query(self.data, Path.tags.count),          3)
         self.assertEqual(Path("a").query(self.data, Path.tags.count),   6)
         self.assertEqual(Path("d").query(self.data, Path.tags.count),   2)
 
-        self.assertTrue(Path(["a", slice(2, 6)]).query(self.data, Path.tags.equal, [1, 2, 3, 4]))
+        self.assertTrue(Path(["a", slice(2, 7)]).query(self.data, Path.tags.equal, [1, 2, 3, 4]))
 
     def test_insert(self):
         cache = {}
@@ -80,23 +81,20 @@ class TestPath(unittest.TestCase):
         self.assertEqual(cache["e"]["g"],   6)
 
     def test_update(self):
-        cache = {}
-
-        Path("c").update(self.data, {"$append": 1.23455})
-
-        Path("c").update(self.data, {"$extend": [{"a": "hello world", "b": 3.141567}]})
-
-        self.assertEqual(cache["c"][0],                      1.23455)
-        self.assertEqual(cache["c"][1]["a"],           "hello world")
-        self.assertEqual(cache["c"][1]["b"],                3.141567)
-
-    def test_update_dict(self):
         cache = deepcopy(self.data)
 
-        Path().update(cache, {"d": {"g": 5}})
+        Path("c").update(cache, {"$extend": [{"a": "hello world", "b": 3.141567}]})
+        Path("c").update(cache, {"$append": 1.23455})
+
+        self.assertEqual(cache["c"][0],                 "I'm {age}!")
+        self.assertEqual(cache["c"][1]["a"],           "hello world")
+        self.assertEqual(cache["c"][1]["b"],                3.141567)
+        self.assertEqual(cache["c"][2],                    1.23455)
+
+        Path().update(cache, {"d": {"g": 5, "f": 6}})
 
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
-        self.assertEqual(cache["d"]["f"], "{address}")
+        self.assertEqual(cache["d"]["f"], 6)
         self.assertEqual(cache["d"]["g"], 5)
 
     def test_delete(self):
@@ -113,14 +111,14 @@ class TestPath(unittest.TestCase):
 
         self.assertTrue("b" not in cache)
 
-    # def test_find_many(self):
+    def test_find_many(self):
 
-    #     res = Path(("a/2", "c",  "d/e", "e")).query(self.data, default_value=_not_found_)
+        res = Path([("a/2", "c",  "d/e", "e")]).query(self.data, default_value=_not_found_)
 
-    #     self.assertListEqual(res, [self.data['a'][2],
-    #                                self.data['c'],
-    #                                self.data['d']['e'],
-    #                                _not_found_])
+        self.assertListEqual(res, [self.data['a'][2],
+                                   self.data['c'],
+                                   self.data['d']['e'],
+                                   _not_found_])
 
 
 if __name__ == '__main__':
