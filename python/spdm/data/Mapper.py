@@ -177,7 +177,7 @@ class Mapper(SpObject):
         if len(mapping_files) == 0:
             raise FileNotFoundError(f"Can not find mapping files for {map_tag}!")
 
-        return File(mapping_files, mode="r", format="XML").read()
+        return File.open(mapping_files, mode="r", format="XML").read()
 
 
 def create_mapper(*args,  source_schema: typing.Optional[str] = None, target_schema: typing.Optional[str] = None, **kwargs) -> Mapper:

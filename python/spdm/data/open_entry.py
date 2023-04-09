@@ -57,7 +57,7 @@ def open_entry(uri: typing.Union[str, URITuple], *args,
         return Entry(fetch_request(uri))
 
     elif uri.protocol in ("file", "local", "ssh", "scp", None):
-        entry = File(uri, *args, **kwargs).entry
+        entry = File.create(uri, *args, **kwargs).entry
         if mapper is not None:
             entry = mapper.map(entry)
         return entry

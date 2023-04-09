@@ -16,6 +16,8 @@ from spdm.data.File import File
 from spdm.util.dict_util import format_string_recursive
 from spdm.util.misc import normalize_path, serialize
 
+_TPath = typing.TypeVar("_TPath")
+
 
 def merge_xml(first, second):
     if first is None:
@@ -57,7 +59,12 @@ def load_xml(path, *args,  mode="r", **kwargs):
     root = None
     if path.exists() and path.is_file():
         try:
-            root = parse_xml(path).getroot()
+            if isinstance(path, pathlib.Path):
+                root = parse_xml(path.as_posix()).getroot()
+            elif isinstance(path, str):
+                root = parse_xml(path).getroot()
+            else:
+                raise TypeError(f"Invalid path type: {type(path)}")
             # logger.debug(f"Loading XML file from {path}")
         except _XMLParseError as msg:
             raise RuntimeError(f"ParseError: {path}: {msg}")
@@ -239,7 +246,7 @@ class XMLEntry(Entry):
             res = default_value
         return res
 
-    def _get_value(self,  path: Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
+    def _get_value(self,  path: typing.Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self._get_value(p, only_one=True, **kwargs))
