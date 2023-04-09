@@ -19,15 +19,15 @@ class TestEntry(unittest.TestCase):
         }
     }
 
-    def test_get(self):
+    def test_query(self):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.get("c"),           self.data["c"])
-        self.assertEqual(d.get("d/e"),      self.data["d"]["e"])
-        self.assertEqual(d.get("d/f"),      self.data["d"]["f"])
-        self.assertEqual(d.get("a/0"),        self.data["a"][0])
-        self.assertEqual(d.get("a/1"),        self.data["a"][1])
+        self.assertEqual(d.child("c")  .__value__,         self.data["c"])
+        self.assertEqual(d.child("d/e").__value__,      self.data["d"]["e"])
+        self.assertEqual(d.child("d/f").__value__,      self.data["d"]["f"])
+        self.assertEqual(d.child("a/0").__value__,        self.data["a"][0])
+        self.assertEqual(d.child("a/1").__value__,        self.data["a"][1])
 
     def test_put(self):
         cache = {}
@@ -38,9 +38,9 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(cache["a"], "hello world {name}!")
 
-        d.put("e/f", 5)
+        d.child("e/f").insert(5)
 
-        d.put("e/g", 6)
+        d.child("e/g").insert(6)
 
         self.assertEqual(cache["e"]["f"],   5)
 
@@ -49,29 +49,29 @@ class TestEntry(unittest.TestCase):
     def test_operator(self):
         d = Entry(self.data)
 
-        self.assertTrue(d.exists())
-        self.assertTrue(d.child("a").exists())
-        self.assertTrue(d.child("d/e").exists())
-        self.assertFalse(d.child("b/h").exists())
-        self.assertFalse(d.child("f/g").exists())
+        self.assertTrue(d.exists)
+        self.assertTrue(d.child("a").exists)
+        self.assertTrue(d.child("d/e").exists)
+        self.assertFalse(d.child("b/h").exists)
+        self.assertFalse(d.child("f/g").exists)
 
-        self.assertEqual(d.count(),          3)
-        self.assertEqual(d.child("a").count(),   6)
-        self.assertEqual(d.child("d").count(),   2)
+        self.assertEqual(d.count,          3)
+        self.assertEqual(d.child("a").count,   6)
+        self.assertEqual(d.child("d").count,   2)
 
         # self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
 
     def test_append(self):
-        cache = {}
+        cache = deepcopy(self.data)
         d = Entry(cache)
 
-        d.child("c").append(1.23455)
+        d.child("c").update({"$append": 1.23455})
 
-        d.child("c").extend([{"a": "hello world", "b": 3.141567}])
+        d.child("c").update({"$extend": [{"a": "hello world", "b": 3.141567}]})
 
-        self.assertEqual(cache["c"][0],                      1.23455)
-        self.assertEqual(cache["c"][1]["a"],           "hello world")
-        self.assertEqual(cache["c"][1]["b"],                3.141567)
+        self.assertEqual(cache["c"][1],                      1.23455)
+        self.assertEqual(cache["c"][2]["a"],           "hello world")
+        self.assertEqual(cache["c"][2]["b"],                3.141567)
 
     def test_update(self):
         cache = deepcopy(self.data)
@@ -101,9 +101,9 @@ class TestEntry(unittest.TestCase):
     def test_get_many(self):
         d = Entry(self.data)
 
-        self.assertEqual(d.get('a/2'), self.data['a'][2])
+        self.assertEqual(d.child('a/2').__value__, self.data['a'][2])
 
-        res = d.get(["a/2", "c",  "d/e", "e"])
+        res = d.child([("a/2", "c",  "d/e", "e")]).__value__
         self.assertListEqual(res, [self.data['a'][2],
                                    self.data['c'],
                                    self.data['d']['e'],

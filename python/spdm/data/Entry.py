@@ -137,8 +137,9 @@ class Entry(object):
     def __iter__(self) -> typing.Iterator[Entry]:
         return self
 
+    @property
     def __value__(self):
-        return self.query()
+        return self.query(default_value=_not_found_)
 
     ###########################################################
     # API: CRUD  operation

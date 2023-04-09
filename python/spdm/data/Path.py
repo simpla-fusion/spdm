@@ -404,7 +404,7 @@ class Path(list):
             else:
                 return False
         else:
-            raise NotImplementedError(f"Not implemented yet!{op}")
+            raise NotImplementedError(f"Not implemented yet! {op}")
 
     def _insert(self, target: typing.Any, path: typing.List[typing.Any], value: typing.Any, *args, parents=True, **kwargs) -> int:
         target, pos = self._traversal(target, path[:-1])
