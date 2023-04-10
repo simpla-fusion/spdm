@@ -40,8 +40,23 @@ class Collection(Connection):
     #             return o_cls
     #         return decorator
 
+    # @classmethod
+    # def create(cls, path, *args, **kwargs):
+    #     n_cls_name = None
+
+    #     if "protocol" in kwargs:
+    #         protocol = kwargs.get("protocol")
+    #         n_cls_name = protocol
+    #     elif isinstance(path, collections.abc.Mapping):
+    #         n_cls_name = path.get("$class", None)
+    #     elif isinstance(path, (str, URITuple)):
+    #         uri = uri_split(path)
+    #         n_cls_name = uri.protocol
+
+    #     return super().create(n_cls_name, path, *args, **kwargs)
+
     @classmethod
-    def create(cls, path, *args, **kwargs):
+    def _guess_class_name(cls, path, *args,  **kwargs) -> typing.Optional[str]:
         n_cls_name = None
 
         if "protocol" in kwargs:
@@ -53,7 +68,13 @@ class Collection(Connection):
             uri = uri_split(path)
             n_cls_name = uri.protocol
 
-        return super().create(n_cls_name, path, *args, **kwargs)
+        return n_cls_name
+
+    def __new__(cls,  *args, **kwargs):
+        if cls is not Collection:
+            return object.__new__(cls)
+        else:
+            return super().__new__(cls, *args, **kwargs)
 
     def __init__(self, uri, *args,  mapper: typing.Optional[Mapper] = None,   **kwargs):
         super().__init__(uri, *args, **kwargs)

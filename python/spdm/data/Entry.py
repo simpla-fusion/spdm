@@ -28,6 +28,16 @@ class Entry(Factory):
     _registry = {}
     _plugin_prefix = "spdm.plugins.data.Plugin"
 
+    @classmethod
+    def _guess_class_name(cls, *args, **kwargs) -> typing.Optional[str]:
+        return kwargs.get("entry_type", None)
+
+    def __new__(cls,  *args, **kwargs):
+        if cls is not Entry or "entry_type" not in kwargs:
+            return object.__new__(cls)
+        else:
+            return super().__new__(cls, *args,   **kwargs)
+
     # @classmethod
     # def register(cls, names: typing.Union[typing.List[str], str], other_cls=None):
     #     """
@@ -46,20 +56,20 @@ class Entry(Factory):
     #             return o_cls
     #         return decorator
 
-    @classmethod
-    def create(cls, *args, scheme=None, **kwargs):
-        """
-        Create an entry from a description.
-        """
-        if scheme is not None:
-            try:
-                res = super().create(scheme, *args, **kwargs)
-            except ModuleNotFoundError:
-                pass
-            else:
-                return res
-        else:
-            return Entry(*args, scheme=scheme,  **kwargs)
+    # @classmethod
+    # def create(cls, *args, scheme=None, **kwargs):
+    #     """
+    #     Create an entry from a description.
+    #     """
+    #     if scheme is not None:
+    #         try:
+    #             res = super().create(scheme, *args, **kwargs)
+    #         except ModuleNotFoundError:
+    #             pass
+    #         else:
+    #             return res
+    #     else:
+    #         return Entry(*args, scheme=scheme,  **kwargs)
 
     def __init__(self, cache:  typing.Any = None, path: typing.Union[Path, None] = None, **kwargs):
         super().__init__()

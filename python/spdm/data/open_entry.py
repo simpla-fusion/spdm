@@ -31,7 +31,7 @@ def open_db(uri: typing.Union[str, URITuple], *args,
     if uri.protocol == "localdb":
         db = FileCollection(uri, *args, mapper=mapper, **kwargs)
     else:
-        db = Collection.create(uri, *args, mapper=mapper, **kwargs)
+        db = Collection(uri, *args, mapper=mapper, **kwargs)
     return db
 
 
@@ -57,7 +57,7 @@ def open_entry(uri: typing.Union[str, URITuple], *args,
         return Entry(fetch_request(uri))
 
     elif uri.protocol in ("file", "local", "ssh", "scp", None):
-        entry = File.create(uri, *args, **kwargs).entry
+        entry = File(uri, *args, **kwargs).entry
         if mapper is not None:
             entry = mapper.map(entry)
         return entry

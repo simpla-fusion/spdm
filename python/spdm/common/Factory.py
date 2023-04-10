@@ -42,22 +42,29 @@ class Factory(object):
         return None
 
     def __new__(cls,  *args, **kwargs):
+        if not issubclass(cls, Factory):
+            return object.__new__(cls)
+
         n_cls_name = cls._guess_class_name(*args, **kwargs)
+        
         n_cls = cls._registry.get(n_cls_name, None)
         if n_cls is None:
             n_cls_name = f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
             n_cls = sp_find_module(n_cls_name)
 
         if n_cls is None:
-            # raise ModuleNotFoundError(n_cls_name)
+            logger.debug(f"Can not find module {n_cls_name} , using default module {cls.__name__}")
             n_cls = cls
         return object.__new__(n_cls)
 
     @classmethod
     def create(cls, *args, **kwargs):
-        n_obj = cls.__new__(*args, **kwargs)
-        n_obj.__init__(*args, **kwargs)
-        return n_obj
+        if not issubclass(cls, Factory):
+            return cls(*args, **kwargs)
+        else:
+            n_obj = Factory.__new__(cls, *args, **kwargs)
+            n_obj.__init__(*args, **kwargs)
+            return n_obj
 
     # def __init__(self, *args, module_prefix=None, resolver=None, handlers=None, ** kwargs):
     #     super().__init__()

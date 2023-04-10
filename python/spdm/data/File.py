@@ -17,6 +17,12 @@ class File(Connection):
     _registry = {}
     _plugin_prefix = "spdm.plugins.data.Plugin"
 
+    def __new__(cls,  *args, **kwargs):
+        if cls is not File:
+            return object.__new__(cls)
+        else:
+            return super().__new__(cls, *args, **kwargs)
+
     # @classmethod
     # def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
     #     """

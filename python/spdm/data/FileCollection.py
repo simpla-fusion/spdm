@@ -1,22 +1,16 @@
-import collections
-import inspect
 import pathlib
-import re
-import urllib
-from typing import Any, Dict, List, NewType, Tuple, Union
+import typing
 
 from ..common.tags import _undefined_
 from ..util.logger import logger
 from .Collection import Collection, InsertOneResult
-from .Directory import Directory
-from .Document import Document
 from .Entry import Entry
 from .File import File
 
 
 class FileCollection(Collection):
 
-    def __init__(self, *args, glob: str = _undefined_, ** kwargs):
+    def __init__(self, *args, glob: typing.Optional[str] = None, ** kwargs):
         """
         Example:
             file_name="{*}"

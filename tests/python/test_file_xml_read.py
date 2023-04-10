@@ -32,8 +32,8 @@ class TestFile(unittest.TestCase):
         return super().tearDown()
 
     def test_xml(self):
-        device_desc = File.create("/home/salmon/workspace/fytok_data/mapping/ITER/imas/3/static/config.xml",
-                                  format="XML").read()
+        device_desc = File("/home/salmon/workspace/fytok_data/mapping/ITER/imas/3/static/config.xml",
+                           format="XML").read()
         # logger.debug(device_desc.get({"wall", "pf_active", "tf", "magnetics"}).dump())
         # {"wall", "pf_active", "tf", "magnetics"}
         logger.debug(device_desc.child("wall/description_2d/limiter").dump())
