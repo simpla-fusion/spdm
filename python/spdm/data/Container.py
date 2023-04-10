@@ -16,7 +16,7 @@ _TObject = typing.TypeVar("_TObject")
 _T = typing.TypeVar("_T")
 
 
-class Container(Node, typing.Generic[_TObject]):
+class Container(Node, typing.Generic[_TKey, _TObject]):
     r"""
        Container Node
     """
@@ -27,7 +27,7 @@ class Container(Node, typing.Generic[_TObject]):
     @cached_property
     def _child_type(self):
 
-        child_type = _undefined_
+        child_type = None
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
         orig_class = getattr(self, "__orig_class__", _not_found_)
         if orig_class is not _not_found_:
@@ -36,10 +36,10 @@ class Container(Node, typing.Generic[_TObject]):
                 child_type = child_type[0]
         return child_type
 
-    def update_child(self, key: _TKey, value: _T = _undefined_,   type_hint=_undefined_, *args, **kwargs) -> typing.Union[_T, Node]:
+    def update_child(self, key: _TKey, value: _T = None,   type_hint=None, *args, **kwargs) -> typing.Union[_T, Node]:
         return super().update_child(key,
                                     value,
-                                    type_hint=type_hint if type_hint is not _undefined_ else self._child_type,
+                                    type_hint=type_hint if type_hint is not None else self._child_type,
                                     *args, **kwargs)
 
     # elif (isinstance(value, list) and all(filter(lambda d: isinstance(d, (int, float, np.ndarray)), value))):
@@ -55,10 +55,10 @@ class Container(Node, typing.Generic[_TObject]):
     #     return self._new_child(value, **kwargs)
     # elif isinstance(self._new_child, collections.abc.Mapping) and len(self._new_child) > 0:
     #     kwargs = collections.ChainMap(kwargs, self._new_child)
-    # elif self._new_child is not _undefined_ and not not self._new_child:
+    # elif self._new_child is not None and not not self._new_child:
     #     logger.warning(f"Ignored!  { (self._new_child)}")
 
-    # if isinstance(attribute, str) or attribute is _undefined_:
+    # if isinstance(attribute, str) or attribute is None:
     #     attribute_type = self._attribute_type(attribute)
     # else:
     #     attribute_type = attribute
@@ -89,7 +89,7 @@ class Container(Node, typing.Generic[_TObject]):
     #         res = attribute_type(value, **kwargs)
     # elif callable(attribute_type):
     #     res = attribute_type(value, **kwargs)
-    # elif attribute_type is not _undefined_:
+    # elif attribute_type is not None:
     #     raise TypeError(attribute_type)
 
     # @property
@@ -125,12 +125,12 @@ class Container(Node, typing.Generic[_TObject]):
     # def remove(self, path: _TPath = None) -> bool:
     #     return self._entry.push(path, Entry.op_tag.remove)
 
-    # def reset(self, cache=_undefined_, ** kwargs) -> None:
+    # def reset(self, cache=None, ** kwargs) -> None:
     #     if isinstance(cache, Entry):
     #         self._entry = cache
     #     elif cache is None:
     #         self._entry = None
-    #     elif cache is not _undefined_:
+    #     elif cache is not None:
     #         self._entry = Entry(cache)
     #     else:
     #         self._entry = Entry(kwargs)

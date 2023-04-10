@@ -37,11 +37,8 @@ class File(Connection):
     #         return decorator
 
     @classmethod
-    def create(cls, path, *args, **kwargs):
-        if cls is not File:
-            return cls(cls, path, *args, **kwargs)
-
-        n_cls_name = '.'
+    def _guess_class_name(cls, path, *args, **kwargs) -> str:
+        n_cls_name = ''
         if "format" in kwargs:
             n_cls_name = kwargs.get("format")
         elif isinstance(path, collections.abc.Mapping):
@@ -57,7 +54,7 @@ class File(Connection):
         if n_cls_name == ".":
             n_cls_name = ".text"
 
-        return super().create(n_cls_name, path, *args, **kwargs)
+        return n_cls_name
         # n_cls = cls._registry.get(n_cls_name, None)
         # if n_cls is None:
         #     n_cls = sp_load_module(f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File")

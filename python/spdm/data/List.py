@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import collections.abc
 import typing
@@ -8,28 +10,25 @@ from ..util.misc import serialize
 from .Container import Container
 from .Entry import Entry, EntryCombine, as_entry
 from .Node import Node
+from .Path import Path
 
-_TList = typing.TypeVar('_TList', bound='List')
 _TObject = typing.TypeVar("_TObject")
-_T = typing.TypeVar("_T")
 
 
-class List(Container[_TObject], typing.Sequence[_TObject]):
-
-    def __init__(self,  *args,  **kwargs) -> None:
-        if len(args) == 1:
-            if args[0] in (_undefined_, _not_found_, None):
-                args = []
-            elif isinstance(args[0], Entry):
-                args = args[0]
-            elif isinstance(args[0], typing.Sequence) and not isinstance(args[0], str):
-                args = list(args[0])
-            else:
-                args = list(args)
-        else:
-            args = list(args)
-
-        super().__init__(args)
+class List(Container[int, _TObject], typing.Sequence[_TObject]):
+    # def __init__(self,  *args,  **kwargs) -> None:
+    #     # if len(args) == 1:
+    #     #     if args[0] in (_undefined_, _not_found_, None):
+    #     #         args = []
+    #     #     elif isinstance(args[0], Entry):
+    #     #         args = args[0]
+    #     #     elif isinstance(args[0], typing.Sequence) and not isinstance(args[0], str):
+    #     #         args = list(args[0])
+    #     #     else:
+    #     #         args = list(args)
+    #     # else:
+    #     #     args = list(args)
+    #     super().__init__(*args, **kwargs)
 
     @property
     def _is_list(self) -> bool:
@@ -39,45 +38,45 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
         return [serialize(v) for v in self._entry.first_child()]
 
     def __len__(self) -> int:
-        return self._entry.count()
+        return self._entry.count
 
-    def __getitem__(self, key) -> _TObject:
-        return self._post_process(self._entry.child(key), key=key)
+    def __getitem__(self, key) -> typing.Any:
+        return self._post_process(self._entry.child(key).query(), key=key)
 
-    def __setitem__(self, key, value: _T) -> None:
-        return self._entry.child(key).push(value)
+    def __setitem__(self, key: int, value: typing.Any):
+        return self._entry.child(key).insert(value)
 
-    def __delitem__(self,  key) -> None:
-        return self._entry.child(key).erase()
+    def __delitem__(self,  key):
+        return self._entry.child(key).remove()
 
-    def __iter__(self) -> typing.Iterator[_TObject]:
+    def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         for idx, v in enumerate(self._entry.first_child()):
             yield self._post_process(v, key=idx)
 
-    def __iadd__(self, value) -> _TList:
-        self._entry.push(value, append=True)
+    def __iadd__(self, value) -> List:
+        self._entry.update({Path.tags.append: value})
         return self
 
-    def append(self, value) -> _TList:
-        self._entry.push([value], append=True)
+    def append(self, value) -> List:
+        self._entry.update({Path.tags.append:  [value]})
         return self
 
     def update(self, d, predication=_undefined_, only_first=False) -> int:
-        return self._entry.push([], self._pre_process(d), predication=predication, only_first=only_first)
+        return self._entry.update(self._pre_process(d), predication=predication, only_first=only_first)
 
     def sort(self) -> None:
-        self._entry.sort()
+        self._entry.update(Path.tags.sort)
 
-    def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_, **kwargs) -> _T:
+    def combine(self, default=_undefined_, reducer=_undefined_, partition=_undefined_, **kwargs) -> typing.Any:
         res = EntryCombine([m for m in self.__iter__()], reducer=reducer, partition=partition,
                            default=default if default is not _undefined_ else self._combiner,
                            **kwargs)
         return self._post_process(res, key=_undefined_)
 
-    def find(self, predication,  only_first=True) -> _T:
-        return self._post_process(self._entry.pull(predication=predication, only_first=only_first))
+    def find(self, predication,  only_first=True) -> typing.Any:
+        return self._post_process(self._entry.query(predication=predication, only_first=only_first))
 
-    def _post_process(self, value: _T, key, *args,  ** kwargs) -> typing.Union[_T, Node]:
+    def _post_process(self, value: typing.Any, key, *args,  ** kwargs) -> typing.Any:
         obj = super()._post_process(value, key, *args,  ** kwargs)
         if isinstance(obj, Node):
             obj._parent = self._parent
@@ -107,3 +106,6 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
 
     def __entry__(self) -> Entry:
         return List.ListAsEntry(self)
+
+
+Node._SEQUENCE_TYPE_ = List

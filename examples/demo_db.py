@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     # logger.debug(entry.get(["pf_active"]).dump())
 
-    db = open_db("mdsplus[EAST]://202.127.204.12?tree_name=efit_east")
+    db = open_db("MDSplus[EAST]://202.127.204.12?tree_name=efit_east")
 
     entry = db.find_one(114730)
 

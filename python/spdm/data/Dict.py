@@ -6,7 +6,8 @@ from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
 from ..util.misc import serialize
 from .Container import Container
-from .Entry import Entry,  as_entry
+from .Entry import Entry, as_entry
+from .Node import Node
 
 _T = typing.TypeVar("_T")
 _TKey = typing.TypeVar("_TKey")
@@ -14,10 +15,10 @@ _TObject = typing.TypeVar("_TObject")
 Dict = typing.TypeVar('Dict', bound='Dict')
 
 
-class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
+class Dict(Container[str, _TObject]):
 
-    def __init__(self, cache: typing.Mapping = _undefined_,  /,  **kwargs):
-        if cache not in (_undefined_, _not_found_, None):
+    def __init__(self, cache: typing.Optional[typing.Mapping] = None,  /,  **kwargs):
+        if cache not in (None, _not_found_, None):
             super().__init__(cache)
         else:
             super().__init__({})
@@ -50,18 +51,18 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     def __len__(self) -> int:
         return self._entry.count
 
-    def __iter__(self) -> typing.Iterator[typing.Any]:
-        yield self.keys()
+    def __iter__(self) -> typing.Generator[typing.Any, None, None]:
+        yield from self.keys()
 
-    def items(self) -> typing.Iterator[typing.Tuple[_TKey, _TObject]]:
+    def items(self) -> typing.Generator[typing.Tuple[typing.Any, typing.Any], None, None]:
         for key, value in self._entry.first_child():
             yield key, self._post_process(value, key=key)
 
-    def keys(self) -> typing.Iterator[_TKey]:
+    def keys(self) -> typing.Generator[typing.Any, None, None]:
         for key, _ in self._entry.first_child():
             yield key
 
-    def values(self) -> typing.Iterator[_TObject]:
+    def values(self) -> typing.Generator[typing.Any, None, None]:
         for key, value in self._entry.first_child():
             yield self._post_process(value, key=key)
 
@@ -79,16 +80,16 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
             if len(self._path) > 0 and isinstance(self._path[0], str):
                 obj = getattr(self._cache, self._path[0], _not_found_)
                 if obj is _not_found_:
-                    return self._cache._entry.child(self._path).pull(default)
+                    return self._cache._entry.child(self._path).query(default_value=default)
                 elif len(self._path) == 1:
                     return obj
                 else:
-                    obj = as_entry(obj).child(self._path[1:]).pull(_not_found_)
-                    if obj in [_not_found_, _undefined_]:
+                    obj = as_entry(obj).child(self._path[1:]).query(default_value=_not_found_)
+                    if obj in [_not_found_, None]:
                         return default
                     else:
                         self._cache = obj
-                        self._path.reset()
+                        self._path.clear()
                         return self._cache
             else:
                 return self._cache.get(self._path, default)
@@ -120,13 +121,13 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         self._entry.update(d, *args, **kwargs)
         return self
 
-    def get(self, key,  default=_undefined_) -> typing.Any:
+    def get(self, key,  default=None) -> typing.Any:
         """Return the value for key if key is in the dictionary, else default. 
            If default is not given, it defaults to None, so that this method never raises a KeyError.
 
         Args:
             path ([type]): [description]
-            default ([type], optional): [description]. Defaults to _undefined_.
+            default ([type], optional): [description]. Defaults to None.
 
         Returns:
             Any: [description]
@@ -139,7 +140,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
 
         Args:
             path ([type]): [description]
-            default_value ([type], optional): [description]. Defaults to _undefined_.
+            default_value ([type], optional): [description]. Defaults to None.
 
         Returns:
             Any: [description]
@@ -189,6 +190,9 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     #         for key in d:
     #             if isinstance(key, str) and hasattr(self, key) and isinstance(getattr(self.__class__, key, _not_found_), functools.cached_property):
     #                 delattr(self, key)
+
+
+Node._MAPPING_TYPE_ = Dict
 
 
 def chain_map(*args, **kwargs) -> collections.ChainMap:

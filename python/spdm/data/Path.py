@@ -69,6 +69,7 @@ class Path(list):
         append = auto()
         extend = auto()
         update = auto()
+        sort = auto()
         deep_update = auto()
         setdefault = auto()
         # predicate 谓词
@@ -92,7 +93,10 @@ class Path(list):
         elif isinstance(p, list):
             res = sum((([v] if not isinstance(v, list) else v) for v in map(Path.normalize, p)), list())
         elif isinstance(p, tuple):
-            res = tuple(map(Path.normalize, p))
+            if len(p) == 1:
+                res = Path.normalize(p[0])
+            else:
+                res = tuple(map(Path.normalize, p))
         elif isinstance(p, collections.abc.Set):
             res = set(map(Path.normalize, p))
         elif isinstance(p, collections.abc.Mapping):
@@ -302,10 +306,15 @@ class Path(list):
                 elif p not in target:
                     break
             elif isinstance(p, int):
-                if not isinstance(target, (list, tuple, collections.deque)):
+                if isinstance(target, np.ndarray):
+                    target = target[p]
+                elif not isinstance(target, (list, tuple, collections.deque)):
                     raise TypeError(f"Cannot traversal {p} in {type(target)} {target}")
                 elif p >= len(target):
                     raise IndexError(f"Index {p} out of range {len(target)}")
+            elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
+                if not isinstance(target,(np.ndarray)):
+                    break
             else:
                 break
             target = target[p]

@@ -38,28 +38,26 @@ class Factory(object):
             return decorator
 
     @classmethod
-    def create(cls, n_cls_name, *args, **kwargs):
+    def _guess_class_name(cls, *args, **kwargs) -> typing.Optional[str]:
+        return None
 
-        # n_cls_name = None
-
-        # if "protocol" in kwargs:
-        #     protocol = kwargs.get("protocol")
-        #     n_cls_name = protocol
-        # elif isinstance(path, collections.abc.Mapping):
-        #     n_cls_name = path.get("$class", None)
-        # elif isinstance(path, (str, URITuple)):
-        #     uri = uri_split(path)
-        #     n_cls_name = uri.protocol
-
+    def __new__(cls,  *args, **kwargs):
+        n_cls_name = cls._guess_class_name(*args, **kwargs)
         n_cls = cls._registry.get(n_cls_name, None)
         if n_cls is None:
             n_cls_name = f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
             n_cls = sp_find_module(n_cls_name)
 
         if n_cls is None:
-            raise ModuleNotFoundError(f"Cannot create {cls.__name__} for {n_cls_name}")
+            # raise ModuleNotFoundError(n_cls_name)
+            n_cls = cls
+        return object.__new__(n_cls)
 
-        return n_cls(*args, **kwargs)
+    @classmethod
+    def create(cls, *args, **kwargs):
+        n_obj = cls.__new__(*args, **kwargs)
+        n_obj.__init__(*args, **kwargs)
+        return n_obj
 
     # def __init__(self, *args, module_prefix=None, resolver=None, handlers=None, ** kwargs):
     #     super().__init__()

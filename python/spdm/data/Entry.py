@@ -81,6 +81,14 @@ class Entry(Factory):
         return f"<{self.__class__.__name__} cache={type(self._cache)} path={self._path} />"
 
     @property
+    def is_sequence(self) -> bool:
+        return isinstance(self._cache, collections.abc.Sequence)
+
+    @property
+    def is_mapping(self) -> bool:
+        return isinstance(self._cache, collections.abc.Mapping)
+
+    @property
     def __entry__(self) -> Entry:
         return self
 
@@ -128,11 +136,10 @@ class Entry(Factory):
         return self.duplicate().child(kwargs)
 
     def __getitem__(self, *args) -> Entry:
-        return self.child(*args) if len(args) > 0 else self
+        return self.child(args) if len(args) > 0 else self
 
     def __setitem__(self, *args):
-        assert(len(args) > 0)
-        return self.child(*args[:-1]).insert(args[-1])
+        return self.child(tuple(args[:-1])).insert(args[-1])
 
     def __delitem__(self, *args):
         return self.child(*args).remove()

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Iterator, TypeVar
+import typing
 
 from ..util.misc import serialize
-from .Node import Node, _TKey
-
-_T = TypeVar("_T")
+from .Node import Node
+from .Path import Path
 
 
 class Link(Node):
@@ -20,19 +19,19 @@ class Link(Node):
         annotation = [f"{k}='{v}'" for k, v in self.annotation.items() if v is not None]
         return f"<{getattr(self,'__orig_class__',self.__class__.__name__)} {' '.join(annotation)}/>"
 
-    def __serialize__(self) -> Any:
+    def __serialize__(self) -> typing.Any:
         return serialize(self._entry.dump())
 
     def _duplicate(self, *args, parent=None, **kwargs) -> Link:
         return self.__class__(self._entry, *args, parent=parent if parent is not None else self._parent,  **kwargs)
 
-    def __setitem__(self, key: _TKey, value: _T) -> _T:
+    def __setitem__(self, key: typing.Any, value: typing.Any) -> typing.Any:
         if isinstance(key, tuple):
-            return self._entry.child(*key).push(self._pre_process(value))
+            return self._entry.child(*key).insert(self._pre_process(value))
         else:
-            return self._entry.child(key).push(self._pre_process(value))
+            return self._entry.child(key).insert(self._pre_process(value))
 
-    def __getitem__(self, key) -> Any:
+    def __getitem__(self, key) -> typing.Any:
         if isinstance(key, tuple):
             return self._post_process(self._entry.child(*key), key=key)
         else:
@@ -40,32 +39,29 @@ class Link(Node):
 
     def __delitem__(self, key) -> bool:
         if isinstance(key, tuple):
-            return self._entry.child(*key).erase()
+            return self._entry.child(*key).remove() > 0
         else:
-            return self._entry.child(key).erase()
+            return self._entry.child(key).remove() > 0
 
-    def __contains__(self, key: _TKey) -> bool:
-        if isinstance(key, tuple):
-            return self._entry.child(*key).exists()
-        else:
-            return self._entry.child(key).exists()
+    def __contains__(self, key) -> bool:
+        return self._entry.child(key).exists
 
     def __eq__(self, other) -> bool:
         return self._entry.equal(other)
 
     def __len__(self) -> int:
-        return self._entry.count()
+        return self._entry.count
 
-    def __iter__(self) -> Iterator[_T]:
+    def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         for idx, obj in enumerate(self._entry.first_child()):
             yield self._post_process(obj, key=[idx])
 
     def append(self, value) -> Link:
-        self._entry.append(value)
+        self._entry.update({Path.tags.append: value})
         return self
 
     def extend(self, value) -> Link:
-        self._entry.extend(value)
+        self._entry.update({Path.tags.extend: value})
         return self
 
     def __ior__(self, obj) -> Link:
