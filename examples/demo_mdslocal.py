@@ -1,6 +1,6 @@
 import os
-from pprint import pprint
 
+from spdm.util.logger import logger
 from spdm.data.open_entry import open_entry
 
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
@@ -8,11 +8,11 @@ os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
 
 if __name__ == '__main__':
 
-    method = 2
+    method = 1
 
     if method == 1:
         entry = open_entry(
-            "file+MDSplus[EAST]:///home/salmon/workspace/fytok_data/mdsplus/~t/?tree_name=east,t1,t2,t3,t4,t5,t6#70754")
+            "file+MDSplus[EAST]:///home/salmon/workspace/fytok_data/mdsplus/~t/?tree_name=efit_east#70745")
     elif method == 2:
         entry = open_entry("ssh+MDSplus[EAST]://s108/share/arch/east/~t/~f~e~d/?tree_name=east,t1,t2,t3,t4,t5,t6#70754")
     else:
@@ -32,8 +32,14 @@ if __name__ == '__main__':
 
     # pprint({k: v for k, v in os.environ.items() if k.endswith("_path")})
 
-    pprint(tf_current)
+    logger.debug(tf_current)
 
-    pprint(tf_time)
+    logger.debug(tf_time)
 
-    pprint("DONE")
+    time_slice = 100
+
+    eq = entry.child(f"equilibrium/time_slice/{time_slice}").query()
+
+    logger.debug(eq)
+
+    logger.debug("DONE")
