@@ -1,12 +1,13 @@
 import collections
-from typing import Any, Dict
-
+import collections.abc
+import typing
+import pathlib
 import f90nml
 import numpy as np
+from spdm.data.File import File
+from spdm.data.Entry import Entry
 from spdm.util.dict_util import normalize_data
 from spdm.util.logger import logger
-
-from spdm.data.File import File
 
 # class NumpyEncoder(json.NAMELISTEncoder):
 #     def default(self, obj):
@@ -48,22 +49,24 @@ from spdm.data.File import File
 #         else:
 #             return nobj
 
-
+@File.register(["namelist", "NAMELIST"])
 class NamelistFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._template = pathlib.Path(kwargs.get("template", None))
 
-    def update(self, data=None, *args, **kwargs):
+    def write(self, data=None, *args, **kwargs):
         if data is None:
             data = kwargs
         if not isinstance(data, collections.abc.Mapping):
-            super().update(data, *args, **kwargs)
+            super().write(data, *args, **kwargs)
         else:
             data = normalize_data(data)
-            f90nml.patch(self.template.as_posix(), data, self.path.as_posix())
+            f90nml.patch(self._template.as_posix(), data, self.path.as_posix())
 
-    def root(self) -> Dict[str, Any]:
-        return Entry(f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True))
+    def read(self) -> Entry:
+        data: dict = f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)
+        return Entry(data)
 
 
 __SP_EXPORT__ = NamelistFile

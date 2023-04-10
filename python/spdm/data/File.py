@@ -15,25 +15,26 @@ class File(Connection):
         File like object
     """
     _registry = {}
+    _plugin_prefix = "spdm.plugins.data.Plugin"
 
-    @classmethod
-    def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
-        """
-        Decorator to register a class to the registry.
-        """
-        if other_cls is not None:
-            if isinstance(name, str):
-                cls._registry[name] = other_cls
-            elif isinstance(name, collections.abc.Sequence):
-                for n in name:
-                    cls._registry[n] = other_cls
+    # @classmethod
+    # def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
+    #     """
+    #     Decorator to register a class to the registry.
+    #     """
+    #     if other_cls is not None:
+    #         if isinstance(name, str):
+    #             cls._registry[name] = other_cls
+    #         elif isinstance(name, collections.abc.Sequence):
+    #             for n in name:
+    #                 cls._registry[n] = other_cls
 
-            return other_cls
-        else:
-            def decorator(o_cls):
-                File.register(name, o_cls)
-                return o_cls
-            return decorator
+    #         return other_cls
+    #     else:
+    #         def decorator(o_cls):
+    #             File.register(name, o_cls)
+    #             return o_cls
+    #         return decorator
 
     @classmethod
     def create(cls, path, *args, **kwargs):
@@ -56,13 +57,14 @@ class File(Connection):
         if n_cls_name == ".":
             n_cls_name = ".text"
 
-        n_cls = cls._registry.get(n_cls_name, None)
-        if n_cls is None:
-            n_cls = sp_load_module(f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File")
-        if n_cls is not None:
-            return n_cls(path, *args, **kwargs)
-        else:
-            raise NotImplementedError(f"Cannot create file for {path}")
+        return super().create(n_cls_name, path, *args, **kwargs)
+        # n_cls = cls._registry.get(n_cls_name, None)
+        # if n_cls is None:
+        #     n_cls = sp_load_module(f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File")
+        # if n_cls is not None:
+        #     return n_cls(path, *args, **kwargs)
+        # else:
+        #     raise NotImplementedError(f"Cannot create file for {path}")
 
     def __init__(self,  *args, mode="r", ** kwargs):
         """

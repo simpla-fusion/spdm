@@ -6,6 +6,8 @@ Feature:
  TODO (salmon.20190919): support  quoting
 """
 import collections
+import collections.abc
+
 import pathlib
 import re
 from dataclasses import dataclass
@@ -139,7 +141,6 @@ def parse_url_iter(path, with_position=False):
             yield idx, m.end()
         else:
             yield idx
-
 
 
 def normalize_path_to_list(path, split=True):

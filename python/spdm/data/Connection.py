@@ -3,16 +3,17 @@ from __future__ import annotations
 import collections.abc
 import functools
 import pathlib
+import typing
 from copy import deepcopy
 from enum import Flag, auto
-import typing
+
+from ..common.Factory import Factory
 from ..util.logger import logger
 from ..util.uri_utils import URITuple, uri_merge, uri_split
 from .Entry import Entry
-from .SpObject import SpObject
 
 
-class Connection(SpObject):
+class Connection(Factory):
 
     class Mode(Flag):
         read = auto()       # open for reading (default)
@@ -62,7 +63,7 @@ class Connection(SpObject):
         return self._uri
 
     @property
-    def path(self) -> Any:
+    def path(self) -> typing.Any:
         return self.uri.path
 
     @property

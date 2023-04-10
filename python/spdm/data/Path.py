@@ -166,8 +166,8 @@ class Path(list):
     def parser(cls, p: str) -> Path:
         return Path(Path._parser(p))
 
-    def __init__(self, d=None, /, **kwargs):
-        super().__init__(Path.normalize(d), **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(Path.normalize(list(args)), **kwargs)
 
     def __repr__(self):
         return pprint.pformat(self)
@@ -180,9 +180,9 @@ class Path(list):
 
     def duplicate(self, new_value=None) -> Path:
         if new_value is not None:
-            return Path(new_value)
+            return self.__class__(new_value)
         else:
-            return Path(self[:])
+            return self.__class__(self[:])
 
     def as_list(self) -> list:
         return self[:]
@@ -242,11 +242,11 @@ class Path(list):
         other.append(Path.tags.next)
         return other
 
-    def append(self, p) -> Path:
+    def append(self, *args) -> Path:
         if self.is_closed:
             raise ValueError(f"Cannot append to a closed path {self}")
-        p = Path.normalize(p)
-        super().extend([p] if not isinstance(p, list) else p)
+        p = Path.normalize(list(args))
+        super().extend(p)
         return self
 
     def __truediv__(self, p) -> Path:

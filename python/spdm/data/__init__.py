@@ -10,7 +10,6 @@ from .Function import Function, FunctionDict, FunctionList, function_like
 from .List import List
 from .Node import Node
 from .Path import Path
-from .Query import Query
 from .Signal import Signal
 from .sp_property import sp_property
 # from ..plugins import data
@@ -18,7 +17,7 @@ from .sp_property import sp_property
 # from .Collection import Collection
 # from .Edge import Edge
 # from .Graph import Graph
-
+from .open_entry import open_entry, open_db
 
 # Node._SEQUENCE_TYPE_ = List
 # Node._MAPPING_TYPE_ = Dict

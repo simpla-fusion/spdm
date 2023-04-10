@@ -11,7 +11,7 @@ from spdm.util.logger import logger
 from spdm.data.Path import Path
 
 
-@File.register("mdsplus")
+@File.register(["mdsplus", "mds", "mds+", "MDSplus"])
 class MDSplusFile(File):
     MDS_MODE = {
         File.Mode.read: "ReadOnly",
@@ -21,7 +21,7 @@ class MDSplusFile(File):
         File.Mode.write | File.Mode.create: "New"
     }
 
-    def __init__(self, *args, fid=None, shot: int = None, tree_name: str = None, **kwargs):
+    def __init__(self, *args, fid=None, shot: typing.Optional[int] = None, tree_name: typing.Optional[str] = None, **kwargs):
         super().__init__(*args,  ** kwargs)
 
         self._envs = {}
@@ -88,7 +88,7 @@ class MDSplusFile(File):
     def entry(self, lazy=True) -> Entry:
         return self._entry
 
-    def get_tree(self, tree_name: str = None, tree_path: str = None):
+    def get_tree(self, tree_name: typing.Optional[str] = None, tree_path: typing.Optional[str] = None):
 
         if tree_name is None:
             tree_name = self._default_tree_name
@@ -117,8 +117,8 @@ class MDSplusFile(File):
 
         return tree
 
-    def fetch(self, request, *args,   **kwargs) -> Entry:
-        if not request:
+    def query(self, request=None,  prefix=None,  **kwargs) -> Entry:
+        if request is None:
             return self.entry
 
         if isinstance(request, str):
@@ -164,14 +164,12 @@ class MDSplusFile(File):
                 res = res.transpose(1, 0)
         return res
 
-    def update(self, request, *args,  envs=None, **kwargs):
+    def update(self,   *args,  envs=None, **kwargs):
         raise NotImplementedError()
 
 
-@Collection.register("mdsplus")
+@Collection.register(["mdsplus", "mds", "mds+", "MDSplus"])
 class MDSplusCollection(Collection):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args,  **kwargs)
 
     def insert_one(self, fid=None, *args,  query=None, mode=None, **kwargs):
         fid = fid or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs)) or self.next_id
@@ -183,7 +181,7 @@ class MDSplusCollection(Collection):
         if projection is None:
             return entry
         else:
-            return entry.get(projection)
+            return entry.query(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()
@@ -226,7 +224,7 @@ class MDSplusCollection(Collection):
     #     return shot
 
 
-@Entry.register("mdsplus")
+@Entry.register(["mdsplus", "mds", "mds+", "MDSplus"])
 class MDSplusEntry(Entry):
 
     def __init__(self, cache: typing.Union[MDSplusFile, str], *args, **kwargs):
@@ -236,14 +234,14 @@ class MDSplusEntry(Entry):
             raise TypeError(f"cache must be MDSplusFile or str, but got {type(cache)}")
         super().__init__(cache, *args,  **kwargs)
 
-    def query(self, *args, **kwargs):
-        return self._cache.fetch(self._path, *args, **kwargs)
+    def query(self,  *args, **kwargs):
+        return self._cache.query(*args, prefix=self._path,  **kwargs)
 
-    def update(self,  value, *args, **kwargs):
-        return self._cache.update({self._path: value}, *args, **kwargs)
+    def update(self, *args, **kwargs):
+        return self._cache.update(*args,  prefix=self._path, **kwargs)
 
-    def iter(self,  path, *args, **kwargs):
-        return self._cache.iter(path, *args, **kwargs)
+    def find(self, *args, **kwargs):
+        yield from self._cache.find(*args, prefix=self._path, **kwargs)
 
 
 def open_mdstree(tree_name, shot,  mode="NORMAL", path=None):

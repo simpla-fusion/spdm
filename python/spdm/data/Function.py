@@ -373,8 +373,8 @@ _uni_ops = {
     '__neg__': np.negative,
 }
 
-for name, op in _uni_ops.items():
-    setattr(Function,  name, lambda s, _op=op: _op(s))
+for names, op in _uni_ops.items():
+    setattr(Function,  names, lambda s, _op=op: _op(s))
 
 _bi_ops = {
 
@@ -398,8 +398,8 @@ _bi_ops = {
     "__ge__": np.greater_equal,
 }
 
-for name, op in _bi_ops.items():
-    setattr(Function,  name, lambda s, other, _op=op: _op(s, other))
+for names, op in _bi_ops.items():
+    setattr(Function,  names, lambda s, other, _op=op: _op(s, other))
 
 _rbi_ops = {
     # Add arguments element-wise.
@@ -416,8 +416,8 @@ _rbi_ops = {
     "__rpow__": np.power
 }
 
-for name, op in _rbi_ops.items():
-    setattr(Function,  name, lambda s, other, _op=op: _op(other, s))
+for names, op in _rbi_ops.items():
+    setattr(Function,  names, lambda s, other, _op=op: _op(other, s))
 
 
 class PiecewiseFunction(Function):

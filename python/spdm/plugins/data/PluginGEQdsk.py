@@ -281,7 +281,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq: typing.Optional[Dict] = None) -> D
     return eq
 
 
-@File.register("GEQdsk")
+@File.register(["gfile", "GEQdsk"])
 class GEQdskFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -293,9 +293,9 @@ class GEQdskFile(File):
         else:
             logger.debug(f"Open File {self.uri} mode={self.mode}")
 
-    def flush(self, *args, **kwargs):
-        if self.mode & File.Mode.write:
-            self.save(self.path)
+    # def flush(self, *args, **kwargs):
+    #     if self.mode & File.Mode.write:
+    #         self.save(self.path)
 
     def read(self, lazy=False) -> Entry:
         return sp_geqdsk_to_imas_equilibrium(sp_read_geqdsk(self._fid)).entry

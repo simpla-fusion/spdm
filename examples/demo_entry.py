@@ -8,9 +8,9 @@ if __name__ == '__main__':
 
     # db: Collection = open_db("mdsplus[EAST]://202.127.204.12")
 
-    entry = open_entry("mdsplus[EAST]://202.127.204.12?tree_name=pcs_east#70754")
+    entry = open_entry("MDSplus[EAST]://202.127.204.12?tree_name=pcs_east#70754")
 
-    ip = entry.child([("tf", "coil",  "current", "data")]).query()
+    ip = entry.child(("tf", "coil",  "current", "data")).query()
     pf = entry.child("pf_active").query()
 
     logger.debug(ip)
@@ -21,8 +21,8 @@ if __name__ == '__main__':
 
     shot_num = 70754
     time_slice = 10
-    entry = open_entry(f"mdsplus[EAST]://202.127.204.12?tree_name=east_efit#{shot_num}")
-    eq = entry.child([("equilibrium", "time_slice", time_slice)]).query()
+    entry = open_entry(f"MDSplus[EAST]://202.127.204.12?tree_name=east_efit#{shot_num}")
+    eq = entry.child(("equilibrium", "time_slice", time_slice)).query()
 
     with File(f"./g{shot_num}", mode="w", format="geqdsk") as fid:
         fid.write(eq)

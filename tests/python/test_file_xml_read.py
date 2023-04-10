@@ -1,10 +1,9 @@
 import tempfile
 import unittest
 
-import h5py
 import numpy as np
 from spdm.util.logger import logger
-from spdm.data import Dict, File, Link, List, Node, Path, Query, sp_property,Function
+from spdm.data.File import File
 
 
 class TestFile(unittest.TestCase):
@@ -33,11 +32,11 @@ class TestFile(unittest.TestCase):
         return super().tearDown()
 
     def test_xml(self):
-        device_desc = File("/home/salmon/workspace/fytok/data/mapping/ITER/imas/3/static/config.xml",
-                           format="XML").read()
+        device_desc = File.create("/home/salmon/workspace/fytok_data/mapping/ITER/imas/3/static/config.xml",
+                                  format="XML").read()
         # logger.debug(device_desc.get({"wall", "pf_active", "tf", "magnetics"}).dump())
         # {"wall", "pf_active", "tf", "magnetics"}
-        logger.debug(device_desc.child("wall", 'description_2d', 'limiter').pull().dump())
+        logger.debug(device_desc.child("wall/description_2d/limiter").dump())
 
 
 if __name__ == '__main__':

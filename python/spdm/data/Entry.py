@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
+from ..common.Factory import Factory
 from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
 from ..util.misc import serialize
@@ -20,47 +21,50 @@ from .Path import Path
 _T = typing.TypeVar("_T")
 
 
-class Entry(object):
+class Entry(Factory):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
     _registry = {}
+    _plugin_prefix = "spdm.plugins.data.Plugin"
 
-    @classmethod
-    def register(cls, name: str, other_cls=None):
-        """
-        Decorator to register a class to the registry.
-        """
-        if other_cls is not None:
-            cls._registry[name] = other_cls
-            return other_cls
-        else:
-            def decorator(o_cls):
-                cls._registry[name] = o_cls
-                return o_cls
-            return decorator
+    # @classmethod
+    # def register(cls, names: typing.Union[typing.List[str], str], other_cls=None):
+    #     """
+    #     Decorator to register a class to the registry.
+    #     """
+    #     if other_cls is not None:
+    #         if isinstance(names, str):
+    #             cls._registry[names] = other_cls
+    #         else:
+    #             for n in names:
+    #                 cls._registry[n] = other_cls
+    #         return other_cls
+    #     else:
+    #         def decorator(o_cls):
+    #             Entry.register(names, o_cls)
+    #             return o_cls
+    #         return decorator
 
     @classmethod
     def create(cls, *args, scheme=None, **kwargs):
         """
         Create an entry from a description.
         """
-        if isinstance(scheme, str):
-            if scheme in cls._registry:
-                return cls._registry[scheme](*args, **kwargs)
+        if scheme is not None:
+            try:
+                res = super().create(scheme, *args, **kwargs)
+            except ModuleNotFoundError:
+                pass
             else:
-                cls_name = f"spdm.plugins.data.Plugin{scheme}#{scheme}Entry"
-                n_module = sp_load_module(cls_name)
-                return n_module(*args, **kwargs)
+                return res
         else:
-            return Entry(*args, **kwargs)
-        # else:
-        #   raise TypeError(f"Invalid description type: {type(description)}")
+            return Entry(*args, scheme=scheme,  **kwargs)
 
-    def __init__(self, cache:  typing.Any = _undefined_, path: typing.Union[Path, None] = None, **kwargs):
+    def __init__(self, cache:  typing.Any = None, path: typing.Union[Path, None] = None, **kwargs):
         super().__init__()
-        self._cache = cache if cache is not _undefined_ else {}
-        self._path: Path = Path(path)
+        self._cache = cache if cache is not None else {}
+        self._path: Path = Path(path) if not isinstance(path, Path) else path.duplicate()
 
     def duplicate(self) -> Entry:
         obj = object.__new__(self.__class__)
@@ -131,7 +135,7 @@ class Entry(object):
         return self.child(*args[:-1]).insert(args[-1])
 
     def __delitem__(self, *args):
-        return self.child(*args).delete()
+        return self.child(*args).remove()
 
     # get value
     def __next__(self) -> Entry:
@@ -223,7 +227,7 @@ class EntryChain(Entry):
     def push(self,  value: _T, **kwargs) -> _T:
         self._cache[0].child(self._path).push(value, **kwargs)
 
-    def pull(self, default=_undefined_) -> typing.Any:
+    def pull(self, default=None) -> typing.Any:
         obj = _not_found_
         for e in self._cache:
             obj = e.child(self._path).pull(_not_found_)
@@ -234,10 +238,10 @@ class EntryChain(Entry):
 
 class EntryCombine(EntryChain):
     def __init__(self, cache, *args,
-                 reducer=_undefined_,
-                 partition=_undefined_, **kwargs):
+                 reducer=None,
+                 partition=None, **kwargs):
         super().__init__(cache, *args, **kwargs)
-        self._reducer = reducer if reducer is not _undefined_ else operator.__add__
+        self._reducer = reducer if reducer is not None else operator.__add__
         self._partition = partition
 
     def duplicate(self):
@@ -260,12 +264,12 @@ class EntryCombine(EntryChain):
     def push(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def pull(self, default: _T = _undefined_, **kwargs) -> _T:
+    def pull(self, default: _T = None, **kwargs) -> _T:
         if not self._path.empty:
             val = EntryCombine([e.child(self._path) for e in self._cache])
         else:
             val = []
-            type_hint = _undefined_
+            type_hint = None
             for e in self._cache:
                 v = e.pull(_not_found_)
                 if v is _not_found_:

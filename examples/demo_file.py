@@ -16,6 +16,12 @@ if __name__ == '__main__':
     with File.create("../output/test.json", mode="r") as oid:
         logger.debug(oid.read().dump())
 
+    with File.create("../output/test.yaml", mode="w") as oid:
+        oid.write(doc.dump())
+        oid.close()
+    with File.create("../output/test.yaml", mode="r") as oid:
+        logger.debug(oid.read().dump())
+
     with File.create("../output/test.h5", mode="w", format="HDF5") as oid:
         oid.write(doc.dump())
         oid.close()

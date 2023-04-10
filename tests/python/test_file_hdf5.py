@@ -9,7 +9,7 @@ import pathlib
 import shutil
 import h5py
 
-SP_TEST_DATA_DIRECTORY = "../data"
+SP_TEST_DATA_DIRECTORY = pathlib.Path("../data")
 
 
 class TestFileHDF5(unittest.TestCase):
@@ -63,3 +63,7 @@ class TestFileHDF5(unittest.TestCase):
         self.assertDictEqual(res.get("d"), self.data["d"])
 
         self.assertTrue(np.array_equal(res.get("h"), self.data["h"]))
+
+
+if __name__ == '__main__':
+    unittest.main()

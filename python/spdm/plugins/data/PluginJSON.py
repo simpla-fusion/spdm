@@ -8,6 +8,7 @@ from spdm.util.dict_util import as_native
 from spdm.util.logger import logger
 
 
+@File.register(["json", "JSON"])
 class JSONFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)

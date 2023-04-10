@@ -4,9 +4,7 @@ from logging import log
 
 from spdm.util.logger import logger
 from spdm.common.tags import _not_found_
-from spdm.data.Entry import Entry, EntryCombine
-from spdm.data.Path import Path
-from spdm.data.Query import Query
+from spdm.data.Entry import Entry
 from spdm.data.Mapper import EntryMapper, PathMapper
 
 

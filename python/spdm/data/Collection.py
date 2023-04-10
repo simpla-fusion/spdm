@@ -2,6 +2,7 @@ import collections
 import collections.abc
 import typing
 
+from ..util.sp_export import sp_find_module
 from ..util.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
@@ -18,47 +19,41 @@ class Collection(Connection):
     ''' Collection of documents
     '''
     _registry = {}
+    _plugin_prefix = "spdm.plugins.data.Plugin"
 
-    @classmethod
-    def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
-        """
-        Decorator to register a class to the registry.
-        """
-        if other_cls is not None:
-            if isinstance(name, str):
-                cls._registry[name] = other_cls
-            elif isinstance(name, collections.abc.Sequence):
-                for n in name:
-                    cls._registry[n] = other_cls
+    # @classmethod
+    # def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
+    #     """
+    #     Decorator to register a class to the registry.
+    #     """
+    #     if other_cls is not None:
+    #         if isinstance(name, str):
+    #             cls._registry[name] = other_cls
+    #         elif isinstance(name, collections.abc.Sequence):
+    #             for n in name:
+    #                 cls._registry[n] = other_cls
 
-            return other_cls
-        else:
-            def decorator(o_cls):
-                Collection.register(name, o_cls)
-                return o_cls
-            return decorator
+    #         return other_cls
+    #     else:
+    #         def decorator(o_cls):
+    #             Collection.register(name, o_cls)
+    #             return o_cls
+    #         return decorator
 
     @classmethod
     def create(cls, path, *args, **kwargs):
-        if cls is not Collection:
-            return cls(cls, path, *args, **kwargs)
-
         n_cls_name = None
 
         if "protocol" in kwargs:
             protocol = kwargs.get("protocol")
-            n_cls_name = f".{protocol.lower()}"
+            n_cls_name = protocol
         elif isinstance(path, collections.abc.Mapping):
             n_cls_name = path.get("$class", None)
         elif isinstance(path, (str, URITuple)):
             uri = uri_split(path)
-            n_cls_name = f".{uri.protocol.lower()}"
+            n_cls_name = uri.protocol
 
-        n_cls = cls._registry.get(n_cls_name, None)
-        if n_cls is not None:
-            return n_cls(path, *args, **kwargs)
-        else:
-            raise NotImplementedError(f"Cannot create collection for {path}")
+        return super().create(n_cls_name, path, *args, **kwargs)
 
     def __init__(self, uri, *args,  mapper: typing.Optional[Mapper] = None,   **kwargs):
         super().__init__(uri, *args, **kwargs)

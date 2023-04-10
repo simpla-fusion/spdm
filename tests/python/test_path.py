@@ -113,7 +113,7 @@ class TestPath(unittest.TestCase):
 
     def test_find_many(self):
 
-        res = Path([("a/2", "c",  "d/e", "e")]).query(self.data, default_value=_not_found_)
+        res = Path(("a/2", "c",  "d/e", "e")).query(self.data, default_value=_not_found_)
 
         self.assertListEqual(res, [self.data['a'][2],
                                    self.data['c'],
