@@ -268,8 +268,8 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
 
     eq["profiles_2d/grid_type/name"] = "rectangular"
     eq["profiles_2d/grid_type/index"] = 1
-    eq["profiles_2d/grid.dim1"] = np.linspace(rmin, rmax, nw)
-    eq["profiles_2d/grid.dim2"] = np.linspace(zmin, zmax, nh)
+    eq["profiles_2d/grid/dim1"] = np.linspace(rmin, rmax, nw)
+    eq["profiles_2d/grid/dim2"] = np.linspace(zmin, zmax, nh)
     eq["profiles_2d/psi"] = geqdsk["psirz"].__value__
 
     # profile

@@ -246,7 +246,7 @@ class Path(list):
         other.append(Path.tags.next)
         return other
 
-    def append(self, *args, force=True) -> Path:
+    def append(self, *args, force=False) -> Path:
         if self.is_closed:
             raise ValueError(f"Cannot append to a closed path {self}")
         if force:

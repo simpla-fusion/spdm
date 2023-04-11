@@ -6,9 +6,10 @@ import typing
 
 from ..common.tags import _not_found_
 from .Container import Container
-from .Entry import Entry, as_entry, EntryChain
+from .Entry import Entry, EntryChain, as_entry
 from .Node import Node
 from .Path import Path
+
 _T = typing.TypeVar("_T")
 _TObject = typing.TypeVar("_TObject")
 

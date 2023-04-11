@@ -145,8 +145,8 @@ class Entry(Factory):
     def __getitem__(self, *args) -> Entry:
         return self.child(args) if len(args) > 0 else self
 
-    def __setitem__(self, *args):
-        return self.child(tuple(args[:-1])).insert(args[-1])
+    def __setitem__(self, path, value):
+        return self.child(path).insert(value)
 
     def __delitem__(self, *args):
         return self.child(*args).remove()
@@ -190,6 +190,16 @@ class Entry(Factory):
     def remove(self) -> int:
         return self._path.remove(self._cache)
     ###########################################################
+
+    def get(self, path, default_value=_not_found_, **kwargs) -> typing.Any:
+        res = self.child(path).query(default_value=default_value, **kwargs)
+        if res is _not_found_:
+            raise IndexError(f"Can not find value at {path}!")
+        else:
+            return res
+
+    def set(self, path, value, **kwargs) -> typing.Any:
+        return self.child(path).insert(value, **kwargs)
 
     @property
     def count(self) -> int:

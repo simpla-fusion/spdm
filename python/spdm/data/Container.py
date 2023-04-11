@@ -36,7 +36,7 @@ class Container(Node, typing.Generic[_TKey, _TObject]):
         if isinstance(value, Node):
             raise NotImplementedError()
         else:
-            self._entry.child(path).insert(value)
+            self.__entry__.child(path).insert(value)
         return value
 
     def __getitem__(self, *args) -> typing.Any:
