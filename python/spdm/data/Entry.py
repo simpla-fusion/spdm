@@ -12,10 +12,9 @@ from types import SimpleNamespace
 import numpy as np
 
 from ..common.Factory import Factory
-from ..common.tags import _not_found_, _undefined_
+from ..common.tags import _not_found_
 from ..util.logger import logger
 from ..util.misc import serialize
-from ..util.sp_export import sp_load_module
 from .Path import Path
 
 _T = typing.TypeVar("_T")
@@ -92,11 +91,11 @@ class Entry(Factory):
 
     @property
     def is_sequence(self) -> bool:
-        return isinstance(self._cache, collections.abc.Sequence)
+        return len(self._path) == 0 and isinstance(self._cache, collections.abc.Sequence)
 
     @property
     def is_mapping(self) -> bool:
-        return isinstance(self._cache, collections.abc.Mapping)
+        return len(self._path) == 0 and isinstance(self._cache, collections.abc.Mapping)
 
     @property
     def __entry__(self) -> Entry:
@@ -124,23 +123,21 @@ class Entry(Factory):
         other._path = self._path.parent
         return other
 
-    def child(self, *args) -> Entry:
+    def child(self, *args, **kwargs) -> Entry:
         if len(args) == 0:
             return self
         else:
             other = self.duplicate()
-            other._path.append(*args)
+            other._path.append(*args, **kwargs)
             return other
 
     def children(self) -> Entry:
         other = self.duplicate()
-        other._path = self._path.children
+        other._path.append(slice(None))
         return other
 
     def first_child(self) -> typing.Generator[typing.Any, None, None]:
-        other = self.duplicate()
-        other._path.append(slice(None))
-        yield from other.find()
+        yield from self.children().find()
 
     def filter(self, **kwargs) -> Entry:
         return self.duplicate().child(kwargs)
@@ -228,29 +225,58 @@ def as_entry(obj) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
     elif hasattr(obj.__class__, "__entry__"):
-        entry = obj.__entry__()
+        entry = obj.__entry__
     else:
         entry = Entry(obj)
     return entry
 
 
 class EntryChain(Entry):
-    def __init__(self, cache: collections.abc.Sequence,  **kwargs):
-        super().__init__([as_entry(a) for a in cache],  **kwargs)
+    def __init__(self, data_src: typing.List[typing.Any], *args, **kwargs):
+        if len(data_src) < 2:
+            data_src = [None, *data_src]
+        data_src = [as_entry(c) for c in data_src]
+        super().__init__(data_src,  *args,  **kwargs)
 
-    def child(self, *args) -> Entry:
-        return EntryChain([e.child(*args) for e in self._cache])
+    ###########################################################
+    # API: CRUD  operation
 
-    def push(self,  value: _T, **kwargs) -> _T:
-        self._cache[0].child(self._path).push(value, **kwargs)
-
-    def pull(self, default=None) -> typing.Any:
-        obj = _not_found_
+    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        """
+        Find the value from the cache.
+        Return a generator of the results.
+        Could be overridden by subclasses.
+        """
         for e in self._cache:
-            obj = e.child(self._path).pull(_not_found_)
-            if obj is not _not_found_:
+            yield from self._path.find(e, *args, **kwargs)
+
+    def query(self, *args, default_value=None, **kwargs) -> typing.Any:
+        """
+        Query the Entry. 
+        Same function as `find`, but put result into a contianer. 
+        Could be overridden by subclasses.
+        """
+        res = _not_found_
+
+        for e in self._cache:
+            res = self._path.query(e, *args, default_value=_not_found_, **kwargs)
+            if res is not _not_found_:
                 break
-        return obj if obj is not _not_found_ else default
+
+        if res is _not_found_:
+            res = default_value
+
+        return res
+
+    def insert(self, *args, **kwargs) -> int:
+        return self._path.insert(self._cache[0], *args, **kwargs)
+
+    def update(self, *args, **kwargs) -> int:
+        return self._path.update(self._cache[0], *args,   **kwargs)
+
+    def remove(self) -> int:
+        return self._path.remove(self._cache[0])
+    ###########################################################
 
 
 class EntryCombine(EntryChain):

@@ -1,21 +1,15 @@
 import collections
 import collections.abc
-import functools
-import inspect
-import operator
 import warnings
 from functools import cached_property
-from typing import Any, Callable, Optional, Sequence, Set, Type, Union
+import typing
 
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
-from ..common.tags import _undefined_
 from ..util.logger import logger
-from ..util.misc import array_like, float_unique
-from .Dict import Dict
+from ..util.misc import float_unique
 from .Entry import Entry
-from .List import List
 from .Node import Node
 
 
@@ -34,9 +28,9 @@ class Function:
         NOTE: Function is immutable!!!!
     """
 
-    def __init__(self, x: Union[np.ndarray, Sequence] = None,
-                 y: Union[np.ndarray, float, Callable] = _undefined_, /, **kwargs):
-        if y is _undefined_:
+    def __init__(self, x: typing.Union[np.ndarray, typing.Sequence, None] = None,
+                 y: typing.Union[np.ndarray, float, typing.Callable, None] = None, /, **kwargs):
+        if y is None:
             y = x
             x = None
 
@@ -149,7 +143,7 @@ class Function:
         else:
             return create_spline(self._x_axis,  self.__call__())
 
-    def __call__(self, x=None, /,  **kwargs) -> Union[np.ndarray, float]:
+    def __call__(self, x=None, /,  **kwargs) -> typing.Union[np.ndarray, float]:
         if x is None:
             x = self._x_axis
 
@@ -311,36 +305,22 @@ class Function:
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
 
 
-class FunctionDict(Dict[Function]):
-    """
-        collection of Function with same x_axis
-    """
+# class FunctionContainer(Container[Function]):
+#     """
+#         collection of Function with same x_axis
+#     """
 
-    def __init__(self,   x_axis, *args,  **kwargs):
-        super().__init__(*args,  **kwargs)
-        self._x_axis = x_axis
+#     def __init__(self,   x_axis, *args,  **kwargs):
+#         super().__init__(*args,  **kwargs)
+#         self._x_axis = x_axis
 
-    def _post_process(self, value: Any, key, *args,  ** kwargs) -> Function:
+#     def _post_process(self, value: typing.Any, key, *args,  ** kwargs) -> Function:
 
-        if not isinstance(value, Function):
-            value = Function(self._x_axis, value)
-        return super()._post_process(value, key, *args, **kwargs)
+#         if not isinstance(value, Function):
+#             value = Function(self._x_axis, value)
+#         return super()._post_process(value, key, *args, **kwargs)
 
-
-class FunctionList(List[Function]):
-    """
-        collection of Function with same x_axis
-    """
-
-    def __init__(self,   x_axis, *args,  **kwargs):
-        super().__init__(*args,  **kwargs)
-        self._x_axis = x_axis
-
-    def _post_process(self, value: Any, key, *args,  ** kwargs) -> Function:
-        if not isinstance(value, Function):
-            value = Function(self._x_axis, value)
-        return super()._post_process(value, key, *args, **kwargs)
-
+ 
 
 def function_like(x, y) -> Function:
     if isinstance(y, Function):
@@ -449,7 +429,7 @@ class PiecewiseFunction(Function):
             cond_list.append(min(x_max, self.x_domain[-1]))
             return PiecewiseFunction(cond_list, func_list)
 
-    def __call__(self, x: Union[float, np.ndarray] = None) -> np.ndarray:
+    def __call__(self, x: typing.Union[float, np.ndarray] = None) -> np.ndarray:
         if x is None:
             x = self.x_axis
         elif not isinstance(x, (int, float, np.ndarray)):
@@ -538,7 +518,7 @@ class Expression(Function):
                    if isinstance(f, Function) else f) for f in self._y]
         return Expression(self._ufunc, self._method, *inputs, **self._kwargs)
 
-    def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
+    def __call__(self, x:typing.Optional[typing.Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
 
         if x is None or (isinstance(x, list) and len(x) == 0):
             x = self.x_axis

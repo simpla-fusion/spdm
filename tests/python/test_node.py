@@ -3,7 +3,6 @@ from copy import copy, deepcopy
 
 import numpy as np
 from spdm.data.Dict import Dict
-from spdm.data.Link import Link
 from spdm.data.List import List
 from spdm.data.Node import Node
 from spdm.util.logger import logger

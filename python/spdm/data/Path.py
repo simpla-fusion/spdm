@@ -246,11 +246,13 @@ class Path(list):
         other.append(Path.tags.next)
         return other
 
-    def append(self, *args) -> Path:
+    def append(self, *args, force=True) -> Path:
         if self.is_closed:
             raise ValueError(f"Cannot append to a closed path {self}")
-        p = Path.normalize(list(args))
-        super().extend(p)
+        if force:
+            super().extend(list(args))
+        else:
+            super().extend(Path.normalize(list(args)))
         return self
 
     def __truediv__(self, p) -> Path:
@@ -313,7 +315,7 @@ class Path(list):
                 elif p >= len(target):
                     raise IndexError(f"Index {p} out of range {len(target)}")
             elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
-                if not isinstance(target,(np.ndarray)):
+                if not isinstance(target, (np.ndarray)):
                     break
             else:
                 break
@@ -403,7 +405,11 @@ class Path(list):
             return self._query(target, [], op, *args, **kwargs)
         elif op is None:
             if pos < len(path):  # Not found
-                return kwargs.get("default_value", _not_found_)
+                default_value = kwargs.get("default_value", _undefined_)
+                if default_value is _undefined_:
+                    raise KeyError(f"Cannot find {path[:pos]} in {target}")
+                else:
+                    return default_value
             else:
                 return self._expand(self._find(target, path[pos:], **kwargs))
         elif op == Path.tags.count:

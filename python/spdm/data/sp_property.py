@@ -1,22 +1,17 @@
-import collections.abc
 import inspect
+import typing
 from _thread import RLock
-from typing import (Any, Callable, Generic, Type, TypeVar, Union, final,
-                    get_args, get_type_hints)
 
-import numpy as np
-
-from ..common.tags import _not_found_, _undefined_
+from ..common.tags import _undefined_
 from ..util.logger import logger
 from .Dict import Dict
-from .Entry import Entry
 from .Node import Node
 
-_TObject = TypeVar("_TObject")
-_T = TypeVar("_T")
+_TObject = typing.TypeVar("_TObject")
+_T = typing.TypeVar("_T")
 
 
-class sp_property(Generic[_TObject]):
+class sp_property(typing.Generic[_TObject]):  # type: ignore
     """
     用于辅助为Node定义property。
        - 在读取时将cache中的data转换为类型_TObject
@@ -79,12 +74,12 @@ class sp_property(Generic[_TObject]):
     """
 
     def __init__(self,
-                 getter=_undefined_,
-                 setter=_undefined_,
-                 deleter=_undefined_,
-                 default=_undefined_,
-                 type_hint=_undefined_,
-                 doc=_undefined_,
+                 getter=None,
+                 setter=None,
+                 deleter=None,
+                 default_value=None,
+                 type_hint=None,
+                 doc: typing.Optional[str] = None,
                  force=False,
                  **kwargs):
 
@@ -93,14 +88,14 @@ class sp_property(Generic[_TObject]):
         self.getter = getter
         self.setter = setter
         self.deleter = deleter
-        if doc is not _undefined_:
+        if doc is not None:
             self.__doc__ = doc
 
-        self.property_cache_key = getter if not callable(getter) else _undefined_
-        self.property_name = _undefined_
+        self.property_cache_key = getter if not callable(getter) else None
+        self.property_name = None
         self.type_hint = type_hint
 
-        self.default_value = default
+        self.default_value = default_value
         self.kwargs = kwargs
 
     def __set_name__(self, owner, name):
@@ -115,35 +110,35 @@ class sp_property(Generic[_TObject]):
 
         self.property_name = name
 
-        if self.__doc__ is not _undefined_:
+        if self.__doc__ is not None:
             pass
         elif callable(self.getter):
             self.__doc__ = self.getter.__doc__
         else:
             self.__doc__ = f"property:{self.property_name}"
 
-        if self.property_cache_key is _undefined_:
+        if self.property_cache_key is None:
             self.property_cache_key = name
 
         if self.property_name != self.property_cache_key:
             logger.warning(
                 f"The attribute name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
-        if self.type_hint is _undefined_:
-            self.type_hint = get_type_hints(owner).get(name, _undefined_)
+        if self.type_hint is None:
+            self.type_hint = typing.get_type_hints(owner).get(name, None)
 
-        if self.type_hint is _undefined_:
+        if self.type_hint is None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
-                child_cls = get_args(self.__orig_class__)
-                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    self.type_hint = child_cls[0]
+                child_cls = typing.get_args(self.__orig_class__)
+                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[-1]):
+                    self.type_hint = child_cls[-1]
 
-        if self.type_hint is _undefined_ and inspect.isfunction(self.getter):
-            self.type_hint = self.getter.__annotations__.get("return", _undefined_)
+        if self.type_hint is None and inspect.isfunction(self.getter):
+            self.type_hint = self.getter.__annotations__.get("return", None)
 
-    def __set__(self, instance: Node, value: Any):
+    def __set__(self, instance: Node, value: typing.Any):
         if not isinstance(instance, Node):
             raise TypeError(type(instance))
 
@@ -151,10 +146,10 @@ class sp_property(Generic[_TObject]):
             if callable(self.setter):
                 self.setter(instance, value)
             else:
-                instance._entry.put(self.property_cache_key,  value)
+                instance._entry.child(self.property_cache_key).insert(value)
 
-    def __get__(self, instance: Node, owner=None) -> _TObject:
-        if not isinstance(instance, Node):
+    def __get__(self, instance: Dict, owner=None) -> typing.Optional[_TObject]:
+        if not isinstance(instance, Dict):
             if instance is None:
                 return None
             else:
@@ -162,15 +157,15 @@ class sp_property(Generic[_TObject]):
                     f"sp_property is only valid for 'Node', not for {type(instance)} '{self.property_name}'.")
             # return {}
 
-        if self.property_name is _undefined_ or self.property_cache_key is _undefined_:
+        if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            value = instance.update_child(key=self.property_cache_key,
-                                          type_hint=self.type_hint,
-                                          default_value=self.default_value,
-                                          getter=self.getter,
-                                          **self.kwargs)
+            value = instance._as_child(key=str(self.property_cache_key),
+                                       type_hint=self.type_hint,
+                                       default_value=self.default_value,
+                                       getter=self.getter,
+                                       **self.kwargs)
 
         return value
 
@@ -182,4 +177,4 @@ class sp_property(Generic[_TObject]):
             if callable(self.deleter):
                 self.deleter(instance)
             else:
-                instance._entry.child(self.property_cache_key).erase()
+                instance._entry.child(self.property_cache_key).remove()

@@ -6,7 +6,6 @@ from ..util.sp_export import sp_find_module
 from ..util.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
-from .List import List
 from .Mapper import Mapper
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
@@ -159,10 +158,10 @@ class Collection(Connection):
     ######################################################################
     # TODO(salmon, 2019.07.01) support index
 
-    def create_indexes(self, indexes: List[str], session=None, **kwargs):
+    def create_indexes(self, indexes: typing.List[str], session=None, **kwargs):
         raise NotImplementedError()
 
-    def create_index(self, keys: List[str], session=None, **kwargs):
+    def create_index(self, keys: typing.List[str], session=None, **kwargs):
         raise NotImplementedError()
 
     def ensure_index(self, key_or_list, cache_for=300, **kwargs):

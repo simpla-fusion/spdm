@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-import collections.abc
-import functools
-import pathlib
 import typing
-from copy import deepcopy
 from enum import Flag, auto
 
 from ..common.Factory import Factory
-from ..util.logger import logger
-from ..util.uri_utils import URITuple, uri_merge, uri_split
+from ..util.uri_utils import URITuple, uri_split
 from .Entry import Entry
 
 

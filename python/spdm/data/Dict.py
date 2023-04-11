@@ -1,55 +1,25 @@
+from __future__ import annotations
+
 import collections
 import collections.abc
 import typing
 
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
-from ..util.misc import serialize
+from ..common.tags import _not_found_
 from .Container import Container
-from .Entry import Entry, as_entry
+from .Entry import Entry, as_entry, EntryChain
 from .Node import Node
-
+from .Path import Path
 _T = typing.TypeVar("_T")
-_TKey = typing.TypeVar("_TKey")
 _TObject = typing.TypeVar("_TObject")
-Dict = typing.TypeVar('Dict', bound='Dict')
 
 
 class Dict(Container[str, _TObject]):
-
-    def __init__(self, cache: typing.Optional[typing.Mapping] = None,  /,  **kwargs):
-        if cache not in (None, _not_found_, None):
-            super().__init__(cache)
-        else:
-            super().__init__({})
-
-        self.update(kwargs)
+    def __init__(self,  *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     @property
     def _is_dict(self) -> bool:
         return True
-
-    def __serialize__(self) -> dict:
-        return {k: serialize(v) for k, v in self._entry.first_child()}
-
-    def __setitem__(self, key, value: _T) -> _T:
-        self._entry.child(key).insert(self._pre_process(value))
-        return value
-
-    def __getitem__(self, key) -> typing.Any:
-        return self._post_process(self._entry.child(key), key=key)
-
-    def __delitem__(self, key) -> bool:
-        return self._entry.child(key).remove() > 0
-
-    def __contains__(self, key) -> bool:
-        return self._entry.child(key).exists
-
-    def __eq__(self, other) -> bool:
-        return self._entry.equal(other)
-
-    def __len__(self) -> int:
-        return self._entry.count
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         yield from self.keys()
@@ -72,42 +42,6 @@ class Dict(Container[str, _TObject]):
     def __ior__(self, other) -> Dict:
         return self.update(other, force=False)
 
-    class DictAsEntry(Entry):
-        def __init__(self, cache: Dict, **kwargs):
-            super().__init__(cache, **kwargs)
-
-        def pull(self, default=...) -> typing.Any:
-            if len(self._path) > 0 and isinstance(self._path[0], str):
-                obj = getattr(self._cache, self._path[0], _not_found_)
-                if obj is _not_found_:
-                    return self._cache._entry.child(self._path).query(default_value=default)
-                elif len(self._path) == 1:
-                    return obj
-                else:
-                    obj = as_entry(obj).child(self._path[1:]).query(default_value=_not_found_)
-                    if obj in [_not_found_, None]:
-                        return default
-                    else:
-                        self._cache = obj
-                        self._path.clear()
-                        return self._cache
-            else:
-                return self._cache.get(self._path, default)
-
-        def push(self, value:  typing.Any, **kwargs) -> None:
-            self._cache.push(value, **kwargs)
-
-        def erase(self) -> bool:
-            if len(self._path) == 1 and not isinstance(self._path[0], str) and self._path[0] in self._cache._properties:
-                delattr(self._cache, self._path[0])
-            return self._cache.erase(self._path)
-
-    def __entry__(self) -> Entry:
-        if self.__class__ is not Dict or getattr(self, "__orig_class__", _not_found_) is not _not_found_:
-            return Dict.DictAsEntry(self)
-        else:
-            return self._entry
-
     def update(self, d, *args, **kwargs) -> Dict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys. 
            Return self.
@@ -121,7 +55,7 @@ class Dict(Container[str, _TObject]):
         self._entry.update(d, *args, **kwargs)
         return self
 
-    def get(self, key,  default=None) -> typing.Any:
+    def get(self, key,  default_value=None) -> typing.Any:
         """Return the value for key if key is in the dictionary, else default. 
            If default is not given, it defaults to None, so that this method never raises a KeyError.
 
@@ -132,7 +66,7 @@ class Dict(Container[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).pull(default), key=key)
+        return self._post_process(self._entry.child(key), default_value=default_value)
 
     def setdefault(self, key, value) -> typing.Any:
         """If key is in the dictionary, return its value. 
@@ -145,7 +79,7 @@ class Dict(Container[str, _TObject]):
         Returns:
             Any: [description]
         """
-        return self._post_process(self._entry.child(key).push(value), key=key)
+        return self._post_process(self._entry.child(key).update({Path.tags.setdefault: value}), key=key)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
