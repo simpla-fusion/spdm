@@ -14,9 +14,7 @@ _T = typing.TypeVar("_T")
 _TObject = typing.TypeVar("_TObject")
 
 
-class Dict(Container[str, _TObject]):
-    def __init__(self,  *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
 
     @property
     def _is_dict(self) -> bool:
@@ -27,15 +25,15 @@ class Dict(Container[str, _TObject]):
 
     def items(self) -> typing.Generator[typing.Tuple[typing.Any, typing.Any], None, None]:
         for key, value in self._entry.first_child():
-            yield key, self._post_process(value, key=key)
+            yield key, self._as_child(key, default_value=value)
 
     def keys(self) -> typing.Generator[typing.Any, None, None]:
         for key, _ in self._entry.first_child():
             yield key
 
-    def values(self) -> typing.Generator[typing.Any, None, None]:
-        for key, value in self._entry.first_child():
-            yield self._post_process(value, key=key)
+    # def values(self) -> typing.Generator[typing.Any, None, None]:
+    #     for key, value in self._entry.first_child():
+    #         yield self._post_process(value, key=key)
 
     def __iadd__(self, other: typing.Mapping) -> Dict:
         return self.update(other)
@@ -56,31 +54,31 @@ class Dict(Container[str, _TObject]):
         self._entry.update(d, *args, **kwargs)
         return self
 
-    def get(self, key,  default_value=None) -> typing.Any:
-        """Return the value for key if key is in the dictionary, else default. 
-           If default is not given, it defaults to None, so that this method never raises a KeyError.
+    # def get(self, key,  default_value=None) -> typing.Any:
+    #     """Return the value for key if key is in the dictionary, else default.
+    #        If default is not given, it defaults to None, so that this method never raises a KeyError.
 
-        Args:
-            path ([type]): [description]
-            default ([type], optional): [description]. Defaults to None.
+    #     Args:
+    #         path ([type]): [description]
+    #         default ([type], optional): [description]. Defaults to None.
 
-        Returns:
-            Any: [description]
-        """
-        return self._post_process(self._entry.child(key), default_value=default_value)
+    #     Returns:
+    #         Any: [description]
+    #     """
+    #     return self._post_process(self._entry.child(key), default_value=default_value)
 
-    def setdefault(self, key, value) -> typing.Any:
-        """If key is in the dictionary, return its value. 
-           If not, insert key with a value of default and return default. default defaults to None.
+    # def setdefault(self, key, value) -> typing.Any:
+    #     """If key is in the dictionary, return its value.
+    #        If not, insert key with a value of default and return default. default defaults to None.
 
-        Args:
-            path ([type]): [description]
-            default_value ([type], optional): [description]. Defaults to None.
+    #     Args:
+    #         path ([type]): [description]
+    #         default_value ([type], optional): [description]. Defaults to None.
 
-        Returns:
-            Any: [description]
-        """
-        return self._post_process(self._entry.child(key).update({Path.tags.setdefault: value}), key=key)
+    #     Returns:
+    #         Any: [description]
+    #     """
+    #     return self._post_process(self._entry.child(key).update({Path.tags.setdefault: value}), key=key)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__

@@ -15,7 +15,7 @@ from .Path import Path
 _TObject = typing.TypeVar("_TObject")
 
 
-class List(Container[int, _TObject], typing.Sequence[_TObject]):
+class List(Container[_TObject], typing.Sequence[_TObject]):
     # def __init__(self,  *args,  **kwargs) -> None:
     #     # if len(args) == 1:
     #     #     if args[0] in (_undefined_, _not_found_, None):
@@ -40,18 +40,18 @@ class List(Container[int, _TObject], typing.Sequence[_TObject]):
     def __len__(self) -> int:
         return self._entry.count
 
-    def __getitem__(self, key) -> typing.Any:
-        return self._post_process(self._entry.child(key).query(), key=key)
+    def __getitem__(self, key) -> _TObject:
+        return super().get(key)  # type:ignore
 
-    def __setitem__(self, key: int, value: typing.Any):
-        return self._entry.child(key).insert(value)
+    # def __setitem__(self, key: int, value: typing.Any):
+    #     return self._entry.child(key).insert(value)
 
-    def __delitem__(self,  key):
-        return self._entry.child(key).remove()
+    # def __delitem__(self,  key):
+    #     return self._entry.child(key).remove()
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         for idx, v in enumerate(self._entry.first_child()):
-            yield self._post_process(v, key=idx)
+            yield self._as_child(idx)
 
     def __iadd__(self, value) -> List:
         self._entry.update({Path.tags.append: value})
@@ -62,7 +62,7 @@ class List(Container[int, _TObject], typing.Sequence[_TObject]):
         return self
 
     def update(self, d, predication=_undefined_, only_first=False) -> int:
-        return self._entry.update(self._pre_process(d), predication=predication, only_first=only_first)
+        return self._entry.update(d, predication=predication, only_first=only_first)
 
     def sort(self) -> None:
         self._entry.update(Path.tags.sort)

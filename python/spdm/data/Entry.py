@@ -123,15 +123,30 @@ class Entry(Factory):
         other._path = self._path.parent
         return other
 
-    def child(self, *args, **kwargs) -> Entry:
-        if len(args) == 0:
+    def _child(self, path, *args, **kwargs) -> typing.Any:
+        if path is None:
             return self
         else:
             other = self.duplicate()
-            other._path.append(*args, **kwargs)
+            other._path.append(path, *args, **kwargs)
             return other
 
-    def children(self) -> Entry:
+    @functools.singledispatchmethod
+    def child(self, path=None, *args, **kwargs) -> typing.Any:
+        return self._child(path, *args, **kwargs)
+
+    @child.register(set)
+    def _(self, path, *args, **kwargs) -> typing.Mapping[str, typing.Any]:
+        return {k: self.child(k, *args, **kwargs) for k in path}
+
+    @child.register(tuple)
+    def _(self, path, *args, **kwargs) -> typing.Tuple[typing.Any]:
+        if all(isinstance(idx, (slice, int)) for idx in path):
+            return self._child(path, *args, **kwargs)
+        else:
+            return tuple(self.child(k, *args, **kwargs) for k in path)
+
+    def children(self, path=None, *args, **kwargs) -> typing.Any:
         other = self.duplicate()
         other._path.append(slice(None))
         return other
@@ -143,7 +158,7 @@ class Entry(Factory):
         return self.duplicate().child(kwargs)
 
     def __getitem__(self, *args) -> Entry:
-        return self.child(args) if len(args) > 0 else self
+        return self.child(*args)
 
     def __setitem__(self, path, value):
         return self.child(path).insert(value)
@@ -158,7 +173,7 @@ class Entry(Factory):
     def __iter__(self) -> typing.Iterator[Entry]:
         return self
 
-    @property
+    @ property
     def __value__(self):
         return self.query(default_value=_not_found_)
 
@@ -175,8 +190,8 @@ class Entry(Factory):
 
     def query(self, *args, default_value=None, **kwargs) -> typing.Any:
         """
-        Query the Entry. 
-        Same function as `find`, but put result into a contianer. 
+        Query the Entry.
+        Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
         return self._path.query(self._cache, *args,  default_value=default_value, **kwargs)
@@ -201,11 +216,11 @@ class Entry(Factory):
     def set(self, path, value, **kwargs) -> typing.Any:
         return self.child(path).insert(value, **kwargs)
 
-    @property
+    @ property
     def count(self) -> int:
         return self.query(Path.tags.count)
 
-    @property
+    @ property
     def exists(self) -> bool:
         return self.count > 0
 
@@ -262,8 +277,8 @@ class EntryChain(Entry):
 
     def query(self, *args, default_value=None, **kwargs) -> typing.Any:
         """
-        Query the Entry. 
-        Same function as `find`, but put result into a contianer. 
+        Query the Entry.
+        Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
         res = _not_found_

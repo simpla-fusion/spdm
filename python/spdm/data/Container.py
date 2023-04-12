@@ -3,7 +3,7 @@ import collections.abc
 import dataclasses
 import inspect
 import typing
-from functools import cached_property
+import functools
 
 import numpy as np
 
@@ -18,7 +18,7 @@ _TObject = typing.TypeVar("_TObject")
 _T = typing.TypeVar("_T")
 
 
-class Container(Node, typing.Generic[_TKey, _TObject]):
+class Container(Node, typing.Container[_TObject]):
     r"""
        Container Node
     """
@@ -30,27 +30,46 @@ class Container(Node, typing.Generic[_TKey, _TObject]):
     def __serialize__(self) -> dict:
         return self._entry.__serialize__()
 
-    def __setitem__(self, *args) -> typing.Any:
-        path = args[:-1]
-        value = args[-1]
-        if isinstance(value, Node):
-            raise NotImplementedError()
-        else:
-            self.__entry__.child(path).insert(value)
+    def __setitem__(self, path, value) -> typing.Any:
+        # if isinstance(value, Node):
+        #     raise NotImplementedError()
+        # else:
+        self._entry.child(path).insert(value)
         return value
 
-    def __getitem__(self, *args) -> typing.Any:
-        path = Path(args)
+    def update(self, path, value) -> typing.Any:
+        return self._entry.child(path).update(value)
+
+    @functools.singledispatchmethod
+    def get(self, path, default_value=_not_found_, **kwargs):
+        path = Path(path)
         obj = self
         for idx, key in enumerate(path[:]):
             if isinstance(obj, Container):
-                obj = obj._as_child(key, as_attribute=False)
+                obj = obj._as_child(key)
                 continue
             else:
-                obj = as_entry(obj).child(path[idx:], force=True).query()
+                obj = as_entry(obj).child(path[idx:], force=True).query(defalut_value=default_value, **kwargs)
                 break
+        if obj is not _not_found_:
+            pass
+        elif default_value is _not_found_:
+            raise KeyError(f"Key {path} not found")
+        else:
+            obj = default_value
 
         return obj
+
+    @get.register(set)
+    def _(self, path, **kwargs):
+        return {k: self.get(k, **kwargs) for k in path}
+
+    @get.register(tuple)
+    def _(self, path, **kwargs):
+        return (self.get(k, **kwargs) for k in path)
+
+    def __getitem__(self, path) -> typing.Any:
+        return self.get(path, _not_found_)
 
     def __delitem__(self, key) -> bool:
         return self._entry.child(key).remove() > 0
@@ -66,38 +85,59 @@ class Container(Node, typing.Generic[_TKey, _TObject]):
 
     def _as_child(self, key: _TKey, type_hint: typing.Type = None,
                   default_value: typing.Any = _not_found_,
-                  getter=None, **kwargs) -> typing.Any:
+                  getter=None, cachable=True, **kwargs) -> typing.Any:
 
-        obj = self._cache.get(key, None) or self._entry.child(key, force=True)
+        value = None
+        if cachable:
+            value = self._cache.get(str(key), None)
+
+        if value is not None:
+            pass
+        elif getter is not None:
+            value = getter(self)
+        else:
+            value = self._entry.child(key, force=True)
 
         type_hint = type_hint \
             or typing.get_type_hints(self.__class__).get(str(key), None) \
             or self._child_type
 
+        orig_class = type_hint if inspect.isclass(type_hint) else typing.get_origin(type_hint)
+
         if type_hint is None:
-            if not isinstance(obj, Node._PRIMARY_TYPE_):
-                obj = Node(as_entry(obj), parent=self)
-        elif not callable(type_hint):  # inspect.isclass(type_hint)
-            raise TypeError(type_hint)
-        elif inspect.isclass(type_hint) and isinstance(obj, type_hint):
+            if isinstance(value, Entry):
+                value = Node(value, parent=self)
+        elif orig_class is not None and isinstance(value, orig_class):
             pass
-        elif issubclass(type_hint, Node):
-            obj = type_hint(as_entry(obj), parent=self)
-        elif type_hint in Node._PRIMARY_TYPE_ or issubclass(type_hint, Function):  # (int, float, bool, str):
-            obj = as_entry(obj).query(default_value=_not_found_)
-            if obj is not _not_found_:
+        elif orig_class is not None and issubclass(orig_class, Node):
+            value = type_hint(value, parent=self)
+        else:
+            value = as_entry(value).query(default_value=_not_found_, **kwargs)
+            if value is _not_found_:
                 pass
-            elif getter is not None:
-                obj = getter(self)
-            else:
-                obj = default_value
+            elif type_hint in Node._PRIMARY_TYPE_:  # (int, float, bool, str):
+                if value is not _not_found_:
+                    pass
+                elif getter is not None:
+                    value = getter(self)
+                else:
+                    value = default_value
+            elif dataclasses.is_dataclass(type_hint):
+                if isinstance(value, collections.abc.Mapping):
+                    value = type_hint(**{k: value.get(k, None) for k in type_hint.__dataclass_fields__})
+                elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+                    value = type_hint(*value)
+                else:
+                    value = type_hint(value)
+            elif callable(type_hint):
+                value = type_hint(value)
 
-        if obj is not _not_found_:
-            self._cache[key] = obj
+        if value is not _not_found_ and cachable:
+            self._cache[str(key)] = value
 
-        return obj
+        return value
 
-    @cached_property
+    @functools.cached_property
     def _child_type(self) -> typing.Type:
         child_type = None
         #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1

@@ -21,17 +21,21 @@ class Node(object):
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __new__(cls, d, *args, **kwargs):
-        if hasattr(d, "__entry__"):
-            if d.__entry__.is_sequence:
+    def __new__(cls,  *args, **kwargs):
+        if cls is not Node:
+            return object.__new__(cls)
+        if len(args) == 0:
+            n_cls = Node
+        elif hasattr(args[0], "__entry__"):
+            if args[0].__entry__.is_sequence:
                 n_cls = Node._SEQUENCE_TYPE_
-            elif d.__entry__.is_mapping:
+            elif args[0].__entry__.is_mapping:
                 n_cls = Node._MAPPING_TYPE_
             else:
                 n_cls = cls
-        elif isinstance(d, collections.abc.Sequence) and not isinstance(d, str):
+        elif isinstance(args[0], collections.abc.Sequence) and not isinstance(d, str):
             n_cls = Node._SEQUENCE_TYPE_
-        elif isinstance(d, collections.abc.Mapping):
+        elif isinstance(args[0], collections.abc.Mapping):
             n_cls = Node._MAPPING_TYPE_
         else:
             n_cls = cls
@@ -41,17 +45,20 @@ class Node(object):
         else:
             return object.__new__(n_cls)
 
-    def __init__(self, data=None, *args, **kwargs) -> None:
+    def __init__(self, data=None, *args, parent=None, **kwargs) -> None:
         super().__init__()
         self._entry = as_entry(data)
+        self._parent = parent
         self._nid = ""
-        self._parent = None
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} len={self._entry.count}/>"
+        return f"<{self.__class__.__name__} />"
 
     def __str__(self) -> str:
         return f"<{self.__class__.__name__}>{self._entry.dump()}</{self.__class__.__name__}>"
+
+    def flash(self):
+        self._entry = Entry(self._entry.dump())
 
     @property
     def annotation(self) -> dict:
@@ -64,6 +71,10 @@ class Node(object):
     @property
     def __entry__(self) -> Entry:
         return self._entry
+
+    @property
+    def __value__(self) -> typing.Any:
+        return self._entry.__value__
 
     def reset(self):
         self._entry.reset()

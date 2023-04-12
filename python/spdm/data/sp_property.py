@@ -132,9 +132,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
                 child_cls = typing.get_args(self.__orig_class__)
-                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[-1]):
-                    self.type_hint = child_cls[-1]
-
+                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
+                    self.type_hint = child_cls[0]
+                    
         if self.type_hint is None and inspect.isfunction(self.getter):
             self.type_hint = self.getter.__annotations__.get("return", None)
 

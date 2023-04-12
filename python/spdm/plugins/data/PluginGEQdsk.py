@@ -270,7 +270,13 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     eq["profiles_2d/grid_type/index"] = 1
     eq["profiles_2d/grid/dim1"] = np.linspace(rmin, rmax, nw)
     eq["profiles_2d/grid/dim2"] = np.linspace(zmin, zmax, nh)
-    eq["profiles_2d/psi"] = geqdsk["psirz"].__value__
+    psirz = geqdsk["psirz"].__value__
+    if psirz.shape == (nh, nw):
+        psirz = psirz.T
+        logger.warning(f"Transposing psirz from {(nh,nw)} to {(nw,nh)}")
+    if psirz.shape != (nw, nh):
+        raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw,nh)}")
+    eq["profiles_2d/psi"] = psirz
 
     # profile
 

@@ -311,7 +311,7 @@ class Path(list):
                 if isinstance(target, np.ndarray):
                     target = target[p]
                 elif not isinstance(target, (list, tuple, collections.deque)):
-                    raise TypeError(f"Cannot traversal {p} in {type(target)} {target}")
+                    raise TypeError(f"Cannot traversal {p} in {type(target)}")
                 elif p >= len(target):
                     raise IndexError(f"Index {p} out of range {len(target)}")
             elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
@@ -397,7 +397,7 @@ class Path(list):
         target, pos = self._traversal(target, path)
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).query(op, *args, **kwargs)
+            return target.__entry__.child(path[pos:]).query(*args, op=op, **kwargs)
         elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
             return [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, path[pos], **kwargs)]
         elif pos == len(path) - 1 and not isinstance(path[pos], (int, str)):
