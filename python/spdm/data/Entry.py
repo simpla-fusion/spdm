@@ -123,28 +123,23 @@ class Entry(Factory):
         other._path = self._path.parent
         return other
 
-    def _child(self, path, *args, **kwargs) -> typing.Any:
+    def child(self, path=None, *args, **kwargs) -> Entry:
         if path is None:
             return self
         else:
             other = self.duplicate()
             other._path.append(path, *args, **kwargs)
             return other
+    # @child.register(set)
+    # def _(self, path, *args, **kwargs) -> typing.Mapping[str, typing.Any]:
+    #     return {k: self.child(k, *args, **kwargs) for k in path}
 
-    @functools.singledispatchmethod
-    def child(self, path=None, *args, **kwargs) -> typing.Any:
-        return self._child(path, *args, **kwargs)
-
-    @child.register(set)
-    def _(self, path, *args, **kwargs) -> typing.Mapping[str, typing.Any]:
-        return {k: self.child(k, *args, **kwargs) for k in path}
-
-    @child.register(tuple)
-    def _(self, path, *args, **kwargs) -> typing.Tuple[typing.Any]:
-        if all(isinstance(idx, (slice, int)) for idx in path):
-            return self._child(path, *args, **kwargs)
-        else:
-            return tuple(self.child(k, *args, **kwargs) for k in path)
+    # @child.register(tuple)
+    # def _(self, path, *args, **kwargs) -> typing.Tuple[typing.Any]:
+    #     if all(isinstance(idx, (slice, int)) for idx in path):
+    #         return self._child(path, *args, **kwargs)
+    #     else:
+    #         return tuple(self.child(k, *args, **kwargs) for k in path)
 
     def children(self, path=None, *args, **kwargs) -> typing.Any:
         other = self.duplicate()
@@ -166,12 +161,12 @@ class Entry(Factory):
     def __delitem__(self, *args):
         return self.child(*args).remove()
 
-    # get value
-    def __next__(self) -> Entry:
-        return Entry(*self.find(Path.tags.next))
+    # # get value
+    # def __next__(self) -> Entry:
+    #     return Entry(*self.find(Path.tags.next))
 
-    def __iter__(self) -> typing.Iterator[Entry]:
-        return self
+    # def __iter__(self) -> typing.Iterator[Entry]:
+    #     return self
 
     @ property
     def __value__(self):
@@ -245,6 +240,9 @@ class Entry(Factory):
     def __serialize__(self) -> typing.Any:
         return serialize(self.query())
 
+    def combine(self, *args, **kwargs) -> EntryCombine:
+        return EntryCombine(self, *args, **kwargs)
+
 
 def as_entry(obj) -> Entry:
     if isinstance(obj, Entry):
@@ -301,32 +299,71 @@ class EntryChain(Entry):
 
     def remove(self) -> int:
         return self._path.remove(self._cache[0])
+
     ###########################################################
 
 
-class EntryCombine(EntryChain):
-    def __init__(self, cache, *args,
-                 reducer=None,
-                 partition=None, **kwargs):
-        super().__init__(cache, *args, **kwargs)
+class EntryCombine(Entry):
+    def __init__(self, target, *args, common_data={},
+                 reducer=None, partition=None, **kwargs):
+        super().__init__(common_data, *args, **kwargs)
+        self._data_list = as_entry(target)
         self._reducer = reducer if reducer is not None else operator.__add__
         self._partition = partition
 
-    def duplicate(self):
-        res = super().duplicate()
+    def duplicate(self) -> EntryCombine:
+        res: EntryCombine = super().duplicate()  # type: ignore
+        res._data_list = self._data_list
         res._reducer = self._reducer
         res._partition = self._partition
 
         return res
 
-    def child(self, *args) -> Entry:
-        return EntryCombine([e.child(*args) for e in self._cache],
-                            reducer=self._reducer, partition=self._partition)
+    # def child(self, *args, **kwargs) -> Entry:
+    #     return EntryCombine([e.child(*args, **kwargs) for e in self._cache],
+    #                         reducer=self._reducer, partition=self._partition)
+
+    def _reduce(self, val, default_value=None):
+        if len(val) > 1:
+            res = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
+        elif len(val) == 1:
+            res = val[0]
+        else:
+            res = default_value
+        return res
+
+    def query(self, default_value=_not_found_, **kwargs):
+        res = super().query(default_value=_not_found_, **kwargs)
+
+        if res in (_not_found_, None):
+            res = self._reduce([(v.query(default_value=default_value, **kwargs) if isinstance(v, Entry) else v)
+                                for v in self._data_list.child(self._path[:]).find()])
+
+        if res is _not_found_:
+            res = default_value
+
+        # if res is not _not_found_ and len(kwargs) == 0:
+        #     try:
+        #         super().insert(res)
+        #     except Exception:
+        #         logger.debug(super()._path.__repr__)
+
+        return res
+
+    def find(self, *args, **kwargs):
+        yield from self._data_list.child(self._path[:]).find()
+
+    def insert(self, *args, **kwargs):
+
+        raise NotImplementedError("EntryCombine does not support insert operation!")
+
+    def update(self, *args, **kwargs) -> int:
+        raise NotImplementedError("EntryCombine does not support update operation!")
 
     def __len__(self):
         raise NotImplementedError()
 
-    def __iter__(self) -> Iterator[Entry]:
+    def __iter__(self) -> typing.Iterator[Entry]:
         raise NotImplementedError()
 
     def push(self, *args, **kwargs):

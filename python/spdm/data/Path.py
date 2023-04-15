@@ -174,7 +174,7 @@ class Path(list):
         super().__init__(Path.normalize(list(args)), **kwargs)
 
     def __repr__(self):
-        return pprint.pformat(self)
+        return Path._to_str(self)
 
     def __str__(self):
         return Path._to_str(self)
@@ -304,7 +304,7 @@ class Path(list):
                 break
             elif isinstance(p, str):
                 if not isinstance(target, collections.abc.Mapping):
-                    raise TypeError(f"Cannot traversal {p} in {type(target)}")
+                    raise TypeError(f"Cannot traversal '{p}' in {pprint.pformat(target)}")
                 elif p not in target:
                     break
             elif isinstance(p, int):
@@ -355,15 +355,15 @@ class Path(list):
             else:
                 raise TypeError(f"Cannot slice {type(target)}")
         elif isinstance(path[pos], collections.abc.Mapping):
-            only_first = kwargs.get("only_first", False)
+            only_first = kwargs.get("only_first", False) or path[pos].get("@only_first", True)
             if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
                 for element in target:
                     if self._match(element, path[pos]):
                         yield from self._find(element,  path[pos+1:],  *args, **kwargs)
                         if only_first:
                             break
-            elif "default_value" in kwargs:
-                yield kwargs["default_value"]
+            # elif "default_value" in kwargs:
+            #     yield [kwargs["default_value"]]
             else:
                 raise TypeError(f"Cannot search {type(target)}")
         elif "default_value" in kwargs:
@@ -380,16 +380,10 @@ class Path(list):
 
         def do_match(op, value, expected):
             res = False
-            if isinstance(op, Path.tags):
-                res = Path._ops[op](value, expected)
+            if isinstance(op, str) and isinstance(value, collections.abc.Mapping):
+                return value.get(op, _not_found_) == expected
             else:
-                try:
-                    actual, p = Entry._eval_path(value, Entry.normalize_path(op)+[None])
-                    res = p is None and (actual == expected)
-                except (IndexError, KeyError):
-                    res = False
-
-            return res
+                raise NotImplementedError(f" {op}:{expected}")
 
         return all([do_match(op, target, args) for op, args in predicate.items()])
 
@@ -399,7 +393,7 @@ class Path(list):
         if hasattr(target, "__entry__"):
             return target.__entry__.child(path[pos:]).query(*args, op=op, **kwargs)
         elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
-            return [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, path[pos], **kwargs)]
+            return [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs)]
         elif pos == len(path) - 1 and not isinstance(path[pos], (int, str)):
             target = self._expand(self._find(target, path[pos:], **kwargs))
             return self._query(target, [], op, *args, **kwargs)

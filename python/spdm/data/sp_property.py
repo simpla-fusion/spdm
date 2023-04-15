@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import inspect
 import typing
 from _thread import RLock
 
-from ..common.tags import _undefined_
+import numpy as np
+
+from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
-from .Dict import Dict
-from .Node import Node
 
 _TObject = typing.TypeVar("_TObject")
 _T = typing.TypeVar("_T")
@@ -13,34 +15,16 @@ _T = typing.TypeVar("_T")
 
 class sp_property(typing.Generic[_TObject]):  # type: ignore
     """
-    用于辅助为Node定义property。
-       - 在读取时将cache中的data转换为类型_TObject
-       - 缓存property function,并缓存其输出
-
-       用法:
-
-
-        ```python
+    定义一个property, 要求其所在的class必须有一个_as_child方法，用于将其转换为type_hint 指定的类型。
+    ```python
         class Foo(Dict):
-            def __init__(self, data: dict, *args, **kwargs):
-                super().__init__(data, *args, **kwargs)
-
+            pass
 
         class Doo(Dict):
-            def __init__(self, *args,   **kwargs):
-                super().__init__(*args,  **kwargs)
 
             f0 = sp_property(type_hint=Foo)      # 优先级最高, 不兼容IDE的类型提示
 
             f1: Foo = sp_property()              # 推荐，可以兼容IDE的类型提示
-
-            f2 = sp_property[Foo]()              # 与1等价，可以兼容IDE的类型提示
-
-
-
-            @sp_property[Foo]     
-            def f3(self) :                       # 要求Python >=3.9  
-                return self.get("f3", {})
 
             ######################################################
             @sp_property     
@@ -69,15 +53,13 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             f4 = sp_property(get_f4,set_f4,del_f4,"I'm f4",type_hint=Foo)
         ```
 
-        Args:
-        Generic ([type]): [description]
     """
 
     def __init__(self,
                  getter=None,
                  setter=None,
                  deleter=None,
-                 default_value=None,
+                 default_value=_not_found_,
                  type_hint=None,
                  doc: typing.Optional[str] = None,
                  force=False,
@@ -98,15 +80,13 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
         self.default_value = default_value
         self.kwargs = kwargs
 
+    def __assert_obj_type(self, owner) -> None:
+        if not inspect.isfunction(getattr(owner, "_as_child", None)):
+            raise TypeError(
+                f"sp_property is only valid for class with method '_as_child', not for {type(owner)} '{self.property_name}'.")
+
     def __set_name__(self, owner, name):
-        if not issubclass(owner, Dict):
-            raise RuntimeError(f"'sp_property' only can be define as a property of Dict! [name={name} owner={owner}]")
-        # elif not hasattr(owner, '_properties'):
-        #     owner._properties = {name}
-        # elif name in owner._properties:
-        #     raise RuntimeError(f"The property {name} has already been defined! {owner}:{owner._properties} ")
-        # else:
-        #     owner._properties.add(name)
+        self.__assert_obj_type(owner)
 
         self.property_name = name
 
@@ -134,29 +114,30 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                 child_cls = typing.get_args(self.__orig_class__)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
                     self.type_hint = child_cls[0]
-                    
+
         if self.type_hint is None and inspect.isfunction(self.getter):
             self.type_hint = self.getter.__annotations__.get("return", None)
 
-    def __set__(self, instance: Node, value: typing.Any):
-        if not isinstance(instance, Node):
-            raise TypeError(type(instance))
+    def __set__(self, instance: typing.Any, value: typing.Any):
+        assert(instance is not None)
+        self.__assert_obj_type(instance.__class__)
+
+        if self.property_name is None or self.property_cache_key is None:
+            logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
             if callable(self.setter):
                 self.setter(instance, value)
             else:
-                instance._entry.child(self.property_cache_key).insert(value)
+                instance._as_child(self.property_cache_key, value)
 
-    def __get__(self, instance: Dict, owner=None) -> typing.Optional[_TObject]:
-        if not isinstance(instance, Dict):
-            if instance is None:
-                return None
-            else:
-                raise RuntimeError(
-                    f"sp_property is only valid for 'Node', not for {type(instance)} '{self.property_name}'.")
-            # return {}
+    def __get__(self, instance: typing.Any, owner=None) -> typing.Union[sp_property[_TObject], _TObject]:
+        if instance is None:
+            # 当调用 getter(cls, <name>) 时执行
+            return self
 
+        # 当调用 getter(obj, <name>) 时执行
+        self.__assert_obj_type(owner)
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
@@ -166,15 +147,17 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                                        default_value=self.default_value,
                                        getter=self.getter,
                                        **self.kwargs)
+            if value is _not_found_:
+                raise AttributeError(self.property_cache_key)
 
         return value
 
-    def __delete__(self, instance: Node) -> None:
-        if not isinstance(instance, Node):
-            raise TypeError(type(instance))
+    def __delete__(self, instance: typing.Any) -> None:
+        self.__assert_obj_type(instance)
 
         with self.lock:
             if callable(self.deleter):
                 self.deleter(instance)
             else:
-                instance._entry.child(self.property_cache_key).remove()
+                raise AttributeError(f"Cannot delete attribute '{self.property_name}'")
+                # del instance._cache[self.property_cache_key]

@@ -28,18 +28,27 @@ class Function:
         NOTE: Function is immutable!!!!
     """
 
-    def __init__(self, x: typing.Union[np.ndarray, typing.Sequence, None] = None,
-                 y: typing.Union[np.ndarray, float, typing.Callable, None] = None, /, **kwargs):
-        if y is None:
-            y = x
+    def __init__(self, *args,  **kwargs):
+        if len(args) == 0:
+            x = kwargs.get("x", 0)
+            y = kwargs.get("y", 0)
+        elif len(args) == 1:
+            y = args[0]
             x = None
+        else:
+            x = args[0]
+            y = args[1]
+            if len(args) > 2:
+                raise RuntimeWarning(f"Too much position arguments {args}")
+        if isinstance(x, np.ndarray):
+            assert(x[0] < x[-1])
+        # if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
+        #     self._y = 0
 
-        if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
-            self._y = 0
-        elif isinstance(y, Node):
-            self._y = y._entry
+        if isinstance(y, Node):
+            self._y = y._entry.__value__
         elif isinstance(y, Entry):
-            self._y = y
+            self._y = y.__value__
         elif isinstance(y, Function):
             if x is None:
                 x = y.x_domain
@@ -74,7 +83,7 @@ class Function:
 
         if isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
             print(type(self._y))
-            raise ValueError(f"x.shape  != y.shape {x.shape}!={y.shape}")
+            raise ValueError(f"x.shape  != y.shape {self._x_axis.shape}!={self._y.shape}")
 
     @property
     def is_valid(self) -> bool:
@@ -160,15 +169,16 @@ class Function:
                 return np.full(x.shape, self._y)
             else:
                 return self._y
-        # elif isinstance(self._y, EntryCombine):
-        #     val = [array_like(x, d) for d in self._y._cache]
+        # elif isinstance(y, EntryCombine):
+        #     val = [array_like(x, d) for d in y._cache]
         #     return functools.reduce(operator.__add__, val[1:], val[0])
+
         elif callable(self._y):
             return np.asarray(self._y(x, **kwargs), dtype=float)
+        # elif hasattr(y, "__array__"):
+        #     y = y.__array__
         elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
-        # elif hasattr(self._y, "__array__"):
-        #     return self._y.__array__()
         else:
             raise TypeError((type(x), type(self._y)))
 
@@ -320,7 +330,6 @@ class Function:
 #             value = Function(self._x_axis, value)
 #         return super()._post_process(value, key, *args, **kwargs)
 
- 
 
 def function_like(x, y) -> Function:
     if isinstance(y, Function):
@@ -518,7 +527,7 @@ class Expression(Function):
                    if isinstance(f, Function) else f) for f in self._y]
         return Expression(self._ufunc, self._method, *inputs, **self._kwargs)
 
-    def __call__(self, x:typing.Optional[typing.Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
+    def __call__(self, x: typing.Optional[typing.Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
 
         if x is None or (isinstance(x, list) and len(x) == 0):
             x = self.x_axis

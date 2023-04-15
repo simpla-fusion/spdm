@@ -49,7 +49,12 @@ class Node(object):
         super().__init__()
         self._entry = as_entry(data)
         self._parent = parent
-        self._nid = ""
+
+    def duplicate(self) -> Node:
+        other = Node.__new__(self.__class__)
+        other._entry = self._entry.duplicate()
+        other._parent = self._parent
+        return other
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} />"
