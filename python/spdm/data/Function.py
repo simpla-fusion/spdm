@@ -76,10 +76,9 @@ class Function:
             self._x_axis = None
 
         if self._y is None:
-            raise ValueError(f"{self._x_axis},{self._y}")
+            logger.warning(f"Empty function: x={self._x_axis},y={self._y}")
         elif isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
             raise ValueError(f"x.shape  != y.shape {self._x_axis.shape}!={self._y.shape}")
-        
 
     def __str__(self) -> str:
         return pprint.pformat(self.__array__())
