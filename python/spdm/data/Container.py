@@ -11,6 +11,7 @@ import numpy as np
 
 from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
+from ..util.misc import as_dataclass
 from .Entry import Entry, as_entry
 from .Function import Function
 from .Node import Node
@@ -120,14 +121,7 @@ class Container(Node, typing.Container[_TObject]):
                   getter=None,
                   **kwargs) -> _TObject:
 
-        if value is _not_found_ and isinstance(key, (int, str)):
-            # 如果 value 为 _not_found_, 则从 cache 中获取
-            value = self._cache.get(key, _not_found_)
-
-        if value is _not_found_ and key is not None:
-            # 如果 value 为 _not_found_, 则从 self._entry 中获取
-            value = self._entry.child(key, force=True)
-
+        # 获得 type_hint
         if isinstance(key, str):
             attr = getattr(self.__class__, key, _not_found_)
             if isinstance(attr, sp_property):  # 若 key 是 sp_property
@@ -149,46 +143,54 @@ class Container(Node, typing.Container[_TObject]):
 
         orig_class = type_hint if inspect.isclass(type_hint) else typing.get_origin(type_hint)
 
-        if orig_class is None:  # 若 type_hint/orig_class 未定义，则由value决定类型
-            if isinstance(value, Entry):  # 若 value 为 Entry 则返回 Node
-                value = Node(value,  parent=self, **kwargs)
-        elif isinstance(value, orig_class):  # 若 value 符合 type_hint则不做转换
-            pass
-        elif getter is not None:  # 若定义 getter
+        if value is _not_found_ and isinstance(key, (int, str)):
+            # 如果 value 为 _not_found_, 则从 cache 中获取
+            value = self._cache.get(key, _not_found_)
+
+        if value is _not_found_ and key is not None:
+            # 如果 value 为 _not_found_, 则从 self._entry 中获取
+            value = self._entry.child(key, force=True)
+
+        if getter is not None:  # 若定义 getter
             sig = inspect.signature(getter)
             if len(sig.parameters) == 1:
                 value = getter(self)
+            elif isinstance(value, Entry):
+                value = getter(self, value.query(default_value=default_value), **kwargs)
             else:
-                value = getter(self, value if not isinstance(value, Entry) else value.__value__, **kwargs)
+                value = getter(self, value, **kwargs)
+
+        if orig_class is None:  # 若 type_hint/orig_class 未定义，则由value决定类型
+            if isinstance(value, Entry):
+                value = value.query(default_value=default_value, **kwargs)
+            elif value is _not_found_:
+                value = default_value
+        elif isinstance(value, orig_class):
+            # 如果 value 符合 type_hint 则返回之
+            return value  # type:ignore
         elif issubclass(orig_class, Node):  # 若 type_hint 为 Node
             value = type_hint(value,  parent=self, **kwargs)
         else:
-            value = as_entry(value).query(default_value=_not_found_, **kwargs)
-            if value is _not_found_:
+            if isinstance(value, Entry):
+                value = value.query(default_value=default_value, **kwargs)
+            elif value is _not_found_:
+                value = default_value
+
+            if isinstance(value, orig_class):
                 pass
-            elif type_hint in Node._PRIMARY_TYPE_:  # (int, float, bool, str):
-                if value is not _not_found_:
-                    pass
-                elif getter is not None:
-                    value = getter(self)
-                else:
-                    value = default_value
+            elif isinstance(type_hint, Container._PRIMARY_TYPE_):
+                value = type_hint(value)
             elif dataclasses.is_dataclass(type_hint):
-                if isinstance(value, collections.abc.Mapping):
-                    value = type_hint(**{k: value.get(k, None) for k in type_hint.__dataclass_fields__})
-                elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-                    value = type_hint(*value)
-                else:
-                    raise TypeError(type(type_hint))
-                    # value = type_hint(value, **kwargs)
-            elif callable(type_hint):
+                value = as_dataclass(type_hint, value)
+            else:
                 value = type_hint(value, **kwargs)
 
-        if value is _not_found_:
-            value = default_value
+                # raise TypeError(f"Illegal type hint {type_hint}")
 
-        if value is _not_found_:
-            raise KeyError(f"Key {key} not found")
+        if not inspect.isclass(orig_class):
+            pass
+        elif not isinstance(value, orig_class):
+            raise KeyError(f"Can not find {key}! type_hint={type_hint} value={type(value)}")
         elif isinstance(key, (str, int)):
             self._cache[key] = value
 

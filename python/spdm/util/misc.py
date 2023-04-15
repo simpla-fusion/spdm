@@ -1,5 +1,6 @@
 import collections
 import collections.abc
+import dataclasses
 import functools
 import importlib
 import inspect
@@ -12,7 +13,6 @@ import pwd
 import re
 import sys
 import typing
-from dataclasses import fields, is_dataclass
 from enum import Flag, auto
 from typing import Sequence, Type
 from urllib.parse import ParseResult, urlparse
@@ -235,8 +235,8 @@ def serialize(d):
         return d.__array__()
     elif hasattr(d.__class__, "__serialize__"):
         return d.__serialize__()
-    elif is_dataclass(d):
-        return {f.name: serialize(getattr(d, f.name)) for f in fields(d)}
+    elif dataclasses.is_dataclass(d):
+        return {f.name: serialize(getattr(d, f.name)) for f in dataclasses.fields(d)}
     elif isinstance(d, collections.abc.Mapping):
         return {k: serialize(v) for k, v in d.items()}
     elif isinstance(d, collections.abc.Sequence):
@@ -348,6 +348,19 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return [convert_to_named_tuple(v) for v in d]
     else:
         return d
+
+
+def as_dataclass(cls, value):
+    if not dataclasses.is_dataclass(cls):
+        raise TypeError(type(cls))
+    elif isinstance(value, collections.abc.Mapping):
+        value = cls(**{k: value.get(k, None) for k in cls.__dataclass_fields__})
+    elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+        value = cls(*value)
+    else:
+        raise TypeError(f"Can not convert '{type(value)}' to dataclass")
+        # value = type_hint(value, **kwargs)
+    return value
 
 
 def guess_class_name(obj):
