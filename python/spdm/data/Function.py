@@ -3,14 +3,12 @@ import collections.abc
 import warnings
 from functools import cached_property
 import typing
-
+import pprint
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
 from ..util.logger import logger
 from ..util.misc import float_unique
-from .Entry import Entry
-from .Node import Node
 
 
 def create_spline(x, y, **kwargs) -> PPoly:
@@ -45,11 +43,7 @@ class Function:
         # if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
         #     self._y = 0
 
-        if isinstance(y, Node):
-            self._y = y._entry.__value__
-        elif isinstance(y, Entry):
-            self._y = y.__value__
-        elif isinstance(y, Function):
+        if isinstance(y, Function):
             if x is None:
                 x = y.x_domain
                 self._y = y._y
@@ -81,9 +75,14 @@ class Function:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None
 
-        if isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
-            print(type(self._y))
+        if self._y is None:
+            raise ValueError(f"{self._x_axis},{self._y}")
+        elif isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
             raise ValueError(f"x.shape  != y.shape {self._x_axis.shape}!={self._y.shape}")
+        
+
+    def __str__(self) -> str:
+        return pprint.pformat(self.__array__())
 
     @property
     def is_valid(self) -> bool:
@@ -121,6 +120,17 @@ class Function:
 
     @property
     def x_axis(self) -> np.ndarray:
+        return self._x_axis  # type:ignore
+
+    @x_axis.setter
+    def x_axis(self, x: np.ndarray):
+        if isinstance(self._y, np.ndarray) and len(self._y) != len(x):
+            raise ValueError(f"len(x) != len(y) {len(x)} != {len(self._y)}")
+        self._x_axis = x
+
+    def setdefault_x(self, x):
+        if self._x_axis is None:
+            self.x_axis = x
         return self._x_axis
 
     def __len__(self) -> int:
@@ -169,9 +179,6 @@ class Function:
                 return np.full(x.shape, self._y)
             else:
                 return self._y
-        # elif isinstance(y, EntryCombine):
-        #     val = [array_like(x, d) for d in y._cache]
-        #     return functools.reduce(operator.__add__, val[1:], val[0])
 
         elif callable(self._y):
             return np.asarray(self._y(x, **kwargs), dtype=float)
@@ -209,7 +216,7 @@ class Function:
                 return Function(self.x_axis[idx_min:idx_max], self._y[idx_min:idx_max])
             else:
                 return Function(self.x_axis[idx_min:idx_max],  self.__call__(self.x_axis[idx_min:idx_max]))
-        elif callable(self._y) or isinstance(self._y, Entry):
+        elif callable(self._y):
             return Function([x_min, x_max], self._y)
         else:
             raise TypeError((type(self.x_axis), type(self._y)))

@@ -113,7 +113,7 @@ class Container(Node, typing.Container[_TObject]):
     def __len__(self) -> int:
         return self._entry.count
 
-    def _as_child(self,
+    def _as_child(self,  
                   key: typing.Union[int, str, None],
                   value=_not_found_,
                   type_hint: typing.Type = None,
