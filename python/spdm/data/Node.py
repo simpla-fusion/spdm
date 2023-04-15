@@ -45,9 +45,9 @@ class Node(object):
         else:
             return object.__new__(n_cls)
 
-    def __init__(self, data=None, *args, parent=None, **kwargs) -> None:
+    def __init__(self, entry=None, *args, parent=None, **kwargs) -> None:
         super().__init__()
-        self._entry = as_entry(data)
+        self._entry = as_entry(entry)
         self._parent = parent
 
     def duplicate(self) -> Node:

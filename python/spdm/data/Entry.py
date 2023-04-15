@@ -25,11 +25,14 @@ class Entry(Factory):
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
     _registry = {}
-    _plugin_prefix = "spdm.plugins.data.Plugin"
 
     @classmethod
-    def _guess_class_name(cls, *args, **kwargs) -> typing.Optional[str]:
-        return kwargs.get("entry_type", None)
+    def _guess_class_name(cls, *args, **kwargs) -> typing.List[str]:
+        n_cls_name = kwargs.get("entry_type", None)
+        if n_cls_name is None:
+            return []
+        else:
+            return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}Entry"]
 
     def __new__(cls,  *args, **kwargs):
         if cls is not Entry or "entry_type" not in kwargs:
@@ -307,7 +310,7 @@ class EntryCombine(Entry):
     def __init__(self, target, *args, common_data={},
                  reducer=None, partition=None, **kwargs):
         super().__init__(common_data, *args, **kwargs)
-        self._data_list = as_entry(target)
+        self._data_list = as_entry(target).child(slice(None))
         self._reducer = reducer if reducer is not None else operator.__add__
         self._partition = partition
 
@@ -324,6 +327,8 @@ class EntryCombine(Entry):
     #                         reducer=self._reducer, partition=self._partition)
 
     def _reduce(self, val, default_value=None):
+        val = [v for v in val if v is not _not_found_ and v is not None]
+
         if len(val) > 1:
             res = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
         elif len(val) == 1:
@@ -335,9 +340,10 @@ class EntryCombine(Entry):
     def query(self, default_value=_not_found_, **kwargs):
         res = super().query(default_value=_not_found_, **kwargs)
 
-        if res in (_not_found_, None):
-            res = self._reduce([(v.query(default_value=default_value, **kwargs) if isinstance(v, Entry) else v)
-                                for v in self._data_list.child(self._path[:]).find()])
+        if res is _not_found_:
+            vals = [(v.query(default_value=default_value, **kwargs) if isinstance(v, Entry) else v)
+                    for v in self._data_list.child(self._path[:]).find()]
+            res = self._reduce(vals)
 
         if res is _not_found_:
             res = default_value

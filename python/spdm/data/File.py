@@ -15,7 +15,6 @@ class File(Connection):
         File like object
     """
     _registry = {}
-    _plugin_prefix = "spdm.plugins.data.Plugin"
 
     def __new__(cls,  *args, **kwargs):
         if cls is not File:
@@ -23,27 +22,8 @@ class File(Connection):
         else:
             return super().__new__(cls, *args, **kwargs)
 
-    # @classmethod
-    # def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
-    #     """
-    #     Decorator to register a class to the registry.
-    #     """
-    #     if other_cls is not None:
-    #         if isinstance(name, str):
-    #             cls._registry[name] = other_cls
-    #         elif isinstance(name, collections.abc.Sequence):
-    #             for n in name:
-    #                 cls._registry[n] = other_cls
-
-    #         return other_cls
-    #     else:
-    #         def decorator(o_cls):
-    #             File.register(name, o_cls)
-    #             return o_cls
-    #         return decorator
-
     @classmethod
-    def _guess_class_name(cls, path, *args, **kwargs) -> str:
+    def _guess_class_name(cls, path, *args, **kwargs) -> typing.List[str]:
         n_cls_name = ''
         if "format" in kwargs:
             n_cls_name = kwargs.get("format")
@@ -60,15 +40,10 @@ class File(Connection):
         if n_cls_name == ".":
             n_cls_name = ".text"
 
-        return n_cls_name
-        # n_cls = cls._registry.get(n_cls_name, None)
-        # if n_cls is None:
-        #     n_cls = sp_load_module(f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File")
-        # if n_cls is not None:
-        #     return n_cls(path, *args, **kwargs)
-        # else:
-        #     raise NotImplementedError(f"Cannot create file for {path}")
+        #  f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
 
+        return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
+   
     def __init__(self,  *args, mode="r", ** kwargs):
         """
          r       Readonly, file must exist (default)

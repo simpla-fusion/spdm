@@ -9,6 +9,7 @@ from scipy.interpolate import CubicSpline, PPoly
 
 from ..util.logger import logger
 from ..util.misc import float_unique
+from ..common.tags import _not_found_, _undefined_
 
 
 def create_spline(x, y, **kwargs) -> PPoly:
@@ -75,7 +76,7 @@ class Function:
             self._x_domain = [-np.inf, np.inf]
             self._x_axis = None
 
-        if self._y is None:
+        if self._y is None or self._y is _not_found_:
             logger.warning(f"Empty function: x={self._x_axis},y={self._y}")
         elif isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
             raise ValueError(f"x.shape  != y.shape {self._x_axis.shape}!={self._y.shape}")
@@ -145,8 +146,11 @@ class Function:
     def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
         return Expression(ufunc, method, *inputs, **kwargs)
 
-    def __array__(self) -> np.ndarray:
-        return self._y if isinstance(self._y, np.ndarray) else np.asarray(self.__call__(), dtype=float)
+    def __array__(self):
+        if isinstance(self._y, np.ndarray):
+            return self._y
+        else:
+            return self.__call__()
 
     @cached_property
     def _ppoly(self) -> PPoly:
@@ -186,7 +190,7 @@ class Function:
         elif x is not self._x_axis and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
         else:
-            raise TypeError((type(x), type(self._y)))
+            raise TypeError((type(x), (self._y)))
 
     def resample(self, x_min, x_max=None, /, **kwargs):
         if x_min is None or (x_max is not None and x_min <= self.x_min and self.x_max <= x_max):
@@ -447,6 +451,9 @@ class PiecewiseFunction(Function):
     def __call__(self, x: typing.Union[float, np.ndarray] = None) -> np.ndarray:
         if x is None:
             x = self.x_axis
+
+        if x is None:
+            x = np.linspace(self.x_min, self.x_max, 128)
         elif not isinstance(x, (int, float, np.ndarray)):
             x = np.asarray(x, dtype=float)
 
@@ -477,7 +484,7 @@ class PiecewiseFunction(Function):
 
             return self._y[idx](x)
         else:
-            raise TypeError(type(x))
+            raise ValueError(f"Invalid input {x}")
 
 
 class Expression(Function):

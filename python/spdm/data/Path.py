@@ -300,7 +300,9 @@ class Path(list):
         """
         pos = -1
         for idx, p in enumerate(path):
-            if hasattr(target, "__entry__"):
+            if target is None or target is _not_found_:
+                break
+            elif hasattr(target, "__entry__"):
                 break
             elif isinstance(p, str):
                 if not isinstance(target, collections.abc.Mapping):
@@ -331,15 +333,18 @@ class Path(list):
                 return [p]+others
             else:
                 return p+others
-        if len(path) == pos:
+        if target is None:
+            return
+        elif len(path) == pos:
             yield target  # target is the last node
-        elif hasattr(target, "__entry__"):
+        elif hasattr(target.__class__, "_as_child"):
+            yield from self._find(target._as_child(path[pos]), path[pos+1:], *args, **kwargs)
+        elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
             yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
         elif isinstance(path[pos], str):
-            if "default_value" in kwargs:
-                yield target.get(path[pos], kwargs["default_value"])
-            else:
-                raise TypeError(f"{type(path[pos])}")
+            yield from self._find(target.get(path[pos]), path[pos+1:], **kwargs)
+
+            # raise TypeError(f"{path[pos]}")
         elif isinstance(path[pos], set):
             yield from ((k, self._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs)) for k in path[pos])
         elif isinstance(path[pos], tuple):
@@ -350,10 +355,10 @@ class Path(list):
             elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
                 for item in target[path[pos]]:
                     yield from self._find(item, path[pos+1:],  *args, **kwargs)
-            elif "default_value" in kwargs:
-                yield kwargs["default_value"]
+            # elif "default_value" in kwargs:
+            #     yield kwargs["default_value"]
             else:
-                raise TypeError(f"Cannot slice {type(target)}")
+                raise TypeError(f"Cannot slice {(target)} {path[:pos]} | {path[pos:]}")
         elif isinstance(path[pos], collections.abc.Mapping):
             only_first = kwargs.get("only_first", False) or path[pos].get("@only_first", True)
             if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
@@ -371,6 +376,21 @@ class Path(list):
         else:
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
 
+    def _find_all(self, target: typing.Any, path: typing.List[typing.Any], *args, **kwargs):
+        return self._expand(self._find(target, path, *args, **kwargs))
+
+    def _expand(self, target: typing.Any):
+        if isinstance(target, collections.abc.Generator):
+            res = [self._expand(v) for v in target]
+            if len(res) > 1 and isinstance(res[0], tuple) and len(res[0]) == 2:
+                res = dict(*res)
+            elif len(res) == 1:
+                res = res[0]
+        else:
+            res = target
+
+        return res
+
     def _match(self, target: typing.Any, predicate: typing.Mapping[str, typing.Any]) -> bool:
         """
 
@@ -387,43 +407,52 @@ class Path(list):
 
         return all([do_match(op, target, args) for op, args in predicate.items()])
 
-    def _query(self, target: typing.Any, path: typing.List[typing.Any], op: typing.Optional[Path.tags] = None, *args, **kwargs) -> typing.Any:
+    def _query(self, target: typing.Any, path: typing.List[typing.Any],
+               op: typing.Optional[Path.tags] = None, *args,  **kwargs) -> typing.Any:
         target, pos = self._traversal(target, path)
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).query(*args, op=op, **kwargs)
+            return target.__entry__.child(path[pos:]).query(op=op, *args, **kwargs)
         elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
-            return [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs)]
+            res = [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs)]
+            if len(res) == 1 and isinstance(path[pos], collections.abc.Mapping) and (all(k[0] != '@' for k in path[pos].keys()) or path[pos].get("@only_first", False)):
+                res = res[0]
+            elif len(res) == 0:
+                res = _not_found_
         elif pos == len(path) - 1 and not isinstance(path[pos], (int, str)):
-            target = self._expand(self._find(target, path[pos:], **kwargs))
-            return self._query(target, [], op, *args, **kwargs)
+            target = self._find_all(target, path[pos:], **kwargs)
+            res = self._query(target, [], op, *args, **kwargs)
         elif op is None:
-            if pos < len(path):  # Not found
-                default_value = kwargs.get("default_value", _undefined_)
-                if default_value is _undefined_:
-                    raise KeyError(f"Cannot find {path[:pos]} in {target}")
-                else:
-                    return default_value
+            if pos == len(path):
+                res = target
+            elif pos < len(path):  # Not found
+                res = _not_found_
             else:
-                return self._expand(self._find(target, path[pos:], **kwargs))
+                res = self._find_all(target, path[pos:], **kwargs)
         elif op == Path.tags.count:
             if pos == len(path):
                 if isinstance(target, str):
-                    return 1
+                    res = 1
                 else:
-                    return len(target)
+                    res = len(target)
             else:
-                return 0
+                res = 0
         elif op == Path.tags.equal:
             if pos == len(path):
-                return target == args[0]
+                res = target == args[0]
             else:
-                return False
+                res = False
         else:
             raise NotImplementedError(f"Not implemented yet! {op}")
 
+        if res is _not_found_:
+            res = kwargs.get("default_value", _not_found_)
+        # if res is _not_found_:
+        #     raise KeyError(f"Cannot find {path[:pos+1]} in {target}")
+        return res
+
     def _insert(self, target: typing.Any, path: typing.List[typing.Any], value: typing.Any, *args, parents=True, **kwargs) -> int:
-        target, pos = self._traversal(target, path[:-1])
+        target, pos = self._traversal(target, path[: -1])
 
         if hasattr(target, "__entry__"):
             return target.__entry__.child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
@@ -434,7 +463,7 @@ class Path(list):
         elif not parents:
             raise IndexError(f"Can't insert {value} to {target} by {path[:pos]}!")
         else:
-            for p in path[pos:-1]:
+            for p in path[pos: -1]:
                 target = target.setdefault(p, {})
             target[path[-1]] = value
             return 1
@@ -444,7 +473,7 @@ class Path(list):
         Remove target by path.
         """
 
-        target, pos = self._traversal(target, path[:-1])
+        target, pos = self._traversal(target, path[: -1])
 
         if hasattr(target, "__entry__"):
             return target.__entry__.child(path[pos:]).delete(*args, **kwargs)
@@ -512,18 +541,6 @@ class Path(list):
                 return self._update(target, [], value, force=force, **kwargs)
             else:
                 return self._insert(target, path[pos:], self._update_or_replace(n_target, value), force=force, **kwargs)
-
-    def _expand(self, target: typing.Any):
-        if isinstance(target, collections.abc.Generator):
-            res = [self._expand(v) for v in target]
-            if len(res) > 1 and isinstance(res[0], tuple) and len(res[0]) == 2:
-                res = dict(*res)
-            elif len(res) == 1:
-                res = res[0]
-        else:
-            res = target
-
-        return res
 
 
 class obsolete_Path:

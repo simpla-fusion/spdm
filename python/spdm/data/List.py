@@ -17,6 +17,9 @@ _TObject = typing.TypeVar("_TObject")
 
 class List(Container[_TObject], typing.Sequence[_TObject]):
 
+    def __init__(self, *args, cache=None, **kwargs):
+        super().__init__(*args, cache=[] if cache is None else cache, **kwargs)
+
     @property
     def _is_list(self) -> bool:
         return True
@@ -34,13 +37,13 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
     #     return self._entry.child(key).remove()
 
     def __getitem__(self, path) -> _TObject:
-        return super().__getitem__(path) 
+        return super().__getitem__(path)
 
     def _as_child(self, *args, **kwargs) -> _TObject:
         obj = super()._as_child(*args, **kwargs)
         if isinstance(obj, Node) and obj._parent is self:
             obj._parent = self._parent
-        return obj  
+        return obj
 
     def __iter__(self) -> typing.Generator[_TObject, None, None]:
         for idx, v in enumerate(self._entry.child(slice(None)).find()):
@@ -60,10 +63,18 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
     def sort(self) -> None:
         self._entry.update(Path.tags.sort)
 
+    def flash(self):
+        for idx, item in enumerate(self._entry.child(slice(None)).find()):
+            self._as_child(idx, item)
+        return self
+
     def combine(self, selector=None,   **kwargs) -> _TObject:
+
+        self.flash()
         if selector == None:
-            selector = slice(None)
-        return self._as_child(None, self._entry.child(selector).combine(**kwargs))
+            return self._as_child(None, as_entry(self._cache).combine(**kwargs))
+        else:
+            return self._as_child(None, as_entry(self._cache).child(selector).combine(**kwargs))
 
     def find(self, predication, **kwargs) -> typing.Generator[typing.Any, None, None]:
         yield from self._entry.child(predication).find(**kwargs)

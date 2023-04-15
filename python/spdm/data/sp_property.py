@@ -148,7 +148,7 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                                        getter=self.getter,
                                        **self.kwargs)
             if value is _not_found_:
-                raise AttributeError(self.property_cache_key)
+                raise AttributeError(f"Attribute '{self.property_name}' not found in {owner}.")
 
         return value
 

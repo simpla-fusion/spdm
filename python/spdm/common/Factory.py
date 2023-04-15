@@ -16,7 +16,6 @@ class Factory(object):
     """ Factory class to create objects from a registry.    """
 
     _registry = {}
-    _plugin_prefix = "spdm.plugins.data.Plugin"
 
     @classmethod
     def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
@@ -38,23 +37,33 @@ class Factory(object):
             return decorator
 
     @classmethod
-    def _guess_class_name(cls, *args, **kwargs) -> typing.Optional[str]:
-        return None
+    def _guess_class_name(cls, *args, **kwargs) -> typing.List[str]:
+        return [f"spdm/plugins/data/Plugin{cls.__name__}#Plugin{cls.__name__}",
+                f"spdm/plugins/data/Plugin{cls.__name__}"
+                ]
 
     def __new__(cls,  *args, **kwargs):
         if not issubclass(cls, Factory):
             return object.__new__(cls)
 
-        n_cls_name = cls._guess_class_name(*args, **kwargs)
-        
-        n_cls = cls._registry.get(n_cls_name, None)
-        if n_cls is None:
-            n_cls_name = f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
+        n_cls = None
+        name_list = cls._guess_class_name(*args, **kwargs)
+        for n_cls_name in name_list:
+            n_cls = cls._registry.get(n_cls_name, None)
+            if n_cls is not None:
+                break
             n_cls = sp_find_module(n_cls_name)
+            if n_cls is not None:
+                cls.register(n_cls_name, n_cls)
+                logger.debug(f"Load module  {n_cls}")
+                break
 
         if n_cls is None:
-            logger.debug(f"Can not find module {n_cls_name} , using default module {cls.__name__}")
-            n_cls = cls
+            if len(name_list) > 0:
+                raise ModuleNotFoundError(f"Can not find plugin in {name_list}")
+            else:
+                n_cls = cls
+
         return object.__new__(n_cls)
 
     @classmethod

@@ -18,44 +18,9 @@ class Collection(Connection):
     ''' Collection of documents
     '''
     _registry = {}
-    _plugin_prefix = "spdm.plugins.data.Plugin"
-
-    # @classmethod
-    # def register(cls, name: typing.Union[str, typing.List[str]], other_cls=None):
-    #     """
-    #     Decorator to register a class to the registry.
-    #     """
-    #     if other_cls is not None:
-    #         if isinstance(name, str):
-    #             cls._registry[name] = other_cls
-    #         elif isinstance(name, collections.abc.Sequence):
-    #             for n in name:
-    #                 cls._registry[n] = other_cls
-
-    #         return other_cls
-    #     else:
-    #         def decorator(o_cls):
-    #             Collection.register(name, o_cls)
-    #             return o_cls
-    #         return decorator
-
-    # @classmethod
-    # def create(cls, path, *args, **kwargs):
-    #     n_cls_name = None
-
-    #     if "protocol" in kwargs:
-    #         protocol = kwargs.get("protocol")
-    #         n_cls_name = protocol
-    #     elif isinstance(path, collections.abc.Mapping):
-    #         n_cls_name = path.get("$class", None)
-    #     elif isinstance(path, (str, URITuple)):
-    #         uri = uri_split(path)
-    #         n_cls_name = uri.protocol
-
-    #     return super().create(n_cls_name, path, *args, **kwargs)
 
     @classmethod
-    def _guess_class_name(cls, path, *args,  **kwargs) -> typing.Optional[str]:
+    def _guess_class_name(cls, path, *args,  **kwargs) -> typing.List[str]:
         n_cls_name = None
 
         if "protocol" in kwargs:
@@ -67,7 +32,7 @@ class Collection(Connection):
             uri = uri_split(path)
             n_cls_name = uri.protocol
 
-        return n_cls_name
+        return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}Collection"]
 
     def __new__(cls,  *args, **kwargs):
         if cls is not Collection:
