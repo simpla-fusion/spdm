@@ -186,7 +186,7 @@ class Entry(Factory):
         """
         yield from self._path.find(self._cache, *args, **kwargs)
 
-    def query(self, *args, default_value=None, **kwargs) -> typing.Any:
+    def query(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
@@ -330,7 +330,7 @@ class EntryCombine(Entry):
         val = [v for v in val if v is not _not_found_ and v is not None]
 
         if len(val) > 1:
-            res = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
+            res = functools.reduce(self._reducer, val[1:], val[0])
         elif len(val) == 1:
             res = val[0]
         else:
@@ -341,7 +341,7 @@ class EntryCombine(Entry):
         res = super().query(default_value=_not_found_, **kwargs)
 
         if res is _not_found_:
-            vals = [(v.query(default_value=default_value, **kwargs) if isinstance(v, Entry) else v)
+            vals = [(v.query(**kwargs) if isinstance(v, Entry) else v)
                     for v in self._data_list.child(self._path[:]).find()]
             res = self._reduce(vals)
 

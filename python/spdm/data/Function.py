@@ -342,7 +342,9 @@ class Function:
 
 
 def function_like(x, y) -> Function:
-    if isinstance(y, Function):
+    if y is None:
+        return Function(x, 0)
+    elif isinstance(y, Function):
         return y
     else:
         return Function(x, y)
