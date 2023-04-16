@@ -111,7 +111,7 @@ class Container(Node, typing.Container[_TObject]):
         #     if isinstance(key, int) and isinstance(self._cache, collections.abc.Sequence):
         #         if key < len(self._cache):
         #             value = self._cache[key]
-        
+
         if orig_class is not None and isinstance(value, orig_class):
             # 如果 value 符合 type_hint 则返回之
             return value  # type:ignore
@@ -124,12 +124,14 @@ class Container(Node, typing.Container[_TObject]):
             sig = inspect.signature(getter)
             if len(sig.parameters) == 1:
                 value = getter(self)
-            elif isinstance(value, Entry):
-                value = value.query(default_value=default_value)
-                if value is not _not_found_:
+            else:
+                if isinstance(value, Entry):
+                    value = value.query(default_value=default_value)
+                    
+                if value is _not_found_:
+                    value = getter(self, None, **kwargs)
+                else:
                     value = getter(self, value, **kwargs)
-            elif value is not _not_found_:
-                value = getter(self, value, **kwargs)
 
         if orig_class is None:  # 若 type_hint/orig_class 未定义，则由value决定类型
             if isinstance(value, Entry):
