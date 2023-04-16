@@ -17,8 +17,14 @@ _TObject = typing.TypeVar("_TObject")
 
 class List(Container[_TObject], typing.Sequence[_TObject]):
 
-    def __init__(self, *args, cache=None, **kwargs):
-        super().__init__(*args, cache=[] if cache is None else cache, **kwargs)
+    def __init__(self, *args, cache=None, ** kwargs):
+        super().__init__(*args,  **kwargs)
+        self._cache = [] if cache is None else cache
+
+    def duplicate(self) -> Container:
+        other: List[_TObject] = super().duplicate()  # type:ignore
+        other._cache = self._cache
+        return other
 
     @property
     def _is_list(self) -> bool:
@@ -39,15 +45,39 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
     def __getitem__(self, path) -> _TObject:
         return super().__getitem__(path)
 
-    def _as_child(self, *args, **kwargs) -> _TObject:
-        obj = super()._as_child(*args, **kwargs)
-        if isinstance(obj, Node) and obj._parent is self:
-            obj._parent = self._parent
-        return obj
-
     def __iter__(self) -> typing.Generator[_TObject, None, None]:
         for idx, v in enumerate(self._entry.child(slice(None)).find()):
             yield self._as_child(idx, v)
+
+    def flash(self):
+        for idx, item in enumerate(self._entry.child(slice(None)).find()):
+            self._as_child(idx, item)
+        return self
+
+    def combine(self, selector=None,   **kwargs) -> _TObject:
+        self.flash()
+        if selector == None:
+            return self._as_child(None, as_entry(self._cache).combine(**kwargs))
+        else:
+            return self._as_child(None, as_entry(self._cache).child(selector).combine(**kwargs))
+
+    def _as_child(self, key: typing.Union[int, slice],  value=_not_found_,
+                  *args, **kwargs) -> _TObject:
+
+        if value is _not_found_ and isinstance(key, int) and key < len(self._cache):
+            value = self._cache[key]
+
+        n_value = super()._as_child(key, value, *args, **kwargs)
+
+        if isinstance(n_value, Node) and n_value._parent is self:
+            n_value._parent = self._parent
+
+        if isinstance(key, int):
+            if key >= len(self._cache):
+                self._cache += [_not_found_]*(key+1-len(self._cache))
+            self._cache[key] = n_value
+
+        return n_value
 
     def __iadd__(self, value) -> List:
         self._entry.update({Path.tags.append: value})
@@ -62,19 +92,6 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
 
     def sort(self) -> None:
         self._entry.update(Path.tags.sort)
-
-    def flash(self):
-        for idx, item in enumerate(self._entry.child(slice(None)).find()):
-            self._as_child(idx, item)
-        return self
-
-    def combine(self, selector=None,   **kwargs) -> _TObject:
-
-        self.flash()
-        if selector == None:
-            return self._as_child(None, as_entry(self._cache).combine(**kwargs))
-        else:
-            return self._as_child(None, as_entry(self._cache).child(selector).combine(**kwargs))
 
     def find(self, predication, **kwargs) -> typing.Generator[typing.Any, None, None]:
         yield from self._entry.child(predication).find(**kwargs)

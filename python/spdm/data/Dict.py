@@ -15,8 +15,14 @@ _TObject = typing.TypeVar("_TObject")
 
 
 class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
-    def __init__(self, *args, cache=None, **kwargs):
-        super().__init__(*args, cache={} if cache is  None else cache, **kwargs)
+    def __init__(self, *args,   cache=None,  **kwargs):
+        super().__init__(*args,   **kwargs)
+        self._cache = {} if cache is None else cache
+
+    def duplicate(self) -> Container:
+        other: Dict[_TObject] = super().duplicate()  # type:ignore
+        other._cache = self._cache
+        return other
 
     @property
     def _is_dict(self) -> bool:
@@ -43,8 +49,21 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     def __ior__(self, other) -> Dict:
         return self.update(other, force=False)
 
+    def _as_child(self, key: str, value=_not_found_,
+                  *args, **kwargs) -> _TObject:
+
+        if value is _not_found_ and isinstance(key, str):
+            value = self._cache.get(key, _not_found_)
+
+        n_value = super()._as_child(key, value, *args, **kwargs)
+
+        if isinstance(key, str):  # and n_value is not value:
+            self._cache[key] = n_value
+
+        return n_value
+
     def update(self, d, *args, **kwargs) -> Dict:
-        """Update the dictionary with the key/value pairs from other, overwriting existing keys. 
+        """Update the dictionary with the key/value pairs from other, overwriting existing keys.
            Return self.
 
         Args:

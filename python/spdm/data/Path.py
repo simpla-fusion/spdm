@@ -358,7 +358,7 @@ class Path(list):
             # elif "default_value" in kwargs:
             #     yield kwargs["default_value"]
             else:
-                raise TypeError(f"Cannot slice {(target)} {path[:pos]} | {path[pos:]}")
+                raise TypeError(f"Cannot slice target={(target)} path=[{path[:pos]} ^, {path[pos:]}]")
         elif isinstance(path[pos], collections.abc.Mapping):
             only_first = kwargs.get("only_first", False) or path[pos].get("@only_first", True)
             if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):

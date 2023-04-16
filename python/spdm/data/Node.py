@@ -51,7 +51,7 @@ class Node(object):
         self._parent = parent
 
     def duplicate(self) -> Node:
-        other = Node.__new__(self.__class__)
+        other: Node = Node.__new__(self.__class__)
         other._entry = self._entry.duplicate()
         other._parent = self._parent
         return other
