@@ -14,12 +14,7 @@ from ..common.tags import _not_found_, _undefined_
 
 def create_spline(x, y, **kwargs) -> PPoly:
     bc_type = "periodic" if np.all(y[0] == y[-1]) else "not-a-knot"
-    try:
-        res = CubicSpline(x, y, bc_type=bc_type)
-    except ValueError as error:
-        logger.error((x, y))
-        raise error
-    return res
+    return CubicSpline(x, y, bc_type=bc_type, **kwargs)
 
 
 class Function:
@@ -78,7 +73,7 @@ class Function:
 
         if self._y is None or self._y is _not_found_:
             logger.warning(f"Empty function: x={self._x_axis},y={self._y}")
-        elif isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
+        elif isinstance(self._y, np.ndarray) and (self._x_axis is not None and self._x_axis.shape != self._y.shape):
             raise ValueError(f"x.shape  != y.shape {self._x_axis.shape}!={self._y.shape}")
 
     def __str__(self) -> str:
@@ -160,10 +155,10 @@ class Function:
         elif self.x_axis is None:
             raise ValueError(f"x_axis is None")
         elif isinstance(self._y, np.ndarray):
-            assert(self._x_axis.size == self._y.size)
+            assert(self.x_axis.size == self._y.size)
             return create_spline(self._x_axis,  self._y)
         else:
-            return create_spline(self._x_axis,  self.__call__())
+            return create_spline(self.x_axis,  self.__call__(self.x_axis))
 
     def __call__(self, x=None, /,  **kwargs) -> typing.Union[np.ndarray, float]:
         if x is None:

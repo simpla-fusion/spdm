@@ -12,6 +12,7 @@ import numpy as np
 from ..common.tags import _not_found_, _undefined_
 from ..util.logger import logger
 from ..util.misc import as_dataclass
+from spdm.numlib.misc import array_like
 from .Entry import Entry, as_entry
 from .Function import Function
 from .Node import Node
@@ -50,6 +51,8 @@ class Container(Node, typing.Container[_TObject]):
             parent = self
         else:
             parent = self.get(path[:-1], parents=True)
+
+        # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
 
         if isinstance(parent, Container):
             return parent._cache.__setitem__(path[-1], value)
@@ -127,7 +130,7 @@ class Container(Node, typing.Container[_TObject]):
             else:
                 if isinstance(value, Entry):
                     value = value.query(default_value=default_value)
-                    
+
                 if value is _not_found_:
                     value = getter(self, None, **kwargs)
                 else:
@@ -149,13 +152,17 @@ class Container(Node, typing.Container[_TObject]):
             elif value is _not_found_:
                 value = default_value
 
-            if isinstance(value, orig_class):
+            if value is _not_found_:
+                pass
+            elif isinstance(value, orig_class):
                 pass
             elif isinstance(type_hint, Container._PRIMARY_TYPE_):
                 value = type_hint(value)
             elif dataclasses.is_dataclass(type_hint):
                 value = as_dataclass(type_hint, value)
-            elif value is not _not_found_:
+            elif issubclass(orig_class, np.ndarray):
+                value = np.asarray(value, **kwargs)
+            else:
                 value = type_hint(value, **kwargs)
 
                 # raise TypeError(f"Illegal type hint {type_hint}")
@@ -191,9 +198,8 @@ class Container(Node, typing.Container[_TObject]):
                 if only_first:
                     obj = obj._as_child(None, obj._entry.child(query))
                 else:
-                    other: Container = Container.__new__(obj.__class__)  # type:ignore
+                    other: Container = obj.duplicate()  # type:ignore
                     other._entry = obj._entry.child(query)
-                    other._cache = {}
                     obj = other
                 continue
             elif isinstance(query,  slice) and isinstance(obj, collections.abc.Sequence):
