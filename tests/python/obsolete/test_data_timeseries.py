@@ -4,9 +4,9 @@ import sys
 import unittest
 
 import numpy as np
-from spdm.data  import Node, _next_
+from fytok.common.TimeSeries import TimeSeries, TimeSlice
+from spdm.data import Node, _next_
 from spdm.data.Profiles import Profiles
-from spdm.data.TimeSeries import TimeSeries, TimeSlice
 from spdm.util.logger import logger
 
 

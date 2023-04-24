@@ -1,21 +1,5 @@
-from __future__ import annotations
-
-import inspect
-import typing
-from _thread import RLock
-
-import numpy as np
-
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
-
-_TObject = typing.TypeVar("_TObject")
-_T = typing.TypeVar("_T")
-
-
-class sp_property(typing.Generic[_TObject]):  # type: ignore
-    """
-    定义一个property, 要求其所在的class必须有一个_as_child方法，用于将其转换为type_hint 指定的类型。
+"""
+定义一个property, 要求其所在的class必须有一个_as_child方法，用于将其转换为type_hint 指定的类型。
     ```python
         class Foo(Dict):
             pass
@@ -53,8 +37,24 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             f4 = sp_property(get_f4,set_f4,del_f4,"I'm f4",type_hint=Foo)
         ```
 
-    """
+"""
 
+from __future__ import annotations
+
+import inspect
+import typing
+from _thread import RLock
+
+import numpy as np
+
+from ..common.tags import _not_found_, _undefined_
+from ..util.logger import logger
+
+_TObject = typing.TypeVar("_TObject")
+_T = typing.TypeVar("_T")
+
+
+class sp_property(typing.Generic[_TObject]):  # type: ignore
     def __init__(self,
                  getter=None,
                  setter=None,
@@ -88,6 +88,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
     def __set_name__(self, owner, name):
         self.__assert_obj_type(owner)
 
+        # TODO：
+        #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
+
         self.property_name = name
 
         if self.__doc__ is not None:
@@ -95,14 +98,13 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
         elif callable(self.getter):
             self.__doc__ = self.getter.__doc__
         else:
-            self.__doc__ = f"property:{self.property_name}"
+            self.__doc__ = f"sp_roperty:{self.property_name}"
 
         if self.property_cache_key is None:
             self.property_cache_key = name
 
         if self.property_name != self.property_cache_key:
-            logger.warning(
-                f"The attribute name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
+            logger.warning(f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
         if self.type_hint is None:
             self.type_hint = typing.get_type_hints(owner).get(name, None)
@@ -148,7 +150,7 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                                        getter=self.getter,
                                        **self.kwargs)
             if value is _not_found_:
-                raise AttributeError(f"Attribute '{self.property_name}' not found in {owner}.")
+                raise AttributeError(f"The value of property '{owner.__name__}.{self.property_name}' is not assigned!")
 
         return value
 
@@ -159,5 +161,5 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             if callable(self.deleter):
                 self.deleter(instance)
             else:
-                raise AttributeError(f"Cannot delete attribute '{self.property_name}'")
+                raise AttributeError(f"Cannot delete property '{self.property_name}'")
                 # del instance._cache[self.property_cache_key]
