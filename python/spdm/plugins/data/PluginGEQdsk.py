@@ -257,11 +257,13 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     zmax = geqdsk["zmid"].__value__() + geqdsk["zdim"].__value__()/2
 
     psirz = geqdsk["psirz"].__value__()
+
     if psirz.shape == (nh, nw):
         psirz = psirz.T
-        logger.warning(f"Transposing psirz from {(nh,nw)} to {(nw,nh)}")
+        logger.warning(f"Transposing psirz from {(nh, nw)} to {(nw,nh)}")
+
     if psirz.shape != (nw, nh):
-        raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw,nh)}")
+        raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw, nh)}")
 
     eq["time_slice"][-1] = {
         "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__(),
@@ -295,7 +297,7 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     return eq
 
 
-@ File.register(["gfile", "GEQdsk"])
+@File.register(["gfile", "GEQdsk"])
 class GEQdskFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)

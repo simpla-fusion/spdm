@@ -15,9 +15,9 @@ _TObject = typing.TypeVar("_TObject")
 
 
 class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
-    def __init__(self, *args,   cache=None,  **kwargs):
-        super().__init__(*args,   **kwargs)
-        self._cache = {} if cache is None else cache
+    def __init__(self, *args,  parent=None, cache=None,   **kwargs):
+        super().__init__(*args, parent=parent)
+        self._cache = kwargs if cache is None else cache
 
     def duplicate(self) -> Container:
         other: Dict[_TObject] = super().duplicate()  # type:ignore

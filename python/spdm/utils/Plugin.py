@@ -54,7 +54,6 @@ class Pluggable(object):
             n_cls = sp_find_module(n_cls_name)
             if n_cls is not None:
                 cls.register(n_cls_name, n_cls)
-                logger.debug(f"Load module  {n_cls}")
                 break
 
         if n_cls is None:

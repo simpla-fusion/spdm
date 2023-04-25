@@ -102,7 +102,7 @@ class XMLEntry(Entry):
         other._envs = self._envs
         return other
 
-    def xpath(self, path):
+    def _xpath(self, path):
         envs = {}
         res = "."
         prev = None
@@ -111,7 +111,12 @@ class XMLEntry(Entry):
                 res += f"[position()= {p+1} or @id='*']"
                 envs[prev] = p
             elif isinstance(p, slice):
-                raise NotImplementedError("XML DO NOT SUPPORT SLICE!")
+                if p == slice(None):
+                    res += "[@id]"
+                else:
+                    raise NotImplementedError("XML DO NOT SUPPORT SLICE!")
+            elif isinstance(p, (tuple, set)):
+                raise NotImplementedError(f"XML DO NOT SUPPORT TUPLE OR SET!{path}")
             elif isinstance(p, str) and len(p) > 0:
                 if p[0] == '@':
                     res += f"[{p}]"
@@ -123,9 +128,11 @@ class XMLEntry(Entry):
                 # # TODO: handle slice
                 # raise TypeError(f"Illegal path type! {type(p)} {path}")
 
-        res = _XPath(res)
-
         return res, envs
+
+    def xpath(self, path):
+        p, e = self._xpath(path)
+        return _XPath(p), e
 
     def _convert(self, element: _XMLElement, path=[], lazy=True, envs=None, only_one=False, **kwargs):
         if not isinstance(element, list):
@@ -259,15 +266,14 @@ class XMLEntry(Entry):
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
     def find(self,  *args, envs={}, **kwargs):
-        path = self._path[:]
-        for spath in PathTraverser(path):
-            xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._cache):
-                if child.tag is _XMLComment:
-                    continue
-                res = self._convert(child, path=spath,
-                                    envs=collections.ChainMap(s_envs, envs))
-                yield res
+        path, s_envs = self._xpath(self._path[:])
+        # TODO: PathTraverser(path):
+        for child in _XPath(path).evaluate(self._cache):
+            if child.tag is _XMLComment:
+                continue
+            res = self._convert(child, path=path,
+                                envs=collections.ChainMap(s_envs, envs))
+            yield res
 
     def items(self,    *args, envs={}, **kwargs):
         path = self._path

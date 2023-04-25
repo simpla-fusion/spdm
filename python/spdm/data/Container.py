@@ -6,7 +6,7 @@ import dataclasses
 import functools
 import inspect
 import typing
-
+from enum import Enum
 import numpy as np
 from spdm.numlib.misc import array_like
 
@@ -87,10 +87,11 @@ class Container(Node, typing.Container[_TObject]):
         if isinstance(key, str):
             attr = getattr(self.__class__, key, _not_found_)
             if isinstance(attr, sp_property):  # 若 key 是 sp_property
-                if type_hint is None:
-                    type_hint = attr.type_hint
-                elif type_hint is not attr.type_hint:
-                    raise TypeError(f"{type_hint} is not {attr.type_hint}")
+                # attr_type_hint = attr.__get_type_hint(self.__class__)
+                # if type_hint is None:
+                #     type_hint = attr_type_hint
+                # elif type_hint is not attr_type_hint:
+                #     raise TypeError(f"{type_hint} is not {attr_type_hint}")
                 if getter is None:
                     getter = attr.getter
                 if default_value is _not_found_:
@@ -162,6 +163,13 @@ class Container(Node, typing.Container[_TObject]):
                 value = as_dataclass(type_hint, value)
             elif issubclass(orig_class, np.ndarray):
                 value = np.asarray(value)
+            elif issubclass(type_hint, Enum):
+                if isinstance(value, collections.abc.Mapping):
+                    value = type_hint[value["name"]]
+                elif isinstance(value, str):
+                    value = type_hint[value]
+                else:
+                    raise TypeError(f"Can not convert {value} to {type_hint}")
             else:
                 value = type_hint(value, **kwargs)
 

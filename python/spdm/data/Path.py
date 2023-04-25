@@ -80,6 +80,25 @@ class Path(list):
         less = auto()
         greater = auto()
 
+
+    @classmethod
+    def reduce(cls, path: list) -> list:
+        if len(path) < 2:
+            return path
+        elif isinstance(path[0], set) and path[1] in path[0]:
+            return Path.reduce(path[1:])
+        elif isinstance(path[0], slice) and isinstance(path[1], int):
+            start = path[0].start if path[0].start is not None else 0
+            step = path[0].step if path[0].step is not None else 1
+            stop = start+step*path[1]
+            if path[0].stop is not None and stop > path[0].stop:
+                raise IndexError(f"index {stop} is out of range")
+            return [stop, *Path.reduce(path[2:])]
+        else:
+            return path
+
+
+
     @classmethod
     def normalize(cls, p: typing.Any, raw=False) -> typing.Any:
         if p is None:
@@ -171,7 +190,7 @@ class Path(list):
         return Path(Path._parser(p))
 
     def __init__(self, *args, **kwargs):
-        super().__init__(Path.normalize(list(args)), **kwargs)
+        super().__init__(Path.reduce(Path.normalize(list(args))), **kwargs)
 
     def __repr__(self):
         return Path._to_str(self)

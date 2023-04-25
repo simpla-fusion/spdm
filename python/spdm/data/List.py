@@ -62,7 +62,7 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
     def _as_child(self, key: typing.Union[int, slice],  value=_not_found_,
                   *args, **kwargs) -> _TObject:
 
-        if value is _not_found_ and isinstance(key, int) and key < len(self._cache):
+        if value is _not_found_ and isinstance(key, int) and ((key >= 0 and key < len(self._cache) or (key < 0 and -key < len(self._cache)))):
             value = self._cache[key]
 
         n_value = super()._as_child(key, value, *args, **kwargs)
@@ -73,7 +73,15 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
         if isinstance(key, int):
             if key >= len(self._cache):
                 self._cache += [_not_found_]*(key+1-len(self._cache))
-            self._cache[key] = n_value
+            elif len(self._cache) == 0:
+                if key == -1 or key == 0:
+                    self._cache.append(n_value)
+                else:
+                    raise IndexError(f"Try to insert value to a empty list! key={key}")
+            else:
+                l = len(self._cache)
+                key = (key+l) % l
+                self._cache[key] = n_value
 
         return n_value
 

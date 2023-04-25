@@ -62,7 +62,8 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                  default_value=_not_found_,
                  type_hint=None,
                  doc: typing.Optional[str] = None,
-                 force=False,
+                 strict=False,
+
                  **kwargs):
 
         self.lock = RLock()
@@ -74,9 +75,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             self.__doc__ = doc
 
         self.property_cache_key = getter if not callable(getter) else None
-        self.property_name = None
-        self.type_hint = type_hint
-
+        self.property_name: str = None
+        self._type_hint = type_hint
+        self.strict = strict
         self.default_value = default_value
         self.kwargs = kwargs
 
@@ -104,21 +105,25 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             self.property_cache_key = name
 
         if self.property_name != self.property_cache_key:
-            logger.warning(f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
+            logger.warning(
+                f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
-        if self.type_hint is None:
-            self.type_hint = typing.get_type_hints(owner).get(name, None)
+    def __get_type_hint(self, owner):
+        if self._type_hint is None:
+            t_hints = typing.get_type_hints(owner)
+            self._type_hint = t_hints.get(self.property_name, None)
 
-        if self.type_hint is None:
+        if self._type_hint is None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
                 child_cls = typing.get_args(self.__orig_class__)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    self.type_hint = child_cls[0]
+                    self._type_hint = child_cls[0]
 
-        if self.type_hint is None and inspect.isfunction(self.getter):
-            self.type_hint = self.getter.__annotations__.get("return", None)
+        if self._type_hint is None and inspect.isfunction(self.getter):
+            self._type_hint = self.getter.__annotations__.get("return", None)
+        return self._type_hint
 
     def __set__(self, instance: typing.Any, value: typing.Any):
         assert(instance is not None)
@@ -145,11 +150,11 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
 
         with self.lock:
             value = instance._as_child(key=str(self.property_cache_key),
-                                       type_hint=self.type_hint,
+                                       type_hint=self.__get_type_hint(owner),
                                        default_value=self.default_value,
                                        getter=self.getter,
                                        **self.kwargs)
-            if value is _not_found_:
+            if self.strict and value is _not_found_:
                 raise AttributeError(f"The value of property '{owner.__name__}.{self.property_name}' is not assigned!")
 
         return value
