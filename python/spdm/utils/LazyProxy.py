@@ -5,7 +5,7 @@ import copy
 import inspect
 import operator
 import uuid
-from ..util.logger import logger
+from .logger import logger
 
 ELEMENT_TYPE_LIST = [int, float, str]
 
@@ -254,7 +254,7 @@ class LazyProxy:
         handler = object.__getattribute__(self, "__handler__")
         return handler.get_value(obj, path)
 
-    def __value__(self):
+    def __value__()(self):
         res = self.__real_value__()
         if isinstance(res, collections.abc.Mapping):
             return LazyProxy(res)

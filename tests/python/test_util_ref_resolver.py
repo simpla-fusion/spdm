@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 import scipy.integrate
-from spdm.util.RefResolver import RefResolver
+from spdm.utils.RefResolver import RefResolver
 
 sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 
@@ -24,7 +24,7 @@ class TestRefResolver(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from spdm.util.logger import logger
-    from spdm.util.RefResolver import RefResolver
+    from spdm.utils.logger import logger
+    from spdm.utils.RefResolver import RefResolver
 
     unittest.main()

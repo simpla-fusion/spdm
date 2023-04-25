@@ -47,8 +47,8 @@ from _thread import RLock
 
 import numpy as np
 
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
+from ..utils.logger import logger
+from ..utils.tags import _not_found_, _undefined_
 
 _TObject = typing.TypeVar("_TObject")
 _T = typing.TypeVar("_T")

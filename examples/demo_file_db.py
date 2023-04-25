@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.open_entry import open_db, open_entry
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
 

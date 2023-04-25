@@ -1,25 +1,13 @@
 import collections
 import contextlib
-import inspect
-import json
-import os
-import pathlib
-import pkgutil
-import pprint
-import re
-import sys
-import uuid
 from copy import copy
 
 import jsonschema
 
-from ..common.Alias import Alias
-from ..common.Multimap import Multimap
 from . import io
-from .dict_util import format_string_recursive
+from .Alias import Alias
 from .logger import logger
-from .sp_export import sp_pkg_data_path
-from .urilib import getvalue_r, uridefrag, uri_join, uri_split, uri_merge
+from .urilib import getvalue_r, uri_join
 
 
 def _extend_with_default(validator_class):

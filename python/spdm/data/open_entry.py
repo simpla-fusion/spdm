@@ -2,10 +2,10 @@ import collections.abc
 from dataclasses import dataclass
 import typing
 
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
-from ..util.misc import fetch_request
-from ..util.uri_utils import URITuple, uri_merge, uri_split
+from ..utils.tags import _not_found_, _undefined_
+from ..utils.logger import logger
+from ..utils.misc import fetch_request
+from ..utils.uri_utils import URITuple, uri_merge, uri_split
 from .Collection import Collection
 from .Entry import Entry
 from .File import File

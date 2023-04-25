@@ -6,14 +6,12 @@ import os
 import pathlib
 import typing
 
-from ..common.PathTraverser import PathTraverser
-from ..common.tags import _undefined_
-from ..util.logger import logger
-from ..util.uri_utils import uri_split_as_dict
+from ..utils.logger import logger
+from ..utils.tags import _undefined_
+from ..utils.uri_utils import uri_split_as_dict
 from .Entry import Entry, as_entry
 from .File import File
 from .Path import Path
-from .SpObject import SpObject
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 SPDB_TAG = "spdb"
@@ -65,7 +63,7 @@ class MapperPath(Path):
         return res
 
 
-class Mapper(SpObject):
+class Mapper(object):
 
     def __init__(self, mapping=[],
                  source_schema: typing.Optional[str] = None,

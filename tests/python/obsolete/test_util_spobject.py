@@ -30,9 +30,9 @@ class TestSpObject(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from spdm.util.SpObject import SpObject
+    from spdm.utils.SpObject import SpObject
     from spdm.data.File import File
 
-    from spdm.util.logger import logger
+    from spdm.utils.logger import logger
 
     unittest.main()

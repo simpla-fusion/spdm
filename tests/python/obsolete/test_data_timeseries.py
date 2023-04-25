@@ -7,7 +7,7 @@ import numpy as np
 from fytok.common.TimeSeries import TimeSeries, TimeSlice
 from spdm.data import Node, _next_
 from spdm.data.Profiles import Profiles
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 
 
 class TestTimeSeries(unittest.TestCase):

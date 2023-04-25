@@ -1,6 +1,6 @@
 import os
 
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 from spdm.data.open_entry import open_db
 
 
@@ -18,4 +18,4 @@ if __name__ == '__main__':
 
     entry = db.find_one(114730)
 
-    logger.debug(entry.child("pf_active").__value__)
+    logger.debug(entry.child("pf_active").__value__())

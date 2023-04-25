@@ -1,13 +1,12 @@
+import pathlib
+import shutil
 import tempfile
 import unittest
 
 import h5py
 import numpy as np
-from spdm.util.logger import logger
 from spdm.data import File
-import pathlib
-import shutil
-import h5py
+from spdm.utils.logger import logger
 
 SP_TEST_DATA_DIRECTORY = pathlib.Path("../data")
 

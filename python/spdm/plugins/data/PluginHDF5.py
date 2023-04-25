@@ -6,11 +6,11 @@ import typing
 
 import h5py
 import numpy
-from spdm.common.tags import _undefined_
+from spdm.utils.tags import _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.data.Path import Path
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 
 SPDM_LIGHTDATA_MAX_LENGTH = 64
 

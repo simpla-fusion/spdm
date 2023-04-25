@@ -2,11 +2,10 @@ import unittest
 from copy import deepcopy
 from logging import log
 
-from spdm.util.logger import logger
-from spdm.common.tags import _not_found_
+from spdm.utils.logger import logger
+from spdm.utils.tags import _not_found_
 from spdm.data.Entry import Entry, EntryCombine
 from spdm.data.Path import Path
-from spdm.data.Query import Query
 
 
 class TestQuery(unittest.TestCase):

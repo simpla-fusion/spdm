@@ -1,11 +1,9 @@
 import unittest
-from copy import copy, deepcopy
 
 import numpy as np
 from spdm.data.Dict import Dict
 from spdm.data.List import List
 from spdm.data.Node import Node
-from spdm.util.logger import logger
 
 
 class Foo(Dict):

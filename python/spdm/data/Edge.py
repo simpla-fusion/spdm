@@ -3,7 +3,7 @@ import collections
 import inspect
 from typing import Generic, TypeVar
 
-from ..util.logger import logger
+from ..utils.logger import logger
 from .SpObject import SpObject
 from spdm.common.tags import _empty
 from .Node import Node

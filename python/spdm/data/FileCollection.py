@@ -1,8 +1,8 @@
 import pathlib
 import typing
 
-from ..common.tags import _undefined_
-from ..util.logger import logger
+from ..utils.tags import _undefined_
+from ..utils.logger import logger
 from .Collection import Collection, InsertOneResult
 from .Entry import Entry
 from .File import File

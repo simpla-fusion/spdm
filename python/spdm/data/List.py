@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import collections
 import collections.abc
 import typing
 
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
-from ..util.misc import serialize
+from ..utils.misc import serialize
+from ..utils.tags import _not_found_, _undefined_
 from .Container import Container
-from .Entry import Entry, EntryCombine, as_entry
+from .Entry import as_entry
 from .Node import Node
 from .Path import Path
 

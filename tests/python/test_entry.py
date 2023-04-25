@@ -1,7 +1,7 @@
 import unittest
 from copy import deepcopy
 
-from spdm.common.tags import _not_found_
+from spdm.utils.tags import _not_found_
 from spdm.data.Entry import Entry
 
 
@@ -23,11 +23,11 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.child("c")  .__value__,         self.data["c"])
-        self.assertEqual(d.child("d/e").__value__,      self.data["d"]["e"])
-        self.assertEqual(d.child("d/f").__value__,      self.data["d"]["f"])
-        self.assertEqual(d.child("a/0").__value__,        self.data["a"][0])
-        self.assertEqual(d.child("a/1").__value__,        self.data["a"][1])
+        self.assertEqual(d.child("c")  .__value__()(),         self.data["c"])
+        self.assertEqual(d.child("d/e").__value__(),      self.data["d"]["e"])
+        self.assertEqual(d.child("d/f").__value__(),      self.data["d"]["f"])
+        self.assertEqual(d.child("a/0").__value__(),        self.data["a"][0])
+        self.assertEqual(d.child("a/1").__value__(),        self.data["a"][1])
 
     def test_put(self):
         cache = {}
@@ -101,13 +101,13 @@ class TestEntry(unittest.TestCase):
     def test_get_many(self):
         d = Entry(self.data)
 
-        self.assertEqual(d.child('a/2').__value__, self.data['a'][2])
+        self.assertEqual(d.child('a/2').__value__(), self.data['a'][2])
 
-        res = d.child([("a/2", "c",  "d/e", "e")]).__value__
+        res = d.child([("a/2", "c",  "d/e", "e")]).__value__()
         self.assertListEqual(res, [self.data['a'][2],
                                    self.data['c'],
                                    self.data['d']['e'],
-                                   _not_found_])
+                                   []])
 
 
 if __name__ == '__main__':

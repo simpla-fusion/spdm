@@ -1,6 +1,6 @@
 
 import numpy as np, scipy
-from ..util.logger import logger
+from ..utils.logger import logger
 
 
 class DObject(np.ndarray):

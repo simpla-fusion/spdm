@@ -2,8 +2,11 @@ import unittest
 from copy import copy, deepcopy
 
 import numpy as np
-from spdm.util.logger import logger
-from spdm.data import Dict, List, Node,  Path, Query
+from spdm.data.Dict import Dict
+from spdm.data.List import List
+from spdm.data.Node import Node
+from spdm.data.Path import Path
+from spdm.utils.logger import logger
 
 
 class TestNodeList(unittest.TestCase):
@@ -47,11 +50,11 @@ class TestNodeList(unittest.TestCase):
         ]
 
         d0 = List(cache)
-        self.assertEqual(d0[Query({"name": "li si"}), "age"].value, 22)
+        self.assertEqual(d0[({"name": "li si"}), "age"].value, 22)
 
         d1 = Dict({"person": cache})
 
-        young = d1["person", Query({"age": 22}, only_first=False)]
+        young = d1["person", ({"age": 22}, only_first=False)]
 
         self.assertEqual(young[0, "name"].value,  "wang liu")
         self.assertEqual(young[1, "name"].value,  "li si")

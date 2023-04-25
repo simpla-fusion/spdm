@@ -4,7 +4,7 @@ import pathlib
 import shutil
 import uuid
 
-from ..util.logger import logger
+from ..utils.logger import logger
 from .Collection import Collection
 
 

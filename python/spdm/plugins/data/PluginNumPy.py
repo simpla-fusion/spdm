@@ -2,7 +2,7 @@ import collections
 import json
 
 import numpy as np
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 
 from spdm.data.Collection import FileCollection
 from spdm.data.Document import Document

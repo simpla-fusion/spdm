@@ -2,8 +2,8 @@ import collections
 import collections.abc
 import typing
 
-from ..util.logger import logger
-from ..util.sp_export import sp_find_module
+from .logger import logger
+from .sp_export import sp_find_module
 
 
 class Pluggable(object):

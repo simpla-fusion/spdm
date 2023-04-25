@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from ..util.misc import serialize
+from ..utils.misc import serialize
 from .Node import Node
 from .Path import Path
 

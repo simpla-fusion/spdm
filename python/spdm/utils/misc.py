@@ -20,7 +20,7 @@ from urllib.parse import ParseResult, urlparse
 import numpy as np
 import yaml
 
-from ..common.tags import _empty, _not_found_, _undefined_
+from .tags import _empty, _not_found_, _undefined_
 from .logger import logger
 
 

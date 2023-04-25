@@ -2,9 +2,9 @@ import collections
 import os
 import pathlib
 
-from ..util.logger import logger
-from ..util.PathTraverser import PathTraverser
-from ..util.urilib import urisplit
+from ..utils.logger import logger
+from ..utils.PathTraverser import PathTraverser
+from ..utils.urilib import urisplit
 from .Collection import Collection
 from .Document import Document
 from .Entry import Entry

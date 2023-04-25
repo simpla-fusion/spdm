@@ -8,11 +8,11 @@ import inspect
 import typing
 
 import numpy as np
-
-from ..common.tags import _not_found_, _undefined_
-from ..util.logger import logger
-from ..util.misc import as_dataclass
 from spdm.numlib.misc import array_like
+
+from ..utils.logger import logger
+from ..utils.misc import as_dataclass
+from ..utils.tags import _not_found_, _undefined_
 from .Entry import Entry, as_entry
 from .Function import Function
 from .Node import Node

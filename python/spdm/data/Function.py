@@ -7,9 +7,9 @@ import pprint
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
-from ..util.logger import logger
-from ..util.misc import float_unique
-from ..common.tags import _not_found_, _undefined_
+from ..utils.logger import logger
+from ..utils.misc import float_unique
+from ..utils.tags import _not_found_, _undefined_
 
 
 def create_spline(x, y, **kwargs) -> PPoly:

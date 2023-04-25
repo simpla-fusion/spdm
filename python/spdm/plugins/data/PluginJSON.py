@@ -1,11 +1,10 @@
-import collections
 import json
 import typing
-import numpy as np
+
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.util.dict_util import as_native
-from spdm.util.logger import logger
+from spdm.utils.dict_util import as_native
+from spdm.utils.logger import logger
 
 
 @File.register(["json", "JSON"])

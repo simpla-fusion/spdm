@@ -4,7 +4,7 @@ import collections
 import collections.abc
 import typing
 
-from ..common.tags import _not_found_
+from ..utils.tags import _not_found_
 from .Container import Container
 from .Entry import Entry, EntryChain, as_entry
 from .Node import Node

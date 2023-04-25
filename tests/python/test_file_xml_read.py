@@ -2,7 +2,7 @@ import tempfile
 import unittest
 
 import numpy as np
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 from spdm.data.File import File
 
 

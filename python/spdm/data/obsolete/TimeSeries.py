@@ -4,7 +4,7 @@ from typing import (Any, Generic, Mapping, MutableMapping, Sequence, TypeVar,
 
 import numpy as np
 
-from ..util.logger import logger
+from ..utils.logger import logger
 
 
 class TimeSlice(Dict[_TObject]):

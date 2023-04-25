@@ -6,8 +6,8 @@ import tempfile
 import uuid
 from typing import TypeVar, Union
 
-from ..util.logger import logger
-from ..util.uri_utils import uri_split
+from ..utils.logger import logger
+from ..utils.uri_utils import uri_split
 from .Connection import Connection
 
 _TDirectory = TypeVar('_TDirectory', bound='Directory')

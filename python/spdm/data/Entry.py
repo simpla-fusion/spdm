@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from ..common.Plugin import Pluggable
-from ..common.tags import _not_found_
-from ..util.logger import logger
-from ..util.misc import serialize
+from ..utils.Plugin import Pluggable
+from ..utils.tags import _not_found_
+from ..utils.logger import logger
+from ..utils.misc import serialize
 from .Path import Path
 
 _T = typing.TypeVar("_T")
@@ -170,7 +170,6 @@ class Entry(Pluggable):
     # def __iter__(self) -> typing.Iterator[Entry]:
     #     return self
 
-    @ property
     def __value__(self):
         return self.query(default_value=_not_found_)
 

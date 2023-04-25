@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import List, Union, Any
 from pathlib import Path
 
-from ..util.logger import logger
+from .logger import logger
 
 from .misc import convert_to_named_tuple
 

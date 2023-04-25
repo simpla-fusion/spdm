@@ -1,7 +1,7 @@
 import collections
 from typing import Any, Dict, List, TypeVar
 
-from ..util.logger import logger
+from ..utils.logger import logger
 from .Dict import Dict
 from .Entry import Entry
 

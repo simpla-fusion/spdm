@@ -3,7 +3,7 @@ import pprint
 import sys
 import unittest
 from spdm.data.Collection import Collection
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 
 
 class TestFileCollection(unittest.TestCase):

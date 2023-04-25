@@ -3,8 +3,8 @@ from __future__ import annotations
 import typing
 from enum import Flag, auto
 
-from ..common.Plugin import Pluggable
-from ..util.uri_utils import URITuple, uri_split
+from ..utils.Plugin import Pluggable
+from ..utils.uri_utils import URITuple, uri_split
 from .Entry import Entry
 
 

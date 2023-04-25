@@ -2,7 +2,7 @@ import unittest
 
 , _next_
 from spdm.data  import Node, _not_found_
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 
 
 class TestAttributeTree(unittest.TestCase):

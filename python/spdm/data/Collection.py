@@ -2,8 +2,8 @@ import collections
 import collections.abc
 import typing
 
-from ..util.sp_export import sp_find_module
-from ..util.uri_utils import URITuple, uri_split
+from ..utils.sp_export import sp_find_module
+from ..utils.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
 from .Mapper import Mapper

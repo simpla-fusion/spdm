@@ -7,7 +7,7 @@ import numpy as np
 from spdm.data.Collection import Collection
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 from spdm.data.Path import Path
 
 

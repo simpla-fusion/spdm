@@ -9,12 +9,12 @@ from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
 from lxml.etree import fromstring
 from lxml.etree import parse as parse_xml
-from spdm.common.PathTraverser import PathTraverser
-from spdm.common.tags import _not_found_, _undefined_
+from spdm.utils.PathTraverser import PathTraverser
+from spdm.utils.tags import _not_found_, _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.util.dict_util import format_string_recursive
-from spdm.util.misc import normalize_path, serialize
+from spdm.utils.dict_util import format_string_recursive
+from spdm.utils.misc import normalize_path, serialize
 
 _TPath = typing.TypeVar("_TPath")
 

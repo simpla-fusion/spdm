@@ -1,9 +1,12 @@
-from logging import log
 import unittest
+from logging import log
 
-from spdm.util.logger import logger
-from spdm.data import List, Dict, Node, sp_property
+from spdm.data.Dict import Dict
 from spdm.data.Entry import as_entry
+from spdm.data.List import List
+from spdm.data.Node import Node
+from spdm.data.sp_property import sp_property
+from spdm.utils.logger import logger
 
 
 class Foo(Dict):
@@ -54,6 +57,6 @@ if __name__ == '__main__':
 
     entry = as_entry(doo)
 
-    logger.debug(type(entry.child("f0").pull()))
-    logger.debug(type(entry.child("f1").pull()))
+    logger.debug(type(entry.child("f0").__value__()))
+    logger.debug(type(entry.child("f1").__value__()))
     logger.debug(cache)

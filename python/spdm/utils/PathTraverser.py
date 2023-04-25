@@ -1,7 +1,7 @@
 import functools
 
-from ..util.logger import logger
-from ..util.misc import normalize_path
+from .logger import logger
+from .misc import normalize_path
 
 
 class PathTraverser:

@@ -4,8 +4,8 @@ import collections
 import collections.abc
 import inspect
 
-from ..common.tags import _not_found_
-from ..util.sp_export import sp_load_module
+from ..utils.tags import _not_found_
+from ..utils.sp_export import sp_load_module
 
 SP_MODULE_NAME = "spdm"
 

@@ -8,7 +8,7 @@ import typing
 
 import numpy as np
 
-from ..common.tags import _not_found_, _undefined_, tags
+from ..utils.tags import _not_found_, _undefined_, tags
 from .Entry import Entry, as_entry
 
 
@@ -77,8 +77,8 @@ class Node(object):
         return self._entry
 
     @property
-    def __value__(self) -> typing.Any:
-        return self._entry.__value__
+    def __value__()(self) -> typing.Any:
+        return self._entry.__value__()
 
     def reset(self):
         self._entry.reset()

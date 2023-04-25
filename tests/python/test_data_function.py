@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 from scipy import constants
-from spdm.util.logger import logger
+from spdm.utils.logger import logger
 from spdm.data.Function import Expression, Function, PiecewiseFunction
 
 

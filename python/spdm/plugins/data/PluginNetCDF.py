@@ -5,8 +5,8 @@ import pathlib
 import typing
 import netCDF4 as nc
 import numpy as np
-from spdm.util.logger import logger
-from spdm.common.tags import _undefined_, _not_found_
+from spdm.utils.logger import logger
+from spdm.utils.tags import _undefined_, _not_found_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.data.Path import Path
@@ -94,7 +94,7 @@ class NetCDFEntry(Entry):
 
     def copy(self, other):
         if hasattr(other, "__entry__"):
-            other = other.__entry__.__value__
+            other = other.__entry__.__value__()
         self.update(other)
 
     def insert(self,  value, *args, **kwargs):
