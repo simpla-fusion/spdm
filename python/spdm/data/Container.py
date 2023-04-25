@@ -161,7 +161,7 @@ class Container(Node, typing.Container[_TObject]):
             elif dataclasses.is_dataclass(type_hint):
                 value = as_dataclass(type_hint, value)
             elif issubclass(orig_class, np.ndarray):
-                value = np.asarray(value, **kwargs)
+                value = np.asarray(value)
             else:
                 value = type_hint(value, **kwargs)
 

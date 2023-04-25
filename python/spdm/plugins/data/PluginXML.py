@@ -112,7 +112,7 @@ class XMLEntry(Entry):
                 envs[prev] = p
             elif isinstance(p, slice):
                 raise NotImplementedError("XML DO NOT SUPPORT SLICE!")
-            elif isinstance(p, str):
+            elif isinstance(p, str) and len(p) > 0:
                 if p[0] == '@':
                     res += f"[{p}]"
                 else:

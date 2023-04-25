@@ -135,8 +135,10 @@ class MDSplusFile(File):
 
         if not tdi:
             return self
-
-        tdi = tdi.format_map(self._envs)
+        try:
+            tdi = tdi.format_map(self._envs)
+        except KeyError as error:
+            raise KeyError(f"Can not format tdi! {error} tdi={tdi} envs={self._envs} prefix={prefix}")
 
         res = None
         tree = self.get_tree(tree_name, tree_path)

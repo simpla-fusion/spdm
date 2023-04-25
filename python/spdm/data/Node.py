@@ -76,8 +76,8 @@ class Node(object):
     def __entry__(self) -> Entry:
         return self._entry
 
-    @property
-    def __value__()(self) -> typing.Any:
+    
+    def __value__(self) -> typing.Any:
         return self._entry.__value__()
 
     def reset(self):
