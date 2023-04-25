@@ -26,10 +26,10 @@ class Node(object):
             return object.__new__(cls)
         if len(args) == 0:
             n_cls = Node
-        elif hasattr(args[0], "__entry__"):
-            if args[0].__entry__.is_sequence:
+        elif hasattr(args[0], "__as__entry__"):
+            if args[0].__as__entry__().is_sequence:
                 n_cls = Node._SEQUENCE_TYPE_
-            elif args[0].__entry__.is_mapping:
+            elif args[0].__as__entry__().is_mapping:
                 n_cls = Node._MAPPING_TYPE_
             else:
                 n_cls = cls
@@ -73,7 +73,6 @@ class Node(object):
     def nid(self) -> str:
         return self._nid
 
-    @property
     def __entry__(self) -> Entry:
         return self._entry
 

@@ -1,18 +1,12 @@
 import collections
 import collections.abc
-import copy
-import functools
-import inspect
-import re
 import typing
-from functools import lru_cache
 
 from ..util.logger import logger
 from ..util.sp_export import sp_find_module
-from ..util.uri_utils import URITuple, uri_split
 
 
-class Factory(object):
+class Pluggable(object):
     """ Factory class to create objects from a registry.    """
 
     _registry = {}
@@ -37,17 +31,22 @@ class Factory(object):
             return decorator
 
     @classmethod
-    def _guess_class_name(cls, *args, **kwargs) -> typing.List[str]:
+    def _guess_plugin_name(cls, *args, **kwargs) -> typing.List[str]:
         return [f"spdm/plugins/data/Plugin{cls.__name__}#Plugin{cls.__name__}",
                 f"spdm/plugins/data/Plugin{cls.__name__}"
                 ]
 
     def __new__(cls,  *args, **kwargs):
-        if not issubclass(cls, Factory):
+        if not issubclass(cls, Pluggable):
             return object.__new__(cls)
 
+        # if not issubclass(cls, Pluggable) or getattr(cls, "_IDS", None) is None:
+        #     return object.__new__(cls)
+        # else:
+        #     return Pluggable.__new__(cls, *args, **kwargs)
+
         n_cls = None
-        name_list = cls._guess_class_name(*args, **kwargs)
+        name_list = cls._guess_plugin_name(*args, **kwargs)
         for n_cls_name in name_list:
             n_cls = cls._registry.get(n_cls_name, None)
             if n_cls is not None:
@@ -68,10 +67,10 @@ class Factory(object):
 
     @classmethod
     def create(cls, *args, **kwargs):
-        if not issubclass(cls, Factory):
+        if not issubclass(cls, Pluggable):
             return cls(*args, **kwargs)
         else:
-            n_obj = Factory.__new__(cls, *args, **kwargs)
+            n_obj = Pluggable.__new__(cls, *args, **kwargs)
             n_obj.__init__(*args, **kwargs)
             return n_obj
 

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from ..common.Factory import Factory
+from ..common.Plugin import Pluggable
 from ..common.tags import _not_found_
 from ..util.logger import logger
 from ..util.misc import serialize
@@ -20,14 +20,14 @@ from .Path import Path
 _T = typing.TypeVar("_T")
 
 
-class Entry(Factory):
+class Entry(Pluggable):
     __slots__ = "_cache", "_path"
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
 
     _registry = {}
 
     @classmethod
-    def _guess_class_name(cls, *args, **kwargs) -> typing.List[str]:
+    def _guess_plugin_name(cls, *args, **kwargs) -> typing.List[str]:
         n_cls_name = kwargs.get("entry_type", None)
         if n_cls_name is None:
             return []
@@ -92,6 +92,9 @@ class Entry(Factory):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} cache={type(self._cache)} path={self._path} />"
 
+    def __entry__(self) -> Entry:
+        return self
+
     @property
     def is_sequence(self) -> bool:
         return len(self._path) == 0 and isinstance(self._cache, collections.abc.Sequence)
@@ -99,10 +102,6 @@ class Entry(Factory):
     @property
     def is_mapping(self) -> bool:
         return len(self._path) == 0 and isinstance(self._cache, collections.abc.Mapping)
-
-    @property
-    def __entry__(self) -> Entry:
-        return self
 
     @property
     def cache(self) -> typing.Any:
@@ -204,7 +203,7 @@ class Entry(Factory):
         return self._path.remove(self._cache)
     ###########################################################
 
-    def get(self, path, default_value=_not_found_, **kwargs) -> typing.Any:
+    def get(self, path, default_value: typing.Any = _not_found_, **kwargs) -> typing.Any:
         res = self.child(path).query(default_value=default_value, **kwargs)
         if res is _not_found_:
             raise IndexError(f"Can not find value at {path}!")
@@ -250,8 +249,8 @@ class Entry(Factory):
 def as_entry(obj) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
-    elif hasattr(obj.__class__, "__entry__"):
-        entry = obj.__entry__
+    elif hasattr(obj.__class__, "__as__entry__"):
+        entry = obj.__as__entry__()
     else:
         entry = Entry(obj)
     return entry

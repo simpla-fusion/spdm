@@ -23,7 +23,7 @@ class File(Connection):
             return super().__new__(cls, *args, **kwargs)
 
     @classmethod
-    def _guess_class_name(cls, path, *args, **kwargs) -> typing.List[str]:
+    def _guess_plugin_name(cls, path, *args, **kwargs) -> typing.List[str]:
         n_cls_name = ''
         if "format" in kwargs:
             n_cls_name = kwargs.get("format")

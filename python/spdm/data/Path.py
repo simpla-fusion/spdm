@@ -306,7 +306,7 @@ class Path(list):
                 break
             elif isinstance(p, str):
                 if not isinstance(target, collections.abc.Mapping):
-                    raise TypeError(f"Cannot traversal '{p}' in {pprint.pformat(target)}")
+                    raise TypeError(f"Cannot get '{path[:idx+1]}' in {pprint.pformat(target)}")
                 elif p not in target:
                     break
             elif isinstance(p, int):
@@ -340,7 +340,7 @@ class Path(list):
         elif hasattr(target.__class__, "_as_child"):
             yield from self._find(target._as_child(path[pos]), path[pos+1:], *args, **kwargs)
         elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
-            yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
+            yield target.__entry__().child(path[pos:]).find(*args, **kwargs)
         elif isinstance(path[pos], str):
             yield from self._find(target.get(path[pos]), path[pos+1:], **kwargs)
 
@@ -412,7 +412,7 @@ class Path(list):
         target, pos = self._traversal(target, path)
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).query(op=op, *args, **kwargs)
+            return target.__entry__().child(path[pos:]).query(op=op, *args, **kwargs)
         elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
             res = [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs)]
             if len(res) == 1 and isinstance(path[pos], collections.abc.Mapping) and (all(k[0] != '@' for k in path[pos].keys()) or path[pos].get("@only_first", False)):
@@ -455,7 +455,7 @@ class Path(list):
         target, pos = self._traversal(target, path[: -1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
+            return target.__entry__().child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
         elif len(path) == 0:
             return self._update(target, value, *args, **kwargs)
         elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
@@ -476,7 +476,7 @@ class Path(list):
         target, pos = self._traversal(target, path[: -1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).delete(*args, **kwargs)
+            return target.__entry__().child(path[pos:]).delete(*args, **kwargs)
         elif len(path) == 0:
             target.clear()
             return 1
@@ -524,7 +524,7 @@ class Path(list):
         target, pos = self._traversal(target, path[:-1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).update(value,  *args, overwrite=force, **kwargs)
+            return target.__entry__().child(path[pos:]).update(value,  *args, overwrite=force, **kwargs)
         elif len(path) == 0:
             self._update_or_replace(target, value, force=force, replace=False, **kwargs)
             return 1

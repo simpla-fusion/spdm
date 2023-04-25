@@ -3,12 +3,12 @@ from __future__ import annotations
 import typing
 from enum import Flag, auto
 
-from ..common.Factory import Factory
+from ..common.Plugin import Pluggable
 from ..util.uri_utils import URITuple, uri_split
 from .Entry import Entry
 
 
-class Connection(Factory):
+class Connection(Pluggable):
 
     class Mode(Flag):
         read = auto()       # open for reading (default)
