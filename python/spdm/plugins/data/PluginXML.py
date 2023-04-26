@@ -15,7 +15,7 @@ from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.utils.dict_util import format_string_recursive
 from spdm.utils.misc import normalize_path, serialize
-
+from spdm.utils.logger import logger
 _TPath = typing.TypeVar("_TPath")
 
 
@@ -108,15 +108,15 @@ class XMLEntry(Entry):
         prev = None
         for p in path:
             if type(p) is int:
-                res += f"[position()= {p+1} or @id='*']"
+                res += f"[(position()= {p+1} and @id ) or (@id={p+1}) or @id='*']"
                 envs[prev] = p
-            elif isinstance(p, slice):
-                if p == slice(None):
-                    res += "[@id]"
-                else:
-                    raise NotImplementedError("XML DO NOT SUPPORT SLICE!")
-            elif isinstance(p, (tuple, set)):
-                raise NotImplementedError(f"XML DO NOT SUPPORT TUPLE OR SET!{path}")
+            # # elif isinstance(p, slice):
+            # #     if p == slice(None):
+            # #         res += "[@id]"
+            # #     else:
+            # #         raise NotImplementedError("XML DO NOT SUPPORT SLICE!")
+            # elif isinstance(p, (tuple, set)):
+            #     raise NotImplementedError(f"XML DO NOT SUPPORT TUPLE OR SET!{path}")
             elif isinstance(p, str) and len(p) > 0:
                 if p[0] == '@':
                     res += f"[{p}]"
@@ -266,38 +266,42 @@ class XMLEntry(Entry):
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
 
     def find(self,  *args, envs={}, **kwargs):
-        path, s_envs = self._xpath(self._path[:])
+        # path, s_envs = self._xpath(self._path[:])
         # TODO: PathTraverser(path):
-        for child in _XPath(path).evaluate(self._cache):
-            if child.tag is _XMLComment:
-                continue
-            res = self._convert(child, path=path,
-                                envs=collections.ChainMap(s_envs, envs))
-            yield res
+        for s_path in self._path.traversal():
+            s_path, s_envs = self._xpath(s_path)
+            res = _XPath(s_path).evaluate(self._cache)
+
+            if len(res) == 0:
+                break
+            for child in res:
+                if child.tag is not _XMLComment:
+                    yield self._convert(child, path=s_path,
+                                        envs=collections.ChainMap(s_envs, envs))
 
     def items(self,    *args, envs={}, **kwargs):
-        path = self._path
+        path=self._path
         for spath in PathTraverser(path):
-            xp, s_envs = self.xpath(spath)
+            xp, s_envs=self.xpath(spath)
             for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
-                res = self._convert(child, path=spath,
+                res=self._convert(child, path=spath,
                                     envs=collections.ChainMap(s_envs, envs))
                 yield child.tag, res
 
     def values(self,    *args, envs={}, **kwargs):
-        path = self._path
+        path=self._path
         for spath in PathTraverser(path):
-            xp, s_envs = self.xpath(spath)
+            xp, s_envs=self.xpath(spath)
             for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
-                res = self._convert(child, path=spath,
+                res=self._convert(child, path=spath,
                                     envs=collections.ChainMap(s_envs, envs))
                 yield res
 
-    @property
+    @ property
     def attribute(self):
         return self._cache.attrib
 
@@ -308,7 +312,7 @@ class XMLEntry(Entry):
 class XMLFile(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._root = load_xml(self.uri.path, mode=self.mode)
+        self._root=load_xml(self.uri.path, mode=self.mode)
 
     def read(self, lazy=True) -> Entry:
         return XMLEntry(self._root, writable=False)
@@ -317,4 +321,4 @@ class XMLFile(File):
         raise NotImplementedError()
 
 
-__SP_EXPORT__ = XMLFile
+__SP_EXPORT__=XMLFile

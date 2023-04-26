@@ -80,7 +80,6 @@ class Path(list):
         less = auto()
         greater = auto()
 
-
     @classmethod
     def reduce(cls, path: list) -> list:
         if len(path) < 2:
@@ -96,8 +95,6 @@ class Path(list):
             return [stop, *Path.reduce(path[2:])]
         else:
             return path
-
-
 
     @classmethod
     def normalize(cls, p: typing.Any, raw=False) -> typing.Any:
@@ -308,6 +305,9 @@ class Path(list):
     def update(self, target: typing.Any, *args, **kwargs) -> int:
         return self._update(target, self[:], *args,  **kwargs)
 
+    def traversal(self) -> typing.Generator[typing.List[type.Any], None, None]:
+        yield from self._traversal_path(self[:])
+
     # End API
 
     def _traversal(self, target: typing.Any, path: typing.List[typing.Any]) -> typing.Tuple[typing.Any, int]:
@@ -343,6 +343,40 @@ class Path(list):
             target = target[p]
             pos = idx
         return target, pos+1
+
+    MAX_SLICE_STOP = 1024
+
+    def _traversal_path(self, path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[typing.List[type.Any], None, None]:
+        """
+        traversal all possible path
+        """
+        if len(path) == 0:
+            yield prefix
+            return
+        try:
+            pos = next(idx for idx, item in enumerate(path) if not isinstance(item, (int, str)))
+        except StopIteration:
+            yield path
+            return
+        prefix = prefix+path[:pos]
+        suffix = path[pos+1:]
+        item = path[pos]
+
+        if isinstance(item, (tuple, set)):
+            for k in item:
+                yield from self._traversal_path(suffix, prefix+[k])
+        elif isinstance(item, collections.abc.Mapping):
+            yield from self._traversal_path(suffix, prefix+[item])
+        elif isinstance(item, slice):
+            start = item.start if item.start is not None else 0
+            step = item.step if item.step is not None else 1
+            stop = item.stop if item.stop is not None else Path.MAX_SLICE_STOP
+
+            for k in range(start, stop, step):
+                yield from self._traversal_path(suffix, prefix+[k])
+
+            if stop == Path.MAX_SLICE_STOP:
+                logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
 
     def _find(self, target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target, pos = self._traversal(target, path)

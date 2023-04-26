@@ -157,12 +157,12 @@ class Container(Node, typing.Container[_TObject]):
                 pass
             elif isinstance(value, orig_class):
                 pass
-            elif isinstance(type_hint, Container._PRIMARY_TYPE_):
+            elif issubclass(orig_class, np.ndarray):
+                value = np.asarray(value)
+            elif type_hint in Container._PRIMARY_TYPE_:
                 value = type_hint(value)
             elif dataclasses.is_dataclass(type_hint):
                 value = as_dataclass(type_hint, value)
-            elif issubclass(orig_class, np.ndarray):
-                value = np.asarray(value)
             elif issubclass(type_hint, Enum):
                 if isinstance(value, collections.abc.Mapping):
                     value = type_hint[value["name"]]
@@ -170,6 +170,7 @@ class Container(Node, typing.Container[_TObject]):
                     value = type_hint[value]
                 else:
                     raise TypeError(f"Can not convert {value} to {type_hint}")
+
             else:
                 value = type_hint(value, **kwargs)
 
