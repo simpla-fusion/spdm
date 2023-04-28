@@ -1,12 +1,12 @@
 import collections
 import collections.abc
 import typing
-
+import abc
 from .logger import logger
 from .sp_export import sp_find_module
 
 
-class Pluggable(object):
+class Pluggable(metaclass=abc.ABCMeta):
     """ Factory class to create objects from a registry.    """
 
     _registry = {}
@@ -31,20 +31,12 @@ class Pluggable(object):
             return decorator
 
     @classmethod
+    @abc.abstractmethod
     def _guess_plugin_name(cls, *args, **kwargs) -> typing.List[str]:
-        return [f"spdm/plugins/data/Plugin{cls.__name__}#Plugin{cls.__name__}",
-                f"spdm/plugins/data/Plugin{cls.__name__}"
-                ]
+        raise NotImplementedError("This method should be implemented in subclass.")
 
-    def __new__(cls,  *args, **kwargs):
-        if not issubclass(cls, Pluggable):
-            return object.__new__(cls)
-
-        # if not issubclass(cls, Pluggable) or getattr(cls, "_IDS", None) is None:
-        #     return object.__new__(cls)
-        # else:
-        #     return Pluggable.__new__(cls, *args, **kwargs)
-
+    @classmethod
+    def _guess_plugin_cls(cls, *args, **kwargs) -> typing.Type:
         n_cls = None
         name_list = cls._guess_plugin_name(*args, **kwargs)
         for n_cls_name in name_list:
@@ -61,8 +53,18 @@ class Pluggable(object):
                 raise ModuleNotFoundError(f"Can not find plugin in {name_list}")
             else:
                 n_cls = cls
+        return n_cls
 
-        return object.__new__(n_cls)
+    # def __new__(cls,  *args, **kwargs):
+        # if not issubclass(cls, Pluggable):
+        #     return object.__new__(cls)
+        # return object.__new__(Pluggable._guess_plugin_cls(*args, **kwargs))
+
+    def __init__(self, *args, **kwargs):
+        n_cls= self._guess_plugin_cls(*args, **kwargs)
+        if self.__class__ is not n_cls:
+            self.__class__ =n_cls
+            n_cls.__init__(self, *args, **kwargs)
 
     @classmethod
     def create(cls, *args, **kwargs):

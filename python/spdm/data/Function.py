@@ -17,7 +17,18 @@ def create_spline(x, y, **kwargs) -> PPoly:
     return CubicSpline(x, y, bc_type=bc_type, **kwargs)
 
 
-class Function:
+_T = typing.TypeVar("_T")
+
+
+class Function(typing.Generic[_T]):
+
+    _registry = {}
+
+    def __init__(self, *args, **kwargs) -> None:
+        self.__class__ = Function1D
+
+
+class Function1D(Function[_T]):
     """
         NOTE: Function is immutable!!!!
     """
@@ -132,8 +143,7 @@ class Function:
         if self.x_axis is not None:
             return len(self.x_axis)
         else:
-            raise RuntimeError(
-                f"Can not get length from {type(self._y)} or {type(self.x_axis)}")
+            raise RuntimeError(f"Can not get length from {type(self._y)} or {type(self.x_axis)}")
 
     def duplicate(self):
         return self.__class__(self.x_axis, self._y)
@@ -319,6 +329,12 @@ class Function:
     def integrate(self, a=None, b=None):
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
 
+
+class FunctionND(Function):
+    pass
+
+    def __array__(self):
+        return self._data
 
 # class FunctionContainer(Container[Function]):
 #     """

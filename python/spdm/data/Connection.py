@@ -9,6 +9,7 @@ from .Entry import Entry
 
 
 class Connection(Pluggable):
+    _registry = {}
 
     class Mode(Flag):
         read = auto()       # open for reading (default)
@@ -40,8 +41,18 @@ class Connection(Pluggable):
         opened = auto()
         closed = auto()
 
-    def __init__(self, uri, /, mode=Mode.read, **kwargs):
-        super().__init__()
+    def __init__(self, uri, *args,  mode=Mode.read, **kwargs):
+        """
+         r       Readonly, file must exist (default)
+         rw      Read/write, file must exist
+         w       Create file, truncate if exists
+         x       Create file, fail if exists
+         a       Read/write if exists, create otherwise
+        """
+        if self.__class__ is Connection:
+            Pluggable.__init__(self, *args, mode=mode, **kwargs)
+            return
+                
         self._uri = uri_split(uri)
         self._mode = Connection.INV_MOD_MAP[mode] if isinstance(mode, str) else mode
         self._is_open = False

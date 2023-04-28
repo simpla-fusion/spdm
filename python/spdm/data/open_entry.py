@@ -1,16 +1,12 @@
-import collections.abc
-from dataclasses import dataclass
 import typing
 
-from ..utils.tags import _not_found_, _undefined_
-from ..utils.logger import logger
 from ..utils.misc import fetch_request
-from ..utils.uri_utils import URITuple, uri_merge, uri_split
+from ..utils.uri_utils import URITuple, uri_split
 from .Collection import Collection
 from .Entry import Entry
 from .File import File
 from .FileCollection import FileCollection
-from .Mapper import Mapper, create_mapper
+from .Mapper import create_mapper
 
 
 def open_db(uri: typing.Union[str, URITuple], *args,

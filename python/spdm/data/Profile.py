@@ -1,30 +1,34 @@
-from typing import Any
-import numpy as np
 import collections.abc
+import typing
 from enum import Enum
+from functools import cached_property
+from typing import Any
 
-from spdm.data.Node import Node
+import numpy as np
+from spdm.data.Dict import Dict
 from spdm.data.Function import Function
 from spdm.data.List import List
-from spdm.data.Dict import Dict
+from spdm.data.Node import Node
 from spdm.data.sp_property import sp_property
-
 from spdm.utils.logger import logger
-import typing
+from spdm.utils.tags import _undefined_
+
+from .Container import Container
 
 _T = typing.TypeVar("_T")
 
 
-class Profile(Node, typing.Generic[_T]):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cache = None
+class Profile(Node, Function, typing.Generic[_T]):
 
-    def __value__(self) -> Function:
-        if self._cahce is None:
-            y = super().__value__()
-            self._cahce = Function()
-        return self._cache
+    def __init__(self,   *args,   **kwargs) -> None:
+        Node.__init__(*args,   **kwargs)
+        if isinstance(self._parent, Container):
+            coords = [k for k in self._appinfo.keys() if k.startswith("coordinate")]
+            coords.sort()
+            Function.__init__(*[self._parent[c] for c in coords], self, appinfo=self._appinfo)
+        else:
+            raise RuntimeError(f"Parent is None, can not determint the coordinates!")
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
-        return super().__call__(*args, **kwds)
+    @property
+    def data(self) -> np.ndarray:
+        return super().__value__()

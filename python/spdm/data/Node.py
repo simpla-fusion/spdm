@@ -9,53 +9,44 @@ import typing
 import numpy as np
 
 from ..utils.tags import _not_found_, _undefined_, tags
-from .Entry import Entry, as_entry
+
+from .Entry import Entry, as_entry, Entry
+
+from .open_entry import open_entry
 
 
 class Node(object):
     """
-
+    节点类，用于表示数据结构中的节点，节点可以是一个标量（或np.ndarray），也可以是一个列表，也可以是一个字典。
+    用于在一般数据结构上附加类型标识（type_hint)。
     """
 
     _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __new__(cls,  *args, **kwargs):
-        if cls is not Node:
-            return object.__new__(cls)
-        if len(args) == 0:
-            n_cls = Node
-        elif hasattr(args[0], "__as__entry__"):
-            if args[0].__as__entry__().is_sequence:
-                n_cls = Node._SEQUENCE_TYPE_
-            elif args[0].__as__entry__().is_mapping:
-                n_cls = Node._MAPPING_TYPE_
-            else:
-                n_cls = cls
-        elif isinstance(args[0], collections.abc.Sequence) and not isinstance(d, str):
-            n_cls = Node._SEQUENCE_TYPE_
-        elif isinstance(args[0], collections.abc.Mapping):
-            n_cls = Node._MAPPING_TYPE_
-        else:
-            n_cls = cls
+    def __init__(self, d: typing.Any,  parent: typing.Optional[Node] = None, cache=None, appinfo=None, **kwargs) -> None:
+        if isinstance(d, Node._PRIMARY_TYPE_):  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
+            self._entry = None
+            self._cache = d
+        else: # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
+            self._cache = cache
+            self._entry = as_entry(d)
 
-        if n_cls in (dict, list):
-            return n_cls.__new__(n_cls)
-        else:
-            return object.__new__(n_cls)
+        if self.__class__ is not Node or self._entry is None: #  如果是子类或者 entry 是 None, 就不改变自己的类, 也就是 Node
+            pass
+        elif self._entry.is_sequence:  # 如果 entry 是列表, 就把自己的类改成列表
+            self.__class__ = Node._SEQUENCE_TYPE_
+        elif self._entry.is_mapping:  # 如果 entry 是字典, 就把自己的类改成字典
+            self.__class__ = Node._MAPPING_TYPE_
 
-    def __init__(self, entry=None, *args, parent=None, cache=_undefined_,  **kwargs) -> None:
-        super().__init__()
-        self._cache = cache
-        self._entry = as_entry(entry)
         self._parent = parent
-        self._appinfo = kwargs.get("appinfo", None)
+        self._appinfo: typing.Mapping[str, typing.Any] = appinfo if appinfo is not None else kwargs
 
     def _duplicate(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
         other._cache = self._cache
-        other._entry = self._entry.duplicate()
+        other._entry = self._entry.duplicate() if self._entry is not None else None
         other._parent = self._parent
         other._appinfo = self._appinfo
         return other
@@ -81,20 +72,24 @@ class Node(object):
             self._cache = self._entry.__value__()
         return self._cache
 
-    def reset(self):
+    def _reset(self):
         self._cache = None
         self._entry.reset()
 
-    def flash(self):
+    def _flash(self):
         raise NotImplementedError("flash")
 
-    def dump(self):
-        return self.__serialize__()
+    def _dump(self):
+        if self._cache is None:
+            self._cache = self._entry.dump()
+        else:
+            raise NotImplementedError("Merge cache and entry")
+        return self._cache
 
     def __serialize__(self):
-        return self._entry.dump()
+        return self._dump()
 
-    def validate(self, value, type_hint) -> bool:
+    def _validate(self, value, type_hint) -> bool:
         if value is _undefined_ or type_hint is _undefined_:
             return False
         else:

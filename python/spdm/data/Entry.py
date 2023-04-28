@@ -34,47 +34,10 @@ class Entry(Pluggable):
         else:
             return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}Entry"]
 
-    def __new__(cls,  *args, **kwargs):
-        if cls is not Entry or "entry_type" not in kwargs:
-            return object.__new__(cls)
-        else:
-            return super().__new__(cls, *args,   **kwargs)
-
-    # @classmethod
-    # def register(cls, names: typing.Union[typing.List[str], str], other_cls=None):
-    #     """
-    #     Decorator to register a class to the registry.
-    #     """
-    #     if other_cls is not None:
-    #         if isinstance(names, str):
-    #             cls._registry[names] = other_cls
-    #         else:
-    #             for n in names:
-    #                 cls._registry[n] = other_cls
-    #         return other_cls
-    #     else:
-    #         def decorator(o_cls):
-    #             Entry.register(names, o_cls)
-    #             return o_cls
-    #         return decorator
-
-    # @classmethod
-    # def create(cls, *args, scheme=None, **kwargs):
-    #     """
-    #     Create an entry from a description.
-    #     """
-    #     if scheme is not None:
-    #         try:
-    #             res = super().create(scheme, *args, **kwargs)
-    #         except ModuleNotFoundError:
-    #             pass
-    #         else:
-    #             return res
-    #     else:
-    #         return Entry(*args, scheme=scheme,  **kwargs)
+    
 
     def __init__(self, cache:  typing.Any = None, path: typing.Union[Path, None] = None, **kwargs):
-        super().__init__()
+        super().__init__(cache, path,  **kwargs)
         self._cache = cache if cache is not None else {}
         self._path: Path = Path(path) if not isinstance(path, Path) else path.duplicate()
 
@@ -248,8 +211,8 @@ class Entry(Pluggable):
 def as_entry(obj) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
-    elif hasattr(obj.__class__, "__as__entry__"):
-        entry = obj.__as__entry__()
+    elif hasattr(obj.__class__, "__entry__"):
+        entry = obj.__entry__()
     else:
         entry = Entry(obj)
     return entry

@@ -9,22 +9,17 @@ from ..utils.sp_export import sp_load_module
 from ..utils.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
+from ..utils.Plugin import Pluggable
 
 
 class File(Connection):
     """
         File like object
     """
-    _registry = {}
-
-    def __new__(cls,  *args, **kwargs):
-        if cls is not File:
-            return object.__new__(cls)
-        else:
-            return super().__new__(cls, *args, **kwargs)
 
     @classmethod
     def _guess_plugin_name(cls, path, *args, **kwargs) -> typing.List[str]:
+
         n_cls_name = ''
         if "format" in kwargs:
             n_cls_name = kwargs.get("format")
@@ -44,18 +39,13 @@ class File(Connection):
         #  f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
 
         return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
-   
-    def __init__(self,  *args, mode="r", ** kwargs):
-        """
-         r       Readonly, file must exist (default)
-         rw      Read/write, file must exist
-         w       Create file, truncate if exists
-         x       Create file, fail if exists
-         a       Read/write if exists, create otherwise
-        """
-        if isinstance(mode, str):
-            mode = File.INV_MOD_MAP.get(mode, File.Mode.read)
-        super().__init__(*args, mode=mode, **kwargs)
+
+    def __init__(self,  *args,  ** kwargs): 
+        if self.__class__ is File:
+            Pluggable.__init__(self, *args, **kwargs)
+            return
+                      
+        super().__init__(*args, **kwargs)
 
     @property
     def mode_str(self) -> str:
