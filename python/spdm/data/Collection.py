@@ -20,7 +20,7 @@ class Collection(Connection):
     _registry = {}
 
     @classmethod
-    def _guess_plugin_name(cls, path, *args,  **kwargs) -> typing.List[str]:
+    def _plugin_guess_name(cls, path, *args,  **kwargs) -> typing.List[str]:
         n_cls_name = None
 
         if "protocol" in kwargs:

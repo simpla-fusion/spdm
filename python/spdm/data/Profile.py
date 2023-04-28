@@ -18,14 +18,16 @@ from .Container import Container
 _T = typing.TypeVar("_T")
 
 
-class Profile(Node, Function, typing.Generic[_T]):
+class Profile(Node, Function[_T]):
 
-    def __init__(self,   *args,   **kwargs) -> None:
-        Node.__init__(*args,   **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        Node.__init__(self, *args, **kwargs)
         if isinstance(self._parent, Container):
             coords = [k for k in self._appinfo.keys() if k.startswith("coordinate")]
             coords.sort()
-            Function.__init__(*[self._parent[c] for c in coords], self, appinfo=self._appinfo)
+            coords = [self._appinfo[c] for c in coords]
+            coords = [(None if (c == "1...N" or self._entry is None) else self._entry.child(c)) for c in coords]
+            Function.__init__(self, *coords, self.__entry__(), appinfo=self._appinfo)
         else:
             raise RuntimeError(f"Parent is None, can not determint the coordinates!")
 

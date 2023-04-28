@@ -21,78 +21,77 @@ _T = typing.TypeVar("_T")
 
 
 class Function(typing.Generic[_T]):
-
-    _registry = {}
-
-    def __init__(self, *args, **kwargs) -> None:
-        self.__class__ = Function1D
-
-
-class Function1D(Function[_T]):
     """
         NOTE: Function is immutable!!!!
     """
 
     def __init__(self, *args,  **kwargs):
         if len(args) == 0:
-            x = kwargs.get("x", 0)
-            y = kwargs.get("y", 0)
-        elif len(args) == 1:
-            y = args[0]
-            x = None
-        else:
-            x = args[0]
-            y = args[1]
-            if len(args) > 2:
-                raise RuntimeWarning(f"Too much position arguments {args}")
-        if isinstance(x, np.ndarray):
-            assert(x[0] < x[-1])
+            raise RuntimeError(f"Function must have at least one argument!")
+
+        self._x = args[:-1]
+        self._y = args[-1]
+        self._opts = kwargs
+
+        # if len(args) == 0:
+        #     x = kwargs.get("x", 0)
+        #     y = kwargs.get("y", 0)
+        # elif len(args) == 1:
+        #     y = args[0]
+        #     x = None
+        # else:
+        #     x = args[0]
+        #     y = args[1]
+        #     if len(args) > 2:
+        #         raise RuntimeWarning(f"Too much position arguments {args}")
+        # if isinstance(self._x, np.ndarray):
+        #     assert(self._x[0] < self._x[-1])
         # if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
         #     self._y = 0
 
-        if isinstance(y, Function):
-            if x is None:
-                x = y.x_domain
-                self._y = y._y
-            else:
-                self._y = y
-        elif isinstance(y, PPoly):
-            self._y = y
-            if x is None:
-                x = y.x
-        else:
-            self._y = y
+        # if isinstance(y, Function):
+        #     if x is None:
+        #         x = y.x_domain
+        #         self._y = y._y
+        #     else:
+        #         self._y = y
+        # elif isinstance(y, PPoly):
+        #     self._y = y
+        #     if x is None:
+        #         x = y.x
+        # else:
+        #     self._y = y
 
-        if x is None or len(x) == 0:
-            self._x_axis = None
-            self._x_domain = [-np.inf, np.inf]
-        elif isinstance(x, np.ndarray):
-            if len(x) == 0:
-                logger.error(f"{type(x)} {type(y)}")
-            self._x_axis = x
-            self._x_domain = [x[0], x[-1]]
-        elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
-            self._x_domain = list(set(x))
-            if isinstance(y, np.ndarray):
-                self._x_axis = np.linspace(
-                    self._x_domain[0], self._x_domain[-1], len(y))
-            else:
-                self._x_axis = None
-        else:
-            self._x_domain = [-np.inf, np.inf]
-            self._x_axis = None
+        # if x is None or len(x) == 0:
+        #     self._x = None
+        #     self._x_domain = [-np.inf, np.inf]
+        # elif isinstance(x, np.ndarray):
+        #     if len(x) == 0:
+        #         logger.error(f"{type(x)} {type(y)}")
+        #     self._x = x
+        #     self._x_domain = [x[0], x[-1]]
+        # elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
+        #     self._x_domain = list(set(x))
+        #     if isinstance(y, np.ndarray):
+        #         self._x = np.linspace(
+        #             self._x_domain[0], self._x_domain[-1], len(y))
+        #     else:
+        #         self._x = None
+        # else:
+        #     self._x_domain = [-np.inf, np.inf]
+        #     self._x = None
 
-        if self._y is None or self._y is _not_found_:
-            logger.warning(f"Empty function: x={self._x_axis},y={self._y}")
-        elif isinstance(self._y, np.ndarray) and (self._x_axis is not None and self._x_axis.shape != self._y.shape):
-            raise ValueError(f"x.shape  != y.shape {self._x_axis.shape}!={self._y.shape}")
+        # if self._y is None or self._y is _not_found_:
+        #     logger.warning(f"Empty function: x={self._x},y={self._y}")
+        # elif isinstance(self._y, np.ndarray) and (self._x is not None and self._x.shape != self._y.shape):
+        #     raise ValueError(f"x.shape  != y.shape {self._x.shape}!={self._y.shape}")
 
     def __str__(self) -> str:
         return pprint.pformat(self.__array__())
 
     @property
     def is_valid(self) -> bool:
-        return self._x_axis is not None and self._y is not None
+        return self._x is not None and self._y is not None
 
     @cached_property
     def is_constant(self) -> bool:
@@ -126,18 +125,18 @@ class Function1D(Function[_T]):
 
     @property
     def x_axis(self) -> np.ndarray:
-        return self._x_axis  # type:ignore
+        return self._x  # type:ignore
 
     @x_axis.setter
     def x_axis(self, x: np.ndarray):
         if isinstance(self._y, np.ndarray) and len(self._y) != len(x):
             raise ValueError(f"len(x) != len(y) {len(x)} != {len(self._y)}")
-        self._x_axis = x
+        self._x = x
 
     def setdefault_x(self, x):
-        if self._x_axis is None:
+        if self._x is None:
             self.x_axis = x
-        return self._x_axis
+        return self._x
 
     def __len__(self) -> int:
         if self.x_axis is not None:
@@ -154,6 +153,11 @@ class Function1D(Function[_T]):
     def __array__(self):
         if isinstance(self._y, np.ndarray):
             return self._y
+        elif hasattr(self._y.__class__, "__entry__"):
+            v = self._y.__entry__().__value__()
+            if v is None or v is _not_found_:
+                raise ValueError(f"Can not get value from {self._y}")
+            return np.asarray(v, dtype=float)
         else:
             return self.__call__()
 
@@ -162,22 +166,22 @@ class Function1D(Function[_T]):
 
         if isinstance(self._y,  PPoly):
             return self._y
-        elif self.x_axis is None:
+        elif self._x is None:
             raise ValueError(f"x_axis is None")
         elif isinstance(self._y, np.ndarray):
-            assert(self.x_axis.size == self._y.size)
-            return create_spline(self._x_axis,  self._y)
+            assert(self._x[0].size == self._y.size)
+            return create_spline(self._x[0],  self._y)
         else:
-            return create_spline(self.x_axis,  self.__call__(self.x_axis))
+            return create_spline(self._x[0],  self.__call__(self.x_axis))
 
     def __call__(self, x=None, /,  **kwargs) -> typing.Union[np.ndarray, float]:
         if x is None:
-            x = self._x_axis
+            x = self._x
 
         if x is None:
             raise RuntimeError(f"x_axis is None!")
 
-        if x is self._x_axis and isinstance(self._y, np.ndarray):
+        if x is self._x and isinstance(self._y, np.ndarray):
             return self._y
 
         if self._y is None:
@@ -192,7 +196,7 @@ class Function1D(Function[_T]):
             return np.asarray(self._y(x, **kwargs), dtype=float)
         # elif hasattr(y, "__array__"):
         #     y = y.__array__
-        elif x is not self._x_axis and isinstance(self._y, np.ndarray):
+        elif x is not self._x and isinstance(self._y, np.ndarray):
             return self._ppoly(x, **kwargs)
         else:
             raise TypeError((type(x), (self._y)))
@@ -343,12 +347,12 @@ class FunctionND(Function):
 
 #     def __init__(self,   x_axis, *args,  **kwargs):
 #         super().__init__(*args,  **kwargs)
-#         self._x_axis = x_axis
+#         self._x = x_axis
 
 #     def _post_process(self, value: typing.Any, key, *args,  ** kwargs) -> Function:
 
 #         if not isinstance(value, Function):
-#             value = Function(self._x_axis, value)
+#             value = Function(self._x, value)
 #         return super()._post_process(value, key, *args, **kwargs)
 
 

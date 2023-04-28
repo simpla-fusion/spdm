@@ -5,11 +5,11 @@ import collections.abc
 import pathlib
 import typing
 
+from ..utils.Pluggable import try_init_plugin
 from ..utils.sp_export import sp_load_module
 from ..utils.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
-from ..utils.Plugin import Pluggable
 
 
 class File(Connection):
@@ -18,7 +18,7 @@ class File(Connection):
     """
 
     @classmethod
-    def _guess_plugin_name(cls, path, *args, **kwargs) -> typing.List[str]:
+    def _plugin_guess_name(cls, path, *args, **kwargs) -> typing.List[str]:
 
         n_cls_name = ''
         if "format" in kwargs:
@@ -40,11 +40,10 @@ class File(Connection):
 
         return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
 
-    def __init__(self,  *args,  ** kwargs): 
-        if self.__class__ is File:
-            Pluggable.__init__(self, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        if self.__class__ is File and try_init_plugin(self, *args, **kwargs):
             return
-                      
+
         super().__init__(*args, **kwargs)
 
     @property

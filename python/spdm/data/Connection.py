@@ -3,13 +3,16 @@ from __future__ import annotations
 import typing
 from enum import Flag, auto
 
-from ..utils.Plugin import Pluggable
+from ..utils.Pluggable import Pluggable, try_init_plugin
 from ..utils.uri_utils import URITuple, uri_split
 from .Entry import Entry
 
 
 class Connection(Pluggable):
-    _registry = {}
+    """
+        Connection like object
+    """
+    _plugin_registry = {}
 
     class Mode(Flag):
         read = auto()       # open for reading (default)
@@ -49,10 +52,9 @@ class Connection(Pluggable):
          x       Create file, fail if exists
          a       Read/write if exists, create otherwise
         """
-        if self.__class__ is Connection:
-            Pluggable.__init__(self, *args, mode=mode, **kwargs)
+        if self.__class__ is Connection and try_init_plugin(self, *args, mode=mode, **kwargs):
             return
-                
+
         self._uri = uri_split(uri)
         self._mode = Connection.INV_MOD_MAP[mode] if isinstance(mode, str) else mode
         self._is_open = False

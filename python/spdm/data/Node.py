@@ -25,20 +25,23 @@ class Node(object):
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __init__(self, d: typing.Any,  parent: typing.Optional[Node] = None, cache=None, appinfo=None, **kwargs) -> None:
+    def __init__(self, d: typing.Any = None,  parent: typing.Optional[Node] = None, cache=None, appinfo=None, **kwargs) -> None:
         if isinstance(d, Node._PRIMARY_TYPE_):  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
             self._entry = None
             self._cache = d
-        else: # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
+        else:  # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
             self._cache = cache
             self._entry = as_entry(d)
 
-        if self.__class__ is not Node or self._entry is None: #  如果是子类或者 entry 是 None, 就不改变自己的类, 也就是 Node
+        if self.__class__ is not Node or self._entry is None:  # 如果是子类或者 entry 是 None, 就不改变自己的类, 也就是 Node
             pass
         elif self._entry.is_sequence:  # 如果 entry 是列表, 就把自己的类改成列表
             self.__class__ = Node._SEQUENCE_TYPE_
         elif self._entry.is_mapping:  # 如果 entry 是字典, 就把自己的类改成字典
             self.__class__ = Node._MAPPING_TYPE_
+        else:
+            self._cache = cache
+            self._entry = as_entry(d)
 
         self._parent = parent
         self._appinfo: typing.Mapping[str, typing.Any] = appinfo if appinfo is not None else kwargs
