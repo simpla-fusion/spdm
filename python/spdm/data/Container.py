@@ -27,15 +27,6 @@ class Container(Node, typing.Container[_TObject]):
        Container Node
     """
 
-    def __init__(self, *args,  **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __serialize__(self) -> dict:
-        return self._entry.__serialize__()
-
-    def duplicate(self) -> Container[_TObject]:
-        return super().duplicate()  # type:ignore
-
     # def update(self, value) -> typing.Any:
     #     if isinstance(value, collections.abc.Mapping):
     #         return self._cache.update(value)
@@ -96,7 +87,7 @@ class Container(Node, typing.Container[_TObject]):
                     getter = attr.getter
                 if default_value is _not_found_:
                     default_value = attr.default_value
-                kwargs = {**kwargs, **attr.kwargs}
+                kwargs = {**kwargs, **attr.appinfo}
 
             if type_hint is None:  # 作为一般属性，由type_hint决定类型
                 type_hint = typing.get_type_hints(self.__class__).get(key, None)
@@ -207,12 +198,12 @@ class Container(Node, typing.Container[_TObject]):
                 if only_first:
                     obj = obj._as_child(None, obj._entry.child(query))
                 else:
-                    other: Container = obj.duplicate()  # type:ignore
+                    other: Container = obj._duplicate()  # type:ignore
                     other._entry = obj._entry.child(query)
                     obj = other
                 continue
             elif isinstance(query,  slice) and isinstance(obj, collections.abc.Sequence):
-                obj = obj.duplicate()
+                obj = obj._duplicate()
                 obj._entry = obj._entry.child(query)
                 continue
             elif isinstance(query, (str, int)):

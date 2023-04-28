@@ -45,15 +45,19 @@ class Node(object):
         else:
             return object.__new__(n_cls)
 
-    def __init__(self, entry=None, *args, parent=None, **kwargs) -> None:
+    def __init__(self, entry=None, *args, parent=None, cache=_undefined_,  **kwargs) -> None:
         super().__init__()
+        self._cache = cache
         self._entry = as_entry(entry)
         self._parent = parent
+        self._appinfo = kwargs.get("appinfo", None)
 
-    def duplicate(self) -> Node:
-        other: Node = Node.__new__(self.__class__)
+    def _duplicate(self) -> Node:
+        other: Node = self.__class__.__new__(self.__class__)
+        other._cache = self._cache
         other._entry = self._entry.duplicate()
         other._parent = self._parent
+        other._appinfo = self._appinfo
         return other
 
     def __repr__(self) -> str:
@@ -62,26 +66,27 @@ class Node(object):
     def __str__(self) -> str:
         return f"<{self.__class__.__name__}>{self._entry.dump()}</{self.__class__.__name__}>"
 
-    def flash(self):
-        self._entry = Entry(self._entry.dump())
-
     @property
     def annotation(self) -> dict:
-        return {"id": self.nid,   "type":  self._entry.__class__.__name__}
+        return {"type":  self._entry.__class__.__name__, "appinfo": self._appinfo}
 
-    @property
-    def nid(self) -> str:
-        return self._nid
+    def __cache__(self) -> typing.Any:
+        return self._cache
 
     def __entry__(self) -> Entry:
         return self._entry
 
-    
     def __value__(self) -> typing.Any:
-        return self._entry.__value__()
+        if self._cache is _undefined_:
+            self._cache = self._entry.__value__()
+        return self._cache
 
     def reset(self):
+        self._cache = None
         self._entry.reset()
+
+    def flash(self):
+        raise NotImplementedError("flash")
 
     def dump(self):
         return self.__serialize__()
@@ -98,7 +103,7 @@ class Node(object):
             if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(v_orig_class, type_hint):
                 res = True
             elif typing.get_origin(type_hint) is not None \
-                and typing.get_origin(v_orig_class) is typing.get_origin(type_hint) \
+                    and typing.get_origin(v_orig_class) is typing.get_origin(type_hint) \
                     and typing.get_args(v_orig_class) == typing.get_args(type_hint):
                 res = True
             else:

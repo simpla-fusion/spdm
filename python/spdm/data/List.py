@@ -16,13 +16,7 @@ _TObject = typing.TypeVar("_TObject")
 class List(Container[_TObject], typing.Sequence[_TObject]):
 
     def __init__(self, *args, cache=None, ** kwargs):
-        super().__init__(*args,  **kwargs)
-        self._cache = [] if cache is None else cache
-
-    def duplicate(self) -> Container:
-        other: List[_TObject] = super().duplicate()  # type:ignore
-        other._cache = self._cache
-        return other
+        super().__init__(*args, cache=[] if cache is None else cache, **kwargs)
 
     @property
     def _is_list(self) -> bool:

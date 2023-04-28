@@ -44,7 +44,7 @@ from __future__ import annotations
 import inspect
 import typing
 from _thread import RLock
-
+import collections
 import numpy as np
 
 from ..utils.logger import logger
@@ -63,7 +63,6 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                  type_hint=None,
                  doc: typing.Optional[str] = None,
                  strict=False,
-
                  **kwargs):
 
         self.lock = RLock()
@@ -75,20 +74,13 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             self.__doc__ = doc
 
         self.property_cache_key = getter if not callable(getter) else None
-        self.property_name: str = None
-        self._type_hint = type_hint
+        self.property_name: typing.Optional[str] = None
+        self.type_hint = type_hint
         self.strict = strict
         self.default_value = default_value
-        self.kwargs = kwargs
-
-    def __assert_obj_type(self, owner) -> None:
-        if not inspect.isfunction(getattr(owner, "_as_child", None)):
-            raise TypeError(
-                f"sp_property is only valid for class with method '_as_child', not for {type(owner)} '{self.property_name}'.")
+        self.appinfo = kwargs
 
     def __set_name__(self, owner, name):
-        self.__assert_obj_type(owner)
-
         # TODO：
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
@@ -108,26 +100,33 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             logger.warning(
                 f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
-    def __get_type_hint(self, owner):
-        if self._type_hint is None:
-            t_hints = typing.get_type_hints(owner)
-            self._type_hint = t_hints.get(self.property_name, None)
+    def _check_and_update(self, owner_cls):
+        if not inspect.isfunction(getattr(owner_cls, "_as_child", None)):
+            raise TypeError(
+                f"sp_property is only valid for class with method '_as_child', not for {type(owner_cls)} '{self.property_name}'.")
 
-        if self._type_hint is None:
+        if self.type_hint is None:
+            t_hints = typing.get_type_hints(owner_cls)
+            self.type_hint = t_hints.get(self.property_name, None)
+
+        if self.type_hint is None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
                 child_cls = typing.get_args(self.__orig_class__)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    self._type_hint = child_cls[0]
+                    self.type_hint = child_cls[0]
 
-        if self._type_hint is None and inspect.isfunction(self.getter):
-            self._type_hint = self.getter.__annotations__.get("return", None)
-        return self._type_hint
+        if self.type_hint is None and inspect.isfunction(self.getter):
+            self.type_hint = self.getter.__annotations__.get("return", None)
+
+        if len(self.appinfo) == 0 and not isinstance(self.appinfo,collections.ChainMap):
+            self.appinfo = collections.ChainMap(*[getattr(base, self.property_name).appinfo for base in owner_cls.__bases__ if isinstance(getattr(base, self.property_name, None), sp_property)])
+            
 
     def __set__(self, instance: typing.Any, value: typing.Any):
         assert(instance is not None)
-        self.__assert_obj_type(instance.__class__)
+        self._check_and_update(instance.__class__)
 
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
@@ -136,7 +135,11 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             if callable(self.setter):
                 self.setter(instance, value)
             else:
-                instance._as_child(self.property_cache_key, value)
+                instance._as_child(key=self.property_cache_key, value=value,
+                                   type_hint=self.type_hint,
+                                   default_value=self.default_value,
+                                   getter=self.getter,
+                                   appinfo=self.appinfo)
 
     def __get__(self, instance: typing.Any, owner=None) -> typing.Union[sp_property[_TObject], _TObject]:
         if instance is None:
@@ -144,16 +147,17 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             return self
 
         # 当调用 getter(obj, <name>) 时执行
-        self.__assert_obj_type(owner)
+        self._check_and_update(owner)
+
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
             value = instance._as_child(key=str(self.property_cache_key),
-                                       type_hint=self.__get_type_hint(owner),
+                                       type_hint=self.type_hint,
                                        default_value=self.default_value,
                                        getter=self.getter,
-                                       **self.kwargs)
+                                       appinfo=self.appinfo)
             if self.strict and value is _not_found_:
                 raise AttributeError(f"The value of property '{owner.__name__}.{self.property_name}' is not assigned!")
 
