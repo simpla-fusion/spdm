@@ -244,7 +244,7 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
 
     # eq.time = 0.0
     eq["vacuum_toroidal_field/r0"] = geqdsk["rcentr"].__value__()
-    eq["vacuum_toroidal_field/b0"] = geqdsk["bcentr"].__value__()
+    eq["vacuum_toroidal_field/b0"] = [geqdsk["bcentr"].__value__()]
 
     # rleft = 0.0
 

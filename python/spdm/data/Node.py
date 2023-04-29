@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-import collections
 import collections.abc
-import dataclasses
 import inspect
 import typing
 
 import numpy as np
 
-from ..utils.tags import _not_found_, _undefined_, tags
+from ..utils.tags import _undefined_, _not_found_
 
 from .Entry import Entry, as_entry, Entry
-
-from .open_entry import open_entry
+from .Path import Path, as_path
 
 
 class Node(object):
@@ -39,9 +36,6 @@ class Node(object):
             self.__class__ = Node._SEQUENCE_TYPE_
         elif self._entry.is_mapping:  # 如果 entry 是字典, 就把自己的类改成字典
             self.__class__ = Node._MAPPING_TYPE_
-        else:
-            self._cache = cache
-            self._entry = as_entry(d)
 
         self._parent = parent
         self._appinfo: typing.Mapping[str, typing.Any] = appinfo if appinfo is not None else kwargs
@@ -107,3 +101,34 @@ class Node(object):
             else:
                 res = False
         return res
+
+    def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
+        raise NotImplementedError("as_child")
+
+    def _find_node_by_path(self, path) -> Node:
+
+        if isinstance(path, str):
+            path = path.split('/')
+
+        if path[0] == '':
+            path = path[1:]
+            obj = self._get_root()
+        else:
+            obj = self
+        for idx, p in enumerate(path[:]):
+            if p is None or not isinstance(obj, Node):
+                raise KeyError(f"{path[:idx]}")
+            elif p == '..':
+                obj = obj._parent
+            elif isinstance(obj, Node):
+                obj = obj._as_child(p)
+
+        return obj
+
+    def _get_root(self) -> Node:
+        p = self
+        # FIXME: ids_properties is a work around for IMAS dd until we found better solution
+        while p._parent is not None and getattr(p, "ids_properties", None) is None:
+            
+            p = p._parent
+        return p

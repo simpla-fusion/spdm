@@ -26,7 +26,8 @@ class Profile(Node, Function[_T]):
             coords = [k for k in self._appinfo.keys() if k.startswith("coordinate")]
             coords.sort()
             coords = [self._appinfo[c] for c in coords]
-            coords = [(None if (c == "1...N" or self._entry is None) else self._entry.child(c)) for c in coords]
+            # FIXME: "1...N" is for IMAS dd
+            coords = [(None if (c == "1...N") else self._find_node_by_path(c)) for c in coords]
             Function.__init__(self, *coords, self.__entry__(), appinfo=self._appinfo)
         else:
             raise RuntimeError(f"Parent is None, can not determint the coordinates!")

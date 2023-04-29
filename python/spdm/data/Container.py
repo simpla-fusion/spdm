@@ -33,9 +33,6 @@ class Container(Node, typing.Container[_TObject]):
     #     else:
     #         raise TypeError(f"Invalid type {type(value)}")
 
-    def get(self, path, default_value=_not_found_, **kwargs):
-        return Container._get(self, Path(path), default_value=default_value, **kwargs)
-
     def __setitem__(self, path, value) -> typing.Any:
         path = Path(path)
         if len(path) == 1:
@@ -181,7 +178,7 @@ class Container(Node, typing.Container[_TObject]):
         return value  # type:ignore
 
     @staticmethod
-    def _get(obj, path: list, default_value=_not_found_,   **kwargs):
+    def _get(obj, path: list, default_value=_not_found_,   **kwargs) -> typing.Any:
 
         for idx, query in enumerate(path[:]):
             if not isinstance(obj, Container):
@@ -220,3 +217,6 @@ class Container(Node, typing.Container[_TObject]):
             obj = default_value
 
         return obj
+
+    def get(self, path, default_value=_not_found_, **kwargs) -> typing.Any:
+        return Container._get(self, Path(path), default_value=default_value, **kwargs)

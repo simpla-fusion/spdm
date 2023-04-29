@@ -596,6 +596,13 @@ class Path(list):
                 return self._insert(target, path[pos:], self._update_or_replace(n_target, value), force=force, **kwargs)
 
 
+def as_path(path):
+    if not isinstance(path, Path):
+        return Path(path)
+    else:
+        return path
+
+
 class obsolete_Path:
 
     def pull_(self, path=None, query=_undefined_,  lazy=False, predication=_undefined_, only_first=False, type_hint=_undefined_) -> Any:

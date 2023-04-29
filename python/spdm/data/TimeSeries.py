@@ -16,8 +16,12 @@ from .Profile import Profile
 _T = typing.TypeVar("_T")
 
 
-class TimeSeries(Profile[_T]):
-    pass
+
+class TimeSlice(Dict[Node]):
+
+    time: float = sp_property(unit='s',type='dynamic')
+    
+
 
 class TimeSeriesAoS(List[_T]):
     """

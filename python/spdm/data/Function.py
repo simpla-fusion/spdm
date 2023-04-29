@@ -33,6 +33,9 @@ class Function(typing.Generic[_T]):
         self._y = args[-1]
         self._opts = kwargs
 
+        if len(self._x)==0:
+            raise RuntimeError(f"Function must have at least one 'x' argument!")
+
         # if len(args) == 0:
         #     x = kwargs.get("x", 0)
         #     y = kwargs.get("y", 0)
@@ -252,10 +255,12 @@ class Function(typing.Generic[_T]):
     def __getitem__(self, idx):
         if isinstance(self._y, np.ndarray):
             return self._y[idx]
+        elif hasattr(self._y.__class__, "__entry__"):
+            return self._y.__entry__().__value__()[idx]
         elif isinstance(self.x_axis, np.ndarray):
-            return self.__call__(self.x_axis[idx])
+            return self.__call__(self._x[0][idx])
         else:
-            raise RuntimeError(f"x is {type(self.x_axis)} ,y is {type(self._y)}")
+            raise RuntimeError(f"x is {type(self._x[0])} ,y is {type(self._y)}")
 
     # def __setitem__(self, idx, value):
     #     if hasattr(self, "_ppoly"):
@@ -506,7 +511,7 @@ class PiecewiseFunction(Function):
 
 class Expression(Function):
     def __init__(self, ufunc, method, *inputs,  **kwargs) -> None:
-        super().__init__(inputs)
+        super().__init__(*inputs)
         self._ufunc = ufunc
         self._method = method
         self._kwargs = kwargs
