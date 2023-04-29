@@ -54,9 +54,8 @@ class Node(object):
     def __str__(self) -> str:
         return f"<{self.__class__.__name__}>{self._entry.dump()}</{self.__class__.__name__}>"
 
-    @property
-    def annotation(self) -> dict:
-        return {"type":  self._entry.__class__.__name__, "appinfo": self._appinfo}
+    def _annotation(self) -> dict:
+        return {"entr_type":  self._entry.__class__.__name__, "appinfo": dict(self._appinfo)}
 
     def __cache__(self) -> typing.Any:
         return self._cache
@@ -71,7 +70,8 @@ class Node(object):
 
     def _reset(self):
         self._cache = None
-        self._entry.reset()
+        if self._entry is not None:
+            self._entry.reset()
 
     def _flash(self):
         raise NotImplementedError("flash")

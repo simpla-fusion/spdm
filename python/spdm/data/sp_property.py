@@ -45,6 +45,7 @@ import inspect
 import typing
 from _thread import RLock
 import collections
+from typing import Any
 import numpy as np
 
 from ..utils.logger import logger
@@ -120,9 +121,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
         if self.type_hint is None and inspect.isfunction(self.getter):
             self.type_hint = self.getter.__annotations__.get("return", None)
 
-        if len(self.appinfo) == 0 and not isinstance(self.appinfo,collections.ChainMap):
-            self.appinfo = collections.ChainMap(*[getattr(base, self.property_name).appinfo for base in owner_cls.__bases__ if isinstance(getattr(base, self.property_name, None), sp_property)])
-            
+        if len(self.appinfo) == 0 and not isinstance(self.appinfo, collections.ChainMap):
+            self.appinfo = collections.ChainMap(
+                *[getattr(base, self.property_name).appinfo for base in owner_cls.__bases__ if isinstance(getattr(base, self.property_name, None), sp_property)])
 
     def __set__(self, instance: typing.Any, value: typing.Any):
         assert(instance is not None)
@@ -164,7 +165,6 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
         return value
 
     def __delete__(self, instance: typing.Any) -> None:
-        self.__assert_obj_type(instance)
 
         with self.lock:
             if callable(self.deleter):
@@ -172,3 +172,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             else:
                 raise AttributeError(f"Cannot delete property '{self.property_name}'")
                 # del instance._cache[self.property_cache_key]
+
+    def __call__(self, func, *args: Any, **kwds: Any) -> Any:
+        """ 用于装饰函数，将函数的返回值作为属性值返回
+        """
+        self.getter = func
+        return self
