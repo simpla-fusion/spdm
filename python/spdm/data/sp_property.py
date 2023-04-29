@@ -149,7 +149,7 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
 
         # 当调用 getter(obj, <name>) 时执行
         self._check_and_update(owner)
-
+        
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 

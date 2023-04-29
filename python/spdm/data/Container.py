@@ -22,6 +22,22 @@ from .sp_property import sp_property
 _TObject = typing.TypeVar("_TObject")
 
 
+def typing_get_origin(tp):
+    if not inspect.isclass(tp):
+        return None
+    elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
+        return typing.get_origin(tp)
+
+    orig_class = getattr(tp, "__orig_bases__", None)
+
+    if orig_class is None:
+        return tp
+    elif isinstance(orig_class, tuple):
+        return typing_get_origin(orig_class[0])
+    else:
+        return typing_get_origin(orig_class)
+
+
 class Container(Node, typing.Container[_TObject]):
     r"""
        Container Node
@@ -94,8 +110,7 @@ class Container(Node, typing.Container[_TObject]):
             if len(type_hint) > 0:
                 type_hint = type_hint[-1]
 
-        orig_class = type_hint if inspect.isclass(type_hint) else typing.get_origin(type_hint)
-
+        orig_class = typing_get_origin(type_hint)
         # if value is _not_found_:
         #     # if isinstance(key, str):
         #     #     # 如果 value 为 _not_found_, 则从 cache 中获取
@@ -104,7 +119,7 @@ class Container(Node, typing.Container[_TObject]):
         #         if key < len(self._cache):
         #             value = self._cache[key]
 
-        if orig_class is not None and isinstance(value, orig_class):
+        if inspect.isclass(orig_class)  and isinstance(value, orig_class):
             # 如果 value 符合 type_hint 则返回之
             return value  # type:ignore
 
@@ -124,8 +139,8 @@ class Container(Node, typing.Container[_TObject]):
                     value = getter(self, None, **kwargs)
                 else:
                     value = getter(self, value, **kwargs)
-
-        if orig_class is None:  # 若 type_hint/orig_class 未定义，则由value决定类型
+        
+        if not inspect.isclass(orig_class): # 若 type_hint/orig_class 未定义，则由value决定类型
             if isinstance(value, Entry):
                 value = value.query(default_value=default_value, **kwargs)
             elif value is _not_found_:

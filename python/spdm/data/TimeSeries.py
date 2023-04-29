@@ -26,7 +26,6 @@ class TimeSeriesAoS(List[_T]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        logger.debug(self._appinfo)
 
     def update(self,  *args, dt=None, time=None, **kwargs):
         """
