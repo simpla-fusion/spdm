@@ -1,12 +1,9 @@
-import logging
-import pprint
-import sys
 import unittest
 
 import numpy as np
 from scipy import constants
 from spdm.utils.logger import logger
-from spdm.data.Function import Expression, Function, PiecewiseFunction
+from spdm.data.Function import Expression, Function
 
 
 class TestFunction(unittest.TestCase):
@@ -14,7 +11,7 @@ class TestFunction(unittest.TestCase):
         x = np.linspace(0, 1.0, 128)
         y = np.sin(x*constants.pi*2.0)
 
-        fun = Function(x, y)
+        fun = Function(y, x)
 
         x2 = np.linspace(0, 1.0, 64)
         y2 = np.sin(x2*constants.pi*2.0)
@@ -24,7 +21,7 @@ class TestFunction(unittest.TestCase):
     def test_operator(self):
         x = np.linspace(0, 1, 128)
         y = np.linspace(0, 2, 128)
-        fun = Function(x, y)
+        fun = Function(y, x)
 
         self.assertTrue(np.all(-fun == -y))
         self.assertTrue(np.all(fun + 2 == y + 2))
@@ -37,14 +34,14 @@ class TestFunction(unittest.TestCase):
     def test_construct_from_expression(self):
         x = np.linspace(0, 1, 128)
         y = np.linspace(0, 2, 128)
-        fun = Function(x, y*2)
+        fun = Function(y*2, x)
 
         self.assertTrue(np.all(fun == y * 2))
 
     def test_np_fun(self):
         x = np.linspace(0, 1, 128)
         y = np.linspace(0, 2, 128)
-        fun = Function(x, y)
+        fun = Function(y, x)
 
         self.assertTrue(type(fun+1) is Expression)
         self.assertTrue(type(fun*2) is Expression)
@@ -55,9 +52,9 @@ class TestFunction(unittest.TestCase):
         x1 = np.linspace(1, 3, 21)
         x2 = np.linspace(1, 2, 11)
 
-        y0 = Function(x0, lambda x: x)
-        y1 = Function(x1, lambda x: x*2)
-        y2 = y0+y1
+        y0 = Function(lambda x: x, x0)
+        y1 = Function(lambda x: x*2, x1)
+        y2 = y0 + y1
 
         self.assertEqual(y2.x_min, 1)
         self.assertEqual(y2.x_max, 2)
@@ -68,7 +65,7 @@ class TestFunction(unittest.TestCase):
         r_ped = 0.9001  # np.sqrt(0.88)
         Cped = 0.2
         Ccore = 0.4
-        chi = PiecewiseFunction([0, r_ped, 1.0],  [lambda x:x, lambda x: Cped])
+        chi = Function([lambda x:x, lambda x: Cped], [0, r_ped, 1.0], grid_type="Piecewise")
         x = np.linspace(0, 1, 101)
         logger.debug((chi*2)(x))
 

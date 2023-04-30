@@ -18,7 +18,6 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     def __init__(self, *args, cache=None,  **kwargs):
         super().__init__(*args, cache={} if cache is None else cache, **kwargs)
  
-
     @property
     def _is_dict(self) -> bool:
         return True

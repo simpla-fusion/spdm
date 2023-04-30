@@ -1,7 +1,7 @@
 import collections.abc
 import typing
 from functools import cached_property
-
+import inspect
 import numpy as np
 
 from ..geometry.GeoObject import GeoObject
@@ -13,31 +13,45 @@ class Grid(Pluggable):
     _plugin_registry = {}
 
     @classmethod
-    def _plugin_guess_name(cls, *args, **kwargs) -> typing.List[str]:
-        name_s = kwargs.get("name", None)
-        if name_s is None and len(args) > 0 and isinstance(args[0], str):
-            name_s = args[0]
-        if name_s is None:
-            raise ModuleNotFoundError(f"Can find Grid from {args} {kwargs}")
+    def __dispatch__init__(cls, _grid_type, self, *args, **kwargs) -> None:
+        if _grid_type is None or len(_grid_type) == 0:
+            _grid_type = kwargs.get("grid_type", None)
+            if _grid_type is None and len(args) > 0 and isinstance(args[0], str):
+                _grid_type = args[0]
 
-        return [f"spdm.grid.{name_s.capitalize}Grid#{name_s.capitalize}Grid"]
+            kwargs["grid_type"] = _grid_type
+
+            if isinstance(_grid_type, str):
+                _grid_type = [_grid_type,
+                             f"spdm.grid.{_grid_type}Grid#{_grid_type}Grid",
+                             f"spdm.grid.{_grid_type}Mesh#{_grid_type}Mesh"
+                             f"spdm.grid.{_grid_type.capitalize()}Grid#{_grid_type.capitalize()}Grid",
+                             f"spdm.grid.{_grid_type.capitalize()}Mesh#{_grid_type.capitalize()}Mesh"
+                             
+                             ]
+            else:
+                _grid_type = [_grid_type]
+
+        super().__dispatch__init__(_grid_type, self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Grid:
-            Pluggable.__init__(self, *args,  **kwargs)
-            return
-   
-    @property
-    def name(self) -> str:
-        return self._name
+            return Grid.__dispatch__init__(None, self, *args, **kwargs)
+        self._type = kwargs.get("grid_type", "unnamed")
+        self._units = kwargs.get("units", [])
+        self._cycles = kwargs.get("cycles", [])
 
     @property
-    def unit(self):
-        return self._unit
+    def type(self) -> str:
+        return self._type
+
+    @property
+    def units(self) -> list:
+        return self._units
 
     @property
     def cycle(self):
-        return self._cycle
+        return self._cycles
 
     @property
     def ndims(self) -> int:
@@ -50,6 +64,9 @@ class Grid(Pluggable):
     @property
     def shape(self):
         return tuple(self._shape)
+
+    def get_shape(self, *args) -> typing.List[int]:
+        return NotImplemented
 
     @property
     def topology_rank(self):
@@ -74,8 +91,8 @@ class Grid(Pluggable):
     def new_dataset(self, *args, **kwargs):
         return np.ndarray(self._shape, *args, **kwargs)
 
-    def interpolator(self, Z):
-        return NotImplemented
+    def interpolator(self, *args) -> typing.Callable:
+        raise NotImplementedError(args)
 
     def axis(self, *args, **kwargs) -> GeoObject:
         return NotImplemented
@@ -83,3 +100,9 @@ class Grid(Pluggable):
     def axis_iter(self, axis=0) -> typing.Iterator[GeoObject]:
         for idx, u in enumerate(self._uv[axis]):
             yield u, self.axis(idx, axis=axis)
+
+
+@Grid.register()
+class NullGrid(Grid):
+    """Null Grid"""
+    pass

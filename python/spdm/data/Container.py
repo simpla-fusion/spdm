@@ -42,7 +42,6 @@ class Container(Node, typing.Container[_TObject]):
     """
        Container Node
     """
- 
 
     def __setitem__(self, path, value) -> typing.Any:
         path = Path(path)

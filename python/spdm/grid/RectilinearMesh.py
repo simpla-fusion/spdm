@@ -1,12 +1,10 @@
-from functools import cached_property, lru_cache
-from typing import Sequence, Tuple
-
+from functools import cached_property
+import  typing
 import numpy as np
 from scipy.interpolate import interpolate
 
 from ..geometry.Curve import Line
 from ..geometry.Point import Point
-from spdm.utils.logger import logger
 from .StructuredMesh import StructuredMesh
 from .Grid import Grid
 
@@ -28,11 +26,11 @@ class RectilinearMesh(StructuredMesh):
         super().__init__(*args, shape=[len(d) for d in self._dims],  **kwargs)
 
     @cached_property
-    def bbox(self) -> Sequence[float]:
+    def bbox(self) ->  typing.Sequence[float]:
         return [*[d[0] for d in self._dims], *[d[-1] for d in self._dims]]
 
     @cached_property
-    def dx(self) -> Sequence[float]:
+    def dx(self) -> typing.Sequence[float]:
         return [(d[-1]-d[0])/self.shape[idx] for idx, d in enumerate(self._dims)]
 
     def axis(self, idx, axis=0):
@@ -48,7 +46,7 @@ class RectilinearMesh(StructuredMesh):
         return res
 
     @cached_property
-    def xy(self) -> Sequence[np.ndarray]:
+    def xy(self) -> typing.Sequence[np.ndarray]:
         if self.ndims == 1:
             return [self._dims[0]]
         elif self.ndims == 2:
