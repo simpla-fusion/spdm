@@ -1,13 +1,11 @@
+from __future__ import annotations
 
 import typing
 import collections.abc
 
-_TLazyCall = typing.TypeVar('_TLazyCall', bound='LazyCall')
+_T = typing.TypeVar("_T")
 
-_TObject = typing.TypeVar("_TObject")
-
-
-class LazyCall(typing.Generic[_TObject]):
+class LazyCall(typing.Generic[]):
 
     def __init__(self, obj, handler: typing.Callable, path=[]):
         super().__init__()
@@ -15,7 +13,7 @@ class LazyCall(typing.Generic[_TObject]):
         self._handler = handler
         self._path = path
 
-    def __append__(self, k) -> _TLazyCall:
+    def __append__(self, k) -> LazyCall:
         if isinstance(k, list):
             path = self._path+k
         elif isinstance(k, collections.abc.Sequence) and not isinstance(k, str):
@@ -23,15 +21,15 @@ class LazyCall(typing.Generic[_TObject]):
         else:
             path = self._path+[k]
 
-        return LazyCall(self._obj, self._handler,  path)
+        return LazyCall[_T](self._obj, self._handler,  path)
 
-    def __load__(self) -> _TObject:
+    def __load__(self) -> _T:
         return self._handler(self._obj, self._path)
 
-    def __getitem__(self, k) -> _TLazyCall:
+    def __getitem__(self, k) -> LazyCall:
         return self.__append__(k)
 
-    def __getattr__(self, k) -> _TLazyCall:
+    def __getattr__(self, k) -> LazyCall:
         return self.__append__(k)
 
     def __call__(self, *args, **kwargs) -> typing.Any:

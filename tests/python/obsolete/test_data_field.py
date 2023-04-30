@@ -3,7 +3,7 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.Coordinates import Coordinates
-from spdm.data.Field import Field
+from spdm.data.Field import Function2D
 from spdm.utils.logger import logger
 
 
@@ -13,7 +13,7 @@ class TestField(unittest.TestCase):
         x = np.linspace(0.0, 10, 128)
         y = np.sin(x)  # + 0.1*np.random.random(128)-0.05
         coord = Coordinates(x, unit="m", name="x")
-        f = Field(y, coordinates=coord)
+        f = Function2D(y, coordinates=coord)
         fig = plt.figure()
         plt.plot(x, np.sin(x))
         plt.plot(x, f(), "+")
@@ -31,7 +31,7 @@ class TestField(unittest.TestCase):
 
         z = np.sin(X) * np.sin(Y)  # + 0.1*np.random.random([128, 128])-0.05
 
-        f = Field(z, coordinates=coord)
+        f = Function2D(z, coordinates=coord)
 
         fig = plt.figure()
 

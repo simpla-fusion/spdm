@@ -21,6 +21,16 @@ _T = typing.TypeVar("_T")
 
 
 class Function(typing.Generic[_T]):
+
+    __dispatch__init__: typing.Optional[typing.Callable] = None
+
+    def __init__(self, *args, **kwargs):
+        if self.__class__ is Function and callable(Function.__dispatch__init__):
+            Function.__dispatch__init__(self, *args, **kwargs)
+            return
+
+
+class Function1D(Function[_T]):
     """
         NOTE: Function is immutable!!!!
     """
@@ -33,7 +43,7 @@ class Function(typing.Generic[_T]):
         self._y = args[-1]
         self._opts = kwargs
 
-        if len(self._x)==0:
+        if len(self._x) == 0:
             raise RuntimeError(f"Function must have at least one 'x' argument!")
 
         # if len(args) == 0:
@@ -172,7 +182,7 @@ class Function(typing.Generic[_T]):
         elif self._x is None:
             raise ValueError(f"x_axis is None")
         elif isinstance(self._y, np.ndarray):
-            assert(self._x[0].size == self._y.size)
+            assert (self._x[0].size == self._y.size)
             return create_spline(self._x[0],  self._y)
         else:
             return create_spline(self._x[0],  self.__call__(self.x_axis))
@@ -339,11 +349,36 @@ class Function(typing.Generic[_T]):
         return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
 
 
-class FunctionND(Function):
+class FunctionND(Function[_T]):
     pass
 
     def __array__(self):
         return self._data
+
+
+def function_like(*args, **kwargs) -> Function:
+    return Function(*args, **kwargs)
+
+
+def __dispatch__init__(obj, *args, **kwargs) -> None:
+    match len(args):
+        case 0:
+            raise RuntimeError(f"Function must have at least one argument!")
+        case 1:
+            x = np.linspace(0, 1, len(args[0])) if isinstance(args[0], np.ndarray) else None
+            Function1D.__init__(obj, x, *args, **kwargs)
+        case 2:
+            if isinstance(args[0], np.ndarray) and isinstance(args[1], np.ndarray):
+                Function1D.__init__(obj, *args, **kwargs)
+            elif isinstance(args[0], tuple) and len(args[0]) == 1:
+                Function1D.__init__(obj, args[0][0], args[1], **kwargs)
+            else:
+                FunctionND.__init__(obj, *args, **kwargs)
+        case _:
+            FunctionND.__init__(obj, *args, **kwargs)
+
+
+Function[_T].__dispatch__init__ = __dispatch__init__
 
 # class FunctionContainer(Container[Function]):
 #     """
@@ -360,14 +395,6 @@ class FunctionND(Function):
 #             value = Function(self._x, value)
 #         return super()._post_process(value, key, *args, **kwargs)
 
-
-def function_like(x, y) -> Function:
-    if y is None:
-        return Function(x, 0)
-    elif isinstance(y, Function):
-        return y
-    else:
-        return Function(x, y)
 
 # __op_list__ = ['abs', 'add', 'and',
 #                #  'attrgetter',
@@ -388,8 +415,6 @@ def function_like(x, y) -> Function:
 #                'mul', 'ne', 'neg', 'not', 'or', 'pos', 'pow', 'rshift',
 #                #    'setitem',
 #                'sub', 'truediv', 'truth', 'xor']
-
-
 _uni_ops = {
     '__neg__': np.negative,
 }
@@ -444,7 +469,7 @@ for names, op in _rbi_ops.items():
 class PiecewiseFunction(Function):
     def __init__(self, x, y, *args,    **kwargs) -> None:
         super().__init__(x, y, *args,    **kwargs)
-        assert(len(x) == len(y)+1)
+        assert (len(x) == len(y)+1)
 
     def resample(self, x_min, x_max=None, /, **kwargs):
         x_min = x_min or -np.inf

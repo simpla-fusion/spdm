@@ -5,7 +5,6 @@ import collections.abc
 import pathlib
 import typing
 
-from ..utils.Pluggable import try_init_plugin
 from ..utils.sp_export import sp_load_module
 from ..utils.uri_utils import URITuple, uri_split
 from .Connection import Connection
@@ -16,35 +15,36 @@ class File(Connection):
     """
         File like object
     """
-
     @classmethod
-    def _plugin_guess_name(cls, path, *args, **kwargs) -> typing.List[str]:
+    def __dispatch__init__(cls, name_list, self, path, *args, **kwargs) -> None:
+        if name_list is None:
+            n_cls_name = ''
+            if "format" in kwargs:
+                n_cls_name = kwargs.get("format")
+            elif isinstance(path, collections.abc.Mapping):
+                n_cls_name = path.get("$class", None)
+            elif isinstance(path,   pathlib.PosixPath):
+                n_cls_name = path.suffix[1:].upper()
+            elif isinstance(path, (str, URITuple)):
+                uri = uri_split(path)
+                if isinstance(uri.format, str):
+                    n_cls_name = uri.format
+                else:
+                    n_cls_name = pathlib.PosixPath(uri.path).suffix[1:].upper()
+            if n_cls_name == ".":
+                n_cls_name = ".text"
 
-        n_cls_name = ''
-        if "format" in kwargs:
-            n_cls_name = kwargs.get("format")
-        elif isinstance(path, collections.abc.Mapping):
-            n_cls_name = path.get("$class", None)
-        elif isinstance(path,   pathlib.PosixPath):
-            n_cls_name = path.suffix[1:].upper()
-        elif isinstance(path, (str, URITuple)):
-            uri = uri_split(path)
-            if isinstance(uri.format, str):
-                n_cls_name = uri.format
-            else:
-                n_cls_name = pathlib.PosixPath(uri.path).suffix[1:].upper()
-        if n_cls_name == ".":
-            n_cls_name = ".text"
+            #  f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
 
-        #  f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
+            name_list = [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
 
-        return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
+        super().__dispatch__init__(name_list, self, path, *args, **kwargs)
 
-    def __init__(self, *args, **kwargs):
-        if self.__class__ is File and try_init_plugin(self, *args, **kwargs):
+    def __init__(self, path: str | pathlib.Path, *args,  **kwargs):
+        if self.__class__ is File:
+            File.__dispatch__init__(None, self, path, *args, **kwargs)
             return
-
-        super().__init__(*args, **kwargs)
+        super().__init__(path, *args, **kwargs)
 
     @property
     def mode_str(self) -> str:

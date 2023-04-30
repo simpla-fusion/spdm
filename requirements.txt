@@ -1,4 +1,7 @@
 f90ml
+h5py
+netcdf4
+
 json
 pyyaml
 lxml

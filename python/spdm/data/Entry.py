@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from ..utils.Pluggable import Pluggable, try_init_plugin
+from ..utils.Pluggable import Pluggable
 from ..utils.tags import _not_found_
 from ..utils.logger import logger
 from ..utils.misc import serialize
@@ -26,17 +26,13 @@ class Entry(Pluggable):
 
     _plugin_registry = {}
 
-    @classmethod
-    def _plugin_guess_name(cls, *args, **kwargs) -> typing.List[str]:
-        n_cls_name = kwargs.get("entry_type", None)
-        if n_cls_name is None:
-            return []
-        else:
-            return [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}Entry"]
-
-    def __init__(self, cache:  typing.Any = None, path: typing.Union[Path, None] = None, **kwargs):
-        if self.__class__ is Entry and try_init_plugin(self, cache, path, **kwargs):
-            return
+    def __init__(self, cache:  typing.Any = None, path: typing.Union[Path, None] = None, *args, **kwargs):
+        if self.__class__ is Entry:
+            n_cls_name = kwargs.get("entry_type", None)
+            if n_cls_name is not None:
+                super().__dispatch__init__([f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}Entry"],
+                                           self, cache, path, *args, **kwargs)
+                return
 
         self._cache = cache if cache is not None else {}
         self._path: Path = Path(path) if not isinstance(path, Path) else path.duplicate()

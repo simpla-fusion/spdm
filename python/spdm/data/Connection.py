@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from enum import Flag, auto
 
-from ..utils.Pluggable import Pluggable, try_init_plugin
+from ..utils.Pluggable import Pluggable
 from ..utils.uri_utils import URITuple, uri_split
 from .Entry import Entry
 
@@ -44,7 +44,14 @@ class Connection(Pluggable):
         opened = auto()
         closed = auto()
 
-    def __init__(self, uri, *args,  mode=Mode.read, **kwargs):
+    @classmethod
+    def __dispatch__init__(cls, name_list, self, uri, *args, **kwargs):
+        if name_list is None:
+            # guess plugin name from uri
+            name_list = []
+        super().__dispatch__init__(name_list, self, uri, *args, **kwargs)
+
+    def __init__(self, uri, *args, mode=Mode.read, **kwargs):
         """
          r       Readonly, file must exist (default)
          rw      Read/write, file must exist
@@ -52,8 +59,8 @@ class Connection(Pluggable):
          x       Create file, fail if exists
          a       Read/write if exists, create otherwise
         """
-        if self.__class__ is Connection and try_init_plugin(self, *args, mode=mode, **kwargs):
-            return
+        if self.__class__ is Connection:
+            return Connection.__dispatch__init__(None, self, uri, *args, **kwargs)
 
         self._uri = uri_split(uri)
         self._mode = Connection.INV_MOD_MAP[mode] if isinstance(mode, str) else mode

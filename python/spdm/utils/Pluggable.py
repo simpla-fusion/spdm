@@ -33,14 +33,10 @@ class Pluggable(metaclass=abc.ABCMeta):
             return decorator
 
     @classmethod
-    @abc.abstractmethod
-    def _plugin_guess_name(cls, *args, **kwargs) -> typing.List[str]:
-        raise NotImplementedError("This method should be implemented in subclass.")
-
-    @classmethod
-    def _plugin_guess_cls(cls, *args, **kwargs) -> typing.Type:
+    def __dispatch__init__(cls, name_list, self, *args, **kwargs) -> None:
+        if name_list is None or len(name_list) == 0:
+            return
         n_cls = None
-        name_list = cls._plugin_guess_name(*args, **kwargs)
         for n_cls_name in name_list:
             n_cls = cls._plugin_registry.get(n_cls_name, None)
             if n_cls is not None:
@@ -50,23 +46,15 @@ class Pluggable(metaclass=abc.ABCMeta):
                 cls.register(n_cls_name, n_cls)
                 break
 
-        if n_cls is None:
-            if len(name_list) > 0:
-                raise ModuleNotFoundError(f"Can not find plugin in {name_list}")
-            else:
-                n_cls = cls
-        return n_cls
-
-
-def try_init_plugin(obj, *args, **kwargs) -> bool:
-    if isinstance(obj, Pluggable):
-        n_cls = obj._plugin_guess_cls(*args, **kwargs)
-        if n_cls is obj.__class__:
-            return False
+        if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
+            logger.warning(f"Can not find module as subclass of {cls.__name__} from {name_list}!")
         else:
-            obj.__class__ = n_cls
-    obj.__class__.__init__(obj, *args, **kwargs)
-    return True
+            self.__class__ = n_cls
+            n_cls.__init__(self, *args, **kwargs)
+
+    def __init__(self, *args, **kwargs) -> None:
+        if self.__class__ is Pluggable:
+            Pluggable.__dispatch__init__(None, self, *args, **kwargs)
 
     # def __new__(cls,  *args, **kwargs):
     # if not issubclass(cls, Pluggable):

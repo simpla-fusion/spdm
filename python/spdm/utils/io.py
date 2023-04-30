@@ -5,10 +5,12 @@ from urllib.request import urlopen
 
 import requests
 import yaml
+
+from .dict_util import deep_merge_dict
 from .logger import logger
 from .sp_export import sp_pkg_data_path
 from .urilib import uri_split
-from .dict_util import deep_merge_dict
+
 FAIL_SAFE = None
 ENABLE_REMOTE = False
 

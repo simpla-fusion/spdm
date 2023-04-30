@@ -39,15 +39,10 @@ def typing_get_origin(tp):
 
 
 class Container(Node, typing.Container[_TObject]):
-    r"""
+    """
        Container Node
     """
-
-    # def update(self, value) -> typing.Any:
-    #     if isinstance(value, collections.abc.Mapping):
-    #         return self._cache.update(value)
-    #     else:
-    #         raise TypeError(f"Invalid type {type(value)}")
+ 
 
     def __setitem__(self, path, value) -> typing.Any:
         path = Path(path)
