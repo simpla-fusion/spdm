@@ -6,10 +6,11 @@ from spdm.numlib import interpolate, np
 
 from ..data.Function import Function
 from spdm.utils.logger import logger
-from .Curve import Curve
+from .Line import Line
 
 
-class BSplineCurve(Curve):
+@Line.register("bspline_curve")
+class BSplineCurve(Line):
     def __init__(self, u, p, *args, is_closed=None, cycle=None, **kwargs) -> None:
         # if len(args) != 2:
         #     raise ValueError(f"Illegal input! len(args)={len(args)}")

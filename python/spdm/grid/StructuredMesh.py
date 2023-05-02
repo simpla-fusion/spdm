@@ -1,18 +1,21 @@
 import collections.abc
+import typing
+from functools import cached_property
+import abc
+import numpy as np
 
+from spdm.geometry.GeoObject import GeoObject
+
+from ..geometry.GeoObject import GeoObject
 from ..utils.logger import logger
 from .Grid import Grid
 
 
 class StructuredMesh(Grid):
-    def __init__(self, *args,  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        # ndims = None, uv = None, rank = None, shape = None, name = None, unit = None, cycle = None,
-
-        self._shape = kwargs.get('shape', [])
-        self._rank = kwargs.get('rank', None) or len(self._shape)
-        self._ndims: int = kwargs.get('rank',  self._rank)
-        self._uv = args
+    def __init__(self,  shape, ndims=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._ndims = ndims if ndims is not None else len(shape)
+        self._shape = shape
 
         # name = name or [""] * self._ndims
         # if isinstance(name, str):
@@ -39,13 +42,52 @@ class StructuredMesh(Grid):
 
         # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
 
+    @abc.abstractproperty
+    def geometry(self) -> GeoObject | None:
+        raise NotImplementedError("geometry is not implemented")
+
+    @property
+    def ndims(self) -> int:
+        return self._ndims
+
+    @property
+    def shape(self) -> typing.List[int]:
+        return self._shape
+
+    @property
+    def cycle(self) -> typing.List[bool]:
+        """ Periodic boundary condition
+            周期性边界条件
+            标识每个维度是否是周期性边界
+        """
+        return self._cycles
+
+    @property
+    def ndims(self) -> int:
+        """ Number of dimensions of the space
+            空间维度，
+        """
+        return self._ndims
+
+    @property
+    def rank(self) -> int:
+        """ Rank of the grid, i.e. number of dimensions
+            网格（流形）维度
+            rank <=ndims
+        """
+        return self._rank
+
+    @property
+    def shape(self):
+        """ Shape of the grid, i.e. number of points in each dimension
+            网格上数组的形状         
+        """
+        return tuple(self._shape)
+
     # def axis(self, idx, axis=0):
     #     return NotImplemented
 
     # def remesh(self, *arg, **kwargs):
-    #     return NotImplemented
-
-    # def interpolator(self, Z):
     #     return NotImplemented
 
     # def find_critical_points(self, Z):
@@ -61,3 +103,44 @@ class StructuredMesh(Grid):
     # def sub_axis(self, axis=0) -> Iterator[GeoObject]:
     #     for idx in range(self.shape[axis]):
     #         yield self.axis(idx, axis=axis)
+
+    @cached_property
+    def dx(self) -> typing.Sequence[float]:
+        """ Grid spacing in each dimension
+            每个维度的网格间距
+        """
+        return NotImplemented
+
+    @property
+    def xyz(self) -> typing.List[np.ndarray]:
+        """ Coordinates of the grid points
+            网格点的坐标
+            xy.shape == [np.array(shape)]
+        """
+        return NotImplemented
+
+    @property
+    def uvw(self) -> typing.List[np.ndarray]:
+        """
+            网格上归一化相对的坐标，取值范围[0,1]
+        """
+        return np.meshgrid(*[np.linspace(0, 1, n) for n in self.shape])
+
+    def interpolator(self, *args) -> typing.Callable:
+        """ Interpolator of the grid
+            网格的插值器, 用于网格上的插值
+            返回一个函数，该函数的输入是一个坐标，输出是一个值
+            输入坐标若为标量，则返回标量值
+            输入坐标若为数组，则返回数组
+        """
+        raise NotImplementedError(args)
+
+    def axis(self, *args, **kwargs) -> GeoObject:
+        """ Axis of the grid
+            网格的坐标轴，仅仅对于结构化网格有意义
+        """
+        return NotImplemented
+
+    def axis_iter(self, axis=0) -> typing.Iterator[GeoObject]:
+        for idx, u in enumerate(self.uvw[axis]):
+            yield u, self.axis(idx, axis=axis)

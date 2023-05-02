@@ -7,19 +7,23 @@ from typing import Callable, Collection, TypeVar
 import numpy as np
 from spdm.utils.logger import logger
 
-from ..geometry.GeoObject import GeoObject, _TCoord
+from ..geometry.GeoObject import GeoObject
 from .GeoObject import GeoObject
 
 
 class Point(GeoObject):
+    """ Point
+        点，零维几何体
+    """
+
     def __init__(self, *args, **kwargs) -> None:
-        if len(args) == 1 and isinstance(args[0], collections.abc.Sequence):
-            args = args[0]
-        super().__init__(args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+    @property
+    def rank(self) -> int:
+        return 0
 
     def points(self, *uv, **kwargs) -> np.ndarray:
-        """
-        """
         if len(uv) == 0:
             return super().points()
         else:
@@ -39,8 +43,8 @@ class Point(GeoObject):
     def length(self):
         return 0
 
-    def integral(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+    def integral(self, func: Callable) -> float:
         return func(*self._points)
 
-    def average(self, func: Callable[[_TCoord, _TCoord], _TCoord]) -> float:
+    def average(self, func: Callable) -> float:
         return func(*self._points)

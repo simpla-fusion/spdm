@@ -1,12 +1,14 @@
+import typing
 from functools import cached_property
-import  typing
+
 import numpy as np
 from scipy.interpolate import interpolate
 
 from ..geometry.Curve import Line
 from ..geometry.Point import Point
-from .StructuredMesh import StructuredMesh
+from ..utils.logger import logger
 from .Grid import Grid
+from .StructuredMesh import StructuredMesh
 
 
 @Grid.register("rectlinear")
@@ -20,24 +22,27 @@ class RectilinearMesh(StructuredMesh):
 
     """
 
-    def __init__(self, *args,  **kwargs) -> None:
-
-        self._dims = [(np.linspace(0, 1, d) if isinstance(d, int) else d) for d in args]
-        super().__init__(*args, shape=[len(d) for d in self._dims],  **kwargs)
+    def __init__(self, *args, coords: typing.List[np.ndarray] = [],  **kwargs) -> None:
+        if coords is None or len(coords) == 0:
+            coords = [(np.linspace(0, 1, d) if isinstance(d, int) else d) for d in args]
+        elif len(args) > 0:
+            logger.warning(f"Ignore position arguments {args}")
+        super().__init__(shape=[len(d) for d in coords], **kwargs)
+        self._coords = coords
 
     @cached_property
-    def bbox(self) ->  typing.Sequence[float]:
-        return [*[d[0] for d in self._dims], *[d[-1] for d in self._dims]]
+    def bbox(self) -> typing.List[float]:
+        return [*[d[0] for d in self._coords], *[d[-1] for d in self._coords]]
 
     @cached_property
-    def dx(self) -> typing.Sequence[float]:
-        return [(d[-1]-d[0])/self.shape[idx] for idx, d in enumerate(self._dims)]
+    def dx(self) -> typing.List[float]:
+        return [(d[-1]-d[0])/len(d) for d in self._coords]
 
     def axis(self, idx, axis=0):
-        p0 = [d[0] for d in self._dims]
-        p1 = [d[-1] for d in self._dims]
-        p0[axis] = self._dims[axis][idx]
-        p1[axis] = self._dims[axis][idx]
+        p0 = [d[0] for d in self._coords]
+        p1 = [d[-1] for d in self._coords]
+        p0[axis] = self._coords[axis][idx]
+        p1[axis] = self._coords[axis][idx]
 
         try:
             res = Line(p0, p1, is_closed=self.cycle[axis])
@@ -48,23 +53,23 @@ class RectilinearMesh(StructuredMesh):
     @cached_property
     def xy(self) -> typing.Sequence[np.ndarray]:
         if self.ndims == 1:
-            return [self._dims[0]]
+            return [self._coords[0]]
         elif self.ndims == 2:
-            return np.meshgrid(*self._dims, indexing="ij")
+            return np.meshgrid(*self._coords, indexing="ij")
         else:
             raise NotImplementedError()
 
     def point(self, *idx):
-        return [d[idx[s]] for s, d in enumerate(self._dims)]
+        return [d[idx[s]] for s, d in enumerate(self._coords)]
 
     def interpolator(self, value,  **kwargs):
         if value.shape != self.shape:
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.ndims == 1:
-            interp = interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+            interp = interpolate.InterpolatedUnivariateSpline(self._coords[0], value,  **kwargs)
         elif self.ndims == 2:
-            interp = interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value,  **kwargs)
+            interp = interpolate.RectBivariateSpline(self._coords[0], self._coords[1], value,  **kwargs)
         else:
             raise NotImplementedError(f"NDIMS {self.ndims}>2")
 

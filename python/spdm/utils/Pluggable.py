@@ -14,7 +14,7 @@ class Pluggable(metaclass=abc.ABCMeta):
     _plugin_registry = {}
 
     @classmethod
-    def register(cls, name_list: str | typing.List[str] | None = None, other_cls=None):
+    def register(cls, name_list: str | typing.List[str | None] | None = None, other_cls=None):
         """
         Decorator to register a class to the registry.
         """
@@ -42,7 +42,7 @@ class Pluggable(metaclass=abc.ABCMeta):
 
         n_cls = None
         for n_cls_name in name_list:
-           
+
             if isinstance(n_cls_name, str) or n_cls_name is None:
                 n_cls = cls._plugin_registry.get(n_cls_name, None)
                 if isinstance(n_cls, str):

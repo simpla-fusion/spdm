@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import typing
 from functools import cached_property
 
@@ -23,7 +23,7 @@ class CurvilinearMesh(StructuredMesh):
     """
     TOLERANCE = 1.0e-5
 
-    def __init__(self, geo_mesh:  np.ndarray | typing.Sequence[GeoObject] | GeoObject, uv: np.ndarray | typing.List[np.ndarray] | None = None,  *args,   ** kwargs) -> None:
+    def __init__(self, geo_mesh: typing.List[GeoObject] | GeoObject, uv: typing.List[np.ndarray] ,  *args,   ** kwargs) -> None:
         rank = len(uv)
         shape = [len(d) for d in uv]
         if isinstance(geo_mesh, np.ndarray):

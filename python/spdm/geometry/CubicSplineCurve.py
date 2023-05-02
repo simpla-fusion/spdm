@@ -1,18 +1,18 @@
 
 import collections
 from functools import cached_property
-from typing import Union
 
 import numpy as np
 from scipy import constants
 from scipy.interpolate import CubicSpline, PPoly
 
-from spdm.utils.logger import logger
+from ..utils.logger import logger
 from .Curve import Curve
 
 TWOPI = 2.0*constants.pi
 
 
+@Line.register("cubic_spline_curve")
 class CubicSplineCurve(Curve):
     def __init__(self,   *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
