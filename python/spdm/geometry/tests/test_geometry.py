@@ -1,3 +1,4 @@
+import typing
 import unittest
 
 import numpy as np
@@ -26,7 +27,12 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(gobj.p0[:], p0)
         self.assertEqual(gobj.p1[:], p1)
 
-        logger.debug(gobj.points(np.linspace(0, 1.0, 10)))
+    # def test_set(self):
+    #     from spdm.geometry.Point import Point
+    #     from spdm.geometry.GeoObject import GeoObjectSet
+    #     gobj = GeoObjectSet(Point(1, 2, 3), Point(1, 2, 3))
+    #     logger.debug(gobj.rank)
+    #     logger.debug(len(gobj))
 
 
 if __name__ == '__main__':

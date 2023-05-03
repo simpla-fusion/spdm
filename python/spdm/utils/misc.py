@@ -529,3 +529,8 @@ def fetch_request(url: str) -> typing.Dict:
         raise NotImplementedError(url)
 
     return content
+
+
+primitive_types = (int, bool, str, float, complex, np.ndarray)
+
+builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndarray)

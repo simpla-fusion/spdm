@@ -34,6 +34,22 @@ class TestNode(unittest.TestCase):
         self.assertTrue(isinstance(Node({"a": 1, "b": 2, "c": 3}), Dict))
         self.assertFalse(isinstance(Node({1, 2, 3, 4, 5}), List))
 
+    def test_list(self):
+        v = [1, 2, 3, 4, 5]
+
+        d0 = List[float](v)
+
+        self.assertIsInstance(d0[0], float)
+
+        class Foo:
+            def __init__(self, v) -> None:
+                self.v = v
+
+        d1 = List[Foo](v)
+
+        self.assertIsInstance(d1[2], Foo)
+        self.assertEqual(d1[2].v, v[2])
+
     # def test_create(self):
     #     cache = []
     #     d = Node(cache)

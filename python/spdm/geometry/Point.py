@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import collections.abc
+import typing
 from functools import cached_property
 from typing import Callable, Collection, TypeVar
 
@@ -11,40 +12,22 @@ from ..geometry.GeoObject import GeoObject
 from .GeoObject import GeoObject
 
 
-class Point(GeoObject):
+class Point(np.ndarray, GeoObject):
     """ Point
         点，零维几何体
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
+        GeoObject.__init__(self, **kwargs)
 
     @property
     def rank(self) -> int:
         return 0
 
-    def points(self, *uv, **kwargs) -> np.ndarray:
-        if len(uv) == 0:
-            return super().points()
-        else:
-            return np.asarray([self._points]*len(uv[0]))
-
-    def __call__(self, *args, **kwargs):
-        return self._x
-
-    def map(self,  *args, **kwargs):
-        return self._x
+    def points(self, *args, **kwargs) -> Point:
+        return self
 
     @property
-    def dl(self):
-        return 0.0
-
-    @property
-    def length(self):
+    def measure(self) -> float:
         return 0
-
-    def integral(self, func: Callable) -> float:
-        return func(*self._points)
-
-    def average(self, func: Callable) -> float:
-        return func(*self._points)

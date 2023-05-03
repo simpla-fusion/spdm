@@ -26,7 +26,7 @@ class Polygon(GeoObject2D):
 
     @property
     def vertices(self) -> typing.Generator[Point, None, None]:
-        for p in self._geo_entity.vertices:
+        for p in self._impl.vertices:
             yield Point(p)
 
     @property
@@ -45,7 +45,7 @@ class Polygon(GeoObject2D):
 
     @property
     def boundary(self) -> Polyline:
-        return Polyline(*self.vertices, is_closed=True)
+        return Polyline([*self.vertices], is_closed=True)
 
     def points(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}")
@@ -69,32 +69,37 @@ class RegularPolygon(Polygon):
     def __init__(self, center: Point, radius: float, num_of_edges: int, *args, **kwargs) -> None:
         center = Point(center) if not isinstance(center, Point) else center
         from sympy.geometry.polygon import RegularPolygon as _RegularPolygon
-        args = [_RegularPolygon(center._geo_entity, radius, num_of_edges, *args)]
+        args = [_RegularPolygon(center._impl, radius, num_of_edges, *args)]
         super().__init__(*args, **kwargs)
 
     @property
     def area(self) -> float:
-        return self._geo_entity.area
+        return self._impl.area
 
     @property
     def length(self) -> float:
-        return self._geo_entity.length
+        return self._impl.length
 
     @property
     def center(self) -> Point:
-        return Point(self._geo_entity.center)
+        return Point(self._impl.center)
 
     @property
     def radius(self) -> float:
-        return self._geo_entity.radius
+        return self._impl.radius
 
     @property
     def inradius(self) -> float:
-        return self._geo_entity.inradius
+        return self._impl.inradius
 
     @property
     def rotation(self) -> float:
-        return self._geo_entity.rotation
+        return self._impl.rotation
+
+    @property
+    def vertices(self) -> typing.Generator[Point, None, None]:
+        for p in self._impl.vertices:
+            yield Point(p)
 
 
 @Polygon.register("triangle")

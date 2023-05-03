@@ -17,12 +17,16 @@ class Line(GeoObject1D):
         线，一维几何体
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Line:
-            from sympy.geometry import Line as _Line
-            args = [_Line(*self._normal_points(*args))]
-
-        super().__init__(*args, **kwargs)
+    def __init__(self, p0: Point, p1: Point, **kwargs) -> None:
+        self.p0 = np.asarray(p0)
+        self.p1 = np.asarray(p1)
+        try:
+            from sympy.geometry.line import Line as _Line
+            impl = _Line(self.p0, self.p1)
+        except:
+            super().__init__(**kwargs)
+        else:
+            super().__init__(impl, **kwargs)
 
     @property
     def is_closed(self) -> bool:
@@ -30,50 +34,43 @@ class Line(GeoObject1D):
 
     @property
     def length(self) -> float:
-        return self._geo_entity.length
+        return np.Inf
 
     @property
-    def p0(self) -> Point:
-        return Point(self._geo_entity.p1)
+    def measure(self) -> float:
+        return self.length
 
     @property
-    def p1(self) -> Point:
-        return Point(self._geo_entity.p2)
-
-    @property
-    def deirection(self) -> Vector:
-        return Vector(self._geo_entity.direction[:])
+    def direction(self) -> Vector:
+        return Vector(self.p1-self.p0)
 
     @property
     def boundary(self) -> typing.List[Point]:
-        return np.Infinity
+        return [Point(self.p0), Point(self.p1)]
 
     def contains(self, o) -> bool:
-        return self._geo_entity.contains(o._geo_entity if isinstance(o, GeoObject) else o)
+        return self._impl.contains(o._impl if isinstance(o, GeoObject) else o)
 
- 
-
-    def points(self, u: float | np.ndarray | typing.List[float] | None = None) -> np.ndarray | Point | typing.List[Point]:
-        p0 = self.p0._geo_entity
-        direction = self._geo_entity.direction
+    def points(self, u: float | np.ndarray | typing.List[np.ndarray] | None = None) -> np.ndarray | Point | typing.List[Point]:
+        direction = self.direction
         if u is None:
-            return tuple([self.p0, self.p1])
+            return [self.p0, self.p1]
         elif isinstance(u, float):
-            return (p0 + direction*u)
+            return (self.p0 + self.direction*u)
         elif isinstance(u, np.ndarray):
-            return np.asarray([(p0 + direction*v)[:] for v in u])
+            return np.asarray([(self.p0 + self.direction*v)[:] for v in u])
         elif isinstance(u, collections.abc.Iterable):
-            return [Point(p0 + direction*v) for v in u]
+            return np.asarray([(self.p0 + direction*v) for v in u])
         else:
             raise RuntimeError(f"Invalid input type {type(u)}")
 
     def project(self, o) -> Point:
-        return Point(self._geo_entity.projection(o._geo_entity if isinstance(o, GeoObject) else o))
+        return Point(self._impl.projection(o._impl if isinstance(o, GeoObject) else o))
 
     def bisectors(self, o) -> typing.List[GeoObject]:
-        return [GeoObject(v) for v in self._geo_entity.bisectors(o._geo_entity if isinstance(o, GeoObject) else o)]
+        return [GeoObject(v) for v in self._impl.bisectors(o._impl if isinstance(o, GeoObject) else o)]
 
-    @ cached_property
+    @cached_property
     def dl(self) -> np.ndarray:
         x, y = np.moveaxis(self.points, -1, 0)
 
@@ -113,23 +110,17 @@ class Line(GeoObject1D):
         return NotImplemented
 
 
-@ Line.register("ray")
+@Line.register("ray")
 class Ray(Line):
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Ray:
-            from sympy.geometry import Ray as _Ray
-            args = [_Ray(*self._normal_points(*args))]
         super().__init__(*args, **kwargs)
 
 
-@ Line.register("segment")
+@Line.register("segment")
 class Segment(Line):
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Ray:
-            from sympy.geometry import Segment as _Segment
-            args = [_Segment(*self._normal_points(*args))]
         super().__init__(*args, **kwargs)
 
-    @ property
+    @property
     def midpoint(self) -> Point:
-        return Point(self._geo_entity.midpoint)
+        return Point((self.p0+self.p1)*0.5)
