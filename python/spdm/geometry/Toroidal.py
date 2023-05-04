@@ -10,7 +10,7 @@ from .PrimaryShapes import Circle
 class ToroidalSurface(Surface):
     def __init__(self, cross_section: Line, circle: Circle, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.        
+            
 
 @Surface.register("toroidal")
 class Toroidal(Solid):

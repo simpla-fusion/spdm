@@ -4,7 +4,7 @@
 # Created Time: 2015-12-28 21:58:47
 #
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 # Get the long description from the README file
 with open('../README.md') as f:
@@ -19,7 +19,6 @@ with open('requirements.txt') as f:
 
 
 # Setup the package
-# 检查项目依赖的包是否已经安装
 setup(
     name='spdm',
     version=version,
@@ -29,16 +28,17 @@ setup(
     author='Zhi YU',
     author_email='yuzhi@ipp.ac.cn',
     license='MIT',
-    packages=find_packages(),  # 指定需要安装的包
-    requires=requirements,  # 项目运行依赖的第三方包
-    
-    extras_require={},  # 项目运行依赖的额外包
-    package_data={},  # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
-    data_files=[],  # 需要安装的静态文件，如配置文件等。例如：data_files=[('/etc/spdm.conf', ['data/spdm.conf'])]
-    entry_points={},  # 项目的入口模块，即用户使用命令行安装后可调用的模块。例如：entry_points={'console_scripts': ['spdm = spdm:main']}
-    project_urls={},  # 项目相关的额外链接信息。例如：project_urls={'Bug Reports': '...'}
+    packages=find_namespace_packages(),  # 指定需要安装的包
+    requires=requirements,               # 项目运行依赖的第三方包
+    extras_require={},                   # 项目运行依赖的额外包
+    package_data={},                     # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
+    data_files=[],                       # 需要安装的静态文件，如配置文件等。例如：data_files=[('/etc/spdm.conf', ['data/spdm.conf'])]
 
-    classifiers=[  # 项目的分类信息列表
+    entry_points={},  # 项目的入口模块，即用户使用命令行安装后可调用的模块。
+                      # 例如：entry_points={'console_scripts': ['spdm = spdm:main']}
+
+    project_urls={},  # 项目相关的额外链接信息。例如：project_urls={'Bug Reports': '...'}
+    classifiers=[     # 项目的分类信息列表
         'Development Status :: 1 - Alpha',
         'Intended Audience :: Plasma Physicists',
         'Topic :: Scientific/Engineering :: Physics',

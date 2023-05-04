@@ -5,7 +5,7 @@ import collections.abc
 
 _T = typing.TypeVar("_T")
 
-class LazyCall(typing.Generic[]):
+class LazyCall(typing.Generic[_T]):
 
     def __init__(self, obj, handler: typing.Callable, path=[]):
         super().__init__()

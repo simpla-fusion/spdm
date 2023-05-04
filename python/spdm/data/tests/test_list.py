@@ -54,7 +54,7 @@ class TestNodeList(unittest.TestCase):
 
         d1 = Dict({"person": cache})
 
-        young = d1["person", ({"age": 22}, only_first=False)]
+        young = d1["person",  {"age": 22} ]
 
         self.assertEqual(young[0, "name"].value,  "wang liu")
         self.assertEqual(young[1, "name"].value,  "li si")
