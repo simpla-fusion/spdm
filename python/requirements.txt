@@ -1,10 +1,10 @@
 f90ml
 h5py
 netcdf4
-
 json
 pyyaml
 lxml
 numpy
 scipy
-scikit-image
+sympy
+scikit_image
