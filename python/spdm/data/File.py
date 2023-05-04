@@ -38,7 +38,10 @@ class File(Connection):
 
             name_list = [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
 
-        super().__dispatch__init__(name_list, self, path, *args, **kwargs)
+        if name_list is None or len(name_list) == 0:
+            return super().__init__(self, path, *args, **kwargs)
+        else:
+            return super().__dispatch__init__(name_list, self, path, *args, **kwargs)
 
     def __init__(self, path: str | pathlib.Path, *args,  **kwargs):
         if self.__class__ is File:

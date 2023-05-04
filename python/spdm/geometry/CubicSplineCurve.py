@@ -12,7 +12,7 @@ from .Curve import Curve
 TWOPI = 2.0*constants.pi
 
 
-@Line.register("cubic_spline_curve")
+@Curve.register("cubic_spline_curve")
 class CubicSplineCurve(Curve):
     def __init__(self,   *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

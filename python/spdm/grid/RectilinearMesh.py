@@ -4,7 +4,7 @@ from functools import cached_property
 import numpy as np
 from scipy.interpolate import interpolate
 
-from ..geometry.Curve import Line
+from ..geometry.Curve import Curve
 from ..geometry.Point import Point
 from ..utils.logger import logger
 from .Grid import Grid

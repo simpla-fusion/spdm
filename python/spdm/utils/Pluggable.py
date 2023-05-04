@@ -36,7 +36,7 @@ class Pluggable(metaclass=abc.ABCMeta):
     @classmethod
     def __dispatch__init__(cls, name_list, self, *args, **kwargs) -> None:
         if name_list is None or len(name_list) == 0:
-            return
+            return super().__init__(self)
         elif not isinstance(name_list, collections.abc.Sequence) or isinstance(name_list, str):
             name_list = [name_list]
 

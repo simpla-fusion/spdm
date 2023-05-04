@@ -9,20 +9,24 @@ from setuptools import setup, find_namespace_packages
 # Get the long description from the README file
 with open('../README.md') as f:
     long_description = f.read()
-# Get the version from the VERSION file
+# Get the version from git or the VERSION file
 with open('../VERSION') as f:
     version = f.read().strip()
-
 # Get the requirements from the requirements.txt file
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
+
+
+
+import subprocess
+git_describe = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
 
 
 # Setup the package
 setup(
     name='spdm',
     version=version,
-    description='Scientific Plasma Data Model',
+    description=f'Scientific Plasma Data Model {git_describe}',
     long_description=long_description,
     url='http://github.com/simpla/spdm',
     author='Zhi YU',
