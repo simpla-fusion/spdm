@@ -17,7 +17,6 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 
-
 import subprocess
 git_describe = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
 

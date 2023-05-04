@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import collections.abc
-from functools import cached_property
 import typing
+import warnings
+from functools import cached_property
+
 import numpy as np
 
+from ..grid.Grid import Grid
 from ..utils.logger import logger
 from ..utils.misc import float_unique
 from ..utils.tags import _not_found_
-from ..grid.Grid import Grid
-
 
 _T = typing.TypeVar("_T")
 
@@ -112,82 +113,47 @@ class Function(typing.Generic[_T]):
 
         return Function(target, np.asarray(self(source), dtype=float))
 
+    def __neg__(self): return np.negative(self)
+    def __add__(self, other): return np.add(self, other)
+    def __sub__(self, other): return np.subtract(self, other)
+    def __mul__(self, other): return np.multiply(self, other)
+    def __matmul__(self, other): return np.matmul(self, other)
+    def __truediv__(self, other): return np.true_divide(self, other)
+    def __pow__(self, other): return np.power(self, other)
+    def __eq__(self, other): return np.equal(self, other)
+    def __ne__(self, other): return np.not_equal(self, other)
+    def __lt__(self, other): return np.less(self, other)
+    def __le__(self, other): return np.less_equal(self, other)
+    def __gt__(self, other): return np.greater_equal(self, other)
+    def __ge__(self, other): return np.greater_equal(self, other)
+    def __radd__(self, other): return np.add(other, self)
+    def __rsub__(self, other): return np.subtract(other, self)
+    def __rmul__(self, other): return np.multiply(other, self)
+    def __rmatmul__(self, other): return np.matmul(other, self)
+    def __rtruediv__(self, other): return np.divide(other, self)
+    def __rpow__(self, other): return np.power(other, self)
+    def __abs__(self): return np.abs(self)
+    def __pos__(self): return np.positive(self)
+    def __invert__(self): return np.invert(self)
+    def __and__(self, other): return np.bitwise_and(self, other)
+    def __or__(self, other): return np.bitwise_or(self, other)
+    def __xor__(self, other): return np.bitwise_xor(self, other)
+    def __rand__(self, other): return np.bitwise_and(other, self)
+    def __ror__(self, other): return np.bitwise_or(other, self)
+    def __rxor__(self, other): return np.bitwise_xor(other, self)
 
-def function_like(*args, **kwargs) -> Function:
-    if len(args) == 1 and isinstance(args[0], Function):
-        return args[0]
-    else:
-        return Function(*args, **kwargs)
-
-
-# __op_list__ = ['abs', 'add', 'and',
-#                #  'attrgetter',
-#                'concat',
-#                # 'contains', 'countOf',
-#                'delitem', 'eq', 'floordiv', 'ge',
-#                # 'getitem',
-#                'gt',
-#                'iadd', 'iand', 'iconcat', 'ifloordiv', 'ilshift', 'imatmul', 'imod', 'imul',
-#                'index', 'indexOf', 'inv', 'invert', 'ior', 'ipow', 'irshift',
-#                #    'is_', 'is_not',
-#                'isub',
-#                # 'itemgetter',
-#                'itruediv', 'ixor', 'le',
-#                'length_hint', 'lshift', 'lt', 'matmul',
-#                #    'methodcaller',
-#                'mod',
-#                'mul', 'ne', 'neg', 'not', 'or', 'pos', 'pow', 'rshift',
-#                #    'setitem',
-#                'sub', 'truediv', 'truth', 'xor']
-_uni_ops = {
-    '__neg__': np.negative,
-}
-
-for names, op in _uni_ops.items():
-    setattr(Function,  names, lambda s, _op=op: _op(s))
-
-_bi_ops = {
-
-    # Add arguments element-wise.
-    "__add__": np.add,
-    # (x1, x2, / [, out, where, casting, …]) Subtract arguments, element-wise.
-    "__sub__": np.subtract,
-    # multiply(x1, x2, / [, out, where, casting, …])  Multiply arguments element-wise.
-    "__mul__": np.multiply,
-    # (x1, x2, / [, out, casting, order, …])   Matrix product of two arrays.
-    "__matmul__": np.matmul,
-    # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
-    "__truediv__": np.true_divide,
-    # Return x to the power p, (x**p).
-    "__pow__": np.power,
-    "__eq__": np.equal,
-    "__ne__": np.not_equal,
-    "__lt__": np.less,
-    "__le__": np.less_equal,
-    "__gt__": np.greater_equal,
-    "__ge__": np.greater_equal,
-}
-
-for names, op in _bi_ops.items():
-    setattr(Function,  names, lambda s, other, _op=op: _op(s, other))
-
-_rbi_ops = {
-    # Add arguments element-wise.
-    "__radd__": np.add,
-    # (x1, x2, / [, out, where, casting, …]) Subtract arguments, element-wise.
-    "__rsub__": np.subtract,
-    # multiply(x1, x2, / [, out, where, casting, …])  Multiply arguments element-wise.
-    "__rmul__": np.multiply,
-    # (x1, x2, / [, out, casting, order, …])   Matrix product of two arrays.
-    "__rmatmul__": np.matmul,
-    # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
-    "__rtruediv__": np.divide,
-    # Return x to the power p, (x**p).
-    "__rpow__": np.power
-}
-
-for names, op in _rbi_ops.items():
-    setattr(Function,  names, lambda s, other, _op=op: _op(other, s))
+    def __rshift__(self, other): return np.right_shift(self, other)
+    def __lshift__(self, other): return np.left_shift(self, other)
+    def __rrshift__(self, other): return np.right_shift(other, self)
+    def __rlshift__(self, other): return np.left_shift(other, self)
+    def __mod__(self, other): return np.mod(self, other)
+    def __rmod__(self, other): return np.mod(other, self)
+    def __floordiv__(self, other): return np.floor_divide(self, other)
+    def __rfloordiv__(self, other): return np.floor_divide(other, self)
+    def __trunc__(self): return np.trunc(self)
+    def __round__(self, n=None): return np.round(self, n) # type: ignore
+    def __floor__(self): return np.floor(self)
+    def __ceil__(self): return np.ceil(self)
 
 
 class Expression(Function):
@@ -280,3 +246,10 @@ class Expression(Function):
         # if self._method != "__call__":
         #     op = getattr(self._ufunc, self._method)
         #     res = op(*[wrap(x, d) for d in self._data])
+
+
+def function_like(*args, **kwargs) -> Function:
+    if len(args) == 1 and isinstance(args[0], Function):
+        return args[0]
+    else:
+        return Function(*args, **kwargs)
