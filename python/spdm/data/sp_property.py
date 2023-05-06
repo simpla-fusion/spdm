@@ -41,11 +41,13 @@
 
 from __future__ import annotations
 
+import collections
+import collections.abc
 import inspect
 import typing
 from _thread import RLock
-import collections
 from typing import Any
+
 import numpy as np
 
 from ..utils.logger import logger
@@ -57,13 +59,12 @@ _T = typing.TypeVar("_T")
 
 class sp_property(typing.Generic[_TObject]):  # type: ignore
     def __init__(self,
-                 getter=None,
+                 getter: typing.Callable[[typing.Any], typing.Any] = None,
                  setter=None,
                  deleter=None,
-                 default_value=_not_found_,
-                 type_hint=None,
+                 type_hint: typing.Type = None,
                  doc: typing.Optional[str] = None,
-                 strict=False,
+                 strict: bool = True,
                  **kwargs):
 
         self.lock = RLock()
@@ -75,10 +76,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             self.__doc__ = doc
 
         self.property_cache_key = getter if not callable(getter) else None
-        self.property_name: typing.Optional[str] = None
+        self.property_name: str = None
         self.type_hint = type_hint
         self.strict = strict
-        self.default_value = default_value
         self.appinfo = kwargs
 
     def __set_name__(self, owner, name):
@@ -86,7 +86,7 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
         self.property_name = name
-
+        self.appinfo.setdefault("name", name)
         if self.__doc__ is not None:
             pass
         elif callable(self.getter):
@@ -101,7 +101,7 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             logger.warning(
                 f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
-    def _check_and_update(self, owner_cls):
+    def _get_type_hint(self, owner_cls):
         if not inspect.isfunction(getattr(owner_cls, "_as_child", None)):
             raise TypeError(
                 f"sp_property is only valid for class with method '_as_child', not for {type(owner_cls)} '{self.property_name}'.")
@@ -122,12 +122,13 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             self.type_hint = self.getter.__annotations__.get("return", None)
 
         if len(self.appinfo) == 0 and not isinstance(self.appinfo, collections.ChainMap):
-            self.appinfo = collections.ChainMap(
-                *[getattr(base, self.property_name).appinfo for base in owner_cls.__bases__ if isinstance(getattr(base, self.property_name, None), sp_property)])
+            for base in owner_cls.__bases__:
+                if isinstance(getattr(base, self.property_name, None), sp_property):
+                    self.appinfo.update(getattr(base, self.property_name).appinfo)
 
     def __set__(self, instance: typing.Any, value: typing.Any):
-        assert(instance is not None)
-        self._check_and_update(instance.__class__)
+        assert (instance is not None)
+        self._get_type_hint(instance.__class__)
 
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
@@ -137,10 +138,7 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                 self.setter(instance, value)
             else:
                 instance._as_child(key=self.property_cache_key, value=value,
-                                   type_hint=self.type_hint,
-                                   default_value=self.default_value,
-                                   getter=self.getter,
-                                   appinfo=self.appinfo)
+                                   type_hint=self.type_hint, appinfo=self.appinfo)
 
     def __get__(self, instance: typing.Any, owner=None) -> typing.Union[sp_property[_TObject], _TObject]:
         if instance is None:
@@ -148,19 +146,29 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
             return self
 
         # 当调用 getter(obj, <name>) 时执行
-        self._check_and_update(owner)
-        
+        self._get_type_hint(owner)
+
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            value = instance._as_child(key=str(self.property_cache_key),
+            if isinstance(instance._cache, collections.abc.Mapping):
+                value = instance._cache.get(self.property_cache_key, _not_found_)
+            else:
+                value = _not_found_
+
+            if value is _not_found_ and callable(self.getter):
+                value = self.getter(instance)
+
+            value = instance._as_child(key=self.property_cache_key,
+                                       value=value,
                                        type_hint=self.type_hint,
-                                       default_value=self.default_value,
-                                       getter=self.getter,
-                                       appinfo=self.appinfo)
+                                       strict=self.strict,
+                                       ** self.appinfo)
+
             if self.strict and value is _not_found_:
-                raise AttributeError(f"The value of property '{owner.__name__}.{self.property_name}' is not assigned!")
+                raise AttributeError(
+                    f"The value of property '{owner.__name__ if owner is not None else 'none'}.{self.property_name}' is not assigned!")
 
         return value
 

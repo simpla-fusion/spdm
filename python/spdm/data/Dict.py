@@ -15,9 +15,21 @@ _TObject = typing.TypeVar("_TObject")
 
 
 class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
-    def __init__(self, *args, cache=None,  **kwargs):
-        super().__init__(*args, cache={} if cache is None else cache, **kwargs)
- 
+    """
+        Dict
+        ----
+        Dict 是一个字典容器，它继承自 Container，因此它具有 Container 的所有特性。
+        除此之外，它还具有 dict 的所有特性，包括：
+        - keys
+        - values
+        - items
+        - get
+        - setdefault       
+        - clear
+        - update
+        - copy
+    """
+
     @property
     def _is_dict(self) -> bool:
         return True
@@ -26,16 +38,15 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         yield from self.keys()
 
     def items(self) -> typing.Generator[typing.Tuple[typing.Any, typing.Any], None, None]:
-        for key, value in self._entry.first_child():
+        for key, value in self.__entry__().first_child():
             yield key, self._as_child(key, default_value=value)
 
     def keys(self) -> typing.Generator[typing.Any, None, None]:
-        for key, _ in self._entry.first_child():
+        for key, _ in self.__entry__().first_child():
             yield key
 
-    # def values(self) -> typing.Generator[typing.Any, None, None]:
-    #     for key, value in self._entry.first_child():
-    #         yield self._post_process(value, key=key)
+    def values(self) -> typing.Generator[typing.Any, None, None]:
+        raise NotImplementedError()
 
     def __iadd__(self, other: typing.Mapping) -> Dict:
         return self._update(other)
@@ -43,18 +54,23 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     def __ior__(self, other) -> Dict:
         return self._update(other, force=False)
 
-    def _as_child(self, key: str, value=_not_found_,
-                  *args, **kwargs) -> _TObject:
+    # def _as_child(self, key: str, value=_not_found_,
+    #               *args, **kwargs) -> _TObject:
+    #     """[summary]
 
-        if value is _not_found_ and isinstance(key, str):
-            value = self._cache.get(key, _not_found_)
+    #     """
+    #     if self._cache is None:
+    #         self._cache = {}
 
-        n_value = super()._as_child(key, value, *args, **kwargs)
+    #     if value is _not_found_ and isinstance(key, str):
+    #         value = self._cache.get(key, _not_found_)
 
-        if isinstance(key, str):  # and n_value is not value:
-            self._cache[key] = n_value
+    #     n_value = super()._as_child(key, value, *args, **kwargs)
 
-        return n_value
+    #     if isinstance(key, str):  # and n_value is not value:
+    #         self._cache[key] = n_value
+
+    #     return n_value
 
     def _update(self, d, *args, **kwargs) -> Dict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys.
@@ -66,7 +82,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         Returns:
             _T: [description]
         """
-        self._entry.update(d, *args, **kwargs)
+        self.__entry__().update(d, *args, **kwargs)
         return self
 
     # def get(self, key,  default_value=None) -> typing.Any:
@@ -80,7 +96,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     #     Returns:
     #         Any: [description]
     #     """
-    #     return self._post_process(self._entry.child(key), default_value=default_value)
+    #     return self._post_process(self.__entry__().child(key), default_value=default_value)
 
     # def setdefault(self, key, value) -> typing.Any:
     #     """If key is in the dictionary, return its value.
@@ -93,12 +109,12 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     #     Returns:
     #         Any: [description]
     #     """
-    #     return self._post_process(self._entry.child(key).update({Path.tags.setdefault: value}), key=key)
+    #     return self._post_process(self.__entry__().child(key).update({Path.tags.setdefault: value}), key=key)
 
     # def _as_dict(self) -> Mapping:
     #     cls = self.__class__
     #     if cls is Dict:
-    #         return self._entry._data
+    #         return self.__entry__()._data
     #     else:
     #         properties = set([k for k in self.__dir__() if not k.startswith('_')])
     #         res = {}
@@ -113,7 +129,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     #             else:
     #                 v = getattr(self, k, _not_found_)
     #             if v is _not_found_:
-    #                 v = self._entry.find(k)
+    #                 v = self.__entry__().find(k)
     #             if v is _not_found_ or isinstance(v, Entry):
     #                 continue
     #             # elif hasattr(v, "_serialize"):
@@ -132,7 +148,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
     #         properties = getattr(self.__class__, '_properties_', _not_found_)
     #         if properties is not _not_found_:
     #             data = {k: v for k, v in d.items() if k in properties}
-    #         self._entry = Entry(data, parent=self._entry.parent)
+    #         self.__entry__() = Entry(data, parent=self.__entry__().parent)
     #         self.__reset__(d.keys())
     #     elif isinstance(d, Sequence):
     #         for key in d:
