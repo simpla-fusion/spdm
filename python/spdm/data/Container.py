@@ -40,41 +40,57 @@ def typing_get_origin(tp):
 
 class Container(Node, typing.Container[_TObject]):
     """
-       Container Node
+        Container
+        ---------
+        Container 是所有数据容器的基类，它提供了一些基本的数据容器操作，包括：
+        - __getitem__  : 用于获取容器中的数据
+        - __setitem__  : 用于设置容器中的数据
+        - __delitem__  : 用于删除容器中的数据
+        - __contains__ : 用于判断容器中是否存在某个数据
+        - __len__      : 用于获取容器中数据的数量
+        - __iter__     : 用于迭代容器中的数据
+
+        _TObject 是容器中数据的类型，它可以是任意类型，但是必须是可序列化的。
+
     """
 
     def __setitem__(self, path, value) -> typing.Any:
-        path = Path(path)
-        if len(path) == 1:
-            parent = self
-        else:
-            parent = self.get(path[:-1], parents=True)
-
         # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
 
-        if isinstance(parent, Container):
-            return parent._cache.__setitem__(path[-1], value)
+        path = Path(path)
+
+        if len(path) == 1:
+            if not isinstance(self._cache, (collections.abc.MutableMapping, collections.abc.MutableSequence)):
+                raise TypeError(f"{self.__class__.__name__} is not MutableMapping or MutableSequence")
+            self._cache[path[0]] = value
         else:
-            return as_entry(parent).insert(path[-1], value)
+            parent = self.get(path[:-1], parents=True)
+            if isinstance(parent, Container):
+                parent.__setitem__(path[-1], value)
+            else:
+                as_entry(parent).insert(path[-1], value)
 
     def __getitem__(self, path) -> _TObject:
         return Container._get(self, Path(path), default_value=_not_found_)  # type:ignore
 
     def __delitem__(self, key) -> bool:
-        return self._entry.child(key).remove() > 0
+        return self.__entry__().child(key).remove() > 0
 
     def __contains__(self, key) -> bool:
-        return self._entry.child(key).exists
+        return self.__entry__().child(key).exists
 
     def __eq__(self, other) -> bool:
-        return self._entry.equal(other)
+        return self.__entry__().equal(other)
 
     def __len__(self) -> int:
-        return self._entry.count
+        return self.__entry__().count
+
+    def __iter__(self) -> typing.Generator[_TObject, None, None]:
+        raise NotImplementedError()
 
     def _as_child(self,
                   key: typing.Union[int, str, slice, None],
-                  value=_not_found_,
+                  value: typing.Any = _not_found_,
                   type_hint: typing.Type = None,
                   default_value: typing.Any = _not_found_,
                   getter=None,
@@ -113,13 +129,13 @@ class Container(Node, typing.Container[_TObject]):
         #         if key < len(self._cache):
         #             value = self._cache[key]
 
-        if inspect.isclass(orig_class)  and isinstance(value, orig_class):
+        if inspect.isclass(orig_class) and isinstance(value, orig_class):
             # 如果 value 符合 type_hint 则返回之
             return value  # type:ignore
 
         if value is _not_found_ and key is not None:
-            # 如果 value 为 _not_found_, 则从 self._entry 中获取
-            value = self._entry.child(key, force=True)
+            # 如果 value 为 _not_found_, 则从 self.__entry__() 中获取
+            value = self.__entry__().child(key, force=True)
 
         if getter is not None:  # 若定义 getter
             sig = inspect.signature(getter)
@@ -133,8 +149,8 @@ class Container(Node, typing.Container[_TObject]):
                     value = getter(self, None, **kwargs)
                 else:
                     value = getter(self, value, **kwargs)
-        
-        if not inspect.isclass(orig_class): # 若 type_hint/orig_class 未定义，则由value决定类型
+
+        if not inspect.isclass(orig_class):  # 若 type_hint/orig_class 未定义，则由value决定类型
             if isinstance(value, Entry):
                 value = value.query(default_value=default_value, **kwargs)
             elif value is _not_found_:
@@ -202,15 +218,15 @@ class Container(Node, typing.Container[_TObject]):
             elif isinstance(query, dict) and isinstance(obj, collections.abc.Sequence):
                 only_first = kwargs.get("only_first", False) or query.get("@only_first", True)
                 if only_first:
-                    obj = obj._as_child(None, obj._entry.child(query))
+                    obj = obj._as_child(None, obj.__entry__().child(query))
                 else:
                     other: Container = obj._duplicate()  # type:ignore
-                    other._entry = obj._entry.child(query)
+                    other._entry = obj.__entry__().child(query)
                     obj = other
                 continue
             elif isinstance(query,  slice) and isinstance(obj, collections.abc.Sequence):
                 obj = obj._duplicate()
-                obj._entry = obj._entry.child(query)
+                obj._entry = obj.__entry__().child(query)
                 continue
             elif isinstance(query, (str, int)):
                 obj = obj._as_child(query, default_value=default_value, **kwargs)

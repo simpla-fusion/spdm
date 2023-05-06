@@ -45,7 +45,7 @@ class Node(object):
     def _duplicate(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
         other._cache = self._cache
-        other._entry = self._entry.duplicate() if self._entry is not None else None
+        other._entry = self.__entry__().duplicate() 
         other._parent = self._parent
         other._appinfo = self._appinfo
         return other
@@ -54,20 +54,22 @@ class Node(object):
         return f"<{self.__class__.__name__} />"
 
     def __str__(self) -> str:
-        return f"<{self.__class__.__name__}>{self._entry.dump()}</{self.__class__.__name__}>"
+        return f"<{self.__class__.__name__}>{self.__entry__().dump()}</{self.__class__.__name__}>"
 
     def _annotation(self) -> dict:
-        return {"entr_type":  self._entry.__class__.__name__, "appinfo": dict(self._appinfo)}
+        return {"entr_type":  self.__entry__().__class__.__name__, "appinfo": dict(self._appinfo)}
 
     def __cache__(self) -> typing.Any:
         return self._cache
 
     def __entry__(self) -> Entry:
+        if self._entry is None:
+            raise RuntimeError("No entry!")
         return self._entry
 
     def __value__(self) -> typing.Any:
-        if self._cache is _undefined_:
-            self._cache = self._entry.__value__()
+        if self._cache is None :
+            self._cache = self.__entry__().__value__()
         return self._cache
 
     def _reset(self):
@@ -78,15 +80,8 @@ class Node(object):
     def _flash(self):
         raise NotImplementedError("flash")
 
-    def _dump(self):
-        if self._cache is None:
-            self._cache = self._entry.dump()
-        else:
-            raise NotImplementedError("Merge cache and entry")
-        return self._cache
-
     def __serialize__(self):
-        return self._dump()
+        return self.__value__()
 
     def _validate(self, value, type_hint) -> bool:
         if value is _undefined_ or type_hint is _undefined_:
@@ -104,8 +99,8 @@ class Node(object):
                 res = False
         return res
 
-    def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
-        raise NotImplementedError("as_child")
+    # def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
+    #     raise NotImplementedError("as_child")
 
     def _find_node_by_path(self, path) -> Node:
 
