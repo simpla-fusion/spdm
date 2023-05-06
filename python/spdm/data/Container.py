@@ -12,34 +12,15 @@ import numpy as np
 from spdm.numlib.misc import array_like
 
 from ..utils.logger import logger
-from ..utils.misc import as_dataclass
+from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from .Entry import Entry, as_entry
 from .Function import Function
 from .Node import Node
 from .Path import Path
-from .sp_property import sp_property
-
-_TObject = typing.TypeVar("_TObject")
 
 
-def typing_get_origin(tp):
-    if not inspect.isclass(tp):
-        return None
-    elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
-        return typing.get_origin(tp)
-
-    orig_class = getattr(tp, "__orig_bases__", None)
-
-    if orig_class is None:
-        return tp
-    elif isinstance(orig_class, tuple):
-        return typing_get_origin(orig_class[0])
-    else:
-        return typing_get_origin(orig_class)
-
-
-class Container(Node, typing.Container[_TObject]):
+class Container(Node, typing.Container):
     """
         Container
         ---------
@@ -60,7 +41,7 @@ class Container(Node, typing.Container[_TObject]):
             self._cache = {}
         return self._cache
 
-    def __setitem__(self, path, value) -> typing.Any:
+    def __setitem__(self, path, value) -> None:
         # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
 
         path = Path(path)
@@ -76,7 +57,7 @@ class Container(Node, typing.Container[_TObject]):
             else:
                 as_entry(parent).insert(path[-1], value)
 
-    def __getitem__(self, path) -> _TObject:
+    def __getitem__(self, path) -> typing.Any:
         return Container._get(self, Path(path), default_value=_not_found_)  # type:ignore
 
     def __delitem__(self, key) -> bool:
@@ -88,33 +69,24 @@ class Container(Node, typing.Container[_TObject]):
     def __len__(self) -> int:
         return self.__entry__().count
 
-    def __iter__(self) -> typing.Generator[_TObject, None, None]:
+    def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         raise NotImplementedError()
 
     def __eq__(self, other) -> bool:
         return self.__entry__().equal(other)
+
+    def _type_hint(self, *args) -> typing.Type:
+        type_hint = typing.get_args(getattr(self, "__orig_class__", None))
+        return type_hint[-1] if len(type_hint) > 0 else None
 
     def _as_child(self,
                   key: typing.Union[int, str, slice, None],
                   value: typing.Any = _not_found_,
                   type_hint: typing.Type = None,
                   strict=False,
-                  **kwargs) -> _TObject:
-
-        # 获得 type_hint
-        if isinstance(key, str):
-            attr = getattr(self.__class__, key, _not_found_)
-            if isinstance(attr, sp_property):  # 若 key 是 sp_property
-                kwargs = {**kwargs, **attr.appinfo}
-
-            if type_hint is None:  # 作为一般属性，由type_hint决定类型
-                type_hint = typing.get_type_hints(self.__class__).get(key, None)
-
-        if type_hint is None:  # 由容器类型决定类型
-            type_hint = typing.get_args(getattr(self, "__orig_class__", None))
-            if len(type_hint) > 0:
-                type_hint = type_hint[-1]
-
+                  **kwargs) -> typing.Any:
+        if type_hint is None:
+            type_hint = self._type_hint(key)
         orig_class = typing_get_origin(type_hint)
 
         # 如果 value 符合 orig_class 则返回之
@@ -130,10 +102,16 @@ class Container(Node, typing.Container[_TObject]):
 
         default_value: typing.Any = kwargs.get("default_value", None)
 
+        if default_value is not None and (isinstance(default_value, (collections.abc.Mapping, collections.abc.Sequence)) and len(default_value) > 0):
+            if isinstance(value, Entry):
+                value = value.query(**kwargs)
+            elif value is None or value is _not_found_:
+                value = default_value
+
         if not inspect.isclass(orig_class):  # 若 type_hint/orig_class 未定义，则由value决定类型
             if isinstance(value, Entry):
                 value = value.query(**kwargs)
-            elif value is _not_found_:
+            if value is _not_found_:
                 value = default_value
         elif isinstance(value, orig_class):
             # 如果 value 符合 type_hint 则返回之
@@ -169,6 +147,8 @@ class Container(Node, typing.Container[_TObject]):
 
         if strict and inspect.isclass(orig_class) and not isinstance(value, orig_class) and default_value is not None:
             raise KeyError(f"Can not find {key}! type_hint={type_hint} value={type(value)}")
+        elif isinstance(key, str) and isinstance(self._cache, collections.abc.MutableMapping):
+            self._cache[key] = value
 
         return value  # type:ignore
 

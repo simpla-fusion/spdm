@@ -50,14 +50,25 @@ from typing import Any
 
 import numpy as np
 
+from spdm.data.Node import Node
+
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
+from .Container import Container
 
-_TObject = typing.TypeVar("_TObject")
 _T = typing.TypeVar("_T")
 
 
-class sp_property(typing.Generic[_TObject]):  # type: ignore
+class SpPropertyClass(Container, typing.MutableMapping[str, typing.Any]):
+    def __init__(self, *args, cache=None,  **kwargs) -> None:
+        super().__init__(*args, cache=cache if cache is not None else {},   **kwargs)
+
+    def _type_hint(self, key: str) -> typing.Type:
+        return typing.get_type_hints(self.__class__).get(key, None)\
+            or getattr(getattr(self.__class__, key, None), "type_hint", None)
+
+
+class sp_property(typing.Generic[_T]):  # type: ignore
     def __init__(self,
                  getter: typing.Callable[[typing.Any], typing.Any] = None,
                  setter=None,
@@ -102,11 +113,10 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                 f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
     def _get_type_hint(self, owner_cls):
-        if not inspect.isfunction(getattr(owner_cls, "_as_child", None)):
-            raise TypeError(
-                f"sp_property is only valid for class with method '_as_child', not for {type(owner_cls)} '{self.property_name}'.")
 
-        if self.type_hint is None:
+        if self.type_hint is not None:
+            return self.type_hint
+        else:
             t_hints = typing.get_type_hints(owner_cls)
             self.type_hint = t_hints.get(self.property_name, None)
 
@@ -126,8 +136,9 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                 if isinstance(getattr(base, self.property_name, None), sp_property):
                     self.appinfo.update(getattr(base, self.property_name).appinfo)
 
-    def __set__(self, instance: typing.Any, value: typing.Any):
+    def __set__(self, instance: SpPropertyClass, value: typing.Any):
         assert (instance is not None)
+
         self._get_type_hint(instance.__class__)
 
         if self.property_name is None or self.property_cache_key is None:
@@ -140,10 +151,12 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
                 instance._as_child(key=self.property_cache_key, value=value,
                                    type_hint=self.type_hint, appinfo=self.appinfo)
 
-    def __get__(self, instance: typing.Any, owner=None) -> typing.Union[sp_property[_TObject], _TObject]:
+    def __get__(self, instance: SpPropertyClass | None, owner=None) -> _T | sp_property[_T]:
         if instance is None:
             # 当调用 getter(cls, <name>) 时执行
             return self
+        elif not isinstance(instance, SpPropertyClass):
+            raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpPropertyClass'.")
 
         # 当调用 getter(obj, <name>) 时执行
         self._get_type_hint(owner)
@@ -173,10 +186,12 @@ class sp_property(typing.Generic[_TObject]):  # type: ignore
         return value
 
     def __delete__(self, instance: typing.Any) -> None:
-
         with self.lock:
             if callable(self.deleter):
                 self.deleter(instance)
+            elif isinstance(instance._cache, collections.abc.MutableMapping):
+                if self.property_cache_key in instance._cache:
+                    del instance._cache[self.property_cache_key]
             else:
                 raise AttributeError(f"Cannot delete property '{self.property_name}'")
                 # del instance._cache[self.property_cache_key]

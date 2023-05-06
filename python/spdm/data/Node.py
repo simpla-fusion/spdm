@@ -28,6 +28,7 @@ class Node(object):
         if isinstance(d, Node._PRIMARY_TYPE_) and cache is None:  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
             self._entry = None
             self._cache = d
+        
         else:  # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
             self._cache = cache
             self._entry = as_entry(d)

@@ -11,10 +11,9 @@ from .Node import Node
 from .Path import Path
 
 _T = typing.TypeVar("_T")
-_TObject = typing.TypeVar("_TObject")
 
 
-class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
+class Dict(Container, typing.MutableMapping[str, _T]):
     """
         Dict
         ----
@@ -55,7 +54,7 @@ class Dict(Container[_TObject], typing.Mapping[str, _TObject]):
         return self._update(other, force=False)
 
     # def _as_child(self, key: str, value=_not_found_,
-    #               *args, **kwargs) -> _TObject:
+    #               *args, **kwargs) -> _T:
     #     """[summary]
 
     #     """

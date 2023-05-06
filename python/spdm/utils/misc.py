@@ -534,3 +534,19 @@ def fetch_request(url: str) -> typing.Dict:
 primitive_types = (int, bool, str, float, complex, np.ndarray)
 
 builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndarray)
+
+
+def typing_get_origin(tp):
+    if not inspect.isclass(tp):
+        return None
+    elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
+        return typing.get_origin(tp)
+
+    orig_class = getattr(tp, "__orig_bases__", None)
+
+    if orig_class is None:
+        return tp
+    elif isinstance(orig_class, tuple):
+        return typing_get_origin(orig_class[0])
+    else:
+        return typing_get_origin(orig_class)
