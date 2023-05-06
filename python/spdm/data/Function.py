@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import collections.abc
+import inspect
 import typing
 import warnings
 from functools import cached_property
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 
-from ..grid.Grid import Grid
+from ..grid.Grid import Grid, NullGrid
+from ..grid.PPolyGrid import PPolyGrid
 from ..utils.logger import logger
 from ..utils.misc import float_unique
 from ..utils.tags import _not_found_
@@ -20,236 +23,173 @@ class Function(typing.Generic[_T]):
         NOTE: Function is immutable!!!!
     """
 
-    def __init__(self, data, *args, **kwargs):
-
-        if callable(data):
-            self.__fun_op__ = data
-            self._data = None
+    def __init__(self,  *args, **kwargs):
+        if self.__class__ is Function and (len(args) > 0 and callable(args[0])) or kwargs.get('ufunc', None) is not None:
+            self.__class__ = Expression
+            return self.__class__.__init__(self, *args, **kwargs)
+        elif len(args) == 0:
+            self._data = tuple()
+            self._grid = None
         else:
-            self.__fun_op__ = None
-            self._data = data
+            self._data = args[0]
+            if len(args) == 2 and isinstance(args[1], Grid):
+                self._grid = args[1]
+                self._appinfo = kwargs
+            elif all([isinstance(a, np.ndarray) for a in args[1:]]):
+                self._grid = PPolyGrid(*args[1:], **kwargs)
+            else:
+                self._grid = Grid(*args[1:], **kwargs)
 
-        if len(args) == 1 and isinstance(args[0], np.ndarray):
-            kwargs.setdefault("grid_type", "Spline1D")
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}  grid_type=\"{self._grid.name}\" data_type=\"{self.__type_hint__.__name__}\" />"
 
-        self._grid = Grid(*args, **kwargs)
+    def __duplicate__(self) -> Function[_T]:
+        other = object.__new__(self.__class__)
+        other._grid = self._grid
+        other._data = self._data
+        return other
 
     @property
     def grid(self) -> Grid | None:
         return self._grid
 
-    def __get_data__(self) -> _T | np.ndarray | None:
-        if hasattr(self._data.__class__, "__entry__"):
-            d = self._data.__entry__().__value__()
-            if d is not None and d is not _not_found_:
-                self._data = d
-        else:
-            d = self._data
+    def __array__(self) -> NDArray: return np.asarray(self.__call__())
 
-        return d
+    def __array_ufunc__(self, ufunc, method, *args,   **kwargs) -> Expression[_T]:
+        return Expression[_T](*args, ufunc=ufunc, method=method, **kwargs)
 
-    def __array__(self) -> np.ndarray:
-        return np.asarray(self.__get_data__())
-
-    def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
-        return Expression(ufunc, method, *inputs, **kwargs)
-
-    def __call__(self, *args) -> _T | np.ndarray:
-        if callable(self.__fun_op__):
-            return self.__fun_op__(*args)
-
-        if self._grid is not None:
-            self.__fun_op__ = self._grid.interpolator(self.__get_data__())
-        elif isinstance(self._data, (int, float, bool, complex)):
-            self.__fun_op__ = lambda *_: self.__type_hint__(self.__get_data__())
-        else:
-            raise RuntimeError(f"Function is not callable! {self.__fun_op__}")
-
-        return self.__fun_op__(*args)
-
+    @cached_property
     def __type_hint__(self) -> typing.Type:
-        return typing.get_args(self.__orig_class__)[0]
-
-    def __duplicate__(self):
-        other = object.__new__(self.__class__)
-        other._grid = self._grid
-        other._data = self._data.copy() if isinstance(self._data, np.ndarray) else self._data
-        return other
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}  grid_type={self._grid.type if self._grid is not None else 'None'} data_type={self.__type_hint__.__name__}/>"
-
-    def __getitem__(self, *args):
-        value = self.__value__()
-        if isinstance(value, np.ndarray):
-            return value.__getitem__(*args)
-        elif isinstance(self._grid, np.ndarray):
-            return self.__call__(*self._grid.__getitem__(*args))
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
+            return typing.get_args(orig_class)[0]
+        elif isinstance(self._data, np.ndarray):
+            return self._data.dtype.type
+        elif callable(self._data):
+            return typing.get_type_hints(self._data).get("return", None)
         else:
-            raise RuntimeError(f"x is {type(self._grid)} ,y is {type(self._data)}")
+            return None
 
-    def derivative(self) -> Function:
-        return Function(self.__fun_op__.derivative())
+    @cached_property
+    def __fun__(self) -> typing.Callable[..., ArrayLike | NDArray]:
+        if self._grid is not None:
+            return self._grid.interpolator(self._data)
+        elif isinstance(self._data, (int, float, bool, complex)):
+            v = self._data
+            return lambda *_: self.__type_hint__(v)
+        else:
+            raise RuntimeError(f"Function is not callable!")
 
-    def antiderivative(self) -> Function:
-        return Function(self.__fun_op__.antiderivative())
+    def __call__(self, *args, **kwargs) -> ArrayLike | NDArray: return self.__fun__(*args, **kwargs)
 
-    def dln(self) -> Function:
+    def derivative(self, *args, **kwargs) -> Function[_T]:
+        if self.__fun__ is not None:
+            return Function(self.__fun__.derivative(*args, **kwargs))
+        elif self._grid is not None:
+            return Function(self._grid.derivative(self.__array__(), *args, **kwargs))
+        else:
+            raise RuntimeError(f"Function is not callable! {self.__fop__}")
+
+    def antiderivative(self, *args, **kwargs) -> Function[_T]:
+        if self.__fun__ is not None:
+            return Function(self.__fun__.antiderivative(*args, **kwargs))
+        elif self._grid is not None:
+            return Function(self._grid.antiderivative(self.__array__(), *args, **kwargs))
+        else:
+            raise RuntimeError(f"Function is not callable! {self.__fop__}")
+
+    def integrate(self, *args, **kwargs) -> _T:
+        if self.__fun__ is not None:
+            return self.__fun__.integrate(*args, **kwargs)
+        elif self._grid is not None:
+            return self._grid.integrate(self.__array__(), *args, **kwargs)
+        else:
+            raise RuntimeError(f"")
+
+    def dln(self, *args, **kwargs) -> Function[_T]:
         # v = self._interpolator(self._grid)
         # x = (self._grid[:-1]+self._grid[1:])*0.5
         # return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self._grid[1:]-self._grid[:-1])*2.0)
-        return Function(self._grid, self.__fun_op__.derivative()(self._grid)/self.__fun_op__(self._grid))
+        return self.derivative(*args, **kwargs) / self
 
-    def integrate(self, a=None, b=None):
-        return self.__fun_op__.integrate(a or self.x[0], b or self.x[-1])
-
-    def invert(self) -> Function:
-        return Function(self.__array__(), self._grid)
-
-    def pullback(self, source: np.ndarray, target: np.ndarray):
-        if source.shape != target.shape:
-            raise ValueError(
-                f"The shapes of axies don't match! {source.shape}!={target.shape}")
-
-        return Function(target, np.asarray(self(source), dtype=float))
-
-    def __neg__(self): return np.negative(self)
-    def __add__(self, other): return np.add(self, other)
-    def __sub__(self, other): return np.subtract(self, other)
-    def __mul__(self, other): return np.multiply(self, other)
-    def __matmul__(self, other): return np.matmul(self, other)
-    def __truediv__(self, other): return np.true_divide(self, other)
-    def __pow__(self, other): return np.power(self, other)
-    def __eq__(self, other): return np.equal(self, other)
-    def __ne__(self, other): return np.not_equal(self, other)
-    def __lt__(self, other): return np.less(self, other)
-    def __le__(self, other): return np.less_equal(self, other)
-    def __gt__(self, other): return np.greater_equal(self, other)
-    def __ge__(self, other): return np.greater_equal(self, other)
-    def __radd__(self, other): return np.add(other, self)
-    def __rsub__(self, other): return np.subtract(other, self)
-    def __rmul__(self, other): return np.multiply(other, self)
-    def __rmatmul__(self, other): return np.matmul(other, self)
-    def __rtruediv__(self, other): return np.divide(other, self)
-    def __rpow__(self, other): return np.power(other, self)
-    def __abs__(self): return np.abs(self)
-    def __pos__(self): return np.positive(self)
-    def __invert__(self): return np.invert(self)
-    def __and__(self, other): return np.bitwise_and(self, other)
-    def __or__(self, other): return np.bitwise_or(self, other)
-    def __xor__(self, other): return np.bitwise_xor(self, other)
-    def __rand__(self, other): return np.bitwise_and(other, self)
-    def __ror__(self, other): return np.bitwise_or(other, self)
-    def __rxor__(self, other): return np.bitwise_xor(other, self)
-
-    def __rshift__(self, other): return np.right_shift(self, other)
-    def __lshift__(self, other): return np.left_shift(self, other)
-    def __rrshift__(self, other): return np.right_shift(other, self)
-    def __rlshift__(self, other): return np.left_shift(other, self)
-    def __mod__(self, other): return np.mod(self, other)
-    def __rmod__(self, other): return np.mod(other, self)
-    def __floordiv__(self, other): return np.floor_divide(self, other)
-    def __rfloordiv__(self, other): return np.floor_divide(other, self)
-    def __trunc__(self): return np.trunc(self)
-    def __round__(self, n=None): return np.round(self, n) # type: ignore
-    def __floor__(self): return np.floor(self)
-    def __ceil__(self): return np.ceil(self)
+    # fmt: off
+    def __neg__      (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.negative     )
+    def __add__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.add          )
+    def __sub__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.subtract     )
+    def __mul__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.multiply     )
+    def __matmul__   (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.matmul       )
+    def __truediv__  (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.true_divide  )
+    def __pow__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.power        )
+    def __eq__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.equal        )
+    def __ne__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.not_equal    )
+    def __lt__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.less         )
+    def __le__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.less_equal   )
+    def __gt__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.greater_equal)
+    def __ge__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.greater_equal)
+    def __radd__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.add          )
+    def __rsub__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.subtract     )
+    def __rmul__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.multiply     )
+    def __rmatmul__  (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.matmul       )
+    def __rtruediv__ (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.divide       )
+    def __rpow__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.power        )
+    def __abs__      (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.abs          )
+    def __pos__      (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.positive     )
+    def __invert__   (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.invert       )
+    def __and__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.bitwise_and  )
+    def __or__       (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.bitwise_or   )
+    def __xor__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.bitwise_xor  )
+    def __rand__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.bitwise_and  )
+    def __ror__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.bitwise_or   )
+    def __rxor__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.bitwise_xor  )
+    def __rshift__   (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.right_shift  )
+    def __lshift__   (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.left_shift   )
+    def __rrshift__  (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.right_shift  )
+    def __rlshift__  (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.left_shift   )
+    def __mod__      (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.mod          )
+    def __rmod__     (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.mod          )
+    def __floordiv__ (self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.floor_divide )
+    def __rfloordiv__(self, o: ArrayLike|NDArray) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.floor_divide )
+    def __trunc__    (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.trunc        )
+    def __round__    (self, n=None              ) -> Expression[_T]: return Expression[_T]((self, n) ,self._grid, ufunc=np.round        )
+    def __floor__    (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.floor        )
+    def __ceil__     (self                      ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.ceil         )
+    # fmt: on
 
 
-class Expression(Function):
-    def __init__(self, ufunc, method, *inputs,  **kwargs) -> None:
-        super().__init__(*inputs)
+class PicewiseFunction(Function[_T]):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class Expression(Function[_T]):
+    def __init__(self, *args,  ufunc: typing.Callable | None, method: str | None = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._ufunc = ufunc
         self._method = method
-        self._kwargs = kwargs
 
     def __repr__(self) -> str:
-        def repr(expr):
-            if isinstance(expr, Function):
-                return expr.__repr__()
-            elif isinstance(expr, np.ndarray):
-                return f"<{expr.__class__.__name__} />"
-            else:
-                return expr
+        return f"<{self.__class__.__name__}   op=\"{self._ufunc.__name__}\" />"
 
-        return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._data]} </ {self.__class__.__name__}>"""
+    def __call__(self,  *args: ArrayLike | NDArray | Grid, **kwargs) -> ArrayLike | NDArray:
 
-    @cached_property
-    def x_domain(self) -> list:
-        res = []
-        x_min = -np.inf
-        x_max = np.inf
-        for f in self._data:
-            if not isinstance(f, Function) or f.x_domain is None:
-                continue
-            x_min = max(f.x_min, x_min)
-            x_max = min(f.x_max, x_max)
-            res.extend(f.x_domain)
-        return float_unique(res, x_min, x_max)
+        dtype = float if self.__type_hint__ is None else self.__type_hint__
 
-    @cached_property
-    def x_axis(self) -> np.ndarray:
-        axis = None
-        is_changed = False
-        for f in self._data:
-            if not isinstance(f, Function) or f.x_axis is None or axis is f.x_axis:
-                continue
-            elif axis is None:
-                axis = f.x_axis
-            else:
-                axis = np.hstack([axis, f.x_axis])
-                is_changed = True
+        if not inspect.isclass(dtype):
+            dtype = float
 
-        if is_changed:
-            axis = float_unique(axis, self.x_min, self.x_max)
-        return axis
+        d = [np.asarray(d(*args)if callable(d) else d, dtype=dtype) for d in self._data]
 
-    def resample(self, x_min, x_max=None, /, **kwargs):
-        inputs = [(f.resample(x_min, x_max, **kwargs)
-                   if isinstance(f, Function) else f) for f in self._data]
-        return Expression(self._ufunc, self._method, *inputs, **self._kwargs)
-
-    def __call__(self, x: typing.Optional[typing.Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
-
-        if x is None or (isinstance(x, list) and len(x) == 0):
-            x = self._grid
-
-        if x is None:
-            raise RuntimeError(f"Can not get x_axis!")
-
-        def wrap(x, d):
-            if d is None:
-                res = 0
-            elif isinstance(d, Function):
-                res = np.asarray(d(x), dtype=float)
-            elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
-                res = d
-            elif self._grid is not None and d.shape == self._grid.shape:
-                res = np.asarray(Function(self._grid, d)(x), dtype=float)
-            elif d.shape == x.shape:
-                res = d
-            else:
-                raise ValueError(
-                    f"{getattr(self._grid,'shape',[])} {x.shape} {type(d)} {d.shape}")
-            return res
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error")
-            try:
-                res = self._ufunc(*[wrap(x, d) for d in self._data])
-            except RuntimeWarning as warning:
-                logger.error((self._ufunc, [wrap(x, d) for d in self._data]))
-                logger.exception(warning)
-                raise RuntimeError(warning)
-        return res
-
-        # if self._method != "__call__":
-        #     op = getattr(self._ufunc, self._method)
-        #     res = op(*[wrap(x, d) for d in self._data])
+        if self._method is not None:
+            ufunc = getattr(self._ufunc, self._method)
+            return ufunc(self, *d)
+        elif callable(self._ufunc):
+            return ufunc(*d)  # type: ignore
+        else:
+            raise ValueError(f"ufunc is not callable ufunc={self._ufunc} method={self._method}")
 
 
-def function_like(*args, **kwargs) -> Function:
-    if len(args) == 1 and isinstance(args[0], Function):
-        return args[0]
+def function_like(y: _T, *args: ArrayLike, **kwargs) -> Function[_T]:
+    if len(args) == 0 and isinstance(y, Function):
+        return y
     else:
-        return Function(*args, **kwargs)
+        return Function[_T](y, *args, **kwargs)

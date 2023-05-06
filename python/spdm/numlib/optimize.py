@@ -1,8 +1,7 @@
-import collections
+import collections.abc
 import os
 import pprint
-from typing import Callable
-
+import typing
 import numpy as np
 from scipy import optimize
 from scipy.ndimage.filters import maximum_filter, minimum_filter
@@ -17,7 +16,7 @@ SP_EXPERIMENTAL = os.environ.get("SP_EXPERIMENTAL", False)
 EPSILON = 1.0e-2
 
 
-def _minimize_filter_2d_image(Z):
+def _minimize_filter_2d_image(Z) -> typing.Generator[typing.Tuple[int, int], None, None]:
     """
     Takes an image and detect the peaks usingthe local maximum filter.
     Returns a boolean mask of the peaks (i.e. 1 when
@@ -56,7 +55,7 @@ def _minimize_filter_2d_image(Z):
         yield ix, iy
 
 
-def minimize_filter(func: Callable[..., float], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
+def minimize_filter(func: typing.Callable[..., float], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
 
     if isinstance(tolerance, collections.abc.Sequence) and len(tolerance) == 2:
         dx, dy = tolerance
@@ -114,7 +113,7 @@ def minimize_filter(func: Callable[..., float], xmin: float, ymin: float, xmax: 
                 ysol = y1
 
 
-def minimize_filter_2d_experimental(func: Callable[..., float], x0, y0, x1, y1, p0=None, tolerance=[0.1, 0.1]):
+def minimize_filter_2d_experimental(func: typing.Callable[..., float], x0, y0, x1, y1, p0=None, tolerance=[0.1, 0.1]):
     if abs((x0-x1)) < tolerance[0] or abs(y0-y1) < tolerance[1]:
         yield from []
         return
@@ -142,7 +141,7 @@ def minimize_filter_2d_experimental(func: Callable[..., float], x0, y0, x1, y1, 
     yield from minimize_filter_2d_experimental(func, xc, yc, xmax, ymax, p0=p0, tolerance=tolerance)
 
 
-def find_critical_points_2d_experimental(func: Callable[..., float], xmin, ymin, xmax, ymax, tolerance=EPSILON):
+def find_critical_points_2d_experimental(func: typing.Callable[..., float], xmin, ymin, xmax, ymax, tolerance=EPSILON):
 
     # def grad_func(p): return func(*p, dx=1, grid=False)**2 + func(*p, dy=1, grid=False)**2
     def grad_func(p): return func(*p, grid=False)
@@ -152,7 +151,7 @@ def find_critical_points_2d_experimental(func: Callable[..., float], xmin, ymin,
         yield x, y, func(x, y, grid=False), D
 
 
-def find_critical_points(func: Callable[..., float], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
+def find_critical_points(func: typing.Callable[..., float], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
 
     def grad2_func(p): return func(*p, dx=1, grid=False)**2 + func(*p, dy=1, grid=False)**2
 

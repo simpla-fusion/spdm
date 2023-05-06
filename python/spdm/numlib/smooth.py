@@ -66,10 +66,10 @@ def smooth(x, window_len=11, window='hanning'):
     return y
 
 
-def smooth_1d(x, y, i_begin=0, i_end=None,  **kwargs):
-    dy = Function(x, y).derivative(x)
+def smooth_1d(y, x, i_begin=0, i_end=None,  **kwargs):
+    dy = Function(y, x).derivative(x)
     dy[i_begin:i_end] = smooth(dy[i_begin:i_end], **kwargs)
-    y_new = Function(x, dy).antiderivative(x)+y[0]
+    y_new = Function(dy, x).antiderivative(x)+y[0]
     return y_new
 
 

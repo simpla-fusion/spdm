@@ -22,10 +22,10 @@ class Node(object):
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __init__(self, d: typing.Any = None, *args, cache=None,  parent: typing.Optional[Node] = None, appinfo=None, **kwargs) -> None:
+    def __init__(self, d: typing.Any = None, *args, cache=None,  parent: typing.Optional[Node] = None, appinfo={}, **kwargs) -> None:
         if len(args) > 0:
             raise RuntimeError(f"Ignore {len(args)} position arguments! [{args}]")
-        if isinstance(d, Node._PRIMARY_TYPE_):  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
+        if isinstance(d, Node._PRIMARY_TYPE_) and cache is None:  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
             self._entry = None
             self._cache = d
         else:  # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
@@ -40,7 +40,7 @@ class Node(object):
             self.__class__ = Node._MAPPING_TYPE_
 
         self._parent = parent
-        self._appinfo: typing.Mapping[str, typing.Any] = appinfo if appinfo is not None else kwargs
+        self._appinfo: typing.Mapping[str, typing.Any] = {**appinfo, **kwargs}
 
     def _duplicate(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)

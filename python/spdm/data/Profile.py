@@ -1,17 +1,9 @@
-import collections.abc
 import typing
-from enum import Enum
-from functools import cached_property
-from typing import Any
 
 import numpy as np
-from spdm.data.Dict import Dict
+from numpy.typing import NDArray, ArrayLike
 from spdm.data.Function import Function
-from spdm.data.List import List
 from spdm.data.Node import Node
-from spdm.data.sp_property import sp_property
-from spdm.utils.logger import logger
-from spdm.utils.tags import _undefined_
 
 from .Container import Container
 
@@ -21,17 +13,23 @@ _T = typing.TypeVar("_T")
 class Profile(Node, Function[_T]):
 
     def __init__(self, *args, **kwargs) -> None:
-        Node.__init__(self, *args, **kwargs)
+        Node.__init__(self, *args, **{k: v for k, v in kwargs.items() if not k.startswith("coordinate")})
         if isinstance(self._parent, Container):
-            coords = [k for k in self._appinfo.keys() if k.startswith("coordinate")]
-            coords.sort()
-            coords = [self._appinfo[c] for c in coords]
+            coord_keys = [k for k in kwargs.keys() if k.startswith("coordinate")]
+            coord_keys.sort()
+            coord_keys = [kwargs[c] for c in coord_keys]
             # FIXME: "1...N" is for IMAS dd
-            coords = [(None if (c == "1...N") else self._find_node_by_path(c)) for c in coords]
-            Function.__init__(self, *coords, self.__entry__(), appinfo=self._appinfo)
+            self._axis = [(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in self._axis]
+            Function.__init__(self, self.__entry__(),  *self._axis,
+                              **{k: v for k, v in kwargs if not k.startswith("coordinate")})
         else:
             raise RuntimeError(f"Parent is None, can not determint the coordinates!")
 
-    @property
+    @ property
     def data(self) -> np.ndarray:
         return super().__value__()
+
+    def __array__(self) -> NDArray | ArrayLike: return self.__call__(*self._axis)
+
+    def __value__(self) -> ArrayLike | NDArray: return self.__array__()
+    """aslias of __array__ """

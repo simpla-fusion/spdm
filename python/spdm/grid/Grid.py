@@ -1,15 +1,13 @@
-import abc  # abstract base class
-import collections.abc
-import inspect
 import typing
-from functools import cached_property
 
 import numpy as np
-
+from numpy.typing import NDArray, ArrayLike
 from spdm.geometry.GeoObject import GeoObject
 
 from ..geometry.GeoObject import GeoObject
 from ..utils.Pluggable import Pluggable
+
+_T = typing.TypeVar("_T")
 
 
 class Grid(Pluggable):
@@ -41,23 +39,41 @@ class Grid(Pluggable):
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Grid:
             return Grid.__dispatch__init__(None, self, *args, **kwargs)
-        self._type = kwargs.get("grid_type", "unnamed")
-        self._units = kwargs.get("units", ["-"])
+        self._appinfo = kwargs
+        self._appinfo.setdefault("grid_type", self.__class__.__name__)
+        self._appinfo.setdefault("units", ["-"])
 
     @property
-    def type(self) -> str:
-        return self._type
+    def name(self) -> str:
+        return self._appinfo.get("name", 'unamed')
 
     @property
     def units(self) -> typing.List[str]:
-        return self._units
+        return self._appinfo.get("units", ["-"])
 
     @property
-    def geometry(self) -> GeoObject | None:
+    def geometry(self) -> GeoObject:
         """ Geometry of the grid
             网格的几何形状 
         """
         return NotImplemented
+
+    def points(self) -> NDArray:
+        # 网格点坐标
+        raise NotImplementedError(f"{self.__class__.__name__}.points")
+
+    def interpolator(self, y: NDArray, *args, **kwargs) -> typing.Callable[..., ArrayLike | NDArray]:
+        # TODO: implement interpolator
+        raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
+
+    def derivative(self, y: NDArray, *args, **kwargs) -> typing.Callable[..., ArrayLike | NDArray]:
+        return self.interpolator(y, *args, **kwargs).derivative()
+
+    def antiderivative(self, y:  NDArray, *args, **kwargs) -> typing.Callable[...,  ArrayLike | NDArray]:
+        return self.interpolator(y, *args, **kwargs).antiderivative()
+
+    def integrate(self, y:  NDArray, *args, **kwargs) -> float:
+        return self.interpolator(y).integrate(*args, **kwargs)
 
 
 @Grid.register([None, 'null'])

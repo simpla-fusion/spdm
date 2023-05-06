@@ -8,7 +8,6 @@ from spdm.data.sp_property import sp_property
 from spdm.utils.logger import logger
 
 
-_T = typing.TypeVar("_T")
 
 
 
@@ -16,6 +15,7 @@ class TimeSlice(Dict[Node]):
 
     time: float = sp_property(unit='s',type='dynamic')
     
+_T = typing.TypeVar("_T")
 
 
 class TimeSeriesAoS(List[_T]):

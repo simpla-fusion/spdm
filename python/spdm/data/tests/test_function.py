@@ -7,6 +7,13 @@ from spdm.data.Function import Expression, Function
 
 
 class TestFunction(unittest.TestCase):
+
+    def test_type(self):
+        x = np.linspace(0, 1.0, 128)
+        y = np.sin(x*constants.pi*2.0)
+        fun = Function[int](y, x)
+        self.assertEqual(fun.__type_hint__, int)
+
     def test_spl(self):
         x = np.linspace(0, 1.0, 128)
         y = np.sin(x*constants.pi*2.0)
@@ -18,10 +25,24 @@ class TestFunction(unittest.TestCase):
 
         self.assertLess(np.mean((y2-fun(x2))**2), 1.0e-16)  # type: ignore
 
+    def test_expression(self):
+        x = np.linspace(0, 1.0, 128)
+        y = np.sin(x*constants.pi*2.0)
+        fun = Function(y, x)
+
+        expr = fun*2.0
+
+        self.assertTrue(type(expr) is Expression)
+
     def test_operator(self):
         x = np.linspace(0, 1, 128)
         y = np.linspace(0, 2, 128)
         fun = Function(y, x)
+
+        expr = fun == y
+
+        logger.debug(expr)
+        logger.debug(np.all(expr))
 
         self.assertTrue(np.all(-fun == -y))
         self.assertTrue(np.all(fun + 2 == y + 2))
@@ -61,13 +82,13 @@ class TestFunction(unittest.TestCase):
 
     #     self.assertTrue(np.all(y2._grid == x2))
 
-    # def test_picewise_function(self):
-    #     r_ped = 0.9001  # np.sqrt(0.88)
-    #     Cped = 0.2
-    #     Ccore = 0.4
-    #     chi = Function([lambda x:x, lambda x: Cped], [0, r_ped, 1.0], grid_type="Piecewise")
-    #     x = np.linspace(0, 1, 101)
-    #     logger.debug((chi*2)(x))
+    def test_picewise_function(self):
+        r_ped = 0.9001  # np.sqrt(0.88)
+        Cped = 0.2
+        Ccore = 0.4
+        chi = Function([lambda x:x, lambda x: Cped], [0, r_ped, 1.0], grid_type="Piecewise")
+        x = np.linspace(0, 1, 101)
+        logger.debug((chi*2)(x))
 
 
 if __name__ == '__main__':
