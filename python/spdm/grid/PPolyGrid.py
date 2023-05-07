@@ -6,11 +6,11 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.interpolate import CubicSpline, PPoly
 
-from .Grid import Grid
+from .Grid import Grid, RegularGrid
 
 
 @Grid.register('ppoly')
-class PPolyGrid(Grid):
+class PPolyGrid(RegularGrid):
     """Piecewise polynomial grid
     """
 

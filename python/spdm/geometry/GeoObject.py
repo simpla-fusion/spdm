@@ -1,13 +1,13 @@
 from __future__ import annotations
+from ..utils.Pluggable import Pluggable
+from ..utils.misc import builtin_types
 
 import collections.abc
 import typing
 from functools import cached_property
 
 import numpy as np
-
-from ..utils.misc import builtin_types
-from ..utils.Pluggable import Pluggable
+from numpy.typing import NDArray, ArrayLike
 
 
 class GeoObject(Pluggable):
@@ -133,7 +133,7 @@ class GeoObject(Pluggable):
             res = res[:]
         return res
 
-    def points(self, *uv, **kwargs) -> np.ndarray:
+    def points(self, *uv, **kwargs) -> typing.Tuple[NDArray]:
         """
             coordinates of vertices on mesh
             Return: array-like

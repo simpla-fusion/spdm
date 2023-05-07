@@ -49,11 +49,15 @@ class Pluggable(metaclass=abc.ABCMeta):
                     # TODO: 需要检查并消除循环依赖
                     n_cls_name = n_cls
                     n_cls = None
+            elif inspect.isclass(n_cls_name):
+                n_cls = n_cls_name
+                n_cls_name = n_cls.__name__
 
             if not callable(n_cls):
                 n_cls = sp_find_module(n_cls_name)
 
             if callable(n_cls):
+                kwargs["grid_type"] = n_cls_name
                 break
 
         if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
