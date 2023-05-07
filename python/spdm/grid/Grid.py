@@ -19,7 +19,7 @@ class Grid(Pluggable):
             _grid_type = kwargs.get("grid_type", None)
 
             if _grid_type is None:
-                _grid_type = RegularGrid
+                _grid_type = [RegularGrid]
             elif isinstance(_grid_type, str):
                 _grid_type = [_grid_type,
                               f"spdm.grid.{_grid_type}Grid#{_grid_type}Grid",

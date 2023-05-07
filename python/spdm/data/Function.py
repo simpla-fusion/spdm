@@ -75,29 +75,29 @@ class Function(typing.Generic[_T]):
         """
         grid_type = kwargs.get("grid_type", None)
 
-        if self.__class__ is Function and len(args) > 0 and grid_type is None:
-            # 根据 args和kwargs，自动判断初始化的类型（overload/dispatch）
-            if isinstance(args[0], PPoly) or all([isinstance(arg, (np.ndarray, float)) for arg in args]):
-                # 若 grid_type 为 None，且 args 中的所有参数都是 np.ndarray 或者 float，则初始化网格为多项式插值函数 PPolyFunction
-                self.__class__ = PPolyFunction
-                return self.__class__.__init__(self, *args, **kwargs)
-            elif callable(args[0]) or kwargs.get('ufunc', None) is not None:
-                # 若 args[0] 是一个函数，则初始化为表达式
-                self.__class__ = Expression
-                return self.__class__.__init__(self, *args, **kwargs)
-            else:
-                raise RuntimeError(f"Can not determine the type of Function from args={args} and kwargs={kwargs}")
-        elif self.__class__ is Function and grid_type == "picewise":
-            # 若 grid_type 为 picewise，则初始化为分段函数 PicewiseFunction
-            self.__class__ = PicewiseFunction
-            return self.__class__.__init__(self, *args, **kwargs)
-        elif self.__class__ is Function and grid_type == "ppoly":
-            # 若 grid_type 为 picewise，则初始化为分段函数 PicewiseFunction
+        if self.__class__ is not Function or grid_type is not None or len(args) == 0:
+            pass
+        elif isinstance(args[0], PPoly) or all([isinstance(arg, (np.ndarray, float)) for arg in args]):
+            # 若 grid_type 为 None，且 args 中的所有参数都是 np.ndarray 或者 float，则初始化网格为多项式插值函数 PPolyFunction
             self.__class__ = PPolyFunction
             return self.__class__.__init__(self, *args, **kwargs)
-        else:  # 若以上条件都不满足，则根据kwargs参数初始化 Grid
-            self._data: NDArray = args[0] if len(args) > 0 else None  # type:ignore  网格点上的数值 DoF
-            self._grid: Grid = as_grid(*args[1:], **kwargs)  # type:ignore 网格
+        elif callable(args[0]) or kwargs.get('ufunc', None) is not None:
+            # 若 args[0] 是一个函数，则初始化为表达式
+            self.__class__ = Expression
+            return self.__class__.__init__(self, *args, **kwargs)
+
+        self._data: NDArray = args[0] if len(args) > 0 else None  # type:ignore  网格点上的数值 DoF
+        self._grid: Grid = as_grid(*args[1:], **kwargs)  # type:ignore 网格
+
+        # raise RuntimeError(f"Can not determine the type of Function from args={args} and kwargs={kwargs}")
+        # elif self.__class__ is Function and grid_type == "picewise":
+        #     # 若 grid_type 为 picewise，则初始化为分段函数 PiecewiseFunction
+        #     self.__class__ = PiecewiseFunction
+        #     return self.__class__.__init__(self, *args, **kwargs)
+        # elif self.__class__ is Function and grid_type == "ppoly":
+        #     # 若 grid_type 为 picewise，则初始化为分段函数 PiecewiseFunction
+        #     self.__class__ = PPolyFunction
+        #     return self.__class__.__init__(self, *args, **kwargs)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}  grid_type=\"{self._grid.name if isinstance(self._grid,Grid) else 'unamed'}\" data_type=\"{self.__type_hint__.__name__}\" />"
@@ -213,14 +213,25 @@ class Function(typing.Generic[_T]):
     # fmt: on
 
 
-class PicewiseFunction(Function[_T]):
-    """ PicewiseFunction
+class PiecewiseFunction(Function[_T]):
+    """ PiecewiseFunction
         ----------------
         A piecewise function. 一维或多维，分段函数
     """
 
     def __init__(self, fun_list: typing.List[typing.Any], cond_list: typing.List[typing.Any], **kwargs):
         super().__init__()
+        self._fun_list = fun_list
+        self._cond_list = cond_list
+
+    def __call__(self, x) -> NumericType:
+        if isinstance(x, float):
+            res = [fun(x) for fun, cond in zip(self._fun_list, self._cond_list) if cond(x)]
+            return res[0]
+        elif isinstance(x, np.ndarray) and x.ndim == 1:
+            return np.hstack([fun(x[cond(x)]) for fun, cond in zip(self._fun_list, self._cond_list)])
+        else:
+            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {x}")
 
 
 class PPolyFunction(Function[_T]):
@@ -231,15 +242,17 @@ class PPolyFunction(Function[_T]):
     """
 
     def __init__(self, *args, **kwargs):
+        if len(args) != 2:
+            raise RuntimeError(f"args length must be 2, but {len(args)}")
         from ..grid.PPolyGrid import PPolyGrid
-        super().__init__(args[:1], PPolyGrid(*args[1:], **kwargs))
+        super().__init__(args[0], PPolyGrid(*args[1:], **kwargs))
 
         if isinstance(self._data, PPoly):
             self._ppoly = self._data
         else:
             self._ppoly = None
 
-    @property
+    @ property
     def __ppoly__(self) -> PPoly:
         """ 获取函数的实际表达式，如插值函数 """
         if isinstance(self._ppoly, PPoly):
@@ -251,21 +264,21 @@ class PPolyFunction(Function[_T]):
         return self._ppoly  # type: ignore
 
     def __call__(self, *args, ** kwargs) -> NDArray:
-        return self.__ppoly__(*args, **kwargs)
+        return np.asarray(self.__ppoly__(*args, **kwargs))
 
-    def derivative(self, *args, **kwargs) -> Function[_T] | NDArray:
+    def derivative(self, *args, **kwargs) -> Function[_T] | NumericType:
         if isinstance(self.__ppoly__, PPoly):
             return Function(self.__ppoly__.derivative(*args, **kwargs), self._grid)
         else:
             return super().derivative(*args, **kwargs)
 
-    def antiderivative(self, *args, **kwargs) -> Function[_T] | NDArray:
+    def antiderivative(self, *args, **kwargs) -> Function[_T] | NumericType:
         if isinstance(self.__ppoly__, PPoly):
             return Function(self.__ppoly__.antiderivative(*args, **kwargs))
         else:
             return super().antiderivative(*args, **kwargs)
 
-    def integrate(self, *args, **kwargs) -> ArrayLike:
+    def integrate(self, *args, **kwargs) -> NumericType:
         if self.__ppoly__ is not None:
             return self.__ppoly__.integrate(*args, **kwargs)
         else:
@@ -291,7 +304,7 @@ class Expression(Function[_T]):
         if not inspect.isclass(dtype):
             dtype = float
 
-        d = [np.asarray(d(*args)if callable(d) else d, dtype=dtype) for d in self._data]
+        d = [np.asarray(d(*args, **kwargs) if callable(d) else d, dtype=dtype) for d in self._data]
 
         if self._method is not None:
             ufunc = getattr(self._ufunc, self._method, None)
