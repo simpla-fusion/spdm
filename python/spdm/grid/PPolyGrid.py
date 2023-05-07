@@ -3,8 +3,7 @@ from __future__ import annotations
 import typing
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
-from scipy.interpolate import CubicSpline, PPoly
+from scipy.interpolate import CubicSpline, PPoly,interp1d
 
 from .Grid import Grid, RegularGrid
 
@@ -14,19 +13,10 @@ class PPolyGrid(RegularGrid):
     """Piecewise polynomial grid
     """
 
-    def __init__(self, *args: NDArray, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self._ppoly = None
-        self._points = args
-
-    def points(self) -> typing.Tuple[NDArray]:
-        """ Return the points of the grid
-        """
-        return self._points
-
     def interpolator(self, y, **kwargs) -> PPoly:
-        bc_type = "periodic" if np.all(y[0] == y[-1]) else "not-a-knot"
-        return CubicSpline(*self._points, y, bc_type=bc_type, **kwargs)
+        bc_type = self._appinfo.get("bc_type", "not-a-knot")
+        #  "periodic"         "periodic" if np.all(y[0] == y[-1]) else
+        return interp1d(*self.points, y, **kwargs)
 
 
 __SP_EXPORT__ = PPolyGrid

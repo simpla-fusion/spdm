@@ -1,13 +1,12 @@
 import typing
 from functools import cached_property
 
-import numpy as np
-from numpy.typing import ArrayLike, NDArray
 from spdm.geometry.GeoObject import GeoObject
 
 from ..geometry.GeoObject import GeoObject
 from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
+from ..utils.typing import NumericType, PrimaryNumericType
 
 
 class Grid(Pluggable):
@@ -52,23 +51,23 @@ class Grid(Pluggable):
     """ Geometry of the grid  网格的几何形状  """
 
     @property
-    def uv_points(self) -> typing.Tuple[NDArray]: return self._uv_points
+    def uv_points(self) -> typing.Tuple[NumericType]: return self._uv_points
 
     @cached_property
-    def points(self) -> typing.Tuple[NDArray]:
+    def points(self) -> typing.Tuple[NumericType]:
         """ 网格点坐标 """
         return self._uv_points if self._geometry is None else self._geometry.points(*self._uv_points)
 
-    def interpolator(self, y: NDArray, *args, **kwargs) -> typing.Callable[..., ArrayLike | NDArray] | ArrayLike | NDArray:
+    def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
 
-    def derivative(self, y: NDArray, *args, **kwargs) -> typing.Callable[..., ArrayLike | NDArray] | ArrayLike | NDArray:
+    def derivative(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         raise NotImplementedError(f"{self.__class__.__name__}.derivative")
 
-    def antiderivative(self, y:  NDArray, *args, **kwargs) -> typing.Callable[...,  ArrayLike | NDArray] | ArrayLike | NDArray:
+    def antiderivative(self, y:  NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         raise NotImplementedError(f"{self.__class__.__name__}.antiderivative")
 
-    def integrate(self, y:  NDArray, *args, **kwargs) -> ArrayLike:
+    def integrate(self, y:  NumericType, *args, **kwargs) -> PrimaryNumericType:
         raise NotImplementedError(f"{self.__class__.__name__}.integrate")
 
 
@@ -79,14 +78,13 @@ class RegularGrid(Grid):
         - Null  也无坐标点坐标, 无几何形状信息，
         - Normal 存储坐标点坐标，没有额外的几何形状信息
     """
-    @property
-    def geometry(self) -> GeoObject | None:
-        return None
+    pass
 
 
 def as_grid(*args, **kwargs) -> Grid:
-    if len(args) > 0 and isinstance(args[0], Grid):
-        logger.warning(f"Ignore args {args} and kwargs {kwargs}")
+    if len(args) == 1 and isinstance(args[0], Grid):
+        if len(kwargs) > 0:
+            logger.warning(f"Ignore kwargs {kwargs}")
         return args[0]
     else:
         return Grid(*args, **kwargs)
