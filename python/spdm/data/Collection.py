@@ -6,7 +6,6 @@ from ..utils.sp_export import sp_find_module
 from ..utils.uri_utils import URITuple, uri_split
 from .Connection import Connection
 from .Entry import Entry
-from .Mapper import Mapper
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
 InsertManyResult = collections.namedtuple("InsertManyResult", "inserted_ids success")
@@ -40,12 +39,12 @@ class Collection(Connection):
         else:
             return super().__new__(cls, *args, **kwargs)
 
-    def __init__(self, uri, *args,  mapper: typing.Optional[Mapper] = None,   **kwargs):
+    def __init__(self, uri, *args,  mapper=None,   **kwargs):
         super().__init__(uri, *args, **kwargs)
         self._mapper = mapper
 
     @property
-    def mapper(self) -> typing.Optional[Mapper]:
+    def mapper(self):
         return self._mapper
 
     def guess_id(self, predicate, *args, fragment: int = None, **kwargs) -> int:

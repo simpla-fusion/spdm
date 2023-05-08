@@ -1,9 +1,9 @@
+import abc
 import collections.abc
 import typing
 from functools import cached_property
-import abc
-import numpy as np
 
+import numpy as np
 from spdm.geometry.GeoObject import GeoObject
 
 from ..geometry.GeoObject import GeoObject
@@ -42,17 +42,9 @@ class StructuredMesh(Grid):
 
         # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
 
-    @abc.abstractproperty
+    @property
     def geometry(self) -> GeoObject | None:
         raise NotImplementedError("geometry is not implemented")
-
-    @property
-    def ndims(self) -> int:
-        return self._ndims
-
-    @property
-    def shape(self) -> typing.List[int]:
-        return self._shape
 
     @property
     def cycle(self) -> typing.List[bool]:

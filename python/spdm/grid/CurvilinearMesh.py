@@ -23,7 +23,7 @@ class CurvilinearMesh(StructuredMesh):
     """
     TOLERANCE = 1.0e-5
 
-    def __init__(self, geo_mesh: typing.List[GeoObject] | GeoObject, uv: typing.List[np.ndarray] ,  *args,   ** kwargs) -> None:
+    def __init__(self, geo_mesh: typing.List[GeoObject] | GeoObject, uv: typing.List[np.ndarray],  *args,   ** kwargs) -> None:
         rank = len(uv)
         shape = [len(d) for d in uv]
         if isinstance(geo_mesh, np.ndarray):
@@ -38,8 +38,7 @@ class CurvilinearMesh(StructuredMesh):
         elif isinstance(geo_mesh, collections.abc.Sequence) and isinstance(geo_mesh[0], GeoObject):
             ndims = geo_mesh[0].ndims
             if len(uv[0]) != len(geo_mesh):
-                raise ValueError(
-                    f"Illegal number of sub-surface {len(self[uv[0]])} != {len(geo_mesh)}")
+                raise ValueError(f"Illegal number of sub-surface {len(self)} != {len(geo_mesh)}")
             surf = geo_mesh
         elif isinstance(geo_mesh, GeoObject):
             raise NotImplementedError(type(geo_mesh))

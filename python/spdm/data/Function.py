@@ -3,20 +3,19 @@ from __future__ import annotations
 import collections.abc
 import inspect
 import typing
-from copy import copy, deepcopy
-from functools import cached_property
+from copy import copy
+from functools import cached_property, lru_cache
 
 import numpy as np
-from scipy.interpolate import NdPPoly, PPoly
+from scipy.interpolate import PPoly
 
 from ..grid.Grid import Grid, as_grid
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, ScalarType, is_arraylike, is_scalarlike, as_array, as_scalar, NumericType
+from ..utils.typing import (ArrayType, NumericType, ScalarType, as_array,
+                            as_scalar)
 
-_T = typing.TypeVar("_T")
 
-
-class Function(typing.Generic[_T]):
+class Function(object):
     """
     Function 函数
     --------------
@@ -31,46 +30,50 @@ class Function(typing.Generic[_T]):
     _data: np.ndarray | typing.Callable[..., NumericType]
         - 网格点上数值 DoF
         - 描述函数的数值或者插值函数
+
+    TODO:
+        - Function[ScalarTypeValue,ScalarTypeGrid] 两个泛型参数，分别描述数值和网格的类型
     """
 
-    def __init__(self,  *args, **kwargs):
+    def __init__(self, d=None, *args, **kwargs):
         """
         初始化Function 函数
         --------------
+        d: np.ndarray | typing.Callable[..., NumericType]
+            - 网格点上数值 DoF
+            - 描述函数的数值或者插值函数
 
         """
-        grid_type = kwargs.get("grid_type", None)
 
-        if self.__class__ is not Function or grid_type is not None:
-            pass
-        elif len(args) == 0:
-            pass
-        elif isinstance(args[0], PPoly) or all([is_arraylike(arg) for arg in args]):
-            # 若 grid_type 为 None，且 args 中的所有参数都是 np.ndarray 或者 float，则初始化网格为多项式插值函数 PPolyFunction
+        if self.__class__ is Function and (kwargs.get("grid_type", "ppoly") == "ppoly"):
+            # 若无明确指明 grid_type，默认初始化为 PPolyFunction
             self.__class__ = PPolyFunction
-            return self.__class__.__init__(self, *args, **kwargs)
-        elif callable(args[0]) or kwargs.get('ufunc', None) is not None:
-            # 若 args[0] 是一个函数，则初始化为表达式
-            self.__class__ = Expression
-            return self.__class__.__init__(self, *args, **kwargs)
+            return self.__class__.__init__(self, d, *args, **kwargs)
 
-        self._data: typing.Any = args[0] if len(args) > 0 else None  # type:ignore  网格点上的数值 DoF
-        self._grid: Grid = as_grid(*args[1:], **kwargs)             # type:ignore 网格
+        self._data: typing.Any = d  # 网格点上的数值 DoF
 
-        # raise RuntimeError(f"Can not determine the type of Function from args={args} and kwargs={kwargs}")
-        # elif self.__class__ is Function and grid_type == "picewise":
-        #     # 若 grid_type 为 picewise，则初始化为分段函数 PiecewiseFunction
-        #     self.__class__ = PiecewiseFunction
-        #     return self.__class__.__init__(self, *args, **kwargs)
-        # elif self.__class__ is Function and grid_type == "ppoly":
-        #     # 若 grid_type 为 picewise，则初始化为分段函数 PiecewiseFunction
-        #     self.__class__ = PPolyFunction
-        #     return self.__class__.__init__(self, *args, **kwargs)
+        self._grid: Grid = as_grid(*args, **{k: v for k, v in kwargs.items()
+                                             if k.startswith("grid_")})     # type:ignore 网格
+
+        self._metadata = {k: v for k, v in kwargs.items() if not k.startswith("grid_")}
+
+        self._ppoly_cache = {}
+
+    @property
+    def metadata(self):
+        return self._metadata
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}  grid_type=\"{self._grid.name if isinstance(self._grid,Grid) else 'unamed'}\" data_type=\"{self.__type_hint__.__name__}\" />"
 
-    def __copy__(self) -> Function[_T]:
+    def __serialize__(self) -> typing.Mapping:
+        raise NotImplementedError(f"")
+
+    @classmethod
+    def __deserialize__(cls, data: typing.Mapping) -> Function:
+        raise NotImplementedError(f"")
+
+    def __copy__(self) -> Function:
         """复制 Function """
         other = object.__new__(self.__class__)
         other._grid = self._grid
@@ -80,20 +83,28 @@ class Function(typing.Generic[_T]):
     @property
     def grid(self) -> Grid: return self._grid
 
-    # fmt:off
-    def __array__(self) -> ArrayType: 
+    def __array__(self) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符"""
 
-        if self._data is not None:
-            return as_array(self._data)
+        if isinstance(self._data, np.ndarray):
+            return self._data
         elif isinstance(self._grid, Grid):
-            return as_array(self.__call__(self._grid.points))
+            if self._data is None:
+                self._data = np.zeros(self._grid.shape)
+                return self._data
+            else:
+                return as_array(self.__call__(self._grid.points))
         else:
-            raise RuntimeError(f"Can not convert Function to numpy.ndarray! grid_type={type(self._grid)}")    
+            raise RuntimeError(f"Can not convert Function to numpy.ndarray! grid_type={type(self._grid)}")
 
+    def __getitem__(self, *args) -> NumericType:
+        return self.__array__().__getitem__(*args)
 
+    def __setitem__(self, *args) -> None:
+        return self.__array__().__setitem__(*args)
 
-    def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression[_T]: return Expression[_T](*args, ufunc=ufunc, method=method, **kwargs)
+    # fmt:off
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression: return Expression(*args, ufunc=ufunc, method=method, **kwargs)
     """ 重载 numpy 的 ufunc 运算符"""
     # fmt:on
 
@@ -111,80 +122,104 @@ class Function(typing.Generic[_T]):
         else:
             return None
 
-    def __call__(self, *args, ** kwargs) -> NumericType | Function[_T]:
-        if not isinstance(self._grid, Grid):
-            raise RuntimeError(f"Grid is not defined! {self._grid}")
-        res = self._grid.interpolator(as_array(self._data), *args, **kwargs)
-        return Function(res, self._grid) if callable(res) else res
+    def __ppoly__(self, *dx: int) -> typing.Callable[..., NumericType]:
+        """ 返回 PPoly 对象 """
+        fun = self._ppoly_cache.get(dx, None)
+        if fun is not None:
+            return fun
 
-    def derivative(self, *args, **kwargs) -> NumericType | Function[_T]:
-        if not isinstance(self._grid, Grid):
-            raise RuntimeError(f"Grid is not defined! {self._grid}")
-        res = self._grid.derivative(self._data, *args, **kwargs)
-        return Function(res, self._grid) if callable(res) else res
+        if len(dx) == 0:
+            if callable(self._data):
+                fun = self._data
+            elif isinstance(self._grid, Grid):
+                fun = self._grid.interpolator(as_array(self._data))
+        else:
+            ppoly = self.__ppoly__()
 
-    def antiderivative(self, *args, **kwargs) -> NumericType | Function[_T]:
-        if not isinstance(self._grid, Grid):
-            raise RuntimeError(f"Grid is not defined! {self._grid}")
-        res = self._grid.antiderivative(self._data, *args, **kwargs)
-        return Function(res, self._grid) if callable(res) else res
+            if all(d < 0 for d in dx):
+                if hasattr(ppoly.__class__, 'antiderivative'):
+                    fun = self.__ppoly__().antiderivative(*dx)
+                elif isinstance(self._grid, Grid):
+                    fun = self._grid.antiderivative(self._data, *dx)
+            elif all(d >= 0 for d in dx):
+                if hasattr(ppoly.__class__, 'partial_derivative'):
+                    fun = self.__ppoly__().partial_derivative(*dx)
+                elif isinstance(self._grid, Grid):
+                    fun = self._grid.partial_derivative(self._data, *dx)
 
-    def integrate(self, *args, **kwargs) -> ScalarType:
-        if not isinstance(self._grid, Grid):
-            raise RuntimeError(f"Grid is not defined! {self._grid}")
-        return as_scalar(self._grid.integrate(self._data, *args, **kwargs))
+        if fun is None:
+            raise RuntimeError(f"Can not convert Function to PPoly! grid_type={type(self._grid)}")
 
-    def dln(self, *args, **kwargs) -> NumericType | Function[_T]:
+        self._ppoly_cache[dx] = fun
+
+        return fun
+
+    def __call__(self, *args, ** kwargs) -> NumericType: return self.__ppoly__()(*args, ** kwargs)
+
+    def partial_derivative(self, *dx) -> Function: return Function(self.__ppoly__(*dx), self._grid)
+
+    def pd(self, *dx) -> Function: return self.partial_derivative(*dx)
+
+    def antiderivative(self, *dx) -> Function: return Function(self.__ppoly__(*dx), self._grid)
+
+    def integral(self, *dx) -> Function: return self.antiderivative(*dx)
+
+    def dln(self, *dx) -> Function:
         # v = self._interpolator(self._grid)
         # x = (self._grid[:-1]+self._grid[1:])*0.5
         # return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self._grid[1:]-self._grid[:-1])*2.0)
-        return self.derivative(*args, **kwargs) / self
+        return self.pd(*dx) / self
+
+    def integrate(self, *args, **kwargs) -> ScalarType:
+        return as_scalar(self._grid.integrate(self._data, *args, **kwargs))
+
+
 
     # fmt: off
-    def __neg__      (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.negative     )
-    def __add__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.add          )
-    def __sub__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.subtract     )
-    def __mul__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.multiply     )
-    def __matmul__   (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.matmul       )
-    def __truediv__  (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.true_divide  )
-    def __pow__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.power        )
-    def __eq__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.equal        )
-    def __ne__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.not_equal    )
-    def __lt__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.less         )
-    def __le__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.less_equal   )
-    def __gt__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.greater_equal)
-    def __ge__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.greater_equal)
-    def __radd__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.add          )
-    def __rsub__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.subtract     )
-    def __rmul__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.multiply     )
-    def __rmatmul__  (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.matmul       )
-    def __rtruediv__ (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.divide       )
-    def __rpow__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.power        )
-    def __abs__      (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.abs          )
-    def __pos__      (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.positive     )
-    def __invert__   (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.invert       )
-    def __and__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.bitwise_and  )
-    def __or__       (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.bitwise_or   )
-    def __xor__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.bitwise_xor  )
-    def __rand__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.bitwise_and  )
-    def __ror__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.bitwise_or   )
-    def __rxor__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.bitwise_xor  )
-    def __rshift__   (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.right_shift  )
-    def __lshift__   (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.left_shift   )
-    def __rrshift__  (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.right_shift  )
-    def __rlshift__  (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.left_shift   )
-    def __mod__      (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.mod          )
-    def __rmod__     (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.mod          )
-    def __floordiv__ (self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((self, o) ,self._grid, ufunc=np.floor_divide )
-    def __rfloordiv__(self, o: NumericType | Function[_T]) -> Expression[_T]: return Expression[_T]((o, self) ,self._grid, ufunc=np.floor_divide )
-    def __trunc__    (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.trunc        )
-    def __round__    (self, n=None                       ) -> Expression[_T]: return Expression[_T]((self, n) ,self._grid, ufunc=np.round        )
-    def __floor__    (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.floor        )
-    def __ceil__     (self                               ) -> Expression[_T]: return Expression[_T]((self,)   ,self._grid, ufunc=np.ceil         )
+    def __neg__      (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.negative     )
+    def __add__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.add          )
+    def __sub__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.subtract     )
+    def __mul__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.multiply     )
+    def __matmul__   (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.matmul       )
+    def __truediv__  (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.true_divide  )
+    def __pow__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.power        )
+    def __eq__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.equal        )
+    def __ne__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.not_equal    )
+    def __lt__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.less         )
+    def __le__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.less_equal   )
+    def __gt__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.greater_equal)
+    def __ge__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.greater_equal)
+    def __radd__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.add          )
+    def __rsub__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.subtract     )
+    def __rmul__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.multiply     )
+    def __rmatmul__  (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.matmul       )
+    def __rtruediv__ (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.divide       )
+    def __rpow__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.power        )
+    def __abs__      (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.abs          )
+    def __pos__      (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.positive     )
+    def __invert__   (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.invert       )
+    def __and__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.bitwise_and  )
+    def __or__       (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.bitwise_or   )
+    def __xor__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.bitwise_xor  )
+    def __rand__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.bitwise_and  )
+    def __ror__      (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.bitwise_or   )
+    def __rxor__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.bitwise_xor  )
+    def __rshift__   (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.right_shift  )
+    def __lshift__   (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.left_shift   )
+    def __rrshift__  (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.right_shift  )
+    def __rlshift__  (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.left_shift   )
+    def __mod__      (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.mod          )
+    def __rmod__     (self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.mod          )
+    def __floordiv__ (self, o: NumericType | Function) : return Expression((self, o) ,self._grid, ufunc=np.floor_divide )
+    def __rfloordiv__(self, o: NumericType | Function) : return Expression((o, self) ,self._grid, ufunc=np.floor_divide )
+    def __trunc__    (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.trunc        )
+    def __round__    (self, n=None                   ) : return Expression((self, n) ,self._grid, ufunc=np.round        )
+    def __floor__    (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.floor        )
+    def __ceil__     (self                           ) : return Expression((self,)   ,self._grid, ufunc=np.ceil         )
     # fmt: on
 
 
-class Expression(Function[_T]):
+class Expression(Function):
     def __init__(self, *args,  ufunc: typing.Callable | None, method: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._ufunc = ufunc
@@ -193,7 +228,7 @@ class Expression(Function[_T]):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}   op=\"{self._ufunc.__name__}\" />"
 
-    def __call__(self,  *args: ScalarType | ArrayType, **kwargs) -> ArrayType:
+    def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
 
         dtype = float if self.__type_hint__ is None else self.__type_hint__
 
@@ -213,14 +248,14 @@ class Expression(Function[_T]):
             raise ValueError(f"ufunc is not callable ufunc={self._ufunc} method={self._method}")
 
 
-def function_like(y: _T, *args: ScalarType | ArrayType, **kwargs) -> Function[_T]:
+def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
     if len(args) == 0 and isinstance(y, Function):
         return y
     else:
-        return Function[_T](y, *args, **kwargs)
+        return Function(y, *args, **kwargs)
 
 
-class PiecewiseFunction(Function[_T]):
+class PiecewiseFunction(Function):
     """ PiecewiseFunction
         ----------------
         A piecewise function. 一维或多维，分段函数
@@ -244,49 +279,54 @@ class PiecewiseFunction(Function[_T]):
         else:
             raise TypeError(f"PiecewiseFunction only support single float or  1D array, {x}")
 
-    def derivative(self, *args, **kwargs) -> NumericType | Function[_T]:
+    def derivative(self, *args, **kwargs) -> NumericType | Function:
         return super().derivative(*args, **kwargs)
 
 
-class PPolyFunction(Function[_T]):
+class PPolyFunction(Function):
     """ PPolyFunction
         ----------------
         A piecewise polynomial function.
         一维或多维，多项式插值函数，
     """
 
-    def __init__(self, *args, **kwargs):
-        if len(args) != 2:
-            raise RuntimeError(f"args length must be 2, but {len(args)}")
-        from ..grid.PPolyGrid import PPolyGrid
-        super().__init__(args[0], PPolyGrid(*args[1:], **kwargs))
-
-        if isinstance(self._data, PPoly):
-            self._ppoly = self._data
+    def __init__(self, d, *args, **kwargs):
+        if isinstance(d, PPoly):
+            super().__init__()
+            self._ppoly = d
+        elif len(args) > 0 and isinstance(args[0], Grid):
+            super().__init__(d, args[0])
+            if len(kwargs) > 0 or len(args) > 1:
+                logger.warning(f"Ignore args {args} and kwargs  {kwargs} ")
         else:
-            self._ppoly = None
+            from ..grid.PPolyGrid import PPolyGrid
+            super().__init__(d, PPolyGrid(*args, **kwargs))
 
-    @ property
-    def __ppoly__(self) -> PPoly:
-        """ 获取函数的实际表达式，如插值函数 """
-        if isinstance(self._ppoly, PPoly):
-            pass
-        elif isinstance(self._grid, Grid):
-            self._ppoly = self._grid.interpolator(self._data)
-        else:
-            raise RuntimeError(f"Can not get the ppoly of {self}")
-        return self._ppoly  # type: ignore
+    # def __ppoly__(self, *dx) -> PPoly:
+    #     """ 获取函数的实际表达式，如插值函数 """
+    #     if isinstance(self._data, PPoly):
+    #         return self._data
+    #     elif not isinstance(self._grid, Grid):
+    #         raise RuntimeError(f"grid is not Grid, {self._grid}")
+    #     elif len(dx) == 0:
+    #         return self._grid.interpolator(as_array(self._data))
+    #     else:
+    #         ppoly = self.__ppoly__()
+    #         if dx[0] > 0:
+    #             return ppoly.derivative(dx[0])
+    #         elif dx[0] == -1:
+    #             return ppoly.antiderivative(dx[0])
 
     def __call__(self, *args, ** kwargs) -> NumericType:
-        return as_array(self.__ppoly__(*args, **kwargs))
+        return as_array(self.__ppoly__()(*args, **kwargs))
 
-    def derivative(self, *args, **kwargs) -> NumericType | Function[_T]:
+    def derivative(self, *args, **kwargs) -> NumericType | Function:
         if isinstance(self.__ppoly__, PPoly):
             return Function(self.__ppoly__.derivative(*args, **kwargs), self._grid)
         else:
             return super().derivative(*args, **kwargs)
 
-    def antiderivative(self, *args, **kwargs) -> NumericType | Function[_T]:
+    def antiderivative(self, *args, **kwargs) -> NumericType | Function:
         if isinstance(self.__ppoly__, PPoly):
             return Function(self.__ppoly__.antiderivative(*args, **kwargs))
         else:
@@ -298,5 +338,5 @@ class PPolyFunction(Function[_T]):
         else:
             return super().integrate(*args, **kwargs)
 
-    def dln(self, *args, **kwargs) -> NumericType | Function[_T]:
+    def dln(self, *args, **kwargs) -> NumericType | Function:
         return self.derivative(*args, **kwargs) / self.__call__(*args, **kwargs)

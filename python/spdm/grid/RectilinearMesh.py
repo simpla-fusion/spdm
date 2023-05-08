@@ -76,7 +76,7 @@ class RectilinearMesh(StructuredMesh):
 
         return interp
 
-    @ cached_property
+    @cached_property
     def dl(self):
         dX = (np.roll(self.points[0], 1, axis=1) - np.roll(self.points[0], -1, axis=1))/2.0
         dY = (np.roll(self.points[1], 1, axis=1) - np.roll(self.points[1], -1, axis=1))/2.0

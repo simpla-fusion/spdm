@@ -12,7 +12,6 @@ from ..utils.uri_utils import URITuple, uri_split
 from .Collection import Collection, InsertOneResult
 from .Connection import Connection
 from .Entry import Entry
-from .File import File
 
 
 class File(Connection):

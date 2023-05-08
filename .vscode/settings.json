@@ -9,14 +9,13 @@
 
   "python.testing.unittestEnabled": true,
 
-  "python.testing.unittestArgs": [
-    "--verbose",
-    "--start-directory",
-    "tests/python",
-    "-p",
-
-    "test_*.py"
-  ],
+  // "python.testing.unittestArgs": [
+  //   "--verbose",
+  //   "--start-directory",
+  //   "tests/python",
+  //   "-p",
+  //   "test_*.py"
+  // ],
   "terminal.integrated.env.linux": {
     "PYTHONPATH": "${workspaceFolder}/python:${env:PYTHONPATH}"
   },
@@ -25,6 +24,6 @@
     "geqdsk",
     "mdsplus"
   ],
-  "python.analysis.typeCheckingMode": "basic",
+  // "python.analysis.typeCheckingMode": "basic",
   "cmake.configureOnOpen": false
 }

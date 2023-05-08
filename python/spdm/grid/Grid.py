@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 from functools import cached_property
 
@@ -15,15 +17,18 @@ class Grid(Pluggable):
 
     @classmethod
     def __dispatch__init__(cls, _grid_type, self, *args, **kwargs) -> None:
-        if _grid_type is None or len(_grid_type) == 0:
+        if not _grid_type:
             _grid_type = kwargs.get("grid_type", None)
+
+            if hasattr(_grid_type, "name"):
+                _grid_type = _grid_type.name
 
             if _grid_type is None:
                 _grid_type = [RegularGrid]
             elif isinstance(_grid_type, str):
                 _grid_type = [_grid_type,
                               f"spdm.grid.{_grid_type}Grid#{_grid_type}Grid",
-                              f"spdm.grid.{_grid_type}Mesh#{_grid_type}Mesh"
+                              f"spdm.grid.{_grid_type}Mesh#{_grid_type}Mesh",
                               f"spdm.grid.{_grid_type.capitalize()}Grid#{_grid_type.capitalize()}Grid",
                               f"spdm.grid.{_grid_type.capitalize()}Mesh#{_grid_type.capitalize()}Mesh"
                               ]
@@ -34,17 +39,34 @@ class Grid(Pluggable):
         if self.__class__ is Grid:
             return Grid.__dispatch__init__(None, self, *args, **kwargs)
         self._uv_points = args
+
+        self._shape: typing.Tuple[int] = kwargs.get("shape", None)
+
+        if self._shape is None:
+            self._shape = tuple([len(uv) for uv in self._uv_points])
+
         self._geometry: GeoObject = kwargs.get("geometry", None)
 
-        self._appinfo = kwargs
-        self._appinfo.setdefault("grid_type", self.__class__.__name__)
-        self._appinfo.setdefault("units", ["-"])
+        self._metadata = kwargs
+        self._metadata.setdefault("grid_type", self.__class__.__name__)
+        self._metadata.setdefault("units", ["-"])
+
+    def __serialize__(self) -> typing.Mapping:
+        raise NotImplementedError(f"")
+
+    @classmethod
+    def __deserialize__(cls, data: typing.Mapping) -> Grid:
+        raise NotImplementedError(f"")
 
     @property
-    def name(self) -> str: return self._appinfo.get("name", 'unamed')
+    def metadata(self) -> dict:
+        return self._metadata
 
     @property
-    def units(self) -> typing.List[str]: return self._appinfo.get("units", ["-"])
+    def name(self) -> str: return self._metadata.get("name", 'unamed')
+
+    @property
+    def units(self) -> typing.List[str]: return self._metadata.get("units", ["-"])
 
     @property
     def geometry(self) -> GeoObject: return self._geometry
@@ -53,18 +75,23 @@ class Grid(Pluggable):
     @property
     def uv_points(self) -> typing.Tuple[NumericType]: return self._uv_points
 
-    @cached_property
-    def points(self) -> typing.Tuple[NumericType]:
-        """ 网格点坐标 """
-        return self._uv_points if self._geometry is None else self._geometry.points(*self._uv_points)
+    @property
+    def shape(self) -> typing.Tuple[int]: return self._shape
 
-    def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
+    def points(self, *uv) -> typing.Tuple[NumericType]:
+        """ 网格点坐标 """
+        if len(uv) == 0:
+            return self._uv_points if self._geometry is None else self._geometry.points(*self._uv_points)
+        else:
+            return self._geometry.points(*uv)
+
+    def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
 
-    def derivative(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
-        raise NotImplementedError(f"{self.__class__.__name__}.derivative")
+    def partial_derivative(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
+        raise NotImplementedError(f"{self.__class__.__name__}.partial_derivative")
 
-    def antiderivative(self, y:  NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
+    def antiderivative(self, y:  NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.antiderivative")
 
     def integrate(self, y:  NumericType, *args, **kwargs) -> ScalarType:

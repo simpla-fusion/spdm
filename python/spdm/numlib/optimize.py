@@ -7,8 +7,9 @@ from scipy import optimize
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
 from scipy.optimize import fsolve, minimize, root_scalar
-from spdm.utils.logger import logger
-
+from ..utils.logger import logger
+from ..data.Field import Field
+from ..utils.typing import NumericType, ScalarType
 SP_EXPERIMENTAL = os.environ.get("SP_EXPERIMENTAL", False)
 
 # logger.info(f"SP_EXPERIMENTAL \t: {SP_EXPERIMENTAL}")
@@ -55,7 +56,7 @@ def _minimize_filter_2d_image(Z) -> typing.Generator[typing.Tuple[int, int], Non
         yield ix, iy
 
 
-def minimize_filter(func: typing.Callable[..., float], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
+def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
 
     if isinstance(tolerance, collections.abc.Sequence) and len(tolerance) == 2:
         dx, dy = tolerance
@@ -113,7 +114,7 @@ def minimize_filter(func: typing.Callable[..., float], xmin: float, ymin: float,
                 ysol = y1
 
 
-def minimize_filter_2d_experimental(func: typing.Callable[..., float], x0, y0, x1, y1, p0=None, tolerance=[0.1, 0.1]):
+def minimize_filter_2d_experimental(func: typing.Callable[..., ScalarType], x0, y0, x1, y1, p0=None, tolerance=[0.1, 0.1]):
     if abs((x0-x1)) < tolerance[0] or abs(y0-y1) < tolerance[1]:
         yield from []
         return
@@ -141,22 +142,24 @@ def minimize_filter_2d_experimental(func: typing.Callable[..., float], x0, y0, x
     yield from minimize_filter_2d_experimental(func, xc, yc, xmax, ymax, p0=p0, tolerance=tolerance)
 
 
-def find_critical_points_2d_experimental(func: typing.Callable[..., float], xmin, ymin, xmax, ymax, tolerance=EPSILON):
+def find_critical_points_2d_experimental(func: Field, xmin, ymin, xmax, ymax, tolerance=EPSILON):
 
     # def grad_func(p): return func(*p, dx=1, grid=False)**2 + func(*p, dy=1, grid=False)**2
-    def grad_func(p): return func(*p, grid=False)
+
+    def grad_func(*x): return func(*x, grid=False)
 
     for x, y in minimize_filter_2d_experimental(grad_func, xmin, ymin, xmax, ymax, tolerance=tolerance):
-        D = func(x, y, dx=2, grid=False) * func(x, y, dy=2, grid=False) - (func(x, y,  dx=1, dy=1, grid=False))**2
+        D = func.pd(2, 0)(x, y,  grid=False) * func.pd(0, 2)(x, y, grid=False) - \
+            (func(x, y,  dx=1, dy=1, grid=False))**2
         yield x, y, func(x, y, grid=False), D
 
 
-def find_critical_points(func: typing.Callable[..., float], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
+def find_critical_points(field: Field, xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
 
-    def grad2_func(p): return func(*p, dx=1, grid=False)**2 + func(*p, dy=1, grid=False)**2
+    def grad2_func(xy): return field.pd(1, 0)(*xy, grid=False)**2 + field.pd(0, 1)(*xy, grid=False)**2
 
     for xsol, ysol in minimize_filter(grad2_func, xmin, ymin, xmax, ymax, tolerance=tolerance):
-        D = func(xsol, ysol, dx=2, grid=False) * func(xsol, ysol, dy=2, grid=False) - \
-            (func(xsol, ysol,  dx=1, dy=1, grid=False))**2
+        D = field.pd(2, 0)(xsol, ysol,  grid=False) * field.pd(0, 2)(xsol, ysol, grid=False) - \
+            (field.pd(1, 1)(xsol, ysol, grid=False))**2
 
-        yield xsol, ysol, func(xsol, ysol, grid=False), D
+        yield xsol, ysol, field(xsol, ysol, grid=False), D

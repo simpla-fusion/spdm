@@ -14,7 +14,7 @@ class PPolyGrid(RegularGrid):
     """
 
     def interpolator(self, y, **kwargs) -> PPoly:
-        bc_type = self._appinfo.get("bc_type", "not-a-knot")
+        bc_type = self._metadata.get("bc_type", "not-a-knot")
         #  "periodic"         "periodic" if np.all(y[0] == y[-1]) else
         # return interp1d(*self.points, y, **kwargs)
         return CubicSpline(*self.points, y, bc_type=bc_type, **kwargs)

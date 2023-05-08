@@ -10,7 +10,7 @@ from .Container import Container
 _T = typing.TypeVar("_T")
 
 
-class Profile(Node, Function[_T]):
+class Profile(Node, Function, typing.Generic[_T]):
 
     def __init__(self, *args, **kwargs) -> None:
         Node.__init__(self, *args, **{k: v for k, v in kwargs.items() if not k.startswith("coordinate")})

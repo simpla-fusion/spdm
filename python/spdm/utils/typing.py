@@ -6,10 +6,14 @@ import numpy as np
 import numpy.typing as np_tp
 
 PrimaryType = int | float | bool | complex | str | bytes
+
 ArrayLike = np_tp.ArrayLike
-_npScalarType = np.float64 | np.complex64 | np.complex128
-ScalarType = _npScalarType | float | complex
-ArrayType = np_tp.NDArray[_npScalarType]
+
+
+ScalarType = float | complex | np.float64 | np.complex64 | np.complex128
+
+ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
+
 NumericType = ScalarType | ArrayType
 
 

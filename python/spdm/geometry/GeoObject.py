@@ -1,13 +1,14 @@
 from __future__ import annotations
-from ..utils.Pluggable import Pluggable
-from ..utils.misc import builtin_types
 
 import collections.abc
 import typing
 from functools import cached_property
 
 import numpy as np
-from numpy.typing import NDArray, ArrayLike
+
+from ..utils.misc import builtin_types
+from ..utils.Pluggable import Pluggable
+from ..utils.typing import ArrayLike, NumericType
 
 
 class GeoObject(Pluggable):
@@ -127,13 +128,13 @@ class GeoObject(Pluggable):
     def translate(self, *args) -> GeoObject:
         return GeoObject(self._impl.translate(*args))
 
-    def __call__(self, *args: float | np.ndarray, **kwargs) -> np.ndarray | typing.List[float]:
+    def __call__(self, *args: float | np.ndarray, **kwargs) -> typing.Sequence[NumericType]:
         res = self.points(*args, **kwargs)
         if not isinstance(res, np.ndarray):
             res = res[:]
         return res
 
-    def points(self, *uv, **kwargs) -> typing.Tuple[NDArray]:
+    def points(self, *uv, **kwargs) -> typing.Sequence[NumericType]:
         """
             coordinates of vertices on mesh
             Return: array-like

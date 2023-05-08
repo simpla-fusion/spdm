@@ -14,11 +14,13 @@ TWOPI = 2.0*constants.pi
 
 @Curve.register("cubic_spline_curve")
 class CubicSplineCurve(Curve):
-    def __init__(self,   *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
+    def __init__(self, points, mesh=None,  **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._mesh = mesh
+        self._points = points
         # if not isinstance(self._mesh, collections.abc.Sequence):
         #     raise NotImplementedError(type(self._mesh))
+
     def points(self,  *args, **kwargs) -> np.ndarray:
         if len(args) == 0:
             return self._points
@@ -37,6 +39,6 @@ class CubicSplineCurve(Curve):
 
     def derivative(self, *args, **kwargs):
         if len(args) == 0:
-            args = self.mesh
+            args = [self._mesh]
         res = self._derivative(*args, **kwargs)
         return res[:, 0], res[:, 1]

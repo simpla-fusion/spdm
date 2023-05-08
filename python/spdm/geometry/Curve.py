@@ -15,10 +15,10 @@ class Curve(GeoObject1D):
 
         super().__init__(*args, **kwargs)
 
-    @abc.abstractproperty
-    def is_convex(self):
-        return True
+    # @abc.abstractproperty
+    # def is_convex(self):
+    #     return True
 
-    @abc.abstractproperty
-    def is_closed(self):
-        return True
+    # @abc.abstractproperty
+    # def is_closed(self):
+    #     return True
