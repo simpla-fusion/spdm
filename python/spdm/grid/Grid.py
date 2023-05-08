@@ -6,7 +6,7 @@ from spdm.geometry.GeoObject import GeoObject
 from ..geometry.GeoObject import GeoObject
 from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
-from ..utils.typing import NumericType, PrimaryNumericType
+from ..utils.typing import NumericType, ScalarType
 
 
 class Grid(Pluggable):
@@ -67,7 +67,7 @@ class Grid(Pluggable):
     def antiderivative(self, y:  NumericType, *args, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         raise NotImplementedError(f"{self.__class__.__name__}.antiderivative")
 
-    def integrate(self, y:  NumericType, *args, **kwargs) -> PrimaryNumericType:
+    def integrate(self, y:  NumericType, *args, **kwargs) -> ScalarType:
         raise NotImplementedError(f"{self.__class__.__name__}.integrate")
 
 

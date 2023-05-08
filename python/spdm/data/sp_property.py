@@ -48,12 +48,9 @@ import typing
 from _thread import RLock
 from typing import Any
 
-import numpy as np
-
-from spdm.data.Node import Node
 
 from ..utils.logger import logger
-from ..utils.tags import _not_found_, _undefined_
+from ..utils.tags import _not_found_
 from .Container import Container
 
 _T = typing.TypeVar("_T")

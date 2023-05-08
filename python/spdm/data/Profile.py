@@ -18,14 +18,15 @@ class Profile(Node, Function[_T]):
             coord_keys = [k for k in kwargs.keys() if k.startswith("coordinate")]
             coord_keys.sort()
             coord_keys = [kwargs[c] for c in coord_keys]
+
             # FIXME: "1...N" is for IMAS dd
             self._axis = [(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in self._axis]
-            Function.__init__(self, self.__entry__(),  *self._axis,
-                              **{k: v for k, v in kwargs if not k.startswith("coordinate")})
+
+            Function.__init__(self, self,  *self._axis)
         else:
             raise RuntimeError(f"Parent is None, can not determint the coordinates!")
 
-    @ property
+    @property
     def data(self) -> np.ndarray:
         return super().__value__()
 
