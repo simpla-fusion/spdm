@@ -13,6 +13,7 @@ from ..grid.Grid import Grid, as_grid
 from ..utils.logger import logger
 from ..utils.typing import (ArrayType, NumericType, ScalarType, as_array,
                             as_scalar)
+from ..utils.misc import regroup_dict_by_prefix
 
 
 class Function(object):
@@ -52,10 +53,12 @@ class Function(object):
 
         self._data: typing.Any = d  # 网格点上的数值 DoF
 
-        self._grid: Grid = as_grid(*args, **{k: v for k, v in kwargs.items()
-                                             if k.startswith("grid_")})     # type:ignore 网格
+        self._grid, self._metadata = regroup_dict_by_prefix(kwargs, "grid")
 
-        self._metadata = {k: v for k, v in kwargs.items() if not k.startswith("grid_")}
+        if isinstance(self._grid, collections.abc.Mapping):
+            self._grid = as_grid(*args, **self._grid)  # 网格
+
+        assert isinstance(self._grid, Grid)
 
         self._ppoly_cache = {}
 

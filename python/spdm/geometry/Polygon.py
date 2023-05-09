@@ -1,15 +1,13 @@
 import collections.abc
 import typing
 
-from spdm.geometry.GeoObject import GeoObject
-
-from .GeoObject import GeoObject2D
+from .GeoObject import GeoObject
 from .Line import Segment
 from .Point import Point
 from .Polyline import Polyline
 
 
-class Polygon(GeoObject2D):
+class Polygon(GeoObject):
     """ Polygon
         多边形
 
@@ -22,7 +20,7 @@ class Polygon(GeoObject2D):
             if Polygon.__dispatch__init__ is None:
                 raise RuntimeError(f"Polygon.__dispatch__init__ is None")
             return Polygon.__dispatch__init__(self, *args, **kwargs)
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, rank=2, **kwargs)
 
     @property
     def vertices(self) -> typing.Generator[Point, None, None]:

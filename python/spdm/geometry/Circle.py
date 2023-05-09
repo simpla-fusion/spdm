@@ -1,4 +1,6 @@
-from .GeoObject import GeoObject1D, GeoObject3D
+import typing
+
+from .GeoObject import GeoObject
 from .Line import Line
 from .Plane import Plane
 from .Point import Point
@@ -6,14 +8,14 @@ from .Solid import Solid
 from .Surface import Surface
 
 
-@GeoObject1D.register("circle")
-class Circle(GeoObject1D):
+@GeoObject.register("circle")
+class Circle(GeoObject):
     """ Circle
         圆，具有一个固定圆心和一个固定半径
     """
 
-    def __init__(self, *args,  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, rank=1,  **kwargs)
 
     @property
     def rank(self) -> int:
@@ -47,8 +49,8 @@ class Circle(GeoObject1D):
         return NotImplemented
 
 
-@GeoObject1D.register("ellipse")
-class Ellipse(GeoObject1D):
+@GeoObject.register("ellipse")
+class Ellipse(GeoObject):
     """ Ellipse
         椭圆，具有一个固定圆心和两个固定半径
     """

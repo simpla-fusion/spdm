@@ -550,3 +550,43 @@ def typing_get_origin(tp):
         return typing_get_origin(orig_class[0])
     else:
         return typing_get_origin(orig_class)
+
+
+def regroup_dict_by_prefix(d: collections.abc.Mapping, prefix: str, keep_prefix=False) -> typing.Tuple[typing.Dict, typing.Dict]:
+    """ 将字典中以prefix开头的键值对提取出来，返回一个新的字典和剩余的字典
+        若keep_prefix为True，则新字典中的键保留prefix前缀，否则去除
+        若键值key==prefix且value为dict，则将该键值对提取出来并赋值给新字典
+        若键值key==prefix且value不为dict，则将该键值对提取出来并以键值'_'赋值给新字典
+
+
+    """
+    obj = d.get(prefix, None)
+
+    prefix_dict = {}
+
+    if isinstance(obj, dict):
+        prefix_dict = obj
+        obj = None
+
+    prefix += '_'
+    prefix_len = len(prefix)
+    other_dict = {}
+    for k, v in d.items():
+        if k.startswith(prefix):
+            if not keep_prefix:
+                k = k[prefix_len:]
+            if not isinstance(v, dict) or not isinstance(prefix_dict.get(k, None), dict):
+                prefix_dict[k] = v
+            else:
+                prefix_dict[k] |= v
+
+        elif k != prefix[:-1]:
+            other_dict[k] = v
+
+    if obj is None:
+        return prefix_dict, other_dict
+    else:
+        if len(prefix_dict) > 0:
+            raise RuntimeWarning(f" {prefix}*  {prefix_dict} are ignored")
+
+        return obj, other_dict

@@ -1,14 +1,19 @@
 import abc
 import typing
+
 import numpy as np
-from .Point import Point
+
+from .GeoObject import GeoObject
 from .Line import Line, Segment
 from .Plane import Plane
-from .GeoObject import GeoObject3D, GeoObjectSet
+from .Point import Point
 from .Polygon import Polygon
 
 
-class Polyhedron(GeoObject3D):
+class Polyhedron(GeoObject):
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, rank=2, **kwargs)
 
     @property
     def is_convex(self) -> bool:

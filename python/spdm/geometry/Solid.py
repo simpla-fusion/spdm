@@ -1,16 +1,16 @@
 import typing
 import abc
-from .GeoObject import GeoObject3D
+from .GeoObject import GeoObject
 from .Plane import Plane
 
 
-class Solid(GeoObject3D):
+class Solid(GeoObject):
     """ Line
         线，一维几何体
     """
 
     def __init__(self, *args,  **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, rank=3, **kwargs)
 
     @abc.abstractproperty
     def points(self, *args, **kwargs):

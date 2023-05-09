@@ -6,8 +6,11 @@ from scipy.interpolate import interpolate
 
 from ..geometry.Curve import Curve
 from ..geometry.Line import Line
+from ..geometry.Box import Box
 from ..geometry.Point import Point
+
 from ..utils.logger import logger
+from ..utils.typing import ArrayType, ScalarType
 from .Grid import Grid
 from .StructuredMesh import StructuredMesh
 
@@ -23,27 +26,28 @@ class RectilinearMesh(StructuredMesh):
 
     """
 
-    def __init__(self, *args, coords: typing.List[np.ndarray] = [],  **kwargs) -> None:
-        if coords is None or len(coords) == 0:
-            coords = [(np.linspace(0, 1, d) if isinstance(d, int) else d) for d in args]
-        elif len(args) > 0:
-            logger.warning(f"Ignore position arguments {args}")
-        super().__init__(shape=[len(d) for d in coords], **kwargs)
-        self._coords = coords
+    def __init__(self, *dims: ArrayType,  **kwargs) -> None:
+        if len(dims) == 0:
+            dims = kwargs.get("dims", [])
+        if "geometry" not in kwargs:
+            kwargs["geometry"] = Box([min(d) for d in dims], [max(d) for d in dims])
+        super().__init__(shape=[len(d) for d in dims], **kwargs)
+
+        self._dims = dims
 
     @cached_property
     def bbox(self) -> typing.List[float]:
-        return [*[d[0] for d in self._coords], *[d[-1] for d in self._coords]]
+        return [*[d[0] for d in self._dims], *[d[-1] for d in self._dims]]
 
     @cached_property
     def dx(self) -> typing.List[float]:
-        return [(d[-1]-d[0])/len(d) for d in self._coords]
+        return [(d[-1]-d[0])/len(d) for d in self._dims]
 
     def axis(self, idx, axis=0):
-        p0 = [d[0] for d in self._coords]
-        p1 = [d[-1] for d in self._coords]
-        p0[axis] = self._coords[axis][idx]
-        p1[axis] = self._coords[axis][idx]
+        p0 = [d[0] for d in self._dims]
+        p1 = [d[-1] for d in self._dims]
+        p0[axis] = self._dims[axis][idx]
+        p1[axis] = self._dims[axis][idx]
 
         try:
             res = Line(p0, p1, is_closed=self.cycle[axis])
@@ -52,27 +56,24 @@ class RectilinearMesh(StructuredMesh):
         return res
 
     @cached_property
-    def xy(self) -> typing.Sequence[np.ndarray]:
-        if self.ndims == 1:
-            return [self._coords[0]]
-        elif self.ndims == 2:
-            return np.meshgrid(*self._coords, indexing="ij")
+    def points(self) -> typing.Tuple[ArrayType, ...]:
+        if self.geometry.ndims == 1:
+            return (self._dims[0],)
+        elif self.geometry.ndims == 2:
+            return tuple(np.meshgrid(*self._dims, indexing="ij"))
         else:
             raise NotImplementedError()
-
-    def point(self, *idx):
-        return [d[idx[s]] for s, d in enumerate(self._coords)]
 
     def interpolator(self, value,  **kwargs):
         if value.shape != self.shape:
             raise ValueError(f"{value.shape} {self.shape}")
 
-        if self.ndims == 1:
-            interp = interpolate.InterpolatedUnivariateSpline(self._coords[0], value,  **kwargs)
-        elif self.ndims == 2:
-            interp = interpolate.RectBivariateSpline(self._coords[0], self._coords[1], value,  **kwargs)
+        if self.geometry.ndims == 1:
+            interp = interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+        elif self.geometry.ndims == 2:
+            interp = interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value,  **kwargs)
         else:
-            raise NotImplementedError(f"NDIMS {self.ndims}>2")
+            raise NotImplementedError(f"NDIMS {self.geometry.ndims}>2")
 
         return interp
 

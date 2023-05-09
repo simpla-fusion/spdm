@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 from functools import cached_property
 
-from spdm.geometry.GeoObject import GeoObject
-
-from ..geometry.GeoObject import GeoObject
+from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
 from ..utils.logger import logger
+from ..utils.misc import regroup_dict_by_prefix
 from ..utils.Pluggable import Pluggable
-from ..utils.typing import NumericType, ScalarType
+from ..utils.typing import ArrayType, NumericType, ScalarType
 
 
 class Grid(Pluggable):
@@ -18,38 +18,36 @@ class Grid(Pluggable):
     @classmethod
     def __dispatch__init__(cls, _grid_type, self, *args, **kwargs) -> None:
         if not _grid_type:
-            _grid_type = kwargs.get("grid_type", None)
+            _grid_type = kwargs.get("type", RegularGrid)
 
-            if hasattr(_grid_type, "name"):
-                _grid_type = _grid_type.name
-
-            if _grid_type is None:
-                _grid_type = [RegularGrid]
-            elif isinstance(_grid_type, str):
-                _grid_type = [_grid_type,
-                              f"spdm.grid.{_grid_type}Grid#{_grid_type}Grid",
-                              f"spdm.grid.{_grid_type}Mesh#{_grid_type}Mesh",
-                              f"spdm.grid.{_grid_type.capitalize()}Grid#{_grid_type.capitalize()}Grid",
-                              f"spdm.grid.{_grid_type.capitalize()}Mesh#{_grid_type.capitalize()}Mesh"
-                              ]
+        if isinstance(_grid_type, str):
+            _grid_type = [_grid_type,
+                          f"spdm.grid.{_grid_type}Grid#{_grid_type}Grid",
+                          f"spdm.grid.{_grid_type}Mesh#{_grid_type}Mesh",
+                          f"spdm.grid.{_grid_type.capitalize()}Grid#{_grid_type.capitalize()}Grid",
+                          f"spdm.grid.{_grid_type.capitalize()}Mesh#{_grid_type.capitalize()}Mesh"
+                          ]
 
         super().__dispatch__init__(_grid_type, self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Grid:
             return Grid.__dispatch__init__(None, self, *args, **kwargs)
-        self._uv_points = args
 
-        self._shape: typing.Tuple[int] = kwargs.get("shape", None)
+        self._geometry, self._metadata = regroup_dict_by_prefix(kwargs, "geometry")
 
-        if self._shape is None:
-            self._shape = tuple([len(uv) for uv in self._uv_points])
+        if isinstance(self._geometry, collections.abc.Mapping) or self._geometry is None:
+            self._geometry = as_geo_object(*args, **self._geometry)
 
-        self._geometry: GeoObject = kwargs.get("geometry", None)
+        if not isinstance(self._geometry, (GeoObject, GeoObjectSet)):
+            raise ValueError(f"Grid.__init__(): geometry={self._geometry} is not a GeoObject or GeoObjectSet")
 
-        self._metadata = kwargs
-        self._metadata.setdefault("grid_type", self.__class__.__name__)
-        self._metadata.setdefault("units", ["-"])
+        self._shape: typing.Tuple[int] = self._metadata.get("shape", None)
+
+        self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None) or ([False]*self.geometry.rank)
+
+        if len(args) > 0:
+            raise RuntimeWarning(f"Grid.__init__(): {args} are ignored")
 
     def __serialize__(self) -> typing.Mapping:
         raise NotImplementedError(f"")
@@ -66,24 +64,36 @@ class Grid(Pluggable):
     def name(self) -> str: return self._metadata.get("name", 'unamed')
 
     @property
-    def units(self) -> typing.List[str]: return self._metadata.get("units", ["-"])
+    def type(self) -> str: return self._metadata.get("type", "regular")
 
     @property
-    def geometry(self) -> GeoObject: return self._geometry
+    def units(self) -> typing.Tuple[str, ...]: return tuple(self._metadata.get("units", ["-"]))
+
+    @property
+    def geometry(self) -> GeoObject | GeoObjectSet: return self._geometry
     """ Geometry of the grid  网格的几何形状  """
 
     @property
-    def uv_points(self) -> typing.Tuple[NumericType]: return self._uv_points
+    def shape(self) -> typing.Tuple[int, ...]: return self._shape
+    """ 存储网格点数组的形状  TODO: support multiblock grid"""
 
     @property
-    def shape(self) -> typing.Tuple[int]: return self._shape
+    def cycles(self) -> typing.List[bool]: return self._cycles
+    """ Periodic boundary condition   周期性边界条件,  标识每个维度是否是周期性边界 """
 
-    def points(self, *uv) -> typing.Tuple[NumericType]:
+    @property
+    def uv_points(self) -> typing.Tuple[ArrayType, ...]: return self._uv_points
+
+    @property
+    def points(self) -> typing.Tuple[ArrayType, ...]:
         """ 网格点坐标 """
-        if len(uv) == 0:
-            return self._uv_points if self._geometry is None else self._geometry.points(*self._uv_points)
+        if self._geometry is None:
+            return self.uv_points
         else:
-            return self._geometry.points(*uv)
+            logger.debug(self.uv_points)
+            res = self._geometry.points(*self.uv_points)
+            logger.debug(res.shape)
+            return res
 
     def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
@@ -98,13 +108,8 @@ class Grid(Pluggable):
         raise NotImplementedError(f"{self.__class__.__name__}.integrate")
 
 
-@Grid.register([None, 'regular', 'null'])
+@Grid.register("regular")
 class RegularGrid(Grid):
-    """Regular/Null Grid
-        ------
-        - Null  也无坐标点坐标, 无几何形状信息，
-        - Normal 存储坐标点坐标，没有额外的几何形状信息
-    """
     pass
 
 

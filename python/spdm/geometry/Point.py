@@ -8,29 +8,30 @@ from typing import Callable, Collection, TypeVar
 import numpy as np
 from spdm.utils.logger import logger
 
-from ..geometry.GeoObject import GeoObject
 from .GeoObject import GeoObject
+from ..utils.typing import NumericType
 
 
-class Point(typing.List[float], GeoObject):
+class Point(GeoObject):
     """ Point
         点，零维几何体
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(args)
-        GeoObject.__init__(self, **kwargs)
+        super().__init__(rank=0, ndims=len(args), ** kwargs)
+        self._data: typing.Tuple[float, ...] = args
 
-    @property
-    def rank(self) -> int:
-        return 0
+    def __getitem__(self, index: int) -> float:
+        return self._data[index]
 
-    @property
-    def ndims(self) -> int:
-        return len(self)
-
-    def points(self, *args, **kwargs) -> Point:
-        return self
+    def points(self, *uv, **kwargs) -> typing.Tuple[NumericType, ...]:
+        if len(uv) == 0 or isinstance(uv[0], float):
+            return self._data
+        elif isinstance(uv[0], np.ndarray):
+            shape = [len(d) for d in uv]
+            return np.tile(self._data, shape + [1])
+        else:
+            raise RuntimeError(f"illegal {uv}")
 
     @property
     def measure(self) -> float:

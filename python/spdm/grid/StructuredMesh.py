@@ -8,73 +8,24 @@ from spdm.geometry.GeoObject import GeoObject
 
 from ..geometry.GeoObject import GeoObject
 from ..utils.logger import logger
+from ..utils.typing import ArrayType
 from .Grid import Grid
 
 
 class StructuredMesh(Grid):
-    def __init__(self,  shape, ndims=None, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self._ndims = ndims if ndims is not None else len(shape)
-        self._shape = shape
+    def __init__(self,  shape: typing.Sequence[int], ndims=None, cycles=None, **kwargs) -> None:
+        shape = tuple(shape)
+        ndims = ndims if ndims is not None else len(shape)
+        if cycles is None:
+            cycles = [False] * ndims
+        if not isinstance(cycles, collections.abc.Sequence):
+            cycles = [cycles]
+        if len(cycles) == 1:
+            cycles = cycles * ndims
 
-        # name = name or [""] * self._ndims
-        # if isinstance(name, str):
-        #     self._name = name.split(",")
-        # elif not isinstance(name, collections.abc.Sequence):
-        #     self._name = [name]
-        # unit = unit or [None] * self._ndims
-        # if isinstance(unit, str):
-        #     unit = unit.split(",")
-        # elif not isinstance(unit, collections.abc.Sequence):
-        #     unit = [unit]
-        # if len(unit) == 1:
-        #     unit = unit * self._ndims
-        # # self._unit = [*map(Unit(u for u in unit))]
-
-        cycle = kwargs.get('cycle', None)
-        if cycle is None:
-            cycle = [False] * self._ndims
-        if not isinstance(cycle, collections.abc.Sequence):
-            cycle = [cycle]
-        if len(cycle) == 1:
-            cycle = cycle * self._ndims
-        self._cycle = cycle
+        super().__init__(shape=shape, ndims=ndims, rank=len(shape), cycles=cycles, **kwargs)
 
         # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
-
-    @property
-    def geometry(self) -> GeoObject | None:
-        raise NotImplementedError("geometry is not implemented")
-
-    @property
-    def cycle(self) -> typing.List[bool]:
-        """ Periodic boundary condition
-            周期性边界条件
-            标识每个维度是否是周期性边界
-        """
-        return self._cycles
-
-    @property
-    def ndims(self) -> int:
-        """ Number of dimensions of the space
-            空间维度，
-        """
-        return self._ndims
-
-    @property
-    def rank(self) -> int:
-        """ Rank of the grid, i.e. number of dimensions
-            网格（流形）维度
-            rank <=ndims
-        """
-        return self._rank
-
-    @property
-    def shape(self):
-        """ Shape of the grid, i.e. number of points in each dimension
-            网格上数组的形状         
-        """
-        return tuple(self._shape)
 
     # def axis(self, idx, axis=0):
     #     return NotImplemented
@@ -112,11 +63,8 @@ class StructuredMesh(Grid):
         return NotImplemented
 
     @property
-    def uvw(self) -> typing.List[np.ndarray]:
-        """
-            网格上归一化相对的坐标，取值范围[0,1]
-        """
-        return np.meshgrid(*[np.linspace(0, 1, n) for n in self.shape])
+    def points(self) -> typing.Tuple[ArrayType, ...]:
+        return tuple(np.meshgrid(*[np.linspace(0, 1, n) for n in self.shape]))
 
     def interpolator(self, *args) -> typing.Callable:
         """ Interpolator of the grid

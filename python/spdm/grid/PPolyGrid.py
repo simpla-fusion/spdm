@@ -5,11 +5,12 @@ import typing
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
-from .Grid import Grid, RegularGrid
+from .Grid import Grid
+from .RectilinearMesh import RectilinearMesh
 
 
 @Grid.register('ppoly')
-class PPolyGrid(RegularGrid):
+class PPolyGrid(RectilinearMesh):
     """Piecewise polynomial grid
     """
 

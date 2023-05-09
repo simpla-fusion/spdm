@@ -3,7 +3,7 @@ from .Surface import Surface
 from .Solid import Solid
 from .Plane import Plane
 from .Line import Line
-from .PrimaryShapes import Circle
+from .Circle import Circle
 
 
 @Surface.register("toroidal_surface")

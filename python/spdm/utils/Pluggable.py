@@ -3,7 +3,7 @@ import collections
 import collections.abc
 import inspect
 import typing
-
+from enum import Enum
 from .logger import logger
 from .sp_export import sp_find_module
 
@@ -38,10 +38,12 @@ class Pluggable(metaclass=abc.ABCMeta):
         if not name_list:
             return super().__init__(self)
         elif not isinstance(name_list, collections.abc.Sequence) or isinstance(name_list, str):
-            name_list = [str(name_list)]
+            name_list = [name_list]
 
         n_cls = None
         for n_cls_name in name_list:
+            if isinstance(n_cls_name, Enum):
+                n_cls_name = n_cls_name.name
 
             if isinstance(n_cls_name, str) or n_cls_name is None:
                 n_cls = cls._plugin_registry.get(n_cls_name, None)
@@ -55,9 +57,8 @@ class Pluggable(metaclass=abc.ABCMeta):
 
             if not callable(n_cls):
                 n_cls = sp_find_module(n_cls_name)
-
+        
             if callable(n_cls):
-                kwargs["grid_type"] = n_cls_name
                 break
 
         if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):

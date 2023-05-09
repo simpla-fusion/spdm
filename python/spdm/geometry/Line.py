@@ -6,27 +6,27 @@ import collections.abc
 import numpy as np
 from spdm.utils.logger import logger
 
-from .GeoObject import GeoObject1D, GeoObject
+from .GeoObject import GeoObject, GeoObject
 from .Point import Point
 from .Vector import Vector
 
 
 @GeoObject.register("line")
-class Line(GeoObject1D):
+class Line(GeoObject):
     """ Line
         线，一维几何体
     """
 
-    def __init__(self, p0: Point, p1: Point, **kwargs) -> None:
+    def __init__(self, p0: Point, p1: Point, *args, **kwargs) -> None:
         self.p0 = np.asarray(p0)
         self.p1 = np.asarray(p1)
         try:
             from sympy.geometry.line import Line as _Line
             impl = _Line(self.p0, self.p1)
         except:
-            super().__init__(**kwargs)
+            super().__init__(*args, rank=1, **kwargs)
         else:
-            super().__init__(impl, **kwargs)
+            super().__init__(impl, *args, rank=1, **kwargs)
 
     @property
     def is_closed(self) -> bool:

@@ -8,14 +8,15 @@ import numpy as np
 
 from ..utils.misc import builtin_types
 from ..utils.Pluggable import Pluggable
-from ..utils.typing import ArrayLike, NumericType
+from ..utils.typing import ArrayType, NumericType, nTupleType, ArrayLike
+from ..utils.logger import logger
 
 
 class GeoObject(Pluggable):
     """ Geomertic object
     几何对象，包括点、线、面、体等
 
-    TODO: 
+    TODO:
         - 目前基于sympy.geometry实现，未来将支持其他几何建模库
         - 支持3D可视化 （Jupyter+？）
 
@@ -27,31 +28,20 @@ class GeoObject(Pluggable):
         """
         """
         if _geo_type is None or len(_geo_type) == 0:
-            _geo_type = kwargs.get("geometry_type", None)
+            _geo_type = kwargs.get("type", Box)
 
-            if _geo_type is None and len(args) > 0:
-                _geo_type = args[0]
-                args = args[1:]
-
-            if isinstance(_geo_type, str):
-                _geo_type = [_geo_type,
-                             f"spdm.geometry.{_geo_type}#{_geo_type}",
-                             f"spdm.geometry.{_geo_type}{cls.__name__}#{_geo_type}{cls.__name__}",
-                             f"spdm.geometry.{_geo_type.capitalize()}#{_geo_type.capitalize()}",
-                             f"spdm.geometry.{_geo_type.capitalize()}{cls.__name__}#{_geo_type.capitalize()}{cls.__name__}",
-                             f"spdm.geometry.{cls.__name__}#{_geo_type}"
-                             ]
-            else:
-                _geo_type = [_geo_type]
-
-            kwargs["geometry_type"] = _geo_type
+        if isinstance(_geo_type, str):
+            _geo_type = [_geo_type,
+                         f"spdm.geometry.{_geo_type}#{_geo_type}",
+                         f"spdm.geometry.{_geo_type}{cls.__name__}#{_geo_type}{cls.__name__}",
+                         f"spdm.geometry.{_geo_type.capitalize()}#{_geo_type.capitalize()}",
+                         f"spdm.geometry.{_geo_type.capitalize()}{cls.__name__}#{_geo_type.capitalize()}{cls.__name__}",
+                         f"spdm.geometry.{cls.__name__}#{_geo_type}"
+                         ]
 
         super().__dispatch__init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args,  **kwargs) -> None:
-        if self.__class__ is GeoObject:
-            return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
-
+    def __init__(self, *args, ndims: int = None, rank: int = 0,  **kwargs) -> None:
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
         elif len(args) == 1 and not isinstance(args[0], builtin_types):
@@ -59,6 +49,8 @@ class GeoObject(Pluggable):
         elif len(args) > 0:
             raise TypeError(f"illegal {args}")
 
+        self._rank = int(rank)
+        self._ndims = ndims if ndims is not None else self._rank
         self._appinfo = kwargs
 
     def __equal__(self, other: GeoObject) -> bool:
@@ -70,44 +62,39 @@ class GeoObject(Pluggable):
     def __svg__(self) -> str:
         return self._impl._svg() if hasattr(self._impl, "_svg") else ""
 
-    def __getitem__(self, *args) -> typing.Any:
-        return self._impl.__getitem__(*args)
+    @property
+    def ndims(self) -> int: return self._ndims
+    """ 几何体所处的空间维度， = 0，1，2，3 ,...  """
 
     @property
-    def ndims(self) -> int:
-        return self._impl.ambient_dimension
+    def rank(self) -> int: return self._rank
+    """ 几何体（流形）维度  rank <=ndims
 
-    @property
-    def rank(self) -> int:
-        """
             0: point
             1: curve
             2: surface
             3: volume
             >=4: not defined
-        """
-        return self._appinfo.get("rank", None)
+    """
 
     @property
-    def bounds(self) -> typing.Tuple[float]:
-        return self._impl.bounds
+    def bounds(self) -> typing.Tuple[nTupleType, nTupleType]: return self.bounds
+    """ bounds of geometry """
 
     @property
-    def is_convex(self) -> bool:
-        return self._impl.is_convex()
+    def center(self) -> np.ndarray: return (np.array(self.bounds[0])+np.array(self.bounds[1]))*0.5
+    """ center of geometry """
 
     @property
-    def center(self) -> np.ndarray:
-        return (np.array(self.bounds[::2])+np.array(self.bounds[1::2]))*0.5
+    def boundary(self) -> GeoObject[-1]: raise NotImplementedError()
+    """ boundary of geometry which is a geometry of rank-1 """
 
     @property
-    def boundary(self) -> GeoObject[_I-1]:
-        raise NotImplementedError()
+    def is_convex(self) -> bool: return self._impl.is_convex()
+    """ is convex """
 
-    def enclose(self, other) -> bool:
-        """ Return True if all args are inside the geometry, False otherwise.
-        """
-        return self._impl.encloses(GeoObject(other)._impl)
+    def enclose(self, other) -> bool: return self._impl.encloses(GeoObject(other)._impl)
+    """ Return True if all args are inside the geometry, False otherwise. """
 
     def intersection(self, other) -> typing.Set[GeoObject]:
         """ Return the intersection of self with other. """
@@ -121,18 +108,11 @@ class GeoObject(Pluggable):
         return GeoObject(self._impl.rotate(angle, GeoObject(pt)._impl if pt is not None else None))
 
     def scale(self, x=1, y=1, pt=None) -> GeoObject:
-        """ scale self by x, y, pt
-        """
+        """ scale self by x, y, pt """
         return GeoObject(self._impl.scale(x, y, GeoObject(pt)._impl if pt is not None else None))
 
     def translate(self, *args) -> GeoObject:
         return GeoObject(self._impl.translate(*args))
-
-    def __call__(self, *args: float | np.ndarray, **kwargs) -> typing.Sequence[NumericType]:
-        res = self.points(*args, **kwargs)
-        if not isinstance(res, np.ndarray):
-            res = res[:]
-        return res
 
     def points(self, *uv, **kwargs) -> typing.Sequence[NumericType]:
         """
@@ -188,10 +168,7 @@ class GeoObject(Pluggable):
         r"""
             ..math:: f:N\rightarrow M\\\Phi^{*}f:\mathbb{R}\rightarrow M\\\left(\Phi^{*}f\right)\left(u\right)&\equiv f\left(\Phi\left(u\right)\right)=f\left(r\left(u\right),z\left(u\right)\right)
         """
-        # if len(args) == 0:
-        #     args = self._mesh
 
-        # return Function(args, func(*self.xyz(*args,   **kwargs)), is_period=self.is_closed)
         return NotImplemented
 
     @staticmethod
@@ -208,40 +185,45 @@ class GeoObject(Pluggable):
             raise TypeError(f"args has wrong type {type(args[0])} {args}")
 
 
-class GeoObject0D(GeoObject):
+class Box(GeoObject):
+    def __init__(self, x_min: ArrayLike = None, x_max: ArrayLike = None, rank=None, ** kwargs) -> None:
+        super().__init__(rank=rank if rank is not None else (len(x_min)if x_min is not None else 0), **kwargs)
+
+        self._bound = (np.asarray(x_min), np.asarray(x_max))
+
     @property
-    def rank(self) -> int: return 0
+    def bound(self) -> typing.Tuple[ArrayType, ArrayType]:
+        return self._bound
 
 
-class GeoObject1D(GeoObject):
-    @property
-    def rank(self) -> int: return 1
+_TGSet = typing.TypeVar("_TGSet", bound="GeoObjectSet")
 
 
-class GeoObject2D(GeoObject):
-    @property
-    def rank(self) -> int: return 2
+class GeoObjectSet(typing.List[GeoObject | _TGSet]):
+    def __init__(self, obj_list=None, *args, **kwargs) -> None:
 
+        if isinstance(obj_list, collections.abc.Sequence) and not isinstance(obj_list, str):
+            obj_list = [as_geo_object(obj, *args, **kwargs) for obj in obj_list]
+        elif obj_list is None:
+            obj_list = []
 
-class GeoObject3D(GeoObject):
-    @property
-    def rank(self) -> int: return 3
-
-
-_T = typing.TypeVar("_T")
-
-
-class GeoObjectSet(typing.Set[_T], GeoObject):
-
-    def __init__(self, *args: _T, **kwargs) -> None:
-        super().__init__(args)
-        GeoObject.__init__(self,  **kwargs)
+        super().__init__(obj_list)
 
     @property
     def rank(self) -> int:
-        if len(self) == 0:
-            raise RuntimeError(f"This is an empyt set!")
-        r = np.asarray([v.rank if isinstance(v, GeoObject) else 0 for v in self])
-        if not np.all(r == r[0]):
-            raise RuntimeError(f"This a mixed GeoObject set!")
-        return r[0]
+        return max([obj.rank for obj in self])
+
+    @property
+    def ndims(self) -> int:
+        return max([obj.ndims for obj in self])
+
+
+def as_geo_object(*args, **kwargs) -> GeoObject | GeoObjectSet:
+    if len(args) == 0:
+        return GeoObject(**kwargs)
+    elif (isinstance(args[0], GeoObject) or isinstance(args[0], GeoObjectSet)):
+        return args[0]
+    elif isinstance(args[0], collections.abc.Sequence):
+        return GeoObjectSet(*args, **kwargs)
+    else:
+        return GeoObject(*args, **kwargs)

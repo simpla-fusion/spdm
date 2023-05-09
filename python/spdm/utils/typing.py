@@ -38,6 +38,7 @@ class Vector4:
     t: float
 
 
+nTupleType = typing.Tuple[ScalarType, ...]
 _T = typing.TypeVar("_T")
 
 

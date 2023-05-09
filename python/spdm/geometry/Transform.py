@@ -1,12 +1,11 @@
 from .Solid import Solid
 from .Plane import Plane
 from .Point import Point
-from .PrimaryShapes import StraightLine
 from .Line import Line
 
 
 class Sweep:
-    def __init__(self, shape: Plane | Line, axis: Point | StraightLine, *args, **kwargs) -> None:
+    def __init__(self, shape: Plane | Line, axis: Point | Line, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._section = shape
         self._axis = axis
@@ -16,7 +15,7 @@ class Sweep:
         return self._section
 
     @property
-    def axis(self) -> Point | StraightLine:
+    def axis(self) -> Point | Line:
         return self._axis
 
 
@@ -28,6 +27,6 @@ class SweepSurface(Solid):
 class SweepSolid(Solid):
     Boundary = SweepSurface
 
-    def __init__(self, shape: Plane, axis:  StraightLine, *args, **kwargs) -> None:
+    def __init__(self, shape: Plane, axis:  Line, *args, **kwargs) -> None:
         super().__init__(shape, axis, *args, **kwargs)
         self._boundary = self.__class__.Boundary(shape.boundary, axis, *args)
