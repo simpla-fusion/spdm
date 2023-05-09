@@ -9,6 +9,8 @@ from functools import cached_property, lru_cache
 import numpy as np
 from scipy.interpolate import PPoly
 
+from spdm.utils.typing import NumericType
+
 from ..grid.Grid import Grid, as_grid
 from ..utils.logger import logger
 from ..utils.typing import (ArrayType, NumericType, ScalarType, as_array,
@@ -223,7 +225,10 @@ class Function(object):
 
 
 class Expression(Function):
-    def __init__(self, *args,  ufunc: typing.Callable | None, method: str | None = None, **kwargs) -> None:
+    def __init__(self, *args,  ufunc: typing.Callable | None = None, method: str | None = None, **kwargs) -> None:
+        if ufunc is None and len(args) > 0 and callable(args[0]):
+            ufunc = args[0]
+            args = args[1:]
         super().__init__(*args, **kwargs)
         self._ufunc = ufunc
         self._method = method
@@ -256,6 +261,18 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
         return y
     else:
         return Function(y, *args, **kwargs)
+
+
+_0 = Expression(lambda *args:   args[0])
+_1 = Expression(lambda *args:   args[1])
+_2 = Expression(lambda *args:   args[2])
+_3 = Expression(lambda *args:   args[3])
+_4 = Expression(lambda *args:   args[4])
+_5 = Expression(lambda *args:   args[5])
+_6 = Expression(lambda *args:   args[6])
+_7 = Expression(lambda *args:   args[7])
+_8 = Expression(lambda *args:   args[8])
+_9 = Expression(lambda *args:   args[9])
 
 
 class PiecewiseFunction(Function):
