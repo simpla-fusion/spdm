@@ -57,10 +57,15 @@ class Function(object):
 
         self._grid, self._metadata = regroup_dict_by_prefix(kwargs, "grid")
 
-        if isinstance(self._grid, collections.abc.Mapping):
+        if isinstance(self._grid, Grid):
+            pass
+        elif isinstance(self._grid, dict):
             self._grid = as_grid(*args, **self._grid)  # 网格
-
-        assert isinstance(self._grid, Grid)
+        else:
+            try:
+                self._grid = Grid(self._grid)
+            except:
+                raise RuntimeError(f"Can not convert {type(self._grid)} to Grid!")
 
         self._ppoly_cache = {}
 

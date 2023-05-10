@@ -3,6 +3,8 @@ from __future__ import annotations
 import collections.abc
 import typing
 from functools import cached_property
+from enum import Enum
+from spdm.utils.typing import ArrayType
 
 from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
 from ..utils.logger import logger
@@ -17,8 +19,12 @@ class Grid(Pluggable):
 
     @classmethod
     def __dispatch__init__(cls, _grid_type, self, *args, **kwargs) -> None:
+
         if not _grid_type:
-            _grid_type = kwargs.get("type", RegularGrid)
+            _grid_type = kwargs.get("type", NullGrid)
+
+        if isinstance(_grid_type, Enum):
+            _grid_type = getattr(_grid_type, "name", None)
 
         if isinstance(_grid_type, str):
             _grid_type = [_grid_type,
@@ -44,10 +50,14 @@ class Grid(Pluggable):
 
         self._shape: typing.Tuple[int] = self._metadata.get("shape", None)
 
-        self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None) or ([False]*self.geometry.rank)
+        self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None)
+        
+        if self._cycles is None:
+            self._cycles = ([False]*self.geometry.rank)
 
-        if len(args) > 0:
-            raise RuntimeWarning(f"Grid.__init__(): {args} are ignored")
+        # if len(args) > 0:
+        #     raise RuntimeWarning(f"{self.__class__.__name__}.__init__(): {args} are ignored")
+        self._uv_points = args
 
     def __serialize__(self) -> typing.Mapping:
         raise NotImplementedError(f"")
@@ -106,6 +116,11 @@ class Grid(Pluggable):
 
     def integrate(self, y:  NumericType, *args, **kwargs) -> ScalarType:
         raise NotImplementedError(f"{self.__class__.__name__}.integrate")
+
+
+@Grid.register(["null", None])
+class NullGrid(Grid):
+    pass
 
 
 @Grid.register("regular")

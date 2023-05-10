@@ -70,7 +70,14 @@ class Container(Node, typing.Container):
         return self.__entry__().count
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
-        raise NotImplementedError()
+        if self._cache is None:
+            self._cache = self.__value__()
+        if isinstance(self._cache, dict):
+            yield from self._cache.items()
+        elif isinstance(self._cache, collections.abc.Sequence):
+            yield from enumerate(self._cache)
+        else:
+            raise TypeError(f"{self.__class__.__name__} is not Iterable")
 
     def __eq__(self, other) -> bool:
         return self.__entry__().equal(other)
