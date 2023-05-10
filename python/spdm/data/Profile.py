@@ -10,17 +10,17 @@ from .Container import Container
 _T = typing.TypeVar("_T")
 
 
-class Profile(Function, Node,  typing.Generic[_T]):
+class Profile(Node, Function, typing.Generic[_T]):
 
     def __init__(self, *args, **kwargs) -> None:
-        Node.__init__(self, *args, **{k: v for k, v in kwargs.items() if not k.startswith("coordinate")})
+        super().__init__(*args, **{k: v for k, v in kwargs.items() if not k.startswith("coordinate")})
         if isinstance(self._parent, Container):
             coord_keys = [k for k in kwargs.keys() if k.startswith("coordinate")]
             coord_keys.sort()
             coord_keys = [kwargs[c] for c in coord_keys]
 
             # FIXME: "1...N" is for IMAS dd
-            self._axis = [(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in self._axis]
+            self._axis = [(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in coord_keys]
 
             Function.__init__(self, self,  *self._axis)
         else:

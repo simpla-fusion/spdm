@@ -2,18 +2,20 @@ import typing
 from typing import Any
 
 import numpy as np
-from spdm.data.Function import Function
 
+from .Field import Field
+from .Function import Function
 from .Profile import Profile
 
 _T = typing.TypeVar("_T")
 
 
-class Signal(Profile, typing.Generic[_T]):
+class Signal(Profile[_T]):
     """Signal with its time base
     """
 
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._ndims = kwargs.get("ndims", 1)
 
     @property
@@ -31,3 +33,12 @@ class Signal(Profile, typing.Generic[_T]):
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.__value__()(*args, **kwds)
+
+
+class SignalND(Field[_T]):
+    """Signal with its time base
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ndims = kwargs.get("ndims", 1)

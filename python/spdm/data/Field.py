@@ -3,11 +3,16 @@ from __future__ import annotations
 import typing
 from functools import lru_cache
 
+from ..utils.misc import regroup_dict_by_prefix
 from ..utils.typing import NumericType
 from .Function import Function
+from .Node import Node
+from .Profile import Profile
+
+_T = typing.TypeVar("_T")
 
 
-class Field(Function):
+class Field(Profile[_T]):
     """ Field
         ---------
         A field is a function that assigns a value to every point of space. The value of the field can be a scalar or a vector.
@@ -17,11 +22,13 @@ class Field(Function):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._ppoly: typing.Callable[..., NumericType] = None
-        self._derivate = {}
 
-    def __call__(self, *args, **kwargs) -> NumericType:
-        return self.__ppoly__()(*args, **kwargs)
+        if hasattr(self._parent, "grid"):
+            Function.__init__(self, grid=self._parent.grid, **self._appinfo)
+
+    @property
+    def metadata(self) -> typing.Mapping[str, typing.Any]:
+        return super(Node, self).metadata
 
     def plot(self, axis, *args,  **kwargs):
 

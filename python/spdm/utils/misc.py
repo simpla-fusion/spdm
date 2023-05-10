@@ -537,10 +537,10 @@ builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndar
 
 
 def typing_get_origin(tp):
-    if not inspect.isclass(tp):
-        return None
-    elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
+    if isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
         return typing.get_origin(tp)
+    elif not inspect.isclass(tp):
+        return None   
 
     orig_class = getattr(tp, "__orig_bases__", None)
 

@@ -237,8 +237,10 @@ class Expression(Function):
         return f"<{self.__class__.__name__}   op=\"{self._ufunc.__name__}\" />"
 
     def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
-
-        dtype = float if self.__type_hint__ is None else self.__type_hint__
+        try:
+            dtype = self.__type_hint__
+        except TypeError:
+            dtype = float
 
         if not inspect.isclass(dtype):
             dtype = float
@@ -338,7 +340,12 @@ class PPolyFunction(Function):
     #             return ppoly.antiderivative(dx[0])
 
     def __call__(self, *args, ** kwargs) -> NumericType:
-        return as_array(self.__ppoly__()(*args, **kwargs))
+        try:
+            res = self.__ppoly__()(*args, **kwargs)
+        except TypeError as error:
+            logger.error(f"{self.__class__.__name__}: {args},{kwargs}")
+            raise error
+        return as_array(res)
 
     def derivative(self, *args, **kwargs) -> NumericType | Function:
         if isinstance(self.__ppoly__, PPoly):

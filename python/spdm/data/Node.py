@@ -22,13 +22,13 @@ class Node(object):
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __init__(self, d: typing.Any = None, *args, cache=None,  parent: typing.Optional[Node] = None, appinfo={}, **kwargs) -> None:
+    def __init__(self, d: typing.Any = None, *args, cache=None,  parent: typing.Optional[Node] = None, **kwargs) -> None:
         if len(args) > 0:
             raise RuntimeError(f"Ignore {len(args)} position arguments! [{args}]")
         if isinstance(d, Node._PRIMARY_TYPE_) and cache is None:  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
             self._entry = None
             self._cache = d
-        
+
         else:  # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
             self._cache = cache
             self._entry = as_entry(d)
@@ -41,14 +41,16 @@ class Node(object):
             self.__class__ = Node._MAPPING_TYPE_
 
         self._parent = parent
-        self._appinfo: typing.Mapping[str, typing.Any] = {**appinfo, **kwargs}
+        self._metadata: typing.Mapping[str, typing.Any] = kwargs.get("appinfo", {}) |\
+            kwargs.get("metadata", {}) |\
+            {k: v for k, v in kwargs.items() if k not in ['metadata', 'appinfo']}
 
     def _duplicate(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
         other._cache = self._cache
-        other._entry = self.__entry__().duplicate() 
+        other._entry = self.__entry__().duplicate()
         other._parent = self._parent
-        other._appinfo = self._appinfo
+        other._metadata = self._metadata
         return other
 
     def __repr__(self) -> str:
@@ -58,7 +60,7 @@ class Node(object):
         return f"<{self.__class__.__name__}>{self.__entry__().dump()}</{self.__class__.__name__}>"
 
     def _annotation(self) -> dict:
-        return {"entr_type":  self.__entry__().__class__.__name__, "appinfo": dict(self._appinfo)}
+        return {"entr_type":  self.__entry__().__class__.__name__, "metadata": dict(self._metadata)}
 
     def __cache__(self) -> typing.Any:
         return self._cache
@@ -69,7 +71,7 @@ class Node(object):
         return self._entry
 
     def __value__(self) -> typing.Any:
-        if self._cache is None :
+        if self._cache is None:
             self._cache = self.__entry__().__value__()
         return self._cache
 
