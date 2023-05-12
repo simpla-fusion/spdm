@@ -9,7 +9,7 @@ from functools import cached_property, lru_cache
 import numpy as np
 from scipy.interpolate import PPoly
 
-from spdm.utils.typing import NumericType
+from spdm.utils.typing import ArrayType, NumericType
 
 from ..grid.Grid import Grid, as_grid
 from ..utils.logger import logger
@@ -105,7 +105,8 @@ class Function(object):
             else:
                 self._data = as_array(self.__call__(self._grid.points))
         else:
-            raise RuntimeError(f"Can not convert Function to numpy.ndarray! grid_type={type(self._grid)}")
+            raise RuntimeError(
+                f"Can not convert Function to numpy.ndarray! grid_type={type(self._grid)} data_type={type(self._data)}")
 
         return self._data
 
@@ -243,6 +244,12 @@ class Expression(Function):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}   op=\"{self._ufunc.__name__}\" />"
 
+    def __array__(self) -> ArrayType: raise RuntimeError("Expression cannot be converted to array without arguments!")
+
+    def __getitem__(self, *args) -> NumericType: raise RuntimeError("Expression cannot be indexed!")
+
+    def __setitem__(self, *args) -> None: raise RuntimeError("Expression cannot be indexed!")
+
     def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
         try:
             dtype = self.__type_hint__
@@ -252,15 +259,20 @@ class Expression(Function):
         if not inspect.isclass(dtype):
             dtype = float
 
-        d = [as_array(d(*args, **kwargs) if callable(d) else d, dtype=dtype) for d in self._data]
+        if isinstance(self._data, collections.abc.Sequence):
+            value = [(d(*args, **kwargs) if callable(d) else d) for d in self._data]
+        elif callable(self._data):
+            value = [self._data(*args, **kwargs)]
+        else:
+            value = [self._data]
 
         if self._method is not None:
             ufunc = getattr(self._ufunc, self._method, None)
             if ufunc is None:
                 raise AttributeError(f"{self._ufunc.__class__.__name__} has not method {self._method}!")
-            return ufunc(self, *d)
+            return ufunc(self, *value)
         elif callable(self._ufunc):
-            return self._ufunc(*d)  # type: ignore
+            return self._ufunc(*value)  # type: ignore
         else:
             raise ValueError(f"ufunc is not callable ufunc={self._ufunc} method={self._method}")
 
