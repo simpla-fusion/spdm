@@ -77,12 +77,13 @@ class GeoObject(Pluggable):
             >=4: not defined
     """
 
-    @property
-    def bounds(self) -> typing.Tuple[nTupleType, nTupleType]: return self.bounds
-    """ bounds of geometry """
+    @cached_property
+    def bbox(self) -> typing.Tuple[nTupleType, nTupleType]:
+        """ bbox of geometry """
+        raise NotImplementedError(f"{self.__class__.__name__}.bbox")
 
     @property
-    def center(self) -> np.ndarray: return (np.array(self.bounds[0])+np.array(self.bounds[1]))*0.5
+    def center(self) -> np.ndarray: return (np.array(self.bbox[0])+np.array(self.bbox[1]))*0.5
     """ center of geometry """
 
     @property
@@ -189,11 +190,11 @@ class Box(GeoObject):
     def __init__(self, x_min: ArrayLike = None, x_max: ArrayLike = None, rank=None, ** kwargs) -> None:
         super().__init__(rank=rank if rank is not None else (len(x_min)if x_min is not None else 0), **kwargs)
 
-        self._bound = (np.asarray(x_min), np.asarray(x_max))
+        self._bbox = (np.asarray(x_min), np.asarray(x_max))
 
     @property
-    def bound(self) -> typing.Tuple[ArrayType, ArrayType]:
-        return self._bound
+    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
+        return self._bbox
 
 
 _TGSet = typing.TypeVar("_TGSet", bound="GeoObjectSet")
@@ -219,6 +220,12 @@ class GeoObjectSet(typing.List[GeoObject | _TGSet]):
     @property
     def ndims(self) -> int:
         return max([obj.ndims for obj in self])
+
+    @property
+    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
+        p_min = np.asarray([min(v.bbox[0][idx] for v in self) for idx in range(self.ndims)])
+        p_max = np.asarray([max(v.bbox[1][idx] for v in self) for idx in range(self.ndims)])
+        return p_min, p_max
 
 
 def as_geo_object(*args, **kwargs) -> GeoObject | GeoObjectSet:

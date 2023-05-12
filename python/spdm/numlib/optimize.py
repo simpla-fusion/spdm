@@ -9,7 +9,7 @@ from scipy.ndimage.morphology import binary_erosion, generate_binary_structure
 from scipy.optimize import fsolve, minimize, root_scalar
 from ..utils.logger import logger
 from ..data.Field import Field
-from ..utils.typing import NumericType, ScalarType
+from ..utils.typing import NumericType, ScalarType, ArrayType
 SP_EXPERIMENTAL = os.environ.get("SP_EXPERIMENTAL", False)
 
 # logger.info(f"SP_EXPERIMENTAL \t: {SP_EXPERIMENTAL}")
@@ -58,11 +58,13 @@ def _minimize_filter_2d_image(Z) -> typing.Generator[typing.Tuple[int, int], Non
 
 def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
 
-    if isinstance(tolerance, collections.abc.Sequence) and len(tolerance) == 2:
-        dx, dy = tolerance
-    else:
+    if isinstance(tolerance, float):
         dx = tolerance
         dy = tolerance
+    elif isinstance(tolerance, (collections.abc.Sequence, np.ndarray)) and len(tolerance) == 2:
+        dx, dy = tolerance
+    else:
+        raise TypeError(f"Illegal type {type(dx)}")
 
     nx = int((xmax-xmin)/dx)+1
     ny = int((ymax-ymin)/dy)+1
@@ -154,8 +156,9 @@ def find_critical_points_2d_experimental(func: Field, xmin, ymin, xmax, ymax, to
         yield x, y, func(x, y, grid=False), D
 
 
-def find_critical_points(field: Field, xmin: float, ymin: float, xmax: float, ymax: float, tolerance=EPSILON):
-
+def find_critical_points(field: Field, bbox: typing.Tuple[ArrayType, ArrayType], tolerance=EPSILON):
+    xmin, ymin = bbox[0]
+    xmax, ymax = bbox[1]
     def grad2_func(xy): return field.pd(1, 0)(*xy, grid=False)**2 + field.pd(0, 1)(*xy, grid=False)**2
 
     for xsol, ysol in minimize_filter(grad2_func, xmin, ymin, xmax, ymax, tolerance=tolerance):

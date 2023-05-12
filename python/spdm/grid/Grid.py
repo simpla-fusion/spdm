@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import collections.abc
 import typing
+import numpy as np
 from functools import cached_property
 from enum import Enum
 from spdm.utils.typing import ArrayType
@@ -48,10 +49,10 @@ class Grid(Pluggable):
         if not isinstance(self._geometry, (GeoObject, GeoObjectSet)):
             raise ValueError(f"Grid.__init__(): geometry={self._geometry} is not a GeoObject or GeoObjectSet")
 
-        self._shape: typing.Tuple[int] = self._metadata.get("shape", None)
+        self._shape: ArrayType = np.asarray(self._metadata.get("shape", []), dtype=int)
 
         self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None)
-        
+
         if self._cycles is None:
             self._cycles = ([False]*self.geometry.rank)
 
@@ -88,6 +89,14 @@ class Grid(Pluggable):
     """ 存储网格点数组的形状  TODO: support multiblock grid"""
 
     @property
+    def dx(self) -> ArrayType:
+        bbox = self.geometry.bbox
+        shape = self.shape
+        if not isinstance(shape, np.ndarray):
+            raise TypeError(f"shape is not np.ndarray")
+        return (bbox[1]-bbox[0])/shape
+
+    @property
     def cycles(self) -> typing.List[bool]: return self._cycles
     """ Periodic boundary condition   周期性边界条件,  标识每个维度是否是周期性边界 """
 
@@ -100,10 +109,7 @@ class Grid(Pluggable):
         if self._geometry is None:
             return self.uv_points
         else:
-            logger.debug(self.uv_points)
-            res = self._geometry.points(*self.uv_points)
-            logger.debug(res.shape)
-            return res
+            return self._geometry.points(*self.uv_points)             
 
     def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")

@@ -14,7 +14,7 @@ from ..utils.typing import ArrayType, NumericType
 from .Function import Function
 from .Node import Node
 from .Profile import Profile
-
+from ..utils.tags import _not_found_
 _T = typing.TypeVar("_T")
 
 
@@ -59,18 +59,19 @@ class Field(Node, Function, typing.Generic[_T]):
 
         Function.__init__(self, grid=grid)
 
-    @ property
+    @property
     def metadata(self) -> typing.Mapping[str, typing.Any]:
         return super(Node, self).metadata
 
-    @ property
-    def data(self) -> np.ndarray:
-        return super().__value__()
+    @property
+    def data(self) -> ArrayType: return self.__array__()
 
-    def __array__(self) -> NDArray | ArrayLike: return self.__call__(*self._axis)
-
-    def __value__(self) -> ArrayLike | NDArray: return self.__array__()
-    """aslias of __array__ """
+    def __array__(self) -> ArrayType:
+        if self._cache is None:
+            self._cache = self._entry.__value__()
+        if self._cache is None or self._cache is _not_found_:
+            self._cache = Function.__array__(self)
+        return self._cache
 
     def plot(self, axis, *args,  **kwargs):
 

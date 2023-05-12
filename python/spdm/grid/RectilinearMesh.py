@@ -35,6 +35,12 @@ class RectilinearMesh(StructuredMesh):
 
         self._dims = dims
 
+    @property
+    def dim1(self) -> ArrayType: return self._dims[0]
+
+    @property
+    def dim2(self) -> ArrayType: return self._dims[1]
+
     @cached_property
     def bbox(self) -> typing.List[float]:
         return [*[d[0] for d in self._dims], *[d[-1] for d in self._dims]]
@@ -65,7 +71,7 @@ class RectilinearMesh(StructuredMesh):
             raise NotImplementedError()
 
     def interpolator(self, value,  **kwargs):
-        if value.shape != self.shape:
+        if np.any(value.shape != self.shape):
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.geometry.ndims == 1:

@@ -47,23 +47,12 @@ class StructuredMesh(Grid):
     #     for idx in range(self.shape[axis]):
     #         yield self.axis(idx, axis=axis)
 
-    @cached_property
-    def dx(self) -> typing.Sequence[float]:
-        """ Grid spacing in each dimension
-            每个维度的网格间距
-        """
-        return NotImplemented
-
     @property
-    def xyz(self) -> typing.List[np.ndarray]:
+    def points(self) -> typing.Tuple[ArrayType, ...]:
         """ Coordinates of the grid points
             网格点的坐标
             xy.shape == [np.array(shape)]
         """
-        return NotImplemented
-
-    @property
-    def points(self) -> typing.Tuple[ArrayType, ...]:
         return tuple(np.meshgrid(*[np.linspace(0, 1, n) for n in self.shape]))
 
     def interpolator(self, *args) -> typing.Callable:

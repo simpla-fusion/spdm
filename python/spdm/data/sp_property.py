@@ -51,18 +51,19 @@ from typing import Any
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
+from .Dict import Dict
+from .Node import Node
 from .Container import Container
 
-_T = typing.TypeVar("_T")
 
-
-class SpPropertyClass(Container, typing.MutableMapping[str, typing.Any]):
-    def __init__(self, *args, cache=None,  **kwargs) -> None:
-        super().__init__(*args, cache=cache if cache is not None else {},   **kwargs)
+class SpPropertyClass(Dict[Node], typing.MutableMapping[str, typing.Any]):
 
     def _type_hint(self, key: str) -> typing.Type:
         return typing.get_type_hints(self.__class__).get(key, None)\
             or getattr(getattr(self.__class__, key, None), "type_hint", None)
+
+
+_T = typing.TypeVar("_T")
 
 
 class sp_property(typing.Generic[_T]):  # type: ignore
@@ -72,7 +73,7 @@ class sp_property(typing.Generic[_T]):  # type: ignore
                  deleter=None,
                  type_hint: typing.Type = None,
                  doc: typing.Optional[str] = None,
-                 strict: bool = True,
+                 strict: bool = False,
                  **kwargs):
 
         self.lock = RLock()
@@ -157,7 +158,8 @@ class sp_property(typing.Generic[_T]):  # type: ignore
                 self.setter(instance, value)
             else:
                 instance._as_child(key=self.property_cache_key, value=value,
-                                   type_hint=type_hint, appinfo=metadata)
+                                   type_hint=type_hint, metadata=metadata,
+                                   assign=True)
 
     def __get__(self, instance: SpPropertyClass | None, owner=None) -> _T | sp_property[_T]:
         if instance is None:
@@ -184,7 +186,7 @@ class sp_property(typing.Generic[_T]):  # type: ignore
 
             value = instance._as_child(key=self.property_cache_key,
                                        value=value, type_hint=type_hint,
-                                       strict=self.strict,  ** metadata)
+                                       strict=self.strict,  **metadata)
 
             if self.strict and value is _not_found_:
                 raise AttributeError(

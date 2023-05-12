@@ -15,8 +15,8 @@ _TObject = typing.TypeVar("_TObject")
 
 class List(Container[_TObject], typing.Sequence[_TObject]):
 
-    def __init__(self, *args, cache=None, ** kwargs):
-        super().__init__(*args, cache=[] if cache is None else cache, **kwargs)
+    def __init__(self, *args, ** kwargs):
+        super().__init__(*args, **kwargs)
 
     @property
     def _is_list(self) -> bool:
@@ -42,40 +42,48 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
             yield self._as_child(idx, v)
 
     def flash(self):
+
         for idx, item in enumerate(self._entry.child(slice(None)).find()):
+
             self._as_child(idx, item)
+
         return self
 
     def combine(self, selector=None,   **kwargs) -> _TObject:
         self.flash()
+
         if selector == None:
+
             return self._as_child(None, as_entry(self._cache).combine(**kwargs))
+
         else:
+
             return self._as_child(None, as_entry(self._cache).child(selector).combine(**kwargs))
 
-    def _as_child(self, key: typing.Union[int, slice],  value=_not_found_,
-                  *args, **kwargs) -> _TObject:
+    def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _TObject:
 
-        if value is _not_found_ and isinstance(key, int) and ((key >= 0 and key < len(self._cache) or (key < 0 and -key < len(self._cache)))):
-            value = self._cache[key]
-
-        n_value = super()._as_child(key, value, *args, **kwargs)
-
-        if isinstance(n_value, Node) and n_value._parent is self:
-            n_value._parent = self._parent
+        if default_value is _not_found_:
+            # 如果没有指定 default_value，则使用 self._default_value
+            default_value = self._default_value
 
         if isinstance(key, int):
-            if key >= len(self._cache):
-                self._cache += [_not_found_]*(key+1-len(self._cache))
-            elif len(self._cache) == 0:
-                if key == -1 or key == 0:
-                    self._cache.append(n_value)
-                else:
-                    raise IndexError(f"Try to insert value to a empty list! key={key}")
+            n_value = super()._as_child(key, value, *args, default_value=default_value,  **kwargs)
+            if isinstance(n_value, Node) and n_value._parent is self:
+                n_value._parent = self._parent
+        elif isinstance(key, slice):
+            if key.start is None or key.stop is None or key.step is None:
+                raise ValueError(f"slice must be a complete slice {key}")
+            if isinstance(value, collections.abc.Sequence):
+                if len(value) == (key.stop-key.start)/key.step:
+                    raise ValueError(f"value must be a sequence with length {(key.stop-key.start)/key.step} {value}")
+                n_value = [self._as_child(idx, value[idx], *args, default_value=default_value, **kwargs)
+                           for idx in range(key.start, key.stop, key.step)]
+            elif isinstance(value, collections.abc.Generator):
+                n_value = []
+                for idx in range(key.start, key.stop, key.step):
+                    n_value.append(self._as_child(idx, next(value), *args, default_value=default_value, **kwargs))
             else:
-                l = len(self._cache)
-                key = (key+l) % l
-                self._cache[key] = n_value
+                raise TypeError(f"key must be int or slice, not {type(key)}")
 
         return n_value
 

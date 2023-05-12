@@ -171,11 +171,11 @@ class Entry(Pluggable):
     def set(self, path, value, **kwargs) -> typing.Any:
         return self.child(path).insert(value, **kwargs)
 
-    @ property
+    @property
     def count(self) -> int:
         return self.query(Path.tags.count)
 
-    @ property
+    @property
     def exists(self) -> bool:
         return self.count > 0
 

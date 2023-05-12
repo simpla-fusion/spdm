@@ -97,15 +97,18 @@ class Function(object):
         """ 重载 numpy 的 __array__ 运算符"""
 
         if isinstance(self._data, np.ndarray):
-            return self._data
+            pass
+        elif hasattr(self._data, "__value__"):
+            self._data = self._data.__value__()
         elif isinstance(self._grid, Grid):
-            if self._data is None:
-                self._data = np.zeros(self._grid.shape)
-                return self._data
+            if isinstance(self._data, (int, float, complex)):
+                self._data = np.full(self._grid.shape, self._data)
             else:
-                return as_array(self.__call__(self._grid.points))
+                self._data = as_array(self.__call__(self._grid.points))
         else:
             raise RuntimeError(f"Can not convert Function to numpy.ndarray! grid_type={type(self._grid)}")
+
+        return self._data
 
     def __getitem__(self, *args) -> NumericType:
         return self.__array__().__getitem__(*args)
@@ -142,7 +145,7 @@ class Function(object):
             if callable(self._data):
                 fun = self._data
             elif isinstance(self._grid, Grid):
-                fun = self._grid.interpolator(as_array(self._data))
+                fun = self._grid.interpolator(self.__array__())
         else:
             ppoly = self.__ppoly__()
 
@@ -150,12 +153,12 @@ class Function(object):
                 if hasattr(ppoly.__class__, 'antiderivative'):
                     fun = self.__ppoly__().antiderivative(*dx)
                 elif isinstance(self._grid, Grid):
-                    fun = self._grid.antiderivative(self._data, *dx)
+                    fun = self._grid.antiderivative(self.__array__(), *dx)
             elif all(d >= 0 for d in dx):
                 if hasattr(ppoly.__class__, 'partial_derivative'):
                     fun = self.__ppoly__().partial_derivative(*dx)
                 elif isinstance(self._grid, Grid):
-                    fun = self._grid.partial_derivative(self._data, *dx)
+                    fun = self._grid.partial_derivative(self.__array__(), *dx)
 
         if fun is None:
             raise RuntimeError(f"Can not convert Function to PPoly! grid_type={type(self._grid)}")
@@ -345,11 +348,9 @@ class PPolyFunction(Function):
     #             return ppoly.antiderivative(dx[0])
 
     def __call__(self, *args, ** kwargs) -> NumericType:
-        try:
-            res = self.__ppoly__()(*args, **kwargs)
-        except TypeError as error:
-            logger.error(f"{self.__class__.__name__}: {args},{kwargs}")
-            raise error
+
+        res = self.__ppoly__()(*args, **kwargs)
+
         return as_array(res)
 
     def derivative(self, *args, **kwargs) -> NumericType | Function:

@@ -9,6 +9,7 @@ import typing
 from enum import Enum
 
 import numpy as np
+from spdm.data.Node import Node
 from spdm.numlib.misc import array_like
 
 from ..utils.logger import logger
@@ -36,10 +37,9 @@ class Container(Node, typing.Container):
 
     """
 
-    def _get_cache(self):
-        if self._cache is None:
-            self._cache = {}
-        return self._cache
+    def __init__(self,  *args,  default_value=_not_found_, **kwargs) -> None:
+        super().__init__(*args,  **kwargs)
+        self._default_value = default_value
 
     def __setitem__(self, path, value) -> None:
         # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
@@ -47,7 +47,7 @@ class Container(Node, typing.Container):
         path = Path(path)
 
         if len(path) == 1:
-            if not isinstance(self._get_cache(), (collections.abc.MutableMapping, collections.abc.MutableSequence)):
+            if not isinstance(self._cache, (collections.abc.MutableMapping, collections.abc.MutableSequence)):
                 raise TypeError(f"{self.__class__.__name__} is not MutableMapping or MutableSequence")
             self._cache[path[0]] = value
         else:
@@ -58,7 +58,7 @@ class Container(Node, typing.Container):
                 as_entry(parent).insert(path[-1], value)
 
     def __getitem__(self, path) -> typing.Any:
-        return Container._get(self, Path(path), default_value=_not_found_)  # type:ignore
+        return Container._get(self, Path(path), default_value=_not_found_)
 
     def __delitem__(self, key) -> bool:
         return self.__entry__().child(key).remove() > 0
@@ -91,43 +91,39 @@ class Container(Node, typing.Container):
                   value: typing.Any = _not_found_,
                   type_hint: typing.Type = None,
                   strict=False,
+                  assign=False,
+                  default_value=_not_found_,
                   **kwargs) -> typing.Any:
+
         if type_hint is None:
             type_hint = self._type_hint(key)
+
         orig_class = typing_get_origin(type_hint)
 
-        # 如果 value 符合 orig_class 则返回之
-        if inspect.isclass(orig_class) and isinstance(value, orig_class):
-            return value  # type:ignore
-        elif value is _not_found_ and key is not None:
+        if value is _not_found_ and key is not None:
             if isinstance(self._cache, collections.abc.MutableMapping):
                 value = self._cache.get(key, _not_found_)
+                assign = False
 
             if value is _not_found_:
                 # 如果 value 为 _not_found_, 则从 self.__entry__() 中获取
                 value = self.__entry__().child(key, force=True)
+                assign = True
 
-        default_value: typing.Any = kwargs.get("default_value", None)
-
-        if default_value is not None and (isinstance(default_value, (collections.abc.Mapping, collections.abc.Sequence)) and len(default_value) > 0):
+        if inspect.isclass(orig_class) and isinstance(value, orig_class):  # 如果 value 符合 type_hint 则返回之
+            pass
+        elif not inspect.isclass(orig_class):  # 如果 type_hint 未定义，则由value决定类型
             if isinstance(value, Entry):
-                value = value.query(**kwargs)
-            elif value is None or value is _not_found_:
+                value = value.query(default_value=default_value, **kwargs)
+            elif value is _not_found_:
                 value = default_value
-
-        if not inspect.isclass(orig_class):  # 若 type_hint/orig_class 未定义，则由value决定类型
-            if isinstance(value, Entry):
-                value = value.query(**kwargs)
-            if value is _not_found_:
-                value = default_value
-        elif isinstance(value, orig_class):
-            # 如果 value 符合 type_hint 则返回之
-            return value  # type:ignore
+            assign = True
         elif issubclass(orig_class, Node):  # 若 type_hint 为 Node
-            value = type_hint(value, parent=self, **kwargs)
+            value = type_hint(value, parent=self, default_value=default_value, **kwargs)
+            assign = True
         else:
             if isinstance(value, Entry):
-                value = value.query(**kwargs)
+                value = value.query(default_value=_not_found_)
 
             if value is _not_found_:
                 value = default_value
@@ -148,13 +144,16 @@ class Container(Node, typing.Container):
                 else:
                     raise TypeError(f"Can not convert {value} to {type_hint}")
             elif callable(type_hint):
-                value = type_hint(value, **kwargs)
+                value = type_hint(value)
             else:
                 raise TypeError(f"Illegal type hint {type_hint}")
 
-        if strict and inspect.isclass(orig_class) and not isinstance(value, orig_class) and default_value is not None:
+        if strict and inspect.isclass(orig_class) and not isinstance(value, orig_class):
             raise KeyError(f"Can not find {key}! type_hint={type_hint} value={type(value)}")
-        elif isinstance(key, str) and isinstance(self._cache, collections.abc.MutableMapping):
+        elif assign:
+            if self._cache is None:
+                self._cache = {}
+
             self._cache[key] = value
 
         return value  # type:ignore
