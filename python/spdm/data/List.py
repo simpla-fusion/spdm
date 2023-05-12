@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import collections.abc
 import typing
-
+from ..utils.logger import logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
 from .Container import Container
@@ -15,8 +15,15 @@ _TObject = typing.TypeVar("_TObject")
 
 class List(Container[_TObject], typing.Sequence[_TObject]):
 
-    def __init__(self, *args, ** kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, default_value=_not_found_, ** kwargs):
+        if isinstance(default_value, collections.abc.Sequence):
+            if len(args) == 0:
+                args = [default_value]
+                default_value = _not_found_
+            else:
+                logger.warning(f"list default_value is ignored {type(default_value)}")
+
+        super().__init__(*args, default_value=default_value, **kwargs)
 
     @property
     def _is_list(self) -> bool:
