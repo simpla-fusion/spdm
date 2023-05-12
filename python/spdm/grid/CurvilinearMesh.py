@@ -78,6 +78,10 @@ class CurvilinearMesh(RectilinearMesh):
         else:
             raise RuntimeError(f'Unknown type {type(self.geometry)}')
 
+    @cached_property
+    def volume_element(self) -> ArrayType:
+        raise NotImplementedError()
+
     # def pushforward(self, new_uv):
     #     new_shape = [len(u) for u in new_uv]
     #     if new_shape != self.shape:

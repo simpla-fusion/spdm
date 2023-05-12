@@ -30,7 +30,3 @@ class Profile(Node, Function, typing.Generic[_T]):
     def data(self) -> np.ndarray:
         return super().__value__()
 
-    def __array__(self) -> NDArray | ArrayLike: return self.__call__(*self._axis)
-
-    def __value__(self) -> ArrayLike | NDArray: return self.__array__()
-    """aslias of __array__ """

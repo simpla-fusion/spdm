@@ -5,6 +5,8 @@
 #
 
 from setuptools import setup, find_namespace_packages
+from setuptools.command.build_py import build_py
+import pathlib
 
 # Get the long description from the README file
 with open('../README.md') as f:
@@ -18,7 +20,26 @@ with open('requirements.txt') as f:
 
 
 import subprocess
+
 git_describe = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
+
+source_dir = pathlib.Path(__file__).parent
+
+
+class BuildPyCommand(build_py):
+    description = 'Install __doc__,__version, and IMAS Wrapper'
+
+    def run(self):
+        build_dir = pathlib.Path(self.build_lib)/f"{self.distribution.get_name()}"
+
+        super().run()
+
+        with open(build_dir/'__version__.py', 'w') as f:
+            f.write(f"__version__ = \"{self.distribution.get_version()}\"")
+
+        if not (build_dir/"__doc__.py").exists():
+            with open(build_dir/'__doc__.py', 'w') as f:
+                f.write(f'"""\n{self.distribution.get_long_description()}\n"""')
 
 
 # Setup the package
@@ -33,9 +54,11 @@ setup(
     license='MIT',
     packages=find_namespace_packages(),  # 指定需要安装的包
     requires=requirements,               # 项目运行依赖的第三方包
-    extras_require={},                   # 项目运行依赖的额外包
-    package_data={},                     # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
-    data_files=[],                       # 需要安装的静态文件，如配置文件等。例如：data_files=[('/etc/spdm.conf', ['data/spdm.conf'])]
+    # extras_require={},                   # 项目运行依赖的额外包
+    # package_data={},                     # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
+    # data_files=[],                       # 需要安装的静态文件，如配置文件等。例如：data_files=[('/etc/spdm.conf', ['data/spdm.conf'])]
+
+    cmdclass={'build_py': BuildPyCommand, },
 
     entry_points={},  # 项目的入口模块，即用户使用命令行安装后可调用的模块。
                       # 例如：entry_points={'console_scripts': ['spdm = spdm:main']}
@@ -51,7 +74,7 @@ setup(
     ],  # Optional
     keywords='plasma physics',  # 关键字列表
     python_requires='>=3.10, <4',  # Python版本要求
-    py_modules=['spdm'],  # 单文件模块列表
+    # py_modules=[],  # 单文件模块列表
     # scripts=['bin/spdm'],  # 可执行脚本列表
     # package_dir={'': 'src'},  # 项目源码目录结构
     # package_data={'sample': ['package_data.dat']},  # 项目数据文件列表

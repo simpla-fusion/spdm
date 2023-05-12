@@ -209,6 +209,9 @@ class GeoObjectSet(typing.List[GeoObject | _TGSet]):
 
         super().__init__(obj_list)
 
+    def __svg__(self) -> str:
+        raise NotImplementedError(f"{self.__class__.__name__}")
+
     @property
     def rank(self) -> int:
         return max([obj.rank for obj in self])

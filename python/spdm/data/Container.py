@@ -191,11 +191,7 @@ class Container(Node, typing.Container):
             else:
                 raise TypeError(f"Invalid key type {type(query)}")
 
-        if obj is not _not_found_:
-            pass
-        elif default_value is _not_found_:
-            raise KeyError(f"Key {path} not found")
-        else:
+        if obj is _not_found_:
             obj = default_value
 
         return obj

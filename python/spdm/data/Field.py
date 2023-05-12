@@ -38,14 +38,15 @@ class Field(Node, Function, typing.Generic[_T]):
         elif len(coordinates) > 0:
             # 获得 coordinates 中 value的共同前缀
             prefix = os.path.commonprefix([*coordinates.values()])
-            if prefix.startswith("../grid/"):
+            if prefix.startswith("../grid/dim"):
                 grid = getattr(self._parent, "grid", None)
                 if isinstance(grid, Node):
                     grid_type = getattr(self._parent, "grid_type", None)
-                    logger.debug(grid.dim1)
                     grid = Grid(grid.dim1, grid.dim2, grid.volume_element, type=grid_type)
+            elif prefix.startswith("../dim"):
+                grid = Grid(self._parent.dim1, self._parent.dim2, self._parent._parent.grid_type)
             else:
-                logger.debug(coordinates)
+                logger.debug([coordinates, self._parent])
                 grid = Grid()
 
         if not isinstance(grid, Grid):

@@ -1,15 +1,14 @@
 import typing
 
+import numpy as np
 import scipy.interpolate as interpolate
 from skimage import measure
 
-from spdm.utils.logger import deprecated, logger
-import numpy as  np
+from ..data.Field import Field
+from ..utils.logger import deprecated, logger
 
-# d: np.ndarray, x: typing.Optional[np.ndarray] = None, y: typing.Optional[np.ndarray] = None
 
 # import matplotlib.pyplot as plt
-
 # @deprecated
 # def find_countours_matplotlib(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None, /, *args, levels=None, ** kwargs) -> typing.List[typing.List[np.ndarray]]:
 #     """
@@ -21,7 +20,7 @@ import numpy as  np
 #     return [(contour_set.levels[idx], col.get_segments()) for idx, col in enumerate(contour_set.collections)]
 
 
-def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None, /, levels=128,  ** kwargs) -> typing.List[typing.List[np.ndarray]]:
+def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray],None,None]:
     if z.shape == x.shape and z.shape == y.shape:
         pass
     else:
@@ -32,20 +31,24 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
     x_inter = interpolate.RectBivariateSpline(dim0, dim1, x)
     y_inter = interpolate.RectBivariateSpline(dim0, dim1, y)
 
-    surfs = []
-
-    def coord_map(c):
-        return np.asarray([[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c])
-
     if isinstance(levels, int):
         levels = range(levels)
 
     for val in levels:
-        countours = measure.find_contours(z, val)
-        surfs.append((val, [coord_map(c) for c in countours]))
-
-    return surfs
+        for c in measure.find_contours(z, val):
+            yield val, np.asarray([[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c])
 
 
-def find_countours(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None, /, levels=128,  ** kwargs) -> typing.List[typing.List[np.ndarray]]:
-    return find_countours_skimage(z, x, y, levels=levels)
+def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray],None,None]:
+    if len(args) == 3:
+        z, x, y = args
+    elif len(args) == 1:
+        if not isinstance(args[0], Field):
+            raise TypeError(f"Wrong type of argument! should be Field, got {type(args[0])}")
+        f = args[0]
+        x, y = f.grid.points
+        z = np.asarray(f)
+    else:
+        raise ValueError(f"Wrong number of arguments! should be 1 or 3, got {len(args)}")
+
+    yield from find_countours_skimage(z, x, y, levels=levels)

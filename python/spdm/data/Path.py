@@ -325,12 +325,18 @@ class Path(list):
                 break
             elif isinstance(p, str):
                 if not isinstance(target, collections.abc.Mapping):
-                    raise TypeError(f"Cannot get '{path[:idx+1]}' in {pprint.pformat(target)}")
+                    tmp = getattr(target, p, _not_found_)
+                    if p is _not_found_:
+                        raise TypeError(f"Cannot get '{path[:idx+1]}' in {pprint.pformat(target)}")
+                    else:
+                        target = tmp
+                        continue
                 elif p not in target:
                     break
             elif isinstance(p, int):
                 if isinstance(target, np.ndarray):
                     target = target[p]
+                    continue
                 elif not isinstance(target, (list, tuple, collections.deque)):
                     raise TypeError(f"Cannot traversal {p} in {type(target)}")
                 elif p >= len(target):

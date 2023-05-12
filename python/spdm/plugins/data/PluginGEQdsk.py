@@ -7,7 +7,7 @@ from scipy import interpolate
 from spdm.data.Entry import Entry, as_entry
 from spdm.data.File import File
 from spdm.utils.logger import logger
-
+import pathlib
 
 def sp_read_geqdsk(file):
     """
@@ -303,7 +303,7 @@ class GEQdskFile(File):
         super().__init__(*args, **kwargs)
 
         try:
-            self._fid = open(self.uri.path,  mode=self.mode_str)
+            self._fid = open(pathlib.Path(self.uri.path).expanduser().resolve(),  mode=self.mode_str)
         except OSError as error:
             raise FileExistsError(f"Can not open file {self.uri}! {error}")
         else:

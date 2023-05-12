@@ -87,14 +87,14 @@ class sp_property(typing.Generic[_T]):  # type: ignore
         self.property_name: str = None
         self.type_hint = type_hint
         self.strict = strict
-        self.appinfo = kwargs
+        self.metadata = kwargs
 
     def __set_name__(self, owner, name):
         # TODO：
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
         self.property_name = name
-        self.appinfo.setdefault("name", name)
+        self.metadata.setdefault("name", name)
         if self.__doc__ is not None:
             pass
         elif callable(self.getter):
@@ -109,34 +109,45 @@ class sp_property(typing.Generic[_T]):  # type: ignore
             logger.warning(
                 f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
 
-    def _get_type_hint(self, owner_cls):
+    def _get_desc(self, owner_cls, name: str = None, metadata: dict = None):
 
         if self.type_hint is not None:
-            return self.type_hint
+            return self.type_hint, self.metadata
+
+        type_hint = None
+
+        if inspect.isfunction(self.getter):
+            type_hint = self.getter.__annotations__.get("return", None)
         else:
             t_hints = typing.get_type_hints(owner_cls)
-            self.type_hint = t_hints.get(self.property_name, None)
+            type_hint = t_hints.get(name, None)
 
-        if self.type_hint is None:
+        if type_hint is None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
             orig_class = getattr(self, "__orig_class__", None)
             if orig_class is not None:
                 child_cls = typing.get_args(self.__orig_class__)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    self.type_hint = child_cls[0]
+                    type_hint = child_cls[0]
 
-        if self.type_hint is None and inspect.isfunction(self.getter):
-            self.type_hint = self.getter.__annotations__.get("return", None)
+        self.type_hint = type_hint
 
-        if len(self.appinfo) == 0 and not isinstance(self.appinfo, collections.ChainMap):
-            for base in owner_cls.__bases__:
-                if isinstance(getattr(base, self.property_name, None), sp_property):
-                    self.appinfo.update(getattr(base, self.property_name).appinfo)
+        if metadata is None:
+            metadata = self.metadata
+
+        for base in owner_cls.__bases__:
+            attr = getattr(base, name, None)
+            if isinstance(attr, sp_property):
+                metadata.update(attr.metadata)
+
+        self.metadata = metadata
+
+        return self.type_hint, self.metadata
 
     def __set__(self, instance: SpPropertyClass, value: typing.Any):
         assert (instance is not None)
 
-        self._get_type_hint(instance.__class__)
+        type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
 
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
@@ -146,7 +157,7 @@ class sp_property(typing.Generic[_T]):  # type: ignore
                 self.setter(instance, value)
             else:
                 instance._as_child(key=self.property_cache_key, value=value,
-                                   type_hint=self.type_hint, appinfo=self.appinfo)
+                                   type_hint=type_hint, appinfo=metadata)
 
     def __get__(self, instance: SpPropertyClass | None, owner=None) -> _T | sp_property[_T]:
         if instance is None:
@@ -156,7 +167,8 @@ class sp_property(typing.Generic[_T]):  # type: ignore
             raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpPropertyClass'.")
 
         # 当调用 getter(obj, <name>) 时执行
-        self._get_type_hint(owner)
+
+        type_hint, metadata = self._get_desc(owner, self.property_name, self.metadata)
 
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
@@ -171,10 +183,8 @@ class sp_property(typing.Generic[_T]):  # type: ignore
                 value = self.getter(instance)
 
             value = instance._as_child(key=self.property_cache_key,
-                                       value=value,
-                                       type_hint=self.type_hint,
-                                       strict=self.strict,
-                                       ** self.appinfo)
+                                       value=value, type_hint=type_hint,
+                                       strict=self.strict,  ** metadata)
 
             if self.strict and value is _not_found_:
                 raise AttributeError(
