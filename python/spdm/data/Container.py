@@ -37,8 +37,8 @@ class Container(Node, typing.Container):
 
     """
 
-    def __init__(self,  *args,  default_value=_not_found_, **kwargs) -> None:
-        super().__init__(*args,  **kwargs)
+    def __init__(self,  *args, cache=None,  default_value=_not_found_, **kwargs) -> None:
+        super().__init__(*args, cache={} if cache is None else cache,  **kwargs)
         self._default_value = default_value
 
     def __setitem__(self, path, value) -> None:
@@ -48,7 +48,8 @@ class Container(Node, typing.Container):
 
         if len(path) == 1:
             if not isinstance(self._cache, (collections.abc.MutableMapping, collections.abc.MutableSequence)):
-                raise TypeError(f"{self.__class__.__name__} is not MutableMapping or MutableSequence")
+                raise TypeError(
+                    f"{self.__class__.__name__} is not MutableMapping or MutableSequence {type(self._cache)}")
             self._cache[path[0]] = value
         else:
             parent = self.get(path[:-1], parents=True)
@@ -91,7 +92,6 @@ class Container(Node, typing.Container):
                   value: typing.Any = _not_found_,
                   type_hint: typing.Type = None,
                   strict=False,
-                  assign=False,
                   default_value=_not_found_,
                   **kwargs) -> typing.Any:
 
@@ -103,12 +103,13 @@ class Container(Node, typing.Container):
         if value is _not_found_ and key is not None:
             if isinstance(self._cache, collections.abc.MutableMapping):
                 value = self._cache.get(key, _not_found_)
-                assign = False
+                if (inspect.isclass(orig_class) and isinstance(value, orig_class)):
+                    # 如果 value 来自cache，且符合 type_hint 则返回之
+                    return value
 
             if value is _not_found_:
                 # 如果 value 为 _not_found_, 则从 self.__entry__() 中获取
                 value = self.__entry__().child(key, force=True)
-                assign = True
 
         if inspect.isclass(orig_class) and isinstance(value, orig_class):  # 如果 value 符合 type_hint 则返回之
             pass
@@ -117,10 +118,8 @@ class Container(Node, typing.Container):
                 value = value.query(default_value=default_value, **kwargs)
             elif value is _not_found_:
                 value = default_value
-            assign = True
         elif issubclass(orig_class, Node):  # 若 type_hint 为 Node
             value = type_hint(value, parent=self, default_value=default_value, **kwargs)
-            assign = True
         else:
             if isinstance(value, Entry):
                 value = value.query(default_value=_not_found_)
@@ -150,13 +149,13 @@ class Container(Node, typing.Container):
 
         if strict and inspect.isclass(orig_class) and not isinstance(value, orig_class):
             raise KeyError(f"Can not find {key}! type_hint={type_hint} value={type(value)}")
-        elif assign:
+        else:
             if self._cache is None:
                 self._cache = {}
 
             self._cache[key] = value
 
-        return value  # type:ignore
+        return value 
 
     @staticmethod
     def _get(obj, path: list, default_value=_not_found_,   **kwargs) -> typing.Any:

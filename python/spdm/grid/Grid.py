@@ -109,7 +109,7 @@ class Grid(Pluggable):
         if self._geometry is None:
             return self.uv_points
         else:
-            return self._geometry.points(*self.uv_points)             
+            return self._geometry.points(*self.uv_points)
 
     def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
@@ -126,7 +126,10 @@ class Grid(Pluggable):
 
 @Grid.register(["null", None])
 class NullGrid(Grid):
-    pass
+    def __init__(self, *args, **kwargs) -> None:
+        if len(args) > 0 or len(kwargs) > 0:
+            raise RuntimeError(f"Ignore args {args} and kwargs {kwargs}")
+        super().__init__()
 
 
 @Grid.register("regular")

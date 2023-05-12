@@ -26,15 +26,15 @@ class Field(Node, Function, typing.Generic[_T]):
         一个 _场(Field)_ 是一个 _函数(Function)_，它为空间(默认为多维流形)上的每一点分配一个值。场的值可以是标量或矢量。
     """
 
-    def __init__(self, *args, **kwargs):
-        grid, kwargs = regroup_dict_by_prefix(kwargs, "grid")
+    def __init__(self, *args, grid=None, **kwargs):
+        grid_desc, kwargs = regroup_dict_by_prefix(kwargs, "grid")
         coordinates, kwargs = regroup_dict_by_prefix(kwargs, "coordinate", keep_prefix=True, sep='')
         super().__init__(*args, **kwargs)
 
         if isinstance(grid, Grid):
             pass
-        elif isinstance(grid, dict) and len(grid) > 0:
-            grid = Grid(**grid)
+        elif isinstance(grid_desc, dict) and len(grid_desc) > 0:
+            grid = Grid(**grid_desc)
         elif len(coordinates) > 0:
             # 获得 coordinates 中 value的共同前缀
             prefix = os.path.commonprefix([*coordinates.values()])

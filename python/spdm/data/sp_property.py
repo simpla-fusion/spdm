@@ -158,8 +158,7 @@ class sp_property(typing.Generic[_T]):  # type: ignore
                 self.setter(instance, value)
             else:
                 instance._as_child(key=self.property_cache_key, value=value,
-                                   type_hint=type_hint, metadata=metadata,
-                                   assign=True)
+                                   type_hint=type_hint, metadata=metadata)
 
     def __get__(self, instance: SpPropertyClass | None, owner=None) -> _T | sp_property[_T]:
         if instance is None:

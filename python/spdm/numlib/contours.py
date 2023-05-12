@@ -20,7 +20,7 @@ from ..utils.logger import deprecated, logger
 #     return [(contour_set.levels[idx], col.get_segments()) for idx, col in enumerate(contour_set.collections)]
 
 
-def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray],None,None]:
+def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray], None, None]:
     if z.shape == x.shape and z.shape == y.shape:
         pass
     else:
@@ -31,15 +31,17 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
     x_inter = interpolate.RectBivariateSpline(dim0, dim1, x)
     y_inter = interpolate.RectBivariateSpline(dim0, dim1, y)
 
-    if isinstance(levels, int):
+    if isinstance(levels, (int, np.integer)):
         levels = range(levels)
+    elif (isinstance(levels, (np.ndarray)) and levels.ndim == 0) or isinstance(levels, (float, np.floating)):
+        levels = [float(levels)]
 
     for val in levels:
         for c in measure.find_contours(z, val):
             yield val, np.asarray([[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c])
 
 
-def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray],None,None]:
+def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray], None, None]:
     if len(args) == 3:
         z, x, y = args
     elif len(args) == 1:

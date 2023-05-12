@@ -59,13 +59,12 @@ class Function(object):
 
         if isinstance(self._grid, Grid):
             pass
-        elif isinstance(self._grid, dict):
+        elif isinstance(self._grid, collections.abc.Mapping) and len(self._grid) > 0:
             self._grid = as_grid(*args, **self._grid)  # 网格
+        elif not self._grid:
+            self._grid = None
         else:
-            try:
-                self._grid = Grid(self._grid)
-            except:
-                raise RuntimeError(f"Can not convert {type(self._grid)} to Grid!")
+            raise RuntimeError(f"Can not convert {type(self._grid)} to Grid!")
 
         self._ppoly_cache = {}
 

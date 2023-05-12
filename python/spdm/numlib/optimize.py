@@ -164,5 +164,7 @@ def find_critical_points(field: Field, bbox: typing.Tuple[ArrayType, ArrayType],
     for xsol, ysol in minimize_filter(grad2_func, xmin, ymin, xmax, ymax, tolerance=tolerance):
         D = field.pd(2, 0)(xsol, ysol,  grid=False) * field.pd(0, 2)(xsol, ysol, grid=False) - \
             (field.pd(1, 1)(xsol, ysol, grid=False))**2
-
-        yield xsol, ysol, field(xsol, ysol, grid=False), D
+        v = field(xsol, ysol, grid=False)
+        if isinstance(v, np.ndarray) and v.ndim == 0:
+            v = float(v)
+        yield xsol, ysol, v, D
