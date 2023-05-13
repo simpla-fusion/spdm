@@ -1,8 +1,8 @@
-from .Grid import Grid
+from .Mesh import Mesh
 from .StructuredMesh import StructuredMesh
 
 
-@Grid.register("uniform")
+@Mesh.register("uniform")
 class UniformMesh(StructuredMesh):
     pass
 

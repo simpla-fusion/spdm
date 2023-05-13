@@ -14,32 +14,30 @@ from ..utils.Pluggable import Pluggable
 from ..utils.typing import ArrayType, NumericType, ScalarType
 
 
-class Grid(Pluggable):
+class Mesh(Pluggable):
 
     _plugin_registry = {}
 
     @classmethod
-    def __dispatch__init__(cls, _grid_type, self, *args, **kwargs) -> None:
+    def __dispatch__init__(cls, _mesh_type, self, *args, **kwargs) -> None:
 
-        if not _grid_type:
-            _grid_type = kwargs.get("type", NullGrid)
+        if not _mesh_type:
+            _mesh_type = kwargs.get("type", NullMesh)
 
-        if isinstance(_grid_type, Enum):
-            _grid_type = getattr(_grid_type, "name", None)
+        if isinstance(_mesh_type, Enum):
+            _mesh_type = getattr(_mesh_type, "name", None)
 
-        if isinstance(_grid_type, str):
-            _grid_type = [_grid_type,
-                          f"spdm.grid.{_grid_type}Grid#{_grid_type}Grid",
-                          f"spdm.grid.{_grid_type}Mesh#{_grid_type}Mesh",
-                          f"spdm.grid.{_grid_type.capitalize()}Grid#{_grid_type.capitalize()}Grid",
-                          f"spdm.grid.{_grid_type.capitalize()}Mesh#{_grid_type.capitalize()}Mesh"
+        if isinstance(_mesh_type, str):
+            _mesh_type = [_mesh_type,
+                          f"spdm.Mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
+                          f"spdm.Mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
                           ]
 
-        super().__dispatch__init__(_grid_type, self, *args, **kwargs)
+        super().__dispatch__init__(_mesh_type, self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Grid:
-            return Grid.__dispatch__init__(None, self, *args, **kwargs)
+        if self.__class__ is Mesh:
+            return Mesh.__dispatch__init__(None, self, *args, **kwargs)
 
         self._geometry, self._metadata = regroup_dict_by_prefix(kwargs, "geometry")
 
@@ -47,7 +45,7 @@ class Grid(Pluggable):
             self._geometry = as_geo_object(*args, **self._geometry)
 
         if not isinstance(self._geometry, (GeoObject, GeoObjectSet)):
-            raise ValueError(f"Grid.__init__(): geometry={self._geometry} is not a GeoObject or GeoObjectSet")
+            raise ValueError(f"Mesh.__init__(): geometry={self._geometry} is not a GeoObject or GeoObjectSet")
 
         self._shape: ArrayType = np.asarray(self._metadata.get("shape", []), dtype=int)
 
@@ -64,29 +62,31 @@ class Grid(Pluggable):
         raise NotImplementedError(f"")
 
     @classmethod
-    def __deserialize__(cls, data: typing.Mapping) -> Grid:
+    def __deserialize__(cls, data: typing.Mapping) -> Mesh:
         raise NotImplementedError(f"")
 
     @property
-    def metadata(self) -> dict:
-        return self._metadata
+    def metadata(self) -> dict: return self._metadata
 
     @property
-    def name(self) -> str: return self._metadata.get("name", 'unamed')
+    def name(self) -> str: return self.metadata.get("name", 'unamed')
 
     @property
-    def type(self) -> str: return self._metadata.get("type", "regular")
+    def type(self) -> str: return self.metadata.get("type", "regular")
 
     @property
-    def units(self) -> typing.Tuple[str, ...]: return tuple(self._metadata.get("units", ["-"]))
+    def units(self) -> typing.Tuple[str, ...]: return tuple(self.metadata.get("units", ["-"]))
 
     @property
     def geometry(self) -> GeoObject | GeoObjectSet: return self._geometry
-    """ Geometry of the grid  网格的几何形状  """
+    """ Geometry of the Mesh  网格的几何形状  """
 
     @property
     def shape(self) -> typing.Tuple[int, ...]: return self._shape
-    """ 存储网格点数组的形状  TODO: support multiblock grid"""
+    """ 存储网格点数组的形状  TODO: support multiblock Mesh"""
+
+    @property
+    def rank(self) -> int: return len(self._shape)
 
     @property
     def dx(self) -> ArrayType:
@@ -124,23 +124,23 @@ class Grid(Pluggable):
         raise NotImplementedError(f"{self.__class__.__name__}.integrate")
 
 
-@Grid.register(["null", None])
-class NullGrid(Grid):
+@Mesh.register(["null", None])
+class NullMesh(Mesh):
     def __init__(self, *args, **kwargs) -> None:
         if len(args) > 0 or len(kwargs) > 0:
             raise RuntimeError(f"Ignore args {args} and kwargs {kwargs}")
         super().__init__()
 
 
-@Grid.register("regular")
-class RegularGrid(Grid):
+@Mesh.register("regular")
+class RegularMesh(Mesh):
     pass
 
 
-def as_grid(*args, **kwargs) -> Grid:
-    if len(args) == 1 and isinstance(args[0], Grid):
+def as_mesh(*args, **kwargs) -> Mesh:
+    if len(args) == 1 and isinstance(args[0], Mesh):
         if len(kwargs) > 0:
             logger.warning(f"Ignore kwargs {kwargs}")
         return args[0]
     else:
-        return Grid(*args, **kwargs)
+        return Mesh(*args, **kwargs)

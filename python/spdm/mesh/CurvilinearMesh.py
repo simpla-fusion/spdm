@@ -11,16 +11,16 @@ from ..geometry.GeoObject import GeoObject, GeoObjectSet
 from ..geometry.Point import Point
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, ScalarType
-from .Grid import Grid
+from .Mesh import Mesh
 from .RectilinearMesh import RectilinearMesh
 
 
-@Grid.register("curvilinear")
+@Mesh.register("curvilinear")
 class CurvilinearMesh(RectilinearMesh):
     """
-        A `curvilinear grid` or `structured grid` is a grid with the same combinatorial structure as a regular grid,
+        A `curvilinear Mesh` or `structured Mesh` is a Mesh with the same combinatorial structure as a regular Mesh,
         in which the cells are quadrilaterals or [general] cuboids, rather than rectangles or rectangular cuboids.
-            -- [https://en.wikipedia.org/wiki/Regular_grid]
+            -- [https://en.wikipedia.org/wiki/Regular_Mesh]
     """
     TOLERANCE = 1.0e-5
 
@@ -57,10 +57,10 @@ class CurvilinearMesh(RectilinearMesh):
             s = s+[slice(None, None, None)]
 
             sub_xy = self.xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
-            sub_uv = [self._uv[(axis+i) % self.geometry.ndims]
-                      for i in range(1, self.geometry.ndims)]
-            sub_cycle = [self.cycle[(axis+i) % self.geometry.ndims]
-                         for i in range(1, self.geometry.ndims)]
+            sub_uv = [self._uv[(axis+i) % self.geometry.ndim]
+                      for i in range(1, self.geometry.ndim)]
+            sub_cycle = [self.cycle[(axis+i) % self.geometry.ndim]
+                         for i in range(1, self.geometry.ndim)]
 
             return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
 

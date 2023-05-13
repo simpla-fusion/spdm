@@ -7,7 +7,7 @@ from spdm.utils.logger import logger
 from spdm.geometry.GeoObject import GeoObject
 
 
-class TestGrid(unittest.TestCase):
+class TestMesh(unittest.TestCase):
 
     def test_line(self):
         p0 = (0, 0)

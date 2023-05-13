@@ -109,8 +109,8 @@ def put_ids():
     imas_obj.equilibrium.ids_properties.homogeneous_time = 1
     imas_obj.equilibrium.resize(1)
     imas_obj.equilibrium.time_slice[0].profiles_2d.resize(2)
-    imas_obj.equilibrium.time_slice[0].profiles_2d[0].grid_type.name = 'GRID TYPE 1A'
-    imas_obj.equilibrium.time_slice[0].profiles_2d[1].grid_type.name = 'GRID TYPE 2B'
+    imas_obj.equilibrium.time_slice[0].profiles_2d[0].Mesh_type.name = 'Mesh TYPE 1A'
+    imas_obj.equilibrium.time_slice[0].profiles_2d[1].Mesh_type.name = 'Mesh TYPE 2B'
 
     imas_obj.equilibrium.time.resize(1)
     imas_obj.equilibrium.time_slice[0].profiles_2d[0].r.resize(3, 3)

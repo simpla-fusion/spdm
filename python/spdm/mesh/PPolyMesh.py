@@ -5,13 +5,13 @@ import typing
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
-from .Grid import Grid
+from .Mesh import Mesh
 from .RectilinearMesh import RectilinearMesh
 
 
-@Grid.register('ppoly')
-class PPolyGrid(RectilinearMesh):
-    """Piecewise polynomial grid
+@Mesh.register('ppoly')
+class PPolyMesh(RectilinearMesh):
+    """Piecewise polynomial Mesh
     """
 
     def interpolator(self, y, **kwargs) -> PPoly:
@@ -21,7 +21,7 @@ class PPolyGrid(RectilinearMesh):
         return CubicSpline(*self.points, y, bc_type=bc_type, **kwargs)
 
 
-__SP_EXPORT__ = PPolyGrid
+__SP_EXPORT__ = PPolyMesh
 
 # class Function1D(Function[_T]):
 #     """
@@ -30,7 +30,7 @@ __SP_EXPORT__ = PPolyGrid
 #     def __init__(self, x, y,  **kwargs):
 #         super().__init__(x, y, **kwargs)
 
-#         if len(self._grid) == 0:
+#         if len(self._Mesh) == 0:
 #             raise RuntimeError(f"Function must have at least one 'x' argument!")
 
 #         # if len(args) == 0:
@@ -89,7 +89,7 @@ __SP_EXPORT__ = PPolyGrid
 #         return pprint.pformat(self.__array__())
 #     @property
 #     def is_valid(self) -> bool:
-#         return self._grid is not None and self._data is not None
+#         return self._Mesh is not None and self._data is not None
 #     @cached_property
 #     def is_constant(self) -> bool:
 #         return isinstance(self._data, (int, float))
@@ -112,22 +112,22 @@ __SP_EXPORT__ = PPolyGrid
 # def x_max(self) -> float:
 #     return self.x_domain[-1]
 # @property
-# def _grid(self) -> np.ndarray:
+# def _Mesh(self) -> np.ndarray:
 #     return self._x  # type:ignore
-# @_grid.setter
-# def _grid(self, x: np.ndarray):
+# @_Mesh.setter
+# def _Mesh(self, x: np.ndarray):
 #     if isinstance(self._data, np.ndarray) and len(self._data) != len(x):
 #         raise ValueError(f"len(x) != len(y) {len(x)} != {len(self._data)}")
 #     self._x = x
 # def setdefault_x(self, x):
 #     if self._x is None:
-#         self._grid = x
+#         self._Mesh = x
 #     return self._x
 # def __len__(self) -> int:
-#     if self._grid is not None:
-#         return len(self._grid)
+#     if self._Mesh is not None:
+#         return len(self._Mesh)
 #     else:
-#         raise RuntimeError(f"Can not get length from {type(self._data)} or {type(self._grid)}")
+#         raise RuntimeError(f"Can not get length from {type(self._data)} or {type(self._Mesh)}")
 # def __array__(self) -> np.ndarray:
 #     if isinstance(self._data, np.ndarray):
 #         return self._data
@@ -142,19 +142,19 @@ __SP_EXPORT__ = PPolyGrid
 # def __fun_op__(self) -> PPoly:
 #     if isinstance(self._data,  PPoly):
 #         return self._data
-#     elif self._grid is None:
-#         raise ValueError(f"_grid is None")
+#     elif self._Mesh is None:
+#         raise ValueError(f"_Mesh is None")
 #     elif isinstance(self._data, np.ndarray):
-#         assert (self._grid.size == self._data.size)
-#         return create_spline(self._grid,  self._data)
+#         assert (self._Mesh.size == self._data.size)
+#         return create_spline(self._Mesh,  self._data)
 #     else:
-#         return create_spline(self._grid,  self.__call__(self._grid))
+#         return create_spline(self._Mesh,  self.__call__(self._Mesh))
 # def __call__(self, x=None, /,  **kwargs) -> typing.Union[np.ndarray, float]:
 #     if x is None:
-#         x = self._grid
+#         x = self._Mesh
 #     if x is None:
-#         raise RuntimeError(f"_grid is None!")
-#     if x is self._grid and isinstance(self._data, np.ndarray):
+#         raise RuntimeError(f"_Mesh is None!")
+#     if x is self._Mesh and isinstance(self._data, np.ndarray):
 #         return self._data
 #     if self._data is None:
 #         raise RuntimeError(f"Illegal function! y is None {self.__class__}")
@@ -167,7 +167,7 @@ __SP_EXPORT__ = PPolyGrid
 #         return np.asarray(self._data(x, **kwargs), dtype=float)
 #     # elif hasattr(y, "__array__"):
 #     #     y = y.__array__
-#     elif x is not self._grid and isinstance(self._data, np.ndarray):
+#     elif x is not self._Mesh and isinstance(self._data, np.ndarray):
 #         return self.__fun_op__(x, **kwargs)
 #     else:
 #         raise TypeError((type(x), (self._data)))
@@ -183,24 +183,24 @@ __SP_EXPORT__ = PPolyGrid
 #     x_max = min(self.x_max, x_max)
 #     if x_min > x_max or np.isclose(x_min, x_max) or x_max <= self.x_min:
 #         raise ValueError(f"{x_min,x_max}  not in  {self.x_min,self.x_max}")
-#     elif isinstance(self._grid, np.ndarray):
-#         idx_min = np.argmax(self._grid >= x_min)
-#         idx_max = np.argmax(self._grid > x_max)
+#     elif isinstance(self._Mesh, np.ndarray):
+#         idx_min = np.argmax(self._Mesh >= x_min)
+#         idx_max = np.argmax(self._Mesh > x_max)
 #         if idx_max > idx_min:
 #             pass
-#         elif idx_max == 0 and np.isclose(self._grid[-1], x_max):
+#         elif idx_max == 0 and np.isclose(self._Mesh[-1], x_max):
 #             idx_max = -1
 #         else:
-#             logger.debug((x_min, x_max, idx_min, idx_max, self._grid))
+#             logger.debug((x_min, x_max, idx_min, idx_max, self._Mesh))
 #         if isinstance(self._data, np.ndarray):
-#             return Function(self._grid[idx_min:idx_max], self._data[idx_min:idx_max])
+#             return Function(self._Mesh[idx_min:idx_max], self._data[idx_min:idx_max])
 #         else:
-#             return Function(self._grid[idx_min:idx_max],  self.__call__(self._grid[idx_min:idx_max]))
+#             return Function(self._Mesh[idx_min:idx_max],  self.__call__(self._Mesh[idx_min:idx_max]))
 #     elif callable(self._data):
 #         return Function([x_min, x_max], self._data)
 #     else:
-#         raise TypeError((type(self._grid), type(self._data)))
-#         # return _grid, np.asarray(self.__call__(_grid), dtype=float)
+#         raise TypeError((type(self._Mesh), type(self._data)))
+#         # return _Mesh, np.asarray(self.__call__(_Mesh), dtype=float)
 # def __setitem__(self, idx, value):
 #     if hasattr(self, "_interpolator"):
 #         delattr(self, "_interpolator")

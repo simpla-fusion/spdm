@@ -18,7 +18,7 @@ class Point(GeoObject):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(rank=0, ndims=len(args), ** kwargs)
+        super().__init__(rank=0, ndim=len(args), ** kwargs)
         self._data: typing.Tuple[float, ...] = args
 
     def __getitem__(self, index: int) -> float:

@@ -41,7 +41,7 @@ class GeoObject(Pluggable):
 
         super().__dispatch__init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args, ndims: int = None, rank: int = 0,  **kwargs) -> None:
+    def __init__(self, *args, ndim: int = None, rank: int = 0,  **kwargs) -> None:
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
         elif len(args) == 1 and not isinstance(args[0], builtin_types):
@@ -50,8 +50,8 @@ class GeoObject(Pluggable):
             raise TypeError(f"illegal {args}")
 
         self._rank = int(rank)
-        self._ndims = ndims if ndims is not None else self._rank
-        self._appinfo = kwargs
+        self._ndim = ndim if ndim is not None else self._rank
+        self._metadata = kwargs
 
     def __equal__(self, other: GeoObject) -> bool:
         return isinstance(other, GeoObject) and self._impl == other._impl
@@ -63,7 +63,7 @@ class GeoObject(Pluggable):
         return self._impl._svg() if hasattr(self._impl, "_svg") else ""
 
     @property
-    def ndims(self) -> int: return self._ndims
+    def ndim(self) -> int: return self._ndim
     """ 几何体所处的空间维度， = 0，1，2，3 ,...  """
 
     @property
@@ -219,7 +219,7 @@ class GeoObjectSet(typing.List[GeoObject | _TGSet]):
 
     @property
     def ndims(self) -> int:
-        return max([obj.ndims for obj in self])
+        return max([obj.ndim for obj in self])
 
     @property
     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:

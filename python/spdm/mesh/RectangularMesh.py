@@ -1,5 +1,5 @@
 import typing
-from .Grid import Grid
+from .Mesh import Mesh
 from .StructuredMesh import StructuredMesh
 from ..geometry.Box import Box
 import numpy as np
@@ -8,9 +8,9 @@ from ..utils.logger import logger
 from .RectilinearMesh import RectilinearMesh
 
 
-@Grid.register(["rectangular", "rect"])
-class RectangularGrid(RectilinearMesh):
-    """ Rectangular grid, which is alias of RectilinearMesh
+@Mesh.register(["rectangular", "rect"])
+class RectangularMesh(RectilinearMesh):
+    """ Rectangular Mesh, which is alias of RectilinearMesh
         矩形网格
     """
 
@@ -21,4 +21,4 @@ class RectangularGrid(RectilinearMesh):
     def dim2(self) -> ArrayType: return self._dims[1]
 
 
-__SP_EXPORT__ = RectangularGrid
+__SP_EXPORT__ = RectangularMesh

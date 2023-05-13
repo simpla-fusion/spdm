@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .Grid import Grid
+from .Mesh import Mesh
 
 
-class PiecewiseGrid(Grid):
+class PiecewiseMesh(Mesh):
     def __init__(self, x, *args,    **kwargs) -> None:
         super().__init__(**kwargs)
         self._x = x
@@ -34,7 +34,7 @@ class PiecewiseGrid(Grid):
 
     def __call__(self, x: typing.Union[float, np.ndarray] = None) -> np.ndarray:
         if x is None:
-            x = self._grid
+            x = self._Mesh
 
         if x is None:
             x = np.linspace(self.x_min, self.x_max, 128)
@@ -71,4 +71,4 @@ class PiecewiseGrid(Grid):
             raise ValueError(f"Invalid input {x}")
 
 
-_SP_EXPORT_ = PiecewiseGrid
+_SP_EXPORT_ = PiecewiseMesh

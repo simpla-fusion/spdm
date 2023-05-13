@@ -152,7 +152,7 @@ def sp_write_geqdsk(p, file):
 
 
 def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
-    from scipy.interpolate import griddata
+    from scipy.interpolate import Meshdata
 
     coord_r = eq.coordinate_system.r
     coord_z = eq.coordinate_system.z
@@ -181,7 +181,7 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
         [1, rbbs.size]), axis=0).transpose()
     # psi
 
-    grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
+    Mesh_r, Mesh_z = np.mMesh[rleft:rleft + rdim: nw *
                               1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
     coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
         coord_r.shape[0], 1), axis=1)
@@ -191,7 +191,7 @@ def sp_imas_equilibrium_to_geqdsk(eq, nw=125, nh=125):
         [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
     psi = eq.profiles_2d[1].psi
     values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    psirz = griddata(points, values, (grid_r, grid_z),
+    psirz = Meshdata(points, values, (Mesh_r, Mesh_z),
                      method='cubic').transpose()
 
     # profile
@@ -247,8 +247,8 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
     eq.boundary.outline.z = geqdsk["bbsrz"][:, 1]
 
     eq.profiles_2d.resize(1)
-    eq.profiles_2d[0].grid_type.name = "rectangular"
-    eq.profiles_2d[0].grid_type.index = 1
+    eq.profiles_2d[0].Mesh_type.name = "rectangular"
+    eq.profiles_2d[0].Mesh_type.index = 1
     eq.profiles_2d[0].psi = geqdsk["psirz"]
 
     # coord_r = eq.coordinate_system.r
@@ -261,7 +261,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
     #     [1, rbbs.size]), axis=0).transpose()
     # # psi
 
-    # grid_r, grid_z = np.mgrid[rleft:rleft + rdim: nw *
+    # Mesh_r, Mesh_z = np.mMesh[rleft:rleft + rdim: nw *
     #                           1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
     # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(
     #     coord_r.shape[0], 1), axis=1)
@@ -271,7 +271,7 @@ def sp_geqdsk_to_imas_equilibrium(geqdsk, eq):
     #     [coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
     # psi = eq.profiles_2d[1].psi
     # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    # psirz = griddata(points, values, (grid_r, grid_z),
+    # psirz = Meshdata(points, values, (Mesh_r, Mesh_z),
     #                  method='cubic').transpose()
 
     # profile
@@ -295,11 +295,11 @@ if __name__ == "__main__":
     # Create a new instance of database
     imas_obj.create_env("fydev", "test", "3")
     imas_obj.equilibrium.ids_properties.homogeneous_time = 1
-    imas_obj.equilibrium.grids_ggd.resize(1)
-    imas_obj.equilibrium.grids_ggd[0].grid.resize(1)
-    imas_obj.equilibrium.grids_ggd[0].grid[0].name = "unspecified"
-    imas_obj.equilibrium.grids_ggd[0].grid[0].index = 0
-    imas_obj.equilibrium.grids_ggd[0].time=1.234
+    imas_obj.equilibrium.Meshs_ggd.resize(1)
+    imas_obj.equilibrium.Meshs_ggd[0].Mesh.resize(1)
+    imas_obj.equilibrium.Meshs_ggd[0].Mesh[0].name = "unspecified"
+    imas_obj.equilibrium.Meshs_ggd[0].Mesh[0].index = 0
+    imas_obj.equilibrium.Meshs_ggd[0].time=1.234
 
     imas_obj.equilibrium.resize(1)
     imas_obj.equilibrium.time.resize(1)
