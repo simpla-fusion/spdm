@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from scipy import constants
 from spdm.utils.logger import logger
-from spdm.data.Function import Expression, Function
+from spdm.data.Function import Expression, Function, PiecewiseFunction
 
 
 class TestFunction(unittest.TestCase):
@@ -77,16 +77,17 @@ class TestFunction(unittest.TestCase):
     #     y1 = Function(lambda x: x*2, x1)
     #     y2 = y0 + y1
 
-    #     self.assertEqual(y2._Mesh.min, 1)
-    #     self.assertEqual(y2._Mesh.max, 2)
+    #     self.assertEqual(y2._mesh.min, 1)
+    #     self.assertEqual(y2._mesh.max, 2)
 
-    #     self.assertTrue(np.all(y2._Mesh == x2))
+    #     self.assertTrue(np.all(y2._mesh == x2))
 
     def test_picewise_function(self):
         r_ped = 0.9001  # np.sqrt(0.88)
         Cped = 0.2
         Ccore = 0.4
-        chi = Function([lambda x:x, lambda x: Cped], [0, r_ped, 1.0], mesh_type="Piecewise")
+        chi = PiecewiseFunction([lambda x:x, lambda x: Cped],
+                                [lambda x:x <= r_ped, lambda x:x > r_ped])
         x = np.linspace(0, 1, 101)
         logger.debug((chi*2)(x))
 

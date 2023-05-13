@@ -38,15 +38,15 @@ class RectilinearMesh(StructuredMesh):
         if geometry is None:
             geometry = Box([min(d) for d in dims], [max(d) for d in dims])
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
-        self._dims = dims
+        self._dims = [Function(d) for d in dims]
         self._aixs: typing.List[Curve] = [
             Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
 
     @property
-    def dim1(self) -> ArrayType: return self._dims[0]
+    def dim1(self) -> ArrayType: return self._dims[0].__array__()
 
     @property
-    def dim2(self) -> ArrayType: return self._dims[1]
+    def dim2(self) -> ArrayType: return self._dims[1].__array__()
 
     @cached_property
     def bbox(self) -> ArrayType:
@@ -55,32 +55,20 @@ class RectilinearMesh(StructuredMesh):
     @cached_property
     def dx(self) -> ArrayType: return np.asarray([(d[-1]-d[0])/len(d) for d in self._dims])
 
-    def points(self, *uv) -> typing.Tuple[NumericType, ...]:
-        shift = sum([(self._axis[i](uv[i])-self._axis[i].p0) for i in range(self.rank-1)])
-        return self._axis[-1].translate(shift)(uv[-1])
+    def coordinates(self, *uvw) -> ArrayType:
+        """ 网格点的 _空间坐标_
+            @return: _数组_ 形状为 [geometry.dimension,<shape of uvw ...>]
+        """
+        if len(uvw) == 1 and self.rank != 1:
+            uvw = uvw[0]
+        return np.stack([self._dims[i](uvw[i]) for i in range(self.rank)])
 
-    def plane(self, n_axis: int, uv: float) -> GeoObject:
-        shit = self._axis[n_axis](uv)-self._axis[n_axis].p0
-        return self.__class__(*[self._axis[(n_axis+i) % self.rank].translate(shit) for i in range(self.rank-1)])
-
-    def axis(self, idx, axis=0) -> GeoObject:
-        p0 = [d[0] for d in self._dims]
-        p1 = [d[-1] for d in self._dims]
-        p0[axis] = self._dims[axis][idx]
-        p1[axis] = self._dims[axis][idx]
-
-        try:
-            res = Line(p0, p1, is_closed=self.cycle[axis])
-        except ValueError as error:
-            res = Point(*p0)
-        return res
-
-    @ cached_property
-    def points(self) -> typing.Tuple[ArrayType, ...]:
-        if self.geometry.ndim == 1:
+    @cached_property
+    def vertices(self) -> ArrayType:
+        if self.geometry.rank == 1:
             return (self._dims[0],)
-        elif self.geometry.ndim == 2:
-            return tuple(np.meshMesh(*self._dims, indexing="ij"))
+        elif self.geometry.rank == 2:
+            return np.stack(np.meshMesh(*self._dims, indexing="ij"))
         else:
             raise NotImplementedError()
 
@@ -96,9 +84,3 @@ class RectilinearMesh(StructuredMesh):
             raise NotImplementedError(f"NDIMS {self.geometry.ndim}>2")
 
         return interp
-
-    @ cached_property
-    def dl(self):
-        dX = (np.roll(self.points[0], 1, axis=1) - np.roll(self.points[0], -1, axis=1))/2.0
-        dY = (np.roll(self.points[1], 1, axis=1) - np.roll(self.points[1], -1, axis=1))/2.0
-        return dX, dY

@@ -63,10 +63,6 @@ class GeoObject(Pluggable):
         return self._impl._svg() if hasattr(self._impl, "_svg") else ""
 
     @property
-    def ndim(self) -> int: return self._ndim
-    """ 几何体所处的空间维度， = 0，1，2，3 ,...  """
-
-    @property
     def rank(self) -> int: return self._rank
     """ 几何体（流形）维度  rank <=ndims
 
@@ -75,6 +71,20 @@ class GeoObject(Pluggable):
             2: surface
             3: volume
             >=4: not defined
+        The rank of a geometric object refers to the number of independent directions 
+        in which it extends. For example, a point has rank 0, a line has rank 1, 
+        a plane has rank 2, and a volume has rank 3.
+    """
+
+    @property
+    def dimension(self) -> int: return self._ndim
+    """ 几何体所处的空间维度， = 0，1，2，3 ,...  
+        The dimension of a geometric object, on the other hand, refers to the minimum number of
+        coordinates needed to specify any point within it. In general, the rank and dimension of 
+        a geometric object are the same. However, there are some cases where they can differ. 
+        For example, a curve that is embedded in three-dimensional space has rank 1 because 
+        it extends in only one independent direction, but it has dimension 3 because three 
+        coordinates are needed to specify any point on the curve.
     """
 
     @cached_property
@@ -115,22 +125,25 @@ class GeoObject(Pluggable):
     def translate(self, *args) -> GeoObject:
         return GeoObject(self._impl.translate(*args))
 
-    def points(self, *uv, **kwargs) -> typing.Sequence[NumericType]:
+    def coordinates(self, *uvw) -> NumericType:
         """
-            coordinates of vertices on mesh
-            Return: array-like
-                shape = [*shape_of_mesh,ndims]
+            将 _参数坐标_ 转换为 _空间坐标_
+            @return: array-like shape = [ndim,*uvw.shape[:-1] ]
         """
         raise NotImplementedError(f"{self.__class__.__name__}")
 
-    @property
-    def xyz(self) -> np.ndarray:
+    def parametric_coordinates(self, *xyz) -> NumericType:
         """
-            coordinates of vertices on mesh
-            Return: array-like
-                shape = [ndims, *shape_of_mesh]
+            将 _空间坐标_ 转换为 _参数坐标_         
+            @return: array-like shape = [rank,*uvw.shape[:-1]]
         """
-        return np.moveaxis(self.points(), -1, 0)
+        raise NotImplementedError(f"{self.__class__.__name__}.parametric_coordinates")
+
+    def xyz(self, *uvw) -> np.ndarray: return self.coordinates(*uvw)
+    """ alias of coordinates """
+
+    def uvw(self, *xyz) -> np.ndarray: return self.parametric_coordinates(*xyz)
+    """ alias of parametric_coordinates """
 
     def dl(self, uv=None) -> np.ndarray:
         """

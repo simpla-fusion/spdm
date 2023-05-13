@@ -10,11 +10,11 @@ import numpy as np
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import regroup_dict_by_prefix
+from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType
 from .Function import Function
 from .Node import Node
-from .Profile import Profile
-from ..utils.tags import _not_found_
+
 _T = typing.TypeVar("_T")
 
 
@@ -56,7 +56,7 @@ class Field(Node, Function, typing.Generic[_T]):
 
             mesh = Mesh(mesh, type=mesh_type)
 
-        Function.__init__(self, Mesh=mesh)
+        Function.__init__(self, mesh=mesh)
 
     @property
     def metadata(self) -> typing.Mapping[str, typing.Any]:

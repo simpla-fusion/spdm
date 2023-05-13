@@ -7,18 +7,20 @@ from copy import copy
 from functools import cached_property, lru_cache
 
 import numpy as np
-from scipy.interpolate import PPoly
-
+from scipy.interpolate import (InterpolatedUnivariateSpline, PPoly,
+                               RectBivariateSpline)
 from spdm.utils.typing import ArrayType, NumericType
 
 from ..mesh.Mesh import Mesh, as_mesh
 from ..utils.logger import logger
+from ..utils.misc import regroup_dict_by_prefix
 from ..utils.typing import (ArrayType, NumericType, ScalarType, as_array,
                             as_scalar)
-from ..utils.misc import regroup_dict_by_prefix
+
+_T = typing.TypeVar("_T")
 
 
-class Function(object):
+class Function(typing.Generic[_T]):
     """
     Function 函数
     --------------
@@ -48,21 +50,16 @@ class Function(object):
 
         """
 
-        if self.__class__ is Function and (kwargs.get("mesh_type", "ppoly") == "ppoly"):
-            # 若无明确指明 mesh_type，默认初始化为 PPolyFunction
-            self.__class__ = PPolyFunction
-            return self.__class__.__init__(self, d, *args, **kwargs)
-
         self._data: typing.Any = d  # 网格点上的数值 DoF
 
-        self._mesh, self._metadata = regroup_dict_by_prefix(kwargs, "Mesh")
+        self._mesh, self._metadata = regroup_dict_by_prefix(kwargs, "mesh")
 
         if isinstance(self._mesh, Mesh):
             pass
         elif isinstance(self._mesh, collections.abc.Mapping) and len(self._mesh) > 0:
             self._mesh = as_mesh(*args, **self._mesh)  # 网格
         elif not self._mesh:
-            self._mesh = None
+            self._mesh = args if len(args) != 1 else args[0]
         else:
             raise RuntimeError(f"Can not convert {type(self._mesh)} to Mesh!")
 
@@ -73,7 +70,7 @@ class Function(object):
         return self._metadata
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}  mesh_type=\"{self._mesh.name if isinstance(self._mesh,Mesh) else 'unamed'}\" data_type=\"{self.__type_hint__.__name__}\" />"
+        return f"<{self.__class__.__name__}  mesh_type=\"{self._mesh.name if isinstance(self._mesh,Mesh) else 'unnamed'}\" data_type=\"{self.__type_hint__.__name__}\" />"
 
     def __serialize__(self) -> typing.Mapping:
         raise NotImplementedError(f"")
@@ -85,7 +82,7 @@ class Function(object):
     def __copy__(self) -> Function:
         """复制 Function """
         other = object.__new__(self.__class__)
-        other._Mesh = self._mesh
+        other._mesh = self._mesh
         other._data = copy(self._data)
         return other
 
@@ -97,13 +94,13 @@ class Function(object):
 
         if isinstance(self._data, np.ndarray):
             pass
-        elif hasattr(self._data, "__value__"):
-            self._data = self._data.__value__()
+        elif hasattr(self._data, "__entry__"):
+            self._data = self._data.__entry__().__value__()
         elif isinstance(self._mesh, Mesh):
             if isinstance(self._data, (int, float, complex)):
                 self._data = np.full(self._mesh.shape, self._data)
             else:
-                self._data = as_array(self.__call__(self._mesh.points))
+                self._data = as_array(self.__call__(self._mesh.coordinates()))
         else:
             raise RuntimeError(
                 f"Can not convert Function to numpy.ndarray! mesh_type={type(self._mesh)} data_type={type(self._data)}")
@@ -135,7 +132,7 @@ class Function(object):
         else:
             return None
 
-    def __ppoly__(self, *dx: int) -> typing.Callable[..., NumericType]:
+    def __ppoly__(self, *dx: int, **kwargs) -> typing.Callable[..., NumericType]:
         """ 返回 PPoly 对象 """
         fun = self._ppoly_cache.get(dx, None)
         if fun is not None:
@@ -146,6 +143,12 @@ class Function(object):
                 fun = self._data
             elif isinstance(self._mesh, Mesh):
                 fun = self._mesh.interpolator(self.__array__())
+            elif isinstance(self._mesh, np.ndarray):
+                fun = InterpolatedUnivariateSpline(self._mesh, self._data,  **kwargs)
+            elif isinstance(self._mesh, tuple) and len(self._mesh) == 2:
+                fun = RectBivariateSpline(*self._mesh, self._data,  **kwargs)
+            else:
+                raise NotImplementedError(f"NOT IMPLEMENTED interpolate ndim>2")
         else:
             ppoly = self.__ppoly__()
 
@@ -322,65 +325,3 @@ class PiecewiseFunction(Function):
 
     def derivative(self, *args, **kwargs) -> NumericType | Function:
         return super().derivative(*args, **kwargs)
-
-
-class PPolyFunction(Function):
-    """ PPolyFunction
-        ----------------
-        A piecewise polynomial function.
-        一维或多维，多项式插值函数，
-    """
-
-    def __init__(self, d, *args, **kwargs):
-        if isinstance(d, PPoly):
-            super().__init__()
-            self._ppoly = d
-        elif len(args) > 0 and isinstance(args[0], Mesh):
-            super().__init__(d, args[0])
-            if len(kwargs) > 0 or len(args) > 1:
-                logger.warning(f"Ignore args {args} and kwargs  {kwargs} ")
-        else:
-            from ..mesh.PPolyMesh import PPolyMesh
-            super().__init__(d, PPolyMesh(*args, **kwargs))
-
-    # def __ppoly__(self, *dx) -> PPoly:
-    #     """ 获取函数的实际表达式，如插值函数 """
-    #     if isinstance(self._data, PPoly):
-    #         return self._data
-    #     elif not isinstance(self._mesh, Mesh):
-    #         raise RuntimeError(f"Mesh is not Mesh, {self._mesh}")
-    #     elif len(dx) == 0:
-    #         return self._mesh.interpolator(as_array(self._data))
-    #     else:
-    #         ppoly = self.__ppoly__()
-    #         if dx[0] > 0:
-    #             return ppoly.derivative(dx[0])
-    #         elif dx[0] == -1:
-    #             return ppoly.antiderivative(dx[0])
-
-    def __call__(self, *args, ** kwargs) -> NumericType:
-
-        res = self.__ppoly__()(*args, **kwargs)
-
-        return as_array(res)
-
-    def derivative(self, *args, **kwargs) -> NumericType | Function:
-        if isinstance(self.__ppoly__, PPoly):
-            return Function(self.__ppoly__.derivative(*args, **kwargs), self._mesh)
-        else:
-            return super().derivative(*args, **kwargs)
-
-    def antiderivative(self, *args, **kwargs) -> NumericType | Function:
-        if isinstance(self.__ppoly__, PPoly):
-            return Function(self.__ppoly__.antiderivative(*args, **kwargs))
-        else:
-            return super().antiderivative(*args, **kwargs)
-
-    def integrate(self, *args, **kwargs) -> ScalarType:
-        if self.__ppoly__ is not None:
-            return as_scalar(self.__ppoly__.integrate(*args, **kwargs))
-        else:
-            return super().integrate(*args, **kwargs)
-
-    def dln(self, *args, **kwargs) -> NumericType | Function:
-        return self.derivative(*args, **kwargs) / self.__call__(*args, **kwargs)

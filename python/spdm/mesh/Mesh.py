@@ -15,6 +15,15 @@ from ..utils.typing import ArrayType, NumericType, ScalarType
 
 
 class Mesh(Pluggable):
+    """
+    Mesh
+    -------
+    网格
+
+    @NOTE: In general, a mesh provides more flexibility in representing complex geometries and 
+    can adapt to the local features of the solution, while a grid is simpler to generate
+    and can be more efficient for certain types of problems.
+    """
 
     _plugin_registry = {}
 
@@ -49,15 +58,6 @@ class Mesh(Pluggable):
 
         self._shape: ArrayType = np.asarray(self._metadata.get("shape", []), dtype=int)
 
-        self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None)
-
-        if self._cycles is None:
-            self._cycles = ([False]*self.geometry.rank)
-
-        # if len(args) > 0:
-        #     raise RuntimeWarning(f"{self.__class__.__name__}.__init__(): {args} are ignored")
-        self._uv_points = args
-
     def __serialize__(self) -> typing.Mapping:
         raise NotImplementedError(f"")
 
@@ -83,33 +83,47 @@ class Mesh(Pluggable):
 
     @property
     def shape(self) -> typing.Tuple[int, ...]: return self._shape
-    """ 存储网格点数组的形状  TODO: support multiblock Mesh"""
+    """ 存储网格点数组的形状  
+        TODO: support multiblock Mesh
+        结构化网格 shape   如 [n,m] n,m 为网格的长度dimension
+        非结构化网格 shape 如 [<number of vertices>]
+    """
 
-    @property
-    def rank(self) -> int: return len(self._shape)
+    def parametric_coordinates(self, *xyz) -> ArrayType:
+        """
+            parametric coordinates
+            ------------------------
+            网格点的 _参数坐标_
+            Parametric coordinates, also known as computational coordinates or intrinsic coordinates,
+            are a way to represent the position of a point within an element of a mesh.
+            一般记作 u,v,w \in [0,1] ,其中 0 表示“起点”或 “原点” origin，1 表示终点end
+            mesh的参数坐标(u,v,w)，(...,0)和(...,1)表示边界
 
-    @property
-    def dx(self) -> ArrayType:
-        bbox = self.geometry.bbox
-        shape = self.shape
-        if not isinstance(shape, np.ndarray):
-            raise TypeError(f"shape is not np.ndarray")
-        return (bbox[1]-bbox[0])/shape
-
-    @property
-    def cycles(self) -> typing.List[bool]: return self._cycles
-    """ Periodic boundary condition   周期性边界条件,  标识每个维度是否是周期性边界 """
-
-    @property
-    def uv_points(self) -> typing.Tuple[ArrayType, ...]: return self._uv_points
-
-    @property
-    def points(self) -> typing.Tuple[ArrayType, ...]:
-        """ 网格点坐标 """
-        if self._geometry is None:
-            return self.uv_points
+            @return: 数组形状为 [geometry.rank, <shape of xyz ...>]的数组
+        """
+        if len(xyz) == 0:
+            return np.stack(np.meshMesh(*[np.linspace(0.0, 1.0, n, endpoint=True) for n in self.shape]))
         else:
-            return self._geometry.points(*self.uv_points)
+            raise NotImplementedError(f"{self.__class__.__name__}.parametric_coordinates for unstructured mesh")
+
+    def coordinates(self, *uvw) -> ArrayType:
+        """ 网格点的 _空间坐标_
+            @return: _数组_ 形状为 [geometry.dimension,<shape of uvw ...>]
+        """
+        return self.geometry.coordinates(uvw if len(uvw) > 0 else self.parametric_coordinates())
+
+    def uvw(self, *xyz) -> ArrayType: return self.parametric_coordinates(*xyz)
+    """ alias of parametric_coordiantes"""
+
+    def xyz(self, *uvw) -> ArrayType: return self.coordinates(*uvw)
+    """ alias of vertices """
+
+    @property
+    def vertices(self) -> ArrayType: return self.geometry.coordinates(self.parametric_coordinates())
+
+    @property
+    def cells(self) -> typing.Any: raise NotImplementedError(f"{self.__class__.__name__}.cells")
+    """ refer to the individual units that make up the mesh"""
 
     def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
