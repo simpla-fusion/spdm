@@ -9,9 +9,10 @@ from spdm.utils.typing import ArrayType
 
 from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
 from ..utils.logger import logger
-from ..utils.misc import regroup_dict_by_prefix
+from ..utils.misc import group_dict_by_prefix
 from ..utils.Pluggable import Pluggable
 from ..utils.typing import ArrayType, NumericType, ScalarType
+from ..utils.tags import _not_found_
 
 
 class Mesh(Pluggable):
@@ -33,7 +34,7 @@ class Mesh(Pluggable):
         if not _mesh_type:
             _mesh_type = kwargs.get("type", NullMesh)
 
-        if isinstance(_mesh_type, Enum):
+        if isinstance(_mesh_type, Enum) and _mesh_type is not _not_found_:
             _mesh_type = getattr(_mesh_type, "name", None)
 
         if isinstance(_mesh_type, str):
@@ -41,6 +42,8 @@ class Mesh(Pluggable):
                           f"spdm.Mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
                           f"spdm.Mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
                           ]
+        if _mesh_type is None or _mesh_type is _not_found_:
+            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={_mesh_type} is not found")
 
         super().__dispatch__init__(_mesh_type, self, *args, **kwargs)
 
@@ -48,7 +51,7 @@ class Mesh(Pluggable):
         if self.__class__ is Mesh:
             return Mesh.__dispatch__init__(None, self, *args, **kwargs)
 
-        self._geometry, self._metadata = regroup_dict_by_prefix(kwargs, "geometry")
+        self._geometry, self._metadata = group_dict_by_prefix(kwargs, "geometry")
 
         if isinstance(self._geometry, collections.abc.Mapping) or self._geometry is None:
             self._geometry = as_geo_object(*args, **self._geometry)

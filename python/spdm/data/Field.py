@@ -7,9 +7,8 @@ from functools import lru_cache
 
 import numpy as np
 
-from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
-from ..utils.misc import regroup_dict_by_prefix
+from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType
 from .Function import Function
@@ -26,35 +25,28 @@ class Field(Node, Function, typing.Generic[_T]):
         一个 _场(Field)_ 是一个 _函数(Function)_，它为空间(默认为多维流形)上的每一点分配一个值。场的值可以是标量或矢量。
     """
 
-    def __init__(self, *args, mesh=None, **kwargs):
-        Mesh_desc, kwargs = regroup_dict_by_prefix(kwargs, "Mesh")
-        coordinates, kwargs = regroup_dict_by_prefix(kwargs, "coordinate", keep_prefix=True, sep='')
+    def __init__(self, *args, mesh=None,   **kwargs):
+
+        mesh_desc, coordinates, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate"))
+
         super().__init__(*args, **kwargs)
 
-        if isinstance(mesh, Mesh):
-            pass
-        elif isinstance(Mesh_desc, dict) and len(Mesh_desc) > 0:
-            mesh = Mesh(**Mesh_desc)
-        elif len(coordinates) > 0:
+        if mesh is None and len(coordinates) > 0:
             # 获得 coordinates 中 value的共同前缀
-            prefix = os.path.commonprefix([*coordinates.values()])
-            if prefix.startswith("../Mesh/dim"):
-                mesh = getattr(self._parent, "Mesh", None)
+            prefix = os.path.commonprefix([v for k, v in coordinates if str(k[0]).isnumeric()])
+            if prefix.startswith("../grid/dim"):
+                mesh = getattr(self._parent, "grid", None)
                 if isinstance(mesh, Node):
-                    mesh_type = getattr(self._parent, "mesh_type", None)
-                    mesh = Mesh(mesh.dim1, mesh.dim2, mesh.volume_element, type=mesh_type)
+                    mesh_type = getattr(self._parent, "grid_type", None)
+                    mesh_desc["dim1"] = mesh.dim1
+                    mesh_desc["dim2"] = mesh.dim2
+                    mesh_desc["volume_element"] = mesh.volume_element
+                    mesh_desc["type"] = mesh_type.name if isinstance(mesh_type, Enum) else mesh_type
             elif prefix.startswith("../dim"):
-                mesh = Mesh(self._parent.dim1, self._parent.dim2, self._parent._parent.mesh_type)
-            else:
-                mesh = Mesh()
-
-        if not isinstance(mesh, Mesh):
-            mesh_type = getattr(self._parent, "mesh_type", None)
-
-            if not isinstance(mesh_type, str):
-                mesh_type = getattr(mesh_type, "name", None)
-
-            mesh = Mesh(mesh, type=mesh_type)
+                mesh_type = self._parent.grid_type
+                mesh_desc["dim1"] = self._parent.dim1
+                mesh_desc["dim2"] = self._parent.dim2
+                mesh_desc["type"] = mesh_type.name if isinstance(mesh_type, Enum) else mesh_type
 
         Function.__init__(self, mesh=mesh)
 

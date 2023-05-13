@@ -4,6 +4,7 @@ import collections.abc
 import inspect
 import typing
 from copy import copy
+from enum import Enum
 from functools import cached_property, lru_cache
 
 import numpy as np
@@ -11,9 +12,9 @@ from scipy.interpolate import (InterpolatedUnivariateSpline, PPoly,
                                RectBivariateSpline)
 from spdm.utils.typing import ArrayType, NumericType
 
-from ..mesh.Mesh import Mesh, as_mesh
 from ..utils.logger import logger
-from ..utils.misc import regroup_dict_by_prefix
+from ..utils.misc import group_dict_by_prefix
+from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, ScalarType, as_array,
                             as_scalar)
 
@@ -40,7 +41,7 @@ class Function(typing.Generic[_T]):
         - Function[ScalarTypeValue,ScalarTypeMesh] 两个泛型参数，分别描述数值和网格的类型
     """
 
-    def __init__(self, d=None, *args, **kwargs):
+    def __init__(self, d=None, *args, mesh=None, **kwargs):
         """
         初始化Function 函数
         --------------
@@ -50,18 +51,34 @@ class Function(typing.Generic[_T]):
 
         """
 
-        self._data: typing.Any = d  # 网格点上的数值 DoF
+        self._data = d  # 网格点上的数值 DoF
 
-        self._mesh, self._metadata = regroup_dict_by_prefix(kwargs, "mesh")
+        mesh_desc, self._metadata = group_dict_by_prefix(kwargs, "mesh_")
 
-        if isinstance(self._mesh, Mesh):
-            pass
-        elif isinstance(self._mesh, collections.abc.Mapping) and len(self._mesh) > 0:
-            self._mesh = as_mesh(*args, **self._mesh)  # 网格
-        elif not self._mesh:
+        if isinstance(mesh, collections.abc.Mapping):
+            mesh_desc.update(mesh)
+            mesh = None
+        elif isinstance(mesh, Enum):
+            mesh_desc.update({"type": mesh.name})
+            mesh = None
+        elif isinstance(mesh, str):
+            mesh_desc.update({"type": mesh})
+            mesh = None
+
+        if mesh is not None and mesh is not _not_found_:
+            self._mesh = mesh
+            if len(mesh_desc) > 0:
+                logger.warning(f"self._mesh is specified, ignore mesh_desc={mesh_desc}")
+        elif len(mesh_desc) == 0:
             self._mesh = args if len(args) != 1 else args[0]
         else:
-            raise RuntimeError(f"Can not convert {type(self._mesh)} to Mesh!")
+            try:
+                from ..mesh.Mesh import Mesh
+                self._mesh = Mesh(*args, **mesh_desc)
+            except ModuleNotFoundError:
+                raise RuntimeError(f"Can not import Mesh from spdm.mesh.Mesh!")
+            except:
+                raise RuntimeError(f"Can not create mesh from mesh_desc={mesh_desc}")
 
         self._ppoly_cache = {}
 
@@ -70,7 +87,7 @@ class Function(typing.Generic[_T]):
         return self._metadata
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}  mesh_type=\"{self._mesh.name if isinstance(self._mesh,Mesh) else 'unnamed'}\" data_type=\"{self.__type_hint__.__name__}\" />"
+        return f"<{self.__class__.__name__}  mesh_type=\"{self._mesh.__class__.__name__}\" data_type=\"{self.__type_hint__.__name__}\" />"
 
     def __serialize__(self) -> typing.Mapping:
         raise NotImplementedError(f"")

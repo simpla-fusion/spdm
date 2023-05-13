@@ -552,15 +552,31 @@ def typing_get_origin(tp):
         return typing_get_origin(orig_class)
 
 
-def regroup_dict_by_prefix(d: collections.abc.Mapping, prefix: str, keep_prefix=False, sep='_') -> typing.Tuple[typing.Dict, typing.Dict]:
-    """ 将字典中以prefix开头的键值对提取出来，返回一个新的字典和剩余的字典
-        若keep_prefix为True，则新字典中的键保留prefix前缀，否则去除
-        若键值key==prefix且value为dict，则将该键值对提取出来并赋值给新字典
-        若键值key==prefix且value不为dict，则将该键值对提取出来并以键值'_'赋值给新字典
-
-
+def group_dict_by_prefix(d: collections.abc.Mapping, prefixs: str | typing.List[str], keep_prefix=True) -> typing.Tuple[typing.Dict, ...]:
+    """ 将 字典 d 根据prefixs进行分组
+     prefix 是一个字符串，或者是一个字符串列表
+     key具有相同prefix的项会被分到一组， (if keep_prefix is True then prefix会被去掉)
+     返回值是一个元组，每元素是分组后的字典，最后一个元素是其他项的字典
     """
-    obj = d.get(prefix, None)
+    if isinstance(prefixs, str):
+        prefixs = [prefixs]
+    groups = [{}]*(len(prefixs)+1)
+
+    for key, value in d.items():
+        for idx, prefix in enumerate(prefixs):
+            if key.startswith(prefix):
+                if not keep_prefix:
+                    key = key[len(prefix):]
+                groups[idx][key] = value
+                break
+        else:
+            groups[-1][key] = value
+    return tuple(groups)
+
+
+def fun():
+    if isinstance(prefixs, str):
+        prefixs = [prefixs]
 
     prefix_dict = {}
 
@@ -568,7 +584,6 @@ def regroup_dict_by_prefix(d: collections.abc.Mapping, prefix: str, keep_prefix=
         prefix_dict = obj
         obj = None
 
-    prefix += sep
     prefix_len = len(prefix)
     other_dict = {}
     for k, v in d.items():
