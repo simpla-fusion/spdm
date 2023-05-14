@@ -50,8 +50,11 @@ class Function(typing.Generic[_T]):
             - 描述函数的数值或者插值函数
 
         """
-
-        self._data = d  # 网格点上的数值 DoF
+        if self.__class__ is Function and isinstance(d, Expression):
+            self.__class__ = d.__class__
+            self.__duplicate_from__(d)
+        else:
+            self._data = d  # 网格点上的数值 DoF
 
         mesh_desc, self._metadata = group_dict_by_prefix(kwargs, "mesh_")
 
@@ -96,11 +99,21 @@ class Function(typing.Generic[_T]):
     def __deserialize__(cls, data: typing.Mapping) -> Function:
         raise NotImplementedError(f"")
 
+    def __duplicate_from__(self, other: Function) -> None:
+        """ 将 other 的属性复制到 self
+            主要目的是为了在 __copy__ 中调用，避免重复代码
+            在 __init__ 中调用会导致递归调用
+        """
+        if not isinstance(other, Function):
+            raise TypeError(f"Can not clone {other} to Function!")
+        self._mesh = other._mesh
+        self._data = other._data
+        self._ppoly_cache = other._ppoly_cache
+
     def __copy__(self) -> Function:
         """复制 Function """
         other = object.__new__(self.__class__)
-        other._mesh = self._mesh
-        other._data = copy(self._data)
+        other.__duplicate_from__(self)
         return other
 
     @property
@@ -109,7 +122,7 @@ class Function(typing.Generic[_T]):
     @property
     def domain(self): return getattr(self.mesh, "geometry", self.bbox)
     """ 返回函数的定义域，即函数参数的取值范围。
-        - 如果mesh有geometry属性，则返回这个属性    
+        - 如果mesh有geometry属性，则返回这个属性
         - 否则返回 bbox
     """
 
@@ -155,13 +168,13 @@ class Function(typing.Generic[_T]):
             return None
 
     def __ppoly__(self, *dx: int, **kwargs) -> typing.Callable[..., NumericType]:
-        """ 返回 PPoly 对象 
+        """ 返回 PPoly 对象
             TODO:
             - support JIT compile
             - 优化缓存
             - 支持多维插值
             - 支持多维求导，自动微分 auto diff
-            -            
+            -
         """
         fun = self._ppoly_cache.get(dx, None)
         if fun is not None:
@@ -220,10 +233,23 @@ class Function(typing.Generic[_T]):
             -------------
             TODO:
                 - 支持多维积分
-                - support multi-block mesh        
+                - support multi-block mesh
         """
         return as_scalar(self._mesh.integrate(self._data, *args, **kwargs))
 
+    def _apply(self, func, *args, **kwargs) -> typing.Any:
+        if isinstance(func, collections.abc.Sequence):
+            return [self._apply(f, *args, **kwargs) for f in func]
+        elif hasattr(func, "__entry__"):
+            return self._apply(func.__entr__().__value__(), *args, **kwargs)
+        elif callable(func):
+            return func(*args, **kwargs)
+        elif isinstance(func, (int, float, complex, np.floating, np.integer, np.complexfloating, np.ndarray)):
+            return func
+        elif func is None:
+            return args
+        else:
+            raise TypeError(f"Invalid type {type(func)} for apply!")
 
 
     # fmt: off
@@ -279,49 +305,53 @@ class Expression(Function):
         self._ufunc = ufunc
         self._method = method
 
+    def __duplicate_from__(self, other: Expression) -> None:
+        """ 复制另一个 Expression 对象 """
+
+        if not isinstance(other, Expression):
+            raise TypeError(f"Can not clone {other} to Expression!")
+
+        super().__duplicate_from__(other)
+
+        self._ufunc = other._ufunc
+        self._method = other._method
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}   op=\"{self._ufunc.__name__}\" />"
 
-    def __array__(self) -> ArrayType: raise RuntimeError("Expression cannot be converted to array without arguments!")
+    def __array__(self) -> ArrayType:
+        if self._mesh is None:
+            raise RuntimeError("Expression has no mesh! Can not convert to array!")
+        return self.__call__(self._mesh)
 
     def __getitem__(self, *args) -> NumericType: raise RuntimeError("Expression cannot be indexed!")
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Expression cannot be indexed!")
 
     def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
-        # TODO: 
+        # TODO:
         # - support JIT compilation
         # - support broadcasting?
         # - support multiple meshes?
-        try:
-            dtype = self.__type_hint__
-        except TypeError:
-            dtype = float
-
-        if not inspect.isclass(dtype):
-            dtype = float
-
-        if isinstance(self._data, collections.abc.Sequence):
-            value = [(d(*args, **kwargs) if callable(d) else d) for d in self._data]
-        elif callable(self._data):
-            value = [self._data(*args, **kwargs)]
-        elif isinstance(self._data, (int, float, complex, np.floating, np.integer, np.complexfloating)):
-            d_shape = [len(d) if isinstance(d, np.ndarray) else 1 for d in args]
-            value = np.full(d_shape, self._data, dtype=dtype)
-        elif self._data is None:
-            value = args
-        else:
-            raise ValueError(f"Invalid data type {type(self._data)}")
+        # try:
+        #     dtype = self.__type_hint__
+        # except TypeError:
+        #     dtype = float
+        # if not inspect.isclass(dtype):
+        #     dtype = float
 
         if self._method is not None:
             ufunc = getattr(self._ufunc, self._method, None)
-            if ufunc is None:
-                raise AttributeError(f"{self._ufunc.__class__.__name__} has not method {self._method}!")
-            return ufunc(self, *value)
         elif callable(self._ufunc):
-            return self._ufunc(*value)  # type: ignore
+            ufunc = self._ufunc
         else:
-            raise ValueError(f"ufunc is not callable ufunc={self._ufunc} method={self._method}")
+            raise AttributeError(f"{self._ufunc.__class__.__name__} has not method {self._method}!")
+
+        if self._data is None:
+            return ufunc(*args, **kwargs)
+        else:
+            value = self._apply(self._data, *args, **kwargs)
+            return ufunc(*value)
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
@@ -329,6 +359,7 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
         return y
     else:
         return Function(y, *args, **kwargs)
+
 
 # 用于简化构建 lambda 表达式
 _0 = Expression(lambda *args:   args[0])
@@ -349,28 +380,31 @@ class PiecewiseFunction(Function):
         A piecewise function. 一维或多维，分段函数
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        if not all(isinstance(arg, collections.abc.Sequence) for arg in args):
-            raise TypeError(f"PiecewiseFunction only support sequence of (cond, fun), {args}")
-        self._fun_list = zip(*args)
+    def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
+        super().__init__(**kwargs)
+        self._fun_list = func, cond
 
-    def __call__(self, x) -> NumericType:
+    def __duplicate_from__(self, other: PiecewiseFunction) -> None:
+        super().__duplicate_from__(other)
+        self._fun_list = other._fun_list
+
+    def _apply(self, func, x, *args, **kwargs):
+        if isinstance(x, np.ndarray) and isinstance(func, (int, float, complex, np.floating, np.integer, np.complexfloating)):
+            value = np.full(x.shape, func)
+        else:
+            value = super()._apply(func, x, *args, **kwargs)
+        return value
+
+    def __call__(self, x, *args, **kwargs) -> NumericType:
         if isinstance(x, float):
-            res = [fun(x) for fun, cond in self._fun_list if cond(x)]
+            res = [self._apply(fun, x) for fun, cond in zip(*self._fun_list) if cond(x)]
+            if len(res) == 0:
+                raise RuntimeError(f"Can not fit any condition! {x}")
+            elif len(res) > 1:
+                raise RuntimeError(f"Fit multiply condition! {x}")
             return res[0]
-        elif isinstance(x, np.ndarray) and x.ndim == 1:
-
-            def _apply(f, x):
-                if callable(f):
-                    return f(x)
-                elif isinstance(x, np.ndarray):
-                    # and isinstance(f, (int, float, complex, np.floating, np.integer, np.complexfloating))
-                    return np.full(x.shape, f)
-                else:
-                    return f
-                
-            res = np.hstack([_apply(fun, x[cond(x)]) for fun, cond in self._fun_list])
+        elif isinstance(x, np.ndarray):
+            res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._fun_list)])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
