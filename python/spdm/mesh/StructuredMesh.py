@@ -24,26 +24,27 @@ class StructuredMesh(Mesh):
 
     def __init__(self, shape: typing.Sequence[int], *args, cycles=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._shape = shape
+        self._cycles = cycles
+        # shape = tuple(shape)
+        # if cycles is None:
+        #     cycles = [False] * ndims
+        # if not isinstance(cycles, collections.abc.Sequence):
+        #     cycles = [cycles]
+        # if len(cycles) == 1:
+        #     cycles = cycles * ndims
 
-        shape = tuple(shape)
-        if cycles is None:
-            cycles = [False] * ndims
-        if not isinstance(cycles, collections.abc.Sequence):
-            cycles = [cycles]
-        if len(cycles) == 1:
-            cycles = cycles * ndims
+        # self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None)
 
-        self._cycles: typing.Tuple[int] = self._metadata.get("cycles", None)
-
-        if self._cycles is None:
-            self._cycles = ([False]*self.geometry.rank)
-        # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
-        bbox = self.geometry.bbox
-        shape = self.shape
-        if not isinstance(shape, np.ndarray):
-            raise TypeError(f"shape is not np.ndarray")
-        self._dx = (bbox[1]-bbox[0])/shape
-        self._origin = bbox[0]
+        # if self._cycles is None:
+        #     self._cycles = ([False]*self.geometry.rank)
+        # # logger.debug(f"Create {self.__class__.__name__} rank={self.rank} shape={self.shape} ndims={self.ndims}")
+        # bbox = self.geometry.bbox
+        # shape = self.shape
+        # if not isinstance(shape, np.ndarray):
+        #     raise TypeError(f"shape is not np.ndarray")
+        # self._dx = (bbox[1]-bbox[0])/shape
+        # self._origin = bbox[0]
 
     @property
     def cycles(self) -> typing.List[float]: return self._cycles

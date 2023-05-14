@@ -29,35 +29,51 @@ class Mesh(Pluggable):
     _plugin_registry = {}
 
     @classmethod
-    def __dispatch__init__(cls, _mesh_type, self, *args, **kwargs) -> None:
+    def __dispatch__init__(cls, _mesh_type, self, *args, mesh_type=None, **kwargs) -> None:
 
         if not _mesh_type:
-            _mesh_type = kwargs.get("type", NullMesh)
+            _mesh_type = mesh_type
 
         if isinstance(_mesh_type, Enum) and _mesh_type is not _not_found_:
-            _mesh_type = getattr(_mesh_type, "name", None)
+            _mesh_type = _mesh_type.name
 
         if isinstance(_mesh_type, str):
             _mesh_type = [_mesh_type,
-                          f"spdm.Mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
-                          f"spdm.Mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
+                          f"spdm.mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
+                          f"spdm.mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
                           ]
-        if _mesh_type is None or _mesh_type is _not_found_:
+        if _mesh_type is not None and _mesh_type is not _not_found_:
+            pass
+        elif all([isinstance(arg, (int, np.ndarray)) for arg in args]):
+            _mesh_type = "rectilinear"
+        else:
             raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={_mesh_type} is not found")
 
         super().__dispatch__init__(_mesh_type, self, *args, **kwargs)
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args,  geometry=None, **kwargs) -> None:
         if self.__class__ is Mesh:
-            return Mesh.__dispatch__init__(None, self, *args, **kwargs)
+            return Mesh.__dispatch__init__(None, self, *args,   geometry=geometry, **kwargs)
 
-        self._geometry, self._metadata = group_dict_by_prefix(kwargs, "geometry")
+        geometry_desc, self._metadata = group_dict_by_prefix(kwargs, "geometry_")
 
-        if isinstance(self._geometry, collections.abc.Mapping) or self._geometry is None:
-            self._geometry = as_geo_object(*args, **self._geometry)
-
-        if not isinstance(self._geometry, (GeoObject, GeoObjectSet)):
-            raise ValueError(f"Mesh.__init__(): geometry={self._geometry} is not a GeoObject or GeoObjectSet")
+        if isinstance(geometry, collections.abc.Mapping):
+            geometry_desc.update(geometry)
+            geometry = None
+        elif isinstance(geometry, Enum):
+            geometry_desc.update({"type": geometry.name})
+            geometry = None
+        elif isinstance(geometry, str):
+            geometry_desc.update({"type": geometry})
+            geometry = None
+        if isinstance(geometry, (GeoObject, GeoObjectSet)):
+            self._geometry = geometry
+            if len(geometry_desc) > 0:
+                logger.warning(f"self._geometry is specified, ignore geometry_desc={geometry_desc}")
+        elif isinstance(geometry_desc, collections.abc.Mapping):
+            self._geometry = GeoObject(*args, **geometry_desc)
+        else:
+            raise RuntimeError(f"Mesh.__init__(): geometry={geometry} is not found, geometry_desc={geometry_desc}")
 
         self._shape: ArrayType = np.asarray(self._metadata.get("shape", []), dtype=int)
 
@@ -75,7 +91,7 @@ class Mesh(Pluggable):
     def name(self) -> str: return self.metadata.get("name", 'unamed')
 
     @property
-    def type(self) -> str: return self.metadata.get("type", "regular")
+    def type(self) -> str: return self.metadata.get("type", "unknown")
 
     @property
     def units(self) -> typing.Tuple[str, ...]: return tuple(self.metadata.get("units", ["-"]))

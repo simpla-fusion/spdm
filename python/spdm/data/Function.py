@@ -104,7 +104,18 @@ class Function(typing.Generic[_T]):
         return other
 
     @property
-    def mesh(self) -> Mesh: return self._mesh
+    def mesh(self): return self._mesh
+
+    @property
+    def domain(self): return getattr(self.mesh, "geometry", self.bbox)
+    """ 返回函数的定义域，即函数参数的取值范围。
+        - 如果mesh有geometry属性，则返回这个属性    
+        - 否则返回 bbox
+    """
+
+    @property
+    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]: return getattr(self._mesh, "bbox", None)
+    """ bound box 返回包裹函数参数的取值范围的最小多维度超矩形（hyperrectangle） """
 
     def __array__(self) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符"""
@@ -112,15 +123,9 @@ class Function(typing.Generic[_T]):
         if isinstance(self._data, np.ndarray):
             pass
         elif hasattr(self._data, "__entry__"):
-            self._data = self._data.__entry__().__value__()
-        elif isinstance(self._mesh, Mesh):
-            if isinstance(self._data, (int, float, complex)):
-                self._data = np.full(self._mesh.shape, self._data)
-            else:
-                self._data = as_array(self.__call__(self._mesh.coordinates()))
+            self._data = np.asarray(self._data.__entry__().__value__(), dtype=float)
         else:
-            raise RuntimeError(
-                f"Can not convert Function to numpy.ndarray! mesh_type={type(self._mesh)} data_type={type(self._data)}")
+            raise RuntimeError(f"Can not convert {self._data} to np.ndarray!")
 
         return self._data
 
@@ -158,7 +163,7 @@ class Function(typing.Generic[_T]):
         if len(dx) == 0:
             if callable(self._data):
                 fun = self._data
-            elif isinstance(self._mesh, Mesh):
+            elif hasattr(self._mesh, "interpolator"):
                 fun = self._mesh.interpolator(self.__array__())
             elif isinstance(self._mesh, np.ndarray):
                 fun = InterpolatedUnivariateSpline(self._mesh, self._data,  **kwargs)
@@ -172,12 +177,12 @@ class Function(typing.Generic[_T]):
             if all(d < 0 for d in dx):
                 if hasattr(ppoly.__class__, 'antiderivative'):
                     fun = self.__ppoly__().antiderivative(*dx)
-                elif isinstance(self._mesh, Mesh):
+                elif hasattr(self._mesh, "antiderivative"):
                     fun = self._mesh.antiderivative(self.__array__(), *dx)
             elif all(d >= 0 for d in dx):
                 if hasattr(ppoly.__class__, 'partial_derivative'):
                     fun = self.__ppoly__().partial_derivative(*dx)
-                elif isinstance(self._mesh, Mesh):
+                elif hasattr(self._mesh, "partial_derivative"):
                     fun = self._mesh.partial_derivative(self.__array__(), *dx)
 
         if fun is None:
@@ -187,7 +192,7 @@ class Function(typing.Generic[_T]):
 
         return fun
 
-    def __call__(self, *args, ** kwargs) -> NumericType: return self.__ppoly__()(*args, ** kwargs)
+    def __call__(self, *args, ** kwargs) -> NumericType: return self.__ppoly__()(*args, grid=False, ** kwargs)
 
     def partial_derivative(self, *dx) -> Function: return Function(self.__ppoly__(*dx), self._mesh)
 

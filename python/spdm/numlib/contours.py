@@ -38,7 +38,7 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
 
     for val in levels:
         for c in measure.find_contours(z, val):
-            yield val, np.asarray([[x_inter(p[0], p[1], Mesh=False), y_inter(p[0], p[1], Mesh=False)] for p in c])
+            yield val, np.asarray([[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c])
 
 
 def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray], None, None]:
@@ -48,7 +48,9 @@ def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np
         if not isinstance(args[0], Field):
             raise TypeError(f"Wrong type of argument! should be Field, got {type(args[0])}")
         f = args[0]
-        x, y = f.Mesh.points
+        xy = f.mesh.points
+        x = xy[0]
+        y = xy[1]
         z = np.asarray(f)
     else:
         raise ValueError(f"Wrong number of arguments! should be 1 or 3, got {len(args)}")

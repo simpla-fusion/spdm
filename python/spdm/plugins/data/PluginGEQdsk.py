@@ -190,14 +190,14 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
     geqdsk["bbsrz"] = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape([1, rbbs.size]), axis=0).transpose()
     # psi
 
-    Mesh_r, Mesh_z = np.mMesh[rmid-rdim/2:rmid + rdim/2: nw * 1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
+    grid_r, grid_z = np.mgrid[rmid-rdim/2:rmid + rdim/2: nw * 1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
     # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(coord_r.shape[0], 1), axis=1)
     # coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(coord_z.shape[0], 1), axis=1)
     # points = np.append(coord_r.reshape([coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
-    geqdsk["psirz"] = eq["equilibrium/profiles_2d/psi"].query(Mesh_r, Mesh_z)
+    geqdsk["psirz"] = eq["equilibrium/profiles_2d/psi"].query(grid_r, grid_z)
     # psi = np.append(psi[:, :], psi[:, 0].reshape(psi.shape[0], 1), axis=1)
     # values = psi[:coord_r.shape[0], :coord_r.shape[1]].reshape(points.shape[0])
-    # psirz = interpolate.Meshdata(points, values, (Mesh_r, Mesh_z), method='cubic').transpose()
+    # psirz = interpolate.griddata(points, values, (grid_r, grid_z), method='cubic').transpose()
 
     # profile
     psi_norm = np.linspace(0.0, 1.0, nw)
@@ -287,8 +287,8 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
         },
         "profiles_2d": [
             {
-                "mesh_type": {"name": "rectangular", "index": 1},
-                "Mesh": {"dim1": np.linspace(rmin, rmax, nw),
+                "grid_type": {"name": "rectangular", "index": 1},
+                "grid": {"dim1": np.linspace(rmin, rmax, nw),
                          "dim2": np.linspace(zmin, zmax, nh)},
                 "psi": psirz
             }]

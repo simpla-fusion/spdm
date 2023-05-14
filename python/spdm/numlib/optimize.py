@@ -69,7 +69,7 @@ def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: f
     nx = int((xmax-xmin)/dx)+1
     ny = int((ymax-ymin)/dy)+1
 
-    X, Y = np.meshMesh(np.linspace(xmin, xmax, nx),
+    X, Y = np.meshgrid(np.linspace(xmin, xmax, nx),
                        np.linspace(ymin, ymax, ny), indexing='ij')
 
     for ix, iy in _minimize_filter_2d_image(func([X.ravel(), Y.ravel()]).reshape([nx, ny])):
@@ -94,14 +94,14 @@ def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: f
             def f(r):
                 if r[0] < xmin or r[0] > xmax or r[1] < ymin or r[1] > ymax:
                     raise LookupError(r)
-                fx = func(r[0], r[1], dx=1, Mesh=False)
-                fy = func(r[0], r[1], dy=1, Mesh=False)
+                fx = func(r[0], r[1], dx=1, mesh=False)
+                fy = func(r[0], r[1], dy=1, mesh=False)
                 return fx, fy
 
             def fprime(r):
-                fxx = func(r[0], r[1], dx=2, Mesh=False)
-                fyy = func(r[0], r[1], dy=2, Mesh=False)
-                fxy = func(r[0], r[1], dy=1, dx=1, Mesh=False)
+                fxx = func(r[0], r[1], dx=2, mesh=False)
+                fyy = func(r[0], r[1], dy=2, mesh=False)
+                fxy = func(r[0], r[1], dy=1, dx=1, mesh=False)
 
                 return [[fxx, fxy], [fxy, fyy]]
 
@@ -146,25 +146,31 @@ def minimize_filter_2d_experimental(func: typing.Callable[..., ScalarType], x0, 
 
 def find_critical_points_2d_experimental(func: Field, xmin, ymin, xmax, ymax, tolerance=EPSILON):
 
-    # def grad_func(p): return func(*p, dx=1, Mesh=False)**2 + func(*p, dy=1, Mesh=False)**2
+    # def grad_func(p): return func(*p, dx=1, mesh=False)**2 + func(*p, dy=1, mesh=False)**2
 
-    def grad_func(*x): return func(*x, Mesh=False)
+    def grad_func(*x): return func(*x, mesh=False)
 
     for x, y in minimize_filter_2d_experimental(grad_func, xmin, ymin, xmax, ymax, tolerance=tolerance):
-        D = func.pd(2, 0)(x, y,  Mesh=False) * func.pd(0, 2)(x, y, Mesh=False) - \
-            (func(x, y,  dx=1, dy=1, Mesh=False))**2
-        yield x, y, func(x, y, Mesh=False), D
+        D = func.pd(2, 0)(x, y,  mesh=False) * func.pd(0, 2)(x, y, mesh=False) - \
+            (func(x, y,  dx=1, dy=1, mesh=False))**2
+        yield x, y, func(x, y, mesh=False), D
 
 
-def find_critical_points(field: Field, bbox: typing.Tuple[ArrayType, ArrayType], tolerance=EPSILON):
-    xmin, ymin = bbox[0]
-    xmax, ymax = bbox[1]
-    def grad2_func(xy): return field.pd(1, 0)(*xy, Mesh=False)**2 + field.pd(0, 1)(*xy, Mesh=False)**2
+def find_critical_points(f: Field, tolerance=EPSILON):
+    assert (isinstance(f, Field))
+
+    xmin, ymin = f.bbox[0]
+    xmax, ymax = f.bbox[1]
+
+    if tolerance is None:
+        tolerance = f.dx
+
+    def grad2_func(xy): return f.pd(1, 0)(*xy)**2 + f.pd(0, 1)(*xy)**2
 
     for xsol, ysol in minimize_filter(grad2_func, xmin, ymin, xmax, ymax, tolerance=tolerance):
-        D = field.pd(2, 0)(xsol, ysol,  Mesh=False) * field.pd(0, 2)(xsol, ysol, Mesh=False) - \
-            (field.pd(1, 1)(xsol, ysol, Mesh=False))**2
-        v = field(xsol, ysol, Mesh=False)
+        D = f.pd(2, 0)(xsol, ysol) * f.pd(0, 2)(xsol, ysol) - \
+            (f.pd(1, 1)(xsol, ysol))**2
+        v = f(xsol, ysol)
         if isinstance(v, np.ndarray) and v.ndim == 0:
             v = float(v)
         yield xsol, ysol, v, D

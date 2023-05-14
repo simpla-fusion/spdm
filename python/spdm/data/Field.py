@@ -33,12 +33,12 @@ class Field(Node, Function, typing.Generic[_T]):
 
         if mesh is None and len(coordinates) > 0:
             # 获得 coordinates 中 value的共同前缀
-            prefix = os.path.commonprefix([v for k, v in coordinates if str(k[0]).isnumeric()])
+            prefix = os.path.commonprefix([v for k, v in coordinates.items() if str(k[0]).isnumeric()])
             if prefix.startswith("../grid/dim"):
-                mesh = getattr(self._parent, "grid", None)
+                mesh = self._parent.grid
                 if isinstance(mesh, Node):
                     mesh_type = getattr(self._parent, "grid_type", None)
-                    mesh_desc["dim1"] = mesh.dim1
+                    mesh_desc["dim1"] = getattr(mesh, "dim1", None)
                     mesh_desc["dim2"] = mesh.dim2
                     mesh_desc["volume_element"] = mesh.volume_element
                     mesh_desc["type"] = mesh_type.name if isinstance(mesh_type, Enum) else mesh_type
@@ -57,6 +57,18 @@ class Field(Node, Function, typing.Generic[_T]):
     @property
     def data(self) -> ArrayType: return self.__array__()
 
+    @property
+    def domain(self) -> typing.Tuple[typing.Tuple[NumericType, NumericType], typing.Tuple[NumericType, NumericType]]:
+
+        if isinstance(self._mesh, np.ndarray):
+            return tuple([np.min(self._mesh), np.max(self._mesh)])
+        elif isinstance(self._mesh, tuple):
+            return tuple([[np.min(d) for d in self._mesh], [np.max(d) for d in self._mesh]])
+        elif hasattr(self._mesh, "bbox"):
+            return self._mesh.bbox
+        else:
+            raise RuntimeError(f"Cannot get bbox of {self._mesh}")
+
     def __array__(self) -> ArrayType:
         if self._cache is None:
             self._cache = self._entry.__value__()
@@ -68,6 +80,6 @@ class Field(Node, Function, typing.Generic[_T]):
 
         kwargs.setdefault("linewidths", 0.1)
 
-        axis.contour(*self._Mesh.points,  self.__array__(), **kwargs)
+        axis.contour(*self._mesh.points,  self.__array__(), **kwargs)
 
         return axis

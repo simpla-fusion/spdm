@@ -552,7 +552,7 @@ def typing_get_origin(tp):
         return typing_get_origin(orig_class)
 
 
-def group_dict_by_prefix(d: collections.abc.Mapping, prefixs: str | typing.List[str], keep_prefix=True) -> typing.Tuple[typing.Dict, ...]:
+def group_dict_by_prefix(d: collections.abc.Mapping, prefixs: str | typing.List[str], keep_prefix=False) -> typing.Tuple[typing.Dict, ...]:
     """ 将 字典 d 根据prefixs进行分组
      prefix 是一个字符串，或者是一个字符串列表
      key具有相同prefix的项会被分到一组， (if keep_prefix is True then prefix会被去掉)
@@ -560,7 +560,7 @@ def group_dict_by_prefix(d: collections.abc.Mapping, prefixs: str | typing.List[
     """
     if isinstance(prefixs, str):
         prefixs = [prefixs]
-    groups = [{}]*(len(prefixs)+1)
+    groups = [{} for i in range(len(prefixs)+1)]
 
     for key, value in d.items():
         for idx, prefix in enumerate(prefixs):

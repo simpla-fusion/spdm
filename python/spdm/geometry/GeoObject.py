@@ -86,6 +86,9 @@ class GeoObject(Pluggable):
         it extends in only one independent direction, but it has dimension 3 because three 
         coordinates are needed to specify any point on the curve.
     """
+    @property
+    def ndim(self) -> int: return self._ndim
+    """ alias of dimension """
 
     @cached_property
     def bbox(self) -> typing.Tuple[nTupleType, nTupleType]:
@@ -201,7 +204,8 @@ class GeoObject(Pluggable):
 
 class Box(GeoObject):
     def __init__(self, x_min: ArrayLike = None, x_max: ArrayLike = None, rank=None, ** kwargs) -> None:
-        super().__init__(rank=rank if rank is not None else (len(x_min)if x_min is not None else 0), **kwargs)
+        ndim = len(x_min)if x_min is not None else 0
+        super().__init__(ndim=ndim, rank=rank if rank is not None else ndim, **kwargs)
 
         self._bbox = (np.asarray(x_min), np.asarray(x_max))
 
