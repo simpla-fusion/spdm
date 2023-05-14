@@ -297,10 +297,26 @@ class Function(typing.Generic[_T]):
 
 
 class Expression(Function):
-    def __init__(self, *args,  ufunc: typing.Callable | None = None, method: str | None = None, **kwargs) -> None:
+    """               
+        函数表达式，用以表示算符(Function)的组合
+
+        例如：
+            def fun(x): return x**2 
+            def goo(x): return x + 1
+            def doo(x): return x**2+x+1
+
+            assert (doo(1.0)== (fun+goo)(1.0))
+
+        这里 fun + goo 就是一个 Expression 对象，它将 fun 和 goo 两个函数用算符 '+' 组合起来形成一个新的Function，等价于doo
+
+        fun + goo => Expression((fun, goo) , ufunc=np.add,method="__call__")
+
+    """
+
+    def __init__(self,  *args,  ufunc: typing.Callable | None = None, method: str | None = None, **kwargs) -> None:
         """
-            initialize Expression
-            
+
+
         """
         super().__init__(*args, **kwargs)
         self._ufunc = ufunc

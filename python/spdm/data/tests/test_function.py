@@ -66,20 +66,6 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(type(fun*2) is Expression)
         self.assertTrue(type(np.sin(fun)) is Expression)
 
-    # def test_different_x_domain(self):
-    #     x0 = np.linspace(0, 2, 21)
-    #     x1 = np.linspace(1, 3, 21)
-    #     x2 = np.linspace(1, 2, 11)
-
-    #     y0 = Function(lambda x: x, x0)
-    #     y1 = Function(lambda x: x*2, x1)
-    #     y2 = y0 + y1
-
-    #     self.assertEqual(y2._mesh.min, 1)
-    #     self.assertEqual(y2._mesh.max, 2)
-
-    #     self.assertTrue(np.all(y2._mesh == x2))
-
     def test_picewise_function(self):
         r_ped = 0.90  # np.sqrt(0.88)
         Cped = 0.2
