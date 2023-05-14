@@ -4,6 +4,9 @@ import numpy as np
 from scipy import constants
 from spdm.utils.logger import logger
 from spdm.data.Function import Expression, Function, PiecewiseFunction
+from spdm.data.Function import _0 as _x
+from spdm.data.Function import _1 as _y
+from spdm.data.Function import _2 as _z
 
 
 class TestFunction(unittest.TestCase):
@@ -38,11 +41,6 @@ class TestFunction(unittest.TestCase):
         x = np.linspace(0, 1, 128)
         y = np.linspace(0, 2, 128)
         fun = Function(y, x)
-
-        expr = fun == y
-
-        logger.debug(expr)
-        logger.debug(np.all(expr))
 
         self.assertTrue(np.all(-fun == -y))
         self.assertTrue(np.all(fun + 2 == y + 2))
@@ -86,10 +84,9 @@ class TestFunction(unittest.TestCase):
         r_ped = 0.9001  # np.sqrt(0.88)
         Cped = 0.2
         Ccore = 0.4
-        chi = PiecewiseFunction([lambda x:x, lambda x: Cped],
-                                [lambda x:x <= r_ped, lambda x:x > r_ped])
+        chi = PiecewiseFunction([_x*2*Ccore, Cped], [_x < r_ped, _x >= r_ped])
         x = np.linspace(0, 1, 101)
-        logger.debug((chi*2)(x))
+        logger.debug((chi**2)(x))
 
 
 if __name__ == '__main__':

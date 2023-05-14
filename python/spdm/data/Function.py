@@ -155,7 +155,14 @@ class Function(typing.Generic[_T]):
             return None
 
     def __ppoly__(self, *dx: int, **kwargs) -> typing.Callable[..., NumericType]:
-        """ 返回 PPoly 对象 """
+        """ 返回 PPoly 对象 
+            TODO:
+            - support JIT compile
+            - 优化缓存
+            - 支持多维插值
+            - 支持多维求导，自动微分 auto diff
+            -            
+        """
         fun = self._ppoly_cache.get(dx, None)
         if fun is not None:
             return fun
@@ -192,7 +199,7 @@ class Function(typing.Generic[_T]):
 
         return fun
 
-    def __call__(self, *args, ** kwargs) -> NumericType: return self.__ppoly__()(*args, grid=False, ** kwargs)
+    def __call__(self, *args, ** kwargs) -> NumericType: return self.__ppoly__()(*args, ** kwargs)
 
     def partial_derivative(self, *dx) -> Function: return Function(self.__ppoly__(*dx), self._mesh)
 
@@ -209,6 +216,12 @@ class Function(typing.Generic[_T]):
         return self.pd(*dx) / self
 
     def integrate(self, *args, **kwargs) -> ScalarType:
+        """ 积分
+            -------------
+            TODO:
+                - 支持多维积分
+                - support multi-block mesh        
+        """
         return as_scalar(self._mesh.integrate(self._data, *args, **kwargs))
 
 
@@ -225,7 +238,7 @@ class Function(typing.Generic[_T]):
     def __ne__       (self, o: NumericType | Function) : return Expression((self, o) ,self._mesh, ufunc=np.not_equal    )
     def __lt__       (self, o: NumericType | Function) : return Expression((self, o) ,self._mesh, ufunc=np.less         )
     def __le__       (self, o: NumericType | Function) : return Expression((self, o) ,self._mesh, ufunc=np.less_equal   )
-    def __gt__       (self, o: NumericType | Function) : return Expression((self, o) ,self._mesh, ufunc=np.greater_equal)
+    def __gt__       (self, o: NumericType | Function) : return Expression((self, o) ,self._mesh, ufunc=np.greater      )
     def __ge__       (self, o: NumericType | Function) : return Expression((self, o) ,self._mesh, ufunc=np.greater_equal)
     def __radd__     (self, o: NumericType | Function) : return Expression((o, self) ,self._mesh, ufunc=np.add          )
     def __rsub__     (self, o: NumericType | Function) : return Expression((o, self) ,self._mesh, ufunc=np.subtract     )
@@ -276,6 +289,10 @@ class Expression(Function):
     def __setitem__(self, *args) -> None: raise RuntimeError("Expression cannot be indexed!")
 
     def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
+        # TODO: 
+        # - support JIT compilation
+        # - support broadcasting?
+        # - support multiple meshes?
         try:
             dtype = self.__type_hint__
         except TypeError:
@@ -288,8 +305,13 @@ class Expression(Function):
             value = [(d(*args, **kwargs) if callable(d) else d) for d in self._data]
         elif callable(self._data):
             value = [self._data(*args, **kwargs)]
+        elif isinstance(self._data, (int, float, complex, np.floating, np.integer, np.complexfloating)):
+            d_shape = [len(d) if isinstance(d, np.ndarray) else 1 for d in args]
+            value = np.full(d_shape, self._data, dtype=dtype)
+        elif self._data is None:
+            value = args
         else:
-            value = [self._data]
+            raise ValueError(f"Invalid data type {type(self._data)}")
 
         if self._method is not None:
             ufunc = getattr(self._ufunc, self._method, None)
@@ -308,7 +330,7 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
     else:
         return Function(y, *args, **kwargs)
 
-
+# 用于简化构建 lambda 表达式
 _0 = Expression(lambda *args:   args[0])
 _1 = Expression(lambda *args:   args[1])
 _2 = Expression(lambda *args:   args[2])
@@ -338,7 +360,17 @@ class PiecewiseFunction(Function):
             res = [fun(x) for fun, cond in self._fun_list if cond(x)]
             return res[0]
         elif isinstance(x, np.ndarray) and x.ndim == 1:
-            res = np.hstack([fun(x[cond(x)]) for fun, cond in self._fun_list])
+
+            def _apply(f, x):
+                if callable(f):
+                    return f(x)
+                elif isinstance(x, np.ndarray):
+                    # and isinstance(f, (int, float, complex, np.floating, np.integer, np.complexfloating))
+                    return np.full(x.shape, f)
+                else:
+                    return f
+                
+            res = np.hstack([_apply(fun, x[cond(x)]) for fun, cond in self._fun_list])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
