@@ -2,7 +2,7 @@ import abc
 import typing
 
 import numpy as np
-
+from ..utils.typing import ArrayType
 from .GeoObject import GeoObject
 from .Line import Line, Segment
 from .Plane import Plane
@@ -12,16 +12,14 @@ from .Polygon import Polygon
 
 class Polyhedron(GeoObject):
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, rank=2, **kwargs)
+    def __init__(self, *args,  **kwargs) -> None:
+        super().__init__(*args, rank=3, **kwargs)
 
     @property
-    def is_convex(self) -> bool:
-        return True
+    def is_convex(self) -> bool: return True
 
     @property
-    def vertices(self) -> typing.Generator[Point, None, None]:
-        raise NotImplementedError()
+    def vertices(self) -> ArrayType: return self._points
 
     @property
     def edges(self) -> typing.Generator[Segment, None, None]:

@@ -12,20 +12,31 @@ class TestMesh(unittest.TestCase):
     def test_line(self):
         p0 = (0, 0)
         p1 = (1, 1)
-        gobj = GeoObject("line", p0, p1)
+        gobj = GeoObject(p0, p1, type="line")
         self.assertEqual(type(gobj).__name__, "Line")
         from spdm.geometry.Line import Line
         self.assertIsInstance(gobj, Line)
 
     def test_line2(self):
         from spdm.geometry.Line import Line
-        p0 = (0, 0, 0)
+        p0 = (4, 5, 6)
         p1 = (1, 2, 3)
         gobj = Line(p0, p1)
 
         self.assertEqual(type(gobj).__name__, "Line")
-        self.assertEqual(gobj.p0[:], p0)
-        self.assertEqual(gobj.p1[:], p1)
+        self.assertTrue(np.all(np.isclose(gobj.p0[:], p0)))
+        self.assertTrue(np.all(np.isclose(gobj.p1[:], p1)))
+
+    def test_coordinates(self):
+        from spdm.geometry.Line import Line
+        p0 = (4, 5, 6)
+        p1 = (1, 2, 3)
+
+        line = Line(p0, p1, coordinates="x,y,z")
+
+        self.assertTrue(np.all(np.isclose(line.x, np.asarray([4, 1], dtype=float))))
+        self.assertTrue(np.all(np.isclose(line.y, np.asarray([5, 2], dtype=float))))
+        self.assertTrue(np.all(np.isclose(line.z, np.asarray([6, 3], dtype=float))))
 
     # def test_set(self):
     #     from spdm.geometry.Point import Point

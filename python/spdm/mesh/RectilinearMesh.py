@@ -2,7 +2,8 @@ import typing
 from functools import cached_property
 
 import numpy as np
-from scipy.interpolate import interpolate
+from scipy.interpolate import (InterpolatedUnivariateSpline,
+                               RectBivariateSpline)
 
 from ..data.Function import Function
 from ..geometry.Box import Box
@@ -85,9 +86,9 @@ class RectilinearMesh(StructuredMesh):
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.geometry.ndim == 1:
-            interp = interpolate.InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+            interp = InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
         elif self.geometry.ndim == 2:
-            interp = interpolate.RectBivariateSpline(self._dims[0], self._dims[1], value,  **kwargs)
+            interp = RectBivariateSpline(self._dims[0], self._dims[1], value,  **kwargs)
         else:
             raise NotImplementedError(f"NDIMS={self.geometry.ndim}")
 

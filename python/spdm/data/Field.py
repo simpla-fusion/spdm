@@ -30,34 +30,45 @@ class Field(Node, Function, typing.Generic[_T]):
         mesh_desc, coordinates, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate"))
 
         super().__init__(*args, **kwargs)
-
-        if mesh is None and len(coordinates) > 0:
+        if mesh is not None:
+            if len(mesh_desc) > 0:
+                logger.warning(f"ignore mesh_desc={mesh_desc}")
+        elif len(coordinates) > 0:
             # 获得 coordinates 中 value的共同前缀
-            prefix = os.path.commonprefix([v for k, v in coordinates.items() if str(k[0]).isnumeric()])
+            dims = {int(k): v for k, v in coordinates.items() if str(k[0]).isdigit()}
+            dims = dict(sorted(dims.items(), key=lambda x: x[0]))
+            prefix = os.path.commonprefix([*dims.values()])
+
             if prefix.startswith("../grid/dim"):
                 mesh = self._parent.grid
                 if isinstance(mesh, Node):
                     mesh_type = getattr(self._parent, "grid_type", None)
                     mesh_desc["dim1"] = getattr(mesh, "dim1", None)
-                    mesh_desc["dim2"] = mesh.dim2
+                    mesh_desc["dim2"] = getattr(mesh, "dim2", None)
                     mesh_desc["volume_element"] = mesh.volume_element
-                    mesh_desc["type"] = mesh_type.name if isinstance(mesh_type, Enum) else mesh_type
+                    mesh_desc["type"] = mesh_type
+                    mesh = mesh_desc
+                elif isinstance(mesh, dict):
+                    mesh_desc.update(mesh)
+                    mesh = mesh_desc
             elif prefix.startswith("../dim"):
                 mesh_type = self._parent.grid_type
                 mesh_desc["dim1"] = self._parent.dim1
                 mesh_desc["dim2"] = self._parent.dim2
-                mesh_desc["type"] = mesh_type.name if isinstance(mesh_type, Enum) else mesh_type
-
+                mesh_desc["type"] = mesh_type
+                mesh = mesh_desc
+        else:
+            mesh = mesh_desc
         Function.__init__(self, mesh=mesh)
 
-    @property
+    @ property
     def metadata(self) -> typing.Mapping[str, typing.Any]:
         return super(Node, self).metadata
 
-    @property
+    @ property
     def data(self) -> ArrayType: return self.__array__()
 
-    @property
+    @ property
     def domain(self) -> typing.Tuple[typing.Tuple[NumericType, NumericType], typing.Tuple[NumericType, NumericType]]:
 
         if isinstance(self._mesh, np.ndarray):
@@ -70,11 +81,11 @@ class Field(Node, Function, typing.Generic[_T]):
             raise RuntimeError(f"Cannot get bbox of {self._mesh}")
 
     def __array__(self) -> ArrayType:
-        if self._cache is None:
-            self._cache = self._entry.__value__()
-        if self._cache is None or self._cache is _not_found_:
-            self._cache = Function.__array__(self)
-        return self._cache
+        value = Node.__value__(self)
+        if value is None or value is _not_found_:
+            value = Function.__array__(self)
+            self._cache = value
+        return value
 
     def plot(self, axis, *args,  **kwargs):
 

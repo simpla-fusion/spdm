@@ -1,6 +1,7 @@
 import collections.abc
 import typing
 
+from ..utils.typing import ArrayType
 from .GeoObject import GeoObject
 from .Line import Segment
 from .Point import Point
@@ -13,19 +14,17 @@ class Polygon(GeoObject):
 
     """
 
-    _dispatch__init__ = None
+    def __init__(self, *args,  **kwargs) -> None:
 
-    def __init__(self, *args, **kwargs) -> None:
         if len(args) >= 3:
             if Polygon.__dispatch__init__ is None:
                 raise RuntimeError(f"Polygon.__dispatch__init__ is None")
             return Polygon.__dispatch__init__(self, *args, **kwargs)
+
         super().__init__(*args, rank=2, **kwargs)
 
     @property
-    def vertices(self) -> typing.Generator[Point, None, None]:
-        for p in self._impl.vertices:
-            yield Point(p)
+    def vertices(self) -> ArrayType: return self._points
 
     @property
     def edges(self) -> typing.Generator[Segment, None, None]:

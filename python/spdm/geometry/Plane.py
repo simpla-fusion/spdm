@@ -12,12 +12,8 @@ class Plane(GeoObject):
         平面，二维几何体
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args,   **kwargs) -> None:
         super().__init__(*args, rank=2, **kwargs)
-
-    @abc.abstractproperty
-    def points(self, *args, **kwargs) -> np.ndarray:
-        raise NotImplementedError(f"{self.__class__.__name__}")
 
     @abc.abstractproperty
     def boundary(self) -> GeoObject:

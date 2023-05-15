@@ -1,5 +1,6 @@
 import typing
 
+from ..utils.typing import ArrayType
 from .GeoObject import GeoObject
 from .Line import Line
 from .Plane import Plane
@@ -26,7 +27,7 @@ class Circle(GeoObject):
         return None
 
     @property
-    def points(self, *args, **kwargs) -> np.ndarray:
+    def points(self, *args, **kwargs) -> ArrayType:
         raise NotImplementedError(f"{self.__class__.__name__}")
 
     @property

@@ -212,7 +212,13 @@ class Function(typing.Generic[_T]):
 
         return fun
 
-    def __call__(self, *args, ** kwargs) -> NumericType: return self.__ppoly__()(*args, ** kwargs)
+    def __call__(self, *args, ** kwargs) -> NumericType:
+        try:
+            res = self.__ppoly__()(*args, grid=False, ** kwargs)
+        except ValueError as error:
+            logger.debug(self.__ppoly__())
+            raise error
+        return res
 
     def partial_derivative(self, *dx) -> Function: return Function(self.__ppoly__(*dx), self._mesh)
 

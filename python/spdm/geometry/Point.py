@@ -9,7 +9,7 @@ import numpy as np
 from spdm.utils.logger import logger
 
 from .GeoObject import GeoObject
-from ..utils.typing import NumericType
+from ..utils.typing import NumericType, ArrayType
 
 
 class Point(GeoObject):
@@ -17,21 +17,8 @@ class Point(GeoObject):
         点，零维几何体
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(rank=0, ndim=len(args), ** kwargs)
-        self._data: typing.Tuple[float, ...] = args
-
-    def __getitem__(self, index: int) -> float:
-        return self._data[index]
-
-    def points(self, *uv, **kwargs) -> typing.Tuple[NumericType, ...]:
-        if len(uv) == 0 or isinstance(uv[0], float):
-            return self._data
-        elif isinstance(uv[0], np.ndarray):
-            shape = [len(d) for d in uv]
-            return np.tile(self._data, shape + [1])
-        else:
-            raise RuntimeError(f"illegal {uv}")
+    def __init__(self, *args,   **kwargs) -> None:
+        super().__init__(*args, rank=0,  ** kwargs)
 
     @property
     def measure(self) -> float:

@@ -2,15 +2,15 @@
 from .Surface import Surface
 from .Solid import Solid
 from .Plane import Plane
-from .Line import Line
+from .Curve import Curve
 from .Circle import Circle
 
 
 @Surface.register("toroidal_surface")
 class ToroidalSurface(Surface):
-    def __init__(self, cross_section: Line, circle: Circle, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-            
+    def __init__(self, cross_section: Curve, circle: Circle, **kwargs) -> None:
+        super().__init__(**kwargs)
+
 
 @Surface.register("toroidal")
 class Toroidal(Solid):

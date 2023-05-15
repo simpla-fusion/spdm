@@ -41,17 +41,34 @@ class GeoObject(Pluggable):
 
         super().__dispatch__init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args, ndim: int = None, rank: int = 0,  **kwargs) -> None:
+    def __init__(self, *args, ndim: int = None, rank: int = None,  **kwargs) -> None:
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
-        elif len(args) == 1 and not isinstance(args[0], builtin_types):
-            self._impl = args[0]
-        elif len(args) > 0:
-            raise TypeError(f"illegal {args}")
 
-        self._rank = int(rank)
-        self._ndim = ndim if ndim is not None else self._rank
         self._metadata = kwargs
+        self._points = np.stack(args) if len(args) != 1 else args[0]
+        self._rank = int(rank) if rank is not None else self._points.shape[-1]
+        self._ndim = ndim if ndim is not None else len(self._points.shape)-1
+
+        coordinates = kwargs.get("coordinates", None)
+        if coordinates is not None:
+            if isinstance(coordinates, str):
+                coordinates = [x.strip() for x in coordinates.split(",")]
+
+            if len(coordinates) != self._ndim:
+                raise ValueError(f"coordinates {coordinates} not match ndim {self._ndim}")
+            elif isinstance(coordinates, collections.abc.Sequence):
+                for idx, coord_name in enumerate(coordinates):
+                    setattr(self, coord_name, self._points[..., idx])
+
+    def __getitem__(self, *args) -> ArrayType | float: return self._points[args]
+
+    @property
+    def points(self) -> ArrayType: return self._points
+    """ 几何体的点坐标，shape=[npoints,ndim] """
+
+    def __array__(self) -> ArrayType: return self._points
+    """ 几何体的点坐标，shape=[npoints,ndim] """
 
     def __equal__(self, other: GeoObject) -> bool:
         return isinstance(other, GeoObject) and self._impl == other._impl
@@ -131,14 +148,14 @@ class GeoObject(Pluggable):
     def coordinates(self, *uvw) -> NumericType:
         """
             将 _参数坐标_ 转换为 _空间坐标_
-            @return: array-like shape = [ndim,*uvw.shape[:-1] ]
+            @return: array-like shape = [*uvw.shape[:-1],ndim]
         """
         raise NotImplementedError(f"{self.__class__.__name__}")
 
     def parametric_coordinates(self, *xyz) -> NumericType:
         """
             将 _空间坐标_ 转换为 _参数坐标_         
-            @return: array-like shape = [rank,*uvw.shape[:-1]]
+            @return: array-like shape = [*uvw.shape[:-1],rank]
         """
         raise NotImplementedError(f"{self.__class__.__name__}.parametric_coordinates")
 
@@ -203,15 +220,12 @@ class GeoObject(Pluggable):
 
 
 class Box(GeoObject):
-    def __init__(self, x_min: ArrayLike = None, x_max: ArrayLike = None, rank=None, ** kwargs) -> None:
-        ndim = len(x_min)if x_min is not None else 0
-        super().__init__(ndim=ndim, rank=rank if rank is not None else ndim, **kwargs)
-
-        self._bbox = (np.asarray(x_min), np.asarray(x_max))
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._ndim = self._rank
 
     @property
-    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
-        return self._bbox
+    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]: return self._points[0], self._points[1]
 
 
 _TGSet = typing.TypeVar("_TGSet", bound="GeoObjectSet")

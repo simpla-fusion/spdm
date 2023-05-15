@@ -5,5 +5,5 @@ from .Point import Point
 
 class Polyline(GeoObject):
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, rank=1, **kwargs)

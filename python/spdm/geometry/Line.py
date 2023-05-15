@@ -4,8 +4,8 @@ from functools import cached_property
 from typing import Any
 import collections.abc
 import numpy as np
-from spdm.utils.logger import logger
-
+from ..utils.logger import logger
+from ..utils.typing import ArrayType
 from .GeoObject import GeoObject, GeoObject
 from .Point import Point
 from .Vector import Vector
@@ -17,28 +17,23 @@ class Line(GeoObject):
         线，一维几何体
     """
 
-    def __init__(self, p0: Point, p1: Point, *args, **kwargs) -> None:
-        self.p0 = np.asarray(p0)
-        self.p1 = np.asarray(p1)
-        try:
-            from sympy.geometry.line import Line as _Line
-            impl = _Line(self.p0, self.p1)
-        except:
-            super().__init__(*args, rank=1, **kwargs)
-        else:
-            super().__init__(impl, *args, rank=1, **kwargs)
+    def __init__(self, p0: Point | ArrayType, p1: Point | ArrayType, *args, **kwargs) -> None:
+        super().__init__(np.stack([p0, p1]), *args, rank=1,   **kwargs)
 
     @property
-    def is_closed(self) -> bool:
-        return False
+    def p0(self) -> Point: return Point(self._points[0])
 
     @property
-    def length(self) -> float:
-        return np.Inf
+    def p1(self) -> Point: return Point(self._points[1])
 
     @property
-    def measure(self) -> float:
-        return self.length
+    def is_closed(self) -> bool: return False
+
+    @property
+    def length(self) -> float: return self.measure
+
+    @property
+    def measure(self) -> float: return np.Inf
 
     @property
     def direction(self) -> Vector:
@@ -51,7 +46,7 @@ class Line(GeoObject):
     def contains(self, o) -> bool:
         return self._impl.contains(o._impl if isinstance(o, GeoObject) else o)
 
-    def points(self, u: float | np.ndarray | typing.List[np.ndarray] | None = None) -> np.ndarray | Point | typing.List[Point]:
+    def coordinates(self, u: float | np.ndarray | typing.List[np.ndarray] | None = None) -> ArrayType:
         direction = self.direction
         if u is None:
             return [self.p0, self.p1]
