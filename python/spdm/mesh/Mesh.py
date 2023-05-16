@@ -37,18 +37,18 @@ class Mesh(Pluggable):
         if isinstance(_mesh_type, Enum) and _mesh_type is not _not_found_:
             _mesh_type = _mesh_type.name
 
-        if isinstance(_mesh_type, str):
-            _mesh_type = [_mesh_type,
-                          f"spdm.mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
-                          f"spdm.mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
-                          ]
         if _mesh_type is not None and _mesh_type is not _not_found_:
             pass
         elif all([isinstance(arg, (int, np.ndarray)) for arg in args]):
             _mesh_type = "rectilinear"
         else:
-            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={_mesh_type} is not found")
+            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={_mesh_type} is not found! {args}")
 
+        if isinstance(_mesh_type, str):
+            _mesh_type = [_mesh_type,
+                          f"spdm.mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
+                          f"spdm.mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
+                          ]
         super().__dispatch__init__(_mesh_type, self, *args, **kwargs)
 
     def __init__(self, *args,  geometry=None, **kwargs) -> None:
@@ -137,11 +137,8 @@ class Mesh(Pluggable):
         """
         return self.geometry.coordinates(uvw if len(uvw) > 0 else self.parametric_coordinates())
 
-    def uvw(self, *xyz) -> ArrayType: return self.parametric_coordinates(*xyz)
+    def uvw(self) -> ArrayType: return self.parametric_coordinates(*xyz)
     """ alias of parametric_coordiantes"""
-
-    def xyz(self, *uvw) -> ArrayType: return self.coordinates(*uvw)
-    """ alias of vertices """
 
     @cached_property
     def vertices(self) -> ArrayType:
@@ -149,9 +146,12 @@ class Mesh(Pluggable):
         return self.geometry.coordinates(self.parametric_coordinates())
 
     @cached_property
-    def points(self) -> typing.Tuple[ArrayType, ...]:
+    def points(self) -> typing.List[ArrayType]:
         """ alias of vertices, change the shape to tuple """
         return tuple([self.vertices[..., idx] for idx in range(self.ndim)])
+
+    @cached_property
+    def xyz(self) -> typing.List[ArrayType]: return self.points
 
     @property
     def cells(self) -> typing.Any: raise NotImplementedError(f"{self.__class__.__name__}.cells")

@@ -40,14 +40,19 @@ class RectilinearMesh(StructuredMesh):
             geometry = Box([min(d) for d in dims], [max(d) for d in dims])
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
         self._dims = dims
-        self._aixs: typing.List[Curve] = [
-            Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
+        self._aixs = [Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
 
     @property
     def dim1(self) -> ArrayType: return self._dims[0].__array__()
 
     @property
     def dim2(self) -> ArrayType: return self._dims[1].__array__()
+
+    @property
+    def dims(self) -> typing.List[ArrayType]: return self._dims
+
+    @property
+    def dimensions(self) -> typing.List[ArrayType]: return self._dims
 
     @property
     def rank(self) -> int: return len(self._dims)
@@ -65,31 +70,41 @@ class RectilinearMesh(StructuredMesh):
         """
         if len(uvw) == 1 and self.rank != 1:
             uvw = uvw[0]
-        return np.stack([self._dims[i](uvw[i]) for i in range(self.rank)])
+        return np.stack([self._dims[i](uvw[i]) for i in range(self.rank)], axis=-1)
 
     @cached_property
     def vertices(self) -> ArrayType:
         """ 网格点的 _空间坐标_ """
         if self.geometry.rank == 1:
             return (self._dims[0],)
-        elif self.geometry.rank == 2:
-            return np.stack(np.meshgrid(*self._dims, indexing="ij"))
         else:
-            raise NotImplementedError()
+            return np.stack(self.points, axis=-1)
 
-    @property
-    def points(self) -> ArrayType: return self.vertices
-    """ alias of vertices """
+    @cached_property
+    def points(self) -> typing.List[ArrayType]:
+        """ 网格点的 _空间坐标_ """
+        if self.geometry.rank == 1:
+            return (self._dims[0],)
+        else:
+            return np.meshgrid(*self._dims, indexing="ij")
 
     def interpolator(self, value,  **kwargs):
         if np.any(tuple(value.shape) != tuple(self.shape)):
             raise ValueError(f"{value.shape} {self.shape}")
 
         if self.geometry.ndim == 1:
-            interp = InterpolatedUnivariateSpline(self._dims[0], value,  **kwargs)
+            interp = InterpolatedUnivariateSpline(*self._dims, value,  **kwargs)
         elif self.geometry.ndim == 2:
-            interp = RectBivariateSpline(self._dims[0], self._dims[1], value,  **kwargs)
+            interp = RectBivariateSpline(*self._dims,  value,  **kwargs)
         else:
             raise NotImplementedError(f"NDIMS={self.geometry.ndim}")
 
         return interp
+
+    def partial_derivative(self, value, *n, **kwargs):
+        ppoly = self.interpolator(value, **kwargs)
+        return ppoly.partial_derivative(*n)
+
+    def antiderivative(self, value, *n, **kwargs):
+        ppoly = self.interpolator(value, **kwargs)
+        return ppoly.antiderivative(*n)

@@ -96,7 +96,7 @@ class Expression(typing.Generic[_T]):
     @property
     def is_function(self) -> bool: return not self._args
     """ 判断是否为函数。 当操作数为空的时候，表达式为函数 """
-    
+
     @property
     def __type_hint__(self) -> typing.Type:
         """ 获取函数的类型
@@ -110,18 +110,18 @@ class Expression(typing.Generic[_T]):
     def _apply(self, func, *args, **kwargs) -> typing.Any:
         if isinstance(func, collections.abc.Sequence) and len(func) > 0:
             return [self._apply(f, *args, **kwargs) for f in func]
-        elif hasattr(func, "__entry__"):
-            return self._apply(func.__entry__().__value__(), *args, **kwargs)
         elif callable(func):
             return func(*args, **kwargs)
         elif isinstance(func, numeric_types):
             return func
+        elif hasattr(func, "__entry__"):
+            return self._apply(func.__entry__().__value__(), *args, **kwargs)
         else:
             if func:
                 logger.warning(f"Ignore illegal function {func}!")
             return args
 
-    def __call__(self,  *args: NumericType) -> ArrayType:
+    def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
         """
             重载函数调用运算符，用于计算表达式的值
 
@@ -138,11 +138,11 @@ class Expression(typing.Generic[_T]):
         if self._method is not None:  # operator is  member function of self._op
             method = getattr(self._op, self._method, None)
             if method is not None:
-                res = method(*value, **self._kwargs)
+                res = method(*value, **collections.ChainMap(kwargs,self._kwargs))
             else:
                 raise AttributeError(f"{self._op.__class__.__name__} has not method {self._method}!")
         elif callable(self._op):  # operator is a function
-            res = self._op(*value, **self._kwargs)
+            res = self._op(*value, **collections.ChainMap(kwargs,self._kwargs))
         elif not self._op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 

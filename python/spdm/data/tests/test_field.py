@@ -24,3 +24,7 @@ class TestField(unittest.TestCase):
         z2 = fun(g_x, g_y)
 
         self.assertTrue(np.all(np.isclose(z, z2)))
+
+
+if __name__ == '__main__':
+    unittest.main()

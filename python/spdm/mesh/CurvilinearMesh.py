@@ -69,7 +69,7 @@ class CurvilinearMesh(RectilinearMesh):
         return self._uv
 
     @cached_property
-    def points(self) -> ArrayType:
+    def xyz(self) -> ArrayType:
         if isinstance(self.geometry, GeoObject):
             return self.geometry.points()
         elif isinstance(self.geometry, GeoObjectSet):

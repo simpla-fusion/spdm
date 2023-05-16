@@ -18,7 +18,7 @@ class PPolyMesh(RectilinearMesh):
         bc_type = self._metadata.get("bc_type", "not-a-knot")
         #  "periodic"         "periodic" if np.all(y[0] == y[-1]) else
         # return interp1d(*self.points, y, **kwargs)
-        return CubicSpline(*self.points, y, bc_type=bc_type, **kwargs)
+        return CubicSpline(*self.xyz, y, bc_type=bc_type, **kwargs)
 
 
 __SP_EXPORT__ = PPolyMesh

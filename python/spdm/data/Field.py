@@ -41,7 +41,7 @@ class Field(Node, Expression[_T]):
             args : typing.Any
                 位置参数, 用于与mesh_*，coordinate* 一起构建 mesh
             kwargs : typing.Any
-                命名参数，                    
+                命名参数，
                     mesh_*      : 用于传递给网格的参数
                     coordinate* : 给出各个坐标轴的path
                     op_*        : 用于传递给运算符的参数
@@ -91,15 +91,12 @@ class Field(Node, Expression[_T]):
                 coord_path = dict(sorted(coord_path.items(), key=lambda x: x[0]))
 
                 if len(coord_path) > 0:
-                    args = tuple([(slice(None) if (c == "1...N")
-                                   or not isinstance(c, str) else self._find_node_by_path(c)) for c in coord_path.values()])
-
-                    if coord_path[1].startswith("../grid/dim"):
-                        mesh_desc["type"] = self._parent.grid_type
-                    elif coord_path[1].startswith("../dim"):
-                        mesh_desc["type"] = self._parent.grid_type
-
-            self._mesh = Mesh(*args, **mesh_desc)
+                    if all(p.startswith("../grid/dim") for p in coord_path.values()):
+                        self._mesh = self._parent.grid
+                    else:
+                        args = tuple([(slice(None) if (c == "1...N")
+                                       or not isinstance(c, str) else self._find_node_by_path(c)) for c in coord_path.values()])
+                        self._mesh = Mesh(*args, **mesh_desc)
 
     @property
     def mesh(self) -> Mesh: return self._mesh
@@ -116,10 +113,10 @@ class Field(Node, Expression[_T]):
         value = Node.__value__(self)
         if isinstance(value, np.ndarray):
             return value
-        
-        if value is _not_found_:
+
+        if not isinstance(value, np.ndarray) and not value:
             if self._op is not None:
-                value = super().__call__(*self.mesh.points)
+                value = super().__call__(*self.mesh.xyz)
             else:
                 raise RuntimeError(f"Field.__array__(): value is not found!")
 
@@ -130,24 +127,29 @@ class Field(Node, Expression[_T]):
 
     def __array__(self) -> typing.Any: return self.__value__()
 
-    def __call__(self, *args, ** kwargs) -> NumericType:
+    def __call__(self, *args, **kwargs) -> NumericType:
         if self._op is None:
             self._op = self.mesh.interpolator(self.__array__())
 
         if len(args) == 0:
-            args = self.mesh.points
-        return super().__call__(*args, ** kwargs)
+            args = self.mesh.xyz
+
+        if all([isinstance(a, np.ndarray) for a in args]):
+            shape = args[0].shape
+            return super().__call__(*[a.ravel() for a in args], **kwargs, grid=False).reshape(shape)
+        else:
+            return super().__call__(*args, **kwargs)
 
     def partial_derivative(self, *d) -> Field:
         if hasattr(self._op, "partial_derivative"):
-            return Field(self._op.partial_derivative(*d), self.mesh)
+            return Field(self._op.partial_derivative(*d),  mesh=self.mesh)
         else:
-            return Field(self.mesh.partial_derivative(self.__array__(), *d), self.mesh)
+            return Field(self.mesh.partial_derivative(self.__array__(), *d),  mesh=self.mesh)
 
     def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Field:
         if hasattr(self._op, "antiderivative"):
-            return Field(self._op.antiderivative(*d), self.mesh)
+            return Field(self._op.antiderivative(*d), mesh=self.mesh)
         else:
-            return Field(self.mesh.antiderivative(self.__array__(), *d), self.mesh)
+            return Field(self.mesh.antiderivative(self.__array__(), *d),  mesh=self.mesh)
