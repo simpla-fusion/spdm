@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import os
 import typing
-from enum import Enum
-from functools import lru_cache
 
 import numpy as np
 
@@ -17,7 +15,7 @@ from .Node import Node
 _T = typing.TypeVar("_T")
 
 
-class Field(Node, Function, typing.Generic[_T]):
+class Field(Node, Function[_T]):
     """ Field
         ---------
         A field is a function that assigns a value to every point of space. The value of the field can be a scalar or a vector.
@@ -25,11 +23,37 @@ class Field(Node, Function, typing.Generic[_T]):
         一个 _场(Field)_ 是一个 _函数(Function)_，它为空间(默认为多维流形)上的每一点分配一个值。场的值可以是标量或矢量。
     """
 
-    def __init__(self, *args, mesh=None,   **kwargs):
+    def __init__(self, *args, mesh=None, **kwargs):
 
         mesh_desc, coordinates, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate"))
 
         super().__init__(*args, **kwargs)
+
+        if isinstance(domain, collections.abc.Mapping):
+            domain_desc.update(domain)
+            domain = None
+        elif isinstance(domain, Enum):
+            domain_desc.update({"type": domain.name})
+            domain = None
+        elif isinstance(domain, str):
+            domain_desc.update({"type": domain})
+            domain = None
+
+        if domain is not None and domain is not _not_found_:
+            self._domain = domain
+            if len(domain_desc) > 0:
+                logger.warning(f"self._mesh is specified, ignore mesh_desc={domain_desc}")
+        elif len(domain_desc) == 0:
+            self._domain = args if len(args) != 1 else args[0]
+        else:
+            try:
+                from ..mesh.Mesh import Mesh
+                self._domain = Mesh(*args, **domain_desc)
+            except ModuleNotFoundError:
+                raise RuntimeError(f"Can not import Mesh from spdm.mesh.Mesh!")
+            except:
+                raise RuntimeError(f"Can not create mesh from mesh_desc={domain_desc}")
+
         if mesh is not None:
             if len(mesh_desc) > 0:
                 logger.warning(f"ignore mesh_desc={mesh_desc}")
@@ -59,11 +83,10 @@ class Field(Node, Function, typing.Generic[_T]):
                 mesh = mesh_desc
         else:
             mesh = mesh_desc
-        Function.__init__(self, mesh=mesh)
+        Function.__init__(self, domain=mesh)
 
     @ property
-    def metadata(self) -> typing.Mapping[str, typing.Any]:
-        return super(Node, self).metadata
+    def metadata(self) -> typing.Mapping[str, typing.Any]: return super(Node, self).metadata
 
     @ property
     def data(self) -> ArrayType: return self.__array__()
@@ -86,6 +109,50 @@ class Field(Node, Function, typing.Generic[_T]):
             value = Function.__array__(self)
             self._cache = value
         return value
+
+    def __ppoly__(self, *dx: int) -> typing.Callable[..., NumericType]:
+        """ 返回 PPoly 对象
+            TODO:
+            - support JIT compile
+            - 优化缓存
+            - 支持多维插值
+            - 支持多维求导，自动微分 auto diff
+            -
+        """
+        fun = self._ppoly_cache.get(dx, None)
+        if fun is not None:
+            return fun
+
+        if len(dx) == 0:
+            fun = None
+
+            if len(self._domain) == 1 and isinstance(self._domain[0], np.ndarray):
+                fun = InterpolatedUnivariateSpline(self._domain[0], self._array)
+            elif len(self._domain) == 2 and all(isinstance(d, np.ndarray) for d in self._domain):
+                fun = RectBivariateSpline(*self._domain, self._array)
+            else:
+                raise RuntimeError(
+                    f"Can not convert Function to PPoly! value={type(self._array)} domain={self._domain} ")
+
+        else:
+            ppoly = self.__ppoly__()
+
+            if all(d < 0 for d in dx):
+                if hasattr(ppoly.__class__, 'antiderivative'):
+                    fun = self.__ppoly__().antiderivative(*dx)
+                elif hasattr(self._domain, "antiderivative"):
+                    fun = self._domain.antiderivative(self.__array__(), *dx)
+            elif all(d >= 0 for d in dx):
+                if hasattr(ppoly.__class__, 'partial_derivative'):
+                    fun = self.__ppoly__().partial_derivative(*dx)
+                elif hasattr(self._domain, "partial_derivative"):
+                    fun = self._domain.partial_derivative(self.__array__(), *dx)
+            else:
+                raise RuntimeError(f"{dx}")
+
+        self._ppoly_cache[dx] = fun
+
+        return fun
 
     def plot(self, axis, *args,  **kwargs):
 

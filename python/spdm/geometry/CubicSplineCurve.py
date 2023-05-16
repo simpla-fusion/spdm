@@ -1,12 +1,14 @@
 
 import collections
+import typing
 from functools import cached_property
 
 import numpy as np
 from scipy import constants
 from scipy.interpolate import CubicSpline, PPoly
-from ..utils.typing import ArrayType
+
 from ..utils.logger import logger
+from ..utils.typing import ArrayType
 from .Curve import Curve
 
 TWOPI = 2.0*constants.pi

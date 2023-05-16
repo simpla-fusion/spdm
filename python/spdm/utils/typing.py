@@ -16,6 +16,8 @@ ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
 
 NumericType = ScalarType | ArrayType
 
+numeric_types = (bool, int, float, complex, np.floating, np.integer, np.complexfloating, np.ndarray)
+
 
 @dataclass
 class Vector2:

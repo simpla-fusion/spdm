@@ -1,32 +1,41 @@
 import typing
+import pprint
 
-import numpy as np
-from numpy.typing import NDArray, ArrayLike
-from spdm.data.Function import Function
-from spdm.data.Node import Node
-
+from ..utils.misc import group_dict_by_prefix
+from ..utils.typing import ArrayType
 from .Container import Container
+from .Function import Function, Expression
+from .Node import Node
 
 _T = typing.TypeVar("_T")
 
 
-class Profile(Node, Function, typing.Generic[_T]):
+class Profile(Node, Expression[_T]):
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **{k: v for k, v in kwargs.items() if not k.startswith("coordinate")})
-        if isinstance(self._parent, Container):
-            coord_keys = [k for k in kwargs.keys() if k.startswith("coordinate")]
-            coord_keys.sort()
-            coord_keys = [kwargs[c] for c in coord_keys]
+    def __init__(self,  *args, **kwargs) -> None:
+        coordinates, kwargs = group_dict_by_prefix(kwargs,   "coordinate")
 
-            # FIXME: "1...N" is for IMAS dd
-            self._axis = [(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in coord_keys]
-
-            Function.__init__(self, self,  *self._axis)
+        if len(args) > 0 and isinstance(args[0], Expression):            
+            expr = args[0]
+            args = args[1:]
+            super().__init__(*args, **kwargs)
+            self.__duplicate_from__(expr)
         else:
+            super().__init__(*args, **kwargs)
+            Function.__init__(self, None)
+
+        if not isinstance(self._parent, Container):
             raise RuntimeError(f"Parent is None, can not determint the coordinates!")
 
-    @property
-    def data(self) -> np.ndarray:
-        return super().__value__()
+        if len(coordinates) > 0:
+            coord_keys = [*coordinates.keys()]
+            coord_keys.sort()
+            coord_keys = [coordinates[c] for c in coord_keys]
 
+            # FIXME: "1...N" is for IMAS dd
+            self._mesh = [(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in coord_keys]
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__}>{pprint.pformat(self.__value__())}</{self.__class__.__name__}>"
+
+    def __value__(self) -> ArrayType: return Function.__array__(self)

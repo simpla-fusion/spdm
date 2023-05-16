@@ -117,6 +117,10 @@ class GeoObject(Pluggable):
     """ center of geometry """
 
     @property
+    def measure(self) -> float: raise NotImplementedError(f"{self.__class__.__name__}.measure")
+    """ measure of geometry, length,area,volume,etc. """
+
+    @property
     def boundary(self) -> GeoObject[-1]: raise NotImplementedError()
     """ boundary of geometry which is a geometry of rank-1 """
 
@@ -165,22 +169,19 @@ class GeoObject(Pluggable):
     def uvw(self, *xyz) -> np.ndarray: return self.parametric_coordinates(*xyz)
     """ alias of parametric_coordinates """
 
-    def dl(self, uv=None) -> np.ndarray:
-        """
-            derivative of shape
-            Returns:
-                rank==0 : 0
-                rank==1 : dl (shape=[n-1])
-                rank==2 : dx (shape=[n-1,m-1]), dy (shape=[n-1,m-1])
-                rank==3 : dx (shape=[n-1,m-1,l-1]), dy (shape=[n-1,m-1,l-1]), dz (shape=[n-1,m-1,l-1])
-        """
-        return np.asarray(0)
+    def dl(self, uv=None) -> np.ndarray: return np.asarray(0)
+    """
+        derivative of shape
+        Returns:
+            rank==0 : 0
+            rank==1 : dl (shape=[n-1])
+            rank==2 : dx (shape=[n-1,m-1]), dy (shape=[n-1,m-1])
+            rank==3 : dx (shape=[n-1,m-1,l-1]), dy (shape=[n-1,m-1,l-1]), dz (shape=[n-1,m-1,l-1])
+    """
 
-    def integral(self, func: typing.Callable) -> float:
-        return NotImplemented
+    def integral(self, func: typing.Callable) -> float: return NotImplemented
 
-    # def average(self, func: typing.Callable[[_TCoord, _TCoord], _TCoord]) -> float:
-    #     return self.integral(func)/self.length
+    def average(self, func: typing.Callable) -> float: return self.integral(func)/self.measure
 
     @cached_property
     def is_closed(self):

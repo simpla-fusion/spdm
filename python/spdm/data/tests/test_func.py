@@ -2,7 +2,7 @@
 import numpy as np
 from scipy import constants
 from spdm.utils.logger import logger
-from spdm.data.Function import PiecewiseFunction, Function
+from spdm.data.Function import Piecewise, Function
 
 
 if __name__ == '__main__':
@@ -17,5 +17,5 @@ if __name__ == '__main__':
 
     logger.debug(expr(x2))
 
-    fun3 = PiecewiseFunction([np.sin, np.cos], [lambda x:x > 0, lambda x:x < 0])
+    fun3 = Piecewise([np.sin, np.cos], [lambda x:x > 0, lambda x:x < 0])
     logger.debug(fun3(x1))

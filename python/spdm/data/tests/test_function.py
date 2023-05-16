@@ -3,10 +3,10 @@ import unittest
 import numpy as np
 from scipy import constants
 from spdm.utils.logger import logger
-from spdm.data.Function import Expression, Function, PiecewiseFunction
-from spdm.data.Function import _0 as _x
-from spdm.data.Function import _1 as _y
-from spdm.data.Function import _2 as _z
+from spdm.data.Function import Expression, Function, Piecewise
+from spdm.data.Expression import _0 as _x
+from spdm.data.Expression import _1 as _y
+from spdm.data.Expression import _2 as _z
 
 
 class TestFunction(unittest.TestCase):
@@ -66,11 +66,11 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(type(fun*2) is Expression)
         self.assertTrue(type(np.sin(fun)) is Expression)
 
-    def test_picewise_function(self):
+    def test_picewise(self):
         r_ped = 0.90  # np.sqrt(0.88)
         Cped = 0.2
         Ccore = 0.4
-        chi = PiecewiseFunction([_x*2*Ccore, Cped], [_x < r_ped, _x >= r_ped])
+        chi = Piecewise([_x*2*Ccore, Cped], [_x < r_ped, _x >= r_ped])
         self.assertEqual(chi(0.5), (0.5*2*Ccore))
         self.assertEqual(chi(0.95), Cped)
 
@@ -90,6 +90,7 @@ class TestFunction(unittest.TestCase):
         z = np.sin(g_x*constants.pi*2.0)*np.cos(g_y*constants.pi*2.0)
 
         fun = Function(np.sin(_x*constants.pi*2.0)*np.cos(_y*constants.pi*2.0), x, y, cycles=[1, 1])
+
         z2 = fun(g_x, g_y)
 
         self.assertTrue(np.all(np.isclose(z, z2)))

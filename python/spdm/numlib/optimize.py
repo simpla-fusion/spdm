@@ -72,7 +72,7 @@ def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: f
     X, Y = np.meshgrid(np.linspace(xmin, xmax, nx),
                        np.linspace(ymin, ymax, ny), indexing='ij')
 
-    for ix, iy in _minimize_filter_2d_image(func([X.ravel(), Y.ravel()]).reshape([nx, ny])):
+    for ix, iy in _minimize_filter_2d_image(func(X.ravel(), Y.ravel()).reshape([nx, ny])):
 
         if ix == 0 or iy == 0 or ix == nx-1 or iy == ny-1:
             continue
@@ -86,7 +86,7 @@ def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: f
         ysol = Y[ix, iy]
 
         if True:
-            sol = minimize(func, np.asarray([xsol, ysol]),   bounds=[(xmin, xmax), (ymin, ymax)])
+            sol = minimize(lambda x: func(x[0], x[1]), np.asarray([xsol, ysol]),   bounds=[(xmin, xmax), (ymin, ymax)])
             xsol, ysol = sol.x
             if sol.success and abs(sol.fun) < EPSILON and (xsol >= xmin or xsol <= xmax or ysol >= ymin or ysol <= ymax):
                 yield xsol, ysol
@@ -165,9 +165,9 @@ def find_critical_points(f: Field, tolerance=EPSILON):
     if tolerance is None:
         tolerance = f.dx
 
-    def grad2_func(xy): return f.pd(1, 0)(*xy)**2 + f.pd(0, 1)(*xy)**2
+    grad_fun = f.pd(1, 0) ** 2 + f.pd(0, 1)**2
 
-    for xsol, ysol in minimize_filter(grad2_func, xmin, ymin, xmax, ymax, tolerance=tolerance):
+    for xsol, ysol in minimize_filter(grad_fun, xmin, ymin, xmax, ymax, tolerance=tolerance):
         D = f.pd(2, 0)(xsol, ysol) * f.pd(0, 2)(xsol, ysol) - \
             (f.pd(1, 1)(xsol, ysol))**2
         v = f(xsol, ysol)

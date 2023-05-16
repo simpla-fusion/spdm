@@ -74,6 +74,8 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
             default_value = self._default_value
 
         if isinstance(key, int):
+            if key < 0:
+                key = self._entry.count + key
             n_value = super()._as_child(key, value, *args, default_value=default_value,  **kwargs)
             if isinstance(n_value, Node) and n_value._parent is self:
                 n_value._parent = self._parent
