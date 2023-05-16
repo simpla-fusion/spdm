@@ -101,6 +101,12 @@ class Mesh(Pluggable):
     """ Geometry of the Mesh  网格的几何形状  """
 
     @property
+    def ndim(self) -> int: return self.geometry.ndim
+
+    @property
+    def rank(self) -> int: return self.geometry.rank
+
+    @property
     def shape(self) -> typing.Tuple[int, ...]: return self._shape
     """ 存储网格点数组的形状  
         TODO: support multiblock Mesh
@@ -127,7 +133,7 @@ class Mesh(Pluggable):
 
     def coordinates(self, *uvw) -> ArrayType:
         """ 网格点的 _空间坐标_
-            @return: _数组_ 形状为 [geometry.dimension,<shape of uvw ...>]
+            @return: _数组_ 形状为 [<shape of uvw ...>,geometry.ndim]
         """
         return self.geometry.coordinates(uvw if len(uvw) > 0 else self.parametric_coordinates())
 
@@ -137,8 +143,15 @@ class Mesh(Pluggable):
     def xyz(self, *uvw) -> ArrayType: return self.coordinates(*uvw)
     """ alias of vertices """
 
-    @property
-    def vertices(self) -> ArrayType: return self.geometry.coordinates(self.parametric_coordinates())
+    @cached_property
+    def vertices(self) -> ArrayType:
+        """ coordinates of vertice of mesh  [<shape...>, geometry.ndim]"""
+        return self.geometry.coordinates(self.parametric_coordinates())
+
+    @cached_property
+    def points(self) -> typing.Tuple[ArrayType, ...]:
+        """ alias of vertices, change the shape to tuple """
+        return tuple([self.vertices[..., idx] for idx in range(self.ndim)])
 
     @property
     def cells(self) -> typing.Any: raise NotImplementedError(f"{self.__class__.__name__}.cells")

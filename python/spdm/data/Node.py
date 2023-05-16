@@ -116,7 +116,7 @@ class Node(object):
             obj = self
         for idx, p in enumerate(path[:]):
             if p is None or not isinstance(obj, Node):
-                raise KeyError(f"{path[:idx]}")
+                raise KeyError(f"{path[:idx]} {type(obj)}")
             elif p == '..':
                 obj = obj._parent
             elif isinstance(obj, Node):

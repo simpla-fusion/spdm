@@ -2,7 +2,7 @@ from enum import Flag, auto
 
 
 class tags(Flag):
-    not_found = auto()
+    not_found = 0
     undefined = auto()
     empty = auto()
     next_ = auto()

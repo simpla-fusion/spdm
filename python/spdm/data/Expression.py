@@ -49,10 +49,21 @@ class Expression(typing.Generic[_T]):
 
         """
         super().__init__()
-        self._args = args       # 操作数
-        self._op = op
-        self._method = method
-        self._kwargs = kwargs   # named arguments for _operator_
+
+        if len(args) == 1 and isinstance(args[0], Expression) and op is None:
+            # copy constructor
+            self._args = args[0]._args
+            self._op = args[0]._op
+            self._method = args[0]._method
+            self._kwargs = args[0]._kwargs
+
+            if len(kwargs) > 0:
+                logger.warning(f"Ignore kwargs={kwargs}!")
+        else:
+            self._args = args       # 操作数
+            self._op = op
+            self._method = method
+            self._kwargs = kwargs   # named arguments for _operator_
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -85,6 +96,16 @@ class Expression(typing.Generic[_T]):
     @property
     def is_function(self) -> bool: return not self._args
     """ 判断是否为函数。 当操作数为空的时候，表达式为函数 """
+    
+    @property
+    def __type_hint__(self) -> typing.Type:
+        """ 获取函数的类型
+        """
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
+            return typing.get_args(orig_class)[0]
+        else:
+            return float
 
     def _apply(self, func, *args, **kwargs) -> typing.Any:
         if isinstance(func, collections.abc.Sequence) and len(func) > 0:

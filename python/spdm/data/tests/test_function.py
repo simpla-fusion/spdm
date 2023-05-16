@@ -2,11 +2,11 @@ import unittest
 
 import numpy as np
 from scipy import constants
-from spdm.utils.logger import logger
-from spdm.data.Function import Expression, Function, Piecewise
 from spdm.data.Expression import _0 as _x
 from spdm.data.Expression import _1 as _y
 from spdm.data.Expression import _2 as _z
+from spdm.data.Function import Expression, Function, Piecewise
+from spdm.utils.logger import logger
 
 
 class TestFunction(unittest.TestCase):

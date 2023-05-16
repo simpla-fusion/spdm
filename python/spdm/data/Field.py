@@ -1,163 +1,153 @@
 from __future__ import annotations
 
+import collections.abc
 import os
 import typing
+from enum import Enum
+from functools import cached_property
 
 import numpy as np
 
+from ..geometry.GeoObject import GeoObject
+from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType
-from .Function import Function
+from .Expression import Expression
 from .Node import Node
 
 _T = typing.TypeVar("_T")
 
 
-class Field(Node, Function[_T]):
+class Field(Node, Expression[_T]):
     """ Field
         ---------
-        A field is a function that assigns a value to every point of space. The value of the field can be a scalar or a vector.
+        A field is a function that assigns a value to every point of space.
+        Field 是 Function 在流形（manifold）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
 
-        一个 _场(Field)_ 是一个 _函数(Function)_，它为空间(默认为多维流形)上的每一点分配一个值。场的值可以是标量或矢量。
+        Mesh：网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。
+
     """
 
-    def __init__(self, *args, mesh=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *args, mesh=None, **kwargs):
+        """
+            Parameters
+            ----------
+            value : NumericType
+                函数的值
+            domain : typing.List[ArrayType]
+                函数的定义域
+            args : typing.Any
+                位置参数, 用于与mesh_*，coordinate* 一起构建 mesh
+            kwargs : typing.Any
+                命名参数，                    
+                    mesh_*      : 用于传递给网格的参数
+                    coordinate* : 给出各个坐标轴的path
+                    op_*        : 用于传递给运算符的参数
+                    *           : 用于传递给 Node 的参数
 
-        mesh_desc, coordinates, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate"))
+        """
 
-        super().__init__(*args, **kwargs)
+        mesh_desc, coordinates, opts, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate", "op_"))
 
-        if isinstance(domain, collections.abc.Mapping):
-            domain_desc.update(domain)
-            domain = None
-        elif isinstance(domain, Enum):
-            domain_desc.update({"type": domain.name})
-            domain = None
-        elif isinstance(domain, str):
-            domain_desc.update({"type": domain})
-            domain = None
-
-        if domain is not None and domain is not _not_found_:
-            self._domain = domain
-            if len(domain_desc) > 0:
-                logger.warning(f"self._mesh is specified, ignore mesh_desc={domain_desc}")
-        elif len(domain_desc) == 0:
-            self._domain = args if len(args) != 1 else args[0]
+        if isinstance(value, Expression):
+            Expression.__init__(self, value, **opts)
+            value = None
+        elif callable(value):
+            if "op" in kwargs:
+                raise RuntimeError(f"Can not specify both value and op!")
+            Expression.__init__(self, op=value, **opts)
+            value = None
         else:
-            try:
-                from ..mesh.Mesh import Mesh
-                self._domain = Mesh(*args, **domain_desc)
-            except ModuleNotFoundError:
-                raise RuntimeError(f"Can not import Mesh from spdm.mesh.Mesh!")
-            except:
-                raise RuntimeError(f"Can not create mesh from mesh_desc={domain_desc}")
+            Expression.__init__(self, **opts)
 
-        if mesh is not None:
-            if len(mesh_desc) > 0:
-                logger.warning(f"ignore mesh_desc={mesh_desc}")
-        elif len(coordinates) > 0:
-            # 获得 coordinates 中 value的共同前缀
-            dims = {int(k): v for k, v in coordinates.items() if str(k[0]).isdigit()}
-            dims = dict(sorted(dims.items(), key=lambda x: x[0]))
-            prefix = os.path.commonprefix([*dims.values()])
+        Node.__init__(self, value, **kwargs)
 
-            if prefix.startswith("../grid/dim"):
-                mesh = self._parent.grid
-                if isinstance(mesh, Node):
-                    mesh_type = getattr(self._parent, "grid_type", None)
-                    mesh_desc["dim1"] = getattr(mesh, "dim1", None)
-                    mesh_desc["dim2"] = getattr(mesh, "dim2", None)
-                    mesh_desc["volume_element"] = mesh.volume_element
-                    mesh_desc["type"] = mesh_type
-                    mesh = mesh_desc
-                elif isinstance(mesh, dict):
-                    mesh_desc.update(mesh)
-                    mesh = mesh_desc
-            elif prefix.startswith("../dim"):
-                mesh_type = self._parent.grid_type
-                mesh_desc["dim1"] = self._parent.dim1
-                mesh_desc["dim2"] = self._parent.dim2
-                mesh_desc["type"] = mesh_type
-                mesh = mesh_desc
+        if isinstance(mesh, Mesh):
+            self._mesh = mesh
+            if len(mesh_desc) > 0 or len(args) > 0:
+                logger.warning(f"Ignore mesh_desc={mesh_desc} and args={args}!")
         else:
-            mesh = mesh_desc
-        Function.__init__(self, domain=mesh)
+            if isinstance(mesh, collections.abc.Mapping):
+                mesh_desc.update(mesh)
+                mesh = None
+            elif isinstance(mesh, Enum):
+                mesh_desc.update({"type": mesh.name})
+                mesh = None
+            elif isinstance(mesh, str):
+                mesh_desc.update({"type": mesh})
+                mesh = None
+            elif mesh is not None:
+                raise TypeError(f"Illegal mesh typ {type(mesh)} !")
 
-    @ property
-    def metadata(self) -> typing.Mapping[str, typing.Any]: return super(Node, self).metadata
+            if len(coordinates) > 0:
+                if len(args) > 0:
+                    raise RuntimeError(f"Coordiantes is defined twice!  len(args)={len(args)}")
 
-    @ property
-    def data(self) -> ArrayType: return self.__array__()
+                # 获得 coordinates 中的共同前缀
+                coord_path = {int(k): v for k, v in coordinates.items() if str(k[0]).isdigit()}
 
-    @ property
-    def domain(self) -> typing.Tuple[typing.Tuple[NumericType, NumericType], typing.Tuple[NumericType, NumericType]]:
+                coord_path = dict(sorted(coord_path.items(), key=lambda x: x[0]))
 
-        if isinstance(self._mesh, np.ndarray):
-            return tuple([np.min(self._mesh), np.max(self._mesh)])
-        elif isinstance(self._mesh, tuple):
-            return tuple([[np.min(d) for d in self._mesh], [np.max(d) for d in self._mesh]])
-        elif hasattr(self._mesh, "bbox"):
-            return self._mesh.bbox
-        else:
-            raise RuntimeError(f"Cannot get bbox of {self._mesh}")
+                if len(coord_path) > 0:
+                    args = tuple([(slice(None) if (c == "1...N")
+                                   or not isinstance(c, str) else self._find_node_by_path(c)) for c in coord_path.values()])
 
-    def __array__(self) -> ArrayType:
+                    if coord_path[1].startswith("../grid/dim"):
+                        mesh_desc["type"] = self._parent.grid_type
+                    elif coord_path[1].startswith("../dim"):
+                        mesh_desc["type"] = self._parent.grid_type
+
+            self._mesh = Mesh(*args, **mesh_desc)
+
+    @property
+    def mesh(self) -> Mesh: return self._mesh
+    """ 网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。 """
+
+    @property
+    def domain(self) -> GeoObject: return self.mesh.geometry
+    """ 函数的定义域，返回几何体 """
+
+    @property
+    def bbox(self): return self.mesh.geometry.bbox
+
+    def __value__(self) -> ArrayType:
         value = Node.__value__(self)
-        if value is None or value is _not_found_:
-            value = Function.__array__(self)
-            self._cache = value
+        if isinstance(value, np.ndarray):
+            return value
+        
+        if value is _not_found_:
+            if self._op is not None:
+                value = super().__call__(*self.mesh.points)
+            else:
+                raise RuntimeError(f"Field.__array__(): value is not found!")
+
+        if not isinstance(value, np.ndarray):
+            value = np.asarray(value, dtype=self.__type_hint__)
+        self._cache = value
         return value
 
-    def __ppoly__(self, *dx: int) -> typing.Callable[..., NumericType]:
-        """ 返回 PPoly 对象
-            TODO:
-            - support JIT compile
-            - 优化缓存
-            - 支持多维插值
-            - 支持多维求导，自动微分 auto diff
-            -
-        """
-        fun = self._ppoly_cache.get(dx, None)
-        if fun is not None:
-            return fun
+    def __array__(self) -> typing.Any: return self.__value__()
 
-        if len(dx) == 0:
-            fun = None
+    def __call__(self, *args, ** kwargs) -> NumericType:
+        if self._op is None:
+            self._op = self.mesh.interpolator(self.__array__())
 
-            if len(self._domain) == 1 and isinstance(self._domain[0], np.ndarray):
-                fun = InterpolatedUnivariateSpline(self._domain[0], self._array)
-            elif len(self._domain) == 2 and all(isinstance(d, np.ndarray) for d in self._domain):
-                fun = RectBivariateSpline(*self._domain, self._array)
-            else:
-                raise RuntimeError(
-                    f"Can not convert Function to PPoly! value={type(self._array)} domain={self._domain} ")
+        if len(args) == 0:
+            args = self.mesh.points
+        return super().__call__(*args, ** kwargs)
 
+    def partial_derivative(self, *d) -> Field:
+        if hasattr(self._op, "partial_derivative"):
+            return Field(self._op.partial_derivative(*d), self.mesh)
         else:
-            ppoly = self.__ppoly__()
+            return Field(self.mesh.partial_derivative(self.__array__(), *d), self.mesh)
 
-            if all(d < 0 for d in dx):
-                if hasattr(ppoly.__class__, 'antiderivative'):
-                    fun = self.__ppoly__().antiderivative(*dx)
-                elif hasattr(self._domain, "antiderivative"):
-                    fun = self._domain.antiderivative(self.__array__(), *dx)
-            elif all(d >= 0 for d in dx):
-                if hasattr(ppoly.__class__, 'partial_derivative'):
-                    fun = self.__ppoly__().partial_derivative(*dx)
-                elif hasattr(self._domain, "partial_derivative"):
-                    fun = self._domain.partial_derivative(self.__array__(), *dx)
-            else:
-                raise RuntimeError(f"{dx}")
+    def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
-        self._ppoly_cache[dx] = fun
-
-        return fun
-
-    def plot(self, axis, *args,  **kwargs):
-
-        kwargs.setdefault("linewidths", 0.1)
-
-        axis.contour(*self._mesh.points,  self.__array__(), **kwargs)
-
-        return axis
+    def antiderivative(self, *d) -> Field:
+        if hasattr(self._op, "antiderivative"):
+            return Field(self._op.antiderivative(*d), self.mesh)
+        else:
+            return Field(self.mesh.antiderivative(self.__array__(), *d), self.mesh)
