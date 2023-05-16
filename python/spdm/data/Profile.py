@@ -43,9 +43,7 @@ class Profile(Node, Function[_T]):
     @property
     def data(self) -> ArrayType: return self.__array__()
 
-    def __value__(self) -> ArrayType: return self.__array__()
-
-    def __array__(self) -> ArrayType:
+    def __value__(self) -> ArrayType:
         if not isinstance(self._value, np.ndarray) and not self._value:
             self._value = Node.__value__(self)
-        return super().__array__()
+        return self._value

@@ -106,17 +106,21 @@ class Function(Expression[_T]):
             return (np.asarray([np.min(d) for d in self._dims], dtype=float),
                     np.asarray([np.max(d) for d in self._dims], dtype=float))
 
+    def __value__(self) -> ArrayType: return self._value
+    """ 返回函数的数组 self._value """
+
     def __array__(self) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
-             若 self._value 为 np.ndarray 或标量类型 则返回 self._data, 否则返回 None
+             若 self._value 为 np.ndarray 或标量类型 则返回函数执行的结果
         """
-        if  not isinstance(self._value, np.ndarray) and not self._value:
-            self._value = self.__call__()
+        res = self.__value__()
+        if not isinstance(res, np.ndarray) and not self._value:
+            res = self.__call__()
 
-        if not isinstance(self._value, np.ndarray):
-            self._value = np.asarray(self._value, dtype=self.__type_hint__)
+        if not isinstance(res, np.ndarray):
+            res = np.asarray(res, dtype=self.__type_hint__)
 
-        return self._value
+        return res
 
     def __getitem__(self, *args) -> NumericType: return self.__array__().__getitem__(*args)
 
@@ -132,12 +136,13 @@ class Function(Expression[_T]):
             - 支持多维求导，自动微分 auto diff
             -
         """
-        if not isinstance(self._value, np.ndarray) and not self._value:
+        value = self.__value__()
+        if not isinstance(value, np.ndarray) and not value:
             raise RuntimeError(f"Function._ppoly: value is not found!")
         elif self.ndim == 1:
-            return InterpolatedUnivariateSpline(*self._dims, self._value)
+            return InterpolatedUnivariateSpline(*self._dims, value)
         elif self.ndim == 2:
-            return RectBivariateSpline(*self._dims, self._value)
+            return RectBivariateSpline(*self._dims, value)
         else:
             raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
 
