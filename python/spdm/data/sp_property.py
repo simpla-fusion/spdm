@@ -66,7 +66,33 @@ class SpPropertyClass(Dict[Node], typing.MutableMapping[str, typing.Any]):
 _T = typing.TypeVar("_T")
 
 
-class sp_property(typing.Generic[_T]):  # type: ignore
+class sp_property(typing.Generic[_T]):
+    """
+    用于为 SpPropertyClass 类（及其子类）定义一个property, 并确保其类型为type_hint 指定的类型。
+
+    例如：
+    ``` python
+        class Foo(SpPropertyClass):
+            # 方法一
+            @sp_property
+            def a(self) -> float: return 128
+
+            # 方法二
+            @sp_property(coordinate1="../psi")
+            def dphi_dpsi(self) -> Profile[float]: return self.a*2
+
+            # 方法三
+            phi: Profile[float] = sp_property(coordinate1="../psi")
+
+    ``` 
+    方法二、三中参数 coordinate1="../psi"，会在构建 Profile时传递给构造函数  Profile.__init__。
+
+    方法三 会在创建class 是调用 __set_name__,
+           会在读写property phi 时调用 __set__,__get__ 方法，
+           从Node的_cache或_entry获得名为 'phi' 的值，将其转换为 type_hint 指定的类型 Profile[float]。
+
+    """
+
     def __init__(self,
                  getter: typing.Callable[[typing.Any], typing.Any] = None,
                  setter=None,
@@ -75,6 +101,26 @@ class sp_property(typing.Generic[_T]):  # type: ignore
                  doc: typing.Optional[str] = None,
                  strict: bool = False,
                  **kwargs):
+        """
+            Parameters
+            ----------
+            getter : typing.Callable[[typing.Any], typing.Any]
+                用于定义属性的getter操作，与@property.getter类似
+            setter : typing.Callable[[typing.Any, typing.Any], None]
+                用于定义属性的setter操作，与@property.setter类似
+            deleter : typing.Callable[[typing.Any], None]   
+                用于定义属性的deleter操作，与@property.deleter类似
+            type_hint : typing.Type
+                用于指定属性的类型
+            doc : typing.Optional[str]
+                用于指定属性的文档字符串
+            strict : bool
+                用于指定是否严格检查属性的值是否已经被赋值
+            kwargs : typing.Any
+                用于传递给构建  Node.__init__ 的参数
+
+
+        """
 
         self.lock = RLock()
 
@@ -91,8 +137,7 @@ class sp_property(typing.Generic[_T]):  # type: ignore
         self.metadata = kwargs
 
     def __call__(self, func) -> sp_property[_T]:
-        """ 用于装饰函数，将函数的返回值作为属性值返回
-        """
+        """ 用于定义属性的getter操作，与@property.getter类似 """
         self.getter = func
         return self
 
@@ -209,9 +254,3 @@ class sp_property(typing.Generic[_T]):  # type: ignore
             else:
                 raise AttributeError(f"Cannot delete property '{self.property_name}'")
                 # del instance._cache[self.property_cache_key]
-
-    def __call__(self, func, *args: Any, **kwds: Any) -> Any:
-        """ 用于装饰函数，将函数的返回值作为属性值返回
-        """
-        self.getter = func
-        return self
