@@ -70,7 +70,7 @@ class Node(object):
         return self._entry
 
     def __value__(self) -> typing.Any:
-        if self._cache is None:
+        if self._cache is None or self._cache is _not_found_:
             self._cache = self.__entry__().__value__()
         return self._cache
 

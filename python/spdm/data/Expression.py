@@ -34,7 +34,7 @@ class Expression(typing.Generic[_T]):
             3.0
     """
 
-    def __init__(self,  *args,  op: typing.Callable | None = None, method: str | None = None, **kwargs) -> None:
+    def __init__(self,  *args,  op: typing.Callable | None = None, **kwargs) -> None:
         """
             Parameters
             ----------
@@ -54,7 +54,6 @@ class Expression(typing.Generic[_T]):
             # copy constructor
             self._args = args[0]._args
             self._op = args[0]._op
-            self._method = args[0]._method
             self._kwargs = args[0]._kwargs
 
             if len(kwargs) > 0:
@@ -62,7 +61,6 @@ class Expression(typing.Generic[_T]):
         else:
             self._args = args       # 操作数
             self._op = op
-            self._method = method
             self._kwargs = kwargs   # named arguments for _operator_
 
     def __duplicate__(self) -> Expression:
@@ -71,7 +69,6 @@ class Expression(typing.Generic[_T]):
         other._args = self._args
         other._kwargs = self._kwargs
         other._op = self._op
-        other._method = self._method
         return other
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
@@ -88,9 +85,9 @@ class Expression(typing.Generic[_T]):
                 >>> z(0.0)
                 1.0
         """
-        return Expression(*args, op=ufunc, method=method, **kwargs)
+        return Expression(*args, op=(ufunc, method), **kwargs)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"<{self.__class__.__name__}   op=\"{getattr(self._op,'__name__','unnamed')}\" />"
 
     @property
@@ -132,18 +129,24 @@ class Expression(typing.Generic[_T]):
         """
 
         value = self._apply(self._args, *args)
-
+        # name = getattr(self, "_metadata", {}).get("name", None)
+        # logger.debug(f"{self.__class__.__name__}.__call__  name={name} op={self._op} num_of_value={len(value)}")
         res = _undefined_
+        if isinstance(self._op, tuple):
+            op, method = self._op
+        else:
+            op = self._op
+            method = None
 
-        if self._method is not None:  # operator is  member function of self._op
-            method = getattr(self._op, self._method, None)
-            if method is not None:
-                res = method(*value, **collections.ChainMap(kwargs,self._kwargs))
+        if method is not None:  # operator is  member function of self._op
+            eval = getattr(op, method, None)
+            if eval is not None:
+                res = eval(*value, **collections.ChainMap(kwargs, self._kwargs))
             else:
-                raise AttributeError(f"{self._op.__class__.__name__} has not method {self._method}!")
-        elif callable(self._op):  # operator is a function
-            res = self._op(*value, **collections.ChainMap(kwargs,self._kwargs))
-        elif not self._op:  # constant Expression
+                raise AttributeError(f"{op.__class__.__name__} has not method {method}!")
+        elif callable(op):  # operator is a function
+            res = op(*value, **collections.ChainMap(kwargs, self._kwargs))
+        elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 
         if res is _undefined_:
@@ -151,6 +154,51 @@ class Expression(typing.Generic[_T]):
 
         return res
 
+    def is_function(self) -> bool:
+        def _is_function(obj):
+            return isinstance(obj, Expression) and (hasattr(self, 'dims') or any([_is_function(o) for o in obj._args]))
+        return _is_function(self)
+
+    @property
+    def is_field(self) -> bool:
+        def _is_field(obj):
+            return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._args]))
+        return _is_field(self)
+
+    @staticmethod
+    def _resolve(obj):
+        if not isinstance(obj, Expression):
+            return set([(None, None)])
+        elif len(obj._args) > 0:
+            return set([(f, m) for o in obj._args for f, m in Expression._resolve(o) if m is not None])
+        else:
+            return set([(obj.__class__, getattr(obj, "mesh", getattr(obj, "dims", None)))])
+
+    def resolve(self):
+        ast = Expression._resolve(self)
+        if len(ast) != 1:
+            raise RuntimeError(f"Expression.resolve failed!  ast={ast}")
+
+        return next(ele for ele in ast)
+
+    def compile(self, *args, **kwargs) -> Expression:
+        """ 编译函数，返回一个新的(加速的)函数对象 
+            TODO：
+                - JIT compile
+        """
+
+        f_class, mesh = self.resolve()
+        logger.debug((f_class, mesh))
+
+        if mesh is None:
+            mesh = args
+
+        if isinstance(mesh, tuple):  # as Function
+            return f_class(self.__call__(*mesh), *mesh, **kwargs)
+        else:  # as Field
+            if len(args) > 0:
+                logger.warning(f"Ignore args={args}!")
+            return f_class(self.__call__(*mesh.points),  mesh=mesh, **kwargs)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(self     , op=np.negative     )

@@ -130,15 +130,16 @@ class Field(Node, Expression[_T]):
     def __call__(self, *args, **kwargs) -> NumericType:
         if self._op is None:
             self._op = self.mesh.interpolator(self.__array__())
+            self._kwargs.setdefault("grid", False)
 
         if len(args) == 0:
             args = self.mesh.xyz
 
         if all([isinstance(a, np.ndarray) for a in args]):
             shape = args[0].shape
-            return super().__call__(*[a.ravel() for a in args], **kwargs, grid=False).reshape(shape)
+            return super().__call__(*[a.ravel() for a in args],  **kwargs, grid=False).reshape(shape)
         else:
-            return super().__call__(*args, **kwargs)
+            return super().__call__(*args,  **kwargs)
 
     def partial_derivative(self, *d) -> Field:
         if hasattr(self._op, "partial_derivative"):

@@ -24,7 +24,7 @@ class Function(Expression[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, cycles: typing.List[bool] = None,  **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType, cycles: typing.List[bool] = None, **kwargs):
         """
             Parameters
             ----------
@@ -55,6 +55,7 @@ class Function(Expression[_T]):
 
         self._cycles = cycles
 
+
     def __duplicate__(self) -> Function:
         """ 复制一个新的 Function 对象 """
         other: Function = super().__duplicate__()
@@ -68,7 +69,8 @@ class Function(Expression[_T]):
     @classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    def __repr__(self) -> str: return f"<{self.__class__.__name__}   ndim={self.ndim} />"
+    def __str__(self) -> str: return Expression.__str__(self)
+    # return f"<{self.__class__.__name__}   ndim={self.ndim} />"
 
     @property
     def ndim(self) -> int: return len(self._dims)
@@ -137,11 +139,21 @@ class Function(Expression[_T]):
             -
         """
         value = self.__value__()
+
         if not isinstance(value, np.ndarray) and not value:
-            raise RuntimeError(f"Function._ppoly: value is not found!")
-        elif self.ndim == 1:
+            if self._op is not None:
+                value = self.__call__()
+            else:
+                raise RuntimeError(f"Function._ppoly: value is not found!  value={value}")
+
+        if self.ndim == 1:
             return InterpolatedUnivariateSpline(*self._dims, value)
         elif self.ndim == 2:
+            if all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._dims):
+                return RectBivariateSpline(*self._dims, value)
+            elif all(isinstance((d, np.ndarray) and d.ndim == 2) for d in self._dims):
+                return RectBivariateSpline(*self._dims, value)
+
             return RectBivariateSpline(*self._dims, value)
         else:
             raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
@@ -157,6 +169,21 @@ class Function(Expression[_T]):
         else:
             args = np.meshgrid(*self._dims, indexing="ij")
         return super().__call__(*args)
+
+    def compile(self, *args) -> Function:
+        """ 编译函数，返回一个新的(加速的)函数对象 
+            TODO：
+                - JIT compile
+        """
+        if len(args) > 0:
+            self._dims = args
+    
+        if self.ndim == 1:
+            args = self._dims
+        else:
+            args = np.meshgrid(*self._dims, indexing="ij")
+        self._value = self.__call__(*args)
+        return self
 
     def derivative(self, n=1) -> Function:
         if self.ndim == 1 and n == 1:

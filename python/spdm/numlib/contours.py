@@ -35,10 +35,14 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
         levels = range(levels)
     elif (isinstance(levels, (np.ndarray)) and levels.ndim == 0) or isinstance(levels, (float, np.floating)):
         levels = [float(levels)]
-
+  
     for val in levels:
         for c in measure.find_contours(z, val):
-            yield val, np.asarray([[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c])
+            # data = [[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c]
+            x = np.asarray(x_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
+            y = np.asarray(y_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
+            data = np.stack([x, y], axis=-1)
+            yield val,  data
 
 
 def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray], None, None]:

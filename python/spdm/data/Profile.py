@@ -40,6 +40,8 @@ class Profile(Node, Function[_T]):
 
         Function.__init__(self, expr, *domain)
 
+    def __str__(self) -> str: return Function.__str__(self)
+    
     @property
     def data(self) -> ArrayType: return self.__array__()
 
