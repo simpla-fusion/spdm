@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import collections.abc
-import os
 import typing
 from enum import Enum
-from functools import cached_property
 
 import numpy as np
 
-from ..geometry.GeoObject import GeoObject
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
@@ -30,7 +27,7 @@ class Field(Node, Expression[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *args, mesh=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *args, domain=None, **kwargs):
         """
             Parameters
             ----------
@@ -49,7 +46,7 @@ class Field(Node, Expression[_T]):
 
         """
 
-        mesh_desc, coordinates, opts, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate", "op_"))
+        domain_desc, coordinates, opts, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate", "op_"))
 
         if isinstance(value, Expression):
             Expression.__init__(self, value, **opts)
@@ -64,22 +61,22 @@ class Field(Node, Expression[_T]):
 
         Node.__init__(self, value, **kwargs)
 
-        if isinstance(mesh, Mesh):
-            self._mesh = mesh
-            if len(mesh_desc) > 0 or len(args) > 0:
-                logger.warning(f"Ignore mesh_desc={mesh_desc} and args={args}!")
+        if isinstance(domain, Mesh):
+            self._mesh = domain
+            if len(domain_desc) > 0 or len(args) > 0:
+                logger.warning(f"Ignore domain={domain_desc} and args={args}!")
         else:
-            if isinstance(mesh, collections.abc.Mapping):
-                mesh_desc.update(mesh)
-                mesh = None
-            elif isinstance(mesh, Enum):
-                mesh_desc.update({"type": mesh.name})
-                mesh = None
-            elif isinstance(mesh, str):
-                mesh_desc.update({"type": mesh})
-                mesh = None
-            elif mesh is not None:
-                raise TypeError(f"Illegal mesh typ {type(mesh)} !")
+            if isinstance(domain, collections.abc.Mapping):
+                domain_desc.update(domain)
+                domain = None
+            elif isinstance(domain, Enum):
+                domain_desc.update({"type": domain.name})
+                domain = None
+            elif isinstance(domain, str):
+                domain_desc.update({"type": domain})
+                domain = None
+            elif domain is not None:
+                raise TypeError(f"Illegal mesh typ {type(domain)} !")
 
             if len(coordinates) > 0:
                 if len(args) > 0:
@@ -96,15 +93,16 @@ class Field(Node, Expression[_T]):
                     else:
                         args = tuple([(slice(None) if (c == "1...N")
                                        or not isinstance(c, str) else self._find_node_by_path(c)) for c in coord_path.values()])
-                        self._mesh = Mesh(*args, **mesh_desc)
+                        self._mesh = Mesh(*args, **domain_desc)
+
+    @property
+    def domain(self) -> Mesh: return self.mesh
+    """ 定义域， Field 的定义域为 Mesh """
 
     @property
     def mesh(self) -> Mesh: return self._mesh
-    """ 网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。 """
-
-    @property
-    def domain(self) -> GeoObject: return self.mesh.geometry
-    """ 函数的定义域，返回几何体 """
+    """ alias of domain
+        网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。 """
 
     @property
     def bbox(self): return self.mesh.geometry.bbox
@@ -130,27 +128,41 @@ class Field(Node, Expression[_T]):
     def __call__(self, *args, **kwargs) -> NumericType:
         if self._op is None:
             self._op = self.mesh.interpolator(self.__array__())
-            self._kwargs.setdefault("grid", False)
+            self._opts.setdefault("grid", False)
 
         if len(args) == 0:
             args = self.mesh.xyz
 
         if all([isinstance(a, np.ndarray) for a in args]):
             shape = args[0].shape
-            return super().__call__(*[a.ravel() for a in args],  **kwargs, grid=False).reshape(shape)
+            return super().__call__(*[a.ravel() for a in args],  **kwargs).reshape(shape)
         else:
             return super().__call__(*args,  **kwargs)
 
-    def partial_derivative(self, *d) -> Field:
+    def compile(self, *args, **kwargs) -> Field[_T]:
+        if len(args) > 0:
+            raise NotImplementedError(f"Field.compile() does not support args={args}!")
+        v = self.__value__()
+        if v is None or v is _not_found_:
+            raise RuntimeError(f"Field.compile() failed!")
+        res = Field[_T](v, domain=self.mesh, op_grid=False, **kwargs)
+        res._opts.update(self._opts)
+        return res
+
+    def partial_derivative(self, *d) -> Field[_T]:
         if hasattr(self._op, "partial_derivative"):
-            return Field(self._op.partial_derivative(*d),  mesh=self.mesh)
+            res = Field(self._op.partial_derivative(*d),  domain=self.mesh)
         else:
-            return Field(self.mesh.partial_derivative(self.__array__(), *d),  mesh=self.mesh)
+            res = Field(self.mesh.partial_derivative(self.__array__(), *d),  domain=self.mesh)
+        res._opts.update(self._opts)
+        return res
 
     def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Field:
         if hasattr(self._op, "antiderivative"):
-            return Field(self._op.antiderivative(*d), mesh=self.mesh)
+            res = Field[_T](self._op.antiderivative(*d), domain=self.mesh)
         else:
-            return Field(self.mesh.antiderivative(self.__array__(), *d),  mesh=self.mesh)
+            res = Field[_T](self.mesh.antiderivative(self.__array__(), *d),  domain=self.mesh)
+        res._opts.update(self._opts)
+        return res

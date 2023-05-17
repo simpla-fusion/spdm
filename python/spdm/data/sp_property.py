@@ -90,6 +90,12 @@ class sp_property(typing.Generic[_T]):  # type: ignore
         self.strict = strict
         self.metadata = kwargs
 
+    def __call__(self, func) -> sp_property[_T]:
+        """ 用于装饰函数，将函数的返回值作为属性值返回
+        """
+        self.getter = func
+        return self
+
     def __set_name__(self, owner, name):
         # TODO：
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置

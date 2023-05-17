@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import typing
-from functools import cached_property
 from copy import copy
+from functools import cached_property
+
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline, RectBivariateSpline
+
 from ..utils.logger import logger
-from ..utils.typing import (ArrayType, NumericType)
+from ..utils.misc import group_dict_by_prefix
+from ..utils.typing import ArrayType, NumericType
 from .Expression import Expression
 
 _T = typing.TypeVar("_T")
@@ -24,7 +27,7 @@ class Function(Expression[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, cycles: typing.List[bool] = None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType, domain: typing.List[ArrayType] = None, **kwargs):
         """
             Parameters
             ----------
@@ -36,25 +39,42 @@ class Function(Expression[_T]):
                 命名参数， 用于传递给运算符的参数
 
         """
+
+        opts, kwargs = group_dict_by_prefix(kwargs, "op_")
+
         if isinstance(value, Expression):
-            Expression.__init__(self, value, **kwargs)
+            Expression.__init__(self, value, **opts)
             self._value = None
         elif callable(value):
-            if "op" in kwargs:
-                raise RuntimeError(f"Can not specify both value and op!")
-            Expression.__init__(self, op=value, **kwargs)
+            Expression.__init__(self, op=value, **opts)
             self._value = None
         else:
-            Expression.__init__(self, **kwargs)
+            Expression.__init__(self, **opts)
             self._value = value
 
-        if not all(isinstance(d, np.ndarray) for d in dims):
+        if domain is None:
+            domain = dims
+        elif len(dims) > 0:
+            logger.warning(f"Function.__init__: domain is tuple, dims is ignored! {domain} {dims}")
+
+        if isinstance(domain, tuple) and all(isinstance(d, np.ndarray) for d in domain):
+            self._dims = domain
+        else:
+            raise NotImplementedError(f"Function.__init__: domain is not tuple! {domain} {dims}")
+
+        self._shape = tuple(len(d) for d in self._dims)
+
+        if isinstance(self._value, np.ndarray):
+            v_shape = self._value.shape
+            if (v_shape == self._shape) or (v_shape[:-1] == self._shape):
+                pass
+            else:
+                raise RuntimeError(f" value.shape is not match with domain! {v_shape}!={self._shape} ")
+
+        self._cycles = kwargs.get("cycles", [])
+
+        if not all(isinstance(d, np.ndarray) for d in self._dims):
             raise RuntimeError(f"Function domain must be all np.ndarray!")
-
-        self._dims = dims
-
-        self._cycles = cycles
-
 
     def __duplicate__(self) -> Function:
         """ 复制一个新的 Function 对象 """
@@ -89,6 +109,10 @@ class Function(Expression[_T]):
 
     @property
     def domain(self) -> typing.List[ArrayType]: return self._dims
+    """ 函数的定义域，即函数的自变量的取值范围。
+        每个维度对应一个一维数组，为网格的节点。 """
+    @property
+    def shape(self) -> typing.Tuple[int]: return self._shape
 
     @property
     def dimensions(self) -> typing.List[ArrayType]: return self._dims
@@ -146,14 +170,16 @@ class Function(Expression[_T]):
             else:
                 raise RuntimeError(f"Function._ppoly: value is not found!  value={value}")
 
+        if isinstance(value, np.ndarray):
+            v_shape = value.shape
+            if (v_shape == self._shape) or (v_shape[:-1] == self._shape):
+                pass
+            else:
+                raise RuntimeError(f" value.shape is not match with domain! {v_shape}!={self._shape} ")
+
         if self.ndim == 1:
             return InterpolatedUnivariateSpline(*self._dims, value)
-        elif self.ndim == 2:
-            if all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._dims):
-                return RectBivariateSpline(*self._dims, value)
-            elif all(isinstance((d, np.ndarray) and d.ndim == 2) for d in self._dims):
-                return RectBivariateSpline(*self._dims, value)
-
+        elif self.ndim == 2 and all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._dims):
             return RectBivariateSpline(*self._dims, value)
         else:
             raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
@@ -161,6 +187,8 @@ class Function(Expression[_T]):
     def __call__(self, *args) -> _T | ArrayType:
         if self._op is None:
             self._op = self._ppoly
+            if self.ndim > 1:
+                self._opts.setdefault("grid", False)
 
         if len(args) > 0:
             pass
@@ -168,22 +196,31 @@ class Function(Expression[_T]):
             args = self._dims
         else:
             args = np.meshgrid(*self._dims, indexing="ij")
+        # try:
+        #     res =
+        # except Exception as error:
+        #     logger.error(f"Function.__call__ error! {self._op} {args} {error}")
+        #     res = None
         return super().__call__(*args)
 
-    def compile(self, *args) -> Function:
-        """ 编译函数，返回一个新的(加速的)函数对象 
-            TODO：
-                - JIT compile
-        """
-        if len(args) > 0:
-            self._dims = args
-    
-        if self.ndim == 1:
-            args = self._dims
-        else:
-            args = np.meshgrid(*self._dims, indexing="ij")
-        self._value = self.__call__(*args)
-        return self
+    # def compile(self, *args) -> Function:
+    #     """ 编译函数，返回一个新的(加速的)函数对象
+    #         TODO：
+    #             - JIT compile
+    #     """
+    #     if len(args) > 0:
+    #         self._dims = args
+
+    #     if len(self._dims)==0:
+
+    #     elif self.ndim == 1:
+    #         args = self._dims
+    #     else:
+    #         args = np.meshgrid(*self._dims, indexing="ij")
+    #     self._value = self.__call__(*args)
+    #     self._args = ()
+    #     self._op = None
+    #     return self
 
     def derivative(self, n=1) -> Function:
         if self.ndim == 1 and n == 1:
@@ -208,12 +245,13 @@ class Function(Expression[_T]):
     def d(self) -> Function[_T]: return self.derivative()
 
     def partial_derivative(self, *n) -> Function:
-        return Function[_T](self._ppoly.partial_derivative(*n), self._dims, cycles=self._cycles)
+        return Function[_T](self._ppoly.partial_derivative(*n), *self._dims, cycles=self._cycles)
 
     def pd(self, *n) -> Function[_T]: return self.partial_derivative(*n)
 
     def antiderivative(self, *n) -> Function[_T]:
-        return Function[_T](self._ppoly.antiderivative(*n), self._dims,  cycle=self._cycles)
+        d = self._ppoly.antiderivative(*n)
+        return Function[_T](d, *self._dims,  cycle=self._cycles)
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 

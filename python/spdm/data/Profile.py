@@ -15,7 +15,7 @@ _T = typing.TypeVar("_T")
 
 class Profile(Node, Function[_T]):
 
-    def __init__(self,  value: NumericType | Expression, **kwargs) -> None:
+    def __init__(self,  value: NumericType | Expression, *dims, **kwargs) -> None:
 
         domain, kwargs = group_dict_by_prefix(kwargs, "coordinate")
 
@@ -37,11 +37,13 @@ class Profile(Node, Function[_T]):
 
             # FIXME: "1...N" is for IMAS dd
             domain = tuple([(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in domain_keys])
-
+        else:
+            domain = dims
+            
         Function.__init__(self, expr, *domain)
 
     def __str__(self) -> str: return Function.__str__(self)
-    
+
     @property
     def data(self) -> ArrayType: return self.__array__()
 

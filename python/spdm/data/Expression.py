@@ -15,7 +15,7 @@ class Expression(typing.Generic[_T]):
     """
         Expression
         -----------
-        表达式是由多个操作数和运算符按照约定的规则构成的一个序列。        
+        表达式是由多个操作数和运算符按照约定的规则构成的一个序列。
         其中运算符表示对操作数进行何种操作，而操作数可以是变量、常量、数组或者表达式。
         表达式可以理解为树状结构，每个节点都是一个操作数或运算符，每个节点都可以有多个子节点。
         表达式的值可以通过对树状结构进行遍历计算得到。
@@ -52,28 +52,28 @@ class Expression(typing.Generic[_T]):
 
         if len(args) == 1 and isinstance(args[0], Expression) and op is None:
             # copy constructor
-            self._args = args[0]._args
+            self._expr_nodes = args[0]._expr_nodes
             self._op = args[0]._op
-            self._kwargs = args[0]._kwargs
+            self._opts = args[0]._opts
 
             if len(kwargs) > 0:
                 logger.warning(f"Ignore kwargs={kwargs}!")
         else:
-            self._args = args       # 操作数
+            self._expr_nodes = args       # 操作数
             self._op = op
-            self._kwargs = kwargs   # named arguments for _operator_
+            self._opts = kwargs   # named arguments for _operator_
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
         other: Expression = object.__new__(self.__class__)
-        other._args = self._args
-        other._kwargs = self._kwargs
+        other._expr_nodes = self._expr_nodes
+        other._opts = self._opts
         other._op = self._op
         return other
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
-        """ 
-            重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。    
+        """
+            重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。
             例如：
                 >>> import numpy as np
                 >>> import spdm
@@ -91,7 +91,7 @@ class Expression(typing.Generic[_T]):
         return f"<{self.__class__.__name__}   op=\"{getattr(self._op,'__name__','unnamed')}\" />"
 
     @property
-    def is_function(self) -> bool: return not self._args
+    def is_function(self) -> bool: return not self._expr_nodes
     """ 判断是否为函数。 当操作数为空的时候，表达式为函数 """
 
     @property
@@ -128,7 +128,7 @@ class Expression(typing.Generic[_T]):
             - support multiple meshes?
         """
 
-        value = self._apply(self._args, *args)
+        value = self._apply(self._expr_nodes, *args)
         # name = getattr(self, "_metadata", {}).get("name", None)
         # logger.debug(f"{self.__class__.__name__}.__call__  name={name} op={self._op} num_of_value={len(value)}")
         res = _undefined_
@@ -139,13 +139,18 @@ class Expression(typing.Generic[_T]):
             method = None
 
         if method is not None:  # operator is  member function of self._op
-            eval = getattr(op, method, None)
-            if eval is not None:
-                res = eval(*value, **collections.ChainMap(kwargs, self._kwargs))
-            else:
+            op_ = getattr(op, method, None)
+            if op_ is None or op is _not_found_:
                 raise AttributeError(f"{op.__class__.__name__} has not method {method}!")
-        elif callable(op):  # operator is a function
-            res = op(*value, **collections.ChainMap(kwargs, self._kwargs))
+            else:
+                op = op_
+
+        if callable(op):  # operator is a function
+            try:
+                res = op(*value, **self._opts)
+            except Exception as error:
+                raise RuntimeError(f"Error when apply {op} to {value}!") from error
+
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 
@@ -156,30 +161,34 @@ class Expression(typing.Generic[_T]):
 
     def is_function(self) -> bool:
         def _is_function(obj):
-            return isinstance(obj, Expression) and (hasattr(self, 'dims') or any([_is_function(o) for o in obj._args]))
+            return isinstance(obj, Expression) and (hasattr(self, 'dims') or any([_is_function(o) for o in obj._expr_nodes]))
         return _is_function(self)
 
     @property
     def is_field(self) -> bool:
         def _is_field(obj):
-            return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._args]))
+            return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._expr_nodes]))
         return _is_field(self)
 
     @staticmethod
     def _resolve(obj):
         if not isinstance(obj, Expression):
-            return set([(None, None)])
-        elif len(obj._args) > 0:
-            return set([(f, m) for o in obj._args for f, m in Expression._resolve(o) if m is not None])
+            return [(None, None)]
+        elif len(obj._expr_nodes) > 0:
+            return [(f, m) for o in obj._expr_nodes for f, m in Expression._resolve(o) if m is not None]
         else:
-            return set([(obj.__class__, getattr(obj, "mesh", getattr(obj, "dims", None)))])
+            return [(obj.__class__, getattr(obj, "domain",  None))]
 
     def resolve(self):
-        ast = Expression._resolve(self)
-        if len(ast) != 1:
-            raise RuntimeError(f"Expression.resolve failed!  ast={ast}")
-
-        return next(ele for ele in ast)
+        new_list = []
+        for element in Expression._resolve(self):
+            if element not in new_list:
+                new_list.append(element)
+        if len(new_list) == 0:
+            raise RuntimeError(f"Expression.resolve failed!  ast={new_list}")
+        elif len(new_list) != 1:
+            logger.warning(f"get ({len(new_list)}) results, only take the first! ")
+        return new_list[0]
 
     def compile(self, *args, **kwargs) -> Expression:
         """ 编译函数，返回一个新的(加速的)函数对象 
@@ -187,18 +196,14 @@ class Expression(typing.Generic[_T]):
                 - JIT compile
         """
 
-        f_class, mesh = self.resolve()
-        logger.debug((f_class, mesh))
+        f_class, domain = self.resolve()
 
-        if mesh is None:
-            mesh = args
-
-        if isinstance(mesh, tuple):  # as Function
-            return f_class(self.__call__(*mesh), *mesh, **kwargs)
-        else:  # as Field
-            if len(args) > 0:
-                logger.warning(f"Ignore args={args}!")
-            return f_class(self.__call__(*mesh.points),  mesh=mesh, **kwargs)
+        if domain is None:
+            domain = args
+        if isinstance(domain, tuple):
+            return f_class(self.__call__(*domain), *domain, **kwargs)
+        else:
+            return f_class(self.__call__(*domain.points),  domain=domain, **kwargs)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(self     , op=np.negative     )
