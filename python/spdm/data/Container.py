@@ -112,7 +112,11 @@ class Container(Node, typing.Container):
                 value = self.__entry__().child(key, force=True)
 
         if inspect.isclass(orig_class) and isinstance(value, orig_class):  # 如果 value 符合 type_hint 则返回之
-            pass
+            if issubclass(orig_class, Node):
+                value._parent = self
+                value._metadata.update(metadata)
+
+            # pass
         elif not inspect.isclass(orig_class):  # 如果 type_hint 未定义，则由value决定类型
             if isinstance(value, Entry):
                 value = value.query(default_value=default_value)

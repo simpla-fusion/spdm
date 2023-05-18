@@ -197,9 +197,9 @@ class Expression(object):
 
         if callable(op):  # operator is a function
             try:
-                res = op(*args, ** opts)
+                res = op(*args, ** opts)           
             except Exception as error:
-                raise RuntimeError(f"Error when apply {op} to {[type(a) for a in args]} !") from error
+                raise RuntimeError(f"Error when apply {self.__str__()} !") from error
 
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
