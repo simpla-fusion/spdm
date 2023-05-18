@@ -129,8 +129,7 @@ class Entry(Pluggable):
     # def __iter__(self) -> typing.Iterator[Entry]:
     #     return self
 
-    def __value__(self) -> typing.Any:
-        return self.query(default_value=_not_found_)
+    def __value__(self) -> typing.Any: return self.query(default_value=_not_found_)
 
     ###########################################################
     # API: CRUD  operation

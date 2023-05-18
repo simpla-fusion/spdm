@@ -2,9 +2,7 @@ import unittest
 
 import numpy as np
 from scipy import constants
-from spdm.data.Expression import _0 as _x
-from spdm.data.Expression import _1 as _y
-from spdm.data.Expression import _2 as _z
+from spdm.data.Expression import Variable
 from spdm.data.Function import Expression, Function, Piecewise
 from spdm.utils.logger import logger
 
@@ -67,6 +65,8 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(type(np.sin(fun)) is Expression)
 
     def test_picewise(self):
+        _x = Variable(0, "x")
+
         r_ped = 0.90  # np.sqrt(0.88)
         Cped = 0.2
         Ccore = 0.4
@@ -88,6 +88,10 @@ class TestFunction(unittest.TestCase):
         g_x, g_y = np.meshgrid(x, y)
 
         z = np.sin(g_x*constants.pi*2.0)*np.cos(g_y*constants.pi*2.0)
+
+        _x = Variable(0, "x")
+        
+        _y = Variable(1, "y")
 
         fun = Function(np.sin(_x*constants.pi*2.0)*np.cos(_y*constants.pi*2.0), x, y, cycles=[1, 1])
 

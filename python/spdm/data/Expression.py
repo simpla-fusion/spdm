@@ -49,20 +49,20 @@ class Expression(object):
         """
         super().__init__()
 
-        if len(args) == 1 and isinstance(args[0], Expression) and op is None:
+        if op is None and len(args) == 1 and isinstance(args[0], Expression):
             # copy constructor
             self._expr_nodes = args[0]._expr_nodes
             self._op = args[0]._op
+        elif isinstance(op, tuple) or method is None:
+            self._op = op
+            self._expr_nodes = args
         else:
-            self._expr_nodes = args       # 操作数
-            if method is not None or len(kwargs) > 0:
-                self._op = (op, method, kwargs)   # named arguments for _operator_
-                kwargs = {}
-            else:
-                self._op = op
+            self._op = (op, method, kwargs)   # named arguments for _operator_
+            self._expr_nodes = args
+            kwargs = {}
 
         if len(kwargs) > 0:
-            logger.warning(f"Ignore kwargs={kwargs}!")
+            raise RuntimeError(f"Ignore  kwargs={kwargs}!")
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -200,7 +200,7 @@ class Expression(object):
                 res = op(*args, ** opts)
                 # TODO: 对 expression 执行进行计数
             except Exception as error:
-                raise RuntimeError(f"Error when apply {self.__str__()} !") from error
+                raise RuntimeError(f"Error when apply {self.__str__()} {opts}!") from error
 
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]

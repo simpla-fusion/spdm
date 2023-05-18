@@ -59,10 +59,10 @@ class CurvilinearMesh(RectilinearMesh):
             sub_xy = self.xy[tuple(s)]  # [p[tuple(s)] for p in self._xy]
             sub_uv = [self._uv[(axis+i) % self.geometry.ndim]
                       for i in range(1, self.geometry.ndim)]
-            sub_cycle = [self.cycle[(axis+i) % self.geometry.ndim]
+            sub_cycles = [self.cycles[(axis+i) % self.geometry.ndim]
                          for i in range(1, self.geometry.ndim)]
 
-            return CurvilinearMesh(sub_xy, sub_uv,  cycle=sub_cycle)
+            return CurvilinearMesh(sub_xy, sub_uv,  cycles=sub_cycles)
 
     @property
     def uv(self) -> ArrayType:
@@ -86,7 +86,7 @@ class CurvilinearMesh(RectilinearMesh):
     #     new_shape = [len(u) for u in new_uv]
     #     if new_shape != self.shape:
     #         raise ValueError(f"illegal shape! {new_shape}!={self.shape}")
-    #     return CurvilinearMesh(self._xy, new_uv, cycle=self.cycle)
+    #     return CurvilinearMesh(self._xy, new_uv, cycles=self.cycles)
 
     def interpolator(self, value,  **kwargs):
         if value.shape != self.shape:
@@ -110,9 +110,9 @@ class CurvilinearMesh(RectilinearMesh):
             if all([np.var(x)/np.mean(x**2) < CurvilinearMesh.TOLERANCE for x in self.xy.T]):
                 gobj = Point(*[x[0] for x in self.xy.T])
             else:
-                gobj = CubicSplineCurve(self.xy, self._uv[0], is_closed=self.cycle[0])
+                gobj = CubicSplineCurve(self.xy, self._uv[0], is_closed=self.cycles[0])
         elif self.rank == 2:
-            gobj = BSplineSurface(self.xy, self._uv,  is_closed=self.cycle)
+            gobj = BSplineSurface(self.xy, self._uv,  is_closed=self.cycles)
         else:
             raise NotImplementedError()
 
