@@ -31,12 +31,13 @@ class Profile(Node, Function[_T]):
             if not isinstance(self._parent, Container):
                 raise RuntimeError(f"Parent is None, can not determint the coordinates!")
 
-            coord_path = [*coordinats.keys()]
-            coord_path.sort()
-            coordinats = [coordinats[c] for c in coord_path]
+            coordinates = {k[10:]: v for k, v in self._metadata.items() if k.startswith("coordinate")}
+            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
             # FIXME: "1...N" is for IMAS dd
-            domain = tuple([(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in coordinats])
+            domain = tuple([(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in coordinats.values()])
+
         else:
             domain = dims
 
