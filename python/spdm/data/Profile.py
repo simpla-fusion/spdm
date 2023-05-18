@@ -36,17 +36,18 @@ class Profile(Node, Function[_T]):
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
             # FIXME: "1...N" is for IMAS dd
-            domain = tuple([(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in coordinats.values()])
+            domain = tuple([(slice(None) if (c == "1...N") else self._find_node_by_path(c))
+                           for c in coordinats.values()])
 
         else:
             domain = dims
 
         Function.__init__(self, expr, *domain)
 
-    def __str__(self) -> str: return Function.__str__(self)
-
     @property
-    def name(self) -> str: return self._metadata.get("name", 'unnamed')
+    def metadata(self) -> dict: return self._metadata
+
+    def __str__(self) -> str: return Function.__str__(self)
 
     @property
     def data(self) -> ArrayType: return self.__array__()

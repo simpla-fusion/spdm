@@ -197,7 +197,8 @@ class Expression(object):
 
         if callable(op):  # operator is a function
             try:
-                res = op(*args, ** opts)           
+                res = op(*args, ** opts)
+                # TODO: 对 expression 执行进行计数
             except Exception as error:
                 raise RuntimeError(f"Error when apply {self.__str__()} !") from error
 
@@ -269,9 +270,9 @@ class Expression(object):
         if domain is None:
             domain = args
         if isinstance(domain, tuple):
-            return f_class(self.__call__(*domain), *domain, **kwargs)
+            return f_class(self.__call__(*domain), *domain, name=f"[{self.__str__()}]", **kwargs)
         else:
-            return f_class(self.__call__(*domain.points),  domain=domain, **kwargs)
+            return f_class(self.__call__(*domain.points),  domain=domain, name=f"[{self.__str__()}]", **kwargs)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(self     , op=np.negative     )

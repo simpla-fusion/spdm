@@ -89,6 +89,9 @@ class Field(Node, Function[_T]):
 
         Function.__init__(self, value, domain=domain)
 
+    @property
+    def metadata(self) -> dict: return self._metadata
+
     def __str__(self) -> str: return Function.__str__(self)
 
     @property
@@ -98,9 +101,6 @@ class Field(Node, Function[_T]):
 
     @property
     def bbox(self): return self.mesh.geometry.bbox
-
-    @property
-    def name(self) -> str: return self._metadata.get("name", 'unnamed')
 
     def __value__(self) -> ArrayType:
         value = Node.__value__(self)

@@ -27,7 +27,7 @@ class Function(Expression, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType,  domain=None,  **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType,  domain=None, cycles=None, **kwargs):
         """
             Parameters
             ----------
@@ -42,13 +42,13 @@ class Function(Expression, typing.Generic[_T]):
         """
 
         if isinstance(value, Expression):
-            Expression.__init__(self, value)
+            Expression.__init__(self, value, **kwargs)
             self._value = None
         elif callable(value) or (isinstance(value, tuple) and callable(value[0])):
-            Expression.__init__(self, op=value)
+            Expression.__init__(self, op=value, **kwargs)
             self._value = None
         else:
-            Expression.__init__(self)
+            Expression.__init__(self, **kwargs)
             self._value = value
 
         if domain is None:
@@ -59,9 +59,17 @@ class Function(Expression, typing.Generic[_T]):
             if len(dims) > 0:
                 logger.warning(f"Function.__init__: domain is tuple, dims is ignored! {domain} {dims}")
 
-        self._cycles = kwargs.get("cycles", False)
+        self._cycles = cycles
+
+        self._metadata_ = kwargs
 
         self.validate()
+
+    @property
+    def metadata(self) -> dict: return self._metadata_
+
+    @property
+    def name(self) -> dict: return self.metadata.get("name", f"unnamed_{self.__class__.__name__}")
 
     def validate(self, value=None) -> None:
         """ 检查函数的定义域和值是否匹配 """
@@ -94,7 +102,7 @@ class Function(Expression, typing.Generic[_T]):
 
     def __str__(self) -> str:
         if len(self._expr_nodes) == 0:
-            return getattr(self, 'name', 'unnamed_function')
+            return self.name
         else:
             return super().__str__()
 

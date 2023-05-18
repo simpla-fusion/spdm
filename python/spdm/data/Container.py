@@ -37,9 +37,8 @@ class Container(Node, typing.Container):
 
     """
 
-    def __init__(self,  *args, cache=None,  default_value=_not_found_, **kwargs) -> None:
+    def __init__(self,  *args, cache=None,   **kwargs) -> None:
         super().__init__(*args, cache={} if cache is None else cache,  **kwargs)
-        self._default_value = default_value
 
     def __setitem__(self, path, value) -> None:
         # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
