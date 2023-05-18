@@ -3,19 +3,19 @@ from __future__ import annotations
 import typing
 from copy import copy
 from functools import cached_property
-
+import inspect
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline, RectBivariateSpline
 
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
-from ..utils.typing import ArrayType, NumericType
+from ..utils.typing import ArrayType, NumericType, numeric_types
 from .Expression import Expression
 
 _T = typing.TypeVar("_T")
 
 
-class Function(Expression[_T]):
+class Function(Expression, typing.Generic[_T]):
     """
         Function
         ---------
@@ -27,7 +27,7 @@ class Function(Expression[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, domain: typing.List[ArrayType] = None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType,  domain=None,  **kwargs):
         """
             Parameters
             ----------
@@ -36,51 +36,54 @@ class Function(Expression[_T]):
             dims : typing.List[ArrayType]
                 函数的定义域
             kwargs : typing.Any
-                命名参数， 用于传递给运算符的参数
+                命名参数，
+                op_*:用于传递给运算符的参数
 
         """
 
-        opts, kwargs = group_dict_by_prefix(kwargs, "op_")
-
         if isinstance(value, Expression):
-            Expression.__init__(self, value, **opts)
+            Expression.__init__(self, value)
             self._value = None
-        elif callable(value):
-            Expression.__init__(self, op=value, **opts)
+        elif callable(value) or (isinstance(value, tuple) and callable(value[0])):
+            Expression.__init__(self, op=value)
             self._value = None
         else:
-            Expression.__init__(self, **opts)
+            Expression.__init__(self)
             self._value = value
 
         if domain is None:
-            domain = dims
-        elif len(dims) > 0:
-            logger.warning(f"Function.__init__: domain is tuple, dims is ignored! {domain} {dims}")
-
-        if isinstance(domain, tuple) and all(isinstance(d, np.ndarray) for d in domain):
-            self._dims = domain
+            self._domain = dims
         else:
-            raise NotImplementedError(f"Function.__init__: domain is not tuple! {domain} {dims}")
+            self._domain = domain
 
-        self._shape = tuple(len(d) for d in self._dims)
+            if len(dims) > 0:
+                logger.warning(f"Function.__init__: domain is tuple, dims is ignored! {domain} {dims}")
 
-        if isinstance(self._value, np.ndarray):
-            v_shape = self._value.shape
-            if (v_shape == self._shape) or (v_shape[:-1] == self._shape):
-                pass
-            else:
-                raise RuntimeError(f" value.shape is not match with domain! {v_shape}!={self._shape} ")
+        self._cycles = kwargs.get("cycles", False)
 
-        self._cycles = kwargs.get("cycles", [])
+        self.validate()
 
-        if not all(isinstance(d, np.ndarray) for d in self._dims):
-            raise RuntimeError(f"Function domain must be all np.ndarray!")
+    def validate(self, value=None) -> None:
+        """ 检查函数的定义域和值是否匹配 """
+
+        if value is None:
+            value = self._value
+
+        if not isinstance(value, np.ndarray):
+            return
+        m_shape = self.shape
+        v_shape = value.shape
+
+        if (v_shape == m_shape) or (v_shape[:-1] == m_shape):
+            pass
+        else:
+            raise RuntimeError(f" value.shape is not match with domain! {v_shape}!={m_shape} ")
 
     def __duplicate__(self) -> Function:
         """ 复制一个新的 Function 对象 """
         other: Function = super().__duplicate__()
         other._value = copy(self._value)
-        other._dims = self._dims
+        other._domain = self._domain
         other._cycles = self._cycles
         return other
 
@@ -89,11 +92,24 @@ class Function(Expression[_T]):
     @classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    def __str__(self) -> str: return Expression.__str__(self)
-    # return f"<{self.__class__.__name__}   ndim={self.ndim} />"
+    def __str__(self) -> str:
+        if len(self._expr_nodes) == 0:
+            return getattr(self, 'name', 'unnamed_function')
+        else:
+            return super().__str__()
 
     @property
-    def ndim(self) -> int: return len(self._dims)
+    def __type_hint__(self) -> typing.Type:
+        """ 获取函数的类型
+        """
+        orig_class = getattr(self, "__orig_class__", None)
+
+        tp = typing.get_args(orig_class)[0]if orig_class is not None else None
+
+        return tp if inspect.isclass(tp) else float
+
+    @property
+    def ndim(self) -> int: return len(self._domain)
     """ 函数的维度，即定义域的秩 """
 
     @property
@@ -108,29 +124,29 @@ class Function(Expression[_T]):
             return 1
 
     @property
-    def domain(self) -> typing.List[ArrayType]: return self._dims
+    def domain(self) -> typing.List[ArrayType]: return self._domain
     """ 函数的定义域，即函数的自变量的取值范围。
         每个维度对应一个一维数组，为网格的节点。 """
     @property
-    def shape(self) -> typing.Tuple[int]: return self._shape
+    def dimensions(self) -> typing.List[ArrayType]: return self._domain
 
     @property
-    def dimensions(self) -> typing.List[ArrayType]: return self._dims
+    def dims(self) -> typing.List[ArrayType]: return self._domain
 
     @property
-    def dims(self) -> typing.List[ArrayType]: return self._dims
+    def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self._domain)
 
     @property
-    def cycles(self) -> typing.List[float | bool]: return self._cycles
+    def cycles(self) -> typing.Tuple[float]: return self._cycles
 
     @cached_property
     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
         """ bound box 返回包裹函数参数的取值范围的最小多维度超矩形（hyperrectangle） """
         if self.ndim == 1:
-            return (np.min(self._dims), np.max(self._dims))
+            return (np.min(self._domain), np.max(self._domain))
         else:
-            return (np.asarray([np.min(d) for d in self._dims], dtype=float),
-                    np.asarray([np.max(d) for d in self._dims], dtype=float))
+            return (np.asarray([np.min(d) for d in self._domain], dtype=float),
+                    np.asarray([np.max(d) for d in self._domain], dtype=float))
 
     def __value__(self) -> ArrayType: return self._value
     """ 返回函数的数组 self._value """
@@ -165,93 +181,73 @@ class Function(Expression[_T]):
         value = self.__value__()
 
         if not isinstance(value, np.ndarray) and not value:
-            if self._op is not None:
-                value = self.__call__()
-            else:
+            if self._op is None:
                 raise RuntimeError(f"Function._ppoly: value is not found!  value={value}")
-
-        if isinstance(value, np.ndarray):
-            v_shape = value.shape
-            if (v_shape == self._shape) or (v_shape[:-1] == self._shape):
-                pass
             else:
-                raise RuntimeError(f" value.shape is not match with domain! {v_shape}!={self._shape} ")
+                value = self.__call__()
+
+        self.validate(value)
+        # raise RuntimeError(f" value.shape is not match with domain! {v_shape}!={self._shape} {self.ast()}")
 
         if self.ndim == 1:
-            return InterpolatedUnivariateSpline(*self._dims, value)
-        elif self.ndim == 2 and all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._dims):
-            return RectBivariateSpline(*self._dims, value)
+            return InterpolatedUnivariateSpline(*self._domain, value)
+        elif self.ndim == 2 and all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._domain):
+            return RectBivariateSpline(*self._domain, value), None, {"grid": False}
         else:
             raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
 
-    def __call__(self, *args) -> _T | ArrayType:
+    def _eval(self, *args, **kwargs) -> _T | ArrayType:
         if self._op is None:
             self._op = self._ppoly
-            if self.ndim > 1:
-                self._opts.setdefault("grid", False)
 
         if len(args) > 0:
             pass
         elif self.ndim == 1:
-            args = self._dims
+            args = self._domain
         else:
-            args = np.meshgrid(*self._dims, indexing="ij")
+            args = np.meshgrid(*self._domain, indexing="ij")
         # try:
         #     res =
         # except Exception as error:
         #     logger.error(f"Function.__call__ error! {self._op} {args} {error}")
         #     res = None
-        return super().__call__(*args)
+        return super()._eval(*args, **kwargs)
 
-    # def compile(self, *args) -> Function:
-    #     """ 编译函数，返回一个新的(加速的)函数对象
-    #         TODO：
-    #             - JIT compile
-    #     """
-    #     if len(args) > 0:
-    #         self._dims = args
+    def compile(self, *args) -> Function:
+        """ 编译函数，返回一个新的(加速的)函数对象  TODO：JIT compile """
 
-    #     if len(self._dims)==0:
-
-    #     elif self.ndim == 1:
-    #         args = self._dims
-    #     else:
-    #         args = np.meshgrid(*self._dims, indexing="ij")
-    #     self._value = self.__call__(*args)
-    #     self._args = ()
-    #     self._op = None
-    #     return self
+        return self.__class__(self.__array__(), domain=self.domain, cycles=self._cycles, metadata=self._metadata)
 
     def derivative(self, n=1) -> Function:
         if self.ndim == 1 and n == 1:
-            return Function[_T](self._ppoly.derivative(*n), self._dims, cycles=self._cycles)
+            return Function[_T](self._ppoly.derivative(*n),  domain=self._domain, cycles=self._cycles)
         elif self.ndim == 2 and n == 1:
             return Function[typing.Tuple[_T, _T]]((self._ppoly.partial_derivative(1, 0),
                                                   self._ppoly.partial_derivative(0, 1)),
-                                                  self._dims, cycle=self._cycles)
+                                                  domain=self._domain, cycle=self._cycles)
         elif self.ndim == 3 and n == 1:
             return Function[typing.Tuple[_T, _T, _T]]((self._ppoly.partial_derivative(1, 0, 0),
                                                        self._ppoly.partial_derivative(0, 1, 0),
                                                        self._ppoly.partial_derivative(0, 0, 1)),
-                                                      self._dims, cycle=self._cycles)
+                                                      domain=self._domain, cycle=self._cycles)
         elif self.ndim == 2 and n == 2:
             return Function[typing.Tuple[_T, _T, _T]]((self._ppoly.partial_derivative(2, 0),
                                                        self._ppoly.partial_derivative(0, 2),
                                                        self._ppoly.partial_derivative(1, 1)),
-                                                      self._dims, cycle=self._cycles)
+                                                      domain=self._domain, cycle=self._cycles)
         else:
             raise NotImplemented(f"TODO: ndim={self.ndim} n={n}")
 
     def d(self) -> Function[_T]: return self.derivative()
 
     def partial_derivative(self, *n) -> Function:
-        return Function[_T](self._ppoly.partial_derivative(*n), *self._dims, cycles=self._cycles)
+        return Function[_T](self._ppoly.partial_derivative(*n), domain=self._domain, cycles=self._cycles)
 
     def pd(self, *n) -> Function[_T]: return self.partial_derivative(*n)
 
     def antiderivative(self, *n) -> Function[_T]:
         d = self._ppoly.antiderivative(*n)
-        return Function[_T](d, *self._dims,  cycle=self._cycles)
+        return Function[_T](d,  domain=self._domain,  cycle=self._cycles)
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 
@@ -267,7 +263,7 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
         return Function(y, *args, **kwargs)
 
 
-class Piecewise(Expression[_T]):
+class Piecewise(Expression, typing.Generic[_T]):
     """ PiecewiseFunction
         ----------------
         A piecewise function. 一维或多维，分段函数
@@ -277,10 +273,16 @@ class Piecewise(Expression[_T]):
         super().__init__(op=(func, cond), **kwargs)
 
     def _apply(self, func, x, *args, **kwargs):
-        if isinstance(x, np.ndarray) and isinstance(func, (int, float, complex, np.floating, np.integer, np.complexfloating)):
+        if isinstance(x, np.ndarray) and isinstance(func, numeric_types):
             value = np.full(x.shape, func)
+        elif isinstance(x, numeric_types) and isinstance(func, numeric_types):
+            value = func
+        elif callable(func):
+            value = func(x)
         else:
-            value = super()._apply(func, x, *args, **kwargs)
+            raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
+            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
+            #          for node in self._expr_nodes]
         return value
 
     def __call__(self, x, *args, **kwargs) -> NumericType:

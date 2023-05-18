@@ -93,7 +93,7 @@ class Container(Node, typing.Container):
                   type_hint: typing.Type = None,
                   strict=False,
                   default_value=_not_found_,
-                  **kwargs) -> typing.Any:
+                  metadata={}) -> typing.Any:
 
         if type_hint is None:
             type_hint = self._type_hint(key)
@@ -115,11 +115,11 @@ class Container(Node, typing.Container):
             pass
         elif not inspect.isclass(orig_class):  # 如果 type_hint 未定义，则由value决定类型
             if isinstance(value, Entry):
-                value = value.query(default_value=default_value, **kwargs)
+                value = value.query(default_value=default_value)
             elif value is _not_found_:
                 value = default_value
         elif issubclass(orig_class, Node):  # 若 type_hint 为 Node
-            value = type_hint(value, parent=self, default_value=default_value, **kwargs)
+            value = type_hint(value, parent=self, default_value=default_value, metadata=metadata)
         else:
             if isinstance(value, Entry):
                 value = value.query(default_value=_not_found_)
@@ -155,7 +155,7 @@ class Container(Node, typing.Container):
 
             self._cache[key] = value
 
-        return value 
+        return value
 
     @staticmethod
     def _get(obj, path: list, default_value=_not_found_,   **kwargs) -> typing.Any:

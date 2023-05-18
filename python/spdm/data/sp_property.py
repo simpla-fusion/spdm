@@ -48,6 +48,9 @@ import typing
 from _thread import RLock
 from typing import Any
 
+from spdm.data.Node import Node
+from spdm.utils.tags import _not_found_
+
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
@@ -61,6 +64,9 @@ class SpPropertyClass(Dict[Node], typing.MutableMapping[str, typing.Any]):
     def _type_hint(self, key: str) -> typing.Type:
         return typing.get_type_hints(self.__class__).get(key, None)\
             or getattr(getattr(self.__class__, key, None), "type_hint", None)
+
+    # def _as_child(self, key: str, value=..., *args, default_value=..., **kwargs) -> typing.Any:
+    #     return super()._as_child(key, value, *args, default_value=default_value, **kwargs)
 
 
 _T = typing.TypeVar("_T")
@@ -100,7 +106,8 @@ class sp_property(typing.Generic[_T]):
                  type_hint: typing.Type = None,
                  doc: typing.Optional[str] = None,
                  strict: bool = False,
-                 **kwargs):
+                 default_value=_not_found_,
+                 ** metadata):
         """
             Parameters
             ----------
@@ -116,7 +123,7 @@ class sp_property(typing.Generic[_T]):
                 用于指定属性的文档字符串
             strict : bool
                 用于指定是否严格检查属性的值是否已经被赋值
-            kwargs : typing.Any
+            metadata : typing.Any
                 用于传递给构建  Node.__init__ 的参数
 
 
@@ -134,7 +141,8 @@ class sp_property(typing.Generic[_T]):
         self.property_name: str = None
         self.type_hint = type_hint
         self.strict = strict
-        self.metadata = kwargs
+        self.default_value = default_value
+        self.metadata = metadata
 
     def __call__(self, func) -> sp_property[_T]:
         """ 用于定义属性的getter操作，与@property.getter类似 """
@@ -235,8 +243,11 @@ class sp_property(typing.Generic[_T]):
                 value = self.getter(instance)
 
             value = instance._as_child(key=self.property_cache_key,
-                                       value=value, type_hint=type_hint,
-                                       strict=self.strict,  **metadata)
+                                       value=value,
+                                       type_hint=type_hint,
+                                       strict=self.strict,
+                                       default_value=self.default_value,
+                                       metadata=metadata)
 
             if self.strict and value is _not_found_:
                 raise AttributeError(

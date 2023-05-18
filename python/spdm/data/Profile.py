@@ -39,10 +39,13 @@ class Profile(Node, Function[_T]):
             domain = tuple([(slice(None) if (c == "1...N") else self._find_node_by_path(c)) for c in domain_keys])
         else:
             domain = dims
-            
+
         Function.__init__(self, expr, *domain)
 
     def __str__(self) -> str: return Function.__str__(self)
+    
+    @property
+    def name(self) -> str: return self._metadata.get("name", 'unnamed')
 
     @property
     def data(self) -> ArrayType: return self.__array__()

@@ -260,7 +260,7 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
 
     if psirz.shape == (nh, nw):
         psirz = psirz.T
-        logger.warning(f"Transposing psirz from {(nh, nw)} to {(nw,nh)}")
+        # logger.warning(f"Transposing psirz from {(nh, nw)} to {(nw,nh)}")
 
     if psirz.shape != (nw, nh):
         raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw, nh)}")

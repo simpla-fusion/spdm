@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import collections.abc
 import typing
-
+from functools import cached_property
 import numpy as np
 
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, NumericType, numeric_types
 from ..utils.tags import _not_found_, _undefined_
-_T = typing.TypeVar("_T")
 
 
-class Expression(typing.Generic[_T]):
+class Expression(object):
     """
         Expression
         -----------
@@ -34,7 +33,7 @@ class Expression(typing.Generic[_T]):
             3.0
     """
 
-    def __init__(self,  *args,  op: typing.Callable | None = None, **kwargs) -> None:
+    def __init__(self,  *args,  op: typing.Callable | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] = None, method=None, **kwargs) -> None:
         """
             Parameters
             ----------
@@ -54,20 +53,21 @@ class Expression(typing.Generic[_T]):
             # copy constructor
             self._expr_nodes = args[0]._expr_nodes
             self._op = args[0]._op
-            self._opts = args[0]._opts
-
-            if len(kwargs) > 0:
-                logger.warning(f"Ignore kwargs={kwargs}!")
         else:
             self._expr_nodes = args       # 操作数
-            self._op = op
-            self._opts = kwargs   # named arguments for _operator_
+            if method is not None or len(kwargs) > 0:
+                self._op = (op, method, kwargs)   # named arguments for _operator_
+                kwargs = {}
+            else:
+                self._op = op
+
+        if len(kwargs) > 0:
+            logger.warning(f"Ignore kwargs={kwargs}!")
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
         other: Expression = object.__new__(self.__class__)
         other._expr_nodes = self._expr_nodes
-        other._opts = self._opts
         other._op = self._op
         return other
 
@@ -85,38 +85,82 @@ class Expression(typing.Generic[_T]):
                 >>> z(0.0)
                 1.0
         """
-        return Expression(*args, op=(ufunc, method), **kwargs)
-
-    def __str__(self) -> str:
-        return f"<{self.__class__.__name__}   op=\"{getattr(self._op,'__name__','unnamed')}\" />"
+        return Expression(*args, op=(ufunc, method, kwargs))
 
     @property
     def is_function(self) -> bool: return not self._expr_nodes
     """ 判断是否为函数。 当操作数为空的时候，表达式为函数 """
 
-    @property
-    def __type_hint__(self) -> typing.Type:
-        """ 获取函数的类型
-        """
-        orig_class = getattr(self, "__orig_class__", None)
-        if orig_class is not None:
-            return typing.get_args(orig_class)[0]
-        else:
-            return float
+    OP_NAME = {
+        "negative": "-",
+        "add": "+",
+        "subtract": "-",
+        "multiply": "*",
+        "matmul": "*",
+        "true_divide": "/",
+        "power": "^",
+        "equal": "==",
+        "not_equal": "!",
+        "less": "<",
+        "less_equal": "<=",
+        "greater": ">",
+        "greater_equa": ">=",
+        "add": "+",
+        "subtract": "-",
+        "multiply": "*",
+        "matmul": "*",
+        "divide": "/",
+        "power": "^",
+        # "abs": "",
+        "positive": "+",
+        # "invert": "",
+        # "bitwise_and": "",
+        # "bitwise_or": "",
+        # "bitwise_xor": "",
+        # "bitwise_and": "",
+        # "bitwise_or": "",
+        # "bitwise_xor": "",
+        # "right_shift": "",
+        # "left_shift": "",
+        # "right_shift": "",
+        # "left_shift": "",
+        "mod": "%",
+        # "floor_divide": "",
+        # "floor_divide": "",
+        # "trunc": "",
+        # "round": "",
+        # "floor": "",
+        # "ceil": "",
+    }
 
-    def _apply(self, func, *args, **kwargs) -> typing.Any:
-        if isinstance(func, collections.abc.Sequence) and len(func) > 0:
-            return [self._apply(f, *args, **kwargs) for f in func]
-        elif callable(func):
-            return func(*args, **kwargs)
-        elif isinstance(func, numeric_types):
-            return func
-        elif hasattr(func, "__entry__"):
-            return self._apply(func.__entry__().__value__(), *args, **kwargs)
+    @property
+    def op_name(self) -> str:
+        if isinstance(self._op, tuple):
+            op, method, _ = self._op
+            if method == "__call__" or method is None:
+                return getattr(op, "__name__", op.__class__.__name__)
+            else:
+                return f"{op.__class__.__name__}.{method}"
         else:
-            if func:
-                logger.warning(f"Ignore illegal function {func}!")
-            return args
+            return getattr(self._op, "__name__", self._op.__class__.__name__)
+
+    def __str__(self) -> str:
+        """ 返回表达式的抽象语法树"""
+        op_name = self.op_name
+
+        _name = Expression.OP_NAME.get(op_name, None)
+
+        def _ast(v):
+            if isinstance(v, Expression):
+                return v.__str__()
+            elif isinstance(v, np.ndarray):
+                return f"<{v.shape}>"
+            else:
+                return str(v)
+        if _name is not None and len(self._expr_nodes) == 2:
+            return f"{_ast(self._expr_nodes[0])} {_name} {_ast(self._expr_nodes[1])}"
+        else:
+            return f"{op_name}({', '.join([_ast(arg) for arg in self._expr_nodes])})"
 
     def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
         """
@@ -127,35 +171,41 @@ class Expression(typing.Generic[_T]):
             - support broadcasting?
             - support multiple meshes?
         """
+        try:
+            res = self._eval(*args, **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Error when eval {self} with args={len(args)} and kwargs={kwargs}!") from error
+        return res
 
-        value = self._apply(self._expr_nodes, *args)
-        # name = getattr(self, "_metadata", {}).get("name", None)
-        # logger.debug(f"{self.__class__.__name__}.__call__  name={name} op={self._op} num_of_value={len(value)}")
+    def _eval(self, *args, **kwargs) -> ArrayType:
+
+        if len(self._expr_nodes) > 0:
+            args = [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
+                    for node in self._expr_nodes]
+
         res = _undefined_
+
         if isinstance(self._op, tuple):
-            op, method = self._op
+            op, method, opts = self._op
+            if isinstance(method, str):
+                op = getattr(op, method, None)
+                if op is None or op is _not_found_:
+                    raise AttributeError(f"{self._op[0].__class__.__name__} has not method {method}!")
         else:
             op = self._op
-            method = None
-
-        if method is not None:  # operator is  member function of self._op
-            op_ = getattr(op, method, None)
-            if op_ is None or op is _not_found_:
-                raise AttributeError(f"{op.__class__.__name__} has not method {method}!")
-            else:
-                op = op_
+            opts = {}
 
         if callable(op):  # operator is a function
             try:
-                res = op(*value, **self._opts)
+                res = op(*args, ** opts)
             except Exception as error:
-                raise RuntimeError(f"Error when apply {op} to {value}!") from error
+                raise RuntimeError(f"Error when apply {op} to {[type(a) for a in args]} !") from error
 
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 
         if res is _undefined_:
-            raise AttributeError(f"Cannot apply {self._op} to {value}!")
+            raise AttributeError(f"Cannot apply {self._op} to {args}!")
 
         return res
 
@@ -170,24 +220,41 @@ class Expression(typing.Generic[_T]):
             return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._expr_nodes]))
         return _is_field(self)
 
-    @staticmethod
-    def _resolve(obj):
-        if not isinstance(obj, Expression):
-            return [(None, None)]
-        elif len(obj._expr_nodes) > 0:
-            return [(f, m) for o in obj._expr_nodes for f, m in Expression._resolve(o) if m is not None]
-        else:
-            return [(obj.__class__, getattr(obj, "domain",  None))]
+    @cached_property
+    def __type_hint__(self):
+        """ 获取表达式的类型
+        """
+        def get_type(obj):
+            if not isinstance(obj, Expression):
+                return set([None])
+            elif len(obj._expr_nodes) > 0:
+                return set([t for o in obj._expr_nodes for t in get_type(o) if hasattr(t, "domain")])
+            else:
+                return set([obj.__class__])
+        tp = list(get_type(self))
+        if len(tp) != 1:
+            raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
+        return tp[0]
 
-    def resolve(self):
+    @cached_property
+    def __domain__(self):
+        """ 获取表达式的最大有效定义域 """
+        def get_domain(obj):
+            if not isinstance(obj, Expression):
+                return [None]
+            elif len(obj._expr_nodes) > 0:
+                return [d for o in obj._expr_nodes for d in get_domain(o) if d is not None]
+            else:
+                return [getattr(obj, "domain", None)]
         new_list = []
-        for element in Expression._resolve(self):
-            if element not in new_list:
-                new_list.append(element)
+        for d in get_domain(self):
+            if d not in new_list:
+                new_list.append(d)
         if len(new_list) == 0:
-            raise RuntimeError(f"Expression.resolve failed!  ast={new_list}")
+            raise RuntimeError(f"Expression can not reslove domain! domain list={new_list}")
         elif len(new_list) != 1:
             logger.warning(f"get ({len(new_list)}) results, only take the first! ")
+
         return new_list[0]
 
     def compile(self, *args, **kwargs) -> Expression:
@@ -195,8 +262,9 @@ class Expression(typing.Generic[_T]):
             TODO：
                 - JIT compile
         """
+        f_class = self.__type_hint__
 
-        f_class, domain = self.resolve()
+        domain = self.__domain__
 
         if domain is None:
             domain = args
@@ -249,7 +317,10 @@ class Expression(typing.Generic[_T]):
     # fmt: on
 
 
-class Variable(Expression[_T]):
+_T = typing.TypeVar("_T")
+
+
+class Variable(Expression, typing.Generic[_T]):
     """ 
         Variable
         ---------
@@ -271,6 +342,18 @@ class Variable(Expression[_T]):
         self._name = name if name is not None else f"x_{idx}"
         self._idx = idx
 
+    def __str__(self) -> str: return self._name
+
+    @property
+    def __type_hint__(self) -> typing.Type:
+        """ 获取函数的类型
+        """
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
+            return typing.get_args(orig_class)[0]
+        else:
+            return float
+
     @property
     def name(self): return self._name
 
@@ -278,13 +361,13 @@ class Variable(Expression[_T]):
     def index(self): return self._idx
 
 
-_0 = Variable(0)
-_1 = Variable(1)
-_2 = Variable(2)
-_3 = Variable(3)
-_4 = Variable(4)
-_5 = Variable(5)
-_6 = Variable(6)
-_7 = Variable(7)
-_8 = Variable(8)
-_9 = Variable(9)
+_0 = Variable[float](0)
+_1 = Variable[float](1)
+_2 = Variable[float](2)
+_3 = Variable[float](3)
+_4 = Variable[float](4)
+_5 = Variable[float](5)
+_6 = Variable[float](6)
+_7 = Variable[float](7)
+_8 = Variable[float](8)
+_9 = Variable[float](9)

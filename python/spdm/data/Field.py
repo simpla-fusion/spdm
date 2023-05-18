@@ -11,23 +11,27 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType
+from .Function import Function
 from .Expression import Expression
 from .Node import Node
 
 _T = typing.TypeVar("_T")
 
 
-class Field(Node, Expression[_T]):
+class Field(Node, Function[_T]):
     """ Field
         ---------
-        A field is a function that assigns a value to every point of space.
         Field 是 Function 在流形（manifold）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
 
-        Mesh：网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。
+        Field 所在的流形记为 domain，可以是任意维度的，可以是任意形状的，可以是任意拓扑的，可以是任意坐标系的。
+
+        Field 的 domain，用Mesh来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。
+
+        domain/mesh_*： 网格
 
     """
 
-    def __init__(self, value: NumericType | Expression, *args, domain=None, **kwargs):
+    def __init__(self, value: typing.Any, *args, domain=None,   **kwargs):
         """
             Parameters
             ----------
@@ -46,66 +50,57 @@ class Field(Node, Expression[_T]):
 
         """
 
-        domain_desc, coordinates, opts, kwargs = group_dict_by_prefix(kwargs, ("mesh_", "coordinate", "op_"))
+        domain_desc,  kwargs = group_dict_by_prefix(kwargs,  "mesh_")
 
-        if isinstance(value, Expression):
-            Expression.__init__(self, value, **opts)
-            value = None
-        elif callable(value):
-            if "op" in kwargs:
-                raise RuntimeError(f"Can not specify both value and op!")
-            Expression.__init__(self, op=value, **opts)
+        if not (isinstance(value, Expression) or callable(value)):
+            Node.__init__(self, value,   **kwargs)
             value = None
         else:
-            Expression.__init__(self, **opts)
+            Node.__init__(self, None,   **kwargs)
 
-        Node.__init__(self, value, **kwargs)
-
-        if isinstance(domain, Mesh):
-            self._mesh = domain
+        if isinstance(domain, (Mesh, np.ndarray, tuple)):
             if len(domain_desc) > 0 or len(args) > 0:
                 logger.warning(f"Ignore domain={domain_desc} and args={args}!")
+        elif domain is not None and domain is not _not_found_:
+            raise TypeError(f"Illegal mesh type {type(domain)} !")
         else:
             if isinstance(domain, collections.abc.Mapping):
                 domain_desc.update(domain)
-                domain = None
             elif isinstance(domain, Enum):
                 domain_desc.update({"type": domain.name})
-                domain = None
             elif isinstance(domain, str):
                 domain_desc.update({"type": domain})
-                domain = None
-            elif domain is not None:
-                raise TypeError(f"Illegal mesh typ {type(domain)} !")
 
-            if len(coordinates) > 0:
-                if len(args) > 0:
-                    raise RuntimeError(f"Coordiantes is defined twice!  len(args)={len(args)}")
+            coordinates = {k[10:]: v for k, v in self._metadata.items() if k.startswith("coordinate")}
+            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-                # 获得 coordinates 中的共同前缀
-                coord_path = {int(k): v for k, v in coordinates.items() if str(k[0]).isdigit()}
+            if len(coordinates) == 0:
+                domain = Mesh(*args, **domain_desc)
+            elif len(args) > 0:
+                raise RuntimeError(f"Coordiantes is defined twice!  len(args)={len(args)}")
+            elif all(p.startswith("../grid/dim") for p in coordinates.values()):
+                domain = self._parent.grid
+            else:
+                coordinates = tuple([(slice(None) if (c == "1...N")
+                                      or not isinstance(c, str) else self._find_node_by_path(c)) for c in coordinates.values()])
 
-                coord_path = dict(sorted(coord_path.items(), key=lambda x: x[0]))
+                domain = Mesh(*coordinates, **domain_desc)
 
-                if len(coord_path) > 0:
-                    if all(p.startswith("../grid/dim") for p in coord_path.values()):
-                        self._mesh = self._parent.grid
-                    else:
-                        args = tuple([(slice(None) if (c == "1...N")
-                                       or not isinstance(c, str) else self._find_node_by_path(c)) for c in coord_path.values()])
-                        self._mesh = Mesh(*args, **domain_desc)
+        Function.__init__(self, value, domain=domain)
 
-    @property
-    def domain(self) -> Mesh: return self.mesh
-    """ 定义域， Field 的定义域为 Mesh """
+    def __str__(self) -> str: return Function.__str__(self)
 
     @property
-    def mesh(self) -> Mesh: return self._mesh
+    def mesh(self) -> Mesh: return self._domain
     """ alias of domain
         网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。 """
 
     @property
     def bbox(self): return self.mesh.geometry.bbox
+
+    @property
+    def name(self) -> str: return self._metadata.get("name", 'unnamed')
 
     def __value__(self) -> ArrayType:
         value = Node.__value__(self)
@@ -125,44 +120,38 @@ class Field(Node, Expression[_T]):
 
     def __array__(self) -> typing.Any: return self.__value__()
 
-    def __call__(self, *args, **kwargs) -> NumericType:
-        if self._op is None:
+    def _eval(self, *args, **kwargs) -> NumericType:
+        if self._op is None :
             self._op = self.mesh.interpolator(self.__array__())
-            self._opts.setdefault("grid", False)
 
         if len(args) == 0:
             args = self.mesh.xyz
 
         if all([isinstance(a, np.ndarray) for a in args]):
             shape = args[0].shape
-            return super().__call__(*[a.ravel() for a in args],  **kwargs).reshape(shape)
+            return super()._eval(*[a.ravel() for a in args],  **kwargs).reshape(shape)
         else:
-            return super().__call__(*args,  **kwargs)
+            return super()._eval(*args,  **kwargs)
 
-    def compile(self, *args, **kwargs) -> Field[_T]:
-        if len(args) > 0:
-            raise NotImplementedError(f"Field.compile() does not support args={args}!")
-        v = self.__value__()
-        if v is None or v is _not_found_:
-            raise RuntimeError(f"Field.compile() failed!")
-        res = Field[_T](v, domain=self.mesh, op_grid=False, **kwargs)
-        res._opts.update(self._opts)
-        return res
+    def compile(self) -> Field[_T]:
+        return Field[_T](self.__array__(), domain=self.domain, metadata=self._metadata)
 
     def partial_derivative(self, *d) -> Field[_T]:
         if hasattr(self._op, "partial_derivative"):
-            res = Field(self._op.partial_derivative(*d),  domain=self.mesh)
+            res = Field[_T](self._op.partial_derivative(*d),  domain=self.mesh,
+                            metadata={"name": f"d{self.name}_d{d}"})
         else:
-            res = Field(self.mesh.partial_derivative(self.__array__(), *d),  domain=self.mesh)
-        res._opts.update(self._opts)
+            res = Field[_T](self.mesh.partial_derivative(self.__array__(), *d), domain=self.mesh,
+                            metadata={"name": f"d{self.name}_d{d}"})
         return res
 
     def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Field:
         if hasattr(self._op, "antiderivative"):
-            res = Field[_T](self._op.antiderivative(*d), domain=self.mesh)
+            res = Field[_T](self._op.antiderivative(*d), domain=self.mesh,
+                            metadata={"name": f"\int {self.name} d{d}"})
         else:
-            res = Field[_T](self.mesh.antiderivative(self.__array__(), *d),  domain=self.mesh)
-        res._opts.update(self._opts)
+            res = Field[_T](self.mesh.antiderivative(self.__array__(), *d), domain=self.mesh,
+                            metadata={"name": f"\int {self.name} d{d}"})
         return res

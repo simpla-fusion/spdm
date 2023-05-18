@@ -91,20 +91,29 @@ class RectilinearMesh(StructuredMesh):
     def interpolator(self, value,  **kwargs):
         if np.any(tuple(value.shape) != tuple(self.shape)):
             raise ValueError(f"{value.shape} {self.shape}")
-
+        opts = {}
         if self.geometry.ndim == 1:
             interp = InterpolatedUnivariateSpline(*self._dims, value,  **kwargs)
         elif self.geometry.ndim == 2:
             interp = RectBivariateSpline(*self._dims,  value,  **kwargs)
+            opts = {"grid": False}
         else:
             raise NotImplementedError(f"NDIMS={self.geometry.ndim}")
 
-        return interp
+        return interp, None, opts
 
     def partial_derivative(self, value, *n, **kwargs):
         ppoly = self.interpolator(value, **kwargs)
-        return ppoly.partial_derivative(*n)
+        if isinstance(ppoly, tuple):
+            ppoly, _, opts = ppoly
+        else:
+            opts = {}
+        return ppoly.partial_derivative(*n), None, opts
 
     def antiderivative(self, value, *n, **kwargs):
         ppoly = self.interpolator(value, **kwargs)
-        return ppoly.antiderivative(*n)
+        if isinstance(ppoly, tuple):
+            ppoly, _, opts = ppoly
+        else:
+            opts = {}
+        return ppoly.antiderivative(*n), None, opts

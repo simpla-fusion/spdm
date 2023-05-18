@@ -41,8 +41,7 @@ class Node(object):
             self.__class__ = Node._MAPPING_TYPE_
 
         self._parent = parent
-        self._metadata = metadata
-        self._metadata |= kwargs
+        self._metadata: typing.Mapping[str, typing.Any] = metadata
 
     def _duplicate(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
