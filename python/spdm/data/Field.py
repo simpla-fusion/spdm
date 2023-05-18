@@ -52,11 +52,11 @@ class Field(Node, Function[_T]):
 
         domain_desc,  kwargs = group_dict_by_prefix(kwargs,  "mesh_")
 
-        if not (isinstance(value, Expression) or callable(value)):
+        if callable(value) or (isinstance(value, tuple) and callable(value[0])):
+            Node.__init__(self, None,   **kwargs)
+        else:
             Node.__init__(self, value,   **kwargs)
             value = None
-        else:
-            Node.__init__(self, None,   **kwargs)
 
         if isinstance(domain, (Mesh, np.ndarray, tuple)):
             if len(domain_desc) > 0 or len(args) > 0:
@@ -118,10 +118,13 @@ class Field(Node, Function[_T]):
         self._cache = value
         return value
 
-    def __array__(self) -> typing.Any: return self.__value__()
+    def __array__(self) -> ArrayType:
+        res = self.__value__()
+        assert (isinstance(res, np.ndarray))
+        return res
 
     def _eval(self, *args, **kwargs) -> NumericType:
-        if self._op is None :
+        if self._op is None:
             self._op = self.mesh.interpolator(self.__array__())
 
         if len(args) == 0:
