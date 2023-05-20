@@ -92,6 +92,9 @@ class Profile(Function[_T], Node):
     def name(self) -> str: return self._metadata.get("name", "unnamed")
 
     @property
+    def coordinates(self) -> typing.List[ArrayType]: return self.points
+
+    @property
     def data(self) -> ArrayType: return self.__array__()
 
     def __value__(self) -> ArrayType:

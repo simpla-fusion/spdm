@@ -49,10 +49,11 @@ class Expression(object):
         super().__init__()
 
         if op is None and len(args) == 1:
-            if isinstance(args[0], Expression):
+            if getattr(args[0], "is_epxression", False):
                 # copy constructor
                 op, opts = args[0]._op
-                kwargs.update(opts)
+                opts.update(kwargs)
+                op = (op, opts)
                 args = args[0]._expr_nodes
             elif callable(args[0]):
                 op = (args[0], kwargs)
@@ -67,6 +68,8 @@ class Expression(object):
             self._op = (op, kwargs)
         else:
             self._op = None
+        if self._op is not None and not isinstance(self._op[1], collections.abc.Mapping):
+            raise ValueError(self._op)
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -174,7 +177,7 @@ class Expression(object):
             return f"{op_name}({', '.join([_ast(arg) for arg in self._expr_nodes])})"
 
     # def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
-        
+
     #     try:
     #         res = self._eval(*args, **kwargs)
     #     except Exception as error:
@@ -203,6 +206,9 @@ class Expression(object):
             op = None
             opts = {}
 
+        if not isinstance(opts, collections.abc.Mapping):
+            logger.debug(self._op)
+
         if isinstance(op, tuple):
             op, method = op
             if isinstance(method, str):
@@ -216,7 +222,7 @@ class Expression(object):
             try:
                 res = op(*args, **collections.ChainMap(kwargs, opts))
             except Exception as error:
-                raise RuntimeError(f"Error when apply {self.__str__()} {opts}!") from error
+                raise RuntimeError(f"Error when apply {self.__str__()} op={op} opts={opts}!") from error
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 
