@@ -92,7 +92,7 @@ class Container(Node, typing.Container):
                   type_hint: typing.Type = None,
                   strict=False,
                   default_value=_not_found_,
-                  metadata={}) -> typing.Any:
+                  metadata=None) -> typing.Any:
 
         if type_hint is None:
             type_hint = self._type_hint(key)

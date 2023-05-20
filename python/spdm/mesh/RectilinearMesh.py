@@ -88,30 +88,26 @@ class RectilinearMesh(StructuredMesh):
         else:
             return np.meshgrid(*self._dims, indexing="ij")
 
-    def interpolator(self, value,  **kwargs):
+    def interpolator(self, value: ArrayType,  **kwargs):
+
+        if not isinstance(value, np.ndarray):
+            raise ValueError(f"value must be np.ndarray, but {type(value)} {value}")
 
         if np.any(tuple(value.shape) != tuple(self.shape)):
-            raise ValueError(f"{value.shape} {self.shape}")
+            raise ValueError(f"{value} {self.shape}")
 
         if self.geometry.ndim == 1:
-            return InterpolatedUnivariateSpline(*self._dims, value,  **kwargs)
+            return InterpolatedUnivariateSpline(*self._dims, value,  **kwargs),  {}
         elif self.geometry.ndim == 2:
-            return RectBivariateSpline(*self._dims,  value,  **kwargs), None, {"grid": False}
+            return RectBivariateSpline(*self._dims,  value,  **kwargs),  {"grid": False}
         else:
             raise NotImplementedError(f"NDIMS={self.geometry.ndim}")
 
     def partial_derivative(self, value, *n, **kwargs):
-        ppoly = self.interpolator(value, **kwargs)
-        if isinstance(ppoly, tuple):
-            ppoly, _, opts = ppoly
-        else:
-            opts = {}
-        return ppoly.partial_derivative(*n), None, opts
+        ppoly, opts = self.interpolator(value, **kwargs)
+        return ppoly.partial_derivative(*n), opts
 
     def antiderivative(self, value, *n, **kwargs):
-        ppoly = self.interpolator(value, **kwargs)
-        if isinstance(ppoly, tuple):
-            ppoly, _, opts = ppoly
-        else:
-            opts = {}
-        return ppoly.antiderivative(*n), None, opts
+        ppoly,  opts  = self.interpolator(value, **kwargs)
+
+        return ppoly.antiderivative(*n), opts

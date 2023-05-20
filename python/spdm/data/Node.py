@@ -71,8 +71,10 @@ class Node(object):
         return self._entry
 
     def __value__(self) -> typing.Any:
-        if self._cache is None or self._cache is _not_found_:
+        if not isinstance(self._cache, np.ndarray) and not self._cache:
             self._cache = self.__entry__().__value__()
+        if not isinstance(self._cache, np.ndarray) and not self._cache:
+            self._cache = None
         return self._cache
 
     def _reset(self):

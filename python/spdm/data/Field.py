@@ -58,40 +58,51 @@ class Field(Profile[_T]):
     def points(self): return self.mesh.points
     """ 定义域 mesh 上的坐标 """
 
-    def __array__(self) -> ArrayType: return self.__value__()
+    @property
+    def dimensions(self) -> typing.List[ArrayType]: return self.mesh.dims
 
-    def _eval(self, *args, **kwargs) -> NumericType:
-        if self._op is None:
-            self._op = self.mesh.interpolator(self.__array__())
+    @property
+    def dims(self) -> typing.List[ArrayType]: return self.mesh.dims
 
-        if len(args) == 0:
-            args = self.points
+    @property
+    def shape(self) -> typing.Tuple[int]: return self.mesh.shape
 
-        if all([isinstance(a, np.ndarray) for a in args]):
-            shape = args[0].shape
-            return super()._eval(*[a.ravel() for a in args],  **kwargs).reshape(shape)
-        else:
-            return super()._eval(*args,  **kwargs)
+    @property
+    def ndim(self) -> int: return self.mesh.ndim
 
     def compile(self) -> Field[_T]:
-        return Field[_T](self.__array__(), mesh=self.mesh, metadata=self._metadata)
+        return Field[_T](self.__array__(),
+                         mesh=self.mesh,
+                         metadata=self._metadata,
+                         parent=self._parent)
 
     def partial_derivative(self, *d) -> Field[_T]:
-        if hasattr(self._op, "partial_derivative"):
-            res = Field[_T](self._op.partial_derivative(*d),  mesh=self.mesh,
+        ppoly, opts = self._compile()
+
+        if len(d) > 1:
+            opts["grid"] = False
+
+        if hasattr(ppoly, "partial_derivative"):
+            res = Field[_T](ppoly.partial_derivative(*d), opts=opts,
+                            mesh=self.mesh,
                             metadata={"name": f"d{self.name}_d{d}"})
         else:
-            res = Field[_T](self.mesh.partial_derivative(self.__array__(), *d), mesh=self.mesh,
+            ppoly, opts = self.mesh.partial_derivative(self.__array__(), *d)
+            res = Field[_T](ppoly, opts=opts,
+                            mesh=self.mesh,
                             metadata={"name": f"d{self.name}_d{d}"})
         return res
 
     def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Field:
-        if hasattr(self._op, "antiderivative"):
-            res = Field[_T](self._op.antiderivative(*d), mesh=self.mesh,
+        ppoly,  opts = self._compile()
+
+        if hasattr(ppoly, "antiderivative"):
+            res = Field[_T](ppoly.antiderivative(*d), mesh=self.mesh, opts=opts,
                             metadata={"name": f"\int {self.name} d{d}"})
         else:
-            res = Field[_T](self.mesh.antiderivative(self.__array__(), *d), mesh=self.mesh,
+            ppoly, opts = self.mesh.antiderivative(self.__array__(), *d)
+            res = Field[_T](ppoly, mesh=self.mesh, opts=opts,
                             metadata={"name": f"\int {self.name} d{d}"})
         return res

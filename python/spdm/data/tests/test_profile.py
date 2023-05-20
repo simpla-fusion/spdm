@@ -18,21 +18,24 @@ class Doo(SpPropertyClass):
     def grid(self) -> Mesh:
         return Mesh()
 
-    x: np.ndarray = sp_property()
-    a: Profile[int] = sp_property(coordinate1="../x")
+    psi: np.ndarray = sp_property()
+    phi: Profile[int] = sp_property(coordinate1="../psi")
 
 
 class TestProfile(unittest.TestCase):
 
     def test_get(self):
         cache = {
-            "a": np.random.rand(128),
-            "x": np.linspace(0, 1, 128)
+            "phi": np.random.rand(128),
+            "psi": np.linspace(0, 1, 128)
         }
         doo = Doo(cache)
+        logger.debug(doo.phi.name)
 
-        self.assertTrue(doo.a.__array__() is cache["a"])
-        self.assertTrue(doo.a.domain[0] is cache["x"])
+        doo.phi(np.linspace(0,1.0,256))
+
+        self.assertTrue(np.all(np.isclose(doo.phi.__array__(), cache["phi"])))
+        self.assertTrue(np.all(np.isclose(doo.phi.mesh, cache["psi"])))
 
 
 if __name__ == '__main__':

@@ -12,12 +12,11 @@ from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, NumericType
+from ..utils.typing import ArrayType, NumericType, numeric_types
 from .Container import Container
 from .Expression import Expression
 from .Function import Function
 from .Node import Node
-from .Profile import Profile
 
 _T = typing.TypeVar("_T")
 
@@ -33,7 +32,7 @@ class Profile(Function[_T], Node):
 
     """
 
-    def __init__(self,  value: NumericType | Expression, *dims, mesh=None, opts=None, metadata=None, **kwargs) -> None:
+    def __init__(self,  value: NumericType | Expression, *dims, mesh=None, opts=None, metadata=None, parent=None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -47,72 +46,57 @@ class Profile(Function[_T], Node):
                     *           : 用于传递给 Node 的参数
 
         """
+        if hasattr(value.__class__, "__entry__"):
+            cache = value
+            value = None
+        else:
+            cache = None
+
         if metadata is None:
             metadata = {}
 
-        if hasattr(value.__class__, "__entry__"):
-            Node.__init__(self, value, metadata=metadata, **kwargs)
-            value = None
-        else:
-            Node.__init__(self, None,  metadata=metadata, **kwargs)
-
         if len(dims) > 0:
             if "coordinate1" in metadata:
-                logger.warning(f"Ignore coordinate*={kwargs['coordinate1']}!")
-        else:
+                logger.warning(f"Ignore coordinate*={metadata['coordinate1']} dims={dims}!")
+            if not mesh:
+                mesh = dims
+            else:
+                logger.warning(f"Ignore mesh={type(mesh)} dims={dims}!")
+        elif isinstance(parent, Node):
+
             coordinates = {int(k[10:]): v for k, v in metadata.items()
                            if k.startswith("coordinate") and k[10:].isdigit()}
+
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) > 0 and self._parent is None:
-                raise RuntimeError(f"Can not determint the coordinates from DataTree!")
+            if len(coordinates) > 0 and not parent:
+                if not mesh:
+                    raise RuntimeError(f"Can not determint the coordinates from DataTree! {coordinates} {type(parent)}")
             elif all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
-                if mesh is not None:
+                if mesh is not None and mesh is not parent.grid:
                     logger.warning(f"Ignore mesh={mesh}  !")
-                mesh = self._parent.grid
+                mesh = parent.grid
                 dims = ()
             else:
-                dims = tuple([(self._find_node_by_path(c) if isinstance(c, str) and c.startswith('../') else c)
+                dims = tuple([(parent._find_node_by_path(c[3:]) if isinstance(c, str) and c.startswith('../') else c)
                               for c in coordinates.values()])
 
         Function.__init__(self, value, *dims, mesh=mesh, **(opts if opts is not None else {}))
+
+        Node.__init__(self, cache,  metadata=metadata, parent=parent, **kwargs)
 
     @property
     def metadata(self) -> dict: return self._metadata
 
     @property
-    def name(self) -> str: return self._metadata.get("name", None)
-
-    def __str__(self) -> str: return Function.__str__(self)
+    def name(self) -> str: return self._metadata.get("name", "unnamed")
 
     @property
     def data(self) -> ArrayType: return self.__array__()
 
-    @property
-    def points(self) -> typing.List[ArrayType]:
-        if len(self._mesh) == 1:
-            return self._mesh
-        else:
-            return np.meshgrid(*self._mesh, indexing="ij")
-
-    # def __value__(self) -> ArrayType:
-    #     if not isinstance(self._value, np.ndarray) and not self._value:
-    #         self._value = Node.__value__(self)
-    #         if not isinstance(self._value, np.ndarray) and not self._value:
-    #             raise RuntimeError(f"Can not evaluate {self} {self._entry}!")
-    #     return self._value
-
     def __value__(self) -> ArrayType:
-        value = Node.__value__(self)
-        if isinstance(value, np.ndarray):
-            return value
-        elif not value:
-            if self._op is not None:
-                value = super().__call__(*self.points)
-            else:
-                raise RuntimeError(f"Field.__array__(): value is not found!")
-
-        if not isinstance(value, np.ndarray):
-            value = np.asarray(value, dtype=self.__type_hint__)
-        self._cache = value
-        return value
+        if self._value is None or self._value is _not_found_:
+            self._value = Node.__value__(self)
+            if not isinstance(self._value, numeric_types):
+                logger.debug(self._value)
+        return self._value

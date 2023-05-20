@@ -71,7 +71,9 @@ def minimize_filter(func: typing.Callable[..., ScalarType], xmin: float, ymin: f
 
     X, Y = np.meshgrid(np.linspace(xmin, xmax, nx),
                        np.linspace(ymin, ymax, ny), indexing='ij')
+    
     data = func(X, Y)
+
     for ix, iy in _minimize_filter_2d_image(data):
 
         if ix == 0 or iy == 0 or ix == nx-1 or iy == ny-1:

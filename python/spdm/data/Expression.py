@@ -33,36 +33,40 @@ class Expression(object):
             3.0
     """
 
-    def __init__(self,  *args,  op: typing.Callable | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] = None, method=None, **kwargs) -> None:
+    def __init__(self,  *args,  op: typing.Callable | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] = None,  **kwargs) -> None:
         """
             Parameters
             ----------
             args : typing.Any
                 操作数
-            op : typing.Callable | None
-                运算符，可以是函数，也可以是类的成员函数
-            method : str | None
-                运算符的成员函数名
+            op : typing.Callable  | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] 
+                运算符，可以是函数，也可以是类的成员函数 
+
             kwargs : typing.Any
                 命名参数， 用于传递给运算符的参数
 
         """
         super().__init__()
 
-        if op is None and len(args) == 1 and isinstance(args[0], Expression):
-            # copy constructor
-            self._expr_nodes = args[0]._expr_nodes
-            self._op = args[0]._op
-        elif isinstance(op, tuple) or method is None:
-            self._op = op
-            self._expr_nodes = args
-        else:
-            self._op = (op, method, kwargs)   # named arguments for _operator_
-            self._expr_nodes = args
-            kwargs = {}
+        if op is None and len(args) == 1:
+            if isinstance(args[0], Expression):
+                # copy constructor
+                op, opts = args[0]._op
+                kwargs.update(opts)
+                args = args[0]._expr_nodes
+            elif callable(args[0]):
+                op = (args[0], kwargs)
+                args = ()
+                kwargs = {}
 
-        if len(kwargs) > 0:
-            raise RuntimeError(f"Ignore  kwargs={kwargs}!")
+        self._expr_nodes = args
+
+        if isinstance(op, tuple) and len(kwargs) == 0:
+            self._op = op
+        elif op is not None:
+            self._op = (op, kwargs)
+        else:
+            self._op = None
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -85,11 +89,14 @@ class Expression(object):
                 >>> z(0.0)
                 1.0
         """
-        return Expression(*args, op=(ufunc, method, kwargs))
+        return Expression(*args, op=((ufunc, method), kwargs))
 
     @property
-    def is_function(self) -> bool: return not self._expr_nodes
-    """ 判断是否为函数。 当操作数为空的时候，表达式为函数 """
+    def is_epxression(self) -> bool: return len(self._expr_nodes) > 0
+    """ 判断是否是表达式，如果 操作数self._expr_nodes 个数大于零 ，返回 True，否则返回 False """
+
+    # @property
+    # def is_function(self) -> bool: return not self.is_epxression and self._op is not None
 
     OP_NAME = {
         "negative": "-",
@@ -136,13 +143,17 @@ class Expression(object):
     @property
     def op_name(self) -> str:
         if isinstance(self._op, tuple):
-            op, method, _ = self._op
-            if method == "__call__" or method is None:
-                return getattr(op, "__name__", op.__class__.__name__)
+            op,  _ = self._op
+            if isinstance(op, tuple):
+                op, method = op
+                if method == "__call__" or method is None:
+                    return getattr(op, "__name__", op.__class__.__name__)
+                else:
+                    return f"{op.__class__.__name__}.{method}"
             else:
-                return f"{op.__class__.__name__}.{method}"
+                return getattr(op, "__name__", op.__class__.__name__)
         else:
-            return getattr(self._op, "__name__", self._op.__class__.__name__)
+            return "[?]"
 
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
@@ -162,7 +173,15 @@ class Expression(object):
         else:
             return f"{op_name}({', '.join([_ast(arg) for arg in self._expr_nodes])})"
 
-    def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
+    # def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
+        
+    #     try:
+    #         res = self._eval(*args, **kwargs)
+    #     except Exception as error:
+    #         raise RuntimeError(f"Error when eval {self} with args={len(args)} and kwargs={kwargs}!") from error
+    #     return res
+
+    def __call__(self, *args, **kwargs) -> ArrayType:
         """
             重载函数调用运算符，用于计算表达式的值
 
@@ -171,42 +190,38 @@ class Expression(object):
             - support broadcasting?
             - support multiple meshes?
         """
-        try:
-            res = self._eval(*args, **kwargs)
-        except Exception as error:
-            raise RuntimeError(f"Error when eval {self} with args={len(args)} and kwargs={kwargs}!") from error
-        return res
 
-    def _eval(self, *args, **kwargs) -> ArrayType:
-
+        # TODO: 对 expression 执行进行计数
         if len(self._expr_nodes) > 0:
             args = [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
                     for node in self._expr_nodes]
-
-        res = _undefined_
+            kwargs = {}
 
         if isinstance(self._op, tuple):
-            op, method, opts = self._op
+            op,  opts = self._op
+        elif self._op is None:
+            op = None
+            opts = {}
+
+        if isinstance(op, tuple):
+            op, method = op
             if isinstance(method, str):
                 op = getattr(op, method, None)
                 if op is None or op is _not_found_:
                     raise AttributeError(f"{self._op[0].__class__.__name__} has not method {method}!")
-        else:
-            op = self._op
-            opts = {}
 
-        if callable(op):  # operator is a function
+        res = _undefined_
+
+        if callable(op):
             try:
-                res = op(*args, ** opts)
-                # TODO: 对 expression 执行进行计数
+                res = op(*args, **collections.ChainMap(kwargs, opts))
             except Exception as error:
                 raise RuntimeError(f"Error when apply {self.__str__()} {opts}!") from error
-
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 
         if res is _undefined_:
-            raise AttributeError(f"Cannot apply {self._op} to {args}!")
+            raise AttributeError(f"Cannot apply {self.__str__()} {op} to {args}!")
 
         return res
 
@@ -229,30 +244,33 @@ class Expression(object):
             if not isinstance(obj, Expression):
                 return set([None])
             elif len(obj._expr_nodes) > 0:
-                return set([t for o in obj._expr_nodes for t in get_type(o) if hasattr(t, "domain")])
+                return set([t for o in obj._expr_nodes for t in get_type(o) if hasattr(t, "mesh")])
             else:
                 return set([obj.__class__])
         tp = list(get_type(self))
-        if len(tp) != 1:
+        if len(tp) == 0:
+            return float
+        elif len(tp) == 1:
+            return tp[0]
+        else:
             raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
-        return tp[0]
 
     @cached_property
-    def __domain__(self):
+    def __mesh__(self):
         """ 获取表达式的最大有效定义域 """
-        def get_domain(obj):
+        def get_mesh(obj):
             if not isinstance(obj, Expression):
                 return [None]
             elif len(obj._expr_nodes) > 0:
-                return [d for o in obj._expr_nodes for d in get_domain(o) if d is not None]
+                return [d for o in obj._expr_nodes for d in get_mesh(o) if d is not None]
             else:
-                return [getattr(obj, "domain", None)]
+                return [getattr(obj, "mesh", None)]
         new_list = []
-        for d in get_domain(self):
+        for d in get_mesh(self):
             if d not in new_list:
                 new_list.append(d)
         if len(new_list) == 0:
-            raise RuntimeError(f"Expression can not reslove domain! domain list={new_list}")
+            raise RuntimeError(f"Expression can not reslove mesh! mesh list={new_list}")
         elif len(new_list) != 1:
             logger.warning(f"get ({len(new_list)}) results, only take the first! ")
 
@@ -265,14 +283,14 @@ class Expression(object):
         """
         f_class = self.__type_hint__
 
-        domain = self.__domain__
+        mesh = self.__mesh__
 
-        if domain is None:
-            domain = args
-        if isinstance(domain, tuple):
-            return f_class(self.__call__(*domain), *domain, name=f"[{self.__str__()}]", **kwargs)
+        if mesh is None:
+            mesh = args
+        if isinstance(mesh, tuple):
+            return f_class(self.__call__(*mesh), *mesh, name=f"[{self.__str__()}]", **kwargs)
         else:
-            return f_class(self.__call__(*domain.points),  domain=domain, name=f"[{self.__str__()}]", **kwargs)
+            return f_class(self.__call__(*mesh.points),  mesh=mesh, name=f"[{self.__str__()}]", **kwargs)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(self     , op=np.negative     )
