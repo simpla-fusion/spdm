@@ -61,7 +61,7 @@ class Function(Expression, typing.Generic[_T]):
         elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, np.ndarray) for d in mesh):
             self._mesh = mesh
             if len(dims) > 0:
-                logger.warning(f"Function.__init__: mesh is tuple, dims is ignored! {mesh} {dims}")
+                raise RuntimeError(f"Function.__init__: mesh is  ignored! {dims} {mesh}")
         elif isinstance(mesh, collections.abc.Mapping):
             self._mesh = mesh
             if len(dims) > 0:
@@ -219,11 +219,15 @@ class Function(Expression, typing.Generic[_T]):
             return self._op
 
         if value is None:
-            raise RuntimeError(f"Function._eval(): self._op is None and self._value is None! {self.__str__()}")
+            raise RuntimeError(
+                f"Function._eval(): self._op is None and self._value is None! {self.__str__()} {self._op} {self._value}")
         elif hasattr(self.mesh, "interpolator"):
             op = self.mesh.interpolator(value)
-        elif isinstance(self._mesh, tuple):
-            if self.ndim == 1:
+        elif isinstance(self._mesh, tuple) and len(self._mesh) > 0:
+            if isinstance(self._mesh[0], (int, float)) or (isinstance(self._mesh[0], np.ndarray) and len(self._mesh[0]) == 1):
+                ppoly = lambda *_, _v=value: _v
+                opts = {}
+            elif self.ndim == 1:
                 ppoly = InterpolatedUnivariateSpline(*self.points, value)
                 opts = {}
             elif self.ndim == 2 and all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._mesh):
@@ -248,10 +252,15 @@ class Function(Expression, typing.Generic[_T]):
         return self.__class__(op=self._compile(in_place=False), mesh=self.mesh, cycles=self._cycles, name=f"[{self.__str__()}]")
 
     def __call__(self, *args, **kwargs) -> _T | ArrayType:
-        """ 
+        """  重载函数调用运算符
+
+            Parameters
+            ----------
+            args : typing.Any
+                位置参数, 
+            kwargs : typing.Any
 
         """
-
         if len(args) == 0:
             args = self.points
 
@@ -260,10 +269,9 @@ class Function(Expression, typing.Generic[_T]):
 
         _, opts = self._compile()
 
-        if all([isinstance(a, np.ndarray) for a in args]):
-            if not opts.get("grid", False):
-                shape = args[0].shape
-                return super().__call__(*[a.ravel() for a in args],  **kwargs).reshape(shape)
+        if all([isinstance(a, np.ndarray) for a in args]) and not opts.get("grid", True):
+            shape = args[0].shape
+            return super().__call__(*[a.ravel() for a in args],  **kwargs).reshape(shape)
         else:
             return super().__call__(*args,  **kwargs)
 

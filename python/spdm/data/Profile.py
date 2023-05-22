@@ -78,28 +78,28 @@ class Profile(Function[_T], Node):
                 mesh = parent.grid
                 dims = ()
             else:
-                dims = tuple([(parent._find_node_by_path(c[3:]) if isinstance(c, str) and c.startswith('../') else c)
+                dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
                               for c in coordinates.values()])
 
-        Function.__init__(self, value, *dims, mesh=mesh, **(opts if opts is not None else {}))
+        Function.__init__(self, value, *dims, mesh = mesh, **(opts if opts is not None else {}))
 
-        Node.__init__(self, cache,  metadata=metadata, parent=parent, **kwargs)
+        Node.__init__(self, cache,  metadata = metadata, parent = parent, **kwargs)
 
-    @property
+    @ property
     def metadata(self) -> dict: return self._metadata
 
-    @property
+    @ property
     def name(self) -> str: return self._metadata.get("name", "unnamed")
 
-    @property
+    @ property
     def coordinates(self) -> typing.List[ArrayType]: return self.points
 
-    @property
+    @ property
     def data(self) -> ArrayType: return self.__array__()
 
     def __value__(self) -> ArrayType:
         if self._value is None or self._value is _not_found_:
-            self._value = Node.__value__(self)
-            if not isinstance(self._value, numeric_types):
-                logger.debug(self._value)
+            self._value=Node.__value__(self)
+            # if not isinstance(self._value, numeric_types):
+            #     logger.debug(self._value)
         return self._value

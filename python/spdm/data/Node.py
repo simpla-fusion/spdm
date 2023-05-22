@@ -107,8 +107,11 @@ class Node(object):
     # def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
     #     raise NotImplementedError("as_child")
 
-    def _find_node_by_path(self, path) -> Node:
+    def _find_node_by_path(self, path: str, prefix=None) -> Node:
 
+        if isinstance(prefix, str) and path.startswith(prefix):
+            path = path[len(prefix):]
+            
         if isinstance(path, str):
             path = path.split('/')
 

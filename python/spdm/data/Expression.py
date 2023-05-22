@@ -184,7 +184,7 @@ class Expression(object):
     #         raise RuntimeError(f"Error when eval {self} with args={len(args)} and kwargs={kwargs}!") from error
     #     return res
 
-    def __call__(self, *args, **kwargs) -> ArrayType:
+    def __call__(self, *args, **kwargs) -> ArrayType | Expression:
         """
             重载函数调用运算符，用于计算表达式的值
 
@@ -193,6 +193,8 @@ class Expression(object):
             - support broadcasting?
             - support multiple meshes?
         """
+        if any([isinstance(arg, Expression) for arg in args]):
+            return Expression(*args, op=self, **kwargs)
 
         # TODO: 对 expression 执行进行计数
         if len(self._expr_nodes) > 0:
@@ -219,10 +221,11 @@ class Expression(object):
         res = _undefined_
 
         if callable(op):
+            opts = {**collections.ChainMap(kwargs, opts)}
             try:
-                res = op(*args, **collections.ChainMap(kwargs, opts))
+                res = op(*args, **opts)
             except Exception as error:
-                raise RuntimeError(f"Error when apply {self.__str__()} op={op} opts={opts}!") from error
+                raise RuntimeError(f"Error when apply {self.__str__()} op={self._op}!") from error
         elif not op:  # constant Expression
             res = args if len(args) != 1 else args[0]
 
