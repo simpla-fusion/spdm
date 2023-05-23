@@ -67,9 +67,9 @@ def smooth(x, window_len=11, window='hanning'):
 
 
 def smooth_1d(y, x, i_begin=0, i_end=None,  **kwargs):
-    dy = Function(y, x).derivative(x)
+    dy = np.asarray(Function(y, x).derivative())
     dy[i_begin:i_end] = smooth(dy[i_begin:i_end], **kwargs)
-    y_new = Function(dy, x).antiderivative(x)+y[0]
+    y_new = np.asarray(Function(dy, x).antiderivative())+y[0]
     return y_new
 
 

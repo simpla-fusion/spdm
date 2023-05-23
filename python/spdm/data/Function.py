@@ -224,7 +224,8 @@ class Function(Expression, typing.Generic[_T]):
         elif hasattr(self.mesh, "interpolator"):
             op = self.mesh.interpolator(value)
         elif isinstance(self._mesh, tuple) and len(self._mesh) > 0:
-            if isinstance(self._mesh[0], (int, float)) or (isinstance(self._mesh[0], np.ndarray) and len(self._mesh[0]) == 1):
+            if isinstance(self._mesh[0], (int, float)) or (isinstance(self._mesh[0], np.ndarray) and len(self._mesh[0]) == 1)\
+                    or isinstance(value, float) or (isinstance(value, np.ndarray) and value.ndim == 0):
                 ppoly = lambda *_, _v=value: _v
                 opts = {}
             elif self.ndim == 1:
@@ -244,7 +245,8 @@ class Function(Expression, typing.Generic[_T]):
                     mark = np.isnan(value)
                     nan_count = np.count_nonzero(mark)
                     if nan_count > 0:
-                        logger.warning(f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
+                        logger.warning(
+                            f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
                         value[mark] = 0.0
 
                 ppoly = RectBivariateSpline(*self._mesh, value)
@@ -292,27 +294,27 @@ class Function(Expression, typing.Generic[_T]):
             return super().__call__(*args,  **kwargs)
 
     def derivative(self, n=1) -> Function:
-        ppoly, _, opts = self._compile()
+        ppoly, opts = self._compile()
 
         if self.ndim == 1 and n == 1:
-            return Function[_T](op=ppoly.derivative(*n),  mesh=self._mesh, cycles=self.cycles,
-                                name=f"d{list(n)}({self.__str__()})", **opts)
+            return Function[_T](None, op=ppoly.derivative(n),  mesh=self._mesh,  # cycles=self.cycles,
+                                name=f"d_{n}({self.__str__()})", **opts)
         elif self.ndim == 2 and n == 1:
             return Function[typing.Tuple[_T, _T]]((ppoly.partial_derivative(1, 0),
                                                   ppoly.partial_derivative(0, 1)),
-                                                  mesh=self.mesh, cycle=self.cycles,
+                                                  mesh=self.mesh,  # cycle=self.cycles,
                                                   name=f"d{list(n)}({self.__str__()})", **opts)
         elif self.ndim == 3 and n == 1:
             return Function[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(1, 0, 0),
                                                        ppoly.partial_derivative(0, 1, 0),
                                                        ppoly.partial_derivative(0, 0, 1)),
-                                                      mesh=self.mesh, cycle=self.cycles,
+                                                      mesh=self.mesh,  # cycle=self.cycles,
                                                       name=f"d{list(n)}({self.__str__()})", **opts)
         elif self.ndim == 2 and n == 2:
             return Function[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(2, 0),
                                                        ppoly.partial_derivative(0, 2),
                                                        ppoly.partial_derivative(1, 1)),
-                                                      mesh=self.mesh, cycle=self.cycles,
+                                                      mesh=self.mesh,  # cycle=self.cycles,
                                                       name=f"d{list(n)}({self.__str__()})", **opts)
         else:
             raise NotImplemented(f"TODO: ndim={self.ndim} n={n}")

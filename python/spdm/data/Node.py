@@ -71,10 +71,10 @@ class Node(object):
         return self._entry
 
     def __value__(self) -> typing.Any:
-        if not isinstance(self._cache, np.ndarray) and not self._cache:
+        if self._cache is _not_found_ or self._cache is None:
             self._cache = self.__entry__().__value__()
-        if not isinstance(self._cache, np.ndarray) and not self._cache:
-            self._cache = None
+            if self._cache is _not_found_ or self._cache is None:
+                self._cache = self._default_value
         return self._cache
 
     def _reset(self):
@@ -111,7 +111,7 @@ class Node(object):
 
         if isinstance(prefix, str) and path.startswith(prefix):
             path = path[len(prefix):]
-            
+
         if isinstance(path, str):
             path = path.split('/')
 

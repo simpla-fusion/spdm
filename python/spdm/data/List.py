@@ -73,6 +73,8 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
             # 如果没有指定 default_value，则使用 self._default_value
             default_value = self._default_value
 
+        n_value = default_value
+        
         if isinstance(key, int):
             if key < 0:
                 key = self._entry.count + key
@@ -93,7 +95,8 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
                     n_value.append(self._as_child(idx, next(value), *args, default_value=default_value, **kwargs))
             else:
                 raise TypeError(f"key must be int or slice, not {type(key)}")
-
+        else:
+            raise RuntimeError(f"Key error ! {key}")
         return n_value
 
     def __iadd__(self, value) -> List:

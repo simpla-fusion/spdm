@@ -72,18 +72,18 @@ class Profile(Function[_T], Node):
             if len(coordinates) > 0 and not parent:
                 if not mesh:
                     raise RuntimeError(f"Can not determint the coordinates from DataTree! {coordinates} {type(parent)}")
-            elif all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
+            elif len(coordinates) > 0 and all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
                 if mesh is not None and mesh is not parent.grid:
                     logger.warning(f"Ignore mesh={mesh}  !")
-                mesh = parent.grid
+                mesh = getattr(parent, "grid", None)
                 dims = ()
             else:
                 dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
                               for c in coordinates.values()])
 
-        Function.__init__(self, value, *dims, mesh = mesh, **(opts if opts is not None else {}))
+        Function.__init__(self, value, *dims, mesh=mesh, **(opts if opts is not None else {}))
 
-        Node.__init__(self, cache,  metadata = metadata, parent = parent, **kwargs)
+        Node.__init__(self, cache,  metadata=metadata, parent=parent, **kwargs)
 
     @ property
     def metadata(self) -> dict: return self._metadata
@@ -99,7 +99,7 @@ class Profile(Function[_T], Node):
 
     def __value__(self) -> ArrayType:
         if self._value is None or self._value is _not_found_:
-            self._value=Node.__value__(self)
+            self._value = Node.__value__(self)
             # if not isinstance(self._value, numeric_types):
             #     logger.debug(self._value)
         return self._value

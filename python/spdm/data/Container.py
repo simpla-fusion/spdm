@@ -90,9 +90,13 @@ class Container(Node, typing.Container):
                   key: typing.Union[int, str, slice, None],
                   value: typing.Any = _not_found_,
                   type_hint: typing.Type = None,
-                  strict=False,
                   default_value=_not_found_,
-                  metadata=None) -> typing.Any:
+                  metadata=None,
+                  strict=False,
+                  raw=False, ) -> typing.Any:
+
+        if raw:
+            strict = False
 
         if type_hint is None:
             type_hint = self._type_hint(key)
@@ -109,13 +113,12 @@ class Container(Node, typing.Container):
             if value is _not_found_:
                 # 如果 value 为 _not_found_, 则从 self.__entry__() 中获取
                 value = self.__entry__().child(key, force=True)
-
-        if inspect.isclass(orig_class) and isinstance(value, orig_class):  # 如果 value 符合 type_hint 则返回之
+        if raw:
+            pass
+        elif inspect.isclass(orig_class) and isinstance(value, orig_class):  # 如果 value 符合 type_hint 则返回之
             if issubclass(orig_class, Node):
                 value._parent = self
                 value._metadata.update(metadata)
-
-            # pass
         elif not inspect.isclass(orig_class):  # 如果 type_hint 未定义，则由value决定类型
             if isinstance(value, Entry):
                 value = value.query(default_value=default_value)
@@ -161,7 +164,7 @@ class Container(Node, typing.Container):
         return value
 
     @staticmethod
-    def _get(obj, path: list, default_value=_not_found_,   **kwargs) -> typing.Any:
+    def _get(obj, path: list, default_value=_not_found_,  **kwargs) -> typing.Any:
 
         for idx, query in enumerate(path[:]):
             if not isinstance(obj, Container):
