@@ -47,8 +47,8 @@ class GeoObject(Pluggable):
 
         self._metadata = kwargs
         self._points = np.stack(args) if len(args) != 1 else args[0]
-        self._rank = int(rank) if rank is not None else self._points.shape[-1]
-        self._ndim = ndim if ndim is not None else len(self._points.shape)-1
+        self._rank = int(rank) if rank is not None else len(self._points.shape)-1
+        self._ndim = ndim if ndim is not None else self._points.shape[-1]
 
         coordinates = kwargs.get("coordinates", None)
         if coordinates is not None:
@@ -64,8 +64,9 @@ class GeoObject(Pluggable):
     def __getitem__(self, *args) -> ArrayType | float: return self._points[args]
 
     @property
-    def points(self) -> ArrayType: return self._points
-    """ 几何体的点坐标，shape=[npoints,ndim] """
+    def points(self) -> typing.List[ArrayType]:
+        """ 几何体的点坐标，shape=[npoints,ndim] """
+        return ([self._points[..., idx] for idx in range(self.ndim)])
 
     def __array__(self) -> ArrayType: return self._points
     """ 几何体的点坐标，shape=[npoints,ndim] """
@@ -223,7 +224,6 @@ class GeoObject(Pluggable):
 class Box(GeoObject):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._ndim = self._rank
 
     @property
     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]: return self._points[0], self._points[1]

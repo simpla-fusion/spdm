@@ -3,7 +3,7 @@ import typing
 from functools import cached_property
 
 import numpy as np
-
+from ..utils.logger import logger
 from ..utils.typing import ArrayLike, ArrayType, NumericType, nTupleType
 from .GeoObject import GeoObject
 
@@ -24,8 +24,7 @@ class Curve(GeoObject):
 
     @cached_property
     def dl(self) -> ArrayType:
-        x = self.points[..., 0]
-        y = self.points[..., 1]
+        x, y = self.points
         a, b = self.derivative()
 
         # a = a[:-1]
@@ -46,9 +45,7 @@ class Curve(GeoObject):
     def measure(self) -> float: return np.sum(self.dl)
 
     def integral(self, func: typing.Callable) -> float:
-        x = self.points[..., 0]
-        y = self.points[..., 1]
-    
+        x, y = self.points
         val = func(x, y)
 
         # c_pts = self.points((self._mesh[0][1:] + self._mesh[0][:-1])*0.5)

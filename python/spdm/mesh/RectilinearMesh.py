@@ -37,7 +37,7 @@ class RectilinearMesh(StructuredMesh):
     def __init__(self, *dims: ArrayType, geometry=None, **kwargs) -> None:
 
         if geometry is None:
-            geometry = Box([min(d) for d in dims], [max(d) for d in dims])
+            geometry = Box([min(d) for d in dims], [max(d) for d in dims],ndim=len(dims),rank=len(dims))
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
         self._dims = dims
         self._aixs = [Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
@@ -96,9 +96,9 @@ class RectilinearMesh(StructuredMesh):
         if np.any(tuple(value.shape) != tuple(self.shape)):
             raise ValueError(f"{value} {self.shape}")
 
-        if self.geometry.ndim == 1:
+        if self.geometry.rank == 1:
             return InterpolatedUnivariateSpline(*self._dims, value,  **kwargs),  {}
-        elif self.geometry.ndim == 2:
+        elif self.geometry.rank == 2:
             return RectBivariateSpline(*self._dims,  value,  **kwargs),  {"grid": False}
         else:
             raise NotImplementedError(f"NDIMS={self.geometry.ndim}")

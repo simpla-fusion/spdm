@@ -8,7 +8,7 @@ from scipy import constants
 from scipy.interpolate import CubicSpline, PPoly
 
 from ..utils.logger import logger
-from ..utils.typing import ArrayType
+from ..utils.typing import ArrayType, nTupleType
 from .Curve import Curve
 
 TWOPI = 2.0*constants.pi
@@ -39,3 +39,9 @@ class CubicSplineCurve(Curve):
             args = [self._uv]
         res = self._derivative(*args, **kwargs)
         return res[:, 0], res[:, 1]
+
+    @cached_property
+    def bbox(self) -> typing.Tuple[nTupleType, nTupleType]:
+        """ bbox of geometry """
+        xy = self._points
+        return ((np.min(xy[..., 0]), np.min(xy[..., 1])), (np.max(xy[..., 0]), np.max(xy[..., 1])))

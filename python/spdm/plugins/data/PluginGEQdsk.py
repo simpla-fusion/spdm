@@ -236,17 +236,32 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
 
 
 def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Entry:
-    """Converts a GEQDSK file to an IMAS equilibrium entry.
+    """ Converts a GEQDSK file to an IMAS equilibrium entry.
+        @TODO: 
+            - convert to COCOS 11 !!!
     """
     geqdsk = as_entry(geqdsk)
 
     if eq is None:
         eq = Entry({"time_slice": [{}]})
 
-    # eq.time = 0.0
-    eq["vacuum_toroidal_field/r0"] = geqdsk["rcentr"].__value__()
-    eq["vacuum_toroidal_field/b0"] = [geqdsk["bcentr"].__value__()]
+    r0 = geqdsk["rcentr"].__value__()
+    b0 = geqdsk["bcentr"].__value__()
+    Ip = geqdsk["current"].__value__()
+    psi_axis = geqdsk["simag"].__value__()
+    psi_boundary = geqdsk["sibry"].__value__()
+    q = geqdsk["qpsi"].__value__()
+
+    s_Bp = np.sign(b0)
+    s_Ip = np.sign(Ip)
+    s_rtp = np.mean(np.sign(q))/(s_Bp*s_Ip)
+    assert np.sign(psi_boundary-psi_axis) == s_Ip
+
+    e_Bp_TWOPI = 1.0
+
     eq["time"] = [0.0]
+    eq["vacuum_toroidal_field/r0"] = r0
+    eq["vacuum_toroidal_field/b0"] = [b0]
 
     # rleft = 0.0
 
@@ -270,9 +285,9 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     eq["time_slice"][-1] = {
         "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__(),
                                                 "z": geqdsk["zmaxis"].__value__()},
-                              "psi_axis": geqdsk["simag"].__value__(),
-                              "psi_boundary": geqdsk["sibry"].__value__(),
-                              "ip": geqdsk["current"].__value__()
+                              "psi_axis": psi_axis,
+                              "psi_boundary": psi_boundary,
+                              "ip": Ip
                               },
         # boundary
         "boundary": {"outline": {"r": geqdsk["bbsrz"][:, 0].__value__(),
@@ -285,10 +300,11 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
             "pressure": geqdsk["pres"].__value__(),
             "dpressure_dpsi": geqdsk["pprim"].__value__(),
             "q": geqdsk["qpsi"].__value__(),
-            "psi": np.linspace(geqdsk["simag"].__value__(), geqdsk["sibry"].__value__(), nw),
+            "psi": np.linspace(psi_axis, psi_boundary, nw),
         },
         "profiles_2d": [
             {
+                "type": "total",  # total field
                 "grid_type": {"name": "rectangular", "index": 1},
                 "grid": {"dim1": np.linspace(rmin, rmax, nw),
                          "dim2": np.linspace(zmin, zmax, nh)},

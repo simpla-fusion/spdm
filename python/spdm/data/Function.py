@@ -201,7 +201,7 @@ class Function(Expression, typing.Generic[_T]):
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def _compile(self, in_place=True):
+    def _compile(self, in_place=True, check_nan=True):
         """ create op if not exists
             if in_place then update self._op  else do not change current object
            TODO:
@@ -228,9 +228,25 @@ class Function(Expression, typing.Generic[_T]):
                 ppoly = lambda *_, _v=value: _v
                 opts = {}
             elif self.ndim == 1:
-                ppoly = InterpolatedUnivariateSpline(*self.points, value)
+                x, *_ = self.points
+                if check_nan:
+                    mark = np.isnan(value)
+                    nan_count = np.count_nonzero(mark)
+                    if nan_count > 0:
+                        logger.warning(
+                            f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                        value = value[~mark]
+                        x = x[~mark]
+                ppoly = InterpolatedUnivariateSpline(x, value)
                 opts = {}
             elif self.ndim == 2 and all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._mesh):
+                if check_nan:
+                    mark = np.isnan(value)
+                    nan_count = np.count_nonzero(mark)
+                    if nan_count > 0:
+                        logger.warning(f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
+                        value[mark] = 0.0
+
                 ppoly = RectBivariateSpline(*self._mesh, value)
                 opts = {"grid": False}
             else:
@@ -312,7 +328,7 @@ class Function(Expression, typing.Generic[_T]):
 
     def antiderivative(self, *n) -> Function[_T]:
         ppoly, opts = self._compile()
-        return Function[_T](ppoly.antiderivative(*n),  mesh=self._mesh,  cycles=self.cycles,
+        return Function[_T](ppoly.antiderivative(*n),  mesh=self._mesh,  # cycles=self.cycles,
                             name=f"antiderivative{list(n) if len(n)>0 else ''}({self.__str__()})", **opts)
 
     def dln(self) -> Function[_T]: return self.derivative() / self

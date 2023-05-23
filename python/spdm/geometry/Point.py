@@ -23,3 +23,6 @@ class Point(GeoObject):
     @property
     def measure(self) -> float:
         return 0
+
+    def coordinates(self, *uvw) -> NumericType:
+        return self._points
