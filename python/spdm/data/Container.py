@@ -42,9 +42,7 @@ class Container(Node, typing.Container):
 
     def __setitem__(self, path, value) -> None:
         # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
-
         path = Path(path)
-
         if len(path) == 1:
             if not isinstance(self._cache, (collections.abc.MutableMapping, collections.abc.MutableSequence)):
                 raise TypeError(
@@ -57,17 +55,13 @@ class Container(Node, typing.Container):
             else:
                 as_entry(parent).insert(path[-1], value)
 
-    def __getitem__(self, path) -> typing.Any:
-        return Container._get(self, Path(path), default_value=_not_found_)
+    def __getitem__(self, path) -> typing.Any: return Container._get(self, Path(path), default_value=_not_found_)
 
-    def __delitem__(self, key) -> bool:
-        return self.__entry__().child(key).remove() > 0
+    def __delitem__(self, key) -> bool: return self.__entry__().child(key).remove() > 0
 
-    def __contains__(self, key) -> bool:
-        return self.__entry__().child(key).exists
+    def __contains__(self, key) -> bool: return self.__entry__().child(key).exists
 
-    def __len__(self) -> int:
-        return self.__entry__().count
+    def __len__(self) -> int: return self.__entry__().count
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         if self._cache is None:
@@ -79,8 +73,7 @@ class Container(Node, typing.Container):
         else:
             raise TypeError(f"{self.__class__.__name__} is not Iterable")
 
-    def __eq__(self, other) -> bool:
-        return self.__entry__().equal(other)
+    def __eq__(self, other) -> bool: return self.__entry__().equal(other)
 
     def _type_hint(self, *args) -> typing.Type:
         type_hint = typing.get_args(getattr(self, "__orig_class__", None))
@@ -158,9 +151,7 @@ class Container(Node, typing.Container):
         else:
             if self._cache is None:
                 self._cache = {}
-
             self._cache[key] = value
-
         return value
 
     @staticmethod

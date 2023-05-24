@@ -11,7 +11,7 @@ from enum import Enum
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, NumericType, numeric_types
+from ..utils.typing import ArrayType, NumericType, numeric_type, scalar_type, array_type
 from .Expression import Expression
 
 import collections.abc
@@ -58,7 +58,7 @@ class Function(Expression, typing.Generic[_T]):
 
         if mesh is None or mesh is _not_found_:
             self._mesh = dims
-        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, np.ndarray) for d in mesh):
+        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
             self._mesh = mesh
             if len(dims) > 0:
                 raise RuntimeError(f"Function.__init__: mesh is  ignored! {dims} {mesh}")
@@ -98,7 +98,7 @@ class Function(Expression, typing.Generic[_T]):
         if value is None:
             raise RuntimeError(f" value is None! {self.__str__()}")
 
-        if isinstance(value, np.ndarray):
+        if isinstance(value, array_type):
             v_shape = tuple(value.shape)
 
         if (v_shape == m_shape) or (v_shape[:-1] == m_shape):
@@ -141,12 +141,12 @@ class Function(Expression, typing.Generic[_T]):
     @property
     def rank(self) -> int:
         """ 函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定 """
-        if isinstance(self.__value__(), np.ndarray):
-            return self.__value__().shape[-1]
-        elif isinstance(self.__value__(), tuple):
-            return len(self.__value__())
+        if isinstance(self._value, array_type):
+            return self._value.shape[-1]
+        elif isinstance(self._value, tuple):
+            return len(self._value)
         else:
-            logger.warning(f"Function.rank is not defined!  {type(self.__value__())} default=1")
+            logger.warning(f"Function.rank is not defined!  {type(self._value)} default=1")
             return 1
 
     @property
@@ -163,7 +163,7 @@ class Function(Expression, typing.Generic[_T]):
     def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self._mesh)
 
     @property
-    def cycles(self) -> typing.Tuple[float]: return self.metadata.get("cycles", [])
+    def cycles(self) -> typing.Tuple[float]: return self._cycles
 
     @cached_property
     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
@@ -186,22 +186,125 @@ class Function(Expression, typing.Generic[_T]):
 
     def __array__(self) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 np.ndarray 或标量类型 则返回函数执行的结果
+                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        res = self.__value__()
-        if not isinstance(res, numeric_types):
-            res = self.__call__()
+        res = self._value
 
-        if not isinstance(res, np.ndarray):
+        if res is None or res is _not_found_:
+            res = self.__value__()
+
+        if not isinstance(res, numeric_type):
+            res = self.__call__(*self.points)
+
+        if not isinstance(res, array_type):
             res = np.asarray(res, dtype=self.__type_hint__)
 
         return res
+
+    @property
+    def __mesh__(self): return self._mesh
 
     def __getitem__(self, *args) -> NumericType: return self.__array__().__getitem__(*args)
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def _compile(self, in_place=True, check_nan=True):
+    def compile(self, check_nan=True, force=False) -> Function:
+        """ 对函数进行编译，获得较快速的 op
+
+            NOTE：
+                - 由 points，value  生成插值函数，并赋值给 self._op。 插值函数相对原始表达式的优势是速度快，缺点是精度低。
+                - 当函数为expression时，调用 value = self.__call__(*points) 。
+            TODO:
+                - 支持 JIT 编译
+
+
+        """
+        if self._op is not None and not force:
+            logger.warning(f"Function.compile() is ignored! {self.__str__()} {self._op}")
+            return self
+
+        value = self.__value__() if self._value is None else self._value
+
+        if isinstance(value, array_type) and len(value.shape) == 0:
+            value = value.item()
+
+        if isinstance(value, scalar_type):  # 如果value是标量，则直接使用标量
+            self._op = value
+            return self
+
+        if callable(value):  # 如果value是函数，则直接使用函数
+            self._op = value
+            return self
+
+        if isinstance(value, np.ndarray) and hasattr(self.__mesh__, "interpolator"):  # 如果value是数组，且mesh有插值函数，则直接使用插值函数
+            self._op = self.__mesh__.interpolator(value)
+            return self
+
+        #  获得坐标点points，用于构建插值函数
+
+        points = getattr(self, "points", None)
+
+        if points is None:  # for Field
+            points = getattr(self.__mesh__, "points")
+
+        if points is not None:
+            pass
+        elif isinstance(self.__mesh__, tuple) and all(isinstance(d, array_type) for d in self.__mesh__):  # rectlinear mesh for Function
+            points = np.meshgrid(*self.__mesh__)
+        else:
+            raise RuntimeError(f"Can not reslove mesh {type(self.__mesh__)}!")
+
+        if all((d.shape if isinstance(d, array_type) else None) for d in points):  # 检查 points 的维度是否一致
+            m_shape = points[0].shape
+        else:
+            raise RuntimeError(f"Function.compile() incorrect points  shape  {self.__str__()} {points}")
+
+        if value is None or value is _not_found_ and self._op is not None:  # 如果value是None或者_not_found_，且self._op不为空，则调用函数__call__
+            value = super().__call__(*points)
+
+            if isinstance(value, array_type) and len(value.shape) == 0:
+                value = value.item()
+
+            if isinstance(value, scalar_type):  # 如果value是标量，则直接使用标量
+                self._op = value
+                return self
+            else:
+                self._value = value
+
+        if not isinstance(value, array_type):
+            raise RuntimeError(f"Function.compile() incorrect value type {self.__str__()} {value}")
+        elif tuple(value.shape) != tuple(m_shape):
+            raise RuntimeError(f"Function.compile() incorrect value shape {self.__str__()} {value.shape}!={m_shape}")
+
+        if len(m_shape) == 1:
+            x = points[0]
+            if check_nan:
+                mark = np.isnan(value)
+                nan_count = np.count_nonzero(mark)
+                if nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                    value = value[~mark]
+                    x = x[~mark]
+            self._op = InterpolatedUnivariateSpline(x, value)
+
+        elif self.ndim == 2 and all(isinstance((d, array_type) and d.ndim == 1) for d in self._mesh):
+            if check_nan:
+                mark = np.isnan(value)
+                nan_count = np.count_nonzero(mark)
+                if nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
+                    value[mark] = 0.0
+
+            self._op = RectBivariateSpline(*self._mesh, value), {"grid": False}
+        else:
+            raise NotImplementedError(
+                f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
+
+        return self
+
+    def _fetch_op(self, in_place=True, check_nan=True):
         """ create op if not exists
             if in_place then update self._op  else do not change current object
            TODO:
@@ -211,87 +314,30 @@ class Function(Expression, typing.Generic[_T]):
             - 支持多维求导，自动微分 auto diff
             -
         """
-        if self.is_epxression:
-            value = self.__call__(*self.points)
-        elif self._op is None:
-            value = self.__value__()
-        else:
-            return self._op
+        op = super()._fetch_op()
 
-        if value is None:
-            raise RuntimeError(
-                f"Function._eval(): self._op is None and self._value is None! {self.__str__()} {self._op} {self._value}")
-        elif hasattr(self.mesh, "interpolator"):
-            op = self.mesh.interpolator(value)
-        elif isinstance(self._mesh, tuple) and len(self._mesh) > 0:
-            if isinstance(self._mesh[0], (int, float)) or (isinstance(self._mesh[0], np.ndarray) and len(self._mesh[0]) == 1)\
-                    or isinstance(value, float) or (isinstance(value, np.ndarray) and value.ndim == 0):
-                ppoly = lambda *_, _v=value: _v
-                opts = {}
-            elif self.ndim == 1:
-                x, *_ = self.points
-                if check_nan:
-                    mark = np.isnan(value)
-                    nan_count = np.count_nonzero(mark)
-                    if nan_count > 0:
-                        logger.warning(
-                            f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
-                        value = value[~mark]
-                        x = x[~mark]
-                ppoly = InterpolatedUnivariateSpline(x, value)
-                opts = {}
-            elif self.ndim == 2 and all(isinstance((d, np.ndarray) and d.ndim == 1) for d in self._mesh):
-                if check_nan:
-                    mark = np.isnan(value)
-                    nan_count = np.count_nonzero(mark)
-                    if nan_count > 0:
-                        logger.warning(
-                            f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
-                        value[mark] = 0.0
+        if op is None:
+            self.compile()
 
-                ppoly = RectBivariateSpline(*self._mesh, value)
-                opts = {"grid": False}
-            else:
-                raise NotImplementedError(
-                    f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
+        return super()._fetch_op()
 
-            op = ppoly, opts
-        else:
-            raise RuntimeError(f"Can not create op from {self._mesh}")
-
-        if in_place or self._op is None:
-            self._op = op
-            self._expr_nodes = ()
-
-        return op
-
-    def compile(self) -> Function:
-        """ 编译函数，返回一个新的(加速的)函数对象 """
-        return self.__class__(op=self._compile(in_place=False), mesh=self.mesh, cycles=self._cycles, name=f"[{self.__str__()}]")
-
-    def __call__(self, *args, **kwargs) -> _T | ArrayType:
-        """  重载函数调用运算符
-
-            Parameters
-            ----------
-            args : typing.Any
-                位置参数, 
-            kwargs : typing.Any
-
-        """
-        if len(args) == 0:
-            args = self.points
-
-        if self.is_epxression:
-            return super().__call__(*args,  **kwargs)
-
-        _, opts = self._compile()
-
-        if all([isinstance(a, np.ndarray) for a in args]) and not opts.get("grid", True):
-            shape = args[0].shape
-            return super().__call__(*[a.ravel() for a in args],  **kwargs).reshape(shape)
-        else:
-            return super().__call__(*args,  **kwargs)
+    # def __call__(self, *args, **kwargs) -> _T | ArrayType:
+    #     """  重载函数调用运算符
+    #         Parameters
+    #         ----------
+    #         args : typing.Any
+    #             位置参数,
+    #         kwargs : typing.Any
+    #     """
+    #     if len(args) == 0:
+    #         args = self.points
+    #     if self.is_epxression:
+    #         return super().__call__(*args,  **kwargs)
+    #     if all([isinstance(a, array_type) for a in args]) and not opts.get("grid", True):
+    #         shape = args[0].shape
+    #         return super().__call__(*[a.ravel() for a in args],  **kwargs).reshape(shape)
+    #     else:
+    #         return super().__call__(*args,  **kwargs)
 
     def derivative(self, n=1) -> Function:
         ppoly, opts = self._compile()
@@ -360,10 +406,18 @@ class Piecewise(Expression, typing.Generic[_T]):
     def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
         super().__init__(op=(func, cond), **kwargs)
 
+    @property
+    def rank(self): return 1
+
+    @property
+    def ndim(self): return 1
+
+    def _compile(self): return self, {}
+
     def _apply(self, func, x, *args, **kwargs):
-        if isinstance(x, np.ndarray) and isinstance(func, numeric_types):
+        if isinstance(x, array_type) and isinstance(func, numeric_type):
             value = np.full(x.shape, func)
-        elif isinstance(x, numeric_types) and isinstance(func, numeric_types):
+        elif isinstance(x, numeric_type) and isinstance(func, numeric_type):
             value = func
         elif callable(func):
             value = func(x)
@@ -381,7 +435,7 @@ class Piecewise(Expression, typing.Generic[_T]):
             elif len(res) > 1:
                 raise RuntimeError(f"Fit multiply condition! {x}")
             return res[0]
-        elif isinstance(x, np.ndarray):
+        elif isinstance(x, array_type):
             res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._op)])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")

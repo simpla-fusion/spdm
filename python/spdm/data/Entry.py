@@ -298,7 +298,8 @@ class EntryCombine(Entry):
 
         if res is _not_found_:
             vals = [(v.query(**kwargs) if isinstance(v, Entry) else v)
-                    for v in self._data_list.child(self._path[:]).find()]
+                    for v in self._data_list.child(self._path[:]).find()]            
+
             res = self._reduce(vals)
 
         if res is _not_found_:
@@ -316,7 +317,6 @@ class EntryCombine(Entry):
         yield from self._data_list.child(self._path[:]).find()
 
     def insert(self, *args, **kwargs):
-
         raise NotImplementedError("EntryCombine does not support insert operation!")
 
     def update(self, *args, **kwargs) -> int:

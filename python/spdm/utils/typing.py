@@ -9,14 +9,25 @@ PrimaryType = int | float | bool | complex | str | bytes
 
 ArrayLike = np_tp.ArrayLike
 
-
 ScalarType = float | complex | np.float64 | np.complex64 | np.complex128
 
 ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
 
 NumericType = ScalarType | ArrayType
 
-numeric_types = (bool, int, float, complex, np.floating, np.integer, np.complexfloating, np.ndarray)
+boolean_type = (bool,)
+
+integral_type = (int, np.integer,)
+
+real_type = (float, np.floating,)
+
+complex_type = (complex, np.complexfloating,)
+
+scalar_type = (*boolean_type, *integral_type, *real_type, *complex_type,)
+
+array_type = np.ndarray
+
+numeric_type = (*scalar_type, array_type)
 
 
 @dataclass

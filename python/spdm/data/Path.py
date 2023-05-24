@@ -414,6 +414,14 @@ class Path(list):
             elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
                 for item in target[path[pos]]:
                     yield from self._find(item, path[pos+1:],  *args, **kwargs)
+            elif isinstance(target, (collections.abc.Mapping)):
+                target_ = {k: v for k, v in target.items() if k is not None}
+                start = path[pos].start if path[pos].start is not None else 0
+                stop = path[pos].stop if path[pos].start is not None else len(target_)
+                step = path[pos].step if path[pos].step is not None else 1
+
+                for k in range(start, stop, step):
+                    yield from self._find(target_[k], path[pos+1:],  *args, **kwargs)
             # elif "default_value" in kwargs:
             #     yield kwargs["default_value"]
             else:

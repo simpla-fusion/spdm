@@ -29,43 +29,36 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
     def _is_list(self) -> bool:
         return True
 
-    def __serialize__(self) -> list:
-        return [serialize(v) for v in self._entry.first_child()]
+    def __serialize__(self) -> list: return [serialize(v) for v in self._entry.first_child()]
 
-    def __len__(self) -> int:
-        return self._entry.count
+    def __len__(self) -> int: return self._entry.count
 
-    # def __setitem__(self, key: int, value: typing.Any):
-    #     return self._entry.child(key).insert(value)
+    # def __setitem__(self, key: int, value: typing.Any):   return self._entry.child(key).insert(value)
 
-    # def __delitem__(self,  key):
-    #     return self._entry.child(key).remove()
+    # def __delitem__(self,  key):    return self._entry.child(key).remove()
 
     def __getitem__(self, path) -> _TObject:
-        return super().__getitem__(path)
+        if isinstance(path, (int, slice)):
+            return self._as_child(path)
+        else:
+            return super().__getitem__(path)
 
     def __iter__(self) -> typing.Generator[_TObject, None, None]:
         for idx, v in enumerate(self._entry.child(slice(None)).find()):
             yield self._as_child(idx, v)
 
     def flash(self):
-
         for idx, item in enumerate(self._entry.child(slice(None)).find()):
-
             self._as_child(idx, item)
-
         return self
 
     def combine(self, selector=None,   **kwargs) -> _TObject:
         self.flash()
 
         if selector == None:
-
-            return self._as_child(None, as_entry(self._cache).combine(**kwargs))
-
+            return self._as_child(None, as_entry(self._cache).combine(), **kwargs)
         else:
-
-            return self._as_child(None, as_entry(self._cache).child(selector).combine(**kwargs))
+            return self._as_child(None, as_entry(self._cache).child(selector).combine(), **kwargs)
 
     def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _TObject:
 
@@ -73,14 +66,8 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
             # 如果没有指定 default_value，则使用 self._default_value
             default_value = self._default_value
 
-        n_value = default_value
-        
-        if isinstance(key, int):
-            if key < 0:
-                key = self._entry.count + key
+        if key is None or isinstance(key, int):
             n_value = super()._as_child(key, value, *args, default_value=default_value,  **kwargs)
-            if isinstance(n_value, Node) and n_value._parent is self:
-                n_value._parent = self._parent
         elif isinstance(key, slice):
             if key.start is None or key.stop is None or key.step is None:
                 raise ValueError(f"slice must be a complete slice {key}")
@@ -97,6 +84,10 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
                 raise TypeError(f"key must be int or slice, not {type(key)}")
         else:
             raise RuntimeError(f"Key error ! {key}")
+
+        if isinstance(n_value, Node) and n_value._parent is self:
+            n_value._parent = self._parent
+
         return n_value
 
     def __iadd__(self, value) -> List:
@@ -110,8 +101,7 @@ class List(Container[_TObject], typing.Sequence[_TObject]):
     def update(self, d, predication=_undefined_, **kwargs) -> int:
         return self._entry.child(predication).update(d, **kwargs)
 
-    def sort(self) -> None:
-        self._entry.update(Path.tags.sort)
+    def sort(self) -> None:    self._entry.update(Path.tags.sort)
 
     def find(self, predication, **kwargs) -> typing.Generator[typing.Any, None, None]:
         yield from self._entry.child(predication).find(**kwargs)

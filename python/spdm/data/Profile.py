@@ -12,7 +12,7 @@ from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, NumericType, numeric_types
+from ..utils.typing import ArrayType, NumericType, numeric_type
 from .Container import Container
 from .Expression import Expression
 from .Function import Function
@@ -47,10 +47,10 @@ class Profile(Function[_T], Node):
 
         """
         if hasattr(value.__class__, "__entry__"):
-            cache = value
+            entry = value
             value = None
         else:
-            cache = None
+            entry = None
 
         if metadata is None:
             metadata = {}
@@ -69,7 +69,7 @@ class Profile(Function[_T], Node):
 
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) > 0 and not parent:
+            if len(coordinates) > 0 and (parent is None or parent is _not_found_):
                 if not mesh:
                     raise RuntimeError(f"Can not determint the coordinates from DataTree! {coordinates} {type(parent)}")
             elif len(coordinates) > 0 and all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
@@ -83,23 +83,30 @@ class Profile(Function[_T], Node):
 
         Function.__init__(self, value, *dims, mesh=mesh, **(opts if opts is not None else {}))
 
-        Node.__init__(self, cache,  metadata=metadata, parent=parent, **kwargs)
+        Node.__init__(self, entry,  metadata=metadata, parent=parent, **kwargs)
 
-    @ property
+    @property
     def metadata(self) -> dict: return self._metadata
 
-    @ property
+    @property
     def name(self) -> str: return self._metadata.get("name", "unnamed")
 
-    @ property
+    @property
     def coordinates(self) -> typing.List[ArrayType]: return self.points
 
-    @ property
+    @property
     def data(self) -> ArrayType: return self.__array__()
 
     def __value__(self) -> ArrayType:
-        if self._value is None or self._value is _not_found_:
-            self._value = Node.__value__(self)
-            # if not isinstance(self._value, numeric_types):
-            #     logger.debug(self._value)
+        res = self._value
+        if res is None or res is _not_found_:
+            res = Node.__value__(self)
+            if isinstance(res, numeric_type):
+                self._value = res
+            elif callable(res):
+                if self._op is not None:
+                    self._value = res(*self.points)
+                else:
+                    self._op = res
+
         return self._value
