@@ -114,7 +114,7 @@ class Profile(Function[_T], Node):
             value = v
             op = None
             Function.__init__(self, v, *self.dims, mesh=self.mesh)
-        if self._value is None and self._op is None and len(self._expr_nodes) == 0:
+        if self._value is None and self._op is None and len(self._children) == 0:
             pass
 
     def __value__(self) -> ArrayType:

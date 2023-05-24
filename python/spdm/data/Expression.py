@@ -92,16 +92,16 @@ class Expression(object):
         super().__init__()
 
         if op is None and len(args) == 1:
-            if getattr(args[0], "is_epxression", False):
+            if getattr(args[0], "has_children", False):
                 # copy constructor
                 op = args[0]._op
-                args = args[0]._expr_nodes
+                args = args[0]._children
             elif callable(args[0]):
                 op = (args[0], kwargs)
                 args = ()
                 kwargs = {}
 
-        self._expr_nodes = args
+        self._children = args
 
         self._op = op
 
@@ -117,7 +117,7 @@ class Expression(object):
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
         other: Expression = object.__new__(self.__class__)
-        other._expr_nodes = self._expr_nodes
+        other._children = self._children
         other._op = self._op
         return other
 
@@ -141,29 +141,17 @@ class Expression(object):
         self, *args, **kwargs) -> ArrayType: raise NotImplementedError(f"__array__({args},{kwargs}) is not implemented!")
 
     @property
-    def is_epxression(self) -> bool: return len(self._expr_nodes) > 0
-    """ 判断是否是表达式，如果 操作数self._expr_nodes 个数大于零 ，返回 True，否则返回 False """
+    def has_children(self) -> bool: return len(self._children) > 0
+    """ 判断是否有子节点"""
 
     @property
-    def is_empty(self) -> bool: return len(self._expr_nodes) == 0 and self._op is None
+    def is_null(self) -> bool: return not self.has_children and self._op is None
 
     @property
-    def is_function(self) -> bool:
-        def _is_function(obj):
-            return isinstance(obj, Expression) and (hasattr(self, 'dims') or any([_is_function(o) for o in obj._expr_nodes]))
-        return _is_function(self)
-
-    @property
-    def is_field(self) -> bool:
-        def _is_field(obj):
-            return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._expr_nodes]))
-        return _is_field(self)
-
-    @property
-    def callable(self): return self._op is not None or len(self._expr_nodes) > 0
+    def callable(self): return self._op is not None
 
     # @property
-    # def is_function(self) -> bool: return not self.is_epxression and self._op is not None
+    # def is_function(self) -> bool: return not self.has_children and self._op is not None
 
     @property
     def op_name(self) -> str:
@@ -197,10 +185,10 @@ class Expression(object):
                 return f"<{v.shape}>"
             else:
                 return str(v)
-        if _name is not None and len(self._expr_nodes) == 2:
-            return f"{_ast(self._expr_nodes[0])} {_name} {_ast(self._expr_nodes[1])}"
+        if _name is not None and len(self._children) == 2:
+            return f"{_ast(self._children[0])} {_name} {_ast(self._children[1])}"
         else:
-            return f"{op_name}({', '.join([_ast(arg) for arg in self._expr_nodes])})"
+            return f"{op_name}({', '.join([_ast(arg) for arg in self._children])})"
 
     @cached_property
     def __type_hint__(self):
@@ -209,8 +197,8 @@ class Expression(object):
         def get_type(obj):
             if not isinstance(obj, Expression):
                 return set([None])
-            elif len(obj._expr_nodes) > 0:
-                return set([t for o in obj._expr_nodes for t in get_type(o) if hasattr(t, "mesh")])
+            elif len(obj._children) > 0:
+                return set([t for o in obj._children for t in get_type(o) if hasattr(t, "mesh")])
             else:
                 return set([obj.__class__])
         tp = list(get_type(self))
@@ -227,8 +215,8 @@ class Expression(object):
         def get_mesh(obj):
             if not isinstance(obj, Expression):
                 return [None]
-            elif len(obj._expr_nodes) > 0:
-                return [d for o in obj._expr_nodes for d in get_mesh(o) if d is not None]
+            elif len(obj._children) > 0:
+                return [d for o in obj._children for d in get_mesh(o) if d is not None]
             else:
                 return [getattr(obj, "mesh", None)]
         new_list = []
@@ -243,10 +231,10 @@ class Expression(object):
         return new_list[0]
 
     def _apply_nodes(self, *args, **kwargs) -> typing.List[typing.Any]:
-        if len(self._expr_nodes) == 0:
+        if len(self._children) == 0:
             return args, kwargs
         expr_nodes = []
-        for node in self._expr_nodes:
+        for node in self._children:
             if hasattr(node, "__entry__"):
                 node = node.__entry__().__value__()
 
@@ -292,7 +280,7 @@ class Expression(object):
                     kwargs.update(opts)
 
             if not callable(op):
-                raise TypeError(f"Unknown op={op} expr={self._expr_nodes}!")
+                raise TypeError(f"Unknown op={op} expr={self._children}!")
 
             try:
                 res = op(*args, **kwargs)
@@ -301,7 +289,7 @@ class Expression(object):
                     f"Error when apply {self.__str__()} op={op} args={args} kwargs={kwargs}!") from error
 
         if res is _undefined_:
-            raise RuntimeError(f"Unknown op={op} expr={self._expr_nodes}!")
+            raise RuntimeError(f"Unknown op={op} expr={self._children}!")
 
         return res
 

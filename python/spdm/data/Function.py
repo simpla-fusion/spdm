@@ -195,7 +195,6 @@ class Function(Expression, typing.Generic[_T]):
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-
         res = self.__value__()
 
         if res is None or res is _not_found_:
@@ -233,7 +232,7 @@ class Function(Expression, typing.Generic[_T]):
             logger.warning(f"Function.compile() is ignored! {self.__str__()} {self._ppoly}")
             return self
 
-        if self._value is None and self.is_epxression:
+        if self._value is None and self.has_children:
             self._value = self.__call__()
 
         value = self.__value__() if self._value is None else self._value
