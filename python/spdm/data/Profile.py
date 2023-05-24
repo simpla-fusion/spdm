@@ -8,6 +8,8 @@ from functools import cached_property
 
 import numpy as np
 
+from spdm.utils.typing import ArrayType
+
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
@@ -55,6 +57,30 @@ class Profile(Function[_T], Node):
         if metadata is None:
             metadata = {}
 
+        opts, kwargs = group_dict_by_prefix(kwargs, "op_")
+
+        Function.__init__(self, value, *dims, mesh=mesh, **opts)
+
+        Node.__init__(self, entry,  metadata=metadata, parent=parent, **kwargs)
+
+    @property
+    def metadata(self) -> dict: return self._metadata
+
+    @property
+    def name(self) -> str: return self._metadata.get("name", "unnamed")
+
+    @property
+    def coordinates(self) -> typing.List[ArrayType]: return self.points
+
+    @property
+    def data(self) -> ArrayType: return self.__array__()
+
+    def _refresh(self) -> None:
+        if not self.is_empty:
+            return
+
+        parent = self._parent
+        metadata = self._metadata
         if len(dims) > 0:
             if "coordinate1" in metadata:
                 logger.warning(f"Ignore coordinate*={metadata['coordinate1']} dims={dims}!")
@@ -80,34 +106,21 @@ class Profile(Function[_T], Node):
             else:
                 dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
                               for c in coordinates.values()])
-
-        opts, kwargs = group_dict_by_prefix(kwargs, "op_")
-
-        Function.__init__(self, value, *dims, mesh=mesh, **opts)
-
-        Node.__init__(self, entry,  metadata=metadata, parent=parent, **kwargs)
-
-    @property
-    def metadata(self) -> dict: return self._metadata
-
-    @property
-    def name(self) -> str: return self._metadata.get("name", "unnamed")
-
-    @property
-    def coordinates(self) -> typing.List[ArrayType]: return self.points
-
-    @property
-    def data(self) -> ArrayType: return self.__array__()
+        v = Node.__value__(self)
+        if callable(v):
+            op = v
+            value = None
+        else:
+            value = v
+            op = None
+            Function.__init__(self, v, *self.dims, mesh=self.mesh)
+        if self._value is None and self._op is None and len(self._expr_nodes) == 0:
+            pass
 
     def __value__(self) -> ArrayType:
-        if self._value is None or self._value is _not_found_:
-            value = self._value = Node.__value__(self)
-        else:
-            value = self._value
+        self._refresh()
+        return super()._value
 
-        if isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)) and len(value) == 0:
-            value = None
-        elif not isinstance(value, numeric_type) and not callable(value):
-            value = np.array(value)
-
-        return value
+    def __call__(self, *args, **kwargs) -> _T | ArrayType:
+        self._refresh()
+        return super().__call__(*args, **kwargs)

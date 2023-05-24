@@ -137,9 +137,15 @@ class Expression(object):
         """
         return Expression(*args, op=(ufunc, kwargs, method))
 
+    def __array__(
+        self, *args, **kwargs) -> ArrayType: raise NotImplementedError(f"__array__({args},{kwargs}) is not implemented!")
+
     @property
     def is_epxression(self) -> bool: return len(self._expr_nodes) > 0
     """ 判断是否是表达式，如果 操作数self._expr_nodes 个数大于零 ，返回 True，否则返回 False """
+
+    @property
+    def is_empty(self) -> bool: return len(self._expr_nodes) == 0 and self._op is None
 
     @property
     def is_function(self) -> bool:
@@ -154,7 +160,7 @@ class Expression(object):
         return _is_field(self)
 
     @property
-    def callable(self): return self._op is not None
+    def callable(self): return self._op is not None or len(self._expr_nodes) > 0
 
     # @property
     # def is_function(self) -> bool: return not self.is_epxression and self._op is not None
@@ -273,9 +279,9 @@ class Expression(object):
 
         res = _undefined_
 
-        if isinstance(op, numeric_type):
+        if isinstance(op, numeric_type):  # constant Expression
             res = op
-        elif op is None:  # constant Expression
+        elif op is None:  # tuple Expression
             res = args if len(args) != 1 else args[0]
         else:
             if isinstance(op, tuple):
@@ -285,15 +291,17 @@ class Expression(object):
                 if opts is not None and len(opts) > 0:
                     kwargs.update(opts)
 
-            if callable(op):
-                try:
-                    res = op(*args, **kwargs)
-                except Exception as error:
-                    raise RuntimeError(
-                        f"Error when apply {self.__str__()} op={op} args={args} kwargs={kwargs}!") from error
+            if not callable(op):
+                raise TypeError(f"Unknown op={op} expr={self._expr_nodes}!")
+
+            try:
+                res = op(*args, **kwargs)
+            except Exception as error:
+                raise RuntimeError(
+                    f"Error when apply {self.__str__()} op={op} args={args} kwargs={kwargs}!") from error
 
         if res is _undefined_:
-            raise TypeError(f"Unknown op={op}!")
+            raise RuntimeError(f"Unknown op={op} expr={self._expr_nodes}!")
 
         return res
 

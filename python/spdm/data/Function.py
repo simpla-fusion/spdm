@@ -129,6 +129,9 @@ class Function(Expression, typing.Generic[_T]):
     def __str__(self) -> str: return self.name if self._value is not None else super().__str__()
 
     @property
+    def is_empty(self) -> bool: return self._value is None and self._mesh is None and super().is_empty
+
+    @property
     def __type_hint__(self) -> typing.Type:
         """ 获取函数的类型
         """
@@ -188,27 +191,26 @@ class Function(Expression, typing.Generic[_T]):
     def __value__(self) -> ArrayType: return self._value
     """ 返回函数的数组 self._value """
 
-    def __array__(self) -> ArrayType:
+    def __array__(self, dtype=None, *args, **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        res = self._value
+
+        res = self.__value__()
 
         if res is None or res is _not_found_:
-            res = self.__value__()
+            res = self._value = self.__call__(*self.points)
 
-        if not isinstance(res, numeric_type):
-            res = self.__call__(*self.points)
-
-        if not isinstance(res, array_type):
-            res = np.asarray(res, dtype=self.__type_hint__)
-
+        if isinstance(res, numeric_type):
+            res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
+        else:
+            raise TypeError(f"Function.__array__ is not defined for {type(res)}!")
         return res
 
     @property
     def __mesh__(self): return self._mesh
 
-    def __getitem__(self, *args) -> NumericType: return self.__array__().__getitem__(*args)
+    def __getitem__(self, *args) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 

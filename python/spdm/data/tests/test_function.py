@@ -131,21 +131,9 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
 
         self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y),  Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
-        
-        self.assertTrue(np.allclose(- np.sin(g_x)*np.sin(g_y),  Z.pd(0, 1)(g_x, g_y), rtol=1.0))
 
-        # self.assertTrue(np.allclose(-TWOPI*np.cos(g_x) *
-        #                 np.sin(g_y),  Z.pd(1, 1)(g_x, g_y), rtol=1.0e-4))
-
-        # dzdy = -TWOPI*np.sin(g_x)*np.sin(g_y)
-        # dZdy = Z.pd(0, 1)(g_x, g_y)
-        # logger.debug(np.count_nonzero(~np.isclose(dzdy, dZdy, rtol=1.0e-4)))
-        # self.assertTrue(np.allclose(dzdy, dZdy, rtol=1.0e-4))
-
-        # dZdxdy = Z.pd(1, 1)(g_x, g_y)
-        # dzdxdy = -(TWOPI)*(TWOPI)*np.cos(g_x)*np.sin(g_y)
-        # logger.debug(np.count_nonzero(~np.isclose(dzdxdy, dZdxdy, rtol=1.0e-4)))
-        # self.assertTrue(np.allclose(dzdxdy, dZdxdy, rtol=1.0e-4))
+        # ignore boundary points
+        self.assertTrue(np.allclose((- np.sin(g_x)*np.sin(g_y))[2:-2,2:-2],  Z.pd(0, 1)(g_x, g_y)[2:-2,2:-2], rtol=1.0e-4))
 
 
 if __name__ == '__main__':
