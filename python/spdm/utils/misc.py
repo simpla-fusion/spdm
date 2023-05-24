@@ -560,11 +560,11 @@ def group_dict_by_prefix(d: collections.abc.Mapping, prefixs: str | typing.List[
     """
     if isinstance(prefixs, str):
         prefixs = [prefixs]
-    groups = [{} for i in range(len(prefixs)+1)]
+    groups = [d.get(prefix, {}) for prefix in prefixs]+[{}]
 
     for key, value in d.items():
         for idx, prefix in enumerate(prefixs):
-            if key.startswith(prefix):
+            if key.startswith(prefix) and key != prefix:
                 if not keep_prefix:
                     key = key[len(prefix):]
                 groups[idx][key] = value

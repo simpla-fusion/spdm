@@ -1,9 +1,12 @@
+import collections
+import collections.abc
 import typing
 from functools import cached_property
 
 import numpy as np
 from scipy.interpolate import (InterpolatedUnivariateSpline,
-                               RectBivariateSpline)
+                               RectBivariateSpline, RegularGridInterpolator,
+                               UnivariateSpline, interp1d, interp2d)
 
 from ..data.Function import Function
 from ..geometry.Box import Box
@@ -12,7 +15,8 @@ from ..geometry.GeoObject import GeoObject
 from ..geometry.Line import Line
 from ..geometry.Point import Point
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, NumericType, ScalarType
+from ..utils.typing import (ArrayType, NumericType, ScalarType, array_type,
+                            numeric_type, scalar_type)
 from .Mesh import Mesh
 from .StructuredMesh import StructuredMesh
 
@@ -34,12 +38,13 @@ class RectilinearMesh(StructuredMesh):
 
     """
 
-    def __init__(self, *dims: ArrayType, geometry=None, **kwargs) -> None:
+    def __init__(self, *dims: ArrayType, geometry=None, periods=None, **kwargs) -> None:
 
         if geometry is None:
-            geometry = Box([min(d) for d in dims], [max(d) for d in dims],ndim=len(dims),rank=len(dims))
+            geometry = Box([min(d) for d in dims], [max(d) for d in dims], ndim=len(dims), rank=len(dims))
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
         self._dims = dims
+        self._periods = periods
         self._aixs = [Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
 
     @property
@@ -88,7 +93,10 @@ class RectilinearMesh(StructuredMesh):
         else:
             return np.meshgrid(*self._dims, indexing="ij")
 
-    def interpolator(self, value: ArrayType,  **kwargs):
+    def interpolator(self, value: ArrayType, check_nan=True, **kwargs):
+        """ 生成插值器
+            method: "linear",   "nearest", "slinear", "cubic", "quintic" and "pchip"
+        """
 
         if not isinstance(value, np.ndarray):
             raise ValueError(f"value must be np.ndarray, but {type(value)} {value}")
@@ -96,18 +104,42 @@ class RectilinearMesh(StructuredMesh):
         if np.any(tuple(value.shape) != tuple(self.shape)):
             raise ValueError(f"{value} {self.shape}")
 
-        if self.geometry.rank == 1:
-            return InterpolatedUnivariateSpline(*self._dims, value,  **kwargs),  {}
-        elif self.geometry.rank == 2:
-            return RectBivariateSpline(*self._dims,  value,  **kwargs),  {"grid": False}
-        else:
-            raise NotImplementedError(f"NDIMS={self.geometry.ndim}")
+        if len(self._dims) == 1:
+            x = self._dims[0]
+            if check_nan:
+                mark = np.isnan(value)
+                nan_count = np.count_nonzero(mark)
+                if nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                    value = value[~mark]
+                    x = x[~mark]
+
+            ppoly = InterpolatedUnivariateSpline(x, value)
+
+        elif self.ndim == 2 and all((isinstance(d, array_type) and d.ndim == 1) for d in self._dims):
+            if check_nan:
+                mark = np.isnan(value)
+                nan_count = np.count_nonzero(mark)
+                if nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
+                    value[mark] = 0.0
+
+            x, y = self._dims
+
+            if isinstance(self._periods, collections.abc.Sequence):
+                logger.warning(f"TODO: periods={self._periods}")
+
+            ppoly = RectBivariateSpline(x, y, value), {"grid": False}
+
+        return ppoly
 
     def partial_derivative(self, value, *n, **kwargs):
         ppoly, opts = self.interpolator(value, **kwargs)
         return ppoly.partial_derivative(*n), opts
 
     def antiderivative(self, value, *n, **kwargs):
-        ppoly,  opts  = self.interpolator(value, **kwargs)
+        ppoly,  opts = self.interpolator(value, **kwargs)
 
         return ppoly.antiderivative(*n), opts

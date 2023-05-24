@@ -37,14 +37,21 @@ class Field(Profile[_T]):
     """
 
     def __init__(self,  *args, **kwargs):
+
+        mesh_desc, kwargs = group_dict_by_prefix(kwargs, "mesh_")
+
         super().__init__(*args, **kwargs)
 
         if isinstance(self._mesh, collections.abc.Mapping):
-            self._mesh = Mesh(**self._mesh)
+            self._mesh = Mesh(**self._mesh, **mesh_desc)
         elif isinstance(self._mesh, collections.abc.Sequence):
-            self._mesh = Mesh(*self._mesh)
+            self._mesh = Mesh(*self._mesh, **mesh_desc)
         elif not isinstance(self._mesh, Mesh):
             logger.warning(f"Field.__init__(): mesh is not a Mesh, but {type(self._mesh)}")
+
+        self._ppoly = {}
+
+    def __mesh__(self) -> Mesh: return self._mesh
 
     @property
     def mesh(self) -> Mesh: return self._mesh
@@ -70,14 +77,13 @@ class Field(Profile[_T]):
     @property
     def ndim(self) -> int: return self.mesh.ndim
 
-    def compile(self) -> Field[_T]:
-        return Field[_T](self.__array__(),
-                         mesh=self.mesh,
-                         metadata=self._metadata,
-                         parent=self._parent)
+    def compile(self, *d, force=False,  in_place=True, check_nan=True,   **kwargs) -> Field:
+        ppoly = self._fetch_op()
+        method = None
+        opts = {}
 
-    def partial_derivative(self, *d) -> Field[_T]:
-        ppoly, opts = self._compile()
+        if isinstance(ppoly, tuple):
+            ppoly, opts, *method = ppoly
 
         if len(d) > 1:
             opts["grid"] = False
@@ -91,11 +97,7 @@ class Field(Profile[_T]):
             res = Field[_T](ppoly, opts=opts,
                             mesh=self.mesh,
                             metadata={"name": f"d{self.name}_d{d}"})
-        return res
 
-    def pd(self, *d) -> Field: return self.partial_derivative(*d)
-
-    def antiderivative(self, *d) -> Field:
         ppoly,  opts = self._compile()
 
         if hasattr(ppoly, "antiderivative"):
@@ -105,4 +107,9 @@ class Field(Profile[_T]):
             ppoly, opts = self.mesh.antiderivative(self.__array__(), *d)
             res = Field[_T](ppoly, mesh=self.mesh, opts=opts,
                             metadata={"name": f"\int {self.name} d{d}"})
-        return res
+
+    def partial_derivative(self, *d) -> Field[_T]: return self.compile(*d)
+
+    def pd(self, *d) -> Field: return self.partial_derivative(*d)
+
+    def antiderivative(self, *d) -> Field: return self.compile(*d)

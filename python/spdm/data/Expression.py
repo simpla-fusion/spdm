@@ -10,6 +10,49 @@ from ..utils.typing import ArrayType, NumericType, numeric_type
 from ..utils.tags import _not_found_, _undefined_
 
 
+_EXPR_OP_NAME = {
+    "negative": "-",
+    "add": "+",
+    "subtract": "-",
+    "multiply": "*",
+    "matmul": "*",
+    "true_divide": "/",
+    "power": "^",
+    "equal": "==",
+    "not_equal": "!",
+    "less": "<",
+    "less_equal": "<=",
+    "greater": ">",
+    "greater_equa": ">=",
+    "add": "+",
+    "subtract": "-",
+    "multiply": "*",
+    "matmul": "*",
+    "divide": "/",
+    "power": "^",
+    # "abs": "",
+    "positive": "+",
+    # "invert": "",
+    # "bitwise_and": "",
+    # "bitwise_or": "",
+    # "bitwise_xor": "",
+    # "bitwise_and": "",
+    # "bitwise_or": "",
+    # "bitwise_xor": "",
+    # "right_shift": "",
+    # "left_shift": "",
+    # "right_shift": "",
+    # "left_shift": "",
+    "mod": "%",
+    # "floor_divide": "",
+    # "floor_divide": "",
+    # "trunc": "",
+    # "round": "",
+    # "floor": "",
+    # "ceil": "",
+}
+
+
 class Expression(object):
     """
         Expression
@@ -64,10 +107,10 @@ class Expression(object):
 
         if len(kwargs) == 0:
             pass
-        elif isinstance(self._op, tuple):  # require (op,method,opts)
-            self._op[2].update(kwargs)
+        elif isinstance(self._op, tuple):  # require (op,opts,method)
+            self._op[1].update(kwargs)
         elif callable(self._op):
-            self._op = (self._op, None, kwargs)
+            self._op = (self._op, kwargs)
         else:
             logger.warning(f"Ignore kwargs={kwargs}! op={self._op}")
 
@@ -92,77 +135,54 @@ class Expression(object):
                 >>> z(0.0)
                 1.0
         """
-        return Expression(*args, op=(ufunc, method, kwargs))
+        return Expression(*args, op=(ufunc, kwargs, method))
 
     @property
     def is_epxression(self) -> bool: return len(self._expr_nodes) > 0
     """ 判断是否是表达式，如果 操作数self._expr_nodes 个数大于零 ，返回 True，否则返回 False """
 
+    @property
+    def is_function(self) -> bool:
+        def _is_function(obj):
+            return isinstance(obj, Expression) and (hasattr(self, 'dims') or any([_is_function(o) for o in obj._expr_nodes]))
+        return _is_function(self)
+
+    @property
+    def is_field(self) -> bool:
+        def _is_field(obj):
+            return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._expr_nodes]))
+        return _is_field(self)
+
+    @property
+    def callable(self): return self._op is not None
+
     # @property
     # def is_function(self) -> bool: return not self.is_epxression and self._op is not None
-
-    OP_NAME = {
-        "negative": "-",
-        "add": "+",
-        "subtract": "-",
-        "multiply": "*",
-        "matmul": "*",
-        "true_divide": "/",
-        "power": "^",
-        "equal": "==",
-        "not_equal": "!",
-        "less": "<",
-        "less_equal": "<=",
-        "greater": ">",
-        "greater_equa": ">=",
-        "add": "+",
-        "subtract": "-",
-        "multiply": "*",
-        "matmul": "*",
-        "divide": "/",
-        "power": "^",
-        # "abs": "",
-        "positive": "+",
-        # "invert": "",
-        # "bitwise_and": "",
-        # "bitwise_or": "",
-        # "bitwise_xor": "",
-        # "bitwise_and": "",
-        # "bitwise_or": "",
-        # "bitwise_xor": "",
-        # "right_shift": "",
-        # "left_shift": "",
-        # "right_shift": "",
-        # "left_shift": "",
-        "mod": "%",
-        # "floor_divide": "",
-        # "floor_divide": "",
-        # "trunc": "",
-        # "round": "",
-        # "floor": "",
-        # "ceil": "",
-    }
 
     @property
     def op_name(self) -> str:
         if isinstance(self._op, tuple):
-            op,  _ = self._op
-            if isinstance(op, tuple):
-                op, method = op
-                if method == "__call__" or method is None:
-                    return getattr(op, "__name__", op.__class__.__name__)
-                else:
-                    return f"{op.__class__.__name__}.{method}"
+            op, opts, *method = self._op
+
+            if len(method) > 0:
+                method = method[0]
             else:
+                method = None
+
+            if method == "__call__" or method is None:
                 return getattr(op, "__name__", op.__class__.__name__)
+            else:
+                return f"{op.__class__.__name__}.{method}"
+        elif isinstance(self._op, numeric_type):
+            return f"[{self._op}]"
         else:
-            return "[?]"
+            return getattr(self._op, "__name__", self._op.__class__.__name__)
 
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
         op_name = self.op_name
 
-        _name = Expression.OP_NAME.get(op_name, None)
+        _name = _EXPR_OP_NAME.get(op_name, None)
 
         def _ast(v):
             if isinstance(v, Expression):
@@ -176,24 +196,6 @@ class Expression(object):
         else:
             return f"{op_name}({', '.join([_ast(arg) for arg in self._expr_nodes])})"
 
-    def is_function(self) -> bool:
-        def _is_function(obj):
-            return isinstance(obj, Expression) and (hasattr(self, 'dims') or any([_is_function(o) for o in obj._expr_nodes]))
-        return _is_function(self)
-
-    @property
-    def is_field(self) -> bool:
-        def _is_field(obj):
-            return isinstance(obj, Expression) and (hasattr(self, 'mesh') or any([_is_field(o) for o in obj._expr_nodes]))
-        return _is_field(self)
-
-    # def __call__(self,  *args: NumericType, **kwargs) -> ArrayType:
-
-    #     try:
-    #         res = self._eval(*args, **kwargs)
-    #     except Exception as error:
-    #         raise RuntimeError(f"Error when eval {self} with args={len(args)} and kwargs={kwargs}!") from error
-    #     return res
     @cached_property
     def __type_hint__(self):
         """ 获取表达式的类型
@@ -261,7 +263,7 @@ class Expression(object):
             - support multiple meshes?
         """
         if any([isinstance(arg, Expression) for arg in args]):
-            return Expression(*args, op=self, **kwargs)
+            return self.__class__(*args, op=(self, kwargs))
 
         # TODO: 对 expression 执行进行计数
 
@@ -277,28 +279,33 @@ class Expression(object):
             res = args if len(args) != 1 else args[0]
         else:
             if isinstance(op, tuple):
-                op, method, opts = op
-                if isinstance(method, str):
-                    op = getattr(op, method)
-                if len(opts) > 0:
+                op, opts, *method = op
+                if len(method) > 0 and isinstance(method[0], str):
+                    op = getattr(op, method[0])
+                if opts is not None and len(opts) > 0:
                     kwargs.update(opts)
 
             if callable(op):
                 try:
                     res = op(*args, **kwargs)
                 except Exception as error:
-                    raise RuntimeError(f"Error when apply {self.__str__()} op={op}!") from error
+                    raise RuntimeError(
+                        f"Error when apply {self.__str__()} op={op} args={args} kwargs={kwargs}!") from error
 
         if res is _undefined_:
             raise TypeError(f"Unknown op={op}!")
 
         return res
 
-    def compile(self,   **kwargs) -> Expression:
+    def compile(self, *args, ** kwargs) -> Expression:
         """ 编译函数，返回一个新的(加速的)函数对象 
             TODO：
                 - JIT compile
         """
+        if len(args) > 0:
+            # TODO: 支持自动微分，auto-grad?
+            raise NotImplementedError(f"TODO: derivative/antiderivative args={args} !")
+
         f_class = self.__type_hint__
 
         f_mesh = self.__mesh__
@@ -382,7 +389,7 @@ class Variable(Expression, typing.Generic[_T]):
     """
 
     def __init__(self, idx: int, name: str = None) -> None:
-        super().__init__(op=lambda *args, _idx=idx: args[_idx])
+        super().__init__()
         self._name = name if name is not None else f"x_{idx}"
         self._idx = idx
 
@@ -403,6 +410,11 @@ class Variable(Expression, typing.Generic[_T]):
 
     @property
     def index(self): return self._idx
+
+    def __call__(self, *args, **kwargs):
+        if len(args) <= self._idx:
+            raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
+        return args[self._idx]
 
 
 _0 = Variable[float](0)

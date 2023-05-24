@@ -32,7 +32,7 @@ class Profile(Function[_T], Node):
 
     """
 
-    def __init__(self,  value: NumericType | Expression, *dims, mesh=None, opts=None, metadata=None, parent=None,  **kwargs) -> None:
+    def __init__(self,  value: NumericType | Expression, *dims, mesh=None, metadata=None, parent=None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -81,7 +81,9 @@ class Profile(Function[_T], Node):
                 dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
                               for c in coordinates.values()])
 
-        Function.__init__(self, value, *dims, mesh=mesh, **(opts if opts is not None else {}))
+        opts, kwargs = group_dict_by_prefix(kwargs, "op_")
+
+        Function.__init__(self, value, *dims, mesh=mesh, **opts)
 
         Node.__init__(self, entry,  metadata=metadata, parent=parent, **kwargs)
 
@@ -98,15 +100,14 @@ class Profile(Function[_T], Node):
     def data(self) -> ArrayType: return self.__array__()
 
     def __value__(self) -> ArrayType:
-        res = self._value
-        if res is None or res is _not_found_:
-            res = Node.__value__(self)
-            if isinstance(res, numeric_type):
-                self._value = res
-            elif callable(res):
-                if self._op is not None:
-                    self._value = res(*self.points)
-                else:
-                    self._op = res
+        if self._value is None or self._value is _not_found_:
+            value = self._value = Node.__value__(self)
+        else:
+            value = self._value
 
-        return self._value
+        if isinstance(value, (collections.abc.Mapping, collections.abc.Sequence)) and len(value) == 0:
+            value = None
+        elif not isinstance(value, numeric_type) and not callable(value):
+            value = np.array(value)
+
+        return value
