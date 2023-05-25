@@ -105,3 +105,31 @@ class Field(Profile[_T]):
     # def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
     # def antiderivative(self, *d) -> Field: return self.compile(*d)
+
+    def grad(self, n=1) -> Field:
+        ppoly = self.compile()
+
+        if isinstance(ppoly, tuple):
+            ppoly, opts = ppoly
+        else:
+            opts = {}
+
+        if self.ndim == 2 and n == 1:
+            return Field[typing.Tuple[_T, _T]]((ppoly.partial_derivative(1, 0),
+                                                ppoly.partial_derivative(0, 1)),
+                                               mesh=self.mesh,
+                                               name=f"\\nabla({self.__str__()})", **opts)
+        elif self.ndim == 3 and n == 1:
+            return Field[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(1, 0, 0),
+                                                    ppoly.partial_derivative(0, 1, 0),
+                                                    ppoly.partial_derivative(0, 0, 1)),
+                                                   mesh=self.mesh,
+                                                   name=f"\\nabla({self.__str__()})", **opts)
+        elif self.ndim == 2 and n == 2:
+            return Field[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(2, 0),
+                                                    ppoly.partial_derivative(0, 2),
+                                                    ppoly.partial_derivative(1, 1)),
+                                                   mesh=self.mesh,
+                                                   name=f"\\nabla^{n}({self.__str__()})", **opts)
+        else:
+            raise NotImplemented(f"TODO: ndim={self.ndim} n={n}")

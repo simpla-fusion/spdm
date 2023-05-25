@@ -226,8 +226,21 @@ class Function(Expression, typing.Generic[_T]):
             -
 
         """
+        if self.ndim == 1 and len(d) > 0:
+            if len(d) != 1:
+                raise RuntimeError(f" Univariate function has not partial_derivative!")
+            ppoly = self.compile(check_nan=check_nan, **kwargs)
+            if isinstance(ppoly, tuple):
+                ppoly, opts, *_ = ppoly
+            else:
+                opts = None
 
-        if len(d) > 0:
+            ppoly = ppoly.derivative(d[0])
+            if isinstance(opts, collections.abc.Mapping):
+                return ppoly, opts
+            else:
+                return ppoly
+        elif self.ndim > 1 and len(d) > 0:
             ppoly = self.compile(check_nan=check_nan, **kwargs)
             if isinstance(ppoly, tuple):
                 ppoly, opts, *_ = ppoly
@@ -243,7 +256,6 @@ class Function(Expression, typing.Generic[_T]):
             if isinstance(opts, collections.abc.Mapping):
                 return ppoly, opts
             else:
-
                 return ppoly
         elif self._ppoly is not None and not force:
             return self._ppoly
@@ -336,47 +348,17 @@ class Function(Expression, typing.Generic[_T]):
         return super().__call__(*args,  **kwargs)
 
     def derivative(self, n=1) -> Function:
-        ppoly = self.compile()
+        return self.__class__(None, op=self.compile(n),  mesh=self._mesh, name=f"d_{n}({self.__str__()})")
 
-        if isinstance(ppoly, tuple):
-            ppoly, opts = ppoly
-        else:
-            opts = {}
-
-        if self.ndim == 1:
-            return self.__class__(None, op=(ppoly.derivative(n), opts),  mesh=self._mesh,
-                                  name=f"d_{n}({self.__str__()})")
-        elif self.ndim == 2 and n == 1:
-            return Function[typing.Tuple[_T, _T]]((ppoly.partial_derivative(1, 0),
-                                                  ppoly.partial_derivative(0, 1)),
-                                                  mesh=self.mesh,
-                                                  name=f"\\nabla({self.__str__()})", **opts)
-        elif self.ndim == 3 and n == 1:
-            return Function[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(1, 0, 0),
-                                                       ppoly.partial_derivative(0, 1, 0),
-                                                       ppoly.partial_derivative(0, 0, 1)),
-                                                      mesh=self.mesh,
-                                                      name=f"\\nabla({self.__str__()})", **opts)
-        elif self.ndim == 2 and n == 2:
-            return Function[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(2, 0),
-                                                       ppoly.partial_derivative(0, 2),
-                                                       ppoly.partial_derivative(1, 1)),
-                                                      mesh=self.mesh,
-                                                      name=f"\\nabla^{n}({self.__str__()})", **opts)
-        else:
-            raise NotImplemented(f"TODO: ndim={self.ndim} n={n}")
-
-    def d(self, *n) -> Function[_T]: return self.derivative(*n)
+    def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
     def partial_derivative(self, *d) -> Function:
-        return self.__class__[_T](None, op=self.compile(*d), mesh=self._mesh,
-                                  name=f"d_{list(d)}({self.__str__()})")
+        return self.__class__[_T](None, op=self.compile(*d), mesh=self._mesh, name=f"d_{d}({self.__str__()})")
 
     def pd(self, *n) -> Function[_T]: return self.partial_derivative(*n)
 
     def antiderivative(self, *d) -> Function[_T]:
-        return self.__class__(None, op=self.compile(*[-v for v in d]),  mesh=self._mesh,
-                              name=f"I_{list(d)}({self.__str__()})")
+        return self.__class__(None, op=self.compile(*[-v for v in d]),  mesh=self._mesh,  name=f"I_{d}({self.__str__()})")
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 
