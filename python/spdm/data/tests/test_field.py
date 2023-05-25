@@ -15,17 +15,17 @@ class TestField(unittest.TestCase):
 
     def test_spl2d(self):
 
-        x = np.linspace(0, 1, 128)
-        y = np.linspace(0, 2, 128)
+        x = np.linspace(0, 1*TWOPI, 128)
+        y = np.linspace(0, 2*TWOPI, 128)
         g_x, g_y = np.meshgrid(x, y)
 
-        z = np.sin(g_x*TWOPI)*np.cos(g_y*TWOPI)
+        z = np.sin(g_x)*np.cos(g_y)
 
-        fun = Field(np.sin(_x*TWOPI)*np.cos(_y*TWOPI), x, y, mesh_periods=[1, 1], mesh_method="cubic")
+        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1], mesh_method="cubic")
 
         z2 = fun(g_x, g_y)
-
-        self.assertTrue(np.allclose(z, z2, rtol=1.0e-4))
+        logger.debug(np.sqrt(np.mean((z-z2[0])**2)))
+        self.assertTrue(np.allclose(z, z2[0], rtol=1.0e-4))
 
     def test_pd(self):
 
@@ -36,7 +36,7 @@ class TestField(unittest.TestCase):
         Z = Field(np.sin(_x)*np.cos(_y), x, y,   mesh_periods=[1, 1])
 
         self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
-        
+
         self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y),  Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
 
         # dzdx = TWOPI*np.cos(g_x*TWOPI)*np.cos(g_y*TWOPI)

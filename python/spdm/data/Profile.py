@@ -66,54 +66,43 @@ class Profile(Function[_T], Node):
     @property
     def data(self) -> ArrayType: return self.__array__()
 
-    def _refresh(self) -> None:
-        if not self.empty:
+    def _refresh(self, force=False) -> Profile[_T]:
+        """ 从 NodeTree 中获取 mesh 和 value """
+
+        if not self.empty and not force:  # 如果已经有值了，就不再刷新
             return
 
-        parent = self._parent
-        metadata = self._metadata
-        if len(self.dims) > 0:
-            if "coordinate1" in metadata:
-                logger.warning(f"Ignore coordinate*={metadata['coordinate1']} dims={dims}!")
-            if not mesh:
-                mesh = dims
-            else:
-                logger.warning(f"Ignore mesh={type(mesh)} dims={dims}!")
-        elif isinstance(parent, Node):
+        mesh = self._mesh
 
-            coordinates = {int(k[10:]): v for k, v in metadata.items()
-                           if k.startswith("coordinate") and k[10:].isdigit()}
+        if mesh is None:
+            mesh = {}
 
+        if isinstance(self._parent, Node):
+            coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
+            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) > 0 and (parent is None or parent is _not_found_):
-                if not mesh:
-                    raise RuntimeError(f"Can not determint the coordinates from DataTree! {coordinates} {type(parent)}")
-            elif len(coordinates) > 0 and all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
-                if mesh is not None and mesh is not parent.grid:
-                    logger.warning(f"Ignore mesh={mesh}  !")
-                mesh = getattr(parent, "grid", None)
-                dims = ()
+            if len(coordinates) == 0:
+                pass
+            elif all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
+                mesh = getattr(self._parent, "grid", None)
             else:
-                dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
-                              for c in coordinates.values()])
-        v = Node.__value__(self)
-        if callable(v):
-            op = v
-            value = None
-        else:
-            value = v
-            op = None
-            Function.__init__(self, v, *self.dims, mesh=self.mesh)
-        if self._value is None and self._op is None and len(self._children) == 0:
-            pass
+                mesh["dims"] = tuple([(self._parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                                      for c in coordinates.values()])
+
+        value = Node.__value__(self)
+
+        if value is None or value is _not_found_:
+            value = self._value
+
+        Function.__init__(self, value,  mesh=mesh)
+
+        return self
 
     def __value__(self) -> ArrayType:
         self._refresh()
-        assert (not self.empty)
         return super().__value__()
 
     def __call__(self, *args, **kwargs) -> _T | ArrayType:
         self._refresh()
-        assert (not self.empty)
         return super().__call__(*args, **kwargs)

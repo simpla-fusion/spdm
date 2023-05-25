@@ -51,27 +51,21 @@ class Mesh(Pluggable):
                           ]
         super().__dispatch__init__(_mesh_type, self, *args, **kwargs)
 
-    def __init__(self, *args,  geometry=None, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Mesh:
-            return Mesh.__dispatch__init__(None, self, *args,   geometry=geometry, **kwargs)
+            return Mesh.__dispatch__init__(None, self, *args,   **kwargs)
 
-        geometry_desc, self._metadata = group_dict_by_prefix(kwargs, "geometry_")
+        geometry, self._metadata = group_dict_by_prefix(kwargs, "geometry")
 
-        if isinstance(geometry, collections.abc.Mapping):
-            geometry_desc.update(geometry)
-            geometry = None
-        elif isinstance(geometry, Enum):
-            geometry_desc.update({"type": geometry.name})
-            geometry = None
+        if isinstance(geometry, Enum):
+            geometry = {"type": geometry.name}
         elif isinstance(geometry, str):
-            geometry_desc.update({"type": geometry})
-            geometry = None
+            geometry = {"type": geometry}
+
         if isinstance(geometry, (GeoObject, GeoObjectSet)):
-            self._geometry = geometry
-            if len(geometry_desc) > 0:
-                logger.warning(f"self._geometry is specified, ignore geometry_desc={geometry_desc}")
-        elif isinstance(geometry_desc, collections.abc.Mapping):
-            self._geometry = GeoObject(*args, **geometry_desc)
+            self._geometry = geometry            
+        elif isinstance(geometry, collections.abc.Mapping):
+            self._geometry = GeoObject(*args, **geometry)
         else:
             raise RuntimeError(f"Mesh.__init__(): geometry={geometry} is not found, geometry_desc={geometry_desc}")
 

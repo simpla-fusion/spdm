@@ -552,7 +552,7 @@ def typing_get_origin(tp):
         return typing_get_origin(orig_class)
 
 
-def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List[str], keep_prefix=False) -> typing.Tuple[typing.Dict, ...]:
+def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List[str], keep_prefix=False, sep='_') -> typing.Tuple[typing.Dict, ...]:
     """ 将 字典 d 根据prefixs进行分组
      prefix 是一个字符串，或者是一个字符串列表
      key具有相同prefix的项会被分到一组， (if keep_prefix is True then prefix会被去掉)
@@ -577,16 +577,19 @@ def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List
                     groups[idx].update(value)
                 else:
                     raise ValueError(f"prefix {prefix} is not unique")
-            elif key[len(prefix)] != '_':
-                continue
             else:
-                if groups[idx] is None:
-                    groups[idx] = {}
+                if sep is not None:
+                    prefix = prefix+sep
+
+                if not key.startswith(prefix):
+                    continue
 
                 if not keep_prefix:
-                    key = key[len(prefix)+1:]
+                    key = key[len(prefix):]
 
-                if not isinstance(groups[idx], collections.abc.Mapping):
+                if groups[idx] is None:
+                    groups[idx] = {}
+                elif not isinstance(groups[idx], collections.abc.Mapping):
                     raise ValueError(f"prefix {prefix} is not a dict, but {groups[idx]}")
 
                 groups[idx][key] = value

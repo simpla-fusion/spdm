@@ -32,7 +32,7 @@ class TestProfile(unittest.TestCase):
         doo.phi(np.linspace(0, 1.0, 256))
 
         self.assertTrue(np.all(np.isclose(doo.phi.__array__(), cache["phi"])))
-        self.assertTrue(np.all(np.isclose(doo.phi.mesh, cache["psi"])))
+        self.assertTrue(np.all(np.isclose(doo.phi.points[0], cache["psi"])))
 
     def test_prop_expr(self):
         cache = {
@@ -45,7 +45,7 @@ class TestProfile(unittest.TestCase):
         doo.phi(np.linspace(0, 1.0, 256))
 
         self.assertTrue(np.allclose(doo.phi.__array__(), cache["psi"]*2.0))
-        self.assertTrue(np.allclose(doo.phi.mesh, cache["psi"]))
+        self.assertTrue(np.allclose(doo.phi.points[0], cache["psi"]))
 
 
 if __name__ == '__main__':

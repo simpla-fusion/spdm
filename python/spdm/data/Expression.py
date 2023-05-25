@@ -288,10 +288,10 @@ class Expression(object):
 
         res = _undefined_
 
-        if op is None:  # tuple Expression
+        if not op:  # tuple Expression
             res = args if len(args) != 1 else args[0]
         elif not callable(op):
-            raise RuntimeError(f"Unknown op={op} expr={self._children}!")
+            raise RuntimeError(f"Unknown op={op} children={self._children}!")
         else:
             try:
                 res = op(*args, **kwargs)

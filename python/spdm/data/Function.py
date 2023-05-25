@@ -61,9 +61,7 @@ class Function(Expression, typing.Generic[_T]):
             Expression.__init__(self,  **kwargs)
             self._value = value
 
-        if mesh is None:
-            self._mesh = {}
-        elif isinstance(mesh, Enum):
+        if isinstance(mesh, Enum):
             self._mesh = {"type": mesh.name}
         elif isinstance(mesh, str):
             self._mesh = {"type":  mesh}
@@ -72,19 +70,21 @@ class Function(Expression, typing.Generic[_T]):
         else:
             self._mesh = mesh
 
-        if not isinstance(self._mesh, collections.abc.Mapping) and (len(dims) > 0 or periods is not None):
+        if len(dims) == 0:
+            pass
+        elif self._mesh is None:
+            self._mesh = {"dims": dims, "periods": periods}
+        elif not isinstance(self._mesh, collections.abc.Mapping):
             logger.warning(f"Function.__init__: mesh is  ignored! {len(dims)} {type(mesh)}")
         else:
-            if len(dims) > 0:
-                self._mesh["dims"] = dims
-
+            self._mesh["dims"] = dims
             if periods is not None:
                 self._mesh["periods"] = periods
 
         self._ppoly = None
 
-        if self._value is not None:
-            self.validate(strict=True)
+        # if self._value is not None:
+        #     self.validate(strict=True)
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """

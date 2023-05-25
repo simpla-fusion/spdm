@@ -37,26 +37,21 @@ class Field(Profile[_T]):
     """
 
     def __init__(self,  *args, **kwargs):
-
-        mesh_desc, kwargs = group_dict_by_prefix(kwargs, "mesh_")
-
         super().__init__(*args, **kwargs)
 
+    def _refresh(self, force=False) -> Field[_T]:
+
+        if isinstance(self._mesh, Mesh) and not force:
+            return
+
+        super()._refresh(force=force)
+
         if isinstance(self._mesh, collections.abc.Mapping):
-            self._mesh = Mesh(**self._mesh, **mesh_desc)
-        elif isinstance(self._mesh, collections.abc.Sequence):
-            self._mesh = Mesh(*self._mesh, **mesh_desc)
+            self._mesh = Mesh(**self._mesh)
         elif not isinstance(self._mesh, Mesh):
-            logger.warning(f"Field.__init__(): mesh is not a Mesh, but {type(self._mesh)}")
+            logger.warning(f"self._mesh is not a Mesh, but {type(self._mesh)}")
 
-        self._ppoly = {}
-
-    def __mesh__(self) -> Mesh: return self._mesh
-
-    @property
-    def mesh(self) -> Mesh: return self._mesh
-    """ Field 的 mesh 是 Mesh 类的。
-        网格，用来描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。 """
+        return self
 
     @property
     def bbox(self): return self.mesh.geometry.bbox
@@ -77,36 +72,42 @@ class Field(Profile[_T]):
     @property
     def ndim(self) -> int: return self.mesh.ndim
 
-    def compile(self, *d, force=False,  in_place=True, check_nan=True,   **kwargs) -> Field:
-        ppoly = self._fetch_op()
-        method = None
-        opts = {}
+    # @property
+    # def periods(self) -> typing.Tuple[float]: return getattr(self._mesh, "periods", None)
 
-        if isinstance(ppoly, tuple):
-            ppoly, opts, *method = ppoly
+    # def compile(self, *d, force=False,  in_place=True, check_nan=True,   **kwargs) -> Field:
+    # if isinstance(value, np.ndarray) and hasattr(self.__mesh__, "interpolator"):  # 如果value是数组，且mesh有插值函数，则直接使用插值函数
+    # self._ppoly = self.__mesh__.interpolator(value)
+    # return self
+    #     ppoly = self._fetch_op()
+    #     method = None
+    #     opts = {}
 
-        if len(d) > 1:
-            opts["grid"] = False
+    #     if isinstance(ppoly, tuple):
+    #         ppoly, opts, *method = ppoly
 
-        if hasattr(ppoly, "partial_derivative"):
-            res = Field[_T](ppoly.partial_derivative(*d), opts=opts,
-                            mesh=self.mesh,
-                            metadata={"name": f"d{self.name}_d{d}"})
-        else:
-            ppoly, opts = self.mesh.partial_derivative(self.__array__(), *d)
-            res = Field[_T](ppoly, opts=opts,
-                            mesh=self.mesh,
-                            metadata={"name": f"d{self.name}_d{d}"})
+    #     if len(d) > 1:
+    #         opts["grid"] = False
 
-        ppoly,  opts = self._compile()
+    #     if hasattr(ppoly, "partial_derivative"):
+    #         res = Field[_T](ppoly.partial_derivative(*d), opts=opts,
+    #                         mesh=self.mesh,
+    #                         metadata={"name": f"d{self.__name__}_d{d}"})
+    #     else:
+    #         ppoly, opts = self.mesh.partial_derivative(self.__array__(), *d)
+    #         res = Field[_T](ppoly, opts=opts,
+    #                         mesh=self.mesh,
+    #                         metadata={"name": f"d{self.__name__}_d{d}"})
 
-        if hasattr(ppoly, "antiderivative"):
-            res = Field[_T](ppoly.antiderivative(*d), mesh=self.mesh, opts=opts,
-                            metadata={"name": f"\int {self.name} d{d}"})
-        else:
-            ppoly, opts = self.mesh.antiderivative(self.__array__(), *d)
-            res = Field[_T](ppoly, mesh=self.mesh, opts=opts,
-                            metadata={"name": f"\int {self.name} d{d}"})
+    #     ppoly,  opts = self._compile()
+
+    #     if hasattr(ppoly, "antiderivative"):
+    #         res = Field[_T](ppoly.antiderivative(*d), mesh=self.mesh, opts=opts,
+    #                         metadata={"name": f"\int {self.__name__} d{d}"})
+    #     else:
+    #         ppoly, opts = self.mesh.antiderivative(self.__array__(), *d)
+    #         res = Field[_T](ppoly, mesh=self.mesh, opts=opts,
+    #                         metadata={"name": f"\int {self.__name__} d{d}"})
 
     def partial_derivative(self, *d) -> Field[_T]: return self.compile(*d)
 

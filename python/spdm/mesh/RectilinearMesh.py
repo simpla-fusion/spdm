@@ -38,8 +38,13 @@ class RectilinearMesh(StructuredMesh):
 
     """
 
-    def __init__(self, *dims: ArrayType, geometry=None, periods=None, **kwargs) -> None:
+    def __init__(self, *args: ArrayType, geometry=None, periods=None, dims=None, **kwargs) -> None:
 
+        if dims is None:
+            dims = args
+        elif len(args) > 0:
+            raise RuntimeError(f"ignore args {args}")
+        
         if geometry is None:
             geometry = Box([min(d) for d in dims], [max(d) for d in dims], ndim=len(dims), rank=len(dims))
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
