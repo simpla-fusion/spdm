@@ -76,7 +76,7 @@ class Expression(object):
             3.0
     """
 
-    def __init__(self,  *args,  op: typing.Callable | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] = None,  **kwargs) -> None:
+    def __init__(self,  *args,  op: typing.Callable | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] = None, name=None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -91,7 +91,7 @@ class Expression(object):
         """
         super().__init__()
 
-        if op is None and len(args) == 1:
+        if op is None and len(args) == 1:  # copy constructor
             if getattr(args[0], "has_children", False):
                 # copy constructor
                 op = args[0]._op
@@ -102,7 +102,6 @@ class Expression(object):
                 kwargs = {}
 
         self._children = args
-
         self._op = op
 
         if len(kwargs) == 0:
@@ -113,6 +112,8 @@ class Expression(object):
             self._op = (self._op, kwargs)
         else:
             logger.warning(f"Ignore kwargs={kwargs}! op={self._op}")
+
+        self._name = name
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -137,15 +138,15 @@ class Expression(object):
         """
         return Expression(*args, op=(ufunc, kwargs, method))
 
-    def __array__(
-        self, *args, **kwargs) -> ArrayType: raise NotImplementedError(f"__array__({args},{kwargs}) is not implemented!")
+    def __array__(self, *args) -> ArrayType:
+        raise NotImplementedError(f"__array__({args}) is not implemented!")
 
     @property
     def has_children(self) -> bool: return len(self._children) > 0
     """ 判断是否有子节点"""
 
     @property
-    def is_null(self) -> bool: return not self.has_children and self._op is None
+    def empty(self) -> bool: return not self.has_children and self._op is None
 
     @property
     def callable(self): return self._op is not None
@@ -174,6 +175,9 @@ class Expression(object):
 
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
+        if self._name is not None:
+            return self._name
+
         op_name = self.op_name
 
         _name = _EXPR_OP_NAME.get(op_name, None)
@@ -230,20 +234,25 @@ class Expression(object):
 
         return new_list[0]
 
-    def _apply_nodes(self, *args, **kwargs) -> typing.List[typing.Any]:
+    def _fetch_children(self, *args, **kwargs) -> typing.List[typing.Any]:
         if len(self._children) == 0:
             return args, kwargs
-        expr_nodes = []
-        for node in self._children:
-            if hasattr(node, "__entry__"):
-                node = node.__entry__().__value__()
 
-            if callable(node):
-                expr_nodes.append(node(*args, **kwargs))
+        children = []
+
+        for child in self._children:
+
+            if callable(child):
+                value = child(*args, **kwargs)
+            elif hasattr(child, "__value__"):
+                value = child.__value__()
+            elif hasattr(child, "__array__"):
+                value = child.__array__()
             else:
-                expr_nodes.append(node)
+                value = child
+            children.append(value)
 
-        return expr_nodes, {}
+        return children, {}
 
     def _fetch_op(self): return self._op
 
@@ -257,31 +266,33 @@ class Expression(object):
             - support multiple meshes?
         """
         if any([isinstance(arg, Expression) for arg in args]):
-            return self.__class__(*args, op=(self, kwargs))
+            if self.has_children:
+                return self.__class__(*args, op=(self, kwargs))
+            else:
+                other = self.__duplicate__()
+                other._children = args
+                return other
 
         # TODO: 对 expression 执行进行计数
 
-        args, kwargs = self._apply_nodes(*args, **kwargs)
+        args, kwargs = self._fetch_children(*args, **kwargs)
 
         op = self._fetch_op()
 
+        if isinstance(op, tuple):
+            op, opts, *method = op
+            if len(method) > 0 and isinstance(method[0], str):
+                op = getattr(op, method[0])
+            if opts is not None and len(opts) > 0:
+                kwargs.update(opts)
+
         res = _undefined_
 
-        if isinstance(op, numeric_type):  # constant Expression
-            res = op
-        elif op is None:  # tuple Expression
+        if op is None:  # tuple Expression
             res = args if len(args) != 1 else args[0]
+        elif not callable(op):
+            raise RuntimeError(f"Unknown op={op} expr={self._children}!")
         else:
-            if isinstance(op, tuple):
-                op, opts, *method = op
-                if len(method) > 0 and isinstance(method[0], str):
-                    op = getattr(op, method[0])
-                if opts is not None and len(opts) > 0:
-                    kwargs.update(opts)
-
-            if not callable(op):
-                raise TypeError(f"Unknown op={op} expr={self._children}!")
-
             try:
                 res = op(*args, **kwargs)
             except Exception as error:

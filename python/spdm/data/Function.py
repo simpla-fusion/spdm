@@ -34,7 +34,7 @@ class Function(Expression, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType,  mesh=None, name=None, periods=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, **kwargs):
         """
             Parameters
             ----------
@@ -52,6 +52,8 @@ class Function(Expression, typing.Generic[_T]):
                     *           : 用于传递给 Node 的参数
 
         """
+        mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
+
         if isinstance(value, Expression) or callable(value):
             Expression.__init__(self, value, **kwargs)
             self._value = None
@@ -59,35 +61,30 @@ class Function(Expression, typing.Generic[_T]):
             Expression.__init__(self,  **kwargs)
             self._value = value
 
-        if mesh is None or mesh is _not_found_:
-            self._mesh = dims
-        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
-            self._mesh = mesh
-            if len(dims) > 0:
-                logger.warning(f"Function.__init__: mesh is  ignored! {len(dims)} {type(mesh)}")
-        elif isinstance(mesh, collections.abc.Mapping):
-            self._mesh = mesh
-            if len(dims) > 0:
-                o_dims = self._mesh.setdefault("dims", dims)
-                if o_dims != dims:
-                    logger.warning(f"Function.__init__: mesh is dict, dims is ignored! {mesh} {dims}")
+        if mesh is None:
+            self._mesh = {}
         elif isinstance(mesh, Enum):
-            self._mesh = {"type": mesh.name, "dims": dims}
+            self._mesh = {"type": mesh.name}
         elif isinstance(mesh, str):
-            self._mesh = {"type":  mesh, "dims": dims}
+            self._mesh = {"type":  mesh}
+        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
+            self._mesh = {"dims": mesh}
         else:
             self._mesh = mesh
 
-        self._name = str(name) if name is not None else f"{self.__class__.__name__}"
+        if not isinstance(self._mesh, collections.abc.Mapping) and (len(dims) > 0 or periods is not None):
+            logger.warning(f"Function.__init__: mesh is  ignored! {len(dims)} {type(mesh)}")
+        else:
+            if len(dims) > 0:
+                self._mesh["dims"] = dims
 
-        self._periods = periods
+            if periods is not None:
+                self._mesh["periods"] = periods
+
         self._ppoly = None
 
         if self._value is not None:
             self.validate(strict=True)
-
-    @property
-    def name(self) -> dict: return self._name
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """
@@ -118,7 +115,6 @@ class Function(Expression, typing.Generic[_T]):
         other: Function = super().__duplicate__()
         other._value = self._value
         other._mesh = self._mesh
-        other._name = self._name
         return other
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"")
@@ -126,10 +122,8 @@ class Function(Expression, typing.Generic[_T]):
     @classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    def __str__(self) -> str: return self.name if self._value is not None else super().__str__()
-
     @property
-    def is_empty(self) -> bool: return self._value is None and self._mesh is None and super().is_empty
+    def empty(self) -> bool: return self._value is None and self._mesh is None and super().empty
 
     @property
     def __type_hint__(self) -> typing.Type:
@@ -142,8 +136,48 @@ class Function(Expression, typing.Generic[_T]):
         return tp if inspect.isclass(tp) else float
 
     @property
-    def ndim(self) -> int: return len(self._mesh)
+    def __mesh__(self) -> typing.Any: return self._mesh
+
+    @property
+    def mesh(self) -> typing.Any: return self._mesh
+    """ 函数的定义域，即函数的自变量的取值范围。"""
+
+    @property
+    def dimensions(self) -> typing.List[ArrayType]: return self.dims
+    """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
+
+    @property
+    def dims(self) -> typing.List[ArrayType]: return self._mesh["dims"]
+    """ alias of dimensions """
+
+    @property
+    def ndim(self) -> int: return len(self.dims)
     """ 函数的维度，即定义域的秩 """
+
+    @property
+    def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self.dims)
+    """ 所需数组的形状 """
+
+    @property
+    def periods(self) -> typing.Tuple[float]: return self._mesh.get("periods", None)
+
+    @cached_property
+    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
+        """ bound box 返回包裹函数参数的取值范围的最小多维度超矩形（hyperrectangle） """
+        if self.ndim == 1:
+            return (np.min(self.dims), np.max(self.dims))
+        else:
+            return (np.asarray([np.min(d) for d in self.dims], dtype=float),
+                    np.asarray([np.max(d) for d in self.dims], dtype=float))
+
+    @cached_property
+    def points(self) -> typing.List[ArrayType]:
+        if self.dims is None:
+            raise RuntimeError(self._mesh)
+        elif len(self.dims) == 1:
+            return self.dims
+        else:
+            return np.meshgrid(*self.dims, indexing="ij")
 
     @property
     def rank(self) -> int:
@@ -155,38 +189,6 @@ class Function(Expression, typing.Generic[_T]):
         else:
             logger.warning(f"Function.rank is not defined!  {type(self._value)} default=1")
             return 1
-
-    @property
-    def mesh(self) -> typing.List[ArrayType]: return self._mesh
-    """ 函数的定义域，即函数的自变量的取值范围。
-        每个维度对应一个一维数组，为网格的节点。 """
-    @property
-    def dimensions(self) -> typing.List[ArrayType]: return self._mesh
-
-    @property
-    def dims(self) -> typing.List[ArrayType]: return self._mesh
-
-    @property
-    def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self._mesh)
-
-    @property
-    def periods(self) -> typing.Tuple[float]: return self._periods
-
-    @cached_property
-    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
-        """ bound box 返回包裹函数参数的取值范围的最小多维度超矩形（hyperrectangle） """
-        if self.ndim == 1:
-            return (np.min(self._mesh), np.max(self._mesh))
-        else:
-            return (np.asarray([np.min(d) for d in self._mesh], dtype=float),
-                    np.asarray([np.max(d) for d in self._mesh], dtype=float))
-
-    @cached_property
-    def points(self) -> typing.List[ArrayType]:
-        if len(self._mesh) == 1:
-            return self._mesh
-        else:
-            return np.meshgrid(*self._mesh, indexing="ij")
 
     def __value__(self) -> ArrayType: return self._value
     """ 返回函数的数组 self._value """
@@ -205,9 +207,6 @@ class Function(Expression, typing.Generic[_T]):
         else:
             raise TypeError(f"Function.__array__ is not defined for {type(res)}!")
         return res
-
-    @property
-    def __mesh__(self): return self._mesh
 
     def __getitem__(self, *args) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
@@ -261,17 +260,7 @@ class Function(Expression, typing.Generic[_T]):
 
         #  获得坐标点points，用于构建插值函数
 
-        points = getattr(self, "points", None)
-
-        if points is None:  # for Field
-            points = getattr(self.__mesh__, "points")
-
-        if points is not None:
-            pass
-        elif isinstance(self.__mesh__, tuple) and all(isinstance(d, array_type) for d in self.__mesh__):  # rectlinear mesh for Function
-            points = np.meshgrid(*self.__mesh__)
-        else:
-            raise RuntimeError(f"Can not reslove mesh {type(self.__mesh__)}!")
+        points = self.points
 
         if all((d.shape if isinstance(d, array_type) else None) for d in points):  # 检查 points 的维度是否一致
             m_shape = points[0].shape
@@ -289,8 +278,8 @@ class Function(Expression, typing.Generic[_T]):
             raise RuntimeError(
                 f"Function.compile() incorrect value shape {value.shape}!={m_shape}! value={value} func={self.__str__()} ")
 
-        if len(m_shape) == 1:
-            x = points[0]
+        if len(self.dims) == 1:
+            x = self.dims[0]
             if check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
@@ -301,7 +290,7 @@ class Function(Expression, typing.Generic[_T]):
                     x = x[~mark]
 
             self._ppoly = InterpolatedUnivariateSpline(x, value)
-        elif self.ndim == 2:
+        elif len(self.dims) == 2:
             if check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
@@ -310,10 +299,10 @@ class Function(Expression, typing.Generic[_T]):
                         f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
                     value[mark] = 0.0
 
-            x, y = self._mesh
+            x, y = self.dims
 
-            if isinstance(self._periods, collections.abc.Sequence):
-                logger.warning(f"TODO: periods={self._periods}")
+            if isinstance(self.periods, collections.abc.Sequence):
+                logger.warning(f"TODO: periods={self.periods}")
 
             self._ppoly = RectBivariateSpline(x, y, value), {"grid": False}
 
@@ -395,7 +384,7 @@ class Function(Expression, typing.Generic[_T]):
             op = ppoly.partial_derivative(*n)
 
         return Function[_T](None, op=op,
-                            mesh=self._mesh, periods=self.periods,
+                            mesh=self._mesh,
                             name=f"d{list(n)}({self.__str__()})")
 
     def pd(self, *n) -> Function[_T]: return self.partial_derivative(*n)

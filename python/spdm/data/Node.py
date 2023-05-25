@@ -82,10 +82,9 @@ class Node(object):
         if self._entry is not None:
             self._entry.reset()
 
-    def _flash(self):
-        raise NotImplementedError("flash")
+    def _flash(self): raise NotImplementedError("flash")
 
-    def __serialize__(self):  return self.__value__()
+    def __serialize__(self): return self.__value__()
 
     def _validate(self, value, type_hint) -> bool:
         if value is _undefined_ or type_hint is _undefined_:

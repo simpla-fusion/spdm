@@ -34,7 +34,7 @@ class Profile(Function[_T], Node):
 
     """
 
-    def __init__(self,  value: NumericType | Expression, *dims, mesh=None, metadata=None, parent=None,  **kwargs) -> None:
+    def __init__(self,  value: NumericType | Expression, *args, **kwargs) -> None:
         """
             Parameters
             ----------
@@ -48,40 +48,31 @@ class Profile(Function[_T], Node):
                     *           : 用于传递给 Node 的参数
 
         """
-        if hasattr(value.__class__, "__entry__"):
+        if hasattr(value.__class__, "__entry__") or isinstance(value, collections.abc.Mapping):
             entry = value
             value = None
         else:
             entry = None
 
-        if metadata is None:
-            metadata = {}
+        mesh, opts, kwargs = group_dict_by_prefix(kwargs, ["mesh", "op"])
 
-        opts, kwargs = group_dict_by_prefix(kwargs, "op_")
+        Function.__init__(self, value, *args, mesh=mesh, op=opts)
 
-        Function.__init__(self, value, *dims, mesh=mesh, **opts)
-
-        Node.__init__(self, entry,  metadata=metadata, parent=parent, **kwargs)
+        Node.__init__(self, entry, **kwargs)
 
     @property
-    def metadata(self) -> dict: return self._metadata
-
-    @property
-    def name(self) -> str: return self._metadata.get("name", "unnamed")
-
-    @property
-    def coordinates(self) -> typing.List[ArrayType]: return self.points
+    def __name__(self) -> str: return self._metadata.get("name", "unnamed")
 
     @property
     def data(self) -> ArrayType: return self.__array__()
 
     def _refresh(self) -> None:
-        if not self.is_empty:
+        if not self.empty:
             return
 
         parent = self._parent
         metadata = self._metadata
-        if len(dims) > 0:
+        if len(self.dims) > 0:
             if "coordinate1" in metadata:
                 logger.warning(f"Ignore coordinate*={metadata['coordinate1']} dims={dims}!")
             if not mesh:
@@ -119,8 +110,10 @@ class Profile(Function[_T], Node):
 
     def __value__(self) -> ArrayType:
         self._refresh()
-        return super()._value
+        assert (not self.empty)
+        return super().__value__()
 
     def __call__(self, *args, **kwargs) -> _T | ArrayType:
         self._refresh()
+        assert (not self.empty)
         return super().__call__(*args, **kwargs)
