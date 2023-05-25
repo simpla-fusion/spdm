@@ -4,14 +4,14 @@ import typing
 from spdm.data.Dict import Dict
 from spdm.data.List import List
 from spdm.data.Node import Node
-from spdm.data.sp_property import sp_property,SpPropertyClass
+from spdm.data.sp_property import sp_property,SpDict
 from spdm.utils.logger import logger
 
 
 
 
 
-class TimeSlice(SpPropertyClass):
+class TimeSlice(SpDict):
 
     time: float = sp_property(unit='s',type='dynamic')
     

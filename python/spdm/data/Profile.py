@@ -61,7 +61,13 @@ class Profile(Function[_T], Node):
         Node.__init__(self, entry, **kwargs)
 
     @property
-    def __name__(self) -> str: return self._metadata.get("name", "unnamed")
+    def __name__(self) -> str: return self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
+
+    def __str__(self) -> str:
+        if self.has_children:
+            return super().__str__()
+        else:
+            return self.__name__
 
     @property
     def data(self) -> ArrayType: return self.__array__()

@@ -1,23 +1,24 @@
 from __future__ import annotations
 
+import collections.abc
 import inspect
 import typing
 from copy import copy
+from enum import Enum
 from functools import cached_property
 
 import numpy as np
-from scipy.interpolate import interp1d, interp2d
-from scipy.interpolate import (InterpolatedUnivariateSpline, interp1d, interp2d, UnivariateSpline, RectBivariateSpline,
-                               RegularGridInterpolator,
-                               RectBivariateSpline)
-from enum import Enum
+from scipy.interpolate import (InterpolatedUnivariateSpline,
+                               RectBivariateSpline, RegularGridInterpolator,
+                               UnivariateSpline, interp1d, interp2d)
+from spdm.utils.typing import ArrayType
+
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, try_get
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, NumericType, numeric_type, scalar_type, array_type
+from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
+                            scalar_type)
 from .Expression import Expression
-
-import collections.abc
 
 _T = typing.TypeVar("_T")
 
@@ -34,7 +35,7 @@ class Function(Expression, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, fill_value=np.nan, **kwargs):
         """
             Parameters
             ----------
@@ -52,6 +53,7 @@ class Function(Expression, typing.Generic[_T]):
                     *           : 用于传递给 Node 的参数
 
         """
+
         mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
         if isinstance(value, Expression) or callable(value):
@@ -70,6 +72,7 @@ class Function(Expression, typing.Generic[_T]):
         else:
             self._mesh = mesh
 
+        dims = [np.asarray(v) for v in dims]
         if len(dims) == 0:
             pass
         elif self._mesh is None:
@@ -82,6 +85,8 @@ class Function(Expression, typing.Generic[_T]):
                 self._mesh["periods"] = periods
 
         self._ppoly = None
+
+        self._fill_value = fill_value
 
         # if self._value is not None:
         #     self.validate(strict=True)
@@ -136,7 +141,8 @@ class Function(Expression, typing.Generic[_T]):
         return tp if inspect.isclass(tp) else float
 
     @property
-    def __mesh__(self) -> typing.Any: return self._mesh
+    def __mesh__(self) -> typing.Any:
+        return self._mesh if self._mesh is not None else super().__mesh__
 
     @property
     def mesh(self) -> typing.Any: return self._mesh
@@ -147,11 +153,11 @@ class Function(Expression, typing.Generic[_T]):
     """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
 
     @property
-    def dims(self) -> typing.List[ArrayType]: return try_get(self._mesh, "dims", None)
+    def dims(self) -> typing.List[ArrayType]: return try_get(self.__mesh__, "dims", None)
     """ alias of dimensions """
 
     @property
-    def ndim(self) -> int: return len(self.dims)
+    def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
     """ 函数的维度，即定义域的秩 """
 
     @property
@@ -172,8 +178,8 @@ class Function(Expression, typing.Generic[_T]):
 
     @cached_property
     def points(self) -> typing.List[ArrayType]:
-        if self.dims is None:
-            raise RuntimeError(self._mesh)
+        if self.__mesh__ is None:
+            raise RuntimeError(self.__mesh__)
         elif len(self.dims) == 1:
             return self.dims
         else:
@@ -205,7 +211,7 @@ class Function(Expression, typing.Generic[_T]):
         if isinstance(res, numeric_type):
             res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
         else:
-            raise TypeError(f"Function.__array__ is not defined for {type(res)}!")
+            raise TypeError(f" Can not get value {(res)}! fun={self.__str__()}")
         return res
 
     def __getitem__(self, *args) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
@@ -318,6 +324,9 @@ class Function(Expression, typing.Generic[_T]):
         self._ppoly = ppoly
         return ppoly
 
+    def compile(self, *args, **kwargs) -> Function:
+        return self.__class__(None, op=self._compile(*args, **kwargs), mesh=self._mesh)
+
     def _fetch_op(self):
         """
             重载父类的 _fetch_op 方法，获得函数的插值函数
@@ -335,7 +344,7 @@ class Function(Expression, typing.Generic[_T]):
         else:  # 否则，编译函数
             return self._compile()
 
-    def __call__(self, *args, **kwargs) -> _T | ArrayType:
+    def __call__(self, *args, **kwargs) -> _T | ArrayType | Function:
         """  重载函数调用运算符
             Parameters
             ----------
@@ -344,8 +353,47 @@ class Function(Expression, typing.Generic[_T]):
             kwargs : typing.Any
         """
         if len(args) == 0:
-            args = self.points
-        return super().__call__(*args,  **kwargs)
+            return self
+        elif any(isinstance(a, Expression) for a in args):
+            return Expression(*args, op=self, **kwargs)
+
+        value = self.__value__()
+
+        if isinstance(value, np.ndarray) and len(value.shape) == 0:
+            value = value.item()
+        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+            value = np.asarray(value)
+
+        if self._mesh is None:  # constants function
+            return value
+        elif isinstance(value, scalar_type):
+            if not isinstance(args[0], np.ndarray):
+                return value
+            
+            res = np.full_like(args[0], value)
+            
+            bbox = self.bbox            
+            # 生成一个标记数组，标记 args 是否在 bbox 内            
+            marker = np.bitwise_and.reduce([((args[i] >= bbox[0][i]) & (args[i] <= bbox[1][i]))
+                                           for i in range(self.ndim)])
+            # 将标记数组转换为索引数组
+            res[~marker] = self._fill_value
+            return res
+        elif isinstance(value, np.ndarray) and all(s == 1 for s in value.shape):
+            if len(value.shape) == 0:
+                value = value.item()
+            else:
+                value = np.squeeze(value)
+
+            if not isinstance(args[0], np.ndarray):
+                return value
+            points = self.points
+            marker = np.bitwise_and.reduce([(np.isclose(args[i], points[i][0])) for i in range(self.ndim)])
+            res = np.full_like(args[0], value)
+            res[~marker] = self._fill_value
+            return res
+        else:
+            return super().__call__(*args,  **kwargs)
 
     def derivative(self, n=1) -> Function[_T]:
         return self.__class__(None, op=self._compile(n),  mesh=self._mesh, name=f"d_{n}({self.__str__()})")
@@ -353,11 +401,15 @@ class Function(Expression, typing.Generic[_T]):
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
     def partial_derivative(self, *d) -> Function[_T]:
+        if len(d) == 0:
+            d = (1,)
         return self.__class__[_T](None, op=self._compile(*d), mesh=self._mesh, name=f"d_{d}({self.__str__()})")
 
-    def pd(self, *n) -> Function[_T]: return self.partial_derivative(*n)
+    def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Function[_T]:
+        if len(d) == 0:
+            d = (1,)
         return self.__class__(None, op=self._compile(*[-v for v in d]),  mesh=self._mesh,  name=f"I_{d}({self.__str__()})")
 
     def dln(self) -> Function[_T]: return self.derivative() / self
@@ -374,6 +426,12 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
         return Function(y, *args, **kwargs)
 
 
+class ConstantFunction(Function[_T]):
+
+    def __call__(self, *args, **kwargs) -> _T | ArrayType:
+        return super().__call__(*args, **kwargs)
+
+
 class Piecewise(Expression, typing.Generic[_T]):
     """ PiecewiseFunction
         ----------------
@@ -383,10 +441,10 @@ class Piecewise(Expression, typing.Generic[_T]):
     def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
         super().__init__(op=(func, cond), **kwargs)
 
-    @property
+    @ property
     def rank(self): return 1
 
-    @property
+    @ property
     def ndim(self): return 1
 
     def _compile(self): return self, {}

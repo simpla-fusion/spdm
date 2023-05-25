@@ -16,12 +16,11 @@ from ..utils.logger import logger
 from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from .Entry import Entry, as_entry
-from .Function import Function
 from .Node import Node
 from .Path import Path
 
 
-class Container(Node, typing.Container):
+class Container(Node):
     """
         Container
         ---------

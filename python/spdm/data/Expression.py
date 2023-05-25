@@ -155,7 +155,7 @@ class Expression(object):
     # def is_function(self) -> bool: return not self.has_children and self._op is not None
 
     @property
-    def op_name(self) -> str:
+    def _op_name(self) -> str:
         if isinstance(self._op, tuple):
             op, opts, *method = self._op
 
@@ -173,14 +173,15 @@ class Expression(object):
         else:
             return getattr(self._op, "__name__", self._op.__class__.__name__)
 
+    @property
+    def __name__(self) -> str: return self._name
+
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
-        if self._name is not None:
-            return self._name
 
-        op_name = self.op_name
+        op_name = self._op_name
 
-        _name = _EXPR_OP_NAME.get(op_name, None)
+        name = _EXPR_OP_NAME.get(op_name, None)
 
         def _ast(v):
             if isinstance(v, Expression):
@@ -189,12 +190,12 @@ class Expression(object):
                 return f"<{v.shape}>"
             else:
                 return str(v)
-        if _name is not None and len(self._children) == 2:
-            return f"{_ast(self._children[0])} {_name} {_ast(self._children[1])}"
+        if name is not None and len(self._children) == 2:
+            return f"{_ast(self._children[0])} {name} {_ast(self._children[1])}"
         else:
             return f"{op_name}({', '.join([_ast(arg) for arg in self._children])})"
 
-    @cached_property
+    @property
     def __type_hint__(self):
         """ 获取表达式的类型
         """
@@ -213,7 +214,7 @@ class Expression(object):
         else:
             raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
 
-    @cached_property
+    @property
     def __mesh__(self):
         """ 获取表达式的最大有效定义域 """
         def get_mesh(obj):
@@ -265,15 +266,10 @@ class Expression(object):
             - support broadcasting?
             - support multiple meshes?
         """
-        if any([isinstance(arg, Expression) for arg in args]):
-            if self.has_children:
-                return self.__class__(*args, op=(self, kwargs))
-            else:
-                other = self.__duplicate__()
-                other._children = args
-                return other
-
-        # TODO: 对 expression 执行进行计数
+        if len(args) == 0:
+            return self
+        elif any([isinstance(arg, Expression) for arg in args]):
+            return Expression(*args, op=(self, kwargs))
 
         args, kwargs = self._fetch_children(*args, **kwargs)
 
@@ -304,7 +300,7 @@ class Expression(object):
 
         return res
 
-    def _compile(self, *args, ** kwargs) -> Expression:
+    def compile(self, *args, ** kwargs) -> Expression:
         """ 编译函数，返回一个新的(加速的)函数对象 
             TODO：
                 - JIT compile

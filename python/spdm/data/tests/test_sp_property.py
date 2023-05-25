@@ -2,16 +2,16 @@ import unittest
 
 from spdm.utils.logger import logger
 from spdm.data.List import List
-from spdm.data.sp_property import SpPropertyClass, sp_property
+from spdm.data.sp_property import SpDict, sp_property
 
 
-class Foo(SpPropertyClass):
+class Foo(SpDict):
     a: float = sp_property(default_value=4)
     b: float = sp_property()
     c: float = sp_property()
 
 
-class Goo(SpPropertyClass):
+class Goo(SpDict):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -20,7 +20,7 @@ class Goo(SpPropertyClass):
     foos: List[Foo] = sp_property(default_value={"a": 1, "b": 2, "c": 3})
 
 
-class Doo(SpPropertyClass):
+class Doo(SpDict):
 
     foo: Foo = sp_property(default_value={"a": 1})
 

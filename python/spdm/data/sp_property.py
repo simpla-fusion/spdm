@@ -59,7 +59,10 @@ from .Node import Node
 from .Container import Container
 
 
-class SpPropertyClass(Dict[Node], typing.MutableMapping[str, typing.Any]):
+class SpDict(Dict[Node]):
+    """
+        支持 sp_property 的 Dict
+    """
 
     def _type_hint(self, key: str) -> typing.Type:
         return typing.get_type_hints(self.__class__).get(key, None)\
@@ -204,7 +207,7 @@ class sp_property(typing.Generic[_T]):
 
         return self.type_hint, self.metadata
 
-    def __set__(self, instance: SpPropertyClass, value: typing.Any):
+    def __set__(self, instance: SpDict, value: typing.Any):
         assert (instance is not None)
 
         type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
@@ -219,11 +222,11 @@ class sp_property(typing.Generic[_T]):
                 instance._as_child(key=self.property_cache_key, value=value,
                                    type_hint=type_hint, metadata=metadata)
 
-    def __get__(self, instance: SpPropertyClass | None, owner=None) -> _T | sp_property[_T]:
+    def __get__(self, instance: SpDict | None, owner=None) -> _T | sp_property[_T]:
         if instance is None:
             # 当调用 getter(cls, <name>) 时执行
             return self
-        elif not isinstance(instance, SpPropertyClass):
+        elif not isinstance(instance, SpDict):
             raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpPropertyClass'.")
 
         # 当调用 getter(obj, <name>) 时执行
