@@ -212,7 +212,7 @@ class Function(Expression, typing.Generic[_T]):
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def compile(self, *d, force=False,   check_nan=True,   **kwargs) -> typing.Callable:
+    def _compile(self, *d, force=False, check_nan=True,  **kwargs) -> typing.Callable:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：
@@ -229,7 +229,7 @@ class Function(Expression, typing.Generic[_T]):
         if self.ndim == 1 and len(d) > 0:
             if len(d) != 1:
                 raise RuntimeError(f" Univariate function has not partial_derivative!")
-            ppoly = self.compile(check_nan=check_nan, **kwargs)
+            ppoly = self._compile(check_nan=check_nan, **kwargs)
             if isinstance(ppoly, tuple):
                 ppoly, opts, *_ = ppoly
             else:
@@ -241,7 +241,7 @@ class Function(Expression, typing.Generic[_T]):
             else:
                 return ppoly
         elif self.ndim > 1 and len(d) > 0:
-            ppoly = self.compile(check_nan=check_nan, **kwargs)
+            ppoly = self._compile(check_nan=check_nan, **kwargs)
             if isinstance(ppoly, tuple):
                 ppoly, opts, *_ = ppoly
             else:
@@ -333,7 +333,7 @@ class Function(Expression, typing.Generic[_T]):
         elif self.callable:  # 如果是函数表达式，则返回函数表达式
             return super()._fetch_op()
         else:  # 否则，编译函数
-            return self.compile()
+            return self._compile()
 
     def __call__(self, *args, **kwargs) -> _T | ArrayType:
         """  重载函数调用运算符
@@ -347,24 +347,24 @@ class Function(Expression, typing.Generic[_T]):
             args = self.points
         return super().__call__(*args,  **kwargs)
 
-    def derivative(self, n=1) -> Function:
-        return self.__class__(None, op=self.compile(n),  mesh=self._mesh, name=f"d_{n}({self.__str__()})")
+    def derivative(self, n=1) -> Function[_T]:
+        return self.__class__(None, op=self._compile(n),  mesh=self._mesh, name=f"d_{n}({self.__str__()})")
 
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
-    def partial_derivative(self, *d) -> Function:
-        return self.__class__[_T](None, op=self.compile(*d), mesh=self._mesh, name=f"d_{d}({self.__str__()})")
+    def partial_derivative(self, *d) -> Function[_T]:
+        return self.__class__[_T](None, op=self._compile(*d), mesh=self._mesh, name=f"d_{d}({self.__str__()})")
 
     def pd(self, *n) -> Function[_T]: return self.partial_derivative(*n)
 
     def antiderivative(self, *d) -> Function[_T]:
-        return self.__class__(None, op=self.compile(*[-v for v in d]),  mesh=self._mesh,  name=f"I_{d}({self.__str__()})")
+        return self.__class__(None, op=self._compile(*[-v for v in d]),  mesh=self._mesh,  name=f"I_{d}({self.__str__()})")
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 
-    def integral(self, *args, **kwargs) -> _T: return self.compile().integral(*args, **kwargs)
+    def integral(self, *args, **kwargs) -> _T: return self._compile().integral(*args, **kwargs)
 
-    def roots(self, *args, **kwargs) -> _T: return self.compile().roots(*args, **kwargs)
+    def roots(self, *args, **kwargs) -> _T: return self._compile().roots(*args, **kwargs)
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:

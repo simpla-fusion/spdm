@@ -106,3 +106,18 @@ class Profile(Function[_T], Node):
     def __call__(self, *args, **kwargs) -> _T | ArrayType:
         self._refresh()
         return super().__call__(*args, **kwargs)
+
+    def derivative(self, n=1) -> Profile[_T]:
+        other = super().derivative(n)
+        other._parent = self._parent
+        return other
+
+    def partial_derivative(self, *d) -> Profile[_T]:
+        other = super().partial_derivative(*d)
+        other._parent = self._parent
+        return other
+
+    def antiderivative(self, *d) -> Profile[_T]:
+        other = super().antiderivative(*d)
+        other._parent = self._parent
+        return other

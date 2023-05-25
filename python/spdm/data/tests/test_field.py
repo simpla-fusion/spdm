@@ -13,6 +13,15 @@ TWOPI = constants.pi*2.0
 
 class TestField(unittest.TestCase):
 
+    def test_attribute(self):
+        x = np.linspace(0, 1*TWOPI, 128)
+        y = np.linspace(0, 2*TWOPI, 128)
+        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
+
+        self.assertEqual(fun.ndim, 2)
+        self.assertTrue(np.allclose(fun.dims[0], x))
+        self.assertTrue(np.allclose(fun.dims[1], y))
+
     def test_spl2d(self):
 
         x = np.linspace(0, 1*TWOPI, 128)
@@ -21,11 +30,11 @@ class TestField(unittest.TestCase):
 
         z = np.sin(g_x)*np.cos(g_y)
 
-        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1], mesh_method="cubic")
+        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
 
         z2 = fun(g_x, g_y)
-        logger.debug(np.sqrt(np.mean((z-z2[0])**2)))
-        self.assertTrue(np.allclose(z, z2[0], rtol=1.0e-4))
+  
+        self.assertTrue(np.allclose(z, z2, rtol=1.0e-4))
 
     def test_pd(self):
 

@@ -143,7 +143,7 @@ def try_get(obj, path: str, default_value=_undefined_):
             break
 
         start = pos+1
-    if start == s_len:
+    if start > s_len:
         return obj
     elif default_value is _undefined_:
         raise KeyError(f"Can for find path {path}")
@@ -185,34 +185,36 @@ def getattr_r(obj, path: str):
     return o
 
 
-def try_get(holder, path, default_value=None):
-    path = normalize_path(path)
-    obj = holder
+# def try_get(holder, path, default_value=None):
+#     path = normalize_path(path)
+#     obj = holder
 
-    for k in path:
-        if isinstance(k, str):
-            op = getattr(obj.__class__, k, None)
-        else:
-            op = None
-        if op is None:
-            try:
-                data = obj.__getitem__(k)
-            except Exception:
-                obj = default_value
-                break
-            # except IndexError as error:
-            #     raise IndexError(f"{k} > {len(obj)} Error: {error}")
-            else:
-                obj = data
+#     for k in path:
+#         if isinstance(k, str):
+#             next_o = getattr(obj, k, _not_found_)
 
-        elif isinstance(op, functools.cached_property):
-            obj = op.__get__(obj)
-        elif isinstance(obj, property):
-            obj = op(obj, "fget")(obj)
-        else:
-            obj = default_value
+#             op = getattr(obj.__class__, k, None)
+#         else:
+#             op = None
+#         if op is None:
+#             try:
+#                 data = obj.__getitem__(k)
+#             except Exception:
+#                 obj = default_value
+#                 break
+#             # except IndexError as error:
+#             #     raise IndexError(f"{k} > {len(obj)} Error: {error}")
+#             else:
+#                 obj = data
 
-    return obj
+#         elif isinstance(op, functools.cached_property):
+#             obj = op.__get__(obj)
+#         elif isinstance(obj, property):
+#             obj = op(obj, "fget")(obj)
+#         else:
+#             obj = default_value
+
+#     return obj
 
 
 def try_put(holder, path,  value):

@@ -38,6 +38,7 @@ class Field(Profile[_T]):
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._refresh()
 
     def _refresh(self, force=False) -> Field[_T]:
 
@@ -107,7 +108,7 @@ class Field(Profile[_T]):
     # def antiderivative(self, *d) -> Field: return self.compile(*d)
 
     def grad(self, n=1) -> Field:
-        ppoly = self.compile()
+        ppoly = self._compile()
 
         if isinstance(ppoly, tuple):
             ppoly, opts = ppoly

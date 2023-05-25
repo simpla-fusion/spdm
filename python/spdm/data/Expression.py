@@ -304,7 +304,7 @@ class Expression(object):
 
         return res
 
-    def compile(self, *args, ** kwargs) -> Expression:
+    def _compile(self, *args, ** kwargs) -> Expression:
         """ 编译函数，返回一个新的(加速的)函数对象 
             TODO：
                 - JIT compile
