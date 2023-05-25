@@ -10,7 +10,7 @@ from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, NumericType
+from ..utils.typing import ArrayType, NumericType, array_type
 from .Function import Function
 from .Expression import Expression
 from .Profile import Profile
@@ -67,45 +67,44 @@ class Field(Profile[_T]):
     @property
     def ndim(self) -> int: return self.mesh.ndim
 
-    # def compile(self, *d, force=False,  in_place=True, check_nan=True,   **kwargs) -> Field:
-    # if isinstance(value, np.ndarray) and hasattr(self.__mesh__, "interpolator"):  # 如果value是数组，且mesh有插值函数，则直接使用插值函数
-    # self._ppoly = self.__mesh__.interpolator(value)
-    # return self
-    #     ppoly = self._fetch_op()
-    #     method = None
-    #     opts = {}
+    def _compile(self, *d,   **kwargs) -> Field:
+        if hasattr(self.__mesh__, "dims"):  # as rectlinear grid
+            return super()._compile(*d,  **kwargs)
 
-    #     if isinstance(ppoly, tuple):
-    #         ppoly, opts, *method = ppoly
+        # FIMXE: STILL WORKING! NOT FINISH!!!
+        
+        value = self.__array__()
 
-    #     if len(d) > 1:
-    #         opts["grid"] = False
+        if not isinstance(value, array_type):
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
+        elif len(value.shape) == 0 or value.shape == (1,):
+            # 如果value是标量，无法插值，则返回 value 作为常函数
+            return value
 
-    #     if hasattr(ppoly, "partial_derivative"):
-    #         res = Field[_T](ppoly.partial_derivative(*d), opts=opts,
-    #                         mesh=self.mesh,
-    #                         metadata={"name": f"d{self.__name__}_d{d}"})
-    #     else:
-    #         ppoly, opts = self.mesh.partial_derivative(self.__array__(), *d)
-    #         res = Field[_T](ppoly, opts=opts,
-    #                         mesh=self.mesh,
-    #                         metadata={"name": f"d{self.__name__}_d{d}"})
+        if tuple(value.shape) != tuple(self.shape):
+            raise NotImplementedError(f"{value.shape}!={self.shape}")
 
-    #     ppoly,  opts = self._compile()
-
-    #     if hasattr(ppoly, "antiderivative"):
-    #         res = Field[_T](ppoly.antiderivative(*d), mesh=self.mesh, opts=opts,
-    #                         metadata={"name": f"\int {self.__name__} d{d}"})
-    #     else:
-    #         ppoly, opts = self.mesh.antiderivative(self.__array__(), *d)
-    #         res = Field[_T](ppoly, mesh=self.mesh, opts=opts,
-    #                         metadata={"name": f"\int {self.__name__} d{d}"})
-
-    # def partial_derivative(self, *d) -> Field[_T]: return self.compile(*d)
-
-    # def pd(self, *d) -> Field: return self.partial_derivative(*d)
-
-    # def antiderivative(self, *d) -> Field: return self.compile(*d)
+        if self.ndim == 1 and len(d) <= 0:
+            if hasattr(self.__mesh__, "derivative"):
+                return self.__mesh__.derivative(d, value)
+            else:
+                return super()._compile(*d, **kwargs)
+        elif self.ndim == 2 and d == (1,):
+            return self._compile(1, 0, **kwargs), self._compile(0, 1, **kwargs)
+        elif self.ndim == 3 and d == (1,):
+            return self._compile(1, 0, 0, **kwargs), self._compile(0, 1, 0, **kwargs), self._compile(0, 0, 1, **kwargs)
+        elif len(d) == 1:
+            raise NotImplementedError(f"ndim={self.ndim} d={d}")
+        elif len(d) != self.ndim:
+            raise RuntimeError(f"Illegal! ndim={self.ndim} d={d}")
+        elif all(v == 0 for v in d) and hasattr(self.__mesh__, "interpolator"):
+            return self.__mesh__.interpolator(value)
+        elif all(v >= 0 for v in d) and hasattr(self.__mesh__, "partial_derivative"):
+            return self.__mesh__.partial_derivative(d, value)
+        elif all(v <= 0 for v in d) and hasattr(self.__mesh__, "antiderivative"):
+            return self.__mesh__.antiderivative([-v for v in d], value)
+        else:
+            raise NotImplementedError(f"TODO: {d}")
 
     def grad(self, n=1) -> Field:
         ppoly = self._compile()
