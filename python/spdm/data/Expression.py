@@ -149,7 +149,7 @@ class Expression(object):
     def empty(self) -> bool: return not self.has_children and self._op is None
 
     @property
-    def callable(self): return self._op is not None
+    def callable(self): return self._op is not None or self.has_children
 
     # @property
     # def is_function(self) -> bool: return not self.has_children and self._op is not None

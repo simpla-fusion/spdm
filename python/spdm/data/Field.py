@@ -61,19 +61,10 @@ class Field(Profile[_T]):
     """ 定义域 mesh 上的坐标 """
 
     @property
-    def dimensions(self) -> typing.List[ArrayType]: return self.mesh.dims
-
-    @property
-    def dims(self) -> typing.List[ArrayType]: return self.mesh.dims
-
-    @property
     def shape(self) -> typing.Tuple[int]: return self.mesh.shape
 
     @property
     def ndim(self) -> int: return self.mesh.ndim
-
-    # @property
-    # def periods(self) -> typing.Tuple[float]: return getattr(self._mesh, "periods", None)
 
     # def compile(self, *d, force=False,  in_place=True, check_nan=True,   **kwargs) -> Field:
     # if isinstance(value, np.ndarray) and hasattr(self.__mesh__, "interpolator"):  # 如果value是数组，且mesh有插值函数，则直接使用插值函数
@@ -109,8 +100,8 @@ class Field(Profile[_T]):
     #         res = Field[_T](ppoly, mesh=self.mesh, opts=opts,
     #                         metadata={"name": f"\int {self.__name__} d{d}"})
 
-    def partial_derivative(self, *d) -> Field[_T]: return self.compile(*d)
+    # def partial_derivative(self, *d) -> Field[_T]: return self.compile(*d)
 
-    def pd(self, *d) -> Field: return self.partial_derivative(*d)
+    # def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
-    def antiderivative(self, *d) -> Field: return self.compile(*d)
+    # def antiderivative(self, *d) -> Field: return self.compile(*d)

@@ -119,6 +119,38 @@ def load_pkg_data(pkgname, path):
     return json.loads(data.decode("utf-8"))
 
 
+def try_get(obj, path: str, default_value=_undefined_):
+    if path is None or path == '':
+        return obj
+    start = 0
+    path = path.strip(".")
+    s_len = len(path)
+    while start >= 0 and start < s_len:
+        pos = path.find('.', start)
+        if pos < 0:
+            pos = s_len
+        next_obj = getattr(obj, path[start: pos], _not_found_)
+
+        if next_obj is not _not_found_:
+            obj = next_obj
+        elif isinstance(obj, collections.abc.Mapping):
+            next_obj = obj.get(path[start: pos], _not_found_)
+            if next_obj is not _not_found_:
+                obj = next_obj
+            else:
+                break
+        else:
+            break
+
+        start = pos+1
+    if start == s_len:
+        return obj
+    elif default_value is _undefined_:
+        raise KeyError(f"Can for find path {path}")
+    else:
+        return default_value
+
+
 def try_getattr_r(obj, path: str):
     if path is None or path == '':
         return obj, ''
