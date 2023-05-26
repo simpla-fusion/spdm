@@ -2,9 +2,8 @@ import unittest
 
 import numpy as np
 from scipy import constants
-from spdm.data.Expression import _0 as _x
-from spdm.data.Expression import _1 as _y
 
+from spdm.data.Expression import Variable
 from spdm.data.Field import Field
 from spdm.utils.logger import logger
 
@@ -16,6 +15,9 @@ class TestField(unittest.TestCase):
     def test_attribute(self):
         x = np.linspace(0, 1*TWOPI, 128)
         y = np.linspace(0, 2*TWOPI, 128)
+
+        _x = Variable(0, "x")
+        _y = Variable(1, "y")
         fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
 
         self.assertEqual(fun.ndim, 2)
@@ -23,7 +25,8 @@ class TestField(unittest.TestCase):
         self.assertTrue(np.allclose(fun.dims[1], y))
 
     def test_spl2d(self):
-
+        _x = Variable(0, "x")
+        _y = Variable(1, "y")
         x = np.linspace(0, 1*TWOPI, 128)
         y = np.linspace(0, 2*TWOPI, 128)
         g_x, g_y = np.meshgrid(x, y)
@@ -33,11 +36,12 @@ class TestField(unittest.TestCase):
         fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
 
         z2 = fun(g_x, g_y)
-  
+
         self.assertTrue(np.allclose(z, z2, rtol=1.0e-4))
 
     def test_pd(self):
-
+        _x = Variable(0, "x")
+        _y = Variable(1, "y")
         x = np.linspace(0, TWOPI, 128)
         y = np.linspace(0, 2*TWOPI, 128)
         g_x, g_y = np.meshgrid(x, y)

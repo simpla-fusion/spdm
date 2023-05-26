@@ -6,7 +6,7 @@ import functools
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, NumericType, numeric_type
+from ..utils.typing import ArrayType, NumericType, numeric_type, array_type
 from ..utils.tags import _not_found_, _undefined_
 
 
@@ -91,15 +91,13 @@ class Expression(object):
         """
         super().__init__()
 
-        if op is None and len(args) == 1:  # copy constructor
-            if getattr(args[0], "has_children", False):
-                # copy constructor
-                op = args[0]._op
-                args = args[0]._children
-            elif callable(args[0]):
-                op = (args[0], kwargs)
-                args = ()
-                kwargs = {}
+        if getattr(op, "has_children", False):
+            # copy constructor
+            args = op._children
+            op = op._op
+        elif callable(op) and len(kwargs) > 0:
+            op = functools.partial(op, **kwargs)
+            kwargs = {}
 
         self._children = args
         self._op = op
@@ -114,13 +112,31 @@ class Expression(object):
             logger.warning(f"Ignore kwargs={kwargs}! op={self._op}")
 
         self._name = name
+        if self._name is None:
+            if isinstance(op, tuple):
+                op, opts, *method = op
+
+                if len(method) > 0:
+                    method = method[0]
+                else:
+                    method = None
+
+                if method == "__call__" or method is None:
+                    self._name = getattr(op, "__name__", op.__class__.__name__)
+                else:
+                    self._name = f"{op.__class__.__name__}.{method}"
+            elif isinstance(op, numeric_type):
+                self._name = f"[{op}]"
+            else:
+                self._name = getattr(op, "__name__", op.__class__.__name__)
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
         other: Expression = object.__new__(self.__class__)
-        other._children = self._children
         other._op = self._op
         other._name = self._name
+        other._children = self._children
+
         return other
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
@@ -137,9 +153,8 @@ class Expression(object):
                 >>> z(0.0)
                 1.0
         """
-
-        return Expression(functools.partial(getattr(ufunc, method), **kwargs), *args,
-                          name=getattr(ufunc, "__name__", f"{ufunc.__class__.__name__}.{method}"))
+        name = getattr(ufunc, "__name__", f"{ufunc.__class__.__name__}.{method}")
+        return Expression(functools.partial(getattr(ufunc, method), **kwargs), *args, name=name)
 
     def __array__(self, *args) -> ArrayType:
         raise NotImplementedError(f"__array__({args}) is not implemented!")
@@ -156,25 +171,6 @@ class Expression(object):
 
     # @property
     # def is_function(self) -> bool: return not self.has_children and self._op is not None
-
-    @property
-    def _op_name(self) -> str:
-        if isinstance(self._op, tuple):
-            op, opts, *method = self._op
-
-            if len(method) > 0:
-                method = method[0]
-            else:
-                method = None
-
-            if method == "__call__" or method is None:
-                return getattr(op, "__name__", op.__class__.__name__)
-            else:
-                return f"{op.__class__.__name__}.{method}"
-        elif isinstance(self._op, numeric_type):
-            return f"[{self._op}]"
-        else:
-            return getattr(self._op, "__name__", self._op.__class__.__name__)
 
     @property
     def __name__(self) -> str: return self._name
