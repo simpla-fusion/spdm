@@ -265,10 +265,10 @@ class Expression(object):
             res = op
         elif isinstance(op, np.ndarray) and len(op.shape) == 0:
             res = op.item()
-        elif op is None:  # tuple Expression
-            res = xargs if len(xargs) != 1 else xargs[0]
+        # elif op is None:  # tuple Expression
+            # res = xargs if len(xargs) != 1 else xargs[0]
         elif not callable(op):
-            raise RuntimeError(f"Unknown op={op} children={self._children}!")
+            raise RuntimeError(f"Unknown op={op} {self.__str__()} !")
         else:
             try:
                 res = op(*xargs, **kwargs)
@@ -318,7 +318,7 @@ class Expression(object):
             elif isinstance(res, array_type) and res.shape == mark.shape:
                 return res
             else:
-                raise RuntimeError(f"Incorrect result shape {res.shape}!")
+                raise RuntimeError(f"Incorrect result shape {res}!")
         else:
             res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
             valid_xargs = [arg[mark] for arg in xargs]

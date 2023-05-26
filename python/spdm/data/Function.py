@@ -265,6 +265,8 @@ class Function(Expression, typing.Generic[_T]):
 
         if value is None or value is _not_found_ and self.callable:
             value = np.asarray(super()._eval(*self.points))
+        else:
+            value = np.asarray(value)
 
         if not isinstance(value, array_type):
             raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
@@ -323,6 +325,8 @@ class Function(Expression, typing.Generic[_T]):
             op = functools.partial(op, **opts)
             if len(opts) > 1:
                 logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
+        if op is None:
+            raise RuntimeError(f"Function.compile() failed! {self.__str__()} ")
 
         return Function(op, *self.dims, name=f"[{self.__str__()}]")
 

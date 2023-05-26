@@ -13,7 +13,7 @@ from .Path import Path
 _TObject = typing.TypeVar("_TObject")
 
 
-class List(Container[_TObject], typing.Sequence[_TObject]):
+class List(Container, typing.Sequence[_TObject]):
 
     def __init__(self, *args, default_value=_not_found_, ** kwargs):
         if isinstance(default_value, collections.abc.Sequence):

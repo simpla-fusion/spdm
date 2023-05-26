@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections.abc
 import typing
 from enum import Enum
-
+import functools
 import numpy as np
 
 from ..mesh.Mesh import Mesh
@@ -127,8 +127,9 @@ class Field(Expression, Node, typing.Generic[_T]):
     def __domain__(self, *xargs) -> bool: return self.__mesh__.geometry.enclose(*xargs)
 
     def __value__(self) -> ArrayType:
-        if self._value is not None:
+        if self._value is not None and len(self._value) > 0:
             return self._value
+
         value = Node.__value__(self)
 
         if isinstance(value, Expression) or callable(value):
@@ -140,8 +141,10 @@ class Field(Expression, Node, typing.Generic[_T]):
                 self._children = (op,)
             else:
                 raise ValueError("op is not None, but children is not empty")
-
-        return value
+        if value is not None and len(value) == 0:
+            return None
+        else:
+            return value
 
     def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
@@ -158,7 +161,7 @@ class Field(Expression, Node, typing.Generic[_T]):
             raise TypeError(f" Can not get value {(res)}! fun={self.__str__()}")
         return res
 
-    def _compile(self, *d,   **kwargs) -> Field:
+    def _compile(self, *d,   **kwargs) -> Field[_T]:
         # if hasattr(self.__mesh__, "dims"):  # as rectlinear grid
         #     return super()._compile(*d,  **kwargs)
 
@@ -166,8 +169,13 @@ class Field(Expression, Node, typing.Generic[_T]):
 
         value = self.__value__()
 
-        if value is None or value is _not_found_ or len(value) == 0 and self.callable:
-            value = np.asarray(super()._eval(*self.__mesh__.points))
+        if value is None or value is _not_found_ or len(value) == 0:
+            if self.callable:
+                value = super()._eval(*self.__mesh__.points)
+            else:
+                raise RuntimeError(f"Function.compile() failed! {super().__str__()} {self._op} {self._children}")
+
+        value = np.asarrau(value)
 
         if not isinstance(value, array_type):
             raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
@@ -199,6 +207,20 @@ class Field(Expression, Node, typing.Generic[_T]):
             return self.__mesh__.antiderivative([-v for v in d], value)
         else:
             raise NotImplementedError(f"TODO: {d}")
+
+    def compile(self, *args, **kwargs) -> Field[_T]:
+        op, *opts = self._compile(*args, **kwargs)
+        if len(opts) == 0:
+            pass
+        elif len(opts) > 0:
+            opts = opts[0]
+            op = functools.partial(op, **opts)
+            if len(opts) > 1:
+                logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
+        if op is None:
+            raise RuntimeError(f"Function.compile() failed! {self.__str__()} ")
+
+        return Field[_T](op, mesh=self.__mesh__, name=f"[{self.__str__()}]")
 
     def grad(self, n=1) -> Field:
         ppoly = self._compile()
