@@ -58,9 +58,6 @@ class TestFunction(unittest.TestCase):
         x2 = np.linspace(0, 1.0, 64)
         y2 = np.sin(x2*TWOPI)
 
-        logger.debug(fun(x2))
-        logger.debug(y2)
-
         self.assertTrue(np.allclose(y2, fun(x2)))
 
     def test_dydx(self):

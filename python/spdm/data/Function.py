@@ -152,7 +152,7 @@ class Function(Expression, typing.Generic[_T]):
 
         if self._dims is None or len(self._dims) == 0:
             return True
-        
+
         if len(args) != len(self._dims):
             raise RuntimeError(f"len(args) != len(self._dims) {len(args)}!={len(self._dims)}")
         v = []
@@ -363,7 +363,6 @@ class Function(Expression, typing.Generic[_T]):
 
             return res
         elif isinstance(value, np.ndarray) and all(s == 1 for s in value.shape):
-
             if not isinstance(args[0], np.ndarray):
                 return value
 
@@ -372,6 +371,9 @@ class Function(Expression, typing.Generic[_T]):
             res[marker] = value
             return res
         else:
+            if self._op is None:  # 如果没有编译，则编译函数
+                self._op = self._compile()
+
             return super()._eval(*args,  **kwargs)
 
     def derivative(self, n=1) -> Function[_T]:
