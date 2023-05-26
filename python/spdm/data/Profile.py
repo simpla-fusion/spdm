@@ -34,7 +34,7 @@ class Profile(Function[_T], Node):
 
     """
 
-    def __init__(self,  value: NumericType | Expression, *args, **kwargs) -> None:
+    def __init__(self,  value: NumericType | Expression, *args,   **kwargs) -> None:
         """
             Parameters
             ----------
@@ -54,13 +54,14 @@ class Profile(Function[_T], Node):
         else:
             entry = None
 
-        # mesh, opts, kwargs = group_dict_by_prefix(kwargs, ["mesh", "op"])
+        name = kwargs.pop("name", None) or kwargs.get("metadata", {}).get("name", None)
 
-        Function.__init__(self, value, *args)
+        Function.__init__(self, value, *args, name=name)
 
         Node.__init__(self, entry, **kwargs)
 
-        self._name = self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
+        if name is None:
+            self._name = self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
 
     @property
     def data(self) -> ArrayType: return self.__array__()
