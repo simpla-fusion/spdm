@@ -318,23 +318,6 @@ class Function(Expression, typing.Generic[_T]):
 
         return self.__class__(None, op=op, dims=self._dims)
 
-    def _fetch_op(self):
-        """
-            重载父类的 _fetch_op 方法，获得函数的插值函数
-
-            Returns
-            -------
-            typing.Callable
-                插值函数
-
-        """
-        if self._ppoly is not None:  # 如果已经编译过，则直接返回插值函数
-            return self._ppoly
-        elif self.callable:  # 如果是函数表达式，则返回函数表达式
-            return super()._fetch_op()
-        else:  # 否则，编译函数
-            return self._compile()
-
     def _eval(self, *args, **kwargs) -> _T | ArrayType | Function:
         """  重载函数调用运算符
             Parameters
