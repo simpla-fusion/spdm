@@ -11,15 +11,13 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type
-from .Function import Function
 from .Expression import Expression
-from .Profile import Profile
 from .Node import Node
 
 _T = typing.TypeVar("_T")
 
 
-class Field(Profile[_T]):
+class Field(Expression, Node, typing.Generic[_T]):
     """ Field
         ---------
         Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
@@ -66,27 +64,11 @@ class Field(Profile[_T]):
 
         return self
 
-    def __domain__(self, *args) -> bool: return self.geometry(*args)
-
-    @property
-    def bbox(self): return self.geometry.bbox
+    def __domain__(self, *args) -> bool: return self.mesh.geometry(*args)
 
     @property
     def mesh(self) -> Mesh: return self._mesh
     """ 函数的定义域，即函数的自变量的取值范围。"""
-
-    @property
-    def geometry(self): return self.mesh.geometry
-
-    @property
-    def points(self): return self.mesh.points
-    """ 定义域 mesh 上的坐标 """
-
-    @property
-    def shape(self) -> typing.Tuple[int]: return self.mesh.shape
-
-    @property
-    def ndim(self) -> int: return self.mesh.ndim
 
     def _compile(self, *d,   **kwargs) -> Field:
         if hasattr(self.__mesh__, "dims"):  # as rectlinear grid

@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from scipy import constants
 from spdm.data.Expression import Variable
-from spdm.data.Function import Function, Piecewise
+from spdm.data.Function import Function
 from spdm.utils.logger import logger
 from spdm.data.sp_property import SpDict, sp_property
 from spdm.mesh.Mesh import Mesh

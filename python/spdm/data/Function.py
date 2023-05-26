@@ -26,15 +26,15 @@ class Function(Expression, typing.Generic[_T]):
     """
         Function
         ---------
-        A function is a mapping between two sets, the _mesh_ and the  _value_.
+        A function is a mapping between two sets, the _domain_ and the  _value_.
         The _value_  is the set of all possible outputs of the function.
-        The _mesh_ is the set of all possible inputs  to the function.
+        The _domain_ is the set of all possible inputs  to the function.
 
-        函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dimension_ 。
+        函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
 
     """
 
-    def __init__(self, value: NumericType | Expression, *args: ArrayType, dims=None, periods=None, fill_value=np.nan, op=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, **kwargs):
         """
             Parameters
             ----------
@@ -50,26 +50,30 @@ class Function(Expression, typing.Generic[_T]):
 
         """
 
-        if isinstance(value, Expression) or callable(value) and op is None:
-            Expression.__init__(self, value, **kwargs)
-            self._value = None
+        if isinstance(value, Expression) or callable(value) or (isinstance(value, tuple) and callable(value[0])):
+            op = value
+            value = None
         else:
-            Expression.__init__(self, op, **kwargs)
-            self._value = value
+            op = None
 
-        if dims is None:
-            dims = args
+        if value is not None:
+            try:
+                value = np.asarray(value)
+            except Exception as e:
+                raise ValueError(f"Function.__init__  value should has numeric type, not {type(value)}! ") from e
 
-        if dims is not None and len(dims) > 0:
-            dims = [np.asarray(v) for v in dims]    # 将 dims 转换为 numpy 数组
-            if any(len(d.shape) > 1 for d in dims):
-                raise RuntimeError(f"Function.__init__ incorrect dims {dims}! {self.__str__()}")
-        self._dims = dims
+        super().__init__(op, **kwargs)
+
+        self._value = value
+
+        self._dims = [np.asarray(v) for v in dims]
+
         self._periods = periods
 
         self._ppoly = None
 
-        self._fill_value = fill_value
+        if any(len(d.shape) > 1 for d in self.dims):
+            raise RuntimeError(f"Function.__init__ incorrect dims {dims}! {self.__str__()}")
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """
@@ -90,9 +94,9 @@ class Function(Expression, typing.Generic[_T]):
         if (v_shape == m_shape) or (v_shape[:-1] == m_shape):
             return True
         elif strict:
-            raise RuntimeError(f" value.shape is not match with mesh! {v_shape}!={m_shape} ")
+            raise RuntimeError(f" value.shape is not match with dims! {v_shape}!={m_shape} ")
         else:
-            logger.warning(f" value.shape is not match with mesh! {v_shape}!={m_shape} ")
+            logger.warning(f" value.shape is not match with dims! {v_shape}!={m_shape} ")
             return False
 
     def __duplicate__(self) -> Function:
@@ -100,17 +104,18 @@ class Function(Expression, typing.Generic[_T]):
         other: Function = super().__duplicate__()
         other._value = self._value
         other._dims = self._dims
+        other._periods = self._periods
         return other
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"")
 
-    @ classmethod
+    @classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    @ property
-    def empty(self) -> bool: return self._value is None and self._dims is None and super().empty
+    @property
+    def empty(self) -> bool: return self._value is None and self.dims is None and super().empty
 
-    @ property
+    @property
     def __type_hint__(self) -> typing.Type:
         """ 获取函数的类型
         """
@@ -120,29 +125,29 @@ class Function(Expression, typing.Generic[_T]):
 
         return tp if inspect.isclass(tp) else float
 
-    @ property
+    @property
     def dimensions(self) -> typing.List[ArrayType]: return self.dims
     """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
 
-    @ property
+    @property
     def dims(self) -> typing.List[ArrayType]: return self._dims
     """ alias of dimensions """
 
-    @ property
+    @property
     def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
     """ 函数的维度，即定义域的秩 """
 
-    @ property
+    @property
     def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self.dims)
     """ 所需数组的形状 """
 
-    @ property
+    @property
     def periods(self) -> typing.Tuple[float]: return self._periods
 
-    @ functools.cached_property
+    @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
-        if self._dims is None:
-            raise RuntimeError(self._dims)
+        if self.dims is None:
+            raise RuntimeError(self.dims)
         elif len(self.dims) == 1:
             return self.dims
         else:
@@ -150,11 +155,11 @@ class Function(Expression, typing.Generic[_T]):
 
     def __domain__(self, *args) -> bool:
 
-        if self._dims is None or len(self._dims) == 0:
+        if self.dims is None or len(self.dims) == 0:
             return True
 
-        if len(args) != len(self._dims):
-            raise RuntimeError(f"len(args) != len(self._dims) {len(args)}!={len(self._dims)}")
+        if len(args) != len(self.dims):
+            raise RuntimeError(f"len(args) != len(self.dims) {len(args)}!={len(self.dims)}")
         v = []
         for i, d in enumerate(self.dims):
             if not isinstance(d, array_type):
@@ -181,14 +186,14 @@ class Function(Expression, typing.Generic[_T]):
     def __value__(self) -> ArrayType: return self._value
     """ 返回函数的数组 self._value """
 
-    def __array__(self, dtype=None, *args, **kwargs) -> ArrayType:
+    def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
         res = self.__value__()
 
         if res is None or res is _not_found_ and self.callable:
-            res = self._value = self.__call__(*self.points)
+            res = self._value = self._eval(*self.points)
 
         if isinstance(res, numeric_type):
             res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
@@ -200,7 +205,7 @@ class Function(Expression, typing.Generic[_T]):
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def _compile(self, *d, force=False, check_nan=True,  **kwargs) -> typing.Callable:
+    def _compile(self, *d, force=False,   **kwargs) -> typing.Callable:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：
@@ -211,13 +216,19 @@ class Function(Expression, typing.Generic[_T]):
                 - 优化缓存
                 - 支持多维插值
                 - 支持多维求导，自动微分 auto diff
-            -
+
+            Parameters
+            ----------
+            d : typing.Any
+                order of function
+            force : bool
+                if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
 
         """
         if self.ndim == 1 and len(d) > 0:
             if len(d) != 1:
                 raise RuntimeError(f" Univariate function has not partial_derivative!")
-            ppoly = self._compile(check_nan=check_nan, **kwargs)
+            ppoly = self._compile(**kwargs)
             if isinstance(ppoly, tuple):
                 ppoly, opts, *_ = ppoly
             else:
@@ -229,7 +240,7 @@ class Function(Expression, typing.Generic[_T]):
             else:
                 return ppoly
         elif self.ndim > 1 and len(d) > 0:
-            ppoly = self._compile(check_nan=check_nan, **kwargs)
+            ppoly = self._compile(**kwargs)
             if isinstance(ppoly, tuple):
                 ppoly, opts, *_ = ppoly
             else:
@@ -248,40 +259,22 @@ class Function(Expression, typing.Generic[_T]):
         elif self._ppoly is not None and not force:
             return self._ppoly
 
-        # value = self.__array__()
+        check_nan = kwargs.get("check_nan", True)
+
         value = self.__value__()
 
         if value is None or value is _not_found_ and self.callable:
-            value = super()._eval(*self.points)
+            value = np.asarray(super()._eval(*self.points))
 
-        if isinstance(value, np.ndarray) and len(value.shape) == 0:
-            value = value.item()
-        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            if len(value) > 1:
-                value = np.asarray(value)
-            else:
-                value = value[0]
-        elif isinstance(value, scalar_type):
-            pass
-        elif isinstance(value, np.ndarray) and value.size == 1:
-            value = np.squeeze(value)
+        if not isinstance(value, array_type):
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
+        elif value.size == 1:
+            value = np.squeeze(value).item()
 
-        if isinstance(value, Expression) or callable(value):
+        if np.isscalar(value):
             return value
-        elif isinstance(value, scalar_type):
-            return value
-        elif not isinstance(value, array_type):
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
 
-            #  获得坐标点 points
-        points = self.points
-
-        m_shape = points[0].shape
-
-        # if all((d.shape if isinstance(d, array_type) else None) for d in points):  # 检查 points 的维度是否一致
-        #     m_shape = points[0].shape
-        # else:
-        #     raise RuntimeError(f"Function.compile() incorrect points  shape  {self.__str__()} {points}")
+        m_shape = self.shape
 
         if len(value.shape) > len(m_shape):
             raise NotImplementedError(
@@ -311,12 +304,10 @@ class Function(Expression, typing.Generic[_T]):
                         f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
                     value[mark] = 0.0
 
-            x, y = self.dims
             if isinstance(self.periods, collections.abc.Sequence):
                 logger.warning(f"TODO: periods={self.periods}")
 
-            ppoly = RectBivariateSpline(x, y, value), {"grid": False}
-
+            ppoly = RectBivariateSpline(*self.dims, value), {"grid": False}
         else:
             raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
 
@@ -333,7 +324,7 @@ class Function(Expression, typing.Generic[_T]):
             if len(opts) > 1:
                 logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
 
-        return self.__class__(None, op=op, dims=self._dims)
+        return Function(op, *self.dims, name=f"[{self.__str__()}]")
 
     def _eval(self, *args, **kwargs) -> _T | ArrayType | Function:
         """  重载函数调用运算符
@@ -350,21 +341,21 @@ class Function(Expression, typing.Generic[_T]):
         return super()._eval(*args, **kwargs)
 
     def derivative(self, n=1) -> Function[_T]:
-        return self.__class__(None, op=self._compile(n),  dims=self._dims, name=f"d_{n}({self.__str__()})")
+        return Function[_T](self._compile(n),  *self.dims, name=f"d_{n}({self.__str__()})")
 
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
     def partial_derivative(self, *d) -> Function[_T]:
         if len(d) == 0:
             d = (1,)
-        return self.__class__[_T](None, op=self._compile(*d), dims=self._dims, name=f"d_{d}({self.__str__()})")
+        return Function[_T](self._compile(*d), *self.dims, name=f"d_{d}({self.__str__()})")
 
     def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Function[_T]:
         if len(d) == 0:
             d = (1,)
-        return self.__class__(None, op=self._compile(*[-v for v in d]),  dims=self._dims,  name=f"I_{d}({self.__str__()})")
+        return Function(self._compile(*[-v for v in d]),  *self.dims,  name=f"I_{d}({self.__str__()})")
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 

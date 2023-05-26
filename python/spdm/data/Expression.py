@@ -247,7 +247,7 @@ class Expression(object):
         return children, {}
 
     def _eval(self, *xargs, **kwargs) -> ArrayType | Expression:
-        
+
         xargs, kwargs = self._apply_children(*xargs, **kwargs)
 
         op = self._op
@@ -261,8 +261,10 @@ class Expression(object):
 
         res = _undefined_
 
-        if isinstance(op, scalar_type):
-            return op
+        if np.isscalar(op):
+            res = op
+        elif isinstance(op, np.ndarray) and len(op.shape) == 0:
+            res = op.item()
         elif op is None:  # tuple Expression
             res = xargs if len(xargs) != 1 else xargs[0]
         elif not callable(op):
@@ -300,8 +302,6 @@ class Expression(object):
             return self
         elif any([isinstance(arg, Expression) for arg in xargs]):
             return Expression(*xargs, op=(self, kwargs))
-
-        
 
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
         mark = self.__domain__(*xargs)

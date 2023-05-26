@@ -54,64 +54,52 @@ class Profile(Function[_T], Node):
         else:
             entry = None
 
-        mesh, opts, kwargs = group_dict_by_prefix(kwargs, ["mesh", "op"])
+        # mesh, opts, kwargs = group_dict_by_prefix(kwargs, ["mesh", "op"])
 
-        Function.__init__(self, value, *args, mesh=mesh, op=opts)
+        Function.__init__(self, value, *args)
 
         Node.__init__(self, entry, **kwargs)
 
-    @property
-    def __name__(self) -> str: return self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
-
-    def __str__(self) -> str:
-        if self.has_children:
-            return super().__str__()
-        else:
-            return self.__name__
+        self._name = self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
 
     @property
     def data(self) -> ArrayType: return self.__array__()
 
-    def _refresh(self, force=False) -> Profile[_T]:
+    @property
+    def dims(self) -> Profile[_T]:
         """ 从 NodeTree 中获取 mesh 和 value """
 
-        if not self.empty and not force:  # 如果已经有值了，就不再刷新
-            return
-
-        mesh = self._mesh
-
-        if mesh is None:
-            mesh = {}
-
-        if isinstance(self._parent, Node):
+        if self._dims is not None and isinstance(self._parent, Node):
             coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) == 0:
-                pass
-            elif all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
-                mesh = getattr(self._parent, "grid", None)
-            else:
-                mesh["dims"] = tuple([(self._parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
-                                      for c in coordinates.values()])
+            if len(coordinates) > 0:
+                self._dims = tuple([(self._parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                                    for c in coordinates.values()])
 
-        value = Node.__value__(self)
+            # elif all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
+            #     dims = getattr(getattr(self._parent, "grid", None), "dims", None)
+            # else:
 
-        if value is None or value is _not_found_:
-            value = self._value
-
-        Function.__init__(self, value,  mesh=mesh)
-
-        return self
+        return self._dims
 
     def __value__(self) -> ArrayType:
-        self._refresh()
-        return super().__value__()
+        if self._value is not None:
+            return self._value
+        value = Node.__value__(self)
 
-    def __call__(self, *args, **kwargs) -> _T | ArrayType:
-        self._refresh()
-        return super().__call__(*args, **kwargs)
+        if isinstance(value, Expression) or callable(value):
+            op = value
+            value = op(*self.points)
+            if self._op is None:
+                self._op = op
+            elif len(self._children) == 0:
+                self._children = (op,)
+            else:
+                raise ValueError("op is not None, but children is not empty")
+
+        return value
 
     def derivative(self, n=1) -> Profile[_T]:
         other = super().derivative(n)
