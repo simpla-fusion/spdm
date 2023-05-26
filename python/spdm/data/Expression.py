@@ -75,6 +75,7 @@ class Expression(object):
             >>> z(0.0)
             3.0
     """
+    fill_value = np.nan
 
     def __init__(self, op: typing.Callable, *args, name=None,  **kwargs) -> None:
         """
@@ -213,36 +214,16 @@ class Expression(object):
         else:
             raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
 
-    # @property
-    # def __mesh__(self):
-    #     """ 获取表达式的最大有效定义域 """
-    #     def get_mesh(obj):
-    #         if not isinstance(obj, Expression):
-    #             return [None]
-    #         elif len(obj._children) > 0:
-    #             return [d for o in obj._children for d in get_mesh(o) if d is not None]
-    #         else:
-    #             return [getattr(obj, "mesh", None)]
-    #     new_list = []
-    #     for d in get_mesh(self):
-    #         if d not in new_list:
-    #             new_list.append(d)
-    #     if len(new_list) == 0:
-    #         raise RuntimeError(f"Expression can not reslove mesh! mesh list={new_list}")
-    #     elif len(new_list) != 1:
-    #         logger.warning(f"get ({len(new_list)}) results, only take the first! ")
+    def __domain__(self, *x) -> bool:
+        """ 当坐标在定义域内时返回 True，否则返回 False  """
 
-    #     return new_list[0]
-
-    def __domain__(self, *args) -> bool:
-        """ 判断表达式是否在指定的定义域内 """
-        d = [child.__domain__(*args) for child in self._children if hasattr(child, "__domain__")]
+        d = [child.__domain__(*x) for child in self._children if hasattr(child, "__domain__")]
         if len(d) > 0:
             return np.bitwise_and.reduce(d)
         else:
             return True
 
-    def _fetch_children(self, *args, **kwargs) -> typing.List[typing.Any]:
+    def _apply_children(self, *args, **kwargs) -> typing.List[typing.Any]:
         if len(self._children) == 0:
             return args, kwargs
 
@@ -262,30 +243,9 @@ class Expression(object):
 
         return children, {}
 
-    def _fetch_op(self): return self._op
-
-    @typing.final
-    def __call__(self, *args, **kwargs) -> ArrayType | Expression:
-        """
-            重载函数调用运算符，用于计算表达式的值
-
-            TODO:
-            - support JIT compilation
-            - support broadcasting?
-            - support multiple meshes?
-        """
-        if len(args) == 0:
-            return self
-        elif any([isinstance(arg, Expression) for arg in args]):
-            return Expression(*args, op=(self, kwargs))
-
-        args, kwargs = self._fetch_children(*args, **kwargs)
-
-        return self._eval(*args, **kwargs)
-
     def _eval(self, *args, **kwargs) -> ArrayType | Expression:
 
-        op = self._fetch_op()
+        op = self._op
 
         if isinstance(op, tuple):
             op, opts, *method = op
@@ -311,6 +271,47 @@ class Expression(object):
             raise RuntimeError(f"Unknown op={op} expr={self._children}!")
 
         return res
+
+    @typing.final
+    def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:
+        """
+            重载函数调用运算符，用于计算表达式的值
+
+            TODO:
+            - support JIT compilation
+            - support broadcasting?
+            - support multiple meshes?
+
+            Parameters
+            ----------
+            xargs : NumericType
+                自变量/坐标，可以是标量，也可以是数组
+            kwargs : typing.Any
+                命名参数，用于传递给运算符的参数
+        """
+        if len(xargs) == 0:
+            return self
+        elif any([isinstance(arg, Expression) for arg in xargs]):
+            return Expression(*xargs, op=(self, kwargs))
+
+        xargs, kwargs = self._apply_children(*xargs, **kwargs)
+
+        # return self._eval(*xargs, **kwargs)
+        # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
+        # mark = self.__domain__(*xargs)
+
+        # if mark is True or np.all(mark):
+        #     return self._eval(*xargs, **kwargs)
+        # elif not isinstance(mark, array_type):
+        #     raise RuntimeError(f"Unknown mark={mark}!")
+        # else:
+        #     logger.debug(mark)
+        #     # res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
+        #     # xargs = [arg[mark] for arg in xargs]
+        #     # logger.debug(xargs)
+        #     # res[mark] = self._eval(*xargs, **kwargs)
+        #     # return res
+        return self._eval(*xargs, **kwargs)
 
     def compile(self, *args, ** kwargs) -> Expression:
         """ 编译函数，返回一个新的(加速的)函数对象

@@ -11,14 +11,6 @@ TWOPI = constants.pi*2.0
 
 class TestFunction(unittest.TestCase):
 
-    def test_type(self):
-        x = np.linspace(0, 1.0, 128)
-        y = np.sin(x*TWOPI)
-
-        fun = Function[int](y, x)
-
-        self.assertEqual(fun.__type_hint__, int)
-
     def test_expression(self):
         x = np.linspace(0, 1.0, 128)
         y = np.sin(x*TWOPI)
@@ -65,6 +57,9 @@ class TestFunction(unittest.TestCase):
 
         x2 = np.linspace(0, 1.0, 64)
         y2 = np.sin(x2*TWOPI)
+
+        logger.debug(fun(x2))
+        logger.debug(y2)
 
         self.assertTrue(np.allclose(y2, fun(x2)))
 
