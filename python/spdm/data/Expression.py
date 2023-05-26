@@ -6,7 +6,7 @@ import functools
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, NumericType, numeric_type, array_type
+from ..utils.typing import ArrayType, NumericType, numeric_type, array_type, scalar_type
 from ..utils.tags import _not_found_, _undefined_
 
 
@@ -92,10 +92,13 @@ class Expression(object):
         """
         super().__init__()
 
-        if getattr(op, "has_children", False):
+        if isinstance(op, Expression):
             # copy constructor
+            if name is None:
+                name = op._name
             args = op._children
             op = op._op
+
         elif callable(op) and len(kwargs) > 0:
             op = functools.partial(op, **kwargs)
             kwargs = {}
@@ -243,7 +246,9 @@ class Expression(object):
 
         return children, {}
 
-    def _eval(self, *args, **kwargs) -> ArrayType | Expression:
+    def _eval(self, *xargs, **kwargs) -> ArrayType | Expression:
+        
+        xargs, kwargs = self._apply_children(*xargs, **kwargs)
 
         op = self._op
 
@@ -256,16 +261,18 @@ class Expression(object):
 
         res = _undefined_
 
-        if not op:  # tuple Expression
-            res = args if len(args) != 1 else args[0]
+        if isinstance(op, scalar_type):
+            return op
+        elif op is None:  # tuple Expression
+            res = xargs if len(xargs) != 1 else xargs[0]
         elif not callable(op):
             raise RuntimeError(f"Unknown op={op} children={self._children}!")
         else:
             try:
-                res = op(*args, **kwargs)
+                res = op(*xargs, **kwargs)
             except Exception as error:
                 raise RuntimeError(
-                    f"Error when apply {self.__str__()} op={op} args={args} kwargs={kwargs}!") from error
+                    f"Error when apply {self.__str__()} op={self._name} args={xargs} kwargs={kwargs}!") from error
 
         if res is _undefined_:
             raise RuntimeError(f"Unknown op={op} expr={self._children}!")
@@ -294,24 +301,29 @@ class Expression(object):
         elif any([isinstance(arg, Expression) for arg in xargs]):
             return Expression(*xargs, op=(self, kwargs))
 
-        xargs, kwargs = self._apply_children(*xargs, **kwargs)
+        
 
-        # return self._eval(*xargs, **kwargs)
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
-        # mark = self.__domain__(*xargs)
+        mark = self.__domain__(*xargs)
 
-        # if mark is True or np.all(mark):
-        #     return self._eval(*xargs, **kwargs)
-        # elif not isinstance(mark, array_type):
-        #     raise RuntimeError(f"Unknown mark={mark}!")
-        # else:
-        #     logger.debug(mark)
-        #     # res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
-        #     # xargs = [arg[mark] for arg in xargs]
-        #     # logger.debug(xargs)
-        #     # res[mark] = self._eval(*xargs, **kwargs)
-        #     # return res
-        return self._eval(*xargs, **kwargs)
+        if not isinstance(mark, array_type):
+            if mark != True:
+                logger.debug(f"Skip  {mark} {type(mark)}!")
+            return self._eval(*xargs, **kwargs)
+        elif np.all(mark):
+            res = self._eval(*xargs, **kwargs)
+
+            if isinstance(res, scalar_type):
+                return np.full_like(mark, res, dtype=self.__type_hint__)
+            elif isinstance(res, array_type) and res.shape == mark.shape:
+                return res
+            else:
+                raise RuntimeError(f"Incorrect result shape {res.shape}!")
+        else:
+            res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
+            valid_xargs = [arg[mark] for arg in xargs]
+            res[mark] = self._eval(*valid_xargs, **kwargs)
+            return res
 
     def compile(self, *args, ** kwargs) -> Expression:
         """ 编译函数，返回一个新的(加速的)函数对象

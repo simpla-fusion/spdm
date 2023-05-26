@@ -248,15 +248,32 @@ class Function(Expression, typing.Generic[_T]):
         elif self._ppoly is not None and not force:
             return self._ppoly
 
-        value = self.__array__()
+        # value = self.__array__()
+        value = self.__value__()
 
-        if not isinstance(value, array_type):
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
-        elif len(value.shape) == 0 or value.shape == (1,):
-            # 如果value是标量，无法插值，则返回 value 作为常函数
+        if value is None or value is _not_found_ and self.callable:
+            value = super()._eval(*self.points)
+
+        if isinstance(value, np.ndarray) and len(value.shape) == 0:
+            value = value.item()
+        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
+            if len(value) > 1:
+                value = np.asarray(value)
+            else:
+                value = value[0]
+        elif isinstance(value, scalar_type):
+            pass
+        elif isinstance(value, np.ndarray) and value.size == 1:
+            value = np.squeeze(value)
+
+        if isinstance(value, Expression) or callable(value):
             return value
+        elif isinstance(value, scalar_type):
+            return value
+        elif not isinstance(value, array_type):
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
 
-        #  获得坐标点 points
+            #  获得坐标点 points
         points = self.points
 
         m_shape = points[0].shape
@@ -327,37 +344,10 @@ class Function(Expression, typing.Generic[_T]):
             kwargs : typing.Any
         """
 
-        value = self.__value__()
+        if self._op is None:  # 如果没有编译，则编译函数
+            self._op = self._compile()
 
-        if isinstance(value, np.ndarray) and len(value.shape) == 0:
-            value = value.item()
-        elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-            value = np.asarray(value)
-
-        if self.dims is None:  # constants function
-            return value
-        elif isinstance(value, scalar_type):
-            if not isinstance(args[0], np.ndarray):
-                return value
-
-            res = np.full_like(args[0], self._fill_value)
-
-            res[self.__domain__(*args)] = value
-
-            return res
-        elif isinstance(value, np.ndarray) and all(s == 1 for s in value.shape):
-            if not isinstance(args[0], np.ndarray):
-                return value
-
-            marker = self.__domain__(*args)
-            res = np.full_like(args[0], self._fill_value)
-            res[marker] = value
-            return res
-        else:
-            if self._op is None:  # 如果没有编译，则编译函数
-                self._op = self._compile()
-
-            return super()._eval(*args,  **kwargs)
+        return super()._eval(*args, **kwargs)
 
     def derivative(self, n=1) -> Function[_T]:
         return self.__class__(None, op=self._compile(n),  dims=self._dims, name=f"d_{n}({self.__str__()})")
@@ -388,9 +378,3 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
         return y
     else:
         return Function(y, *args, **kwargs)
-
-
-class ConstantFunction(Function[_T]):
-
-    def __call__(self, *args, **kwargs) -> _T | ArrayType:
-        return super().__call__(*args, **kwargs)
