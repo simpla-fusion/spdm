@@ -37,6 +37,18 @@ class Field(Profile[_T]):
     """
 
     def __init__(self,  *args, **kwargs):
+
+        mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
+
+        if isinstance(mesh, Enum):
+            self._mesh = {"type": mesh.name}
+        elif isinstance(mesh, str):
+            self._mesh = {"type":  mesh}
+        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
+            self._mesh = {"dims": mesh}
+        else:
+            self._mesh = mesh
+
         super().__init__(*args, **kwargs)
         self._refresh()
 
@@ -54,8 +66,17 @@ class Field(Profile[_T]):
 
         return self
 
+    def __domain__(self, *args) -> bool: return self.geometry(*args)
+
     @property
-    def bbox(self): return self.mesh.geometry.bbox
+    def bbox(self): return self.geometry.bbox
+
+    @property
+    def mesh(self) -> Mesh: return self._mesh
+    """ 函数的定义域，即函数的自变量的取值范围。"""
+
+    @property
+    def geometry(self): return self.mesh.geometry
 
     @property
     def points(self): return self.mesh.points
@@ -72,7 +93,7 @@ class Field(Profile[_T]):
             return super()._compile(*d,  **kwargs)
 
         # FIMXE: STILL WORKING! NOT FINISH!!!
-        
+
         value = self.__array__()
 
         if not isinstance(value, array_type):

@@ -34,7 +34,7 @@ class Function(Expression, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, fill_value=np.nan, op=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *args: ArrayType, dims=None, periods=None, fill_value=np.nan, op=None, **kwargs):
         """
             Parameters
             ----------
@@ -46,14 +46,9 @@ class Function(Expression, typing.Generic[_T]):
                 位置参数, 用于与mesh_*，coordinate* 一起构建 mesh
             kwargs : typing.Any
                 命名参数，
-                    mesh_*      : 用于传递给网格的参数
-                    coordinate* : 给出各个坐标轴的path
-                    op_*        : 用于传递给运算符的参数
                     *           : 用于传递给 Node 的参数
 
         """
-
-        mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
         if isinstance(value, Expression) or callable(value) and op is None:
             Expression.__init__(self, value, **kwargs)
@@ -62,33 +57,19 @@ class Function(Expression, typing.Generic[_T]):
             Expression.__init__(self, op, **kwargs)
             self._value = value
 
-        if isinstance(mesh, Enum):
-            self._mesh = {"type": mesh.name}
-        elif isinstance(mesh, str):
-            self._mesh = {"type":  mesh}
-        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
-            self._mesh = {"dims": mesh}
-        else:
-            self._mesh = mesh
+        if dims is None:
+            dims = args
 
-        dims = [np.asarray(v) for v in dims]
-        if len(dims) == 0:
-            pass
-        elif self._mesh is None:
-            self._mesh = {"dims": dims, "periods": periods}
-        elif not isinstance(self._mesh, collections.abc.Mapping):
-            logger.warning(f"Function.__init__: mesh is  ignored! {len(dims)} {type(mesh)}")
-        else:
-            self._mesh["dims"] = dims
-            if periods is not None:
-                self._mesh["periods"] = periods
+        if dims is not None and len(dims) > 0:
+            dims = [np.asarray(v) for v in dims]    # 将 dims 转换为 numpy 数组
+            if any(len(d.shape) > 1 for d in dims):
+                raise RuntimeError(f"Function.__init__ incorrect dims {dims}! {self.__str__()}")
+        self._dims = dims
+        self._periods = periods
 
         self._ppoly = None
 
         self._fill_value = fill_value
-
-        # if self._value is not None:
-        #     self.validate(strict=True)
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """
@@ -118,18 +99,18 @@ class Function(Expression, typing.Generic[_T]):
         """ 复制一个新的 Function 对象 """
         other: Function = super().__duplicate__()
         other._value = self._value
-        other._mesh = self._mesh
+        other._dims = self._dims
         return other
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"")
 
-    @classmethod
+    @ classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    @property
-    def empty(self) -> bool: return self._value is None and self._mesh is None and super().empty
+    @ property
+    def empty(self) -> bool: return self._value is None and self._dims is None and super().empty
 
-    @property
+    @ property
     def __type_hint__(self) -> typing.Type:
         """ 获取函数的类型
         """
@@ -139,53 +120,52 @@ class Function(Expression, typing.Generic[_T]):
 
         return tp if inspect.isclass(tp) else float
 
-    @property
-    def __mesh__(self) -> typing.Any:
-        return self._mesh if self._mesh is not None else super().__mesh__
-
-    @property
-    def mesh(self) -> typing.Any: return self._mesh
-    """ 函数的定义域，即函数的自变量的取值范围。"""
-
-    @property
+    @ property
     def dimensions(self) -> typing.List[ArrayType]: return self.dims
     """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
 
-    @property
-    def dims(self) -> typing.List[ArrayType]: return try_get(self.__mesh__, "dims", None)
+    @ property
+    def dims(self) -> typing.List[ArrayType]: return self._dims
     """ alias of dimensions """
 
-    @property
+    @ property
     def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
     """ 函数的维度，即定义域的秩 """
 
-    @property
+    @ property
     def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self.dims)
     """ 所需数组的形状 """
 
-    @property
-    def periods(self) -> typing.Tuple[float]: return try_get(self._mesh, "periods", None)
+    @ property
+    def periods(self) -> typing.Tuple[float]: return self._periods
 
-    @functools.cached_property
-    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
-        """ bound box 返回包裹函数参数的取值范围的最小多维度超矩形（hyperrectangle） """
-        if self.ndim == 1:
-            return (np.min(self.dims), np.max(self.dims))
-        else:
-            return (np.asarray([np.min(d) for d in self.dims], dtype=float),
-                    np.asarray([np.max(d) for d in self.dims], dtype=float))
-
-    @functools.cached_property
+    @ functools.cached_property
     def points(self) -> typing.List[ArrayType]:
-        if self.__mesh__ is None:
-            raise RuntimeError(self.__mesh__)
+        if self._dims is None:
+            raise RuntimeError(self._dims)
         elif len(self.dims) == 1:
             return self.dims
         else:
             return np.meshgrid(*self.dims, indexing="ij")
 
     def __domain__(self, *args) -> bool:
-        return np.bitwise_and.reduce([((args[i] >= self.bbox[0][i]) & (args[i] <= self.bbox[1][i])) for i in range(self.ndim)])
+
+        if self._dims is None or len(self._dims) == 0:
+            return True
+        
+        if len(args) != len(self._dims):
+            raise RuntimeError(f"len(args) != len(self._dims) {len(args)}!={len(self._dims)}")
+        v = []
+        for i, d in enumerate(self.dims):
+            if not isinstance(d, array_type):
+                v.append(np.isclose(args[i], d))
+            elif d.ndim == 0:
+                v.append(np.isclose(args[i], d.item()))
+            elif len(d) == 1:
+                v.append(np.isclose(args[i], d[0]))
+            else:
+                v.append((args[i] >= d[0]) & (args[i] <= d[-1]))
+        return np.bitwise_and.reduce(v)
 
     # @property
     # def rank(self) -> int:
@@ -336,7 +316,7 @@ class Function(Expression, typing.Generic[_T]):
             if len(opts) > 1:
                 logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
 
-        return self.__class__(None, op=op, mesh=self._mesh)
+        return self.__class__(None, op=op, dims=self._dims)
 
     def _fetch_op(self):
         """
@@ -355,7 +335,7 @@ class Function(Expression, typing.Generic[_T]):
         else:  # 否则，编译函数
             return self._compile()
 
-    def __call__(self, *args, **kwargs) -> _T | ArrayType | Function:
+    def _eval(self, *args, **kwargs) -> _T | ArrayType | Function:
         """  重载函数调用运算符
             Parameters
             ----------
@@ -363,10 +343,6 @@ class Function(Expression, typing.Generic[_T]):
                 位置参数,
             kwargs : typing.Any
         """
-        if len(args) == 0:
-            return self
-        elif any(isinstance(a, Expression) for a in args):
-            return Expression(*args, op=self, **kwargs)
 
         value = self.__value__()
 
@@ -375,53 +351,45 @@ class Function(Expression, typing.Generic[_T]):
         elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
             value = np.asarray(value)
 
-        if self._mesh is None:  # constants function
+        if self.dims is None:  # constants function
             return value
         elif isinstance(value, scalar_type):
             if not isinstance(args[0], np.ndarray):
                 return value
 
-            res = np.full_like(args[0], value)
+            res = np.full_like(args[0], self._fill_value)
 
-            bbox = self.bbox
-            # 生成一个标记数组，标记 args 是否在 bbox 内
-            marker = np.bitwise_and.reduce([((args[i] >= bbox[0][i]) & (args[i] <= bbox[1][i]))
-                                            for i in range(self.ndim)])
-            # 将标记数组转换为索引数组
-            res[~marker] = self._fill_value
+            res[self.__domain__(*args)] = value
+
             return res
         elif isinstance(value, np.ndarray) and all(s == 1 for s in value.shape):
-            if len(value.shape) == 0:
-                value = value.item()
-            else:
-                value = np.squeeze(value)
 
             if not isinstance(args[0], np.ndarray):
                 return value
-            points = self.points
-            marker = np.bitwise_and.reduce([(np.isclose(args[i], points[i][0])) for i in range(self.ndim)])
-            res = np.full_like(args[0], value)
-            res[~marker] = self._fill_value
+
+            marker = self.__domain__(*args)
+            res = np.full_like(args[0], self._fill_value)
+            res[marker] = value
             return res
         else:
-            return super().__call__(*args,  **kwargs)
+            return super()._eval(*args,  **kwargs)
 
     def derivative(self, n=1) -> Function[_T]:
-        return self.__class__(None, op=self._compile(n),  mesh=self._mesh, name=f"d_{n}({self.__str__()})")
+        return self.__class__(None, op=self._compile(n),  dims=self._dims, name=f"d_{n}({self.__str__()})")
 
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
     def partial_derivative(self, *d) -> Function[_T]:
         if len(d) == 0:
             d = (1,)
-        return self.__class__[_T](None, op=self._compile(*d), mesh=self._mesh, name=f"d_{d}({self.__str__()})")
+        return self.__class__[_T](None, op=self._compile(*d), dims=self._dims, name=f"d_{d}({self.__str__()})")
 
     def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Function[_T]:
         if len(d) == 0:
             d = (1,)
-        return self.__class__(None, op=self._compile(*[-v for v in d]),  mesh=self._mesh,  name=f"I_{d}({self.__str__()})")
+        return self.__class__(None, op=self._compile(*[-v for v in d]),  dims=self._dims,  name=f"I_{d}({self.__str__()})")
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 

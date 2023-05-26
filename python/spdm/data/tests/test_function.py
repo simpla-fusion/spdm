@@ -134,52 +134,79 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(np.allclose((- np.sin(g_x)*np.sin(g_y))
                         [2:-2, 2:-2],  Z.pd(0, 1)(g_x, g_y)[2:-2, 2:-2], rtol=1.0e-4))
 
-    # def test_single_point_fun(self):
+    def test_delta_fun(self):
 
-    #     x = np.linspace(0, 1, 11)
-    #     fun = Function([1.2345], [0.5])
+        p = 0.5
+        value = 1.2345
 
-    #     self.assertTrue(np.isclose(fun(0.5), 1.2345))
+        fun0 = Function(value, p)
 
-    #     mark = np.isclose(x, 0.5)
+        self.assertTrue(np.isclose(fun0(p), value))
 
-    #     self.assertTrue(np.allclose(fun(x)[mark], 1.2345))
-    #     self.assertTrue(np.all(np.isnan(fun(x)[~mark])))
+        fun1 = Function([value], [p])
 
-    # def test_constant_fun(self):
-    #     value = 1.2345
-    #     xmin = 0.0
-    #     xmax = 1.0
-    #     ymin = 2.0
-    #     ymax = 3.0
+        self.assertTrue(np.isclose(fun1(p), value))
 
-    #     dims_a = np.linspace(xmin, xmax, 5),  np.linspace(ymin, ymax, 5)
+        x = np.linspace(0, 1, 11)
 
-    #     fun1 = Function(value)
+        mark = np.isclose(x, p)
 
-    #     xa, ya = np.meshgrid(*dims_a)
+        self.assertTrue(np.allclose(fun1(x)[mark], value))
+        self.assertTrue(np.all(np.isnan(fun1(x)[~mark])))
 
-    #     self.assertTrue(np.allclose(fun1(xa, ya), value))
+    def test_delta_nd(self):
 
-    #     fun2 = Function(value, xa, ya)
+        p = [0.5, 0.4]
+        value = 1.2345
 
-    #     dims_b = np.linspace(xmin-0.5, xmax+0.5, 10), np.linspace(ymin-0.5, ymax+0.5, 10)
+        fun0 = Function(value, *p)
 
-    #     xb, yb = np.meshgrid(*dims_b)
-    #     marker = (xb >= xmin) & (xb <= xmax) & (yb >= ymin) & (yb <= ymax)
+        self.assertTrue(np.isclose(fun0(*p), value))
 
-    #     e_a = np.full_like(xa, value, dtype=float)
+        dimx = np.linspace(0, 1, 11)
+        dimy = np.linspace(0, 1, 11)
 
-    #     e_b = np.full_like(xb, value, dtype=float)
+        x, y = np.meshgrid(dimx, dimy)
 
-    #     e_b[~marker] = np.nan
+        mark = np.isclose(x, p[0]) & np.isclose(y, p[1])
 
-    #     self.assertTrue(np.allclose(fun2(xa, ya), e_a))
+        self.assertTrue(np.allclose(fun0(x, y)[mark], value))
+        self.assertTrue(np.all(np.isnan(fun0(x, y)[~mark])))
 
-    #     # logger.debug(fun2(xb, yb))
-    #     # logger.debug(e_b)
+    def test_constant_fun(self):
+        value = 1.2345
+        xmin = 0.0
+        xmax = 1.0
+        ymin = 2.0
+        ymax = 3.0
 
-    #     self.assertTrue(np.allclose(fun2(xb, yb), e_b, equal_nan=True))
+        dims_a = np.linspace(xmin, xmax, 5),  np.linspace(ymin, ymax, 5)
+
+        fun1 = Function(value)
+
+        xa, ya = np.meshgrid(*dims_a)
+
+        self.assertTrue(np.allclose(fun1(xa, ya), value))
+
+        fun2 = Function(value, *dims_a)
+
+        dims_b = np.linspace(xmin-0.5, xmax+0.5, 10), np.linspace(ymin-0.5, ymax+0.5, 10)
+
+        xb, yb = np.meshgrid(*dims_b)
+        marker = (xb >= xmin) & (xb <= xmax) & (yb >= ymin) & (yb <= ymax)
+
+        e_a = np.full_like(xa, value, dtype=float)
+
+        e_b = np.full_like(xb, value, dtype=float)
+
+        e_b[~marker] = np.nan
+
+        self.assertTrue(np.allclose(fun2(xa, ya), e_a))
+
+        # logger.debug(fun2(xb, yb))
+        # logger.debug(e_b)
+
+        self.assertTrue(np.allclose(fun2(xb, yb), e_b, equal_nan=True))
 
 
 if __name__ == '__main__':

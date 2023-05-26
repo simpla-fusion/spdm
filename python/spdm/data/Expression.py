@@ -213,26 +213,26 @@ class Expression(object):
         else:
             raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
 
-    @property
-    def __mesh__(self):
-        """ 获取表达式的最大有效定义域 """
-        def get_mesh(obj):
-            if not isinstance(obj, Expression):
-                return [None]
-            elif len(obj._children) > 0:
-                return [d for o in obj._children for d in get_mesh(o) if d is not None]
-            else:
-                return [getattr(obj, "mesh", None)]
-        new_list = []
-        for d in get_mesh(self):
-            if d not in new_list:
-                new_list.append(d)
-        if len(new_list) == 0:
-            raise RuntimeError(f"Expression can not reslove mesh! mesh list={new_list}")
-        elif len(new_list) != 1:
-            logger.warning(f"get ({len(new_list)}) results, only take the first! ")
+    # @property
+    # def __mesh__(self):
+    #     """ 获取表达式的最大有效定义域 """
+    #     def get_mesh(obj):
+    #         if not isinstance(obj, Expression):
+    #             return [None]
+    #         elif len(obj._children) > 0:
+    #             return [d for o in obj._children for d in get_mesh(o) if d is not None]
+    #         else:
+    #             return [getattr(obj, "mesh", None)]
+    #     new_list = []
+    #     for d in get_mesh(self):
+    #         if d not in new_list:
+    #             new_list.append(d)
+    #     if len(new_list) == 0:
+    #         raise RuntimeError(f"Expression can not reslove mesh! mesh list={new_list}")
+    #     elif len(new_list) != 1:
+    #         logger.warning(f"get ({len(new_list)}) results, only take the first! ")
 
-        return new_list[0]
+    #     return new_list[0]
 
     def __domain__(self, *args) -> bool:
         """ 判断表达式是否在指定的定义域内 """
@@ -264,6 +264,7 @@ class Expression(object):
 
     def _fetch_op(self): return self._op
 
+    @typing.final
     def __call__(self, *args, **kwargs) -> ArrayType | Expression:
         """
             重载函数调用运算符，用于计算表达式的值
@@ -279,6 +280,10 @@ class Expression(object):
             return Expression(*args, op=(self, kwargs))
 
         args, kwargs = self._fetch_children(*args, **kwargs)
+
+        return self._eval(*args, **kwargs)
+
+    def _eval(self, *args, **kwargs) -> ArrayType | Expression:
 
         op = self._fetch_op()
 
