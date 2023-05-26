@@ -30,6 +30,22 @@ array_type = np.ndarray
 numeric_type = (*scalar_type, array_type)
 
 
+def is_scalar(v: typing.Any) -> bool:
+    return isinstance(v, scalar_type) or (isinstance(v, array_type) and len(v.shape) == 0)
+
+
+def is_vector(v: typing.Any) -> bool:
+    return isinstance(v, collections.abc.Sequence) and all(is_scalar(d) for d in v)
+
+
+def is_array(v: typing.Any) -> bool:
+    return (isinstance(v, array_type) and len(v.shape) > 0)
+
+
+def is_numeric(v: typing.Any) -> bool:
+    return isinstance(v, numeric_type)
+
+
 @dataclass
 class Vector2:
     x: float

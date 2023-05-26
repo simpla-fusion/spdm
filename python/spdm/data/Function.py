@@ -5,8 +5,7 @@ import inspect
 import typing
 from copy import copy
 from enum import Enum
-from functools import cached_property
-
+import functools
 import numpy as np
 from scipy.interpolate import (InterpolatedUnivariateSpline,
                                RectBivariateSpline, RegularGridInterpolator,
@@ -167,7 +166,7 @@ class Function(Expression, typing.Generic[_T]):
     @property
     def periods(self) -> typing.Tuple[float]: return try_get(self._mesh, "periods", None)
 
-    @cached_property
+    @functools.cached_property
     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
         """ bound box 返回包裹函数参数的取值范围的最小多维度超矩形（hyperrectangle） """
         if self.ndim == 1:
@@ -176,7 +175,7 @@ class Function(Expression, typing.Generic[_T]):
             return (np.asarray([np.min(d) for d in self.dims], dtype=float),
                     np.asarray([np.max(d) for d in self.dims], dtype=float))
 
-    @cached_property
+    @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
         if self.__mesh__ is None:
             raise RuntimeError(self.__mesh__)
@@ -325,7 +324,16 @@ class Function(Expression, typing.Generic[_T]):
         return ppoly
 
     def compile(self, *args, **kwargs) -> Function:
-        return self.__class__(None, op=self._compile(*args, **kwargs), mesh=self._mesh)
+        op, *opts = self._compile(*args, **kwargs)
+        if len(opts) == 0:
+            pass
+        elif len(opts) > 0:
+            opts = opts[0]
+            op = functools.partial(op, **opts)
+            if len(opts) > 1:
+                logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
+                
+        return self.__class__(None, op=op, mesh=self._mesh)
 
     def _fetch_op(self):
         """
@@ -369,11 +377,11 @@ class Function(Expression, typing.Generic[_T]):
         elif isinstance(value, scalar_type):
             if not isinstance(args[0], np.ndarray):
                 return value
-            
+
             res = np.full_like(args[0], value)
-            
-            bbox = self.bbox            
-            # 生成一个标记数组，标记 args 是否在 bbox 内            
+
+            bbox = self.bbox
+            # 生成一个标记数组，标记 args 是否在 bbox 内
             marker = np.bitwise_and.reduce([((args[i] >= bbox[0][i]) & (args[i] <= bbox[1][i]))
                                            for i in range(self.ndim)])
             # 将标记数组转换为索引数组
