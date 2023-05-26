@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import collections.abc
 import typing
-from functools import cached_property
+import functools
 import numpy as np
 
 from ..utils.logger import logger
@@ -76,14 +76,14 @@ class Expression(object):
             3.0
     """
 
-    def __init__(self,  *args,  op: typing.Callable | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] = None, name=None,  **kwargs) -> None:
+    def __init__(self, op: typing.Callable, *args, name=None,  **kwargs) -> None:
         """
             Parameters
             ----------
             args : typing.Any
                 操作数
-            op : typing.Callable  | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]] 
-                运算符，可以是函数，也可以是类的成员函数 
+            op : typing.Callable  | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]]
+                运算符，可以是函数，也可以是类的成员函数
 
             kwargs : typing.Any
                 命名参数， 用于传递给运算符的参数
@@ -120,6 +120,7 @@ class Expression(object):
         other: Expression = object.__new__(self.__class__)
         other._children = self._children
         other._op = self._op
+        other._name = self._name
         return other
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
@@ -136,7 +137,9 @@ class Expression(object):
                 >>> z(0.0)
                 1.0
         """
-        return Expression(*args, op=(ufunc, kwargs, method))
+
+        return Expression(functools.partial(getattr(ufunc, method), **kwargs), *args,
+                          name=getattr(ufunc, "__name__", f"{ufunc.__class__.__name__}.{method}"))
 
     def __array__(self, *args) -> ArrayType:
         raise NotImplementedError(f"__array__({args}) is not implemented!")
@@ -179,7 +182,7 @@ class Expression(object):
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
 
-        op_name = self._op_name
+        op_name = self._name
 
         name = _EXPR_OP_NAME.get(op_name, None)
 
@@ -234,6 +237,14 @@ class Expression(object):
             logger.warning(f"get ({len(new_list)}) results, only take the first! ")
 
         return new_list[0]
+
+    def __domain__(self, *args) -> bool:
+        """ 判断表达式是否在指定的定义域内 """
+        d = [child.__domain__(*args) for child in self._children if hasattr(child, "__domain__")]
+        if len(d) > 0:
+            return np.bitwise_and.reduce(d)
+        else:
+            return True
 
     def _fetch_children(self, *args, **kwargs) -> typing.List[typing.Any]:
         if len(self._children) == 0:
@@ -301,7 +312,7 @@ class Expression(object):
         return res
 
     def compile(self, *args, ** kwargs) -> Expression:
-        """ 编译函数，返回一个新的(加速的)函数对象 
+        """ 编译函数，返回一个新的(加速的)函数对象
             TODO：
                 - JIT compile
         """
@@ -328,46 +339,46 @@ class Expression(object):
         return f_class(self.__call__(*points), mesh=f_mesh, name=f"[{self.__str__()}]", **kwargs)
 
     # fmt: off
-    def __neg__      (self                             ) : return Expression(self     , op=np.negative     )
-    def __add__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.add          )
-    def __sub__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.subtract     )
-    def __mul__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.multiply     )
-    def __matmul__   (self, o: NumericType | Expression) : return Expression(self, o  , op=np.matmul       )
-    def __truediv__  (self, o: NumericType | Expression) : return Expression(self, o  , op=np.true_divide  )
-    def __pow__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.power        )
-    def __eq__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.equal        )
-    def __ne__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.not_equal    )
-    def __lt__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.less         )
-    def __le__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.less_equal   )
-    def __gt__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.greater      )
-    def __ge__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.greater_equal)
-    def __radd__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.add          )
-    def __rsub__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.subtract     )
-    def __rmul__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.multiply     )
-    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(o, self  , op=np.matmul       )
-    def __rtruediv__ (self, o: NumericType | Expression) : return Expression(o, self  , op=np.divide       )
-    def __rpow__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.power        )
-    def __abs__      (self                             ) : return Expression(self     , op=np.abs          )
-    def __pos__      (self                             ) : return Expression(self     , op=np.positive     )
-    def __invert__   (self                             ) : return Expression(self     , op=np.invert       )
-    def __and__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.bitwise_and  )
-    def __or__       (self, o: NumericType | Expression) : return Expression(self, o  , op=np.bitwise_or   )
-    def __xor__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.bitwise_xor  )
-    def __rand__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.bitwise_and  )
-    def __ror__      (self, o: NumericType | Expression) : return Expression(o, self  , op=np.bitwise_or   )
-    def __rxor__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.bitwise_xor  )
-    def __rshift__   (self, o: NumericType | Expression) : return Expression(self, o  , op=np.right_shift  )
-    def __lshift__   (self, o: NumericType | Expression) : return Expression(self, o  , op=np.left_shift   )
-    def __rrshift__  (self, o: NumericType | Expression) : return Expression(o, self  , op=np.right_shift  )
-    def __rlshift__  (self, o: NumericType | Expression) : return Expression(o, self  , op=np.left_shift   )
-    def __mod__      (self, o: NumericType | Expression) : return Expression(self, o  , op=np.mod          )
-    def __rmod__     (self, o: NumericType | Expression) : return Expression(o, self  , op=np.mod          )
-    def __floordiv__ (self, o: NumericType | Expression) : return Expression(self, o  , op=np.floor_divide )
-    def __rfloordiv__(self, o: NumericType | Expression) : return Expression(o, self  , op=np.floor_divide )
-    def __trunc__    (self                             ) : return Expression(self     , op=np.trunc        )
-    def __round__    (self, n=None                     ) : return Expression(self, n  , op=np.round        )
-    def __floor__    (self                             ) : return Expression(self     , op=np.floor        )
-    def __ceil__     (self                             ) : return Expression(self     , op=np.ceil         )
+    def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,)
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,)
+    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,)
+    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,)
+    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,)
+    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,)
+    def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  ,)
+    def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  ,)
+    def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  ,)
+    def __le__       (self, o: NumericType | Expression) : return Expression(np.less_equal   ,  self, o  ,)
+    def __gt__       (self, o: NumericType | Expression) : return Expression(np.greater      ,  self, o  ,)
+    def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  ,)
+    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,)
+    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,)
+    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,)
+    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,)
+    def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  ,)
+    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,)
+    def __abs__      (self                             ) : return Expression(np.abs          ,  self     ,)
+    def __pos__      (self                             ) : return Expression(np.positive     ,  self     ,)
+    def __invert__   (self                             ) : return Expression(np.invert       ,  self     ,)
+    def __and__      (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  self, o  ,)
+    def __or__       (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  self, o  ,)
+    def __xor__      (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  self, o  ,)
+    def __rand__     (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  o, self  ,)
+    def __ror__      (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  o, self  ,)
+    def __rxor__     (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  o, self  ,)
+    def __rshift__   (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  self, o  ,)
+    def __lshift__   (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  self, o  ,)
+    def __rrshift__  (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  o, self  ,)
+    def __rlshift__  (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  o, self  ,)
+    def __mod__      (self, o: NumericType | Expression) : return Expression(np.mod          ,  self, o  ,)
+    def __rmod__     (self, o: NumericType | Expression) : return Expression(np.mod          ,  o, self  ,)
+    def __floordiv__ (self, o: NumericType | Expression) : return Expression(np.floor_divide ,  self, o  ,)
+    def __rfloordiv__(self, o: NumericType | Expression) : return Expression(np.floor_divide ,  o, self  ,)
+    def __trunc__    (self                             ) : return Expression(np.trunc        ,  self     ,)
+    def __round__    (self, n=None                     ) : return Expression(np.round        ,  self, n  ,)
+    def __floor__    (self                             ) : return Expression(np.floor        ,  self     ,)
+    def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     ,)
     # fmt: on
 
 
@@ -375,7 +386,7 @@ _T = typing.TypeVar("_T")
 
 
 class Variable(Expression, typing.Generic[_T]):
-    """ 
+    """
         Variable
         ---------
         变量是一种特殊的函数，它的值由上下文决定。
@@ -386,19 +397,19 @@ class Variable(Expression, typing.Generic[_T]):
             >>> z = x + y
             >>> z
             <Expression   op="add" />
-            >>> z(0.0, 1.0) 
+            >>> z(0.0, 1.0)
             1.0
 
     """
 
-    def __init__(self, idx: int, name: str = None) -> None:
-        super().__init__()
-        self._name = name if name is not None else f"x_{idx}"
+    def __init__(self, idx: int | str, name: str = None) -> None:
+        super().__init__(None)
         self._idx = idx
+        self._name = name if name is not None else (idx if isinstance(idx, str) else f"_{idx}")
 
     def __str__(self) -> str: return self._name
 
-    @property
+    @ property
     def __type_hint__(self) -> typing.Type:
         """ 获取函数的类型
         """
@@ -408,25 +419,75 @@ class Variable(Expression, typing.Generic[_T]):
         else:
             return float
 
-    @property
+    @ property
     def name(self): return self._name
 
-    @property
+    @ property
     def index(self): return self._idx
 
     def __call__(self, *args, **kwargs):
-        if len(args) <= self._idx:
-            raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
-        return args[self._idx]
+        if isinstance(self._idx, str):
+            return kwargs[self._idx]
+        else:
+            return args[self._idx]
+        # if len(args) <= self._idx:
+        #     raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
+        # return args[self._idx]
 
 
-_0 = Variable[float](0)
-_1 = Variable[float](1)
-_2 = Variable[float](2)
-_3 = Variable[float](3)
-_4 = Variable[float](4)
-_5 = Variable[float](5)
-_6 = Variable[float](6)
-_7 = Variable[float](7)
-_8 = Variable[float](8)
-_9 = Variable[float](9)
+# _0 = Variable[float](0)
+# _1 = Variable[float](1)
+# _2 = Variable[float](2)
+# _3 = Variable[float](3)
+# _4 = Variable[float](4)
+# _5 = Variable[float](5)
+# _6 = Variable[float](6)
+# _7 = Variable[float](7)
+# _8 = Variable[float](8)
+# _9 = Variable[float](9)
+
+class Piecewise(Expression, typing.Generic[_T]):
+    """ PiecewiseFunction
+        ----------------
+        A piecewise function. 一维或多维，分段函数
+    """
+
+    def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
+        super().__init__(op=(func, cond), **kwargs)
+
+    @ property
+    def rank(self): return 1
+
+    @ property
+    def ndim(self): return 1
+
+    def _compile(self): return self, {}
+
+    def _apply(self, func, x, *args, **kwargs):
+        if isinstance(x, array_type) and isinstance(func, numeric_type):
+            value = np.full(x.shape, func)
+        elif isinstance(x, numeric_type) and isinstance(func, numeric_type):
+            value = func
+        elif callable(func):
+            value = func(x)
+        else:
+            raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
+            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
+            #          for node in self._expr_nodes]
+        return value
+
+    def __call__(self, x, *args, **kwargs) -> NumericType:
+        if isinstance(x, float):
+            res = [self._apply(fun, x) for fun, cond in zip(*self._op) if cond(x)]
+            if len(res) == 0:
+                raise RuntimeError(f"Can not fit any condition! {x}")
+            elif len(res) > 1:
+                raise RuntimeError(f"Fit multiply condition! {x}")
+            return res[0]
+        elif isinstance(x, array_type):
+            res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._op)])
+            if len(res) != len(x):
+                raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
+            return res
+        else:
+            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {x}")

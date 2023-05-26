@@ -34,7 +34,7 @@ class Function(Expression, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, fill_value=np.nan, **kwargs):
+    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, fill_value=np.nan, op=None, **kwargs):
         """
             Parameters
             ----------
@@ -55,11 +55,11 @@ class Function(Expression, typing.Generic[_T]):
 
         mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
-        if isinstance(value, Expression) or callable(value):
+        if isinstance(value, Expression) or callable(value) and op is None:
             Expression.__init__(self, value, **kwargs)
             self._value = None
         else:
-            Expression.__init__(self,  **kwargs)
+            Expression.__init__(self, op, **kwargs)
             self._value = value
 
         if isinstance(mesh, Enum):
@@ -183,6 +183,9 @@ class Function(Expression, typing.Generic[_T]):
             return self.dims
         else:
             return np.meshgrid(*self.dims, indexing="ij")
+
+    def __domain__(self, *args) -> bool:
+        return np.bitwise_and.reduce([((args[i] >= self.bbox[0][i]) & (args[i] <= self.bbox[1][i])) for i in range(self.ndim)])
 
     # @property
     # def rank(self) -> int:
@@ -332,7 +335,7 @@ class Function(Expression, typing.Generic[_T]):
             op = functools.partial(op, **opts)
             if len(opts) > 1:
                 logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
-                
+
         return self.__class__(None, op=op, mesh=self._mesh)
 
     def _fetch_op(self):
@@ -383,7 +386,7 @@ class Function(Expression, typing.Generic[_T]):
             bbox = self.bbox
             # 生成一个标记数组，标记 args 是否在 bbox 内
             marker = np.bitwise_and.reduce([((args[i] >= bbox[0][i]) & (args[i] <= bbox[1][i]))
-                                           for i in range(self.ndim)])
+                                            for i in range(self.ndim)])
             # 将标记数组转换为索引数组
             res[~marker] = self._fill_value
             return res
@@ -438,50 +441,3 @@ class ConstantFunction(Function[_T]):
 
     def __call__(self, *args, **kwargs) -> _T | ArrayType:
         return super().__call__(*args, **kwargs)
-
-
-class Piecewise(Expression, typing.Generic[_T]):
-    """ PiecewiseFunction
-        ----------------
-        A piecewise function. 一维或多维，分段函数
-    """
-
-    def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
-        super().__init__(op=(func, cond), **kwargs)
-
-    @ property
-    def rank(self): return 1
-
-    @ property
-    def ndim(self): return 1
-
-    def _compile(self): return self, {}
-
-    def _apply(self, func, x, *args, **kwargs):
-        if isinstance(x, array_type) and isinstance(func, numeric_type):
-            value = np.full(x.shape, func)
-        elif isinstance(x, numeric_type) and isinstance(func, numeric_type):
-            value = func
-        elif callable(func):
-            value = func(x)
-        else:
-            raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
-            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
-            #          for node in self._expr_nodes]
-        return value
-
-    def __call__(self, x, *args, **kwargs) -> NumericType:
-        if isinstance(x, float):
-            res = [self._apply(fun, x) for fun, cond in zip(*self._op) if cond(x)]
-            if len(res) == 0:
-                raise RuntimeError(f"Can not fit any condition! {x}")
-            elif len(res) > 1:
-                raise RuntimeError(f"Fit multiply condition! {x}")
-            return res[0]
-        elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._op)])
-            if len(res) != len(x):
-                raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
-            return res
-        else:
-            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {x}")
