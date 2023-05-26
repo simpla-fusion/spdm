@@ -8,7 +8,7 @@ import numpy as np
 
 from ..utils.misc import builtin_types
 from ..utils.Pluggable import Pluggable
-from ..utils.typing import ArrayType, NumericType, nTupleType, ArrayLike
+from ..utils.typing import ArrayType, NumericType, nTupleType, ArrayLike, numeric_type
 from ..utils.logger import logger
 
 
@@ -129,7 +129,7 @@ class GeoObject(Pluggable):
     def is_convex(self) -> bool: return self._impl.is_convex()
     """ is convex """
 
-    def enclose(self, other) -> bool: return self._impl.encloses(GeoObject(other)._impl)
+    def enclose(self, *xargs) -> bool: raise NotImplementedError(f"{self.__class__.__name__}.enclose")
     """ Return True if all args are inside the geometry, False otherwise. """
 
     def intersection(self, other) -> typing.Set[GeoObject]:
@@ -227,6 +227,17 @@ class Box(GeoObject):
 
     @property
     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]: return self._points[0], self._points[1]
+
+    def enclose(self, *xargs) -> bool:
+        if all([isinstance(x, numeric_type) for x in xargs]):  # 点坐标
+            if len(xargs) != self.ndim:
+                raise RuntimeError(f"len(xargs)={len(xargs)}!=self.ndim={self.ndim}")
+            xmin, xmax = self.bbox
+            return np.bitwise_and.reduce([((xargs[i] >= xmin[i]) & (xargs[i] <= xmax[i])) for i in range(self.ndim)])
+        elif len(xargs) == 1 and isinstance(xargs[0], GeoObject):
+            raise NotImplementedError(f"{self.__class__.__name__}.enclose(GeoObject)")
+        else:
+            return np.bitwise_and.reduce([self.enclose(x) for x in xargs])
 
 
 _TGSet = typing.TypeVar("_TGSet", bound="GeoObjectSet")

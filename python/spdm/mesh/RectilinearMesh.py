@@ -44,7 +44,7 @@ class RectilinearMesh(StructuredMesh):
             dims = args
         elif len(args) > 0:
             raise RuntimeError(f"ignore args {args}")
-        
+
         if geometry is None:
             geometry = Box([min(d) for d in dims], [max(d) for d in dims], ndim=len(dims), rank=len(dims))
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
@@ -140,11 +140,10 @@ class RectilinearMesh(StructuredMesh):
 
         return ppoly
 
-    def partial_derivative(self, value, *n, **kwargs):
+    def partial_derivative(self, order, value,  **kwargs):
         ppoly, opts = self.interpolator(value, **kwargs)
-        return ppoly.partial_derivative(*n), opts
+        return ppoly.partial_derivative(*order), opts
 
-    def antiderivative(self, value, *n, **kwargs):
+    def antiderivative(self, order, value,   **kwargs):
         ppoly,  opts = self.interpolator(value, **kwargs)
-
-        return ppoly.antiderivative(*n), opts
+        return ppoly.antiderivative(*order), opts

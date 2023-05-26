@@ -63,7 +63,7 @@ class Mesh(Pluggable):
             geometry = {"type": geometry}
 
         if isinstance(geometry, (GeoObject, GeoObjectSet)):
-            self._geometry = geometry            
+            self._geometry = geometry
         elif isinstance(geometry, collections.abc.Mapping):
             self._geometry = GeoObject(*args, **geometry)
         else:
@@ -154,7 +154,7 @@ class Mesh(Pluggable):
     def interpolator(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.interpolator")
 
-    def partial_derivative(self, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
+    def partial_derivative(self, order, y: NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:
         raise NotImplementedError(f"{self.__class__.__name__}.partial_derivative")
 
     def antiderivative(self, y:  NumericType, *args, **kwargs) -> typing.Callable[..., NumericType]:

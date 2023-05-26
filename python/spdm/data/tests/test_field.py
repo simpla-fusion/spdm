@@ -20,9 +20,9 @@ class TestField(unittest.TestCase):
         _y = Variable(1, "y")
         fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
 
-        self.assertEqual(fun.ndim, 2)
-        self.assertTrue(np.allclose(fun.dims[0], x))
-        self.assertTrue(np.allclose(fun.dims[1], y))
+        self.assertEqual(fun.mesh.ndim, 2)
+        self.assertTrue(np.allclose(fun.mesh.dims[0], x))
+        self.assertTrue(np.allclose(fun.mesh.dims[1], y))
 
     def test_spl2d(self):
         _x = Variable(0, "x")
