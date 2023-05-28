@@ -95,7 +95,8 @@ class Profile(Function[_T], Node):
                 self._children = (op,)
             else:
                 raise ValueError("op is not None, but children is not empty")
-
+        elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
+            value = self._value = None
         return value
 
     def derivative(self, n=1) -> Profile[_T]:

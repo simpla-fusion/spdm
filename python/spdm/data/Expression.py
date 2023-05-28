@@ -117,7 +117,8 @@ class Expression(typing.Generic[_T]):
         else:
             logger.warning(f"Ignore kwargs={kwargs}! op={self._op}")
 
-        self._name = name
+        self._name = name if name is not None else self.__class__.__name__
+
         if isinstance(op, tuple):
             op, opts, *method = op
 
@@ -134,6 +135,7 @@ class Expression(typing.Generic[_T]):
             self._op_name = f"[{op}]"
         else:
             self._op_name = getattr(op, "__name__", None)
+
         if self._op_name is None or self._op_name == "<lambda>":
             self._op_name = self._name
 
@@ -161,7 +163,7 @@ class Expression(typing.Generic[_T]):
                 1.0
         """
         name = getattr(ufunc, "__name__", f"{ufunc.__class__.__name__}.{method}")
-        return Expression(functools.partial(getattr(ufunc, method), **kwargs), *args, name=name)
+        return Expression((ufunc, kwargs, method), *args, name=name)
 
     def __array__(self, *args) -> ArrayType:
         raise NotImplementedError(f"__array__({args}) is not implemented!")
@@ -200,27 +202,27 @@ class Expression(typing.Generic[_T]):
             return f"{self._op_name}({', '.join([_ast(arg) for arg in self._children])})"
 
     @property
-    def __type_hint__(self):
-        """ 获取表达式的类型
-        """
-        def get_type(obj):
-            if not isinstance(obj, Expression):
-                return set([None])
-            elif len(obj._children) > 0:
-                return set([t for o in obj._children for t in get_type(o) if hasattr(t, "mesh")])
-            else:
-                return set([obj.__class__])
-        tp = list(get_type(self))
-        if len(tp) == 0:
-            orig_class = getattr(self, "__orig_class__", None)
+    def __type_hint__(self): return float
+    """ TODO:获取表达式的类型 """
 
-            tp = typing.get_args(orig_class)[0]if orig_class is not None else None
+    # def get_type(obj):
+    #     if not isinstance(obj, Expression):
+    #         return set([None])
+    #     elif len(obj._children) > 0:
+    #         return set([t for o in obj._children for t in get_type(o) if hasattr(t, "mesh")])
+    #     else:
+    #         return set([obj.__class__])
+    # tp = list(get_type(self))
+    # if len(tp) == 0:
+    #     orig_class = getattr(self, "__orig_class__", None)
 
-            return tp if inspect.isclass(tp) else float
-        elif len(tp) == 1:
-            return tp[0]
-        else:
-            raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
+    #     tp = typing.get_args(orig_class)[0]if orig_class is not None else None
+
+    #     return tp if inspect.isclass(tp) else float
+    # elif len(tp) == 1:
+    #     return tp[0]
+    # else:
+    #     raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
 
     def __domain__(self, *x) -> bool:
         """ 当坐标在定义域内时返回 True，否则返回 False  """
@@ -252,40 +254,20 @@ class Expression(typing.Generic[_T]):
 
         return children, {}
 
-    def _eval(self, *xargs, **kwargs) -> ArrayType | Expression:
+    # def _eval(self, *xargs, **kwargs) -> ArrayType | Expression:
+    #     xargs, kwargs = self._apply_children(*xargs, **kwargs)
+    #     try:
+    #         res = self.__op__(*xargs, **kwargs)
+    #     except Exception as error:
+    #         raise RuntimeError(
+    #             f"Error when apply {self.__str__()} op={self._name} args={xargs} kwargs={kwargs}!") from error
 
-        xargs, kwargs = self._apply_children(*xargs, **kwargs)
+    #     if res is _undefined_:
+    #         raise RuntimeError(f"Unknown op={op} expr={self._children}!")
+    #     return res
 
-        op = self._op
-
-        if isinstance(op, tuple):
-            op, opts, *method = op
-            if len(method) > 0 and isinstance(method[0], str):
-                op = getattr(op, method[0])
-            if opts is not None and len(opts) > 0:
-                kwargs.update(opts)
-
-        res = _undefined_
-
-        if np.isscalar(op):
-            res = op
-        elif isinstance(op, np.ndarray) and len(op.shape) == 0:
-            res = op.item()
-        # elif op is None:  # tuple Expression
-            # res = xargs if len(xargs) != 1 else xargs[0]
-        elif not callable(op):
-            raise RuntimeError(f"Unknown op={op} {self.__str__()} !")
-        else:
-            try:
-                res = op(*xargs, **kwargs)
-            except Exception as error:
-                raise RuntimeError(
-                    f"Error when apply {self.__str__()} op={self._name} args={xargs} kwargs={kwargs}!") from error
-
-        if res is _undefined_:
-            raise RuntimeError(f"Unknown op={op} expr={self._children}!")
-
-        return res
+    @property
+    def __op__(self): return self._op
 
     def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:
         """
@@ -303,32 +285,86 @@ class Expression(typing.Generic[_T]):
             kwargs : typing.Any
                 命名参数，用于传递给运算符的参数
         """
+
         if len(xargs) == 0:
             return self
         elif any([isinstance(arg, Expression) for arg in xargs]):
-            return Expression(*xargs, op=(self, kwargs))
+            return Expression((self, kwargs), *xargs, )
+
+        op = self.__op__
+
+        if isinstance(op, tuple):
+            op, opts, *method = op
+            if len(method) > 0 and isinstance(method[0], str):
+                op = getattr(op, method[0])
+            if opts is None:
+                opts = {}
+            op = functools.partial(op, **opts)
+
+        if op is None or op is _not_found_:
+            raise RuntimeError(f"Unknown op={op} for {self} !")
 
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
         mark = self.__domain__(*xargs)
 
-        if not isinstance(mark, array_type):
-            if mark != True:
-                logger.debug(f"Skip  {mark} {type(mark)}!")
-            return self._eval(*xargs, **kwargs)
+        if not isinstance(mark, array_type) and not isinstance(mark, (bool, np.bool_)):
+            raise RuntimeError(f"Illegal mark {mark} {type(mark)}")
+        elif mark is False:
+            logger.warning(f"Out of domain! {self}")
+            return None
         elif np.all(mark):
-            res = self._eval(*xargs, **kwargs)
+            marked = False
+        else:
+            marked = True
 
-            if isinstance(res, scalar_type):
-                return np.full_like(mark, res, dtype=self.__type_hint__)
-            elif isinstance(res, array_type) and res.shape == mark.shape:
-                return res
+        if np.isscalar(op):
+            value = op
+        elif callable(op):
+            xargs, kwargs = self._apply_children(*xargs, **kwargs)
+
+            if marked:
+                xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]
+
+            try:
+                value = op(*xargs, **kwargs)
+            except Exception as error:
+                raise RuntimeError(
+                    f"Error when apply {self.__str__()} op={self._name} args={xargs} kwargs={kwargs}!") from error
+
+        if not isinstance(mark, array_type):
+            res = value
+        elif not marked:
+            if np.isscalar(value):
+                res = np.full_like(mark, value, dtype=self.__type_hint__)
+            elif isinstance(value, array_type) and value.shape == mark.shape:
+                res = value
             else:
-                raise RuntimeError(f"Incorrect result shape {res}!")
+                raise RuntimeError(f"Incorrect reuslt! {value}")
         else:
             res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
-            valid_xargs = [arg[mark] for arg in xargs]
-            res[mark] = self._eval(*valid_xargs, **kwargs)
-            return res
+            res[mark] = value
+
+        return res
+
+        # if mark != True:
+        #     logger.debug(f"Skip  {mark} {type(mark)}!")
+        #     return self._eval(*xargs, **kwargs)
+        # elif np.all(mark):
+        #     res = self._eval(*xargs, **kwargs)
+        #     if isinstance(res, scalar_type):
+        #         return np.full_like(mark, res, dtype=self.__type_hint__)
+        #     elif isinstance(res, Expression):
+        #         raise RuntimeError(f"{res} {self}")
+        #     elif isinstance(res, array_type) and res.shape == mark.shape:
+        #         return res
+        #     else:
+        #         raise RuntimeError(f"Incorrect result shape {res.shape}!={mark.shape}!")
+        # else:
+        #     res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
+        #     valid_xargs = [arg[mark] for arg in xargs]
+        #     res[mark] = self._eval(*valid_xargs, **kwargs)
+        #     return res
+        # res = self._eval(*xargs, **kwargs)
 
     # def compile(self, *args, ** kwargs) -> Expression:
     #     """ 编译函数，返回一个新的(加速的)函数对象
@@ -446,36 +482,6 @@ class Variable(Expression, typing.Generic[_T]):
         # if len(args) <= self._idx:
         #     raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
         # return args[self._idx]
-
-
-class derivative(Expression[_T]):
-    def __init__(self,   func: Expression, *n, **kwargs):
-        super().__init__(None, func, **kwargs)
-
-    def __str__(self): return f"D_{self._d}({self._children[0].__str__()})"
-
-    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
-        return super()._eval(*xargs, **kwargs)
-
-
-class partial_derivative(Expression[_T]):
-    def __init__(self,   func: Expression[_T], *d, **kwargs):
-        super().__init__(None, func, **kwargs)
-
-    def __str__(self): return f"d_{self._d}({self._children[0].__str__()})"
-
-    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
-        return super()._eval(*xargs, **kwargs)
-
-
-class antiderivative(Expression[_T]):
-    def __init__(self, func: Expression[_T], *d,  **kwargs):
-        super().__init__(None, func, **kwargs)
-
-    def __str__(self): return f"I_{self._d}({self._children[0].__str__()})"
-
-    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
-        return super()._eval(*xargs, **kwargs)
 
 # _0 = Variable[float](0)
 # _1 = Variable[float](1)

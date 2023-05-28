@@ -58,7 +58,7 @@ class Field(Expression, Node, typing.Generic[_T]):
 
         Expression.__init__(self, op, name=name)
 
-        Node.__init__(self, entry, **kwargs)
+        Node.__init__(self, entry, cache=None, **kwargs)
 
         self._value = value
 
@@ -161,6 +161,9 @@ class Field(Expression, Node, typing.Generic[_T]):
             res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
         else:
             raise TypeError(f" Can not get value {(res)}! fun={self.__str__()}")
+
+        if not isinstance(res, array_type):
+            raise TypeError(f"{res}")
         return res
 
     def _compile(self, *d,   **kwargs) -> Field[_T]:
