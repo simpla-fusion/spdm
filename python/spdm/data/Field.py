@@ -34,12 +34,12 @@ class Field(Expression, Node, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression,  *args, name=None, **kwargs):
+    def __init__(self, value: NumericType | Expression, *args, name=None, **kwargs):
 
         op = None
 
         if hasattr(value, "__entry__"):
-            entry = value.__entry__()
+            entry = value
             value = None
         elif isinstance(value, collections.abc.Mapping):
             entry = value
@@ -54,9 +54,11 @@ class Field(Expression, Node, typing.Generic[_T]):
 
         mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
-        Node.__init__(self, entry, **kwargs)
+        # 分别传递 op 给Expression，传递 entry给 Node
 
-        Expression.__init__(self, op, name=name if name is not None else self._metadata.get("name", None))
+        Expression.__init__(self, op, name=name)
+
+        Node.__init__(self, entry, **kwargs)
 
         self._value = value
 
@@ -134,7 +136,7 @@ class Field(Expression, Node, typing.Generic[_T]):
 
         if isinstance(value, Expression) or callable(value):
             op = value
-            value = op(*self.points)
+            value = op(*self.mesh.points)
             if self._op is None:
                 self._op = op
             elif len(self._children) == 0:
@@ -153,7 +155,7 @@ class Field(Expression, Node, typing.Generic[_T]):
         res = self.__value__()
 
         if res is None or res is _not_found_ and self.callable:
-            res = self._value = self._eval(*self.points)
+            res = self._value = self._eval(*self.mesh.points)
 
         if isinstance(res, numeric_type):
             res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
@@ -175,7 +177,7 @@ class Field(Expression, Node, typing.Generic[_T]):
             else:
                 raise RuntimeError(f"Function.compile() failed! {super().__str__()} {self._op} {self._children}")
 
-        value = np.asarrau(value)
+        value = np.asarray(value)
 
         if not isinstance(value, array_type):
             raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
@@ -186,11 +188,10 @@ class Field(Expression, Node, typing.Generic[_T]):
         if tuple(value.shape) != tuple(self.__mesh__.shape):
             raise NotImplementedError(f"{value.shape}!={self.__mesh__.shape}")
 
-        if self.__mesh__.ndim == 1 and len(d) <= 0:
-            if hasattr(self.__mesh__, "derivative"):
-                return self.__mesh__.derivative(d, value)
-            else:
-                return super()._compile(*d, **kwargs)
+        if len(d) == 0 or all(v == 0 for v in d):
+            return self.__mesh__.interpolator(value)
+        elif self.__mesh__.ndim == 1 and len(d) == 1:
+            return self.__mesh__.derivative(d, value)
         elif self.__mesh__.ndim == 2 and d == (1,):
             return self._compile(1, 0, **kwargs), self._compile(0, 1, **kwargs)
         elif self.__mesh__.ndim == 3 and d == (1,):
@@ -208,8 +209,8 @@ class Field(Expression, Node, typing.Generic[_T]):
         else:
             raise NotImplementedError(f"TODO: {d}")
 
-    def compile(self, *args, **kwargs) -> Field[_T]:
-        op, *opts = self._compile(*args, **kwargs)
+    def compile(self, *d, **kwargs) -> Field[_T]:
+        op, *opts = self._compile(*d, **kwargs)
         if len(opts) == 0:
             pass
         elif len(opts) > 0:

@@ -60,7 +60,7 @@ class CurvilinearMesh(RectilinearMesh):
             sub_uv = [self._uv[(axis+i) % self.geometry.ndim]
                       for i in range(1, self.geometry.ndim)]
             sub_cycles = [self.cycles[(axis+i) % self.geometry.ndim]
-                         for i in range(1, self.geometry.ndim)]
+                          for i in range(1, self.geometry.ndim)]
 
             return CurvilinearMesh(sub_xy, sub_uv,  cycles=sub_cycles)
 
@@ -69,11 +69,11 @@ class CurvilinearMesh(RectilinearMesh):
         return self._uv
 
     @cached_property
-    def xyz(self) -> ArrayType:
+    def points(self) -> typing.List[ArrayType]:
         if isinstance(self.geometry, GeoObject):
             return self.geometry.points()
         elif isinstance(self.geometry, GeoObjectSet):
-            d = np.stack([surf.points(self._dims[1]) for surf in self.geometry], axis=0)
+            d = np.stack([surf.points for surf in self.geometry], axis=0)
             return tuple(d[..., i] for i in range(self.geometry.ndims))
         else:
             raise RuntimeError(f'Unknown type {type(self.geometry)}')
@@ -81,6 +81,9 @@ class CurvilinearMesh(RectilinearMesh):
     @cached_property
     def volume_element(self) -> ArrayType:
         raise NotImplementedError()
+
+    @property
+    def xyz(self): return self.points
 
     # def pushforward(self, new_uv):
     #     new_shape = [len(u) for u in new_uv]

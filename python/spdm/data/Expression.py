@@ -4,6 +4,7 @@ import collections.abc
 import typing
 import functools
 import numpy as np
+import inspect
 
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, NumericType, numeric_type, array_type, scalar_type
@@ -52,8 +53,10 @@ _EXPR_OP_NAME = {
     # "ceil": "",
 }
 
+_T = typing.TypeVar("_T")
 
-class Expression(object):
+
+class Expression(typing.Generic[_T]):
     """
         Expression
         -----------
@@ -90,7 +93,6 @@ class Expression(object):
                 命名参数， 用于传递给运算符的参数
 
         """
-        super().__init__()
 
         if isinstance(op, Expression):
             # copy constructor
@@ -116,23 +118,24 @@ class Expression(object):
             logger.warning(f"Ignore kwargs={kwargs}! op={self._op}")
 
         self._name = name
-        if self._name is None:
-            if isinstance(op, tuple):
-                op, opts, *method = op
+        if isinstance(op, tuple):
+            op, opts, *method = op
 
-                if len(method) > 0:
-                    method = method[0]
-                else:
-                    method = None
-
-                if method == "__call__" or method is None:
-                    self._name = getattr(op, "__name__", op.__class__.__name__)
-                else:
-                    self._name = f"{op.__class__.__name__}.{method}"
-            elif isinstance(op, numeric_type):
-                self._name = f"[{op}]"
+            if len(method) > 0:
+                method = method[0]
             else:
-                self._name = getattr(op, "__name__", op.__class__.__name__)
+                method = None
+
+            if method == "__call__" or method is None:
+                self._op_name = getattr(op, "__name__", None)
+            else:
+                self._op_name = f"{op.__class__.__name__}.{method}"
+        elif isinstance(op, numeric_type):
+            self._op_name = f"[{op}]"
+        else:
+            self._op_name = getattr(op, "__name__", None)
+        if self._op_name is None or self._op_name == "<lambda>":
+            self._op_name = self._name
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -182,9 +185,7 @@ class Expression(object):
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
 
-        op_name = self._name
-
-        name = _EXPR_OP_NAME.get(op_name, None)
+        tag = _EXPR_OP_NAME.get(self._op_name, None)
 
         def _ast(v):
             if isinstance(v, Expression):
@@ -193,10 +194,10 @@ class Expression(object):
                 return f"<{v.shape}>"
             else:
                 return str(v)
-        if name is not None and len(self._children) == 2:
-            return f"{_ast(self._children[0])} {name} {_ast(self._children[1])}"
+        if tag is not None and len(self._children) == 2:
+            return f"{_ast(self._children[0])} {tag} {_ast(self._children[1])}"
         else:
-            return f"{op_name}({', '.join([_ast(arg) for arg in self._children])})"
+            return f"{self._op_name}({', '.join([_ast(arg) for arg in self._children])})"
 
     @property
     def __type_hint__(self):
@@ -211,7 +212,11 @@ class Expression(object):
                 return set([obj.__class__])
         tp = list(get_type(self))
         if len(tp) == 0:
-            return float
+            orig_class = getattr(self, "__orig_class__", None)
+
+            tp = typing.get_args(orig_class)[0]if orig_class is not None else None
+
+            return tp if inspect.isclass(tp) else float
         elif len(tp) == 1:
             return tp[0]
         else:
@@ -221,6 +226,7 @@ class Expression(object):
         """ 当坐标在定义域内时返回 True，否则返回 False  """
 
         d = [child.__domain__(*x) for child in self._children if hasattr(child, "__domain__")]
+        d = [v for v in d if (v is not None and v is not True)]
         if len(d) > 0:
             return np.bitwise_and.reduce(d)
         else:
@@ -281,7 +287,6 @@ class Expression(object):
 
         return res
 
-    @typing.final
     def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:
         """
             重载函数调用运算符，用于计算表达式的值
@@ -325,32 +330,26 @@ class Expression(object):
             res[mark] = self._eval(*valid_xargs, **kwargs)
             return res
 
-    def compile(self, *args, ** kwargs) -> Expression:
-        """ 编译函数，返回一个新的(加速的)函数对象
-            TODO：
-                - JIT compile
-        """
-        if len(args) > 0:
-            # TODO: 支持自动微分，auto-grad?
-            raise NotImplementedError(f"TODO: derivative/antiderivative args={args} !")
-
-        f_class = self.__type_hint__
-
-        f_mesh = self.__mesh__
-
-        points = getattr(self, "points", None)
-
-        if points is None:  # for Field
-            points = getattr(f_mesh, "points")
-
-        if points is not None:
-            pass
-        elif isinstance(f_mesh, tuple):  # rectlinear mesh for Function
-            points = np.meshgrid(*f_mesh)
-        else:
-            raise RuntimeError(f"Can not reslove mesh {f_mesh}!")
-
-        return f_class(self.__call__(*points), mesh=f_mesh, name=f"[{self.__str__()}]", **kwargs)
+    # def compile(self, *args, ** kwargs) -> Expression:
+    #     """ 编译函数，返回一个新的(加速的)函数对象
+    #         TODO：
+    #             - JIT compile
+    #     """
+    #     if len(args) > 0:
+    #         # TODO: 支持自动微分，auto-grad?
+    #         raise NotImplementedError(f"TODO: derivative/antiderivative args={args} !")
+    #     f_class = self.__type_hint__
+    #     f_mesh = self.__mesh__
+    #     points = getattr(self, "points", None)
+    #     if points is None:  # for Field
+    #         points = getattr(f_mesh, "points")
+    #     if points is not None:
+    #         pass
+    #     elif isinstance(f_mesh, tuple):  # rectlinear mesh for Function
+    #         points = np.meshgrid(*f_mesh)
+    #     else:
+    #         raise RuntimeError(f"Can not reslove mesh {f_mesh}!")
+    #     return f_class(self.__call__(*points), mesh=f_mesh, name=f"[{self.__str__()}]", **kwargs)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
@@ -449,6 +448,35 @@ class Variable(Expression, typing.Generic[_T]):
         # return args[self._idx]
 
 
+class derivative(Expression[_T]):
+    def __init__(self,   func: Expression, *n, **kwargs):
+        super().__init__(None, func, **kwargs)
+
+    def __str__(self): return f"D_{self._d}({self._children[0].__str__()})"
+
+    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
+        return super()._eval(*xargs, **kwargs)
+
+
+class partial_derivative(Expression[_T]):
+    def __init__(self,   func: Expression[_T], *d, **kwargs):
+        super().__init__(None, func, **kwargs)
+
+    def __str__(self): return f"d_{self._d}({self._children[0].__str__()})"
+
+    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
+        return super()._eval(*xargs, **kwargs)
+
+
+class antiderivative(Expression[_T]):
+    def __init__(self, func: Expression[_T], *d,  **kwargs):
+        super().__init__(None, func, **kwargs)
+
+    def __str__(self): return f"I_{self._d}({self._children[0].__str__()})"
+
+    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
+        return super()._eval(*xargs, **kwargs)
+
 # _0 = Variable[float](0)
 # _1 = Variable[float](1)
 # _2 = Variable[float](2)
@@ -459,6 +487,7 @@ class Variable(Expression, typing.Generic[_T]):
 # _7 = Variable[float](7)
 # _8 = Variable[float](8)
 # _9 = Variable[float](9)
+
 
 class Piecewise(Expression, typing.Generic[_T]):
     """ PiecewiseFunction

@@ -231,7 +231,7 @@ class Box(GeoObject):
     def enclose(self, *xargs) -> bool:
         if all([isinstance(x, numeric_type) for x in xargs]):  # 点坐标
             if len(xargs) != self.ndim:
-                raise RuntimeError(f"len(xargs)={len(xargs)}!=self.ndim={self.ndim}")
+                raise RuntimeError(f"len(xargs)={len(xargs)}!=self.ndim={self.ndim} {xargs}")
             xmin, xmax = self.bbox
             return np.bitwise_and.reduce([((xargs[i] >= xmin[i]) & (xargs[i] <= xmax[i])) for i in range(self.ndim)])
         elif len(xargs) == 1 and isinstance(xargs[0], GeoObject):

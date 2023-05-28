@@ -12,7 +12,7 @@ from .Entry import Entry, as_entry, Entry
 from .Path import Path, as_path
 
 
-class Node(object):
+class Node:
     """
     节点类，用于表示数据结构中的节点，节点可以是一个标量（或np.ndarray），也可以是一个列表，也可以是一个字典。
     用于在一般数据结构上附加类型标识（type_hint)。

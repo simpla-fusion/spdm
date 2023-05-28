@@ -10,8 +10,9 @@ import numpy as np
 from scipy.interpolate import (InterpolatedUnivariateSpline,
                                RectBivariateSpline, RegularGridInterpolator,
                                UnivariateSpline, interp1d, interp2d)
-from spdm.utils.typing import ArrayType
-
+from spdm.data.Expression import Expression, derivative, partial_derivative, antiderivative
+from spdm.utils.typing import ArrayType, NumericType
+import numpy.typing
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, try_get
 from ..utils.tags import _not_found_
@@ -22,7 +23,7 @@ from .Expression import Expression
 _T = typing.TypeVar("_T")
 
 
-class Function(Expression, typing.Generic[_T]):
+class Function(Expression[_T]):
     """
         Function
         ---------
@@ -116,16 +117,6 @@ class Function(Expression, typing.Generic[_T]):
     def empty(self) -> bool: return self._value is None and self.dims is None and super().empty
 
     @property
-    def __type_hint__(self) -> typing.Type:
-        """ 获取函数的类型
-        """
-        orig_class = getattr(self, "__orig_class__", None)
-
-        tp = typing.get_args(orig_class)[0]if orig_class is not None else None
-
-        return tp if inspect.isclass(tp) else float
-
-    @property
     def dimensions(self) -> typing.List[ArrayType]: return self.dims
     """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
 
@@ -149,7 +140,7 @@ class Function(Expression, typing.Generic[_T]):
         if self.dims is None:
             raise RuntimeError(self.dims)
         elif len(self.dims) == 1:
-            return self.dims
+            return self.dims[0]
         else:
             return np.meshgrid(*self.dims, indexing="ij")
 
@@ -205,7 +196,7 @@ class Function(Expression, typing.Generic[_T]):
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def _compile(self, *d, force=False,   **kwargs) -> typing.Callable:
+    def _compile(self, *args, force=False,  check_nan=True, **kwargs) -> typing.Callable:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：
@@ -225,48 +216,61 @@ class Function(Expression, typing.Generic[_T]):
                 if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
 
         """
-        if self.ndim == 1 and len(d) > 0:
-            if len(d) != 1:
-                raise RuntimeError(f" Univariate function has not partial_derivative!")
-            ppoly = self._compile(**kwargs)
-            if isinstance(ppoly, tuple):
-                ppoly, opts, *_ = ppoly
-            else:
-                opts = None
+        # if self.ndim == 1 and len(d) > 0:
+        #     if len(d) != 1:
+        #         raise RuntimeError(f" Univariate function has not partial_derivative!")
+        #     ppoly = self._compile(**kwargs)
+        #     if isinstance(ppoly, tuple):
+        #         ppoly, opts, *_ = ppoly
+        #     else:
+        #         opts = None
 
-            ppoly = ppoly.derivative(d[0])
-            if isinstance(opts, collections.abc.Mapping):
-                return ppoly, opts
-            else:
-                return ppoly
-        elif self.ndim > 1 and len(d) > 0:
-            ppoly = self._compile(**kwargs)
-            if isinstance(ppoly, tuple):
-                ppoly, opts, *_ = ppoly
-            else:
-                opts = None
-            if all(v >= 0 for v in d):
-                ppoly = ppoly.partial_derivative(*d)
-            elif all(v <= 0 for v in d):
-                ppoly = ppoly.antiderivative(*[-v for v in d])
-            else:
-                raise RuntimeError(f"illegal derivative order {d}")
+        #     ppoly = ppoly.derivative(d[0])
+        #     if isinstance(opts, collections.abc.Mapping):
+        #         return ppoly, opts
+        #     else:
+        #         return ppoly
+        # elif self.ndim > 1 and len(d) > 0:
+        #     ppoly = self._compile(**kwargs)
+        #     if isinstance(ppoly, tuple):
+        #         ppoly, opts, *_ = ppoly
+        #     else:
+        #         opts = None
+        #     if all(v >= 0 for v in d):
+        #         ppoly = ppoly.partial_derivative(*d)
+        #     elif all(v <= 0 for v in d):
+        #         ppoly = ppoly.antiderivative(*[-v for v in d])
+        #     else:
+        #         raise RuntimeError(f"illegal derivative order {d}")
 
-            if isinstance(opts, collections.abc.Mapping):
-                return ppoly, opts
-            else:
-                return ppoly
-        elif self._ppoly is not None and not force:
+        #     if isinstance(opts, collections.abc.Mapping):
+        #         return ppoly, opts
+        #     else:
+        #         return ppoly
+
+        if self._ppoly is not None and not force:
             return self._ppoly
-
-        check_nan = kwargs.get("check_nan", True)
+        elif self._dims is None or len(self._dims) == 0:
+            return None
 
         value = self.__value__()
 
+        if value is not None and len(value) == 0:
+            value = None
+
         if value is None or value is _not_found_ and self.callable:
-            value = np.asarray(super()._eval(*self.points))
-        else:
+            value = super()._eval(*self.points)
+        if isinstance(value, Expression) or callable(value):
+            value = value(*self.points)
+            if len(self.points) == 0:
+                raise RuntimeError(f"{self}")
+            logger.debug(value)
+            logger.debug(self.points)
+
+        try:
             value = np.asarray(value)
+        except Exception as error:
+            raise TypeError(f"{type(value)} {value}") from error
 
         if not isinstance(value, array_type):
             raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
@@ -275,6 +279,8 @@ class Function(Expression, typing.Generic[_T]):
 
         if np.isscalar(value):
             return value
+        elif not isinstance(value, np.ndarray):
+            raise TypeError(f"{type(value)} {value}")
 
         m_shape = self.shape
 
@@ -344,22 +350,15 @@ class Function(Expression, typing.Generic[_T]):
 
         return super()._eval(*args, **kwargs)
 
-    def derivative(self, n=1) -> Function[_T]:
-        return Function[_T](self._compile(n),  *self.dims, name=f"d_{n}({self.__str__()})")
+    def derivative(self, *n) -> Function[_T]: return derivative(self, *n)
 
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
-    def partial_derivative(self, *d) -> Function[_T]:
-        if len(d) == 0:
-            d = (1,)
-        return Function[_T](self._compile(*d), *self.dims, name=f"d_{d}({self.__str__()})")
+    def partial_derivative(self, *d) -> Expression[_T]: return partial_derivative(self, *d)
 
     def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
-    def antiderivative(self, *d) -> Function[_T]:
-        if len(d) == 0:
-            d = (1,)
-        return Function(self._compile(*[-v for v in d]),  *self.dims,  name=f"I_{d}({self.__str__()})")
+    def antiderivative(self, *d) -> Function[_T]: return antiderivative(self, *d)
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 

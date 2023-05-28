@@ -161,8 +161,8 @@ def find_critical_points_2d_experimental(func: Field, xmin, ymin, xmax, ymax, to
 def find_critical_points(f: Field, tolerance=EPSILON):
     assert (isinstance(f, Field))
 
-    xmin, ymin = f.bbox[0]
-    xmax, ymax = f.bbox[1]
+    xmin, ymin = f.mesh.geometry.bbox[0]
+    xmax, ymax = f.mesh.geometry.bbox[1]
 
     if tolerance is None:
         tolerance = f.dx
