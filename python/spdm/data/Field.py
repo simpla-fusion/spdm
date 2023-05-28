@@ -76,6 +76,8 @@ class Field(Expression, Node, typing.Generic[_T]):
         elif len(args) > 0:
             raise RuntimeError(f"ignore args={args}")
 
+        self._ppoly = None
+
     @property
     def mesh(self): return self.__mesh__
 
@@ -166,35 +168,41 @@ class Field(Expression, Node, typing.Generic[_T]):
             raise TypeError(f"{res}")
         return res
 
-    def _compile(self, *d,   **kwargs) -> Field[_T]:
-        # if hasattr(self.__mesh__, "dims"):  # as rectlinear grid
-        #     return super()._compile(*d,  **kwargs)
+    @property
+    def __op__(self) -> typing.Callable:
+        if self._op is None or self._op is _not_found_:
+            self._op = self._compile()
+        return self._op
 
-        # FIMXE: STILL WORKING! NOT FINISH!!!
+    def _compile(self, *d, force=False, **kwargs) -> Field[_T]:
+
+        if self._ppoly is not None and lend(d) == 0 and not force:
+            return self._ppoly
 
         value = self.__value__()
 
         if value is None or value is _not_found_ or len(value) == 0:
             if self.callable:
-                value = super()._eval(*self.__mesh__.points)
+                value = super().__call__(*self.__mesh__.points)
             else:
                 raise RuntimeError(f"Function.compile() failed! {super().__str__()} {self._op} {self._children}")
+        try:
+            value = np.asarray(value)
+        except Exception as error:
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ") from error
 
-        value = np.asarray(value)
-
-        if not isinstance(value, array_type):
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ")
-        elif len(value.shape) == 0 or value.shape == (1,):
+        if value.size == 1:
             # 如果value是标量，无法插值，则返回 value 作为常函数
-            return value
+            return np.squeeze(value).item()
 
         if tuple(value.shape) != tuple(self.__mesh__.shape):
             raise NotImplementedError(f"{value.shape}!={self.__mesh__.shape}")
 
         if len(d) == 0 or all(v == 0 for v in d):
-            return self.__mesh__.interpolator(value)
+            self._ppoly = self.__mesh__.interpolator(value)
+            return self._ppoly
         elif self.__mesh__.ndim == 1 and len(d) == 1:
-            return self.__mesh__.derivative(d, value)
+            return self.__mesh__.derivative(d[0], value)
         elif self.__mesh__.ndim == 2 and d == (1,):
             return self._compile(1, 0, **kwargs), self._compile(0, 1, **kwargs)
         elif self.__mesh__.ndim == 3 and d == (1,):

@@ -145,7 +145,6 @@ class Function(Expression[_T]):
             return np.meshgrid(*self.dims, indexing="ij")
 
     def __domain__(self, *args) -> bool:
-
         if self.dims is None or len(self.dims) == 0:
             return True
 
@@ -176,7 +175,11 @@ class Function(Expression[_T]):
     #         return 1
 
     def __value__(self) -> ArrayType:
-        """ 返回函数的数组 self._value """
+        # """ 返回函数的数组 self._value """
+        # if self._value is not None and self._value is not _not_found_ and not callable(self._value):  # and isinstance(self._value, numeric_type):
+        #     logger.debug(self._value)
+        #     return self._value
+
         value = self._value
 
         if isinstance(value, Expression) or callable(value):
@@ -185,24 +188,22 @@ class Function(Expression[_T]):
         if not isinstance(value, array_type) and not value:
             value = None
 
-        if value is None:
+        if value is None or np.isscalar(value):
             pass
         elif isinstance(value, array_type):
-            try:
-                value = np.asarray(value)
-            except Exception as error:
-                raise TypeError(f"{type(value)} {value}") from error
-
-            if not isinstance(value, array_type):
-                raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
-            elif value.size == 1:
+            # try:
+            #     value = np.asarray(value)
+            # except Exception as error:
+            #     raise TypeError(f"{type(value)} {value}") from error
+            if value.size == 1:
                 value = np.squeeze(value).item()
+        else:
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
 
-            if not np.isscalar(value) and not isinstance(value, array_type):
-                raise TypeError(f"{type(value)} {value}")
+            # if not np.isscalar(value) and not isinstance(value, array_type):
+            #     raise TypeError(f"{type(value)} {value}")
 
-        self._value = value
-
+        # self._value = value
         return value
 
     def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
@@ -230,37 +231,6 @@ class Function(Expression[_T]):
         if self._op is None or self._op is _not_found_:
             self._op = self._compile()
         return self._op
-        # if self.ndim == 1 and len(d) > 0:
-        #     if len(d) != 1:
-        #         raise RuntimeError(f" Univariate function has not partial_derivative!")
-        #     ppoly = self._compile(**kwargs)
-        #     if isinstance(ppoly, tuple):
-        #         ppoly, opts, *_ = ppoly
-        #     else:
-        #         opts = None
-
-        #     ppoly = ppoly.derivative(d[0])
-        #     if isinstance(opts, collections.abc.Mapping):
-        #         return ppoly, opts
-        #     else:
-        #         return ppoly
-        # elif self.ndim > 1 and len(d) > 0:
-        #     ppoly = self._compile(**kwargs)
-        #     if isinstance(ppoly, tuple):
-        #         ppoly, opts, *_ = ppoly
-        #     else:
-        #         opts = None
-        #     if all(v >= 0 for v in d):
-        #         ppoly = ppoly.partial_derivative(*d)
-        #     elif all(v <= 0 for v in d):
-        #         ppoly = ppoly.antiderivative(*[-v for v in d])
-        #     else:
-        #         raise RuntimeError(f"illegal derivative order {d}")
-
-        #     if isinstance(opts, collections.abc.Mapping):
-        #         return ppoly, opts
-        #     else:
-        #         return ppoly
 
     def _compile(self, *args, check_nan=True, force=False, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度

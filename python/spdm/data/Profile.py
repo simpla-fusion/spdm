@@ -82,22 +82,10 @@ class Profile(Function[_T], Node):
         return self._dims
 
     def __value__(self) -> ArrayType:
-        if self._value is not None:
-            return self._value
-        value = Node.__value__(self)
+        if self._value is None:
+            self._value = Node.__value__(self)
 
-        if isinstance(value, Expression) or callable(value):
-            op = value
-            value = op(*self.points)
-            if self._op is None:
-                self._op = op
-            elif len(self._children) == 0:
-                self._children = (op,)
-            else:
-                raise ValueError("op is not None, but children is not empty")
-        elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
-            value = self._value = None
-        return value
+        return super().__value__()
 
     def derivative(self, n=1) -> Profile[_T]:
         other = super().derivative(n)
