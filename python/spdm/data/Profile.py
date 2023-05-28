@@ -64,7 +64,7 @@ class Profile(Function[_T], Node):
             self._name = self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
 
     @property
-    def data(self) -> ArrayType: return self.__array__()
+    def data(self) -> ArrayType: return self.__value__
 
     @property
     def dims(self) -> Profile[_T]:
@@ -81,11 +81,24 @@ class Profile(Function[_T], Node):
 
         return self._dims
 
+    def _update(self):
+        d = Node.__value__(self)
+        if isinstance(d, Expression) or callable(d):
+            self._op = d
+        elif d is not None and d is not _not_found_:
+            self._value = d
+
+    @property
     def __value__(self) -> ArrayType:
         if self._value is None:
-            self._value = Node.__value__(self)
+            self._update()
+        return super().__value__
 
-        return super().__value__()
+    @property
+    def __op__(self) -> ArrayType:
+        if self._op is None:
+            self._update()
+        return super().__op__
 
     def derivative(self, n=1) -> Profile[_T]:
         other = super().derivative(n)

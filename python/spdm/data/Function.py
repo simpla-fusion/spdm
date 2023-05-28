@@ -65,7 +65,7 @@ class Function(Expression[_T]):
 
         super().__init__(op, **kwargs)
 
-        self._value = value
+        self._value = self._normalize_value(value)
 
         self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
 
@@ -173,56 +173,7 @@ class Function(Expression[_T]):
     #     else:
     #         logger.warning(f"Function.rank is not defined!  {type(self._value)} default=1")
     #         return 1
-
-    def __value__(self) -> ArrayType:
-        # """ 返回函数的数组 self._value """
-        # if self._value is not None and self._value is not _not_found_ and not callable(self._value):  # and isinstance(self._value, numeric_type):
-        #     logger.debug(self._value)
-        #     return self._value
-
-        value = self._value
-
-        if isinstance(value, Expression) or callable(value):
-            value = value(*self.points)
-
-        if not isinstance(value, array_type) and not value:
-            value = None
-
-        if value is None or np.isscalar(value):
-            pass
-        elif isinstance(value, array_type):
-            # try:
-            #     value = np.asarray(value)
-            # except Exception as error:
-            #     raise TypeError(f"{type(value)} {value}") from error
-            if value.size == 1:
-                value = np.squeeze(value).item()
-        else:
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
-
-            # if not np.isscalar(value) and not isinstance(value, array_type):
-            #     raise TypeError(f"{type(value)} {value}")
-
-        # self._value = value
-        return value
-
-    def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
-        """
-        res = self.__value__()
-
-        if res is None or res is _not_found_ and self.callable:
-            res = self._value = self._eval(*self.points)
-
-        if isinstance(res, numeric_type):
-            res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
-        else:
-            raise TypeError(f" Can not get value {(res)}! fun={self.__str__()}")
-        return res
-
-    def __getitem__(self, idx) -> NumericType: return self.__value__()[idx]
-    # raise NotImplementedError(f"Function.__getitem__ is not implemented!")
+    def __getitem__(self, idx) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
@@ -231,6 +182,22 @@ class Function(Expression[_T]):
         if self._op is None or self._op is _not_found_:
             self._op = self._compile()
         return self._op
+
+    @property
+    def __value__(self) -> ArrayType: return self._value
+    """ 返回函数的数组 self._value """
+
+    def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
+        """ 重载 numpy 的 __array__ 运算符
+                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
+        """
+        res = self.__value__
+
+        if res is None or res is _not_found_:
+            if self.callable:
+                res = self._normalize_value(self.__call__(*self.points))
+
+        return res
 
     def _compile(self, *args, check_nan=True, force=False, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
@@ -256,7 +223,7 @@ class Function(Expression[_T]):
         if self._ppoly is not None and not force:
             return self._ppoly
 
-        value = self.__value__()
+        value = self.__value__
 
         if value is None or value is _not_found_:
             value = None

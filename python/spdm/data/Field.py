@@ -55,6 +55,8 @@ class Field(Expression, Node, typing.Generic[_T]):
         mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
         # 分别传递 op 给Expression，传递 entry给 Node
+        if name is None:
+            name = kwargs.get("metadata", {}).get("name", None)
 
         Expression.__init__(self, op, name=name)
 
@@ -133,40 +135,55 @@ class Field(Expression, Node, typing.Generic[_T]):
     def __value__(self) -> ArrayType:
         if self._value is not None and len(self._value) > 0:
             return self._value
-
-        value = Node.__value__(self)
+        
+        if self._value is _not_found_ or self._value is None:
+            value = self._value = Node.__value__(self)
+        else:
+            value = self._value
 
         if isinstance(value, Expression) or callable(value):
-            op = value
-            value = op(*self.mesh.points)
-            if self._op is None:
-                self._op = op
-            elif len(self._children) == 0:
-                self._children = (op,)
-            else:
-                raise ValueError("op is not None, but children is not empty")
-        if value is not None and len(value) == 0:
+            value = value(*self.mesh.points)
+
+        if value is None or (not isinstance(value, array_type) and not value):
             return None
+
+        value = np.asarray(value)
+
+        if value is None or np.isscalar(value):
+            pass
+        elif isinstance(value, array_type):
+            # try:
+            #     value = np.asarray(value)
+            # except Exception as error:
+            #     raise TypeError(f"{type(value)} {value}") from error
+            if value.size == 1:
+                value = np.squeeze(value).item()
         else:
-            return value
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
+
+            # if not np.isscalar(value) and not isinstance(value, array_type):
+            #     raise TypeError(f"{type(value)} {value}")
+
+        # self._value = value
+        return value
 
     def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        res = self.__value__()
+        value = self.__value__()
 
-        if res is None or res is _not_found_ and self.callable:
-            res = self._value = self._eval(*self.mesh.points)
+        if value is None or value is _not_found_ or len(value) == 0:
+            if self.callable:
+                value = super().__call__(*self.__mesh__.points)
+            else:
+                raise RuntimeError(f"Function.compile() failed! {self} {value} {self._op} {self._children}")
+        try:
+            value = np.asarray(value)
+        except Exception as error:
+            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ") from error
 
-        if isinstance(res, numeric_type):
-            res = np.asarray(res, dtype=self.__type_hint__ if dtype is None else dtype)
-        else:
-            raise TypeError(f" Can not get value {(res)}! fun={self.__str__()}")
-
-        if not isinstance(res, array_type):
-            raise TypeError(f"{res}")
-        return res
+        return value
 
     @property
     def __op__(self) -> typing.Callable:
@@ -176,20 +193,10 @@ class Field(Expression, Node, typing.Generic[_T]):
 
     def _compile(self, *d, force=False, **kwargs) -> Field[_T]:
 
-        if self._ppoly is not None and lend(d) == 0 and not force:
+        if self._ppoly is not None and len(d) == 0 and not force:
             return self._ppoly
 
-        value = self.__value__()
-
-        if value is None or value is _not_found_ or len(value) == 0:
-            if self.callable:
-                value = super().__call__(*self.__mesh__.points)
-            else:
-                raise RuntimeError(f"Function.compile() failed! {super().__str__()} {self._op} {self._children}")
-        try:
-            value = np.asarray(value)
-        except Exception as error:
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ") from error
+        value = self.__array__()
 
         if value.size == 1:
             # 如果value是标量，无法插值，则返回 value 作为常函数

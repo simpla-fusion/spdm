@@ -78,6 +78,7 @@ class Expression(typing.Generic[_T]):
             >>> z(0.0)
             3.0
     """
+
     fill_value = np.nan
 
     def __init__(self, op: typing.Callable, *args, name=None,  **kwargs) -> None:
@@ -165,8 +166,8 @@ class Expression(typing.Generic[_T]):
         name = getattr(ufunc, "__name__", f"{ufunc.__class__.__name__}.{method}")
         return Expression((ufunc, kwargs, method), *args, name=name)
 
-    def __array__(self, *args) -> ArrayType:
-        raise NotImplementedError(f"__array__({args}) is not implemented!")
+    def __array__(self, *args, **kwargs) -> ArrayType:
+        raise NotImplementedError(f"__array__() is not implemented!")
 
     @property
     def has_children(self) -> bool: return len(self._children) > 0
@@ -215,9 +216,7 @@ class Expression(typing.Generic[_T]):
     # tp = list(get_type(self))
     # if len(tp) == 0:
     #     orig_class = getattr(self, "__orig_class__", None)
-
     #     tp = typing.get_args(orig_class)[0]if orig_class is not None else None
-
     #     return tp if inspect.isclass(tp) else float
     # elif len(tp) == 1:
     #     return tp[0]
@@ -265,6 +264,26 @@ class Expression(typing.Generic[_T]):
     #     if res is _undefined_:
     #         raise RuntimeError(f"Unknown op={op} expr={self._children}!")
     #     return res
+
+    def _normalize_value(self, value: NumericType) -> NumericType:
+        """ 将 value 转换为 array_type 类型 """
+        if isinstance(value, array_type) or np.isscalar(value):
+            pass
+        elif value is None or value is _not_found_:
+            value = None
+        elif isinstance(value, numeric_type):
+            value = np.asarray(value)
+        elif isinstance(value, tuple):
+            value = np.asarray(value)
+        elif isinstance(value, collections.abc.Sequence):
+            value = np.asarray(value)
+        else:
+            raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
+
+        if isinstance(value, array_type) and value.size == 1:
+            value = np.squeeze(value).item()
+
+        return value
 
     @property
     def __op__(self): return self._op
