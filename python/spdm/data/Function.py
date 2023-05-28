@@ -140,8 +140,7 @@ class Function(Expression[_T]):
         if self.dims is None:
             raise RuntimeError(self.dims)
         elif len(self.dims) == 1:
-            logger.debug(self.dims)
-            return self.dims[0]
+            return self.dims
         else:
             return np.meshgrid(*self.dims, indexing="ij")
 
@@ -285,10 +284,14 @@ class Function(Expression[_T]):
         """
 
         if self._ppoly is not None and not force:
-            logger.debug(self._ppoly)
             return self._ppoly
 
         value = self.__value__()
+
+        if value is None or value is _not_found_:
+            value = None
+            if self.callable and self.dims is not None:
+                value = self.__call__(*self.points)
 
         if callable(value):
             return value
@@ -354,21 +357,100 @@ class Function(Expression[_T]):
 
         return Function(op, *self.dims, name=f"[{self.__str__()}]")
 
-    def derivative(self, *n) -> Function[_T]: return derivative(self, *n)
+    def derivative(self, n=1) -> Function[_T]:
+        ppoly = self._compile()
+        opts = None
+
+        if isinstance(ppoly, tuple):
+            ppoly, opts, *_ = ppoly
+        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
+            ppoly = ppoly.item()
+
+        if np.isscalar(ppoly):
+            return 0
+
+        ppoly = ppoly.derivative(n)
+        if opts is not None:
+            ppoly = (ppoly, None)
+
+        fname = f"d_{n}({self.__str__()})"
+
+        return Function(ppoly, *self.dims, name=fname)
 
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
-    def partial_derivative(self, *d) -> Expression[_T]: return partial_derivative(self, *d)
+    def partial_derivative(self, *d) -> Function[_T]:
+        ppoly = self._compile()
+        opts = None
+        if isinstance(ppoly, tuple):
+            ppoly, opts, *_ = ppoly
+        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
+            ppoly = ppoly.item()
+
+        if np.isscalar(ppoly):
+            return 0
+        elif not hasattr(ppoly, 'partial_derivative'):
+            raise RuntimeError(f"PPoly {ppoly} has not 'partial_derivative' method!")
+
+        ppoly = ppoly.partial_derivative(*d)
+
+        if opts is not None:
+            ppoly = (ppoly, opts)
+
+        if len(d) > 0:
+            fname = f"d_({self.__str__()})"
+        else:
+            fname = f"d_{d}({self.__str__()})"
+
+        return Function(ppoly, *self.dims, name=fname)
 
     def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
-    def antiderivative(self, *d) -> Function[_T]: return antiderivative(self, *d)
+    def antiderivative(self, *d) -> Function[_T]:
+        ppoly = self._compile()
+        opts = None
+        if isinstance(ppoly, tuple):
+            ppoly, opts, *_ = ppoly
+        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
+            ppoly = ppoly.item()
+
+        if not hasattr(ppoly, 'antiderivative'):
+            raise RuntimeError(f"PPoly {ppoly} has not 'antiderivative' method!")
+
+        ppoly = ppoly.antiderivative(*d)
+        if opts is not None:
+            ppoly = (ppoly, opts)
+
+        if len(d) > 0:
+            fname = f"I_({self.__str__()})"
+        else:
+            fname = f"I_{d}({self.__str__()})"
+
+        return Function(ppoly, *self.dims, name=fname)
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 
-    def integral(self, *args, **kwargs) -> _T: return self._compile().integral(*args, **kwargs)
+    def integral(self, *args, **kwargs) -> _T:
+        ppoly = self._compile()
+        if isinstance(ppoly, tuple):
+            ppoly,  *_ = ppoly
+        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
+            ppoly = ppoly.item()
 
-    def roots(self, *args, **kwargs) -> _T: return self._compile().roots(*args, **kwargs)
+        if not hasattr(ppoly, "integral"):
+            raise RuntimeError(f"PPoly {ppoly} has not 'integral' method!")
+        return ppoly.integral(*args, **kwargs)
+
+    def roots(self, *args, **kwargs) -> _T:
+        ppoly = self._compile()
+        if isinstance(ppoly, tuple):
+            ppoly,  *_ = ppoly
+        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
+            ppoly = ppoly.item()
+
+        if not hasattr(ppoly, "roots"):
+            raise RuntimeError(f"PPoly {ppoly} has not 'roots' method!")
+        return ppoly.roots(*args, **kwargs)
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
@@ -376,36 +458,3 @@ def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
         return y
     else:
         return Function(y, *args, **kwargs)
-
-
-class derivative(Expression[_T]):
-    def __init__(self,   func: Expression, *d, **kwargs):
-        super().__init__(None, func, **kwargs)
-        self._d = d
-
-    def __str__(self): return f"D_{self._d}({self._children[0].__str__()})"
-
-    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
-        return super()._eval(*xargs, **kwargs)
-
-
-class partial_derivative(Expression[_T]):
-    def __init__(self,   func: Expression[_T], *d, **kwargs):
-        super().__init__(None, func, **kwargs)
-        self._d = d
-
-    def __str__(self): return f"d_{self._d}({self._children[0].__str__()})"
-
-    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
-        return super()._eval(*xargs, **kwargs)
-
-
-class antiderivative(Expression[_T]):
-    def __init__(self, func: Expression[_T], *d,  **kwargs):
-        super().__init__(None, func, **kwargs)
-        self._d = d
-
-    def __str__(self): return f"I_{self._d}({self._children[0].__str__()})"
-
-    def _eval(self, *xargs: NumericType, **kwargs) -> ArrayType[_T] | Expression[_T]:
-        return super()._eval(*xargs, **kwargs)
