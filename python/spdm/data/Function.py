@@ -179,25 +179,26 @@ class Function(Expression[_T]):
 
     @property
     def __op__(self) -> typing.Callable:
-        if self._op is None or self._op is _not_found_:
-            self._op = self._compile()
-        return self._op
+        if callable(self._op) or isinstance(self._op, numeric_type) and self._op is not None:
+            return self._op
+        else:
+            return self._compile()
 
     @property
     def __value__(self) -> ArrayType: return self._value
     """ 返回函数的数组 self._value """
 
-    def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
+    def __array__(self, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        res = self.__value__
+        value = self.__value__
 
-        if res is None or res is _not_found_:
+        if value is None or value is _not_found_:
             if self.callable:
-                res = self._normalize_value(self.__call__(*self.points))
+                value = self._normalize_value(self.__call__(*self.points), *args,  **kwargs)
 
-        return res
+        return value
 
     def _compile(self, *args, check_nan=True, force=False, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
@@ -230,12 +231,10 @@ class Function(Expression[_T]):
             if self.callable and self.dims is not None:
                 value = self.__call__(*self.points)
 
-        if callable(value):
+        if np.isscalar(value):
             return value
-        elif np.isscalar(value):
-            return value
-        elif isinstance(value, array_type) and len(value.shape) == 0:
-            return value.item()
+        elif isinstance(value, array_type) and value.size == 1:
+            return np.squeeze(value).item()
 
         if not isinstance(value, array_type):
             return None

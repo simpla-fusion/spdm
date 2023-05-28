@@ -86,7 +86,7 @@ class Profile(Function[_T], Node):
         if isinstance(d, Expression) or callable(d):
             self._op = d
         elif d is not None and d is not _not_found_:
-            self._value = d
+            self._value = self._normalize_value(d)
 
     @property
     def __value__(self) -> ArrayType:

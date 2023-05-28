@@ -179,9 +179,6 @@ class Expression(typing.Generic[_T]):
     @property
     def callable(self): return self._op is not None or self.has_children
 
-    # @property
-    # def is_function(self) -> bool: return not self.has_children and self._op is not None
-
     @property
     def __name__(self) -> str: return self._name
 
@@ -265,7 +262,8 @@ class Expression(typing.Generic[_T]):
     #         raise RuntimeError(f"Unknown op={op} expr={self._children}!")
     #     return res
 
-    def _normalize_value(self, value: NumericType) -> NumericType:
+    @staticmethod
+    def _normalize_value(value: NumericType) -> NumericType:
         """ 将 value 转换为 array_type 类型 """
         if isinstance(value, array_type) or np.isscalar(value):
             pass
@@ -277,6 +275,8 @@ class Expression(typing.Generic[_T]):
             value = np.asarray(value)
         elif isinstance(value, collections.abc.Sequence):
             value = np.asarray(value)
+        elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
+            value = None
         else:
             raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
 
@@ -307,8 +307,8 @@ class Expression(typing.Generic[_T]):
 
         if len(xargs) == 0:
             return self
-        elif any([isinstance(arg, Expression) for arg in xargs]):
-            return Expression((self, kwargs), *xargs, )
+        elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
+            return Expression((self, kwargs), *xargs, **kwargs)
 
         op = self.__op__
 
