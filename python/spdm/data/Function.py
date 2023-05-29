@@ -10,7 +10,7 @@ import numpy as np
 from scipy.interpolate import (InterpolatedUnivariateSpline,
                                RectBivariateSpline, RegularGridInterpolator,
                                UnivariateSpline, interp1d, interp2d)
-from spdm.data.Expression import Expression
+from spdm.data.Expression import Expression, ExprOp
 from spdm.utils.typing import ArrayType, NumericType
 import numpy.typing
 from ..utils.logger import logger
@@ -200,7 +200,7 @@ class Function(Expression[_T]):
 
         return value
 
-    def _compile(self, *args, check_nan=True, force=False, **kwargs) -> typing.Callable[..., NumericType] | NumericType:
+    def _compile(self, *args, check_nan=True, force=False, **kwargs) -> ExprOp:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：
@@ -272,10 +272,12 @@ class Function(Expression[_T]):
             if isinstance(self.periods, collections.abc.Sequence):
                 logger.warning(f"TODO: periods={self.periods}")
 
-            ppoly = RectBivariateSpline(*self.dims, value), {"grid": False}
+            ppoly = ExprOp(RectBivariateSpline(*self.dims, value), grid=False)
         else:
             raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
 
+        if not isinstance(ppoly, ExprOp):
+            ppoly = ExprOp(ppoly)
         self._ppoly = ppoly
         return ppoly
 
@@ -294,20 +296,12 @@ class Function(Expression[_T]):
         return Function(op, *self.dims, name=f"[{self.__str__()}]")
 
     def derivative(self, n=1) -> Function[_T]:
-        ppoly = self._compile()
-        opts = None
-
-        if isinstance(ppoly, tuple):
-            ppoly, opts, *_ = ppoly
-        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
-            ppoly = ppoly.item()
+        ppoly = self._compile().op
 
         if np.isscalar(ppoly):
             return 0
 
         ppoly = ppoly.derivative(n)
-        if opts is not None:
-            ppoly = (ppoly, None)
 
         fname = f"d_{n}({self.__str__()})"
 
@@ -316,13 +310,8 @@ class Function(Expression[_T]):
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
     def partial_derivative(self, *d) -> Function[_T]:
-        ppoly = self._compile()
-        opts = None
-        if isinstance(ppoly, tuple):
-            ppoly, opts, *_ = ppoly
-        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
-            ppoly = ppoly.item()
-
+        expr_op = self._compile()
+        ppoly = expr_op.op
         if np.isscalar(ppoly):
             return 0
         elif not hasattr(ppoly, 'partial_derivative'):
@@ -330,39 +319,29 @@ class Function(Expression[_T]):
 
         ppoly = ppoly.partial_derivative(*d)
 
-        if opts is not None:
-            ppoly = (ppoly, opts)
-
         if len(d) > 0:
             fname = f"d_({self.__str__()})"
         else:
             fname = f"d_{d}({self.__str__()})"
 
-        return Function(ppoly, *self.dims, name=fname)
+        return Function(ExprOp(ppoly, **expr_op._opts), *self.dims, name=fname)
 
     def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
     def antiderivative(self, *d) -> Function[_T]:
-        ppoly = self._compile()
-        opts = None
-        if isinstance(ppoly, tuple):
-            ppoly, opts, *_ = ppoly
-        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
-            ppoly = ppoly.item()
-
+        expr_op = self._compile()
+        ppoly = expr_op.op
         if not hasattr(ppoly, 'antiderivative'):
             raise RuntimeError(f"PPoly {ppoly} has not 'antiderivative' method!")
 
         ppoly = ppoly.antiderivative(*d)
-        if opts is not None:
-            ppoly = (ppoly, opts)
 
         if len(d) > 0:
             fname = f"I_({self.__str__()})"
         else:
             fname = f"I_{d}({self.__str__()})"
 
-        return Function(ppoly, *self.dims, name=fname)
+        return Function(ExprOp(ppoly, **expr_op._opts), *self.dims, name=fname)
 
     def dln(self) -> Function[_T]: return self.derivative() / self
 

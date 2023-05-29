@@ -56,6 +56,54 @@ _EXPR_OP_NAME = {
 _T = typing.TypeVar("_T")
 
 
+class ExprOp:
+    def __init__(self, op, method: str = None, name=None, **kwargs) -> None:
+        self._op = op
+        self._method = method
+        self._opts = kwargs
+
+        if name is not None:
+            self._name = name
+        elif isinstance(op, numeric_type):
+            self._name = f"[{type(op)}]"
+        elif method is None or method == "__call__":
+            self._name = getattr(op, "__name__", None)
+        elif method is not None:
+            self._name = f"{op.__class__.__name__}.{method}"
+        else:
+            self._name = None
+
+    @property
+    def __name__(self) -> str: return self._name
+    """ To get the name of the operator，same as self.name. To compatible with numpy ufunc. """
+    @property
+    def name(self) -> str: return self._name
+
+    @property
+    def tag(self) -> str: return _EXPR_OP_NAME.get(self._name, None)
+
+    @property
+    def op(self) -> typing.Callable | NumericType: return self._op
+
+    def __call__(self, *args, **kwargs):
+        if self._method is not None:
+            op = getattr(self._op, self._method, None)
+        else:
+            op = self._op
+
+        if not callable(op):
+            return op
+
+        try:
+            kwargs.update(self._opts)
+            value = op(*args, **kwargs)
+        except Exception as error:
+            raise RuntimeError(
+                f"Error when apply  op={op} args={args} kwargs={kwargs}!") from error
+
+        return value
+
+
 class Expression(typing.Generic[_T]):
     """
         Expression
@@ -81,64 +129,29 @@ class Expression(typing.Generic[_T]):
 
     fill_value = np.nan
 
-    def __init__(self, op: typing.Callable, *args, name=None,  **kwargs) -> None:
+    def __init__(self, op: typing.Callable | ExprOp = None, *children, name=None,  **kwargs) -> None:
         """
             Parameters
             ----------
             args : typing.Any
                 操作数
-            op : typing.Callable  | typing.Tuple[typing.Callable, str, typing.Dict[str, typing.Any]]
+            op : typing.Callable  | ExprOp
                 运算符，可以是函数，也可以是类的成员函数
-
             kwargs : typing.Any
                 命名参数， 用于传递给运算符的参数
 
         """
-
-        if isinstance(op, Expression):
+        if isinstance(op, Expression) and len(children) == 0 and len(kwargs) == 0:
             # copy constructor
-            if name is None:
-                name = op._name
-            args = op._children
+            name = op._name if name is None else name
+            children = op._children
             op = op._op
+        elif op is not None and not isinstance(op, ExprOp):
+            op = ExprOp(op, **kwargs)
 
-        elif callable(op) and len(kwargs) > 0:
-            op = functools.partial(op, **kwargs)
-            kwargs = {}
-
-        self._children = args
-        self._op = op
-
-        if len(kwargs) == 0:
-            pass
-        elif isinstance(self._op, tuple):  # require (op,opts,method)
-            self._op[1].update(kwargs)
-        elif callable(self._op):
-            self._op = (self._op, kwargs)
-        else:
-            logger.warning(f"Ignore kwargs={kwargs}! op={self._op}")
-
-        self._name = name if name is not None else self.__class__.__name__
-
-        if isinstance(op, tuple):
-            op, opts, *method = op
-
-            if len(method) > 0:
-                method = method[0]
-            else:
-                method = None
-
-            if method == "__call__" or method is None:
-                self._op_name = getattr(op, "__name__", None)
-            else:
-                self._op_name = f"{op.__class__.__name__}.{method}"
-        elif isinstance(op, numeric_type):
-            self._op_name = f"[{op}]"
-        else:
-            self._op_name = getattr(op, "__name__", None)
-
-        if self._op_name is None or self._op_name == "<lambda>":
-            self._op_name = self._name
+        self._op: ExprOp = op
+        self._name = name if name is not None else getattr(op, "__name__", self.__class__.__name__)
+        self._children = children
 
     def __duplicate__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -155,19 +168,17 @@ class Expression(typing.Generic[_T]):
             例如：
                 >>> import numpy as np
                 >>> import spdm
-                >>> x = spdm.data.Expression(ufunc=np.sin)
-                >>> y = spdm.data.Expression(ufunc=np.cos)
+                >>> x = spdm.data.Expression(np.sin)
+                >>> y = spdm.data.Expression(np.cos)
                 >>> z = x + y
                 >>> z
                 <Expression   op="add" />
                 >>> z(0.0)
                 1.0
         """
-        name = getattr(ufunc, "__name__", f"{ufunc.__class__.__name__}.{method}")
-        return Expression((ufunc, kwargs, method), *args, name=name)
+        return Expression(ExprOp(ufunc, method=method, **kwargs), *args)
 
-    def __array__(self, *args, **kwargs) -> ArrayType:
-        raise NotImplementedError(f"__array__() is not implemented!")
+    def __array__(self, *args, **kwargs) -> ArrayType: raise NotImplementedError(f"__array__() is not implemented!")
 
     @property
     def has_children(self) -> bool: return len(self._children) > 0
@@ -185,8 +196,6 @@ class Expression(typing.Generic[_T]):
     def __str__(self) -> str:
         """ 返回表达式的抽象语法树"""
 
-        tag = _EXPR_OP_NAME.get(self._op_name, None)
-
         def _ast(v):
             if isinstance(v, Expression):
                 return v.__str__()
@@ -194,10 +203,13 @@ class Expression(typing.Generic[_T]):
                 return f"<{v.shape}>"
             else:
                 return str(v)
-        if tag is not None and len(self._children) == 2:
-            return f"{_ast(self._children[0])} {tag} {_ast(self._children[1])}"
+
+        if self._op is None:
+            return f"{self._name}({', '.join([_ast(arg) for arg in self._children])})"
+        elif self._op.tag is not None and len(self._children) == 2:
+            return f"{_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])}"
         else:
-            return f"{self._op_name}({', '.join([_ast(arg) for arg in self._children])})"
+            return f"{self._op.name}({', '.join([_ast(arg) for arg in self._children])})"
 
     @property
     def __type_hint__(self): return float
@@ -286,7 +298,7 @@ class Expression(typing.Generic[_T]):
         return value
 
     @property
-    def __op__(self): return self._op
+    def __op__(self) -> ExprOp | typing.Callable: return self._op
 
     def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:
         """
@@ -308,19 +320,11 @@ class Expression(typing.Generic[_T]):
         if len(xargs) == 0:
             return self
         elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
-            return Expression((self, kwargs), *xargs, **kwargs)
+            return Expression(ExprOp(self, **kwargs), *xargs)
 
         op = self.__op__
 
-        if isinstance(op, tuple):
-            op, opts, *method = op
-            if len(method) > 0 and isinstance(method[0], str):
-                op = getattr(op, method[0])
-            if opts is None:
-                opts = {}
-            op = functools.partial(op, **opts)
-
-        if op is None or op is _not_found_:
+        if not callable(op) and not isinstance(op, ExprOp) and not (op, numeric_type):
             raise RuntimeError(f"Unknown op={op} for {self} !")
 
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
@@ -336,24 +340,22 @@ class Expression(typing.Generic[_T]):
         else:
             marked = True
 
-        if np.isscalar(op):
+        xargs, kwargs = self._apply_children(*xargs, **kwargs)
+
+        if marked:
+            xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]
+
+        if callable(op):
+            value = op(*xargs, **kwargs)
+        elif isinstance(op, numeric_type):
             value = op
-        elif callable(op):
-            xargs, kwargs = self._apply_children(*xargs, **kwargs)
+        else:
+            raise RuntimeError(f"Unknown op={op} for {self} !")
 
-            if marked:
-                xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]
-
-            try:
-                value = op(*xargs, **kwargs)
-            except Exception as error:
-                raise RuntimeError(
-                    f"Error when apply {self.__str__()} op={self._name} args={xargs} kwargs={kwargs}!") from error
-
-        if not isinstance(mark, array_type):
-            res = value
-        elif not marked:
-            if np.isscalar(value):
+        if not marked:
+            if not isinstance(mark, array_type):
+                res = value
+            elif np.isscalar(value):
                 res = np.full_like(mark, value, dtype=self.__type_hint__)
             elif isinstance(value, array_type) and value.shape == mark.shape:
                 res = value
@@ -365,46 +367,6 @@ class Expression(typing.Generic[_T]):
 
         return res
 
-        # if mark != True:
-        #     logger.debug(f"Skip  {mark} {type(mark)}!")
-        #     return self._eval(*xargs, **kwargs)
-        # elif np.all(mark):
-        #     res = self._eval(*xargs, **kwargs)
-        #     if isinstance(res, scalar_type):
-        #         return np.full_like(mark, res, dtype=self.__type_hint__)
-        #     elif isinstance(res, Expression):
-        #         raise RuntimeError(f"{res} {self}")
-        #     elif isinstance(res, array_type) and res.shape == mark.shape:
-        #         return res
-        #     else:
-        #         raise RuntimeError(f"Incorrect result shape {res.shape}!={mark.shape}!")
-        # else:
-        #     res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
-        #     valid_xargs = [arg[mark] for arg in xargs]
-        #     res[mark] = self._eval(*valid_xargs, **kwargs)
-        #     return res
-        # res = self._eval(*xargs, **kwargs)
-
-    # def compile(self, *args, ** kwargs) -> Expression:
-    #     """ 编译函数，返回一个新的(加速的)函数对象
-    #         TODO：
-    #             - JIT compile
-    #     """
-    #     if len(args) > 0:
-    #         # TODO: 支持自动微分，auto-grad?
-    #         raise NotImplementedError(f"TODO: derivative/antiderivative args={args} !")
-    #     f_class = self.__type_hint__
-    #     f_mesh = self.__mesh__
-    #     points = getattr(self, "points", None)
-    #     if points is None:  # for Field
-    #         points = getattr(f_mesh, "points")
-    #     if points is not None:
-    #         pass
-    #     elif isinstance(f_mesh, tuple):  # rectlinear mesh for Function
-    #         points = np.meshgrid(*f_mesh)
-    #     else:
-    #         raise RuntimeError(f"Can not reslove mesh {f_mesh}!")
-    #     return f_class(self.__call__(*points), mesh=f_mesh, name=f"[{self.__str__()}]", **kwargs)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
@@ -471,7 +433,7 @@ class Variable(Expression, typing.Generic[_T]):
     """
 
     def __init__(self, idx: int | str, name: str = None) -> None:
-        super().__init__(None)
+        super().__init__()
         self._idx = idx
         self._name = name if name is not None else (idx if isinstance(idx, str) else f"_{idx}")
 
