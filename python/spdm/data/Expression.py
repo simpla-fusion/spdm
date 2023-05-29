@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import collections.abc
-import typing
 import functools
-import numpy as np
 import inspect
+import typing
 
+# import numpy as np
+import numpy as np
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, NumericType, numeric_type, array_type, scalar_type
 from ..utils.tags import _not_found_, _undefined_
-from .ExprOp import ExprOp
-from .ExprOp import ExprOp, derivative, antiderivative, partial_derivative, integral, find_roots
+from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
+                            scalar_type)
+from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
+                     partial_derivative)
 
 _T = typing.TypeVar("_T")
 
@@ -453,4 +455,4 @@ class Piecewise(Expression, typing.Generic[_T]):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
         else:
-            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {x}")
+            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")

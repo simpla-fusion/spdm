@@ -4,8 +4,9 @@ import collections.abc
 import functools
 import inspect
 import typing
-from spdm.numlib.common import np
-import jax
+
+import numpy as np
+
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
