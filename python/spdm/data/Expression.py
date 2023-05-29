@@ -9,99 +9,10 @@ import inspect
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, NumericType, numeric_type, array_type, scalar_type
 from ..utils.tags import _not_found_, _undefined_
-
-
-_EXPR_OP_NAME = {
-    "negative": "-",
-    "add": "+",
-    "subtract": "-",
-    "multiply": "*",
-    "matmul": "*",
-    "true_divide": "/",
-    "power": "^",
-    "equal": "==",
-    "not_equal": "!",
-    "less": "<",
-    "less_equal": "<=",
-    "greater": ">",
-    "greater_equa": ">=",
-    "add": "+",
-    "subtract": "-",
-    "multiply": "*",
-    "matmul": "*",
-    "divide": "/",
-    "power": "^",
-    # "abs": "",
-    "positive": "+",
-    # "invert": "",
-    # "bitwise_and": "",
-    # "bitwise_or": "",
-    # "bitwise_xor": "",
-    # "bitwise_and": "",
-    # "bitwise_or": "",
-    # "bitwise_xor": "",
-    # "right_shift": "",
-    # "left_shift": "",
-    # "right_shift": "",
-    # "left_shift": "",
-    "mod": "%",
-    # "floor_divide": "",
-    # "floor_divide": "",
-    # "trunc": "",
-    # "round": "",
-    # "floor": "",
-    # "ceil": "",
-}
+from .ExprOp import ExprOp
+from .ExprOp import ExprOp, derivative, antiderivative, partial_derivative, integral, find_roots
 
 _T = typing.TypeVar("_T")
-
-
-class ExprOp:
-    def __init__(self, op, method: str = None, name=None, **kwargs) -> None:
-        self._op = op
-        self._method = method
-        self._opts = kwargs
-
-        if name is not None:
-            self._name = name
-        elif isinstance(op, numeric_type):
-            self._name = f"[{type(op)}]"
-        elif method is None or method == "__call__":
-            self._name = getattr(op, "__name__", None)
-        elif method is not None:
-            self._name = f"{op.__class__.__name__}.{method}"
-        else:
-            self._name = None
-
-    @property
-    def __name__(self) -> str: return self._name
-    """ To get the name of the operator，same as self.name. To compatible with numpy ufunc. """
-    @property
-    def name(self) -> str: return self._name
-
-    @property
-    def tag(self) -> str: return _EXPR_OP_NAME.get(self._name, None)
-
-    @property
-    def op(self) -> typing.Callable | NumericType: return self._op
-
-    def __call__(self, *args, **kwargs):
-        if self._method is not None:
-            op = getattr(self._op, self._method, None)
-        else:
-            op = self._op
-
-        if not callable(op):
-            return op
-
-        try:
-            kwargs.update(self._opts)
-            value = op(*args, **kwargs)
-        except Exception as error:
-            raise RuntimeError(
-                f"Error when apply  op={op} args={args} kwargs={kwargs}!") from error
-
-        return value
 
 
 class Expression(typing.Generic[_T]):
@@ -360,7 +271,7 @@ class Expression(typing.Generic[_T]):
             elif isinstance(value, array_type) and value.shape == mark.shape:
                 res = value
             else:
-                raise RuntimeError(f"Incorrect reuslt! {value}")
+                raise RuntimeError(f"Incorrect reuslt {self}! {value}")
         else:
             res = np.full_like(mark, self.fill_value, dtype=self.__type_hint__)
             res[mark] = value
@@ -410,6 +321,27 @@ class Expression(typing.Generic[_T]):
     def __floor__    (self                             ) : return Expression(np.floor        ,  self     ,)
     def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     ,)
     # fmt: on
+
+    def derivative(self, n=1) -> Expression[_T]:
+        return Expression[_T](derivative(self._compile(), n), name=f"D_{n}({self})")
+
+    def d(self, n=1) -> Expression[_T]: return self.derivative(n)
+
+    def partial_derivative(self, *d) -> Expression[_T]:
+        return Expression[_T](partial_derivative(self._compile(), *d), name=f"d_{d}({self})")
+
+    def pd(self, *d) -> Expression[_T]: return self.partial_derivative(*d)
+
+    def antiderivative(self, *d) -> Expression[_T]:
+        return Expression[_T](antiderivative(self._compile(), *d), name=f"I_{d}({self})")
+
+    def dln(self) -> Expression[_T]: return self.derivative() / self
+
+    def integral(self, *args, **kwargs) -> _T:
+        return integral(self._compile(), *args, **kwargs)
+
+    def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+        yield from find_roots(self._compile(), *args, **kwargs)
 
 
 _T = typing.TypeVar("_T")

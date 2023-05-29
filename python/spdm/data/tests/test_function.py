@@ -1,6 +1,6 @@
 import unittest
 
-import numpy as np
+from spdm.numlib.common import np
 from scipy import constants
 from spdm.data.Expression import Expression, Variable
 from spdm.data.Function import Function

@@ -1,24 +1,21 @@
 from __future__ import annotations
 
 import collections.abc
+import functools
 import inspect
 import typing
 from copy import copy
 from enum import Enum
-import functools
-import numpy as np
-from scipy.interpolate import (InterpolatedUnivariateSpline,
-                               RectBivariateSpline, RegularGridInterpolator,
-                               UnivariateSpline, interp1d, interp2d)
-from spdm.data.Expression import Expression, ExprOp
-from spdm.utils.typing import ArrayType, NumericType
-import numpy.typing
+
+from ..numlib.common import np
+from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, try_get
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
                             scalar_type)
 from .Expression import Expression
+from .ExprOp import ExprOp, antiderivative, derivative, partial_derivative
 
 _T = typing.TypeVar("_T")
 
@@ -65,7 +62,7 @@ class Function(Expression[_T]):
 
         super().__init__(op, **kwargs)
 
-        self._value = self._normalize_value(value)
+        self._value = self._normalize_value(value) if value is not None else None
 
         self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
 
@@ -173,16 +170,19 @@ class Function(Expression[_T]):
     #     else:
     #         logger.warning(f"Function.rank is not defined!  {type(self._value)} default=1")
     #         return 1
+
     def __getitem__(self, idx) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
     @property
     def __op__(self) -> typing.Callable:
-        if callable(self._op) or isinstance(self._op, numeric_type) and self._op is not None:
-            return self._op
-        else:
+        if self._ppoly is not None:
+            return self._ppoly
+        elif self._op is None:
             return self._compile()
+        else:
+            return self._op
 
     @property
     def __value__(self) -> ArrayType: return self._value
@@ -200,7 +200,7 @@ class Function(Expression[_T]):
 
         return value
 
-    def _compile(self, *args, check_nan=True, force=False, **kwargs) -> ExprOp:
+    def _compile(self, force=False) -> ExprOp:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：
@@ -224,148 +224,36 @@ class Function(Expression[_T]):
         if self._ppoly is not None and not force:
             return self._ppoly
 
+        self._ppoly = None
+
         value = self.__value__
 
-        if value is None or value is _not_found_:
-            value = None
-            if self.callable and self.dims is not None:
-                value = self.__call__(*self.points)
+        if value is None and self.callable:
+            value = self.__call__(*self.points)
 
         if np.isscalar(value):
-            return value
-        elif isinstance(value, array_type) and value.size == 1:
-            return np.squeeze(value).item()
-
-        if not isinstance(value, array_type):
-            return None
-
-        m_shape = self.shape
-
-        if len(value.shape) > len(m_shape):
-            raise NotImplementedError(
-                f"TODO: interpolate for rank >1 . {value.shape}!={m_shape}!  func={self.__str__()} ")
-        elif tuple(value.shape) != tuple(m_shape):
-            raise RuntimeError(
-                f"Function.compile() incorrect value shape {value.shape}!={m_shape}! value={value} func={self.__str__()} ")
-
-        if len(self.dims) == 1:
-            x = self.dims[0]
-            if check_nan:
-                mark = np.isnan(value)
-                nan_count = np.count_nonzero(mark)
-                if nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
-                    value = value[~mark]
-                    x = x[~mark]
-
-            ppoly = InterpolatedUnivariateSpline(x, value)
-        elif len(self.dims) == 2:
-            if check_nan:
-                mark = np.isnan(value)
-                nan_count = np.count_nonzero(mark)
-                if nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
-                    value[mark] = 0.0
-
-            if isinstance(self.periods, collections.abc.Sequence):
-                logger.warning(f"TODO: periods={self.periods}")
-
-            ppoly = ExprOp(RectBivariateSpline(*self.dims, value), grid=False)
+            self._ppoly = value
+        elif isinstance(value, array_type) and self.dims is not None:
+            self._ppoly = interpolate(value, *self.dims, periods=self.periods)
         else:
-            raise NotImplementedError(f"Multidimensional interpolation for n>2 is not supported.! ndim={self.ndim} ")
+            logger.debug(value)
+            raise RuntimeError(f"Illegal value! {type(value)}")
 
-        if not isinstance(ppoly, ExprOp):
-            ppoly = ExprOp(ppoly)
-        self._ppoly = ppoly
-        return ppoly
+        return self._ppoly
 
     def compile(self, *args, **kwargs) -> Function:
-        op, *opts = self._compile(*args, **kwargs)
-        if len(opts) == 0:
-            pass
-        elif len(opts) > 0:
-            opts = opts[0]
-            op = functools.partial(op, **opts)
-            if len(opts) > 1:
-                logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
-        if op is None:
-            raise RuntimeError(f"Function.compile() failed! {self.__str__()} ")
-
-        return Function(op, *self.dims, name=f"[{self.__str__()}]")
+        return Function(self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]")
 
     def derivative(self, n=1) -> Function[_T]:
-        ppoly = self._compile().op
+        return Function[_T](super().derivative(n), *self.dims)
 
-        if np.isscalar(ppoly):
-            return 0
+    def partial_derivative(self, *d) -> Expression[_T]:
+        return Function[_T](super().partial_derivative(*d), *self.dims)
 
-        ppoly = ppoly.derivative(n)
-
-        fname = f"d_{n}({self.__str__()})"
-
-        return Function(ppoly, *self.dims, name=fname)
-
-    def d(self, n=1) -> Function[_T]: return self.derivative(n)
-
-    def partial_derivative(self, *d) -> Function[_T]:
-        expr_op = self._compile()
-        ppoly = expr_op.op
-        if np.isscalar(ppoly):
-            return 0
-        elif not hasattr(ppoly, 'partial_derivative'):
-            raise RuntimeError(f"PPoly {ppoly} has not 'partial_derivative' method!")
-
-        ppoly = ppoly.partial_derivative(*d)
-
-        if len(d) > 0:
-            fname = f"d_({self.__str__()})"
-        else:
-            fname = f"d_{d}({self.__str__()})"
-
-        return Function(ExprOp(ppoly, **expr_op._opts), *self.dims, name=fname)
-
-    def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
-
-    def antiderivative(self, *d) -> Function[_T]:
-        expr_op = self._compile()
-        ppoly = expr_op.op
-        if not hasattr(ppoly, 'antiderivative'):
-            raise RuntimeError(f"PPoly {ppoly} has not 'antiderivative' method!")
-
-        ppoly = ppoly.antiderivative(*d)
-
-        if len(d) > 0:
-            fname = f"I_({self.__str__()})"
-        else:
-            fname = f"I_{d}({self.__str__()})"
-
-        return Function(ExprOp(ppoly, **expr_op._opts), *self.dims, name=fname)
-
-    def dln(self) -> Function[_T]: return self.derivative() / self
-
-    def integral(self, *args, **kwargs) -> _T:
-        ppoly = self._compile()
-        if isinstance(ppoly, tuple):
-            ppoly,  *_ = ppoly
-        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
-            ppoly = ppoly.item()
-
-        if not hasattr(ppoly, "integral"):
-            raise RuntimeError(f"PPoly {ppoly} has not 'integral' method!")
-        return ppoly.integral(*args, **kwargs)
-
-    def roots(self, *args, **kwargs) -> _T:
-        ppoly = self._compile()
-        if isinstance(ppoly, tuple):
-            ppoly,  *_ = ppoly
-        elif isinstance(ppoly, array_type) and len(ppoly.shape) == 0:
-            ppoly = ppoly.item()
-
-        if not hasattr(ppoly, "roots"):
-            raise RuntimeError(f"PPoly {ppoly} has not 'roots' method!")
-        return ppoly.roots(*args, **kwargs)
+    def antiderivative(self, *d) -> Expression[_T]:
+        return Function[_T](super().antiderivative(*d), *self.dims)
+    
+    
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:

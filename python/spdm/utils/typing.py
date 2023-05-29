@@ -2,7 +2,7 @@ import collections.abc
 import typing
 from dataclasses import dataclass
 
-import numpy as np
+from ..numlib.common import np
 import numpy.typing as np_tp
 
 PrimaryType = int | float | bool | complex | str | bytes

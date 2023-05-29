@@ -11,7 +11,7 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, numeric_type
-from .Expression import Expression
+from .Expression import Expression, ExprOp
 from .Node import Node
 
 _T = typing.TypeVar("_T")
@@ -135,7 +135,7 @@ class Field(Expression, Node, typing.Generic[_T]):
     def __value__(self) -> ArrayType:
         if self._value is not None and len(self._value) > 0:
             return self._value
-        
+
         if self._value is _not_found_ or self._value is None:
             value = self._value = Node.__value__(self)
         else:
@@ -191,7 +191,7 @@ class Field(Expression, Node, typing.Generic[_T]):
             self._op = self._compile()
         return self._op
 
-    def _compile(self, *d, force=False, **kwargs) -> Field[_T]:
+    def _compile(self, *d, force=False, **kwargs) -> ExprOp:
 
         if self._ppoly is not None and len(d) == 0 and not force:
             return self._ppoly

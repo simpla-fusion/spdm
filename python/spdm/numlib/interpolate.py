@@ -1,0 +1,105 @@
+
+from scipy.interpolate import (InterpolatedUnivariateSpline,
+                               RectBivariateSpline, RegularGridInterpolator,
+                               UnivariateSpline, interp1d, interp2d)
+import collections.abc
+import numpy as np
+from ..data.ExprOp import ExprOp
+from ..utils.typing import array_type
+from ..utils.logger import logger
+import typing
+
+
+class RectInterpolate(ExprOp):
+    def __init__(self, value, *dims, periods=None, **kwargs) -> None:
+        super().__init__(None, name="interpolate", **kwargs)
+        self._value = value
+        self._dims = dims
+        self._periods = periods
+        self._opts = kwargs
+
+    @property
+    def dims(self) -> typing.List[int]: return self._dims
+
+    @property
+    def shape(self) -> typing.List[int]:
+        return tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
+
+    @property
+    def __op__(self) -> typing.Callable:
+        if self._op is not None:
+            return self._op
+
+        check_nan = True
+        value = self._value
+        m_shape = self.shape
+
+        if callable(value):
+            value = value(*np.meshgrid(*self.dims, indexing='ij'))
+
+        if not isinstance(value, array_type):
+            raise TypeError(type(value))
+
+        if len(value.shape) > len(m_shape):
+            raise NotImplementedError(
+                f"TODO: interpolate for rank >1 . {value.shape}!={m_shape}!  func={self.__str__()} ")
+        elif tuple(value.shape) != tuple(m_shape):
+            raise RuntimeError(
+                f"Function.compile() incorrect value shape {value.shape}!={m_shape}! value={value} func={self.__str__()} ")
+
+        if len(self.dims) == 1:
+            x = self.dims[0]
+            if check_nan:
+                mark = np.isnan(value)
+                nan_count = np.count_nonzero(mark)
+                if nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                    value = value[~mark]
+                    x = x[~mark]
+
+            self._op = InterpolatedUnivariateSpline(x, value, **self._opts)
+        elif len(self.dims) == 2 and all(d.ndim == 1 for d in self.dims):
+            if check_nan:
+                mark = np.isnan(value)
+                nan_count = np.count_nonzero(mark)
+                if nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
+                    value[mark] = 0.0
+
+            # if isinstance(self.periods, collections.abc.Sequence):
+            #     logger.warning(f"TODO: periods={self.periods}")
+
+            self._op = RectBivariateSpline(*self.dims, value, **self._opts)
+            self._opts = {"grid": False}
+        elif all(d.ndim == 1 for d in self.dims):
+            self._op = RegularGridInterpolator(self.dims, value, **self._opts)
+        else:
+            raise NotImplementedError(f"dims={self.dims} ")
+
+        return self._op
+
+    def derivative(self, n=1) -> ExprOp:
+        fname = f"d_{n}({self.__str__()})"
+        return ExprOp(self.__op__.derivative(n), name=fname, **self._opts)
+
+    def partial_derivative(self, *d) -> ExprOp:
+        if len(d) > 0:
+            fname = f"d_({self.__str__()})"
+        else:
+            fname = f"d_{d}({self.__str__()})"
+
+        return ExprOp(self.__op__.partial_derivative(*d), name=fname, **self._opts)
+
+    def antiderivative(self, *d) -> ExprOp:
+        if len(d) > 0:
+            fname = f"I_({self.__str__()})"
+        else:
+            fname = f"I_{d}({self.__str__()})"
+
+        return ExprOp(self.__op__.antiderivative(*d),  name=fname, **self._opts)
+
+
+def interpolate(*args, type="rectlinear", **kwargs):
+    return RectInterpolate(*args, **kwargs)

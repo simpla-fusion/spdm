@@ -8,6 +8,7 @@ from scipy.interpolate import (InterpolatedUnivariateSpline,
                                RectBivariateSpline, RegularGridInterpolator,
                                UnivariateSpline, interp1d, interp2d)
 
+from ..data.Expression import ExprOp
 from ..data.Function import Function
 from ..geometry.Box import Box
 from ..geometry.Curve import Curve
@@ -120,7 +121,7 @@ class RectilinearMesh(StructuredMesh):
                     value = value[~mark]
                     x = x[~mark]
 
-            ppoly = InterpolatedUnivariateSpline(x, value)
+            ppoly = ExprOp(InterpolatedUnivariateSpline(x, value))
 
         elif self.ndim == 2 and all((isinstance(d, array_type) and d.ndim == 1) for d in self._dims):
             if check_nan:
@@ -136,14 +137,14 @@ class RectilinearMesh(StructuredMesh):
             if isinstance(self._periods, collections.abc.Sequence):
                 logger.warning(f"TODO: periods={self._periods}")
 
-            ppoly = RectBivariateSpline(x, y, value), {"grid": False}
+            ppoly = ExprOp(RectBivariateSpline(x, y, value), grid=False)
 
         return ppoly
 
     def partial_derivative(self, order, value,  **kwargs):
-        ppoly, opts = self.interpolator(value, **kwargs)
-        return ppoly.partial_derivative(*order), opts
+        expr_op = self.interpolator(value, **kwargs)
+        return ExprOp(expr_op.op.partial_derivative(*order), **expr_op._opts)
 
     def antiderivative(self, order, value,   **kwargs):
-        ppoly,  opts = self.interpolator(value, **kwargs)
-        return ppoly.antiderivative(*order), opts
+        expr_op = self.interpolator(value, **kwargs)
+        return ExprOp(expr_op.op.antiderivative(*order), **expr_op._opts)
