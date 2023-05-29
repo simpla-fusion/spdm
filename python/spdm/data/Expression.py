@@ -415,7 +415,8 @@ class Piecewise(Expression, typing.Generic[_T]):
     """
 
     def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
-        super().__init__(op=(func, cond), **kwargs)
+        super().__init__(None, **kwargs)
+        self._piecewise = (func, cond)
 
     @ property
     def rank(self): return 1
@@ -440,14 +441,14 @@ class Piecewise(Expression, typing.Generic[_T]):
 
     def __call__(self, x, *args, **kwargs) -> NumericType:
         if isinstance(x, float):
-            res = [self._apply(fun, x) for fun, cond in zip(*self._op) if cond(x)]
+            res = [self._apply(fun, x) for fun, cond in zip(*self._piecewise) if cond(x)]
             if len(res) == 0:
                 raise RuntimeError(f"Can not fit any condition! {x}")
             elif len(res) > 1:
                 raise RuntimeError(f"Fit multiply condition! {x}")
             return res[0]
         elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._op)])
+            res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._piecewise)])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
