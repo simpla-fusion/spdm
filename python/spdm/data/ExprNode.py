@@ -7,17 +7,16 @@ from enum import Enum
 from functools import cached_property
 
 import numpy as np
-
 from spdm.utils.typing import ArrayType
 
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType,  numeric_type, ArrayLike
+from ..utils.typing import ArrayLike, ArrayType, array_type, numeric_type
 from .Expression import Expression
-from .Node import Node
 from .ExprOp import ExprOp
+from .Node import Node
 
 _T = typing.TypeVar("_T")
 
@@ -109,8 +108,35 @@ class ExprNode(Expression[_T], Node):
         """
         value = self.__value__
 
-        if value is None or value is _not_found_:
-            if self.callable:
-                value = self._normalize_value(self.__call__(*self.points), *args,  **kwargs)
+        if (value is None or value is _not_found_) and self.callable and hasattr(self, "points"):
+            value = self._normalize_value(self.__call__(*self.points))
+        elif not self.callable:
+            raise TypeError(f"Can not get array from {self}!")
+        else:
+            logger.debug(f"{self} is None")
+            value = []
+
+        return np.asarray(value, *args,  **kwargs)
+
+    @staticmethod
+    def _normalize_value(value: ArrayLike) -> ArrayLike:
+        """ 将 value 转换为 array_type 类型 """
+        if isinstance(value, array_type) or np.isscalar(value):
+            pass
+        elif value is None or value is _not_found_:
+            value = None
+        elif isinstance(value, numeric_type):
+            value = np.asarray(value)
+        elif isinstance(value, tuple):
+            value = np.asarray(value)
+        elif isinstance(value, collections.abc.Sequence):
+            value = np.asarray(value)
+        elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
+            value = None
+        else:
+            raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
+
+        if isinstance(value, array_type) and value.size == 1:
+            value = np.squeeze(value).item()
 
         return value

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import collections.abc
+import functools
 import typing
 from enum import Enum
-import functools
+
 import numpy as np
 
 from ..mesh.Mesh import Mesh
@@ -11,10 +12,11 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, numeric_type
-from .ExprNode import ExprNode
-from .ExprOp import ExprOp
-from .Node import Node
 from .Expression import Expression
+from .ExprNode import ExprNode
+from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
+                     partial_derivative)
+from .Node import Node
 
 _T = typing.TypeVar("_T")
 
@@ -113,41 +115,32 @@ class Field(ExprNode[_T]):
     @property
     def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
 
-    def _compile(self, *d, force=False, **kwargs) -> ExprOp:
+    def _compile(self, *args, force=False, **kwargs) -> ExprOp:
 
-        if self._ppoly is not None and len(d) == 0 and not force:
+        if self._ppoly is not None and not force:
             return self._ppoly
 
-        value = self.__array__()
+        self._ppoly = self.__mesh__.interpolator(self.__array__())
 
-        if value.size == 1:
-            # 如果value是标量，无法插值，则返回 value 作为常函数
-            return np.squeeze(value).item()
-
-        if tuple(value.shape) != tuple(self.__mesh__.shape):
-            raise NotImplementedError(f"{value.shape}!={self.__mesh__.shape}")
-
-        if len(d) == 0 or all(v == 0 for v in d):
-            self._ppoly = self.__mesh__.interpolator(value)
-            return self._ppoly
-        elif self.__mesh__.ndim == 1 and len(d) == 1:
-            return self.__mesh__.derivative(d[0], value)
-        elif self.__mesh__.ndim == 2 and d == (1,):
-            return self._compile(1, 0, **kwargs), self._compile(0, 1, **kwargs)
-        elif self.__mesh__.ndim == 3 and d == (1,):
-            return self._compile(1, 0, 0, **kwargs), self._compile(0, 1, 0, **kwargs), self._compile(0, 0, 1, **kwargs)
-        elif len(d) == 1:
-            raise NotImplementedError(f"ndim={self.__mesh__.ndim} d={d}")
-        elif len(d) != self.__mesh__.ndim:
-            raise RuntimeError(f"Illegal! ndim={self.__mesh__.ndim} d={d}")
-        elif all(v == 0 for v in d) and hasattr(self.__mesh__, "interpolator"):
-            return self.__mesh__.interpolator(value)
-        elif all(v >= 0 for v in d) and hasattr(self.__mesh__, "partial_derivative"):
-            return self.__mesh__.partial_derivative(d, value)
-        elif all(v <= 0 for v in d) and hasattr(self.__mesh__, "antiderivative"):
-            return self.__mesh__.antiderivative([-v for v in d], value)
-        else:
-            raise NotImplementedError(f"TODO: {d}")
+        return self._ppoly
+        # elif self.__mesh__.ndim == 1 and len(d) == 1:
+        #     return self.__mesh__.derivative(d[0], value)
+        # elif self.__mesh__.ndim == 2 and d == (1,):
+        #     return self._compile(1, 0, **kwargs), self._compile(0, 1, **kwargs)
+        # elif self.__mesh__.ndim == 3 and d == (1,):
+        #     return self._compile(1, 0, 0, **kwargs), self._compile(0, 1, 0, **kwargs), self._compile(0, 0, 1, **kwargs)
+        # elif len(d) == 1:
+        #     raise NotImplementedError(f"ndim={self.__mesh__.ndim} d={d}")
+        # elif len(d) != self.__mesh__.ndim:
+        #     raise RuntimeError(f"Illegal! ndim={self.__mesh__.ndim} d={d}")
+        # elif all(v == 0 for v in d) and hasattr(self.__mesh__, "interpolator"):
+        #     return self.__mesh__.interpolator(value)
+        # elif all(v >= 0 for v in d) and hasattr(self.__mesh__, "partial_derivative"):
+        #     return self.__mesh__.partial_derivative(d, value)
+        # elif all(v <= 0 for v in d) and hasattr(self.__mesh__, "antiderivative"):
+        #     return self.__mesh__.antiderivative([-v for v in d], value)
+        # else:
+        #     raise NotImplementedError(f"TODO: {d}")
 
     def compile(self, *d, **kwargs) -> Field[_T]:
         op, *opts = self._compile(*d, **kwargs)
@@ -192,10 +185,16 @@ class Field(ExprNode[_T]):
             raise NotImplemented(f"TODO: ndim={self.__mesh__.ndim} n={n}")
 
     def derivative(self, n=1) -> Field[_T]:
-        return Field[_T](super().derivative(n), mesh=self.__mesh__)
+        return Field[_T](derivative(self._compile(), n),  mesh=self.__mesh__, name=f"D_{n}({self})")
 
-    def partial_derivative(self, *d) -> Expression[_T]:
-        return Field[_T](super().partial_derivative(*d), mesh=self.__mesh__)
+    def partial_derivative(self, *d) -> Field[_T]:
+        return Field[_T](partial_derivative(self._compile(), *d), mesh=self.__mesh__, name=f"d_{d}({self})")
 
-    def antiderivative(self, *d) -> Expression[_T]:
-        return Field[_T](super().antiderivative(*d), mesh=self.__mesh__)
+    def antiderivative(self, *d) -> Field[_T]:
+        return Field[_T](antiderivative(self._compile(), *d),  mesh=self.__mesh__, name=f"I_{d}({self})")
+
+    def d(self, n=1) -> Field[_T]: return self.derivative(n)
+
+    def pd(self, *d) -> Field[_T]: return self.partial_derivative(*d)
+
+    def dln(self) -> Expression[_T]: return self.derivative() / self

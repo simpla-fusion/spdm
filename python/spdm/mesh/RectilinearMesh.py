@@ -4,10 +4,11 @@ import typing
 from functools import cached_property
 
 import numpy as np
-from scipy.interpolate import (InterpolatedUnivariateSpline,
-                               RectBivariateSpline, RegularGridInterpolator,
-                               UnivariateSpline, interp1d, interp2d)
+# from scipy.interpolate import (InterpolatedUnivariateSpline,
+#                                RectBivariateSpline, RegularGridInterpolator,
+#                                UnivariateSpline, interp1d, interp2d)
 
+from ..numlib.interpolate import interpolate
 from ..data.Expression import ExprOp
 from ..data.Function import Function
 from ..geometry.Box import Box
@@ -107,6 +108,9 @@ class RectilinearMesh(StructuredMesh):
         if not isinstance(value, np.ndarray):
             raise ValueError(f"value must be np.ndarray, but {type(value)} {value}")
 
+        elif tuple(value.shape) != tuple(self.shape):
+            raise NotImplementedError(f"{value.shape}!={self.shape}")
+
         if np.any(tuple(value.shape) != tuple(self.shape)):
             raise ValueError(f"{value} {self.shape}")
 
@@ -121,9 +125,9 @@ class RectilinearMesh(StructuredMesh):
                     value = value[~mark]
                     x = x[~mark]
 
-            ppoly = ExprOp(InterpolatedUnivariateSpline(x, value))
+            ppoly = interpolate(value, x)
 
-        elif self.ndim == 2 and all((isinstance(d, array_type) and d.ndim == 1) for d in self._dims):
+        else:  # if self.ndim == 2 and all((isinstance(d, array_type) and d.ndim == 1) for d in self._dims):
             if check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
@@ -132,19 +136,9 @@ class RectilinearMesh(StructuredMesh):
                         f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
                     value[mark] = 0.0
 
-            x, y = self._dims
-
             if isinstance(self._periods, collections.abc.Sequence):
                 logger.warning(f"TODO: periods={self._periods}")
 
-            ppoly = ExprOp(RectBivariateSpline(x, y, value), grid=False)
+            ppoly = interpolate(value, *self._dims)
 
         return ppoly
-
-    def partial_derivative(self, order, value,  **kwargs):
-        expr_op = self.interpolator(value, **kwargs)
-        return ExprOp(expr_op.partial_derivative(*order), **expr_op._opts)
-
-    def antiderivative(self, order, value,   **kwargs):
-        expr_op = self.interpolator(value, **kwargs)
-        return ExprOp(expr_op.antiderivative(*order), **expr_op._opts)

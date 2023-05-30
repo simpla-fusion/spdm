@@ -11,8 +11,7 @@ from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
                             scalar_type)
-from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
-                     partial_derivative)
+from .ExprOp import ExprOp
 
 _T = typing.TypeVar("_T")
 
@@ -193,29 +192,6 @@ class Expression(typing.Generic[_T]):
     #         raise RuntimeError(f"Unknown op={op} expr={self._children}!")
     #     return res
 
-    @staticmethod
-    def _normalize_value(value: NumericType) -> NumericType:
-        """ 将 value 转换为 array_type 类型 """
-        if isinstance(value, array_type) or np.isscalar(value):
-            pass
-        elif value is None or value is _not_found_:
-            value = None
-        elif isinstance(value, numeric_type):
-            value = np.asarray(value)
-        elif isinstance(value, tuple):
-            value = np.asarray(value)
-        elif isinstance(value, collections.abc.Sequence):
-            value = np.asarray(value)
-        elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
-            value = None
-        else:
-            raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
-
-        if isinstance(value, array_type) and value.size == 1:
-            value = np.squeeze(value).item()
-
-        return value
-
     @property
     def __op__(self) -> ExprOp | typing.Callable: return self._op
 
@@ -330,26 +306,6 @@ class Expression(typing.Generic[_T]):
     def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     ,)
     # fmt: on
 
-    def derivative(self, n=1) -> Expression[_T]:
-        return Expression[_T](derivative(self._compile(), n), name=f"D_{n}({self})")
-
-    def d(self, n=1) -> Expression[_T]: return self.derivative(n)
-
-    def partial_derivative(self, *d) -> Expression[_T]:
-        return Expression[_T](partial_derivative(self._compile(), *d), name=f"d_{d}({self})")
-
-    def pd(self, *d) -> Expression[_T]: return self.partial_derivative(*d)
-
-    def antiderivative(self, *d) -> Expression[_T]:
-        return Expression[_T](antiderivative(self._compile(), *d), name=f"I_{d}({self})")
-
-    def dln(self) -> Expression[_T]: return self.derivative() / self
-
-    def integral(self, *args, **kwargs) -> _T:
-        return integral(self._compile(), *args, **kwargs)
-
-    def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
-        yield from find_roots(self._compile(), *args, **kwargs)
 
 
 _T = typing.TypeVar("_T")

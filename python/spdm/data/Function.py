@@ -17,7 +17,8 @@ from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
                             numeric_type, scalar_type)
 from .Expression import Expression
 from .ExprNode import ExprNode
-from .ExprOp import ExprOp, antiderivative, derivative, partial_derivative
+from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
+                     partial_derivative)
 
 _T = typing.TypeVar("_T")
 
@@ -206,11 +207,25 @@ class Function(ExprNode[_T]):
     def derivative(self, n=1) -> Function[_T]:
         return Function[_T](super().derivative(n), *self.dims, periods=self._periods)
 
-    def partial_derivative(self, *d) -> Expression[_T]:
-        return Function[_T](super().partial_derivative(*d), *self.dims, periods=self._periods)
+    def partial_derivative(self, *d) -> Function[_T]:
+        return Function[_T](partial_derivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"d_{d}({self})")
 
-    def antiderivative(self, *d) -> Expression[_T]:
-        return Function[_T](super().antiderivative(*d), *self.dims, periods=self._periods)
+    def antiderivative(self, *d) -> Function[_T]:
+        return Function[_T](antiderivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"I_{d}({self})")
+
+    def derivative(self, n=1) -> Function[_T]:
+        return Function[_T](derivative(self._compile(), n), name=f"D_{n}({self})")
+
+    def d(self, n=1) -> Function[_T]: return self.derivative(n)
+
+    def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
+
+    def dln(self) -> Expression[_T]: return self.derivative() / self
+
+    def integral(self, *args, **kwargs) -> _T: return integral(self._compile(), *args, **kwargs)
+
+    def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+        yield from find_roots(self._compile(), *args, **kwargs)
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:

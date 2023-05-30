@@ -151,7 +151,7 @@ class PartialDerivative(ExprOp):
             op = func.partial_derivative(*order)
         else:
             op = None
-
+        
         super().__init__(op,  name=name, **kwargs)
 
         self._func = func
