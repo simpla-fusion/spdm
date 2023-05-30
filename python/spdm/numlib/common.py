@@ -2,7 +2,7 @@ import os
 
 # from spdm.utils.logger import logger
 
-ENABLE_JAX = True  # os.environ.get("SP_ENABLE_JAX", False)
+ENABLE_JAX = False  # os.environ.get("SP_ENABLE_JAX", False)
 
 if ENABLE_JAX:
     from jax import numpy

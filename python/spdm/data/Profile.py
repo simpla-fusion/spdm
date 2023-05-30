@@ -34,7 +34,7 @@ class Profile(Function[_T], Node):
 
     """
 
-    def __init__(self,  value: NumericType | Expression, *args,   **kwargs) -> None:
+    def __init__(self,   *args,   **kwargs) -> None:
         """
             Parameters
             ----------
@@ -48,20 +48,8 @@ class Profile(Function[_T], Node):
                     *           : 用于传递给 Node 的参数
 
         """
-        if hasattr(value.__class__, "__entry__") or isinstance(value, collections.abc.Mapping):
-            entry = value
-            value = None
-        else:
-            entry = None
 
-        name = kwargs.pop("name", None) or kwargs.get("metadata", {}).get("name", None)
-
-        Function.__init__(self, value, *args, name=name)
-
-        Node.__init__(self, entry, **kwargs)
-
-        if name is None:
-            self._name = self._metadata.get("name", None) or getattr(self, "_name", "unnamed")
+        super().__init__(*args, **kwargs)
 
     @property
     def data(self) -> ArrayType: return self.__value__
@@ -80,25 +68,6 @@ class Profile(Function[_T], Node):
                                     for c in coordinates.values()])
 
         return self._dims
-
-    def _update(self):
-        d = Node.__value__(self)
-        if isinstance(d, Expression) or callable(d):
-            self._op = d
-        elif d is not None and d is not _not_found_:
-            self._value = self._normalize_value(d)
-
-    @property
-    def __value__(self) -> ArrayType:
-        if self._value is None:
-            self._update()
-        return super().__value__
-
-    @property
-    def __op__(self) -> ArrayType:
-        if self._op is None:
-            self._update()
-        return super().__op__
 
     def derivative(self, n=1) -> Profile[_T]:
         other = super().derivative(n)

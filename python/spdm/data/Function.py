@@ -7,20 +7,20 @@ import typing
 from copy import copy
 from enum import Enum
 
-from ..numlib.common import np
+from ..numlib.common import numpy as np
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, try_get
 from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
+from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type, ArrayLike,
                             scalar_type)
 from .Expression import Expression
 from .ExprOp import ExprOp, antiderivative, derivative, partial_derivative
-
+from .ExprNode import ExprNode
 _T = typing.TypeVar("_T")
 
 
-class Function(Expression[_T]):
+class Function(ExprNode[_T]):
     """
         Function
         ---------
@@ -32,7 +32,7 @@ class Function(Expression[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *dims: ArrayType, periods=None, **kwargs):
+    def __init__(self, value: ArrayLike | Expression, *dims: ArrayType, periods=None, **kwargs):
         """
             Parameters
             ----------
@@ -48,27 +48,11 @@ class Function(Expression[_T]):
 
         """
 
-        if isinstance(value, Expression) or callable(value) or (isinstance(value, tuple) and callable(value[0])):
-            op = value
-            value = None
-        else:
-            op = None
-
-        if value is not None:
-            try:
-                value = np.asarray(value)
-            except Exception as e:
-                raise ValueError(f"Function.__init__  value should has numeric type, not {type(value)}! ") from e
-
-        super().__init__(op, **kwargs)
-
-        self._value = self._normalize_value(value) if value is not None else None
+        super().__init__(value, **kwargs)
 
         self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
 
         self._periods = periods
-
-        self._ppoly = None
 
         # if any(len(d.shape) > 1 for d in self.dims):
         #     raise RuntimeError(f"Function.__init__ incorrect dims {dims}! {self.__str__()}")
@@ -100,7 +84,6 @@ class Function(Expression[_T]):
     def __duplicate__(self) -> Function:
         """ 复制一个新的 Function 对象 """
         other: Function = super().__duplicate__()
-        other._value = self._value
         other._dims = self._dims
         other._periods = self._periods
         return other
@@ -175,31 +158,6 @@ class Function(Expression[_T]):
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    @property
-    def __op__(self) -> typing.Callable:
-        if self._ppoly is not None:
-            return self._ppoly
-        elif self._op is None:
-            return self._compile()
-        else:
-            return self._op
-
-    @property
-    def __value__(self) -> ArrayType: return self._value
-    """ 返回函数的数组 self._value """
-
-    def __array__(self, *args,  **kwargs) -> ArrayType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
-        """
-        value = self.__value__
-
-        if value is None or value is _not_found_:
-            if self.callable:
-                value = self._normalize_value(self.__call__(*self.points), *args,  **kwargs)
-
-        return value
-
     def _compile(self, force=False) -> ExprOp:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
@@ -236,24 +194,21 @@ class Function(Expression[_T]):
         elif isinstance(value, array_type) and self.dims is not None:
             self._ppoly = interpolate(value, *self.dims, periods=self.periods)
         else:
-            logger.debug(value)
             raise RuntimeError(f"Illegal value! {type(value)}")
 
         return self._ppoly
 
     def compile(self, *args, **kwargs) -> Function:
-        return Function(self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]")
+        return Function(self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]", periods=self._periods)
 
     def derivative(self, n=1) -> Function[_T]:
-        return Function[_T](super().derivative(n), *self.dims)
+        return Function[_T](super().derivative(n), *self.dims, periods=self._periods)
 
     def partial_derivative(self, *d) -> Expression[_T]:
-        return Function[_T](super().partial_derivative(*d), *self.dims)
+        return Function[_T](super().partial_derivative(*d), *self.dims, periods=self._periods)
 
     def antiderivative(self, *d) -> Expression[_T]:
-        return Function[_T](super().antiderivative(*d), *self.dims)
-    
-    
+        return Function[_T](super().antiderivative(*d), *self.dims, periods=self._periods)
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:

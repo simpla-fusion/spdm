@@ -5,8 +5,7 @@ import functools
 import inspect
 import typing
 
-# import numpy as np
-import numpy as np
+from .. import numpy as np
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
@@ -75,6 +74,9 @@ class Expression(typing.Generic[_T]):
 
         return other
 
+    @property
+    def dtype(self): return self.__type_hint__
+
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
         """
             重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。
@@ -119,10 +121,13 @@ class Expression(typing.Generic[_T]):
 
         if self._op is None:
             return f"{self._name}({', '.join([_ast(arg) for arg in self._children])})"
-        elif self._op.tag is not None and len(self._children) == 2:
-            return f"{_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])}"
+        elif isinstance(self._op, ExprOp):
+            if self._op.tag is not None and len(self._children) == 2:
+                return f"{_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])}"
+            else:
+                return f"{self._op.name}({', '.join([_ast(arg) for arg in self._children])})"
         else:
-            return f"{self._op.name}({', '.join([_ast(arg) for arg in self._children])})"
+            return f"{self.__name__}({', '.join([_ast(arg) for arg in self._children])})"
 
     @property
     def __type_hint__(self): return float

@@ -11,13 +11,15 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, numeric_type
-from .Expression import Expression, ExprOp
+from .ExprNode import ExprNode
+from .ExprOp import ExprOp
 from .Node import Node
+from .Expression import Expression
 
 _T = typing.TypeVar("_T")
 
 
-class Field(Expression, Node, typing.Generic[_T]):
+class Field(ExprNode[_T]):
     """ Field
         ---------
         Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
@@ -34,35 +36,11 @@ class Field(Expression, Node, typing.Generic[_T]):
 
     """
 
-    def __init__(self, value: NumericType | Expression, *args, name=None, **kwargs):
-
-        op = None
-
-        if hasattr(value, "__entry__"):
-            entry = value
-            value = None
-        elif isinstance(value, collections.abc.Mapping):
-            entry = value
-            value = None
-        elif isinstance(value, Expression) or callable(value) or (isinstance(value, tuple) and callable(value[0])):
-            op = value
-            value = None
-            entry = None
-        else:
-            op = None
-            entry = None
+    def __init__(self, value, *args, name=None, **kwargs):
 
         mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
-        # 分别传递 op 给Expression，传递 entry给 Node
-        if name is None:
-            name = kwargs.get("metadata", {}).get("name", None)
-
-        Expression.__init__(self, op, name=name)
-
-        Node.__init__(self, entry, cache=None, **kwargs)
-
-        self._value = value
+        super().__init__(value, **kwargs)
 
         if isinstance(mesh, Enum):
             self._mesh = {"type": mesh.name}
@@ -132,64 +110,8 @@ class Field(Expression, Node, typing.Generic[_T]):
 
     def __domain__(self, *xargs) -> bool: return self.__mesh__.geometry.enclose(*xargs)
 
-    def __value__(self) -> ArrayType:
-        if self._value is not None and len(self._value) > 0:
-            return self._value
-
-        if self._value is _not_found_ or self._value is None:
-            value = self._value = Node.__value__(self)
-        else:
-            value = self._value
-
-        if isinstance(value, Expression) or callable(value):
-            value = value(*self.mesh.points)
-
-        if value is None or (not isinstance(value, array_type) and not value):
-            return None
-
-        value = np.asarray(value)
-
-        if value is None or np.isscalar(value):
-            pass
-        elif isinstance(value, array_type):
-            # try:
-            #     value = np.asarray(value)
-            # except Exception as error:
-            #     raise TypeError(f"{type(value)} {value}") from error
-            if value.size == 1:
-                value = np.squeeze(value).item()
-        else:
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value} ")
-
-            # if not np.isscalar(value) and not isinstance(value, array_type):
-            #     raise TypeError(f"{type(value)} {value}")
-
-        # self._value = value
-        return value
-
-    def __array__(self, dtype=None, *args,  **kwargs) -> ArrayType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
-        """
-        value = self.__value__()
-
-        if value is None or value is _not_found_ or len(value) == 0:
-            if self.callable:
-                value = super().__call__(*self.__mesh__.points)
-            else:
-                raise RuntimeError(f"Function.compile() failed! {self} {value} {self._op} {self._children}")
-        try:
-            value = np.asarray(value)
-        except Exception as error:
-            raise RuntimeError(f"Function.compile() incorrect value {self.__str__()} value={value}   ") from error
-
-        return value
-
     @property
-    def __op__(self) -> typing.Callable:
-        if self._op is None or self._op is _not_found_:
-            self._op = self._compile()
-        return self._op
+    def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
 
     def _compile(self, *d, force=False, **kwargs) -> ExprOp:
 
@@ -269,9 +191,11 @@ class Field(Expression, Node, typing.Generic[_T]):
         else:
             raise NotImplemented(f"TODO: ndim={self.__mesh__.ndim} n={n}")
 
-    def partial_derivative(self, *d) -> Field[_T]:
-        if len(d) == 0:
-            d = (1,)
-        return Field[_T](self._compile(*d), mesh=self.__mesh__, name=f"d_{d}({self.__str__()})")
+    def derivative(self, n=1) -> Field[_T]:
+        return Field[_T](super().derivative(n), mesh=self.__mesh__)
 
-    def pd(self, *d) -> Field[_T]: return self.partial_derivative(*d)
+    def partial_derivative(self, *d) -> Expression[_T]:
+        return Field[_T](super().partial_derivative(*d), mesh=self.__mesh__)
+
+    def antiderivative(self, *d) -> Expression[_T]:
+        return Field[_T](super().antiderivative(*d), mesh=self.__mesh__)

@@ -143,8 +143,8 @@ class RectilinearMesh(StructuredMesh):
 
     def partial_derivative(self, order, value,  **kwargs):
         expr_op = self.interpolator(value, **kwargs)
-        return ExprOp(expr_op.op.partial_derivative(*order), **expr_op._opts)
+        return ExprOp(expr_op.partial_derivative(*order), **expr_op._opts)
 
     def antiderivative(self, order, value,   **kwargs):
         expr_op = self.interpolator(value, **kwargs)
-        return ExprOp(expr_op.op.antiderivative(*order), **expr_op._opts)
+        return ExprOp(expr_op.antiderivative(*order), **expr_op._opts)

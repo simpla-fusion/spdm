@@ -76,9 +76,9 @@ class ExprOp:
         elif method is not None:
             self._name = f"{op.__class__.__name__}.{method}"
         else:
-            self._name = None
+            self._name = ""
 
-    def __str__(self) -> str: return self._name
+    def __str__(self) -> str: return str(self._name)
 
     @property
     def __name__(self) -> str: return self._name
