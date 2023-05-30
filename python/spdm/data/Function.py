@@ -7,16 +7,18 @@ import typing
 from copy import copy
 from enum import Enum
 
-from ..numlib.common import numpy as np
+import numpy as np
+
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, try_get
 from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type, ArrayLike,
-                            scalar_type)
+from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
+                            numeric_type, scalar_type)
 from .Expression import Expression
-from .ExprOp import ExprOp, antiderivative, derivative, partial_derivative
 from .ExprNode import ExprNode
+from .ExprOp import ExprOp, antiderivative, derivative, partial_derivative
+
 _T = typing.TypeVar("_T")
 
 
