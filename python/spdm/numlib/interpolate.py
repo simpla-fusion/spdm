@@ -11,12 +11,13 @@ import typing
 
 
 class RectInterpolate(ExprOp):
-    def __init__(self, value, *dims, periods=None, **kwargs) -> None:
+    def __init__(self, value, *dims, periods=None, check_nan=True, **kwargs) -> None:
         super().__init__(None, name="interpolate", **kwargs)
         self._value = value
         self._dims = dims
         self._periods = periods
         self._opts = kwargs
+        self._check_nan = check_nan
 
     @property
     def dims(self) -> typing.List[int]: return self._dims
@@ -30,7 +31,6 @@ class RectInterpolate(ExprOp):
         if self._op is not None:
             return self._op
 
-        check_nan = True
         value = self._value
         m_shape = self.shape
 
@@ -49,7 +49,7 @@ class RectInterpolate(ExprOp):
 
         if len(self.dims) == 1:
             x = self.dims[0]
-            if check_nan:
+            if self._check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
                 if nan_count > 0:
@@ -60,7 +60,7 @@ class RectInterpolate(ExprOp):
 
             self._op = InterpolatedUnivariateSpline(x, value, **self._opts)
         elif len(self.dims) == 2 and all(d.ndim == 1 for d in self.dims):
-            if check_nan:
+            if self._check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
                 if nan_count > 0:

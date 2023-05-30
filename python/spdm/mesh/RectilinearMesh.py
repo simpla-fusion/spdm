@@ -100,7 +100,7 @@ class RectilinearMesh(StructuredMesh):
         else:
             return np.meshgrid(*self._dims, indexing="ij")
 
-    def interpolator(self, value: ArrayType, check_nan=True, **kwargs):
+    def interpolator(self, value: ArrayType,  **kwargs):
         """ 生成插值器
             method: "linear",   "nearest", "slinear", "cubic", "quintic" and "pchip"
         """
@@ -114,31 +114,4 @@ class RectilinearMesh(StructuredMesh):
         if np.any(tuple(value.shape) != tuple(self.shape)):
             raise ValueError(f"{value} {self.shape}")
 
-        if len(self._dims) == 1:
-            x = self._dims[0]
-            if check_nan:
-                mark = np.isnan(value)
-                nan_count = np.count_nonzero(mark)
-                if nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
-                    value = value[~mark]
-                    x = x[~mark]
-
-            ppoly = interpolate(value, x)
-
-        else:  # if self.ndim == 2 and all((isinstance(d, array_type) and d.ndim == 1) for d in self._dims):
-            if check_nan:
-                mark = np.isnan(value)
-                nan_count = np.count_nonzero(mark)
-                if nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Replace  {nan_count} NaN by 0 at {np.argwhere(mark)}.")
-                    value[mark] = 0.0
-
-            if isinstance(self._periods, collections.abc.Sequence):
-                logger.warning(f"TODO: periods={self._periods}")
-
-            ppoly = interpolate(value, *self._dims)
-
-        return ppoly
+        return interpolate(value, *self._dims, periods=self._periods,  **kwargs)
