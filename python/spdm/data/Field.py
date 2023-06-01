@@ -79,12 +79,12 @@ class Field(ExprNode[_T]):
 
         if isinstance(self._parent, Node):
             coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
+            if coordinates is None or len(coordinates) == 0:
+                coordinates = {}
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) == 0:
-                pass
-            elif all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
+            if all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
                 o_mesh = getattr(self._parent, "grid", None)
                 if isinstance(o_mesh, Mesh):
                     if len(self._mesh) > 0:

@@ -44,6 +44,7 @@ class ExprNode(Expression[_T], Node):
                 用于传递给 Node 的参数
 
         """
+        
         if isinstance(value, Expression) or callable(value) or isinstance(value, ExprOp):
             expr = value
             value = None

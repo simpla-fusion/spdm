@@ -52,9 +52,7 @@ class Function(ExprNode[_T]):
         """
 
         super().__init__(value, **kwargs)
-
         self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
-
         self._periods = periods
 
         # if any(len(d.shape) > 1 for d in self.dims):

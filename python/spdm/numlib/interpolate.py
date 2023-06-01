@@ -54,12 +54,12 @@ class RectInterpolate(ExprOp):
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
                 if nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                    # logger.warning(
+                    #     f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
                     value = value[~mark]
                     x = x[~mark]
 
-            self._op = InterpolatedUnivariateSpline(x, value, **self._opts)
+            self._op = InterpolatedUnivariateSpline(x, value,  ext=0)
         elif len(self.dims) == 2 and all(d.ndim == 1 for d in self.dims):
             if self._check_nan:
                 mark = np.isnan(value)
