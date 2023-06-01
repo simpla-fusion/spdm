@@ -113,10 +113,10 @@ class Expression(typing.Generic[_T]):
 
         def _ast(v):
             if isinstance(v, Expression):
-                return v.__str__()
+                return f"({v.__str__()})"
             elif isinstance(v, np.ndarray):
                 return f"<{v.shape}>"
-            elif np.isscalar(v) and v < 0:
+            elif np.isscalar(v) :
                 return f"({v})"
             else:
                 return str(v)  # getattr(v,"_name",None)

@@ -66,7 +66,7 @@ class GeoObject(Pluggable):
     @property
     def points(self) -> typing.List[ArrayType]:
         """ 几何体的点坐标，shape=[npoints,ndim] """
-        return ([self._points[..., idx] for idx in range(self.ndim)])
+        return tuple([self._points[..., idx] for idx in range(self.ndim)])
 
     def __array__(self) -> ArrayType: return self._points
     """ 几何体的点坐标，shape=[npoints,ndim] """
