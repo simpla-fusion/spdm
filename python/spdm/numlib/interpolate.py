@@ -11,20 +11,28 @@ import typing
 
 
 class RectInterpolate(ExprOp):
-    def __init__(self, value, *dims, periods=None, check_nan=True, **kwargs) -> None:
-        super().__init__(None, name="interpolate", **kwargs)
+    def __init__(self, value, *dims, periods=None, check_nan=True, name=None, **kwargs) -> None:
+        super().__init__(None, name=name)
         self._value = value
         self._dims = dims
         self._periods = periods
         self._opts = kwargs
         self._check_nan = check_nan
 
+        if isinstance(value, array_type):
+            self._shape = tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
+            if len(value.shape) > len(self._shape):
+                raise NotImplementedError(
+                    f"TODO: interpolate for rank >1 . {value.shape}!={self._shape}!  func={self.__str__()} ")
+            elif tuple(value.shape) != tuple(self._shape):
+                raise RuntimeError(
+                    f"Function.compile() incorrect value shape {value.shape}!={self._shape}! func={self.__str__()} ")
+
     @property
     def dims(self) -> typing.List[int]: return self._dims
 
     @property
-    def shape(self) -> typing.List[int]:
-        return tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
+    def shape(self) -> typing.List[int]: return self._shape
 
     @property
     def __op__(self) -> typing.Callable:
@@ -39,13 +47,6 @@ class RectInterpolate(ExprOp):
 
         if not isinstance(value, array_type):
             raise TypeError(type(value))
-
-        if len(value.shape) > len(m_shape):
-            raise NotImplementedError(
-                f"TODO: interpolate for rank >1 . {value.shape}!={m_shape}!  func={self.__str__()} ")
-        elif tuple(value.shape) != tuple(m_shape):
-            raise RuntimeError(
-                f"Function.compile() incorrect value shape {value.shape}!={m_shape}! value={value} func={self.__str__()} ")
 
         if len(self.dims) == 1:
             x = self.dims[0]
@@ -93,13 +94,10 @@ class RectInterpolate(ExprOp):
         return ExprOp(self.__op__.partial_derivative(*d), name=fname, **self._opts)
 
     def antiderivative(self, *d) -> ExprOp:
-        if len(d) > 0:
-            fname = f"I_({self.__str__()})"
-        else:
-            fname = f"I_{d}({self.__str__()})"
-
-        return ExprOp(self.__op__.antiderivative(*d),  name=fname, **self._opts)
+        return ExprOp(self.__op__.antiderivative(*d),  name=f"I_{list(d)}({self.__str__()})", **self._opts)
 
 
 def interpolate(*args, type="rectlinear", **kwargs):
+    if type != "rectlinear":
+        raise NotImplementedError(f"type={type}")
     return RectInterpolate(*args, **kwargs)

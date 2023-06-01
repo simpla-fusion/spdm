@@ -100,12 +100,8 @@ class Function(ExprNode[_T]):
     def empty(self) -> bool: return self._value is None and self.dims is None and super().empty
 
     @property
-    def dimensions(self) -> typing.List[ArrayType]: return self.dims
-    """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
-
-    @property
     def dims(self) -> typing.List[ArrayType]: return self._dims
-    """ alias of dimensions """
+    """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
 
     @property
     def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
@@ -192,10 +188,12 @@ class Function(ExprNode[_T]):
         if value is None and self.callable:
             value = self.__call__(*self.points)
 
-        if np.isscalar(value):
+        if value is None:
+            return None
+        elif np.isscalar(value):
             self._ppoly = value
         elif isinstance(value, array_type) and self.dims is not None:
-            self._ppoly = interpolate(value, *self.dims, periods=self.periods)
+            self._ppoly = interpolate(value, *self.dims, periods=self.periods, name=self._name)
         else:
             raise RuntimeError(f"Illegal value! {type(value)}")
 
@@ -204,14 +202,11 @@ class Function(ExprNode[_T]):
     def compile(self, *args, **kwargs) -> Function:
         return Function(self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]", periods=self._periods)
 
-    def derivative(self, n=1) -> Function[_T]:
-        return Function[_T](super().derivative(n), *self.dims, periods=self._periods)
-
     def partial_derivative(self, *d) -> Function[_T]:
-        return Function[_T](partial_derivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"d_{d}({self})")
+        return Function[_T](partial_derivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"d_{list(d)}({self})")
 
     def antiderivative(self, *d) -> Function[_T]:
-        return Function[_T](antiderivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"I_{d}({self})")
+        return Function[_T](antiderivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"I_{list(d)}({self})")
 
     def derivative(self, n=1) -> Function[_T]:
         return Function[_T](derivative(self._compile(), n), name=f"D_{n}({self})")

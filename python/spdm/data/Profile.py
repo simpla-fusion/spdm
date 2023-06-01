@@ -7,8 +7,9 @@ from enum import Enum
 from functools import cached_property
 
 import numpy as np
+from spdm.data.Expression import Expression
 
-from spdm.utils.typing import ArrayType
+from spdm.utils.typing import ArrayLike, ArrayType
 
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
@@ -23,7 +24,7 @@ from .Node import Node
 _T = typing.TypeVar("_T")
 
 
-class Profile(Function[_T], Node):
+class Profile(Function[_T]):
     """
     Profile
     ---------
@@ -34,40 +35,39 @@ class Profile(Function[_T], Node):
 
     """
 
-    def __init__(self,   *args,   **kwargs) -> None:
-        """
-            Parameters
-            ----------
-            value : NumericType
-                函数的值
-            dims : typing.Any
-                用于坐标轴(dims)，用于构建 Mesh
-            kwargs : typing.Any
-                    coordinate* : 给出各个坐标轴的path, 用于从 Node 所在 Tree 获得坐标轴(dims)
-                    op_*        : 用于传递给运算符的参数
-                    *           : 用于传递给 Node 的参数
+    def __init__(self, value: ArrayLike | Expression, *dims: ArrayType, periods=None, **kwargs):
 
-        """
+        if len(dims) == 0:
+            parent = kwargs.get("parent", None)
+            metadata = kwargs.get("metadata", None)
+            if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
+                coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
+                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-        super().__init__(*args, **kwargs)
+                if len(coordinates) > 0:
+                    dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                                  for c in coordinates.values()])
+
+        super().__init__(value, *dims, periods=periods, **kwargs)
 
     @property
     def data(self) -> ArrayType: return self.__value__
 
-    @property
-    def dims(self) -> Profile[_T]:
-        """ 从 NodeTree 中获取 mesh 和 value """
+    # @property
+    # def dims(self) -> Profile[_T]:
+    #     """ 从 NodeTree 中获取 mesh 和 value """
 
-        if self._dims is None and isinstance(self._parent, Node):
-            coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
-            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+    #     if self._dims is None and isinstance(self._parent, Node):
+    #         coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
+    #         coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+    #         coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) > 0:
-                self._dims = tuple([(self._parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
-                                    for c in coordinates.values()])
+    #         if len(coordinates) > 0:
+    #             self._dims = tuple([(self._parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+    #                                 for c in coordinates.values()])
 
-        return self._dims
+    #     return self._dims
 
     def derivative(self, n=1) -> Profile[_T]:
         other = super().derivative(n)

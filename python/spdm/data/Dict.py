@@ -54,10 +54,11 @@ class Dict(Container, typing.MutableMapping[str, _T]):
         return self._update(other, force=False)
 
     def _as_child(self, key: str,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
-        
-        if default_value is _not_found_ and isinstance(self._default_value, collections.abc.Mapping):
-            # 如果 default_value 是一个字典，则从中获取 key 对应的默认值    
-            default_value = self._default_value.get(key, _not_found_)
+
+        if isinstance(self._default_value, collections.abc.Mapping):
+            # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
+            # 所以优先采用 self._default_value
+            default_value = self._default_value.get(key, default_value)
         return super()._as_child(key, value, *args, default_value=default_value, **kwargs)
 
     # def _as_child(self, key: str, value=_not_found_,

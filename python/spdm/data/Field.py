@@ -38,7 +38,7 @@ class Field(ExprNode[_T]):
 
     """
 
-    def __init__(self, value, *args, name=None, **kwargs):
+    def __init__(self, value, *args,  **kwargs):
 
         mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
 
@@ -116,12 +116,8 @@ class Field(ExprNode[_T]):
     def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
 
     def _compile(self, *args, force=False, **kwargs) -> ExprOp:
-
-        if self._ppoly is not None and not force:
-            return self._ppoly
-
-        self._ppoly = self.__mesh__.interpolator(self.__array__())
-
+        if self._ppoly is None or force:
+            self._ppoly = self.__mesh__.interpolator(self.__array__(), *args, **kwargs)
         return self._ppoly
         # elif self.__mesh__.ndim == 1 and len(d) == 1:
         #     return self.__mesh__.derivative(d[0], value)

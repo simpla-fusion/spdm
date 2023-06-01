@@ -60,6 +60,15 @@ class ExprNode(Expression[_T], Node):
 
         self._ppoly = None
 
+    def __duplicate__(self) -> ExprNode:
+        """ 复制一个新的 Function 对象 """
+        other = Node.__duplicate__(self)
+        other._op = self._op
+        other._name = self._name
+        other._children = self._children
+        other._value = self._value
+        return other
+
     def _refresh(self):
         if self._value is not None or self._op is not None:
             return
@@ -74,33 +83,11 @@ class ExprNode(Expression[_T], Node):
         else:
             self._value = self._normalize_value(value)
 
-    def __duplicate__(self) -> ExprNode:
-        """ 复制一个新的 Function 对象 """
-        other = Node.__duplicate__(self)
-        other._op = self._op
-        other._name = self._name
-        other._children = self._children
-        other._value = self._value
-        return other
-
     @property
     def __value__(self) -> typing.Any:
         if self._value is None:
             self._refresh()
         return self._value
-
-    @property
-    def __op__(self) -> typing.Callable:
-        if self._ppoly is not None:
-            return self._ppoly
-
-        if self._op is None:
-            self._refresh()
-
-        if self._op is None:
-            return self._compile()
-        else:
-            return self._op
 
     def __array__(self, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
@@ -108,29 +95,42 @@ class ExprNode(Expression[_T], Node):
         """
         value = self.__value__
 
-        if (value is None or value is _not_found_) and self.callable and hasattr(self, "points"):
-            value = self._normalize_value(self.__call__(*self.points))
-        elif not self.callable:
-            raise TypeError(f"Can not get array from {self}!")
-        else:
-            logger.debug(f"{self} is None")
-            value = []
+        if (value is None or value is _not_found_):
+            if self.callable and hasattr(self, "points"):
+                value = self.__call__(*self.points)
+            else:
+                logger.debug(f"{self} is None")
+                value = []
 
-        return np.asarray(value, *args,  **kwargs)
+        return self._normalize_value(value, *args,  **kwargs)
+
+    def _eval(self, op, *args, **kwargs) -> ArrayLike:
+        """ 重载 Expression._eval """
+        if op is not None:
+            pass
+        elif self._ppoly is not None:
+            op = self._ppoly
+        elif self._op is None:
+            op = self._refresh()
+
+        if self._op is None:
+            op = self._compile()
+
+        return super()._eval(op, *args, **kwargs)
 
     @staticmethod
-    def _normalize_value(value: ArrayLike) -> ArrayLike:
+    def _normalize_value(value: ArrayLike, *args, **kwargs) -> ArrayLike:
         """ 将 value 转换为 array_type 类型 """
         if isinstance(value, array_type) or np.isscalar(value):
             pass
         elif value is None or value is _not_found_:
             value = None
         elif isinstance(value, numeric_type):
-            value = np.asarray(value)
+            value = np.asarray(value, *args, **kwargs)
         elif isinstance(value, tuple):
-            value = np.asarray(value)
+            value = np.asarray(value, *args, **kwargs)
         elif isinstance(value, collections.abc.Sequence):
-            value = np.asarray(value)
+            value = np.asarray(value, *args, **kwargs)
         elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
             value = None
         else:

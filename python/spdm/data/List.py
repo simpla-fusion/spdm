@@ -62,8 +62,10 @@ class List(Container, typing.Sequence[_TObject]):
 
     def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _TObject:
 
-        if default_value is _not_found_:
-            # 如果没有指定 default_value，则使用 self._default_value
+        if self._default_value is not _not_found_:
+            
+            # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
+            # 所以优先采用 self._default_value
             default_value = self._default_value
 
         if key is None or isinstance(key, int):

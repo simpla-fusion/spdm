@@ -116,18 +116,18 @@ class Expression(typing.Generic[_T]):
                 return v.__str__()
             elif isinstance(v, np.ndarray):
                 return f"<{v.shape}>"
+            elif np.isscalar(v) and v < 0:
+                return f"({v})"
             else:
-                return str(v)
+                return str(v)  # getattr(v,"_name",None)
 
-        if self._op is None:
-            return f"{self._name}({', '.join([_ast(arg) for arg in self._children])})"
-        elif isinstance(self._op, ExprOp):
-            if self._op.tag is not None and len(self._children) == 2:
+        if isinstance(self._op, ExprOp) and self._op.name is not None:
+            if len(self._children) == 2 and self._op.tag is not None:
                 return f"{_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])}"
             else:
                 return f"{self._op.name}({', '.join([_ast(arg) for arg in self._children])})"
         else:
-            return f"{self.__name__}({', '.join([_ast(arg) for arg in self._children])})"
+            return f"{self.__name__}"
 
     @property
     def __type_hint__(self): return float
@@ -160,40 +160,40 @@ class Expression(typing.Generic[_T]):
         else:
             return True
 
-    def _apply_children(self, *args, **kwargs) -> typing.List[typing.Any]:
-        if len(self._children) == 0:
-            return args, kwargs
+    def _eval(self, op, *xargs, **kwargs):
+        """ Evaluate expression """
 
-        children = []
+        if op is None:
+            op = self._op
 
-        for child in self._children:
+        if isinstance(op, numeric_type) or op is None:  # Constant value
+            return op
+        elif not (callable(op) or isinstance(op, Expression) or isinstance(op, ExprOp)):  # Illegal op
+            raise RuntimeError(f"Illegal op  op={op} in {self} !")
 
-            if callable(child):
-                value = child(*args, **kwargs)
-            elif hasattr(child, "__value__"):
-                value = child.__value__()
-            elif hasattr(child, "__array__"):
-                value = child.__array__()
-            else:
-                value = child
-            children.append(value)
+        if len(self._children) > 0:  # Traverse children
+            children = []
+            for child in self._children:
+                if callable(child):
+                    value = child(*xargs, **kwargs)
+                elif hasattr(child, "__value__"):
+                    value = child.__value__()
+                elif hasattr(child, "__array__"):
+                    value = child.__array__()
+                else:
+                    value = child
+                children.append(value)
 
-        return children, {}
+            if len(children) > 0:
+                xargs = children
+                kwargs = {}
 
-    # def _eval(self, *xargs, **kwargs) -> ArrayType | Expression:
-    #     xargs, kwargs = self._apply_children(*xargs, **kwargs)
-    #     try:
-    #         res = self.__op__(*xargs, **kwargs)
-    #     except Exception as error:
-    #         raise RuntimeError(
-    #             f"Error when apply {self.__str__()} op={self._name} args={xargs} kwargs={kwargs}!") from error
+        try:
+            value = op(*xargs, **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Error when evaluating {self} !") from error
 
-    #     if res is _undefined_:
-    #         raise RuntimeError(f"Unknown op={op} expr={self._children}!")
-    #     return res
-
-    @property
-    def __op__(self) -> ExprOp | typing.Callable: return self._op
+        return value
 
     def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:
         """
@@ -217,43 +217,32 @@ class Expression(typing.Generic[_T]):
         elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
             return Expression(ExprOp(self, **kwargs), *xargs)
 
-        op = self.__op__
-
-        if not callable(op) and not isinstance(op, ExprOp) and not (op, numeric_type):
-            raise RuntimeError(f"Unknown op={op} for {self} !")
-
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
+
         mark = self.__domain__(*xargs)
+
+        mark_size = mark.size if isinstance(mark, array_type) else 1
+        marked_num = np.sum(mark)
 
         if not isinstance(mark, array_type) and not isinstance(mark, (bool, np.bool_)):
             raise RuntimeError(f"Illegal mark {mark} {type(mark)}")
-        elif mark is False:
-            logger.warning(f"Out of domain! {self}")
-            return None
-        elif np.all(mark):
-            marked = False
-        else:
-            marked = True
+        elif marked_num == 0:
+            logger.warning(f"Out of domain! {self} {mark} {xargs}")
 
-        xargs, kwargs = self._apply_children(*xargs, **kwargs)
-
-        if marked:
+        if marked_num < mark_size:
             xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]
 
-        if callable(op):
-            value = op(*xargs, **kwargs)
-        elif isinstance(op, numeric_type):
-            value = op
-        else:
-            raise RuntimeError(f"Unknown op={op} for {self} !")
+        value = self._eval(self._op, *xargs, **kwargs)
 
-        if not marked:
+        if marked_num == mark_size:
             if not isinstance(mark, array_type):
                 res = value
             elif np.isscalar(value):
                 res = np.full_like(mark, value, dtype=self.__type_hint__)
             elif isinstance(value, array_type) and value.shape == mark.shape:
                 res = value
+            elif value is None:
+                res = None
             else:
                 raise RuntimeError(f"Incorrect reuslt {self}! {value}")
         else:
@@ -307,11 +296,7 @@ class Expression(typing.Generic[_T]):
     # fmt: on
 
 
-
-_T = typing.TypeVar("_T")
-
-
-class Variable(Expression, typing.Generic[_T]):
+class Variable(Expression[_T]):
     """
         Variable
         ---------
@@ -360,19 +345,8 @@ class Variable(Expression, typing.Generic[_T]):
         #     raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
         # return args[self._idx]
 
-# _0 = Variable[float](0)
-# _1 = Variable[float](1)
-# _2 = Variable[float](2)
-# _3 = Variable[float](3)
-# _4 = Variable[float](4)
-# _5 = Variable[float](5)
-# _6 = Variable[float](6)
-# _7 = Variable[float](7)
-# _8 = Variable[float](8)
-# _9 = Variable[float](9)
 
-
-class Piecewise(Expression, typing.Generic[_T]):
+class Piecewise(Expression[_T]):
     """ PiecewiseFunction
         ----------------
         A piecewise function. 一维或多维，分段函数
@@ -381,14 +355,6 @@ class Piecewise(Expression, typing.Generic[_T]):
     def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
         super().__init__(None, **kwargs)
         self._piecewise = (func, cond)
-
-    @ property
-    def rank(self): return 1
-
-    @ property
-    def ndim(self): return 1
-
-    def _compile(self): return self, {}
 
     def _apply(self, func, x, *args, **kwargs):
         if isinstance(x, array_type) and isinstance(func, numeric_type):
