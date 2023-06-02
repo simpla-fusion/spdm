@@ -113,17 +113,17 @@ class Expression(typing.Generic[_T]):
 
         def _ast(v):
             if isinstance(v, Expression):
-                return f"({v.__str__()})"
+                return f"{v.__str__()}"
             elif isinstance(v, np.ndarray):
                 return f"<{v.shape}>"
-            elif np.isscalar(v) :
-                return f"({v})"
+            elif np.isscalar(v):
+                return f"{v}"
             else:
                 return str(v)  # getattr(v,"_name",None)
 
         if isinstance(self._op, ExprOp) and self._op.name is not None:
             if len(self._children) == 2 and self._op.tag is not None:
-                return f"{_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])}"
+                return f"({_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])})"
             else:
                 return f"{self._op.name}({', '.join([_ast(arg) for arg in self._children])})"
         else:
@@ -356,11 +356,15 @@ class Piecewise(Expression[_T]):
         super().__init__(None, **kwargs)
         self._piecewise = (func, cond)
 
-    def _apply(self, func, x, *args, **kwargs):
-        if isinstance(x, array_type) and isinstance(func, numeric_type):
-            value = np.full(x.shape, func)
-        elif isinstance(x, numeric_type) and isinstance(func, numeric_type):
-            value = func
+    def _apply(self, func, cond, x, *args, **kwargs):
+        logger.debug(cond)
+        if isinstance(x, array_type):
+            x = x[cond(x)]
+        else:
+            return func(x) if cond(x) else None
+
+        if isinstance(func, numeric_type):
+            value = np.full_like(x, func, dtype=float)
         elif callable(func):
             value = func(x)
         else:
@@ -371,14 +375,14 @@ class Piecewise(Expression[_T]):
 
     def __call__(self, x, *args, **kwargs) -> NumericType:
         if isinstance(x, float):
-            res = [self._apply(fun, x) for fun, cond in zip(*self._piecewise) if cond(x)]
+            res = [self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise) if cond(x)]
             if len(res) == 0:
                 raise RuntimeError(f"Can not fit any condition! {x}")
             elif len(res) > 1:
                 raise RuntimeError(f"Fit multiply condition! {x}")
             return res[0]
         elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, x[cond(x)]) for fun, cond in zip(*self._piecewise)])
+            res = np.hstack([self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise)])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
