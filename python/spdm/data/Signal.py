@@ -3,12 +3,12 @@ import typing
 
 from ..utils.typing import ArrayType
 from .Field import Field
-from .Profile import Profile
+from .Function import Function
 
 _T = typing.TypeVar("_T")
 
 
-class Signal(Profile[_T]):
+class Signal(Function[_T]):
     """Signal with its time base
     """
 

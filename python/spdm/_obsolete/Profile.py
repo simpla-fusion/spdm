@@ -37,19 +37,22 @@ class Profile(Function[_T]):
 
     def __init__(self, value: ArrayLike | Expression, *dims: ArrayType, periods=None, **kwargs):
 
-        if len(dims) == 0:
-            parent = kwargs.get("parent", None)
-            metadata = kwargs.get("metadata", None)
-            if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
-                coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
-                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+        if value.__class__ is not Function:
+            super().__init__(value)
+        else:
+            if len(dims) == 0:
+                parent = kwargs.get("parent", None)
+                metadata = kwargs.get("metadata", None)
+                if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
+                    coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
+                    coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+                    coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-                if len(coordinates) > 0:
-                    dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
-                                  for c in coordinates.values()])
+                    if len(coordinates) > 0:
+                        dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                                      for c in coordinates.values()])
 
-        super().__init__(value, *dims, periods=periods, **kwargs)
+            super().__init__(value, *dims, periods=periods, **kwargs)
 
     @property
     def data(self) -> ArrayType: return self.__value__

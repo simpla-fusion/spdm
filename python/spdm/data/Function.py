@@ -19,6 +19,7 @@ from .Expression import Expression
 from .ExprNode import ExprNode
 from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
                      partial_derivative)
+from .Node import Node
 
 _T = typing.TypeVar("_T")
 
@@ -50,10 +51,26 @@ class Function(ExprNode[_T]):
                     *           : 用于传递给 Node 的参数
 
         """
+        if len(dims) == 0:
+                parent = kwargs.get("parent", None)
+                metadata = kwargs.get("metadata", None)
+                if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
+                    coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
+                    coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+                    coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-        super().__init__(value, **kwargs)
-        self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
-        self._periods = periods
+                    if len(coordinates) > 0:
+                        dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                                      for c in coordinates.values()])
+
+        if value.__class__ is Function and len(dims) == 0 and len(kwargs) == 0:
+            super().__init__(value)
+            self._dims = value._dims
+            self._periods = value._periods
+        else:
+            super().__init__(value, **kwargs)
+            self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
+            self._periods = periods
 
         # if any(len(d.shape) > 1 for d in self.dims):
         #     raise RuntimeError(f"Function.__init__ incorrect dims {dims}! {self.__str__()}")
@@ -91,28 +108,28 @@ class Function(ExprNode[_T]):
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"")
 
-    @classmethod
+    @ classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    @property
+    @ property
     def empty(self) -> bool: return self._value is None and self.dims is None and super().empty
 
-    @property
+    @ property
     def dims(self) -> typing.List[ArrayType]: return self._dims
     """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
 
-    @property
+    @ property
     def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
     """ 函数的维度，即定义域的秩 """
 
-    @property
+    @ property
     def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
     """ 所需数组的形状 """
 
-    @property
+    @ property
     def periods(self) -> typing.Tuple[float]: return self._periods
 
-    @functools.cached_property
+    @ functools.cached_property
     def points(self) -> typing.List[ArrayType]:
         if self.dims is None:
             raise RuntimeError(self.dims)
