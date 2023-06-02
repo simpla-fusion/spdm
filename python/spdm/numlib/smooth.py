@@ -3,8 +3,9 @@ import logging
 
 import numpy as np
 
-from spdm.utils.logger import logger
-from spdm.data.Function import Function
+from ..utils.logger import logger
+from ..data.Function import Function
+from .interpolate import interpolate
 
 
 def smooth(x, window_len=11, window='hanning'):
@@ -67,9 +68,9 @@ def smooth(x, window_len=11, window='hanning'):
 
 
 def smooth_1d(y, x, i_begin=0, i_end=None,  **kwargs):
-    dy = np.asarray(Function(y, x).derivative())
+    dy = interpolate(y, x).derivative()(x)
     dy[i_begin:i_end] = smooth(dy[i_begin:i_end], **kwargs)
-    y_new = np.asarray(Function(dy, x).antiderivative())+y[0]
+    y_new = interpolate(dy, x).antiderivative()(x)+y[0]
     return y_new
 
 

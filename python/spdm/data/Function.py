@@ -51,29 +51,9 @@ class Function(ExprNode[_T]):
                     *           : 用于传递给 Node 的参数
 
         """
-        if len(dims) == 0:
-                parent = kwargs.get("parent", None)
-                metadata = kwargs.get("metadata", None)
-                if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
-                    coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
-                    coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-                    coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
-
-                    if len(coordinates) > 0:
-                        dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
-                                      for c in coordinates.values()])
-
-        if value.__class__ is Function and len(dims) == 0 and len(kwargs) == 0:
-            super().__init__(value)
-            self._dims = value._dims
-            self._periods = value._periods
-        else:
-            super().__init__(value, **kwargs)
-            self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
-            self._periods = periods
-
-        # if any(len(d.shape) > 1 for d in self.dims):
-        #     raise RuntimeError(f"Function.__init__ incorrect dims {dims}! {self.__str__()}")
+        super().__init__(value, **kwargs)
+        self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
+        self._periods = periods
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """
@@ -108,28 +88,41 @@ class Function(ExprNode[_T]):
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"")
 
-    @ classmethod
+    @classmethod
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
-    @ property
+    @property
     def empty(self) -> bool: return self._value is None and self.dims is None and super().empty
 
-    @ property
-    def dims(self) -> typing.List[ArrayType]: return self._dims
-    """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
+    @property
+    def dims(self) -> typing.List[ArrayType]:
+        """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
+        if self._dims is not None:
+            return self._dims
+        parent = self._parent  # kwargs.get("parent", None)
+        metadata = self._metadata  # kwargs.get("metadata", None)
+        if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
+            coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
+            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-    @ property
+            if len(coordinates) > 0:
+                self._dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                                    for c in coordinates.values()])
+        return self._dims
+
+    @property
     def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
     """ 函数的维度，即定义域的秩 """
 
-    @ property
+    @property
     def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
     """ 所需数组的形状 """
 
-    @ property
+    @property
     def periods(self) -> typing.Tuple[float]: return self._periods
 
-    @ functools.cached_property
+    @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
         if self.dims is None:
             raise RuntimeError(self.dims)
