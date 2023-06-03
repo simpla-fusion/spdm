@@ -131,7 +131,10 @@ class Path(list):
         if isinstance(p, str):
             return p
         elif isinstance(p, slice):
-            return f"{p.start}:{p.stop}:{p.step}"
+            if p.start is None and p.stop is None and p.step is None:
+                return "*"
+            else:
+                return f"{p.start}:{p.stop}:{p.step}"
         elif isinstance(p, int):
             return str(p)
         elif isinstance(p, collections.abc.Mapping):
@@ -338,7 +341,7 @@ class Path(list):
                     target = target[p]
                     continue
                 elif not isinstance(target, (list, tuple, collections.deque)):
-                    raise TypeError(f"Cannot traversal {p} in {type(target)}")
+                    raise TypeError(f"Cannot traversal {p} in {(target)} {self}")
                 elif p >= len(target):
                     raise IndexError(f"Index {p} out of range {len(target)}")
             elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):

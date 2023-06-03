@@ -42,7 +42,10 @@ class Container(Node):
     def __setitem__(self, path, value) -> None:
         # logger.warning("FIXME:当路径中存在 Query时，无法同步 cache 和 entry")
         path = Path(path)
+
         if len(path) == 1:
+            if not isinstance(path[0], (int, str, slice)):
+                raise TypeError(f"illegal index type {type(path[0])}")
             if not isinstance(self._cache, (collections.abc.MutableMapping, collections.abc.MutableSequence)):
                 raise TypeError(
                     f"{self.__class__.__name__} is not MutableMapping or MutableSequence {type(self._cache)}")

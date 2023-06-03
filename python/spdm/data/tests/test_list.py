@@ -54,7 +54,7 @@ class TestNodeList(unittest.TestCase):
 
         d1 = Dict({"person": cache})
 
-        young = d1["person",  {"age": 22} ]
+        young = d1["person",  {"age": 22}]
 
         self.assertEqual(young[0, "name"].value,  "wang liu")
         self.assertEqual(young[1, "name"].value,  "li si")
@@ -73,7 +73,7 @@ class TestNodeList(unittest.TestCase):
 
         d0 = List(cache)
 
-        d0[Query({"name": "wang wu"}), "address"] = "hefei"
+        d0[{"name": "wang wu"}, "address"] = "hefei"
 
         self.assertEqual(cache[0]["address"],  "hefei")
 
