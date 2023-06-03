@@ -142,7 +142,8 @@ class Entry(Pluggable):
         Return a generator of the results.
         Could be overridden by subclasses.
         """
-        yield from self._path.find(self._cache, *args, **kwargs)
+        if self._cache is not None and self._cache is not _not_found_:
+            yield from self._path.find(self._cache, *args, **kwargs)
 
     def query(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
         """
@@ -266,15 +267,15 @@ class EntryChain(Entry):
 
 def deep_reduce(first=None, *others, level=-1):
     if level == 0 or len(others) == 0:
-        return first
+        return first if first is not _not_found_ else None
     elif first is None or first is _not_found_:
-        return deep_reduce(others, level=level)
+        return deep_reduce(others, level = level)
     elif isinstance(first, str) or np.isscalar(first):
         return first
     elif isinstance(first, array_type):
         return np.sum([first, *(v for v in others if (v is not None and v is not _not_found_))])
     elif len(others) > 1:
-        return deep_reduce(first, deep_reduce(others, level=level), level=level)
+        return deep_reduce(first, deep_reduce(others, level=level), level = level)
     elif others[0] is None or first is _not_found_:
         return first
     elif isinstance(first, collections.abc.Sequence):
@@ -283,75 +284,77 @@ def deep_reduce(first=None, *others, level=-1):
         else:
             return [*first, others[0]]
     elif isinstance(first, collections.abc.Mapping) and isinstance(others[0], collections.abc.Mapping):
-        second = others[0]
-        res = {}
+        second=others[0]
+        res={}
         for k, v in first.items():
-            res[k] = deep_reduce(v, second.get(k, None), level=level-1)
+            res[k]=deep_reduce(v, second.get(k, None), level = level-1)
         for k, v in second.itmes():
             if k not in res:
-                res[k] = v
+                res[k]=v
         return res
+    elif others[0] is None or others[0] is _not_found_:
+        return first
     else:
-        raise TypeError(f"Can not merge dict with {type(second)}!")
+        raise TypeError(f"Can not merge dict with {others}!")
 
 
 class CombineEntry(Entry):
     """ CombineEntry is a special Entry that combine multiple Entry into one.    """
 
-    def __init__(self, cache, *args, path=None):
-        super().__init__(cache, path=path)
-        self._caches = [self._cache, *args]
+    def __init__(self, cache, *args, path = None):
+        super().__init__(cache, path = path)
+        self._caches=[self._cache, *args]
 
     def duplicate(self) -> CombineEntry:
-        res: CombineEntry = super().duplicate()  # type:ignore
-        res._caches = self._caches
+        res: CombineEntry=super().duplicate()  # type:ignore
+        res._caches=self._caches
         return res
 
     def child(self, *args, **kwargs) -> CombineEntry:
-        other = super().child(*args, **kwargs)
-        other._caches = self._caches
+        other=super().child(*args, **kwargs)
+        other._caches=self._caches
         return other
 
     def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         for e in self._caches:
-            e = as_entry(e).child(self._path[:])
+            e=as_entry(e).child(self._path[:])
             for value in e.find(*args, **kwargs):
                 if value is not _not_found_ and value is not None:
                     yield value
 
-    def query(self, *args, default_value=_not_found_, **kwargs):
-        values = deep_reduce(* self.find(*args, **kwargs))
+    def query(self, *args, default_value = _not_found_, **kwargs):
+        values=deep_reduce(* self.find(*args, **kwargs))
         if values is None or values is _not_found_:
-            values = default_value
+            values=default_value
         return values
 
     def dump(self) -> typing.Any:
         return deep_reduce(* self.find())
 
 
-def as_dataclass(dclass, obj, default_value=None):
+def as_dataclass(dclass, obj, default_value = None):
     if dclass is dataclasses._MISSING_TYPE:
         return obj
 
     if hasattr(obj, '_entry'):
-        obj = obj._entry
+        obj=obj._entry
     if obj is None:
-        obj = default_value
+        obj=default_value
 
     if obj is None or not dataclasses.is_dataclass(dclass) or isinstance(obj, dclass):
         pass
     # elif getattr(obj, 'empty', False):
     #   obj = None
     elif dclass is np.ndarray:
-        obj = np.asarray(obj)
+        obj=np.asarray(obj)
     elif hasattr(obj.__class__, 'get'):
-        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, f.default if f.default is not dataclasses.MISSING else None))
+        obj=dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, f.default if f.default is not dataclasses.MISSING else None))
                         for f in dataclasses.fields(dclass)})
     elif isinstance(obj, collections.abc.Sequence):
-        obj = dclass(*obj)
+        obj=dclass(*obj)
     else:
         try:
-            obj = dclass(obj)
+            obj=dclass(obj)
         except Exception as error:
             logger.debug((type(obj), dclass))
             raise error
@@ -359,12 +362,12 @@ def as_dataclass(dclass, obj, default_value=None):
 
 
 def convert_from_entry(cls, obj, *args, **kwargs):
-    origin_type = getattr(cls, '__origin__', cls)
+    origin_type=getattr(cls, '__origin__', cls)
     if dataclasses.is_dataclass(origin_type):
-        obj = as_dataclass(origin_type, obj)
+        obj=as_dataclass(origin_type, obj)
     elif inspect.isclass(origin_type):
-        obj = cls(obj, *args, **kwargs)
+        obj=cls(obj, *args, **kwargs)
     elif callable(cls) is not None:
-        obj = cls(obj, *args, **kwargs)
+        obj=cls(obj, *args, **kwargs)
 
     return obj

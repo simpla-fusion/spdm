@@ -119,10 +119,9 @@ class AoS(List[_T]):
 
         d_list = []
 
-        if default_value is not None:
-            d_list.append(default_value)
+        default_value = deep_reduce(default_value, self._default_value)
 
-        if self._default_value is not _not_found_ and self._default_value is not None:
+        if default_value is not None and len(default_value) > 0:
             d_list.append(self._default_value)
 
         if len(args) > 0:

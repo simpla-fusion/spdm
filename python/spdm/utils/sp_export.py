@@ -79,7 +79,7 @@ def sp_find_module(path, fragment=None, pythonpath=None):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             sys.modules[spec.name] = module
-            logger.debug(f"Load module {spec.name} from {spec.origin}")
+            logger.info(f"Load module {spec.name} from {spec.origin}")
 
     if not isinstance(module, object):
         module = None
