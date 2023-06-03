@@ -200,8 +200,9 @@ class Function(ExprNode[_T]):
             return None
         elif np.isscalar(value):
             self._ppoly = value
-        elif isinstance(value, array_type) and self.dims is not None:
-            self._ppoly = interpolate(value, *self.dims, periods=self.periods, name=self._name)
+        elif isinstance(value, array_type):
+            self._ppoly = interpolate(value, *(self.dims if self.dims is not None else []),
+                                      periods=self.periods, name=self._name)
         else:
             raise RuntimeError(f"Illegal value! {type(value)}")
 

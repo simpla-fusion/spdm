@@ -357,7 +357,6 @@ class Piecewise(Expression[_T]):
         self._piecewise = (func, cond)
 
     def _apply(self, func, cond, x, *args, **kwargs):
-        logger.debug(cond)
         if isinstance(x, array_type):
             x = x[cond(x)]
         else:

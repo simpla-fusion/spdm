@@ -52,12 +52,14 @@ class List(Container, typing.Sequence[_T]):
         return self
 
     def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
-
         if self._default_value is not _not_found_:
-
             # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
             # 所以优先采用 self._default_value
             default_value = self._default_value
+
+        if value is _not_found_ or key is not None:
+            if isinstance(self._cache, collections.abc.MutableMapping):
+                value = self._cache.get(key, _not_found_)
 
         if key is None or isinstance(key, int):
             n_value = super()._as_child(key, value, *args, default_value=default_value,  **kwargs)
@@ -81,7 +83,7 @@ class List(Container, typing.Sequence[_T]):
         if isinstance(n_value, Node) and n_value._parent is self:
             n_value._parent = self._parent
 
-        if n_value is not None and value is not _not_found_:
+        if n_value is not value and n_value is not None and n_value is not _not_found_:
             if self._cache is None:
                 self._cache = {}
             self._cache[key] = n_value

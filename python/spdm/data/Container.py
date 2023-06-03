@@ -74,7 +74,7 @@ class Container(Node):
 
     def __eq__(self, other) -> bool: return self.__entry__().equal(other)
 
-    def _type_hint(self, *args) -> typing.Type:
+    def __type_hint__(self, *args) -> typing.Type:
         type_hint = typing.get_args(getattr(self, "__orig_class__", None))
         return type_hint[-1] if len(type_hint) > 0 else None
 
@@ -86,26 +86,22 @@ class Container(Node):
                   metadata=None,
                   strict=False,
                   raw=False, ) -> typing.Any:
-
         if raw:
             strict = False
 
+        if value is _not_found_ or value is None:
+            # 如果 value 为 _not_found_, 则从 self.__entry__() 中获取
+            value = self.__entry__().child(key, force=True)
+
         if type_hint is None:
-            type_hint = self._type_hint(key)
+            type_hint = self.__type_hint__(key)
 
         orig_class = typing_get_origin(type_hint)
 
-        if value is _not_found_ and key is not None:
-            if isinstance(self._cache, collections.abc.MutableMapping):
-                value = self._cache.get(key, _not_found_)
-                if (inspect.isclass(orig_class) and isinstance(value, orig_class)):
-                    # 如果 value 来自cache，且符合 type_hint 则返回之
-                    return value
-
-            if value is _not_found_:
-                # 如果 value 为 _not_found_, 则从 self.__entry__() 中获取
-                value = self.__entry__().child(key, force=True)
-        if raw:
+        if (inspect.isclass(orig_class) and isinstance(value, orig_class)):
+            # 如果 value 来自cache，且符合 type_hint 则返回之
+            return value
+        elif raw:
             pass
         elif inspect.isclass(orig_class) and isinstance(value, orig_class):  # 如果 value 符合 type_hint 则返回之
             if issubclass(orig_class, Node):
@@ -147,10 +143,10 @@ class Container(Node):
 
         if strict and inspect.isclass(orig_class) and not isinstance(value, orig_class):
             raise KeyError(f"Can not find {key}! type_hint={type_hint} value={type(value)}")
-        else:
-            if self._cache is None:
-                self._cache = {}
-            self._cache[key] = value
+        # else:
+        #     if self._cache is None:
+        #         self._cache = {}
+        #     self._cache[key] = value
         return value
 
     @staticmethod
