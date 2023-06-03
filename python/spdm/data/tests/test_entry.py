@@ -23,7 +23,7 @@ class TestEntry(unittest.TestCase):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.child("c")  .__value__()(),         self.data["c"])
+        self.assertEqual(d.child("c")  .__value__(),           self.data["c"])
         self.assertEqual(d.child("d/e").__value__(),      self.data["d"]["e"])
         self.assertEqual(d.child("d/f").__value__(),      self.data["d"]["f"])
         self.assertEqual(d.child("a/0").__value__(),        self.data["a"][0])

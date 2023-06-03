@@ -11,10 +11,12 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from ..utils.Pluggable import Pluggable
-from ..utils.tags import _not_found_
 from ..utils.logger import logger
 from ..utils.misc import serialize
+from ..utils.Pluggable import Pluggable
+from ..utils.tags import _not_found_
+from ..utils.typing import numeric_type, array_type
+from ..utils.dict_util import reduce_dict
 from .Path import Path
 
 _T = typing.TypeVar("_T")
@@ -151,6 +153,9 @@ class Entry(Pluggable):
         return self._path.query(self._cache, *args,  default_value=default_value, **kwargs)
 
     def insert(self, *args, **kwargs) -> int:
+        """
+            Insert
+        """
         return self._path.insert(self._cache, *args, **kwargs)
 
     def update(self, *args, **kwargs) -> int:
@@ -198,9 +203,6 @@ class Entry(Pluggable):
 
     def __serialize__(self) -> typing.Any:
         return serialize(self.query())
-
-    def combine(self, *args, **kwargs) -> EntryCombine:
-        return EntryCombine(self, *args, **kwargs)
 
 
 def as_entry(obj) -> Entry:
@@ -262,102 +264,69 @@ class EntryChain(Entry):
     ###########################################################
 
 
-class EntryCombine(Entry):
-    def __init__(self, target, *args, common_data={},
-                 reducer=None, partition=None, **kwargs):
-        super().__init__(common_data, *args, **kwargs)
-        self._data_list = as_entry(target).child(slice(None))
-        self._reducer = reducer if reducer is not None else operator.__add__
-        self._partition = partition
-
-    def duplicate(self) -> EntryCombine:
-        res: EntryCombine = super().duplicate()  # type: ignore
-        res._data_list = self._data_list
-        res._reducer = self._reducer
-        res._partition = self._partition
-
-        return res
-
-    # def child(self, *args, **kwargs) -> Entry:
-    #     return EntryCombine([e.child(*args, **kwargs) for e in self._cache],
-    #                         reducer=self._reducer, partition=self._partition)
-
-    def _reduce(self, val, default_value=None):
-        val = [v for v in val if v is not _not_found_ and v is not None]
-
-        if len(val) > 1:
-            res = functools.reduce(self._reducer, val[1:], val[0])
-        elif len(val) == 1:
-            res = val[0]
+def deep_reduce(first=None, *others, level=-1):
+    if level == 0 or len(others) == 0:
+        return first
+    elif first is None or first is _not_found_:
+        return deep_reduce(others, level=level)
+    elif isinstance(first, str) or np.isscalar(first):
+        return first
+    elif isinstance(first, array_type):
+        return np.sum([first, *(v for v in others if (v is not None and v is not _not_found_))])
+    elif len(others) > 1:
+        return deep_reduce(first, deep_reduce(others, level=level), level=level)
+    elif others[0] is None or first is _not_found_:
+        return first
+    elif isinstance(first, collections.abc.Sequence):
+        if isinstance(others[0], collections.abc.Sequence) and not isinstance(others, str):
+            return [*first, *others[0]]
         else:
-            res = default_value
+            return [*first, others[0]]
+    elif isinstance(first, collections.abc.Mapping) and isinstance(others[0], collections.abc.Mapping):
+        second = others[0]
+        res = {}
+        for k, v in first.items():
+            res[k] = deep_reduce(v, second.get(k, None), level=level-1)
+        for k, v in second.itmes():
+            if k not in res:
+                res[k] = v
+        return res
+    else:
+        raise TypeError(f"Can not merge dict with {type(second)}!")
+
+
+class CombineEntry(Entry):
+    """ CombineEntry is a special Entry that combine multiple Entry into one.    """
+
+    def __init__(self, cache, *args, path=None):
+        super().__init__(cache, path=path)
+        self._caches = [self._cache, *args]
+
+    def duplicate(self) -> CombineEntry:
+        res: CombineEntry = super().duplicate()  # type:ignore
+        res._caches = self._caches
         return res
 
-    def query(self, default_value=_not_found_, **kwargs):
-        res = super().query(default_value=_not_found_, **kwargs)
+    def child(self, *args, **kwargs) -> CombineEntry:
+        other = super().child(*args, **kwargs)
+        other._caches = self._caches
+        return other
 
-        if res is _not_found_:
-            vals = [(v.query(**kwargs) if isinstance(v, Entry) else v)
-                    for v in self._data_list.child(self._path[:]).find()]            
+    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        for e in self._caches:
+            e = as_entry(e).child(self._path[:])
+            for value in e.find(*args, **kwargs):
+                if value is not _not_found_ and value is not None:
+                    yield value
 
-            res = self._reduce(vals)
+    def query(self, *args, default_value=_not_found_, **kwargs):
+        values = deep_reduce(* self.find(*args, **kwargs))
+        if values is None or values is _not_found_:
+            values = default_value
+        return values
 
-        if res is _not_found_:
-            res = default_value
-
-        # if res is not _not_found_ and len(kwargs) == 0:
-        #     try:
-        #         super().insert(res)
-        #     except Exception:
-        #         logger.debug(super()._path.__repr__)
-
-        return res
-
-    def find(self, *args, **kwargs):
-        yield from self._data_list.child(self._path[:]).find()
-
-    def insert(self, *args, **kwargs):
-        raise NotImplementedError("EntryCombine does not support insert operation!")
-
-    def update(self, *args, **kwargs) -> int:
-        raise NotImplementedError("EntryCombine does not support update operation!")
-
-    def __len__(self):
-        raise NotImplementedError()
-
-    def __iter__(self) -> typing.Iterator[Entry]:
-        raise NotImplementedError()
-
-    def push(self, *args, **kwargs):
-        raise NotImplementedError()
-
-    def pull(self, default: _T = None, **kwargs) -> _T:
-        if not self._path.empty:
-            val = EntryCombine([e.child(self._path) for e in self._cache])
-        else:
-            val = []
-            type_hint = None
-            for e in self._cache:
-                v = e.pull(_not_found_)
-                if v is _not_found_:
-                    continue
-                elif isinstance(v, Entry):
-                    raise RuntimeError(v)
-
-                val.append(v)
-                type_hint = type(v)
-
-            if len(val) == 0:
-                val = default
-            elif len(val) == 1:
-                val = val[0]
-            elif type_hint is np.ndarray:
-                val = functools.reduce(self._reducer, np.asarray(val[1:]), np.asarray(val[0]))
-            elif type_hint in [int, float, bool, str]:
-                val = functools.reduce(self._reducer, val[1:], val[0])
-            else:
-                val = EntryCombine(val, reducer=self._reducer, partition=self._partition)
-        return val
+    def dump(self) -> typing.Any:
+        return deep_reduce(* self.find())
 
 
 def as_dataclass(dclass, obj, default_value=None):

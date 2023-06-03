@@ -41,7 +41,7 @@ class Expression(typing.Generic[_T]):
 
     fill_value = np.nan
 
-    def __init__(self, op: typing.Callable | ExprOp = None, *children, name=None,  **kwargs) -> None:
+    def __init__(self, op: typing.Callable | ExprOp | Expression | None = None, *children, name: str | None = None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -227,7 +227,7 @@ class Expression(typing.Generic[_T]):
         if not isinstance(mark, array_type) and not isinstance(mark, (bool, np.bool_)):
             raise RuntimeError(f"Illegal mark {mark} {type(mark)}")
         elif marked_num == 0:
-            logger.warning(f"Out of domain! {self} {mark} {xargs}")
+            logger.warning(f"Out of domain! {self} ")
 
         if marked_num < mark_size:
             xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]

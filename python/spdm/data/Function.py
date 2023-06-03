@@ -36,7 +36,7 @@ class Function(ExprNode[_T]):
 
     """
 
-    def __init__(self, value: ArrayLike | Expression, *dims: ArrayType, periods=None, **kwargs):
+    def __init__(self, value: ArrayLike | Expression | ExprOp, *dims: typing.Any, periods=None, **kwargs):
         """
             Parameters
             ----------
@@ -165,7 +165,7 @@ class Function(ExprNode[_T]):
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def _compile(self, force=False) -> ExprOp:
+    def _compile(self, force=False) -> ExprOp | typing.Callable | None:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：

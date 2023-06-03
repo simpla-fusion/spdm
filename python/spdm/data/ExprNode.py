@@ -90,7 +90,7 @@ class ExprNode(Expression[_T], Node):
             self._refresh()
         return self._value
 
-    def __array__(self, *args,  **kwargs) -> ArrayType:
+    def __array__(self, *args,  **kwargs) -> ArrayLike:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """

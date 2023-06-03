@@ -64,7 +64,7 @@ class SpDict(Dict[Node]):
         支持 sp_property 的 Dict
     """
 
-    def _type_hint(self, key: str) -> typing.Type:
+    def __type_hint__(self, key: str) -> typing.Type:
         return typing.get_type_hints(self.__class__).get(key, None)\
             or getattr(getattr(self.__class__, key, None), "type_hint", None)
 

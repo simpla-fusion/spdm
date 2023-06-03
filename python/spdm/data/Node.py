@@ -22,10 +22,13 @@ class Node:
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __init__(self, d: typing.Any = None, *args, cache=None,  parent: typing.Optional[Node] = None,
+    def __init__(self, d: typing.Any | Entry = None, *args,
+                 cache: typing.Any = None,
+                 parent: typing.Optional[Node] = None,
                  default_value=_not_found_, metadata=None, **kwargs) -> None:
         if len(args) > 0:
             raise RuntimeError(f"Ignore {len(args)} position arguments! [{args}]")
+
         if isinstance(d, Node._PRIMARY_TYPE_) and cache is None:  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
             self._entry = None
             self._cache = d

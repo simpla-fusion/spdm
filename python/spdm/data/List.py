@@ -1,33 +1,31 @@
 from __future__ import annotations
-
+import inspect
 import collections.abc
 import typing
+
+from spdm.utils.tags import _undefined_
 from ..utils.logger import logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
 from .Container import Container
-from .Entry import as_entry
+from .Entry import as_entry, Entry, CombineEntry, deep_reduce
 from .Node import Node
 from .Path import Path
 
-_TObject = typing.TypeVar("_TObject")
+_T = typing.TypeVar("_T")
 
 
-class List(Container, typing.Sequence[_TObject]):
+class List(Container, typing.Sequence[_T]):
 
-    def __init__(self, *args, default_value=_not_found_, ** kwargs):
-        if isinstance(default_value, collections.abc.Sequence):
-            if len(args) == 0:
-                args = [default_value]
-                default_value = _not_found_
-            else:
-                logger.warning(f"list default_value is ignored {type(default_value)}")
-
-        super().__init__(*args, default_value=default_value, **kwargs)
+    def __init__(self, *args, ** kwargs):
+        super().__init__(*args,   **kwargs)
 
     @property
     def _is_list(self) -> bool:
         return True
+
+    @property
+    def default_value(self) -> typing.Any: return self._default_value
 
     def __serialize__(self) -> list: return [serialize(v) for v in self._entry.first_child()]
 
@@ -37,14 +35,15 @@ class List(Container, typing.Sequence[_TObject]):
 
     # def __delitem__(self,  key):    return self._entry.child(key).remove()
 
-    def __getitem__(self, path) -> _TObject:
+    def __getitem__(self, path) -> _T:
         if isinstance(path, (int, slice)):
             return self._as_child(path)
         else:
             return super().__getitem__(path)
 
-    def __iter__(self) -> typing.Generator[_TObject, None, None]:
-        for idx, v in enumerate(self._entry.child(slice(None)).find()):
+    def __iter__(self) -> typing.Generator[_T, None, None]:
+        entry = self._entry.child(slice(None))
+        for idx, v in enumerate(entry.find()):
             yield self._as_child(idx, v)
 
     def flash(self):
@@ -52,18 +51,10 @@ class List(Container, typing.Sequence[_TObject]):
             self._as_child(idx, item)
         return self
 
-    def combine(self, selector=None,   **kwargs) -> _TObject:
-        self.flash()
-
-        if selector == None:
-            return self._as_child(None, as_entry(self._cache).combine(), **kwargs)
-        else:
-            return self._as_child(None, as_entry(self._cache).child(selector).combine(), **kwargs)
-
-    def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _TObject:
+    def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
 
         if self._default_value is not _not_found_:
-            
+
             # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
             # 所以优先采用 self._default_value
             default_value = self._default_value
@@ -90,6 +81,10 @@ class List(Container, typing.Sequence[_TObject]):
         if isinstance(n_value, Node) and n_value._parent is self:
             n_value._parent = self._parent
 
+        if n_value is not None and value is not _not_found_:
+            if self._cache is None:
+                self._cache = {}
+            self._cache[key] = n_value
         return n_value
 
     def __iadd__(self, value) -> List:
@@ -107,6 +102,57 @@ class List(Container, typing.Sequence[_TObject]):
 
     def find(self, predication, **kwargs) -> typing.Generator[typing.Any, None, None]:
         yield from self._entry.child(predication).find(**kwargs)
+
+
+class AoS(List[_T]):
+    """
+        Array of structure
+    """
+
+    def __init__(self, *args, id: str = _undefined_, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._unique_id_name = id if id is not _undefined_ else "$id"
+
+    def combine(self, *args, default_value=None) -> _T:
+
+        d_list = []
+
+        if default_value is not None:
+            d_list.append(default_value)
+
+        if self._default_value is not _not_found_ and self._default_value is not None:
+            d_list.append(self._default_value)
+
+        if len(args) > 0:
+            d_list.extend(args)
+
+        if self._cache is not None and len(self._cache) > 0:
+            raise NotImplementedError(f"NOT IMPLEMENTET YET! {self._cache}")
+            # d_list.append(as_entry(self._cache).child(slice(None)))
+
+        if self._entry is not None:
+            d_list.append(self._entry.child(slice(None)))
+
+        type_hint = self.__type_hint__()
+        return type_hint(CombineEntry({}, *d_list), parent=self._parent)
+
+    def unique_by_id(self, id: str = "$id") -> List[_T]:
+        """ 当 element 为 dict时，将具有相同 key=id的element 合并（deep_reduce)
+        """
+        res = {}
+        for d in self.find():
+            if not isinstance(d, collections.abc.Mapping):
+                raise TypeError(f"{type(d)}")
+            key = d.get(id, None)
+            res[key] = deep_reduce(res.get(key, None), d)
+
+        return self.__class__([*res.values()], parent=self._parent)
+
+    def __getitem__(self, key) -> _T:
+        if isinstance(key, str):
+            return self._as_child(key, deep_reduce(*super().find({self._unique_id_name: key})))
+        else:
+            return super().__getitem__(key)
 
 
 Node._SEQUENCE_TYPE_ = List

@@ -1,7 +1,6 @@
 import collections
 from copy import deepcopy
-from typing import Union
-
+import typing
 import numpy as np
 
 from .logger import logger
@@ -99,6 +98,13 @@ def deep_merge_dict(first, second, level=-1, in_place=False):
     return first
 
 
+def reduce_dict(d, **kwargs) -> typing.Dict:
+    res = {}
+    for v in d:
+        deep_merge_dict(res, v, in_place=True, **kwargs)
+    return res
+
+
 def _recursive_get(obj, k):
     return obj if len(k) == 0 else _recursive_get(obj[k[0]], k[1:])
 
@@ -152,7 +158,7 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return d
 
 
-def as_native(d, enable_ndarray=True) -> Union[str, bool, float, int, np.ndarray, dict, list]:
+def as_native(d, enable_ndarray=True) -> typing.Union[str, bool, float, int, np.ndarray, dict, list]:
     """
         convert d to native data type str,bool,float, int, dict, list
     """

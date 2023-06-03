@@ -149,7 +149,7 @@ class PartialDerivative(ExprOp):
             op = func.partial_derivative(*order)
         else:
             op = None
-        
+
         super().__init__(op,  name=name, **kwargs)
 
         self._func = func
@@ -202,9 +202,9 @@ def antiderivative(func, *args, **kwargs) -> Antiderivative:
     return Antiderivative(func, *args, **kwargs)
 
 
-def integral(func, *args, **kwargs) -> NumericType:
+def integral(func, *args, **kwargs) :
     return func. integral(*args, **kwargs)
 
 
-def find_roots(func, *args, **kwargs) -> typing.Generator[NumericType, None, None]:
-    return func. integral(*args, **kwargs)
+def find_roots(func, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+    yield from func.find_roots(*args, **kwargs)
