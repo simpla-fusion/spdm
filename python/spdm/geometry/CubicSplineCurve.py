@@ -20,6 +20,9 @@ class CubicSplineCurve(Curve):
         super().__init__(points, **kwargs)
         self._uv = uv if uv is None else np.linspace(0, 1, len(self._points))
 
+    @property
+    def points(self): return self._points[..., 0], self._points[..., 1]
+
     def coordinates(self, *uvw, **kwargs) -> ArrayType:
         if len(uvw) == 0:
             return self._points

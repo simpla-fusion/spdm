@@ -15,7 +15,7 @@ class TimeSlice(SpDict):
 _T = typing.TypeVar("_T")
 
 
-class TimeSeriesAoS(List[TimeSlice]):
+class TimeSeriesAoS(List[_T]):
     """
         A series of time slices, each time slice is a state of the system at a given time.
         Each slice is a dict .
@@ -25,9 +25,9 @@ class TimeSeriesAoS(List[TimeSlice]):
         super().__init__(*args, **kwargs)
 
     @property
-    def current(self) -> TimeSlice: return self[-1]
+    def current(self) -> _T: return self[-1]
 
-    def update(self, d=None, *args, **kwargs) -> TimeSlice:
+    def update(self, d=None, *args, **kwargs) -> _T:
         """
             update the last time slice, base on profiles_2d[-1].psi
         """
@@ -45,7 +45,7 @@ class TimeSeriesAoS(List[TimeSlice]):
 
         return self[-1]
 
-    def advance(self, d, *args,  **kwargs) -> TimeSlice:
+    def advance(self, d, *args,  **kwargs) -> _T:
 
         if len(self) > 0 and hasattr(self[-1], "advance"):
             new_obj = self[-1].advance(d, *args, **kwargs)
