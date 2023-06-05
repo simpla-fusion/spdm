@@ -5,7 +5,6 @@ from ..utils.uri_utils import URITuple, uri_split
 from .Collection import Collection
 from .Entry import Entry
 from .File import File
-from .FileCollection import FileCollection
 from .Mapper import create_mapper
 
 
@@ -39,7 +38,7 @@ def open_entry(uri: typing.Union[str, URITuple], *args,
       entry=open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east,shot=38300")
     """
 
-    uri = uri_split(uri)
+    uri = uri_split(uri) if uri is not None else None
 
     if source_schema is None:
         source_schema = uri.schema
@@ -49,9 +48,10 @@ def open_entry(uri: typing.Union[str, URITuple], *args,
     else:
         mapper = None
 
-    if uri.protocol in ("http", "https"):
+    if uri is None and mapper is not None:
+        return mapper.map(None)
+    elif uri.protocol in ("http", "https"):
         return Entry(fetch_request(uri))
-
     elif uri.protocol in ("file", "local", "ssh", "scp", None):
         entry = File(uri, *args, **kwargs).entry
         if mapper is not None:

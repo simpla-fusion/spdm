@@ -139,7 +139,7 @@ class XMLEntry(Entry):
             pass
         elif len(element) == 0:
             return None
-        elif (len(element) == 1) or only_one:
+        elif not isinstance(path[-1], slice) and ((len(element) == 1) or only_one):
             return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
         else:
             return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
@@ -280,24 +280,24 @@ class XMLEntry(Entry):
                                         envs=collections.ChainMap(s_envs, envs))
 
     def items(self,    *args, envs={}, **kwargs):
-        path=self._path
+        path = self._path
         for spath in PathTraverser(path):
-            xp, s_envs=self.xpath(spath)
+            xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
-                res=self._convert(child, path=spath,
+                res = self._convert(child, path=spath,
                                     envs=collections.ChainMap(s_envs, envs))
                 yield child.tag, res
 
     def values(self,    *args, envs={}, **kwargs):
-        path=self._path
+        path = self._path
         for spath in PathTraverser(path):
-            xp, s_envs=self.xpath(spath)
+            xp, s_envs = self.xpath(spath)
             for child in xp.evaluate(self._cache):
                 if child.tag is _XMLComment:
                     continue
-                res=self._convert(child, path=spath,
+                res = self._convert(child, path=spath,
                                     envs=collections.ChainMap(s_envs, envs))
                 yield res
 
@@ -312,7 +312,7 @@ class XMLEntry(Entry):
 class XMLFile(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._root=load_xml(self.uri.path, mode=self.mode)
+        self._root = load_xml(self.uri.path, mode=self.mode)
 
     def read(self, lazy=True) -> Entry:
         return XMLEntry(self._root, writable=False)
@@ -321,4 +321,4 @@ class XMLFile(File):
         raise NotImplementedError()
 
 
-__SP_EXPORT__=XMLFile
+__SP_EXPORT__ = XMLFile

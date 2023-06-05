@@ -2,8 +2,11 @@ import abc
 import collections
 import collections.abc
 import inspect
+import os
+import sys
 import typing
 from enum import Enum
+
 from .logger import logger
 from .sp_export import sp_find_module
 
@@ -57,12 +60,13 @@ class Pluggable(metaclass=abc.ABCMeta):
 
             if not callable(n_cls):
                 n_cls = sp_find_module(n_cls_name)
-        
+
             if callable(n_cls):
                 break
 
         if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
-            raise ModuleNotFoundError(f"Can not find module as subclass of {cls.__name__} from {name_list}!")
+            raise ModuleNotFoundError(
+                f"Can not find module as subclass of {cls.__name__} from {name_list}! PYTHONPATH={sys.path}")
         else:
             self.__class__ = n_cls
             n_cls.__init__(self, *args, **kwargs)

@@ -132,7 +132,7 @@ class Function(ExprNode[_T]):
             return np.meshgrid(*self.dims, indexing="ij")
 
     def __domain__(self, *args) -> bool:
-        if self.dims is None or len(self.dims) == 0:
+        if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0:
             return True
 
         if len(args) != len(self.dims):

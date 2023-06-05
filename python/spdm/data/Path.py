@@ -560,7 +560,7 @@ class Path(list):
 
     def _update_or_replace(self, target: typing.Any, actions: collections.abc.Mapping,
                            force=False, replace=True, **kwargs) -> typing.Any:
-        if not isinstance(actions, collections.abc.Mapping):
+        if not isinstance(actions, dict):
             return actions
 
         for op, args in actions.items():
@@ -579,7 +579,10 @@ class Path(list):
                 if isinstance(target, list):
                     target += new_obj
                 elif replace:
-                    target = [target] + new_obj
+                    if target is not None:
+                        target = [target] + new_obj
+                    else:
+                        target = new_obj
                 else:
                     raise IndexError(f"Can't append {new_obj} to {target}!")
             else:
@@ -608,7 +611,8 @@ class Path(list):
         else:  # pos == len(path)-1
             n_target, n_pos = self._traversal(target, path[pos:])
             if n_pos == 0:
-                return self._update(target, [], value, force=force, **kwargs)
+                return self._update(n_target, path[n_pos:], self._update_or_replace(None, value), force=force, **kwargs)
+
             else:
                 return self._insert(target, path[pos:], self._update_or_replace(n_target, value), force=force, **kwargs)
 

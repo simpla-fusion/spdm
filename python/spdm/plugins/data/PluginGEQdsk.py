@@ -282,7 +282,7 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     if psirz.shape != (nw, nh):
         raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw, nh)}")
 
-    eq["time_slice"][-1] = {
+    eq["time_slice"] = [{
         "time": 0.0,
         "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__(),
                                                 "z": geqdsk["zmaxis"].__value__()},
@@ -311,7 +311,7 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
                          "dim2": np.linspace(zmin, zmax, nh)},
                 "psi": psirz
             }]
-    }
+    }]
 
     return eq
 
