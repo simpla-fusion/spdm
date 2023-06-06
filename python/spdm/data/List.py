@@ -104,6 +104,7 @@ class AoS(List[_T]):
     def __init__(self, *args, id: str = _undefined_, **kwargs):
         super().__init__(*args, **kwargs)
         self._unique_id_name = id if id is not _undefined_ else "$id"
+        self._cache = {}
 
     def combine(self, *args, default_value=None) -> _T:
 
@@ -140,10 +141,24 @@ class AoS(List[_T]):
         return self.__class__([*res.values()], parent=self._parent)
 
     def __getitem__(self, key) -> _T:
-        if isinstance(key, str):
-            return self._as_child(key, deep_reduce(*super().find({self._unique_id_name: key})))
+        # if isinstance(key, str):
+        #     return self._as_child(key, deep_reduce(*super().find({self._unique_id_name: key})))
+        # else:
+        if not isinstance(key, int):
+            raise NotImplementedError(f"key must be int, not {type(key)}")
+
+        value = self._cache.get(key, _not_found_)
+        if value is _not_found_:
+            value = self._entry.child(key)
+
+        if not isinstance(value, Node):
+            n_value = as_node(value, type_hint=self.__type_hint__(),
+                              default_value=self._default_value, parent=self._parent)
+            self._cache[key] = n_value
         else:
-            return super().__getitem__(key)
+            n_value = value
+
+        return n_value
 
 
 Node._SEQUENCE_TYPE_ = List

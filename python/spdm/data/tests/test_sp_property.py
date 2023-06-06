@@ -1,7 +1,7 @@
 import unittest
 
 from spdm.utils.logger import logger
-from spdm.data.List import List
+from spdm.data.List import List, AoS
 from spdm.data.sp_property import SpDict, sp_property
 
 
@@ -47,46 +47,46 @@ class TestSpProperty(unittest.TestCase):
 
     def test_default_value(self):
 
-        d = Doo({})
+        d = Doo()
         self.assertEqual(d.goo.value, 3.14)
         self.assertEqual(d._cache["goo"].value, 3.14)
 
-    # def test_get_list(self):
+    def test_get_list(self):
 
-    #     cache = {"foo_list": [{"a": 1234}, {"b": 1234}, {"c": 1234}, ]}
+        cache = {"foo_list": [{"a": 1234}, {"b": 1234}, {"c": 1234}, ]}
 
-    #     d = Doo(cache)
+        d = Doo(cache)
 
-    #     self.assertFalse(isinstance(cache["foo_list"], Foo))
-    #     self.assertTrue(isinstance(d.foo_list, List))
-    #     self.assertTrue(isinstance(cache["foo_list"], List))
-    #     self.assertTrue(isinstance(d.foo_list[0], Foo))
+        self.assertFalse(isinstance(cache["foo_list"], Foo))
+        self.assertTrue(isinstance(d.foo_list, List))
+        # self.assertTrue(isinstance(cache["foo_list"], List))
+        self.assertTrue(isinstance(d.foo_list[0], Foo))
 
-    #     self.assertEqual(d.foo_list[0]["a"].__value__, 1234)
+        self.assertEqual(d.foo_list[0]["a"].__value__, 1234)
 
-    # def test_set(self):
-    #     cache = {"foo": {"a": 1234}}
-    #     d = Doo(cache)
-    #     self.assertEqual(cache["foo"]["a"], 1234)
-    #     d.foo.a = 45678.0
-    #     self.assertEqual(d._cache["foo"].a, 45678)
+    def test_set(self):
+        cache = {"foo": {"a": 1234}}
+        d = Doo(cache)
+        self.assertEqual(cache["foo"]["a"], 1234)
+        d.foo.a = 45678.0
+        self.assertEqual(d._cache["foo"].a, 45678)
 
-    # def test_delete(self):
-    #     cache = {"foo": {"a": 1234}}
-    #     d = Doo(cache)
-    #     self.assertEqual(cache["foo"]["a"], 1234)
-    #     del d.foo
-    #     self.assertTrue("foo" not in cache)
+    def test_delete(self):
+        cache = {"foo": {"a": 1234}}
+        d = Doo(cache)
+        self.assertEqual(cache["foo"]["a"], 1234)
+        del d.foo
+        self.assertTrue("foo" not in cache)
 
-    # def test_list_default_child_value(self):
-    #     cache = [{"a": 6}, {"a": 7}, {"a": 8}, {}]
-    #     d = List[Foo](cache, default_value={"a": 1, "b": 2, "c": 3})
-    #     self.assertEqual(d[0].a, 6)
-    #     self.assertEqual(d[0].b, 2)
-    #     self.assertEqual(d[0].c, 3)
-    #     self.assertEqual(d[-1].a, 4)
-    #     self.assertEqual(d[-1].b, 2)
-    #     self.assertEqual(d[-1].c, 3)
+    def test_list_default_child_value(self):
+        cache = [{"a": 6}, {"a": 7}, {"a": 8}, {}]
+        d = AoS[Foo](cache, default_value={"a": 1, "b": 2, "c": 3})
+        self.assertEqual(d[0].a, 6)
+        self.assertEqual(d[0].b, 2)
+        self.assertEqual(d[0].c, 3)
+        self.assertEqual(d[-1].a, 4)
+        self.assertEqual(d[-1].b, 2)
+        self.assertEqual(d[-1].c, 3)
 
 
 if __name__ == '__main__':

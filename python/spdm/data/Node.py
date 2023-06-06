@@ -184,6 +184,8 @@ def as_node(
             value = default_value
         elif isinstance(value, Entry):
             value = value.query(default_value=default_value)
+        elif isinstance(value, Node):
+            value = value.__value__
 
         if value is None or value is _not_found_ or isinstance(value, orig_class):
             pass

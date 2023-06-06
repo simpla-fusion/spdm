@@ -46,7 +46,6 @@ import collections.abc
 import inspect
 import typing
 from _thread import RLock
-from typing import Any
 
 from spdm.data.Node import Node
 from spdm.utils.tags import _not_found_
@@ -68,7 +67,7 @@ class SpDict(Dict[_T]):
         支持 sp_property 的 Dict
     """
 
-    def __init__(self, d: Any,  **kwargs) -> None:
+    def __init__(self, d: typing.Any = None,  **kwargs) -> None:
         super().__init__(d,  **kwargs)
         self._cache = {}
 
@@ -85,7 +84,8 @@ class SpDict(Dict[_T]):
         return type_hint
 
     def __get_property__(self, key: str | int, /,  value=None, type_hint=None,
-                         getter: typing.Callable[[SpDict[_T], str], _T] = None,  **kwargs) -> Node | PrimaryType | ArrayType:
+                         getter: typing.Callable[[SpDict[_T], str], _T] = None,
+                         default_value=None,  **kwargs) -> Node | PrimaryType | ArrayType:
 
         if (value is None or value is _not_found_):
             n_value = self._cache.get(key, None)
@@ -96,15 +96,18 @@ class SpDict(Dict[_T]):
             n_value = value
 
         if n_value is None or n_value is _not_found_:
-            n_value = super().__getitem__(key)
+            n_value = self._entry.child(key)
+
+        # if isinstance(n_value, Entry):
+        #     n_value = n_value.__value__
 
         if type_hint is None or type_hint is _not_found_:
             type_hint = self.__type_hint__(key)
 
-        if isinstance(n_value, Entry):
-            n_value = n_value.__value__
+        if (default_value is None or default_value is _not_found_) and isinstance(self._default_value, collections.abc.Mapping):
+            default_value = self._default_value.get(key, None)
 
-        n_value = as_node(n_value, type_hint=type_hint, parent=self, **kwargs)
+        n_value = as_node(n_value, type_hint=type_hint, parent=self, default_value=default_value, **kwargs)
 
         self._cache[key] = n_value
 
