@@ -120,8 +120,11 @@ def load_pkg_data(pkgname, path):
 
 
 def try_get(obj, path: str, default_value=_undefined_):
-    if path is None or path == '':
+    if obj is None or obj is _not_found_:
+        return default_value
+    elif path is None or path == '':
         return obj
+    
     start = 0
     path = path.strip(".")
     s_len = len(path)

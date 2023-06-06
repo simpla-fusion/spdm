@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import collections.abc
+import dataclasses
 import inspect
 import typing
+from copy import copy
+from enum import Enum
 
 import numpy as np
+import pprint
 
-from ..utils.tags import _undefined_, _not_found_
 from ..utils.logger import logger
-from .Entry import Entry, as_entry, Entry
-from .Path import Path, as_path
+from ..utils.misc import as_dataclass, typing_get_origin
+from ..utils.tags import _not_found_, _undefined_
+from ..utils.typing import array_type, primary_type
+from .Entry import Entry, as_entry
+from .Path import Path
 
 
 class Node:
@@ -18,92 +24,101 @@ class Node:
     用于在一般数据结构上附加类型标识（type_hint)。
     """
 
-    _PRIMARY_TYPE_ = (bool, int, float, str, np.ndarray)
     _MAPPING_TYPE_ = dict
     _SEQUENCE_TYPE_ = list
 
-    def __init__(self, d: typing.Any | Entry = None, *args,
-                 cache: typing.Any = None,
-                 parent: typing.Optional[Node] = None,
-                 default_value=_not_found_, metadata=None, **kwargs) -> None:
-        if len(args) > 0:
-            raise RuntimeError(f"Ignore {len(args)} position arguments! [{args}]")
+    def __init__(self, d: typing.Any,
+                 parent: Node = None,
+                 metadata: typing.Dict[str, typing.Any] = None,
+                 **kwargs) -> None:
 
-        if isinstance(d, Node._PRIMARY_TYPE_) and cache is None:  # 如果 d 是基本类型,  就将其赋值给_cache 属性, 将 None 赋值给 _entry 属性
-            self._entry = None
-            self._cache = d
+        if metadata is None:
+            metadata = kwargs
+            kwargs = {}
 
-        else:  # 如果 d 不是基本类型, 就将其赋值给 _entry 属性, 将 None 赋值给 _cache 属性
-            self._cache = cache
-            self._entry = as_entry(d)
-
-        if self.__class__ is not Node or self._entry is None:  # 如果是子类或者 entry 是 None, 就不改变自己的类, 也就是 Node
+        if self.__class__ is not Node or isinstance(d, primary_type) or isinstance(d, Entry):
             pass
-        elif self._entry.is_sequence:  # 如果 entry 是列表, 就把自己的类改成列表
+        elif isinstance(d, collections.abc.Sequence):  # 如果 entry 是列表, 就把自己的类改成列表
             self.__class__ = Node._SEQUENCE_TYPE_
-        elif self._entry.is_mapping:  # 如果 entry 是字典, 就把自己的类改成字典
+
+        elif isinstance(d, collections.abc.Mapping):  # 如果 entry 是字典, 就把自己的类改成字典
             self.__class__ = Node._MAPPING_TYPE_
 
+        self._entry = as_entry(d)
         self._parent = parent
-        self._default_value = default_value
-        self._metadata: typing.Mapping[str, typing.Any] = metadata if metadata is not None else kwargs
+        self._metadata = metadata
 
-    def _duplicate(self) -> Node:
+        if len(kwargs) > 0:
+            logger.warning(f"Ignore kwargs={kwargs}")
+
+    def __serialize__(self) -> typing.Any: return self._entry.dump()
+
+    @classmethod
+    def __deserialize__(self, d) -> Node: return Node(d)
+
+    @property
+    def __entry__(self) -> Entry: return self._entry
+
+    @property
+    def __value__(self) -> typing.Any: return self._entry.__value__
+
+    def __copy__(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
-        other._cache = self._cache
-        other._entry = self.__entry__().duplicate()
+        other._entry = copy(self._entry)
+        other._metadata = copy(self._metadata)
         other._parent = self._parent
-        other._metadata = self._metadata
         return other
 
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} />"
+    def __repr__(self) -> str: return pprint.pformat(self.__serialize__())
 
-    def __str__(self) -> str:
-        return f"<{self.__class__.__name__}>{self.__entry__().dump()}</{self.__class__.__name__}>"
+    def __str__(self) -> str: return f"{self._entry}"
 
-    def _annotation(self) -> dict:
-        return {"entr_type":  self.__entry__().__class__.__name__, "metadata": dict(self._metadata)}
+    def __type_hint__(self) -> typing.Type: return Node
 
-    def __cache__(self) -> typing.Any:
-        return self._cache
+    def __getitem__(self, key) -> typing.Any:
+        return as_node(self._entry.child(key), type_hint=self.__type_hint__() or Node, parent=self)
 
-    def __entry__(self) -> Entry:
-        if self._entry is None:
-            raise RuntimeError("No entry!")
-        return self._entry
+    def __setitem__(self, key, value) -> None: self._entry.child(key).insert(value)
 
-    def __value__(self) -> typing.Any:
-        if self._cache is _not_found_ or self._cache is None:
-            self._cache = self.__entry__().__value__()
-            if self._cache is _not_found_ or self._cache is None:
-                self._cache = self._default_value
-        return self._cache
+    def __delitem__(self, key) -> bool: return self._entry.child(key).remove() > 0
 
-    def _reset(self):
-        self._cache = None
-        if self._entry is not None:
-            self._entry.reset()
+    def __contains__(self, key) -> bool: return self._entry.child(key).exists
 
-    def _flash(self): raise NotImplementedError("flash")
+    def __len__(self) -> int: return self._entry.count
 
-    def __serialize__(self): return self.__value__()
+    def __iter__(self) -> typing.Generator[typing.Any, None, None]:
+        yield from self._entry.find()
 
-    def _validate(self, value, type_hint) -> bool:
-        if value is _undefined_ or type_hint is _undefined_:
-            return False
-        else:
-            v_orig_class = getattr(value, "__orig_class__", value.__class__)
+    def __equal__(self, other) -> bool: return self._entry.__equal__(other)
 
-            if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(v_orig_class, type_hint):
-                res = True
-            elif typing.get_origin(type_hint) is not None \
-                    and typing.get_origin(v_orig_class) is typing.get_origin(type_hint) \
-                    and typing.get_args(v_orig_class) == typing.get_args(type_hint):
-                res = True
-            else:
-                res = False
-        return res
+    @property
+    def _root(self) -> Node | None:
+        p = self
+        # FIXME: ids_properties is a work around for IMAS dd until we found better solution
+        while p._parent is not None and getattr(p, "ids_properties", None) is None:
+
+            p = p._parent
+        return p
+
+    def append(self, value) -> Node:
+        self._entry.update({Path.tags.append:  value})
+        return self
+
+    # def _validate(self, value, type_hint) -> bool:
+    #     if value is _undefined_ or type_hint is _undefined_:
+    #         return False
+    #     else:
+    #         v_orig_class = getattr(value, "__orig_class__", value.__class__)
+
+    #         if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(v_orig_class, type_hint):
+    #             res = True
+    #         elif typing.get_origin(type_hint) is not None \
+    #                 and typing.get_origin(v_orig_class) is typing.get_origin(type_hint) \
+    #                 and typing.get_args(v_orig_class) == typing.get_args(type_hint):
+    #             res = True
+    #         else:
+    #             res = False
+    #     return res
 
     # def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
     #     raise NotImplementedError("as_child")
@@ -131,10 +146,73 @@ class Node:
 
         return obj
 
-    def _get_root(self) -> Node:
-        p = self
-        # FIXME: ids_properties is a work around for IMAS dd until we found better solution
-        while p._parent is not None and getattr(p, "ids_properties", None) is None:
 
-            p = p._parent
-        return p
+def as_node(
+    value: typing.Any,
+    type_hint: typing.Type = _not_found_,
+    default_value=_not_found_,
+    metadata=None,
+    strict=False,
+        **kwargs) -> typing.Any:
+
+    # if parent is not None:
+    #     if type_hint is _undefined_:
+    #         type_hint = parent.__type_hint__(key)
+
+    #     if default_value is _undefined_:
+    #         if isinstance(key, int):
+    #             default_value = parent._default_value
+    #         elif isinstance(key, str) and isinstance(parent._default_value, collections.abc.Mapping):
+    #             default_value = parent._default_value.get(key, None)
+
+    #     if value is _undefined_ or value is _not_found_:
+    #         value = parent.get(key, default_value)
+
+    orig_class = typing_get_origin(type_hint)
+
+    if (inspect.isclass(orig_class) and isinstance(value, orig_class)):
+        pass
+    elif not inspect.isclass(orig_class):  # 如果 type_hint 未定义，则由value决定类型
+        if isinstance(value, Entry):
+            value = value.query(default_value=default_value)
+        elif value is _not_found_:
+            value = default_value
+    elif issubclass(orig_class, Node):  # 若 type_hint 为 Node
+        value = type_hint(value, default_value=default_value, metadata=metadata, **kwargs)
+    else:
+        if value is _not_found_:
+            value = default_value
+        elif isinstance(value, Entry):
+            value = value.query(default_value=default_value)
+
+        if value is None or value is _not_found_ or isinstance(value, orig_class):
+            pass
+        elif issubclass(orig_class, np.ndarray):
+            value = np.asarray(value)
+        elif type_hint in primary_type:
+            value = type_hint(value)
+        elif dataclasses.is_dataclass(type_hint):
+            value = as_dataclass(type_hint, value)
+        elif issubclass(type_hint, Enum):
+            if isinstance(value, collections.abc.Mapping):
+                value = type_hint[value["name"]]
+            elif isinstance(value, str):
+                value = type_hint[value]
+            else:
+                raise TypeError(f"Can not convert {value} to {type_hint}")
+        elif callable(type_hint):
+            value = type_hint(value)
+        else:
+            raise TypeError(f"Illegal type hint {type_hint}")
+
+    if strict and inspect.isclass(orig_class) and not isinstance(value, orig_class):
+        raise KeyError(f"Can not convert value={type(value)} to  type_hint={type_hint}")
+    # elif not isinstance(parent, Node):
+    #     pass
+    # elif isinstance(parent._cache, collections.abc.MutableMapping):
+    #     parent._cache[key] = value
+
+        #     if self._cache is None:
+        #         self._cache = {}
+        #     self._cache[key] = value
+    return value

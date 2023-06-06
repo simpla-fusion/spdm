@@ -13,7 +13,7 @@ from .Path import Path
 _T = typing.TypeVar("_T")
 
 
-class Dict(Container, typing.MutableMapping[str, _T]):
+class Dict(Container[_T], typing.MutableMapping[str, _T]):
     """
         Dict
         ----
@@ -29,19 +29,18 @@ class Dict(Container, typing.MutableMapping[str, _T]):
         - copy
     """
 
-    @property
-    def _is_dict(self) -> bool:
-        return True
+    def __init__(self, d=None, *args, ** kwargs):
+        super().__init__(d if d is not None else {}, *args,   **kwargs)
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         yield from self.keys()
 
     def items(self) -> typing.Generator[typing.Tuple[typing.Any, typing.Any], None, None]:
-        for key, value in self.__entry__().first_child():
+        for key, value in self._entry.first_child():
             yield key, self._as_child(key, default_value=value)
 
     def keys(self) -> typing.Generator[typing.Any, None, None]:
-        for key, _ in self.__entry__().first_child():
+        for key, _ in self._entry.first_child():
             yield key
 
     def values(self) -> typing.Generator[typing.Any, None, None]:
@@ -70,25 +69,7 @@ class Dict(Container, typing.MutableMapping[str, _T]):
 
         return n_value
 
-    # def _as_child(self, key: str, value=_not_found_,
-    #               *args, **kwargs) -> _T:
-    #     """[summary]
-
-    #     """
-    #     if self._cache is None:
-    #         self._cache = {}
-
-    #     if value is _not_found_ and isinstance(key, str):
-    #         value = self._cache.get(key, _not_found_)
-
-    #     n_value = super()._as_child(key, value, *args, **kwargs)
-
-    #     if isinstance(key, str):  # and n_value is not value:
-    #         self._cache[key] = n_value
-
-    #     return n_value
-
-    def _update(self, d, *args, **kwargs) -> Dict:
+    def update(self, d, *args, **kwargs) -> Dict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys.
            Return self.
 
@@ -98,7 +79,7 @@ class Dict(Container, typing.MutableMapping[str, _T]):
         Returns:
             _T: [description]
         """
-        self.__entry__().update(d, *args, **kwargs)
+        self._entry.update(d, *args, **kwargs)
         return self
 
     # def get(self, key,  default_value=None) -> typing.Any:

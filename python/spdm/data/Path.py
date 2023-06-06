@@ -5,7 +5,7 @@ import collections.abc
 import pprint
 import re
 import typing
-from copy import deepcopy
+from copy import deepcopy, copy
 from enum import Flag, auto
 
 import numpy as np
@@ -198,14 +198,9 @@ class Path(list):
     def __str__(self):
         return Path._to_str(self)
 
-    def __hash__(self) -> int:
-        return self.__str__().__hash__()
+    def __hash__(self) -> int: return self.__str__().__hash__()
 
-    def duplicate(self, new_value=None) -> Path:
-        if new_value is not None:
-            return self.__class__(new_value)
-        else:
-            return self.__class__(self[:])
+    def __copy__(self) -> Path: return self.__class__(self[:])
 
     def as_list(self) -> list:
         return self[:]
@@ -243,7 +238,7 @@ class Path(list):
     def parent(self) -> Path:
         if self.is_root:
             raise RuntimeError("Root node hasn't parents")
-        other = self.duplicate()
+        other = copy(self)
         other.pop()
         return other
 
@@ -251,17 +246,16 @@ class Path(list):
     def children(self) -> Path:
         if self.is_leaf:
             raise RuntimeError("Leaf node hasn't child!")
-        other: Path = self.duplicate()
+        other = copy(self)
         other.append(slice(None))
         return other
 
     @property
-    def slibings(self):
-        return self.parent.children
+    def slibings(self): return self.parent.children
 
     @property
     def next(self) -> Path:
-        other = self.duplicate()
+        other = copy(self)
         other.append(Path.tags.next)
         return other
 
@@ -275,10 +269,10 @@ class Path(list):
         return self
 
     def __truediv__(self, p) -> Path:
-        return self.duplicate().append(p)
+        return copy(self).append(p)
 
     def __add__(self, p) -> Path:
-        return self.duplicate().append(p)
+        return copy(self).append(p)
 
     def __iadd__(self, p) -> Path:
         return self.append(p)
@@ -402,7 +396,7 @@ class Path(list):
         elif hasattr(target.__class__, "_as_child"):
             yield from self._find(target._as_child(path[pos]), path[pos+1:], *args, **kwargs)
         elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
-            yield target.__entry__().child(path[pos:]).find(*args, **kwargs)
+            yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
         elif isinstance(path[pos], str):
             yield from self._find(target.get(path[pos]), path[pos+1:], **kwargs)
 
@@ -482,7 +476,7 @@ class Path(list):
         target, pos = self._traversal(target, path)
 
         if hasattr(target, "__entry__"):
-            return target.__entry__().child(path[pos:]).query(op=op, *args, **kwargs)
+            return target.__entry__.child(path[pos:]).query(op=op, *args, **kwargs)
         elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
             res = [self._query(d, path[pos+1:], op, *args, **kwargs) for d in self._find(target, [path[pos]], **kwargs)]
             if len(res) == 1 and isinstance(path[pos], collections.abc.Mapping) and (all(k[0] != '@' for k in path[pos].keys()) or path[pos].get("@only_first", False)):
@@ -525,7 +519,7 @@ class Path(list):
         target, pos = self._traversal(target, path[: -1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__().child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
+            return target.__entry__.child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
         elif len(path) == 0:
             return self._update(target, value, *args, **kwargs)
         elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
@@ -546,7 +540,7 @@ class Path(list):
         target, pos = self._traversal(target, path[: -1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__().child(path[pos:]).delete(*args, **kwargs)
+            return target.__entry__.child(path[pos:]).delete(*args, **kwargs)
         elif len(path) == 0:
             target.clear()
             return 1
@@ -597,7 +591,7 @@ class Path(list):
         target, pos = self._traversal(target, path[:-1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__().child(path[pos:]).update(value,  *args, overwrite=force, **kwargs)
+            return target.__entry__.child(path[pos:]).update(value,  *args, overwrite=force, **kwargs)
         elif len(path) == 0:
             self._update_or_replace(target, value, force=force, replace=False, **kwargs)
             return 1
@@ -1131,7 +1125,7 @@ class obsolete_Path:
         if obj is not _not_found_:
             return obj
         elif lazy is True and default_value is _undefined_:
-            return self.duplicate().move_to(path)
+            return copy(self).move_to(path)
         elif default_value is not _undefined_:
             return default_value
         else:

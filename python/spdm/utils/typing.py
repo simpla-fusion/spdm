@@ -29,6 +29,8 @@ array_type = np.ndarray
 
 numeric_type = (*scalar_type, array_type)
 
+primary_type = (str,  *numeric_type)
+
 
 def is_scalar(v: typing.Any) -> bool:
     return isinstance(v, scalar_type) or (isinstance(v, array_type) and len(v.shape) == 0)

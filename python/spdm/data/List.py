@@ -1,55 +1,48 @@
 from __future__ import annotations
-import inspect
+
 import collections.abc
+import inspect
 import typing
 
 from spdm.utils.tags import _undefined_
+
 from ..utils.logger import logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
 from .Container import Container
-from .Entry import as_entry, Entry, CombineEntry, deep_reduce
-from .Node import Node
+from .Entry import CombineEntry, Entry, as_entry, deep_reduce
+from .Node import Node, as_node
 from .Path import Path
 
 _T = typing.TypeVar("_T")
 
 
-class List(Container, typing.Sequence[_T]):
+class List(Container[_T], typing.MutableSequence[_T]):
+    """
+        Sequence
+        ---------------
+        The collections.abc.Sequence abstract base class defines a much richer interface that goes beyond just 
+        __getitem__() 
+          __len__(), adding count(), index(), __contains__(), and __reversed__().
 
-    def __init__(self, *args, ** kwargs):
-        super().__init__(*args,   **kwargs)
+    """
 
-    @property
-    def _is_list(self) -> bool:
-        return True
-
-    @property
-    def default_value(self) -> typing.Any: return self._default_value
+    def __init__(self, d=None, *args, ** kwargs):
+        super().__init__(d if d is not None else [], *args,   **kwargs)
 
     def __serialize__(self) -> list: return [serialize(v) for v in self._entry.first_child()]
 
-    def __len__(self) -> int: return self._entry.count
-
-    # def __setitem__(self, key: int, value: typing.Any):   return self._entry.child(key).insert(value)
-
-    # def __delitem__(self,  key):    return self._entry.child(key).remove()
-
-    def __getitem__(self, path) -> _T:
-        if isinstance(path, (int, slice)):
-            return self._as_child(path)
-        else:
-            return super().__getitem__(path)
+    # def __getitem__(self, key) -> _T:
+    #     value = self._entry.child(key)
+    #     return as_node(value, key=key, type_hint=self.__type_hint__(), parent=self._parent)
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
-        entry = self._entry.child(slice(None))
-        for idx, v in enumerate(entry.find()):
-            yield self._as_child(idx, v)
+        type_hint = self.__type_hint__()
+        for v in self._entry.child(slice(None)).find():
+            yield as_node(v, type_hint=type_hint, parent=self._parent)
 
-    def flash(self):
-        for idx, item in enumerate(self._entry.child(slice(None)).find()):
-            self._as_child(idx, item)
-        return self
+    def insert(self, d, predication=_undefined_, **kwargs) -> int:
+        return self._entry.child(predication).update(d, **kwargs)
 
     def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
         if self._default_value is not _not_found_:
@@ -94,11 +87,8 @@ class List(Container, typing.Sequence[_T]):
         return self
 
     def append(self, value) -> List:
-        self._entry.update({Path.tags.append:  [value]})
+        self._entry.update({Path.tags.append: value})
         return self
-
-    def update(self, d, predication=_undefined_, **kwargs) -> int:
-        return self._entry.child(predication).update(d, **kwargs)
 
     def sort(self) -> None:    self._entry.update(Path.tags.sort)
 
