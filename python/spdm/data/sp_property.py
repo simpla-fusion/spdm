@@ -67,9 +67,9 @@ class SpDict(Dict[_T]):
         支持 sp_property 的 Dict
     """
 
-    def __init__(self, d: typing.Any = None,  **kwargs) -> None:
+    def __init__(self, d: typing.Any = None, cache: typing.Dict[str, typing.Any] = None,  **kwargs) -> None:
         super().__init__(d,  **kwargs)
-        self._cache = {}
+        self._cache = {} if cache is None else cache
 
     def __type_hint__(self, key: str = None) -> typing.Type:
         type_hint = None
@@ -88,15 +88,13 @@ class SpDict(Dict[_T]):
                          default_value=None,  **kwargs) -> Node | PrimaryType | ArrayType:
 
         if (value is None or value is _not_found_):
-            n_value = self._cache.get(key, None)
+            value = self._cache.get(key, None)
 
-        if (n_value is None or n_value is _not_found_) and callable(getter):
-            n_value = getter(self)
-        else:
-            n_value = value
+        if (value is None or value is _not_found_) and callable(getter):
+            value = getter(self)
 
-        if n_value is None or n_value is _not_found_:
-            n_value = self._entry.child(key)
+        if value is None or value is _not_found_:
+            value = self._entry.child(key)
 
         # if isinstance(n_value, Entry):
         #     n_value = n_value.__value__
@@ -107,11 +105,11 @@ class SpDict(Dict[_T]):
         if (default_value is None or default_value is _not_found_) and isinstance(self._default_value, collections.abc.Mapping):
             default_value = self._default_value.get(key, None)
 
-        n_value = as_node(n_value, type_hint=type_hint, parent=self, default_value=default_value, **kwargs)
+        value = as_node(value, type_hint=type_hint, parent=self, default_value=default_value, **kwargs)
 
-        self._cache[key] = n_value
+        self._cache[key] = value
 
-        return n_value
+        return value
 
     def __set_property__(self, key: str | int,  value=None,
                          setter: typing.Callable[[SpDict[_T], str, typing.Any], None] = None) -> None:

@@ -162,8 +162,8 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
     if geqdsk is None:
         geqdsk = Entry({})
 
-    limiter_r = eq["wall/description_2d/0/limiter/unit/0/outline/r"].__value__()
-    limiter_z = eq["wall/description_2d/0/limiter/unit/0/outline/r"].__value__()
+    limiter_r = eq["wall/description_2d/0/limiter/unit/0/outline/r"].__value__
+    limiter_z = eq["wall/description_2d/0/limiter/unit/0/outline/r"].__value__
     geqdsk["limrz"] = np.append(limiter_r.reshape([1, limiter_r.size]),
                                 limiter_z.reshape([1, limiter_z.size]), axis=0).transpose()
     geqdsk["rleft"] = limiter_r.min()
@@ -173,20 +173,20 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
 
     # rdim = 0.0
     # zdim = 0.0
-    geqdsk["rcentr"] = eq["equilibrium/boundary/geometric_axis/r"].__value__()
+    geqdsk["rcentr"] = eq["equilibrium/boundary/geometric_axis/r"].__value__
     # rleft = 0.0
-    geqdsk["zmid"] = zmid = eq["equilibrium/boundary/geometric_axis/z"].__value__()
-    geqdsk["rmaxis"] = eq["equilibrium/global_quantities/magnetic_axis/r"].__value__()
-    geqdsk["zmaxis"] = eq["equilibrium/global_quantities/magnetic_axis/z"].__value__()
-    geqdsk["simag"] = eq["equilibrium/global_quantities/psi_axis"].__value__()
-    geqdsk["sibry"] = eq["equilibrium/global_quantities/psi_boundary"].__value__()
-    geqdsk["bcentr"] = eq["equilibrium/vacuum_toroidal_field/b0"].__value__()
-    geqdsk["current"] = eq["equilibrium/global_quantities/ip"].__value__()
+    geqdsk["zmid"] = zmid = eq["equilibrium/boundary/geometric_axis/z"].__value__
+    geqdsk["rmaxis"] = eq["equilibrium/global_quantities/magnetic_axis/r"].__value__
+    geqdsk["zmaxis"] = eq["equilibrium/global_quantities/magnetic_axis/z"].__value__
+    geqdsk["simag"] = eq["equilibrium/global_quantities/psi_axis"].__value__
+    geqdsk["sibry"] = eq["equilibrium/global_quantities/psi_boundary"].__value__
+    geqdsk["bcentr"] = eq["equilibrium/vacuum_toroidal_field/b0"].__value__
+    geqdsk["current"] = eq["equilibrium/global_quantities/ip"].__value__
 
     # boundary
 
-    rbbs = eq["equilibrium/boundary/outline/r"].__value__()
-    zbbs = eq["equilibrium/boundary/outline/z"].__value__()
+    rbbs = eq["equilibrium/boundary/outline/r"].__value__
+    zbbs = eq["equilibrium/boundary/outline/z"].__value__
 
     geqdsk["bbsrz"] = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape([1, rbbs.size]), axis=0).transpose()
     # psi
@@ -245,12 +245,12 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     if eq is None:
         eq = Entry({"time_slice": [{}]})
 
-    r0 = geqdsk["rcentr"].__value__()
-    b0 = geqdsk["bcentr"].__value__()
-    Ip = geqdsk["current"].__value__()
-    psi_axis = geqdsk["simag"].__value__()
-    psi_boundary = geqdsk["sibry"].__value__()
-    q = geqdsk["qpsi"].__value__()
+    r0 = geqdsk["rcentr"].__value__
+    b0 = geqdsk["bcentr"].__value__
+    Ip = geqdsk["current"].__value__
+    psi_axis = geqdsk["simag"].__value__
+    psi_boundary = geqdsk["sibry"].__value__
+    q = geqdsk["qpsi"].__value__
 
     s_Bp = np.sign(b0)
     s_Ip = np.sign(Ip)
@@ -266,14 +266,14 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     # rleft = 0.0
 
     # eq["global_quantities.magnetic_axis.b_field_tor"] = geqdsk["bcentr"]
-    nw = geqdsk["nw"].__value__()
-    nh = geqdsk["nh"].__value__()
-    rmin = geqdsk["rleft"].__value__()
-    rmax = geqdsk["rleft"].__value__() + geqdsk["rdim"].__value__()
-    zmin = geqdsk["zmid"].__value__() - geqdsk["zdim"].__value__()/2
-    zmax = geqdsk["zmid"].__value__() + geqdsk["zdim"].__value__()/2
+    nw = geqdsk["nw"].__value__
+    nh = geqdsk["nh"].__value__
+    rmin = geqdsk["rleft"].__value__
+    rmax = geqdsk["rleft"].__value__ + geqdsk["rdim"].__value__
+    zmin = geqdsk["zmid"].__value__ - geqdsk["zdim"].__value__/2
+    zmax = geqdsk["zmid"].__value__ + geqdsk["zdim"].__value__/2
 
-    psirz = geqdsk["psirz"].__value__()
+    psirz = geqdsk["psirz"].__value__
 
     if psirz.shape == (nh, nw):
         psirz = psirz.T
@@ -284,23 +284,23 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
 
     eq["time_slice"] = [{
         "time": 0.0,
-        "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__(),
-                                                "z": geqdsk["zmaxis"].__value__()},
+        "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__,
+                                                "z": geqdsk["zmaxis"].__value__},
                               "psi_axis": psi_axis,
                               "psi_boundary": psi_boundary,
                               "ip": Ip
                               },
         # boundary
-        "boundary": {"outline": {"r": geqdsk["bbsrz"][:, 0].__value__(),
-                                 "z": geqdsk["bbsrz"][:, 1].__value__()}},
+        "boundary": {"outline": {"r": geqdsk["bbsrz"][:, 0].__value__,
+                                 "z": geqdsk["bbsrz"][:, 1].__value__}},
 
         # profile 1d
         "profiles_1d": {
-            "f": geqdsk["fpol"].__value__(),
-            "f_df_dpsi": geqdsk["ffprim"].__value__(),
-            "pressure": geqdsk["pres"].__value__(),
-            "dpressure_dpsi": geqdsk["pprim"].__value__(),
-            "q": geqdsk["qpsi"].__value__(),
+            "f": geqdsk["fpol"].__value__,
+            "f_df_dpsi": geqdsk["ffprim"].__value__,
+            "pressure": geqdsk["pres"].__value__,
+            "dpressure_dpsi": geqdsk["pprim"].__value__,
+            "q": geqdsk["qpsi"].__value__,
             "psi": np.linspace(psi_axis, psi_boundary, nw),
         },
         "profiles_2d": [

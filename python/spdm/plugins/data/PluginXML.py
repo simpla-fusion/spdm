@@ -83,23 +83,25 @@ def load_xml(path, *args,  mode="r", **kwargs):
 @Entry.register("xml")
 class XMLEntry(Entry):
     def __init__(self, data, *args, envs={}, **kwargs):
+        super().__init__({}, *args, **kwargs)
+
         if not isinstance(data, str):
             pass
         elif not data.strip(" ").startswith("<"):
             data = load_xml(data)
         else:
             data = fromstring(data)
-
-        super().__init__(data, *args, **kwargs)
+        self._data = data
         self._envs = envs
 
     def __repr__(self) -> str:
         # return f"<{self.__class__.__name__} root={self._root} path={self._path} />"
-        return f"<{self._cache.tag}  path=\"{self._path}\" />"
+        return f"<{self._data.tag}  path=\"{self._path}\" />"
 
-    def duplicate(self) -> Entry:
-        other = super().duplicate()
+    def __copy__(self) -> Entry:
+        other = super().__copy__()
         other._envs = self._envs
+        other._data = self._data
         return other
 
     def _xpath(self, path):
@@ -211,20 +213,23 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, collections.ChainMap(envs, self._envs))
         return res
 
-    def insert(self,  *args, **kwargs):
-        raise NotImplementedError("XML DO NOT SUPPORT INSERT!")
+    def insert(self,  *args, **kwargs): return super().insert(*args, **kwargs)
 
-    def update(self,  *args, **kwargs):
-        raise NotImplementedError("XML DO NOT SUPPORT update!")
+    def update(self,  *args, **kwargs): return super().update(*args, **kwargs)
 
-    def remove(self,  *args, **kwargs):
-        raise NotImplementedError("XML DO NOT SUPPORT remove!")
+    def remove(self,  *args, **kwargs): return super().remove(*args, **kwargs)
 
     def query(self, *, default_value: typing.Any = _undefined_,  lazy=_undefined_, **kwargs):
+
+        res = super().query(default_value=_not_found_)
+
+        if res is not _not_found_:
+            return res
+
         path = self._path[:]
         xp, envs = self.xpath(path)
 
-        obj = xp.evaluate(self._cache)
+        obj = xp.evaluate(self._data)
 
         if lazy is _undefined_:
             lazy = default_value is _undefined_
@@ -247,7 +252,7 @@ class XMLEntry(Entry):
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            res = self._convert(xp.evaluate(self._cache), lazy=True, path=path, envs=envs, projection=projection)
+            res = self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, projection=projection)
 
         if res is _not_found_:
             res = default_value
@@ -260,7 +265,7 @@ class XMLEntry(Entry):
         else:
             path = self._prefix+normalize_path(path)
             xp, envs = self.xpath(path)
-            obj = xp.evaluate(self._cache)
+            obj = xp.evaluate(self._data)
             if isinstance(obj, collections.abc.Sequence) and len(obj) == 1:
                 obj = obj[0]
             return self._convert(obj, lazy=False, path=path, envs=envs, **kwargs)
@@ -270,7 +275,7 @@ class XMLEntry(Entry):
         # TODO: PathTraverser(path):
         for s_path in self._path.traversal():
             s_path, s_envs = self._xpath(s_path)
-            res = _XPath(s_path).evaluate(self._cache)
+            res = _XPath(s_path).evaluate(self._data)
 
             if len(res) == 0:
                 break
@@ -283,7 +288,7 @@ class XMLEntry(Entry):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._cache):
+            for child in xp.evaluate(self._data):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath,
@@ -294,7 +299,7 @@ class XMLEntry(Entry):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
-            for child in xp.evaluate(self._cache):
+            for child in xp.evaluate(self._data):
                 if child.tag is _XMLComment:
                     continue
                 res = self._convert(child, path=spath,
@@ -303,7 +308,7 @@ class XMLEntry(Entry):
 
     @ property
     def attribute(self):
-        return self._cache.attrib
+        return self._data.attrib
 
     def __serialize__(self):
         return serialize(self.query(default_value=_not_found_))

@@ -29,6 +29,7 @@ class Node:
 
     def __init__(self, d: typing.Any,
                  parent: Node = None,
+                 default_value: typing.Any = None,
                  metadata: typing.Dict[str, typing.Any] = None,
                  **kwargs) -> None:
 
@@ -45,11 +46,12 @@ class Node:
             self.__class__ = Node._MAPPING_TYPE_
 
         self._entry = as_entry(d)
+        self._default_value = default_value
         self._parent = parent
         self._metadata = metadata
 
         if len(kwargs) > 0:
-            logger.warning(f"Ignore kwargs={kwargs}")
+            raise RuntimeError(f"Ignore kwargs={kwargs}")
 
     def __serialize__(self) -> typing.Any: return self._entry.dump()
 
@@ -60,12 +62,15 @@ class Node:
     def __entry__(self) -> Entry: return self._entry
 
     @property
-    def __value__(self) -> typing.Any: return self._entry.__value__
+    def __value__(self) -> typing.Any:
+        value = self._entry.__value__
+        return value if value is not _not_found_ and value is not None else self._default_value
 
     def __copy__(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
         other._entry = copy(self._entry)
         other._metadata = copy(self._metadata)
+        other._default_value = self._default_value
         other._parent = self._parent
         return other
 
@@ -75,8 +80,8 @@ class Node:
 
     def __type_hint__(self) -> typing.Type: return Node
 
-    def __getitem__(self, key) -> typing.Any:
-        return as_node(self._entry.child(key), type_hint=self.__type_hint__() or Node, parent=self)
+    def __getitem__(self, key) -> Node:
+        return as_node(self._entry.child(key), type_hint=Node, parent=self)
 
     def __setitem__(self, key, value) -> None: self._entry.child(key).insert(value)
 
@@ -133,7 +138,7 @@ class Node:
 
         if path[0] == '':
             path = path[1:]
-            obj = self._get_root()
+            obj = self._root
         else:
             obj = self
         for idx, p in enumerate(path[:]):
@@ -142,13 +147,13 @@ class Node:
             elif p == '..':
                 obj = obj._parent
             elif isinstance(obj, Node):
-                obj = obj._as_child(p)
+                obj = as_node(obj[p], parent=obj)
 
         return obj
 
 
 def as_node(
-    value: typing.Any,
+    value: typing.Any, /,
     type_hint: typing.Type = _not_found_,
     default_value=_not_found_,
     metadata=None,

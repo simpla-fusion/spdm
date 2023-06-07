@@ -44,7 +44,7 @@ class ExprNode(Expression[_T], Node):
                 用于传递给 Node 的参数
 
         """
-        
+
         if isinstance(value, Expression) or callable(value) or isinstance(value, ExprOp):
             expr = value
             value = None
@@ -73,7 +73,7 @@ class ExprNode(Expression[_T], Node):
     def _refresh(self):
         if self._value is not None or self._op is not None:
             return
-        value = Node.__value__(self)
+        value = super().__value__
         if value is None and value is _not_found_:
             self._value = None
         elif isinstance(value, Expression) or callable(value) or isinstance(value, ExprOp):

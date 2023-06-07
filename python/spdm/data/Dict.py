@@ -50,24 +50,24 @@ class Dict(Container[_T], typing.MutableMapping[str, _T]):
         return self._update(other)
 
     def __ior__(self, other) -> Dict:
-        return self._update(other, force=False)
+        return self.update(other, force=False)
 
-    def _as_child(self, key: str,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
+    # def _as_child(self, key: str,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
 
-        if self._default_value is not _not_found_ and isinstance(key, str):
-            # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
-            # 所以优先采用 self._default_value
-            default_value = self._default_value.get(key, _not_found_)
+    #     if self._default_value is not _not_found_ and isinstance(key, str):
+    #         # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
+    #         # 所以优先采用 self._default_value
+    #         default_value = self._default_value.get(key, _not_found_)
 
-        if (value is _not_found_ or value is None) and key is not None:
-            value = self._cache.get(key, _not_found_)
+    #     if (value is _not_found_ or value is None) and key is not None:
+    #         value = self._cache.get(key, _not_found_)
 
-        n_value = super()._as_child(key, value, *args, default_value=default_value, **kwargs)
+    #     n_value = super()._as_child(key, value, *args, default_value=default_value, **kwargs)
 
-        if n_value is not self._cache.get(key, None):
-            self._cache[key] = n_value
+    #     if n_value is not self._cache.get(key, None):
+    #         self._cache[key] = n_value
 
-        return n_value
+    #     return n_value
 
     def update(self, d, *args, **kwargs) -> Dict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys.

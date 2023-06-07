@@ -17,7 +17,7 @@ from ..utils.Pluggable import Pluggable
 from ..utils.tags import _not_found_
 from ..utils.typing import numeric_type, array_type, primary_type
 from ..utils.dict_util import reduce_dict
-from .Path import Path
+from .Path import Path, as_path
 
 _T = typing.TypeVar("_T")
 
@@ -27,7 +27,7 @@ class Entry(Pluggable):
 
     _plugin_registry = {}
 
-    def __init__(self, cache:  typing.Any = None, path: typing.Union[Path, None] = None, *args, **kwargs):
+    def __init__(self, cache:  typing.Any = None, path: Path = None, *args, **kwargs):
         if self.__class__ is Entry:
             n_cls_name = kwargs.get("entry_type", None)
             if n_cls_name is not None:
@@ -36,7 +36,7 @@ class Entry(Pluggable):
                 return
 
         self._cache = cache
-        self._path: Path = Path(path) if not isinstance(path, Path) else copy(path)
+        self._path = as_path(path)
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
@@ -87,6 +87,12 @@ class Entry(Pluggable):
 
     @property
     def children(self) -> Entry: return self.child(slice(None))
+
+    def get(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+        value = self.child(*args).__value__
+        if value is _not_found_:
+            value = default_value
+        return value
 
     def first_child(self) -> typing.Generator[typing.Any, None, None]:
         yield from self.children().find()
@@ -154,6 +160,8 @@ def as_entry(obj) -> Entry:
         entry = obj
     elif hasattr(obj.__class__, "__entry__"):
         entry = obj.__entry__
+    elif obj is None or obj is _not_found_:
+        entry = None
     else:
         entry = Entry(obj)
 

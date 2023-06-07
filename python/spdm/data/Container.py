@@ -7,6 +7,7 @@ import functools
 import inspect
 import typing
 from enum import Enum
+from copy import copy
 
 import numpy as np
 from spdm.data.Node import Node
@@ -46,6 +47,9 @@ class Container(Node, typing.Generic[_T]):
         type_hint = typing.get_args(getattr(self, "__orig_class__", None))
         return type_hint[-1] if len(type_hint) > 0 else None
 
+    def __getitem__(self, key) -> _T:
+        return as_node(self._entry.child(key), type_hint=self.__type_hint__(), parent=self)
+
     def get(self, path, default_value=_not_found_, **kwargs) -> typing.Any:
         value = self._entry.child(path).__value__
         if value is _not_found_ or value is None:
@@ -56,6 +60,46 @@ class Container(Node, typing.Generic[_T]):
             elif isinstance(path, int):
                 value = self._default_value
 
-        return as_node(path, value, type_hint=self.__type_hint__(path), parent=self)
+        return as_node(value, type_hint=self.__type_hint__(path), parent=self)
 
     def clear(self): self._reset()
+
+    @staticmethod
+    def _get(obj: Node, path: list, default_value=_not_found_,  **kwargs) -> typing.Any:
+
+        for idx, query in enumerate(path[:]):
+            if not isinstance(obj, Container):
+                obj = as_entry(obj).child(path[idx:], force=True).query(defalut_value=default_value, **kwargs)
+                break
+            elif isinstance(query, set):
+                obj = {k: Container._get(obj, [k] + path[idx+1:], **kwargs) for k in query}
+                break
+            elif isinstance(query, tuple):
+                obj = tuple([Container._get(obj, [k] + path[idx+1:], **kwargs) for k in query])
+                break
+            elif isinstance(query, dict) and isinstance(obj, collections.abc.Sequence):
+                only_first = kwargs.get("only_first", False) or query.get("@only_first", True)
+                if only_first:
+                    obj = obj._as_child(None, obj.__entry__().child(query))
+                else:
+                    other: Container = obj._duplicate()  # type:ignore
+                    other._entry = obj.__entry__().child(query)
+                    obj = other
+                continue
+            elif isinstance(query,  slice) and isinstance(obj, collections.abc.Sequence):
+                obj = copy(obj)
+                obj._entry = obj.__entry__().child(query)
+                continue
+            elif isinstance(query, (str, int)):
+                obj = obj.get(query, default_value=default_value, **kwargs)
+                continue
+            else:
+                raise TypeError(f"Invalid key type {type(query)}")
+
+        if obj is _not_found_:
+            obj = default_value
+
+        return obj
+
+    # def get(self, path, default_value=_not_found_, **kwargs) -> typing.Any:
+    #     return Container._get(self, Path(path), default_value=default_value, **kwargs)

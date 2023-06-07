@@ -22,8 +22,8 @@ class MapperPath(Path):
         super().__init__(*args, **kwargs)
         self._mapping = as_entry(mapping)
 
-    def duplicate(self, new_value=None) -> MapperPath:
-        return MapperPath(self[:] if new_value is None else new_value, mapping=self._mapping)
+    def __copy__(self) -> MapperPath:
+        return MapperPath(self[:], mapping=self._mapping)
 
     def find(self, target: typing.Any, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target = as_entry(target)
