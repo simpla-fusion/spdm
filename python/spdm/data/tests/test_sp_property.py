@@ -62,7 +62,7 @@ class TestSpProperty(unittest.TestCase):
         # self.assertTrue(isinstance(cache["foo_list"], List))
         self.assertTrue(isinstance(d.foo_list[0], Foo))
 
-        self.assertEqual(d.foo_list[0]["a"].__value__, 1234)
+        self.assertEqual(d.foo_list[0]["a"], 1234)
 
     def test_set(self):
         cache = {"foo": {"a": 1234}}

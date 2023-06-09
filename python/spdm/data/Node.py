@@ -149,9 +149,9 @@ class Node(typing.Generic[_T]):
         elif isinstance(key, dict):
             raise NotImplementedError(f"dict {key}")
 
-        default_value = kwargs.get("default_value", _not_found_)
-        type_hint = kwargs.get("type_hint", _not_found_)
-        in_place = kwargs.get("in_place", isinstance(key, (int, str)))
+        default_value = kwargs.setdefault("default_value", _not_found_)
+        type_hint = kwargs.setdefault("type_hint", _not_found_)
+        in_place = kwargs.setdefault("in_place", isinstance(key, (int, str)))
 
         if isinstance(key, str):
             if type_hint is None or type_hint is _not_found_:
@@ -200,15 +200,22 @@ class Node(typing.Generic[_T]):
             n_value = value
 
         elif issubclass(origin_class, Node):
-            n_value = type_hint(value, default_value=default_value, parent=parent, **kwargs)
+            n_value = type_hint(value,  parent=parent, **kwargs)
 
         elif issubclass(origin_class, np.ndarray):
             n_value = np.asarray(value)
 
         elif type_hint in primary_type:
             if isinstance(value, Entry):
-                value = value.__value__
-            n_value = type_hint(value)
+                n_value = value.__value__
+            else:
+                n_value = value
+
+            if n_value is None or n_value is _not_found_:
+                n_value = default_value
+
+            if not (n_value is None or n_value is _not_found_):
+                n_value = type_hint(n_value)
 
         elif dataclasses.is_dataclass(type_hint):
             n_value = as_dataclass(type_hint, value)

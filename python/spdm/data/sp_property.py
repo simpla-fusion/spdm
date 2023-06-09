@@ -56,7 +56,7 @@ from ..utils.misc import try_get
 from ..utils.typing import ArrayType, PrimaryType
 from .Container import Container
 from .Dict import Dict
-from .Node import Node, as_node
+from .Node import Node
 from .Entry import Entry
 from .Path import Path
 
@@ -85,33 +85,26 @@ class SpDict(Dict[_T]):
             type_hint = super().__type_hint__()
         return type_hint
 
-    def __get_property__(self, key: str | int, /,  value=None, type_hint=None,
-                         getter: typing.Callable[[SpDict[_T], str], _T] = None,
-                         default_value=None,  **kwargs) -> Node | PrimaryType | ArrayType:
+    def as_child(self, key: str | int, /,  value=None, type_hint=None,
+                 getter: typing.Callable[[SpDict[_T], str], _T] = None,
+                 default_value=None, parent=None, **kwargs) -> Node | PrimaryType | ArrayType:
+        if parent is None:
+            parent = self
 
-        if (value is None or value is _not_found_):
+        if (value is None or value is _not_found_) and isinstance(key, (int, str)):
             value = self._cache.get(key, None)
 
         if (value is None or value is _not_found_) and callable(getter):
             value = getter(self)
 
-        if value is None or value is _not_found_:
-            value = self._entry.child(key)
+        value = super().as_child(key, value, type_hint=type_hint, default_value=default_value)
 
-        # if isinstance(n_value, Entry):
-        #     n_value = n_value.__value__
-
-        if type_hint is None or type_hint is _not_found_:
-            type_hint = self.__type_hint__(key)
-
-        if (default_value is None or default_value is _not_found_) and isinstance(self._default_value, collections.abc.Mapping):
-            default_value = self._default_value.get(key, None)
-
-        value = as_node(value, type_hint=type_hint, parent=self, default_value=default_value, **kwargs)
-
-        self._cache[key] = value
+        if isinstance(key, (int, str)):
+            self._cache[key] = value
 
         return value
+
+    def __get_property__(self, key: str | int, *args, **kwargs) -> Node: return self.as_child(key, *args, **kwargs)
 
     def __set_property__(self, key: str | int,  value=None,
                          setter: typing.Callable[[SpDict[_T], str, typing.Any], None] = None) -> None:
@@ -123,8 +116,10 @@ class SpDict(Dict[_T]):
     def __del_property__(self, key, deleter: typing.Callable[[SpDict[_T], str], None] = None):
         if callable(deleter):
             deleter(self, key)
-        elif key in self._cache:
-            self._cache.pop(key)
+        else:
+            if key in self._cache:
+                self._cache.pop(key)
+            self._entry.child(key).remove()
 
     def __getitem__(self, key: str | int) -> typing.Any:
         path = Path(key)
@@ -309,7 +304,7 @@ class sp_property(typing.Generic[_T]):
         # 当调用 getter(obj, <name>) 时执行
 
         type_hint, metadata = self._get_desc(owner, self.property_name, self.metadata)
-        
+
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 

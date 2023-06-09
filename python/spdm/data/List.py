@@ -152,8 +152,8 @@ class AoS(List[_T]):
             value = self._entry.child(key)
 
         if not isinstance(value, Node):
-            n_value = as_node(value, type_hint=self.__type_hint__(),
-                              default_value=self._default_value, parent=self._parent)
+            n_value = self.as_child(None, value, type_hint=self.__type_hint__(),
+                                    default_value=self._default_value, parent=self._parent)
             self._cache[key] = n_value
         else:
             n_value = value
