@@ -82,7 +82,7 @@ class Mapper(object):
         self._mapping_path = [pathlib.Path(p) for p in mapping if p not in ('', "")]
 
         if len(self._mapping_path) == 0:
-            raise RuntimeError(f"No mapping file!")
+            raise RuntimeError(f"No mapping file! {mapping}")
 
         self._default_source_schema: str = source_schema if source_schema is not None else "EAST"
         self._default_target_schema: str = target_schema if target_schema is not None else "imas/3"

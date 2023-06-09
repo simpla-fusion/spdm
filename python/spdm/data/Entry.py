@@ -18,49 +18,55 @@ from ..utils.tags import _not_found_
 from ..utils.typing import numeric_type, array_type, primary_type
 from ..utils.dict_util import reduce_dict
 from .Path import Path, as_path
+from ..utils.misc import group_dict_by_prefix
 
 _T = typing.TypeVar("_T")
 
 
 class Entry(Pluggable):
-    __slots__ = "_cache", "_path"
+    __slots__ = "_data", "_path"
 
     _plugin_registry = {}
 
-    def __init__(self, cache:  typing.Any = None, path: Path = None, *args, **kwargs):
+    def __init__(self, data:  typing.Any = None, path: Path = None, *args, **kwargs):
         if self.__class__ is Entry:
-            n_cls_name = kwargs.get("entry_type", None)
-            if n_cls_name is not None:
-                super().__dispatch__init__([f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}Entry"],
-                                           self, cache, path, *args, **kwargs)
+            entry_type,  kwargs = group_dict_by_prefix(kwargs,  "entry_type")
+
+            if entry_type is not None:
+                super().__dispatch__init__([f"spdm.plugins.data.Plugin{entry_type}#{entry_type}Entry"],
+                                           self, data, path, *args, **kwargs)
                 return
 
-        self._cache = cache
+        self._data = data if data is not _not_found_ else data
+
         self._path = as_path(path)
+
+        if len(args)+len(kwargs) > 0:
+            logger.warning(f"Unused arguments: {args}, {kwargs}")
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
-        obj._cache = self._cache
+        obj._data = self._data
         obj._path = copy(self._path)
         return obj
 
     def reset(self, value=None) -> Entry:
-        self._cache = value
+        self._data = value
         self._path.clear()
         return self
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} cache={type(self._cache)} path={self._path} />"
+        return f"<{self.__class__.__name__} path={self._path} />{type(self._data)}</{self.__class__.__name__}>"
 
     @property
     def __entry__(self) -> Entry: return self
 
     @property
     def __value__(self) -> typing.Any:
-        if self._cache is None or len(self._path) > 0:
-            self._cache = self.query(default_value=_not_found_)
+        if self._data is None or len(self._path) > 0:
+            self._data = self.query(default_value=_not_found_)
             self._path = []
-        return self._cache
+        return self._data
 
     @property
     def path(self) -> Path: return self._path
@@ -78,24 +84,29 @@ class Entry(Pluggable):
         return other
 
     def child(self, path=None, *args, **kwargs) -> Entry:
-        if path is None:
+        if path is None or path is _not_found_ or \
+                (isinstance(path, (collections.abc.Sequence, collections.abc.Mapping)) and len(path) == 0):
             return self
+
+        if self._data is not None:
+            pass
+        elif isinstance(self._path[0], (int, slice)):
+            self._data = []
         else:
-            other = copy(self)
-            other._path.append(path, *args, **kwargs)
-            return other
+            self._data = {}
+
+        other = copy(self)
+        other._path.append(path, *args, **kwargs)
+        return other
 
     @property
-    def children(self) -> Entry: return self.child(slice(None))
+    def children(self) -> typing.Generator[typing.Any, None, None]: return self.child(slice(None)).find()
 
     def get(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
-        value = self.child(*args).__value__
+        value = self.child(*args, **kwargs).__value__
         if value is _not_found_:
             value = default_value
         return value
-
-    def first_child(self) -> typing.Generator[typing.Any, None, None]:
-        yield from self.children().find()
 
     def __getitem__(self, *args) -> Entry: return self.child(*args)
 
@@ -105,7 +116,7 @@ class Entry(Pluggable):
 
     def __equal__(self, other) -> bool:
         if isinstance(other, Entry):
-            return other._cache == self._cache and other._path == self._path
+            return other._data == self._data and other._path == self._path
         else:
             return self.query({Path.tags.equal: other})
 
@@ -118,8 +129,8 @@ class Entry(Pluggable):
         Return a generator of the results.
         Could be overridden by subclasses.
         """
-        if self._cache is not None and self._cache is not _not_found_:
-            yield from self._path.find(self._cache, *args, **kwargs)
+        if self._data is not None and self._data is not _not_found_:
+            yield from self._path.find(self._data, *args, **kwargs)
 
     def query(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
         """
@@ -127,16 +138,16 @@ class Entry(Pluggable):
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.query(self._cache, *args,  default_value=default_value, **kwargs)
+        return self._path.query(self._data, *args,  default_value=default_value, **kwargs)
 
-    def insert(self, *args, **kwargs) -> int:
-        """ Insert """
-        return self._path.insert(self._cache, *args, **kwargs)
+    def insert(self, *args, **kwargs) -> int: return self._path.insert(self._data, *args, **kwargs)
 
-    def update(self, *args, **kwargs) -> int:
-        return self._path.update(self._cache, *args,   **kwargs)
+    def append(self, value, *args, **kwargs) -> int:
+        return self._path.update(self._data, {Path.tags.append: value}, *args, **kwargs)
 
-    def remove(self) -> int: return self._path.remove(self._cache)
+    def update(self, *args, **kwargs) -> int: return self._path.update(self._data, *args,   **kwargs)
+
+    def remove(self) -> int: return self._path.remove(self._data)
 
     ###########################################################
 
@@ -155,7 +166,7 @@ class Entry(Pluggable):
         return res
 
 
-def as_entry(obj) -> Entry:
+def as_entry(obj, *args, **kwargs) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
     elif hasattr(obj.__class__, "__entry__"):
@@ -163,7 +174,7 @@ def as_entry(obj) -> Entry:
     elif obj is None or obj is _not_found_:
         entry = None
     else:
-        entry = Entry(obj)
+        entry = Entry(obj, *args, **kwargs)
 
     return entry
 
@@ -184,7 +195,7 @@ class EntryChain(Entry):
         Return a generator of the results.
         Could be overridden by subclasses.
         """
-        for e in self._cache:
+        for e in self._data:
             yield from self._path.find(e, *args, **kwargs)
 
     def query(self, *args, default_value=None, **kwargs) -> typing.Any:
@@ -195,7 +206,7 @@ class EntryChain(Entry):
         """
         res = _not_found_
 
-        for e in self._cache:
+        for e in self._data:
             res = self._path.query(e, *args, default_value=_not_found_, **kwargs)
             if res is not _not_found_:
                 break
@@ -206,13 +217,13 @@ class EntryChain(Entry):
         return res
 
     def insert(self, *args, **kwargs) -> int:
-        return self._path.insert(self._cache[0], *args, **kwargs)
+        return self._path.insert(self._data[0], *args, **kwargs)
 
     def update(self, *args, **kwargs) -> int:
-        return self._path.update(self._cache[0], *args,   **kwargs)
+        return self._path.update(self._data[0], *args,   **kwargs)
 
     def remove(self) -> int:
-        return self._path.remove(self._cache[0])
+        return self._path.remove(self._data[0])
 
     ###########################################################
 
@@ -255,7 +266,7 @@ class CombineEntry(Entry):
 
     def __init__(self, cache, *args, path=None):
         super().__init__(cache, path=path)
-        self._caches = [self._cache, *args]
+        self._caches = [self._data, *args]
 
     def duplicate(self) -> CombineEntry:
         res: CombineEntry = super().duplicate()  # type:ignore

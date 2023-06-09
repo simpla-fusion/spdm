@@ -13,6 +13,9 @@ import numpy as np
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 
+PathLike = int | str | slice | typing.Dict | typing.List
+path_like = (int, str, slice, list, None, tuple, set, dict)
+
 
 class Path(list):
     """

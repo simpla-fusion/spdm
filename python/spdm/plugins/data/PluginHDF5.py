@@ -173,13 +173,13 @@ class H5Entry(Entry):
     #     return h5_get_value(self._cache, path, projection=projection)
 
     def insert(self,  value, *args, **kwargs):
-        return h5_put_value(self._cache, self._path, value, *args, **kwargs)
+        return h5_put_value(self._data, self._path, value, *args, **kwargs)
 
     def query(self,   *args, **kwargs) -> typing.Any:
-        return h5_get_value(self._cache, self._path, *args,  **kwargs)
+        return h5_get_value(self._data, self._path, *args,  **kwargs)
 
     def dump(self):
-        return h5_dump(self._cache)
+        return h5_dump(self._data)
 
     def iter(self,  path, *args, **kwargs):
         raise NotImplementedError()

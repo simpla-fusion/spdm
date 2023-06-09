@@ -58,6 +58,8 @@ from .Container import Container
 from .Dict import Dict
 from .Node import Node, as_node
 from .Entry import Entry
+from .Path import Path
+
 
 _T = typing.TypeVar("_T")
 
@@ -116,13 +118,39 @@ class SpDict(Dict[_T]):
         if callable(setter):
             setter(self, key, value)
         else:
-            super().__setitem__(key, value)
+            self._cache[key] = value
 
     def __del_property__(self, key, deleter: typing.Callable[[SpDict[_T], str], None] = None):
         if callable(deleter):
             deleter(self, key)
+        elif key in self._cache:
+            self._cache.pop(key)
+
+    def __getitem__(self, key: str | int) -> typing.Any:
+        path = Path(key)
+        if len(path) == 1 and isinstance(path[0], str):
+            return self.__get_property__(key)
         else:
-            super().__delitem__(key)
+            return self.get(path, default_value=_not_found_)
+
+    def __setitem__(self, key: str, value: typing.Any) -> None:
+        path = Path(key)
+        if len(path) == 1 and isinstance(path[0], str):
+            return self.__set_property__(key, value)
+        else:
+            return super().insert(path, value)
+
+    def __delitem__(self, key: str) -> None:
+        path = Path(key)
+        if len(path) == 1 and isinstance(path[0], str):
+            return self.__del_property__(key)
+        else:
+            return super().remove(path)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._cache or self._entry.child(key).exists
+
+        return self._entry.child(key).exists
 
 
 class sp_property(typing.Generic[_T]):
@@ -281,7 +309,7 @@ class sp_property(typing.Generic[_T]):
         # 当调用 getter(obj, <name>) 时执行
 
         type_hint, metadata = self._get_desc(owner, self.property_name, self.metadata)
-
+        
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 

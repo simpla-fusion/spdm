@@ -103,10 +103,11 @@ class Function(ExprNode[_T]):
         metadata = self._metadata  # kwargs.get("metadata", None)
         if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
             coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
-            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+            if isinstance(coordinates, collections.abc.Mapping):
+                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if len(coordinates) > 0:
+            if coordinates is not None and len(coordinates) > 0:
                 self._dims = tuple([(parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
                                     for c in coordinates.values()])
         return self._dims

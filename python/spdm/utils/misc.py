@@ -124,7 +124,7 @@ def try_get(obj, path: str, default_value=_undefined_):
         return default_value
     elif path is None or path == '':
         return obj
-    
+
     start = 0
     path = path.strip(".")
     s_len = len(path)
@@ -574,7 +574,9 @@ builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndar
 
 
 def typing_get_origin(tp):
-    if isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
+    if tp is None or tp is _not_found_:
+        return None
+    elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
         return typing.get_origin(tp)
     elif not inspect.isclass(tp):
         return None

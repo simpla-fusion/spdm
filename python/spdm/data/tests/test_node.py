@@ -4,6 +4,7 @@ import numpy as np
 from spdm.data.Dict import Dict
 from spdm.data.List import List
 from spdm.data.Node import Node
+from spdm.utils.logger import logger
 
 
 class Foo(Dict):
@@ -35,20 +36,17 @@ class TestNode(unittest.TestCase):
         self.assertFalse(isinstance(Node({1, 2, 3, 4, 5}), List))
 
     def test_list(self):
-        v = [1, 2, 3, 4, 5]
+        data = [1, 2, 3, 4, 5]
 
-        d0 = List[float](v)
+        d0 = List[int](data)
+        # logger.debug(type(d0[0]))
+        self.assertIsInstance(d0[0], int)
+        self.assertEqual(d0[0], data[0])
+        self.assertListEqual(list(d0[:]), data)
 
-        self.assertIsInstance(d0[0], float)
-
-        class Foo:
-            def __init__(self, v) -> None:
-                self.v = v
-
-        d1 = List[Foo](v)
-
-        self.assertIsInstance(d1[2], Foo)
-        self.assertEqual(d1[2].v, v[2])
+        d1 = List()
+        d1.append({"a": 1, "b": 2})
+        self.assertIsInstance(d1[0], Node)
 
     # def test_create(self):
     #     cache = []
@@ -65,7 +63,7 @@ class TestNode(unittest.TestCase):
 
     def test_find_by_key(self):
 
-        d = Dict[Node](self.data)
+        d = Dict(self.data)
 
         self.assertEqual(len(d["a"]),                     6)
         self.assertEqual(d["c"].__value__,             self.data["c"])
@@ -73,7 +71,8 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d["d"]["f"].__value__,   self.data["d"]["f"])
         self.assertEqual(d["a/0"].__value__,       self.data["a"][0])
         self.assertEqual(d["a/1"].__value__,       self.data["a"][1])
-        self.assertEqual(d["a"][2:6].__value__,        [1.0, 2, 3, 4])
+
+        self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
     def test_dict_insert(self):
         cache = {}
@@ -115,26 +114,48 @@ class TestNode(unittest.TestCase):
         self.assertTrue("a" not in cache)
 
     def test_node_append(self):
-        d = List()
-        d.append({"a": 1, "b": 2})
+        d1 = List()
+        d1.append({"a": 1, "b": 2})
 
-        self.assertEqual(len(d), 1)
-        self.assertEqual(d[0]["a"].__value__, 1)
-        self.assertEqual(d[0]["b"].__value__, 2)
+        self.assertEqual(len(d1), 1)
+        self.assertIsInstance(d1[0], Node)
+        self.assertEqual(d1[0]["a"].__value__, 1)
+        self.assertEqual(d1[0]["b"].__value__, 2)
 
     def test_node_insert(self):
         cache = {"this_is_a_cache": True}
 
-        d = Dict[Node](cache)
+        d = Dict(cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
 
         d["c"].append(1.23455)
         d["c"].append({"a": "hello world", "b": 3.141567})
-    
+
         self.assertEqual(cache["c"][0],  1.23455)
         self.assertEqual(cache["c"][1]["b"],  3.141567)
+
+    def test_typehint(self):
+        d1 = List()
+        d1.append({"a": 1, "b": 2})
+
+        self.assertIsInstance(d1[0], Node)
+
+        self.assertEqual(len(d1), 1)
+        self.assertEqual(d1[0]["a"].__value__, 1)
+        self.assertEqual(d1[0]["b"].__value__, 2)
+
+        data = [1, 2, 3, 4, 5]
+
+        class Foo:
+            def __init__(self, v) -> None:
+                self.v = v
+
+        d1 = List[Foo](data)
+
+        self.assertIsInstance(d1[2], Foo)
+        self.assertEqual(d1[2].v.__value__, data[2])
 
     def test_child_type_convert_list(self):
 
