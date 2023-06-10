@@ -46,11 +46,11 @@ class Dict(Container[_T], typing.MutableMapping[str, _T]):
         yield from self.keys()
 
     def items(self) -> typing.Generator[typing.Tuple[typing.Any, typing.Any], None, None]:
-        for key, value in self._entry.children():
+        for key, value in self._entry.children:
             yield key, self.as_child(key, value)
 
     def keys(self) -> typing.Generator[typing.Any, None, None]:
-        for key, _ in self._entry.children():
+        for key, _ in self._entry.children:
             yield key
 
     def values(self) -> typing.Generator[typing.Any, None, None]:

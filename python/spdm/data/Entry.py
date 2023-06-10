@@ -41,8 +41,8 @@ class Entry(Pluggable):
 
         self._path = as_path(path)
 
-        if len(args)+len(kwargs) > 0:
-            logger.warning(f"Unused arguments: {args}, {kwargs}")
+        # if len(args)+len(kwargs) > 0:
+        #     logger.warning(f"Unused arguments: {args}, {kwargs}")
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)

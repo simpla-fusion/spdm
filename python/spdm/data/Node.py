@@ -61,8 +61,8 @@ class Node:
         self._parent = parent
         self._metadata = metadata
 
-        if len(kwargs) > 0:
-            raise RuntimeError(f"Ignore kwargs={kwargs}")
+        # if len(kwargs) > 0:
+        #     raise RuntimeError(f"Ignore kwargs={kwargs}")
 
     def __serialize__(self) -> typing.Any: return self._entry.dump()
 
@@ -161,6 +161,9 @@ class Node:
             raise NotImplementedError(f"dict {key}")
 
         if isinstance(key, str):
+            if value is _not_found_ or value is None:
+                value = self._entry.child(key)
+
             if type_hint is None or type_hint is _not_found_:
                 type_hint = self.__type_hint__(key)
 
@@ -170,8 +173,6 @@ class Node:
                 else:
                     default_value = self._default_value
 
-            if value is _not_found_ or value is None:
-                value = self._entry.child(key)
         else:
             type_hint = self.__type_hint__()
 
@@ -255,6 +256,7 @@ class Node:
         obj = self
 
         for idx, key in enumerate(path[:]):
+
             if obj is None or obj is _not_found_:
                 break
             elif not isinstance(obj, Node):
@@ -263,6 +265,17 @@ class Node:
                     obj = parent.as_child(key, obj, default_value=default_value, **kwargs)
                 else:
                     obj = Node(obj,  default_value=default_value, **kwargs)
+
+            if key == '':
+                obj = obj._root
+                parent = None
+                continue
+            elif key == "..":
+                obj = obj._parent
+                parent = None
+                continue
+            elif key == "*":
+                key = slice(None)
 
             parent = obj
 
