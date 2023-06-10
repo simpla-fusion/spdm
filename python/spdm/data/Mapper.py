@@ -78,7 +78,7 @@ class Mapper(object):
             mapping = []
 
         mapping += os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
-
+        
         self._mapping_path = [pathlib.Path(p) for p in mapping if p not in ('', "")]
 
         if len(self._mapping_path) == 0:
