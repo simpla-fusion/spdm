@@ -103,7 +103,7 @@ class SpDict(Dict[_T]):
         if (value is None or value is _not_found_) and callable(getter):
             value = getter(self)
 
-        value = super().as_child(key, value,**kwargs)
+        value = super().as_child(key, value, **kwargs)
 
         if isinstance(key, str) and value is not _not_found_:
             self._cache[key] = value
