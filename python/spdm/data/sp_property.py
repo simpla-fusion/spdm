@@ -93,18 +93,19 @@ class SpDict(Dict[_T]):
             type_hint = super().__type_hint__()
         return type_hint
 
-    def as_child(self, key: str | int, /,  value=None,
-                 getter: typing.Callable[[SpDict[_T], str], _T] = None, **kwargs) -> Node | PrimaryType | ArrayType:
+    def as_child(self, key: str | int,  value=None,
+                 getter: typing.Callable[[SpDict[_T], str], _T] = None,
+                 **kwargs) -> Node | PrimaryType | ArrayType:
 
-        if (value is None or value is _not_found_) and isinstance(key, (int, str)):
+        if (value is None or value is _not_found_) and isinstance(key, str):
             value = self._cache.get(key, _not_found_)
 
         if (value is None or value is _not_found_) and callable(getter):
             value = getter(self)
 
-        value = super().as_child(key, value, **kwargs)
+        value = super().as_child(key, value,**kwargs)
 
-        if isinstance(key, (int, str)) and value is not _not_found_:
+        if isinstance(key, str) and value is not _not_found_:
             self._cache[key] = value
 
         return value

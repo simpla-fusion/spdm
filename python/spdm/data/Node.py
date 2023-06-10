@@ -141,10 +141,10 @@ class Node:
             yield self.as_child_deep(p, v, *args, **kwargs)
 
     def as_child(self, key: PathLike, value: typing.Any = _not_found_,  default_value=_undefined_,
-                 type_hint=_not_found_, parent: Node = None, **kwargs) -> Node | typing.Dict[str, Node] | typing.List[Node]:
-        """
-            获取子节点
-        """
+                 type_hint=_not_found_,
+                 getter: typing.Callable[[Node, str], _T] = None,
+                 parent: Node = None, **kwargs) -> Node | typing.Dict[str, Node] | typing.List[Node]:
+        """ 获取子节点   """
         if parent is None:
             parent = self
 
@@ -185,6 +185,16 @@ class Node:
         #     raise KeyError(f"{key} not found")
 
         origin_class = typing_get_origin(type_hint)
+
+        if inspect.isclass(origin_class) and isinstance(value, origin_class):
+            return value
+
+        if callable(getter):
+            if isinstance(value, Entry):
+                value = value.__value__
+
+            if (value is _not_found_ or value is None):
+                value = getter(self)
 
         if inspect.isclass(origin_class) and issubclass(origin_class, Node):
             if not isinstance(value, origin_class):

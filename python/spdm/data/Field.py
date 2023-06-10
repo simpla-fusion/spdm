@@ -99,7 +99,7 @@ class Field(ExprNode[_T]):
             else:
                 if self._mesh is None:
                     self._mesh = {}
-                self._mesh["dims"] = tuple([(self._parent._find_node_by_path(c, prefix="../") if isinstance(c, str) else c)
+                self._mesh["dims"] = tuple([(self._parent.get(c) if isinstance(c, str) else c)
                                             for c in coordinates.values()])
 
         if isinstance(self._mesh, collections.abc.Mapping):

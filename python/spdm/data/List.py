@@ -86,6 +86,8 @@ class List(Container[_T], typing.MutableSequence[_T]):
         self._entry.update({Path.tags.append: value})
         return self
 
+    def __len__(self) -> int: return self._entry.count
+
     def append(self, value) -> List:
         self._entry.update({Path.tags.append: value})
         return self
@@ -140,25 +142,25 @@ class AoS(List[_T]):
 
         return self.__class__([*res.values()], parent=self._parent)
 
-    def __getitem__(self, key) -> _T:
-        # if isinstance(key, str):
-        #     return self._as_child(key, deep_reduce(*super().find({self._unique_id_name: key})))
-        # else:
-        if not isinstance(key, int):
-            raise NotImplementedError(f"key must be int, not {type(key)}")
+    def as_child(self, key:  int | slice,  value=None, **kwargs) -> _T:
 
-        value = self._cache.get(key, _not_found_)
-        if value is _not_found_:
+        if isinstance(key, int) and key < 0:
+            key = len(self)+key
+
+        # if not isinstance(key, int):
+        #     raise NotImplementedError(f"key must be int, not {type(key)}")
+        if (value is None or value is _not_found_) and isinstance(key, int):
+            value = self._cache.get(key, _not_found_)
+
+        if (value is None or value is _not_found_):
             value = self._entry.child(key)
 
-        if not isinstance(value, Node):
-            n_value = self.as_child(None, value, type_hint=self.__type_hint__(),
-                                    default_value=self._default_value, parent=self._parent)
-            self._cache[key] = n_value
-        else:
-            n_value = value
+        value = super().as_child(key, value, **kwargs)
 
-        return n_value
+        if isinstance(key, int) and value is not _not_found_:
+            self._cache[key] = value
+
+        return value
 
 
 Node._SEQUENCE_TYPE_ = List

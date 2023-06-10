@@ -3,7 +3,7 @@ import collections.abc
 import typing
 
 from spdm.data.Dict import Dict
-from spdm.data.List import List
+from spdm.data.List import List, AoS
 from spdm.data.Node import Node
 from spdm.data.sp_property import SpDict, sp_property
 from spdm.utils.logger import logger
@@ -14,14 +14,14 @@ class TimeSlice(SpDict):
         super().__init__(*args, **kwargs)
         if time is not None:
             self._cache["time"] = time
-            
+
     time: float = sp_property(unit='s', type='dynamic', default_value=0.0)  # type: ignore
 
 
 _T = typing.TypeVar("_T")
 
 
-class TimeSeriesAoS(List[_T]):
+class TimeSeriesAoS(AoS[_T]):
     """
         A series of time slices, each time slice is a state of the system at a given time.
         Each slice is a dict .
