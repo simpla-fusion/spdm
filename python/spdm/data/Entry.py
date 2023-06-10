@@ -55,8 +55,11 @@ class Entry(Pluggable):
         self._path.clear()
         return self
 
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} path={self._path} />{type(self._data)}</{self.__class__.__name__}>"
+    def __str__(self) -> str:
+        if self._data is None or self._data is _not_found_:
+            return "N/A"
+        else:
+            return f"<{self.__class__.__name__} path={self._path} />{type(self._data)}</{self.__class__.__name__}>"
 
     @property
     def __entry__(self) -> Entry: return self
@@ -65,7 +68,7 @@ class Entry(Pluggable):
     def __value__(self) -> typing.Any:
         if self._data is None or len(self._path) > 0:
             self._data = self.query(default_value=_not_found_)
-            self._path = []
+            self._path = Path()
         return self._data
 
     @property
@@ -88,7 +91,7 @@ class Entry(Pluggable):
                 (isinstance(path, (collections.abc.Sequence, collections.abc.Mapping)) and len(path) == 0):
             return self
 
-        if self._data is not None:
+        if self._data is not None or len(self._path) == 0:
             pass
         elif isinstance(self._path[0], (int, slice)):
             self._data = []
@@ -100,7 +103,8 @@ class Entry(Pluggable):
         return other
 
     @property
-    def children(self) -> typing.Generator[typing.Any, None, None]: return self.child(slice(None)).find()
+    def children(self) -> typing.Generator[typing.Any, None, None]:
+        yield from self.child(slice(None)).find()
 
     def get(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
         value = self.child(*args, **kwargs).__value__

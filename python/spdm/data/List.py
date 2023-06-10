@@ -39,7 +39,7 @@ class List(Container[_T], typing.MutableSequence[_T]):
     def __iter__(self) -> typing.Generator[_T, None, None]:
         type_hint = self.__type_hint__()
         for v in self._entry.child(slice(None)).find():
-            yield as_node(v, type_hint=type_hint, parent=self._parent)
+            yield self.as_child(None, v, type_hint=type_hint, parent=self._parent)
 
     def insert(self, d, predication=_undefined_, **kwargs) -> int:
         return self._entry.child(predication).update(d, **kwargs)

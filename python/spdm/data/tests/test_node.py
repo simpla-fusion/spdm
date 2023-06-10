@@ -5,6 +5,7 @@ from spdm.data.Dict import Dict
 from spdm.data.List import List
 from spdm.data.Node import Node
 from spdm.utils.logger import logger
+import typing
 
 
 class Foo(Dict):
@@ -12,19 +13,27 @@ class Foo(Dict):
         super().__init__(*args, **kwargs)
 
 
-class TestNode(unittest.TestCase):
-    data = {
-        "a": [
-            "hello world {name}!",
-            "hello world2 {name}!",
-            1.0, 2, 3, 4
-        ],
-        "c": "I'm {age}!",
-        "d": {
-            "e": "{name} is {age}",
-            "f": "{address}"
-        }
+test_data = {
+    "a": [
+        "hello world {name}!",
+        "hello world2 {name}!",
+        1.0, 2, 3, 4
+    ],
+    "c": "I'm {age}!",
+    "d": {
+        "e": "{name} is {age}",
+        "f": "{address}"
     }
+}
+
+
+class NamedFoo(Dict):
+    a: List[typing.Any]
+    c: str
+    d: Dict
+
+
+class TestNode(unittest.TestCase):
 
     def test_new(self):
         self.assertTrue(isinstance(Node("hello"), Node))
@@ -63,14 +72,14 @@ class TestNode(unittest.TestCase):
 
     def test_find_by_key(self):
 
-        d = Dict(self.data)
+        d = NamedFoo(test_data)
 
         self.assertEqual(len(d["a"]),                     6)
-        self.assertEqual(d["c"].__value__,             self.data["c"])
-        self.assertEqual(d["d"]["e"].__value__,   self.data["d"]["e"])
-        self.assertEqual(d["d"]["f"].__value__,   self.data["d"]["f"])
-        self.assertEqual(d["a/0"].__value__,       self.data["a"][0])
-        self.assertEqual(d["a/1"].__value__,       self.data["a"][1])
+        self.assertEqual(d["c"],             test_data["c"])
+        self.assertEqual(d["d"]["e"],   test_data["d"]["e"])
+        self.assertEqual(d["d"]["f"],   test_data["d"]["f"])
+        self.assertEqual(d["a/0"],       test_data["a"][0])
+        self.assertEqual(d["a/1"],       test_data["a"][1])
 
         self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
@@ -82,14 +91,14 @@ class TestNode(unittest.TestCase):
         d["a"] = "hello world {name}!"
 
         self.assertEqual(cache["a"], "hello world {name}!")
-
+        d["e"] = {}
         d["e"]["f"] = 5
         d["e"]["g"] = 6
         self.assertEqual(cache["e"]["f"], 5)
         self.assertEqual(cache["e"]["g"], 6)
 
     def test_dict_update(self):
-        cache = deepcopy(self.data)
+        cache = deepcopy(test_data)
         d = Dict(cache)
 
         d.update({"d": {"g": 5}})
@@ -119,13 +128,13 @@ class TestNode(unittest.TestCase):
 
         self.assertEqual(len(d1), 1)
         self.assertIsInstance(d1[0], Node)
-        self.assertEqual(d1[0]["a"].__value__, 1)
-        self.assertEqual(d1[0]["b"].__value__, 2)
+        self.assertEqual(d1[0]["a"], 1)
+        self.assertEqual(d1[0]["b"], 2)
 
     def test_node_insert(self):
         cache = {"this_is_a_cache": True}
 
-        d = Dict(cache)
+        d = Dict[Node](cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
@@ -143,8 +152,8 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(d1[0], Node)
 
         self.assertEqual(len(d1), 1)
-        self.assertEqual(d1[0]["a"].__value__, 1)
-        self.assertEqual(d1[0]["b"].__value__, 2)
+        self.assertEqual(d1[0]["a"], 1)
+        self.assertEqual(d1[0]["b"], 2)
 
         data = [1, 2, 3, 4, 5]
 
@@ -155,7 +164,7 @@ class TestNode(unittest.TestCase):
         d1 = List[Foo](data)
 
         self.assertIsInstance(d1[2], Foo)
-        self.assertEqual(d1[2].v.__value__, data[2])
+        self.assertEqual(d1[2].v, data[2])
 
     def test_child_type_convert_list(self):
 

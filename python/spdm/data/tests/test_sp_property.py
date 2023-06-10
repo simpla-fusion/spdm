@@ -1,8 +1,10 @@
 import unittest
-
+import numpy as np
 from spdm.utils.logger import logger
 from spdm.data.List import List, AoS
+from spdm.data.Dict import Dict
 from spdm.data.sp_property import SpDict, sp_property
+from spdm.data.TimeSeries import TimeSeriesAoS
 
 
 class Foo(SpDict):
@@ -29,6 +31,40 @@ class Doo(SpDict):
     foo_list: List[Foo] = sp_property()
 
     balaaa = sp_property[Foo](default={"bala": 1})
+
+
+eq_data = {
+    "time": [0.0],
+    "vacuum_toroidal_field": {"r0": 6.2, "b0": [-5.3]},
+    "code": {"name":  "eq_analyze", },
+    "$default_value": {
+        "time_slice": {
+            "profiles_2d": {"grid": {"dim1": 129, "dim2": 257}},
+            "boundary": {"psi_norm": 0.99},
+            "coordinate_system": {"grid": {"dim1": 256, "dim2": 128}}
+        }}
+}
+
+
+class Mesh(SpDict):
+    dim1: int = sp_property()
+    dim2: int = sp_property()
+
+
+class EquilibriumProfiles2d(SpDict):
+
+    grid: Mesh = sp_property()
+
+
+class EqTimeSlice(SpDict):
+
+    profiles_2d: AoS[EquilibriumProfiles2d] = sp_property()
+
+
+class Eq(SpDict):
+
+    time: np.ndarray = sp_property()
+    time_slice: TimeSeriesAoS[EqTimeSlice] = sp_property()
 
 
 class TestSpProperty(unittest.TestCase):
@@ -87,6 +123,15 @@ class TestSpProperty(unittest.TestCase):
         self.assertEqual(d[-1].a, 4)
         self.assertEqual(d[-1].b, 2)
         self.assertEqual(d[-1].c, 3)
+
+    def test_sp_data(self):
+
+        eq = Eq(eq_data)
+
+        self.assertTrue(isinstance(eq.time_slice, TimeSeriesAoS))
+
+        self.assertEqual(eq.time_slice[0].profiles_2d[0].grid.dim1,
+                         eq_data["$default_value"]["time_slice"]["profiles_2d"]["grid"]["dim1"])
 
 
 if __name__ == '__main__':

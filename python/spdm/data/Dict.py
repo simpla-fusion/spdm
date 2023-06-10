@@ -32,6 +32,16 @@ class Dict(Container[_T], typing.MutableMapping[str, _T]):
     def __init__(self, d=None, *args, ** kwargs):
         super().__init__(d if d is not None else {}, *args,   **kwargs)
 
+    def __type_hint__(self, key: str = None) -> typing.Type:
+        type_hint = _not_found_
+        if isinstance(key, str):
+            t_hints = typing.get_type_hints(self.__class__)
+            type_hint = t_hints.get(key, _not_found_)
+
+        if type_hint is _not_found_:
+            type_hint = super().__type_hint__()
+        return type_hint
+
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
         yield from self.keys()
 

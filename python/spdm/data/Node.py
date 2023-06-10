@@ -21,7 +21,7 @@ from .Path import Path, as_path, path_like, PathLike
 _T = typing.TypeVar("_T")
 
 
-class Node(typing.Generic[_T]):
+class Node:
     """
         节点类，用于表示数据结构中的节点，节点可以是一个标量（或np.ndarray），也可以是一个列表，也可以是一个字典。
         用于在一般数据结构上附加类型标识（type_hint)。
@@ -53,8 +53,8 @@ class Node(typing.Generic[_T]):
         elif isinstance(d, collections.abc.Mapping):  # 如果 entry 是字典, 就把自己的类改成字典
             self.__class__ = Node._MAPPING_TYPE_
 
-        if d is _not_found_ or d is None:
-            raise RuntimeError(f"{d} is not a valid value")
+        # if d is _not_found_ or d is None:
+        #     raise RuntimeError(f"{d} is not a valid value")
 
         self._entry = as_entry(d)
         self._default_value = default_value
@@ -76,8 +76,16 @@ class Node(typing.Generic[_T]):
     def __value__(self) -> typing.Any: return self._entry.get(default_value=self._default_value)
 
     def __type_hint__(self, key=None) -> typing.Type:
-        type_hint = typing.get_args(getattr(self, "__orig_class__", None))
-        return type_hint[-1] if len(type_hint) > 0 else Node
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is None:
+            return None
+        else:
+            return typing.get_args(orig_class)[-1]
+
+    def __float__(self): return float(self.__value__)
+    def __str__(self): return str(self.__value__)
+    def __bool__(self): return bool(self.__value__)
+    def __array__(self): return np.asarray(self.__value__)
 
     def __copy__(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
@@ -87,10 +95,10 @@ class Node(typing.Generic[_T]):
         other._parent = self._parent
         return other
 
-    def __repr__(self) -> str: return pprint.pformat(self.__serialize__())
+    # def __repr__(self) -> str: return pprint.pformat(self.__serialize__())
 
-    def __str__(self) -> str:
-        return f"<{self.__class__.__name__} name={self._metadata.get('name','unnamed')} />"
+    # def __str__(self) -> str:
+    #     return f"<{self.__class__.__name__} name={self._metadata.get('name','unnamed')} />"
 
     def __getitem__(self, key) -> Node | _T: return self.get(key)
 
@@ -103,9 +111,11 @@ class Node(typing.Generic[_T]):
     def __len__(self) -> int: return self._entry.count
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]:
+
         type_hint = self.__type_hint__
-        for v in self._entry.children():
-            yield from as_node(v, type_hint=type_hint, parent=self)
+
+        for v in self._entry.children:
+            yield from self.as_child(None, v, type_hint=type_hint, parent=self)
 
     def __equal__(self, other) -> bool: return self._entry.__equal__(other)
 
@@ -121,7 +131,8 @@ class Node(typing.Generic[_T]):
 
     def insert(self, path, value, **kwargs) -> Node | typing.Any: return self._entry.insert(path, value, **kwargs)
 
-    def get(self, path:  PathLike | Path = None,   **kwargs) -> Node: return self.as_child_deep(path, **kwargs)
+    def get(self, path:  PathLike | Path = None, default_value=_undefined_,  **kwargs) -> Node:
+        return self.as_child_deep(path, default_value=default_value, **kwargs)
 
     def find(self, query: dict = None, *args, **kwargs) -> typing.Generator[Node, None, None]:
         entry = self._entry.child(query) if query is not None else self._entry
@@ -129,8 +140,8 @@ class Node(typing.Generic[_T]):
         for p, v in entry.find():
             yield self.as_child_deep(p, v, *args, **kwargs)
 
-    def as_child(self, key: PathLike, value: typing.Any = _not_found_, parent: Node = None,
-                 **kwargs) -> Node | typing.Dict[str, Node] | typing.List[Node]:
+    def as_child(self, key: PathLike, value: typing.Any = _not_found_,  default_value=_undefined_,
+                 type_hint=_not_found_, parent: Node = None, **kwargs) -> Node | typing.Dict[str, Node] | typing.List[Node]:
         """
             获取子节点
         """
@@ -138,20 +149,16 @@ class Node(typing.Generic[_T]):
             parent = self
 
         if isinstance(key, set):
-            return {k: self.as_child(k, parent=parent, **kwargs) for k in key}
+            return {k: self.as_child(k, default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for k in key}
 
         elif isinstance(key, tuple):
-            return tuple([self.as_child(k, parent=parent, **kwargs) for k in key])
+            return tuple([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
 
         elif isinstance(key, (slice, dict)):
-            return tuple([self.as_child(None, v, parent=parent, **kwargs) for v in self._entry.child(key).find()])
+            return tuple([self.as_child(None, v,  default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for v in self._entry.child(key).find()])
 
         elif isinstance(key, dict):
             raise NotImplementedError(f"dict {key}")
-
-        default_value = kwargs.setdefault("default_value", _not_found_)
-        type_hint = kwargs.setdefault("type_hint", _not_found_)
-        in_place = kwargs.setdefault("in_place", isinstance(key, (int, str)))
 
         if isinstance(key, str):
             if type_hint is None or type_hint is _not_found_:
@@ -165,78 +172,65 @@ class Node(typing.Generic[_T]):
 
             if value is _not_found_ or value is None:
                 value = self._entry.child(key)
-
-        elif isinstance(key, int):
+        else:
             type_hint = self.__type_hint__()
 
             default_value = self._default_value
 
-            if value is _not_found_ or value is None:
+            if (value is _not_found_ or value is None) and (key is not None and key is not _not_found_):
                 value = self._entry.child(key)
-        elif key is None or key is _not_found_:
-            key = None
-        else:
-            raise KeyError(f"{key} not found")
+
+        # else:
+        #     raise KeyError(f"{key} not found")
 
         origin_class = typing_get_origin(type_hint)
 
-        n_value = value
-
-        if not inspect.isclass(origin_class):
+        if inspect.isclass(origin_class) and issubclass(origin_class, Node):
+            if not isinstance(value, origin_class):
+                value = type_hint(value, default_value=default_value,  parent=parent, **kwargs)
+        else:
             if isinstance(value, Entry):
-                n_value = value.__value__
-            else:
-                n_value = value
+                value = value.__value__
 
-            if n_value is None or n_value is _not_found_:
-                n_value = default_value
+            if value is None or value is _not_found_:
+                value = default_value
 
-            if not isinstance(n_value, primary_type) and n_value is not _not_found_ and n_value is not None:
-                n_value = Node(n_value, parent=parent, **kwargs)
+            if value is None or value is _not_found_:
+                pass
 
-        elif isinstance(value, origin_class):
-            if issubclass(origin_class, Node):
-                value._parent = parent
-            n_value = value
+            elif not inspect.isclass(origin_class):
+                if not isinstance(value, primary_type):
+                    value = Node(value, parent=parent)
 
-        elif issubclass(origin_class, Node):
-            n_value = type_hint(value,  parent=parent, **kwargs)
+            elif isinstance(value, origin_class):
+                pass
 
-        elif issubclass(origin_class, np.ndarray):
-            n_value = np.asarray(value)
+            elif issubclass(origin_class, np.ndarray):
+                value = np.asarray(value)
 
-        elif type_hint in primary_type:
-            if isinstance(value, Entry):
-                n_value = value.__value__
-            else:
-                n_value = value
+            elif type_hint in primary_type:
+                value = type_hint(value)
 
-            if n_value is None or n_value is _not_found_:
-                n_value = default_value
+            elif dataclasses.is_dataclass(type_hint):
+                value = as_dataclass(type_hint, value)
 
-            if not (n_value is None or n_value is _not_found_):
-                n_value = type_hint(n_value)
+            elif issubclass(type_hint, Enum):
+                if isinstance(value, collections.abc.Mapping):
+                    value = type_hint[value["name"]]
+                elif isinstance(value, str):
+                    value = type_hint[value]
+                else:
+                    raise TypeError(f"Can not convert {value} to {type_hint}")
 
-        elif dataclasses.is_dataclass(type_hint):
-            n_value = as_dataclass(type_hint, value)
+            elif callable(type_hint):
+                value = type_hint(value)
 
-        elif issubclass(type_hint, Enum):
-            if isinstance(value, collections.abc.Mapping):
-                n_value = type_hint[value["name"]]
-            elif isinstance(value, str):
-                n_value = type_hint[value]
             else:
                 raise TypeError(f"Can not convert {value} to {type_hint}")
 
-        elif callable(type_hint):
-            n_value = type_hint(value)
+        return value
 
-        else:
-            raise TypeError(f"Can not convert {value} to {type_hint}")
-
-        return n_value
-
-    def as_child_deep(self, path:  PathLike | Path = None, value=None, /, default_value=_not_found_, **kwargs) -> Node:
+    def as_child_deep(self, path:  PathLike | Path = None, value=None,  default_value=_not_found_, **kwargs) -> Node:
         """
             将 value 转换为 Node
             ----
@@ -269,16 +263,18 @@ class Node(typing.Generic[_T]):
                     obj = parent.as_child(key, obj, default_value=default_value, **kwargs)
                 else:
                     obj = Node(obj,  default_value=default_value, **kwargs)
-                break
-            else:
-                parent = obj
-                obj = obj.as_child(key,  **kwargs)
-        else:
-            if obj is None or obj is _not_found_:
-                raise KeyError(f"Canot find {path[:idx]} in {self}")
 
-        if obj is _not_found_ or obj is None:
-            obj = default_value
+            parent = obj
+
+            if idx < len(path)-1:
+                obj = obj.as_child(key, **kwargs)
+            else:
+                obj = obj.as_child(key, value, default_value=default_value, **kwargs)
+        # else:
+        #     # obj = default_value
+        #     logger.debug(f"Canot find {path[:idx]} {idx} in {self}")
+        # if obj is _not_found_ or obj is None:
+        #     obj = default_value
 
         return obj
 

@@ -20,8 +20,8 @@ from urllib.parse import ParseResult, urlparse
 import numpy as np
 import yaml
 
-from .tags import _empty, _not_found_, _undefined_
 from .logger import logger
+from .tags import _empty, _not_found_, _undefined_
 
 
 def float_unique(d: np.ndarray, x_min=-np.inf, x_max=np.inf) -> np.ndarray:
@@ -576,8 +576,11 @@ builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndar
 def typing_get_origin(tp):
     if tp is None or tp is _not_found_:
         return None
+    elif inspect.isclass(tp):
+        return tp
     elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
-        return typing.get_origin(tp)
+        res = typing.get_origin(tp)
+        return res
     elif not inspect.isclass(tp):
         return None
 

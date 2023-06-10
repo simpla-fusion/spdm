@@ -60,6 +60,7 @@ from .Node import Node
 from .Entry import Entry
 from .Path import Path
 
+from ..utils.misc import group_dict_by_prefix
 
 _T = typing.TypeVar("_T")
 
@@ -69,8 +70,15 @@ class SpDict(Dict[_T]):
         支持 sp_property 的 Dict
     """
 
-    def __init__(self, d: typing.Any = None, cache: typing.Dict[str, typing.Any] = None,  **kwargs) -> None:
-        super().__init__(d,  **kwargs)
+    def __init__(self, d: typing.Any = None, cache: typing.Dict[str, typing.Any] = None, default_value=_not_found_,  **kwargs) -> None:
+        if isinstance(d, collections.abc.Mapping) and "$default_value" in d:
+            default_value_, d = group_dict_by_prefix(d, "$default_value")
+        else:
+            default_value_ = {}
+        if isinstance(default_value, collections.abc.Mapping):
+            default_value_.update(default_value)
+
+        super().__init__(d, default_value=default_value_, ** kwargs)
         self._cache = {} if cache is None else cache
 
     def __type_hint__(self, key: str = None) -> typing.Type:
@@ -87,19 +95,19 @@ class SpDict(Dict[_T]):
 
     def as_child(self, key: str | int, /,  value=None, type_hint=None,
                  getter: typing.Callable[[SpDict[_T], str], _T] = None,
-                 default_value=None, parent=None, **kwargs) -> Node | PrimaryType | ArrayType:
+                 default_value=_not_found_, parent=None, **kwargs) -> Node | PrimaryType | ArrayType:
         if parent is None:
             parent = self
 
         if (value is None or value is _not_found_) and isinstance(key, (int, str)):
-            value = self._cache.get(key, None)
+            value = self._cache.get(key, _not_found_)
 
         if (value is None or value is _not_found_) and callable(getter):
             value = getter(self)
 
-        value = super().as_child(key, value, type_hint=type_hint, default_value=default_value)
+        value = super().as_child(key, value, default_value=default_value, type_hint=type_hint)
 
-        if isinstance(key, (int, str)):
+        if isinstance(key, (int, str)) and value is not _not_found_:
             self._cache[key] = value
 
         return value
