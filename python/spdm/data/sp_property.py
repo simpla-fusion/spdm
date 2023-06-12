@@ -46,7 +46,7 @@ import collections.abc
 import inspect
 import typing
 from _thread import RLock
-
+from copy import copy
 from spdm.data.Node import Node
 from spdm.utils.tags import _not_found_
 
@@ -81,6 +81,11 @@ class SpDict(Dict[_T]):
         super().__init__(d, default_value=default_value_, ** kwargs)
         self._cache = {} if cache is None else cache
 
+    def __copy__(self) -> SpDict:
+        other = super().__copy__()
+        other._cache = copy(self._cache)
+        return other
+
     def __type_hint__(self, key: str = None) -> typing.Type:
         type_hint = None
         if isinstance(key, str):
@@ -100,17 +105,23 @@ class SpDict(Dict[_T]):
         if (value is None or value is _not_found_) and isinstance(key, str):
             value = self._cache.get(key, _not_found_)
 
-        if (value is None or value is _not_found_) and callable(getter):
+        if (value is _not_found_ or value is None) and callable(getter):
+            # 当 getter callable 时，ignore self._entry 中的内容。
+            # self._entry 中的内容可以在getter中通过 super().get(key)
             value = getter(self)
 
-        value = super().as_child(key, value, **kwargs)
+        value = super().as_child(key, value,  **kwargs)
 
         if isinstance(key, str) and value is not _not_found_:
             self._cache[key] = value
 
         return value
 
-    def __get_property__(self, key: str | int, *args, **kwargs) -> Node: return self.as_child(key, *args, **kwargs)
+    def __get_property__(self, key: str | int, *args, **kwargs) -> Node:
+        value = self.as_child(key, *args, **kwargs)
+        if value is _not_found_:
+            logger.warning(f"Can not find property {key}")
+        return value
 
     def __set_property__(self, key: str | int,  value=None,
                          setter: typing.Callable[[SpDict[_T], str, typing.Any], None] = None) -> None:

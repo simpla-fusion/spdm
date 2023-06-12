@@ -192,7 +192,9 @@ class Expression(typing.Generic[_T]):
             value = op(*xargs, **kwargs)
         except Exception as error:
             raise RuntimeError(f"Error when evaluating {self} !") from error
-
+        else:
+            if value is _not_found_ or value is None:
+                raise RuntimeError(f"Error when evaluating {self} !")
         return value
 
     def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:

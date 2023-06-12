@@ -79,7 +79,7 @@ class Dict(Container[_T], typing.MutableMapping[str, _T]):
 
     #     return n_value
 
-    def update(self, d, *args, **kwargs) -> Dict:
+    def update(self,   *args, **kwargs) -> Dict:
         """Update the dictionary with the key/value pairs from other, overwriting existing keys.
            Return self.
 
@@ -89,7 +89,7 @@ class Dict(Container[_T], typing.MutableMapping[str, _T]):
         Returns:
             _T: [description]
         """
-        self._entry.update(d, *args, **kwargs)
+        self._entry.update(*args, **kwargs)
         return self
 
     # def get(self, key,  default_value=None) -> typing.Any:

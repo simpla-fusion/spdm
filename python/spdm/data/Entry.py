@@ -66,7 +66,7 @@ class Entry(Pluggable):
 
     @property
     def __value__(self) -> typing.Any:
-        if self._data is None or len(self._path) > 0:
+        if self._data is None or self._data is _not_found_ or len(self._path) > 0:
             self._data = self.query(default_value=_not_found_)
             self._path = Path()
         return self._data
@@ -142,7 +142,7 @@ class Entry(Pluggable):
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.query(self._data, *args,  default_value=default_value, **kwargs)
+        return self._path.query(self._data, *args, default_value=default_value, **kwargs)
 
     def insert(self, *args, **kwargs) -> int: return self._path.insert(self._data, *args, **kwargs)
 
@@ -156,7 +156,9 @@ class Entry(Pluggable):
     ###########################################################
 
     @property
-    def count(self) -> int: return self.query(Path.tags.count)
+    def count(self) -> int:
+        num = self.query(Path.tags.count)
+        return num if not (num is None or num is _not_found_) else 0
 
     @property
     def exists(self) -> bool: return self.count > 0

@@ -44,44 +44,6 @@ class List(Container[_T], typing.MutableSequence[_T]):
     def insert(self, d, predication=_undefined_, **kwargs) -> int:
         return self._entry.child(predication).update(d, **kwargs)
 
-    def _as_child(self, key: int | slice,  value=_not_found_, *args, default_value=_not_found_, **kwargs) -> _T:
-        if self._default_value is not _not_found_:
-            # _as_child 中的 default_value 来自 sp_property 的 type_hint， self._default_value 来自 entry,
-            # 所以优先采用 self._default_value
-            default_value = self._default_value
-
-        if value is _not_found_ or key is not None:
-            if isinstance(self._cache, collections.abc.MutableMapping):
-                value = self._cache.get(key, _not_found_)
-
-        if key is None or isinstance(key, int):
-            n_value = super()._as_child(key, value, *args, default_value=default_value,  **kwargs)
-        elif isinstance(key, slice):
-            if key.start is None or key.stop is None or key.step is None:
-                raise ValueError(f"slice must be a complete slice {key}")
-            if isinstance(value, collections.abc.Sequence):
-                if len(value) == (key.stop-key.start)/key.step:
-                    raise ValueError(f"value must be a sequence with length {(key.stop-key.start)/key.step} {value}")
-                n_value = [self._as_child(idx, value[idx], *args, default_value=default_value, **kwargs)
-                           for idx in range(key.start, key.stop, key.step)]
-            elif isinstance(value, collections.abc.Generator):
-                n_value = []
-                for idx in range(key.start, key.stop, key.step):
-                    n_value.append(self._as_child(idx, next(value), *args, default_value=default_value, **kwargs))
-            else:
-                raise TypeError(f"key must be int or slice, not {type(key)}")
-        else:
-            raise RuntimeError(f"Key error ! {key}")
-
-        if isinstance(n_value, Node) and n_value._parent is self:
-            n_value._parent = self._parent
-
-        if n_value is not value and n_value is not None and n_value is not _not_found_:
-            if self._cache is None:
-                self._cache = {}
-            self._cache[key] = n_value
-        return n_value
-
     def __iadd__(self, value) -> List:
         self._entry.update({Path.tags.append: value})
         return self
@@ -142,8 +104,8 @@ class AoS(List[_T]):
 
         return self.__class__([*res.values()], parent=self._parent)
 
-    def as_child(self, key:  int | slice,  value=None, **kwargs) -> _T:
-
+    def as_child(self, key:  int | slice,  value=None, parent=_not_found_, **kwargs) -> _T:
+        parent = self._parent if parent is _not_found_ or parent is None else parent
         if isinstance(key, int) and key < 0:
             key = len(self)+key
 
@@ -155,7 +117,7 @@ class AoS(List[_T]):
         if (value is None or value is _not_found_):
             value = self._entry.child(key)
 
-        value = super().as_child(key, value, **kwargs)
+        value = super().as_child(key, value, parent=parent, **kwargs)
 
         if isinstance(key, int) and value is not _not_found_:
             self._cache[key] = value

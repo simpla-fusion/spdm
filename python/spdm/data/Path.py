@@ -271,6 +271,17 @@ class Path(list):
             super().extend(Path.normalize(list(args)))
         return self
 
+    def extend(self, *args, force=False) -> Path:
+        if self.is_closed:
+            raise ValueError(f"Cannot append to a closed path {self}")
+        if len(args) == 1:
+            args = args[0]
+        if force:
+            super().extend(list(args))
+        else:
+            super().extend(Path.normalize(args))
+        return self
+
     def __truediv__(self, p) -> Path:
         return copy(self).append(p)
 
@@ -587,7 +598,7 @@ class Path(list):
 
         return target
 
-    def _update(self, target: typing.Any, path: typing.List[typing.Any], value:  typing.Any, *args,  force=False, **kwargs) -> int:
+    def _update(self, target: typing.Any, path: typing.List[typing.Any], value:  typing.Any = None, *args,  force=False, **kwargs) -> int:
         """
         Update target by path with value.
         """

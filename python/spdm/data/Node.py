@@ -97,9 +97,6 @@ class Node:
 
     # def __repr__(self) -> str: return pprint.pformat(self.__serialize__())
 
-    # def __str__(self) -> str:
-    #     return f"<{self.__class__.__name__} name={self._metadata.get('name','unnamed')} />"
-
     def __getitem__(self, key) -> Node | _T: return self.get(key)
 
     def __setitem__(self, key, value) -> None: self._entry.child(key).insert(value)
@@ -180,10 +177,11 @@ class Node:
             if (value is _not_found_ or value is None) and (key is not None and key is not _not_found_):
                 value = self._entry.child(key)
 
+        origin_class = typing_get_origin(type_hint)
+
+    
         # else:
         #     raise KeyError(f"{key} not found")
-
-        origin_class = typing_get_origin(type_hint)
 
         if inspect.isclass(origin_class) and isinstance(value, origin_class):
             pass

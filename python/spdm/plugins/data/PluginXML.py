@@ -219,7 +219,7 @@ class XMLEntry(Entry):
 
     def remove(self,  *args, **kwargs): return super().remove(*args, **kwargs)
 
-    def query(self, *, default_value: typing.Any = _undefined_,  lazy=_undefined_, **kwargs):
+    def query(self, *args, default_value: typing.Any = _undefined_,  lazy=_undefined_, **kwargs):
 
         res = super().query(default_value=_not_found_)
 
