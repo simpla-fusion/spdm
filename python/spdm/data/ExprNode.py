@@ -61,12 +61,13 @@ class ExprNode(Expression[_T], Node):
 
         self._ppoly = None
 
-    def __duplicate__(self) -> ExprNode:
+    def __copy__(self) -> ExprNode:
         """ 复制一个新的 Function 对象 """
-        other = Node.__duplicate__(self)
+        other = Node.__copy__(self)
         other._op = self._op
         other._name = self._name
         other._children = self._children
+        other._ppoly = self._ppoly
         other._value = self._value
         return other
 
@@ -99,9 +100,10 @@ class ExprNode(Expression[_T], Node):
         if (value is None or value is _not_found_):
             if self.callable and hasattr(self, "points"):
                 value = self.__call__(*self.points)
-            else:
-                logger.debug(f"{self} is None")
-                value = []
+
+        if (value is None or value is _not_found_):
+            raise ValueError(f"{self} is None")
+            # value = []
 
         return self._normalize_value(value, *args,  **kwargs)
 

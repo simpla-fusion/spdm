@@ -73,7 +73,11 @@ class Node:
     def __entry__(self) -> Entry: return self._entry
 
     @property
-    def __value__(self) -> typing.Any: return self._entry.get(default_value=self._default_value)
+    def __value__(self) -> typing.Any:
+        if self._entry is None or self._entry is _not_found_:
+            raise RuntimeError(f"{self} is not a valid value {self.__class__.__name__}")
+
+        return self._entry.get(default_value=self._default_value)
 
     def __type_hint__(self, key=None) -> typing.Type:
         orig_class = getattr(self, "__orig_class__", None)
@@ -179,7 +183,6 @@ class Node:
 
         origin_class = typing_get_origin(type_hint)
 
-    
         # else:
         #     raise KeyError(f"{key} not found")
 

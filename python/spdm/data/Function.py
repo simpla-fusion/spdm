@@ -79,9 +79,9 @@ class Function(ExprNode[_T]):
             logger.warning(f" value.shape is not match with dims! {v_shape}!={m_shape} ")
             return False
 
-    def __duplicate__(self) -> Function:
+    def __copy__(self) -> Function:
         """ 复制一个新的 Function 对象 """
-        other: Function = super().__duplicate__()
+        other: Function = super().__copy__()
         other._dims = self._dims
         other._periods = self._periods
         return other
@@ -209,6 +209,12 @@ class Function(ExprNode[_T]):
 
         return self._ppoly
 
+    def __call__(self, *args, **kwargs) -> NumericType:
+        if isinstance(self._value, np.ndarray) and len(args) == 1 and args[0] is self._dims[0]:
+            return self._value
+        else:
+            return super().__call__(*args, **kwargs)
+
     def compile(self, *args, **kwargs) -> Function:
         return Function(self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]", periods=self._periods)
 
@@ -231,6 +237,27 @@ class Function(ExprNode[_T]):
 
     def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
         yield from find_roots(self._compile(), *args, **kwargs)
+
+    def pullback(self, *dims, periods=None) -> Function:
+
+        other = copy(self)
+
+        if len(dims) != len(self.dims):
+            raise RuntimeError(f"len(dims) != len(self._dims) {len(dims)}!={len(self.dims)}")
+        new_dims = []
+        for idx, d in enumerate(dims):
+            if isinstance(d, np.ndarray) and len(d) == len(self.dims[idx]):
+                pass
+            elif callable(d):
+                d = d(self.dims[idx])
+            else:
+                raise RuntimeError(f"dims does not match {dims}")
+
+            new_dims.append(d)
+
+        other._dims = new_dims
+
+        return other
 
 
 def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:

@@ -120,7 +120,7 @@ class SpDict(Dict[_T]):
     def __get_property__(self, key: str | int, *args, **kwargs) -> Node:
         value = self.as_child(key, *args, **kwargs)
         if value is _not_found_:
-            logger.warning(f"Can not find property {key}")
+            logger.error(f"Can not find property \"{key}\"")
         return value
 
     def __set_property__(self, key: str | int,  value=None,
