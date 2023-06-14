@@ -29,13 +29,36 @@ class TimeSeriesAoS(AoS[_T]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._time = self._parent.time
 
-    @property
+    def time_slice(self, time: int | slice | float | typing.Sequence[float]) -> TimeSlice | typing.List[TimeSlice]:
+        if isinstance(time, (int, slice)):
+            return self[time]
+        elif isinstance(time, float):
+            prev_node = None
+            for next_node in self:
+                next_time = getattr(next_node, "time", None)
+                if next_time is not None and next_time > time:
+                    break
+                else:
+                    prev_node = next_node
+            else:                
+                if prev_node is not None:
+                    return prev_node
+                
+            raise NotImplementedError("TODO: find the nearest time slice or interpolate two time slices")
+        
+        elif isinstance(time, collections.abc.Generator):
+            return [self.time_slice(t) for t in time]
+        else:
+            raise TypeError(f"{type(time)}")
+
+    @ property
     def current(self) -> _T: return self[-1]
 
     def update(self,  *args, **kwargs) -> _T:
         """
-            update the last time slice, base on profiles_2d[-1].psi
+            update the last time slice
         """
         if len(self) == 0:
             raise RuntimeError(f"TimeSeries is empty!")

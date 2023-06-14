@@ -32,9 +32,7 @@ class List(Container[_T], typing.MutableSequence[_T]):
 
     def __serialize__(self) -> list: return [serialize(v) for v in self._entry.first_child()]
 
-    # def __getitem__(self, key) -> _T:
-    #     value = self._entry.child(key)
-    #     return as_node(value, key=key, type_hint=self.__type_hint__(), parent=self._parent)
+    def __getitem__(self, key) -> _T: return super().__getitem__(key)
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
         type_hint = self.__type_hint__()
