@@ -120,7 +120,7 @@ class SpDict(Dict[_T]):
     def __get_property__(self, key: str | int, *args, **kwargs) -> Node:
         value = self.as_child(key, *args, **kwargs)
         if value is _not_found_:
-            logger.error(f"Can not find property \"{key}\"")
+            raise KeyError(f"Can not find property \"{key}\"")
         return value
 
     def __set_property__(self, key: str | int,  value=None,
@@ -162,7 +162,10 @@ class SpDict(Dict[_T]):
     def __contains__(self, key: str) -> bool:
         return key in self._cache or self._entry.child(key).exists
 
-        return self._entry.child(key).exists
+    def update(self,   *args, **kwargs) -> SpDict:
+        self._cache.clear()
+        super().update(*args, **kwargs)
+        return self
 
 
 class sp_property(typing.Generic[_T]):
