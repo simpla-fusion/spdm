@@ -53,7 +53,7 @@ class TimeSeriesAoS(AoS[_T]):
         else:
             raise TypeError(f"{type(time)}")
 
-    @ property
+    @property
     def current(self) -> _T: return self[-1]
 
     def update(self,  *args, **kwargs) -> _T:

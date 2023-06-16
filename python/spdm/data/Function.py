@@ -49,6 +49,11 @@ class Function(ExprNode[_T]):
             kwargs : typing.Any
                 命名参数，
                     *           : 用于传递给 Node 的参数
+            extrapolate: int |str
+                控制当自变量超出定义域后的值
+                * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
+                * if ext=1  or 'nan', return nan
+
 
         """
         super().__init__(value, **kwargs)
@@ -133,7 +138,7 @@ class Function(ExprNode[_T]):
             return np.meshgrid(*self.dims, indexing="ij")
 
     def __domain__(self, *args) -> bool:
-        if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0:
+        if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0 or self._metadata.get("extrapolate", 0) != 1:
             return True
 
         if len(args) != len(self.dims):
@@ -203,7 +208,8 @@ class Function(ExprNode[_T]):
             self._ppoly = value
         elif isinstance(value, array_type):
             self._ppoly = interpolate(value, *(self.dims if self.dims is not None else []),
-                                      periods=self.periods, name=self._name)
+                                      periods=self.periods, name=self._name,
+                                      extrapolate=self._metadata.get("extrapolate", 0))
         else:
             raise RuntimeError(f"Illegal value! {type(value)}")
 

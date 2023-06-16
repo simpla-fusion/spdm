@@ -63,7 +63,7 @@ class ExprNode(Expression[_T], Node):
 
     def __copy__(self) -> ExprNode:
         """ 复制一个新的 Function 对象 """
-        other = Node.__copy__(self)
+        other: ExprNode = Node.__copy__(self)  # type:ignore
         other._op = self._op
         other._name = self._name
         other._children = self._children

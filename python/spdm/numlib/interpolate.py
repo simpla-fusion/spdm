@@ -11,14 +11,14 @@ import typing
 
 
 class RectInterpolate(ExprOp):
-    def __init__(self, value, *dims, periods=None, check_nan=True, name=None, **kwargs) -> None:
+    def __init__(self, value, *dims, periods=None, check_nan=True, name=None, extrapolate=0, **kwargs) -> None:
         super().__init__(None, name=name)
         self._value = value
         self._dims = dims
         self._periods = periods
         self._opts = kwargs
         self._check_nan = check_nan
-
+        self._extrapolate = extrapolate
         if isinstance(value, array_type):
             self._shape = tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
             if len(value.shape) > len(self._shape):
@@ -29,10 +29,10 @@ class RectInterpolate(ExprOp):
                     f"Function.compile() incorrect value shape {value.shape}!={self._shape}! func={self.__str__()} ")
 
     @property
-    def dims(self) -> typing.List[int]: return self._dims
+    def dims(self) -> typing.Tuple[int]: return self._dims
 
     @property
-    def shape(self) -> typing.List[int]: return self._shape
+    def shape(self) -> typing.Tuple[int]: return self._shape
 
     @property
     def __op__(self) -> typing.Callable:
@@ -59,7 +59,7 @@ class RectInterpolate(ExprOp):
                     value = value[~mark]
                     x = x[~mark]
 
-            self._op = InterpolatedUnivariateSpline(x, value,  ext=0)
+            self._op = InterpolatedUnivariateSpline(x, value,  ext=self._extrapolate)
         elif len(self.dims) == 2 and all(d.ndim == 1 for d in self.dims):
             if self._check_nan:
                 mark = np.isnan(value)
@@ -97,7 +97,7 @@ class RectInterpolate(ExprOp):
         return ExprOp(self.__op__.antiderivative(*d),  name=f"I_{list(d)}({self.__str__()})", **self._opts)
 
 
-def interpolate(*args, type="rectlinear", **kwargs):
+def interpolate(*args, type="rectlinear", **kwargs) -> typing.Callable:
     if type != "rectlinear":
         raise NotImplementedError(f"type={type}")
     return RectInterpolate(*args, **kwargs)

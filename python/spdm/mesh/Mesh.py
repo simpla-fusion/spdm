@@ -142,7 +142,7 @@ class Mesh(Pluggable):
     @cached_property
     def points(self) -> typing.List[ArrayType]:
         """ alias of vertices, change the shape to tuple """
-        return tuple([self.vertices[..., idx] for idx in range(self.ndim)])
+        return [self.vertices[..., idx] for idx in range(self.ndim)]
 
     @cached_property
     def xyz(self) -> typing.List[ArrayType]: return self.points

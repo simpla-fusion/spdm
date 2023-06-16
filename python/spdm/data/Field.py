@@ -60,6 +60,8 @@ class Field(ExprNode[_T]):
 
         self._ppoly = None
 
+    def __display__(self): return self.__str__()
+
     @property
     def mesh(self): return self.__mesh__
 
