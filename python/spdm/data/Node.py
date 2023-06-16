@@ -67,7 +67,33 @@ class Node:
     def __serialize__(self) -> typing.Any: return self._entry.dump()
 
     @classmethod
-    def __deserialize__(self, *args, **kwargs) -> Node: return Node(*args, **kwargs)
+    def __deserialize__(cls, *args, **kwargs) -> Node: return cls(*args, **kwargs)
+
+    def _repr_html_(self):
+        if hasattr(self.__class__, "plot"):
+            import matplotlib.pyplot as plt
+            import datetime
+            import getpass
+            from io import BytesIO
+            fig, axis = plt.subplots()
+            axis = self.plot(axis)
+            axis.set_aspect('equal')
+            axis.axis('scaled')
+
+            signature = f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
+
+            fig.text(axis.get_position().xmax+0.01, 0.2, signature, va='bottom', ha='left', fontsize='small', alpha=0.5, rotation='vertical')
+            fig.tight_layout()
+            fig.gca().axis('scaled')
+            buf = BytesIO()
+            fig.savefig(buf, format='svg', transparent=True)
+            buf.seek(0)
+            svg_str = buf.getvalue().decode('utf-8')
+            plt.close(fig)
+
+            return svg_str
+        else:
+            return self.__repr__()
 
     @property
     def __entry__(self) -> Entry: return self._entry
@@ -132,7 +158,7 @@ class Node:
 
     def insert(self, path, value, **kwargs) -> Node | typing.Any: return self._entry.insert(path, value, **kwargs)
 
-    def get(self, path:  PathLike | Path = None, default_value=_undefined_,  **kwargs) -> Node:
+    def get(self, path:  PathLike | Path = None, default_value=_undefined_,  **kwargs) -> typing.Any:
         return self.as_child_deep(path, default_value=default_value, **kwargs)
 
     def find(self, query: dict = None, *args, **kwargs) -> typing.Generator[Node, None, None]:
@@ -232,7 +258,8 @@ class Node:
 
         return value
 
-    def as_child_deep(self, path:  PathLike | Path = None, value=None,  default_value=_not_found_, **kwargs) -> Node:
+    def as_child_deep(self, path:  PathLike | Path = None, value=None,
+                      default_value: typing.Any = _not_found_, **kwargs) -> Node:
         """
             将 value 转换为 Node
             ----
