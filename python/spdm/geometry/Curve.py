@@ -13,14 +13,15 @@ class Curve(GeoObject):
         曲线，一维几何体
     """
 
-    def __init__(self, *args, is_close=False, **kwargs) -> None:
+    def __init__(self, *args, is_closed=False, **kwargs) -> None:
         super().__init__(*args, rank=1, **kwargs)
-        self._is_close = is_close
+        self._is_closed = is_closed
 
     # @abc.abstractproperty
     # def is_convex(self) -> bool: return True
 
-    def is_closed(self) -> bool: return self._is_close
+    @property
+    def is_closed(self) -> bool: return self._is_closed
 
     @cached_property
     def dl(self) -> ArrayType:

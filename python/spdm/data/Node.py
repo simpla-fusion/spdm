@@ -80,11 +80,16 @@ class Node:
             axis.set_aspect('equal')
             axis.axis('scaled')
 
+            fig.tight_layout()
+
             signature = f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
 
-            fig.text(axis.get_position().xmax+0.01, 0.2, signature, va='bottom', ha='left', fontsize='small', alpha=0.5, rotation='vertical')
-            fig.tight_layout()
-            fig.gca().axis('scaled')
+            pos = axis.get_position()
+
+            fig.text(pos.xmax+0.01, 0.5*(pos.ymin+pos.ymax), signature,
+                     verticalalignment='center', horizontalalignment='left',
+                     fontsize='small', alpha=0.2, rotation='vertical')
+
             buf = BytesIO()
             fig.savefig(buf, format='svg', transparent=True)
             buf.seek(0)
@@ -92,6 +97,9 @@ class Node:
             plt.close(fig)
 
             return svg_str
+        elif hasattr(self, '__svg__'):
+            # TODO: add warterprint
+            return self.__svg__()
         else:
             return self.__repr__()
 

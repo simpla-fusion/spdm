@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import scipy.interpolate as interpolate
+import scipy.interpolate
 from skimage import measure
 
 from ..data.Field import Field
@@ -20,7 +20,7 @@ from ..utils.logger import deprecated, logger
 #     return [(contour_set.levels[idx], col.get_segments()) for idx, col in enumerate(contour_set.collections)]
 
 
-def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray], None, None]:
+def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray | None], None, None]:
     if z.shape == x.shape and z.shape == y.shape:
         pass
     else:
@@ -28,8 +28,8 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
     shape = z.shape
     dim0 = np.linspace(0, shape[0]-1, shape[0])
     dim1 = np.linspace(0, shape[1]-1, shape[1])
-    x_inter = interpolate.RectBivariateSpline(dim0, dim1, x)
-    y_inter = interpolate.RectBivariateSpline(dim0, dim1, y)
+    x_inter = scipy.interpolate.RectBivariateSpline(dim0, dim1, x)
+    y_inter = scipy.interpolate.RectBivariateSpline(dim0, dim1, y)
 
     if isinstance(levels, (int, np.integer)):
         levels = range(levels)
@@ -49,7 +49,7 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
             yield val, None
 
 
-def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray], None, None]:
+def find_countours(*args, **kwargs) -> typing.Generator[typing.Tuple[float, np.ndarray | None], None, None]:
     if len(args) == 3:
         z, x, y = args
     elif len(args) == 1:
@@ -63,4 +63,4 @@ def find_countours(*args, levels=128) -> typing.Generator[typing.Tuple[float, np
     else:
         raise ValueError(f"Wrong number of arguments! should be 1 or 3, got {len(args)}")
 
-    yield from find_countours_skimage(z, x, y, levels=levels)
+    yield from find_countours_skimage(z, x, y, **kwargs)
