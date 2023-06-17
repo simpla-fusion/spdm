@@ -5,8 +5,11 @@ import scipy.interpolate
 from skimage import measure
 
 from ..data.Field import Field
+from ..geometry.CubicSplineCurve import CubicSplineCurve
+from ..geometry.Curve import Curve
+from ..geometry.GeoObject import GeoObject, GeoObjectSet
+from ..geometry.Point import Point
 from ..utils.logger import deprecated, logger
-
 
 # import matplotlib.pyplot as plt
 # @deprecated
@@ -20,7 +23,7 @@ from ..utils.logger import deprecated, logger
 #     return [(contour_set.levels[idx], col.get_segments()) for idx, col in enumerate(contour_set.collections)]
 
 
-def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, np.ndarray | None], None, None]:
+def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, GeoObject | None], None, None]:
     if z.shape == x.shape and z.shape == y.shape:
         pass
     else:
@@ -44,12 +47,17 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
             x = np.asarray(x_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
             y = np.asarray(y_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
             data = np.stack([x, y], axis=-1)
-            yield val,  data
+            if len(data) == 0:
+                yield val, None
+            elif data.shape[0] == 1:
+                yield val, Point(*data[0])
+            else:
+                yield val, CubicSplineCurve(data)
         if count == 0:
             yield val, None
 
 
-def find_countours(*args, **kwargs) -> typing.Generator[typing.Tuple[float, np.ndarray | None], None, None]:
+def find_countours(*args, **kwargs) -> typing.Generator[typing.Tuple[float, GeoObject | None], None, None]:
     if len(args) == 3:
         z, x, y = args
     elif len(args) == 1:

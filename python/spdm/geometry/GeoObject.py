@@ -2,14 +2,68 @@ from __future__ import annotations
 
 import collections.abc
 import typing
+from copy import copy
+import uuid
 from functools import cached_property
 
 import numpy as np
 
-from ..utils.misc import builtin_types
-from ..utils.Pluggable import Pluggable
-from ..utils.typing import ArrayType, NumericType, nTupleType, ArrayLike, numeric_type
+from ..data.List import List
 from ..utils.logger import logger
+from ..utils.Pluggable import Pluggable
+from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
+                            array_type, nTupleType, numeric_type)
+
+
+class BBox:
+    def __init__(self, xmin: ArrayType, xmax: ArrayType) -> None:
+        self._xmin = xmin
+        self._xmax = xmax
+
+    def __equal__(self, other: BBox) -> bool:
+        return np.isclose(self._xmin == other._xmin) and np.isclose(self._xmax == other._xmax)
+
+    def __iter__(self) -> typing.Generator[ArrayType, None, None]:
+        yield self._xmin
+        yield self._xmax
+
+    @property
+    def ndim(self) -> int: return len(self._xmin)
+
+    @property
+    def center(self) -> ArrayType: return (self._xmin+self._xmax)*0.5
+    """ center of geometry """
+
+    @property
+    def measure(self) -> ScalarType: return np.product(self._xmax-self._xmin)
+    """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
+
+    def enclose(self, *args) -> bool:
+        """ Return True if all args are inside the geometry, False otherwise. """
+
+        if len(args) == 1 and isinstance(args[0], BBox):
+            other: BBox = args[0]
+            return np.all(self._xmin <= other._xmin) and np.all(self._xmax >= other._xmax)
+        else:
+            other = np.asarray(args)
+            return np.all(self._xmin <= other) and np.all(self._xmax >= other)
+
+    def union(self, other: BBox) -> BBox: raise NotImplementedError(f"intersection")
+    """ Return the union of self with other. """
+
+    def intersection(self, other: BBox): raise NotImplementedError(f"intersection")
+    """ Return the intersection of self with other. """
+
+    def reflect(self, point0, pointt1): raise NotImplementedError(f"reflect")
+    """ reflect  by line"""
+
+    def rotate(self, angle, axis=None): raise NotImplementedError(f"rotate")
+    """ rotate  by angle and axis"""
+
+    def scale(self, *s, point=None): raise NotImplementedError(f"scale")
+    """ scale self by *s, point """
+
+    def translate(self, *shift): raise NotImplementedError(f"translate")
 
 
 class GeoObject(Pluggable):
@@ -28,7 +82,7 @@ class GeoObject(Pluggable):
         """
         """
         if _geo_type is None or len(_geo_type) == 0:
-            _geo_type = kwargs.get("type", Box)
+            _geo_type = kwargs.pop("type", Box)
 
         if isinstance(_geo_type, str):
             _geo_type = [_geo_type,
@@ -41,44 +95,57 @@ class GeoObject(Pluggable):
 
         super().__dispatch__init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args, ndim: int = None, rank: int = None,  **kwargs) -> None:
+    def __init__(self, *args, ndim: int = 0, rank: int = 0,  **kwargs) -> None:
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
 
+        self._name = kwargs.pop("name", None)
         self._metadata = kwargs
-        self._points = np.stack(args) if len(args) != 1 else args[0]
-        self._rank = int(rank) if rank is not None else len(self._points.shape)-1
-        self._ndim = ndim if ndim is not None else self._points.shape[-1]
+        self._rank = rank
+        self._ndim = ndim
 
-        coordinates = kwargs.get("coordinates", None)
-        if coordinates is not None:
-            if isinstance(coordinates, str):
-                coordinates = [x.strip() for x in coordinates.split(",")]
-
-            if len(coordinates) != self._ndim:
-                raise ValueError(f"coordinates {coordinates} not match ndim {self._ndim}")
-            elif isinstance(coordinates, collections.abc.Sequence):
-                for idx, coord_name in enumerate(coordinates):
-                    setattr(self, coord_name, self._points[..., idx])
-
-    def __getitem__(self, *args) -> ArrayType | float: return self._points[args]
-
-    @property
-    def points(self) -> typing.List[ArrayType]:
-        """ 几何体的点坐标，shape=[npoints,ndim] """
-        return tuple([self._points[..., idx] for idx in range(self.ndim)])
-
-    def __array__(self) -> ArrayType: return self._points
-    """ 几何体的点坐标，shape=[npoints,ndim] """
-
-    def __equal__(self, other: GeoObject) -> bool:
-        return isinstance(other, GeoObject) and self._impl == other._impl
-
-    def _repr_svg_(self) -> str:
-        return self._impl._repr_svg_() if hasattr(self._impl, "_repr_svg_") else ""
+    def __copy__(self) -> GeoObject:
+        other: GeoObject = self.__class__(rank=self.rank, ndim=self.ndim)
+        other._name = f"{self._name}_copy"
+        other._metadata = self._metadata
+        return other
 
     def __svg__(self) -> str:
-        return self._impl._svg() if hasattr(self._impl, "_svg") else ""
+        if self.ndim != 2:
+            raise NotImplementedError(f"{self.__class__.__name__}.__svg__ ndim={self.ndim}")
+        else:
+            xmin = self.bbox._xmin
+            xmax = self.bbox._xmax
+            if self.rank == 0:
+                return f"<circle cx='{xmin[0]}' cy='{xmin[1]}' r='3' stroke='black' stroke-width='1' fill='red' />"
+            else:
+                return f"<rect x='{xmin[0]}' y='{xmin[1]}' width='{xmax[0]-xmin[0]}' height='{xmax[1]-xmin[1]}' stroke='black' stroke-width='1' fill='none' />"
+
+    def _repr_svg_(self) -> str:
+        xmin, xmax = self.bbox
+        width = xmax[0]-xmin[0]
+        height = xmax[1]-xmin[1]
+
+        scale = 1.0
+        shift_x = xmin[0]
+        shift_y = xmin[1]
+
+        return f"""<svg width={width} height={height}'>
+                    <g id={self.name} transform='scale({scale}),shift({shift_x},{shift_y})' >
+                        {self.__svg__()}
+                    </g>
+                   </svg>"""
+
+    def _repr_html_(self) -> str: return self._repr_svg_()
+
+    def __equal__(self, other: GeoObject) -> bool:
+        return isinstance(other, GeoObject) and self.rank == other.rank and self.ndim == other.ndim and self.bbox == other.bbox
+
+    @property
+    def name(self) -> str:
+        if self._name is None:
+            self._name = f"{self.__class__.__name__}_{uuid.uuid1()}"
+        return self._name
 
     @property
     def rank(self) -> int: return self._rank
@@ -89,123 +156,84 @@ class GeoObject(Pluggable):
             2: surface
             3: volume
             >=4: not defined
-        The rank of a geometric object refers to the number of independent directions 
-        in which it extends. For example, a point has rank 0, a line has rank 1, 
+        The rank of a geometric object refers to the number of independent directions
+        in which it extends. For example, a point has rank 0, a line has rank 1,
         a plane has rank 2, and a volume has rank 3.
     """
 
     @property
     def dimension(self) -> int: return self._ndim
-    """ 几何体所处的空间维度， = 0，1，2，3 ,...  
+    """ 几何体所处的空间维度， = 0，1，2，3 ,...
         The dimension of a geometric object, on the other hand, refers to the minimum number of
-        coordinates needed to specify any point within it. In general, the rank and dimension of 
-        a geometric object are the same. However, there are some cases where they can differ. 
-        For example, a curve that is embedded in three-dimensional space has rank 1 because 
-        it extends in only one independent direction, but it has dimension 3 because three 
+        coordinates needed to specify any point within it. In general, the rank and dimension of
+        a geometric object are the same. However, there are some cases where they can differ.
+        For example, a curve that is embedded in three-dimensional space has rank 1 because
+        it extends in only one independent direction, but it has dimension 3 because three
         coordinates are needed to specify any point on the curve.
     """
+
     @property
     def ndim(self) -> int: return self._ndim
     """ alias of dimension """
 
-    @cached_property
-    def bbox(self) -> typing.Tuple[nTupleType, nTupleType]:
-        """ bbox of geometry """
-        raise NotImplementedError(f"{self.__class__.__name__}.bbox")
+    @property
+    def is_convex(self) -> bool: return True
+    """ is convex """
 
     @property
-    def center(self) -> np.ndarray: return (np.array(self.bbox[0])+np.array(self.bbox[1]))*0.5
+    def is_closed(self): return False
+
+    @property
+    def bbox(self) -> BBox: raise NotImplementedError(f"{self.__class__.__name__}.bbox")
+    """ bbox of geometry """
+
+    @property
+    def center(self) -> GeoObject: return as_geo_object(self.bbox.center)
     """ center of geometry """
 
     @property
-    def measure(self) -> float: raise NotImplementedError(f"{self.__class__.__name__}.measure")
-    """ measure of geometry, length,area,volume,etc. """
+    def measure(self) -> ScalarType: return self.bbox.measure
+    """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
-    @property
-    def boundary(self) -> GeoObject[-1]: raise NotImplementedError()
-    """ boundary of geometry which is a geometry of rank-1 """
-
-    @property
-    def is_convex(self) -> bool: return self._impl.is_convex()
-    """ is convex """
-
-    def enclose(self, *xargs) -> bool: raise NotImplementedError(f"{self.__class__.__name__}.enclose")
+    def enclose(self, other: GeoObject) -> bool: return self.bbox.enclose(other.bbox)
     """ Return True if all args are inside the geometry, False otherwise. """
 
-    def intersection(self, other) -> typing.Set[GeoObject]:
+    def intersection(self, other: GeoObject) -> typing.List[GeoObject]:
         """ Return the intersection of self with other. """
-        return {GeoObject(o) for o in self._impl.intersection(GeoObject(other)._impl)}
+        return [as_geo_object(self.bbox.intersection(other.bbox))]
 
-    def reflect(self, line) -> GeoObject:
-        """ reflect self by line"""
-        return GeoObject(self._impl.reflect(GeoObject(line)._impl))
+    def reflect(self, point0, point1) -> GeoObject:
+        """ reflect  by line"""
+        other = copy(self)
+        other._name = f"{self.name}_reflect"
+        other.bbox.reflect(point0, point1)
+        return other
 
-    def rotate(self, angle, pt=None) -> GeoObject:
-        return GeoObject(self._impl.rotate(angle, GeoObject(pt)._impl if pt is not None else None))
+    def rotate(self, angle, axis=None) -> GeoObject:
+        """ rotate  by angle and axis"""
+        other = copy(self)
+        other._name = f"{self.name}_rotate"
+        other.bbox.rotate(angle, axis=axis)
+        return other
 
-    def scale(self, x=1, y=1, pt=None) -> GeoObject:
-        """ scale self by x, y, pt """
-        return GeoObject(self._impl.scale(x, y, GeoObject(pt)._impl if pt is not None else None))
+    def scale(self, *s, point=None) -> GeoObject:
+        """ scale self by *s, point """
+        other = copy(self)
+        other._name = f"{self.name}_scale"
+        other.bbox.scale(*s, point=point)
+        return other
 
-    def translate(self, *args) -> GeoObject:
-        return GeoObject(self._impl.translate(*args))
+    def translate(self, *shift) -> GeoObject:
+        other = copy(self)
+        other._name = f"{self.name}_translate"
+        other.bbox.translate(*shift)
+        return other
 
-    def coordinates(self, *uvw) -> NumericType:
-        """
-            将 _参数坐标_ 转换为 _空间坐标_
-            @return: array-like shape = [*uvw.shape[:-1],ndim]
-        """
-        raise NotImplementedError(f"{self.__class__.__name__}")
+    @property
+    def boundary(self) -> typing.List[GeoObject]: raise NotImplementedError(f"{self.__class__.__name__}.boundary")
+    """ boundary of geometry which is a geometry of rank-1 """
 
-    def parametric_coordinates(self, *xyz) -> NumericType:
-        """
-            将 _空间坐标_ 转换为 _参数坐标_         
-            @return: array-like shape = [*uvw.shape[:-1],rank]
-        """
-        raise NotImplementedError(f"{self.__class__.__name__}.parametric_coordinates")
-
-    def xyz(self, *uvw) -> np.ndarray: return self.coordinates(*uvw)
-    """ alias of coordinates """
-
-    def uvw(self, *xyz) -> np.ndarray: return self.parametric_coordinates(*xyz)
-    """ alias of parametric_coordinates """
-
-    def dl(self, uv=None) -> np.ndarray: return np.asarray(0)
-    """
-        derivative of shape
-        Returns:
-            rank==0 : 0
-            rank==1 : dl (shape=[n-1])
-            rank==2 : dx (shape=[n-1,m-1]), dy (shape=[n-1,m-1])
-            rank==3 : dx (shape=[n-1,m-1,l-1]), dy (shape=[n-1,m-1,l-1]), dz (shape=[n-1,m-1,l-1])
-    """
-
-    def integral(self, func: typing.Callable) -> float: return NotImplemented
-
-    def average(self, func: typing.Callable) -> float: return self.integral(func)/self.measure
-
-    @cached_property
-    def is_closed(self):
-        if self.rank == 0:
-            return True
-        else:
-            return np.allclose(self.xyz[:, 0], self.xyz[:, -1])
-
-    def trim(self):
-        return NotImplemented
-
-    def remesh(self, mesh_type=None, /, **kwargs):
-        return NotImplemented
-
-    def derivative(self,  *args, **kwargs):
-        return NotImplemented
-
-    def pullback(self, func,   *args, **kwargs):
-        r"""
-            ..math:: f:N\rightarrow M\\\Phi^{*}f:\mathbb{R}\rightarrow M\\\left(\Phi^{*}f\right)\left(u\right)&\equiv f\left(\Phi\left(u\right)\right)=f\left(r\left(u\right),z\left(u\right)\right)
-        """
-
-        return NotImplemented
+    def trim(self): raise NotImplementedError(f"{self.__class__.__name__}.trim")
 
     @staticmethod
     def _normal_points(*args) -> np.ndarray | typing.List[float]:
@@ -240,43 +268,42 @@ class Box(GeoObject):
             return np.bitwise_and.reduce([self.enclose(x) for x in xargs])
 
 
-_TGSet = typing.TypeVar("_TGSet", bound="GeoObjectSet")
+_TG = typing.TypeVar("_TG")
 
 
-class GeoObjectSet(typing.List[GeoObject | _TGSet]):
-    def __init__(self, obj_list=None, *args, **kwargs) -> None:
+class GeoObjectSet(List[_TG], GeoObject):
 
-        if isinstance(obj_list, collections.abc.Sequence) and not isinstance(obj_list, str):
-            obj_list = [as_geo_object(obj, *args, **kwargs) for obj in obj_list]
-        elif obj_list is None:
-            obj_list = []
+    def __init__(self,  *args, **kwargs) -> None:
+        super().__init__(*args)
+        rank = kwargs.pop("rank", None)
+        ndim = kwargs.pop("ndim", None)
 
-        super().__init__(obj_list)
+        if rank is None:
+            rank = max([obj.rank for obj in self if isinstance(obj, GeoObject)])
+
+        if ndim is None:
+            ndim_list = [obj.ndim for obj in self if isinstance(obj, GeoObject)]
+            if len(ndim_list) > 0 and all(ndim_list):
+                ndim = ndim_list[0]
+            else:
+                raise RuntimeError(f"Can not get ndim from {ndim_list}")
+
+        GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
 
     def __svg__(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__}")
+        return f"<g id='{self.name}'>\n" + "\t\n".join([g.__svg__() for g in self if isinstance(g, GeoObject)]) + "</g>"
 
     @property
-    def rank(self) -> int:
-        return max([obj.rank for obj in self])
-
-    @property
-    def ndims(self) -> int:
-        return max([obj.ndim for obj in self])
-
-    @property
-    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
-        p_min = np.asarray([min(v.bbox[0][idx] for v in self) for idx in range(self.ndims)])
-        p_max = np.asarray([max(v.bbox[1][idx] for v in self) for idx in range(self.ndims)])
-        return p_min, p_max
+    def bbox(self) -> BBox: return np.bitwise_or([g.bbox for g in self if isinstance(g, GeoObject)])
 
 
-def as_geo_object(*args, **kwargs) -> GeoObject | GeoObjectSet:
-    if len(args) == 0:
-        return GeoObject(**kwargs)
-    elif (isinstance(args[0], GeoObject) or isinstance(args[0], GeoObjectSet)):
+def as_geo_object(*args, **kwargs) -> GeoObject:
+
+    if len(kwargs) > 0 or len(args) != 1:
+        return GeoObject(*args, **kwargs)
+    elif isinstance(args[0], GeoObject):
         return args[0]
     elif isinstance(args[0], collections.abc.Sequence):
         return GeoObjectSet(*args, **kwargs)
     else:
-        return GeoObject(*args, **kwargs)
+        return GeoObject(*args)
