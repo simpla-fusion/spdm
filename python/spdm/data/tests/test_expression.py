@@ -1,11 +1,11 @@
 import unittest
 
 import numpy as np
-from scipy import constants
+import scipy.constants
 from spdm.data.Expression import Expression, Piecewise, Variable
 from spdm.utils.logger import logger
 
-TWOPI = constants.pi*2.0
+TWOPI = scipy.constants.pi*2.0
 
 
 class TestExpression(unittest.TestCase):

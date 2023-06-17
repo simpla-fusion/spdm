@@ -21,7 +21,7 @@ from .Node import Node
 _T = typing.TypeVar("_T")
 
 
-class ExprNode(Expression[_T], Node):
+class ExprNode(Expression, Node[_T]):
     """
     Profile
     ---------

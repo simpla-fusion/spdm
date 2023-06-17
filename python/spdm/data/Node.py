@@ -21,7 +21,7 @@ from .Path import Path, as_path, path_like, PathLike
 _T = typing.TypeVar("_T")
 
 
-class Node:
+class Node(typing.Generic[_T]):
     """
         节点类，用于表示数据结构中的节点，节点可以是一个标量（或np.ndarray），也可以是一个列表，也可以是一个字典。
         用于在一般数据结构上附加类型标识（type_hint)。
@@ -107,7 +107,7 @@ class Node:
     def __entry__(self) -> Entry: return self._entry
 
     @property
-    def __value__(self) -> typing.Any:
+    def __value__(self) -> _T:
         if self._entry is None or self._entry is _not_found_:
             raise RuntimeError(f"{self} is not a valid value {self.__class__.__name__}")
 

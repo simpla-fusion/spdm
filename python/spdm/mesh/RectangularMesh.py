@@ -1,7 +1,6 @@
 import typing
 from .Mesh import Mesh
 from .StructuredMesh import StructuredMesh
-from ..geometry.Box import Box
 import numpy as np
 from ..utils.typing import ArrayType
 from ..utils.logger import logger

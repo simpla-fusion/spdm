@@ -2,68 +2,19 @@ from __future__ import annotations
 
 import collections.abc
 import typing
-from copy import copy
 import uuid
+from copy import copy
 from functools import cached_property
 
 import numpy as np
 
+from ..data.Expression import Expression
 from ..data.List import List
 from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
                             array_type, nTupleType, numeric_type)
-
-
-class BBox:
-    def __init__(self, xmin: ArrayType, xmax: ArrayType) -> None:
-        self._xmin = xmin
-        self._xmax = xmax
-
-    def __equal__(self, other: BBox) -> bool:
-        return np.isclose(self._xmin == other._xmin) and np.isclose(self._xmax == other._xmax)
-
-    def __iter__(self) -> typing.Generator[ArrayType, None, None]:
-        yield self._xmin
-        yield self._xmax
-
-    @property
-    def ndim(self) -> int: return len(self._xmin)
-
-    @property
-    def center(self) -> ArrayType: return (self._xmin+self._xmax)*0.5
-    """ center of geometry """
-
-    @property
-    def measure(self) -> ScalarType: return np.product(self._xmax-self._xmin)
-    """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
-
-    def enclose(self, *args) -> bool:
-        """ Return True if all args are inside the geometry, False otherwise. """
-
-        if len(args) == 1 and isinstance(args[0], BBox):
-            other: BBox = args[0]
-            return np.all(self._xmin <= other._xmin) and np.all(self._xmax >= other._xmax)
-        else:
-            other = np.asarray(args)
-            return np.all(self._xmin <= other) and np.all(self._xmax >= other)
-
-    def union(self, other: BBox) -> BBox: raise NotImplementedError(f"intersection")
-    """ Return the union of self with other. """
-
-    def intersection(self, other: BBox): raise NotImplementedError(f"intersection")
-    """ Return the intersection of self with other. """
-
-    def reflect(self, point0, pointt1): raise NotImplementedError(f"reflect")
-    """ reflect  by line"""
-
-    def rotate(self, angle, axis=None): raise NotImplementedError(f"rotate")
-    """ rotate  by angle and axis"""
-
-    def scale(self, *s, point=None): raise NotImplementedError(f"scale")
-    """ scale self by *s, point """
-
-    def translate(self, *shift): raise NotImplementedError(f"translate")
+from .BBox import BBox
 
 
 class GeoObject(Pluggable):
@@ -95,14 +46,14 @@ class GeoObject(Pluggable):
 
         super().__dispatch__init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args, ndim: int = 0, rank: int = 0,  **kwargs) -> None:
+    def __init__(self, *args, ndim: int = 0, rank: int = None,  **kwargs) -> None:
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
 
         self._name = kwargs.pop("name", None)
         self._metadata = kwargs
-        self._rank = rank
         self._ndim = ndim
+        self._rank = rank if rank is not None else ndim
 
     def __copy__(self) -> GeoObject:
         other: GeoObject = self.__class__(rank=self.rank, ndim=self.ndim)
@@ -195,7 +146,7 @@ class GeoObject(Pluggable):
     def measure(self) -> ScalarType: return self.bbox.measure
     """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
-    def enclose(self, other: GeoObject) -> bool: return self.bbox.enclose(other.bbox)
+    def enclose(self, *args) -> bool: return self.bbox.enclose(*args)
     """ Return True if all args are inside the geometry, False otherwise. """
 
     def intersection(self, other: GeoObject) -> typing.List[GeoObject]:
@@ -249,25 +200,6 @@ class GeoObject(Pluggable):
             raise TypeError(f"args has wrong type {type(args[0])} {args}")
 
 
-class Box(GeoObject):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-    @property
-    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]: return self._points[0], self._points[1]
-
-    def enclose(self, *xargs) -> bool:
-        if all([isinstance(x, numeric_type) for x in xargs]):  # 点坐标
-            if len(xargs) != self.ndim:
-                raise RuntimeError(f"len(xargs)={len(xargs)}!=self.ndim={self.ndim} {xargs}")
-            xmin, xmax = self.bbox
-            return np.bitwise_and.reduce([((xargs[i] >= xmin[i]) & (xargs[i] <= xmax[i])) for i in range(self.ndim)])
-        elif len(xargs) == 1 and isinstance(xargs[0], GeoObject):
-            raise NotImplementedError(f"{self.__class__.__name__}.enclose(GeoObject)")
-        else:
-            return np.bitwise_and.reduce([self.enclose(x) for x in xargs])
-
-
 _TG = typing.TypeVar("_TG")
 
 
@@ -294,7 +226,25 @@ class GeoObjectSet(List[_TG], GeoObject):
         return f"<g id='{self.name}'>\n" + "\t\n".join([g.__svg__() for g in self if isinstance(g, GeoObject)]) + "</g>"
 
     @property
-    def bbox(self) -> BBox: return np.bitwise_or([g.bbox for g in self if isinstance(g, GeoObject)])
+    def bbox(self) -> BBox: return np.bitwise_or.reduce([g.bbox for g in self if isinstance(g, GeoObject)])
+
+    # class Box(GeoObject):
+    #     def __init__(self, *args, **kwargs) -> None:
+    #         super().__init__(*args, **kwargs)
+
+    #     @property
+    #     def bbox(self) -> typing.Tuple[ArrayType, ArrayType]: return self._points[0], self._points[1]
+
+    #     def enclose(self, *xargs) -> bool:
+    #         if all([isinstance(x, numeric_type) for x in xargs]):  # 点坐标
+    #             if len(xargs) != self.ndim:
+    #                 raise RuntimeError(f"len(xargs)={len(xargs)}!=self.ndim={self.ndim} {xargs}")
+    #             xmin, xmax = self.bbox
+    #             return np.bitwise_and.reduce([((xargs[i] >= xmin[i]) & (xargs[i] <= xmax[i])) for i in range(self.ndim)])
+    #         elif len(xargs) == 1 and isinstance(xargs[0], GeoObject):
+    #             raise NotImplementedError(f"{self.__class__.__name__}.enclose(GeoObject)")
+    #         else:
+    #             return np.bitwise_and.reduce([self.enclose(x) for x in xargs])
 
 
 def as_geo_object(*args, **kwargs) -> GeoObject:

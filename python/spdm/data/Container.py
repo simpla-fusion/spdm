@@ -23,7 +23,7 @@ from .Path import Path
 _T = typing.TypeVar("_T")
 
 
-class Container(Node, typing.Generic[_T]):
+class Container(Node[_T]):
     """
         Container
         ---------

@@ -6,7 +6,7 @@ from functools import cached_property
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
-from ..geometry.GeoObject import Box, GeoObject
+from ..geometry.GeoObject import  GeoObject
 from ..geometry.Line import Line
 from ..geometry.Point import Point
 from ..utils.logger import logger

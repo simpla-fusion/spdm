@@ -14,6 +14,9 @@ class Curve(GeoObject):
     """
 
     def __init__(self, *args, is_closed=False, **kwargs) -> None:
+        rank = kwargs.pop("rank", 1)
+        if rank != 1:
+            RuntimeError(f"rank={rank} is not supported")
         super().__init__(*args, rank=1, **kwargs)
         self._is_closed = is_closed
 

@@ -16,7 +16,7 @@ from .ExprOp import ExprOp
 _T = typing.TypeVar("_T")
 
 
-class Expression(typing.Generic[_T]):
+class Expression:
     """
         Expression
         -----------
@@ -65,7 +65,7 @@ class Expression(typing.Generic[_T]):
         self._name = name if name is not None else getattr(op, "__name__", self.__class__.__name__)
         self._children = children
 
-    def __duplicate__(self) -> Expression:
+    def __copy__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
         other: Expression = object.__new__(self.__class__)
         other._op = self._op
@@ -298,7 +298,7 @@ class Expression(typing.Generic[_T]):
     # fmt: on
 
 
-class Variable(Expression[_T]):
+class Variable(Expression):
     """
         Variable
         ---------
@@ -348,7 +348,7 @@ class Variable(Expression[_T]):
         # return args[self._idx]
 
 
-class Piecewise(Expression[_T]):
+class Piecewise(Expression):
     """ PiecewiseFunction
         ----------------
         A piecewise function. 一维或多维，分段函数

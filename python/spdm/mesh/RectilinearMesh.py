@@ -4,23 +4,25 @@ import typing
 from functools import cached_property
 
 import numpy as np
-# from scipy.interpolate import (InterpolatedUnivariateSpline,
-#                                RectBivariateSpline, RegularGridInterpolator,
-#                                UnivariateSpline, interp1d, interp2d)
 
-from ..numlib.interpolate import interpolate
 from ..data.Expression import ExprOp
 from ..data.Function import Function
 from ..geometry.Box import Box
+from ..geometry.BBox import BBox
 from ..geometry.Curve import Curve
 from ..geometry.GeoObject import GeoObject
 from ..geometry.Line import Line
 from ..geometry.Point import Point
+from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.typing import (ArrayType, NumericType, ScalarType, array_type,
                             numeric_type, scalar_type)
 from .Mesh import Mesh
 from .StructuredMesh import StructuredMesh
+
+# from scipy.interpolate import (InterpolatedUnivariateSpline,
+#                                RectBivariateSpline, RegularGridInterpolator,
+#                                UnivariateSpline, interp1d, interp2d)
 
 
 @Mesh.register("rectilinear")
@@ -48,7 +50,7 @@ class RectilinearMesh(StructuredMesh):
             raise RuntimeError(f"ignore args {args}")
 
         if geometry is None:
-            geometry = Box([min(d) for d in dims], [max(d) for d in dims], ndim=len(dims), rank=len(dims))
+            geometry = Box([min(d) for d in dims], [max(d) for d in dims])
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
         self._dims = dims
         self._periods = periods
@@ -70,8 +72,7 @@ class RectilinearMesh(StructuredMesh):
     def rank(self) -> int: return len(self._dims)
 
     @cached_property
-    def bbox(self) -> typing.Tuple[ArrayType, ArrayType]:
-        return tuple([[d[0] for d in self._dims], [d[-1] for d in self._dims]])
+    def bbox(self) -> BBox: return BBox([d[0] for d in self._dims], [d[-1] for d in self._dims])
 
     @cached_property
     def dx(self) -> ArrayType: return np.asarray([(d[-1]-d[0])/len(d) for d in self._dims])
