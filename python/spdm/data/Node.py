@@ -166,7 +166,7 @@ class Node(typing.Generic[_T]):
 
     def insert(self, path, value, **kwargs) -> Node | typing.Any: return self._entry.insert(path, value, **kwargs)
 
-    def get(self, path:  PathLike | Path = None, default_value=_undefined_,  **kwargs) -> typing.Any:
+    def get(self, path:  PathLike | Path = None, default_value: typing.Any = _undefined_,  **kwargs) -> typing.Any:
         return self.as_child_deep(path, default_value=default_value, **kwargs)
 
     def find(self, query: dict = None, *args, **kwargs) -> typing.Generator[Node, None, None]:
