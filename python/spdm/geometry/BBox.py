@@ -21,16 +21,9 @@ class BBox:
         self._xmin = np.asarray(xmin)
         self._xmax = np.asarray(xmax)
 
-    def __svg__(self, **kwargs):
-        if self.ndim != 2:
-            raise NotImplementedError(f"{self.__class__.__name__}.__svg__ ndim={self.ndim}")
-        else:
-            xmin = self._xmin
-            xmax = self._xmax
-            if np.allclose(self._xmin, self._xmax):
-                return f"<circle cx='{xmin[0]}' cy='{xmin[1]}' r='3' stroke='black' stroke-width='1' fill='red' />"
-            else:
-                return f"<rect x='{xmin[0]}' y='{xmin[1]}' width='{xmax[0]-xmin[0]}' height='{xmax[1]-xmin[1]}' stroke='black' stroke-width='1' fill='none' />"
+    def __repr__(self) -> str:
+        """ x y width height """
+        return f"{self._xmin[0]}  {self._xmin[1]}  {self._xmax[0]-self._xmin[0]} {self._xmax[1]-self._xmin[1]}"
 
     @property
     def is_valid(self) -> bool: return np.all(self._xmin < self._xmax) == True

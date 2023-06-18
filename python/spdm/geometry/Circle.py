@@ -7,6 +7,7 @@ from .Plane import Plane
 from .Point import Point
 from .Solid import Solid
 from .Surface import Surface
+from .BBox import BBox
 
 
 @GeoObject.register("circle")
@@ -15,24 +16,25 @@ class Circle(GeoObject):
         圆，具有一个固定圆心和一个固定半径
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, rank=1,  **kwargs)
+    def __init__(self, x: float, y: float, r: float, **kwargs) -> None:
+        super().__init__(rank=1, ndims=2, is_closed=True, **kwargs)
+        self._x = x
+        self._y = y
+        self._r = r
 
     @property
-    def rank(self) -> int:
-        return 1
+    def bbox(self) -> BBox:
+        return BBox([self._x - self._r, self._y - self._r],
+                    [self._x + self._r, self._y + self._r])
 
     @property
-    def boundary(self):
-        return None
+    def x(self) -> float: return self._x
 
     @property
-    def points(self, *args, **kwargs) -> ArrayType:
-        raise NotImplementedError(f"{self.__class__.__name__}")
+    def y(self) -> float: return self._y
 
     @property
-    def boundary(self) -> typing.List[Point]:
-        raise NotImplementedError(f"{self.__class__.__name__}")
+    def r(self) -> float: return self._r
 
     def map(self, u, *args, **kwargs):
         return NotImplemented
@@ -87,9 +89,9 @@ class Sphere(Surface):
 
 
 @Solid.register("ball")
-class Ball(GeoObject3D):
+class Ball(GeoObject):
     """ Ball
-        球体    
+        球体
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -98,7 +100,7 @@ class Ball(GeoObject3D):
 
 
 @Solid.register("cylinder")
-class Cylinder(GeoObject3D):
+class Cylinder(GeoObject):
     """ Cylinder
         圆柱体，具有两个固定端面
     """

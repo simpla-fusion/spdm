@@ -3,6 +3,8 @@ import typing
 from io import BytesIO
 
 import matplotlib.pyplot as plt
+from spdm.geometry.GeoObject import GeoObject
+from spdm.geometry.Polygon import Polygon
 from spdm.utils.logger import logger
 from spdm.views.View import View
 
@@ -45,9 +47,9 @@ class MatplotlibView(View):
                  verticalalignment='center', horizontalalignment='left',
                  fontsize='small', alpha=0.2, rotation='vertical')
 
-        res = "<Nothing to show />"
+        res = "<Nothing to display />"
 
-        schema = kwargs.pop("schema", self._schema)
+        schema = kwargs.pop("schema", self.schema)
 
         if schema is "html":
             buf = BytesIO()
@@ -57,7 +59,15 @@ class MatplotlibView(View):
             plt.close(fig)
             return res
         else:
+            if "output" in kwargs:
+                fig.savefig(kwargs.pop("output"), transparent=True)
+
             return fig
+
+    def draw(self, axis, obj: GeoObject, **kwargs):
+
+        if isinstance(obj, Polygon):
+            axis.add_patch(plt.Polygon(obj._points.transpose([1, 0]), **{"fill": False, "closed": True}))
 
 
 __SP_EXPORT__ = MatplotlibView

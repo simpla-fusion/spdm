@@ -18,16 +18,15 @@ class Line(GeoObject):
     """
 
     def __init__(self, p0: Point | ArrayType, p1: Point | ArrayType, *args, **kwargs) -> None:
-        super().__init__(np.stack([p0, p1]), *args, rank=1,   **kwargs)
+        super().__init__(*args, rank=1,   **kwargs)
+        self._p0 = Point(p0)
+        self._p1 = Point(p1)
 
     @property
-    def p0(self) -> Point: return Point(self._points[0])
+    def p0(self) -> Point: return self._p0
 
     @property
-    def p1(self) -> Point: return Point(self._points[1])
-
-    @property
-    def is_closed(self) -> bool: return False
+    def p1(self) -> Point: return self._p1
 
     @property
     def length(self) -> float: return self.measure
@@ -36,12 +35,10 @@ class Line(GeoObject):
     def measure(self) -> float: return np.Inf
 
     @property
-    def direction(self) -> Vector:
-        return Vector(self.p1-self.p0)
+    def direction(self) -> Vector: return Vector(self.p1-self.p0)
 
     @property
-    def boundary(self) -> typing.List[Point]:
-        return [Point(self.p0), Point(self.p1)]
+    def boundary(self) -> typing.List[Point]: return [self.p0, self.p1]
 
     def contains(self, o) -> bool:
         return self._impl.contains(o._impl if isinstance(o, GeoObject) else o)

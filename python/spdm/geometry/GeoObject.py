@@ -34,7 +34,7 @@ class GeoObject(Pluggable):
         """
         """
         if _geo_type is None or len(_geo_type) == 0:
-            _geo_type = kwargs.pop("type", Box)
+            _geo_type = kwargs.pop("type", None)
 
         if isinstance(_geo_type, str):
             _geo_type = [_geo_type,
@@ -51,20 +51,13 @@ class GeoObject(Pluggable):
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
 
-        self._name = kwargs.pop("name", None)
         self._metadata = kwargs
+        self._metadata.setdefault("name", f"{self.__class__.__name__}_{uuid.uuid1()}")
         self._ndim = ndim
         self._rank = rank if rank >= 0 else ndim
 
     def __copy__(self) -> GeoObject:
-        other: GeoObject = self.__class__(rank=self.rank, ndim=self.ndim)
-        other._name = f"{self._name}_copy"
-        other._metadata = self._metadata
-        other._ndim = self._ndim
-        other._rank = self._rank
-        return other
-
-    def __svg__(self, **kwargs) -> str: return self.bbox.__svg__(name=kwargs.pop('name', self.name), **kwargs)
+        return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
 
     def _repr_html_(self) -> str: return display(self, schema="html")
     """ Jupyter 通过调用 _repr_html_ 显示对象 """
@@ -73,10 +66,7 @@ class GeoObject(Pluggable):
         return isinstance(other, GeoObject) and self.rank == other.rank and self.ndim == other.ndim and self.bbox == other.bbox
 
     @property
-    def name(self) -> str:
-        if self._name is None:
-            self._name = f"{self.__class__.__name__}_{uuid.uuid1()}"
-        return self._name
+    def name(self) -> str: return self._metadata.get("name", "unnamed")
 
     @property
     def rank(self) -> int: return self._rank
@@ -104,15 +94,23 @@ class GeoObject(Pluggable):
     """
 
     @property
+    def boundary(self) -> GeoObject | None:
+        """ boundary of geometry which is a geometry of rank-1 """
+        if self.is_closed:
+            return None
+        else:
+            raise NotImplementedError(f"{self.__class__.__name__}.boundary")
+
+    @property
     def ndim(self) -> int: return self._ndim
     """ alias of dimension """
 
     @property
-    def is_convex(self) -> bool: return True
+    def is_convex(self) -> bool: return self._metadata.get("convex", False)
     """ is convex """
 
     @property
-    def is_closed(self): return False
+    def is_closed(self) -> bool: return self._metadata.get("closed", False)
 
     @property
     def bbox(self) -> BBox: raise NotImplementedError(f"{self.__class__.__name__}.bbox")
@@ -159,10 +157,6 @@ class GeoObject(Pluggable):
         other._name = f"{self.name}_translate"
         other.bbox.translate(*shift)
         return other
-
-    @property
-    def boundary(self) -> typing.List[GeoObject]: raise NotImplementedError(f"{self.__class__.__name__}.boundary")
-    """ boundary of geometry which is a geometry of rank-1 """
 
     def trim(self): raise NotImplementedError(f"{self.__class__.__name__}.trim")
 

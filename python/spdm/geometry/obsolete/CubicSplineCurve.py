@@ -2,17 +2,18 @@
 from __future__ import annotations
 
 import collections
+import collections.abc
 import typing
-from functools import cached_property
 from copy import copy
+from functools import cached_property
+
 import numpy as np
 import scipy.constants
 from scipy.interpolate import CubicSpline, PPoly
-
 from spdm.geometry.GeoObject import GeoObject
-import collections.abc
+
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, nTupleType, array_type
+from ..utils.typing import ArrayType, array_type, nTupleType
 from .BBox import BBox
 from .Curve import Curve
 
@@ -21,17 +22,9 @@ TWOPI = 2.0*scipy.constants.pi
 
 @Curve.register("cubic_spline_curve")
 class CubicSplineCurve(Curve):
-    def __init__(self, points: ArrayType | typing.List[ArrayType], uv=None,  **kwargs) -> None:
+    def __init__(self, *args, uv=None,  **kwargs) -> None:
 
-        if isinstance(points, collections.abc.Sequence):
-            points = np.vstack(points)
-
-        if points.ndim != 2:
-            raise RuntimeError(f"points.ndim={points.ndim} is not supported")
-
-        ndim = kwargs.pop("ndim", points.shape[1])
-
-        super().__init__(ndim=ndim, **kwargs)
+        super().__init__(*args, **kwargs)
         self._points = points
         self._uv = uv if uv is None else np.linspace(0, 1, self._points.shape[0])
 
@@ -41,15 +34,7 @@ class CubicSplineCurve(Curve):
         other._uv = self._uv
         return other
 
-    def __svg__(self) -> str:
-        pts = "M "
-        pts += '\nL'.join([f' {x} {y}' for x, y in np.vstack(self.points)])
-        if self.is_closed:
-            pts += " Z"
-        return f"<path d=\"{pts}\" />"
 
-    @property
-    def points(self): return [self._points[..., idx] for idx in range(self.ndim)]
 
     def coordinates(self, *uvw, **kwargs) -> ArrayType:
         if len(uvw) == 0:

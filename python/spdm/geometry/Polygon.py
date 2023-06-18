@@ -1,30 +1,35 @@
 import collections.abc
 import typing
 
+import numpy as np
+
 from ..utils.typing import ArrayType
+from .BBox import BBox
 from .GeoObject import GeoObject
 from .Line import Segment
 from .Point import Point
 from .Polyline import Polyline
+from .PointSet import PointSet
 
 
-class Polygon(GeoObject):
-    """ Polygon
-        多边形
-
-    """
+@GeoObject.register(["polygon", "Polygon"])
+class Polygon(PointSet):
+    """ Polygon 多边形 """
 
     def __init__(self, *args,  **kwargs) -> None:
-
-        if len(args) >= 3:
-            if Polygon.__dispatch__init__ is None:
-                raise RuntimeError(f"Polygon.__dispatch__init__ is None")
-            return Polygon.__dispatch__init__(self, *args, **kwargs)
-
         super().__init__(*args, rank=2, **kwargs)
 
     @property
-    def vertices(self) -> ArrayType: return self._points
+    def is_valid(self) -> bool:
+        if self.ndim == 2:
+            return True
+        else:
+            raise NotImplementedError(f"{self.__class__.__name__}")
+
+    @property
+    def vertices(self) -> typing.Generator[Point, None, None]:
+        for p in self._points:
+            yield Point(*p)
 
     @property
     def edges(self) -> typing.Generator[Segment, None, None]:
@@ -42,10 +47,7 @@ class Polygon(GeoObject):
 
     @property
     def boundary(self) -> Polyline:
-        return Polyline([*self.vertices], is_closed=True)
-
-    def points(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}")
+        return Polyline(self._points, is_closed=True)
 
 
 @Polygon.register("regular_polygon")
@@ -65,8 +67,6 @@ class RegularPolygon(Polygon):
 
     def __init__(self, center: Point, radius: float, num_of_edges: int, *args, **kwargs) -> None:
         center = Point(center) if not isinstance(center, Point) else center
-        from sympy.geometry.polygon import RegularPolygon as _RegularPolygon
-        args = [_RegularPolygon(center._impl, radius, num_of_edges, *args)]
         super().__init__(*args, **kwargs)
 
     @property
@@ -100,47 +100,32 @@ class RegularPolygon(Polygon):
 
 
 @Polygon.register("triangle")
-class Triangle(Polygon):
+class Triangle(RegularPolygon):
     pass
 
 
 @Polygon.register("rectangle")
-class Rectangle(Polygon):
-    pass
+class Rectangle(RegularPolygon):
+    def __init__(self, x, y, width, height, ** kwargs) -> None:
+        super().__init__(**kwargs)
+        self._x = x
+        self._y = y
+        self._width = width
+        self._height = height
+
+    @property
+    def bbox(self) -> BBox:
+        return BBox([self._x, self._y], [self._x+self._width, self._y+self._height])
+
+    def __svg__(self) -> str:
+        return f'<rect class="sp_geo_object" x="{self._x}" y="{self._y}" width="{self._width}" height="{self._height}" />'
 
 
 @Polygon.register("pentagon")
-class Pentagon(Polygon):
+class Pentagon(RegularPolygon):
     pass
 
 
 @Polygon.register("hexagon")
-class Hexagon(Polygon):
+class Hexagon(RegularPolygon):
     pass
-
-
-def _polygon__dispatch__init__(self, *args, **kwargs):
-    args = GeoObject._normal_points(*args)
-    from sympy.geometry import Polygon as _Polygon
-    if not isinstance(args, collections.abc.Sequence):
-        return
-    match len(args):
-        case 3:
-            from sympy.geometry.polygon import Triangle as _Triangle
-            self.__class__ = Triangle
-            return Triangle.__init__(self, _Triangle(*args), **kwargs)
-        case 4:
-            self.__class__ = Rectangle
-            return Rectangle.__init__(self, _Polygon(*args), **kwargs)
-        case 5:
-            self.__class__ = Pentagon
-            return Pentagon.__init__(self, _Polygon(*args), **kwargs)
-        case 6:
-            self.__class__ = Hexagon
-            return Hexagon.__init__(self, _Polygon(*args), **kwargs)
-        case _:
-
-            return Polygon.__init__(self, _Polygon(*args), **kwargs)
-
-
-Polygon.__dispatch__init__ = _polygon__dispatch__init__

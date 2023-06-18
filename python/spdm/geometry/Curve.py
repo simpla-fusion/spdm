@@ -1,34 +1,42 @@
+from __future__ import annotations
+
 import abc
+import collections
+import collections.abc
 import typing
-from functools import cached_property
+from copy import copy
+import functools
 
 import numpy as np
+import scipy.constants
+from scipy.interpolate import CubicSpline, PPoly
+
 from ..utils.logger import logger
-from ..utils.typing import ArrayLike, ArrayType, NumericType, nTupleType
+from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
+                            nTupleType)
+from .BBox import BBox
 from .GeoObject import GeoObject
+from .PointSet import PointSet
 
 
-class Curve(GeoObject):
+@GeoObject.register(["curve", "Curve"])
+class Curve(PointSet):
     """ Curve
         曲线，一维几何体
     """
 
-    def __init__(self, *args, is_closed=False, **kwargs) -> None:
-        rank = kwargs.pop("rank", 1)
-        if rank != 1:
-            RuntimeError(f"rank={rank} is not supported")
-        super().__init__(*args, rank=1, **kwargs)
-        self._is_closed = is_closed
+    def __init__(self, *args, uv=None, **kwargs) -> None:
+        super().__init__(*args, rank=1, ** kwargs)
+        self._uv = uv if uv is not None else np.linspace(0, 1.0, self._points.shape[0])
 
-    # @abc.abstractproperty
-    # def is_convex(self) -> bool: return True
+    def __copy__(self) -> Curve:
+        other: Curve = super().__copy__()  # type:ignore
+        other._uv = self._uv
+        return other
 
-    @property
-    def is_closed(self) -> bool: return self._is_closed
-
-    @cached_property
+    @functools.cached_property
     def dl(self) -> ArrayType:
-        x, y = self.points
+        x, y = self._points
         a, b = self.derivative()
 
         # a = a[:-1]
@@ -45,7 +53,7 @@ class Curve(GeoObject):
 
         return np.sqrt(dx**2+dy**2)*(1 + (2.0*m1**2+2.0*m2**2-m1*m2)/30)
 
-    @cached_property
+    @functools.cached_property
     def measure(self) -> float: return np.sum(self.dl)
 
     def integral(self, func: typing.Callable) -> float:
@@ -55,3 +63,38 @@ class Curve(GeoObject):
         # c_pts = self.points((self._mesh[0][1:] + self._mesh[0][:-1])*0.5)
 
         return np.sum(0.5*(val[:-1]+val[1:]) * self.dl)
+
+    def coordinates(self, *uvw, **kwargs) -> ArrayType:
+        if len(uvw) == 0:
+            return self._points
+        else:
+            return self._spl(*uvw, **kwargs)
+
+    @functools.cached_property
+    def _spl(self) -> PPoly:
+        return CubicSpline(self._uv, self._points, bc_type="periodic" if self.is_closed else "not-a-knot")
+
+    @functools.cached_property
+    def _derivative(self):
+        return self._spl.derivative()
+
+    def derivative(self, *args, **kwargs):
+        if len(args) == 0:
+            args = [self._uv]
+        res = self._derivative(*args, **kwargs)
+        return res[:, 0], res[:, 1]
+
+    def enclose(self, *args) -> bool:
+        if not self.is_closed:
+            return False
+        return super().enclose(*args)
+
+    def remesh(self, u) -> Curve:
+        other: Curve = copy(self)
+        if isinstance(u, array_type):
+            other._uv = u
+        elif callable(u):
+            other._uv = u(*self.points)
+        else:
+            raise TypeError(f"illegal type u={type(u)}")
+        return other

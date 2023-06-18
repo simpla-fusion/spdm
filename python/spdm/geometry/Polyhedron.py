@@ -8,18 +8,16 @@ from .Line import Line, Segment
 from .Plane import Plane
 from .Point import Point
 from .Polygon import Polygon
+from .PointSet import PointSet
 
 
-class Polyhedron(GeoObject):
+class Polyhedron(PointSet):
 
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, rank=3, **kwargs)
 
     @property
     def is_convex(self) -> bool: return True
-
-    @property
-    def vertices(self) -> ArrayType: return self._points
 
     @property
     def edges(self) -> typing.Generator[Segment, None, None]:
