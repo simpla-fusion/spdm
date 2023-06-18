@@ -6,9 +6,27 @@ import numpy as np
 from spdm.utils.logger import logger
 from spdm.views.View import View
 
+SVG_TEMPLATE = """<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="{p_width}pt" height="{p_height}pt" viewBox="{xmin:.2f} {ymin:.2f} {width:.2f} {height:.2f}"  xmlns="http://www.w3.org/2000/svg" version="1.1">
+<style>
+    path {{
+        fill: none; 
+        stroke: #0000ff; 
+        stroke-linejoin: miter; 
+        stroke-width:0.05
+    }}
+</style>
+    <g id="{name}">
+    {contents}
+    </g>
+</svg>"""
+
 
 @View.register(["svg", "SVG"])
 class SVGView(View):
+
+    TEMPLATE = SVG_TEMPLATE
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -59,21 +77,5 @@ class SVGView(View):
             xlabel=kwargs.pop("xlabel", ""),
             ylabel=kwargs.pop("ylabel", ""),)
 
-
-SVGView.TEMPLATE = """<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="{p_width}pt" height="{p_height}pt" viewBox="{xmin:.2f} {ymin:.2f} {width:.2f} {height:.2f}"  xmlns="http://www.w3.org/2000/svg" version="1.1">
-<style>
-    path {{
-        fill: none; 
-        stroke: #0000ff; 
-        stroke-linejoin: miter; 
-        stroke-width:0.05
-    }}
-</style>
-    <g id="{name}">
-    {contents}
-    </g>
-</svg>"""
 
 __SP_EXPORT__ = SVGView
