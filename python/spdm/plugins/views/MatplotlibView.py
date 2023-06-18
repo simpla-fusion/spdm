@@ -1,14 +1,13 @@
 import collections.abc
-from io import BytesIO
 import typing
+from io import BytesIO
 
 import matplotlib.pyplot as plt
+from spdm.utils.logger import logger
+from spdm.views.View import View
 
-from ..utils.logger import logger
-from .View import View
 
-
-@View.register("matplotlib")
+@View.register(["matplotlib", "Matplotlib"])
 class MatplotlibView(View):
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -59,3 +58,6 @@ class MatplotlibView(View):
             return res
         else:
             return fig
+
+
+__SP_EXPORT__ = MatplotlibView

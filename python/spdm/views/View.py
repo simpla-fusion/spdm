@@ -9,7 +9,26 @@ class View(Pluggable):
     """Abstract class for all views"""
     _plugin_registry = {}
 
-    def __init__(self, *args, schema="html", **kwargs) -> None:
+    @classmethod
+    def __dispatch__init__(cls, _view_type, self, *args, **kwargs) -> None:
+        if _view_type is None or len(_view_type) == 0:
+            _view_type = kwargs.pop("type", "matplotlib")
+
+        if isinstance(_view_type, str):
+            _view_type = [_view_type,
+                         f"spdm.views.{_view_type}#{_view_type}",
+                         f"spdm.views.{_view_type}{cls.__name__}#{_view_type}{cls.__name__}",
+                         f"spdm.views.{_view_type.capitalize()}#{_view_type.capitalize()}",
+                         f"spdm.views.{_view_type.capitalize()}{cls.__name__}#{_view_type.capitalize()}{cls.__name__}",
+                         f"spdm.views.{cls.__name__}#{_view_type}"
+                         ]
+
+        super().__dispatch__init__(_view_type, self, *args, **kwargs)
+
+    def __init__(self, *args,  **kwargs) -> None:
+        if self.__class__ is View:
+            return View.__dispatch__init__(None, self, *args, **kwargs)
+
         self._schema = "html"
 
     @property
