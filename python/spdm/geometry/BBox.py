@@ -21,8 +21,38 @@ class BBox:
         self._xmin = np.asarray(xmin)
         self._xmax = np.asarray(xmax)
 
+    def __svg__(self, **kwargs):
+        if self.ndim != 2:
+            raise NotImplementedError(f"{self.__class__.__name__}.__svg__ ndim={self.ndim}")
+        else:
+            xmin = self._xmin
+            xmax = self._xmax
+            if np.allclose(self._xmin, self._xmax):
+                return f"<circle cx='{xmin[0]}' cy='{xmin[1]}' r='3' stroke='black' stroke-width='1' fill='red' />"
+            else:
+                return f"<rect x='{xmin[0]}' y='{xmin[1]}' width='{xmax[0]-xmin[0]}' height='{xmax[1]-xmin[1]}' stroke='black' stroke-width='1' fill='none' />"
+
+    @property
+    def is_valid(self) -> bool: return np.all(self._xmin < self._xmax) == True
+
+    @property
+    def is_degraded(self) -> bool: return (self.is_valid and np.any(np.isclose(self._xmin, self._xmax))) == True
+
     def __equal__(self, other: BBox) -> bool:
-        return np.isclose(self._xmin == other._xmin) and np.isclose(self._xmax == other._xmax)
+        return np.allclose(self._xmin, other._xmin) and np.allclose(self._xmax, other._xmax)
+
+    def __or__(self, other: BBox) -> BBox:
+        if other is None:
+            return self
+        else:
+            return BBox(np.min(self._xmin, other._xmin), np.max(self._xmax, other._xmax))
+
+    def __and__(self, other: BBox) -> BBox | None:
+        if other is None:
+            return None
+        else:
+            res = BBox(np.max(self._xmin, other._xmin), np.min(self._xmax, other._xmax))
+            return res if res.is_valid else None
 
     def __iter__(self) -> typing.Generator[ArrayType, None, None]:
         yield self._xmin

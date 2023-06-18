@@ -14,6 +14,7 @@ from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
                             array_type, nTupleType, numeric_type)
+from ..views.View import display
 from .BBox import BBox
 
 
@@ -46,48 +47,27 @@ class GeoObject(Pluggable):
 
         super().__dispatch__init__(_geo_type, self, *args, **kwargs)
 
-    def __init__(self, *args, ndim: int = 0, rank: int = None,  **kwargs) -> None:
+    def __init__(self, *args, ndim: int = 0, rank: int = -1,  **kwargs) -> None:
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
 
         self._name = kwargs.pop("name", None)
         self._metadata = kwargs
         self._ndim = ndim
-        self._rank = rank if rank is not None else ndim
+        self._rank = rank if rank >= 0 else ndim
 
     def __copy__(self) -> GeoObject:
         other: GeoObject = self.__class__(rank=self.rank, ndim=self.ndim)
         other._name = f"{self._name}_copy"
         other._metadata = self._metadata
+        other._ndim = self._ndim
+        other._rank = self._rank
         return other
 
-    def __svg__(self) -> str:
-        if self.ndim != 2:
-            raise NotImplementedError(f"{self.__class__.__name__}.__svg__ ndim={self.ndim}")
-        else:
-            xmin = self.bbox._xmin
-            xmax = self.bbox._xmax
-            if self.rank == 0:
-                return f"<circle cx='{xmin[0]}' cy='{xmin[1]}' r='3' stroke='black' stroke-width='1' fill='red' />"
-            else:
-                return f"<rect x='{xmin[0]}' y='{xmin[1]}' width='{xmax[0]-xmin[0]}' height='{xmax[1]-xmin[1]}' stroke='black' stroke-width='1' fill='none' />"
+    def __svg__(self, **kwargs) -> str: return self.bbox.__svg__(name=kwargs.pop('name', self.name), **kwargs)
 
-    def _repr_svg_(self) -> str:
-        xmin, xmax = self.bbox
-        width = xmax[0]-xmin[0]
-        height = xmax[1]-xmin[1]
-
-        scale = 1.0
-        shift_x = xmin[0]
-        shift_y = xmin[1]
-
-        return f"""<svg width={width} height={height}'>
-                    <g id={self.name} transform='scale({scale}),shift({shift_x},{shift_y})' >
-                        {self.__svg__()}
-                    </g>
-                   </svg>"""
-
-    def _repr_html_(self) -> str: return self._repr_svg_()
+    def _repr_html_(self) -> str: return display(self, schema="html")
+    """ Jupyter 通过调用 _repr_html_ 显示对象 """
 
     def __equal__(self, other: GeoObject) -> bool:
         return isinstance(other, GeoObject) and self.rank == other.rank and self.ndim == other.ndim and self.bbox == other.bbox

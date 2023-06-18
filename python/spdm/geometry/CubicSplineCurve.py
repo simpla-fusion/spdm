@@ -41,6 +41,13 @@ class CubicSplineCurve(Curve):
         other._uv = self._uv
         return other
 
+    def __svg__(self) -> str:
+        pts = "M "
+        pts += '\nL'.join([f' {x} {y}' for x, y in np.vstack(self.points)])
+        if self.is_closed:
+            pts += " Z"
+        return f"<path d=\"{pts}\" />"
+
     @property
     def points(self): return [self._points[..., idx] for idx in range(self.ndim)]
 

@@ -14,9 +14,9 @@ from ..utils.logger import logger
 from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, primary_type
+from ..views.View import display
 from .Entry import Entry, as_entry
-from .Path import Path, as_path, path_like, PathLike
-
+from .Path import Path, PathLike, as_path, path_like
 
 _T = typing.TypeVar("_T")
 
@@ -69,39 +69,7 @@ class Node(typing.Generic[_T]):
     @classmethod
     def __deserialize__(cls, *args, **kwargs) -> Node: return cls(*args, **kwargs)
 
-    def _repr_html_(self):
-        if hasattr(self.__class__, "plot"):
-            import matplotlib.pyplot as plt
-            import datetime
-            import getpass
-            from io import BytesIO
-            fig, axis = plt.subplots()
-            axis = self.plot(axis)
-            axis.set_aspect('equal')
-            axis.axis('scaled')
-
-            fig.tight_layout()
-
-            signature = f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
-
-            pos = axis.get_position()
-
-            fig.text(pos.xmax+0.01, 0.5*(pos.ymin+pos.ymax), signature,
-                     verticalalignment='center', horizontalalignment='left',
-                     fontsize='small', alpha=0.2, rotation='vertical')
-
-            buf = BytesIO()
-            fig.savefig(buf, format='svg', transparent=True)
-            buf.seek(0)
-            svg_str = buf.getvalue().decode('utf-8')
-            plt.close(fig)
-
-            return svg_str
-        elif hasattr(self, '__svg__'):
-            # TODO: add warterprint
-            return self.__svg__()
-        else:
-            return self.__repr__()
+    def _repr_html_(self): return display(self, schema="html")
 
     @property
     def __entry__(self) -> Entry: return self._entry
@@ -162,7 +130,9 @@ class Node(typing.Generic[_T]):
             p = p._parent
         return p
 
-    def append(self, value) -> Node: return self._entry.append(value)
+    def append(self, value) -> Node:
+        self._entry.append(value)
+        return self
 
     def insert(self, path, value, **kwargs) -> Node | typing.Any: return self._entry.insert(path, value, **kwargs)
 
@@ -175,8 +145,10 @@ class Node(typing.Generic[_T]):
         for p, v in entry.find():
             yield self.as_child_deep(p, v, *args, **kwargs)
 
-    def as_child(self, key: PathLike, value: typing.Any = _not_found_,  default_value=_undefined_,
-                 type_hint=_not_found_,
+    def as_child(self, key: PathLike,
+                 value: typing.Any = _not_found_,
+                 default_value: typing.Any = _undefined_,
+                 type_hint: typing.Type = _not_found_,
                  parent: Node = None, **kwargs) -> Node | typing.Dict[str, Node] | typing.List[Node]:
         """ 获取子节点   """
         if parent is None:
