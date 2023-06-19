@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import abc
-import collections
 import collections.abc
+import functools
 import typing
 from copy import copy
-import functools
 
 import numpy as np
 import scipy.constants

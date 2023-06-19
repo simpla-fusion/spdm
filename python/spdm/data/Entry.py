@@ -106,10 +106,12 @@ class Entry(Pluggable):
     def children(self) -> typing.Generator[typing.Any, None, None]:
         yield from self.child(slice(None)).find()
 
-    def get(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+    def get(self, *args, default_value=..., **kwargs) -> typing.Any:
         value = self.child(*args, **kwargs).__value__
         if value is _not_found_:
             value = default_value
+        if value is Ellipsis:
+            raise KeyError(f"Can not find {args} in {self}")
         return value
 
     def __getitem__(self, *args) -> Entry: return self.child(*args)

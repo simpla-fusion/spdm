@@ -31,6 +31,11 @@ numeric_type = (*scalar_type, array_type)
 
 primary_type = (str,  *numeric_type)
 
+_T = typing.TypeVar("_T")
+
+HTContainer = _T | typing.Sequence[_T]  
+"""Hierarchical Container Type  """
+
 
 def is_scalar(v: typing.Any) -> bool:
     return isinstance(v, scalar_type) or (isinstance(v, array_type) and len(v.shape) == 0)

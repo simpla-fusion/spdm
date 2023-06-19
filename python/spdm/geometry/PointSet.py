@@ -2,51 +2,66 @@ from __future__ import annotations
 
 import abc
 import collections.abc
-import typing
 import functools
+import typing
+from copy import copy
+
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.typing import ArrayLike, ArrayType, NumericType, nTupleType
-from .GeoObject import GeoObject
+from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
+                            nTupleType)
 from .BBox import BBox
+from .GeoObject import GeoObject
 from .Point import Point
-from .Line import Segment
 
 
 class PointSet(GeoObject):
     def __init__(self, *args,  **kwargs) -> None:
-        if len(args) == 1:
-            if isinstance(args[0], collections.abc.Sequence):
+
+        if len(args) == 1 and isinstance(args[0], collections.abc.Sequence):
+            args = args[0]
+
+        if len(args) == 0:
+            raise RuntimeError(f"{self.__class__.__name__} must have at least one point")
+        elif len(args) > 1:
+            try:
                 points = np.vstack(args)
-            elif isinstance(args[0], np.ndarray):
-                points = args[0]
-            else:
-                raise TypeError(f"illegal type args[0]={type(args[0])}")
+            except ValueError as error:
+                raise ValueError(f"illegal args={args}") from error
+        elif isinstance(args[0], PointSet):
+            points = args[0]._points
+            kwargs = collections.ChainMap(kwargs, args[0]._metadata)
+        elif isinstance(args[0], array_type):
+            points = args[0]
         else:
-            points = np.vstack(args)
+            raise TypeError(f"illegal type args[0]={type(args[0])}")
 
-        coordinates = kwargs.pop("coordinates", None)
+        super().__init__(ndim=points.shape[-1],  **kwargs)
 
-        super().__init__(ndim=points.shape[-1], ** kwargs)
+        self._points: array_type = points
 
-        self._points: np.ndarray = points
-        self._edges = None
+    def _after_init_(self):
+        coordinates = self._metadata.get("coordinates", None)
 
-        if coordinates is not None:
-            if isinstance(coordinates, str):
-                coordinates = [x.strip() for x in coordinates.split(",")]
+        if isinstance(coordinates, str):
+            coordinates = [x.strip() for x in coordinates.split(" ,")]
+            self._metadata["coordinates"] = coordinates
 
-            if len(coordinates) != self._ndim:
-                raise ValueError(f"coordinates {coordinates} not match ndim {self._ndim}")
-            elif isinstance(coordinates, collections.abc.Sequence):
-                for idx, coord_name in enumerate(coordinates):
-                    setattr(self, coord_name, self._points[..., idx])
+        if isinstance(coordinates, collections.abc.Sequence):
+            if len(coordinates) != self.ndim:
+                raise ValueError(f"coordinates {coordinates} not match ndim {self.ndim}")
+
+            for idx, coord_name in enumerate(coordinates):
+                setattr(self, coord_name, self._points[..., idx])
 
     def __copy__(self) -> PointSet:
         other: PointSet = super().__copy__()  # type:ignore
         other._points = self._points
+        other._after_init_()
         return other
+
+    def __array__(self) -> array_type: return self._points
 
     @property
     def points(self) -> typing.List[ArrayType]: return [self._points[..., idx] for idx in range(self.ndim)]
@@ -75,16 +90,3 @@ class PointSet(GeoObject):
 
         for p in self._points:
             yield Point(*p)
-
-    @property
-    def edges(self) -> typing.Generator[Segment, None, None]:
-        if self._points.ndim != 2:
-            raise NotImplementedError(f"{self.__class__.__name__}.edges for ndim!=2")
-        elif self._edges is None:
-            for idx in range(self._points.shape[0]-1):
-                yield Segment(self._points[idx], self._points[idx+1])
-        elif isinstance(self._edges, np.ndarray):
-            for b, e in self._edges:
-                yield Segment(self._points[b], self._points[e])
-        else:
-            raise NotImplementedError()

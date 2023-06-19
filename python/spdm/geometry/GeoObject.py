@@ -8,7 +8,6 @@ from functools import cached_property
 
 import numpy as np
 
-from ..data.Expression import Expression
 from ..data.List import List
 from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
@@ -51,13 +50,20 @@ class GeoObject(Pluggable):
         if self.__class__ is GeoObject:
             return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
 
-        self._metadata = kwargs
+        self._metadata = kwargs.pop("metadata", {})
+        self._metadata.update(kwargs)
         self._metadata.setdefault("name", f"{self.__class__.__name__}_{uuid.uuid1()}")
+
         self._ndim = ndim
         self._rank = rank if rank >= 0 else ndim
 
     def __copy__(self) -> GeoObject:
-        return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
+        other: GeoObject = object.__new__(self.__class__)
+        other._metadata = copy(self._metadata)
+        other._ndim = self._ndim
+        other._rank = self._rank
+        return other
+        # return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
 
     def _repr_html_(self) -> str: return display(self, schema="html")
     """ Jupyter 通过调用 _repr_html_ 显示对象 """
@@ -83,7 +89,7 @@ class GeoObject(Pluggable):
     """
 
     @property
-    def dimension(self) -> int: return self._ndim
+    def number_of_dimensions(self) -> int: return self._ndim
     """ 几何体所处的空间维度， = 0，1，2，3 ,...
         The dimension of a geometric object, on the other hand, refers to the minimum number of
         coordinates needed to specify any point within it. In general, the rank and dimension of
@@ -94,6 +100,10 @@ class GeoObject(Pluggable):
     """
 
     @property
+    def ndim(self) -> int: return self._ndim
+    """ alias of dimension """
+
+    @property
     def boundary(self) -> GeoObject | None:
         """ boundary of geometry which is a geometry of rank-1 """
         if self.is_closed:
@@ -102,11 +112,7 @@ class GeoObject(Pluggable):
             raise NotImplementedError(f"{self.__class__.__name__}.boundary")
 
     @property
-    def ndim(self) -> int: return self._ndim
-    """ alias of dimension """
-
-    @property
-    def is_convex(self) -> bool: return self._metadata.get("convex", False)
+    def is_convex(self) -> bool: return self._metadata.get("convex", True)
     """ is convex """
 
     @property
@@ -114,47 +120,43 @@ class GeoObject(Pluggable):
 
     @property
     def bbox(self) -> BBox: raise NotImplementedError(f"{self.__class__.__name__}.bbox")
-    """ bbox of geometry """
+    """ boundary box of geometry [ [...min], [...max] ] """
 
     @property
-    def center(self) -> GeoObject: return as_geo_object(self.bbox.center)
-    """ center of geometry """
-
-    @property
-    def measure(self) -> ScalarType: return self.bbox.measure
+    def measure(self) -> float: return self.bbox.measure
     """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
-    def enclose(self, *args) -> bool: return self.bbox.enclose(*args)
+    def enclose(self, *args) -> bool: return self.is_closed and self.bbox.enclose(*args)
     """ Return True if all args are inside the geometry, False otherwise. """
 
     def intersection(self, other: GeoObject) -> typing.List[GeoObject]:
         """ Return the intersection of self with other. """
-        return [as_geo_object(self.bbox.intersection(other.bbox))]
+        return [self.bbox.intersection(other.bbox)]
 
     def reflect(self, point0, point1) -> GeoObject:
         """ reflect  by line"""
         other = copy(self)
-        other._name = f"{self.name}_reflect"
+        other._metadata["name"] = f"{self.name}_reflect"
         other.bbox.reflect(point0, point1)
         return other
 
     def rotate(self, angle, axis=None) -> GeoObject:
         """ rotate  by angle and axis"""
         other = copy(self)
-        other._name = f"{self.name}_rotate"
+        other._metadata["name"] = f"{self.name}_rotate"
         other.bbox.rotate(angle, axis=axis)
         return other
 
     def scale(self, *s, point=None) -> GeoObject:
         """ scale self by *s, point """
         other = copy(self)
-        other._name = f"{self.name}_scale"
+        other._metadata["name"] = f"{self.name}_scale"
         other.bbox.scale(*s, point=point)
         return other
 
     def translate(self, *shift) -> GeoObject:
         other = copy(self)
-        other._name = f"{self.name}_translate"
+        other._metadata["name"] = f"{self.name}_translate"
         other.bbox.translate(*shift)
         return other
 
