@@ -6,8 +6,8 @@ import dataclasses
 import functools
 import inspect
 import typing
-from enum import Enum
 from copy import copy
+from enum import Enum
 
 import numpy as np
 from spdm.data.Node import Node

@@ -24,9 +24,9 @@ class PointSet(GeoObject):
 
         if len(args) == 0:
             raise RuntimeError(f"{self.__class__.__name__} must have at least one point")
-        elif len(args) > 1:
+        elif len(args) > 1 and all([isinstance(a, array_type) for a in args]):
             try:
-                points = np.vstack(args)
+                points = np.stack(args, axis=args[0].ndim)
             except ValueError as error:
                 raise ValueError(f"illegal args={args}") from error
         elif isinstance(args[0], PointSet):

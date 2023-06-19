@@ -5,10 +5,10 @@ from functools import cached_property
 import numpy as np
 from scipy import interpolate
 
-from ..geometry.BSplineSurface import BSplineSurface
-from ..geometry.CubicSplineCurve import CubicSplineCurve
+from ..geometry.Curve import Curve
 from ..geometry.GeoObject import GeoObject, GeoObjectSet
 from ..geometry.Point import Point
+from ..geometry.Surface import Surface
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, ScalarType
 from .Mesh import Mesh
@@ -65,8 +65,7 @@ class CurvilinearMesh(RectilinearMesh):
             return CurvilinearMesh(sub_xy, sub_uv,  cycles=sub_cycles)
 
     @property
-    def uv(self) -> ArrayType:
-        return self._uv
+    def uv(self) -> ArrayType: return self._uv
 
     @cached_property
     def points(self) -> typing.List[ArrayType]:

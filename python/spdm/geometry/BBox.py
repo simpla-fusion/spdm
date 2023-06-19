@@ -79,9 +79,11 @@ class BBox:
                 return self.enclose(*args[0])
             else:
                 raise TypeError(f"args has wrong type {type(args[0])} {args}")
+        elif len(args) == self.ndim:
+            r_pos = [args[idx]-self._origin[idx] for idx in range(self.ndim)]
+            return np.bitwise_and.reduce([((r_pos[idx] >= 0) & (r_pos[idx] <= self._dimensions[idx])) for idx in range(self.ndim)])
         else:
-            r_pos = np.asarray(args)-self._origin
-            return np.all([((r_pos[idx] >= 0) and (r_pos[idx] <= self._dimensions[idx])) for idx in range(self.ndim)]) is True
+            raise TypeError(f"args has wrong type {type(args[0])} {args}")
 
     def union(self, other: BBox) -> BBox: raise NotImplementedError(f"intersection")
     """ Return the union of self with other. """

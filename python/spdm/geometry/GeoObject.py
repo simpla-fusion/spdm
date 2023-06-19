@@ -7,13 +7,11 @@ from copy import copy
 from functools import cached_property
 
 import numpy as np
-
 from ..data.List import List
 from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
                             array_type, nTupleType, numeric_type)
-from ..views.View import display
 from .BBox import BBox
 
 
@@ -65,7 +63,9 @@ class GeoObject(Pluggable):
         return other
         # return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
 
-    def _repr_html_(self) -> str: return display(self, schema="html")
+    def _repr_html_(self) -> str:
+        from ..views.View import display
+        return display(self, schema="html")
     """ Jupyter 通过调用 _repr_html_ 显示对象 """
 
     def __equal__(self, other: GeoObject) -> bool:
@@ -116,7 +116,7 @@ class GeoObject(Pluggable):
     """ is convex """
 
     @property
-    def is_closed(self) -> bool: return self._metadata.get("closed", False)
+    def is_closed(self) -> bool: return self._metadata.get("closed", True)
 
     @property
     def bbox(self) -> BBox: raise NotImplementedError(f"{self.__class__.__name__}.bbox")

@@ -5,9 +5,8 @@ import scipy.interpolate
 from skimage import measure
 
 from ..data.Field import Field
-from ..geometry.CubicSplineCurve import CubicSplineCurve
 from ..geometry.Curve import Curve
-from ..geometry.GeoObject import GeoObject, GeoObjectSet
+from ..geometry.GeoObject import GeoObject
 from ..geometry.Point import Point
 from ..utils.logger import deprecated, logger
 
@@ -52,7 +51,7 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
             elif data.shape[0] == 1:
                 yield val, Point(*data[0])
             else:
-                yield val, CubicSplineCurve(data)
+                yield val, Curve(data)
         if count == 0:
             yield val, None
 

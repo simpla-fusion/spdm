@@ -8,8 +8,8 @@ from .BBox import BBox
 from .GeoObject import GeoObject
 from .Line import Segment
 from .Point import Point
-from .Polyline import Polyline
 from .PointSet import PointSet
+from .Polyline import Polyline
 
 
 @GeoObject.register(["polygon", "Polygon"])
@@ -48,6 +48,19 @@ class Polygon(PointSet):
     @property
     def boundary(self) -> Polyline:
         return Polyline(self._points, is_closed=True)
+
+
+@Polygon.register("rectangle")
+class Rectangle(GeoObject):
+    def __init__(self, x, y, width, height, ** kwargs) -> None:
+        super().__init__(**kwargs)
+        self._x = x
+        self._y = y
+        self._width = width
+        self._height = height
+
+    @property
+    def bbox(self) -> BBox: return BBox([self._x, self._y], [self._width, self._height])
 
 
 @Polygon.register("regular_polygon")
@@ -97,35 +110,3 @@ class RegularPolygon(Polygon):
     def vertices(self) -> typing.Generator[Point, None, None]:
         for p in self._impl.vertices:
             yield Point(p)
-
-
-@Polygon.register("triangle")
-class Triangle(RegularPolygon):
-    pass
-
-
-@Polygon.register("rectangle")
-class Rectangle(RegularPolygon):
-    def __init__(self, x, y, width, height, ** kwargs) -> None:
-        super().__init__(**kwargs)
-        self._x = x
-        self._y = y
-        self._width = width
-        self._height = height
-
-    @property
-    def bbox(self) -> BBox:
-        return BBox([self._x, self._y], [self._x+self._width, self._y+self._height])
-
-    def __svg__(self) -> str:
-        return f'<rect class="sp_geo_object" x="{self._x}" y="{self._y}" width="{self._width}" height="{self._height}" />'
-
-
-@Polygon.register("pentagon")
-class Pentagon(RegularPolygon):
-    pass
-
-
-@Polygon.register("hexagon")
-class Hexagon(RegularPolygon):
-    pass

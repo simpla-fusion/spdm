@@ -25,6 +25,7 @@ class Curve(PointSet):
 
     def __init__(self, *args, uv=None, **kwargs) -> None:
         super().__init__(*args, rank=1, ** kwargs)
+        self._metadata["closed"] = np.allclose(self._points[0], self._points[-1])
         self._uv = uv if uv is not None else np.linspace(0, 1.0, self._points.shape[0])
 
     def __copy__(self) -> Curve:

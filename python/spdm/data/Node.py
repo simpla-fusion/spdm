@@ -14,7 +14,6 @@ from ..utils.logger import logger
 from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, primary_type
-from ..views.View import display
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path, path_like
 
@@ -69,7 +68,9 @@ class Node(typing.Generic[_T]):
     @classmethod
     def __deserialize__(cls, *args, **kwargs) -> Node: return cls(*args, **kwargs)
 
-    def _repr_html_(self): return display(self, schema="html")
+    def _repr_html_(self):
+        from ..views.View import display
+        return display(self, schema="html")
 
     @property
     def __entry__(self) -> Entry: return self._entry
