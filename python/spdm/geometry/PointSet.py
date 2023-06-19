@@ -40,25 +40,30 @@ class PointSet(GeoObject):
         super().__init__(ndim=points.shape[-1],  **kwargs)
 
         self._points: array_type = points
+        self.set_coordinates()
 
-    def _after_init_(self):
-        coordinates = self._metadata.get("coordinates", None)
+    def set_coordinates(self, *args):
+        if len(args) == 0:
+            args = self._metadata.get("coordinates", [])
 
-        if isinstance(coordinates, str):
-            coordinates = [x.strip() for x in coordinates.split(" ,")]
-            self._metadata["coordinates"] = coordinates
+        if len(args) == 0:
+            return
+        if len(args) == 1 and isinstance(args[0], str):
+                args = [x.strip() for x in args[0].split(",")]
 
-        if isinstance(coordinates, collections.abc.Sequence):
-            if len(coordinates) != self.ndim:
-                raise ValueError(f"coordinates {coordinates} not match ndim {self.ndim}")
+        self._metadata["coordinates"] = args
 
-            for idx, coord_name in enumerate(coordinates):
-                setattr(self, coord_name, self._points[..., idx])
+        if isinstance(args, collections.abc.Sequence):
+            if len(args) != self.ndim:
+                raise ValueError(f"coordinates {args} not match ndim {self.ndim}")
+
+        for idx, coord_name in enumerate(args):
+            setattr(self, coord_name, self._points[..., idx])
 
     def __copy__(self) -> PointSet:
         other: PointSet = super().__copy__()  # type:ignore
         other._points = self._points
-        other._after_init_()
+        other.set_coordinates()
         return other
 
     def __array__(self) -> array_type: return self._points
