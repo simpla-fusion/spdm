@@ -40,21 +40,21 @@ class BBox:
     @property
     def is_degraded(self) -> bool: return (np.any(np.isclose(self._dimensions, 0.0))) == True
 
-    def __equal__(self, other: BBox) -> bool:
-        return np.allclose(self._xmin, other._xmin) and np.allclose(self._xmax, other._xmax)
+    # def __equal__(self, other: BBox) -> bool:
+    #     return np.allclose(self._xmin, other._xmin) and np.allclose(self._xmax, other._xmax)
 
-    def __or__(self, other: BBox) -> BBox:
-        if other is None:
-            return self
-        else:
-            return BBox(np.min(self._xmin, other._xmin), np.max(self._xmax, other._xmax))
+    # def __or__(self, other: BBox) -> BBox:
+    #     if other is None:
+    #         return self
+    #     else:
+    #         return BBox(np.min(self._xmin, other._xmin), np.max(self._xmax, other._xmax))
 
-    def __and__(self, other: BBox) -> BBox | None:
-        if other is None:
-            return None
-        else:
-            res = BBox(np.max(self._xmin, other._xmin), np.min(self._xmax, other._xmax))
-            return res if res.is_valid else None
+    # def __and__(self, other: BBox) -> BBox | None:
+    #     if other is None:
+    #         return None
+    #     else:
+    #         res = BBox(np.max(self._xmin, other._xmin), np.min(self._xmax, other._xmax))
+    #         return res if res.is_valid else None
 
     @property
     def ndim(self) -> int: return len(self._dimensions)
@@ -67,21 +67,33 @@ class BBox:
     def measure(self) -> float: return float(np.product(self._dimensions))
     """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
-    def enclose(self, *args) -> bool:
+    def enclose(self, *args) -> bool | array_type:
         """ Return True if all args are inside the geometry, False otherwise. """
 
         if len(args) == 1:
-            if hasattr(args[0], "bbox"):
-                return self.enclose(args[0].bbox)
-            elif isinstance(args[0], BBox):
-                return self.enclose(args[0].origin) and self.enclose(args[0].origin+args[0].dimensions)
-            elif isinstance(args[0], collections.abc.Sequence):
+            # if hasattr(args[0], "bbox"):
+            #     return self.enclose(args[0].bbox)
+            # elif isinstance(args[0], BBox):
+            #     return self.enclose(args[0].origin) and self.enclose(args[0].origin+args[0].dimensions)
+            if isinstance(args[0], collections.abc.Sequence):
                 return self.enclose(*args[0])
+            elif isinstance(args[0], array_type):
+                return self.enclose([args[0][..., idx] for idx in range(self.ndim)])
             else:
                 raise TypeError(f"args has wrong type {type(args[0])} {args}")
+
         elif len(args) == self.ndim:
-            r_pos = [args[idx]-self._origin[idx] for idx in range(self.ndim)]
-            return np.bitwise_and.reduce([((r_pos[idx] >= 0) & (r_pos[idx] <= self._dimensions[idx])) for idx in range(self.ndim)])
+            if isinstance(args[0], array_type):
+                r_pos = [args[idx]-self._origin[idx] for idx in range(self.ndim)]
+                return np.bitwise_and.reduce(
+                    [((r_pos[idx] >= 0) & (r_pos[idx] <= self._dimensions[idx])) for idx in range(self.ndim)])
+            else:
+                res = all([((args[idx] >= self._origin[idx]) and (
+                    args[idx] <= self._origin[idx]+self._dimensions[idx])) for idx in range(self.ndim)])
+                if not res:
+                    logger.debug((args, self._origin, self._dimensions))
+                return res
+
         else:
             raise TypeError(f"args has wrong type {type(args[0])} {args}")
 

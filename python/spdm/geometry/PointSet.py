@@ -68,8 +68,9 @@ class PointSet(GeoObject):
 
     @functools.cached_property
     def bbox(self) -> BBox:
-        return BBox([np.min(self._points[..., idx]) for idx in range(self.ndim)],
-                    [np.max(self._points[..., idx]) for idx in range(self.ndim)])
+        xmin = [np.min(self._points[..., idx]) for idx in range(self.ndim)]
+        dims = [np.max(self._points[..., idx])-xmin[idx] for idx in range(self.ndim)]
+        return BBox(xmin, dims)
 
     @property
     def boundary(self) -> PointSet | None:

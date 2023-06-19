@@ -229,7 +229,7 @@ class Expression:
         if not isinstance(mark, array_type) and not isinstance(mark, (bool, np.bool_)):
             raise RuntimeError(f"Illegal mark {mark} {type(mark)}")
         elif marked_num == 0:
-            logger.warning(f"Out of domain! {self} ")
+            raise RuntimeError(f"Out of domain! {self} {xargs} ")
 
         if marked_num < mark_size:
             xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]

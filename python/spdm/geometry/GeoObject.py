@@ -126,8 +126,9 @@ class GeoObject(Pluggable):
     def measure(self) -> float: return self.bbox.measure
     """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
-    def enclose(self, *args) -> bool: return self.is_closed and self.bbox.enclose(*args)
-    """ Return True if all args are inside the geometry, False otherwise. """
+    def enclose(self, *args) -> bool|array_type:
+        """ Return True if all args are inside the geometry, False otherwise. """
+        return False if not self.is_closed else self.bbox.enclose(*args)
 
     def intersection(self, other: GeoObject) -> typing.List[GeoObject]:
         """ Return the intersection of self with other. """

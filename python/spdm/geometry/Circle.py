@@ -24,8 +24,7 @@ class Circle(GeoObject):
 
     @property
     def bbox(self) -> BBox:
-        return BBox([self._x - self._r, self._y - self._r],
-                    [self._x + self._r, self._y + self._r])
+        return BBox([self._x - self._r, self._y - self._r], [2.0*self._r, 2.0 * self._r])
 
     @property
     def x(self) -> float: return self._x

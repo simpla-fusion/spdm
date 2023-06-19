@@ -72,9 +72,6 @@ class RectilinearMesh(StructuredMesh):
     def rank(self) -> int: return len(self._dims)
 
     @cached_property
-    def bbox(self) -> BBox: return BBox([d[0] for d in self._dims], [d[-1] for d in self._dims])
-
-    @cached_property
     def dx(self) -> ArrayType: return np.asarray([(d[-1]-d[0])/len(d) for d in self._dims])
 
     def coordinates(self, *uvw) -> ArrayType:
