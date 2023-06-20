@@ -70,7 +70,7 @@ class Node(typing.Generic[_T]):
 
     def _repr_html_(self):
         from ..views.View import display
-        return display(self, schema="html")
+        return display(self, output="svg")
 
     @property
     def __entry__(self) -> Entry: return self._entry

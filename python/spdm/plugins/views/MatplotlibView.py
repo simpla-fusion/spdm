@@ -52,63 +52,99 @@ class MatplotlibView(View):
             fig = None
         return fig
 
-    def display(self, obj, **kwargs) -> typing.Any:
+    def display(self, obj, styles=None, **kwargs) -> typing.Any:
 
         fig, canves = plt.subplots()
 
-        self.draw(obj,  canves, styles=kwargs.get("styles", {}))
+        self.draw(canves, obj, styles)
 
         canves.set_aspect('equal')
         canves.axis('scaled')
-        canves.set_xlabel(kwargs.pop("xlabel", ""))
-        canves.set_ylabel(kwargs.pop("ylabel", ""))
 
         return self._post(fig, **kwargs)
 
-    def draw_one(self, obj: typing.Any, canvas, styles={},  **kwargs):
+    def _draw(self, canvas, obj: typing.Any,  styles={}):
 
-        if isinstance(obj, BBox):
-            canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False))
+        s_styles = styles.get(f"${self.backend}", {})
+
+        if obj is None:
+            pass
+        elif isinstance(obj, (str, int, float, bool)):
+            pos = s_styles.pop("position", (0, 0))
+            canvas.text(*pos, str(obj),
+                        horizontalalignment=s_styles.pop('horizontalalignment', 'center'),
+                        verticalalignment=s_styles.pop('verticalalignment', 'center'),
+                        fontsize=s_styles.pop('fontsize', 'xx-small'),
+                        ** s_styles
+                        )
+        elif isinstance(obj, BBox):
+            canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles))
 
         elif isinstance(obj, Polygon):
-            canvas.add_patch(plt.Polygon(obj._points.transpose([1, 0]), fill=False, **styles))
+            canvas.add_patch(plt.Polygon(obj._points.transpose([1, 0]), fill=False, **s_styles))
 
         elif isinstance(obj, Polyline):
-            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **styles))
+            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
 
         elif isinstance(obj, Curve):
-            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **styles))
+            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
 
         elif isinstance(obj, Rectangle):
-            canvas.add_patch(plt.Rectangle((obj._x, obj._y), obj._width, obj._height, fill=False, **styles))
+            canvas.add_patch(plt.Rectangle((obj._x, obj._y), obj._width, obj._height, fill=False, **s_styles))
 
         elif isinstance(obj, Circle):
             canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r))
 
         elif isinstance(obj, Point):
-            canvas.scatter(obj.x, obj.y, **styles)
+            canvas.scatter(obj.x, obj.y, **s_styles)
 
         elif isinstance(obj, GeoObject):
-            self.draw(obj.bbox, canvas=canvas, styles=styles, **kwargs)
+            self._draw(canvas, obj.bbox,  styles)
 
         elif hasattr(obj, "__mesh__"):
             R, Z = obj.__mesh__.points
             value = np.asarray(obj.__value__)
             canvas.contour(R, Z, value,
-                           linewidths=styles.get("linewidths", 0.5),
-                           levels=styles.get("levels", 10),
+                           linewidths=s_styles.pop("linewidths", 0.5),
+                           levels=s_styles.pop("levels", 10),
+                           **s_styles
                            )
         else:
             raise RuntimeError(f"Unsupport type {obj}")
 
-        if isinstance(obj, GeoObject):
-            text = kwargs.get("text", None)
+        title_styles = styles.pop("title", False)
+        if title_styles:
+            if not isinstance(title_styles, dict):
+                title_styles = {}
 
-            if isinstance(text, str):
-                canvas.text(*obj.bbox.center, text,
-                            horizontalalignment='center',
-                            verticalalignment='center',
-                            fontsize='xx-small')
+            if isinstance(obj, GeoObject):
+                text = obj.name
+                pos = obj.bbox.center
+            elif hasattr(obj, "__mesh__"):
+                text = obj.name
+                pos = obj.__mesh__.bbox.center
+            else:
+                text = str(obj)
+                pos = (0, 0)
+
+            title_styles.setdefault("position", pos)
+
+            self._draw(canvas, text, {f"${self.backend}": title_styles})
+
+            # canvas.text(*pos, text,
+            #             horizontalalignment=title_styles.pop('horizontalalignment', 'center'),
+            #             verticalalignment=title_styles.pop('verticalalignment', 'center'),
+            #             fontsize=title_styles.pop('fontsize', 'xx-small'),
+            #             ** title_styles
+            #             )
+
+        xlabel = styles.pop("xlabel", None)
+        if xlabel is not None:
+            canvas.set_xlabel(xlabel)
+
+        ylabel = styles.pop("ylabel", None)
+        if ylabel is not None:
+            canvas.set_ylabel(ylabel)
 
     def profiles(self, obj, *args, x_axis=None, x=None, default_num_of_points=128, fontsize=10,  grid=True, signature=None, title=None, **kwargs):
 
@@ -119,7 +155,7 @@ class MatplotlibView(View):
         fig, canves = plt.subplots(ncols=1, nrows=nprofiles, sharex=True,
                                    figsize=(10, 2*nprofiles))
 
-        self.draw(obj, canvas=canves, styles=styles)
+        self.draw(canves, obj,   styles)
 
         x_label = kwargs.pop("xlabel", "")
 

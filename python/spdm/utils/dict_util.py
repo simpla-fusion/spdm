@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 from copy import deepcopy
 import typing
 import numpy as np
@@ -72,12 +72,12 @@ def normalize_data(data, types=(int, float, str)):
         return str(data)
 
 
-def deep_merge_dict(first, second, level=-1, in_place=False):
+def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False) -> dict | list:
     if not in_place:
         first = deepcopy(first)
 
     if level == 0:
-        return
+        return first
     elif isinstance(first, collections.abc.Sequence):
         if isinstance(second, collections.abc.Sequence):
             first.extent(second)
