@@ -36,7 +36,7 @@ class Function(ExprNode[_T]):
 
     """
 
-    def __init__(self, value: ArrayLike | Expression | ExprOp, *dims: typing.Any, periods=None, **kwargs):
+    def __init__(self, value: ArrayLike | Expression | ExprOp | None, *dims: typing.Any, periods=None, **kwargs):
         """
             Parameters
             ----------
@@ -122,11 +122,11 @@ class Function(ExprNode[_T]):
     """ 函数的维度，即定义域的秩 """
 
     @property
-    def shape(self) -> typing.Tuple[int]: return tuple(len(d) for d in self.dims) if self.dims is not None else tuple()
+    def shape(self) -> typing.List[int]: return [len(d) for d in self.dims] if self.dims is not None else []
     """ 所需数组的形状 """
 
     @property
-    def periods(self) -> typing.Tuple[float]: return self._periods
+    def periods(self) -> typing.List[float]: return self._periods
 
     @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
@@ -215,14 +215,14 @@ class Function(ExprNode[_T]):
 
         return self._ppoly
 
-    def __call__(self, *args, **kwargs) -> NumericType:
+    def __call__(self, *args, **kwargs) -> _T:
         if is_array(self._value) and len(args) == 1 and args[0] is self._dims[0]:
             return self._value
         else:
             return super().__call__(*args, **kwargs)
 
-    def compile(self, *args, **kwargs) -> Function:
-        return Function(self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]", periods=self._periods)
+    def compile(self, *args, **kwargs) -> Function[_T]:
+        return Function[_T](self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]", periods=self._periods)
 
     def partial_derivative(self, *d) -> Function[_T]:
         return Function[_T](partial_derivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"d_{list(d)}({self})")
@@ -237,7 +237,7 @@ class Function(ExprNode[_T]):
 
     def pd(self, *d) -> Function[_T]: return self.partial_derivative(*d)
 
-    def dln(self) -> Expression[_T]: return self.derivative() / self
+    def dln(self) -> Expression: return self.derivative() / self
 
     def integral(self, *args, **kwargs) -> _T: return integral(self._compile(), *args, **kwargs)
 

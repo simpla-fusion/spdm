@@ -8,10 +8,10 @@ import typing
 import numpy as np
 
 from ..utils.logger import logger
+from ..utils.numeric import float_nan, is_scalar
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
                             scalar_type)
-from ..utils.numeric import float_nan
 from ..views.View import display
 from .ExprOp import ExprOp
 
@@ -43,7 +43,7 @@ class Expression:
 
     fill_value = float_nan
 
-    def __init__(self, op: typing.Callable | ExprOp | Expression | NumericType | None = None, *children, name: str = None,  **kwargs) -> None:
+    def __init__(self, op: typing.Callable | ExprOp | Expression | NumericType | None = None, *children, name: str | None = None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -184,7 +184,7 @@ class Expression:
                 raise RuntimeError(f"Error when evaluating {self} !")
         return value
 
-    def __call__(self, *xargs: NumericType, **kwargs) -> ArrayType | Expression:
+    def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
         """
             重载函数调用运算符，用于计算表达式的值
 
@@ -219,14 +219,15 @@ class Expression:
             raise RuntimeError(f"Out of domain! {self} {xargs} ")
 
         if marked_num < mark_size:
-            xargs = [(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg) for arg in xargs]
+            xargs = tuple([(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg)
+                          for arg in xargs])
 
         value = self._eval(self._op, *xargs, **kwargs)
 
         if marked_num == mark_size:
             if not isinstance(mark, array_type):
                 res = value
-            elif np.isscalar(value):
+            elif is_scalar(value):
                 res = np.full_like(mark, value, dtype=self.__type_hint__)
             elif isinstance(value, array_type) and value.shape == mark.shape:
                 res = value

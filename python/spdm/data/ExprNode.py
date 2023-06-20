@@ -25,7 +25,7 @@ class ExprNode(Expression, Node[_T]):
 
     """
 
-    def __init__(self,  value: ArrayLike | Expression, *args,   **kwargs) -> None:
+    def __init__(self,  value: typing.Any, *args,   **kwargs) -> None:
         """
             Parameters
             ----------

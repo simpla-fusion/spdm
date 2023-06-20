@@ -6,7 +6,7 @@ import datetime
 import getpass
 import typing
 
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 #  在 MatplotlibView 中 imported matplotlib 会不起作用
 #  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
 from ..utils.dict_util import deep_merge_dict
@@ -60,7 +60,7 @@ class View(Pluggable):
             return
 
         if not isinstance(styles, collections.abc.Mapping):
-            if styles is not None:
+            if styles is not None and not isinstance(styles, bool):
                 logger.warning(f"ignore unsupported styles {styles}")
             styles = kwargs
         else:

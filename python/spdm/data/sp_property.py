@@ -82,7 +82,7 @@ class SpDict(Dict[_T]):
         self._cache = {} if cache is None else cache
 
     def __copy__(self) -> SpDict:
-        other = super().__copy__()
+        other: SpDict = super().__copy__()  # type:ignore
         other._cache = copy(self._cache)
         return other
 
