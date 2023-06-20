@@ -3,6 +3,7 @@ import typing
 from io import BytesIO
 
 import matplotlib.pyplot as plt
+import matplotlib.colors
 import numpy as np
 from spdm.data.Function import Function
 from spdm.geometry.Circle import Circle
@@ -25,7 +26,18 @@ class MatplotlibView(View):
         super().__init__(*args, **kwargs)
         self._view_point = view_point  # TODO: 未实现, for 3D view
 
-    def _post(self, fig, **kwargs) -> typing.Any:
+    def render(self, obj, styles=None, **kwargs) -> typing.Any:
+
+        fig, canves = plt.subplots()
+
+        self.draw(canves, obj, styles)
+
+        canves.set_aspect('equal')
+        canves.axis('scaled')
+
+        return self._render_post(fig, **kwargs)
+
+    def _render_post(self, fig, **kwargs) -> typing.Any:
 
         fig.suptitle(kwargs.pop("title", ""))
         fig.align_ylabels()
@@ -52,31 +64,27 @@ class MatplotlibView(View):
             fig = None
         return fig
 
-    def display(self, obj, styles=None, **kwargs) -> typing.Any:
-
-        fig, canves = plt.subplots()
-
-        self.draw(canves, obj, styles)
-
-        canves.set_aspect('equal')
-        canves.axis('scaled')
-
-        return self._post(fig, **kwargs)
-
     def _draw(self, canvas, obj: typing.Any,  styles={}):
+        if styles is False:
+            return
 
         s_styles = styles.get(f"${self.backend}", {})
 
         if obj is None:
             pass
         elif isinstance(obj, (str, int, float, bool)):
-            pos = s_styles.pop("position", (0, 0))
+            pos = s_styles.pop("position", None)
+
+            if pos is None:
+                return
+
             canvas.text(*pos, str(obj),
                         horizontalalignment=s_styles.pop('horizontalalignment', 'center'),
                         verticalalignment=s_styles.pop('verticalalignment', 'center'),
                         fontsize=s_styles.pop('fontsize', 'xx-small'),
                         ** s_styles
                         )
+
         elif isinstance(obj, BBox):
             canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles))
 
@@ -125,7 +133,7 @@ class MatplotlibView(View):
                 pos = obj.__mesh__.bbox.center
             else:
                 text = str(obj)
-                pos = (0, 0)
+                pos = None
 
             title_styles.setdefault("position", pos)
 

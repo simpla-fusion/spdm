@@ -9,13 +9,12 @@ import operator
 import typing
 from types import SimpleNamespace
 from copy import copy
-import numpy as np
 
 from ..utils.logger import logger
 from ..utils.misc import serialize
 from ..utils.Pluggable import Pluggable
 from ..utils.tags import _not_found_
-from ..utils.typing import numeric_type, array_type, primary_type
+from ..utils.typing import numeric_type, array_type, primary_type, is_scalar, is_array, as_array
 from ..utils.dict_util import reduce_dict
 from .Path import Path, as_path
 from ..utils.misc import group_dict_by_prefix
@@ -241,10 +240,10 @@ def deep_reduce(first=None, *others, level=-1):
         return first if first is not _not_found_ else None
     elif first is None or first is _not_found_:
         return deep_reduce(others, level=level)
-    elif isinstance(first, str) or np.isscalar(first):
+    elif isinstance(first, str) or is_scalar(first):
         return first
     elif isinstance(first, array_type):
-        return np.sum([first, *(v for v in others if (v is not None and v is not _not_found_))])
+        return sum([first, *(v for v in others if (v is not None and v is not _not_found_))])
     elif len(others) > 1:
         return deep_reduce(first, deep_reduce(others, level=level), level=level)
     elif others[0] is None or first is _not_found_:
@@ -259,7 +258,7 @@ def deep_reduce(first=None, *others, level=-1):
         res = {}
         for k, v in first.items():
             res[k] = deep_reduce(v, second.get(k, None), level=level-1)
-        for k, v in second.itmes():
+        for k, v in second.items():
             if k not in res:
                 res[k] = v
         return res
@@ -316,8 +315,8 @@ def as_dataclass(dclass, obj, default_value=None):
         pass
     # elif getattr(obj, 'empty', False):
     #   obj = None
-    elif dclass is np.ndarray:
-        obj = np.asarray(obj)
+    elif dclass is array_type:
+        obj = as_array(obj)
     elif hasattr(obj.__class__, 'get'):
         obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, f.default if f.default is not dataclasses.MISSING else None))
                         for f in dataclasses.fields(dclass)})

@@ -8,8 +8,7 @@ import typing
 from copy import deepcopy, copy
 from enum import Flag, auto
 
-import numpy as np
-
+from ..utils.typing import array_type
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 
@@ -345,7 +344,7 @@ class Path(list):
                 elif p not in target:
                     break
             elif isinstance(p, int):
-                if isinstance(target, np.ndarray):
+                if isinstance(target, array_type):
                     target = target[p]
                     continue
                 elif not isinstance(target, (list, tuple, collections.deque)):
@@ -353,7 +352,7 @@ class Path(list):
                 elif p >= len(target):
                     raise IndexError(f"Index {p} out of range {len(target)}")
             elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
-                if not isinstance(target, (np.ndarray)):
+                if not isinstance(target, (array_type)):
                     break
             else:
                 break
@@ -420,7 +419,7 @@ class Path(list):
         elif isinstance(path[pos], tuple):
             yield from (self._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs) for k in path[pos])
         elif isinstance(path[pos], slice):
-            if isinstance(target, (np.ndarray)):
+            if isinstance(target, (array_type)):
                 yield from self._find(target[path[pos]], path[pos+1:],  *args, **kwargs)
             elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
                 for item in target[path[pos]]:
@@ -907,7 +906,7 @@ class obsolete_Path:
                 return self.move_to(path[idx:-1], _not_found_),  path[-1]
             # elif isinstance(self, EntryContainer):
             #     return self.get(path[idx:-1], _not_found_), path[-1]
-            elif isinstance(self, np.ndarray) and isinstance(key, (int, slice)):
+            elif isinstance(self, array_type) and isinstance(key, (int, slice)):
                 try:
                     val = self[key]
                 except (IndexError, KeyError, TypeError) as error:
@@ -1051,7 +1050,7 @@ class obsolete_Path:
             path = []
         elif not isinstance(path, list):
             path = [path]
-        if not isinstance(value, np.ndarray) and value is _undefined_:
+        if not isinstance(value, array_type) and value is _undefined_:
             val = value
         elif isinstance(value, dict):
             self, p = Entry._eval_path(self, path+[""], force=True)
@@ -1153,8 +1152,8 @@ class obsolete_Path:
 
     def dump(self, *args, **kwargs):
         """
-            convert data in cache to python native type and np.ndarray
-            [str, bool, float, int, np.ndarray, Sequence, Mapping]:
+            convert data in cache to python native type and array_type
+            [str, bool, float, int, array_type, Sequence, Mapping]:
         """
         return as_native(self._cache, *args, **kwargs)
 

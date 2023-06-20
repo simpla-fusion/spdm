@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import collections.abc
 import functools
-import inspect
 import typing
-
-import numpy as np
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
@@ -60,7 +57,7 @@ class ExprOp:
         可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
     """
 
-    def __init__(self, op, /, method: str = None, name=None, **kwargs) -> None:
+    def __init__(self, op, /, method: str | None = None, name: str | None = None, **kwargs) -> None:
         self._op = op
         self._method = method
         self._opts = kwargs
@@ -79,13 +76,14 @@ class ExprOp:
     def __str__(self) -> str: return str(self._name)
 
     @property
-    def __name__(self) -> str: return self._name
+    def __name__(self) -> str | None: return self._name
     """ To get the name of the operator，same as self.name. To compatible with numpy ufunc. """
-    @property
-    def name(self) -> str: return self._name
 
     @property
-    def tag(self) -> str: return _EXPR_OP_NAME.get(self._name, None)
+    def name(self) -> str | None: return self._name
+
+    @property
+    def tag(self) -> str | None: return _EXPR_OP_NAME.get(self._name, None)
 
     @property
     def __op__(self) -> typing.Callable | NumericType: return self._op
@@ -112,9 +110,12 @@ class ExprOp:
 
 
 class Derivative(ExprOp):
-    def __init__(self, func, order=1, name=None, **kwargs) -> None:
+    def __init__(self, func, *order: int, name=None, **kwargs) -> None:
+        if len(order) == 0:
+            order = (1,)
+
         if name is None:
-            name = f"D{list(order)}({func})" if order > 1 else f"D({func})"
+            name = f"D{list(order)}({func})" if len(order) > 1 else f"D({func})"
 
         if hasattr(func, "derivative"):
             op = func.derivative(order)
@@ -202,7 +203,7 @@ def antiderivative(func, *args, **kwargs) -> Antiderivative:
     return Antiderivative(func, *args, **kwargs)
 
 
-def integral(func, *args, **kwargs) :
+def integral(func, *args, **kwargs):
     return func. integral(*args, **kwargs)
 
 

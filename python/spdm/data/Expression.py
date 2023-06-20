@@ -11,6 +11,7 @@ from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
                             scalar_type)
+from ..views.View import display
 from .ExprOp import ExprOp
 
 _T = typing.TypeVar("_T")
@@ -41,7 +42,7 @@ class Expression:
 
     fill_value = np.nan
 
-    def __init__(self, op: typing.Callable | ExprOp | Expression | None = None, *children, name: str | None = None,  **kwargs) -> None:
+    def __init__(self, op: typing.Callable | ExprOp | Expression | NumericType | None = None, *children, name: str | None = None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -108,26 +109,11 @@ class Expression:
     @property
     def __name__(self) -> str: return self._name
 
-    def __str__(self) -> str:
-        """ 返回表达式的抽象语法树"""
+    def __str__(self): return display(self, output="latex")
+    """ for jupyter notebook display """
 
-        def _ast(v):
-            if isinstance(v, Expression):
-                return f"{v.__str__()}"
-            elif isinstance(v, np.ndarray):
-                return f"<{v.shape}>"
-            elif np.isscalar(v):
-                return f"{v}"
-            else:
-                return str(v)  # getattr(v,"_name",None)
-
-        if isinstance(self._op, ExprOp) and self._op.name is not None:
-            if len(self._children) == 2 and self._op.tag is not None:
-                return f"({_ast(self._children[0])} {self._op.tag} {_ast(self._children[1])})"
-            else:
-                return f"{self._op.name}({', '.join([_ast(arg) for arg in self._children])})"
-        else:
-            return f"{self.__name__}"
+    def _repr_latex_(self): return display(self, output="latex")
+    """ for jupyter notebook display """
 
     @property
     def __type_hint__(self): return float

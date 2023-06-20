@@ -5,7 +5,6 @@ import functools
 import typing
 from enum import Enum
 
-import numpy as np
 
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger

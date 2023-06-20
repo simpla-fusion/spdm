@@ -38,7 +38,7 @@ class SVGView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def display(self, *args, **kwargs) -> typing.Any:
+    def render(self, *args, **kwargs) -> typing.Any:
 
         bbox = []
         contents = []
@@ -94,7 +94,7 @@ class SVGView(View):
             line_width=line_width,
             color="black",)
 
-    def draw(self, obj: GeoObject | Node | BBox, **kwargs) -> str:
+    def _draw(self, cancas, obj: GeoObject | Node | BBox, styles=None, **kwargs) -> str:
 
         name = kwargs.pop('name', obj.name)
 

@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import abc
 import collections
 import collections.abc
 import datetime
 import getpass
 import typing
 
-import matplotlib.pyplot as plt
-import numpy as np
-
+import matplotlib.pyplot as plt 
+#  在 MatplotlibView 中 imported matplotlib 会不起作用
+#  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
+from ..utils.dict_util import deep_merge_dict
 from ..utils.logger import logger
 from ..utils.Pluggable import Pluggable
-from ..utils.typing import array_type
-from ..utils.dict_util import deep_merge_dict
 
 
 class View(Pluggable):
@@ -27,6 +25,11 @@ class View(Pluggable):
 
         if isinstance(_backend_type, str):
             _backend_type = [_backend_type,
+                             f"spdm.views.{_backend_type}#{_backend_type}",
+                             f"spdm.views.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
+                             f"spdm.views.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
+                             f"spdm.views.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
+                             f"spdm.views.{cls.__name__}#{_backend_type}"
                              f"spdm.plugins.views.{_backend_type}#{_backend_type}",
                              f"spdm.plugins.views.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
                              f"spdm.plugins.views.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
@@ -46,13 +49,12 @@ class View(Pluggable):
     def signature(self) -> str:
         return f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
 
-    def display(self, *args,  **kwargs):
+    def render(self, *args,  **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
 
     def _draw(self, canvas, *args,  **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
 
-    @typing.final
     def draw(self, canvas, obj, styles, **kwargs):
         if styles is False:
             return
@@ -91,7 +93,7 @@ class View(Pluggable):
             self._draw(canvas, obj, styles)
 
     def profiles(self, *args, **kwargs):
-        return self.display(*args, as_profiles=True, **kwargs)
+        return self.render(*args, as_profiles=True, **kwargs)
 
     def draw_profile(self, profile, x, axis=None, ** kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
@@ -100,11 +102,17 @@ class View(Pluggable):
 _view_instances = {}
 
 
-def display(*args, output="svg", backend="matplotlib", **kwargs):
+def display(*args, output=None, backend=None, **kwargs):
     """Show an object"""
+
+    if backend is None and isinstance(output, str):
+        backend = output.split('.')[-1]
+    if backend is None:
+        backend = "matplotlib"
+
     instance = _view_instances.get(backend, None)
 
     if instance is None:
         instance = _view_instances[backend] = View(type=backend)
 
-    return instance.display(*args, output=output, **kwargs)
+    return instance.render(*args, output=output, **kwargs)

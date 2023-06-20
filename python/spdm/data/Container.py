@@ -9,7 +9,6 @@ import typing
 from copy import copy
 from enum import Enum
 
-import numpy as np
 from spdm.data.Node import Node
 from spdm.numlib.misc import array_like
 

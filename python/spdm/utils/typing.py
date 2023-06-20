@@ -7,13 +7,13 @@ import numpy.typing as np_tp
 
 PrimaryType = int | float | bool | complex | str | bytes
 
-ArrayLike = np_tp.ArrayLike
+ArrayLike = np_tp.ArrayLike | None
 
-ScalarType = float | complex | np.float64 | np.complex64 | np.complex128
+ScalarType = bool | int | float | complex | np.float64 | np.complex64 | np.complex128
 
 ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
 
-NumericType = ScalarType | ArrayType
+NumericType = ScalarType | ArrayType | None
 
 boolean_type = (bool,)
 
@@ -21,11 +21,28 @@ integral_type = (int, np.integer,)
 
 real_type = (float, np.floating,)
 
+float_nan = np.nan
+
+bitwise_and_reduce = np.bitwise_and.reduce
+
 complex_type = (complex, np.complexfloating,)
 
 scalar_type = (*boolean_type, *integral_type, *real_type, *complex_type,)
 
 array_type = np.ndarray
+
+
+def is_arraylike(d: typing.Any) -> bool:
+    return is_scalarlike(d) or isinstance(d, (collections.abc.Sequence, np.ndarray)) or hasattr(d.__class__, "__array__")
+
+
+def as_array(d: typing.Any, **kwargs) -> array_type:
+    if hasattr(d.__class__, '__value__'):
+        d = d.__value__
+    return np.asarray(d, **kwargs)
+
+
+np_squeeze = np.squeeze
 
 numeric_type = (*scalar_type, array_type)
 
@@ -33,7 +50,7 @@ primary_type = (str,  *numeric_type)
 
 _T = typing.TypeVar("_T")
 
-HTContainer = _T | typing.Sequence[_T]  
+HTContainer = _T | typing.Sequence[_T]
 """Hierarchical Container Type  """
 
 
@@ -101,13 +118,3 @@ def is_scalarlike(d: typing.Any) -> bool:
 
 def as_scalar(d: typing.Any) -> ScalarType:
     return complex(d) if is_complex(d) else float(d)
-
-
-def is_arraylike(d: typing.Any) -> bool:
-    return is_scalarlike(d) or isinstance(d, (collections.abc.Sequence, np.ndarray)) or hasattr(d.__class__, "__array__")
-
-
-def as_array(d: typing.Any, **kwargs) -> np_tp.NDArray:
-    if hasattr(d.__class__, '__entry__'):
-        d = d.__entry__().__value__()
-    return np.asarray(d, **kwargs)
