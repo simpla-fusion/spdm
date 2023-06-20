@@ -8,12 +8,13 @@ import typing
 from copy import copy
 from enum import Enum
 
-import numpy as np
 
 from ..utils.logger import logger
 from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, primary_type
+from ..utils.numeric import as_array, is_close, is_scalar
+
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path, path_like
 
@@ -22,7 +23,7 @@ _T = typing.TypeVar("_T")
 
 class Node(typing.Generic[_T]):
     """
-        节点类，用于表示数据结构中的节点，节点可以是一个标量（或np.ndarray），也可以是一个列表，也可以是一个字典。
+        节点类，用于表示数据结构中的节点，节点可以是一个标量（或 array_type），也可以是一个列表，也可以是一个字典。
         用于在一般数据结构上附加类型标识（type_hint)。
 
         @NOTE:
@@ -89,10 +90,13 @@ class Node(typing.Generic[_T]):
         else:
             return typing.get_args(orig_class)[-1]
 
-    def __float__(self): return float(self.__value__)
+    # def __float__(self): return float(self.__value__)
+
+    # def __bool__(self): return bool(self.__value__)
+
     def __str__(self): return str(self.__value__)
-    def __bool__(self): return bool(self.__value__)
-    def __array__(self): return np.asarray(self.__value__)
+
+    def __array__(self): return as_array(self.__value__)
 
     def __copy__(self) -> Node:
         other: Node = self.__class__.__new__(self.__class__)
@@ -214,8 +218,8 @@ class Node(typing.Generic[_T]):
             elif isinstance(value, origin_class):
                 pass
 
-            elif issubclass(origin_class, np.ndarray):
-                value = np.asarray(value)
+            elif issubclass(origin_class, array_type):
+                value = as_array(value)
 
             elif type_hint in primary_type:
                 value = type_hint(value)

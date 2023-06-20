@@ -1,17 +1,10 @@
 from __future__ import annotations
 
 import collections.abc
-import pprint
 import typing
-from enum import Enum
-from functools import cached_property
 
-import numpy as np
-from spdm.utils.typing import ArrayType
-
-from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
-from ..utils.misc import group_dict_by_prefix
+from ..utils.numeric import as_array, is_array, is_close, is_scalar, squeeze
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayLike, ArrayType, array_type, numeric_type
 from .Expression import Expression
@@ -124,22 +117,22 @@ class ExprNode(Expression, Node[_T]):
     @staticmethod
     def _normalize_value(value: ArrayLike, *args, **kwargs) -> ArrayLike:
         """ 将 value 转换为 array_type 类型 """
-        if isinstance(value, array_type) or np.isscalar(value):
+        if isinstance(value, array_type) or is_scalar(value):
             pass
         elif value is None or value is _not_found_:
             value = None
         elif isinstance(value, numeric_type):
-            value = np.asarray(value, *args, **kwargs)
+            value = as_array(value, *args, **kwargs)
         elif isinstance(value, tuple):
-            value = np.asarray(value, *args, **kwargs)
+            value = as_array(value, *args, **kwargs)
         elif isinstance(value, collections.abc.Sequence):
-            value = np.asarray(value, *args, **kwargs)
+            value = as_array(value, *args, **kwargs)
         elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
             value = None
         else:
             raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
 
         if isinstance(value, array_type) and value.size == 1:
-            value = np.squeeze(value).item()
+            value = squeeze(value).item()
 
         return value

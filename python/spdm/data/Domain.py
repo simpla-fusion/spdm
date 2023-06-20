@@ -1,8 +1,8 @@
 import typing
 
-import numpy as np
+from ..utils.numeric import bitwise_and, float_nan
+from ..utils.typing import NumericType, array_type, numeric_type
 from .Expression import Expression
-from ..utils.typing import array_type, numeric_type, NumericType
 
 
 class Domain(Expression):
@@ -25,13 +25,13 @@ class Domain(Expression):
         elif len(cond) == 1:
             Expression.__init__(self, cond[0])
         else:
-            Expression.__init__(self, lambda *d: np.bitwise_and.reduce(d), *cond)
+            Expression.__init__(self, lambda *d: bitwise_and.reduce(d), *cond)
 
-        self._fill_value = fill_value if fill_value is not None else np.nan
+        self._fill_value = fill_value if fill_value is not None else float_nan
 
-    def mask_like(self, target: array_type, *args: numeric_type, fill_value=None) -> array_type:
+    def mask_like(self, target: array_type, *args: NumericType, fill_value=None) -> array_type:
         if not isinstance(target, array_type):
-            raise TypeError(f"target should be np.ndarray not {type(target)}")
+            raise TypeError(f"target should be array_type not {type(target)}")
 
         mask = self.__call__(*args)
 

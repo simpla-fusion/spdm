@@ -7,17 +7,17 @@ import functools
 import inspect
 import operator
 import typing
-from types import SimpleNamespace
 from copy import copy
+from types import SimpleNamespace
 
+from ..utils.dict_util import reduce_dict
 from ..utils.logger import logger
-from ..utils.misc import serialize
+from ..utils.misc import group_dict_by_prefix, serialize
+from ..utils.numeric import as_array, is_close, is_scalar
 from ..utils.Pluggable import Pluggable
 from ..utils.tags import _not_found_
-from ..utils.typing import numeric_type, array_type, primary_type, is_scalar, is_array, as_array
-from ..utils.dict_util import reduce_dict
+from ..utils.typing import array_type, numeric_type, primary_type
 from .Path import Path, as_path
-from ..utils.misc import group_dict_by_prefix
 
 _T = typing.TypeVar("_T")
 

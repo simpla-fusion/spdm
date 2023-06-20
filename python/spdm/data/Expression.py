@@ -11,6 +11,7 @@ from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
                             scalar_type)
+from ..utils.numeric import float_nan
 from ..views.View import display
 from .ExprOp import ExprOp
 
@@ -40,9 +41,9 @@ class Expression:
             3.0
     """
 
-    fill_value = np.nan
+    fill_value = float_nan
 
-    def __init__(self, op: typing.Callable | ExprOp | Expression | NumericType | None = None, *children, name: str | None = None,  **kwargs) -> None:
+    def __init__(self, op: typing.Callable | ExprOp | Expression | NumericType | None = None, *children, name: str = None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -63,7 +64,7 @@ class Expression:
             op = ExprOp(op, **kwargs)
 
         self._op: ExprOp = op
-        self._name = name if name is not None else getattr(op, "__name__", self.__class__.__name__)
+        self._name: str = name if name is not None else getattr(op, "__name__", self.__class__.__name__)
         self._children = children
 
     def __copy__(self) -> Expression:

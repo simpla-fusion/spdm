@@ -7,11 +7,11 @@ import typing
 from copy import copy
 from enum import Enum
 
-import numpy as np
 
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, try_get
+from ..utils.numeric import as_array, is_close, is_scalar, meshgrid, is_array, bitwise_and
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
                             numeric_type, scalar_type)
@@ -57,7 +57,7 @@ class Function(ExprNode[_T]):
 
         """
         super().__init__(value, **kwargs)
-        self._dims = [np.asarray(v) for v in dims] if len(dims) > 0 else None
+        self._dims = [as_array(v) for v in dims] if len(dims) > 0 else None
         self._periods = periods
 
     def validate(self, value=None, strict=False) -> bool:
@@ -135,7 +135,7 @@ class Function(ExprNode[_T]):
         elif len(self.dims) == 1:
             return self.dims
         else:
-            return np.meshgrid(*self.dims, indexing="ij")
+            return meshgrid(*self.dims, indexing="ij")
 
     def __domain__(self, *args) -> bool:
         if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0 or self._metadata.get("extrapolate", 0) != 1:
@@ -147,14 +147,14 @@ class Function(ExprNode[_T]):
         v = []
         for i, d in enumerate(self.dims):
             if not isinstance(d, array_type):
-                v.append(np.isclose(args[i], d))
+                v.append(is_close(args[i], d))
             elif len(d.shape) == 0:
-                v.append(np.isclose(args[i], d.item()))
+                v.append(is_close(args[i], d.item()))
             elif len(d) == 1:
-                v.append(np.isclose(args[i], d[0]))
+                v.append(is_close(args[i], d[0]))
             else:
                 v.append((args[i] >= d[0]) & (args[i] <= d[-1]))
-        return np.bitwise_and.reduce(v)
+        return bitwise_and.reduce(v)
 
     # @property
     # def rank(self) -> int:
@@ -204,7 +204,7 @@ class Function(ExprNode[_T]):
 
         if value is None:
             return None
-        elif np.isscalar(value):
+        elif is_scalar(value):
             self._ppoly = value
         elif isinstance(value, array_type):
             self._ppoly = interpolate(value, *(self.dims if self.dims is not None else []),
@@ -216,7 +216,7 @@ class Function(ExprNode[_T]):
         return self._ppoly
 
     def __call__(self, *args, **kwargs) -> NumericType:
-        if isinstance(self._value, np.ndarray) and len(args) == 1 and args[0] is self._dims[0]:
+        if is_array(self._value) and len(args) == 1 and args[0] is self._dims[0]:
             return self._value
         else:
             return super().__call__(*args, **kwargs)
@@ -252,7 +252,7 @@ class Function(ExprNode[_T]):
             raise RuntimeError(f"len(dims) != len(self._dims) {len(dims)}!={len(self.dims)}")
         new_dims = []
         for idx, d in enumerate(dims):
-            if isinstance(d, np.ndarray) and len(d) == len(self.dims[idx]):
+            if is_array(d) and len(d) == len(self.dims[idx]):
                 pass
             elif callable(d):
                 d = d(self.dims[idx])
