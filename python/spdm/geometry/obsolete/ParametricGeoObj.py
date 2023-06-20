@@ -7,7 +7,7 @@ import numpy as np
 
 from ..utils.logger import logger
 from ..utils.misc import builtin_types
-from ..utils.Pluggable import Pluggable
+from ..utils.plugin import Pluggable
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
                             nTupleType, numeric_type)
 from .GeoObject import GeoObject

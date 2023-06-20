@@ -3,16 +3,16 @@ import typing
 from io import BytesIO
 
 import matplotlib.pyplot as plt
-import matplotlib.colors
 import numpy as np
 from spdm.data.Function import Function
+from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
+from spdm.geometry.Curve import Curve
 from spdm.geometry.GeoObject import GeoObject
+from spdm.geometry.Point import Point
+from spdm.geometry.PointSet import PointSet
 from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
-from spdm.geometry.Point import Point
-from spdm.geometry.Curve import Curve
-from spdm.geometry.BBox import BBox
 from spdm.utils.logger import logger
 from spdm.utils.typing import array_type
 from spdm.views.View import View
@@ -26,7 +26,7 @@ class MatplotlibView(View):
         super().__init__(*args, **kwargs)
         self._view_point = view_point  # TODO: 未实现, for 3D view
 
-    def render(self, obj, styles=None, **kwargs) -> typing.Any:
+    def render(self, obj, **styles) -> typing.Any:
 
         fig, canves = plt.subplots()
 
@@ -35,7 +35,7 @@ class MatplotlibView(View):
         canves.set_aspect('equal')
         canves.axis('scaled')
 
-        return self._render_post(fig, **kwargs)
+        return self._render_post(fig, **styles)
 
     def _render_post(self, fig, **kwargs) -> typing.Any:
 
@@ -65,13 +65,12 @@ class MatplotlibView(View):
         return fig
 
     def _draw(self, canvas, obj: typing.Any,  styles={}):
-        if styles is False:
-            return
 
         s_styles = styles.get(f"${self.backend}", {})
 
         if obj is None:
             pass
+      
         elif isinstance(obj, (str, int, float, bool)):
             pos = s_styles.pop("position", None)
 
@@ -89,7 +88,7 @@ class MatplotlibView(View):
             canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles))
 
         elif isinstance(obj, Polygon):
-            canvas.add_patch(plt.Polygon(obj._points.transpose([1, 0]), fill=False, **s_styles))
+            canvas.add_patch(plt.Polygon(obj._points, fill=False, **s_styles))
 
         elif isinstance(obj, Polyline):
             canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
@@ -101,10 +100,13 @@ class MatplotlibView(View):
             canvas.add_patch(plt.Rectangle((obj._x, obj._y), obj._width, obj._height, fill=False, **s_styles))
 
         elif isinstance(obj, Circle):
-            canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r))
+            canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r, **s_styles))
 
         elif isinstance(obj, Point):
             canvas.scatter(obj.x, obj.y, **s_styles)
+
+        elif isinstance(obj, PointSet):
+            canvas.scatter(*obj.points, **s_styles)
 
         elif isinstance(obj, GeoObject):
             self._draw(canvas, obj.bbox,  styles)
@@ -117,13 +119,14 @@ class MatplotlibView(View):
                            levels=s_styles.pop("levels", 10),
                            **s_styles
                            )
+        
         else:
             raise RuntimeError(f"Unsupport type {obj}")
 
-        title_styles = styles.pop("title", False)
-        if title_styles:
-            if not isinstance(title_styles, dict):
-                title_styles = {}
+        text_styles = styles.pop("text", False)
+        if text_styles:
+            if not isinstance(text_styles, dict):
+                text_styles = {}
 
             if isinstance(obj, GeoObject):
                 text = obj.name
@@ -135,9 +138,9 @@ class MatplotlibView(View):
                 text = str(obj)
                 pos = None
 
-            title_styles.setdefault("position", pos)
+            text_styles.setdefault("position", pos)
 
-            self._draw(canvas, text, {f"${self.backend}": title_styles})
+            self._draw(canvas, text, {f"${self.backend}": text_styles})
 
             # canvas.text(*pos, text,
             #             horizontalalignment=title_styles.pop('horizontalalignment', 'center'),

@@ -4,7 +4,7 @@ from copy import deepcopy
 from spdm.data.Path import Path
 from spdm.utils.logger import logger
 from spdm.utils.tags import _not_found_
-from spdm.utils.Plugin import Pluggable
+from spdm.utils.pluggable import Pluggable
 import typing
 
 

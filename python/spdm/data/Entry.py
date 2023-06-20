@@ -14,7 +14,7 @@ from ..utils.dict_util import reduce_dict
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, serialize
 from ..utils.numeric import as_array, is_close, is_scalar
-from ..utils.Pluggable import Pluggable
+from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
 from ..utils.typing import array_type, numeric_type, primary_type
 from .Path import Path, as_path

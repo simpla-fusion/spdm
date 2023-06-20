@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 #  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
 from ..utils.dict_util import deep_merge_dict
 from ..utils.logger import logger
-from ..utils.Pluggable import Pluggable
+from ..utils.plugin import Pluggable
 
 
 class View(Pluggable):
@@ -55,38 +55,41 @@ class View(Pluggable):
     def _draw(self, canvas, *args,  **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
 
-    def draw(self, canvas, obj, styles, **kwargs):
+    def draw(self, canvas, obj, styles):
+        """Draw an object on canvas"""
+
         if styles is False:
             return
+        elif styles is True:
+            styles = {}
+        elif not isinstance(styles, collections.abc.Mapping):
+            raise TypeError(f"styles must be a dict, not {type(styles)}")
 
-        if not isinstance(styles, collections.abc.Mapping):
-            if styles is not None and not isinstance(styles, bool):
-                logger.warning(f"ignore unsupported styles {styles}")
-            styles = kwargs
-        else:
-            styles = deep_merge_dict(styles, kwargs)
-
-        if isinstance(obj, str):
-            raise NotImplementedError(f"Unsupport type {obj}")
-
-        elif isinstance(obj, tuple):
+        if isinstance(obj, tuple):
             o, s = obj
-            if not isinstance(s, collections.abc.Mapping):
+            if s is False:
+                styles = False
+            elif s is True:
+                pass
+            elif isinstance(s, collections.abc.Mapping):
+                styles = deep_merge_dict(s, styles)
+            else:
                 logger.warning(f"ignore unsupported styles {s}")
 
-            self.draw(canvas, o, deep_merge_dict(styles, s))
+            self.draw(canvas, o, styles)
 
         elif hasattr(obj, "__geometry__"):
             self.draw(canvas, obj.__geometry__, styles)
 
         elif isinstance(obj, collections.abc.Mapping):
             for k, o in obj.items():
-                self.draw(canvas, o, styles.get(k, {}), name=k)
+                self.draw(canvas, o, styles.get(k, {}))
             self.draw(canvas, None, styles)
 
         elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
             for idx, o in enumerate(obj):
-                self.draw(canvas, o, styles, index=idx)
+                self.draw(canvas, o, styles)
+
             self.draw(canvas, None, styles)
 
         else:

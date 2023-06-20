@@ -3,7 +3,7 @@ import collections
 import re
 
 from .logger import logger
-from .Multimap import Multimap
+from .multimap import Multimap
 
 
 class Alias:

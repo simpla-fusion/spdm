@@ -9,7 +9,7 @@ from functools import cached_property
 import numpy as np
 from ..data.List import List
 from ..utils.logger import logger
-from ..utils.Pluggable import Pluggable
+from ..utils.plugin import Pluggable
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,
                             array_type, nTupleType, numeric_type)
 from .BBox import BBox
