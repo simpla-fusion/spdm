@@ -42,14 +42,17 @@ class MatplotlibView(View):
             x_axis = styles.get("x_axis", None)
 
             if isinstance(x_axis, tuple):
-                x_axis, x_label = x_axis
+                x_axis, x_styles = x_axis
             else:
-                x_label = None
+                x_styles = {}
 
-            x_value = styles.get("x_replica", None)
+            x_value = x_styles.get("x_value", None)
+
+            x_label = x_styles.get("x_label", None)
 
             if isinstance(x_axis, Function):
-                x_label = x_axis.__label__
+                if x_label is None:
+                    x_label = x_axis.__label__
                 if x_value is None:
                     x_value = as_array(x_axis)
                     x_axis = x_value
@@ -58,6 +61,7 @@ class MatplotlibView(View):
             elif isinstance(x_axis, str):
                 x_label = x_axis
                 x_value = None
+                x_axis = None
             elif is_array(x_axis):
                 x_value = x_axis
             else:
@@ -71,12 +75,7 @@ class MatplotlibView(View):
 
                 self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, styles))
 
-                y_label = sub_styles.get("y_label", None)
-                if y_label is None:
-                    if isinstance(profiles, list):
-                        y_label = getattr(profiles[0], "__label__", None)
-                    else:
-                        y_label = getattr(profiles, "__label__", None)
+                y_label = sub_styles.get("y_label", None) or getattr(profiles, "__label__", "")
 
                 canvas[idx].legend(fontsize=fontsize)
                 canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
@@ -168,7 +167,8 @@ class MatplotlibView(View):
             self._draw(canvas, obj.bbox,  styles)
 
         elif isinstance(obj, Function):
-            label = styles.get("label", obj.__label__)
+
+            label = styles.get("label", None) or getattr(obj, "name", None) or str(obj)
 
             x_value = styles.get("x_value", None)
 

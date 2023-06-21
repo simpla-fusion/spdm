@@ -55,9 +55,12 @@ class ExprNode(Expression, Node[_T]):
         self._ppoly = None
 
     @property
+    def name(self) -> str: return self._name
+
+    @property
     def __label__(self) -> str:
         units = self._metadata.get("units", "")
-        label = self._metadata.get("label", None)
+        label = self._metadata.get("label", None) or self._name
         if label is not None:
             return f"{label}  {units}"
         else:

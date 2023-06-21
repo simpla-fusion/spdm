@@ -69,6 +69,13 @@ class Node(typing.Generic[_T]):
     @classmethod
     def __deserialize__(cls, *args, **kwargs) -> Node: return cls(*args, **kwargs)
 
+    @property
+    def name(self) -> str: return self._metadata.get("name", "unamed")
+
+    @property
+    def __units__(self) -> str:
+        return self._metadata.get("units", None)
+
     def _repr_html_(self):
         from ..views.View import display
         return display(self, output="svg")
