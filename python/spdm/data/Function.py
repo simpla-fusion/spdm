@@ -6,7 +6,7 @@ import inspect
 import typing
 from copy import copy
 from enum import Enum
-
+import numpy as np
 
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
@@ -59,6 +59,15 @@ class Function(ExprNode[_T]):
         super().__init__(value, **kwargs)
         self._dims = [as_array(v) for v in dims] if len(dims) > 0 else None
         self._periods = periods
+
+        for idx in range(len(dims)):
+            if isinstance(periods, collections.abc.Sequence) \
+                    and periods[idx] is not None \
+                    and not np.isclose(dims[idx][1]-dims[idx][0], periods[idx]):
+                raise RuntimeError(
+                    f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][1]}] ")
+            if not np.all(dims[idx][1:] > dims[idx][:-1]):
+                raise RuntimeError(f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """

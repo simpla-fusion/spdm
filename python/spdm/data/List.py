@@ -30,14 +30,14 @@ class List(Container[_T], typing.MutableSequence[_T]):
     def __init__(self, d=None, *args, ** kwargs):
         super().__init__(d if d is not None else [], *args,   **kwargs)
 
-    def __serialize__(self) -> list: return [serialize(v) for v in self._entry.first_child()]
+    def __serialize__(self) -> list: return [serialize(v) for v in self._entry.find()]
 
-    def __getitem__(self, key) -> _T: return super().__getitem__(key)
+    def __getitem__(self, key) -> _T: return super().__getitem__(key)  # type:ignore
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
         type_hint = self.__type_hint__()
         for v in self._entry.child(slice(None)).find():
-            yield self.as_child(None, v, type_hint=type_hint, parent=self._parent)
+            yield self.as_child(None, v, type_hint=type_hint, parent=self._parent)  # type:ignore
 
     def insert(self, d, predication=_undefined_, **kwargs) -> int:
         return self._entry.child(predication).update(d, **kwargs)
@@ -47,6 +47,10 @@ class List(Container[_T], typing.MutableSequence[_T]):
         return self
 
     def __len__(self) -> int: return self._entry.count
+
+    def extend(self, value) -> List:
+        self._entry.update({Path.tags.extend: value})
+        return self
 
     def append(self, value) -> List:
         self._entry.update({Path.tags.append: value})

@@ -29,8 +29,8 @@ class MatplotlibView(View):
         super().__init__(*args, **kwargs)
         self._view_point = view_point  # TODO: 未实现, for 3D view
 
-    def render(self, obj, **styles) -> typing.Any:
-        fontsize = styles.get("fontsize", None)
+    def render(self, obj, **kwargs) -> typing.Any:
+        fontsize = kwargs.get("fontsize", None)
 
         if isinstance(obj, list):  # draw as profiles
             nprofiles = len(obj)
@@ -40,16 +40,16 @@ class MatplotlibView(View):
             if nprofiles == 1:
                 canvas = [canvas]
 
-            x_axis = styles.get("x_axis", None)
+            x_axis = kwargs.get("x_axis", None)
 
             if isinstance(x_axis, tuple):
                 x_axis, x_styles = x_axis
             else:
                 x_styles = {}
 
-            x_value = x_styles.get("x_value", None)
+            x_value = x_styles.get("value", None)
 
-            x_label = x_styles.get("x_label", None)
+            x_label = x_styles.get("label", None)
 
             if isinstance(x_axis, Function):
                 if x_label is None:
@@ -78,10 +78,9 @@ class MatplotlibView(View):
 
                 y_label = sub_styles.get("y_label", None) or getattr(profiles, "__label__", "")
                 try:
-                    self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, styles))
+                    self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, kwargs))
                 except Exception as error:
-                   raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\" ") from error
-                    
+                    raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\" ") from error
 
                 canvas[idx].legend(fontsize=fontsize)
                 canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
@@ -92,14 +91,14 @@ class MatplotlibView(View):
 
             fig, canvas = plt.subplots()
 
-            self.draw(canvas, obj, styles)
+            self.draw(canvas, obj, kwargs)
 
             canvas.set_aspect('equal')
             canvas.axis('scaled')
 
-        return self._render_post(fig, **styles)
+        return self._render_post(fig, **kwargs)
 
-    def _render_post(self, fig, **kwargs) -> typing.Any:
+    def _render_post(self, fig, pause=None, **kwargs) -> typing.Any:
 
         fig.suptitle(kwargs.get("title", ""))
         fig.align_ylabels()
@@ -110,6 +109,9 @@ class MatplotlibView(View):
         fig.text(pos.xmax+0.01, 0.5*(pos.ymin+pos.ymax), self.signature,
                  verticalalignment='center', horizontalalignment='left',
                  fontsize='small', alpha=0.2, rotation='vertical')
+
+        if isinstance(pause, float):
+            plt.pause(pause)
 
         output = kwargs.pop("output", None)
 

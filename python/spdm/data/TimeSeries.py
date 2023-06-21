@@ -29,7 +29,7 @@ class TimeSeriesAoS(AoS[_T]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._time = self._parent.time
+        self._time = getattr(self._parent, "time", None) or getattr(self._parent._parent, "time", None)
 
     def time_slice(self, time: int | slice | float | typing.Sequence[float]) -> TimeSlice | typing.List[TimeSlice]:
         if isinstance(time, (int, slice)):
@@ -42,12 +42,12 @@ class TimeSeriesAoS(AoS[_T]):
                     break
                 else:
                     prev_node = next_node
-            else:                
+            else:
                 if prev_node is not None:
                     return prev_node
-                
+
             raise NotImplementedError("TODO: find the nearest time slice or interpolate two time slices")
-        
+
         elif isinstance(time, collections.abc.Generator):
             return [self.time_slice(t) for t in time]
         else:
