@@ -9,7 +9,7 @@ import typing
 import matplotlib.pyplot as plt
 #  在 MatplotlibView 中 imported matplotlib 会不起作用
 #  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
-from ..utils.dict_util import deep_merge_dict
+from ..utils.tree_utils import merge_tree_recursive
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 
@@ -72,7 +72,7 @@ class View(Pluggable):
             elif s is True:
                 pass
             elif isinstance(s, collections.abc.Mapping):
-                styles = deep_merge_dict(s, styles)
+                styles = merge_tree_recursive(styles, s)
             else:
                 logger.warning(f"ignore unsupported styles {s}")
 

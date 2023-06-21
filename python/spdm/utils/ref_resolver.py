@@ -7,7 +7,7 @@ import jsonschema
 from . import io
 from .Alias import Alias
 from .logger import logger
-from .urilib import getvalue_r, uri_join
+from .uri_utils import getvalue_r, uri_join
 
 
 def _extend_with_default(validator_class):

@@ -6,7 +6,7 @@ from urllib.request import urlopen
 import requests
 import yaml
 
-from .dict_util import deep_merge_dict
+from .tree_utils import merge_tree_recursive
 from .logger import logger
 from .sp_export import sp_pkg_data_path
 from .urilib import uri_split
@@ -73,7 +73,7 @@ def read(path, **kwargs):
         raise TypeError(f"Type of path should be a string, Path or list of string/Path!")
     content = {}
     for p in path:
-        deep_merge_dict(content, _read(p))
+        merge_tree_recursive(content, _read(p))
 
     return content
 

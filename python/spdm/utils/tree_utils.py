@@ -1,6 +1,7 @@
 import collections.abc
-from copy import deepcopy
 import typing
+from copy import deepcopy, copy
+
 import numpy as np
 
 from .logger import logger
@@ -15,6 +16,32 @@ class DefaultDict(dict):
         v = self._factory(k)
         self.__setitem__(k,  v)
         return v
+
+
+def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -> typing.Any:
+    if second is None or level == 0:
+        return first
+    elif first is None:
+        return second
+
+    if in_place:
+        first = copy(first)
+
+    if isinstance(first, collections.abc.MutableSequence):
+        # 合并 sequence
+        if isinstance(second, collections.abc.Sequence):
+            first.extent(second)
+        else:
+            first.append(second)
+    elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
+        # 合并 dict
+        for k, v in second.items():
+            first[k] = merge_tree_recursive(first.get(k, None), v, level-1, in_place=in_place, force=force)
+    elif force:
+        first = second
+        # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")
+
+    return first
 
 
 def tree_apply_recursive(obj, op, types=None):
@@ -72,7 +99,7 @@ def normalize_data(data, types=(int, float, str)):
         return str(data)
 
 
-def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False) -> dict | list:
+def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, force=False) -> dict | list:
     if not in_place:
         first = deepcopy(first)
 

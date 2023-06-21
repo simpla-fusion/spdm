@@ -10,7 +10,7 @@ import typing
 from copy import copy
 from types import SimpleNamespace
 
-from ..utils.dict_util import reduce_dict
+from ..utils.tree_utils import reduce_dict
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, serialize
 from ..utils.numeric import as_array, is_close, is_scalar

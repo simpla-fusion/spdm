@@ -39,7 +39,7 @@ class MatplotlibView(View):
 
     def _render_post(self, fig, **kwargs) -> typing.Any:
 
-        fig.suptitle(kwargs.pop("title", ""))
+        fig.suptitle(kwargs.get("title", ""))
         fig.align_ylabels()
         fig.tight_layout()
 
@@ -70,19 +70,18 @@ class MatplotlibView(View):
 
         if obj is None:
             pass
-      
+
         elif isinstance(obj, (str, int, float, bool)):
-            pos = s_styles.pop("position", None)
+            pos = s_styles.get("position", None)
 
             if pos is None:
                 return
 
             canvas.text(*pos, str(obj),
-                        horizontalalignment=s_styles.pop('horizontalalignment', 'center'),
-                        verticalalignment=s_styles.pop('verticalalignment', 'center'),
-                        fontsize=s_styles.pop('fontsize', 'xx-small'),
-                        ** s_styles
-                        )
+                        ** collections.ChainMap(s_styles,
+                                                {'horizontalalignment': 'center',
+                                                 'verticalalignment': 'center',
+                                                 'fontsize': 'xx-small'}))
 
         elif isinstance(obj, BBox):
             canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles))
@@ -115,15 +114,14 @@ class MatplotlibView(View):
             R, Z = obj.__mesh__.points
             value = np.asarray(obj.__value__)
             canvas.contour(R, Z, value,
-                           linewidths=s_styles.pop("linewidths", 0.5),
-                           levels=s_styles.pop("levels", 10),
-                           **s_styles
+                           **collections.ChainMap(s_styles,
+                                                  {"linewidths": 0.5, "levels": 10})
                            )
-        
+
         else:
             raise RuntimeError(f"Unsupport type {obj}")
 
-        text_styles = styles.pop("text", False)
+        text_styles = styles.get("text", False)
         if text_styles:
             if not isinstance(text_styles, dict):
                 text_styles = {}
@@ -142,24 +140,17 @@ class MatplotlibView(View):
 
             self._draw(canvas, text, {f"${self.backend}": text_styles})
 
-            # canvas.text(*pos, text,
-            #             horizontalalignment=title_styles.pop('horizontalalignment', 'center'),
-            #             verticalalignment=title_styles.pop('verticalalignment', 'center'),
-            #             fontsize=title_styles.pop('fontsize', 'xx-small'),
-            #             ** title_styles
-            #             )
-
-        xlabel = styles.pop("xlabel", None)
+        xlabel = styles.get("xlabel", None)
         if xlabel is not None:
             canvas.set_xlabel(xlabel)
 
-        ylabel = styles.pop("ylabel", None)
+        ylabel = styles.get("ylabel", None)
         if ylabel is not None:
             canvas.set_ylabel(ylabel)
 
     def profiles(self, obj, *args, x_axis=None, x=None, default_num_of_points=128, fontsize=10,  grid=True, signature=None, title=None, **kwargs):
 
-        fontsize = kwargs.pop("fontsize", 10)
+        fontsize = kwargs.get("fontsize", 10)
 
         nprofiles = len(obj)
 
@@ -168,7 +159,7 @@ class MatplotlibView(View):
 
         self.draw(canves, obj,   styles)
 
-        x_label = kwargs.pop("xlabel", "")
+        x_label = kwargs.get("xlabel", "")
 
         if len(canves) == 1:
             canves[0].set_xlabel(x_label,  fontsize=fontsize)

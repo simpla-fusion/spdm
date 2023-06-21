@@ -13,7 +13,7 @@ from spdm.utils.PathTraverser import PathTraverser
 from spdm.utils.tags import _not_found_, _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.utils.dict_util import format_string_recursive
+from spdm.utils.tree_utils import format_string_recursive
 from spdm.utils.misc import normalize_path, serialize
 from spdm.utils.logger import logger
 _TPath = typing.TypeVar("_TPath")
