@@ -54,6 +54,15 @@ class ExprNode(Expression, Node[_T]):
 
         self._ppoly = None
 
+    @property
+    def __label__(self) -> str:
+        units = self._metadata.get("units", "")
+        label = self._metadata.get("label", None)
+        if label is not None:
+            return f"{label}  {units}"
+        else:
+            return units
+
     def __copy__(self) -> ExprNode:
         """ 复制一个新的 Function 对象 """
         other: ExprNode = Node.__copy__(self)  # type:ignore

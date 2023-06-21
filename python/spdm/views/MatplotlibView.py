@@ -4,6 +4,7 @@ from io import BytesIO
 
 import matplotlib.pyplot as plt
 import numpy as np
+from spdm.data.Field import Field
 from spdm.data.Function import Function
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
@@ -16,6 +17,7 @@ from spdm.geometry.Polyline import Polyline
 from spdm.utils.logger import logger
 from spdm.utils.typing import array_type
 from spdm.views.View import View
+from spdm.utils.numeric import as_array, is_array
 
 
 @View.register(["matplotlib", "Matplotlib"])
@@ -27,13 +29,68 @@ class MatplotlibView(View):
         self._view_point = view_point  # TODO: 未实现, for 3D view
 
     def render(self, obj, **styles) -> typing.Any:
+        fontsize = styles.get("fontsize", None)
 
-        fig, canves = plt.subplots()
+        if isinstance(obj, list):  # draw as profiles
+            nprofiles = len(obj)
 
-        self.draw(canves, obj, styles)
+            fig, canvas = plt.subplots(ncols=1, nrows=nprofiles, sharex=True,
+                                       figsize=(10, 2*nprofiles))
+            if nprofiles == 1:
+                canvas = [canvas]
 
-        canves.set_aspect('equal')
-        canves.axis('scaled')
+            x_axis = styles.get("x_axis", None)
+
+            if isinstance(x_axis, tuple):
+                x_axis, x_label = x_axis
+            else:
+                x_label = None
+
+            x_value = styles.get("x_replica", None)
+
+            if isinstance(x_axis, Function):
+                x_label = x_axis.__label__
+                if x_value is None:
+                    x_value = as_array(x_axis)
+                    x_axis = x_value
+                else:
+                    x_axis = x_axis(x_value)
+            elif isinstance(x_axis, str):
+                x_label = x_axis
+                x_value = None
+            elif is_array(x_axis):
+                x_value = x_axis
+            else:
+                x_label = ""
+
+            for idx, profiles in enumerate(obj):
+                if isinstance(profiles, tuple):
+                    profiles, sub_styles = profiles
+                else:
+                    sub_styles = {}
+
+                self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, styles))
+
+                y_label = sub_styles.get("y_label", None)
+                if y_label is None:
+                    if isinstance(profiles, list):
+                        y_label = getattr(profiles[0], "__label__", None)
+                    else:
+                        y_label = getattr(profiles, "__label__", None)
+
+                canvas[idx].legend(fontsize=fontsize)
+                canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
+
+            canvas[-1].set_xlabel(x_label,  fontsize=fontsize)
+
+        else:  # draw as single object
+
+            fig, canvas = plt.subplots()
+
+            self.draw(canvas, obj, styles)
+
+            canvas.set_aspect('equal')
+            canvas.axis('scaled')
 
         return self._render_post(fig, **styles)
 
@@ -110,12 +167,57 @@ class MatplotlibView(View):
         elif isinstance(obj, GeoObject):
             self._draw(canvas, obj.bbox,  styles)
 
-        elif hasattr(obj, "__mesh__"):
+        elif isinstance(obj, Function):
+            label = styles.get("label", obj.__label__)
+
+            x_value = styles.get("x_value", None)
+
+            if x_value is None:
+                y = as_array(obj)
+            else:
+                y = obj(x_value)
+
+            x = styles.get("x_axis", None)
+
+            if is_array(x):
+                data = [x, y]
+            else:
+                data = [y]
+
+            if isinstance(s_styles, collections.abc.Mapping):
+                canvas.plot(*data, **s_styles, label=label)
+            elif isinstance(s_styles, str):
+                canvas.plot(*data, s_styles, label=label)
+            else:
+                logger.warning(f"Ignore unknown style {s_styles}!")
+                canvas.plot(*data)
+
+        elif is_array(obj):
+            label = styles.get("label", None)
+
+            y = obj
+            x = styles.get("x_axis", None)
+
+            if is_array(x):
+                data = [x, y]
+            else:
+                data = [y]
+
+            if isinstance(s_styles, collections.abc.Mapping):
+                canvas.plot(*data, **s_styles, label=label)
+            elif isinstance(s_styles, str):
+                canvas.plot(*data, s_styles, label=label)
+            else:
+                canvas.plot(*data)
+                logger.warning(f"Ignore unknown style {s_styles}!")
+
+        elif isinstance(obj, Field):
             R, Z = obj.__mesh__.points
             value = np.asarray(obj.__value__)
+
+            levels = styles.get("levels", 10)
             canvas.contour(R, Z, value,
-                           **collections.ChainMap(s_styles,
-                                                  {"linewidths": 0.5, "levels": 10})
+                           **collections.ChainMap({"levels": levels}, s_styles, {"linewidths": 0.5})
                            )
 
         else:
@@ -165,8 +267,6 @@ class MatplotlibView(View):
             canves[0].set_xlabel(x_label,  fontsize=fontsize)
         else:
             canves[-1].set_xlabel(x_label,  fontsize=fontsize)
-
-        return self._post(fig, **kwargs)
 
         if not isinstance(profile_list, collections.abc.Sequence):
             profile_list = [profile_list]
@@ -317,48 +417,6 @@ class MatplotlibView(View):
             canves.set_ylabel(ylabel, fontsize=fontsize)
         canves.labelsize = "media"
         canves.tick_params(labelsize=fontsize)
-
-    @ staticmethod
-    def parse_profile(desc, holder=None, **kwargs):
-        opts = {}
-        if desc is None:
-            return None, {}
-        elif isinstance(desc, str):
-            data = desc
-            opts = {"label": desc}
-        elif isinstance(desc, collections.abc.Mapping):
-            data = desc.get("name", None)
-            if data is None:
-                data = desc.get("data", None)
-            opts = desc.get("opts", {})
-        elif isinstance(desc, tuple):
-            data, opts = desc
-        elif isinstance(desc, Dict):
-            data = desc.data
-            opts = desc.opts
-        elif isinstance(desc, np.ndarray):
-            data = desc
-            opts = {}
-        else:
-            raise TypeError(f"Illegal profile type! {desc}")
-
-        if isinstance(opts, str):
-            opts = {"label": opts}
-
-        if opts is None:
-            opts = {}
-
-        opts.setdefault("label", "")
-
-        if isinstance(data, str):
-            data = try_get(holder, data, None)
-        elif isinstance(data, np.ndarray):
-            pass
-        elif data == None:
-            logger.error(f"Value error { (data)}")
-        else:
-            logger.error(f"Type error {data}")
-        return data, opts
 
 
 __SP_EXPORT__ = MatplotlibView

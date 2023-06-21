@@ -81,14 +81,15 @@ class View(Pluggable):
         elif hasattr(obj, "__geometry__"):
             self.draw(canvas, obj.__geometry__, styles)
 
-        elif isinstance(obj, collections.abc.Mapping):
+        elif isinstance(obj, dict):
             for k, o in obj.items():
-                self.draw(canvas, o, styles.get(k, {}))
-            self.draw(canvas, None, styles)
+                self.draw(canvas, o, collections.ChainMap({"id": k}, styles.get(k, {})))
+                
+            self.draw(canvas, None,  styles)
 
-        elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+        elif isinstance(obj, list):
             for idx, o in enumerate(obj):
-                self.draw(canvas, o, styles)
+                self.draw(canvas, o, collections.ChainMap({"id": idx}, styles))
 
             self.draw(canvas, None, styles)
 
