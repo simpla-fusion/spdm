@@ -5,6 +5,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.Field import Field
+from spdm.data.Expression import Expression
 from spdm.data.Function import Function
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
@@ -73,9 +74,14 @@ class MatplotlibView(View):
                 else:
                     sub_styles = {}
 
-                self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, styles))
+                assert (isinstance(sub_styles, dict))
 
                 y_label = sub_styles.get("y_label", None) or getattr(profiles, "__label__", "")
+                try:
+                    self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, styles))
+                except Exception as error:
+                   raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\" ") from error
+                    
 
                 canvas[idx].legend(fontsize=fontsize)
                 canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
@@ -166,7 +172,15 @@ class MatplotlibView(View):
         elif isinstance(obj, GeoObject):
             self._draw(canvas, obj.bbox,  styles)
 
-        elif isinstance(obj, Function):
+        elif isinstance(obj, Field):
+            R, Z = obj.__mesh__.points
+            value = np.asarray(obj.__value__)
+
+            levels = styles.get("levels", 10)
+            canvas.contour(R, Z, value,
+                           **collections.ChainMap({"levels": levels}, s_styles, {"linewidths": 0.5})
+                           )
+        elif isinstance(obj, Expression):
 
             label = styles.get("label", None) or getattr(obj, "name", None) or str(obj)
 
@@ -176,9 +190,10 @@ class MatplotlibView(View):
                 y = as_array(obj)
             else:
                 y = obj(x_value)
-
-            x = styles.get("x_axis", None)
-
+            try:
+                x = styles.get("x_axis", None)
+            except Exception as error:
+                raise RuntimeError(styles) from error
             if is_array(x):
                 data = [x, y]
             else:
@@ -211,17 +226,8 @@ class MatplotlibView(View):
                 canvas.plot(*data)
                 logger.warning(f"Ignore unknown style {s_styles}!")
 
-        elif isinstance(obj, Field):
-            R, Z = obj.__mesh__.points
-            value = np.asarray(obj.__value__)
-
-            levels = styles.get("levels", 10)
-            canvas.contour(R, Z, value,
-                           **collections.ChainMap({"levels": levels}, s_styles, {"linewidths": 0.5})
-                           )
-
         else:
-            raise RuntimeError(f"Unsupport type {obj}")
+            raise RuntimeError(f"Unsupport type {type(obj)} {obj}")
 
         text_styles = styles.get("text", False)
         if text_styles:

@@ -223,7 +223,7 @@ class GeoObjectSet(List[GeoObject]):
     #             return np.bitwise_and.reduce([self.enclose(x) for x in xargs])
 
 
-def as_geo_object(*args, **kwargs) -> GeoObject:
+def as_geo_object(*args, **kwargs) -> GeoObject | GeoObjectSet:
 
     if len(kwargs) > 0 or len(args) != 1:
         return GeoObject(*args, **kwargs)

@@ -84,7 +84,7 @@ class View(Pluggable):
         elif isinstance(obj, dict):
             for k, o in obj.items():
                 self.draw(canvas, o, collections.ChainMap({"id": k}, styles.get(k, {})))
-                
+
             self.draw(canvas, None,  styles)
 
         elif isinstance(obj, list):
