@@ -1,6 +1,7 @@
 import typing
 
 import numpy as np
+import collections.abc
 import scipy.interpolate
 from skimage import measure
 
@@ -22,7 +23,23 @@ from ..utils.logger import deprecated, logger
 #     return [(contour_set.levels[idx], col.get_segments()) for idx, col in enumerate(contour_set.collections)]
 
 
-def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = None,  levels=128) -> typing.Generator[typing.Tuple[float, GeoObject | None], None, None]:
+def find_countours_skimage_(val: float, z: np.ndarray, x_inter, y_inter) -> typing.Generator[GeoObject | None, None, None]:
+  
+    for c in measure.find_contours(z, val):
+        # data = [[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c]
+        x = np.asarray(x_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
+        y = np.asarray(y_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
+        data = np.stack([x, y], axis=-1)
+        
+        if len(data) == 0:
+            yield None
+        elif data.shape[0] == 1:
+            yield Point(*data[0])
+        else:
+            yield Curve(data)
+
+
+def find_countours_skimage(vals: list, z: np.ndarray, x: np.ndarray, y: np.ndarray):
     if z.shape == x.shape and z.shape == y.shape:
         pass
     else:
@@ -33,30 +50,30 @@ def find_countours_skimage(z: np.ndarray, x: np.ndarray = None, y: np.ndarray = 
     x_inter = scipy.interpolate.RectBivariateSpline(dim0, dim1, x)
     y_inter = scipy.interpolate.RectBivariateSpline(dim0, dim1, y)
 
-    if isinstance(levels, (int, np.integer)):
-        levels = range(levels)
-    elif (isinstance(levels, (np.ndarray)) and levels.ndim == 0) or isinstance(levels, (float, np.floating)):
-        levels = [float(levels)]
+    if not isinstance(vals, (collections.abc.Sequence, np.ndarray)):
+        vals = [vals]
 
-    for val in levels:
-        count = 0
-        for c in measure.find_contours(z, val):
-            count += 1
-            # data = [[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c]
-            x = np.asarray(x_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
-            y = np.asarray(y_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
-            data = np.stack([x, y], axis=-1)
-            if len(data) == 0:
-                yield val, None
-            elif data.shape[0] == 1:
-                yield val, Point(*data[0])
-            else:
-                yield val, Curve(data)
-        if count == 0:
-            yield val, None
+    for val in vals:
+        yield val, find_countours_skimage_(val, z, x_inter, y_inter)
+
+        # count = 0
+        # for c in measure.find_contours(z, val):
+        #     count += 1
+        #     # data = [[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c]
+        #     x = np.asarray(x_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
+        #     y = np.asarray(y_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
+        #     data = np.stack([x, y], axis=-1)
+        #     if len(data) == 0:
+        #         yield val, None
+        #     elif data.shape[0] == 1:
+        #         yield val, Point(*data[0])
+        #     else:
+        #         yield val, Curve(data)
+        # if count == 0:
+        #     yield val, None
 
 
-def find_countours(*args, **kwargs) -> typing.Generator[typing.Tuple[float, GeoObject | None], None, None]:
+def find_countours(*args, values, ** kwargs) -> typing.Generator[typing.Tuple[float,  typing.Generator[GeoObject | None, None, None]], None, None]:
     if len(args) == 3:
         z, x, y = args
     elif len(args) == 1:
@@ -70,4 +87,4 @@ def find_countours(*args, **kwargs) -> typing.Generator[typing.Tuple[float, GeoO
     else:
         raise ValueError(f"Wrong number of arguments! should be 1 or 3, got {len(args)}")
 
-    yield from find_countours_skimage(z, x, y, **kwargs)
+    yield from find_countours_skimage(values, z, x, y, **kwargs)

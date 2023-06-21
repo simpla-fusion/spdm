@@ -126,7 +126,7 @@ class GeoObject(Pluggable):
     def measure(self) -> float: return self.bbox.measure
     """ measure of geometry, length,area,volume,etc. 默认为 bbox 的体积 """
 
-    def enclose(self, *args) -> bool|array_type:
+    def enclose(self, *args) -> bool | array_type:
         """ Return True if all args are inside the geometry, False otherwise. """
         return False if not self.is_closed else self.bbox.enclose(*args)
 
@@ -180,13 +180,12 @@ class GeoObject(Pluggable):
 _TG = typing.TypeVar("_TG")
 
 
-class GeoObjectSet(List[_TG], GeoObject):
+class GeoObjectSet(List[GeoObject]):
 
     def __init__(self,  *args, **kwargs) -> None:
         super().__init__(*args)
         rank = kwargs.pop("rank", None)
         ndim = kwargs.pop("ndim", None)
-
         if rank is None:
             rank = max([obj.rank for obj in self if isinstance(obj, GeoObject)])
 

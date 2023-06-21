@@ -5,10 +5,9 @@ from functools import cached_property
 
 import numpy as np
 
-from ..data.Expression import ExprOp
 from ..data.Function import Function
-from ..geometry.Box import Box
 from ..geometry.BBox import BBox
+from ..geometry.Box import Box
 from ..geometry.Curve import Curve
 from ..geometry.GeoObject import GeoObject
 from ..geometry.Line import Line
@@ -51,27 +50,37 @@ class RectilinearMesh(StructuredMesh):
 
         if geometry is None:
             geometry = Box([min(d) for d in dims], [max(d) for d in dims])
+
+        for idx in range(len(dims)):
+            if isinstance(periods, collections.abc.Sequence) \
+                    and periods[idx] is not None \
+                    and not np.isclose(dims[idx][1]-dims[idx][0], periods[idx]):
+                raise RuntimeError(
+                    f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][1]}] ")
+            if not np.all(dims[idx][1:] > dims[idx][:-1]):
+                raise RuntimeError(f"dims[{idx}] is not increasing")
+
         super().__init__(shape=[len(d) for d in dims], geometry=geometry, **kwargs)
         self._dims = dims
         self._periods = periods
         self._aixs = [Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
 
-    @property
+    @ property
     def dim1(self) -> ArrayType: return self._dims[0].__array__()
 
-    @property
+    @ property
     def dim2(self) -> ArrayType: return self._dims[1].__array__()
 
-    @property
+    @ property
     def dims(self) -> typing.List[ArrayType]: return self._dims
 
-    @property
+    @ property
     def dimensions(self) -> typing.List[ArrayType]: return self._dims
 
-    @property
+    @ property
     def rank(self) -> int: return len(self._dims)
 
-    @cached_property
+    @ cached_property
     def dx(self) -> ArrayType: return np.asarray([(d[-1]-d[0])/len(d) for d in self._dims])
 
     def coordinates(self, *uvw) -> ArrayType:
@@ -82,7 +91,7 @@ class RectilinearMesh(StructuredMesh):
             uvw = uvw[0]
         return np.stack([self._dims[i](uvw[i]) for i in range(self.rank)], axis=-1)
 
-    @cached_property
+    @ cached_property
     def vertices(self) -> ArrayType:
         """ 网格点的 _空间坐标_ """
         if self.geometry.rank == 1:
@@ -90,7 +99,7 @@ class RectilinearMesh(StructuredMesh):
         else:
             return np.stack(self.points, axis=-1)
 
-    @cached_property
+    @ cached_property
     def points(self) -> typing.List[ArrayType]:
         """ 网格点的 _空间坐标_ """
         if self.geometry.rank == 1:

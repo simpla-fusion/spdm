@@ -67,7 +67,7 @@ class Mesh(Pluggable):
         elif isinstance(geometry, collections.abc.Mapping):
             self._geometry = GeoObject(*args, **geometry)
         else:
-            raise RuntimeError(f"Mesh.__init__(): geometry={geometry} is not found, geometry_desc={geometry_desc}")
+            raise RuntimeError(f"Mesh.__init__(): geometry={geometry} is not found")
 
         self._shape: ArrayType = np.asarray(self._metadata.get("shape", []), dtype=int)
 

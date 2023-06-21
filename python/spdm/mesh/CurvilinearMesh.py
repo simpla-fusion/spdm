@@ -30,24 +30,6 @@ class CurvilinearMesh(RectilinearMesh):
         assert isinstance(self._geometry, GeoObjectSet)
         assert isinstance(self._dims, collections.abc.Sequence)
 
-        # if isinstance(geo_mesh, np.ndarray):
-        #     if geo_mesh.shape[:-1] != self._shape:
-        #         raise ValueError(f"Illegal shape!  {geo_mesh.shape[:-1]} != {self._shape}")
-        #     ndims = geo_mesh.shape[-1]
-        #     xy = geo_mesh
-        #     surf = None
-        #     raise NotImplementedError(f"NOT COMPLETE! xy -> surface")
-        # elif isinstance(geo_mesh, collections.abc.Sequence) and isinstance(geo_mesh[0], GeoObject):
-        #     ndims = geo_mesh[0].ndims
-        #     if len(dims[0]) != len(geo_mesh):
-        #         raise ValueError(f"Illegal number of sub-surface {len(self)} != {len(geo_mesh)}")
-        #     surf = geo_mesh
-        # elif isinstance(geo_mesh, GeoObject):
-        #     raise NotImplementedError(type(geo_mesh))
-        # else:
-        #     raise TypeError(
-        #         f"geo_mesh should be np.ndarray, typing.Sequence[GeoObject] or GeoObject, not {type(geo_mesh)}")
-
     def axis(self, idx, axis=0):
         if axis == 0:
             return self._geometry[idx]

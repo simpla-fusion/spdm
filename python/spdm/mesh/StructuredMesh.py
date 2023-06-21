@@ -6,11 +6,12 @@ from functools import cached_property
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 
-from ..geometry.GeoObject import  GeoObject
+from ..geometry.GeoObject import GeoObject
 from ..geometry.Line import Line
 from ..geometry.Point import Point
 from ..utils.logger import logger
-from ..utils.typing import ArrayType
+from ..utils.numeric import as_array
+from ..utils.typing import ArrayLike, ArrayType, numeric_type
 from .Mesh import Mesh
 
 
@@ -22,9 +23,9 @@ class StructuredMesh(Mesh):
 
     """
 
-    def __init__(self, shape: typing.Sequence[int], *args, cycles=None, **kwargs) -> None:
+    def __init__(self, shape: ArrayLike, *args, cycles=None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._shape = shape
+        self._shape = as_array(shape)
         self._cycles = cycles
         # shape = tuple(shape)
         # if cycles is None:

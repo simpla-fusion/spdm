@@ -91,11 +91,26 @@ class Node(typing.Generic[_T]):
         return self._entry.get(default_value=self._default_value)
 
     def __type_hint__(self, key=None) -> typing.Type:
+        """ 获取 Container 或 Node 的泛型类型，若没有泛型类型，返回 None
+            @NOTE:
+             __orig_class__ 和 __orig_base__是非官方支持的API，可能会在未来版本中被删除。
+
+        """
         orig_class = getattr(self, "__orig_class__", None)
-        if orig_class is None:
+        # logger.debug((self.__class__, typing.get_origin(self.__class__), orig_class))
+        if orig_class is not None:
+            orig_bases = [orig_class]
+        else:
+            orig_bases = getattr(self, "__orig_bases__", [])
+
+        type_hints = sum([list(typing.get_args(c)) for c in orig_bases], start=[])
+        # logger.debug((orig_bases, type_hints))
+        if len(type_hints) == 0:
             return None
         else:
-            return typing.get_args(orig_class)[-1]
+            if len(type_hints) > 1:
+                logger.warning(f"More than one type hints {type_hints}")
+            return type_hints[-1]
 
     # def __float__(self): return float(self.__value__)
 
