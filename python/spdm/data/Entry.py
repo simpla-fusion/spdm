@@ -10,12 +10,12 @@ import typing
 from copy import copy
 from types import SimpleNamespace
 
-from ..utils.tree_utils import reduce_dict
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, serialize
 from ..utils.numeric import as_array, is_close, is_scalar
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
+from ..utils.tree_utils import reduce_dict
 from ..utils.typing import array_type, numeric_type, primary_type
 from .Path import Path, as_path
 
@@ -23,11 +23,10 @@ _T = typing.TypeVar("_T")
 
 
 class Entry(Pluggable):
-    __slots__ = "_data", "_path"
 
     _plugin_registry = {}
 
-    def __init__(self, data:  typing.Any = None, path: Path = None, *args, **kwargs):
+    def __init__(self, data:  typing.Any = None, path: Path | None = None, *args,  **kwargs):
         if self.__class__ is Entry:
             entry_type,  kwargs = group_dict_by_prefix(kwargs,  "entry_type")
 
@@ -37,7 +36,6 @@ class Entry(Pluggable):
                 return
 
         self._data = data if data is not _not_found_ else data
-
         self._path = as_path(path)
 
         # if len(args)+len(kwargs) > 0:
@@ -78,6 +76,9 @@ class Entry(Pluggable):
 
     @property
     def is_root(self) -> bool: return len(self._path) == 0
+
+    @property
+    def is_generator(self) -> bool: return self._path.is_generator
 
     @property
     def parent(self) -> Entry:
@@ -173,7 +174,7 @@ class Entry(Pluggable):
         return res
 
 
-def as_entry(obj, *args, **kwargs) -> Entry:
+def as_entry(obj, *args, **kwargs) -> Entry | None:
     if isinstance(obj, Entry):
         entry = obj
     elif hasattr(obj.__class__, "__entry__"):
@@ -266,40 +267,6 @@ def deep_reduce(first=None, *others, level=-1):
         return first
     else:
         raise TypeError(f"Can not merge dict with {others}!")
-
-
-class CombineEntry(Entry):
-    """ CombineEntry is a special Entry that combine multiple Entry into one.    """
-
-    def __init__(self, cache, *args, path=None):
-        super().__init__(cache, path=path)
-        self._caches = [self._data, *args]
-
-    def duplicate(self) -> CombineEntry:
-        res: CombineEntry = super().duplicate()  # type:ignore
-        res._caches = self._caches
-        return res
-
-    def child(self, *args, **kwargs) -> CombineEntry:
-        other = super().child(*args, **kwargs)
-        other._caches = self._caches
-        return other
-
-    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        for e in self._caches:
-            e = as_entry(e).child(self._path[:])
-            for value in e.find(*args, **kwargs):
-                if value is not _not_found_ and value is not None:
-                    yield value
-
-    def query(self, *args, default_value=_not_found_, **kwargs):
-        values = deep_reduce(* self.find(*args, **kwargs))
-        if values is None or values is _not_found_:
-            values = default_value
-        return values
-
-    def dump(self) -> typing.Any:
-        return deep_reduce(* self.find())
 
 
 def as_dataclass(dclass, obj, default_value=None):

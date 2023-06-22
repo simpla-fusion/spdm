@@ -7,13 +7,12 @@ from spdm.data.List import List, AoS
 from spdm.data.Node import Node
 from spdm.data.sp_property import SpDict, sp_property
 from spdm.utils.logger import logger
+import numpy as np
 
 
 class TimeSlice(SpDict):
-    def __init__(self, *args, time=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if time is not None:
-            self._cache["time"] = time
 
     time: float = sp_property(unit='s', type='dynamic', default_value=0.0)  # type: ignore
 
@@ -29,29 +28,30 @@ class TimeSeriesAoS(AoS[_T]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._time = getattr(self._parent, "time", None) or getattr(self._parent._parent, "time", None)
+        # self._time = None
 
-    def time_slice(self, time: int | slice | float | typing.Sequence[float]) -> TimeSlice | typing.List[TimeSlice]:
-        if isinstance(time, (int, slice)):
-            return self[time]
-        elif isinstance(time, float):
-            prev_node = None
-            for next_node in self:
-                next_time = getattr(next_node, "time", None)
-                if next_time is not None and next_time > time:
-                    break
-                else:
-                    prev_node = next_node
+    @property
+    def time(self) -> list[float]:
+        if self._time is None:
+            self._time = self._parent.get(self._metadata.get("coordinate1", "time"), None)
+        return self._time
+
+    def __getitem__(self, index) -> _T:
+        time = getattr(self, "time", None)
+        if isinstance(index, int) and index < 0 and time is not None:
+            new_key = len(time) + index
+            if new_key < 0:
+                raise KeyError(f"TimeSeries too short! length={len(time)} < {-index}")
             else:
-                if prev_node is not None:
-                    return prev_node
+                index = new_key
+        elif isinstance(index, float):
+            index = np.argmax(np.asarray(time) < index)
+            logger.debug("TODO: interpolator two time slices!")
 
-            raise NotImplementedError("TODO: find the nearest time slice or interpolate two time slices")
+        return super().__getitem__(index)
 
-        elif isinstance(time, collections.abc.Generator):
-            return [self.time_slice(t) for t in time]
-        else:
-            raise TypeError(f"{type(time)}")
+    @property
+    def previous(self) -> _T: return self[-2]
 
     @property
     def current(self) -> _T: return self[-1]
@@ -76,7 +76,8 @@ class TimeSeriesAoS(AoS[_T]):
 
         return new_obj
 
-    def advance(self, *args, time=None, **kwargs) -> _T:
+    def advance(self, *args, time: float = ..., **kwargs) -> _T:
+        self.time.append(time)
         if isinstance(self._default_value, collections.abc.Mapping):
             kwargs.setdefault("default_value", self._default_value)
 

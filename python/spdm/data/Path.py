@@ -226,6 +226,9 @@ class Path(list):
     def is_regular(self) -> bool:
         return next((i for i, v in enumerate(self[:]) if not isinstance(v, Path._PRIMARY_INDEX_TYPE_)), None) is None
 
+    @property
+    def is_generator(self) -> bool: return any([isinstance(v, (slice, dict)) for v in self])
+
     def close(self) -> Path:
         if not self.is_closed:
             self.append(None)

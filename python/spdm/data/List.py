@@ -104,7 +104,7 @@ class AoS(List[_T]):
             key = d.get(id, None)
             res[key] = deep_reduce(res.get(key, None), d)
 
-        return self.__class__([*res.values()], parent=self._parent)
+        return self.__class__([*res.values()], parent=self)
 
     def as_child(self, key:  int | slice,  value=None, parent=_not_found_, **kwargs) -> _T:
         parent = self._parent if parent is _not_found_ or parent is None else parent

@@ -7,7 +7,8 @@ import pprint
 import typing
 from copy import copy
 from enum import Enum
-
+from typing import Any
+import numpy as np
 
 from ..utils.logger import logger
 from ..utils.misc import as_dataclass, typing_get_origin
@@ -88,7 +89,21 @@ class Node(typing.Generic[_T]):
         if self._entry is None or self._entry is _not_found_:
             raise RuntimeError(f"{self} is not a valid value {self.__class__.__name__}")
 
-        return self._entry.get(default_value=self._default_value)
+        if not self._entry.is_generator:
+            return self._entry.get(default_value=self._default_value)
+        else:
+            raise RuntimeError(f"This is a generator, can not return single value! path=\"{self._entry.path}\"")
+
+    def __reduce__(self, *args, **kwargs) -> typing.Any:
+        if self._entry is None or self._entry is _not_found_ or not self._entry.is_generator:
+            return self.__value__
+
+        value = [v for v in self._entry.find() if v is not None]
+
+        if not isinstance(value, list):
+            return value
+        else:
+            raise NotImplementedError(f"TODO: {value}")
 
     def __type_hint__(self, key=None) -> typing.Type:
         """ 获取 Container 或 Node 的泛型类型，若没有泛型类型，返回 None
@@ -163,10 +178,10 @@ class Node(typing.Generic[_T]):
 
     def insert(self, path, value, **kwargs) -> Node | typing.Any: return self._entry.insert(path, value, **kwargs)
 
-    def get(self, path:  PathLike | Path = None, default_value: typing.Any = _undefined_,  **kwargs) -> typing.Any:
+    def get(self, path:  PathLike | Path | None = None, default_value: typing.Any = _undefined_,  **kwargs) -> typing.Any:
         return self.as_child_deep(path, default_value=default_value, **kwargs)
 
-    def find(self, query: dict = None, *args, **kwargs) -> typing.Generator[Node, None, None]:
+    def find(self, query: dict | None = None, *args, **kwargs) -> typing.Generator[Node, None, None]:
         entry = self._entry.child(query) if query is not None else self._entry
 
         for p, v in entry.find():
@@ -188,10 +203,10 @@ class Node(typing.Generic[_T]):
             return tuple([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
 
         elif isinstance(key, (slice, dict)):
-            return tuple([self.as_child(None, v,  default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for v in self._entry.child(key).find()])
+            return ListProxy([self.as_child(None, v,  default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for v in self._entry.child(key).find()])
 
-        elif isinstance(key, dict):
-            raise NotImplementedError(f"dict {key}")
+        # elif isinstance(key, dict):
+        #     raise NotImplementedError(f"dict {key}")
 
         if isinstance(key, str):
             if value is _not_found_ or value is None:
@@ -265,7 +280,7 @@ class Node(typing.Generic[_T]):
 
         return value
 
-    def as_child_deep(self, path:  PathLike | Path = None, value=None,
+    def as_child_deep(self, path:  PathLike | Path | None = None, value=None,
                       default_value: typing.Any = _not_found_, **kwargs) -> Node:
         """
             将 value 转换为 Node
@@ -365,3 +380,42 @@ class Node(typing.Generic[_T]):
 
         # def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
         #     raise NotImplementedError("as_child")
+
+
+class ListProxy(list):
+    def _init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, idx: int) -> Any:
+        return ListProxy([(obj[idx] if obj is not None else None) for obj in self])
+
+    def __getattr__(self, name: str) -> Any:
+        return ListProxy([getattr(obj, name, None) for obj in self])
+
+    # def __int__(self): return int(self.__value__)
+
+    # def __str__(self): return str(self.__value__)
+
+    # def __float__(self): return float(self.__value__)
+
+    # def __array__(self): return as_array(self.__value__)
+
+    @property
+    def __value__(self):
+        return [getattr(obj, "__value__", obj) for obj in self]
+
+    def __reduce__(self, op=None) -> typing.Any:
+        res = [obj for obj in self if obj is not None]
+        if len(res) == 0:
+            return None
+        elif len(res) == 1:
+            return res[0]
+
+        elif op is not None:
+            return op(res)
+
+        elif isinstance(res[0], np.ndarray):
+            return np.sum(res)
+
+        else:
+            return res[0]
