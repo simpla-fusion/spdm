@@ -30,7 +30,7 @@ def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -
     if isinstance(first, collections.abc.MutableSequence):
         # 合并 sequence
         if isinstance(second, collections.abc.Sequence):
-            first.extent(second)
+            first.extend(second)
         else:
             first.append(second)
     elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):

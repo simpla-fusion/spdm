@@ -31,6 +31,7 @@ scalar_type = (*boolean_type, *integral_type, *real_type, *complex_type,)
 array_type = np.ndarray
 
 
+
 # def is_arraylike(d: typing.Any) -> bool:
 #     return is_scalarlike(d) or isinstance(d, (collections.abc.Sequence, np.ndarray)) or hasattr(d.__class__, "__array__")
 
