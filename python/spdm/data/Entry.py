@@ -174,13 +174,13 @@ class Entry(Pluggable):
         return res
 
 
-def as_entry(obj, *args, **kwargs) -> Entry | None:
+def as_entry(obj, *args, **kwargs) -> Entry :
     if isinstance(obj, Entry):
         entry = obj
     elif hasattr(obj.__class__, "__entry__"):
         entry = obj.__entry__
     elif obj is None or obj is _not_found_:
-        entry = None
+        entry = Entry()
     else:
         entry = Entry(obj, *args, **kwargs)
 

@@ -12,7 +12,7 @@ from ..utils.typing import array_type
 from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 
-PathLike = int | str | slice | typing.Dict | typing.List
+PathLike = int | str | slice | typing.Dict | typing.List | None
 path_like = (int, str, slice, list, None, tuple, set, dict)
 
 
@@ -82,6 +82,9 @@ class Path(list):
         less = auto()
         greater = auto()
 
+        reduce = auto()
+        merge = auto()
+
     @classmethod
     def reduce(cls, path: list) -> list:
         if len(path) < 2:
@@ -105,7 +108,7 @@ class Path(list):
         elif isinstance(p, Path):
             res = p[:]
         elif isinstance(p, str):
-            res = cls._parser(p)
+            res = cls._from_str(p)
         elif isinstance(p, (int, slice)):
             res = p
         elif isinstance(p, list):
@@ -128,9 +131,21 @@ class Path(list):
 
         return res
 
+    # example:
+    # a/b_c6/c[{value:{$le:10}}][value]/D/[1，2/3，4，5]/6/7.9.8
+    PATH_REGEX = re.compile(r"(?P<key>[^\[\]\/\,\.]+)|(\[(?P<selector>[^\[\]]+)\])")
+
+    # 正则表达式解析，匹配一段被 {} 包裹的字符串
+    PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
+
     @classmethod
-    def _to_str(cls, p: typing.Any) -> str:
-        if isinstance(p, str):
+    def _to_str(cls, p: typing.Any, delimiter=None) -> str:
+        if delimiter is None:
+            delimiter = Path.DELIMITER
+
+        if isinstance(p, list):
+            return delimiter.join(map(Path._to_str, p))
+        elif isinstance(p, str):
             return p
         elif isinstance(p, slice):
             if p.start is None and p.stop is None and p.step is None:
@@ -142,91 +157,111 @@ class Path(list):
         elif isinstance(p, collections.abc.Mapping):
             m_str = ','.join([f"{k}:{Path._to_str(v)}" for k, v in p.items()])
             return f"?{{{m_str}}}"
-        elif isinstance(p, list):
-            return '/'.join(map(Path._to_str, p))
         elif isinstance(p, tuple):
             m_str = ','.join(map(Path._to_str, p))
             return f"({m_str})"
         elif isinstance(p, set):
             m_str = ','.join(map(Path._to_str, p))
             return f"{{{m_str}}}"
+        elif p is None:
+            return ""
         else:
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
 
-    # example:
-    # a/b_c6/c[{value:{$le:10}}][value]/D/[1，2/3，4，5]/6/7.9.8
-    PATH_REGEX = re.compile(r"(?P<key>[^\[\]\/\,\.]+)|(\[(?P<selector>[^\[\]]+)\])")
-
-    # 正则表达式解析，匹配一段被 {} 包裹的字符串
-    PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
-
     @classmethod
-    def _parser(cls, v: str) -> list:
+    def _from_str(cls, path: str, delimiter=None) -> list:
         """
         """
+        if delimiter is None:
+            delimiter = Path.DELIMITER
 
-        def parser_one(v: str) -> typing.Any:
+        path_res = []
+
+        path_list: list = path.split(delimiter)
+
+        if path_list[0] == '':
+            path_list[0] = Path.tags.root
+
+        for v in path_list:
             if v.startswith(("[", "(", "{")) and v.endswith(("]", "}", ")")):
                 try:
-                    res = ast.literal_eval(v)
+                    item = ast.literal_eval(v)
                 except (ValueError, SyntaxError):
                     try:
-                        res = slice(*map(int, v[1:-1].split(':')))
+                        item = slice(*map(int, v[1:-1].split(':')))
                     except ValueError:
                         raise ValueError(f"Invalid Path: {v}")
+            elif v == "*":
+                item = slice(None)
+            elif v == "..":
+                item = Path.tags.parent
+            elif v == ".":
+                continue
+            elif v.isnumeric():
+                item = int(v)
+            elif v.startswith("$"):
+                try:
+                    item = Path.tags[v[1:]]
+                except Exception :
+                    item = v
             else:
-                if v.isnumeric():
-                    res = int(v)
-                elif v.startswith("$"):
-                    res = Path.tags[v[1:]]
-                else:
-                    res = v
-            return res
-        res = [*map(parser_one, v.split(Path.DELIMITER))]
-        if len(res) == 1:
-            res = res[0]
-        return res
+                item = v
+
+            path_res.append(item)
+
+        return path_res
 
     @classmethod
-    def parser(cls, p: str) -> Path:
-        return Path(Path._parser(p))
+    def _parser(cls, path: PathLike | Path.tags) -> list:
+        if path is None:
+            return []
+        elif isinstance(path, str):
+            path = Path._from_str(path)
+        elif not isinstance(path, list):
+            path = [path]
+        res = []
+        for p in path:
+            if isinstance(p, str):
+                res.extend(Path._from_str(p))
+            else:
+                res.append(p)
+        return res
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(Path.reduce(Path.normalize(list(args))), **kwargs)
+    def __init__(self, d=None, *args, **kwargs):
+        super().__init__(Path._parser(d), **kwargs)
 
-    def __repr__(self):
-        return Path._to_str(self)
+        if len(args) > 0:
+            raise RuntimeError(f"Ignore args={args}")
 
-    def __str__(self):
-        return Path._to_str(self)
+    def __repr__(self): return Path._to_str(self)
+
+    def __str__(self): return Path._to_str(self)
 
     def __hash__(self) -> int: return self.__str__().__hash__()
 
     def __copy__(self) -> Path: return self.__class__(self[:])
 
-    def as_list(self) -> list:
-        return self[:]
+    def as_list(self) -> list: return self[:]
 
-    def as_url(self) -> str:
-        return '/'.join(map(Path._to_str, self))
+    def as_url(self) -> str: return '/'.join(map(Path._to_str, self))
 
-    @property
+    @ property
     def is_closed(self) -> bool:
         return len(self) > 0 and self[-1] is None
 
-    @property
+    @ property
     def is_leaf(self) -> bool:
         return len(self) > 0 and self[-1] is None
 
-    @property
+    @ property
     def is_root(self) -> bool:
         return len(self) == 0
 
-    @property
+    @ property
     def is_regular(self) -> bool:
         return next((i for i, v in enumerate(self[:]) if not isinstance(v, Path._PRIMARY_INDEX_TYPE_)), None) is None
 
-    @property
+    @ property
     def is_generator(self) -> bool: return any([isinstance(v, (slice, dict)) for v in self])
 
     def close(self) -> Path:
@@ -239,7 +274,7 @@ class Path(list):
             self.pop()
         return self
 
-    @property
+    @ property
     def parent(self) -> Path:
         if self.is_root:
             raise RuntimeError("Root node hasn't parents")
@@ -247,7 +282,7 @@ class Path(list):
         other.pop()
         return other
 
-    @property
+    @ property
     def children(self) -> Path:
         if self.is_leaf:
             raise RuntimeError("Leaf node hasn't child!")
@@ -255,10 +290,10 @@ class Path(list):
         other.append(slice(None))
         return other
 
-    @property
+    @ property
     def slibings(self): return self.parent.children
 
-    @property
+    @ property
     def next(self) -> Path:
         other = copy(self)
         other.append(Path.tags.next)

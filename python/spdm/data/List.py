@@ -3,14 +3,14 @@ from __future__ import annotations
 import collections.abc
 import inspect
 import typing
-
+from copy import copy
 from spdm.utils.tags import _undefined_
 
 from ..utils.logger import logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
 from .Container import Container
-from .Entry import CombineEntry, Entry, as_entry, deep_reduce
+from .Entry import Entry, as_entry, deep_reduce
 from .Node import Node
 from .Path import Path
 
@@ -27,8 +27,16 @@ class List(Container[_T], typing.MutableSequence[_T]):
 
     """
 
-    def __init__(self, d=None, *args, ** kwargs):
-        super().__init__(d if d is not None else [], *args,   **kwargs)
+    def __init__(self, d=None, *args, default_value=_not_found_, ** kwargs):
+        if d is not None:
+            pass
+        elif isinstance(default_value, list):
+            d = copy(default_value)
+            default_value = _not_found_
+        else:
+            d = []
+
+        super().__init__(d, *args, default_value=default_value,   **kwargs)
 
     def __serialize__(self) -> list: return [serialize(v) for v in self._entry.find()]
 

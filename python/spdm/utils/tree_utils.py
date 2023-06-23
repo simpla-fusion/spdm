@@ -1,10 +1,11 @@
 import collections.abc
 import typing
-from copy import deepcopy, copy
+from copy import copy, deepcopy
 
 import numpy as np
 
 from .logger import logger
+from .tags import _not_found_
 
 
 class DefaultDict(dict):
@@ -19,9 +20,9 @@ class DefaultDict(dict):
 
 
 def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -> typing.Any:
-    if second is None or level == 0:
+    if second is None or second is _not_found_ or level == 0:
         return first
-    elif first is None:
+    elif first is None or first is _not_found_:
         return second
 
     if in_place:

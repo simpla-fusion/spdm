@@ -15,7 +15,7 @@ from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, primary_type
 from ..utils.numeric import as_array, is_close, is_scalar
-
+from ..utils.tree_utils import _recursive_get
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path, path_like
 
@@ -197,10 +197,10 @@ class Node(typing.Generic[_T]):
             parent = self
 
         if isinstance(key, set):
-            return {k: self.as_child(k, default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for k in key}
+            return DictProxy({k: self.as_child(k, default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for k in key})
 
         elif isinstance(key, tuple):
-            return tuple([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
+            return ListProxy([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
 
         elif isinstance(key, (slice, dict)):
             return ListProxy([self.as_child(None, v,  default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for v in self._entry.child(key).find()])
@@ -316,16 +316,16 @@ class Node(typing.Generic[_T]):
                 else:
                     obj = Node(obj,  default_value=default_value, **kwargs)
 
-            if key == '':
+            if key == Path.tags.root:
                 obj = obj._root
                 parent = None
                 continue
-            elif key == "..":
+            elif key is Path.tags.parent:
                 obj = obj._parent
                 parent = None
                 continue
-            elif key == "*":
-                key = slice(None)
+            # elif key == "*":
+            #     key = slice(None)
 
             parent = obj
 
@@ -382,23 +382,22 @@ class Node(typing.Generic[_T]):
         #     raise NotImplementedError("as_child")
 
 
-class ListProxy(list):
-    def _init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class DictProxy(dict):
 
-    def __getitem__(self, idx: int) -> Any:
-        return ListProxy([(obj[idx] if obj is not None else None) for obj in self])
+    def __getitem__(self, path: PathLike) -> Any:
+        return Path(path).query(self)
+
+    def __getattr__(self, name: str) -> Any:
+        return super().__getitem__(name)
+
+
+class ListProxy(list):
+
+    def __getitem__(self, path: PathLike) -> Any:
+        return ListProxy([(Path(path).query(obj) if not isinstance(obj, Node) else obj.__getitem__(path)) for obj in self])
 
     def __getattr__(self, name: str) -> Any:
         return ListProxy([getattr(obj, name, None) for obj in self])
-
-    # def __int__(self): return int(self.__value__)
-
-    # def __str__(self): return str(self.__value__)
-
-    # def __float__(self): return float(self.__value__)
-
-    # def __array__(self): return as_array(self.__value__)
 
     @property
     def __value__(self):
