@@ -7,7 +7,7 @@ import pprint
 import typing
 from copy import copy
 from enum import Enum
-from typing import Any
+import typing
 import numpy as np
 
 from ..utils.logger import logger
@@ -384,24 +384,35 @@ class Node(typing.Generic[_T]):
 
 class DictProxy(dict):
 
-    def __getitem__(self, path: PathLike) -> Any:
+    def __getitem__(self, path: PathLike) -> typing.Any:
         return Path(path).query(self)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> typing.Any:
         return super().__getitem__(name)
 
 
 class ListProxy(list):
+    def __init__(self, *args, default_value=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._default_value = default_value
 
-    def __getitem__(self, path: PathLike) -> Any:
-        return ListProxy([(Path(path).query(obj) if not isinstance(obj, Node) else obj.__getitem__(path)) for obj in self])
+    def __getitem__(self, path: PathLike) -> typing.Any: return self._get(Path(path))
 
-    def __getattr__(self, name: str) -> Any:
-        return ListProxy([getattr(obj, name, None) for obj in self])
+    def __getattr__(self, name: str) -> typing.Any: return self._get(Path([name]))
+        # default_value = self._default_value.get(name, None) if self._default_value is not None else None
+        # return ListProxy([(getattr(obj, name, None) if not isinstance(obj, Node) else obj.get(name, default_value=default_value)) for obj in self])
+
+    def _get(self, path: Path) -> typing.Any:
+        if len(path) == 0:
+            return self
+        elif isinstance(path[0], dict):
+            return ListProxy(self, default_value=path[0])._get(path[1:])
+        else:
+            default_value = path.query(self._default_value)
+            return ListProxy([(Path(path).query(obj, default_value=default_value) if not isinstance(obj, Node) else obj.get(path, default_value=default_value)) for obj in self])
 
     @property
-    def __value__(self):
-        return [getattr(obj, "__value__", obj) for obj in self]
+    def __value__(self): return [getattr(obj, "__value__", obj) for obj in self]
 
     def __reduce__(self, op=None) -> typing.Any:
         res = [obj for obj in self if obj is not None]

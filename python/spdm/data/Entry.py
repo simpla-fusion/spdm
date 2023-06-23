@@ -87,8 +87,8 @@ class Entry(Pluggable):
         return other
 
     def child(self, path=None, *args, **kwargs) -> Entry:
-        if path is None or path is _not_found_ or \
-                (isinstance(path, (collections.abc.Sequence, collections.abc.Mapping)) and len(path) == 0):
+        path = Path(path)
+        if len(path) == 0:
             return self
 
         if self._data is not None or len(self._path) == 0:
@@ -174,7 +174,7 @@ class Entry(Pluggable):
         return res
 
 
-def as_entry(obj, *args, **kwargs) -> Entry :
+def as_entry(obj, *args, **kwargs) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
     elif hasattr(obj.__class__, "__entry__"):

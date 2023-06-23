@@ -106,7 +106,7 @@ class Path(list):
         if p is None:
             res = []
         elif isinstance(p, Path):
-            res = p[:]
+            res = p.as_list()
         elif isinstance(p, str):
             res = cls._from_str(p)
         elif isinstance(p, (int, slice)):
@@ -202,7 +202,7 @@ class Path(list):
             elif v.startswith("$"):
                 try:
                     item = Path.tags[v[1:]]
-                except Exception :
+                except Exception:
                     item = v
             else:
                 item = v
@@ -212,26 +212,38 @@ class Path(list):
         return path_res
 
     @classmethod
-    def _parser(cls, path: PathLike | Path.tags) -> list:
+    def _unroll(cls, path: PathLike | Path.tags, delimiter=None) -> list:
+        """ Parse the  to list """
+
         if path is None:
             return []
-        elif isinstance(path, str):
-            path = Path._from_str(path)
         elif not isinstance(path, list):
             path = [path]
+
         res = []
+
         for p in path:
             if isinstance(p, str):
-                res.extend(Path._from_str(p))
+                res.extend(Path._from_str(p, delimiter=delimiter))
+            elif isinstance(p, list):
+                res.extend(Path._unroll(p, delimiter=delimiter))
+
             else:
                 res.append(p)
         return res
 
-    def __init__(self, d=None, *args, **kwargs):
-        super().__init__(Path._parser(d), **kwargs)
+    @classmethod
+    def _parser(cls, path: PathLike | Path.tags, delimiter=None) -> list:
+        path = cls._unroll(path, delimiter=delimiter)
+        return path
 
-        if len(args) > 0:
-            raise RuntimeError(f"Ignore args={args}")
+    def __init__(self, path=None, delimiter=None, **kwargs):
+        if delimiter is None:
+            delimiter = Path.DELIMITER
+
+        super().__init__(path if isinstance(path, list) else Path._parser(path, delimiter=delimiter), **kwargs)
+
+        self._delimiter = delimiter
 
     def __repr__(self): return Path._to_str(self)
 
@@ -239,27 +251,28 @@ class Path(list):
 
     def __hash__(self) -> int: return self.__str__().__hash__()
 
-    def __copy__(self) -> Path: return self.__class__(self[:])
+    def __copy__(self) -> Path: return self.__class__(self.as_list())
 
-    def as_list(self) -> list: return self[:]
+    def __getitem__(self, idx) -> Path: return self.__class__(super().__getitem__(idx))
 
-    def as_url(self) -> str: return '/'.join(map(Path._to_str, self))
+    def unroll(self) -> Path: return self.__class__(self._unroll(self.as_list()))
 
-    @ property
-    def is_closed(self) -> bool:
-        return len(self) > 0 and self[-1] is None
+    def as_list(self) -> list: return super().__getitem__(slice(None))
 
-    @ property
-    def is_leaf(self) -> bool:
-        return len(self) > 0 and self[-1] is None
+    def as_url(self) -> str: return Path._to_str(self, delimiter=self._delimiter)
 
     @ property
-    def is_root(self) -> bool:
-        return len(self) == 0
+    def is_closed(self) -> bool: return len(self) > 0 and self[-1] is None
+
+    @ property
+    def is_leaf(self) -> bool: return len(self) > 0 and self[-1] is None
+
+    @ property
+    def is_root(self) -> bool: return len(self) == 0
 
     @ property
     def is_regular(self) -> bool:
-        return next((i for i, v in enumerate(self[:]) if not isinstance(v, Path._PRIMARY_INDEX_TYPE_)), None) is None
+        return next((i for i, v in enumerate(self) if not isinstance(v, Path._PRIMARY_INDEX_TYPE_)), None) is None
 
     @ property
     def is_generator(self) -> bool: return any([isinstance(v, (slice, dict)) for v in self])
@@ -299,13 +312,13 @@ class Path(list):
         other.append(Path.tags.next)
         return other
 
-    def append(self, *args, force=False) -> Path:
+    def append(self, d) -> Path:
         if self.is_closed:
             raise ValueError(f"Cannot append to a closed path {self}")
-        if force:
-            super().extend(list(args))
+        if isinstance(d, Path):
+            self.extend(d.as_list())
         else:
-            super().extend(Path.normalize(list(args)))
+            self.extend(Path._parser(d))
         return self
 
     def extend(self, *args, force=False) -> Path:
@@ -332,29 +345,29 @@ class Path(list):
         if isinstance(other, list):
             return super().__eq__(other)
         elif isinstance(other, Path):
-            return super().__eq__(other[:])
+            return super().__eq__(other.as_list())
         else:
             return False
 
     ###########################################################
     # API: CRUD  operation
     def find(self, target: typing.Any, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        yield from self._find(target, self[:], *args, **kwargs)
+        yield from self._find(target, self.as_list(), *args, **kwargs)
 
     def query(self, target: typing.Any, *args, **kwargs) -> typing.Any:
-        return self._query(target, self[:], *args, **kwargs)
+        return self._query(target, self.as_list(), *args, **kwargs)
 
     def insert(self, target: typing.Any, *args, **kwargs) -> int:
-        return self._insert(target, self[:], *args, **kwargs)
+        return self._insert(target, self.as_list(), *args, **kwargs)
 
     def remove(self, target: typing.Any, *args, **kwargs) -> int:
-        return self._remove(target, self[:], *args, **kwargs)
+        return self._remove(target, self.as_list(), *args, **kwargs)
 
     def update(self, target: typing.Any, *args, **kwargs) -> int:
-        return self._update(target, self[:], *args,  **kwargs)
+        return self._update(target, self.as_list(), *args,  **kwargs)
 
-    def traversal(self) -> typing.Generator[typing.List[type.Any], None, None]:
-        yield from self._traversal_path(self[:])
+    def traversal(self) -> typing.Generator[typing.List[typing.Any], None, None]:
+        yield from self._traversal_path(self.as_list())
 
     # End API
 
