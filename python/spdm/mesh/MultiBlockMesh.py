@@ -2,12 +2,12 @@ import typing
 
 from numpy.typing import ArrayLike, NDArray
 
+from ..data.Container import Container
 from ..data.Function import Function
-from ..data.HTree import HTree
 from .Mesh import Mesh
 
 
-class MultiBlockMesh(HTree[Mesh]):
+class MultiBlockMesh(Container[Mesh]):
 
     def __init__(self, block_list: typing.List[typing.Any],  **kwargs) -> None:
         super().__init__(block_list, **kwargs)
