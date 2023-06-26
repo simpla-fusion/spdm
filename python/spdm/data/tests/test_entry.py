@@ -103,7 +103,7 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(d.child('a/2').__value__, self.data['a'][2])
 
-        res = d.child([("a/2", "c",  "d/e", "e")]).__value__
+        res = d.child({"a/2", "c",  "d/e", "e"}).__value__
         self.assertListEqual(res, [self.data['a'][2],
                                    self.data['c'],
                                    self.data['d']['e'],
