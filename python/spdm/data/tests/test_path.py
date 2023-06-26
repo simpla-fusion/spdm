@@ -13,15 +13,15 @@ class TestPath(unittest.TestCase):
         self.assertEqual(Path(p)[:], p)
 
     def test_parser(self):
-        self.assertEqual(Path._parser("a/b/c"), ["a", "b", "c"])
-        self.assertEqual(Path._parser("a/b/c/0"), ["a", "b", "c", 0])
-        self.assertEqual(Path._parser("a/b/c/0/d"), ["a", "b", "c", 0, "d"])
+        self.assertEqual(Path._parser_decprecated("a/b/c"), ["a", "b", "c"])
+        self.assertEqual(Path._parser_decprecated("a/b/c/0"), ["a", "b", "c", 0])
+        self.assertEqual(Path._parser_decprecated("a/b/c/0/d"), ["a", "b", "c", 0, "d"])
 
-        self.assertEqual(Path._parser("a/(1,2,3,'a')/h"), ["a", (1, 2, 3, 'a'), "h"])
-        self.assertEqual(Path._parser("a/{1,2,3,'a'}/h"), ["a", {1, 2, 3, 'a'}, "h"])
-        self.assertEqual(Path._parser("a/{'$le':[1,2]}/h"),  ["a", {Path.tags.le: [1, 2]}, "h"])
-        self.assertEqual(Path._parser("a/1:10:-3/h"), ["a", slice(1, 10, -3), "h"])
-        self.assertEqual(Path._parser("a/1:10:-3/$next"), ["a", slice(1, 10, -3), Path.tags.next])
+        self.assertEqual(Path._parser_decprecated("a/(1,2,3,'a')/h"), ["a", (1, 2, 3, 'a'), "h"])
+        self.assertEqual(Path._parser_decprecated("a/{1,2,3,'a'}/h"), ["a", {1, 2, 3, 'a'}, "h"])
+        self.assertEqual(Path._parser_decprecated("a/{'$le':[1,2]}/h"),  ["a", {Path.tags.le: [1, 2]}, "h"])
+        self.assertEqual(Path._parser_decprecated("a/1:10:-3/h"), ["a", slice(1, 10, -3), "h"])
+        self.assertEqual(Path._parser_decprecated("a/1:10:-3/$next"), ["a", slice(1, 10, -3), Path.tags.next])
 
     def test_append(self):
         p = Path()

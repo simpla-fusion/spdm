@@ -390,14 +390,8 @@ class Path(typing.List[PathLike]):
         return [Path._from_str_one(v) for v in path]
 
     @staticmethod
-    def _unroll(source: PathLike | list, target: typing.List[PathLike]) -> typing.List[PathLike]:
+    def _unroll(source: typing.List[PathLike], target: typing.List[PathLike]) -> typing.List[PathLike]:
         """ Parse the  to list """
-        if source is None:
-            return target
-        elif isinstance(source, str):
-            source = [source]
-        elif not isinstance(source, collections.abc.Sequence):
-            source = [source]
 
         for p in source:
             if isinstance(p, str):

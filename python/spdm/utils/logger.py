@@ -107,3 +107,23 @@ def deprecated(func):
         return lambda o: _wrap(func)
     else:
         return _wrap(func)
+
+
+def experimental(func):
+
+    def _wrap(func):
+        def wrapped(*args, __fun__=func, ** kwargs):
+
+            if inspect.isfunction(func):
+                logger.warning(
+                    f"Experimental function '{__fun__.__qualname__}' !")
+                raise DeprecationWarning(__fun__.__qualname__)
+            else:
+                logger.warning(f"Experimental object {__fun__}")
+            return __fun__(*args, **kwargs)
+        return wrapped
+
+    if func is None:
+        return lambda o: _wrap(func)
+    else:
+        return _wrap(func)
