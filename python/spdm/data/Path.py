@@ -96,17 +96,10 @@ class Path(list):
     find
     """
 
-    DELIMITER = '/'
-    _PRIMARY_INDEX_TYPE_ = (int, float)
-
     tags = PathOpTags
 
-    def __init__(self, path=None, delimiter=None, **kwargs):
-        if delimiter is None:
-            delimiter = Path.DELIMITER
-
+    def __init__(self, path=None, delimiter='/', **kwargs):
         super().__init__(Path._parser(path, delimiter=delimiter), **kwargs)
-
         self._delimiter = delimiter
 
     def __repr__(self): return Path._to_str(self)
@@ -126,8 +119,7 @@ class Path(list):
     def is_root(self) -> bool: return len(self) == 0
 
     @property
-    def is_regular(self) -> bool:
-        return next((i for i, v in enumerate(self) if not isinstance(v, Path._PRIMARY_INDEX_TYPE_)), None) is None
+    def is_regular(self) -> bool: return not self.is_generator
 
     @property
     def is_generator(self) -> bool: return any([isinstance(v, (slice, dict)) for v in self])
@@ -405,7 +397,7 @@ class Path(list):
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
 
     @staticmethod
-    def _from_str_one(s: str | list, delimiter=None) -> list | dict | str | int | slice | Path.tags:
+    def _from_str_one(s: str | list, delimiter) -> list | dict | str | int | slice | Path.tags:
         if isinstance(s, str):
             s = s.strip(" ")
 
@@ -414,17 +406,17 @@ class Path(list):
         elif s.startswith(("[", "(", "{")) and s.endswith(("}", ")", "]")):
             tmp = ast.literal_eval(s)
             if isinstance(tmp, dict):
-                item = {Path._from_str_one(k, delimiter=delimiter): d for k, d in tmp.items()}
+                item = {Path._from_str_one(k, delimiter): d for k, d in tmp.items()}
             elif isinstance(tmp, set):
-                item = set([Path._from_str_one(k, delimiter=delimiter) for k in tmp])
+                item = set([Path._from_str_one(k, delimiter) for k in tmp])
             elif isinstance(tmp, tuple):
-                item = tuple([Path._from_str_one(k, delimiter=delimiter) for k in tmp])
+                item = tuple([Path._from_str_one(k, delimiter) for k in tmp])
             elif isinstance(tmp, list):
-                item = [Path._from_str_one(k, delimiter=delimiter) for k in tmp]
+                item = [Path._from_str_one(k, delimiter) for k in tmp]
 
         elif s.startswith("(") and s.endswith(")"):
             tmp: dict = ast.literal_eval(s)
-            item = {Path._from_str_one(k, delimiter=delimiter): d for k, d in tmp.items()}
+            item = {Path._from_str_one(k, delimiter): d for k, d in tmp.items()}
         elif ":" in s:
             tmp = s.split(":")
             if len(tmp) == 2:
@@ -452,11 +444,8 @@ class Path(list):
         return item
 
     @staticmethod
-    def _from_str(path: str | list, delimiter=None) -> list:
+    def _from_str(path: str | list, delimiter) -> list:
         """ Parse the path string to list  """
-
-        if delimiter is None:
-            delimiter = Path.DELIMITER
 
         if isinstance(path, str):
             path = path.split(delimiter)
@@ -465,7 +454,7 @@ class Path(list):
         elif not isinstance(path, list):
             path = [path]
 
-        return [Path._from_str_one(v) for v in path]
+        return [Path._from_str_one(v, delimiter) for v in path]
 
     @staticmethod
     def _unroll(source: typing.List[PathLike], target: typing.List[PathLike]) -> typing.List[PathLike]:
@@ -490,14 +479,14 @@ class Path(list):
         return target
 
     @staticmethod
-    def _parser(path: PathLike, delimiter=None) -> list:
+    def _parser(path: PathLike, delimiter) -> list:
         if path is None:
             path = []
         elif isinstance(path, str):
-            path = Path._from_str(path, delimiter=delimiter)
+            path = Path._from_str(path, delimiter)
         elif isinstance(path, list):
-            path = sum([(Path._from_str(p, delimiter=delimiter) if isinstance(p, str) else [p])
-                       for p in path], [])
+            path = sum([(Path._from_str(p, delimiter) if isinstance(p, str) else [p])
+                        for p in path], [])
         else:
             path = [path]
         return Path._unroll(path, [])

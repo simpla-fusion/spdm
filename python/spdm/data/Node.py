@@ -197,18 +197,16 @@ class Node(typing.Generic[_T]):
             parent = self
 
         if isinstance(key, set):
-            return DictProxy({k: self.as_child(k, default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for k in key})
-
-        elif isinstance(key, tuple):
-            return ListProxy([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
+            return DictProxy[_T]({k: self.as_child(k, default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for k in key})
 
         elif isinstance(key, (slice, dict)):
-            return ListProxy([self.as_child(None, v,  default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for v in self._entry.child(key).find()])
+            return ListProxy[_T](self._entry.child(key), default_value=default_value, parent=parent, type_hint=type_hint, **kwargs)
 
-        # elif isinstance(key, dict):
-        #     raise NotImplementedError(f"dict {key}")
+        elif isinstance(key, tuple):
+            raise NotImplementedError(f"tuple {key}")
+            # return ListProxy([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
 
-        if isinstance(key, str):
+        elif isinstance(key, str):
             if value is _not_found_ or value is None:
                 value = self._entry.child(key)
 
@@ -382,7 +380,7 @@ class Node(typing.Generic[_T]):
         #     raise NotImplementedError("as_child")
 
 
-class DictProxy(dict):
+class DictProxy(Node[_T]):
 
     def __getitem__(self, path: PathLike) -> typing.Any:
         return Path(path).query(self)
@@ -391,16 +389,15 @@ class DictProxy(dict):
         return super().__getitem__(name)
 
 
-class ListProxy(list):
-    def __init__(self, *args, default_value=None, **kwargs) -> None:
+class ListProxy(Node[_T]):
+    def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._default_value = default_value
 
     def __getitem__(self, path: PathLike) -> typing.Any: return self._get(Path(path))
 
     def __getattr__(self, name: str) -> typing.Any: return self._get(Path([name]))
-        # default_value = self._default_value.get(name, None) if self._default_value is not None else None
-        # return ListProxy([(getattr(obj, name, None) if not isinstance(obj, Node) else obj.get(name, default_value=default_value)) for obj in self])
+    # default_value = self._default_value.get(name, None) if self._default_value is not None else None
+    # return ListProxy([(getattr(obj, name, None) if not isinstance(obj, Node) else obj.get(name, default_value=default_value)) for obj in self])
 
     def _get(self, path: Path) -> typing.Any:
         if len(path) == 0:
