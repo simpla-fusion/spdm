@@ -22,7 +22,7 @@ from .Path import Path, PathLike, as_path, path_like
 _T = typing.TypeVar("_T")
 
 
-class Node(typing.Generic[_T]):
+class HTree(typing.Generic[_T]):
     """
         节点类，用于表示数据结构中的节点，节点可以是一个标量（或 array_type），也可以是一个列表，也可以是一个字典。
         用于在一般数据结构上附加类型标识（type_hint)。
@@ -33,11 +33,8 @@ class Node(typing.Generic[_T]):
         -
     """
 
-    _MAPPING_TYPE_ = dict
-    _SEQUENCE_TYPE_ = list
-
-    def __init__(self, d: typing.Any,
-                 parent: Node = None,
+    def __init__(self, d: typing.Any = None,
+                 parent: HTree = None,
                  default_value: typing.Any = None,
                  metadata: typing.Dict[str, typing.Any] = None,
                  **kwargs) -> None:
@@ -46,18 +43,18 @@ class Node(typing.Generic[_T]):
             metadata = kwargs
             kwargs = {}
 
-        if self.__class__ is not Node or isinstance(d, primary_type) or isinstance(d, Entry):
-            pass
-        elif isinstance(d, collections.abc.Sequence):  # 如果 entry 是列表, 就把自己的类改成列表
-            self.__class__ = Node._SEQUENCE_TYPE_
+        # if self.__class__ is not HTree or isinstance(d, primary_type) or isinstance(d, Entry):
+        #     pass
+        # elif isinstance(d, collections.abc.Sequence):  # 如果 entry 是列表, 就把自己的类改成列表
+        #     self.__class__ = HTree._SEQUENCE_TYPE_
 
-        elif isinstance(d, collections.abc.Mapping):  # 如果 entry 是字典, 就把自己的类改成字典
-            self.__class__ = Node._MAPPING_TYPE_
+        # elif isinstance(d, collections.abc.Mapping):  # 如果 entry 是字典, 就把自己的类改成字典
+        #     self.__class__ = HTree._MAPPING_TYPE_
 
         # if d is _not_found_ or d is None:
         #     raise RuntimeError(f"{d} is not a valid value")
 
-        self._entry = as_entry(d)
+        self._entry = as_entry(d) if d is not None else d
         self._default_value = default_value
         self._parent = parent
         self._metadata = metadata
@@ -68,7 +65,7 @@ class Node(typing.Generic[_T]):
     def __serialize__(self) -> typing.Any: return self._entry.dump()
 
     @classmethod
-    def __deserialize__(cls, *args, **kwargs) -> Node: return cls(*args, **kwargs)
+    def __deserialize__(cls, *args, **kwargs) -> HTree: return cls(*args, **kwargs)
 
     @property
     def name(self) -> str: return self._metadata.get("name", "unamed")
@@ -135,8 +132,12 @@ class Node(typing.Generic[_T]):
 
     def __array__(self): return as_array(self.__value__)
 
-    def __copy__(self) -> Node:
-        other: Node = self.__class__.__new__(self.__class__)
+    def as_list(self): return list(self.__value__)
+
+    def as_dict(self): return dict(self.__value__)
+
+    def __copy__(self) -> HTree:
+        other: HTree = self.__class__.__new__(self.__class__)
         other._entry = copy(self._entry)
         other._metadata = copy(self._metadata)
         other._default_value = self._default_value
@@ -145,7 +146,7 @@ class Node(typing.Generic[_T]):
 
     # def __repr__(self) -> str: return pprint.pformat(self.__serialize__())
 
-    def __getitem__(self, key) -> Node | _T: return self.get(key)
+    def __getitem__(self, key) -> HTree | _T: return self.get(key)
 
     def __setitem__(self, key, value) -> None: self._entry.child(key).insert(value)
 
@@ -160,38 +161,46 @@ class Node(typing.Generic[_T]):
         type_hint = self.__type_hint__
 
         for v in self._entry.children:
-            yield from self.as_child(None, v, type_hint=type_hint, parent=self)
+            yield self.as_child(None, v, type_hint=type_hint, parent=self)
 
     def __equal__(self, other) -> bool: return self._entry.__equal__(other)
 
     @property
-    def _root(self) -> Node | None:
+    def _root(self) -> HTree | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
         while p._parent is not None and getattr(p, "ids_properties", None) is None:
             p = p._parent
         return p
 
-    def append(self, value) -> Node:
+    def append(self, value) -> HTree:
+        if self._entry is None:
+            self._entry = as_entry([])
         self._entry.append(value)
         return self
 
-    def insert(self, path, value, **kwargs) -> Node | typing.Any: return self._entry.insert(path, value, **kwargs)
+    def insert(self, path, value, **kwargs) -> HTree | typing.Any: return self._entry.insert(path, value, **kwargs)
 
     def get(self, path:  PathLike | Path | None = None, default_value: typing.Any = _undefined_,  **kwargs) -> typing.Any:
         return self.as_child_deep(path, default_value=default_value, **kwargs)
 
-    def find(self, query: dict | None = None, *args, **kwargs) -> typing.Generator[Node, None, None]:
+    def find(self, query: dict | None = None, *args, **kwargs) -> typing.Generator[HTree, None, None]:
         entry = self._entry.child(query) if query is not None else self._entry
 
         for p, v in entry.find():
             yield self.as_child_deep(p, v, *args, **kwargs)
 
+    def update(self, *args, **kwargs) -> HTree:
+        if self._entry is None:
+            self._entry = as_entry([])
+        self._entry.update(*args, **kwargs)
+        return self
+
     def as_child(self, key: PathLike,
                  value: typing.Any = _not_found_,
                  default_value: typing.Any = _undefined_,
                  type_hint: typing.Type = _not_found_,
-                 parent: Node = None, **kwargs) -> Node | typing.Dict[str, Node] | typing.List[Node]:
+                 parent: HTree = None, **kwargs) -> HTree | typing.Dict[str, HTree] | typing.List[HTree]:
         """ 获取子节点   """
         if parent is None:
             parent = self
@@ -234,7 +243,7 @@ class Node(typing.Generic[_T]):
 
         if inspect.isclass(origin_class) and isinstance(value, origin_class):
             pass
-        elif inspect.isclass(origin_class) and issubclass(origin_class, Node):
+        elif inspect.isclass(origin_class) and issubclass(origin_class, HTree):
             value = type_hint(value, default_value=default_value,  parent=parent, **kwargs)
         else:
             if isinstance(value, Entry):
@@ -248,7 +257,7 @@ class Node(typing.Generic[_T]):
 
             elif not inspect.isclass(origin_class):
                 if not isinstance(value, primary_type):
-                    value = Node(value, parent=parent)
+                    value = HTree(value, parent=parent)
 
             elif isinstance(value, origin_class):
                 pass
@@ -279,7 +288,7 @@ class Node(typing.Generic[_T]):
         return value
 
     def as_child_deep(self, path:  PathLike | Path | None = None, value=None,
-                      default_value: typing.Any = _not_found_, **kwargs) -> Node:
+                      default_value: typing.Any = _not_found_, **kwargs) -> HTree:
         """
             将 value 转换为 Node
             ----
@@ -307,12 +316,12 @@ class Node(typing.Generic[_T]):
 
             if obj is None or obj is _not_found_:
                 break
-            elif not isinstance(obj, Node):
+            elif not isinstance(obj, HTree):
                 obj = as_entry(obj).child(path[idx:])
-                if isinstance(parent, Node):
+                if isinstance(parent, HTree):
                     obj = parent.as_child(key, obj, default_value=default_value, **kwargs)
                 else:
-                    obj = Node(obj,  default_value=default_value, **kwargs)
+                    obj = HTree(obj,  default_value=default_value, **kwargs)
 
             if key == Path.tags.root:
                 obj = obj._root
@@ -380,7 +389,77 @@ class Node(typing.Generic[_T]):
         #     raise NotImplementedError("as_child")
 
 
-class DictProxy(Node[_T]):
+class AoS(HTree[_T]):
+    """
+        Array of structure
+    """
+
+    def __init__(self, *args, id: str = _undefined_, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._unique_id_name = id if id is not _undefined_ else "$id"
+        self._cache = {}
+
+    def combine(self, *args, default_value=None) -> _T:
+
+        d_list = []
+
+        default_value = deep_reduce(default_value, self._default_value)
+
+        if default_value is not None and len(default_value) > 0:
+            d_list.append(self._default_value)
+
+        if len(args) > 0:
+            d_list.extend(args)
+
+        if self._cache is not None and len(self._cache) > 0:
+            raise NotImplementedError(f"NOT IMPLEMENTET YET! {self._cache}")
+            # d_list.append(as_entry(self._cache).child(slice(None)))
+
+        if self._entry is not None:
+            d_list.append(self._entry.child(slice(None)))
+
+        type_hint = self.__type_hint__()
+        return type_hint(CombineEntry({}, *d_list), parent=self._parent)
+
+    def unique_by_id(self, id: str = "$id") -> List[_T]:
+        """ 当 element 为 dict时，将具有相同 key=id的element 合并（deep_reduce)
+        """
+        res = {}
+        for d in self.find():
+            if not isinstance(d, collections.abc.Mapping):
+                raise TypeError(f"{type(d)}")
+            key = d.get(id, None)
+            res[key] = deep_reduce(res.get(key, None), d)
+
+        return self.__class__([*res.values()], parent=self)
+
+    def as_child(self, key:  int | slice,  value=None, parent=_not_found_, **kwargs) -> _T:
+        parent = self._parent if parent is _not_found_ or parent is None else parent
+        if isinstance(key, int) and key < 0:
+            key = len(self)+key
+
+        # if not isinstance(key, int):
+        #     raise NotImplementedError(f"key must be int, not {type(key)}")
+        if (value is None or value is _not_found_) and isinstance(key, int):
+            value = self._cache.get(key, _not_found_)
+
+        if (value is None or value is _not_found_):
+            value = self._entry.child(key)
+
+        value = super().as_child(key, value, parent=parent, **kwargs)
+
+        if isinstance(key, int) and value is not _not_found_:
+            self._cache[key] = value
+
+        return value
+
+
+Node = HTree
+List = HTree
+Dict = HTree
+
+
+class DictProxy(HTree[_T]):
 
     def __getitem__(self, path: PathLike) -> typing.Any:
         return Path(path).query(self)
@@ -389,7 +468,7 @@ class DictProxy(Node[_T]):
         return super().__getitem__(name)
 
 
-class ListProxy(Node[_T]):
+class ListProxy(HTree[_T]):
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -406,7 +485,7 @@ class ListProxy(Node[_T]):
             return ListProxy(self, default_value=path[0])._get(path[1:])
         else:
             default_value = path.query(self._default_value)
-            return ListProxy([(Path(path).query(obj, default_value=default_value) if not isinstance(obj, Node) else obj.get(path, default_value=default_value)) for obj in self])
+            return ListProxy([(Path(path).query(obj, default_value=default_value) if not isinstance(obj, HTree) else obj.get(path, default_value=default_value)) for obj in self])
 
     @property
     def __value__(self): return [getattr(obj, "__value__", obj) for obj in self]

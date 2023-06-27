@@ -9,20 +9,20 @@ import typing
 from copy import copy
 from enum import Enum
 
-from spdm.data.Node import Node
+from spdm.data.HTree import HTree
 from spdm.numlib.misc import array_like
 
 from ..utils.logger import logger
 from ..utils.misc import as_dataclass, typing_get_origin
 from ..utils.tags import _not_found_, _undefined_
 from .Entry import Entry, as_entry
-from .Node import Node
+from .HTree import Node
 from .Path import Path
 
 _T = typing.TypeVar("_T")
 
 
-class Container(Node[_T]):
+class Container(HTree[_T]):
     """
         Container
         ---------

@@ -47,20 +47,17 @@ import inspect
 import typing
 from _thread import RLock
 from copy import copy
-from spdm.data.Node import Node
+
+from spdm.data.HTree import HTree
 from spdm.utils.tags import _not_found_
 
 from ..utils.logger import logger
+from ..utils.misc import group_dict_by_prefix, try_get
 from ..utils.tags import _not_found_
-from ..utils.misc import try_get
 from ..utils.typing import ArrayType, PrimaryType
-from .Container import Container
-from .Dict import Dict
-from .Node import Node
 from .Entry import Entry
+from .HTree import Dict
 from .Path import Path
-
-from ..utils.misc import group_dict_by_prefix
 
 _T = typing.TypeVar("_T")
 
@@ -100,7 +97,7 @@ class SpDict(Dict[_T]):
 
     def as_child(self, key: str | int,  value=None,
                  getter: typing.Callable[[SpDict[_T], str], _T] = None,
-                 **kwargs) -> Node | PrimaryType | ArrayType:
+                 **kwargs) -> HTree | PrimaryType | ArrayType:
 
         if (value is None or value is _not_found_) and isinstance(key, str):
             value = self._cache.get(key, _not_found_)
@@ -117,7 +114,7 @@ class SpDict(Dict[_T]):
 
         return value
 
-    def __get_property__(self, key: str | int, *args, **kwargs) -> Node:
+    def __get_property__(self, key: str | int, *args, **kwargs) -> HTree:
         value = self.as_child(key, *args, **kwargs)
         if value is _not_found_:
             raise KeyError(f"Can not find property \"{key}\" of {self.__class__.__name__}")

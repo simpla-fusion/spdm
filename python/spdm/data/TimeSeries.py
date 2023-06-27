@@ -2,9 +2,7 @@
 import collections.abc
 import typing
 
-from spdm.data.Dict import Dict
-from spdm.data.List import List, AoS
-from spdm.data.Node import Node
+from spdm.data.HTree import Dict, List, AoS
 from spdm.data.sp_property import SpDict, sp_property
 from spdm.utils.logger import logger
 import numpy as np

@@ -19,7 +19,7 @@ from .Expression import Expression
 from .ExprNode import ExprNode
 from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
                      partial_derivative)
-from .Node import Node
+from .HTree import HTree
 
 _T = typing.TypeVar("_T")
 
@@ -115,7 +115,7 @@ class Function(ExprNode[_T]):
             return self._dims
         parent = self._parent  # kwargs.get("parent", None)
         metadata = self._metadata  # kwargs.get("metadata", None)
-        if isinstance(parent, Node) and isinstance(metadata, collections.abc.Mapping):
+        if isinstance(parent, HTree) and isinstance(metadata, collections.abc.Mapping):
             coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
             if isinstance(coordinates, collections.abc.Mapping):
                 coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}

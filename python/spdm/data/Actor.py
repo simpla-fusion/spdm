@@ -7,7 +7,7 @@ from ..utils.plugin import Pluggable
 from .Field import Field
 from .Function import Function
 from .List import AoS, List
-from .Node import Node
+from .HTree import HTree
 from .Signal import Signal, SignalND
 from .sp_property import SpDict, sp_property
 from .TimeSeries import TimeSeriesAoS, TimeSlice

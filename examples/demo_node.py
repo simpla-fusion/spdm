@@ -3,7 +3,7 @@ from copy import copy, deepcopy
 import numpy as np
 from spdm.utils.logger import logger
 from spdm.data.Dict import Dict
-from spdm.data.Node import Node
+from spdm.data.HTree import HTree
 from spdm.data.sp_property import sp_property
 from spdm.data.List import List
 

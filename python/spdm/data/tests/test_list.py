@@ -4,7 +4,7 @@ from copy import copy, deepcopy
 import numpy as np
 from spdm.data.Dict import Dict
 from spdm.data.List import List
-from spdm.data.Node import Node
+from spdm.data.HTree import HTree
 from spdm.data.Path import Path
 from spdm.utils.logger import logger
 

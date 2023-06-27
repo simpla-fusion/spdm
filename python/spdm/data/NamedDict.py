@@ -1,12 +1,11 @@
 from __future__ import annotations
+
 import collections.abc
 import typing
 
-from spdm.data.Node import Node
 
 from ..utils.tags import _not_found_
-from .Dict import Dict
-from .Node import Node
+from .HTree import Dict
 
 
 class NamedDict(Dict):

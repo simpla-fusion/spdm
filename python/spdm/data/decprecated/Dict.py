@@ -7,7 +7,7 @@ from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from .Container import Container
 from .Entry import Entry, EntryChain, as_entry
-from .Node import Node
+from .HTree import Node
 from .Path import Path
 
 _T = typing.TypeVar("_T")

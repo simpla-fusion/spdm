@@ -12,7 +12,7 @@ from spdm.geometry.Point import Point
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
 from spdm.geometry.Line import Line
-from spdm.data.Node import Node
+from spdm.data.HTree import HTree
 
 SVG_TEMPLATE = """<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -94,7 +94,7 @@ class SVGView(View):
             line_width=line_width,
             color="black",)
 
-    def _draw(self, cancas, obj: GeoObject | Node | BBox, styles=None, **kwargs) -> str:
+    def _draw(self, cancas, obj: GeoObject | HTree | BBox, styles=None, **kwargs) -> str:
 
         name = kwargs.pop('name', obj.name)
 

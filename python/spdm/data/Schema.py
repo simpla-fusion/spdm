@@ -9,7 +9,7 @@ from ..utils.numeric import array_type
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
 from .List import List
-from .Node import Node
+from .HTree import HTree
 
 _T = typing.TypeVar("_T")
 

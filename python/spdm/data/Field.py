@@ -15,7 +15,7 @@ from .Expression import Expression
 from .ExprNode import ExprNode
 from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
                      partial_derivative)
-from .Node import Node
+from .HTree import HTree
 
 _T = typing.TypeVar("_T")
 
@@ -78,7 +78,7 @@ class Field(ExprNode[_T]):
         # else:
         #     raise TypeError(f"self._mesh={self._mesh} is not a Mapping")
 
-        if isinstance(self._parent, Node):
+        if isinstance(self._parent, HTree):
             coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
             if coordinates is None or len(coordinates) == 0:
                 coordinates = {}

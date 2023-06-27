@@ -1,11 +1,10 @@
+import typing
 import unittest
 from copy import deepcopy
+
 import numpy as np
-from spdm.data.Dict import Dict
-from spdm.data.List import List
-from spdm.data.Node import Node
+from spdm.data.HTree import Dict, HTree, List
 from spdm.utils.logger import logger
-import typing
 
 
 class Foo(Dict):
@@ -35,14 +34,14 @@ class NamedFoo(Dict):
 
 class TestNode(unittest.TestCase):
 
-    def test_new(self):
-        self.assertTrue(isinstance(Node("hello"), Node))
-        self.assertTrue(isinstance(Node(1), Node))
-        self.assertTrue(isinstance(Node(np.ones([10, 20])), Node))
-        self.assertTrue(isinstance(Node([1, 2, 3, 4, 5]), List))
-        self.assertTrue(isinstance(Node((1, 2, 3, 4, 5)), List))
-        self.assertTrue(isinstance(Node({"a": 1, "b": 2, "c": 3}), Dict))
-        self.assertFalse(isinstance(Node({1, 2, 3, 4, 5}), List))
+    # def test_new(self):
+    #     self.assertTrue(isinstance(HTree("hello"), HTree))
+    #     self.assertTrue(isinstance(HTree(1), HTree))
+    #     self.assertTrue(isinstance(HTree(np.ones([10, 20])), HTree))
+    #     self.assertTrue(isinstance(HTree([1, 2, 3, 4, 5]), List))
+    #     self.assertTrue(isinstance(HTree((1, 2, 3, 4, 5)), List))
+    #     self.assertTrue(isinstance(HTree({"a": 1, "b": 2, "c": 3}), Dict))
+    #     # self.assertFalse(isinstance(HTree({1, 2, 3, 4, 5}), List))
 
     def test_list(self):
         data = [1, 2, 3, 4, 5]
@@ -55,7 +54,7 @@ class TestNode(unittest.TestCase):
 
         d1 = List()
         d1.append({"a": 1, "b": 2})
-        self.assertIsInstance(d1[0], Node)
+        self.assertIsInstance(d1[0], HTree)
 
     # def test_create(self):
     #     cache = []
@@ -116,7 +115,7 @@ class TestNode(unittest.TestCase):
             ]
         }
 
-        d = Node(cache)
+        d = Dict(cache)
 
         del d["a"]
 
@@ -127,14 +126,14 @@ class TestNode(unittest.TestCase):
         d1.append({"a": 1, "b": 2})
 
         self.assertEqual(len(d1), 1)
-        self.assertIsInstance(d1[0], Node)
+        self.assertIsInstance(d1[0], HTree)
         self.assertEqual(d1[0]["a"], 1)
         self.assertEqual(d1[0]["b"], 2)
 
     def test_node_insert(self):
         cache = {"this_is_a_cache": True}
 
-        d = Dict[Node](cache)
+        d = Dict[List](cache)
 
         d["a"] = "hello world {name}!"
         self.assertEqual(cache["a"], "hello world {name}!")
@@ -149,7 +148,7 @@ class TestNode(unittest.TestCase):
         d1 = List()
         d1.append({"a": 1, "b": 2})
 
-        self.assertIsInstance(d1[0], Node)
+        self.assertIsInstance(d1[0], HTree)
 
         self.assertEqual(len(d1), 1)
         self.assertEqual(d1[0]["a"], 1)

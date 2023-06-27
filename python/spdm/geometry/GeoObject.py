@@ -7,7 +7,8 @@ from copy import copy
 from functools import cached_property
 
 import numpy as np
-from ..data.List import List
+
+from ..data.HTree import List
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, ScalarType,

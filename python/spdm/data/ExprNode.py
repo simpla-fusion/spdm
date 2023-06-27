@@ -9,12 +9,12 @@ from ..utils.tags import _not_found_
 from ..utils.typing import ArrayLike, ArrayType, array_type, numeric_type
 from .Expression import Expression
 from .ExprOp import ExprOp
-from .Node import Node
+from .HTree import HTree
 
 _T = typing.TypeVar("_T")
 
 
-class ExprNode(Expression, Node[_T]):
+class ExprNode(Expression, HTree[_T]):
     """
     Profile
     ---------
@@ -48,7 +48,7 @@ class ExprNode(Expression, Node[_T]):
 
         Expression.__init__(self, expr, *args, name=name)
 
-        Node.__init__(self, value, **kwargs)
+        HTree.__init__(self, value, **kwargs)
 
         self._value = None
 
@@ -68,7 +68,7 @@ class ExprNode(Expression, Node[_T]):
 
     def __copy__(self) -> ExprNode:
         """ 复制一个新的 Function 对象 """
-        other: ExprNode = Node.__copy__(self)  # type:ignore
+        other: ExprNode = HTree.__copy__(self)  # type:ignore
         other._op = self._op
         other._name = self._name
         other._children = self._children

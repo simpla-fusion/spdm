@@ -11,7 +11,7 @@ from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
 from .Container import Container
 from .Entry import Entry, as_entry, deep_reduce
-from .Node import Node
+from .HTree import Node
 from .Path import Path
 
 _T = typing.TypeVar("_T")

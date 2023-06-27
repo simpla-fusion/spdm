@@ -4,7 +4,7 @@ from logging import log
 from spdm.data.Dict import Dict
 from spdm.data.Entry import as_entry
 from spdm.data.List import List
-from spdm.data.Node import Node
+from spdm.data.HTree import HTree
 from spdm.data.sp_property import sp_property
 from spdm.utils.logger import logger
 
