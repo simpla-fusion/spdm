@@ -81,35 +81,6 @@ def whoami(obj=None):
         return inspect.stack()[1][3]
 
 
-def getitem(obj, key=None, default_value=None):
-    if key is None:
-        return obj
-    elif hasattr(obj, "__get__"):
-        return obj.__get__(key, default_value)
-    elif hasattr(obj, "__getitem__"):
-        return obj.__getitem__(key) or default_value
-    else:
-        return default_value
-
-
-def setitem(obj, key, value):
-    if hasattr(obj, "__setitem__"):
-        return obj.__setitem__(key, value)
-    else:
-        raise KeyError(f"Can not setitem {key}")
-
-
-def iteritems(obj):
-    if obj is None:
-        return []
-    elif isinstance(obj, collections.abc.Sequence):
-        return obj
-    elif isinstance(obj, collections.abc.Mapping):
-        return obj.items()
-    else:
-        raise TypeError(f"Can not apply 'iteritems' on {type(obj)}!")
-
-
 def get_cls_file_path(cls):
     return pathlib.Path(inspect.getfile(cls)).parent
 
@@ -117,75 +88,6 @@ def get_cls_file_path(cls):
 def load_pkg_data(pkgname, path):
     data = pkgutil.get_data(pkgname, path)
     return json.loads(data.decode("utf-8"))
-
-
-def try_get(obj, path: str, default_value=_undefined_):
-    if obj is None or obj is _not_found_:
-        return default_value
-    elif path is None or path == '':
-        return obj
-
-    start = 0
-    path = path.strip(".")
-    s_len = len(path)
-    while start >= 0 and start < s_len:
-        pos = path.find('.', start)
-        if pos < 0:
-            pos = s_len
-        next_obj = getattr(obj, path[start: pos], _not_found_)
-
-        if next_obj is not _not_found_:
-            obj = next_obj
-        elif isinstance(obj, collections.abc.Mapping):
-            next_obj = obj.get(path[start: pos], _not_found_)
-            if next_obj is not _not_found_:
-                obj = next_obj
-            else:
-                break
-        else:
-            break
-
-        start = pos+1
-    if start > s_len:
-        return obj
-    elif default_value is _undefined_:
-        raise KeyError(f"Can for find path {path}")
-    else:
-        return default_value
-
-
-def try_getattr_r(obj, path: str):
-    if path is None or path == '':
-        return obj, ''
-    start = 0
-    path = path.strip(".")
-    s_len = len(path)
-    while start >= 0 and start < s_len:
-        pos = path.find('.', start)
-        if pos < 0:
-            pos = s_len
-        if not hasattr(obj, path[start:pos]):
-            break
-        obj = getattr(obj, path[start: pos])
-        start = pos+1
-    return obj, path[start:]
-
-
-def getattr_r(obj, path: str):
-    # o, p = try_getattr_r(obj, path)
-
-    # if p != '':
-    #     raise KeyError(f"Can for find path {path}")
-    if type(path) is str:
-        path = path.split('.')
-
-    o = obj
-    for p in path:
-        o = getattr(o, p, None)
-        if o is None:
-            break
-            # raise KeyError(f"Can not get attribute {p} from {o}")
-    return o
 
 
 # def try_get(holder, path, default_value=None):
@@ -359,45 +261,9 @@ def compile_regex_pattern(pattern):
         return res
 
 
-def as_namedtuple(d: dict, name=""):
-    return collections.namedtuple(name, d.keys())(d.values())
-
-
 def first_not_empty(*args):
     return next(x for x in args if len(x) > 0)
 
-
-def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
-    if d is None and len(kwargs) > 0:
-        d = kwargs
-    if d is None:
-        return d
-    elif hasattr(ntuple, "_fields") and isinstance(ntuple, type):
-        return ntuple(*[try_get(d, k) for k in ntuple._fields])
-    elif isinstance(d, collections.abc.Mapping):
-        keys = [k.replace('$', 's_') for k in d.keys()]
-        values = [convert_to_named_tuple(v) for v in d.values()]
-        if not isinstance(ntuple, str):
-            ntuple = "__"+("_".join(keys))
-        ntuple = ntuple.replace('$', '_')
-        return collections.namedtuple(ntuple, keys)(*values)
-    elif isinstance(d, collections.abc.MutableSequence):
-        return [convert_to_named_tuple(v) for v in d]
-    else:
-        return d
-
-
-def as_dataclass(cls, value):
-    if not dataclasses.is_dataclass(cls):
-        raise TypeError(type(cls))
-    elif isinstance(value, collections.abc.Mapping):
-        value = cls(**{k: value.get(k, None) for k in cls.__dataclass_fields__})
-    elif isinstance(value, collections.abc.Sequence) and not isinstance(value, str):
-        value = cls(*value)
-    else:
-        raise TypeError(f"Can not convert '{type(value)}' to dataclass")
-        # value = type_hint(value, **kwargs)
-    return value
 
 
 def guess_class_name(obj):
@@ -417,101 +283,6 @@ def find_duplicate(l: Sequence, atol=1.0e-8):
         idx = np.flatnonzero(np.abs(l[i+1:]-val) < atol)
         if len(idx) > 2:
             yield idx+i
-
-
-def get_value_by_path(data, path, default_value=None):
-    # 将路径按 '/' 分割成列表
-    if isinstance(path, str):
-        segments = path.split("/")
-    elif isinstance(path, collections.abc.Sequence):
-        segments = path
-    else:
-        segments = [path]
-
-    # 初始化当前值为 data
-    current_value = data
-    # 遍历路径中的每一段
-    for segment in segments:
-        # 如果当前值是一个字典，并且包含该段作为键
-        if isinstance(current_value, collections.abc.Mapping) and segment in current_value:
-            # 更新当前值为该键对应的值
-            current_value = current_value[segment]
-        else:
-            # 否则尝试将该段转换为整数索引
-            try:
-                index = int(segment)
-                # 如果当前值是一个列表，并且索引在列表范围内
-                if isinstance(current_value, list) and 0 <= index < len(current_value):
-                    # 更新当前值为列表中对应索引位置的元素
-                    current_value = current_value[index]
-                else:
-                    # 否则返回默认值
-                    return default_value
-            except ValueError:
-                # 如果转换失败，则返回默认值
-                return default_value
-    # 返回最终的当前值
-    return current_value
-
-
-def set_value_by_path(data, path, value):
-    # 将路径按 '/' 分割成列表
-    segments = path.split("/")
-    # 初始化当前字典为 data
-    current_dict = data
-    # 遍历路径中除了最后一段以外的每一段
-    for segment in segments[:-1]:
-        # 如果当前字典包含该段作为键，并且对应的值也是一个字典
-        if segment in current_dict and isinstance(current_dict[segment], dict):
-            # 更新当前字典为该键对应的子字典
-            current_dict = current_dict[segment]
-        else:
-            # 尝试将该段转换为整数索引
-            try:
-                index = int(segment)
-                # 如果当前字典不包含该段作为键，或者对应的值不是一个列表
-                if segment not in current_dict or not isinstance(current_dict[segment], list):
-                    # 创建一个空列表作为该键对应的值
-                    current_dict[segment] = []
-                # 更新当前字典为该键对应的子列表
-                current_dict = current_dict[segment]
-            except ValueError:
-                # 如果转换失败，则抛出一个异常，提示无法继续查找
-                raise Exception(f"Cannot find {segment} in {current_dict}")
-    # 在当前字典中设置最后一段作为键，给定的值作为值
-    last_segment = segments[-1]
-    # 尝试将最后一段转换为整数索引
-    try:
-        index = int(last_segment)
-        # 如果当前字典包含最后一段作为键，并且对应的值是一个列表
-        if last_segment in current_dict and isinstance(current_dict[last_segment], list):
-            # 判断索引是否在列表范围内
-            if 0 <= index < len(current_dict[last_segment]):
-                # 更新列表中对应索引位置的元素为给定值
-                current_dict[last_segment][index] = value
-            else:
-                # 否则抛出一个异常，提示无法更新列表元素
-                raise Exception(f"Index {index} out of range for list {current_dict[last_segment]}")
-        else:
-            # 否则直接设置最后一段作为键，给定值作为值（此时会创建一个单元素列表）
-            current_dict[last_segment] = value
-    except ValueError:
-        # 如果转换失败，则直接设置最后一段作为键，给定值作为值（此时会覆盖原有列表）
-        current_dict[last_segment] = value
-
-    return True
-
-
-def get_value(*args, **kwargs) -> typing.Any:
-    return get_value_by_path(*args, **kwargs)
-
-
-def get_many_value(d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None) -> collections.abc.Mapping:
-    return {k: get_value(d, k, get_value(default_value, idx)) for idx, k in enumerate(name_list)}
-
-
-def set_value(*args, **kwargs) -> bool:
-    return set_value_by_path(*args, **kwargs)
 
 
 def replace_tokens(value: str, env):
@@ -572,26 +343,6 @@ primitive_types = (int, bool, str, float, complex, np.ndarray)
 
 builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndarray)
 
-
-def typing_get_origin(tp):
-    if tp is None or tp is _not_found_:
-        return None
-    elif inspect.isclass(tp):
-        return tp
-    elif isinstance(tp, (typing._GenericAlias, typing.GenericAlias)):
-        res = typing.get_origin(tp)
-        return res
-    elif not inspect.isclass(tp):
-        return None
-
-    orig_class = getattr(tp, "__orig_bases__", None)
-
-    if orig_class is None:
-        return tp
-    elif isinstance(orig_class, tuple):
-        return typing_get_origin(orig_class[0])
-    else:
-        return typing_get_origin(orig_class)
 
 
 def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List[str], keep_prefix=False, sep='_') -> typing.Tuple[typing.Dict, ...]:

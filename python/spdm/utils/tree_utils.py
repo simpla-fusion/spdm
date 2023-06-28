@@ -4,11 +4,22 @@ from copy import copy, deepcopy
 
 import numpy as np
 
-from .logger import logger
-from .tags import _not_found_
+from .logger import deprecated, logger
+from .tags import _not_found_, _undefined_
+from .typing import primary_type
 
 
 class DefaultDict(dict):
+    """ 
+        This code creates a dictionary that can have a default value for 
+        keys that are not yet in the dictionary. It creates a dictionary that inherits
+        from the built-in dictionary class. It overrides the __missing__ method to 
+        return a default value if the key is not in the dictionary. It uses a private 
+        variable, _factory, that is set to the default factory function. It uses the default 
+        factory function to generate the default value for the key. It sets the default value
+        for the key with the __setitem__ method. It returns the default value.
+    """
+
     def __init__(self, default_factory, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._factory = default_factory
@@ -20,6 +31,7 @@ class DefaultDict(dict):
 
 
 def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -> typing.Any:
+    """ 递归合并两个 Hierarchical Tree """
     if second is None or second is _not_found_ or level == 0:
         return first
     elif first is None or first is _not_found_:
@@ -45,7 +57,95 @@ def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -
     return first
 
 
+class DictTemplate:
+    def __init__(self, tmpl, *args, **kwargs):
+        self._template = tmpl
+
+    def __missing__(self, key):
+        return '{'+key+'}'
+
+    def __getitem__(self, key):
+        try:
+            res = self._template[key]
+        except (KeyError, IndexError):
+            raise KeyError(key)
+
+        return res
+
+    def get(self, key, default_value=None):
+        try:
+            if isinstance(key, str):
+                res = _recursive_get(self._template, key.split('.'))
+            else:
+                res = self._template[key]
+        except (KeyError, IndexError):
+            res = default_value
+        return res
+
+    def apply(self, data):
+        return tree_apply_recursive(data, lambda s, _template=self: s.format_map(_template), str)[0]
+
+
+def format_string_recursive(obj, mapping=None):
+    class DefaultDict(dict):
+        def __missing__(self, key):
+            return '{'+key+'}'
+
+    d = DefaultDict(mapping)
+    res, _ = tree_apply_recursive(obj, lambda s, _envs=d: s.format_map(d), str)
+    return res
+
+
+def normalize_data(data):
+    """Recursively normalizes JSON data.
+
+    Normalizes JSON data by converting all numeric values to floats, and
+    converting all strings to unicode. The types argument is a sequence of
+    types that should be converted to strings. It defaults to (int, float,
+    str).
+
+    Args:
+        data: The JSON data to normalize.
+        types: A sequence of types that should be converted to strings.
+
+    Returns:
+        The normalized JSON data.
+    """
+    if isinstance(data, primary_type):
+        return data
+    elif isinstance(data, collections.abc.Mapping):
+        return {k:  normalize_data(v) for k, v in data.items()}
+    elif isinstance(data, collections.abc.Sequence):
+        return [normalize_data(v) for v in data]
+    elif isinstance(data, collections.abc.Iterable):
+        return [normalize_data(v) for v in data]
+    else:
+        return str(data)
+
+
+###############################################################################
+# decperecated functions
+#
+# 下列function皆已经“废弃”，主要功能已经合并进 Path 和 HTree 两个类
+
+@deprecated
 def tree_apply_recursive(obj, op, types=None):
+    """Apply op to all elements in a tree-like structure
+
+    Recursively apply a function to all elements in a tree-like structure
+    (list, dict, etc.). The function is applied to all elements of the tree.
+    It also supports a list of types to include or exclude from the operation.
+    Elements of types in the list are included, and elements of types not in
+    the list are excluded. If types is None, all elements are included.
+
+    Args:
+        obj: The object to be transformed
+        op: The function to apply to each element
+        types: A list of types to include or exclude from the operation
+
+    Returns:
+        The transformed object and a boolean indicating whether a change was made
+    """
     changed = False
     is_attr_tree = False
     if types is not None and isinstance(obj, types):
@@ -79,27 +179,7 @@ def tree_apply_recursive(obj, op, types=None):
     return obj, changed
 
 
-def format_string_recursive(obj, mapping=None):
-    class DefaultDict(dict):
-        def __missing__(self, key):
-            return '{'+key+'}'
-
-    d = DefaultDict(mapping)
-    res, _ = tree_apply_recursive(obj, lambda s, _envs=d: s.format_map(d), str)
-    return res
-
-
-def normalize_data(data, types=(int, float, str)):
-    if isinstance(data, types):
-        return data
-    elif isinstance(data, collections.abc.Mapping):
-        return {k:  normalize_data(v, types) for k, v in data.items()}
-    elif isinstance(data, collections.abc.Sequence) and not isinstance(data, str):
-        return [normalize_data(v) for v in data]
-    else:
-        return str(data)
-
-
+@deprecated
 def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, force=False) -> dict | list:
     if not in_place:
         first = deepcopy(first)
@@ -126,6 +206,7 @@ def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, 
     return first
 
 
+@deprecated
 def reduce_dict(d, **kwargs) -> typing.Dict:
     res = {}
     for v in d:
@@ -137,68 +218,205 @@ def _recursive_get(obj, k):
     return obj if len(k) == 0 else _recursive_get(obj[k[0]], k[1:])
 
 
-class DictTemplate:
-    def __init__(self, tmpl, *args, **kwargs):
-        self._template = tmpl
+@deprecated
+def get_value_by_path(data, path, default_value=None):
+    # 将路径按 '/' 分割成列表
+    if isinstance(path, str):
+        segments = path.split("/")
+    elif isinstance(path, collections.abc.Sequence):
+        segments = path
+    else:
+        segments = [path]
 
-    def __missing__(self, key):
-        return '{'+key+'}'
+    # 初始化当前值为 data
+    current_value = data
+    # 遍历路径中的每一段
+    for segment in segments:
+        # 如果当前值是一个字典，并且包含该段作为键
+        if isinstance(current_value, collections.abc.Mapping) and segment in current_value:
+            # 更新当前值为该键对应的值
+            current_value = current_value[segment]
+        else:
+            # 否则尝试将该段转换为整数索引
+            try:
+                index = int(segment)
+                # 如果当前值是一个列表，并且索引在列表范围内
+                if isinstance(current_value, list) and 0 <= index < len(current_value):
+                    # 更新当前值为列表中对应索引位置的元素
+                    current_value = current_value[index]
+                else:
+                    # 否则返回默认值
+                    return default_value
+            except ValueError:
+                # 如果转换失败，则返回默认值
+                return default_value
+    # 返回最终的当前值
+    return current_value
 
-    def __getitem__(self, key):
-        try:
-            res = self._template[key]
-        except (KeyError, IndexError):
-            raise KeyError(key)
 
-        return res
-
-    def get(self, key, default_value=None):
-        try:
-            if isinstance(key, str):
-                res = _recursive_get(self._template, key.split('.'))
+@deprecated
+def set_value_by_path(data, path, value):
+    # 将路径按 '/' 分割成列表
+    segments = path.split("/")
+    # 初始化当前字典为 data
+    current_dict = data
+    # 遍历路径中除了最后一段以外的每一段
+    for segment in segments[:-1]:
+        # 如果当前字典包含该段作为键，并且对应的值也是一个字典
+        if segment in current_dict and isinstance(current_dict[segment], dict):
+            # 更新当前字典为该键对应的子字典
+            current_dict = current_dict[segment]
+        else:
+            # 尝试将该段转换为整数索引
+            try:
+                index = int(segment)
+                # 如果当前字典不包含该段作为键，或者对应的值不是一个列表
+                if segment not in current_dict or not isinstance(current_dict[segment], list):
+                    # 创建一个空列表作为该键对应的值
+                    current_dict[segment] = []
+                # 更新当前字典为该键对应的子列表
+                current_dict = current_dict[segment]
+            except ValueError:
+                # 如果转换失败，则抛出一个异常，提示无法继续查找
+                raise Exception(f"Cannot find {segment} in {current_dict}")
+    # 在当前字典中设置最后一段作为键，给定的值作为值
+    last_segment = segments[-1]
+    # 尝试将最后一段转换为整数索引
+    try:
+        index = int(last_segment)
+        # 如果当前字典包含最后一段作为键，并且对应的值是一个列表
+        if last_segment in current_dict and isinstance(current_dict[last_segment], list):
+            # 判断索引是否在列表范围内
+            if 0 <= index < len(current_dict[last_segment]):
+                # 更新列表中对应索引位置的元素为给定值
+                current_dict[last_segment][index] = value
             else:
-                res = self._template[key]
-        except (KeyError, IndexError):
-            res = default_value
-        return res
+                # 否则抛出一个异常，提示无法更新列表元素
+                raise Exception(f"Index {index} out of range for list {current_dict[last_segment]}")
+        else:
+            # 否则直接设置最后一段作为键，给定值作为值（此时会创建一个单元素列表）
+            current_dict[last_segment] = value
+    except ValueError:
+        # 如果转换失败，则直接设置最后一段作为键，给定值作为值（此时会覆盖原有列表）
+        current_dict[last_segment] = value
 
-    def apply(self, data):
-        return tree_apply_recursive(data, lambda s, _template=self: s.format_map(_template), str)[0]
+    return True
 
 
-def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
-    if d is None and len(kwargs) > 0:
-        d = kwargs
-    if d is None:
-        return d
-    elif hasattr(ntuple, "_fields") and isinstance(ntuple, type):
-        return ntuple(*[try_get(d, k) for k in ntuple._fields])
-    elif isinstance(d, collections.abc.Mapping):
-        keys = [k.replace('$', 's_') for k in d.keys()]
-        values = [convert_to_named_tuple(v) for v in d.values()]
-        if not isinstance(ntuple, str):
-            ntuple = "__"+("_".join(keys))
-        ntuple = ntuple.replace('$', '_')
-        return collections.namedtuple(ntuple, keys)(*values)
-    elif isinstance(d, collections.abc.MutableSequence):
-        return [convert_to_named_tuple(v) for v in d]
+@deprecated
+def get_value(*args, **kwargs) -> typing.Any:
+    return get_value_by_path(*args, **kwargs)
+
+
+@deprecated
+def get_many_value(d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None) -> collections.abc.Mapping:
+    return {k: get_value(d, k, get_value(default_value, idx)) for idx, k in enumerate(name_list)}
+
+
+@deprecated
+def set_value(*args, **kwargs) -> bool:
+    return set_value_by_path(*args, **kwargs)
+
+
+@deprecated
+def try_get(obj, path: str, default_value=_undefined_):
+    if obj is None or obj is _not_found_:
+        return default_value
+    elif path is None or path == '':
+        return obj
+
+    start = 0
+    path = path.strip(".")
+    s_len = len(path)
+    while start >= 0 and start < s_len:
+        pos = path.find('.', start)
+        if pos < 0:
+            pos = s_len
+        next_obj = getattr(obj, path[start: pos], _not_found_)
+
+        if next_obj is not _not_found_:
+            obj = next_obj
+        elif isinstance(obj, collections.abc.Mapping):
+            next_obj = obj.get(path[start: pos], _not_found_)
+            if next_obj is not _not_found_:
+                obj = next_obj
+            else:
+                break
+        else:
+            break
+
+        start = pos+1
+    if start > s_len:
+        return obj
+    elif default_value is _undefined_:
+        raise KeyError(f"Can for find path {path}")
     else:
-        return d
+        return default_value
 
 
-def as_native(d, enable_ndarray=True) -> typing.Union[str, bool, float, int, np.ndarray, dict, list]:
-    """
-        convert d to native data type str,bool,float, int, dict, list
-    """
-    if isinstance(d, (bool, int, float, str)):
-        return d
-    elif isinstance(d, np.ndarray):
-        return d.tolist() if not enable_ndarray else d
-    elif isinstance(d, collections.abc.Mapping):
-        return {as_native(k): as_native(v, enable_ndarray=enable_ndarray) for k, v in d.items()}
-    elif isinstance(d, collections.abc.Sequence):
-        return [as_native(v, enable_ndarray=enable_ndarray) for v in d]
+@deprecated
+def try_getattr_r(obj, path: str):
+    if path is None or path == '':
+        return obj, ''
+    start = 0
+    path = path.strip(".")
+    s_len = len(path)
+    while start >= 0 and start < s_len:
+        pos = path.find('.', start)
+        if pos < 0:
+            pos = s_len
+        if not hasattr(obj, path[start:pos]):
+            break
+        obj = getattr(obj, path[start: pos])
+        start = pos+1
+    return obj, path[start:]
 
+
+@deprecated
+def getattr_r(obj, path: str):
+    # o, p = try_getattr_r(obj, path)
+
+    # if p != '':
+    #     raise KeyError(f"Can for find path {path}")
+    if type(path) is str:
+        path = path.split('.')
+
+    o = obj
+    for p in path:
+        o = getattr(o, p, None)
+        if o is None:
+            break
+            # raise KeyError(f"Can not get attribute {p} from {o}")
+    return o
+
+
+@deprecated
+def getitem(obj, key=None, default_value=None):
+    if key is None:
+        return obj
+    elif hasattr(obj, "__get__"):
+        return obj.__get__(key, default_value)
+    elif hasattr(obj, "__getitem__"):
+        return obj.__getitem__(key) or default_value
     else:
-        logger.debug(type(d))
-        return str(d)
+        return default_value
+
+
+@deprecated
+def setitem(obj, key, value):
+    if hasattr(obj, "__setitem__"):
+        return obj.__setitem__(key, value)
+    else:
+        raise KeyError(f"Can not setitem {key}")
+
+
+@deprecated
+def iteritems(obj):
+    if obj is None:
+        return []
+    elif isinstance(obj, collections.abc.Sequence):
+        return obj
+    elif isinstance(obj, collections.abc.Mapping):
+        return obj.items()
+    else:
+        raise TypeError(f"Can not apply 'iteritems' on {type(obj)}!")

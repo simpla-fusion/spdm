@@ -52,7 +52,7 @@ from spdm.data.HTree import HTree
 from spdm.utils.tags import _not_found_
 
 from ..utils.logger import logger
-from ..utils.misc import group_dict_by_prefix, try_get
+from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, PrimaryType
 from .Entry import Entry
@@ -67,7 +67,7 @@ class SpDict(Dict[_T]):
         支持 sp_property 的 Dict
     """
 
-    def __init__(self, d: typing.Any = None, cache: typing.Dict[str, typing.Any] = None, default_value=_not_found_,  **kwargs) -> None:
+    def __init__(self, d: typing.Any = None,   default_value=_not_found_,  **kwargs) -> None:
         if isinstance(d, collections.abc.Mapping) and "$default_value" in d:
             default_value_, d = group_dict_by_prefix(d, "$default_value")
         else:
@@ -76,11 +76,9 @@ class SpDict(Dict[_T]):
             default_value_.update(default_value)
 
         super().__init__(d, default_value=default_value_, ** kwargs)
-        self._cache = {} if cache is None else cache
 
     def __copy__(self) -> SpDict:
         other: SpDict = super().__copy__()  # type:ignore
-        other._cache = copy(self._cache)
         return other
 
     def __type_hint__(self, key: str = None) -> typing.Type:

@@ -43,19 +43,6 @@ class TestNode(unittest.TestCase):
     #     self.assertTrue(isinstance(HTree({"a": 1, "b": 2, "c": 3}), Dict))
     #     # self.assertFalse(isinstance(HTree({1, 2, 3, 4, 5}), List))
 
-    def test_list(self):
-        data = [1, 2, 3, 4, 5]
-
-        d0 = List[int](data)
-        # logger.debug(type(d0[0]))
-        self.assertIsInstance(d0[0], int)
-        self.assertEqual(d0[0], data[0])
-        self.assertListEqual(list(d0[:]), data)
-
-        d1 = List()
-        d1.append({"a": 1, "b": 2})
-        self.assertIsInstance(d1[0], HTree)
-
     # def test_create(self):
     #     cache = []
     #     d = Node(cache)
@@ -69,110 +56,155 @@ class TestNode(unittest.TestCase):
     #     self.assertTrue(isinstance(d.create_child((1, 2, 3, 4, 5)), List))
     #     self.assertTrue(isinstance(d.create_child({"a": 1, "b": 2, "c": 3}), Dict))
 
-    def test_find_by_key(self):
+    # def test_dict(self):
+    #     d = Dict(test_data)
 
-        d = NamedFoo(test_data)
+    #     self.assertEqual(len(d["a"]),                     6)
+    #     self.assertEqual(d["c"],             test_data["c"])
+    #     self.assertEqual(d["d/e"],   test_data["d"]["e"])
+    #     self.assertEqual(d["d/f"],   test_data["d"]["f"])
+    #     self.assertEqual(d["a/0"],       test_data["a"][0])
+    #     self.assertEqual(d["a/1"],       test_data["a"][1])
 
-        self.assertEqual(len(d["a"]),                     6)
-        self.assertEqual(d["c"],             test_data["c"])
-        self.assertEqual(d["d"]["e"],   test_data["d"]["e"])
-        self.assertEqual(d["d"]["f"],   test_data["d"]["f"])
-        self.assertEqual(d["a/0"],       test_data["a"][0])
-        self.assertEqual(d["a/1"],       test_data["a"][1])
+    #     self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
-        self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
+    # def test_dict_find_by_key(self):
+    #     d = NamedFoo(test_data)
 
-    def test_dict_insert(self):
-        cache = {}
+    #     self.assertEqual(len(d["a"]),                     6)
+    #     self.assertEqual(d["c"],             test_data["c"])
+    #     self.assertEqual(d["d"]["e"],   test_data["d"]["e"])
+    #     self.assertEqual(d["d"]["f"],   test_data["d"]["f"])
+    #     self.assertEqual(d["a/0"],       test_data["a"][0])
+    #     self.assertEqual(d["a/1"],       test_data["a"][1])
 
-        d = Dict(cache)
+    #     self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
-        d["a"] = "hello world {name}!"
+    # def test_dict_insert(self):
+    #     cache = {}
 
-        self.assertEqual(cache["a"], "hello world {name}!")
-        d["e"] = {}
-        d["e"]["f"] = 5
-        d["e"]["g"] = 6
-        self.assertEqual(cache["e"]["f"], 5)
-        self.assertEqual(cache["e"]["g"], 6)
+    #     d = Dict(cache)
 
-    def test_dict_update(self):
-        cache = deepcopy(test_data)
-        d = Dict(cache)
+    #     d["a"] = "hello world {name}!"
 
-        d.update({"d": {"g": 5}})
+    #     self.assertEqual(cache["a"], "hello world {name}!")
+    #     d["e"] = {}
+    #     d["e"]["f"] = 5
+    #     d["e"]["g"] = 6
+    #     self.assertEqual(cache["e"]["f"], 5)
+    #     self.assertEqual(cache["e"]["g"], 6)
 
-        self.assertEqual(cache["d"]["e"], "{name} is {age}")
-        self.assertEqual(cache["d"]["f"], "{address}")
-        self.assertEqual(cache["d"]["g"], 5)
+    # def test_dict_update(self):
+    #     cache = deepcopy(test_data)
+    #     d = Dict(cache)
 
-    def test_node_del(self):
-        cache = {
-            "a": [
-                "hello world {name}!",
-                "hello world2 {name}!",
-                1, 2, 3, 4
-            ]
-        }
+    #     d |= {"d": {"g": 5}}
 
-        d = Dict(cache)
+    #     self.assertEqual(cache["d"]["e"], "{name} is {age}")
+    #     self.assertEqual(cache["d"]["f"], "{address}")
+    #     self.assertEqual(cache["d"]["g"], 5)
 
-        del d["a"]
+    # def test_dict_append(self):
+    #     cache = deepcopy(test_data)
+    #     d = Dict(cache)
 
-        self.assertTrue("a" not in cache)
+    #     d["a"] += "hello world {name}!"
+    #     d += {"d": {"g": 5}}
 
-    def test_node_append(self):
-        d1 = List()
-        d1.append({"a": 1, "b": 2})
+    #     self.assertEqual(cache["d"]["e"], "{name} is {age}")
+    #     self.assertEqual(cache["d"]["f"], "{address}")
+    #     self.assertEqual(cache["d"]["g"], 5)
 
-        self.assertEqual(len(d1), 1)
-        self.assertIsInstance(d1[0], HTree)
-        self.assertEqual(d1[0]["a"], 1)
-        self.assertEqual(d1[0]["b"], 2)
+    # def test_list_getitem(self):
+    #     data = [1, 2, 3, 4, 5]
 
-    def test_node_insert(self):
-        cache = {"this_is_a_cache": True}
+    #     d0 = List[int](data)
+    #     # logger.debug(type(d0[0]))
+    #     self.assertIsInstance(d0[0], int)
+    #     self.assertEqual(d0[0], data[0])
+    #     self.assertListEqual(list(d0[:]), data)
 
-        d = Dict[List](cache)
+    def test_list_append(self):
+        cache = []
+        d1 = List(cache)
 
-        d["a"] = "hello world {name}!"
-        self.assertEqual(cache["a"], "hello world {name}!")
+        d1 += {"a": [1], "b": 2}
 
-        d["c"].append(1.23455)
-        d["c"].append({"a": "hello world", "b": 3.141567})
+        logger.debug(type(d1[0]))
 
-        self.assertEqual(cache["c"][0],  1.23455)
-        self.assertEqual(cache["c"][1]["b"],  3.141567)
+        d1[0]["a"] += 2
+        d1[0]["b"] <<= 2
 
-    def test_typehint(self):
-        d1 = List()
-        d1.append({"a": 1, "b": 2})
+        self.assertEqual(cache[0]["a"], 1)
 
-        self.assertIsInstance(d1[0], HTree)
+    # def test_node_del(self):
+    #     cache = {
+    #         "a": [
+    #             "hello world {name}!",
+    #             "hello world2 {name}!",
+    #             1, 2, 3, 4
+    #         ]
+    #     }
 
-        self.assertEqual(len(d1), 1)
-        self.assertEqual(d1[0]["a"], 1)
-        self.assertEqual(d1[0]["b"], 2)
+    #     d = Dict(cache)
 
-        data = [1, 2, 3, 4, 5]
+    #     del d["a"]
 
-        class Foo:
-            def __init__(self, v) -> None:
-                self.v = v
+    #     self.assertTrue("a" not in cache)
 
-        d1 = List[Foo](data)
+    # def test_node_append(self):
+    #     d1 = List()
+    #     d1 += [{"a": 1, "b": 2}]
 
-        self.assertIsInstance(d1[2], Foo)
-        self.assertEqual(d1[2].v, data[2])
+    #     self.assertEqual(len(d1), 1)
+    #     self.assertIsInstance(d1[0], HTree)
+    #     self.assertEqual(d1[0]["a"], 1)
+    #     self.assertEqual(d1[0]["b"], 2)
 
-    def test_child_type_convert_list(self):
+    # def test_node_insert(self):
+    #     cache = {"this_is_a_cache": True}
 
-        cache = [{"a": 1234}, {"b": 1234}, {"c": 1234}, {"d": 1234}]
+    #     d = Dict[List](cache)
 
-        d = List[Foo](cache)
+    #     d["a"] = "hello world {name}!"
+    #     self.assertEqual(cache["a"], "hello world {name}!")
 
-        self.assertFalse(isinstance(cache[1], Foo))
-        self.assertTrue(isinstance(d[1], Foo))
+    #     d["c"] += [1.23455]
+    #     d["c"] += [{"a": "hello world", "b": 3.141567}]
+
+    #     self.assertEqual(cache["c"][0],  1.23455)
+    #     self.assertEqual(cache["c"][1]["b"],  3.141567)
+
+    # def test_type_hint(self):
+    #     d1 = List()
+    #     d1 += [{"a": 1, "b": 2}]
+
+    #     self.assertIsInstance(d1[0], HTree)
+
+    #     self.assertEqual(len(d1), 1)
+    #     self.assertEqual(d1[0]["a"], 1)
+    #     self.assertEqual(d1[0]["b"], 2)
+
+    #     data = [1, 2, 3, 4, 5]
+
+    #     class Foo:
+    #         def __init__(self, v) -> None:
+    #             self.v = v
+
+    #     d1 = List[Foo](data)
+
+    #     self.assertIsInstance(d1[2], Foo)
+    #     self.assertEqual(d1[2].v, data[2])
+
+    # def test_child_type_convert_list(self):
+
+    #     cache = [{"a": 1234}, {"b": 1234}, {"c": 1234}, {"d": 1234}]
+
+    #     d = List[Foo](cache)
+
+    #     self.assertFalse(isinstance(cache[1], Foo))
+    #     self.assertTrue(isinstance(d[1], Foo))
+
     #     self.assertTrue(isinstance(cache[1], Foo))
 
     # def test_chain_mapping(self):

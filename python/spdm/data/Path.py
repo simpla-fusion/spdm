@@ -10,7 +10,7 @@ from enum import Flag, auto
 
 import numpy as np
 
-from ..utils.logger import logger, deprecated, experimental
+from ..utils.logger import deprecated, experimental, logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type
 
@@ -40,7 +40,7 @@ class PathOpTags(Flag):
     # predicate 谓词
     check = auto()
     count = auto()
-
+    exists = auto()
     # boolean
     equal = auto()
     le = auto()
@@ -56,9 +56,11 @@ path_like = (int, str, slice, list, None, tuple, set, dict, PathOpTags)
 
 class Path(list):
     """
-    Path用于描述数据的路径, 在 JSON DOM Tree (Entry) 中定位Element, 其语法是 JSONPath 和 XPath的变体，并扩展谓词（predicate）语法/查询选择器。
+    Path用于描述数据的路径, 在 HTree ( Hierarchical Tree) 中定位Element, 其语法是 JSONPath 和 XPath的变体，
+    并扩展谓词（predicate）语法/查询选择器。
 
-    JSON DOM Tree : 半结构化树状数据，子树节点具有 list或dict类型，叶节点为 list和dict 之外的primary数据类型，包括 int，float,string 和 ndarray。
+    HTree: Hierarchical Tree 半结构化树状数据，树节点具有 list或dict类型，叶节点为 list和dict 之外的primary数据类型，
+    包括 int，float,string 和 ndarray。
 
     基本原则是用python 原生数据类型（例如，list, dict,set,tuple）等
 
@@ -102,9 +104,9 @@ class Path(list):
         super().__init__(Path._parser(path, delimiter=delimiter), **kwargs)
         self._delimiter = delimiter
 
-    def __repr__(self): return Path._to_str(self)
+    def __repr__(self): return Path._to_str(self, self._delimiter)
 
-    def __str__(self): return Path._to_str(self)
+    def __str__(self): return Path._to_str(self, self._delimiter)
 
     def __hash__(self) -> int: return self.__str__().__hash__()
 
@@ -362,17 +364,15 @@ class Path(list):
         return res
 
     @staticmethod
-    def _parser_decprecated(path: PathLike | Path.tags, delimiter=None) -> list:
+    def _parser_decprecated(path: PathLike | Path.tags, delimiter) -> list:
         path = Path._unroll_decprecated(path, delimiter=delimiter)
         return path
 
     @staticmethod
-    def _to_str(p: typing.Any, delimiter=None) -> str:
-        if delimiter is None:
-            delimiter = Path.DELIMITER
+    def _to_str(p: typing.Any, delimiter) -> str:
 
         if isinstance(p, list):
-            return delimiter.join(map(Path._to_str, p))
+            return delimiter.join([Path._to_str(s, delimiter) for s in p])
         elif isinstance(p, str):
             return p
         elif isinstance(p, slice):
@@ -383,13 +383,13 @@ class Path(list):
         elif isinstance(p, int):
             return str(p)
         elif isinstance(p, collections.abc.Mapping):
-            m_str = ','.join([f"{k}:{Path._to_str(v)}" for k, v in p.items()])
+            m_str = ','.join([f"{k}:{Path._to_str(v, delimiter)}" for k, v in p.items()])
             return f"?{{{m_str}}}"
         elif isinstance(p, tuple):
-            m_str = ','.join(map(Path._to_str, p))
+            m_str = ','.join([Path._to_str(s, delimiter) for s in p])
             return f"({m_str})"
         elif isinstance(p, set):
-            m_str = ','.join(map(Path._to_str, p))
+            m_str = ','.join([Path._to_str(s, delimiter) for s in p])
             return f"{{{m_str}}}"
         elif p is None:
             return ""
@@ -890,31 +890,58 @@ class Path(list):
         return target
 
     @staticmethod
-    def _update(target: typing.Any, path: typing.List[typing.Any], value:  typing.Any = None, *args,  force=False, **kwargs) -> int:
+    def _update(target: typing.Any, path: typing.List[typing.Any],  *args, **kwargs) -> int:
         """
-        Update target by path with value.
+            递归合并两个 HTree
+
+            append:
+            first += second ,
+
+            当两个字典中都有相同的键时，将这些键对应的值合并为一个列表
+
+            - first:not list + second:list      => [first,*second]
+            - first:list     + second:not list  => [*first,second]
+            - first:list     + second:list      => [*first,*second]
+            - first:not list + second:not list  => [first,second]
+            - first:dict     + second:    dict
+                for k,v in second.items():
+                    first[k]= first[k] + second[k]
+
+            update:
+            first |= second ,
+
+            当两个字典中都有相同的键时，取后者的 value
+
+            - None        | second            => second
+            - first       | None              => first
+            - first:any   | second:not dict   => second
+            - first:dict  | second:    dict
+                for k,v in second.items():
+                    first[k]= first[k] | second[k]
+
+
         """
         target, pos = Path._traversal(target, path[:-1])
 
         if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).update(value,  *args, overwrite=force, **kwargs)
+            return target.__entry__.child(path[pos:]).update(*args, **kwargs)
         elif len(path) == 0:
-            Path._update_or_replace(target, value, force=force, replace=False, **kwargs)
+            Path._update_or_replace(target, *args, **kwargs)
             return 1
         elif not isinstance(path[pos], (int, str)):
-            return sum(Path._update(d, path[pos+1:], value, *args,  force=force, **kwargs)
+            return sum(Path._update(d, path[pos+1:],  *args, **kwargs)
                        for d in Path._find(target, [path[pos]], **kwargs))
-        elif not isinstance(value, collections.abc.Mapping):
-            return Path._insert(target, path[pos:], value, *args, force=force, **kwargs)
+        elif not isinstance(args[0], collections.abc.Mapping):
+            return Path._insert(target, path[pos:], *args,   **kwargs)
         elif pos < len(path)-1:
-            return Path._insert(target, path[pos:], Path._update_or_replace(None, value), force=force, **kwargs)
+            return Path._insert(target, path[pos:], Path._update_or_replace(None, *args, ),   **kwargs)
         else:  # pos == len(path)-1
             n_target, n_pos = Path._traversal(target, path[pos:])
             if n_pos == 0:
-                return Path._update(n_target, path[n_pos:], Path._update_or_replace(None, value), force=force, **kwargs)
+                return Path._update(n_target, path[n_pos:], Path._update_or_replace(None, *args, ),  **kwargs)
 
             else:
-                return Path._insert(target, path[pos:], Path._update_or_replace(n_target, value), force=force, **kwargs)
+                return Path._insert(target, path[pos:], Path._update_or_replace(n_target, *args, ),  **kwargs)
 
     @staticmethod
     def _op_find(target, k, default_value=_undefined_):

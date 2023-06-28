@@ -29,7 +29,7 @@ class MyClassB:
         print("Method called from MyClassB")
 
 
-class TestPath(unittest.TestCase):
+class TestPlugin(unittest.TestCase):
 
     def test_create(self):
         foo = TBase("A")

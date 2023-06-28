@@ -3,20 +3,16 @@ from __future__ import annotations
 import collections
 import collections.abc
 import dataclasses
-import functools
 import inspect
-import operator
 import typing
 from copy import copy
 from types import SimpleNamespace
 
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix, serialize
-from ..utils.numeric import as_array, is_close, is_scalar
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
-from ..utils.tree_utils import reduce_dict
-from ..utils.typing import array_type, numeric_type, primary_type
+from ..utils.typing import (array_type, as_array, is_scalar)
 from .Path import Path, as_path
 
 _T = typing.TypeVar("_T")
@@ -37,9 +33,6 @@ class Entry(Pluggable):
 
         self._data = data if data is not _not_found_ else data
         self._path = as_path(path)
-
-        # if len(args)+len(kwargs) > 0:
-        #     logger.warning(f"Unused arguments: {args}, {kwargs}")
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
@@ -106,11 +99,11 @@ class Entry(Pluggable):
     def children(self) -> typing.Generator[typing.Any, None, None]:
         yield from self.child(slice(None)).find()
 
-    def get(self, *args, default_value=..., **kwargs) -> typing.Any:
+    def get(self, *args, default_value: typing.Any = _not_found_, **kwargs) -> typing.Any:
         value = self.child(*args, **kwargs).__value__
         if value is _not_found_:
             value = default_value
-        if value is Ellipsis:
+        if value is _not_found_:
             raise KeyError(f"Can not find {args} in {self}")
         return value
 
@@ -138,13 +131,13 @@ class Entry(Pluggable):
         if self._data is not None and self._data is not _not_found_:
             yield from self._path.find(self._data, *args, **kwargs)
 
-    def query(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+    def query(self, *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.query(self._data, *args, default_value=default_value, **kwargs)
+        return self._path.query(self._data, *args, **kwargs)
 
     def insert(self, *args, **kwargs) -> int: return self._path.insert(self._data, *args, **kwargs)
 
