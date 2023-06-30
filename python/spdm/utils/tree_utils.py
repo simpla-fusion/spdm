@@ -30,7 +30,7 @@ class DefaultDict(dict):
         return v
 
 
-def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -> typing.Any:
+def merge_tree_recursive(first, second, level=-1, in_place=False, append=False) -> typing.Any:
     """ 递归合并两个 Hierarchical Tree """
     if second is None or second is _not_found_ or level == 0:
         return first
@@ -49,7 +49,7 @@ def merge_tree_recursive(first, second, level=-1, in_place=False, force=False) -
     elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
         # 合并 dict
         for k, v in second.items():
-            first[k] = merge_tree_recursive(first.get(k, None), v, level-1, in_place=in_place, force=force)
+            first[k] = merge_tree_recursive(first.get(k, None), v, level-1, in_place=in_place)
     elif force:
         first = second
         # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")

@@ -130,12 +130,14 @@ class TestNode(unittest.TestCase):
 
         d1 += {"a": [1], "b": 2}
 
-        logger.debug(type(d1[0]))
+        logger.debug(cache)
 
-        d1[0]["a"] += 2
-        d1[0]["b"] <<= 2
+        self.assertEqual(cache[0]["a"][0], 1)
+        self.assertEqual(cache[0]["b"], 2)
 
-        self.assertEqual(cache[0]["a"], 1)
+        d1["0/a"] += 2
+
+        self.assertEqual(cache[0]["a"], [1, 2])
 
     # def test_node_del(self):
     #     cache = {

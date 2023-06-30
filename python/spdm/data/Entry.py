@@ -13,7 +13,7 @@ from ..utils.misc import group_dict_by_prefix, serialize
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
 from ..utils.typing import (array_type, as_array, is_scalar)
-from .Path import Path, as_path
+from .Path import Path, as_path, PathLike
 
 _T = typing.TypeVar("_T")
 
@@ -122,15 +122,6 @@ class Entry(Pluggable):
     ###########################################################
     # API: CRUD  operation
 
-    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        """
-        Find the value from the cache.
-        Return a generator of the results.
-        Could be overridden by subclasses.
-        """
-        if self._data is not None and self._data is not _not_found_:
-            yield from self._path.find(self._data, *args, **kwargs)
-
     def query(self, *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
@@ -139,14 +130,24 @@ class Entry(Pluggable):
         """
         return self._path.query(self._data, *args, **kwargs)
 
-    def insert(self, *args, **kwargs) -> int: return self._path.insert(self._data, *args, **kwargs)
+    def insert(self, *args, **kwargs) -> Entry:
+        new_path = self._path.insert(self._data, *args, **kwargs)
+        return self.child(new_path)
 
-    def append(self, value, *args, **kwargs) -> int:
-        return self._path.update(self._data, {Path.tags.append: value}, *args, **kwargs)
-
-    def update(self, *args, **kwargs) -> int: return self._path.update(self._data, *args,   **kwargs)
+    def update(self, *args, **kwargs) -> Entry:
+        new_path = self._path.update(self._data,  *args,**kwargs)
+        return self.child(new_path)
 
     def remove(self) -> int: return self._path.remove(self._data)
+
+    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        """
+        Find the value from the cache.
+        Return a generator of the results.
+        Could be overridden by subclasses.
+        """
+        if self._data is not None and self._data is not _not_found_:
+            yield from self._path.find(self._data, *args, **kwargs)
 
     ###########################################################
 

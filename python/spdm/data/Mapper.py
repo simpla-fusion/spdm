@@ -28,11 +28,11 @@ class MapperPath(Path):
     def find(self, target: typing.Any, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target = as_entry(target)
         for request in self._mapping.child(self[:]).find(*args, **kwargs):
-            yield self._fetch(target, request)
+            yield self._op_fetch(target, request)
 
     def query(self, target: typing.Any, *args, **kwargs) -> typing.Any:
         request = self._mapping.child(self[:]).query(*args, **kwargs)
-        return self._fetch(as_entry(target), request)
+        return self._op_fetch(as_entry(target), request)
 
     def insert(self, target: typing.Any, *args, **kwargs) -> int:
         raise NotImplementedError("Not implemented yet!")
@@ -43,7 +43,7 @@ class MapperPath(Path):
     def remove(self, target: typing.Any, *args, **kwargs) -> int:
         raise NotImplementedError("Not implemented yet!")
 
-    def _fetch(self, target: Entry,  request: typing.Any, *args, **kwargs):
+    def _op_fetch(self, target: Entry,  request: typing.Any, *args, **kwargs):
         if isinstance(request, str):
             if request.startswith("@"):
                 request = uri_split_as_dict(request[1:])
@@ -51,12 +51,12 @@ class MapperPath(Path):
             else:
                 res = request
         elif isinstance(request, collections.abc.Sequence):
-            res = [self._fetch(target, v, *args,  **kwargs) for v in request]
+            res = [self._op_fetch(target, v, *args,  **kwargs) for v in request]
         elif isinstance(request, collections.abc.Mapping):
             if f"@{SPDB_TAG}" in request:
                 res = target.child(request.get("path", None)).query(*args, request=request, **kwargs)
             else:
-                res = {k: self._fetch(target, v, *args, **kwargs) for k, v in request.items()}
+                res = {k: self._op_fetch(target, v, *args, **kwargs) for k, v in request.items()}
         else:
             res = request
 

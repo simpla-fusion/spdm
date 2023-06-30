@@ -13,40 +13,38 @@ import numpy as np
 from ..utils.logger import deprecated, experimental, logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type
+from ..utils.tree_utils import merge_tree_recursive
 
-
+# fmt:off
 class PathOpTags(Flag):
     # traversal operation 操作
+    root    = auto()    # root node
+    parent  = auto()    # parent node
+    current = auto()    # current node
+    next    = auto()    # next sibling
 
-    next = auto()
-    parent = auto()
-    current = auto()
-    root = auto()
-
-    # crud operation
-    insert = auto()
-    append = auto()
-    extend = auto()
-    update = auto()
-    remove = auto()
-    deep_update = auto()
-    setdefault = auto()
-    reduce = auto()
-    merge = auto()
+    # RESTful operation for CRUD
+    fetch   = auto()    # GET
+    update  = auto()    # PUT
+    insert  = auto()    # POST
+    remove  = auto()    # DELETE
 
     # for sequence
-    sort = auto()
+    reduce  = auto()
+    sort    = auto()
 
     # predicate 谓词
-    check = auto()
-    count = auto()
-    exists = auto()
+    check   = auto()
+    count   = auto()
+    exists  = auto()
+
     # boolean
-    equal = auto()
-    le = auto()
-    ge = auto()
-    less = auto()
+    equal   = auto()
+    le      = auto()
+    ge      = auto()
+    less    = auto()
     greater = auto()
+# fmt:on
 
 
 PathLike = int | str | slice | typing.Dict | typing.List | PathOpTags | None
@@ -193,25 +191,59 @@ class Path(list):
             return False
 
     ###########################################################
-    # API: CRUD  operation
+    # RESTful API:
 
-    def query(self, target: typing.Any, *args, **kwargs) -> typing.Any:
-        return Path._query_experimental(target, self[:], *args, **kwargs)
+    def query(self,  target: typing.Any, *args, quiet=False, **kwargs) -> typing.Any:
+        """ 根据路径（self）查询元素。
+            只读，不会修改 target
 
-    def insert(self, target: typing.Any, *args, **kwargs) -> int:
-        return Path._insert(target, self[:], *args, **kwargs)
+            对应 RESTful 中的 read， 幂等操作
+        """
+        return Path._exec(target, self[:], Path.tags.fetch, *args, quiet=quiet, **kwargs)
 
-    def remove(self, target: typing.Any, *args, **kwargs) -> int:
-        return Path._remove(target, self[:], *args, **kwargs)
+    def update(self, target: typing.Any, *args, quiet=True, **kwargs) -> typing.Any:
+        """ 根据路径（self）更新 target 中的元素。
+            当路径指向位置为空时，创建（create）元素
+            当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 update
+            当路径指向位置为空时，用新的值替代（replace）元素
 
-    def update(self, target: typing.Any, *args, **kwargs) -> int:
-        return Path._update(target, self[:], *args,  **kwargs)
+            对应 RESTful 中的 put， 幂等操作
+            返回值为更新的元素路径
+        """
+        return Path._exec(target, self[:], Path.tags.update,   *args, quiet=quiet, **kwargs)
+
+    def insert(self, target: typing.Any, *args, quiet=True, **kwargs) -> PathLike | Path:
+        """ 根据路径（self）向 target 添加元素。
+            当路径指向位置为空时，创建（create）元素
+            当路径指向位置为 list 时，追加（ insert ）元素
+            当路径指向位置为非 list 时，合并为 [old,new]
+            当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 insert
+
+            返回新添加元素的路径
+
+            对应 RESTful 中的 post，非幂等操作
+        """
+        return Path._exec(target, self[:], Path.tags.insert, *args,  quiet=quiet, **kwargs)
+
+    def remove(self, target: typing.Any, *args, quiet=True, **kwargs) -> int:
+        """ 根据路径（self）删除 target 中的元素。
+
+            if quiet is False then raise KeyError if the path is not found
+
+            对应 RESTful 中的 delete， 幂等操作
+            返回实际删除的元素个数
+        """
+        return Path._exec(target, self[:], Path.tags.remove, *args,  quiet=quiet,  **kwargs)
+
+    def find(self, target: typing.Any, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        """ 以 iterator 的方式返回 target 中所有匹配路径的元素。
+
+            当路径中存在多个适配符时，返回多重 generator，对应多重循环嵌套
+        """
+        yield from Path._find(target, self[:], *args, **kwargs)
 
     def traversal(self) -> typing.Generator[typing.List[typing.Any], None, None]:
         yield from Path._traversal_path(self[:])
-
-    def find(self, target: typing.Any, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        yield from Path._find(target, self[:], *args, **kwargs)
 
     # End API
     ###########################################################
@@ -479,7 +511,7 @@ class Path(list):
         return target
 
     @staticmethod
-    def _parser(path: PathLike, delimiter) -> list:
+    def _parser(path: PathLike, delimiter="/") -> list:
         if path is None:
             path = []
         elif isinstance(path, str):
@@ -535,7 +567,7 @@ class Path(list):
     MAX_SLICE_STOP = 1024
 
     @staticmethod
-    def _traversal_path(path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[typing.List[type.Any], None, None]:
+    def _traversal_path(path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[typing.List[typing.Any], None, None]:
         """
         traversal all possible path
         """
@@ -708,159 +740,317 @@ class Path(list):
         return res
 
     @staticmethod
-    def _query_exec(target: typing.Any,  *args, **kwargs) -> typing.Any:
-        if hasattr(target, "__entry__"):
-            return target.__entry__.query(*args, **kwargs)
-        elif len(args) == 0:
-            return target
-        else:
-            op = args[0]
-            args = args[1:]
-
-        if isinstance(op, Path.tags):
-
-            if op is Path.tags.parent:
-                return getattr(target, "_parent", _not_found_)
-            elif op is Path.tags.root:
-                parent = getattr(target, "_parent", _not_found_)
-                while parent is not _not_found_:
-                    target = parent
-                    parent = getattr(target, "_parent", _not_found_)
-                return target
-
-            else:
-                _op = getattr(Path, f"_op_{op.name}", None)
-
-                if not callable(_op):
-                    raise RuntimeError(f"Invalid operator {op}!")
-
-                return _op(target, *args, **kwargs)
-
-        # elif len(args) > 0:
-        #     if isinstance(args[0], Path.tags):
-        #         return Path._query_exec(target, args[0], op, *args[1:], **kwargs)
-        #     else:
-        #         raise NotImplementedError(f"Not implemented query! '{op}' {args}")
-
-        elif isinstance(op, str):
-            tmp = getattr(target, op, _not_found_)
-            if tmp is _not_found_ and hasattr(target, "get"):
-                tmp = target.get(op, _not_found_)
-            if tmp is _not_found_ and hasattr(target, "__getitem__"):
-                try:
-                    tmp = target[op]
-                except Exception:
-                    tmp = _not_found_
-
-            return tmp
-
-        elif isinstance(target, array_type) and isinstance(op, (int, slice, tuple)):
-            return target[op]
-
-        elif isinstance(target, collections.abc.Sequence) and isinstance(op, (int, slice)):
-            return target[op]
-
-        elif isinstance(op, set):
-            return {Path._query_exec(target, p, *args, **kwargs) for p in op}
-
-        elif isinstance(op, dict):
-            return all([Path._query_exec(target, *kv, *args, **kwargs) for kv in op.items()])
-
-        else:
-            raise NotImplementedError(f"Not implemented query! '{op}'")
-
-    @staticmethod
-    def _query_experimental(target: typing.Any, path: typing.List[typing.Any],  *args, default_value=_not_found_, create_if_not_exists: typing.Any = False, **kwargs) -> typing.Any:
+    def _exec(target: typing.Any, path: typing.List[typing.Any], op,  *args,   quiet=True, **kwargs) -> typing.Any:
         if path is None:
             path = []
         length = len(path)
-        data = target
+
+        obj = target
+
         idx = 0
-        while idx >= 0 and idx < length:
+        while idx < length-1:
+            p = path[idx]
+
+            if obj is _not_found_ or obj is None:
+                break
+
+            if hasattr(obj, "__entry__"):
+                obj = obj.__entry__.child(path[idx:])
+                idx = length
+            else:
+                tmp = Path._op_fetch(obj, p)
+
+                if tmp is not _not_found_:
+                    obj = tmp
+                    idx += 1
+                elif quiet:
+                    Path._op_insert(obj, p,  {} if isinstance(path[idx+1], str) else [])
+                else:
+                    obj = _not_found_
+                    break
+
+        if len(path[idx:]) > 1 and obj is not _not_found_:
+            raise KeyError(f"Cannot find {Path(path[idx:])} in {target}! {args}")
+
+        try:
+            res = Path._apply_op(op, obj, path[idx:],  *args, **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Error: path={path[:idx+1]}") from error
+
+        return res
+        # if isinstance(op, Path.tags):
+        #     op = op.name
+        # elif isinstance(op, str) and op.startswith("$"):
+        #     op = op[1:]
+
+        # if isinstance(op, str):
+        #     _op = getattr(Path, f"_op_{op}", None)
+        # elif callable(op):
+        #     _op = op
+        # else:
+        #     _op = None
+
+        # if _op is None:
+        #     return target
+        # elif callable(_op):
+        #     try:
+        #         res = _op(target, *path[-1:], *args, **kwargs)
+        #     except Exception as error:
+        #         raise RuntimeError(f"Error: path={path[:idx+1]} , {op}({target}, {args}, {kwargs})") from error
+
+        #     return res
+        # else:
+        #     raise RuntimeError(f"Invalid operator {op}!")
+
+        # if op is Path.tags.parent:
+        #     return getattr(target, "_parent", _not_found_)
+        # elif op is Path.tags.root:
+        #     parent = getattr(target, "_parent", _not_found_)
+        #     while parent is not _not_found_:
+        #         target = parent
+        #         parent = getattr(target, "_parent", _not_found_)
+        #     return target
+
+        res = _op(obj, *args, **kwargs)
+
+    @staticmethod
+    def _apply_op(op: Path.tags | str, target: typing.Any, key: list, *args, **kwargs):
+
+        if isinstance(op, Path.tags):
+            op = op.name
+        elif isinstance(op, str) and op.startswith("$"):
+            op = op[1:]
+
+        if isinstance(op, str):
+            _op = getattr(Path, f"_op_{op}", None)
+        elif callable(op):
+            _op = op
+        else:
+            _op = None
+
+        if not callable(_op):
+            raise RuntimeError(f"Can not find callable operator {op}!")
+
+        if len(key) == 0 or target is _not_found_:
+            key = None
+        elif len(key) == 1:
+            key = key[0]
+        else:
+            raise RuntimeError(f"Don't know how to handle {op} {key} {target}")
+
+        try:
+            res = _op(target,  key, *args,  **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Illegal operator {op}!") from error
+
+        return res
+
+    @staticmethod
+    def _op_fetch(target: typing.Any, key: PathLike, *args, **kwargs) -> typing.Any:
+        if hasattr(target, "__entry__"):
+            return target.__entry__.child(key).query(*args, **kwargs)
+
+        # elif target is _not_found_ or target is None:
+        #     target = kwargs.get("default_value", _not_found_)
+
+        if key is None:
+            res = target
+
+        elif isinstance(key, str):
+            res = getattr(target, key, _not_found_)
+            if res is _not_found_ and hasattr(target, "get"):
+                res = target.get(key, _not_found_)
+            if res is _not_found_ and hasattr(target, "__getitem__"):
+                try:
+                    res = target[key]
+                except Exception:
+                    res = _not_found_
+
+        elif isinstance(target, array_type) and isinstance(key, (int, slice, tuple)):
+            res = target[key]
+
+        elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
+            res = target[key]
+
+        elif isinstance(key, set):
+            res = {Path._op_fetch(target, p, *args, **kwargs) for p in key}
+
+        elif isinstance(key, dict):
+            raise NotImplementedError(f"Not implemented query! '{key}'")
+            # res = all([Path._op_fetch(target, *kv, *args, **kwargs) for kv in key.items()])
+
+        elif isinstance(key, Path.tags):
+            res = Path._apply_op(key, target, [], *args, **kwargs)
+
+        else:
+            raise NotImplementedError(f"Not implemented query! '{key}'")
+
+        if len(args) > 0:
+            res = Path._op_fetch(res, *args, **kwargs)
+
+        if res is _not_found_:
+            res = kwargs.get("default_value", _not_found_)
+
+        return res
+
+    @staticmethod
+    def _merge_exec(old_value, new_value, **kwargs) -> typing.Any:
+        if old_value is _not_found_ or old_value is None:
+            return new_value, []
+        elif new_value is _not_found_ or new_value is None:
+            return old_value, []
+        return []
+
+    @staticmethod
+    def _op_update(target: typing.Any, key: PathLike, value: typing.Any, *args, **kwargs) -> typing.Any:
+
+        if key != 0 and not key:
+            key = None
+
+        if hasattr(target, "__entry__"):
+            return target.__entry__.child(key).update(value, *args, **kwargs)
+
+        elif value is _not_found_:
+            return None
+
+        elif key is None and isinstance(value, collections.abc.Mapping):
+            for k, v in value.items():
+                Path._op_update(target, k, v, *args, **kwargs)
+
+        elif isinstance(target, collections.abc.Mapping) and isinstance(key, str):
+            tmp = target.get(key, _not_found_)
+            if isinstance(tmp, dict):
+                Path._op_update(tmp, None, value, *args, **kwargs)
+            else:
+                target[key] = value
+        elif isinstance(target, collections.abc.Mapping) and isinstance(key, int):
+            if key > len(target):
+                raise IndexError(f"{key}> {len(target)}")
+            tmp = target[key]
+            if isinstance(tmp, dict):
+                Path._op_update(tmp, None, value, *args, **kwargs)
+            else:
+                target[key] = value
+        else:
+            raise NotImplementedError(f"{target} {key}")
+
+    @staticmethod
+    def _op_insert(target: typing.Any, key: PathLike, value: typing.Any, *args, **kwargs) -> PathLike:
+
+        if hasattr(target, "__entry__"):
+            return target.__entry__.child(key).insert(value, *args, **kwargs)
+
+        elif value is _not_found_:
+            logger.warning("Nothing to insert! key={key} ")
+            return []
+        elif key != 0 and not key:
+            key = None
+            new_path = []
+            _obj = target
+        elif isinstance(key, (int, str)):
+            new_path = [key]
+            _obj = Path._op_fetch(target, key, default_value=_not_found_)
+        else:
+            raise NotImplementedError(f"Not implemented query! '{key}'")
+
+        if isinstance(_obj, list) and isinstance(value, list):
+            pos = len(_obj)
+            _obj.extend(value)
+            new_path.append(slice(pos, len(_obj)))
+
+        elif isinstance(_obj, list) and not isinstance(value, list):
+            pos = len(_obj)
+            _obj.append(value)
+            new_path.append(slice(pos, len(_obj)))
+
+        elif isinstance(_obj, dict) and isinstance(value, dict):
+            for k, v in value.items():
+                Path._op_insert(_obj, k, v, *args, **kwargs)
+
+        elif key is None:
+            raise KeyError(f"Cannot insert {value} to {target}!")
+
+        elif not isinstance(_obj, list) and isinstance(value, list):
+            pos = len(_obj)
+            target[key] = [_obj] + value
+            new_path.append(slice(1, 1+len(value)))
+
+        elif _obj is _not_found_:
+            target[key] = value
+
+        elif value is not _not_found_:
+            target[key] = [_obj, value]
+
+        else:
+            logger.warning(f"Nothing to insert! {key} ")
+
+        return new_path
+
+    @staticmethod
+    def _insert(target: typing.Any, path: typing.List[typing.Any], value,  *args, quiet=True, **kwargs) -> list:
+
+        if path is None:
+            path = []
+
+        if value is _not_found_:
+            return path
+
+        length = len(path)
+
+        idx = 0
+        while idx >= 0 and idx < length-1:
             p = path[idx]
 
             if target is _not_found_ or target is None:
                 break
-            #     raise RuntimeError(f"Invalid path {path[:idx+1]} ")
 
             if hasattr(target, "__entry__"):
                 target = target.__entry__.child(path[idx:])
                 idx = length-1
-            else:
-                try:
-                    tmp = Path._query_exec(target, p)
-                except Exception as error:
-                    raise RuntimeError(f"Error when execute {path[:idx+1]} on {target}, ({args}, {kwargs})") from error
+                continue
 
-                if tmp is _not_found_ and create_if_not_exists is not False:
-                    if idx < length-1:
-                        if isinstance(path[idx+1], str):
-                            tmp = {}
-                        else:
-                            tmp = []
-                    else:
-                        tmp = create_if_not_exists
+            try:
+                tmp = Path._op_fetch(target, p)
+            except Exception as error:
+                raise RuntimeError(f"Error when execute {path[:idx+1]} on {target}, ({args}, {kwargs})") from error
 
-                    Path._query_exec(target, Path.tags.insert, p, tmp)
+            if tmp is not _not_found_:
+                target = tmp
+                idx += 1
+            elif quiet:
+                if isinstance(path[idx+1], str):
+                    tmp = {}
                 else:
-                    target = tmp
-                    idx += 1
+                    tmp = []
+                target[p] = tmp
+                continue
+            else:
+                break
 
         if idx < length-1:
-            # raise RuntimeError(f"Can not find {path[:idx+1]} from {type(data)} {target}! ")
-            target = _not_found_
-        else:
-            target = Path._query_exec(target, *args,  **kwargs)
+            raise KeyError(f"Cannot find {path[:idx+1]}! ")
 
-        if target is _not_found_:
-            target = default_value
+        old_value = Path._op_fetch(target, path[-1], default_value=_not_found_)
 
-        return target
-
-    @staticmethod
-    def _insert(target: typing.Any, path: typing.List[typing.Any], value: typing.Any, *args, parents=True, **kwargs) -> int:
-        target, pos = Path._traversal(target, path[: -1])
-
-        if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).insert(value, *args, parents=parents, **kwargs)
-        elif len(path) == 0:
-            return Path._update(target, value, *args, **kwargs)
-        elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
-            return sum(Path._insert(d, path[pos+1:], value, *args, **kwargs) for d in Path._find(target, [path[pos]], **kwargs))
-        elif not parents:
-            raise IndexError(f"Can't insert {value} to {target} by {path[:pos]}!")
-        else:
-            for p in path[pos: -1]:
-                target = target.setdefault(p, {})
+        if old_value is _not_found_:
             target[path[-1]] = value
-            return 1
+            return path
+
+        if isinstance(old_value, list):
+            new_pos = len(old_value)
+            if not isinstance(value, list):
+                value = [value]
+            old_value += value
+
+        new_value, new_pos = Path._merge_exec(old_value, *args, quiet=quiet, **kwargs)
+
+        Path._insert_exec(target, path[-1], new_value, quiet=quiet)
+
+        return path+new_pos
 
     @staticmethod
-    def _remove(target: typing.Any, path: typing.List[typing.Any],  *args, **kwargs) -> int:
-        """
-        Remove target by path.
-        """
-
-        target, pos = Path._traversal(target, path[: -1])
-
-        if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).delete(*args, **kwargs)
-        elif len(path) == 0:
-            target.clear()
-            return 1
-        elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
-            return sum(Path._remove(d, path[pos+1:], *args, **kwargs) for d in Path._find(target, [path[pos]], **kwargs))
-        elif pos < len(path)-1:
-            return 0
-        else:
-            del target[path[-1]]
-            return 1
-
-    @staticmethod
-    def _update_or_replace(target: typing.Any, actions: collections.abc.Mapping,
-                           force=False, replace=True, **kwargs) -> typing.Any:
-        if not isinstance(actions, dict):
-            return actions
+    def _update_exec(target: typing.Any, *args, **kwargs) -> typing.Any:
+        # force=False, replace=True, **kwargs) -> typing.Any:
 
         for op, args in actions.items():
             if isinstance(op, str) and op.startswith("$"):
@@ -869,28 +1059,33 @@ class Path(list):
             if isinstance(op, str):
                 if target is None:
                     target = {}
-                Path._update(target, [op], args, force=force, **kwargs)
+                Path._update(target, [op], *args, **kwargs)
+
             elif op in (Path.tags.append,  Path.tags.extend):
-                new_obj = Path._update_or_replace(None, args, force=True, replace=True)
+                new_obj = Path._update_exec(None, args, force=True, replace=True)
+
                 if op is Path.tags.append:
                     new_obj = [new_obj]
 
                 if isinstance(target, list):
                     target += new_obj
+
                 elif replace:
                     if target is not None:
                         target = [target] + new_obj
                     else:
                         target = new_obj
+
                 else:
                     raise IndexError(f"Can't append {new_obj} to {target}!")
+
             else:
                 raise NotImplementedError(f"Not implemented yet!{op}")
 
         return target
 
     @staticmethod
-    def _update(target: typing.Any, path: typing.List[typing.Any],  *args, **kwargs) -> int:
+    def _update(target: typing.Any, path: typing.List[typing.Any],  *args, quiet=True, **kwargs) -> int:
         """
             递归合并两个 HTree
 
@@ -921,6 +1116,49 @@ class Path(list):
 
 
         """
+        if path is None:
+            path = []
+        length = len(path)
+
+        idx = 0
+        while idx >= 0 and idx < length-1:
+            p = path[idx]
+
+            if target is _not_found_ or target is None:
+                break
+
+            if hasattr(target, "__entry__"):
+                target = target.__entry__.child(path[idx:])
+                idx = length-1
+            else:
+                try:
+                    tmp = Path._op_fetch(target, p)
+                except Exception as error:
+                    raise RuntimeError(f"Error when execute {path[:idx+1]} on {target}") from error
+
+                if tmp is _not_found_ and quiet:
+                    if isinstance(path[idx+1], str):
+                        tmp = {}
+                    else:
+                        tmp = []
+
+                    Path._update_exec(target,  p, tmp)
+                else:
+                    target = tmp
+                    idx += 1
+
+        if idx < length-1:
+            # raise RuntimeError(f"Can not find {path[:idx+1]} from {type(data)} {target}! ")
+            target = _not_found_
+
+        else:
+            target = Path._update_exec(target, path[length-1] * args,  **kwargs)
+
+        if target is _not_found_:
+            target = default_value
+
+        return target
+
         target, pos = Path._traversal(target, path[:-1])
 
         if hasattr(target, "__entry__"):
@@ -932,16 +1170,37 @@ class Path(list):
             return sum(Path._update(d, path[pos+1:],  *args, **kwargs)
                        for d in Path._find(target, [path[pos]], **kwargs))
         elif not isinstance(args[0], collections.abc.Mapping):
-            return Path._insert(target, path[pos:], *args,   **kwargs)
+            return Path._op_insert(target, path[pos:], *args,   **kwargs)
         elif pos < len(path)-1:
-            return Path._insert(target, path[pos:], Path._update_or_replace(None, *args, ),   **kwargs)
+            return Path._op_insert(target, path[pos:], Path._update_or_replace(None, *args, ),   **kwargs)
         else:  # pos == len(path)-1
             n_target, n_pos = Path._traversal(target, path[pos:])
             if n_pos == 0:
                 return Path._update(n_target, path[n_pos:], Path._update_or_replace(None, *args, ),  **kwargs)
 
             else:
-                return Path._insert(target, path[pos:], Path._update_or_replace(n_target, *args, ),  **kwargs)
+                return Path._op_insert(target, path[pos:], Path._update_or_replace(n_target, *args, ),  **kwargs)
+
+    @staticmethod
+    def _remove(target: typing.Any, path: typing.List[typing.Any],  *args, **kwargs) -> int:
+        """
+        Remove target by path.
+        """
+
+        target, pos = Path._traversal(target, path[: -1])
+
+        if hasattr(target, "__entry__"):
+            return target.__entry__.child(path[pos:]).delete(*args, **kwargs)
+        elif len(path) == 0:
+            target.clear()
+            return 1
+        elif pos < len(path)-1 and not isinstance(path[pos], (int, str)):
+            return sum(Path._remove(d, path[pos+1:], *args, **kwargs) for d in Path._find(target, [path[pos]], **kwargs))
+        elif pos < len(path)-1:
+            return 0
+        else:
+            del target[path[-1]]
+            return 1
 
     @staticmethod
     def _op_find(target, k, default_value=_undefined_):
@@ -982,25 +1241,6 @@ class Path(list):
         return res
 
     @staticmethod
-    def _op_assign(target, path, v):
-        target, key = Entry._eval_path(
-            target,  Entry.normalize_path(path), force=True, lazy=False)
-        if not isinstance(key, (int, str, slice)):
-            raise KeyError(path)
-        elif not isinstance(target, (collections.abc.Mapping, collections.abc.Sequence)):
-            raise TypeError(type(target))
-        target[key] = v
-        return v
-
-    @staticmethod
-    def _op_insert(target, k, v):
-        target[k] = v
-        return target[k]
-
-    @staticmethod
-    def _op_append(target, v): return target.append(v)
-
-    @staticmethod
     def _op_remove(target, k):
         if isinstance(k, (str, int, slice)):
             try:
@@ -1012,9 +1252,6 @@ class Path(list):
         else:
             raise NotImplementedError(f"{k}")
         return success
-
-    @staticmethod
-    def _op_update(target, value, *args, **kwargs): return merge_tree_recursive(target, value, *args, **kwargs)
 
     @staticmethod
     def _op_check(pred=None, *args) -> bool:

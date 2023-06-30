@@ -15,7 +15,7 @@ from ..utils.numeric import is_close
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import (ArrayType, NumericType, PrimaryType, array_type,
-                            as_array, get_generic_args, get_origin, numeric_type,
+                            as_array, get_args, get_origin, numeric_type,
                             get_type_hint, isinstance_generic, primary_type,
                             serialize, type_convert)
 from .Entry import Entry, as_entry
@@ -46,15 +46,12 @@ class HTree(typing.Generic[_T]):
         -
     """
 
-    def __init__(self, data: HTreeLike = None,  cache: typing.Any = None, parent: HTree | None = None, **kwargs) -> None:
+    def __init__(self, data: HTreeLike | Entry = None,  cache: typing.Any = None, parent: HTree | None = None, **kwargs) -> None:
 
-        self._entry = as_entry(data) if data is not None else data
-        self._cache = cache
+        self._entry = as_entry(data)
+        # self._cache = cache
         self._parent = parent
-        self._metadata = merge_tree_recursive(kwargs.pop("metadata", {}), kwargs)
-
-        if len(kwargs) > 0:
-            logger.warning(f"Unused kwargs {kwargs}")
+        self._metadata = Path().update(kwargs.pop("metadata", {}), kwargs)
 
     def __copy__(self) -> HTree[_T]:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -87,16 +84,15 @@ class HTree(typing.Generic[_T]):
         """ 当 key 为 None 时，获取泛型参数，若非泛型类型，返回 None，
             当 key 为字符串时，获得属性 property 的 type_hint
         """
-        tp = getattr(self, "__orig_class__", self.__class__)
+        tp = get_origin(self)
 
         tp_hint = None
         if isinstance(key, str):
             tp_hint = typing.get_type_hints(tp).get(key, None)
 
         if tp_hint is None:
-            tp_hint = typing.get_args(tp)
+            tp_hint = get_args(self)
             tp_hint = None if len(tp_hint) == 0 else tp_hint[-1]
-
         return tp_hint
 
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
@@ -122,13 +118,13 @@ class HTree(typing.Generic[_T]):
         elif self._cache is not None and self._cache is not _not_found_:
             return self._cache
 
-        elif self._entry is None:
-            return self._metadata.get("default_value", _not_found_)
-
         else:
             default_value = self._metadata.get("default_value", _not_found_)
-            self._cache = self._entry.get(default_value=_not_found_)
-            return merge_tree_recursive(default_value, self._cache)
+            tmp = self._entry.get(default_value=_not_found_)
+            tmp = merge_tree_recursive(default_value, tmp)
+            if tmp is not _not_found_:
+                self._cache = tmp
+            return tmp
 
     def get(self, path: Path | PathLike, **kwargs) -> typing.Any:
         path = as_path(path)
@@ -154,10 +150,7 @@ class HTree(typing.Generic[_T]):
 
         value = _not_found_
 
-        if self._cache is None and self._entry is None:
-            pass
-
-        elif isinstance(key, (int, slice, tuple)) and type_hint in numeric_type:
+        if isinstance(key, (int, slice, tuple)) and type_hint in numeric_type:
             if self._cache is None or len(self._cache) == 0:
                 self._cache = self._entry.__value__  # type:ignore
 
@@ -190,12 +183,12 @@ class HTree(typing.Generic[_T]):
 
     def _get_by_name(self, key: str,  default_value=_not_found_, type_hint=None, getter=None) -> _T:
 
-        type_hint = self.__type_hint__(key) or type_hint or HTree
+        type_hint = self.__type_hint__(key) or type_hint or HTree[_T]
 
         value = _not_found_
 
-        if isinstance(self._cache, collections.abc.Mapping):
-            value = self._cache.get(key, _not_found_)
+        # if isinstance(self._cache, collections.abc.Mapping):
+        #     value = self._cache.get(key, _not_found_)
 
         if value is _not_found_ and getter is not None:
             value = getter(self)
@@ -208,13 +201,13 @@ class HTree(typing.Generic[_T]):
 
         value = type_convert(value, type_hint=type_hint, default_value=default_value, parent=self)
 
-        if self._cache is None:
-            self._cache = {}
+        # if self._cache is None:
+        #     self._cache = {}
 
-        elif not isinstance(self._cache, collections.abc.Mapping):
-            raise TypeError(f"{type(key)}")
+        # elif not isinstance(self._cache, collections.abc.Mapping):
+        #     raise TypeError(f"{type(key)}")
 
-        self._cache[key] = value
+        # self._cache[key] = value
 
         return value
 
@@ -232,8 +225,8 @@ class HTree(typing.Generic[_T]):
 
         value = _not_found_
 
-        if isinstance(self._cache, collections.abc.Mapping):
-            value = self._cache.get(key, _not_found_)
+        # if isinstance(self._cache, collections.abc.Mapping):
+        #     value = self._cache.get(key, _not_found_)
 
         if value is _not_found_ and isinstance(self._entry, Entry):
             value = self._entry.child(key)
@@ -241,10 +234,10 @@ class HTree(typing.Generic[_T]):
         if not isinstance_generic(value, type_hint):
             value = type_convert(value, type_hint=type_hint, default_value=default_value, parent=self._parent)
 
-        if self._cache is None:
-            self._cache = {}
+        # if self._cache is None:
+        #     self._cache = {}
 
-        self._cache[key] = value
+        # self._cache[key] = value
 
         return value
 
@@ -411,7 +404,7 @@ class HTree(typing.Generic[_T]):
         value = path.query(self._cache, *args, **kwargs)
 
         if value is _not_found_ or value is None:
-            value = path.query(self._entry, *args, **kwargs)
+            value = self._entry.child(path).query(*args, **kwargs)
 
         return value
 
@@ -439,43 +432,36 @@ class HTree(typing.Generic[_T]):
 
         return n_value
 
-    def _insert(self, path: PathLike | Path, value, **kwargs) -> int:
-        """
-            根据 path 递归插入 value，当中间节点不存在时创建之
-        """
-        path = as_path(path)
+    def _insert(self,  *args, **kwargs) -> _T | HTree[_T] | PrimaryType:
+        # try:
+        #     new_path = Path().insert(self._cache, *args, quiet=False, **kwargs)
+        #     res = self[new_path]
+        # except KeyError:
+        entry = self._entry.insert(*args, quiet=True,  **kwargs)
+        res = HTree[_T](entry, parent=self)
 
-        if isinstance(path[0], int) and path[0] < 0 and isinstance(self._entry, Entry):
-            path[0] += self._entry.count
+        return res
 
-        if (self._cache is not None and path[0] in self._cache) or self._entry is None:
-            if self._cache is None:
-                self._cache = {}
-            return path.insert(self._cache, value)
-        elif isinstance(self._entry, Entry):
-            return self._entry.child(path).insert(value)
-        else:
-            raise RuntimeError(f"Can not insert {path} ")
-
-    def _update(self, other: HTreeLike, *args, **kwargs) -> HTree[_T]:
-        Path().query(self._entry, Path.tags.update, other, *args, **kwargs)
+    def _update(self,  *args, **kwargs) -> _T | HTree[_T] | PrimaryType:
+        # try:
+        #     Path().update(self._cache, *args, quiet=False, **kwargs)
+        # except KeyError:
+        self._entry.update(*args, quiet=True,  **kwargs)
         return self
 
-    def _append(self, other: HTreeLike, *args, **kwargs) -> HTree[_T]:
-        Path().query(self._entry, Path.tags.append, other, *args, **kwargs)
+    def __ior__(self, other: HTreeLike) -> HTree[_T]:
+        self._update(other)
         return self
 
-    def __ior__(self, other: HTreeLike) -> HTree[_T]: return self._update(other)
-
-    def __iadd__(self, other: HTreeLike) -> HTree[_T]: return self._append(other)
+    def __iadd__(self, other: HTreeLike) -> HTree[_T]:
+        self._insert(other)
+        return self
 
 
 Node = HTree
 
 
 class Container(HTree[_T]):
-    def __init__(self, *args, cache=None,  **kwargs) -> None:
-        super().__init__(*args, cache=cache if cache is not None else {},   **kwargs)
 
     def __getitem__(self, path) -> _T | HTree[_T]: return self.get(path)
 

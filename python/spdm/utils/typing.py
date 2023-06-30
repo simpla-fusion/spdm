@@ -186,20 +186,21 @@ def get_args(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
 
     """
     if tp is None or tp is _not_found_:
-        return tuple()
+        res = tuple()
 
     elif isinstance(tp, tuple):
         res = sum([get_args(t) for t in tp], tuple())
-        return tuple([t for t in res if t is not None and not isinstance(t, typing.TypeVar)])
 
     elif typing.get_origin(tp) is not None:
-        return typing.get_args(tp)
+        res = typing.get_args(tp)
 
     elif inspect.isclass(tp):
         return get_args(getattr(tp, "__orig_bases__", None))
 
     else:
         return get_args(getattr(tp, "__orig_class__", tp.__class__))
+
+    return tuple([t for t in res if t is not None and not isinstance(t, typing.TypeVar)])
 
 
 def get_type_hint(tp: typing.Type | types.GenericAlias, prop_name: str):
