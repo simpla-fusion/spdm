@@ -932,7 +932,7 @@ class Path(list):
             else:
                 target[key] = value
         else:
-            raise NotImplementedError(f"{target} {key}")
+            raise NotImplementedError(f"{target} {key} \"{value}\"")
 
     @staticmethod
     def _op_insert(target: typing.Any, key: PathLike, value: typing.Any, *args, **kwargs) -> PathLike:

@@ -33,7 +33,18 @@ class NamedFoo(Dict):
 
 
 class TestNode(unittest.TestCase):
-
+    data = {
+        "a": [
+            "hello world {name}!",
+            "hello world2 {name}!",
+            1, 2, 3, 4
+        ],
+        "c": "I'm {age}!",
+        "d": {
+            "e": "{name} is {age}",
+            "f": "{address}"
+        }
+    }
     # def test_new(self):
     #     self.assertTrue(isinstance(HTree("hello"), HTree))
     #     self.assertTrue(isinstance(HTree(1), HTree))
@@ -45,7 +56,7 @@ class TestNode(unittest.TestCase):
 
     # def test_create(self):
     #     cache = []
-    #     d = Node(cache)
+    #     d = HTree(cache)
     #     self.assertEqual(d.create_child("hello"), "hello")
     #     self.assertEqual(d.create_child(1), 1)
     #     v = np.ones([10, 20])
@@ -56,88 +67,81 @@ class TestNode(unittest.TestCase):
     #     self.assertTrue(isinstance(d.create_child((1, 2, 3, 4, 5)), List))
     #     self.assertTrue(isinstance(d.create_child({"a": 1, "b": 2, "c": 3}), Dict))
 
-    # def test_dict(self):
-    #     d = Dict(test_data)
+    def test_get_by_path(self):
+        cache = deepcopy(self.data)
 
-    #     self.assertEqual(len(d["a"]),                     6)
-    #     self.assertEqual(d["c"],             test_data["c"])
-    #     self.assertEqual(d["d/e"],   test_data["d"]["e"])
-    #     self.assertEqual(d["d/f"],   test_data["d"]["f"])
-    #     self.assertEqual(d["a/0"],       test_data["a"][0])
-    #     self.assertEqual(d["a/1"],       test_data["a"][1])
+        d = Dict(cache)
 
-    #     self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
+        self.assertEqual(len(d["a"]),                     6)
+        self.assertEqual(d["c"].__value__,                 cache["c"])
+        self.assertEqual(d["d/e"].__value__,          cache["d"]["e"])
+        self.assertEqual(d["d/f"].__value__,          cache["d"]["f"])
+        self.assertEqual(d["a/0"].__value__,            cache["a"][0])
+        self.assertEqual(d["a/1"].__value__,            cache["a"][1])
 
-    # def test_dict_find_by_key(self):
-    #     d = NamedFoo(test_data)
+        # self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
-    #     self.assertEqual(len(d["a"]),                     6)
-    #     self.assertEqual(d["c"],             test_data["c"])
-    #     self.assertEqual(d["d"]["e"],   test_data["d"]["e"])
-    #     self.assertEqual(d["d"]["f"],   test_data["d"]["f"])
-    #     self.assertEqual(d["a/0"],       test_data["a"][0])
-    #     self.assertEqual(d["a/1"],       test_data["a"][1])
+    def test_assign(self):
+        cache = {}
 
-    #     self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
+        d = Dict(cache)
 
-    # def test_dict_insert(self):
-    #     cache = {}
+        d["a"] = "hello world {name}!"
 
-    #     d = Dict(cache)
+        self.assertEqual(cache["a"], "hello world {name}!")
+        d["e"] = {}
+        d["e"]["f"] = 5
+        d["e"]["g"] = 6
+        self.assertEqual(cache["e"]["f"], 5)
+        self.assertEqual(cache["e"]["g"], 6)
 
-    #     d["a"] = "hello world {name}!"
+    def test_update(self):
+        cache = deepcopy(test_data)
+        d = Dict(cache)
 
-    #     self.assertEqual(cache["a"], "hello world {name}!")
-    #     d["e"] = {}
-    #     d["e"]["f"] = 5
-    #     d["e"]["g"] = 6
-    #     self.assertEqual(cache["e"]["f"], 5)
-    #     self.assertEqual(cache["e"]["g"], 6)
+        d |= {"d": {"g": 5}}
 
-    # def test_dict_update(self):
-    #     cache = deepcopy(test_data)
-    #     d = Dict(cache)
+        self.assertEqual(cache["d"]["e"], "{name} is {age}")
+        self.assertEqual(cache["d"]["f"], "{address}")
+        self.assertEqual(cache["d"]["g"], 5)
 
-    #     d |= {"d": {"g": 5}}
+    def test_insert(self):
+        cache0 = deepcopy(test_data)
+        d0 = Dict(cache0)
 
-    #     self.assertEqual(cache["d"]["e"], "{name} is {age}")
-    #     self.assertEqual(cache["d"]["f"], "{address}")
-    #     self.assertEqual(cache["d"]["g"], 5)
+        d0["a"] += "hello world {name}!"
+        d0 += {"d": {"g": 5}}
 
-    # def test_dict_append(self):
-    #     cache = deepcopy(test_data)
-    #     d = Dict(cache)
+        self.assertEqual(cache0["d"]["e"], "{name} is {age}")
+        self.assertEqual(cache0["d"]["f"], "{address}")
+        self.assertEqual(cache0["d"]["g"], 5)
 
-    #     d["a"] += "hello world {name}!"
-    #     d += {"d": {"g": 5}}
+        cache1 = []
 
-    #     self.assertEqual(cache["d"]["e"], "{name} is {age}")
-    #     self.assertEqual(cache["d"]["f"], "{address}")
-    #     self.assertEqual(cache["d"]["g"], 5)
-
-    # def test_list_getitem(self):
-    #     data = [1, 2, 3, 4, 5]
-
-    #     d0 = List[int](data)
-    #     # logger.debug(type(d0[0]))
-    #     self.assertIsInstance(d0[0], int)
-    #     self.assertEqual(d0[0], data[0])
-    #     self.assertListEqual(list(d0[:]), data)
-
-    def test_list_append(self):
-        cache = []
-        d1 = List(cache)
+        d1 = List(cache1)
 
         d1 += {"a": [1], "b": 2}
 
-        logger.debug(cache)
+        self.assertEqual(cache1[0]["a"][0], 1)
+        self.assertEqual(cache1[0]["b"], 2)
 
-        self.assertEqual(cache[0]["a"][0], 1)
-        self.assertEqual(cache[0]["b"], 2)
+        logger.debug(cache1)
 
-        d1["0/a"] += 2
+        t = d1["0/a"]
+        t += 2
 
-        self.assertEqual(cache[0]["a"], [1, 2])
+        logger.debug(cache1)
+
+        self.assertEqual(cache1[0]["a"], [1, 2])
+
+    def test_get_by_index(self):
+        data = [1, 2, 3, 4, 5]
+
+        d0 = List[int](data)
+        # logger.debug(type(d0[0]))
+        self.assertIsInstance(d0[0], int)
+        self.assertEqual(d0[0], data[0])
+        self.assertListEqual(list(d0[:]), data)
 
     # def test_node_del(self):
     #     cache = {
@@ -222,6 +226,18 @@ class TestNode(unittest.TestCase):
     #     d = Dict()
     #     self.assertTrue(d.empty)
     #     self.assertTrue(d["a"] or 12.3, 12.3)
+
+    # def test_dict_find_by_key(self):
+    #     d = NamedFoo(test_data)
+
+    #     self.assertEqual(len(d["a"]),                     6)
+    #     self.assertEqual(d["c"],             test_data["c"])
+    #     self.assertEqual(d["d"]["e"],   test_data["d"]["e"])
+    #     self.assertEqual(d["d"]["f"],   test_data["d"]["f"])
+    #     self.assertEqual(d["a/0"],       test_data["a"][0])
+    #     self.assertEqual(d["a/1"],       test_data["a"][1])
+
+    #     self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
 
 if __name__ == '__main__':
