@@ -51,7 +51,7 @@ class HTree(typing.Generic[_T]):
         self._entry = as_entry(data)
         # self._cache = cache
         self._parent = parent
-        self._metadata = Path().update(kwargs.pop("metadata", {}), kwargs)
+        self._metadata = merge_tree_recursive(kwargs.pop("metadata", {}), kwargs)
 
     def __copy__(self) -> HTree[_T]:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -97,13 +97,13 @@ class HTree(typing.Generic[_T]):
 
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
 
-    def __setitem__(self, path, value) -> None: self._query(path, Path.tags.insert, value)
+    def __setitem__(self, path, value) -> None: self._update( path, value)
 
-    def __delitem__(self, path) -> bool: return self._query(path, Path.tags.remove)
+    def __delitem__(self, path) -> bool: return self._remove(Path.tags.remove, path)
 
-    def __contains__(self, path) -> bool: return self._query(path, Path.tags.exists) > 0
+    def __contains__(self, path) -> bool: return self._exec(Path.tags.exists, path) > 0
 
-    def __len__(self) -> int: return self._query([], Path.tags.count) > 0
+    def __len__(self) -> int: return self._exec([], Path.tags.count) > 0
 
     def __iter__(self) -> typing.Generator[typing.Any, None, None]: yield from self._find(slice(None))
 
@@ -397,16 +397,7 @@ class HTree(typing.Generic[_T]):
         # def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
         #     raise NotImplementedError("as_child")
 
-    def _query(self, path: Path | PathLike, *args,  **kwargs) -> typing.Any:
-
-        path = as_path(path)
-
-        value = path.query(self._cache, *args, **kwargs)
-
-        if value is _not_found_ or value is None:
-            value = self._entry.child(path).query(*args, **kwargs)
-
-        return value
+    def _exec(self, op, path: Path | PathLike, *args,  **kwargs) -> typing.Any:
 
         missing_cache = True
 

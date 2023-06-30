@@ -65,6 +65,17 @@ class TestPath(unittest.TestCase):
 
         # self.assertTrue(Path(["a", slice(2, 7), {Path.tags.equal: [1, 2, 3, 4]}]).query(self.data))
 
+    def test_get_many(self):
+
+        cache = deepcopy(self.data)
+
+        res = Path({"a/2", "c",  "d/e", "e"}).query(cache)
+
+        self.assertDictEqual(res, {"a/2": cache['a'][2],
+                                   "c": cache['c'],
+                                   "d/e":   cache['d']['e'],
+                                   "e": _not_found_})
+
     def test_insert(self):
         cache = {}
 
@@ -90,7 +101,7 @@ class TestPath(unittest.TestCase):
     def test_update(self):
         cache = deepcopy(self.data)
 
-        Path().update(cache, {"d": {"g": 5, "f": 6}})     
+        Path().update(cache, {"d": {"g": 5, "f": 6}})
 
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
         self.assertEqual(cache["d"]["f"], 6)

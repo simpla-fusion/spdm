@@ -1,6 +1,7 @@
 import unittest
 from copy import deepcopy
 
+from spdm.utils.logger import logger
 from spdm.utils.tags import _not_found_
 from spdm.data.Entry import Entry
 
@@ -61,13 +62,13 @@ class TestEntry(unittest.TestCase):
 
         # self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
 
-    def test_append(self):
+    def test_insert(self):
         cache = deepcopy(self.data)
         d = Entry(cache)
 
-        d.child("c").update({"$append": 1.23455})
+        d.child("c").insert(1.23455)
 
-        d.child("c").update({"$extend": [{"a": "hello world", "b": 3.141567}]})
+        d.child("c").insert([{"a": "hello world", "b": 3.141567}])
 
         self.assertEqual(cache["c"][1],                      1.23455)
         self.assertEqual(cache["c"][2]["a"],           "hello world")
@@ -99,15 +100,18 @@ class TestEntry(unittest.TestCase):
         self.assertTrue("b" not in cache)
 
     def test_get_many(self):
-        d = Entry(self.data)
+        cache = deepcopy(self.data)
+
+        d = Entry(cache)
 
         self.assertEqual(d.child('a/2').__value__, self.data['a'][2])
 
         res = d.child({"a/2", "c",  "d/e", "e"}).__value__
-        self.assertListEqual(res, [self.data['a'][2],
-                                   self.data['c'],
-                                   self.data['d']['e'],
-                                   []])
+
+        self.assertDictEqual(res, {"a/2": cache['a'][2],
+                                   "c": cache['c'],
+                                   "d/e":   cache['d']['e'],
+                                   "e": _not_found_})
 
 
 if __name__ == '__main__':

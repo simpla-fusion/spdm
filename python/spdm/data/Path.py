@@ -873,7 +873,7 @@ class Path(list):
             res = target[key]
 
         elif isinstance(key, set):
-            res = {Path._op_fetch(target, p, *args, **kwargs) for p in key}
+            res = {p: Path(p).query(target, *args, **kwargs) for p in key}
 
         elif isinstance(key, dict):
             raise NotImplementedError(f"Not implemented query! '{key}'")
