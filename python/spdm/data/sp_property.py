@@ -48,7 +48,7 @@ import typing
 from _thread import RLock
 from copy import copy
 
-from spdm.data.HTree import HTree
+from spdm.data.HTree import HTree, HTreeLike
 from spdm.utils.tags import _not_found_
 
 from ..utils.logger import logger
@@ -57,17 +57,15 @@ from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, PrimaryType
 from .Entry import Entry
 from .HTree import Dict
-from .Path import Path
+from .Path import Path, PathLike, as_path
 
 _T = typing.TypeVar("_T")
 
 
 class SpDict(Dict[_T]):
-    """
-        支持 sp_property 的 Dict
-    """
+    """  支持 sp_property 的 Dict  """
 
-    def __init__(self, d: typing.Any = None,   default_value=_not_found_,  **kwargs) -> None:
+    def __init__(self, d: HTreeLike = None,   default_value=_not_found_, cache=None,  **kwargs) -> None:
         if isinstance(d, collections.abc.Mapping) and "$default_value" in d:
             default_value_, d = group_dict_by_prefix(d, "$default_value")
         else:
@@ -75,92 +73,20 @@ class SpDict(Dict[_T]):
         if isinstance(default_value, collections.abc.Mapping):
             default_value_.update(default_value)
 
-        super().__init__(d, default_value=default_value_, ** kwargs)
+        super().__init__(d, default_value=default_value_, cache=cache or {}, ** kwargs)
 
-    def __copy__(self) -> SpDict:
-        other: SpDict = super().__copy__()  # type:ignore
-        return other
-
-    def __type_hint__(self, key: str = None) -> typing.Type:
-        type_hint = None
-        if isinstance(key, str):
-            t_hints = typing.get_type_hints(self.__class__)
-            type_hint = t_hints.get(key, None)
-            if type_hint is None:
-                type_hint = getattr(getattr(self.__class__, key, None), "type_hint", None)
-
-        if type_hint is None:
-            type_hint = super().__type_hint__()
-        return type_hint
-
-    def as_child(self, key: str | int,  value=None,
-                 getter: typing.Callable[[SpDict[_T], str], _T] = None,
-                 **kwargs) -> HTree | PrimaryType | ArrayType:
-
-        if (value is None or value is _not_found_) and isinstance(key, str):
-            value = self._cache.get(key, _not_found_)
-
-        if (value is _not_found_ or value is None) and callable(getter):
-            # 当 getter callable 时，ignore self._entry 中的内容。
-            # self._entry 中的内容可以在getter中通过 super().get(key)
-            value = getter(self)
-
-        value = super().as_child(key, value,  **kwargs)
-
-        if isinstance(key, str) and value is not _not_found_:
-            self._cache[key] = value
-
-        return value
-
-    def __get_property__(self, key: str | int, *args, **kwargs) -> HTree:
-        value = self.as_child(key, *args, **kwargs)
+    def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
+        value = self._get_by_query(key, *args, **kwargs)
         if value is _not_found_:
             raise KeyError(f"Can not find property \"{key}\" of {self.__class__.__name__}")
         return value
 
-    def __set_property__(self, key: str | int,  value=None,
-                         setter: typing.Callable[[SpDict[_T], str, typing.Any], None] = None) -> None:
-        if callable(setter):
-            setter(self, key, value)
-        else:
-            self._cache[key] = value
+    def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self._insert(key, value)
 
-    def __del_property__(self, key, deleter: typing.Callable[[SpDict[_T], str], None] = None):
-        if callable(deleter):
-            deleter(self, key)
-        else:
-            if key in self._cache:
-                self._cache.pop(key)
-            self._entry.child(key).remove()
-
-    def __getitem__(self, key: str | int) -> typing.Any:
-        path = Path(key)
-        if len(path) == 1 and isinstance(path[0], str):
-            return self.__get_property__(key)
-        else:
-            return self.get(path, default_value=_not_found_)
-
-    def __setitem__(self, key: str, value: typing.Any) -> None:
-        path = Path(key)
-        if len(path) == 1 and isinstance(path[0], str):
-            return self.__set_property__(key, value)
-        else:
-            return super().insert(path, value)
-
-    def __delitem__(self, key: str) -> None:
-        path = Path(key)
-        if len(path) == 1 and isinstance(path[0], str):
-            return self.__del_property__(key)
-        else:
-            return super().remove(path)
+    def __del_property__(self, key: str, **kwargs): self._remove(key)
 
     def __contains__(self, key: str) -> bool:
         return key in self._cache or self._entry.child(key).exists
-
-    def update(self,   *args, **kwargs) -> SpDict:
-        self._cache.clear()
-        super().update(*args, **kwargs)
-        return self
 
 
 class sp_property(typing.Generic[_T]):
@@ -228,7 +154,7 @@ class sp_property(typing.Generic[_T]):
         if doc is not None:
             self.__doc__ = doc
 
-        self.property_cache_key = getter if not callable(getter) else None
+        self.property_cache_key: str = getter if isinstance(getter, str) else None
         self.property_name: str = None
         self.type_hint = type_hint
         self.strict = strict

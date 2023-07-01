@@ -210,11 +210,35 @@ def get_type_hint(tp: typing.Type | types.GenericAlias, prop_name: str):
     return typing.get_type_hints(tp).get(prop_name, None)
 
 
-def isinstance_generic(obj, type_hint) -> bool:
-    return False
+_T = typing.TypeVar("_T")
+
+
+def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
+    """ 判断 obj 是否是 type_hint 的实例,
+        type_hint 可以是 typing.GenericAlias 或者 typing.Type
+    """
+    if type_hint is None:
+        logger.warning(f"type_hint is None")
+        return True
+
+    orig_class = typing.get_origin(type_hint)
+
+    if inspect.isclass(type_hint) and orig_class is None:
+        return isinstance(obj, type_hint)
+
+    if not isinstance(obj, orig_class):
+        return False
+    elif getattr(obj, "__orig_class__", obj.__class__) == type_hint:
+        return True
+    elif type_hint in getattr(obj, "__orig_bases__", []):
+        return True
+    else:
+        return False
 
 
 def type_convert(value: typing.Any, type_hint: typing.Type,  **kwargs) -> typing.Any:
+    if value is _not_found_ or isinstance_generic(value, type_hint):
+        return value
 
     origin_class = get_origin(type_hint)
 

@@ -1,10 +1,10 @@
 import unittest
+
 import numpy as np
-from spdm.utils.logger import logger
-from spdm.data.List import List, AoS
-from spdm.data.Dict import Dict
+from spdm.data.HTree import AoS, Dict, List
 from spdm.data.sp_property import SpDict, sp_property
 from spdm.data.TimeSeries import TimeSeriesAoS
+from spdm.utils.logger import logger
 
 
 class Foo(SpDict):

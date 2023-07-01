@@ -4,7 +4,7 @@ from copy import deepcopy
 from spdm.data.Path import Path
 from spdm.utils.logger import logger
 from spdm.utils.tags import _not_found_
-from spdm.utils.typing import get_origin, get_args
+from spdm.utils.typing import get_origin, get_args, isinstance_generic
 import typing
 
 
@@ -59,6 +59,23 @@ class TestTyping(unittest.TestCase):
             pass
 
         self.assertEqual(get_args(Doo), (float,))
+
+    def test_isinstance_generic(self):
+        _T = typing.TypeVar("_T")
+
+        class Foo(list, typing.Generic[_T]):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            pass
+
+        foo = Foo[int]()
+
+        self.assertTrue(isinstance_generic(foo, Foo[int]))
+        self.assertTrue(isinstance_generic(foo, list))
+        self.assertTrue(isinstance_generic(foo, Foo))
+
+        self.assertFalse(isinstance_generic(foo, Foo[float]))
+        self.assertFalse(isinstance_generic(foo, dict))
 
 
 if __name__ == '__main__':

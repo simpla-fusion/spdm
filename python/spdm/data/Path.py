@@ -987,6 +987,22 @@ class Path(list):
         return new_path
 
     @staticmethod
+    def _op_remove(target, k, *args, **kwargs):
+        if len(args)+len(kwargs) > 0:
+            logger.warning(f"Ignore {args} {kwargs}")
+
+        if isinstance(k, (str, int, slice)):
+            try:
+                del target[k]
+            except Exception as error:
+                success = False
+            else:
+                success = True
+        else:
+            raise NotImplementedError(f"{k}")
+        return success
+
+    @staticmethod
     def _insert(target: typing.Any, path: typing.List[typing.Any], value,  *args, quiet=True, **kwargs) -> list:
 
         if path is None:
@@ -1239,19 +1255,6 @@ class Path(list):
         elif len(res) == 0 and on_fail is not _undefined_:
             res = on_fail(target)
         return res
-
-    @staticmethod
-    def _op_remove(target, k):
-        if isinstance(k, (str, int, slice)):
-            try:
-                del target[k]
-            except Exception as error:
-                success = False
-            else:
-                success = True
-        else:
-            raise NotImplementedError(f"{k}")
-        return success
 
     @staticmethod
     def _op_check(pred=None, *args) -> bool:

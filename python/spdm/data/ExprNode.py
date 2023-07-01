@@ -4,9 +4,10 @@ import collections.abc
 import typing
 
 from ..utils.logger import logger
-from ..utils.numeric import as_array, is_array, is_close, is_scalar, squeeze
+from ..utils.numeric import is_close, squeeze
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayLike, ArrayType, array_type, numeric_type
+from ..utils.typing import (ArrayLike, ArrayType, array_type, as_array,
+                            is_array, is_scalar, numeric_type)
 from .Expression import Expression
 from .ExprOp import ExprOp
 from .HTree import HTree

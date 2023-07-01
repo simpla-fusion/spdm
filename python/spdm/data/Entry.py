@@ -109,7 +109,7 @@ class Entry(Pluggable):
 
     def __getitem__(self, *args) -> Entry: return self.child(*args)
 
-    def __setitem__(self, path, value): return self.child(path).insert(value)
+    def __setitem__(self, path, value): return self.child(path).update(value)
 
     def __delitem__(self, *args): return self.child(*args).remove()
 
@@ -138,7 +138,7 @@ class Entry(Pluggable):
         new_path = self._path.update(self._data,  *args,**kwargs)
         return self.child(new_path)
 
-    def remove(self) -> int: return self._path.remove(self._data)
+    def remove(self,*args,**kwargs) -> int: return self._path.remove(self._data,*args,**kwargs)
 
     def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         """

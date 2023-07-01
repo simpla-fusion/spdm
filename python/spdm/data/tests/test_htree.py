@@ -99,7 +99,7 @@ class TestNode(unittest.TestCase):
         cache = deepcopy(test_data)
         d = Dict(cache)
 
-        d |= {"d": {"g": 5}}
+        d._update([], {"d": {"g": 5}})
 
         self.assertEqual(cache["d"]["e"], "{name} is {age}")
         self.assertEqual(cache["d"]["f"], "{address}")
@@ -109,8 +109,8 @@ class TestNode(unittest.TestCase):
         cache0 = deepcopy(test_data)
         d0 = Dict(cache0)
 
-        d0["a"] += "hello world {name}!"
-        d0 += {"d": {"g": 5}}
+        d0._insert("a", "hello world {name}!")
+        d0.insert({"d": {"g": 5}})
 
         self.assertEqual(cache0["d"]["e"], "{name} is {age}")
         self.assertEqual(cache0["d"]["f"], "{address}")
@@ -120,17 +120,12 @@ class TestNode(unittest.TestCase):
 
         d1 = List(cache1)
 
-        d1 += {"a": [1], "b": 2}
+        d1.insert({"a": [1], "b": 2})
 
         self.assertEqual(cache1[0]["a"][0], 1)
         self.assertEqual(cache1[0]["b"], 2)
 
-        logger.debug(cache1)
-
-        t = d1["0/a"]
-        t += 2
-
-        logger.debug(cache1)
+        d1._insert("0/a", 2)
 
         self.assertEqual(cache1[0]["a"], [1, 2])
 
@@ -141,66 +136,64 @@ class TestNode(unittest.TestCase):
         # logger.debug(type(d0[0]))
         self.assertIsInstance(d0[0], int)
         self.assertEqual(d0[0], data[0])
-        self.assertListEqual(list(d0[:]), data)
+        # self.assertListEqual(list(d0[:]), data)
 
-    # def test_node_del(self):
-    #     cache = {
-    #         "a": [
-    #             "hello world {name}!",
-    #             "hello world2 {name}!",
-    #             1, 2, 3, 4
-    #         ]
-    #     }
+    def test_node_del(self):
+        cache = {
+            "a": [
+                "hello world {name}!",
+                "hello world2 {name}!",
+                1, 2, 3, 4
+            ]
+        }
 
-    #     d = Dict(cache)
+        d = Dict(cache)
 
-    #     del d["a"]
+        del d["a"]
 
-    #     self.assertTrue("a" not in cache)
+        self.assertTrue("a" not in cache)
 
-    # def test_node_append(self):
-    #     d1 = List()
-    #     d1 += [{"a": 1, "b": 2}]
+    def test_node_insert(self):
+        cache = {"this_is_a_cache": True}
 
-    #     self.assertEqual(len(d1), 1)
-    #     self.assertIsInstance(d1[0], HTree)
-    #     self.assertEqual(d1[0]["a"], 1)
-    #     self.assertEqual(d1[0]["b"], 2)
+        d = Dict[List](cache)
 
-    # def test_node_insert(self):
-    #     cache = {"this_is_a_cache": True}
+        d["a"] = "hello world {name}!"
+        self.assertEqual(cache["a"], "hello world {name}!")
 
-    #     d = Dict[List](cache)
+        d["c"] .insert(1.23455)
+        d["c"] .insert({"a": "hello world", "b": 3.141567})
 
-    #     d["a"] = "hello world {name}!"
-    #     self.assertEqual(cache["a"], "hello world {name}!")
+        self.assertEqual(cache["c"][0],  1.23455)
+        self.assertEqual(cache["c"][1]["b"],  3.141567)
 
-    #     d["c"] += [1.23455]
-    #     d["c"] += [{"a": "hello world", "b": 3.141567}]
+    def test_type_hint(self):
+        d1 = List([])
+        d1 .insert({"a": 1, "b": 2})
 
-    #     self.assertEqual(cache["c"][0],  1.23455)
-    #     self.assertEqual(cache["c"][1]["b"],  3.141567)
+        self.assertIsInstance(d1[0], HTree)
 
-    # def test_type_hint(self):
-    #     d1 = List()
-    #     d1 += [{"a": 1, "b": 2}]
+        self.assertEqual(len(d1), 1)
+        self.assertEqual(d1[0]["a"].__value__, 1)
+        self.assertEqual(d1[0]["b"].__value__, 2)
 
-    #     self.assertIsInstance(d1[0], HTree)
+        data = [1, 2, 3, 4, 5]
 
-    #     self.assertEqual(len(d1), 1)
-    #     self.assertEqual(d1[0]["a"], 1)
-    #     self.assertEqual(d1[0]["b"], 2)
+        class Foo:
+            def __init__(self, v, **kwargs) -> None:
+                self.v = v
 
-    #     data = [1, 2, 3, 4, 5]
+        d1 = List[Foo](data)
 
-    #     class Foo:
-    #         def __init__(self, v) -> None:
-    #             self.v = v
+        self.assertIsInstance(d1[2], Foo)
+        self.assertEqual(d1[2].v.__value__, data[2])
 
-    #     d1 = List[Foo](data)
+    def test_get_by_slice(self):
+        data = [1, 2, 3, 4, 5]
 
-    #     self.assertIsInstance(d1[2], Foo)
-    #     self.assertEqual(d1[2].v, data[2])
+        d0 = List[int](data)
+
+        self.assertListEqual(d0[:].__value__, data)
 
     # def test_child_type_convert_list(self):
 

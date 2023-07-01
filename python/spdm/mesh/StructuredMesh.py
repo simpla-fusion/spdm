@@ -1,17 +1,8 @@
-import abc
-import collections.abc
 import typing
-from functools import cached_property
 
 import numpy as np
-from scipy.interpolate import CubicSpline, PPoly
 
-from ..geometry.GeoObject import GeoObject
-from ..geometry.Line import Line
-from ..geometry.Point import Point
-from ..utils.logger import logger
-from ..utils.numeric import as_array
-from ..utils.typing import ArrayLike, ArrayType, numeric_type
+from ..utils.typing import ArrayLike, ArrayType, as_array
 from .Mesh import Mesh
 
 

@@ -8,10 +8,10 @@ import typing
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.numeric import float_nan, is_scalar
+from ..utils.numeric import float_nan
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
-                            scalar_type)
+                            scalar_type, is_scalar)
 from ..views.View import display
 from .ExprOp import ExprOp
 

@@ -6,15 +6,17 @@ import inspect
 import typing
 from copy import copy
 from enum import Enum
+
 import numpy as np
 
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
-from ..utils.misc import group_dict_by_prefix, try_get
-from ..utils.numeric import as_array, is_close, is_scalar, meshgrid, is_array, bitwise_and
+from ..utils.misc import group_dict_by_prefix
+from ..utils.numeric import bitwise_and, is_close, meshgrid
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
-                            numeric_type, scalar_type)
+                            as_array, is_array, is_scalar, numeric_type,
+                            scalar_type)
 from .Expression import Expression
 from .ExprNode import ExprNode
 from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
