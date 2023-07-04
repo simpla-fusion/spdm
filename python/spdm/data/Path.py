@@ -28,6 +28,7 @@ class PathOpTags(Flag):
     update  = auto()    # PUT
     insert  = auto()    # POST
     remove  = auto()    # DELETE
+    exists  = auto()
 
     # for sequence
     reduce  = auto()
@@ -36,7 +37,6 @@ class PathOpTags(Flag):
     # predicate 谓词
     check   = auto()
     count   = auto()
-    exists  = auto()
 
     # boolean
     equal   = auto()
@@ -201,6 +201,9 @@ class Path(list):
         """
         return Path._exec(target, self[:], Path.tags.fetch, *args, quiet=quiet, **kwargs)
 
+    def exists(self,  target: typing.Any, *args, quiet=False, **kwargs) -> bool:
+        return Path._exec(target, self[:], Path.tags.exists, *args, quiet=quiet, **kwargs)
+
     def update(self, target: typing.Any, *args, quiet=True, **kwargs) -> typing.Any:
         """ 根据路径（self）更新 target 中的元素。
             当路径指向位置为空时，创建（create）元素
@@ -235,15 +238,22 @@ class Path(list):
         """
         return Path._exec(target, self[:], Path.tags.remove, *args,  quiet=quiet,  **kwargs)
 
-    def find(self, target: typing.Any, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+    def find(self, target: typing.Any,   *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         """ 以 iterator 的方式返回 target 中所有匹配路径的元素。
 
             当路径中存在多个适配符时，返回多重 generator，对应多重循环嵌套
         """
-        yield from Path._find(target, self[:], *args, **kwargs)
+        start = None
+        path = self[:]
+        while True:
+            value, start = Path._find_next(target, path, start, *args, **kwargs)
+            if start is None:
+                break
+            yield value
 
-    def traversal(self) -> typing.Generator[typing.List[typing.Any], None, None]:
-        yield from Path._traversal_path(self[:])
+    def find_next(self, target: typing.Any,  start: PathLike, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
+        """  从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
+        return Path._find_next(target, self[:],  start, *args, **kwargs)
 
     # End API
     ###########################################################
@@ -524,82 +534,6 @@ class Path(list):
         return Path._unroll(path, [])
 
     @staticmethod
-    def _traversal(target: typing.Any, path: typing.List[typing.Any]) -> typing.Tuple[typing.Any, int]:
-        """
-        Traversal the target with the path, return the last regular target and the position the first non-regular path.
-        :param target: the target to traversal
-        :param path: the path to traversal
-
-        """
-        pos = -1
-        for idx, p in enumerate(path):
-            if target is None or target is _not_found_:
-                break
-            elif hasattr(target, "__entry__"):
-                break
-            elif isinstance(p, str):
-                if not isinstance(target, collections.abc.Mapping):
-                    tmp = getattr(target, p, _not_found_)
-                    if p is _not_found_:
-                        raise TypeError(f"Cannot get '{path[:idx+1]}' in {pprint.pformat(target)}")
-                    else:
-                        target = tmp
-                        continue
-                elif p not in target:
-                    break
-            elif isinstance(p, int):
-                if isinstance(target, array_type):
-                    target = target[p]
-                    continue
-                elif not isinstance(target, (list, tuple, collections.deque)):
-                    raise TypeError(f"Cannot traversal {p} in {(target)} ")
-                elif p >= len(target):
-                    raise IndexError(f"Index {p} out of range {len(target)}")
-            elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
-                if not isinstance(target, (array_type)):
-                    break
-            else:
-                break
-            target = target[p]
-            pos = idx
-        return target, pos+1
-
-    MAX_SLICE_STOP = 1024
-
-    @staticmethod
-    def _traversal_path(path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[typing.List[typing.Any], None, None]:
-        """
-        traversal all possible path
-        """
-        if len(path) == 0:
-            yield prefix
-            return
-        try:
-            pos = next(idx for idx, item in enumerate(path) if not isinstance(item, (int, str)))
-        except StopIteration:
-            yield path
-            return
-        prefix = prefix+path[:pos]
-        suffix = path[pos+1:]
-        item = path[pos]
-
-        if isinstance(item, (tuple, set)):
-            for k in item:
-                yield from Path._traversal_path(suffix, prefix+[k])
-        elif isinstance(item, collections.abc.Mapping):
-            yield from Path._traversal_path(suffix, prefix+[item])
-        elif isinstance(item, slice):
-            start = item.start if item.start is not None else 0
-            step = item.step if item.step is not None else 1
-            stop = item.stop if item.stop is not None else Path.MAX_SLICE_STOP
-
-            for k in range(start, stop, step):
-                yield from Path._traversal_path(suffix, prefix+[k])
-
-            if stop == Path.MAX_SLICE_STOP:
-                logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
-
-    @staticmethod
     def _find(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target, pos = Path._traversal(target, path)
 
@@ -740,7 +674,7 @@ class Path(list):
         return res
 
     @staticmethod
-    def _exec(target: typing.Any, path: typing.List[typing.Any], op,  *args,   quiet=True, **kwargs) -> typing.Any:
+    def _exec(target: typing.Any, path: typing.List[PathLike], op,  *args,   quiet=True, **kwargs) -> typing.Any:
         if path is None:
             path = []
         length = len(path)
@@ -812,6 +746,10 @@ class Path(list):
         #     return target
 
         res = _op(obj, *args, **kwargs)
+
+    @staticmethod
+    def _find_next(target: typing.Any, path: typing.List[PathLike], start: PathLike, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
+        pass
 
     @staticmethod
     def _apply_op(op: Path.tags | str, target: typing.Any, key: list, *args, **kwargs):
@@ -1288,6 +1226,16 @@ class Path(list):
         else:
             return len(target)
 
+    @staticmethod
+    def _op_exists(target, key, *args, **kwargs) -> bool:
+        if target is _not_found_:
+            return False
+        elif isinstance(target, dict):
+            return key in target
+        elif isinstance(target, collections.abc.Sequence) and isinstance(key, int):
+            return key >= 0 and key < len(target)
+        else:
+            raise NotImplementedError(f"{target} {key}")
 
     # fmt: off
     _op_neg         =np.negative     
@@ -1331,6 +1279,90 @@ class Path(list):
     _op_floor       =np.floor        
     _op_ceil        =np.ceil         
     # fmt: on
+
+    ############################################################
+    # deprecated method
+    @deprecated
+    def traversal(self) -> typing.Generator[PathLike, None, None]:
+        yield from Path._traversal_path(self[:])
+
+    @deprecated
+    @staticmethod
+    def _traversal(target: typing.Any, path: typing.List[typing.Any]) -> typing.Tuple[typing.Any, int]:
+        """
+        Traversal the target with the path, return the last regular target and the position the first non-regular path.
+        :param target: the target to traversal
+        :param path: the path to traversal
+
+        """
+        pos = -1
+        for idx, p in enumerate(path):
+            if target is None or target is _not_found_:
+                break
+            elif hasattr(target, "__entry__"):
+                break
+            elif isinstance(p, str):
+                if not isinstance(target, collections.abc.Mapping):
+                    tmp = getattr(target, p, _not_found_)
+                    if p is _not_found_:
+                        raise TypeError(f"Cannot get '{path[:idx+1]}' in {pprint.pformat(target)}")
+                    else:
+                        target = tmp
+                        continue
+                elif p not in target:
+                    break
+            elif isinstance(p, int):
+                if isinstance(target, array_type):
+                    target = target[p]
+                    continue
+                elif not isinstance(target, (list, tuple, collections.deque)):
+                    raise TypeError(f"Cannot traversal {p} in {(target)} ")
+                elif p >= len(target):
+                    raise IndexError(f"Index {p} out of range {len(target)}")
+            elif isinstance(p, tuple) and all(isinstance(v, (int, slice)) for v in p):
+                if not isinstance(target, (array_type)):
+                    break
+            else:
+                break
+            target = target[p]
+            pos = idx
+        return target, pos+1
+
+    MAX_SLICE_STOP = 1024
+
+    @deprecated
+    @staticmethod
+    def _traversal_path(path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[PathLike, None, None]:
+        """
+        traversal all possible path
+        """
+        if len(path) == 0:
+            yield prefix
+            return
+        try:
+            pos = next(idx for idx, item in enumerate(path) if not isinstance(item, (int, str)))
+        except StopIteration:
+            yield path
+            return
+        prefix = prefix+path[:pos]
+        suffix = path[pos+1:]
+        item = path[pos]
+
+        if isinstance(item, (tuple, set)):
+            for k in item:
+                yield from Path._traversal_path(suffix, prefix+[k])
+        elif isinstance(item, collections.abc.Mapping):
+            yield from Path._traversal_path(suffix, prefix+[item])
+        elif isinstance(item, slice):
+            start = item.start if item.start is not None else 0
+            step = item.step if item.step is not None else 1
+            stop = item.stop if item.stop is not None else Path.MAX_SLICE_STOP
+
+            for k in range(start, stop, step):
+                yield from Path._traversal_path(suffix, prefix+[k])
+
+            if stop == Path.MAX_SLICE_STOP:
+                logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
 
 
 def as_path(path):

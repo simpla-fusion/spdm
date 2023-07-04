@@ -135,10 +135,10 @@ class Entry(Pluggable):
         return self.child(new_path)
 
     def update(self, *args, **kwargs) -> Entry:
-        new_path = self._path.update(self._data,  *args,**kwargs)
+        new_path = self._path.update(self._data,  *args, **kwargs)
         return self.child(new_path)
 
-    def remove(self,*args,**kwargs) -> int: return self._path.remove(self._data,*args,**kwargs)
+    def remove(self, *args, **kwargs) -> int: return self._path.remove(self._data, *args, **kwargs)
 
     def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         """
@@ -157,7 +157,7 @@ class Entry(Pluggable):
         return num if not (num is None or num is _not_found_) else 0
 
     @property
-    def exists(self) -> bool: return self.count > 0
+    def exists(self) -> bool: return self._path.exists(self._data)
 
     def dump(self) -> typing.Any: return serialize(self.query())
 

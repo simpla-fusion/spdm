@@ -3,7 +3,7 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
-from spdm.data.HTree import Dict, HTree, List
+from spdm.data.HTree import Dict, HTree, List, as_value
 from spdm.utils.logger import logger
 
 
@@ -188,12 +188,34 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(d1[2], Foo)
         self.assertEqual(d1[2].v.__value__, data[2])
 
-    def test_get_by_slice(self):
+    def test_iter(self):
+
         data = [1, 2, 3, 4, 5]
 
         d0 = List[int](data)
 
-        self.assertListEqual(d0[:].__value__, data)
+        self.assertListEqual([v for v in d0], data)
+
+    def test_get_by_slice(self):
+
+        data = [1, 2, 3, 4, 5]
+
+        d0 = List[int](data)
+
+        self.assertListEqual([v for v in d0], data)
+
+        self.assertListEqual(as_value(d0[1:4]), data[1:4])
+
+        self.assertEqual(d0[:].__reduce__, sum(data, 0))
+
+    # def test_get_by_iter(self):
+    #     data = [1, 2, 3, 4, 5]
+
+    #     d0 = List[int](data)
+
+    #     d1 = [d for d in d0]
+
+    #     self.assertListEqual(d1, data)
 
     # def test_child_type_convert_list(self):
 

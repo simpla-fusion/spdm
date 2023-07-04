@@ -3,19 +3,23 @@ from __future__ import annotations
 import collections.abc
 import typing
 from copy import copy, deepcopy
+from functools import reduce
 
-import numpy as np
 
+from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
+from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import (ArrayType, PrimaryType, array_type, as_array,
                             get_args, get_origin, isinstance_generic,
                             numeric_type, serialize, type_convert)
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path
 
-_T = typing.TypeVar("_T")
+HNodeLike = None | int | str | bool | ArrayType
 
-HTreeLike = dict | list | int | str | float | bool | np.ndarray | None | Entry
+HTreeLike = Entry | dict | list | HNodeLike
+
+_T = typing.TypeVar("_T")
 
 
 class HTree(typing.Generic[_T]):
@@ -38,20 +42,21 @@ class HTree(typing.Generic[_T]):
         -
     """
 
-    def __init__(self, data: HTreeLike | Entry = None,  cache: typing.Any = None, parent: HTree | None = None, **kwargs) -> None:
+    def __init__(self, data: HTreeLike | Entry = None,  cache: typing.Any = None,
+                 parent: HTree | None = None, key: PathLike = None, **kwargs) -> None:
 
         self._entry = as_entry(data)
         self._cache = cache
         self._parent = parent
+        self._key = key
         self._metadata = kwargs.pop("metadata", {}) | kwargs
-
-        # Path().update(self._metadata, kwargs)
 
     def __copy__(self) -> HTree[_T]:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
         other._entry = copy(self._entry)
-        other._metadata = copy(self._metadata)
         other._parent = self._parent
+        other._key = None
+        other._metadata = copy(self._metadata)
         other._cache = copy(other._cache)
         return other
 
@@ -62,7 +67,10 @@ class HTree(typing.Generic[_T]):
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} />"
 
-    def __array__(self) -> ArrayType: return as_array(self.__value__)
+    @property
+    def __value__(self) -> typing.Any: return self._get_by_query()
+
+    def __array__(self) -> ArrayType: return as_array(self._get_by_query())
 
     def _repr_svg_(self) -> str:
         from ..views.View import display
@@ -80,22 +88,49 @@ class HTree(typing.Generic[_T]):
 
     def __delitem__(self, path) -> int: return self._remove(path)
 
-    def __contains__(self, path) -> bool: return self._query(path, Path.tags.exists) > 0
+    def __contains__(self, key) -> bool: return self._query([key], Path.tags.exists)  # type:ignore
 
-    def __len__(self) -> int: return self._query([], Path.tags.count)
+    def __len__(self) -> int: return self._query([], Path.tags.count)  # type:ignore
 
-    def __iter__(self) -> typing.Generator[typing.Any, None, None]: yield from self._find(slice(None))
+    def __iter__(self) -> typing.Generator[HTree[_T], None, None]:
+        """ 遍历 children """
+        type_hint = self._type_hint()
+        parent = self._parent
+        default_value = self.__metadata__.get("default_vlaue", _not_found_)
+        key: int | None = None
 
-    # def __equal__(self, other) -> bool: return self._entry.__equal__(other) if self._entry is not None else (other is None)
+        while True:
 
-    @property
-    def __value__(self) -> typing.Any: return self._get_by_query(None)
+            value, key = self._find_next(start=key, type_hint=type_hint, parent=parent,
+                                         default_value=default_value)
+
+            if key is None:
+                break
+
+            yield value
+
+    def __next__(self) -> HTree[_T]:
+        """ 遍历 slibings """
+        if self._parent is None:
+            raise StopIteration(f"{self} has no parent!")
+
+        value, key = self._parent._find_next(start=self._key)
+
+        if key is None:
+            raise StopIteration(f"{self} has no next!")
+
+        return value
+
+    def __equal__(self, other) -> bool: return self._query([], Path.tags.equal, other)  # type:ignore
 
     def insert(self, *args, **kwargs): return self._insert([], *args, **kwargs)
 
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
 
-    def get(self, path: Path | PathLike, *args, type_hint=None, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | PrimaryType:
+    def get(self, path: Path | PathLike, *args,
+            type_hint: typing.Type = None,
+            default_value: typing.Any = _not_found_,
+            **kwargs) -> HTree[_T] | _T | PrimaryType:
 
         path = as_path(path)
 
@@ -107,7 +142,10 @@ class HTree(typing.Generic[_T]):
         for idx, p in enumerate(path):
             pos = idx
             if isinstance(obj, HTree):
-                obj = obj._get_by_query(p, default_value=_not_found_)
+                if idx == len(path)-1 and type_hint is not None:
+                    obj = obj._get_by_query(p, type_hint=type_hint, default_value=default_value)
+                else:
+                    obj = obj._get_by_query(p, default_value=_not_found_)
             else:
                 obj = Path(path[idx:]).query(obj, default_value=_not_found_)
                 obj = type_convert(obj, type_hint=type_hint, default_value=default_value, **kwargs)
@@ -126,6 +164,7 @@ class HTree(typing.Generic[_T]):
         return obj
 
     ################################################################################
+    # Private methods
 
     def _type_hint(self, key: PathLike = None) -> typing.Type | None:
         """ 当 key 为 None 时，获取泛型参数，若非泛型类型，返回 None，
@@ -142,10 +181,10 @@ class HTree(typing.Generic[_T]):
             tp_hint = None if len(tp_hint) == 0 else tp_hint[-1]
         return tp_hint
 
-    def _update_cache(self, key: str | int, value: typing.Any = _not_found_,
+    def _update_cache(self, key: PathLike, value: typing.Any = _not_found_,
                       type_hint=None,
                       default_value: typing.Any = _not_found_,
-                      parent=None, **kwargs) -> _T | HTree[_T] | PrimaryType:
+                      parent=None,  **kwargs) -> HTree[_T]:
 
         if self._cache is None and value is _not_found_:
             return _not_found_
@@ -162,17 +201,20 @@ class HTree(typing.Generic[_T]):
         if value is _not_found_:
             pass
         elif not isinstance_generic(value, type_hint):
-            value = type_convert(value, type_hint=type_hint, parent=parent, default_value=default_value,  **kwargs)
+            value = type_convert(value, type_hint=type_hint,
+                                 default_value=default_value,
+                                 parent=parent, key=key, **kwargs)
             self._cache[key] = value
 
         return value
 
-    def _get_by_query(self, query: PathLike, type_hint=None, **kwargs) -> HTree[_T] | _T | PrimaryType:
+    def _get_by_query(self, query: PathLike = None, type_hint=None, **kwargs) -> HTree[_T]:
         """ 获取子节点  """
 
         value = _not_found_
 
-        if query is None and (self._cache is None or self._cache is not _not_found_):
+        if query is None and (self._cache is None or self._cache is _not_found_):  # get value from self._entry and update cache
+
             value = self._entry.get(default_value=_not_found_)
 
             default_value = deepcopy(self._metadata.get("default_value", _not_found_))
@@ -184,11 +226,18 @@ class HTree(typing.Generic[_T]):
             if value is not _not_found_:
                 self._cache = value
 
-        elif query is None:
+        elif query is None:  # return self._cache
             value = self._cache
+
+        elif query is Path.tags.current:
+            value = self
 
         elif query is Path.tags.parent:
             value = self._parent
+
+        elif query is Path.tags.next:
+            raise NotImplementedError(f"TODO: operator 'next'!")
+            # value = self._parent.next(self)
 
         elif query is Path.tags.root:
             value = self._root
@@ -212,19 +261,14 @@ class HTree(typing.Generic[_T]):
             value = self._get_by_index(query, type_hint=type_hint, **kwargs)
 
         elif isinstance(query, set):
-            value = {k: self._get_by_name(k, type_hint=type_hint, **kwargs) for k in query}
+            value = NamedDictProxy(cache={k: self._get_by_name(k, type_hint=type_hint, **kwargs) for k in query})
 
-        else:
-            value = QueryResult[_T](self._entry,
-                                    query=query,
-                                    type_hint=type_hint or self._type_hint(),
-                                    cache=self._cache,
-                                    metadata=self._metadata,
-                                    parent=self._parent)
+        else:  # as query return QueryResult
+            value = QueryResult(self, query, type_hint=type_hint, parent=self._parent)
 
         return value  # type:ignore
 
-    def _get_by_name(self, key: str,  default_value=_not_found_, type_hint=None, getter=None, **kwargs) -> _T | HTree[_T] | PrimaryType:
+    def _get_by_name(self, key: str,  default_value=_not_found_, type_hint=None, getter=None, **kwargs) -> HTree[_T]:
 
         if type_hint is None:
             type_hint = self._type_hint(key) or HTree[_T]
@@ -248,9 +292,15 @@ class HTree(typing.Generic[_T]):
         if value is _not_found_ and isinstance(self._entry, Entry):
             value = self._entry.child(key)
 
-        return self._update_cache(key, value, type_hint=type_hint, default_value=default_value, parent=self, **kwargs)
+        if value is not _not_found_ and not isinstance(value, HTree):
+            value = self._update_cache(key,  value,
+                                       type_hint=type_hint,
+                                       default_value=default_value,
+                                       parent=self,  **kwargs)
 
-    def _get_by_index(self, key: int,  default_value=_not_found_, type_hint=None, **kwargs) -> _T | HTree[_T] | PrimaryType:
+        return value
+
+    def _get_by_index(self, key: int,  default_value=_not_found_, type_hint=None, **kwargs) -> HTree[_T]:
 
         if type_hint is None:
             type_hint = self._type_hint() or HTree[_T]
@@ -261,18 +311,18 @@ class HTree(typing.Generic[_T]):
         if key < 0 and self._entry is not None:
             key += self._entry.count
 
-        value = self._update_cache(key,  type_hint=type_hint, default_value=default_value,
+        value = self._update_cache(key,  type_hint=type_hint,
+                                   default_value=default_value,
                                    parent=self._parent, **kwargs)
 
-        if value is not _not_found_:
-            return value
+        if value is _not_found_ and isinstance(self._entry, Entry):
+            value = self._update_cache(key, self._entry.child(key),
+                                       type_hint=type_hint,
+                                       default_value=default_value,
+                                       parent=self._parent, **kwargs)
+        return value
 
-        if isinstance(self._entry, Entry):
-            value = self._entry.child(key)
-
-        return self._update_cache(key, value, type_hint=type_hint, default_value=default_value, parent=self._parent, **kwargs)
-
-    def _query(self,  path: PathLike,   *args,  **kwargs) -> typing.Any:
+    def _query(self,  path: PathLike,   *args,  **kwargs) -> HTree[_T] | PrimaryType:
         return self._entry.child(path).query(*args, **kwargs)
         path = as_path(path)
 
@@ -302,7 +352,7 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _insert(self, path: PathLike,   *args, **kwargs) -> _T | HTree[_T] | PrimaryType:
+    def _insert(self, path: PathLike,   *args, **kwargs) -> HTree[_T]:
         # try:
         #     new_path = Path().insert(self._cache, *args, quiet=False, **kwargs)
         #     res = self[new_path]
@@ -310,7 +360,7 @@ class HTree(typing.Generic[_T]):
         self._entry.child(path).insert(*args, quiet=True,  **kwargs)
         return self
 
-    def _update(self, path: PathLike,  *args, **kwargs) -> _T | HTree[_T] | PrimaryType:
+    def _update(self, path: PathLike,  *args, **kwargs) -> HTree[_T]:
         # try:
         #     Path().update(self._cache, *args, quiet=False, **kwargs)
         # except KeyError:
@@ -328,161 +378,70 @@ class HTree(typing.Generic[_T]):
             p = p._parent
         return p
 
-    def _find(self, query, *args, **kwargs) -> typing.Generator[HTree, None, None]:
-        entry = self._entry.child(query) if query is not None else self._entry
-
-        for p, v in entry.find():
-            yield self.as_child_deep(p, v, *args, **kwargs)
-
-    def _as_child(self, key: PathLike,
-                  value: typing.Any = _not_found_,
-                  default_value: typing.Any = _undefined_,
-                  type_hint: typing.Type = _not_found_,
-                  parent: HTree = None, **kwargs) -> HTree[_T] | _T:
-        """ 获取子节点   """
-        _default_value = self._metadata.get("default_value", _not_found_)
-        if parent is None:
-            parent = self
-
-        if isinstance(key, set):
-            return DictProxy[_T]({k: self.as_child(k, default_value=default_value, parent=parent, type_hint=type_hint, **kwargs) for k in key})
-
-        elif isinstance(key, (slice, dict)):
-            return QueryResult[_T](self._entry.child(key), default_value=default_value, parent=parent, type_hint=type_hint, **kwargs)
-
-        elif isinstance(key, tuple):
-            raise NotImplementedError(f"tuple {key}")
-            # return ListProxy([self.as_child(k, default_value=default_value,   parent=parent, type_hint=type_hint, **kwargs) for k in key])
-
-        elif isinstance(key, str):
-            if value is _not_found_ or value is None:
-                value = self._entry.child(key)
-
-            if type_hint is None or type_hint is _not_found_:
-                type_hint = self.__type_hint__(key)
-
-            if default_value is None or default_value is _not_found_:
-                if isinstance(_default_value, collections.abc.Mapping):
-                    default_value = _default_value.get(key, _not_found_)
-                else:
-                    default_value = _default_value
-
+    def _find_next(self, query: PathLike = None, start: PathLike = None, *args, **kwargs) -> typing.Tuple[HTree[_T], PathLike]:
+        if query is None:
+            return self._find_by_slice(slice(None), start=start, *args, **kwargs)
+        elif isinstance(query, slice):
+            return self._find_by_slice(query, start=start, *args, **kwargs)
+        elif isinstance(query, dict):
+            return self._find_by_query(query, start=start, *args, **kwargs)
         else:
-            type_hint = self.__type_hint__()
+            raise NotImplementedError(f"TODO: _find {query}!")
 
-            default_value = _default_value
+    def _find_by_query(self, query: PathLike = None, start: PathLike = None, *args, **kwargs) -> typing.Tuple[HTree[_T], int]:
+        raise NotImplementedError(f"TODO: _find_by_query {query}!")
+        type_convert(value, type_hint=type_hint, parent=parent)
 
-            if (value is _not_found_ or value is None) and (key is not None and key is not _not_found_):
-                value = self._entry.child(key)
+    def _find_by_slice(self, s: slice, start: int | None = None, *args,  **kwargs) -> typing.Tuple[HTree[_T], int | None]:
 
-    def _as_child_deep(self, path:  PathLike | Path | None = None, value=None,
+        if start is None:
+            start = s.start or 0
+        elif s.start is not None and start < s.start:
+            raise IndexError(f"Out of range: {start} < {s.start}!")
 
-                       default_value: typing.Any = _not_found_, **kwargs) -> HTree:
-        """
-            将 value 转换为 Node
-            ----
-            Parameters:
-                - obj: 任意类型的数据
-                - type_hint: 将obj转换到目标类型
-                - path: child在obj中的路径
-                - default_value: 默认值
-                - kwargs: 其他参数
-            若 obj 为 Node，调用 obj.get(path, **kwargs)
-            当 type_hint 为 None 时，将 obj 转换为 entry
-            当 type_hint 不为 None 时，根据 path 获得 obj 的子节点（as entry）， 根据 path 从 type_hint 中获取子类型，
-        """
+        stop = s.stop
 
-        path = Path(path)
+        step = s.step or 1
 
-        if len(path) == 0:
-            return self
+        if stop is not None and start >= stop:
+            return None, None
 
-        parent = self._parent
+        value = _not_found_
 
-        obj = self
+        if isinstance(self._cache, dict):
+            value = self._cache.get(start, _not_found_)
 
-        for idx, key in enumerate(path[:]):
+        if value is _not_found_:
+            value = self._entry.child(start)
+            if not value.exists:
+                start = None
+                value = None
 
-            if obj is None or obj is _not_found_:
-                break
-            elif not isinstance(obj, HTree):
-                obj = as_entry(obj).child(path[idx:])
-                if isinstance(parent, HTree):
-                    obj = parent.as_child(key, obj, default_value=default_value, **kwargs)
-                else:
-                    obj = HTree(obj,  default_value=default_value, **kwargs)
+        if value is not _not_found_ and start is not None:
+            value = self._update_cache(start, value, *args,   **kwargs)
+            start += step
 
-            if key == Path.tags.root:
-                obj = obj._root
-                parent = None
-                continue
-            elif key is Path.tags.parent:
-                obj = obj._parent
-                parent = None
-                continue
-            # elif key == "*":
-            #     key = slice(None)
+        return value, start
 
-            parent = obj
 
-            if idx < len(path)-1:
-                obj = obj.as_child(key, **kwargs)
-            else:
-                obj = obj.as_child(key, value, default_value=default_value, **kwargs)
-        # else:
-        #     # obj = default_value
-        #     logger.debug(f"Canot find {path[:idx]} {idx} in {self}")
-        # if obj is _not_found_ or obj is None:
-        #     obj = default_value
-
+def as_htree(obj, *args, **kwargs):
+    if isinstance(obj, HTree):
         return obj
+    else:
+        return HTree(obj, *args, **kwargs)
 
-        #    return value
-        # if type_hint is None or type_hint is _not_found_:
-        #     # 当 type_hint 为 None 时，，尽可能返回 raw value
-        #     if isinstance(value, Entry):  # 若 value 为 entry，获得其 __value__
-        #         value = value.__value__
-        #     elif value is None or value is _not_found_:  # 若为 None，零七位 default_value
-        #         value = default_value
 
-        #     if isinstance(value, primary_type):  # 若 value 为 primary_type, 直接返回
-        #         return value
-        #     else:  # 否则转换为 Node
-        #         return Node(value, default_value=default_value, **kwargs)
-
-        # def get_child_by_key(obj: Node, path: list, type_hint=None, default_value=_not_found_, parent=None, **kwargs) -> Node:
-
-        #     path = Path(path)
-
-        #     if not isinstance(obj, Node):
-        #         return as_node(as_entry(obj, path=path), type_hint=type_hint,
-        #                        defalut_value=default_value, parent=parent, **kwargs)
-
-        # def _validate(self, value, type_hint) -> bool:
-        #     if value is _undefined_ or type_hint is _undefined_:
-        #         return False
-        #     else:
-        #         v_orig_class = getattr(value, "__orig_class__", value.__class__)
-
-        #         if inspect.isclass(type_hint) and inspect.isclass(v_orig_class) and issubclass(v_orig_class, type_hint):
-        #             res = True
-        #         elif typing.get_origin(type_hint) is not None \
-        #                 and typing.get_origin(v_orig_class) is typing.get_origin(type_hint) \
-        #                 and typing.get_args(v_orig_class) == typing.get_args(type_hint):
-        #             res = True
-        #         else:
-        #             res = False
-        #     return res
-
-        # def _as_child(self, key: str, value=_not_found_,  *args, **kwargs) -> Node:
-        #     raise NotImplementedError("as_child")
+def as_value(obj: typing.Any) -> HTreeLike:
+    if hasattr(obj, "__value__"):
+        return obj.__value__
+    else:
+        return obj
 
 
 Node = HTree
 
 
 class Container(HTree[_T]):
-
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
 
 
@@ -494,6 +453,97 @@ class List(Container[_T]):
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
 
 
+class NamedDictProxy(HTree[_T]):
+    def __getattr__(self, name: str) -> typing.Any: return self._get_by_query(name)
+
+
+class QueryResult:
+    """ Handle the result of query    """
+
+    def __init__(self, target: HTree, query: PathLike,  *args, suffix: PathLike | Path = None,
+                 reducer: typing.Callable[..., HTreeLike] | None = None,
+                 **kwargs) -> None:
+        # super().__init__(*args, **kwargs)
+        self._query_cmd = query
+        self._suffix = as_path(suffix)
+        self._target = as_htree(target)
+        self._reducer = reducer if reducer is not None else QueryResult._default_reducer
+
+    def __copy__(self) -> QueryResult:
+        other = QueryResult(self._target, self._query_cmd, suffix=self._suffix, reducer=self._reducer)
+        return other
+
+    def __getattr__(self, name: str) -> typing.Any: return self._lazy_get(name)
+
+    def __getitem__(self, path: PathLike) -> typing.Any: return self._lazy_get(path)
+
+    def _lazy_get(self, path) -> QueryResult:
+        new_path = copy(self._suffix)
+        new_path.append(path)
+        return QueryResult(self._target, new_path)
+
+    def __setitem__(self, path: PathLike, value):
+        raise NotImplementedError(f"TODO: setitem {path} {value}")
+
+    # def __setattr__(self, path: PathLike, value):
+    #     raise NotImplementedError(f"TODO: setitem {path} {value}")
+
+    def __contain__(self, value):
+        raise NotImplementedError(f"TODO: __contain__ {value}")
+
+    def __len__(self, value):
+        raise NotImplementedError(f"TODO: __len__ {value}")
+
+    def __iter__(self, value) -> typing.Generator[HTreeLike, None, None]:
+        raise NotImplementedError(f"TODO: __iter__ {value}")
+
+    def _foreach(self) -> typing.Generator[HTreeLike | HTree, None, None]:
+        type_hint = self._target._type_hint()
+        default_value = self._target.__metadata__.get("default_value", _not_found_)
+        parent = self._target._parent
+        start = None
+
+        while True:
+            value, start = self._target._find_next(self._query_cmd, start=start,
+                                                   type_hint=type_hint, parent=parent,
+                                                   default_value=default_value)
+            if start is None:
+                break
+
+            elif len(self._suffix) == 0:
+                pass
+
+            elif isinstance(value, HTree):
+                value = value[self._suffix]
+
+            else:
+                value = self._suffix.query(value, default_value=_not_found_)
+
+            yield value
+
+    @property
+    def __value__(self) -> typing.List[HTreeLike]: return [as_value(v) for v in self._foreach() if v is not _not_found_]
+
+    @property
+    def __reduce__(self) -> HTreeLike: return reduce(self._reducer, self.__value__)
+
+    @staticmethod
+    def _default_reducer(first: HTreeLike, second: HTreeLike) -> HTreeLike:
+
+        if first is _not_found_:
+            return second
+        elif second is _not_found_ or second is None:
+            return second
+        elif isinstance(first, (str)):
+            return first
+        elif isinstance(first, array_type) and isinstance(second, array_type):
+            return first+second
+        elif isinstance(first, (dict, list)) or isinstance(second, (dict, list)):
+            return merge_tree_recursive(first, second)
+        else:
+            return first+second
+
+
 class AoS(List[_T]):
     """
         Array of structure
@@ -501,109 +551,10 @@ class AoS(List[_T]):
 
     def __init__(self, *args, identifier: str | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._unique_id_name = id if id is not _undefined_ else "$id"
-        self._cache = {}
+        self._identifier = identifier if identifier is not None else self.__metadata__.get("identifier", "id")
 
-    def combine(self, *args, default_value=None) -> _T:
+    def _get_by_query(self, query: PathLike = None,  *args, **kwargs) -> HTree[_T]:
+        if isinstance(query, (str, set)):
+            query = {f"@{self._identifier}": query}
 
-        d_list = []
-
-        default_value = deep_reduce(default_value, self._default_value)
-
-        if default_value is not None and len(default_value) > 0:
-            d_list.append(self._default_value)
-
-        if len(args) > 0:
-            d_list.extend(args)
-
-        if self._cache is not None and len(self._cache) > 0:
-            raise NotImplementedError(f"NOT IMPLEMENTET YET! {self._cache}")
-            # d_list.append(as_entry(self._cache).child(slice(None)))
-
-        if self._entry is not None:
-            d_list.append(self._entry.child(slice(None)))
-
-        type_hint = self.__type_hint__()
-        return type_hint(CombineEntry({}, *d_list), parent=self._parent)
-
-    def unique_by_id(self, id: str = "$id") -> List[_T]:
-        """ 当 element 为 dict时，将具有相同 key=id的element 合并（deep_reduce)
-        """
-        res = {}
-        for d in self.find():
-            if not isinstance(d, collections.abc.Mapping):
-                raise TypeError(f"{type(d)}")
-            key = d.get(id, None)
-            res[key] = deep_reduce(res.get(key, None), d)
-
-        return self.__class__([*res.values()], parent=self)
-
-    def as_child(self, key:  int | slice,  value=None, parent=_not_found_, **kwargs) -> _T:
-        parent = self._parent if parent is _not_found_ or parent is None else parent
-        if isinstance(key, int) and key < 0:
-            key = len(self)+key
-
-        # if not isinstance(key, int):
-        #     raise NotImplementedError(f"key must be int, not {type(key)}")
-        if (value is None or value is _not_found_) and isinstance(key, int):
-            value = self._cache.get(key, _not_found_)
-
-        if (value is None or value is _not_found_):
-            value = self._entry.child(key)
-
-        value = super().as_child(key, value, parent=parent, **kwargs)
-
-        if isinstance(key, int) and value is not _not_found_:
-            self._cache[key] = value
-
-        return value
-
-
-class DictProxy(HTree[_T]):
-
-    def __getitem__(self, path: PathLike) -> typing.Any:
-        return Path(path).query(self)
-
-    def __getattr__(self, name: str) -> typing.Any:
-        return super().__getitem__(name)
-
-
-class QueryResult(HTree[_T]):
-    def __init__(self, *args, query=None, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self._query = query
-
-    def __getitem__(self, path: PathLike) -> typing.Any: return self._get_by_query(Path(path))
-
-    def __getattr__(self, name: str) -> typing.Any: return self._get_by_query(Path([name]))
-    # default_value = self._default_value.get(name, None) if self._default_value is not None else None
-    # return ListProxy([(getattr(obj, name, None) if not isinstance(obj, Node) else obj.get(name, default_value=default_value)) for obj in self])
-
-    def _get_by_query(self, path: Path, default_value=_not_found_, **kwargs) -> typing.Any:
-        path = as_path(path)
-        if len(path) == 0:
-            return self
-        elif isinstance(path[0], dict):
-            return self._get_by_query(path[1:])
-        else:
-            # default_value = path.query(self._default_value)
-            return QueryResult([(Path(path).query(obj, default_value=default_value) if not isinstance(obj, HTree) else obj.get(path, default_value=default_value)) for obj in self])
-
-    @property
-    def __value__(self): return [getattr(obj, "__value__", obj) for obj in self]
-
-    def __reduce__(self, op=None) -> typing.Any:
-        res = [obj for obj in self if obj is not None]
-        if len(res) == 0:
-            return None
-        elif len(res) == 1:
-            return res[0]
-
-        elif op is not None:
-            return op(res)
-
-        elif isinstance(res[0], np.ndarray):
-            return np.sum(res)
-
-        else:
-            return res[0]
+        return super()._get_by_query(query,  *args,  **kwargs)
