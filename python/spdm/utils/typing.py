@@ -129,6 +129,13 @@ def as_namedtuple(d: dict, name=""):
     return collections.namedtuple(name, d.keys())(d.values())
 
 
+def as_value(obj: typing.Any) -> HTreeLike:
+    if hasattr(obj, "__value__"):
+        return obj.__value__
+    else:
+        return obj
+
+
 def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
     if d is None and len(kwargs) > 0:
         d = kwargs
@@ -222,8 +229,7 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
         type_hint 可以是 typing.GenericAlias 或者 typing.Type
     """
     if type_hint is None:
-        logger.warning(f"type_hint is None")
-        return True
+        raise RuntimeError(f"type_hint is None")
 
     orig_class = typing.get_origin(type_hint)
 
@@ -252,7 +258,6 @@ def type_convert(value: typing.Any, type_hint: typing.Type,  **kwargs) -> typing
     if not inspect.isclass(origin_class):
         if hasattr(value, "__value__"):
             value = value.__value__
-
         return value
 
     elif isinstance(value, origin_class):
@@ -265,7 +270,7 @@ def type_convert(value: typing.Any, type_hint: typing.Type,  **kwargs) -> typing
         value = value.__value__
 
     if value is None or value is _not_found_:
-        value = kwargs.get("default_value", value)
+        value = kwargs.pop("default_value", value)
 
     if isinstance(value, origin_class):
         pass

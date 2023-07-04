@@ -123,12 +123,6 @@ def normalize_data(data):
         return str(data)
 
 
-###############################################################################
-# decperecated functions
-#
-# 下列function皆已经“废弃”，主要功能已经合并进 Path 和 HTree 两个类
-
-@deprecated
 def tree_apply_recursive(obj, op, types=None):
     """Apply op to all elements in a tree-like structure
 
@@ -177,6 +171,12 @@ def tree_apply_recursive(obj, op, types=None):
     obj = data
 
     return obj, changed
+
+
+###############################################################################
+# decperecated functions
+#
+# 下列function皆已经“废弃”，主要功能已经合并进 Path 和 HTree 两个类
 
 
 @deprecated

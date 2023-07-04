@@ -11,15 +11,8 @@ from types import SimpleNamespace
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
-from ..utils.typing import (array_type, as_array, is_scalar, HTreeLike)
+from ..utils.typing import (array_type, as_array, is_scalar, HTreeLike, as_value)
 from .Path import Path, as_path, PathLike
-
-
-def as_value(obj: typing.Any) -> HTreeLike:
-    if hasattr(obj, "__value__"):
-        return obj.__value__
-    else:
-        return obj
 
 
 _T = typing.TypeVar("_T")
@@ -117,7 +110,7 @@ class Entry(Pluggable):
         start = self._path[-1]
 
         value, idx = self.parent.find_next(start=start)
-        
+
         if isinstance(value, Entry):
             value = value.__value__
 
@@ -158,13 +151,13 @@ class Entry(Pluggable):
     ###########################################################
     # API: CRUD  operation
 
-    def query(self, *args, **kwargs) -> typing.Any:
+    def query(self, op=None, *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
-        """
-        return self._path.query(self._data, *args, **kwargs)
+        """      
+        return self._path.query(self._data, op, *args, **kwargs)
 
     def insert(self, *args, **kwargs) -> Entry:
         new_path = self._path.insert(self._data, *args, **kwargs)

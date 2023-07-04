@@ -16,6 +16,7 @@ from spdm.data.File import File
 from spdm.utils.tree_utils import format_string_recursive
 from spdm.utils.misc import normalize_path, serialize
 from spdm.utils.logger import logger
+from spdm.data.Path import Path
 _TPath = typing.TypeVar("_TPath")
 
 
@@ -112,8 +113,8 @@ class XMLEntry(Entry):
         res = "."
         prev = None
         for p in path:
-            if type(p) is int:
-                res += f"[(position()= {p+1} and @id ) or (@id={p+1}) or @id='*']"
+            if isinstance(p, int):
+                res += f"[(position()= {p+1} and @id ) or (@id={p}) or @id='*']"
                 envs[prev] = p
             # # elif isinstance(p, slice):
             # #     if p == slice(None):
@@ -139,11 +140,11 @@ class XMLEntry(Entry):
         p, e = self._xpath(path)
         return _XPath(p), e
 
-    def _convert(self, element: _XMLElement, path=[], lazy=True, envs=None, only_one=False, **kwargs):
+    def _convert(self, element: _XMLElement, path=[], lazy=True, envs=None, only_one=False, default_value: typing.Any = _not_found_, **kwargs):
         if not isinstance(element, list):
             pass
         elif len(element) == 0:
-            return None
+            return default_value
         elif not isinstance(path[-1], slice) and ((len(element) == 1) or only_one):
             return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
         else:
@@ -222,44 +223,58 @@ class XMLEntry(Entry):
 
     def remove(self,  *args, **kwargs): return super().remove(*args, **kwargs)
 
-    def query(self, *args, default_value: typing.Any = _undefined_,  lazy=_undefined_, **kwargs):
+    def query(self, op=None, *args, **kwargs):
 
-        res = super().query(default_value=_not_found_)
+        # res = super().query(op, *args, default_value=_not_found_, quiet=True)
 
-        if res is not _not_found_:
-            return res
+        # if res is not _not_found_:
+        #     return res
 
         path = self._path[:]
         xp, envs = self.xpath(path)
 
         obj = xp.evaluate(self._data)
 
-        if lazy is _undefined_:
-            lazy = default_value is _undefined_
-
-        res = self._convert(obj, path=path, lazy=lazy, envs=envs, **kwargs)
-
-        if res is not _not_found_:
-            pass
-        elif default_value is not _undefined_:
-            res = default_value
+        if op is Path.tags.exists:
+            return len(obj) > 0
+        elif op is Path.tags.count:
+            return len(obj)
         else:
-            raise RuntimeError(path)
+            target = self._convert(obj, path=path,   envs=envs, **kwargs)
+            return Path._apply_op(target, op or Path.tags.fetch, [], *args)
 
-        return res
+    def find_next(self,  *args, start=None, default_value=None, projection=None, **kwargs):
+        if len(self._path) == 0:
+            raise RuntimeError("Can not find next element from root!")
+        elif isinstance(self._path[-1], slice):
+            start = self._path[-1].start or start or 0
+            stop = self._path[-1].stop
+            step = self._path[-1].step or 1
 
-    def _find(self,  path, *args, only_one=False, default_value=None, projection=None, **kwargs):
-        if not only_one:
-            res = PathTraverser(path).apply(lambda p: self.find(
-                p, only_one=True, default_value=_not_found_, projection=projection))
+            path = self._path[:-1] + [start]
+
+        elif isinstance(self._path[-1], dict):
+            raise NotImplementedError(f"Can not find next element from dict!")
+
         else:
-            path = self._prefix+normalize_path(path)
-            xp, envs = self.xpath(path)
-            res = self._convert(xp.evaluate(self._data), lazy=True, path=path, envs=envs, projection=projection)
+            if start is None or start is _not_found_:
+                start = 0
+            path = self._path[:] + [start]
+            stop = None
+            step = 1
 
-        if res is _not_found_:
-            res = default_value
-        return res
+        if stop is not None and start >= stop:
+            raise StopIteration(f"{start}>{stop}")
+
+        xp, envs = self.xpath(path)
+        data = xp.evaluate(self._data)
+        if len(data) == 0:
+            raise StopIteration(f"Can not find next element from {path}")
+        elif len(data) == 1:
+            res = self._convert(data[0], lazy=True, path=path, envs=envs, projection=projection)
+            return res, start+step
+        else:
+            raise RuntimeError(f"Invalid path {path}")
 
     def _get_value(self,  path: typing.Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 

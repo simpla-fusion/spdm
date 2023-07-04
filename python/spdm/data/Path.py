@@ -636,11 +636,14 @@ class Path(list):
             res = obj.__entry__.child(path[idx:]).query(*args, **kwargs)
         else:
             try:
-                res = Path._apply_op(op, obj, path[idx:],  *args, **kwargs)
+                res = Path._apply_op(obj, op, path[idx:],  *args, **kwargs)
             except StopIteration as error:
                 raise error
             except Exception as error:
-                raise RuntimeError(f"Error: path={path[:idx+1]}") from error
+                if not quiet:
+                    raise RuntimeError(f"Error: path={path[:idx+1]}") from error
+                else:
+                    res = _not_found_
 
         return res
         # if isinstance(op, Path.tags):
@@ -679,7 +682,7 @@ class Path(list):
         res = _op(obj, *args, **kwargs)
 
     @staticmethod
-    def _apply_op(op: Path.tags | str, target: typing.Any, key: list, *args, **kwargs):
+    def _apply_op(target: typing.Any, op: Path.tags | str,  key: list, *args, **kwargs):
 
         if isinstance(op, Path.tags):
             op = op.name
@@ -744,7 +747,7 @@ class Path(list):
             # res = all([Path._op_fetch(target, *kv, *args, **kwargs) for kv in key.items()])
 
         elif isinstance(key, Path.tags):
-            res = Path._apply_op(key, target, [], *args, **kwargs)
+            res = Path._apply_op(target, key, [], *args, **kwargs)
 
         else:
             raise NotImplementedError(f"Not implemented query! '{key}'")
@@ -1172,8 +1175,11 @@ class Path(list):
             target = Path._op_fetch(target, key, default_value=_not_found_)
             key = slice(None)
 
+        if target is _not_found_:
+            return _not_found_, None
+
         if not isinstance(target, collections.abc.Sequence):
-            raise TypeError(type(target))
+            raise TypeError((target))
 
         if isinstance(key, slice):
             if start is None or start is _not_found_:

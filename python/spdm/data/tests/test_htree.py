@@ -3,7 +3,8 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
-from spdm.data.HTree import Dict, HTree, List, as_value
+from spdm.utils.typing import as_value
+from spdm.data.HTree import Dict, HTree, List
 from spdm.utils.logger import logger
 
 
