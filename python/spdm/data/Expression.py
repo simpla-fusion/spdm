@@ -147,11 +147,16 @@ class Expression:
         else:
             return True
 
+    def _compile(self, force=False) -> ExprOp | typing.Callable | None:
+        if not callable(self._op):
+            raise RuntimeError(f"Expression {self} is not callable!")
+        return self._op
+
     def _eval(self, op, *xargs, **kwargs):
         """ Evaluate expression """
 
         if op is None:
-            op = self._op
+            op = self._compile()
 
         if isinstance(op, numeric_type) or op is None:  # Constant value
             return op

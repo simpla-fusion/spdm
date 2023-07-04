@@ -62,9 +62,9 @@ class Function(ExprNode[_T]):
         for idx in range(len(dims)):
             if isinstance(periods, collections.abc.Sequence) \
                     and periods[idx] is not None \
-                    and not np.isclose(dims[idx][1]-dims[idx][0], periods[idx]):
+                    and not np.isclose(dims[idx][-1]-dims[idx][0], periods[idx]):
                 raise RuntimeError(
-                    f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][1]}] ")
+                    f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] ")
             if not np.all(dims[idx][1:] > dims[idx][:-1]):
                 raise RuntimeError(
                     f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
@@ -147,7 +147,8 @@ class Function(ExprNode[_T]):
             return meshgrid(*self.dims, indexing="ij")
 
     def __domain__(self, *args) -> bool:
-        if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0 or self._metadata.get("extrapolate", 0) != 1:
+        # or self._metadata.get("extrapolate", 0) != 1:
+        if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0:
             return True
 
         if len(args) != len(self.dims):
@@ -224,7 +225,7 @@ class Function(ExprNode[_T]):
 
         return self._ppoly
 
-    def __call__(self, *args, **kwargs) -> _T | PrimaryType:
+    def __call__(self, *args, **kwargs) -> typing.Any:
         if is_array(self._value) and len(args) == 1 and self._dims is not None and args[0] is self._dims[0]:
             return self._value
         else:

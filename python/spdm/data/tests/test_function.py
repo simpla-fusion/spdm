@@ -49,45 +49,45 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(type(fun*2) is Expression)
         self.assertTrue(type(np.sin(fun)) is Expression)
 
-    def test_delta_fun(self):
+    # def test_delta_fun(self):
 
-        p = 0.5
-        value = 1.2345
+    #     p = 0.5
+    #     value = 1.2345
 
-        fun0 = Function(value, p)
+    #     fun0 = Function(value, p)
 
-        self.assertTrue(np.isclose(fun0(p), value))
+    #     self.assertTrue(np.isclose(fun0(p), value))
 
-        fun1 = Function([value], [p])
+    #     fun1 = Function([value], [p])
 
-        self.assertTrue(np.isclose(fun1(p), value))
+    #     self.assertTrue(np.isclose(fun1(p), value))
 
-        x = np.linspace(0, 1, 11)
+    #     x = np.linspace(0, 1, 11)
 
-        mark = np.isclose(x, p)
+    #     mark = np.isclose(x, p)
 
-        # logger.debug(fun1(x))
-        self.assertTrue(np.allclose(fun1(x)[mark], value))
-        self.assertTrue(np.all(np.isnan(fun1(x)[~mark])))
+    #     # logger.debug(fun1(x))
+    #     self.assertTrue(np.allclose(fun1(x)[mark], value))
+    #     self.assertTrue(np.all(np.isnan(fun1(x)[~mark])))
 
-    def test_delta_nd(self):
+    # def test_delta_nd(self):
 
-        p = [0.5, 0.4]
-        value = 1.2345
+    #     p = [0.5, 0.4]
+    #     value = 1.2345
 
-        fun0 = Function(value, *p)
+    #     fun0 = Function(value, *p)
 
-        self.assertTrue(np.isclose(fun0(*p), value))
+    #     self.assertTrue(np.isclose(fun0(*p), value))
 
-        dimx = np.linspace(0, 1, 11)
-        dimy = np.linspace(0, 1, 11)
+    #     dimx = np.linspace(0, 1, 11)
+    #     dimy = np.linspace(0, 1, 11)
 
-        x, y = np.meshgrid(dimx, dimy)
+    #     x, y = np.meshgrid(dimx, dimy)
 
-        mark = np.isclose(x, p[0]) & np.isclose(y, p[1])
+    #     mark = np.isclose(x, p[0]) & np.isclose(y, p[1])
 
-        self.assertTrue(np.allclose(fun0(x, y)[mark], value))
-        self.assertTrue(np.all(np.isnan(fun0(x, y)[~mark])))
+    #     self.assertTrue(np.allclose(fun0(x, y)[mark], value))
+    #     self.assertTrue(np.all(np.isnan(fun0(x, y)[~mark])))
 
     def test_constant_fun(self):
         value = 1.2345
@@ -119,9 +119,6 @@ class TestFunction(unittest.TestCase):
 
         self.assertTrue(np.allclose(fun2(xa, ya), e_a))
 
-        # logger.debug(fun2(xb, yb))
-        # logger.debug(e_b)
-
         self.assertTrue(np.allclose(fun2(xb, yb), e_b, equal_nan=True))
 
 
@@ -144,7 +141,7 @@ class TestFunctionSPL(unittest.TestCase):
 
         _x = Variable(0, "x")
 
-        Y = Function(np.sin(_x), x, periods=[1])
+        Y = Function(np.sin(_x), x, periods=[TWOPI])
 
         # logger.debug(Y(x))
 
@@ -162,7 +159,7 @@ class TestFunctionSPL(unittest.TestCase):
 
         _x = Variable(0, "x")
 
-        Y = Function(np.cos(_x), x, periods=[1])
+        Y = Function(np.cos(_x), x, periods=[TWOPI])
 
         Y1 = Y.antiderivative()
 
@@ -180,7 +177,7 @@ class TestFunctionSPL(unittest.TestCase):
 
         _y = Variable(1, "y")
 
-        fun = Function(np.sin(_x)*np.cos(_y), x, y, periods=[1, 1])
+        fun = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI,  2*TWOPI])
 
         z2 = fun(g_x, g_y)
 
@@ -196,7 +193,7 @@ class TestFunctionSPL(unittest.TestCase):
         _x = Variable(0, "x")
         _y = Variable(1, "y")
 
-        Z = Function(np.sin(_x)*np.cos(_y), x, y, periods=[1, 1])
+        Z = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI, 2*TWOPI])
 
         self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
 

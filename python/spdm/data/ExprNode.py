@@ -53,7 +53,7 @@ class ExprNode(Expression, HTree[_T]):
         self._ppoly = None
 
     @property
-    def __name__(self) -> str: return self.__metadata__.get("name","unnamed")
+    def __name__(self) -> str: return self.__metadata__.get("name", "unnamed")
 
     @property
     def __label__(self) -> str:
@@ -87,12 +87,15 @@ class ExprNode(Expression, HTree[_T]):
                 raise RuntimeError(f"Cannot refresh {self} 'op'={self._op} with {value}")
         else:
             self._value = self._normalize_value(value)
+
         return self._value
 
     @property
-    def __value__(self) -> typing.Any: return self._refresh()
+    def __value__(self) -> typing.Any:
+        self._refresh()
+        return self._value
 
-    def __array__(self, *args,  **kwargs) -> array_type:
+    def __array__(self, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
@@ -107,20 +110,6 @@ class ExprNode(Expression, HTree[_T]):
             # value = []
 
         return self._normalize_value(value, *args,  **kwargs)
-
-    def _eval(self, op, *args, **kwargs) -> ArrayLike:
-        """ 重载 Expression._eval """
-        if op is not None:
-            pass
-        elif self._ppoly is not None:
-            op = self._ppoly
-        elif self._op is None:
-            op = self._refresh()
-
-        if self._op is None:
-            op = self._compile()
-
-        return super()._eval(op, *args, **kwargs)
 
     @staticmethod
     def _normalize_value(value: ArrayLike, *args, **kwargs) -> ArrayLike:

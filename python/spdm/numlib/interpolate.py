@@ -83,6 +83,8 @@ class RectInterpolate(ExprOp):
 
     def derivative(self, n=1) -> ExprOp:
         fname = f"d_{n}({self.__str__()})"
+        if isinstance(n, collections.abc.Sequence) and len(n) == 1:
+            n = n[0]
         return ExprOp(self.__op__.derivative(n), name=fname, **self._opts)
 
     def partial_derivative(self, *d) -> ExprOp:
