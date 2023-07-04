@@ -247,7 +247,9 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
 
 
 def type_convert(value: typing.Any, type_hint: typing.Type,  **kwargs) -> typing.Any:
-    if value is _not_found_ or isinstance_generic(value, type_hint):
+    if value is _not_found_:
+        raise RuntimeError(f"value is _not_found_")
+    elif type_hint is None or isinstance_generic(value, type_hint):
         return value
 
     origin_class = get_origin(type_hint)
@@ -263,11 +265,11 @@ def type_convert(value: typing.Any, type_hint: typing.Type,  **kwargs) -> typing
     elif isinstance(value, origin_class):
         return value
 
-    elif origin_class not in primary_type:
-        return type_hint(value, **kwargs)
+    # elif origin_class not in primary_type:
+    # #     return type_hint(value, **kwargs)
 
-    if hasattr(value, "__value__"):
-        value = value.__value__
+    # if hasattr(value, "__value__"):
+    #     value = value.__value__
 
     if value is None or value is _not_found_:
         value = kwargs.pop("default_value", value)
@@ -282,21 +284,29 @@ def type_convert(value: typing.Any, type_hint: typing.Type,  **kwargs) -> typing
         value = as_array(value)
 
     elif type_hint in primary_type:
-        value = type_hint(value)
+        if hasattr(value, "__value__"):
+            value = value.__value__
+        if value is _not_found_:
+            value = kwargs.pop("default_value", _not_found_)
+        if value is not _not_found_:
+            value = type_hint(value)
 
     elif dataclasses.is_dataclass(type_hint):
         value = as_dataclass(type_hint, value)
 
-    elif issubclass(type_hint, Enum):
+    elif issubclass(origin_class, Enum):
+        if hasattr(value, "__value__"):
+            value = value.__value__
         if isinstance(value, collections.abc.Mapping):
             value = type_hint[value["name"]]
         elif isinstance(value, str):
             value = type_hint[value]
         else:
             raise TypeError(f"Can not convert {value} to {type_hint}")
-
+    elif callable(type_hint):
+        value = type_hint(value, **kwargs)
     else:
-        raise TypeError(f"Can not convert {value} to {type_hint}")
+        raise TypeError(f"Can not convert {type(value)} to {type_hint}")
 
     return value
 

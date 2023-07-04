@@ -128,6 +128,7 @@ class HTree(typing.Generic[_T]):
             default_value: typing.Any = _undefined_,
             *args,
             type_hint: typing.Type = None,
+            force=False,
             **kwargs) -> HTree[_T] | _T | PrimaryType:
 
         path = as_path(path)
@@ -157,6 +158,9 @@ class HTree(typing.Generic[_T]):
         #
         if obj is _not_found_:
             obj = default_value
+
+        if isinstance(obj, HTree) and force:
+            obj = obj.__value__
 
         if obj is _undefined_:
             raise KeyError(f"{path[:pos+1]} not found")
@@ -189,7 +193,7 @@ class HTree(typing.Generic[_T]):
         if value is _not_found_:
             value = self._cache.get(key, _not_found_)
 
-        if type_hint is not None and not isinstance_generic(value, type_hint):
+        if value is not _not_found_ and type_hint is not None and not isinstance_generic(value, type_hint):
             value = type_convert(value, type_hint=type_hint,   key=key, **kwargs)
 
         if value is not _not_found_:
