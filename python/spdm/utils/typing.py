@@ -106,10 +106,15 @@ def as_scalar(d: typing.Any) -> ScalarType:
     return complex(d) if is_complex(d) else float(d)
 
 
-def as_array(d: typing.Any, **kwargs) -> array_type:
-    if hasattr(d.__class__, '__value__'):
-        d = d.__value__
-    return np.asarray(d, **kwargs)
+def as_array(d: typing.Any, **kwargs) -> ArrayType:
+    if isinstance(d, array_type):
+        return d
+    elif hasattr(d, '__array__'):
+        return d.__array__()
+    elif hasattr(d.__class__, '__value__'):
+        return np.asarray(d.__value__, **kwargs)
+    else:
+        return np.asarray(d, **kwargs)
 
 
 def as_dataclass(cls, value):
@@ -246,14 +251,17 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
         return False
 
 
-def type_convert(value: typing.Any, type_hint: typing.Type,  default_value=_not_found_, **kwargs) -> typing.Any:
+def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typing.Any:
     if value is _not_found_:
         raise RuntimeError(f"value is _not_found_")
     elif type_hint is None or isinstance_generic(value, type_hint):
         return value
 
-    if not inspect.isclass(type_hint) or not issubclass(type_hint, (Enum, *primary_type)):
-        return type_hint(value, default_value=default_value, **kwargs)
+    if (not inspect.isclass(type_hint) or not issubclass(type_hint, (Enum, *primary_type)))\
+            and not dataclasses.is_dataclass(type_hint):
+        return type_hint(value, **kwargs)
+
+    default_value = kwargs.pop("default_value", _not_found_)
 
     if hasattr(value, "__value__"):
         value = value.__value__

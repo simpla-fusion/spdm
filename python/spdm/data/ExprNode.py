@@ -45,18 +45,15 @@ class ExprNode(Expression, HTree[_T]):
         else:
             expr = None
 
-        name = kwargs.pop("name", None) or kwargs.get("metadata", {}).get("name", None)
-
-        Expression.__init__(self, expr, *args, name=name)
-
         HTree.__init__(self, value, **kwargs)
 
-        self._value = None
+        Expression.__init__(self, expr, *args)
 
+        self._value = None
         self._ppoly = None
 
     @property
-    def name(self) -> str: return self._name
+    def __name__(self) -> str: return self.__metadata__.get("name","unnamed")
 
     @property
     def __label__(self) -> str:
@@ -78,10 +75,10 @@ class ExprNode(Expression, HTree[_T]):
         return other
 
     def _refresh(self):
-        if self._value is not None or self._op is not None:
-            return
+        if self._value is not None:
+            return self._value
         value = super().__value__
-        if value is None and value is _not_found_:
+        if value is None or value is _not_found_:
             self._value = None
         elif isinstance(value, Expression) or callable(value) or isinstance(value, ExprOp):
             if self._op is None:
@@ -90,12 +87,10 @@ class ExprNode(Expression, HTree[_T]):
                 raise RuntimeError(f"Cannot refresh {self} 'op'={self._op} with {value}")
         else:
             self._value = self._normalize_value(value)
+        return self._value
 
     @property
-    def __value__(self) -> typing.Any:
-        if self._value is None:
-            self._refresh()
-        return self._value
+    def __value__(self) -> typing.Any: return self._refresh()
 
     def __array__(self, *args,  **kwargs) -> array_type:
         """ 重载 numpy 的 __array__ 运算符

@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import collections.abc
 import functools
-import inspect
 import typing
 from copy import copy
-from enum import Enum
 
 import numpy as np
 
@@ -14,9 +12,8 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.numeric import bitwise_and, is_close, meshgrid
 from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayLike, ArrayType, NumericType, array_type,
-                            as_array, is_array, is_scalar, numeric_type,
-                            scalar_type)
+from ..utils.typing import (ArrayLike, ArrayType, NumericType, PrimaryType,
+                            array_type, as_array, is_array, is_scalar)
 from .Expression import Expression
 from .ExprNode import ExprNode
 from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
@@ -38,7 +35,7 @@ class Function(ExprNode[_T]):
 
     """
 
-    def __init__(self, value: ArrayLike | Expression | ExprOp | None, *dims: typing.Any, periods=None, **kwargs):
+    def __init__(self, value: ArrayLike | Expression | ExprOp | None, *dims: typing.Any, periods: typing.List[float] = None, **kwargs):
         """
             Parameters
             ----------
@@ -69,7 +66,8 @@ class Function(ExprNode[_T]):
                 raise RuntimeError(
                     f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][1]}] ")
             if not np.all(dims[idx][1:] > dims[idx][:-1]):
-                raise RuntimeError(f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
+                raise RuntimeError(
+                    f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """
@@ -226,8 +224,8 @@ class Function(ExprNode[_T]):
 
         return self._ppoly
 
-    def __call__(self, *args, **kwargs) -> _T:
-        if is_array(self._value) and len(args) == 1 and args[0] is self._dims[0]:
+    def __call__(self, *args, **kwargs) -> _T | PrimaryType:
+        if is_array(self._value) and len(args) == 1 and self._dims is not None and args[0] is self._dims[0]:
             return self._value
         else:
             return super().__call__(*args, **kwargs)

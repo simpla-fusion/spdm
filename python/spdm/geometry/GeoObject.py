@@ -181,7 +181,7 @@ class GeoObject(Pluggable):
 _TG = typing.TypeVar("_TG")
 
 
-class GeoObjectSet(List[GeoObject]):
+class GeoObjectSet(list[GeoObject]):
 
     def __init__(self,  *args, **kwargs) -> None:
         super().__init__(*args)
@@ -196,8 +196,9 @@ class GeoObjectSet(List[GeoObject]):
                 ndim = ndim_list[0]
             else:
                 raise RuntimeError(f"Can not get ndim from {ndim_list}")
-
-        GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
+        self._rank = rank
+        self._ndim = ndim
+        # GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
 
     def __svg__(self) -> str:
         return f"<g id='{self.name}'>\n" + "\t\n".join([g.__svg__() for g in self if isinstance(g, GeoObject)]) + "</g>"

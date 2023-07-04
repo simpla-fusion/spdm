@@ -105,7 +105,7 @@ class HTree(typing.Generic[_T]):
         while True:
 
             value, key = self._find_next(start=key, type_hint=type_hint, parent=parent,
-                                         default_value=self._default_value)
+                                         default_value=self._default_value)          # type:ignore
 
             if key is None:
                 break
@@ -200,7 +200,7 @@ class HTree(typing.Generic[_T]):
             value = self._cache.get(key, _not_found_)
 
         if value is not _not_found_ and type_hint is not None and not isinstance_generic(value, type_hint):
-            value = type_convert(value, type_hint=type_hint,   key=key, **kwargs)
+            value = type_convert(value, type_hint=type_hint, **kwargs)
 
         if value is not _not_found_:
             self._cache[key] = value

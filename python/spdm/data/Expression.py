@@ -164,7 +164,7 @@ class Expression:
                 if callable(child):
                     value = child(*xargs, **kwargs)
                 elif hasattr(child, "__value__"):
-                    value = child.__value__()
+                    value = child.__value__
                 elif hasattr(child, "__array__"):
                     value = child.__array__()
                 else:
