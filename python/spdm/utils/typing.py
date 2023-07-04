@@ -240,13 +240,16 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
 
     if inspect.isclass(type_hint) and orig_class is None:
         return isinstance(obj, type_hint)
-
-    if not isinstance(obj, orig_class):
+    elif inspect.isclass(type_hint) and obj.__class__ == type_hint:
+        return True
+    elif not isinstance(obj, orig_class):
         return False
     elif getattr(obj, "__orig_class__", obj.__class__) == type_hint:
         return True
-    elif type_hint in getattr(obj, "__orig_bases__", []):
+    elif not hasattr(obj, "__orig_class__") :
         return True
+    elif type_hint in getattr(obj, "__orig_bases__", []):
+        return True 
     else:
         return False
 

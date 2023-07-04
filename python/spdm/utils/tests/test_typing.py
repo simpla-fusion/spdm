@@ -77,6 +77,9 @@ class TestTyping(unittest.TestCase):
         self.assertFalse(isinstance_generic(foo, Foo[float]))
         self.assertFalse(isinstance_generic(foo, dict))
 
+        goo=Foo()
+        self.assertTrue(isinstance_generic(goo, Foo))
+        self.assertTrue(isinstance_generic(goo, Foo[float]))
 
 if __name__ == '__main__':
     unittest.main()

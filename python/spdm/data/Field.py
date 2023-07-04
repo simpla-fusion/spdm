@@ -194,4 +194,4 @@ class Field(ExprNode[_T]):
 
     def pd(self, *d) -> Field[_T]: return self.partial_derivative(*d)
 
-    def dln(self) -> Expression[_T]: return self.derivative() / self
+    def dln(self) -> Expression: return self.derivative() / self

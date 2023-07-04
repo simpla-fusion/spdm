@@ -58,6 +58,7 @@ class Function(ExprNode[_T]):
         super().__init__(value, **kwargs)
         self._dims = [as_array(v) for v in dims] if len(dims) > 0 else None
         self._periods = periods
+        self._ppoly = None
 
         for idx in range(len(dims)):
             if isinstance(periods, collections.abc.Sequence) \

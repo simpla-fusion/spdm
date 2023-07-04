@@ -45,12 +45,15 @@ class ExprNode(Expression, HTree[_T]):
         else:
             expr = None
 
-        HTree.__init__(self, value, **kwargs)
-
         Expression.__init__(self, expr, *args)
 
-        self._value = None
-        self._ppoly = None
+        if not isinstance(value, array_type):
+            HTree.__init__(self, value, **kwargs)
+            self._value = None
+        else:
+            HTree.__init__(self, **kwargs)
+            self._value = value
+
 
     @property
     def __name__(self) -> str: return self.__metadata__.get("name", "unnamed")

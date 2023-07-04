@@ -277,11 +277,11 @@ class HTree(typing.Generic[_T]):
         else:
             value = _not_found_
 
-        if value is _not_found_ and getter is not None:
-            value = getter(self)
-
         if value is _not_found_ and isinstance(self._entry, Entry):
             value = self._entry.child(key)
+
+            if getter is not None and not value.exists:
+                value = getter(self)
 
             if type_hint is None:
                 type_hint = HTree[_T]
@@ -386,7 +386,7 @@ class HTree(typing.Generic[_T]):
         elif isinstance(query, dict):
             return self._find_by_query(query, start=start, *args, **kwargs)
         else:
-            raise NotImplementedError(f"TODO: _find {query}!")
+            raise NotImplementedError(f"TODO: _find {type(query)}!")
 
     def _find_by_query(self, query: PathLike = None, start: PathLike = None, *args, **kwargs) -> typing.Tuple[_T, PathLike]:
         raise NotImplementedError(f"TODO: _find_by_query {query}!")
