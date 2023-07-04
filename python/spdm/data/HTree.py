@@ -46,6 +46,11 @@ class HTree(typing.Generic[_T]):
         self._cache = cache
         self._parent = parent
         self._key = key
+        self._default_value = kwargs.pop("default_value", _not_found_)
+        if isinstance(data, dict):
+            self._default_value = merge_tree_recursive(data.pop("$default_value", _not_found_),
+                                                       self._default_value)
+
         self._metadata = kwargs.pop("metadata", {}) | kwargs
 
     def __copy__(self) -> HTree[_T]:
@@ -54,6 +59,7 @@ class HTree(typing.Generic[_T]):
         other._parent = self._parent
         other._key = None
         other._metadata = copy(self._metadata)
+        other._default_value = copy(self._default_value)
         other._cache = copy(other._cache)
         return other
 
@@ -93,13 +99,13 @@ class HTree(typing.Generic[_T]):
         """ 遍历 children """
         type_hint = self._type_hint()
         parent = self._parent
-        default_value = self.__metadata__.get("default_vlaue", _not_found_)
+
         key: PathLike = None
 
         while True:
 
             value, key = self._find_next(start=key, type_hint=type_hint, parent=parent,
-                                         default_value=default_value)
+                                         default_value=self._default_value)
 
             if key is None:
                 break
@@ -125,7 +131,7 @@ class HTree(typing.Generic[_T]):
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
 
     def get(self, path: Path | PathLike,
-            default_value: typing.Any = _undefined_,
+            default_value: typing.Any = _not_found_,
             *args,
             type_hint: typing.Type = None,
             force=False,
@@ -136,7 +142,7 @@ class HTree(typing.Generic[_T]):
         if len(path) == 0:
             return self
 
-        if type_hint is None and default_value not in (_undefined_, _not_found_):
+        if type_hint is None and default_value is not _not_found_:
             type_hint = type(default_value)
 
         obj = self
@@ -210,11 +216,8 @@ class HTree(typing.Generic[_T]):
 
             value = self._entry.get(default_value=_not_found_)
 
-            default_value = deepcopy(self._metadata.get("default_value", _not_found_))
-
-            if isinstance(default_value, dict) and len(default_value) > 0:
-                Path().update(default_value, value)
-                value = default_value
+            if isinstance(self._default_value, dict) and len(self._default_value) > 0:
+                value = merge_tree_recursive(self._default_value, value)
 
             if value is not _not_found_:
                 self._cache = value
@@ -266,20 +269,15 @@ class HTree(typing.Generic[_T]):
         if type_hint is None:
             type_hint = self._type_hint(key)
 
-        if default_value is _not_found_:
-            default_value = self._metadata.get("default_value", _not_found_)
-            if isinstance(default_value, dict):
-                default_value = default_value.get(key, _not_found_)
+        if default_value is _not_found_ and isinstance(self._default_value, dict):
+            default_value = self._default_value.get(key, _not_found_)
 
-        value = self._update_cache(key,  type_hint=type_hint,
-                                   default_value=default_value,
-                                   parent=self,
-                                   **kwargs)
+        if self._cache is not None:
+            value = self._cache.get(key, _not_found_)
+        else:
+            value = _not_found_
 
-        if value is not _not_found_:
-            return value
-
-        if getter is not None:
+        if value is _not_found_ and getter is not None:
             value = getter(self)
 
         if value is _not_found_ and isinstance(self._entry, Entry):
@@ -301,20 +299,27 @@ class HTree(typing.Generic[_T]):
             type_hint = self._type_hint() or HTree[_T]
 
         if default_value is _not_found_:
-            default_value = self._metadata.get("default_value", {})
+            default_value = self._default_value
 
         if key < 0 and self._entry is not None:
             key += self._entry.count
 
-        value = self._update_cache(key,  type_hint=type_hint,
-                                   default_value=default_value,
-                                   parent=self._parent, **kwargs)
+        if self._cache is not None:
+            value = self._cache.get(key, _not_found_)
+        else:
+            value = _not_found_
+
+        # value = self._update_cache(key,  type_hint=type_hint,
+        #                            default_value=default_value,
+        #                            parent=self._parent, **kwargs)
 
         if value is _not_found_ and isinstance(self._entry, Entry):
-            value = self._update_cache(key, self._entry.child(key),
-                                       type_hint=type_hint,
-                                       default_value=default_value,
-                                       parent=self._parent, **kwargs)
+            value = self._entry.child(key)
+
+        value = self._update_cache(key, value,
+                                   type_hint=type_hint,
+                                   default_value=default_value,
+                                   parent=self._parent, **kwargs)
         return value
 
     def _query(self,  path: PathLike,   *args,  **kwargs) -> HTree[_T] | PrimaryType:
@@ -487,7 +492,7 @@ class QueryResult:
 
     def _foreach(self) -> typing.Generator[HTreeLike | HTree, None, None]:
         type_hint = self._target._type_hint()
-        default_value = self._target.__metadata__.get("default_value", _not_found_)
+        default_value = self._target._default_value
         parent = self._target._parent
         start = None
 

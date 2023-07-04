@@ -65,15 +65,15 @@ _T = typing.TypeVar("_T")
 class SpDict(Dict[_T]):
     """  支持 sp_property 的 Dict  """
 
-    def __init__(self, d: HTreeLike = None,   default_value=_not_found_, cache=None,  **kwargs) -> None:
-        if isinstance(d, collections.abc.Mapping) and "$default_value" in d:
-            default_value_, d = group_dict_by_prefix(d, "$default_value")
-        else:
-            default_value_ = {}
-        if isinstance(default_value, collections.abc.Mapping):
-            default_value_.update(default_value)
+    # def __init__(self, d: HTreeLike = None,   default_value=_not_found_, cache=None,  **kwargs) -> None:
+    #     if isinstance(d, collections.abc.Mapping) and "$default_value" in d:
+    #         default_value_, d = group_dict_by_prefix(d, "$default_value")
+    #     else:
+    #         default_value_ = {}
+    #     if isinstance(default_value, collections.abc.Mapping):
+    #         default_value_.update(default_value)
 
-        super().__init__(d, default_value=default_value_, cache=cache or {}, ** kwargs)
+    #     super().__init__(d, default_value=default_value_, cache=cache or {}, ** kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
         value = self._get_by_query(key, *args, **kwargs)
