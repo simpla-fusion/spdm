@@ -9,11 +9,18 @@ from copy import copy
 from types import SimpleNamespace
 
 from ..utils.logger import logger
-from ..utils.misc import group_dict_by_prefix, serialize
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
-from ..utils.typing import (array_type, as_array, is_scalar)
+from ..utils.typing import (array_type, as_array, is_scalar, HTreeLike)
 from .Path import Path, as_path, PathLike
+
+
+def as_value(obj: typing.Any) -> HTreeLike:
+    if hasattr(obj, "__value__"):
+        return obj.__value__
+    else:
+        return obj
+
 
 _T = typing.TypeVar("_T")
 
@@ -24,7 +31,7 @@ class Entry(Pluggable):
 
     def __init__(self, data:  typing.Any = None, path: Path | None = None, *args,  **kwargs):
         if self.__class__ is Entry:
-            entry_type,  kwargs = group_dict_by_prefix(kwargs,  "entry_type")
+            entry_type = kwargs.pop("entry_type", None)
 
             if entry_type is not None:
                 super().__dispatch__init__([f"spdm.plugins.data.Plugin{entry_type}#{entry_type}Entry"],
@@ -40,16 +47,12 @@ class Entry(Pluggable):
         obj._path = copy(self._path)
         return obj
 
-    def reset(self, value=None) -> Entry:
+    def reset(self, value=None, path=None) -> Entry:
         self._data = value
-        self._path.clear()
+        self._path = as_path(path)
         return self
 
-    def __str__(self) -> str:
-        if self._data is None or self._data is _not_found_:
-            return "N/A"
-        else:
-            return f"<{self.__class__.__name__} path={self._path} />{type(self._data)}</{self.__class__.__name__}>"
+    def __str__(self) -> str: return f"<{self.__class__.__name__} path=\"{self._path}\" />"
 
     @property
     def __entry__(self) -> Entry: return self
@@ -95,16 +98,41 @@ class Entry(Pluggable):
         other._path.append(path, *args, **kwargs)
         return other
 
-    @property
-    def children(self) -> typing.Generator[typing.Any, None, None]:
-        yield from self.child(slice(None)).find()
+    def __iter__(self) -> typing.Generator[Entry, None, None]:
+        """ Iterate over the children of the Entry."""
+        start = None
+        while True:
+            try:
+                value, start = self.find_next(start=start)
+            except StopIteration:
+                break
+            else:
+                yield value
 
-    def get(self, *args, default_value: typing.Any = _not_found_, **kwargs) -> typing.Any:
+    def __next__(self) -> Entry:
+        """ Iterate over the slibings of the Entry."""
+        if len(self._path) == 0 or not isinstance(self._path[-1], int):
+            raise NotImplementedError(f"Can not iterate over {self._path}")
+
+        start = self._path[-1]
+
+        value, idx = self.parent.find_next(start=start)
+        
+        if isinstance(value, Entry):
+            value = value.__value__
+
+        self._path[-1] = idx
+
+        return value
+
+    def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
         value = self.child(*args, **kwargs).__value__
         if value is _not_found_:
             value = default_value
-        if value is _not_found_:
+
+        if value is Ellipsis:
             raise KeyError(f"Can not find {args} in {self}")
+
         return value
 
     def __getitem__(self, *args) -> Entry: return self.child(*args)
@@ -117,7 +145,15 @@ class Entry(Pluggable):
         if isinstance(other, Entry):
             return other._data == self._data and other._path == self._path
         else:
-            return self.query({Path.tags.equal: other})
+            return self.query(Path.tags.equal, other)
+
+    @property
+    def count(self) -> int: return self.query(Path.tags.count)
+
+    @property
+    def exists(self) -> bool: return self.query(Path.tags.exists)
+
+    def dump(self) -> typing.Any: return self.query(Path.tags.dump)
 
     ###########################################################
     # API: CRUD  operation
@@ -138,34 +174,18 @@ class Entry(Pluggable):
         new_path = self._path.update(self._data,  *args, **kwargs)
         return self.child(new_path)
 
-    def remove(self, *args, **kwargs) -> int: return self._path.remove(self._data, *args, **kwargs)
-
-    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+    def find_next(self,  start: PathLike = None, *args, **kwargs) -> typing.Tuple[Entry, PathLike]:
         """
         Find the value from the cache.
         Return a generator of the results.
         Could be overridden by subclasses.
         """
-        if self._data is not None and self._data is not _not_found_:
-            yield from self._path.find(self._data, *args, **kwargs)
+        value, start = self._path.find_next(self._data, start=start, *args, **kwargs)
+        return as_entry(value), start
+
+    def remove(self, *args, **kwargs) -> int: return self._path.remove(self._data, *args, **kwargs)
 
     ###########################################################
-
-    @property
-    def count(self) -> int:
-        num = self.query(Path.tags.count)
-        return num if not (num is None or num is _not_found_) else 0
-
-    @property
-    def exists(self) -> bool: return self._path.exists(self._data)
-
-    def dump(self) -> typing.Any: return serialize(self.query())
-
-    def dump_named(self) -> typing.Any:
-        res = self.dump()
-        if isinstance(res, collections.abc.Mapping):
-            return SimpleNamespace(**res)
-        return res
 
 
 def as_entry(obj, *args, **kwargs) -> Entry:

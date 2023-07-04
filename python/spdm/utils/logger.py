@@ -95,8 +95,7 @@ def deprecated(func):
         def wrapped(*args, __fun__=func, ** kwargs):
 
             if inspect.isfunction(func):
-                logger.warning(
-                    f"Deprecated function '{__fun__.__qualname__}' !")
+                logger.warning(f"Deprecated function '{__fun__.__file__}.{__fun__.__qualname__}' !")
                 raise DeprecationWarning(__fun__.__qualname__)
             else:
                 logger.warning(f"Deprecated object {__fun__}")

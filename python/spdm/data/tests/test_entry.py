@@ -3,7 +3,7 @@ from copy import deepcopy
 
 from spdm.utils.logger import logger
 from spdm.utils.tags import _not_found_
-from spdm.data.Entry import Entry
+from spdm.data.Entry import Entry, as_value
 
 
 class TestEntry(unittest.TestCase):
@@ -47,7 +47,7 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(cache["e"]["g"],   6)
 
-    def test_operator(self):
+    def test_exists(self):
         d = Entry(self.data)
 
         self.assertTrue(d.exists)
@@ -56,11 +56,34 @@ class TestEntry(unittest.TestCase):
         self.assertFalse(d.child("b/h").exists)
         self.assertFalse(d.child("f/g").exists)
 
+    def test_count(self):
+        d = Entry(self.data)
+
         self.assertEqual(d.count,          3)
         self.assertEqual(d.child("a").count,   6)
         self.assertEqual(d.child("d").count,   2)
 
         # self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
+
+    def test_next(self):
+        data = [1, 2, 3, 4, 5]
+
+        d = Entry(data)
+        d0 = d[0]
+
+        self.assertEqual(next(d0), data[0])
+        self.assertEqual(next(d0), data[1])
+        self.assertEqual(next(d0), data[2])
+        self.assertEqual(next(d0), data[3])
+        self.assertEqual(next(d0), data[4])
+        self.assertRaises(StopIteration, next, d0)
+
+    def test_iter(self):
+        data = [1, 2, 3, 4, 5]
+
+        d0 = Entry(data)
+
+        self.assertListEqual([as_value(v) for v in d0], data)
 
     def test_insert(self):
         cache = deepcopy(self.data)

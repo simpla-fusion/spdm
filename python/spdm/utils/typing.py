@@ -48,6 +48,10 @@ _T = typing.TypeVar("_T")
 HTContainer = _T | typing.Sequence[_T]
 """Hierarchical Container Type  """
 
+HNodeLike = None | int | str | bool | ArrayType
+
+HTreeLike = dict | list | HNodeLike
+
 
 @dataclass
 class Vector2:

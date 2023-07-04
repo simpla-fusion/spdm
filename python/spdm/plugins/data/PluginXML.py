@@ -42,10 +42,10 @@ def merge_xml(first, second):
             first.append(child)
 
 
-def load_xml(path, *args,  mode="r", **kwargs):
+def load_xml(path: str | list | pathlib.Path, *args,  mode: File.Mode | str = "r", **kwargs):
     # TODO: add handler non-local request ,like http://a.b.c.d/babalal.xml
 
-    if type(path) is list:
+    if isinstance(path, list):
         root = None
         for fp in path:
             if root is None:
@@ -53,7 +53,8 @@ def load_xml(path, *args,  mode="r", **kwargs):
             else:
                 merge_xml(root, load_xml(fp, mode=mode))
         return root
-    elif isinstance(path, str):
+
+    if isinstance(path, str):
         path = pathlib.Path(path)
 
     root = None
@@ -82,7 +83,7 @@ def load_xml(path, *args,  mode="r", **kwargs):
 
 @Entry.register("xml")
 class XMLEntry(Entry):
-    def __init__(self, data, *args, envs={}, **kwargs):
+    def __init__(self, data: _XMLElement | str, *args, envs={}, **kwargs):
         super().__init__({}, *args, **kwargs)
 
         if not isinstance(data, str):
@@ -91,7 +92,9 @@ class XMLEntry(Entry):
             data = load_xml(data)
         else:
             data = fromstring(data)
-        self._data = data
+
+        self._data: _XMLElement = data
+
         self._envs = envs
 
     def __repr__(self) -> str:
@@ -99,7 +102,7 @@ class XMLEntry(Entry):
         return f"<{self._data.tag}  path=\"{self._path}\" />"
 
     def __copy__(self) -> Entry:
-        other = super().__copy__()
+        other: XMLEntry = super().__copy__()  # type:ignore
         other._envs = self._envs
         other._data = self._data
         return other
@@ -307,11 +310,9 @@ class XMLEntry(Entry):
                 yield res
 
     @ property
-    def attribute(self):
-        return self._data.attrib
+    def attribute(self): return self._data.attrib
 
-    def __serialize__(self):
-        return serialize(self.query(default_value=_not_found_))
+    def __serialize__(self): return serialize(self.query(default_value=_not_found_))
 
 
 class XMLFile(File):

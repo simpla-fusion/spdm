@@ -11,13 +11,10 @@ from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import (ArrayType, PrimaryType, array_type, as_array,
                             get_args, get_origin, isinstance_generic,
-                            numeric_type, serialize, type_convert)
+                            numeric_type, serialize, type_convert, HTreeLike, HNodeLike)
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path
 
-HNodeLike = None | int | str | bool | ArrayType
-
-HTreeLike = Entry | dict | list | HNodeLike
 
 _T = typing.TypeVar("_T")
 
@@ -392,7 +389,7 @@ class HTree(typing.Generic[_T]):
         raise NotImplementedError(f"TODO: _find_by_query {query}!")
         type_convert(value, type_hint=type_hint, parent=parent)
 
-    def _find_by_slice(self, s: slice, start: int | None = None, *args,  **kwargs) -> typing.Tuple[HTree[_T], int | None]:
+    def _find_by_slice(self, s: slice, start: PathLike = None, *args,  **kwargs) -> typing.Tuple[HTree[_T], int | None]:
 
         if start is None:
             start = s.start or 0
@@ -429,13 +426,6 @@ def as_htree(obj, *args, **kwargs):
         return obj
     else:
         return HTree(obj, *args, **kwargs)
-
-
-def as_value(obj: typing.Any) -> HTreeLike:
-    if hasattr(obj, "__value__"):
-        return obj.__value__
-    else:
-        return obj
 
 
 Node = HTree

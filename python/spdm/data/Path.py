@@ -11,9 +11,11 @@ from enum import Flag, auto
 import numpy as np
 
 from ..utils.logger import deprecated, experimental, logger
+from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.typing import array_type
 from ..utils.tree_utils import merge_tree_recursive
+from ..utils.typing import array_type
+
 
 # fmt:off
 class PathOpTags(Flag):
@@ -30,8 +32,11 @@ class PathOpTags(Flag):
     remove  = auto()    # DELETE
     exists  = auto()
 
+    dump   = auto()     # rescurive get all data
+
     # for sequence
     reduce  = auto()
+
     sort    = auto()
 
     # predicate 谓词
@@ -193,16 +198,15 @@ class Path(list):
     ###########################################################
     # RESTful API:
 
-    def query(self,  target: typing.Any, *args, quiet=False, **kwargs) -> typing.Any:
+    def query(self,  target: typing.Any, op: typing.Optional[Path.tags] = None, *args, quiet=False, **kwargs) -> typing.Any:
         """ 根据路径（self）查询元素。
             只读，不会修改 target
 
             对应 RESTful 中的 read， 幂等操作
         """
-        return Path._exec(target, self[:], Path.tags.fetch, *args, quiet=quiet, **kwargs)
-
-    def exists(self,  target: typing.Any, *args, quiet=False, **kwargs) -> bool:
-        return Path._exec(target, self[:], Path.tags.exists, *args, quiet=quiet, **kwargs)
+        if op is None:
+            op = Path.tags.fetch
+        return Path._exec(target, self[:], op, *args, quiet=quiet, **kwargs)
 
     def update(self, target: typing.Any, *args, quiet=True, **kwargs) -> typing.Any:
         """ 根据路径（self）更新 target 中的元素。
@@ -238,22 +242,9 @@ class Path(list):
         """
         return Path._exec(target, self[:], Path.tags.remove, *args,  quiet=quiet,  **kwargs)
 
-    def find(self, target: typing.Any,   *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        """ 以 iterator 的方式返回 target 中所有匹配路径的元素。
-
-            当路径中存在多个适配符时，返回多重 generator，对应多重循环嵌套
-        """
-        start = None
-        path = self[:]
-        while True:
-            value, start = Path._find_next(target, path, start, *args, **kwargs)
-            if start is None:
-                break
-            yield value
-
     def find_next(self, target: typing.Any,  start: PathLike, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
         """  从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
-        return Path._find_next(target, self[:],  start, *args, **kwargs)
+        return Path._exec(target, self[:], Path.tags.next, start, *args, **kwargs)
 
     # End API
     ###########################################################
@@ -534,70 +525,6 @@ class Path(list):
         return Path._unroll(path, [])
 
     @staticmethod
-    def _find(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        target, pos = Path._traversal(target, path)
-
-        def concate_path(p, others: list):
-            if not isinstance(p, list):
-                return [p]+others
-            else:
-                return p+others
-        if target is None:
-            return
-        elif len(path) == pos:
-            yield target  # target is the last node
-        elif hasattr(target.__class__, "_as_child"):
-            yield from Path._find(target._as_child(path[pos]), path[pos+1:], *args, **kwargs)
-        elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
-            yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
-        elif isinstance(path[pos], str):
-            yield from Path._find(target.get(path[pos]), path[pos+1:], **kwargs)
-
-            # raise TypeError(f"{path[pos]}")
-        elif isinstance(path[pos], set):
-            yield from ((k, Path._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs)) for k in path[pos])
-        elif isinstance(path[pos], tuple):
-            yield from (Path._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs) for k in path[pos])
-        elif isinstance(path[pos], slice):
-            if isinstance(target, (array_type)):
-                yield from Path._find(target[path[pos]], path[pos+1:],  *args, **kwargs)
-            elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
-                for item in target[path[pos]]:
-                    yield from Path._find(item, path[pos+1:],  *args, **kwargs)
-            elif isinstance(target, (collections.abc.Mapping)):
-                target_ = {k: v for k, v in target.items() if k is not None}
-                start = path[pos].start if path[pos].start is not None else 0
-                stop = path[pos].stop if path[pos].start is not None else len(target_)
-                step = path[pos].step if path[pos].step is not None else 1
-
-                for k in range(start, stop, step):
-                    yield from Path._find(target_[k], path[pos+1:],  *args, **kwargs)
-            # elif "default_value" in kwargs:
-            #     yield kwargs["default_value"]
-            else:
-                raise TypeError(f"Cannot slice target={(target)} path=[{path[:pos]} ^, {path[pos:]}]")
-        elif isinstance(path[pos], collections.abc.Mapping):
-            only_first = kwargs.get("only_first", False) or path[pos].get("@only_first", True)
-            if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
-                for element in target:
-                    if Path._match(element, path[pos]):
-                        yield from Path._find(element,  path[pos+1:],  *args, **kwargs)
-                        if only_first:
-                            break
-            # elif "default_value" in kwargs:
-            #     yield [kwargs["default_value"]]
-            else:
-                raise TypeError(f"Cannot search {type(target)}")
-        elif "default_value" in kwargs:
-            yield kwargs["default_value"]
-        else:
-            raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
-
-    @staticmethod
-    def _find_all(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs):
-        return Path._expand(Path._find(target, path, *args, **kwargs))
-
-    @staticmethod
     def _expand(target: typing.Any):
         if isinstance(target, collections.abc.Generator):
             res = [Path._expand(v) for v in target]
@@ -705,11 +632,15 @@ class Path(list):
 
         if len(path[idx:]) > 1 and obj is not _not_found_:
             raise KeyError(f"Cannot find {Path(path[idx:])} in {target}! {args}")
-
-        try:
-            res = Path._apply_op(op, obj, path[idx:],  *args, **kwargs)
-        except Exception as error:
-            raise RuntimeError(f"Error: path={path[:idx+1]}") from error
+        if hasattr(obj, "__entry__"):
+            res = obj.__entry__.child(path[idx:]).query(*args, **kwargs)
+        else:
+            try:
+                res = Path._apply_op(op, obj, path[idx:],  *args, **kwargs)
+            except StopIteration as error:
+                raise error
+            except Exception as error:
+                raise RuntimeError(f"Error: path={path[:idx+1]}") from error
 
         return res
         # if isinstance(op, Path.tags):
@@ -748,10 +679,6 @@ class Path(list):
         res = _op(obj, *args, **kwargs)
 
     @staticmethod
-    def _find_next(target: typing.Any, path: typing.List[PathLike], start: PathLike, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
-        pass
-
-    @staticmethod
     def _apply_op(op: Path.tags | str, target: typing.Any, key: list, *args, **kwargs):
 
         if isinstance(op, Path.tags):
@@ -770,7 +697,7 @@ class Path(list):
             raise RuntimeError(f"Can not find callable operator {op}!")
 
         if len(key) == 0 or target is _not_found_:
-            key = None
+            key = _not_found_
         elif len(key) == 1:
             key = key[0]
         else:
@@ -778,6 +705,8 @@ class Path(list):
 
         try:
             res = _op(target,  key, *args,  **kwargs)
+        except StopIteration as error:
+            raise error
         except Exception as error:
             raise RuntimeError(f"Illegal operator {op}!") from error
 
@@ -788,10 +717,7 @@ class Path(list):
         if hasattr(target, "__entry__"):
             return target.__entry__.child(key).query(*args, **kwargs)
 
-        # elif target is _not_found_ or target is None:
-        #     target = kwargs.get("default_value", _not_found_)
-
-        if key is None:
+        if key is _not_found_ or (key != 0 and not key):
             res = target
 
         elif isinstance(key, str):
@@ -1104,7 +1030,8 @@ class Path(list):
         if idx < length-1:
             # raise RuntimeError(f"Can not find {path[:idx+1]} from {type(data)} {target}! ")
             target = _not_found_
-
+        elif hasattr(target, "__entry__"):
+            target = target.__entry__.child(path[length-1]).update(*args, **kwargs)
         else:
             target = Path._update_exec(target, path[length-1] * args,  **kwargs)
 
@@ -1195,16 +1122,6 @@ class Path(list):
         return res
 
     @staticmethod
-    def _op_check(pred=None, *args) -> bool:
-
-        if isinstance(pred, Entry.op_tag):
-            return Entry._ops[pred](target, *args)
-        elif isinstance(pred, collections.abc.Mapping):
-            return all([Entry._op_check(Entry._eval_path(target, Entry.normalize_path(k), _not_found_), v) for k, v in pred.items()])
-        else:
-            return target == pred
-
-    @staticmethod
     def _op_exist(target, key=_not_found_, *args, **kwargs) -> bool:
         if key is _not_found_:
             return target is not _not_found_
@@ -1214,21 +1131,32 @@ class Path(list):
             raise TypeError(type(target))
 
     @staticmethod
-    def _op_equal(target, other, *args, **kwargs):
-        return target == other
+    def _op_dump(target, key, *args, **kwargs):
+        data = Path._op_fetch(target, key, default_value=kwargs.pop("default_value", _not_found_))
+        return serialize(data, *args, **kwargs)
 
     @staticmethod
-    def _op_count(target, *args, **kwargs) -> int:
-        if target is _not_found_:
+    def _op_equal(target,  key, value, *args, **kwargs):
+        data = Path._op_fetch(target, key, default_value=kwargs.pop("default_value", _not_found_))
+        return data == value
+
+    @staticmethod
+    def _op_count(target, key, *args, **kwargs) -> int:
+
+        data = Path._op_fetch(target, key, default_value=kwargs.pop("default_value", _not_found_))
+
+        if data is _not_found_:
             return 0
-        elif not isinstance(target, (collections.abc.Sequence, collections.abc.Mapping)) or isinstance(target, str):
+        elif not isinstance(data, (collections.abc.Sequence, collections.abc.Mapping)) or isinstance(data, str):
             return 1
         else:
-            return len(target)
+            return len(data)
 
     @staticmethod
     def _op_exists(target, key, *args, **kwargs) -> bool:
-        if target is _not_found_:
+        if key is _not_found_:
+            return target is not _not_found_
+        elif target is _not_found_:
             return False
         elif isinstance(target, dict):
             return key in target
@@ -1236,6 +1164,39 @@ class Path(list):
             return key >= 0 and key < len(target)
         else:
             raise NotImplementedError(f"{target} {key}")
+
+    @staticmethod
+    def _op_next(target, key, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+
+        if not isinstance(key, (slice, dict, set)):
+            target = Path._op_fetch(target, key, default_value=_not_found_)
+            key = slice(None)
+
+        if not isinstance(target, collections.abc.Sequence):
+            raise TypeError(type(target))
+
+        if isinstance(key, slice):
+            if start is None or start is _not_found_:
+                start = key.start or 0
+            elif key.start is not None and start < key.start:
+                raise IndexError(f"Out of range: {start} < {key.start}!")
+            stop = key.stop or len(target)
+            step = key.step or 1
+        else:
+            raise NotImplementedError(f"Not implemented yet! {type(key)}")
+
+        if start >= stop:
+            raise StopIteration(f"Can not find next entry of {start}>={stop}!")
+
+        value = Path._op_fetch(target, start, *args, default_value=_not_found_, **kwargs)
+
+        if value is _not_found_:
+            start = None
+        else:
+            start += step
+
+        return value, start
+
 
     # fmt: off
     _op_neg         =np.negative     
@@ -1363,6 +1324,72 @@ class Path(list):
 
             if stop == Path.MAX_SLICE_STOP:
                 logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
+
+    @deprecated
+    @staticmethod
+    def _find(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
+        target, pos = Path._traversal(target, path)
+
+        def concate_path(p, others: list):
+            if not isinstance(p, list):
+                return [p]+others
+            else:
+                return p+others
+        if target is None:
+            return
+        elif len(path) == pos:
+            yield target  # target is the last node
+        elif hasattr(target.__class__, "_as_child"):
+            yield from Path._find(target._as_child(path[pos]), path[pos+1:], *args, **kwargs)
+        elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
+            yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
+        elif isinstance(path[pos], str):
+            yield from Path._find(target.get(path[pos]), path[pos+1:], **kwargs)
+
+            # raise TypeError(f"{path[pos]}")
+        elif isinstance(path[pos], set):
+            yield from ((k, Path._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs)) for k in path[pos])
+        elif isinstance(path[pos], tuple):
+            yield from (Path._find(target, concate_path(k, path[pos+1:]),  *args, **kwargs) for k in path[pos])
+        elif isinstance(path[pos], slice):
+            if isinstance(target, (array_type)):
+                yield from Path._find(target[path[pos]], path[pos+1:],  *args, **kwargs)
+            elif isinstance(target, (collections.abc.Sequence)) and not isinstance(target, str):
+                for item in target[path[pos]]:
+                    yield from Path._find(item, path[pos+1:],  *args, **kwargs)
+            elif isinstance(target, (collections.abc.Mapping)):
+                target_ = {k: v for k, v in target.items() if k is not None}
+                start = path[pos].start if path[pos].start is not None else 0
+                stop = path[pos].stop if path[pos].start is not None else len(target_)
+                step = path[pos].step if path[pos].step is not None else 1
+
+                for k in range(start, stop, step):
+                    yield from Path._find(target_[k], path[pos+1:],  *args, **kwargs)
+            # elif "default_value" in kwargs:
+            #     yield kwargs["default_value"]
+            else:
+                raise TypeError(f"Cannot slice target={(target)} path=[{path[:pos]} ^, {path[pos:]}]")
+        elif isinstance(path[pos], collections.abc.Mapping):
+            only_first = kwargs.get("only_first", False) or path[pos].get("@only_first", True)
+            if isinstance(target, collections.abc.Sequence) and not isinstance(target, str):
+                for element in target:
+                    if Path._match(element, path[pos]):
+                        yield from Path._find(element,  path[pos+1:],  *args, **kwargs)
+                        if only_first:
+                            break
+            # elif "default_value" in kwargs:
+            #     yield [kwargs["default_value"]]
+            else:
+                raise TypeError(f"Cannot search {type(target)}")
+        elif "default_value" in kwargs:
+            yield kwargs["default_value"]
+        else:
+            raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
+
+    @deprecated
+    @staticmethod
+    def _find_all(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs):
+        return Path._expand(Path._find(target, path, *args, **kwargs))
 
 
 def as_path(path):
