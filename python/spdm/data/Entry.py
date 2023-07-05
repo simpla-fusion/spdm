@@ -146,6 +146,8 @@ class Entry(Pluggable):
     @property
     def exists(self) -> bool: return self.query(Path.tags.exists)
 
+    def check_type(self, tp: typing.Type) -> bool: return self.query(Path.tags.check_type, tp)
+
     def dump(self) -> typing.Any: return self.query(Path.tags.dump)
 
     ###########################################################
@@ -156,7 +158,7 @@ class Entry(Pluggable):
         Query the Entry.
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
-        """      
+        """
         return self._path.query(self._data, op, *args, **kwargs)
 
     def insert(self, *args, **kwargs) -> Entry:

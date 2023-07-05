@@ -319,14 +319,14 @@ class HTree(typing.Generic[_T]):
         else:
             value = _not_found_
 
+        if value is _not_found_ and getter is not None:
+            value = getter(self)
+
         if value is _not_found_ and isinstance(self._entry, Entry):
             value = self._entry.child(key)
 
-            if getter is not None and not value.exists:
-                value = getter(self)
-
-            if type_hint is None:
-                type_hint = HTree[_T]
+        if type_hint is None:
+            type_hint = HTree[_T]
 
         value = self._update_cache(key,  value,
                                    type_hint=type_hint,

@@ -14,7 +14,7 @@ from ..utils.logger import deprecated, experimental, logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive
-from ..utils.typing import array_type
+from ..utils.typing import array_type, isinstance_generic
 
 
 # fmt:off
@@ -31,6 +31,7 @@ class PathOpTags(Flag):
     insert  = auto()    # POST
     remove  = auto()    # DELETE
     exists  = auto()
+    check_type = auto() # check type
     search  = auto()    # search by query return idx
     dump   = auto()     # rescurive get all data
 
@@ -721,7 +722,7 @@ class Path(list):
         except StopIteration as error:
             raise error
         except Exception as error:
-            raise RuntimeError(f"Illegal operator {op}!") from error
+            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
 
         return res
 
@@ -1130,6 +1131,11 @@ class Path(list):
         return all([target.get(k[1:], _not_found_) == v for k, v in query.items() if k.startswith("@")])
 
     @staticmethod
+    def _op_check_type(target, key, tp, *args, **kwargs) -> bool:
+        target = Path._op_fetch(target, key, default_value=_not_found_)        
+        return isinstance_generic(target, tp)
+
+    @staticmethod
     def _op_search(target, key, query, start=None, *args, **kwargs):
 
         target = Path._op_fetch(target, key)
@@ -1137,7 +1143,7 @@ class Path(list):
         if start is None:
             start = 0
         stop = len(target)
-        
+
         pos = None
 
         for idx in range(start, stop):
