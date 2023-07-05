@@ -88,7 +88,7 @@ class Entry(Pluggable):
             self._data = {}
 
         other = copy(self)
-        other._path.append(path, *args, **kwargs)
+        other._path.append(path)
         return other
 
     def __iter__(self) -> typing.Generator[Entry, None, None]:

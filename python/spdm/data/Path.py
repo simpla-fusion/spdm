@@ -195,6 +195,17 @@ class Path(list):
         else:
             return False
 
+    def collapse(self, idx=None) -> Path:
+        """ 
+            - 从路径中删除非字符元素，例如 slice, dict, set, tuple，int。用于从 default_value 中提取数据
+            - 从路径中删除指定位置idx: 的元素
+
+        """
+        if idx is None:
+            return Path([p for p in self if isinstance(p, str)])
+        else:
+            return Path(self[:idx]+self[idx+1:])
+
     ###########################################################
     # RESTful API:
 
@@ -723,6 +734,9 @@ class Path(list):
         if key is _not_found_ or (key != 0 and not key):
             res = target
 
+        elif isinstance(target, array_type) and isinstance(key, (int, slice, tuple)):
+            res = target[key]
+
         elif isinstance(key, str):
             res = getattr(target, key, _not_found_)
             if res is _not_found_ and hasattr(target, "get"):
@@ -733,8 +747,11 @@ class Path(list):
                 except Exception:
                     res = _not_found_
 
-        elif isinstance(target, array_type) and isinstance(key, (int, slice, tuple)):
-            res = target[key]
+        elif isinstance(key, int):
+            try:
+                res = target[key]
+            except Exception as error:
+                raise RuntimeError(f"Error: {target}[{key}]") from error
 
         elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
             res = target[key]
