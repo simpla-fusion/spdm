@@ -31,7 +31,7 @@ class PathOpTags(Flag):
     insert  = auto()    # POST
     remove  = auto()    # DELETE
     exists  = auto()
-
+    search  = auto()    # search by query return idx
     dump   = auto()     # rescurive get all data
 
     # for sequence
@@ -1128,6 +1128,24 @@ class Path(list):
             raise TypeError(type(query))
 
         return all([target.get(k[1:], _not_found_) == v for k, v in query.items() if k.startswith("@")])
+
+    @staticmethod
+    def _op_search(target, key, query, start=None, *args, **kwargs):
+
+        target = Path._op_fetch(target, key)
+
+        if start is None:
+            start = 0
+        stop = len(target)
+        
+        pos = None
+
+        for idx in range(start, stop):
+            if Path._op_check(target[idx], query, *args, **kwargs):
+                pos = idx
+                break
+
+        return pos if pos is not None else _not_found_
 
     @staticmethod
     def _op_exist(target, key=_not_found_, *args, **kwargs) -> bool:

@@ -98,7 +98,7 @@ class HTree(typing.Generic[_T]):
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
         """ 遍历 children """
-        type_hint = self._type_hint()
+        type_hint = self._type_hint(0)
         parent = self._parent
 
         key: PathLike = None
@@ -204,13 +204,6 @@ class HTree(typing.Generic[_T]):
 
         tp_hint = getattr(obj, "__orig_class__", self.__class__)
 
-        # if issubclass(get_origin(tp_hint), List):
-        #     tp_args = get_args(tp_hint)
-        #     if len(tp_args) == 0:
-        #         tp_hint = HTree[_T]
-        #     else:
-        #         tp_hint = tp_args[-1]
-
         for key in path:
             if tp_hint is None:
                 break
@@ -298,10 +291,20 @@ class HTree(typing.Generic[_T]):
         elif isinstance(query, set):
             value = NamedDictProxy(cache={k: self._get_by_name(k, type_hint=type_hint, **kwargs) for k in query})
 
+        elif isinstance(query, dict) and all([k.startswith("@") for k in query.keys()]):
+            value = self._get_by_search(query, type_hint=type_hint, **kwargs)
+
         else:  # as query return QueryResult
             value = QueryResult(self, query)
 
         return value  # type:ignore
+
+    def _get_by_search(self, query: dict,   **kwargs) -> HTree[_T]:
+        pos = self._entry.query(Path.tags.search, query)
+        if pos is not None and pos is not _not_found_:
+            return self._get_by_index(pos,  **kwargs)
+        else:
+            return _not_found_
 
     def _get_by_name(self, key: str,  default_value=_not_found_, type_hint=None, getter=None, **kwargs) -> HTree[_T]:
 
@@ -335,7 +338,7 @@ class HTree(typing.Generic[_T]):
     def _get_by_index(self, key: int,  default_value=_not_found_, type_hint=None, **kwargs) -> HTree[_T]:
 
         if type_hint is None:
-            type_hint = self._type_hint() or HTree[_T]
+            type_hint = self._type_hint(key) or HTree[_T]
 
         if default_value is _not_found_:
             default_value = self._default_value
@@ -345,6 +348,7 @@ class HTree(typing.Generic[_T]):
 
         if self._cache is not None:
             value = self._cache.get(key, _not_found_)
+
         else:
             value = _not_found_
 
@@ -359,6 +363,7 @@ class HTree(typing.Generic[_T]):
                                    type_hint=type_hint,
                                    default_value=default_value,
                                    parent=self._parent, **kwargs)
+
         return value
 
     def _query(self,  path: PathLike,   *args,  **kwargs) -> HTree[_T] | PrimaryType:
@@ -474,41 +479,18 @@ Node = HTree
 
 
 class Container(HTree[_T]):
+
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
 
 
 class Dict(Container[_T]):
+
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
 
 
 class List(Container[_T]):
+
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
-
-    def _type_hint_(self, path: PathLike = None) -> typing.Type | None:
-        """ 当 key 为 None 时，获取泛型参数，若非泛型类型，返回 None，
-            当 key 为字符串时，获得属性 property 的 type_hint
-        """
-
-        tp_hint = get_args(self)
-
-        if len(tp_hint) == 0:
-            return None
-
-        tp_hint = tp_hint[-1]
-
-        for key in as_path(path):
-            if isinstance(key, str):
-                tp_hint = typing.get_type_hints(tp_hint).get(key, None)
-            else:
-                tmp = get_args(tp_hint)
-                if len(tmp) == 0:
-                    tp_hint = HTree[_T]
-                else:
-                    tp_hint = tmp[-1]
-
-        # logger.debug((path, tp_hint))
-
-        return tp_hint
 
 
 class NamedDictProxy(HTree[_T]):
@@ -647,10 +629,14 @@ class AoS(List[_T]):
 
     def __init__(self, *args, identifier: str | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._identifier = identifier if identifier is not None else self.__metadata__.get("identifier", "id")
+        self._identifier = identifier
+        if self._identifier is None:
+            self._identifier = self.__metadata__.get("identifier", "id")
 
-    def _get_by_query(self, query: PathLike = None,  *args, **kwargs) -> HTree[_T]:
-        if isinstance(query, (str, set)):
-            query = {f"@{self._identifier}": query}
+    def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType:
+        path = as_path(path)
 
-        return super()._get_by_query(query,  *args,  **kwargs)
+        if len(path) > 0 and isinstance(path[0], str):
+            path[0] = {f"@{self._identifier}": path[0]}
+
+        return super().__getitem__(path)
