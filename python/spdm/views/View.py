@@ -78,7 +78,7 @@ class View(Pluggable):
 
             self.draw(canvas, o, styles)
 
-        elif hasattr(obj, "__geometry__"):
+        elif hasattr(obj.__class__, "__geometry__"):
             self.draw(canvas, obj.__geometry__, styles)
 
         elif isinstance(obj, dict):

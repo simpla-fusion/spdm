@@ -54,7 +54,6 @@ class ExprNode(Expression, HTree[_T]):
             HTree.__init__(self, **kwargs)
             self._value = value
 
-
     @property
     def __name__(self) -> str: return self.__metadata__.get("name", "unnamed")
 
@@ -109,8 +108,9 @@ class ExprNode(Expression, HTree[_T]):
                 value = self.__call__(*self.points)
 
         if (value is None or value is _not_found_):
-            raise ValueError(f"{self} is None")
+            # raise ValueError(f"{self} is None")
             # value = []
+            value = None
 
         return self._normalize_value(value, *args,  **kwargs)
 

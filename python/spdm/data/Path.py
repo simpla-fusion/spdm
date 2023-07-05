@@ -615,7 +615,7 @@ class Path(list):
             if obj is _not_found_ or obj is None:
                 break
 
-            if hasattr(obj, "__entry__"):
+            if hasattr(obj.__class__, "__entry__"):
                 obj = obj.__entry__.child(path[idx:])
                 idx = length
             else:

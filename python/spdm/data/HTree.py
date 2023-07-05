@@ -14,7 +14,7 @@ from ..utils.typing import (ArrayType, PrimaryType, array_type, as_array,
                             numeric_type, serialize, type_convert, HTreeLike, HNodeLike, as_value)
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path
-
+from .Expression import Expression
 
 _T = typing.TypeVar("_T")
 
@@ -260,7 +260,7 @@ class HTree(typing.Generic[_T]):
             value = NamedDictProxy(cache={k: self._get_by_name(k, type_hint=type_hint, **kwargs) for k in query})
 
         else:  # as query return QueryResult
-            value = QueryResult(self, query, type_hint=type_hint, parent=self._parent)
+            value = QueryResult(self, query)
 
         return value  # type:ignore
 
@@ -450,12 +450,11 @@ class NamedDictProxy(HTree[_T]):
     def __getattr__(self, name: str) -> typing.Any: return self._get_by_query(name)
 
 
-class QueryResult:
+class QueryResult(Expression):
     """ Handle the result of query    """
 
     def __init__(self, target: HTree, query: PathLike,  *args, suffix: PathLike | Path = None,
-                 reducer: typing.Callable[..., HTreeLike] | None = None,
-                 **kwargs) -> None:
+                 reducer: typing.Callable[..., HTreeLike] | None = None) -> None:
         # super().__init__(*args, **kwargs)
         self._query_cmd = query
         self._suffix = as_path(suffix)
@@ -463,17 +462,19 @@ class QueryResult:
         self._reducer = reducer if reducer is not None else QueryResult._default_reducer
 
     def __copy__(self) -> QueryResult:
-        other = QueryResult(self._target, self._query_cmd, suffix=self._suffix, reducer=self._reducer)
-        return other
+        return QueryResult(self._target, self._query_cmd, suffix=copy(self._suffix), reducer=self._reducer)
 
     def __getattr__(self, name: str) -> typing.Any: return self._lazy_get(name)
 
     def __getitem__(self, path: PathLike) -> typing.Any: return self._lazy_get(path)
 
+    @property
+    def current(self) -> typing.Any: return self._lazy_get(-1)
+
     def _lazy_get(self, path) -> QueryResult:
-        new_path = copy(self._suffix)
-        new_path.append(path)
-        return QueryResult(self._target, new_path)
+        other = copy(self)
+        other._suffix.append(path)
+        return other
 
     def __setitem__(self, path: PathLike, value):
         raise NotImplementedError(f"TODO: setitem {path} {value}")
@@ -487,19 +488,16 @@ class QueryResult:
     def __len__(self, value):
         raise NotImplementedError(f"TODO: __len__ {value}")
 
-    def __iter__(self, value) -> typing.Generator[HTreeLike, None, None]:
-        raise NotImplementedError(f"TODO: __iter__ {value}")
+    def __iter__(self) -> typing.Generator[HTreeLike, None, None]:
+        raise NotImplementedError(f"TODO: __iter__ ")
 
     def _foreach(self) -> typing.Generator[HTreeLike | HTree, None, None]:
-        type_hint = self._target._type_hint()
-        default_value = self._target._default_value
-        parent = self._target._parent
+
         start = None
 
         while True:
-            value, start = self._target._find_next(self._query_cmd, start=start,
-                                                   type_hint=type_hint, parent=parent,
-                                                   default_value=default_value)
+            value, start = self._target._find_next(self._query_cmd, start=start)
+
             if start is None:
                 break
 
@@ -515,10 +513,18 @@ class QueryResult:
             yield value
 
     @property
-    def __value__(self) -> typing.List[HTreeLike]: return [as_value(v) for v in self._foreach() if v is not _not_found_]
+    def __value__(self) -> typing.List[HTreeLike]:
+        value = [as_value(v) for v in self._foreach() if v is not _not_found_]
+        if len(value) == 0 or isinstance(value[0], collections.abc.Mapping) \
+                and self._target._default_value is not _not_found_ and len(self._suffix) > 0:
+            default_value = self._suffix.query(self._target._default_value)
+            value = [default_value]+value
+        return value
+
+    def __array__(self) -> ArrayType: return as_array(self.__reduce__)
 
     @property
-    def __reduce__(self) -> HTreeLike: return reduce(self._reducer, self.__value__)
+    def __reduce__(self) -> HTreeLike: return reduce(self._reducer,  self.__value__)
 
     @staticmethod
     def _default_reducer(first: HTreeLike, second: HTreeLike) -> HTreeLike:
@@ -536,17 +542,23 @@ class QueryResult:
         else:
             return first+second
 
+    def __call__(self, *args, **kwargs) -> HTreeLike:
+        value = [(v(*args, **kwargs) if callable(v) else v) for v in self._foreach() if v is not _not_found_]
+        if len(value) == 0:
+            raise RuntimeError(f"TODO: suffix={self._suffix} not found!")
+        return reduce(self._reducer, value)
+
 
 class AoS(List[_T]):
     """
         Array of structure
     """
 
-    def __init__(self, *args, identifier: str | None = None, **kwargs):
+    def __init__(self, *args, identifier: str | None=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._identifier = identifier if identifier is not None else self.__metadata__.get("identifier", "id")
 
-    def _get_by_query(self, query: PathLike = None,  *args, **kwargs) -> HTree[_T]:
+    def _get_by_query(self, query: PathLike=None,  *args, **kwargs) -> HTree[_T]:
         if isinstance(query, (str, set)):
             query = {f"@{self._identifier}": query}
 
