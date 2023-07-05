@@ -289,6 +289,7 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
         if value is _not_found_:
             value = kwargs.pop("default_value", _not_found_)
         if value is not _not_found_:
+            logger.debug(value)
             value = type_hint(value)
 
     elif dataclasses.is_dataclass(type_hint):
