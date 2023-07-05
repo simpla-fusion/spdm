@@ -143,8 +143,12 @@ class HTree(typing.Generic[_T]):
         if len(path) == 0:
             return self
 
-        if type_hint is None and default_value is not _not_found_:
+        if type_hint is not None:
+            pass
+        elif default_value is not _not_found_:
             type_hint = type(default_value)
+        else:
+            type_hint = self._type_hint(path)
 
         obj = self
         pos = 0
@@ -182,18 +186,47 @@ class HTree(typing.Generic[_T]):
             当 key 为字符串时，获得属性 property 的 type_hint
         """
 
-        path = as_path(path).collapse()
+        path = as_path(path)
+        obj = self
+        pos = 0
+        for idx, p in enumerate(path):
+            pos = idx
+            if p is Path.tags.parent:
+                obj = obj._parent
+            elif p is Path.tags.root:
+                obj = obj._root
+            elif p is Path.tags.current:
+                continue
+            else:
+                break
 
-        tp = get_origin(self)
+        path = path[pos:]
 
-        if len(path) == 0:
-            tp_hint = get_args(self)
-            tp_hint = None if len(tp_hint) == 0 else tp_hint[-1]
-        else:
-            tp_hint = None
+        tp_hint = getattr(obj, "__orig_class__", self.__class__)
 
-            for key in path:
-                tp_hint = typing.get_type_hints(tp).get(key, None)
+        # if issubclass(get_origin(tp_hint), List):
+        #     tp_args = get_args(tp_hint)
+        #     if len(tp_args) == 0:
+        #         tp_hint = HTree[_T]
+        #     else:
+        #         tp_hint = tp_args[-1]
+
+        for key in path:
+            if tp_hint is None:
+                break
+            elif isinstance(key, str):
+                if typing.get_origin(tp_hint) is None:
+                    tp_hint = typing.get_type_hints(tp_hint).get(key, None)
+                else:
+                    tp_hint = None
+            else:
+                tmp = get_args(tp_hint)
+                if len(tmp) == 0:
+                    tp_hint = HTree[_T]
+                else:
+                    tp_hint = tmp[-1]
+
+        # logger.debug((path, tp_hint))
 
         return tp_hint
 
@@ -451,10 +484,11 @@ class Dict(Container[_T]):
 class List(Container[_T]):
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
 
-    def _type_hint(self, path: PathLike = None) -> typing.Type | None:
+    def _type_hint_(self, path: PathLike = None) -> typing.Type | None:
         """ 当 key 为 None 时，获取泛型参数，若非泛型类型，返回 None，
             当 key 为字符串时，获得属性 property 的 type_hint
         """
+
         tp_hint = get_args(self)
 
         if len(tp_hint) == 0:
@@ -462,15 +496,15 @@ class List(Container[_T]):
 
         tp_hint = tp_hint[-1]
 
-        path = as_path(path).collapse()
-
-        for key in path:
-            tmp = get_args(tp_hint)
-            if len(tmp) > 0:
-                tp_hint = tmp[-1]
-
-            if inspect.isclass(tp_hint):
+        for key in as_path(path):
+            if isinstance(key, str):
                 tp_hint = typing.get_type_hints(tp_hint).get(key, None)
+            else:
+                tmp = get_args(tp_hint)
+                if len(tmp) == 0:
+                    tp_hint = HTree[_T]
+                else:
+                    tp_hint = tmp[-1]
 
         # logger.debug((path, tp_hint))
 
@@ -502,12 +536,17 @@ class QueryResult(Expression):
     @property
     def current(self) -> typing.Any: return self._lazy_get(-1)
 
+    def _type_hint(self, path=None) -> typing.Type:
+        suffix = copy(self._suffix)
+        suffix.append(path)
+        return self._target._type_hint(suffix)
+
     def _lazy_get(self, path) -> QueryResult | PrimaryType:
         other = copy(self)
         other._suffix.append(path)
-        type_hint = self._target._type_hint(other._suffix)
-        if get_origin(type_hint) is not HTree:
-            return type_convert(other.__reduce__, type_hint)
+        type_hint = self._target._type_hint([0]+other._suffix[:])
+        if not issubclass(get_origin(type_hint), HTree):
+            return type_hint(other.__reduce__())
         else:
             return other
 
@@ -536,7 +575,7 @@ class QueryResult(Expression):
 
             id = v.get(identifier, None)
 
-            suffix = copy(self._suffix)+[{identifier: id}]
+            suffix = copy(self._suffix)+[{f"@{identifier}": id}]
 
             yield QueryResult(self._target, self._query_cmd, suffix=suffix, reducer=self._reducer)
 
@@ -570,13 +609,12 @@ class QueryResult(Expression):
         value = [as_value(v) for v in self._foreach() if v is not _not_found_]
         if len(value) == 0 or isinstance(value[0], collections.abc.Mapping)\
                 and self._target._default_value is not _not_found_ and len(self._suffix) > 0:
-            default_value = self._suffix.query(self._target._default_value)
+            default_value = self._suffix.collapse().query(self._target._default_value)
             value = [default_value]+value
         return value
 
-    def __array__(self) -> ArrayType: return as_array(self.__reduce__)
+    def __array__(self) -> ArrayType: return as_array(self.__reduce__())
 
-    @property
     def __reduce__(self) -> HTreeLike: return reduce(self._reducer,  self.__value__)
 
     @staticmethod

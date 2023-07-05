@@ -613,8 +613,10 @@ class Path(list):
 
     @staticmethod
     def _exec(target: typing.Any, path: typing.List[PathLike], op,  *args,   quiet=True, **kwargs) -> typing.Any:
+
         if path is None:
             path = []
+
         length = len(path)
 
         obj = target
@@ -643,8 +645,10 @@ class Path(list):
 
         if len(path[idx:]) > 1 and obj is not _not_found_:
             raise KeyError(f"Cannot find {Path(path[idx:])} in {target}! {args}")
+
         if hasattr(obj, "__entry__"):
             res = obj.__entry__.child(path[idx:]).query(*args, **kwargs)
+
         else:
             try:
                 res = Path._apply_op(obj, op, path[idx:],  *args, **kwargs)
@@ -661,14 +665,12 @@ class Path(list):
         #     op = op.name
         # elif isinstance(op, str) and op.startswith("$"):
         #     op = op[1:]
-
         # if isinstance(op, str):
         #     _op = getattr(Path, f"_op_{op}", None)
         # elif callable(op):
         #     _op = op
         # else:
         #     _op = None
-
         # if _op is None:
         #     return target
         # elif callable(_op):
@@ -676,11 +678,9 @@ class Path(list):
         #         res = _op(target, *path[-1:], *args, **kwargs)
         #     except Exception as error:
         #         raise RuntimeError(f"Error: path={path[:idx+1]} , {op}({target}, {args}, {kwargs})") from error
-
         #     return res
         # else:
         #     raise RuntimeError(f"Invalid operator {op}!")
-
         # if op is Path.tags.parent:
         #     return getattr(target, "_parent", _not_found_)
         # elif op is Path.tags.root:
@@ -689,8 +689,7 @@ class Path(list):
         #         target = parent
         #         parent = getattr(target, "_parent", _not_found_)
         #     return target
-
-        res = _op(obj, *args, **kwargs)
+        # res = _op(obj, *args, **kwargs)
 
     @staticmethod
     def _apply_op(target: typing.Any, op: Path.tags | str,  key: list, *args, **kwargs):
@@ -760,8 +759,9 @@ class Path(list):
             res = {p: Path(p).query(target, *args, **kwargs) for p in key}
 
         elif isinstance(key, dict):
-            raise NotImplementedError(f"Not implemented query! '{key}'")
+            # logger.error(f"Not implemented query!  '{key}' not in  {target}")
             # res = all([Path._op_fetch(target, *kv, *args, **kwargs) for kv in key.items()])
+            res, pos = Path._op_next(target, key, 0, *args, **kwargs)
 
         elif isinstance(key, Path.tags):
             res = Path._apply_op(target, key, [], *args, **kwargs)
@@ -1121,25 +1121,13 @@ class Path(list):
         #     raise NotImplementedError(type(self))
 
     @staticmethod
-    def _op_by_filter(target, pred, op,  *args, on_fail: typing.Callable = _undefined_):
-        if not isinstance(target, collections.abc.Sequence):
+    def _op_check(target, query,  *args):
+        if not isinstance(target, collections.abc.Mapping):
             raise TypeError(type(target))
+        elif not isinstance(query, collections.abc.Mapping):
+            raise TypeError(type(query))
 
-        if isinstance(pred, collections.abc.Mapping):
-            def pred(val, _cond=pred):
-                if not isinstance(val, collections.abc.Mapping):
-                    return False
-                else:
-                    return all([val.get(k, _not_found_) == v for k, v in _cond.items()])
-
-        res = [op(target, idx, *args)
-               for idx, val in enumerate(target) if pred(val)]
-
-        if len(res) == 1:
-            res = res[0]
-        elif len(res) == 0 and on_fail is not _undefined_:
-            res = on_fail(target)
-        return res
+        return all([target.get(k[1:], _not_found_) == v for k, v in query.items() if k.startswith("@")])
 
     @staticmethod
     def _op_exist(target, key=_not_found_, *args, **kwargs) -> bool:
@@ -1205,21 +1193,42 @@ class Path(list):
                 raise IndexError(f"Out of range: {start} < {key.start}!")
             stop = key.stop or len(target)
             step = key.step or 1
+
+            if start >= stop:
+                raise StopIteration(f"Can not find next entry of {start}>={stop}!")
+
+            value = Path._op_fetch(target, start, *args, default_value=_not_found_, **kwargs)
+
+            if value is _not_found_:
+                start = None
+            else:
+                start += step
+
+            return value, start
+
+        elif isinstance(key, dict):
+            if start is None or start is _not_found_:
+                start = 0
+
+            stop = len(target)
+
+            value = _not_found_
+
+            while start < stop:
+                value = target[start]
+                if not Path._op_check(value, key, *args, **kwargs):
+                    start += 1
+                    continue
+                else:
+                    break
+
+            if start >= stop:
+                return _not_found_, None
+            else:
+                return value, start
+
         else:
             raise NotImplementedError(f"Not implemented yet! {type(key)}")
-
-        if start >= stop:
-            raise StopIteration(f"Can not find next entry of {start}>={stop}!")
-
-        value = Path._op_fetch(target, start, *args, default_value=_not_found_, **kwargs)
-
-        if value is _not_found_:
-            start = None
-        else:
-            start += step
-
-        return value, start
-
 
     # fmt: off
     _op_neg         =np.negative     
