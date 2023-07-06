@@ -26,24 +26,26 @@ class TimeSeriesAoS(AoS[_T]):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self._time = None
+        self._time = None
 
     @property
-    def time(self) -> list[float]:
-        if self._time is None:
+    def time(self) -> typing.List[float]:
+        if self._time is None and self._parent is not None:
             self._time = self._parent.get(self._metadata.get("coordinate1", "time"), None)
+        else:
+            self._time = [0.0]
         return self._time
 
-    def __getitem__(self, index) -> _T:
-        time = getattr(self, "time", None)
-        if isinstance(index, int) and index < 0 and time is not None:
-            new_key = len(time) + index
+    def __getitem__(self, index: int | slice | float) -> _T:
+
+        if isinstance(index, int) and index < 0 and self.time is not None:
+            new_key = len(self.time) + index
             if new_key < 0:
-                raise KeyError(f"TimeSeries too short! length={len(time)} < {-index}")
+                raise KeyError(f"TimeSeries too short! length={len(self.time)} < {-index}")
             else:
                 index = new_key
         elif isinstance(index, float):
-            index = np.argmax(np.asarray(time) < index)
+            index = np.argmax(np.asarray(self.time) < index)
             logger.debug("TODO: interpolator two time slices!")
 
         return super().__getitem__(index)
@@ -54,7 +56,7 @@ class TimeSeriesAoS(AoS[_T]):
     @property
     def current(self) -> _T: return self[-1]
 
-    def update(self,  *args, **kwargs) -> _T:
+    def refresh(self,  *args, **kwargs) -> _T:
         """
             update the last time slice
         """
@@ -66,7 +68,7 @@ class TimeSeriesAoS(AoS[_T]):
             new_obj._parent = self._parent
             self[-1] = new_obj
         elif len(args) > 0 or len(kwargs) > 0:
-            type_hint = self.__type_hint__()
+            type_hint = self._type_hint()
             new_obj = type_hint(*args, **kwargs, parent=self._parent)
             self[-1] = new_obj
         else:
@@ -85,9 +87,9 @@ class TimeSeriesAoS(AoS[_T]):
             if time is not None:
                 new_obj["time"] = time
         else:
-            type_hint = self.__type_hint__()
+            type_hint = self._type_hint()
             new_obj = type_hint(*args, time=time, **kwargs, parent=self._parent)
 
-        self.append(new_obj)
+        self.insert(new_obj)
 
         return new_obj  # type: ignore

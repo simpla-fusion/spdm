@@ -61,7 +61,7 @@ class HTree(typing.Generic[_T]):
         other._key = None
         other._metadata = copy(self._metadata)
         other._default_value = copy(self._default_value)
-        other._cache = copy(other._cache)
+        other._cache = copy(self._cache)
         return other
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)
@@ -145,7 +145,7 @@ class HTree(typing.Generic[_T]):
 
         if type_hint is not None:
             pass
-        elif default_value is not _not_found_:
+        elif default_value is not _not_found_ and default_value is not None:
             type_hint = type(default_value)
         else:
             type_hint = self._type_hint(path)
@@ -181,7 +181,7 @@ class HTree(typing.Generic[_T]):
     ################################################################################
     # Private methods
 
-    def _type_hint(self, path: PathLike = None) -> typing.Type | None:
+    def _type_hint(self, path: PathLike = None) -> typing.Type:
         """ 当 key 为 None 时，获取泛型参数，若非泛型类型，返回 None，
             当 key 为字符串时，获得属性 property 的 type_hint
         """
@@ -408,7 +408,10 @@ class HTree(typing.Generic[_T]):
         # try:
         #     Path().update(self._cache, *args, quiet=False, **kwargs)
         # except KeyError:
-        self._entry.child(path).update(*args, quiet=True,  **kwargs)
+        try:
+            self._entry.child(path).update(*args, quiet=True,  **kwargs)
+        except Exception as error:
+            as_path(path).update(self._cache, *args,  **kwargs)
         return self
 
     def _remove(self, path: PathLike,  *args, **kwargs) -> int:
@@ -486,6 +489,9 @@ class Container(HTree[_T]):
 class Dict(Container[_T]):
 
     def __getitem__(self, path) -> HTree[_T] | _T | PrimaryType: return self.get(path)
+
+    def __contains__(self, key: str) -> bool:
+        return (self._cache is not None and key in self._cache) or self._entry.child(key).exists
 
 
 class List(Container[_T]):

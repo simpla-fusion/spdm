@@ -41,39 +41,24 @@
 
 from __future__ import annotations
 
-import collections
 import collections.abc
 import inspect
 import typing
 from _thread import RLock
-from copy import copy
 
-from spdm.data.HTree import HTree, HTreeLike
+from spdm.data.HTree import HTree
 from spdm.utils.tags import _not_found_
 
 from ..utils.logger import logger
-from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, PrimaryType
-from .Entry import Entry
+from ..utils.typing import PrimaryType
 from .HTree import Dict
-from .Path import Path, PathLike, as_path
 
 _T = typing.TypeVar("_T")
 
 
 class SpDict(Dict[_T]):
     """  支持 sp_property 的 Dict  """
-
-    # def __init__(self, d: HTreeLike = None,   default_value=_not_found_, cache=None,  **kwargs) -> None:
-    #     if isinstance(d, collections.abc.Mapping) and "$default_value" in d:
-    #         default_value_, d = group_dict_by_prefix(d, "$default_value")
-    #     else:
-    #         default_value_ = {}
-    #     if isinstance(default_value, collections.abc.Mapping):
-    #         default_value_.update(default_value)
-
-    #     super().__init__(d, default_value=default_value_, cache=cache or {}, ** kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
         value = self._get_by_query(key, *args, **kwargs)
@@ -85,8 +70,6 @@ class SpDict(Dict[_T]):
 
     def __del_property__(self, key: str, **kwargs): self._remove(key)
 
-    def __contains__(self, key: str) -> bool:
-        return key in self._cache or self._entry.child(key).exists
 
 
 class sp_property(typing.Generic[_T]):
