@@ -41,13 +41,15 @@ class HTree(typing.Generic[_T]):
     """
 
     def __init__(self, data: HTreeLike | Entry = None,  cache: typing.Any = None,
-                 parent: HTree | None = None, key: PathLike = None, **kwargs) -> None:
+                 parent: HTree | None = None, key: PathLike = None,
+                 default_value=_not_found_, **kwargs) -> None:
 
         self._entry = as_entry(data)
         self._cache = cache
         self._parent = parent
         self._key = key
-        self._default_value = kwargs.pop("default_value", _not_found_)
+        self._default_value = default_value
+        
         if isinstance(data, dict):
             self._default_value = merge_tree_recursive(data.pop("$default_value", _not_found_),
                                                        self._default_value)
@@ -411,6 +413,7 @@ class HTree(typing.Generic[_T]):
         try:
             self._entry.child(path).update(*args, quiet=True,  **kwargs)
         except Exception as error:
+            raise RuntimeError() from error
             as_path(path).update(self._cache, *args,  **kwargs)
         return self
 
