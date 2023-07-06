@@ -147,7 +147,7 @@ class HTree(typing.Generic[_T]):
 
         if type_hint is not None:
             pass
-        elif default_value is not _not_found_ and default_value is not None:
+        elif default_value is not _not_found_ and  default_value is not _undefined_ and default_value is not None:
             type_hint = type(default_value)
         else:
             type_hint = self._type_hint(path)

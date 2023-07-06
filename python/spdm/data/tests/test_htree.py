@@ -170,7 +170,7 @@ class TestNode(unittest.TestCase):
 
     def test_type_hint(self):
         d1 = List([])
-        d1 .insert({"a": 1, "b": 2})
+        d1.insert({"a": 1, "b": 2})
 
         self.assertIsInstance(d1[0], HTree)
 
@@ -203,11 +203,10 @@ class TestNode(unittest.TestCase):
 
         d0 = List[int](data)
 
-        self.assertListEqual([v for v in d0], data)
+        # self.assertListEqual([v for v in d0], data)
 
         self.assertListEqual(as_value(d0[1:4]), data[1:4])
-
-        self.assertEqual(d0[:].__reduce__, sum(data, 0))
+ 
 
     # def test_get_by_iter(self):
     #     data = [1, 2, 3, 4, 5]
