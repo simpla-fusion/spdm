@@ -650,7 +650,8 @@ class Path(list):
                     break
 
         if len(path[idx:]) > 1 and obj is not _not_found_:
-            raise KeyError(f"Cannot find {Path(path[idx:])} in {target}! {args}")
+            # raise KeyError(f"Cannot find {Path(path[idx:])} in {target}!  ")
+            obj = _not_found_
 
         if hasattr(obj, "__entry__"):
             res = obj.__entry__.child(path[idx:]).query(*args, **kwargs)

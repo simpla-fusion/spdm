@@ -246,6 +246,9 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
         return isinstance(obj, type_hint)
     elif inspect.isclass(type_hint) and obj.__class__ == type_hint:
         return True
+    elif orig_class is None:
+        raise RuntimeError(type_hint)
+        return False
     elif not isinstance(obj, orig_class):
         return False
     elif getattr(obj, "__orig_class__", obj.__class__) == type_hint:

@@ -29,31 +29,30 @@ class Mesh(Pluggable):
     _plugin_registry = {}
 
     @classmethod
-    def __dispatch__init__(cls, _mesh_type, self, *args, mesh_type=None, **kwargs) -> None:
+    def __dispatch__init__(cls, self, *args, **kwargs) -> None:
 
-        if not _mesh_type:
-            _mesh_type = mesh_type
+        mesh_type = kwargs.pop("mesh_type", _not_found_)
 
-        if isinstance(_mesh_type, Enum) and _mesh_type is not _not_found_:
-            _mesh_type = _mesh_type.name
+        if isinstance(mesh_type, Enum) and mesh_type is not _not_found_:
+            mesh_type = mesh_type.name
 
-        if _mesh_type is not None and _mesh_type is not _not_found_:
+        if mesh_type is not None and mesh_type is not _not_found_:
             pass
         elif all([isinstance(arg, (int, np.ndarray)) for arg in args]):
-            _mesh_type = "rectilinear"
+            mesh_type = "rectilinear"
         else:
-            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={_mesh_type} is not found! {args}")
+            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={mesh_type} is not found!")
 
-        if isinstance(_mesh_type, str):
-            _mesh_type = [_mesh_type,
-                          f"spdm.mesh.{_mesh_type}Mesh#{_mesh_type}Mesh",
-                          f"spdm.mesh.{_mesh_type.capitalize()}Mesh#{_mesh_type.capitalize()}Mesh"
+        if isinstance(mesh_type, str):
+            mesh_type = [mesh_type,
+                          f"spdm.mesh.{mesh_type}Mesh#{mesh_type}Mesh",
+                          f"spdm.mesh.{mesh_type.capitalize()}Mesh#{mesh_type.capitalize()}Mesh"
                           ]
-        super().__dispatch__init__(_mesh_type, self, *args, **kwargs)
+        super().__dispatch__init__(mesh_type, self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Mesh:
-            return Mesh.__dispatch__init__(None, self, *args,   **kwargs)
+            return Mesh.__dispatch__init__(self, *args,   **kwargs)
 
         geometry, self._metadata = group_dict_by_prefix(kwargs, "geometry")
 
