@@ -61,12 +61,12 @@ class SpDict(Dict[_T]):
     """  支持 sp_property 的 Dict  """
 
     def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
-        value = self._get_by_query(key, *args, **kwargs)
-        if value is _not_found_:
-            raise KeyError(f"Can not find property \"{key}\" of {self.__class__.__name__}")
+        value = self._get(key, *args, **kwargs)
+        # if value is _not_found_:
+        #     raise KeyError(f"Can not find property \"{key}\" of {self.__class__.__name__}")
         return value
 
-    def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self._insert(key, value)
+    def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self.update(key, value)
 
     def __del_property__(self, key: str, **kwargs): self._remove(key)
 

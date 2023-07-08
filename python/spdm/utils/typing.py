@@ -35,7 +35,7 @@ NumericType = ScalarType | ArrayType
 
 numeric_type = (*scalar_type, *array_type)
 
-PrimaryType = str | NumericType
+PrimaryType = str | NumericType | Enum
 
 primary_type = (str,  *numeric_type)
 
@@ -135,7 +135,11 @@ def as_namedtuple(d: dict, name=""):
 
 
 def as_value(obj: typing.Any) -> HTreeLike:
-    if hasattr(obj, "__value__"):
+    if isinstance(obj, collections.abc.Mapping):
+        return {k: as_value(v) for k, v in obj.items()}
+    elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
+        return [as_value(v) for v in obj]
+    elif hasattr(obj, "__value__"):
         return obj.__value__
     else:
         return obj
@@ -246,17 +250,18 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
         return False
     elif getattr(obj, "__orig_class__", obj.__class__) == type_hint:
         return True
-    elif not hasattr(obj, "__orig_class__") :
+    elif not hasattr(obj, "__orig_class__"):
         return True
     elif type_hint in getattr(obj, "__orig_bases__", []):
-        return True 
+        return True
     else:
         return False
 
 
 def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typing.Any:
     if value is _not_found_:
-        raise RuntimeError(f"value is _not_found_")
+        # raise RuntimeError(f"value is _not_found_")
+        return value
     elif type_hint is None or isinstance_generic(value, type_hint):
         return value
 

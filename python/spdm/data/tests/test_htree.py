@@ -2,10 +2,11 @@ import typing
 import unittest
 from copy import deepcopy
 
-import numpy as np
 from spdm.utils.typing import as_value
 from spdm.data.HTree import Dict, HTree, List
 from spdm.utils.logger import logger
+from spdm.utils.tags import _undefined_
+import pprint
 
 
 class Foo(Dict):
@@ -69,16 +70,15 @@ class TestNode(unittest.TestCase):
     #     self.assertTrue(isinstance(d.create_child({"a": 1, "b": 2, "c": 3}), Dict))
 
     def test_get_by_path(self):
-        cache = deepcopy(self.data)
 
-        d = Dict(cache)
+        d = Dict(deepcopy(self.data))
 
-        self.assertEqual(len(d["a"]),                     6)
-        self.assertEqual(d["c"].__value__,                 cache["c"])
-        self.assertEqual(d["d/e"].__value__,          cache["d"]["e"])
-        self.assertEqual(d["d/f"].__value__,          cache["d"]["f"])
-        self.assertEqual(d["a/0"].__value__,            cache["a"][0])
-        self.assertEqual(d["a/1"].__value__,            cache["a"][1])
+        self.assertEqual(d["c"].__value__,                 self.data["c"])
+        self.assertEqual(d["d/e"].__value__,          self.data["d"]["e"])
+        self.assertEqual(d["d/f"].__value__,          self.data["d"]["f"])
+        self.assertEqual(d["a/0"].__value__,            self.data["a"][0])
+        self.assertEqual(d["a/1"].__value__,            self.data["a"][1])
+        self.assertEqual(len(d["a"]),                                   6)
 
         # self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
@@ -93,42 +93,40 @@ class TestNode(unittest.TestCase):
         d["e"] = {}
         d["e"]["f"] = 5
         d["e"]["g"] = 6
-        self.assertEqual(cache["e"]["f"], 5)
-        self.assertEqual(cache["e"]["g"], 6)
+
+        self.assertEqual(cache["e"]["f"].__value__, 5)
+        self.assertEqual(cache["e"]["g"].__value__, 6)
 
     def test_update(self):
-        cache = deepcopy(test_data)
-        d = Dict(cache)
+        d = Dict(deepcopy(test_data))
 
-        d._update([], {"d": {"g": 5}})
+        d.update({"d": {"g": 5}})
 
-        self.assertEqual(cache["d"]["e"], "{name} is {age}")
-        self.assertEqual(cache["d"]["f"], "{address}")
-        self.assertEqual(cache["d"]["g"], 5)
+        self.assertEqual(d["d"]["e"].__value__, "{name} is {age}")
+        self.assertEqual(d["d"]["f"].__value__, "{address}")
+        self.assertEqual(d["d"]["g"].__value__, 5)
 
     def test_insert(self):
-        cache0 = deepcopy(test_data)
-        d0 = Dict(cache0)
 
-        d0._insert("a", "hello world {name}!")
-        d0.insert({"d": {"g": 5}})
+        d0 = Dict(deepcopy(test_data))
 
-        self.assertEqual(cache0["d"]["e"], "{name} is {age}")
-        self.assertEqual(cache0["d"]["f"], "{address}")
-        self.assertEqual(cache0["d"]["g"], 5)
+        d0.insert({"a": "hello world {name}!"})
+        d0.update({"d": {"g": 5}})
 
-        cache1 = []
+        self.assertEqual(d0["d"]["e"].__value__, "{name} is {age}")
+        self.assertEqual(d0["d"]["f"].__value__, "{address}")
+        self.assertEqual(d0["d"]["g"].__value__, 5)
 
-        d1 = List(cache1)
+        d1 = List([])
 
         d1.insert({"a": [1], "b": 2})
 
-        self.assertEqual(cache1[0]["a"][0], 1)
-        self.assertEqual(cache1[0]["b"], 2)
+        self.assertEqual(d1[0]["a"][0].__value__, 1)
+        self.assertEqual(d1[0]["b"].__value__, 2)
 
-        d1._insert("0/a", 2)
+        d1["0/a"].insert(2)
 
-        self.assertEqual(cache1[0]["a"], [1, 2])
+        self.assertEqual(d1[0]["a"].__value__, [1, 2])
 
     def test_get_by_index(self):
         data = [1, 2, 3, 4, 5]
@@ -152,21 +150,20 @@ class TestNode(unittest.TestCase):
 
         del d["a"]
 
-        self.assertTrue("a" not in cache)
+        self.assertTrue(cache["a"], _undefined_)
 
     def test_node_insert(self):
-        cache = {"this_is_a_cache": True}
 
-        d = Dict[List](cache)
+        d = Dict[List]({"this_is_a_cache": True})
 
         d["a"] = "hello world {name}!"
-        self.assertEqual(cache["a"], "hello world {name}!")
+        self.assertEqual(d["a"].__value__, "hello world {name}!")
 
-        d["c"] .insert(1.23455)
-        d["c"] .insert({"a": "hello world", "b": 3.141567})
+        d["c"].insert(1.23455)
+        d["c"].insert({"a": "hello world", "b": 3.141567})
 
-        self.assertEqual(cache["c"][0],  1.23455)
-        self.assertEqual(cache["c"][1]["b"],  3.141567)
+        self.assertEqual(d["c"][0].__value__,  1.23455)
+        self.assertEqual(d["c"][1]["b"].__value__,  3.141567)
 
     def test_type_hint(self):
         d1 = List([])
@@ -184,16 +181,16 @@ class TestNode(unittest.TestCase):
             def __init__(self, v, **kwargs) -> None:
                 self.v = v
 
-        d1 = List[Foo](data)
+        d1 = List[Foo](deepcopy(data))
 
         self.assertIsInstance(d1[2], Foo)
-        self.assertEqual(d1[2].v.__value__, data[2])
+        self.assertEqual(d1[2].v, data[2])
 
     def test_iter(self):
 
         data = [1, 2, 3, 4, 5]
 
-        d0 = List[int](data)
+        d0 = List[int](deepcopy(data))
 
         self.assertListEqual([v for v in d0], data)
 
@@ -201,58 +198,9 @@ class TestNode(unittest.TestCase):
 
         data = [1, 2, 3, 4, 5]
 
-        d0 = List[int](data)
-
-        # self.assertListEqual([v for v in d0], data)
+        d0 = List[int](deepcopy(data))
 
         self.assertListEqual(as_value(d0[1:4]), data[1:4])
- 
-
-    # def test_get_by_iter(self):
-    #     data = [1, 2, 3, 4, 5]
-
-    #     d0 = List[int](data)
-
-    #     d1 = [d for d in d0]
-
-    #     self.assertListEqual(d1, data)
-
-    # def test_child_type_convert_list(self):
-
-    #     cache = [{"a": 1234}, {"b": 1234}, {"c": 1234}, {"d": 1234}]
-
-    #     d = List[Foo](cache)
-
-    #     self.assertFalse(isinstance(cache[1], Foo))
-    #     self.assertTrue(isinstance(d[1], Foo))
-
-    #     self.assertTrue(isinstance(cache[1], Foo))
-
-    # def test_chain_mapping(self):
-    #     cache = {"a": 1234, "b": 1234, "c": 12343, "d": 12345}
-    #     d = Dict(cache, a=5, b=4)
-    #     self.assertEqual(d["a"], 5)
-    #     self.assertEqual(d["b"], 4)
-
-    #     self.assertEqual(d["c"], cache["c"])
-    #     self.assertEqual(d["d"], cache["d"])
-
-    # def test_node_boolean(self):
-    #     d = Dict()
-    #     self.assertTrue(d.empty)
-    #     self.assertTrue(d["a"] or 12.3, 12.3)
-
-    # def test_dict_find_by_key(self):
-    #     d = NamedFoo(test_data)
-
-    #     self.assertEqual(len(d["a"]),                     6)
-    #     self.assertEqual(d["c"],             test_data["c"])
-    #     self.assertEqual(d["d"]["e"],   test_data["d"]["e"])
-    #     self.assertEqual(d["d"]["f"],   test_data["d"]["f"])
-    #     self.assertEqual(d["a/0"],       test_data["a"][0])
-    #     self.assertEqual(d["a/1"],       test_data["a"][1])
-
-    #     self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
 
 
 if __name__ == '__main__':
