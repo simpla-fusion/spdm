@@ -24,13 +24,13 @@ from ..utils.logger import deprecated, logger
 
 
 def find_countours_skimage_(val: float, z: np.ndarray, x_inter, y_inter) -> typing.Generator[GeoObject | None, None, None]:
-  
+
     for c in measure.find_contours(z, val):
         # data = [[x_inter(p[0], p[1], grid=False), y_inter(p[0], p[1], grid=False)] for p in c]
         x = np.asarray(x_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
         y = np.asarray(y_inter(c[:, 0], c[:, 1], grid=False), dtype=float)
         data = np.stack([x, y], axis=-1)
-        
+
         if len(data) == 0:
             yield None
         elif data.shape[0] == 1:
@@ -52,6 +52,9 @@ def find_countours_skimage(vals: list, z: np.ndarray, x: np.ndarray, y: np.ndarr
 
     if not isinstance(vals, (collections.abc.Sequence, np.ndarray)):
         vals = [vals]
+    elif isinstance(vals, np.ndarray) and vals.ndim == 0:
+        logger.debug(vals)
+        vals = vals.reshape([1])
 
     for val in vals:
         yield val, find_countours_skimage_(val, z, x_inter, y_inter)

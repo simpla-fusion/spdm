@@ -47,13 +47,13 @@ class HTree(typing.Generic[_T]):
 
         default_value = {}
 
-        if isinstance(entry, dict):
-            default_value = merge_tree_recursive(default_value, (entry.pop("$default_value", {})))
+        # if isinstance(entry, dict):
+        #     default_value = merge_tree_recursive(default_value, (entry.pop("$default_value", {})))
 
         if isinstance(cache, dict):
             default_value = merge_tree_recursive(default_value, (cache.pop("$default_value", {})))
 
-        default_value = merge_tree_recursive(default_value, (kwargs.pop("$default_value", {})))
+        default_value = merge_tree_recursive(default_value, kwargs.pop("default_value", {}))
 
         if cache is None or cache is _undefined_:
             cache = _not_found_
@@ -226,7 +226,9 @@ class HTree(typing.Generic[_T]):
         return tp_hint
 
     def _as_child(self, cache,  id, *args, entry=None,
-                  type_hint: typing.Type = None, default_value=_not_found_,
+                  type_hint: typing.Type = None,
+                  default_value=_not_found_,
+                  getter: typing.Callable = None,
                   parent=None,  **kwargs):
 
         if entry is None:
@@ -258,9 +260,12 @@ class HTree(typing.Generic[_T]):
         # el
         if isinstance_generic(cache, type_hint):
             value = cache
+        elif getter is not None:
+            # logger.warning(f"Ignore {cache}")
+            value = getter(self)
 
         elif issubclass(get_origin(type_hint), HTree):
-            value = type_hint(cache, entry=entry, parent=parent, *args, **kwargs)
+            value = type_hint(cache, entry=entry, parent=parent, *args, default_value=default_value, **kwargs)
 
         else:
             value = type_convert(cache if cache is not _not_found_ else entry.__value__, type_hint=type_hint, **kwargs)
@@ -335,17 +340,12 @@ class HTree(typing.Generic[_T]):
             raise RuntimeError(f"{self._cache}")
         pass
 
-    def _get_as_dict(self, key: str, getter=None, *args, **kwargs) -> HTree[_T] | _T:
+    def _get_as_dict(self, key: str,  *args, **kwargs) -> HTree[_T] | _T:
 
         cache = _not_found_
 
         if isinstance(self._cache, collections.abc.Mapping):
             cache = self._cache.get(key, _not_found_)
-        # else:
-        #     raise RuntimeError(f"Illegal cache type! {type(self._cache)} {self._cache}")
-
-        if cache is _not_found_ and getter is not None:
-            cache = getter(self)
 
         value = self._as_child(cache, key, *args, **kwargs)
 
@@ -356,7 +356,7 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _get_as_list(self, key: int | slice,  default_value=_not_found_,  *args,  **kwargs) -> HTree[_T] | _T | QueryResult:
+    def _get_as_list(self, key: int | slice,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | QueryResult:
 
         if isinstance(key, slice):
             return QueryResult(self, key, *args, **kwargs)
@@ -365,10 +365,14 @@ class HTree(typing.Generic[_T]):
 
         if isinstance(self._cache, collections.abc.Sequence):
             cache = self._cache[key]
+
         elif self._cache is not _not_found_:
             raise RuntimeError(self._cache)
 
-        value = self._as_child(cache, key, parent=self._parent, **kwargs)
+        if default_value is _not_found_ or default_value is _undefined_:
+            default_value = self._default_value
+
+        value = self._as_child(cache, key, *args, parent=self._parent, default_value=default_value, **kwargs)
 
         if value is not _not_found_ and isinstance(key, int):
             if isinstance(self._cache, list):
