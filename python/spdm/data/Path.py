@@ -254,7 +254,7 @@ class Path(list):
         """
         return Path._exec(target, self[:], Path.tags.remove, *args,  quiet=quiet,  **kwargs)
 
-    def find_next(self, target: typing.Any,  start: PathLike, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
+    def find_next(self, target: typing.Any,  start: PathLike=None, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
         """  从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
         res = Path._exec(target, self[:], Path.tags.next, start, *args, **kwargs)
 

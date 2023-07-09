@@ -17,6 +17,8 @@ from .ExprOp import ExprOp
 
 _T = typing.TypeVar("_T")
 
+ExpressionLike = typing.Callable | ExprOp | NumericType | None
+
 
 class Expression:
     """
@@ -43,7 +45,7 @@ class Expression:
 
     fill_value = float_nan
 
-    def __init__(self, op: typing.Callable | ExprOp | Expression | NumericType | None = None, *children, name: str | None = None,  **kwargs) -> None:
+    def __init__(self, op: ExpressionLike | Expression = None, *children, name: str | None = None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -63,7 +65,7 @@ class Expression:
         elif op is not None and not isinstance(op, ExprOp):
             op = ExprOp(op, **kwargs)
 
-        self._op: ExprOp = op
+        self._op: ExpressionLike | Expression = op
         self._name: str = name if name is not None else getattr(op, "__name__", self.__class__.__name__)
         self._children = children
 
