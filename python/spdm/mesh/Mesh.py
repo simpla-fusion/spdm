@@ -45,9 +45,9 @@ class Mesh(Pluggable):
 
         if isinstance(mesh_type, str):
             mesh_type = [mesh_type,
-                          f"spdm.mesh.{mesh_type}Mesh#{mesh_type}Mesh",
-                          f"spdm.mesh.{mesh_type.capitalize()}Mesh#{mesh_type.capitalize()}Mesh"
-                          ]
+                         f"spdm.mesh.{mesh_type}Mesh#{mesh_type}Mesh",
+                         f"spdm.mesh.{mesh_type.capitalize()}Mesh#{mesh_type.capitalize()}Mesh"
+                         ]
         super().__dispatch__init__(mesh_type, self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
@@ -61,7 +61,7 @@ class Mesh(Pluggable):
         elif isinstance(geometry, str):
             geometry = {"type": geometry}
 
-        if isinstance(geometry, (GeoObject, GeoObjectSet)):
+        if isinstance(geometry, GeoObject):
             self._geometry = geometry
         elif isinstance(geometry, collections.abc.Mapping):
             self._geometry = GeoObject(*args, **geometry)
@@ -90,7 +90,7 @@ class Mesh(Pluggable):
     def units(self) -> typing.Tuple[str, ...]: return tuple(self.metadata.get("units", ["-"]))
 
     @property
-    def geometry(self) -> GeoObject | GeoObjectSet: return self._geometry
+    def geometry(self) -> GeoObject: return self._geometry
     """ Geometry of the Mesh  网格的几何形状  """
 
     @property
@@ -120,7 +120,7 @@ class Mesh(Pluggable):
             @return: 数组形状为 [geometry.rank, <shape of xyz ...>]的数组
         """
         if len(xyz) == 0:
-            return np.stack(np.meshMesh(*[np.linspace(0.0, 1.0, n, endpoint=True) for n in self.shape]))
+            return np.stack(np.meshgrid(*[np.linspace(0.0, 1.0, n, endpoint=True) for n in self.shape]))
         else:
             raise NotImplementedError(f"{self.__class__.__name__}.parametric_coordinates for unstructured mesh")
 

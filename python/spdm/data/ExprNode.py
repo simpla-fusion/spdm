@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import collections.abc
 import typing
 
-from ..utils.logger import logger
-from ..utils.numeric import is_close, squeeze
-from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayLike, ArrayType, array_type, as_array,
-                            is_array, is_scalar, numeric_type)
-from .Expression import Expression
+from ..utils.typing import (numeric_type, ArrayType, NumericType)
 from .ExprOp import ExprOp
+from .Expression import Expression
+
 from .HTree import HTree
 
 _T = typing.TypeVar("_T")
@@ -17,16 +13,16 @@ _T = typing.TypeVar("_T")
 
 class ExprNode(Expression, HTree[_T]):
     """
-    Profile
+    ExprNode
     ---------
-    Profile= Function + Node 是具有 Function 特性的 Node。
+    ExprNode= Function + Node 是具有 Function 特性的 Node。
     Function 的 value 由 Node.__value__ 提供，
 
     mesh 可以根据 kwargs 中的 coordinate* 从 Node 所在 Tree 获得
 
     """
 
-    def __init__(self,  value: typing.Any, *args,   **kwargs) -> None:
+    def __init__(self,  expr: typing.Callable | None, *args, cache: NumericType = None,  **kwargs) -> None:
         """
             Parameters
             ----------
@@ -39,23 +35,11 @@ class ExprNode(Expression, HTree[_T]):
 
         """
 
-        if isinstance(value, Expression) or callable(value) or isinstance(value, ExprOp):
-            expr = value
-            value = None
-        else:
-            expr = None
+        HTree.__init__(self, cache, **kwargs)
 
-        Expression.__init__(self, expr, *args)
+        Expression.__init__(self, expr, *args, name=self.__metadata__.get("name", None))
 
-        if not isinstance(value, array_type):
-            HTree.__init__(self, value, **kwargs)
-            self._value = None
-        else:
-            HTree.__init__(self, **kwargs)
-            self._value = value
-
-    @property
-    def __name__(self) -> str: return self.__metadata__.get("name", "unnamed")
+    def __str__(self): return Expression.__str__(self)
 
     @property
     def __label__(self) -> str:
@@ -72,67 +56,13 @@ class ExprNode(Expression, HTree[_T]):
         other._op = self._op
         other._name = self._name
         other._children = self._children
-        other._ppoly = self._ppoly
-        other._value = self._value
+
         return other
 
-    def _refresh(self):
-        if self._value is not None:
-            return self._value
-        value = super().__value__
-        if value is None or value is _not_found_:
-            self._value = None
-        elif isinstance(value, Expression) or callable(value) or isinstance(value, ExprOp):
-            if self._op is None:
-                self._op = value
-            else:
-                raise RuntimeError(f"Cannot refresh {self} 'op'={self._op} with {value}")
+    def __expr__(self) -> ExprOp | NumericType:
+        """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
+        expr = super().__expr__()
+        if isinstance(expr, ExprOp):
+            return expr
         else:
-            self._value = self._normalize_value(value)
-
-        return self._value
-
-    @property
-    def __value__(self) -> typing.Any:
-        self._refresh()
-        return self._value
-
-    def __array__(self, *args,  **kwargs) -> ArrayType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
-        """
-        value = self.__value__
-
-        if (value is None or value is _not_found_):
-            if self.callable and hasattr(self, "points"):
-                value = self.__call__(*self.points)
-
-        if (value is None or value is _not_found_):
-            # raise ValueError(f"{self} is None")
-            # value = []
-            value = None
-
-        return self._normalize_value(value, *args,  **kwargs)
-
-    @staticmethod
-    def _normalize_value(value: ArrayLike, *args, **kwargs) -> ArrayLike:
-        """ 将 value 转换为 array_type 类型 """
-        if isinstance(value, array_type) or is_scalar(value):
-            pass
-        elif value is None or value is _not_found_:
-            value = None
-        elif isinstance(value, numeric_type):
-            value = as_array(value, *args, **kwargs)
-        elif isinstance(value, tuple):
-            value = as_array(value, *args, **kwargs)
-        elif isinstance(value, collections.abc.Sequence):
-            value = as_array(value, *args, **kwargs)
-        elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
-            value = None
-        else:
-            raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
-
-        if isinstance(value, array_type) and value.size == 1:
-            value = squeeze(value).item()
-
-        return value
+            return self.__value__

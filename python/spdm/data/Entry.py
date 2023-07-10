@@ -22,7 +22,7 @@ class Entry(Pluggable):
 
     _plugin_registry = {}
 
-    def __init__(self, data:  typing.Any = None, path: Path | None = None, *args,  **kwargs):
+    def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args,  **kwargs):
         if self.__class__ is Entry:
             entry_type = kwargs.pop("entry_type", None)
 
@@ -31,7 +31,7 @@ class Entry(Pluggable):
                                            self, data, path, *args, **kwargs)
                 return
 
-        self._data = data if data is not _not_found_ else data
+        self._data = data
         self._path = as_path(path)
 
     def __copy__(self) -> Entry:

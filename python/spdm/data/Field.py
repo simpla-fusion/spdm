@@ -113,6 +113,20 @@ class Field(ExprNode[_T]):
 
     def __domain__(self, *xargs) -> bool: return self.__mesh__.geometry.enclose(*xargs)
 
+    def __array__(self, *args,  **kwargs) -> ArrayType:
+        """ 重载 numpy 的 __array__ 运算符
+                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
+        """
+        value = self.__value__
+
+        if (value is None or value is _not_found_):
+            value = self.__call__(*self.points)
+
+        if (value is None or value is _not_found_):
+            value = None
+
+        return self._normalize_value(value, *args,  **kwargs)
+
     @property
     def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
 

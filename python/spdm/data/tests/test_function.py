@@ -124,84 +124,82 @@ class TestFunction(unittest.TestCase):
 
 class TestFunctionSPL(unittest.TestCase):
 
-    def test_spl(self):
-        x = np.linspace(0, 1.0, 128)
-        y = np.sin(x*TWOPI)
+        def test_spl(self):
+            x = np.linspace(0, 1.0, 128)
+            y = np.sin(x*TWOPI)
 
-        fun = Function(y, x)
+            fun = Function(y, x)
 
-        x2 = np.linspace(0, 1.0, 64)
-        y2 = np.sin(x2*TWOPI)
+            x2 = np.linspace(0, 1.0, 64)
+            y2 = np.sin(x2*TWOPI)
 
-        self.assertTrue(np.allclose(y2, fun(x2)))
+            self.assertTrue(np.allclose(y2, fun(x2)))
 
-    def test_dydx(self):
+        def test_dydx(self):
 
-        x = np.linspace(0, TWOPI, 512)
+            _x = Variable(0, "x")
 
-        _x = Variable(0, "x")
+            Y = Function(np.sin(_x), periods=[TWOPI])
 
-        Y = Function(np.sin(_x), x, periods=[TWOPI])
+            x = np.linspace(0, TWOPI, 512)
 
-        # logger.debug(Y(x))
+            self.assertTrue(np.allclose(np.sin(x), Y(x), rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(np.sin(x), Y(x), rtol=1.0e-4))
+            self.assertTrue(np.allclose(np.cos(x), Y.d()(x), rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(np.cos(x), Y.d()(x), rtol=1.0e-4))
+            # logger.debug((-(TWOPI**2)*np.sin(x))[:10])
+            # logger.debug(Y.d(2)(x)[:10])
+            # self.assertTrue(np.allclose(-(TWOPI**2)*np.sin(x), Y.d(2)(x), rtol=0.10))
 
-        # logger.debug((-(TWOPI**2)*np.sin(x))[:10])
-        # logger.debug(Y.d(2)(x)[:10])
-        # self.assertTrue(np.allclose(-(TWOPI**2)*np.sin(x), Y.d(2)(x), rtol=0.10))
+        def test_integral(self):
 
-    def test_integral(self):
+            x = np.linspace(0, TWOPI, 512)
 
-        x = np.linspace(0, TWOPI, 512)
+            _x = Variable(0, "x")
 
-        _x = Variable(0, "x")
+            Y = Function(np.cos(_x), x, periods=[TWOPI])
 
-        Y = Function(np.cos(_x), x, periods=[TWOPI])
+            Y1 = Y.antiderivative()
 
-        Y1 = Y.antiderivative()
+            self.assertTrue(np.allclose(np.sin(x), Y1(x), rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(np.sin(x), Y1(x), rtol=1.0e-4))
+        def test_spl2d(self):
 
-    def test_spl2d(self):
+            x = np.linspace(0, TWOPI, 128)
+            y = np.linspace(0, 2*TWOPI, 128)
+            g_x, g_y = np.meshgrid(x, y)
 
-        x = np.linspace(0, TWOPI, 128)
-        y = np.linspace(0, 2*TWOPI, 128)
-        g_x, g_y = np.meshgrid(x, y)
+            z = np.sin(g_x)*np.cos(g_y)
 
-        z = np.sin(g_x)*np.cos(g_y)
+            _x = Variable(0, "x")
 
-        _x = Variable(0, "x")
+            _y = Variable(1, "y")
 
-        _y = Variable(1, "y")
+            fun = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI,  2*TWOPI])
 
-        fun = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI,  2*TWOPI])
+            z2 = fun(g_x, g_y)
 
-        z2 = fun(g_x, g_y)
+            self.assertTrue(np.allclose(z, z2, rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(z, z2, rtol=1.0e-4))
+        def test_pd2(self):
 
-    def test_pd2(self):
+            x = np.linspace(0, TWOPI, 128)
+            y = np.linspace(0, 2*TWOPI, 128)
 
-        x = np.linspace(0, TWOPI, 128)
-        y = np.linspace(0, 2*TWOPI, 128)
+            g_x, g_y = np.meshgrid(x, y)
 
-        g_x, g_y = np.meshgrid(x, y)
+            _x = Variable(0, "x")
+            _y = Variable(1, "y")
 
-        _x = Variable(0, "x")
-        _y = Variable(1, "y")
+            Z = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI, 2*TWOPI])
 
-        Z = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI, 2*TWOPI])
+            self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
+            self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y),  Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y),  Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
-
-        # ignore boundary points
-        self.assertTrue(np.allclose((- np.sin(g_x)*np.sin(g_y))
-                        [2:-2, 2:-2],  Z.pd(0, 1)(g_x, g_y)[2:-2, 2:-2], rtol=1.0e-4))
+            # ignore boundary points
+            self.assertTrue(np.allclose((- np.sin(g_x)*np.sin(g_y))
+                            [2:-2, 2:-2],  Z.pd(0, 1)(g_x, g_y)[2:-2, 2:-2], rtol=1.0e-4))
 
 
 if __name__ == '__main__':

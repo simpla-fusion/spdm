@@ -12,7 +12,7 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.numeric import bitwise_and, is_close, meshgrid
 from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayLike, ArrayType, NumericType, PrimaryType,
+from ..utils.typing import (ArrayLike, ArrayType, NumericType, PrimaryType, normalize_array,
                             array_type, as_array, is_array, is_scalar)
 from .Expression import Expression
 from .ExprNode import ExprNode
@@ -35,7 +35,7 @@ class Function(ExprNode[_T]):
 
     """
 
-    def __init__(self, value: ArrayLike | Expression | ExprOp | None, *dims: typing.Any, periods: typing.List[float] = None, **kwargs):
+    def __init__(self, func, *dims, cache: NumericType = None, periods: typing.List[float] = None, **kwargs):
         """
             Parameters
             ----------
@@ -55,20 +55,36 @@ class Function(ExprNode[_T]):
 
 
         """
-        super().__init__(value, **kwargs)
-        self._dims = [as_array(v) for v in dims] if len(dims) > 0 else None
-        self._periods = periods
-        self._ppoly = None
+
+        dims = [as_array(v) for v in dims]
+        periods = periods if isinstance(periods, collections.abc.Sequence) else [np.nan]*len(dims)
 
         for idx in range(len(dims)):
-            if isinstance(periods, collections.abc.Sequence) \
-                    and periods[idx] is not None \
-                    and not np.isclose(dims[idx][-1]-dims[idx][0], periods[idx]):
+            if periods[idx] is not np.nan and not np.isclose(dims[idx][-1]-dims[idx][0], periods[idx]):
                 raise RuntimeError(
                     f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] ")
             if not np.all(dims[idx][1:] > dims[idx][:-1]):
                 raise RuntimeError(
                     f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
+
+        if isinstance(func, array_type):
+            cache = func
+            func = interpolate(cache, *dims,
+                               periods=periods,
+                               name=kwargs.get("name", None),
+                               extrapolate=kwargs.get("extrapolate", 0))
+        elif not callable(func):
+            cache = func
+            func = None
+        else:
+
+            cache = None
+            # raise TypeError(f"func is not callable or array_type! {type(func)}")
+
+        super().__init__(func, cache=cache, **kwargs)
+
+        self._dims = dims
+        self._periods = periods
 
     def validate(self, value=None, strict=False) -> bool:
         """ 检查函数的定义域和值是否匹配 """
@@ -96,7 +112,7 @@ class Function(ExprNode[_T]):
 
     def __copy__(self) -> Function:
         """ 复制一个新的 Function 对象 """
-        other: Function = super().__copy__()
+        other: Function = super().__copy__()  # type:ignore
         other._dims = self._dims
         other._periods = self._periods
         return other
@@ -107,12 +123,12 @@ class Function(ExprNode[_T]):
     def __deserialize__(cls, desc: typing.Mapping) -> Function: raise NotImplementedError(f"")
 
     @property
-    def empty(self) -> bool: return self._value is None and self.dims is None and super().empty
+    def empty(self) -> bool: return len(self.dims) == 0 and super().empty
 
     @property
     def dims(self) -> typing.List[ArrayType]:
         """ for rectlinear mesh 每个维度对应一个一维数组，为网格的节点。"""
-        if self._dims is not None:
+        if len(self._dims) > 0:
             return self._dims
         parent = self._parent  # kwargs.get("parent", None)
         metadata = self._metadata  # kwargs.get("metadata", None)
@@ -123,16 +139,27 @@ class Function(ExprNode[_T]):
                 coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
             if coordinates is not None and len(coordinates) > 0:
-                self._dims = tuple([(self.get(c) if isinstance(c, str) else c)
-                                    for c in coordinates.values()])
+                self._dims = [as_array(self.get(c) if isinstance(c, str) else c)
+                              for c in coordinates.values()]
         return self._dims
 
     @property
-    def ndim(self) -> int: return len(self.dims) if self.dims is not None else 0
+    def ndim(self) -> int: return len(self.dims)
     """ 函数的维度，即定义域的秩 """
 
+    # @property
+    # def rank(self) -> int:
+    #     """ 函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定 """
+    #     if isinstance(self._value, array_type):
+    #         return self._value.shape[-1]
+    #     elif isinstance(self._value, tuple):
+    #         return len(self._value)
+    #     else:
+    #         logger.warning(f"Function.rank is not defined!  {type(self._value)} default=1")
+    #         return 1
+
     @property
-    def shape(self) -> typing.List[int]: return [len(d) for d in self.dims] if self.dims is not None else []
+    def shape(self) -> typing.List[int]: return [len(d) for d in self.dims]
     """ 所需数组的形状 """
 
     @property
@@ -140,7 +167,7 @@ class Function(ExprNode[_T]):
 
     @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
-        if self.dims is None:
+        if len(self.dims) == 0:
             raise RuntimeError(self.dims)
         elif len(self.dims) == 1:
             return self.dims
@@ -149,7 +176,7 @@ class Function(ExprNode[_T]):
 
     def __domain__(self, *args) -> bool:
         # or self._metadata.get("extrapolate", 0) != 1:
-        if self.dims is None or self.dims is _not_found_ or len(self.dims) == 0:
+        if len(self.dims) == 0:
             return True
 
         if len(args) != len(self.dims):
@@ -167,22 +194,24 @@ class Function(ExprNode[_T]):
                 v.append((args[i] >= d[0]) & (args[i] <= d[-1]))
         return bitwise_and.reduce(v)
 
-    # @property
-    # def rank(self) -> int:
-    #     """ 函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定 """
-    #     if isinstance(self._value, array_type):
-    #         return self._value.shape[-1]
-    #     elif isinstance(self._value, tuple):
-    #         return len(self._value)
-    #     else:
-    #         logger.warning(f"Function.rank is not defined!  {type(self._value)} default=1")
-    #         return 1
+    def __array__(self, *args,  **kwargs) -> ArrayType:
+        """ 重载 numpy 的 __array__ 运算符
+                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
+        """
+        value = self.__value__
+
+        if isinstance(value, array_type) and value.size > 0:
+            return value
+
+        self._cache = as_array(self.__call__(*self.points), *args,  **kwargs)
+
+        return self._cache
 
     def __getitem__(self, idx) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
     def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
 
-    def _compile(self, force=False) -> ExprOp | typing.Callable | None:
+    def __expr__(self) -> ExprOp:
         """ 对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
             NOTE：
@@ -203,46 +232,42 @@ class Function(ExprNode[_T]):
 
         """
 
-        if self._ppoly is not None and not force:
-            return self._ppoly
+        expr = super().__expr__()
 
-        self._ppoly = None
+        if not isinstance(expr, array_type):
+            return expr
 
-        value = self.__value__
+        elif expr.size == 1:
+            return expr.item()
 
-        if value is None and self.callable:
-            value = self.__call__(*self.points)
-
-        if value is None:
-            return None
-        elif is_scalar(value):
-            self._ppoly = value
-        elif isinstance(value, array_type):
-            self._ppoly = interpolate(value, *(self.dims if self.dims is not None else []),
-                                      periods=self.periods, name=self._name,
-                                      extrapolate=self._metadata.get("extrapolate", 0))
         else:
-            raise RuntimeError(f"Illegal value! {type(value)}")
+            self._op = interpolate(expr, *self._dims,
+                                   periods=self._periods,
+                                   name=self.__name__,
+                                   extrapolate=self._metadata.get("extrapolate", 0))
 
-        return self._ppoly
+            return self._op
 
-    def __call__(self, *args, **kwargs) -> typing.Any:
-        if is_array(self._value) and len(args) == 1 and self._dims is not None and args[0] is self._dims[0]:
-            return self._value
-        else:
-            return super().__call__(*args, **kwargs)
+    def __call__(self, *args, **kwargs) -> typing.Any: return super().__call__(*args, **kwargs)
 
     def compile(self, *args, **kwargs) -> Function[_T]:
-        return Function[_T](self._compile(*args, **kwargs), *self.dims, name=f"[{self.__str__()}]", periods=self._periods)
+        return Function[_T](interpolate(self.__expr__(), *args,
+                                        dims=self.dims,
+                                        periods=self._periods, **kwargs),
+                            *self.dims, periods=self._periods)
 
-    def partial_derivative(self, *d) -> Function[_T]:
-        return Function[_T](partial_derivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"d_{list(d)}({self})")
+    def partial_derivative(self, *d, **kwargs) -> Function[_T]:
+        return Function[_T](partial_derivative(d, self.__expr__(), **kwargs),
+                            *self.dims, periods=self._periods)
 
-    def antiderivative(self, *d) -> Function[_T]:
-        return Function[_T](antiderivative(self._compile(), *d), *self.dims, periods=self._periods, name=f"I_{list(d)}({self})")
+    def antiderivative(self, *d, **kwargs) -> Function[_T]:
 
-    def derivative(self, n=1) -> Function[_T]:
-        return Function[_T](derivative(self._compile(), n), name=f"D_{n}({self})")
+        return Function[_T](antiderivative(d, self.__expr__(), **kwargs),
+                            *self.dims, periods=self._periods)
+
+    def derivative(self, *n, **kwargs) -> Function[_T]:
+        return Function[_T](derivative(n, self.__expr__(),  **kwargs),
+                            *self.dims, periods=self._periods)
 
     def d(self, n=1) -> Function[_T]: return self.derivative(n)
 
@@ -250,10 +275,19 @@ class Function(ExprNode[_T]):
 
     def dln(self) -> Expression: return self.derivative() / self
 
-    def integral(self, *args, **kwargs) -> _T: return integral(self._compile(), *args, **kwargs)
+    def integral(self, *args, **kwargs) -> _T:
+        expr = self.__expr__()
+
+        if not isinstance(expr, ExprOp):
+            raise RuntimeError(f"Function.integral is not implemented for {type(expr)}")
+
+        return integral(expr, *args, **kwargs)
 
     def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
-        yield from find_roots(self._compile(), *args, **kwargs)
+        expr = self.__expr__()
+        if not isinstance(expr, ExprOp):
+            raise RuntimeError(f"Function.find_roots is not implemented for {type(expr)}")
+        yield from find_roots(expr, *args, **kwargs)
 
     def pullback(self, *dims, periods=None) -> Function:
 

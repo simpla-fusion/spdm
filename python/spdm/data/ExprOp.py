@@ -1,89 +1,38 @@
 from __future__ import annotations
 
-import collections.abc
-import functools
 import typing
-
+import numpy as np
 from ..utils.logger import logger
-from ..utils.tags import _not_found_, _undefined_
-from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
-                            scalar_type)
-
-_EXPR_OP_NAME = {
-    "negative": "-",
-    "add": "+",
-    "subtract": "-",
-    "multiply": "*",
-    "matmul": "*",
-    "true_divide": "/",
-    "power": "^",
-    "equal": "==",
-    "not_equal": "!",
-    "less": "<",
-    "less_equal": "<=",
-    "greater": ">",
-    "greater_equal": ">=",
-    "add": "+",
-    "subtract": "-",
-    "multiply": "*",
-    "matmul": "*",
-    "divide": "/",
-    "power": "^",
-    # "abs": "",
-    "positive": "+",
-    # "invert": "",
-    "bitwise_and": "&",
-    "bitwise_or": "|",
-
-    # "bitwise_xor": "",
-    # "right_shift": "",
-    # "left_shift": "",
-    # "right_shift": "",
-    # "left_shift": "",
-    "mod": "%",
-    # "floor_divide": "",
-    # "floor_divide": "",
-    # "trunc": "",
-    # "round": "",
-    # "floor": "",
-    # "ceil": "",
-}
+from ..utils.typing import (NumericType, numeric_type)
+ExprOpLike = typing.Callable | None
 
 
 class ExprOp:
-    """ 
+    """
         算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
         受 np.ufunc 启发而来。
         可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
     """
 
-    def __init__(self, op, /, method: str | None = None, name: str | None = None, **kwargs) -> None:
+    def __init__(self, op: typing.Callable | None, /,
+                 method: str | None = None,
+                 **kwargs) -> None:
         self._op = op
         self._method = method
         self._opts = kwargs
 
-        if name is not None:
-            self._name = name
-        elif isinstance(op, numeric_type):
-            self._name = f"[{type(op)}]"
-        elif method is None or method == "__call__":
-            self._name = getattr(op, "__name__", None)
-        elif method is not None:
-            self._name = f"{op.__class__.__name__}.{method}"
+    @property
+    def __label__(self) -> str:
+        if isinstance(self._op, np.ufunc):
+            return self._op.__name__
         else:
-            self._name = ""
+            return str(self._op)
 
-    def __str__(self) -> str: return str(self._name)
-
-    @property
-    def __name__(self) -> str | None: return self._name
-    """ To get the name of the operator，same as self.name. To compatible with numpy ufunc. """
-
-    @property
-    def name(self) -> str | None: return self._name
-
-    @property
-    def tag(self) -> str | None: return _EXPR_OP_NAME.get(self._name, None)
+    def __str__(self) -> str:
+        if isinstance(self._op, np.ufunc):
+            return self._op.__name__
+        else:
+            return str(self._op)
 
     @property
     def __op__(self) -> typing.Callable | NumericType: return self._op
@@ -108,103 +57,112 @@ class ExprOp:
 
         return value
 
+    def derivative(self, *args, **kwargs): return Derivative(self, *args, **kwargs)
+
+    def partial_derivative(self, *args, **kwargs): return PartialDerivative(self, *args, **kwargs)
+
+    def antiderivative(self, *args, **kwargs): return Antiderivative(self, *args, **kwargs)
+
+    def interpolate(self, *args, **kwargs):
+        from ..numlib.interpolate import interpolate
+        return interpolate(self, *args, **kwargs)
+
+
+def as_exprop(expr, *args, **kwargs) -> ExprOp | None:
+    if isinstance(expr, ExprOp):
+        return expr
+    elif callable(expr):
+        return ExprOp(expr, *args, **kwargs)
+    elif expr is None:
+        return None
+    else:
+        raise TypeError(f"expr={expr} is not callable!")
+
 
 class Derivative(ExprOp):
-    def __init__(self, func, *order: int, name=None, **kwargs) -> None:
-        if len(order) == 0:
-            order = (1,)
-
-        if name is None:
-            name = f"D{list(order)}({func})" if len(order) > 1 else f"D({func})"
-
-        if hasattr(func, "derivative"):
-            op = func.derivative(order)
-        else:
-            op = None
-        super().__init__(op, name=name, **kwargs)
-        self._func = func
+    def __init__(self, order, expr: ExprOp, *args,    **kwargs) -> None:
+        super().__init__(None,  *args, **kwargs)
+        self._expr = expr
         self._order = order
 
-    def __call__(self, *args, **kwargs):
-        if self._op is not None:
-            pass
-        elif hasattr(self._func, "derivative"):
-            self._op = self._func.derivative(self._order)
-        return super().__call__(*args, **kwargs)
+    def __str__(self) -> str:
+        if len(self._order) > 0:
+            return f"D{list(self._order)}({self._expr})"
+        else:
+            return f"D({self._expr})"
+
+    def __call__(self, *args, **kwargs): return super().__call__(*args, **kwargs)
 
 
-def derivative(func, *args, **kwargs) -> Derivative:
-    return Derivative(func, *args, **kwargs)
+def derivative(order, expr: ExprOp, *args, **kwargs) -> Derivative:
+    if not isinstance(expr, ExprOp):
+        return 0.0
+    else:
+        return Derivative(order, expr, *args, **kwargs)
 
 
 class PartialDerivative(ExprOp):
-    def __init__(self, func, *order, name=None,  **kwargs) -> None:
-        if name is not None:
-            pass
-        elif len(order) > 0:
-            name = name if name is not None else f"d{list(order)}({func})"
-        else:
-            name = f"d({func})"
+    def __init__(self, order, expr: ExprOp, *args, **kwargs) -> None:
+        super().__init__(None, **kwargs)
 
-        if hasattr(func, "partial_derivative"):
-            op = func.partial_derivative(*order)
-        else:
-            op = None
-
-        super().__init__(op,  name=name, **kwargs)
-
-        self._func = func
+        self._expr = expr
         self._order = order
 
+    def __str__(self) -> str:
+        if len(self._order) > 0:
+            return f"d{list(self._order)}({self._expr})"
+        else:
+            return f"d({self._expr})"
+
     def __call__(self, *args, **kwargs):
-        if self._op is None:
-            logger.debug(self._func)
-            # op = self._func
-            # for i, n in enumerate(self._order):
-            #     for j in range(n):
-            #         op = jax.grad(op, argument=i)
-            # self._op = op
+        # if self._op is None:
+        # op = self._func
+        # for i, n in enumerate(self._order):
+        #     for j in range(n):
+        #         op = jax.grad(op, argument=i)
+        # self._op = op
 
         return super().__call__(*args, **kwargs)
 
 
-def partial_derivative(func, *args, **kwargs) -> PartialDerivative:
-    return PartialDerivative(func, *args, **kwargs)
+def partial_derivative(order, expr: ExprOp, *args, **kwargs) -> PartialDerivative:
+    if not isinstance(expr, ExprOp):
+        return 0.0
+    else:
+        return PartialDerivative(order, expr, *args, **kwargs)
 
 
 class Antiderivative(ExprOp):
-    def __init__(self,  func, *order, name=None,   **kwargs) -> None:
-        if name is not None:
-            pass
-        elif len(order) > 0:
-            name = name if name is not None else f"I{list(order)}({func})"
-        else:
-            name = f"I({func})"
+    def __init__(self,  order, expr: ExprOp,    **kwargs) -> None:
 
-        if hasattr(func, "antiderivative"):
-            op = func.antiderivative(*order)
-        else:
-            op = None
+        super().__init__(None,   **kwargs)
 
-        super().__init__(op, name=name,  **kwargs)
-
-        self._func = func
+        self._expr = expr
         self._order = order
+
+    def _repr_latex_(self) -> str:
+        if len(self._order) > 0:
+            return f"I{list(self._order)}({self._expr})"
+        else:
+            return f"I({self._expr})"
 
     def __call__(self, *args, **kwargs):
         if self._op is None:
             from ..numlib.interpolate import interpolate
-            self._op = interpolate(self._func(*args), *args).antiderivative(*self._order)
+            self._op = interpolate(self._expr(*args), *args).antiderivative(*self._order)
 
         return super().__call__(*args, **kwargs)
 
 
-def antiderivative(func, *args, **kwargs) -> Antiderivative:
-    return Antiderivative(func, *args, **kwargs)
+def antiderivative(order, func, *args, **kwargs) -> Antiderivative:
+    if not isinstance(func, ExprOp):
+        raise TypeError(f"func={func} is not a ExprOp!")
+
+    return Antiderivative(order, func, *args, **kwargs)
 
 
 def integral(func, *args, **kwargs):
-    return func. integral(*args, **kwargs)
+    return func.integral(*args, **kwargs)
 
 
 def find_roots(func, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:

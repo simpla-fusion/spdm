@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-import collections.abc
-import functools
-import inspect
 import typing
-
+from copy import deepcopy
 import numpy as np
+import numpy.typing as np_tp
 
-from ..utils.logger import logger
 from ..utils.numeric import float_nan
-from ..utils.tags import _not_found_, _undefined_
-from ..utils.typing import (ArrayType, NumericType, array_type, numeric_type,
-                            scalar_type, is_scalar)
+from ..utils.tags import _not_found_
+from ..utils.typing import (NumericType, array_type, numeric_type,
+                            is_scalar)
 from ..views.View import display
+
 from .ExprOp import ExprOp
-
-_T = typing.TypeVar("_T")
-
-ExpressionLike = typing.Callable | ExprOp | NumericType | None
 
 
 class Expression:
@@ -45,7 +39,7 @@ class Expression:
 
     fill_value = float_nan
 
-    def __init__(self, op: ExpressionLike | Expression = None, *children, name: str | None = None,  **kwargs) -> None:
+    def __init__(self, op: typing.Any = None, *children, **kwargs) -> None:
         """
             Parameters
             ----------
@@ -57,29 +51,33 @@ class Expression:
                 命名参数， 用于传递给运算符的参数
 
         """
-        if isinstance(op, Expression) and len(children) == 0 and len(kwargs) == 0:
+
+        if isinstance(op, Expression) and len(children) == 0:
             # copy constructor
-            name = op._name if name is None else name
             children = op._children
             op = op._op
-        elif op is not None and not isinstance(op, ExprOp):
-            op = ExprOp(op, **kwargs)
+            kwargs = deepcopy(op._metadata) | kwargs
 
-        self._op: ExpressionLike | Expression = op
-        self._name: str = name if name is not None else getattr(op, "__name__", self.__class__.__name__)
+        elif op is None or isinstance(op, ExprOp):
+            pass
+
+        elif callable(op):
+            op = ExprOp(op)
+
+        elif not isinstance(op,  ExprOp):
+            raise NotImplementedError(f"{type(op)}")
+
+        self._op = op
         self._children = children
+        self._metadata = kwargs
 
     def __copy__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
         other: Expression = object.__new__(self.__class__)
         other._op = self._op
-        other._name = self._name
         other._children = self._children
-
+        other._metadata = deepcopy(self._metadata)
         return other
-
-    @property
-    def dtype(self): return self.__type_hint__
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
         """
@@ -97,7 +95,7 @@ class Expression:
         """
         return Expression(ExprOp(ufunc, method=method, **kwargs), *args)
 
-    def __array__(self, *args, **kwargs) -> ArrayType: raise NotImplementedError(f"__array__() is not implemented!")
+    # def __array__(self, *args, **kwargs) -> ArrayType: raise NotImplementedError(f"__array__() is not implemented!")
 
     @property
     def has_children(self) -> bool: return len(self._children) > 0
@@ -110,36 +108,21 @@ class Expression:
     def callable(self): return self._op is not None or self.has_children
 
     @property
-    def __name__(self) -> str: return self._name
+    def __label__(self) -> str: return self._metadata.get("label", None)
 
-    def __str__(self): return display(self, output="latex")
+    def __str__(self): return self._repr_latex_()
+
+    def _repr_latex_(self): return display(self, backend="latex")
     """ for jupyter notebook display """
 
-    def _repr_latex_(self): return display(self, output="latex")
-    """ for jupyter notebook display """
+    @property
+    def dtype(self): return self.__type_hint__
 
     @property
     def __type_hint__(self): return float
     """ TODO:获取表达式的类型 """
 
-    # def get_type(obj):
-    #     if not isinstance(obj, Expression):
-    #         return set([None])
-    #     elif len(obj._children) > 0:
-    #         return set([t for o in obj._children for t in get_type(o) if hasattr(t, "mesh")])
-    #     else:
-    #         return set([obj.__class__])
-    # tp = list(get_type(self))
-    # if len(tp) == 0:
-    #     orig_class = getattr(self, "__orig_class__", None)
-    #     tp = typing.get_args(orig_class)[0]if orig_class is not None else None
-    #     return tp if inspect.isclass(tp) else float
-    # elif len(tp) == 1:
-    #     return tp[0]
-    # else:
-    #     raise TypeError(f"Can not determint the type of expresion {self}! {tp}")
-
-    def __domain__(self, *x) -> bool:
+    def __domain__(self, *x) -> bool | np_tp.NDArray[np.bool_]:
         """ 当坐标在定义域内时返回 True，否则返回 False  """
 
         d = [child.__domain__(*x) for child in self._children if hasattr(child, "__domain__")]
@@ -149,21 +132,16 @@ class Expression:
         else:
             return True
 
-    def _compile(self, force=False) -> ExprOp | typing.Callable | None:
-        if not callable(self._op):
-            raise RuntimeError(f"Expression {self} is not callable!")
-        return self._op
+    def __expr__(self) -> ExprOp | NumericType: return self._op
+    """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
 
-    def _eval(self, op, *xargs, **kwargs):
+    def _eval(self, expr, *xargs, **kwargs):
         """ Evaluate expression """
+        if expr is None:
+            expr = self.__expr__()
 
-        if op is None:
-            op = self._compile()
-
-        if isinstance(op, numeric_type) or op is None:  # Constant value
-            return op
-        elif not (callable(op) or isinstance(op, Expression) or isinstance(op, ExprOp)):  # Illegal op
-            raise RuntimeError(f"Illegal op  op={op} in {self} !")
+        if not isinstance(expr, (Expression, ExprOp)):  # Constant value
+            return expr
 
         if len(self._children) > 0:  # Traverse children
             children = []
@@ -183,12 +161,13 @@ class Expression:
                 kwargs = {}
 
         try:
-            value = op(*xargs, **kwargs)
+            value = expr(*xargs, **kwargs)
         except Exception as error:
-            raise RuntimeError(f"Error when evaluating {self} !") from error
+            raise RuntimeError(f"Error when evaluating {expr} !") from error
         else:
             if value is _not_found_ or value is None:
-                raise RuntimeError(f"Error when evaluating {self} !")
+                expr_str = str(expr)
+                raise RuntimeError(f"Error when evaluating \"{expr_str}\" !")
         return value
 
     def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
@@ -229,7 +208,7 @@ class Expression:
             xargs = tuple([(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg)
                           for arg in xargs])
 
-        value = self._eval(self._op, *xargs, **kwargs)
+        value = self._eval(self.__expr__(), *xargs, **kwargs)
 
         if marked_num == mark_size:
             if not isinstance(mark, array_type):
@@ -310,14 +289,14 @@ class Variable(Expression):
 
     """
 
-    def __init__(self, idx: int | str, name: str = None) -> None:
+    def __init__(self, idx: int | str, label: str = None) -> None:
         super().__init__()
         self._idx = idx
-        self._name = name if name is not None else (idx if isinstance(idx, str) else f"_{idx}")
+        self._label = label if label is not None else (idx if isinstance(idx, str) else f"_{idx}")
 
-    def __str__(self) -> str: return self._name
+    def __str__(self) -> str: return self._label
 
-    @ property
+    @property
     def __type_hint__(self) -> typing.Type:
         """ 获取函数的类型
         """
@@ -327,10 +306,10 @@ class Variable(Expression):
         else:
             return float
 
-    @ property
-    def name(self): return self._name
+    @property
+    def __label__(self): return self._label
 
-    @ property
+    @property
     def index(self): return self._idx
 
     def __call__(self, *args, **kwargs):

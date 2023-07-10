@@ -106,15 +106,38 @@ def as_scalar(d: typing.Any) -> ScalarType:
     return complex(d) if is_complex(d) else float(d)
 
 
-def as_array(d: typing.Any, **kwargs) -> ArrayType:
+def as_array(d: typing.Any, *args, **kwargs) -> ArrayType:
     if isinstance(d, array_type):
         return d
     elif hasattr(d, '__array__'):
         return d.__array__()
     elif hasattr(d.__class__, '__value__'):
-        return np.asarray(d.__value__, **kwargs)
+        return np.asarray(d.__value__, *args,  **kwargs)
     else:
-        return np.asarray(d, **kwargs)
+        return np.asarray(d, *args,  **kwargs)
+
+
+def normalize_array(value: ArrayLike, *args, **kwargs) -> ArrayType:
+    """ 将 value 转换为 array_type 类型 """
+    if isinstance(value, array_type) or is_scalar(value):
+        pass
+    elif value is None or value is _not_found_:
+        value = None
+    elif isinstance(value, numeric_type):
+        value = as_array(value, *args, **kwargs)
+    elif isinstance(value, tuple):
+        value = as_array(value, *args, **kwargs)
+    elif isinstance(value, collections.abc.Sequence):
+        value = as_array(value, *args, **kwargs)
+    elif isinstance(value, collections.abc.Mapping) and len(value) == 0:
+        value = None
+    else:
+        raise RuntimeError(f"Function._normalize_value() incorrect value {value}! {type(value)}")
+
+    if isinstance(value, array_type) and value.size == 1:
+        value = np.squeeze(value).item()
+
+    return value
 
 
 def as_dataclass(cls, value):

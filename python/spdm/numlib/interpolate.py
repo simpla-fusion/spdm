@@ -10,7 +10,7 @@ from ..utils.logger import logger
 import typing
 
 
-class RectInterpolate(ExprOp):
+class RectInterpolateOp(ExprOp):
     def __init__(self, value, *dims, periods=None, check_nan=True, name=None, extrapolate=0, **kwargs) -> None:
         super().__init__(None, name=name)
         self._value = value
@@ -99,7 +99,7 @@ class RectInterpolate(ExprOp):
         return ExprOp(self.__op__.antiderivative(*d),  name=f"I_{list(d)}({self.__str__()})", **self._opts)
 
 
-def interpolate(*args, type="rectlinear", **kwargs) -> typing.Callable:
+def interpolate(*args, type="rectlinear", **kwargs) -> ExprOp:
     if type != "rectlinear":
         raise NotImplementedError(f"type={type}")
-    return RectInterpolate(*args, **kwargs)
+    return RectInterpolateOp(*args, **kwargs)

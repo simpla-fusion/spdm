@@ -106,11 +106,12 @@ class View(Pluggable):
 _view_instances = {}
 
 
-def display(*args, output=None, backend=None, **kwargs):
-    """Show an object"""
+def viewer(output=None, backend=None):
+    """Get a viewer instance"""
 
     if backend is None and isinstance(output, str):
         backend = output.split('.')[-1]
+
     if backend is None:
         backend = "matplotlib"
 
@@ -119,4 +120,10 @@ def display(*args, output=None, backend=None, **kwargs):
     if instance is None:
         instance = _view_instances[backend] = View(type=backend)
 
-    return instance.render(*args, output=output, **kwargs)
+    return instance
+
+
+def display(*args, output=None, backend=None, **kwargs):
+    """Show an object"""
+
+    return viewer(backend=backend, output=output).render(*args, output=output, **kwargs)

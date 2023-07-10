@@ -178,6 +178,7 @@ class HTree(typing.Generic[_T]):
             tp = obj._type_hint()
             if tp is None or tp == HTree[_T] or tp in primary_type:
                 obj = obj.__value__
+
         return obj
 
     ################################################################################
@@ -229,7 +230,7 @@ class HTree(typing.Generic[_T]):
                   type_hint: typing.Type = None,
                   default_value=_not_found_,
                   getter: typing.Callable = None,
-                  parent=None,  **kwargs):
+                  parent=None,  **kwargs) -> HTree[_T] | _T:
 
         if entry is None:
             entry = self._entry.child(id)
@@ -261,7 +262,12 @@ class HTree(typing.Generic[_T]):
         if not isinstance_generic(cache, type_hint) and getter is not None:
             # if cache is not _not_found_ and cache is not None:
             #     logger.warning(f"Ignore {cache}")
-            cache = getter(self)
+            try:
+                tmp = getter(self)
+            except Exception:
+                pass
+            else:
+                cache = tmp
 
         if isinstance_generic(cache, type_hint):
             value = cache
@@ -316,7 +322,7 @@ class HTree(typing.Generic[_T]):
 
         return value  # type:ignore
 
-    def _get_as_htable(self, query: dict, *args,  **kwargs) -> HTree[_T] | _T | QueryResult:
+    def _get_as_htable(self, query: dict, *args,  **kwargs) -> HTree[_T] | _T | PrimaryType | QueryResult:
         """ Hierarchical Table(htable): searchable list """
 
         if not all([k.startswith("@") for k in query.keys()]):
@@ -330,7 +336,7 @@ class HTree(typing.Generic[_T]):
 
     def _get_as_array(self, query, *args, **kwargs) -> NumericType:
         if self._cache is _not_found_:
-            self._cache = copy(self._entry.__value__)  # type:ignore
+            self._cache = self._entry.__value__  # type:ignore
 
         if isinstance(self._cache, array_type) or isinstance(self._cache, collections.abc.Sequence):
             return self._cache[query]
@@ -358,14 +364,16 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _get_as_list(self, key: int | slice,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | QueryResult:
-
-        if isinstance(key, slice):
-            return QueryResult(self, key, *args, **kwargs)
+    def _get_as_list(self, key: int | slice | dict,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | QueryResult:
 
         cache = None
+        entry = None
+        
+        if isinstance(key, (dict, slice)):
+            entry = QueryResult(self, key, *args, **kwargs)
+            key = None
 
-        if isinstance(self._cache, collections.abc.Sequence):
+        elif isinstance(self._cache, collections.abc.Sequence):
             cache = self._cache[key]
 
         elif self._cache is not _not_found_:
@@ -374,7 +382,8 @@ class HTree(typing.Generic[_T]):
         if default_value is _not_found_:
             default_value = self._default_value
 
-        value = self._as_child(cache, key, *args, parent=self._parent, default_value=default_value, **kwargs)
+        value = self._as_child(cache, key, *args, entry=entry,
+                               parent=self._parent, default_value=default_value, **kwargs)
 
         if value is not _not_found_ and isinstance(key, int):
             if isinstance(self._cache, list):
@@ -409,7 +418,7 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, start: PathLike = None, *args, default_value=_not_found_, **kwargs) -> typing.Tuple[_T | HTree[_T], PathLike]:
+    def _find_next(self, query: PathLike = None, start: PathLike = None, *args, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
 
         cache, pos = as_path(query).find_next(self._cache, start=start, *args, **kwargs)
 
@@ -465,19 +474,18 @@ class NamedDict(HTree[_T]):
     def __getattr__(self, name: str) -> typing.Any: return self._get(name)
 
 
-class QueryResult(Expression):
+class QueryResult(Entry):
     """ Handle the result of query    """
 
-    def __init__(self, target: HTree, query: PathLike,  *args, suffix: PathLike | Path = None,
+    def __init__(self, target: HTree, query: PathLike,  *args,
                  reducer: typing.Callable[..., HTreeLike] | None = None, **kwargs) -> None:
-        # super().__init__(*args, **kwargs)
-        self._query_cmd = query
-        self._suffix = as_path(suffix)
-        self._target = as_htree(target)
+        super().__init__(as_htree(target), query, *args, **kwargs)
         self._reducer = reducer if reducer is not None else QueryResult._default_reducer
 
     def __copy__(self) -> QueryResult:
-        return QueryResult(self._target, self._query_cmd, suffix=copy(self._suffix), reducer=self._reducer)
+        other: QueryResult = super().__copy__()  # type:ignore
+        other._reducer = self._reducer
+        return other
 
     def __getattr__(self, name: str) -> typing.Any: return self._lazy_get(name)
 

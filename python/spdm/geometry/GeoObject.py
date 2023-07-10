@@ -206,6 +206,7 @@ class GeoObjectSet(list[GeoObject]):
     @property
     def bbox(self) -> BBox: return np.bitwise_or.reduce([g.bbox for g in self if isinstance(g, GeoObject)])
 
+    def enclose(self, other) -> bool: return all([g.enclose(other) for g in self if isinstance(g, GeoObject)])
     # class Box(GeoObject):
     #     def __init__(self, *args, **kwargs) -> None:
     #         super().__init__(*args, **kwargs)
