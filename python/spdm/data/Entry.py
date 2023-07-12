@@ -41,7 +41,7 @@ class Entry(Pluggable):
 
     def __copy_from__(self, other: Entry) -> Entry:
         self._data = other._data
-        self._path = other._path
+        self._path = copy(other._path)
         return self
 
     def reset(self, value=None, path=None) -> Entry:
@@ -104,7 +104,10 @@ class Entry(Pluggable):
             except StopIteration:
                 break
             else:
-                yield value
+                if start is not None:
+                    yield value
+                else:
+                    break
 
     def __next__(self) -> Entry:
         """ Iterate over the slibings of the Entry."""
@@ -115,7 +118,9 @@ class Entry(Pluggable):
 
         value, idx = self.parent.find_next(start=start)
 
-        if isinstance(value, Entry):
+        if idx is None:
+            raise StopIteration()
+        elif isinstance(value, Entry):
             value = value.__value__
 
         self._path[-1] = idx

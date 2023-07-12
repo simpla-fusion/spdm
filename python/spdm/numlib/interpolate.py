@@ -11,16 +11,15 @@ import typing
 
 
 class RectInterpolateOp(Functor):
-    def __init__(self, value, *xargs,
-                 dims=None, periods=None,
+    def __init__(self, value, *dims,
+                 periods=None,
                  check_nan=True,  extrapolate=0,
                  **kwargs) -> None:
         super().__init__(None)
         self._value = value
-        self._xargs = xargs
         self._dims = dims
         self._periods = periods
-        self._opts = kwargs
+        self._opts: dict = kwargs
         self._check_nan = check_nan
         self._extrapolate = extrapolate
         if isinstance(value, array_type):
