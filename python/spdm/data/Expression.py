@@ -40,7 +40,7 @@ class Expression:
 
     fill_value = float_nan
 
-    def __init__(self, op: typing.Any = None, *children, label: str = None, **kwargs) -> None:
+    def __init__(self, expr: Functor | Expression  = None, *children, label: str = None, **kwargs) -> None:
         """
             Parameters
             ----------
@@ -53,22 +53,19 @@ class Expression:
 
         """
 
-        if isinstance(op, Expression) and len(children) == 0:
-            # copy constructor
-            children = op._children
-            kwargs = deepcopy(op._metadata) | kwargs
-            op = op._op
+        if isinstance(expr, Expression) and len(children) == 0:
+            self.__copy_from__(expr)
 
-        elif op is None or isinstance(op, Functor):
+        elif expr is None or isinstance(expr, Functor):
             pass
 
-        elif callable(op):
-            op = Functor(op)
+        elif callable(expr):
+            expr = Functor(expr)
 
-        elif not isinstance(op,  Functor):
-            raise NotImplementedError(f"{type(op)}")
+        elif not isinstance(expr,  Functor):
+            raise NotImplementedError(f"{type(expr)}")
 
-        self._op = op
+        self._func = expr
         self._children = children
         self._label = label
 
@@ -83,9 +80,10 @@ class Expression:
 
     def __copy_from__(self, other: Expression) -> Expression:
         """ 复制 other 到 self  """
-        self._op = copy(other._op)
-        self._children = copy(other._children)
-        self._label = other._label
+        if isinstance(other, Expression):
+            self._func = copy(other._func)
+            self._children = copy(other._children)
+            self._label = other._label
         return self
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
@@ -111,10 +109,10 @@ class Expression:
     """ 判断是否有子节点"""
 
     @property
-    def empty(self) -> bool: return not self.has_children and self._op is None
+    def empty(self) -> bool: return not self.has_children and self._func is None
 
     @property
-    def callable(self): return callable(self._op) or self.has_children
+    def callable(self): return callable(self._func) or self.has_children
 
     @property
     def __label__(self) -> str: return self._label
@@ -135,8 +133,8 @@ class Expression:
 
         d = [child.__domain__(*x) for child in self._children if hasattr(child, "__domain__")]
 
-        if isinstance(self._op, Functor):
-            d += [self._op.__domain__(*x)]
+        if isinstance(self._func, Functor):
+            d += [self._func.__domain__(*x)]
 
         d = [v for v in d if (v is not None and v is not True)]
 
@@ -145,7 +143,7 @@ class Expression:
         else:
             return True
 
-    def __functor__(self) -> Functor | NumericType: return self._op
+    def __functor__(self) -> Functor | NumericType: return self._func
     """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
 
     def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
@@ -214,7 +212,7 @@ class Expression:
             value = func
         else:
             raise RuntimeError(f"Unknown functor {func} {type(func)}")
-        
+
         if marked_num == mark_size:
             if not isinstance(mark, array_type):
                 res = value

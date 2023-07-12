@@ -18,9 +18,9 @@ class Derivative(Functor):
             return f"D({self._expr})"
 
     def __call__(self, *args, **kwargs):
-        if self._op is None:
-            value = self._expr(*args)
-            self._op = interpolate(value, *args, **kwargs).derivative(*self._order)
+        if self._func is None:
+            self._expr(*args)
+
         return super().__call__(*args, **kwargs)
 
 
@@ -35,9 +35,6 @@ class PartialDerivative(Functor):
         self._order = args
 
     def __call__(self, *args, **kwargs):
-        if self._op is None:
-            value = self._expr(*args)
-            self._op = interpolate(value, *args, **kwargs).partial_derivative(*self._order)
         return super().__call__(*args, **kwargs)
 
 

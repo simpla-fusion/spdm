@@ -31,10 +31,12 @@ class RectInterpolateOp(Functor):
             elif tuple(value.shape) != tuple(self._shape):
                 raise RuntimeError(
                     f"Function.compile() incorrect value shape {value.shape}!={self._shape}! func={self.__str__()} ")
+        self._ppoly = None
 
-    def __call__(self, *args, **kwargs) -> typing.Any:
-        if self._func is not None:
-            return super().__call__(*args, **kwargs)
+    @property
+    def ppoly(self):
+        if self._ppoly is not None:
+            return self._ppoly
 
         value = self._value
 
@@ -55,7 +57,7 @@ class RectInterpolateOp(Functor):
                     value = value[~mark]
                     x = x[~mark]
 
-            self._func = InterpolatedUnivariateSpline(x, value,  ext=self._extrapolate)
+            self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=self._extrapolate)
         elif len(self._dims) == 2 and all(d.ndim == 1 for d in self._dims):
             if self._check_nan:
                 mark = np.isnan(value)
@@ -68,31 +70,31 @@ class RectInterpolateOp(Functor):
             # if isinstance(self.periods, collections.abc.Sequence):
             #     logger.warning(f"TODO: periods={self.periods}")
 
-            self._func = RectBivariateSpline(*self._dims, value, **self._opts)
+            self._ppoly = RectBivariateSpline(*self._dims, value, **self._opts)
             self._opts = {"grid": False}
         elif all(d.ndim == 1 for d in self._dims):
-            self._func = RegularGridInterpolator(self._dims, value, **self._opts)
+            self._ppoly = RegularGridInterpolator(self._dims, value, **self._opts)
         else:
             raise NotImplementedError(f"dims={self._dims} ")
 
-        return super().__call__(*args, **kwargs)
+        return self._ppoly
+
+    def __call__(self, *args, **kwargs) -> typing.Any: return self._ppoly()(*args, **kwargs)
 
     def derivative(self, n=1) -> Functor:
-        fname = f"d_{n}({self.__str__()})"
-        if isinstance(n, collections.abc.Sequence) and len(n) == 1:
-            n = n[0]
-        return Functor(self.__op__.derivative(n),  **self._opts)
+
+        return Functor(self.ppoly.derivative(n),  **self._opts)
 
     def partial_derivative(self, *d) -> Functor:
         if len(d) > 0:
-            fname = f"d_({self.__str__()})"
+            label = f"d_({self.__str__()})"
         else:
-            fname = f"d_{d}({self.__str__()})"
+            label = f"d_{d}({self.__str__()})"
 
-        return Functor(self.__op__.partial_derivative(*d), **self._opts)
+        return Functor(self.ppoly.partial_derivative(*d), label=label, **self._opts)
 
     def antiderivative(self, *d) -> Functor:
-        return Functor(self.__op__.antiderivative(*d), **self._opts)
+        return Functor(self.ppoly.antiderivative(*d), **self._opts)
 
 
 def interpolate(*args, type="rectlinear", **kwargs) -> Functor:

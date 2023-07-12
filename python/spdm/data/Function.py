@@ -73,11 +73,13 @@ class Function(HTree[_T], Expression):
 
     def __copy_from__(self, other: Function) -> Function:
         """ copy from other"""
+
         Expression.__copy_from__(self, other)
-        HTree[_T].__copy_from__(self, other)
-        self._dims = other._dims
-        self._periods = other._periods
-        return self
+        HTree.__copy_from__(self, other)
+        if isinstance(other, Function):
+            self._dims = other._dims
+            self._periods = other._periods
+            return self
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"__serialize__")
 
@@ -198,7 +200,7 @@ class Function(HTree[_T], Expression):
 
         func = super().__functor__()
 
-        if isinstance(func, Functor):
+        if isinstance(func, (Functor, Expression)):
             return func
         elif func is not None:
             raise RuntimeError(f"expr is not array_type! {type(func)}")
@@ -206,10 +208,8 @@ class Function(HTree[_T], Expression):
         value = self.__value__
 
         if isinstance(value, array_type) and value.size > 0:
-            func = interpolate(value, dims=self.dims, periods=self.periods,
-                               extrapolate=self._metadata.get("extrapolate", 0))
+            return self.interpolate()
 
-            return func
         else:
             return value
 
@@ -229,16 +229,23 @@ class Function(HTree[_T], Expression):
             return self._cache
 
         else:
-            raise TypeError(f"{self.__class__}.__array__ {type(value)}")
+            raise TypeError(f"{self.__class__}.__array__ \"{(value)}\"")
+
+    def _interpolate(self):
+        value = self.__array__()
+        if not isinstance(value, array_type):
+            raise RuntimeError(f"self.__array__ is not array_type! {(value)}")
+        return interpolate(value, dims=self.dims, periods=self.periods,
+                           extrapolate=self._metadata.get("extrapolate", 0))
 
     def derivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](Derivative(self.__functor__(), *d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
+        return Function[_T](self._interpolate().derivative(*d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
 
     def partial_derivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](PartialDerivative(self.__functor__(), *d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
+        return Function[_T](self._interpolate().partial_derivative(*d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
 
     def antiderivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](Antiderivative(self.__functor__(), *d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
+        return Function[_T](self._interpolate().antiderivative(*d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
 
     def d(self, n=1) -> Expression: return self.derivative(n)
 

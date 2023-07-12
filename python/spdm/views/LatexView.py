@@ -119,10 +119,10 @@ class LatexView(View):
         elif isinstance(expr, Function):
             res, level = self._render_function(expr, *args, parent=parent, **kwargs)
 
-        elif isinstance(expr, Expression) and isinstance(expr._op, Functor) and isinstance(expr._op._func, np.ufunc):
+        elif isinstance(expr, Expression) and isinstance(expr._func, Functor) and isinstance(expr._func._func, np.ufunc):
             res, level = self._render_ufunc(expr, *args, parent=parent, **kwargs)
 
-        elif isinstance(expr, Expression) and isinstance(expr._op, Functor):
+        elif isinstance(expr, Expression) and isinstance(expr._func, Functor):
             res, level = self._render_expr(expr, *args, parent=parent, **kwargs)
 
         else:
@@ -137,10 +137,10 @@ class LatexView(View):
         return func.__label__, 0
 
     def _render_ufunc(self, expr: Expression, *args, **kwargs) -> typing.Tuple[str, int]:
-        op: np.ufunc = expr._op._func
+        op: np.ufunc = expr._func._func
 
-        if expr._op._method != "__call__" and expr._op._method is not None:
-            raise NotImplementedError(f"op={expr._op._func} method={expr._op._method}")
+        if expr._func._method != "__call__" and expr._func._method is not None:
+            raise NotImplementedError(f"op={expr._func._func} method={expr._func._method}")
 
         children = expr._children
         n_children = len(children)
@@ -159,4 +159,4 @@ class LatexView(View):
         return res, level
 
     def _render_expr(self, expr: Expression, *args, parent=None, **kwargs) -> typing.Tuple[str, int]:
-        return f"{expr._op.__label__}\\left({', '.join([self._render(child, *args, parent=None,**kwargs)[0] for child in  expr._children])}\\right)", 0
+        return f"{expr._func.__label__}\\left({', '.join([self._render(child, *args, parent=None,**kwargs)[0] for child in  expr._children])}\\right)", 0

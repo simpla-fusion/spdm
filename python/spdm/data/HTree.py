@@ -45,15 +45,15 @@ class HTree(typing.Generic[_T]):
                  parent: HTree | None = None,
                  **kwargs) -> None:
 
-        default_value = {}
+        default_value = _not_found_
 
         # if isinstance(entry, dict):
         #     default_value = merge_tree_recursive(default_value, (entry.pop("$default_value", {})))
 
         if isinstance(cache, dict):
-            default_value = merge_tree_recursive(default_value, (cache.pop("$default_value", {})))
+            default_value = merge_tree_recursive(default_value, (cache.pop("$default_value", _not_found_)))
 
-        default_value = merge_tree_recursive(default_value, kwargs.pop("default_value", {}))
+        default_value = merge_tree_recursive(default_value, kwargs.pop("default_value",_not_found_))
 
         if cache is None or cache is _undefined_:
             cache = _not_found_
@@ -71,11 +71,12 @@ class HTree(typing.Generic[_T]):
 
     def __copy_from__(self, other: HTree[_T]) -> HTree[_T]:
         """ 复制 other 到 self  """
-        self._cache = copy(other._cache)
-        self._entry = copy(other._entry)
-        self._parent = other._parent
-        self._metadata = copy(other._metadata)
-        self._default_value = copy(other._default_value)
+        if isinstance(other, HTree):
+            self._cache = copy(other._cache)
+            self._entry = copy(other._entry)
+            self._parent = other._parent
+            self._metadata = copy(other._metadata)
+            self._default_value = copy(other._default_value)
         return self
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)

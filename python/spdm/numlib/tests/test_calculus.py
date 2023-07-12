@@ -16,9 +16,9 @@ class TestCalculus(unittest.TestCase):
 
         _x = Variable(0, "x")
 
-        Y = Function(np.sin(_x), periods=[TWOPI])
-
         x = np.linspace(0, TWOPI, 512)
+
+        Y = Function(np.sin(_x), x, periods=[TWOPI])
 
         self.assertTrue(np.allclose(np.sin(x), Y(x), rtol=1.0e-4))
 
@@ -38,7 +38,7 @@ class TestCalculus(unittest.TestCase):
 
         Y = Function(np.cos(_x), x, periods=[TWOPI])
 
-        Y1 = antiderivative(Y)
+        Y1 = Y.antiderivative()
 
         self.assertTrue(np.allclose(np.sin(x), Y1(x), rtol=1.0e-4))
 
@@ -70,11 +70,11 @@ class TestCalculus(unittest.TestCase):
         _x = Variable(0, "x")
         _y = Variable(1, "y")
 
-        Z = Function(np.sin(_x)*np.cos(_y), dims=(x, y), periods=[TWOPI, 2*TWOPI])
+        Z = Function(np.sin(_x)*np.cos(_y),  x, y, periods=[TWOPI, 2*TWOPI])
 
         self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
 
-        dZdx = partial_derivative(Z, 1)
+        dZdx = Z.partial_derivative(1, 0)
         self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y), dZdx(g_x, g_y), rtol=1.0e-4))
 
         # ignore boundary points

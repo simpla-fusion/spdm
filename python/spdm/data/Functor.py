@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-
+from copy import copy
 import numpy as np
 
 from ..utils.logger import logger
@@ -28,24 +28,28 @@ class Functor:
 
     def __init__(self, func: typing.Callable | None, /,
                  method: str | None = None,
+                 label: str = None,
                  **kwargs) -> None:
-
         self._func = func
         self._method = method
+        self._label = label or func.__class__.__name__
         self._metadata = kwargs
 
     def __copy__(self) -> Functor:
         """ 复制一个新的 Function 对象 """
-        other: Functor = super().__copy__(self)  # type:ignore
-
+        other: Functor = object.__new__(self.__class__)  # type:ignore
+        other.__copy_from_(self)
         return other
 
+    def __copy_from_(self, other: Functor) -> Functor:
+        """ 复制一个新的 Function 对象 """
+        self._func = other._func
+        self._method = other._method
+        self._metadata = copy(other._metadata)
+        return self
+
     @property
-    def __label__(self) -> str:
-        if isinstance(self._func, np.ufunc):
-            return self._func.__name__
-        else:
-            return str(self._func)
+    def __label__(self) -> str: return self._label
 
     @property
     def __annotation__(self) -> str:
@@ -85,14 +89,6 @@ class Functor:
     def partial_derivative(self, *d) -> Functor: raise NotImplementedError()
 
     def antiderivative(self, *d) -> Functor: raise NotImplementedError()
-
-    def __expr__(self) -> Functor | NumericType:
-        """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
-        expr = super().__expr__()
-        if isinstance(expr, Functor):
-            return expr
-        else:
-            return self.__value__
 
 
 def as_functor(expr, *args, **kwargs) -> Functor | None:
