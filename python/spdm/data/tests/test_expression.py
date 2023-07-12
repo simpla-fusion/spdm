@@ -14,7 +14,7 @@ class TestExpression(unittest.TestCase):
         _x = Variable(0, "x")
         _y = Variable(1, "y")
 
-        self.assertEqual(_x.__name__, "x")
+        self.assertEqual(_x.__label__, "x")
         self.assertEqual(str(_x+_y), "x + y")
 
     def test_expression(self):
