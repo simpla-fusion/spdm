@@ -66,13 +66,17 @@ class HTree(typing.Generic[_T]):
 
     def __copy__(self) -> HTree[_T]:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
-        other._cache = copy(self._cache)
-        other._entry = copy(self._entry)
-        other._parent = self._parent
-        other._metadata = copy(self._metadata)
-        other._default_value = copy(self._default_value)
-
+        other.__copy_from__(self)
         return other
+
+    def __copy_from__(self, other: HTree[_T]) -> HTree[_T]:
+        """ 复制 other 到 self  """
+        self._cache = copy(other._cache)
+        self._entry = copy(other._entry)
+        self._parent = other._parent
+        self._metadata = copy(other._metadata)
+        self._default_value = copy(other._default_value)
+        return self
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)
 
@@ -368,7 +372,7 @@ class HTree(typing.Generic[_T]):
 
         cache = None
         entry = None
-        
+
         if isinstance(key, (dict, slice)):
             entry = QueryResult(self, key, *args, **kwargs)
             key = None
@@ -482,10 +486,10 @@ class QueryResult(Entry):
         super().__init__(as_htree(target), query, *args, **kwargs)
         self._reducer = reducer if reducer is not None else QueryResult._default_reducer
 
-    def __copy__(self) -> QueryResult:
-        other: QueryResult = super().__copy__()  # type:ignore
-        other._reducer = self._reducer
-        return other
+    def __copy_from__(self, other: QueryResult) -> QueryResult:
+        super().__copy_from__(other)
+        self._reducer = other._reducer
+        return self
 
     def __getattr__(self, name: str) -> typing.Any: return self._lazy_get(name)
 

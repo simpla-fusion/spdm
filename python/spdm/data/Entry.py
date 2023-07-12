@@ -36,9 +36,13 @@ class Entry(Pluggable):
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
-        obj._data = self._data
-        obj._path = copy(self._path)
+        obj.__copy_from__(self)
         return obj
+
+    def __copy_from__(self, other: Entry) -> Entry:
+        self._data = other._data
+        self._path = other._path
+        return self
 
     def reset(self, value=None, path=None) -> Entry:
         self._data = value

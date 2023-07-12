@@ -188,7 +188,7 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return d
 
 
-def get_origin(tp: typing.Any) -> typing.Type:
+def  get_origin(tp: typing.Any) -> typing.Type:
     """
         获得 object，Type，typing.Generic 的原始类型
     """

@@ -2,7 +2,7 @@ import collections.abc
 import typing
 from io import BytesIO
 from spdm.data.Expression import Expression, Variable
-from spdm.data.ExprOp import ExprOp
+from spdm.data.Functor import Functor
 from spdm.data.Function import Function
 import matplotlib.pyplot as plt
 import numpy as np
@@ -119,10 +119,10 @@ class LatexView(View):
         elif isinstance(expr, Function):
             res, level = self._render_function(expr, *args, parent=parent, **kwargs)
 
-        elif isinstance(expr, Expression) and isinstance(expr._op, ExprOp) and isinstance(expr._op._op, np.ufunc):
+        elif isinstance(expr, Expression) and isinstance(expr._op, Functor) and isinstance(expr._op._func, np.ufunc):
             res, level = self._render_ufunc(expr, *args, parent=parent, **kwargs)
 
-        elif isinstance(expr, Expression) and isinstance(expr._op, ExprOp):
+        elif isinstance(expr, Expression) and isinstance(expr._op, Functor):
             res, level = self._render_expr(expr, *args, parent=parent, **kwargs)
 
         else:
@@ -137,10 +137,10 @@ class LatexView(View):
         return func.__label__, 0
 
     def _render_ufunc(self, expr: Expression, *args, **kwargs) -> typing.Tuple[str, int]:
-        op: np.ufunc = expr._op._op
+        op: np.ufunc = expr._op._func
 
         if expr._op._method != "__call__" and expr._op._method is not None:
-            raise NotImplementedError(f"op={expr._op._op} method={expr._op._method}")
+            raise NotImplementedError(f"op={expr._op._func} method={expr._op._method}")
 
         children = expr._children
         n_children = len(children)

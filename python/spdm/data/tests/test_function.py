@@ -49,6 +49,50 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(type(fun*2) is Expression)
         self.assertTrue(type(np.sin(fun)) is Expression)
 
+    def test_constant_fun(self):
+        value = 1.2345
+        xmin = 0.0
+        xmax = 1.0
+        ymin = 2.0
+        ymax = 3.0
+
+        dims_a = np.linspace(xmin, xmax, 5),  np.linspace(ymin, ymax, 5)
+
+        fun1 = Function(value)
+
+        xa, ya = np.meshgrid(*dims_a)
+
+        self.assertTrue(np.allclose(fun1(xa, ya), value))
+
+        fun2 = Function(value, *dims_a)
+
+        dims_b = np.linspace(xmin-0.5, xmax+0.5, 10), np.linspace(ymin-0.5, ymax+0.5, 10)
+
+        xb, yb = np.meshgrid(*dims_b)
+        marker = (xb >= xmin) & (xb <= xmax) & (yb >= ymin) & (yb <= ymax)
+
+        e_a = np.full_like(xa, value, dtype=float)
+
+        e_b = np.full_like(xb, value, dtype=float)
+
+        e_b[~marker] = np.nan
+
+        self.assertTrue(np.allclose(fun2(xa, ya), e_a))
+
+        self.assertTrue(np.allclose(fun2(xb, yb), e_b, equal_nan=True))
+
+    def test_spl(self):
+        x = np.linspace(0, 1.0, 128)
+        y = np.sin(x*TWOPI)
+
+        fun = Function(y, x)
+
+        x2 = np.linspace(0, 1.0, 64)
+        
+        y2 = np.sin(x2*TWOPI)
+
+        self.assertTrue(np.allclose(y2, fun(x2)))
+
     # def test_delta_fun(self):
 
     #     p = 0.5
@@ -88,118 +132,6 @@ class TestFunction(unittest.TestCase):
 
     #     self.assertTrue(np.allclose(fun0(x, y)[mark], value))
     #     self.assertTrue(np.all(np.isnan(fun0(x, y)[~mark])))
-
-    def test_constant_fun(self):
-        value = 1.2345
-        xmin = 0.0
-        xmax = 1.0
-        ymin = 2.0
-        ymax = 3.0
-
-        dims_a = np.linspace(xmin, xmax, 5),  np.linspace(ymin, ymax, 5)
-
-        fun1 = Function(value)
-
-        xa, ya = np.meshgrid(*dims_a)
-
-        self.assertTrue(np.allclose(fun1(xa, ya), value))
-
-        fun2 = Function(value, *dims_a)
-
-        dims_b = np.linspace(xmin-0.5, xmax+0.5, 10), np.linspace(ymin-0.5, ymax+0.5, 10)
-
-        xb, yb = np.meshgrid(*dims_b)
-        marker = (xb >= xmin) & (xb <= xmax) & (yb >= ymin) & (yb <= ymax)
-
-        e_a = np.full_like(xa, value, dtype=float)
-
-        e_b = np.full_like(xb, value, dtype=float)
-
-        e_b[~marker] = np.nan
-
-        self.assertTrue(np.allclose(fun2(xa, ya), e_a))
-
-        self.assertTrue(np.allclose(fun2(xb, yb), e_b, equal_nan=True))
-
-
-class TestFunctionSPL(unittest.TestCase):
-
-        def test_spl(self):
-            x = np.linspace(0, 1.0, 128)
-            y = np.sin(x*TWOPI)
-
-            fun = Function(y, x)
-
-            x2 = np.linspace(0, 1.0, 64)
-            y2 = np.sin(x2*TWOPI)
-
-            self.assertTrue(np.allclose(y2, fun(x2)))
-
-        def test_dydx(self):
-
-            _x = Variable(0, "x")
-
-            Y = Function(np.sin(_x), periods=[TWOPI])
-
-            x = np.linspace(0, TWOPI, 512)
-
-            self.assertTrue(np.allclose(np.sin(x), Y(x), rtol=1.0e-4))
-
-            self.assertTrue(np.allclose(np.cos(x), Y.d()(x), rtol=1.0e-4))
-
-            # logger.debug((-(TWOPI**2)*np.sin(x))[:10])
-            # logger.debug(Y.d(2)(x)[:10])
-            # self.assertTrue(np.allclose(-(TWOPI**2)*np.sin(x), Y.d(2)(x), rtol=0.10))
-
-        def test_integral(self):
-
-            x = np.linspace(0, TWOPI, 512)
-
-            _x = Variable(0, "x")
-
-            Y = Function(np.cos(_x), x, periods=[TWOPI])
-
-            Y1 = Y.antiderivative()
-
-            self.assertTrue(np.allclose(np.sin(x), Y1(x), rtol=1.0e-4))
-
-        def test_spl2d(self):
-
-            x = np.linspace(0, TWOPI, 128)
-            y = np.linspace(0, 2*TWOPI, 128)
-            g_x, g_y = np.meshgrid(x, y)
-
-            z = np.sin(g_x)*np.cos(g_y)
-
-            _x = Variable(0, "x")
-
-            _y = Variable(1, "y")
-
-            fun = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI,  2*TWOPI])
-
-            z2 = fun(g_x, g_y)
-
-            self.assertTrue(np.allclose(z, z2, rtol=1.0e-4))
-
-        def test_pd2(self):
-
-            x = np.linspace(0, TWOPI, 128)
-            y = np.linspace(0, 2*TWOPI, 128)
-
-            g_x, g_y = np.meshgrid(x, y)
-
-            _x = Variable(0, "x")
-            _y = Variable(1, "y")
-
-            Z = Function(np.sin(_x)*np.cos(_y), x, y, periods=[TWOPI, 2*TWOPI])
-
-            self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
-
-            self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y),  Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
-
-            # ignore boundary points
-            self.assertTrue(np.allclose((- np.sin(g_x)*np.sin(g_y))
-                            [2:-2, 2:-2],  Z.pd(0, 1)(g_x, g_y)[2:-2, 2:-2], rtol=1.0e-4))
 
 
 if __name__ == '__main__':

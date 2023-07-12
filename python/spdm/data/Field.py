@@ -5,22 +5,20 @@ import functools
 import typing
 from enum import Enum
 
-
 from ..mesh.Mesh import Mesh
+from ..numlib.calculus import antiderivative, derivative, partial_derivative
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, NumericType, array_type, numeric_type
+from ..utils.typing import ArrayType, array_type
 from .Expression import Expression
-from .ExprNode import ExprNode
-from .ExprOp import (ExprOp, antiderivative, derivative, find_roots, integral,
-                     partial_derivative)
+from .Functor import Functor
 from .HTree import HTree
 
 _T = typing.TypeVar("_T")
 
 
-class Field(ExprNode[_T]):
+class Field(Expression, HTree[_T]):
     """ Field
         ---------
         Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
@@ -130,7 +128,7 @@ class Field(ExprNode[_T]):
     @property
     def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
 
-    def _compile(self, *args, force=False, **kwargs) -> ExprOp:
+    def _compile(self, *args, force=False, **kwargs) -> Functor:
         if self._ppoly is None or force:
             self._ppoly = self.__mesh__.interpolator(self.__array__(), *args, **kwargs)
         return self._ppoly

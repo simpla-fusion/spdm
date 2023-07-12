@@ -4,7 +4,6 @@ import logging
 import numpy as np
 
 from ..utils.logger import logger
-from ..data.Function import Function
 from .interpolate import interpolate
 
 
