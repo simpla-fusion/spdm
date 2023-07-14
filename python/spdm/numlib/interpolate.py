@@ -80,16 +80,19 @@ class RectInterpolateOp(Functor):
             # if isinstance(self.periods, collections.abc.Sequence):
             #     logger.warning(f"TODO: periods={self.periods}")
 
-            self._ppoly = RectBivariateSpline(*self._dims, value, **self._opts)
+            self._ppoly = RectBivariateSpline(*self._dims, value)
             self._opts = {"grid": False}
 
         else:
-            self._ppoly = RegularGridInterpolator(self._dims, value, **self._opts)
+            self._ppoly = RegularGridInterpolator(self._dims, value)
 
         return self._ppoly
 
     def __call__(self, *args, **kwargs) -> typing.Any:
-        res = self.ppoly(*args, **kwargs)
+        try:
+            res = self.ppoly(*args, **kwargs, **self._opts)
+        except ValueError as e:
+            raise RuntimeError(f"{self.__class__.__name__}[{self.__str__()}]") from e
 
         if not isinstance(args[0], array_type) or args[0].size == 1:
             return np.squeeze(res, axis=0).item()

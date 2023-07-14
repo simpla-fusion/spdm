@@ -6,7 +6,7 @@ from copy import copy
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.typing import NumericType, as_array, numeric_type
+from ..utils.typing import NumericType, as_array, numeric_type, scalar_type
 
 ExprOpLike = typing.Callable | None
 
@@ -95,6 +95,8 @@ class Functor:
 class ConstantsFunc(Functor):
     def __init__(self, value: NumericType,  **kwargs) -> None:
         super().__init__(None, **kwargs)
+        if not isinstance(value, scalar_type):
+            raise TypeError(f"value={value} is not a scalar!")
         self._value = value
 
     def __label__(self) -> str: return f"{self._value}"

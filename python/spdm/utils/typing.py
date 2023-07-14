@@ -107,7 +107,9 @@ def as_scalar(d: typing.Any) -> ScalarType:
 
 
 def as_array(d: typing.Any, *args, **kwargs) -> ArrayType:
-    if isinstance(d, array_type):
+    if d is None or d is _not_found_:
+        return d
+    elif isinstance(d, array_type):
         return d
     elif hasattr(d, '__array__'):
         return d.__array__()
@@ -158,7 +160,9 @@ def as_namedtuple(d: dict, name=""):
 
 
 def as_value(obj: typing.Any) -> HTreeLike:
-    if isinstance(obj, collections.abc.Mapping):
+    if obj is _not_found_ or obj is None:
+        return obj
+    elif isinstance(obj, collections.abc.Mapping):
         return {k: as_value(v) for k, v in obj.items()}
     elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
         return [as_value(v) for v in obj]
@@ -188,7 +192,7 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return d
 
 
-def  get_origin(tp: typing.Any) -> typing.Type:
+def get_origin(tp: typing.Any) -> typing.Type:
     """
         获得 object，Type，typing.Generic 的原始类型
     """

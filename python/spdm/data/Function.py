@@ -110,7 +110,7 @@ class Function(HTree[_T], Expression):
                 self._dims = [as_array(self.get(c) if isinstance(c, str) else c)
                               for c in coordinates.values()]
 
-        if self._dims is not None:
+        if self._dims is not None and len(self.periods) > 0:
             dims = [as_array(v) for v in self._dims]
 
             periods = self.periods
@@ -201,13 +201,24 @@ class Function(HTree[_T], Expression):
 
         if isinstance(func, (Functor, Expression)):
             return func
+        
         elif func is not None:
             raise RuntimeError(f"expr is not array_type! {type(func)}")
 
         dims = self.dims
-        value = self.__value__
 
-        if len(dims) == 0 or not isinstance(value, array_type) or value.size == 1:
+        value = self.__value__       
+      
+        if value is _not_found_ or value is None:
+            self._func = ConstantsFunc(np.nan)
+
+        elif len(dims) == 0 or not isinstance(value, array_type) or value.size == 1:
+            logger.debug(type(value))
+            value = np.squeeze(value).item()
+
+            if not isinstance(value, scalar_type):
+                raise RuntimeError(f"TODO:  {value}")
+
             self._func = ConstantsFunc(value)
 
         elif all([(not isinstance(v, array_type) or v.size == 1) for v in dims]):
