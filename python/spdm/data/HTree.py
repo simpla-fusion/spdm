@@ -238,14 +238,11 @@ class HTree(typing.Generic[_T]):
                   getter: typing.Callable = None,
                   parent=None,  **kwargs) -> HTree[_T] | _T:
 
-        if entry is None:
-            entry = self._entry.child(id)
-
         if parent is None:
             parent = self
 
         if type_hint is None:
-            type_hint = self._type_hint(id) or HTree[_T]
+            type_hint = self._type_hint(id if id is not None else 0) or HTree[_T]
 
         if default_value is not _not_found_:
             pass
@@ -313,11 +310,8 @@ class HTree(typing.Generic[_T]):
         elif isinstance(query, str):
             value = self._get_as_dict(query, *args,  type_hint=type_hint, **kwargs)
 
-        elif isinstance(query, (slice, int)):
+        elif isinstance(query, (slice, dict, int)):
             value = self._get_as_list(query, *args, type_hint=type_hint,  **kwargs)
-
-        elif isinstance(query, dict):  # as query return QueryResult
-            value = self._get_as_htable(query, *args, type_hint=type_hint,  **kwargs)
 
         elif isinstance(query, set):  # compound
             value = NamedDict(cache={k: self._get_as_dict(
@@ -328,19 +322,8 @@ class HTree(typing.Generic[_T]):
 
         return value  # type:ignore
 
-    def _get_as_htable(self, query: dict, *args,  **kwargs) -> HTree[_T] | _T | PrimaryType | QueryResult:
-        """ Hierarchical Table(htable): searchable list """
-
-        if not all([k.startswith("@") for k in query.keys()]):
-            return QueryResult(self, query, *args, **kwargs)
-        else:
-            cache, pos = as_path(query).find_next(self._cache)
-            if pos is None:
-                return _not_found_
-            else:
-                return self._as_child(cache, pos, *args, **kwargs)
-
     def _get_as_array(self, query, *args, **kwargs) -> NumericType:
+
         if self._cache is _not_found_:
             self._cache = self._entry.__value__  # type:ignore
 
@@ -360,44 +343,56 @@ class HTree(typing.Generic[_T]):
         if isinstance(self._cache, collections.abc.Mapping):
             cache = self._cache.get(key, _not_found_)
 
-        value = self._as_child(cache, key, *args, **kwargs)
+        if self._entry is not None:
+            entry = self._entry.child(key)
+        else:
+            entry = None
 
-        if value is not _not_found_:
-            if self._cache is _not_found_ or self._cache is None:
-                self._cache = {}
+        value = self._as_child(cache, key, *args, entry=entry, **kwargs)
 
-            self._cache[key] = value
+        if self._cache is _not_found_ or self._cache is None:
+            self._cache = {}
+
+        self._cache[key] = value
 
         return value
 
     def _get_as_list(self, key: int | slice | dict,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | QueryResult:
 
-        cache = None
-        entry = None
-
         if isinstance(key, (dict, slice)):
+            cache = None
             entry = QueryResult(self, key, *args, **kwargs)
             key = None
 
         elif isinstance(self._cache, collections.abc.Sequence):
             cache = self._cache[key]
+            entry = self._entry.child(key)
 
-        elif self._cache is not _not_found_:
-            raise RuntimeError(self._cache)
+        elif self._cache is _not_found_ or self._cache is None:
+            entry = self._entry.child(key)
+            cache = None
+
+        else:
+            raise RuntimeError((self._cache, self._entry))
 
         if default_value is _not_found_:
             default_value = self._default_value
 
+        if cache is _not_found_ and not entry.exists:
+            return _not_found_
+
         value = self._as_child(cache, key, *args, entry=entry,
                                parent=self._parent, default_value=default_value, **kwargs)
 
-        if value is not _not_found_ and isinstance(key, int):
-            if isinstance(self._cache, list):
-                pass
-            elif self._entry.exists and self._entry.count > 0:
-                self._cache = [_not_found_] * self._entry.count
-            else:
+        if isinstance(key, int):
+            if self._cache is _not_found_:
                 self._cache = []
+            elif not isinstance(self._cache, list):
+                raise ValueError(self._cache)
+
+            if key >= len(self._cache):
+                self._cache.extend([_not_found_] * (key - len(self._cache) + 1))
+
             self._cache[key] = value
 
         return value
@@ -424,7 +419,7 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, start: PathLike = None, *args, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
+    def _find_next(self, query: PathLike = None, start: int | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         cache, pos = as_path(query).find_next(self._cache, start=start, *args, **kwargs)
 

@@ -1,20 +1,15 @@
 from __future__ import annotations
 
 import collections.abc
-import inspect
 import typing
-from copy import copy, deepcopy
+from copy import copy
 from functools import reduce
 
-from ..utils.logger import logger
-from ..utils.tags import _not_found_, _undefined_
+from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
-from ..utils.typing import (ArrayType, HNodeLike, NumericType, PrimaryType,
-                            array_type, as_array, as_value, get_args,
-                            get_origin, isinstance_generic, numeric_type,
-                            primary_type, serialize, type_convert)
-from .Entry import Entry, as_entry
-from .Expression import Expression
+from ..utils.typing import (PrimaryType,
+                            array_type, as_value, get_origin)
+from .Entry import Entry
 from .Path import Path, PathLike, as_path
 
 _T = typing.TypeVar("_T")
@@ -33,88 +28,42 @@ class QueryResult(Entry):
         self._reducer = other._reducer
         return self
 
-    def __getattr__(self, name: str) -> typing.Any: return self._lazy_get(name)
-
-    def __getitem__(self, path: PathLike) -> typing.Any: return self._lazy_get(path)
-
-    def __setitem__(self, path: PathLike, value): raise NotImplementedError(f"TODO: setitem {path} {value}")
-
-    @ property
-    def current(self) -> typing.Any: return self._lazy_get(-1)
-
     ###################################################################################
 
-    def _type_hint(self, path=None) -> typing.Type:
-        suffix = copy(self._suffix)
-        suffix.append(path)
-        return self._target._type_hint(suffix)
-
-    def _lazy_get(self, path) -> QueryResult | PrimaryType:
-        other = copy(self)
-        other._suffix.append(path)
-        type_hint = self._target._type_hint([0]+other._suffix[:])
-        if not issubclass(get_origin(type_hint), HTree):
-            return type_hint(other.__reduce__())
+    def __equal__(self, other) -> bool:
+        if isinstance(other, Entry):
+            return other._data == self._data and other._path == self._path
         else:
-            return other
+            return self.query(Path.tags.equal, other)
 
-    # def __setattr__(self, path: PathLike, value):
-    #     raise NotImplementedError(f"TODO: setitem {path} {value}")
+    @property
+    def count(self) -> int: raise NotImplementedError(f"TODO: count {self._path}")
 
-    def __contain__(self, value):
-        raise NotImplementedError(f"TODO: __contain__ {value}")
+    @property
+    def exists(self) -> bool:
+        return any([e.query(Path.tags.exists) for e in self._foreach() if isinstance(e, Entry)])
 
-    def __len__(self, value):
-        raise NotImplementedError(f"TODO: __len__ {value}")
+    def check_type(self, tp: typing.Type) -> bool:
+        return any([not e.query(Path.tags.check_type, tp) for e in self._foreach() if isinstance(e, Entry)])
 
-    def __iter__(self) -> typing.Generator[QueryResult, None, None]:
+    def dump(self) -> typing.Any:
+        return self.__reduce__([e.query(Path.tags.dump) for e in self._foreach() if isinstance(e, Entry)])
 
-        default_value = self._suffix.collapse().query(self._target._default_value)
+    def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
+        res = [e.get(*args, default_value=_not_found_, **kwargs) for e in self._foreach() if isinstance(e, Entry)]
 
-        if not isinstance(default_value, collections.abc.Sequence) or not isinstance(default_value[0], collections.abc.Mapping):
-            raise NotImplementedError(f"TODO: __iter__ {default_value} {self._suffix}")
+        res = [e for e in res if e is not _not_found_]
 
-        identifier = "label"
+        if len(res) == 0:
+            res = [default_value]
 
-        for v in default_value:
-
-            id = v.get(identifier, None)
-
-            suffix = copy(self._suffix)+[{f"@{identifier}": id}]
-
-            yield QueryResult(self._target, self._query_cmd, suffix=suffix, reducer=self._reducer)
-
-    def for_each(self,  start: PathLike = None, *args, **kwargs) -> typing.Tuple[Entry, PathLike]:
-
-        if suffix is None:
-            suffix = self._suffix
-        else:
-            suffix = as_path(suffix)
-
-        next_id = None
-
-        while True:
-            obj, next_id = self._target._find_next(self._query_cmd, start=next_id)
-
-            if next_id is None:
-                break
-
-            elif len(suffix) == 0:
-                value = obj
-
-            elif isinstance(obj, HTree):
-                value = obj.get(suffix)
-
-            else:
-                value = suffix.query(obj, default_value=_not_found_)
-
-            yield value
+        return self.__reduce__(res)
 
     ###########################################################
     # API: CRUD  operation
 
     def query(self, op=None, *args, **kwargs) -> typing.Any:
-        raise NotImplementedError(f"TODO: query {op} {args} {kwargs}")
+        return [v.query(op, *args, **kwargs) for v in self._foreach() if v is not _not_found_]
 
     def insert(self, *args, **kwargs) -> Entry:
         raise NotImplementedError(f"TODO: insert {args} {kwargs}")
@@ -122,27 +71,35 @@ class QueryResult(Entry):
     def update(self, *args, **kwargs) -> Entry:
         raise NotImplementedError(f"TODO: update {args} {kwargs}")
 
-    def find_next(self,  start: PathLike = None, *args, **kwargs) -> typing.Tuple[Entry, PathLike]:
-        raise NotImplementedError(f"TODO: find_next {args} {kwargs}")
-
     def remove(self, *args, **kwargs) -> int:
         raise NotImplementedError(f"TODO: insert {args} {kwargs}")
+
     ###########################################################
 
-    @ property
+    def _foreach(self, *args, **kwargs) -> typing.Generator[Entry, None, None]:
+        next_id: int | None = None
+        while True:
+            entry, next_id = self.find_next(next_id, *args, **kwargs)
+            if next_id is None:
+                break
+            yield entry
+
+    @property
     def __value__(self) -> typing.List[typing.Any]:
         value = [as_value(v) for v in self._foreach() if v is not _not_found_]
-        if len(value) == 0 or isinstance(value[0], collections.abc.Mapping)\
-                and self._target._default_value is not _not_found_ and len(self._suffix) > 0:
-            default_value = self._suffix.collapse().query(self._target._default_value)
-            value = [default_value]+value
-        return value
+        if len(value) == 0:
+            return _not_found_
+        else:
+            return value
 
-    def __reduce__(self) -> typing.Any:
-        
-        return reduce(self._reducer,  self.__value__)
+    def __reduce__(self, value=None) -> typing.Any:
+        if value is None:
+            value = self.__value__
+        if not isinstance(value, list):
+            value = [value]
+        return reduce(self._reducer,  value)
 
-    @ staticmethod
+    @staticmethod
     def _default_reducer(first: typing.Any, second: typing.Any) -> typing.Any:
 
         if first is _not_found_:

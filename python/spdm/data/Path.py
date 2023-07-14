@@ -256,14 +256,26 @@ class Path(list):
         """
         return Path._exec(target, self[:], Path.tags.remove, *args,  quiet=quiet,  **kwargs)
 
-    def find_next(self, target: typing.Any,  start: PathLike = None, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
+    def find_next(self, target: typing.Any,  start: int | None = None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
         """  从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
-        res = Path._exec(target, self[:], Path.tags.next, start, *args, **kwargs)
+        pos, query = next(((p, v) for p, v in enumerate(self[:]) if isinstance(v, (dict, slice))), (None, None))
 
-        if not isinstance(res, tuple):
-            return res, None
+        if pos is None:
+            return None, None
+
+        if pos > 0:
+            target = Path._op_fetch(target, self[:pos], _not_found_)
+
+        value, next_id = Path._op_next(target, query, start, *args, **kwargs)
+
+        if next_id is None or pos >= len(self)-1:
+            pass
+        elif hasattr(value, "child"):
+            value = value.child(self[pos+1:])
         else:
-            return res
+            value = Path._exec(value, self[pos+1:], Path.tags.fetch, *args, **kwargs)
+
+        return value, next_id
 
     # End API
     ###########################################################
@@ -957,11 +969,10 @@ class Path(list):
         else:
             raise NotImplementedError(f"{target} {key}")
 
-
     @staticmethod
     def _op_call(target, key, *args, **kwargs) -> bool:
         raise NotImplementedError(f"Not implemented yet! {target} {key}")
-    
+
     @staticmethod
     def _op_next(target, key, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
@@ -973,8 +984,8 @@ class Path(list):
 
         if target is _not_found_ or target is None:
             return _not_found_, None
-        elif not isinstance(target, collections.abc.Sequence):
-            raise TypeError((target))
+        # elif not isinstance(target, collections.abc.Sequence):
+        #     raise TypeError((target, key, start))
 
         if isinstance(key, slice):
             if start is None or start is _not_found_:
@@ -1216,7 +1227,9 @@ class Path(list):
 
 
 def as_path(path):
-    if not isinstance(path, Path):
+    if path is None or path is _not_found_:
+        return Path()
+    elif not isinstance(path, Path):
         return Path(path)
     else:
         return path

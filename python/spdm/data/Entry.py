@@ -51,6 +51,12 @@ class Entry(Pluggable):
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} path=\"{self._path}\" />"
 
+    def __getitem__(self, *args) -> Entry: return self.child(*args)
+
+    def __setitem__(self, path, value): return self.child(path).update(value)
+
+    def __delitem__(self, *args): return self.child(*args).remove()
+
     @property
     def __entry__(self) -> Entry: return self
 
@@ -95,53 +101,33 @@ class Entry(Pluggable):
         other._path.append(path)
         return other
 
-    def __iter__(self) -> typing.Generator[Entry, None, None]:
-        """ Iterate over the children of the Entry."""
-        start = None
-        while True:
-            try:
-                value, start = self.find_next(start=start)
-            except StopIteration:
-                break
-            else:
-                if start is not None:
-                    yield value
-                else:
-                    break
+    # def __iter__(self) -> typing.Generator[Entry, None, None]:
+    #     """ Iterate over the children of the Entry."""
+    #     start = None
+    #     while True:
+    #         try:
+    #             value, start = self.find_next(start=start)
+    #         except StopIteration:
+    #             break
+    #         else:
+    #             if start is not None:
+    #                 yield value
+    #             else:
+    #                 break
+    # def __next__(self) -> Entry:
+    #     """ Iterate over the slibings of the Entry."""
+    #     if len(self._path) == 0 or not isinstance(self._path[-1], int):
+    #         raise NotImplementedError(f"Can not iterate over {self._path}")
+    #     start = self._path[-1]
+    #     value, idx = self.parent.find_next(start=start)
+    #     if idx is None:
+    #         raise StopIteration()
+    #     elif isinstance(value, Entry):
+    #         value = value.__value__
+    #     self._path[-1] = idx
+    #     return value
 
-    def __next__(self) -> Entry:
-        """ Iterate over the slibings of the Entry."""
-        if len(self._path) == 0 or not isinstance(self._path[-1], int):
-            raise NotImplementedError(f"Can not iterate over {self._path}")
-
-        start = self._path[-1]
-
-        value, idx = self.parent.find_next(start=start)
-
-        if idx is None:
-            raise StopIteration()
-        elif isinstance(value, Entry):
-            value = value.__value__
-
-        self._path[-1] = idx
-
-        return value
-
-    def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
-        value = self.child(*args, **kwargs).__value__
-        if value is _not_found_:
-            value = default_value
-
-        if value is Ellipsis:
-            raise KeyError(f"Can not find {args} in {self}")
-
-        return value
-
-    def __getitem__(self, *args) -> Entry: return self.child(*args)
-
-    def __setitem__(self, path, value): return self.child(path).update(value)
-
-    def __delitem__(self, *args): return self.child(*args).remove()
+    ###########################################################
 
     def __equal__(self, other) -> bool:
         if isinstance(other, Entry):
@@ -158,6 +144,16 @@ class Entry(Pluggable):
     def check_type(self, tp: typing.Type) -> bool: return self.query(Path.tags.check_type, tp)
 
     def dump(self) -> typing.Any: return self.query(Path.tags.dump)
+
+    def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
+        value = self.child(*args, **kwargs).__value__
+        if value is _not_found_:
+            value = default_value
+
+        if value is Ellipsis:
+            raise KeyError(f"Can not find {args} in {self}")
+
+        return value
 
     ###########################################################
     # API: CRUD  operation
@@ -178,11 +174,11 @@ class Entry(Pluggable):
         new_path = self._path.update(self._data,  *args, **kwargs)
         return self.child(new_path)
 
-    def find_next(self,  start: PathLike = None, *args, **kwargs) -> typing.Tuple[Entry, PathLike]:
+    def find_next(self,  start: int | None = None, *args, **kwargs) -> typing.Tuple[Entry, int | None]:
         """
-        Find the value from the cache.
-        Return a generator of the results.
-        Could be overridden by subclasses.
+            Find the value from the cache.
+            Return a generator of the results.
+            Could be overridden by subclasses.
         """
         value, start = self._path.find_next(self._data, start=start, *args, **kwargs)
         return as_entry(value), start

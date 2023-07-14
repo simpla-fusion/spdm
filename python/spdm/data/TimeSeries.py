@@ -2,10 +2,12 @@
 import collections.abc
 import typing
 
-from spdm.data.HTree import Dict, List, AoS
-from spdm.data.sp_property import SpDict, sp_property
-from spdm.utils.logger import logger
 import numpy as np
+
+from ..utils.logger import logger
+from ..utils.tags import _not_found_
+from .HTree import AoS, Dict, List
+from .sp_property import SpDict, sp_property
 
 
 class TimeSlice(SpDict):

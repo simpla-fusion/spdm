@@ -181,12 +181,15 @@ class Expression:
             raise RuntimeError(f"Out of domain! {self} {xargs} ")
 
         if marked_num < mark_size:
-            xargs = tuple([(arg[mark] if isinstance(mark, array_type) and len(arg.shape) > 0 else arg)
+            xargs = tuple([(arg[mark] if isinstance(mark, array_type) and isinstance(arg, array_type) and arg.ndim > 0 else arg)
                           for arg in xargs])
 
         func = self.__functor__()
 
-        if isinstance(func, (Functor, Expression)):
+        if func is None:
+            value = np.nan
+
+        elif isinstance(func, (Functor, Expression)):
             if len(self._children) > 0:  # Traverse children
                 children = []
                 for child in self._children:
@@ -208,8 +211,10 @@ class Expression:
                 value = func(*xargs, **kwargs)
             except Exception as error:
                 raise RuntimeError(f"Error when evaluating {func} !") from error
+
         elif isinstance(func, numeric_type):
             value = func
+
         else:
             raise RuntimeError(f"Unknown functor {func} {type(func)}")
 

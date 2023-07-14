@@ -68,10 +68,12 @@ class Function(HTree[_T], Expression):
 
         HTree.__init__(self, cache, **kwargs)
 
-        Expression.__init__(self, func, label=self._metadata.get("label", None))
+        Expression.__init__(self, func, label=self._metadata.get("label", None) or self._metadata.get("name", None))
 
         self._dims = list(dims)
         self._periods = periods
+
+    def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
     def __copy_from__(self, other: Function) -> Function:
         """ copy from other"""
@@ -201,19 +203,18 @@ class Function(HTree[_T], Expression):
 
         if isinstance(func, (Functor, Expression)):
             return func
-        
+
         elif func is not None:
             raise RuntimeError(f"expr is not array_type! {type(func)}")
 
         dims = self.dims
 
-        value = self.__value__       
-      
+        value = self.__value__
+
         if value is _not_found_ or value is None:
-            self._func = ConstantsFunc(np.nan)
+            self._func = None
 
         elif len(dims) == 0 or not isinstance(value, array_type) or value.size == 1:
-            logger.debug(type(value))
             value = np.squeeze(value).item()
 
             if not isinstance(value, scalar_type):
