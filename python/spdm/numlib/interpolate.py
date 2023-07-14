@@ -13,17 +13,25 @@ import typing
 class RectInterpolateOp(Functor):
     def __init__(self, value, *dims,
                  periods=None,
-                 check_nan=True,  extrapolate=0,
+                 check_nan=True,
+                 extrapolate=0,
                  **kwargs) -> None:
         super().__init__(None)
+
+        if len(dims) == 0:
+            raise RuntimeError(f"Illegal dims={self._dims} ")
+
         self._value = value
         self._dims = dims
         self._periods = periods
         self._opts: dict = kwargs
         self._check_nan = check_nan
         self._extrapolate = extrapolate
+
+        self._shape = tuple(len(d) for d in self._dims)
+
         if isinstance(value, array_type):
-            self._shape = tuple(len(d) for d in self._dims) if self._dims is not None else tuple()
+
             if len(value.shape) > len(self._shape):
                 raise NotImplementedError(
                     f"TODO: interpolate for rank >1 . {value.shape}!={self._shape}!  func={self.__str__()} ")
@@ -37,15 +45,18 @@ class RectInterpolateOp(Functor):
         if self._ppoly is not None:
             return self._ppoly
 
+        if len(self._dims) == 0:
+            raise RuntimeError(f"Illegal dims={self._dims} ")
+
         value = self._value
 
         if callable(value):
             value = value(*np.meshgrid(*self._dims, indexing='ij'))
 
-        if not isinstance(value, array_type):
+        if not isinstance(value, array_type) or not np.all(value.shape == self._shape):
             raise TypeError((value))
 
-        if len(self._dims) == 1:
+        elif len(self._dims) == 1:
             x = self._dims[0]
             if self._check_nan:
                 mark = np.isnan(value)
@@ -57,7 +68,7 @@ class RectInterpolateOp(Functor):
                     x = x[~mark]
 
             self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=self._extrapolate)
-        elif len(self._dims) == 2 and all(d.ndim == 1 for d in self._dims):
+        elif len(self._dims) == 2:
             if self._check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
@@ -71,17 +82,21 @@ class RectInterpolateOp(Functor):
 
             self._ppoly = RectBivariateSpline(*self._dims, value, **self._opts)
             self._opts = {"grid": False}
-        elif all(d.ndim == 1 for d in self._dims):
-            self._ppoly = RegularGridInterpolator(self._dims, value, **self._opts)
+
         else:
-            raise NotImplementedError(f"dims={self._dims} ")
+            self._ppoly = RegularGridInterpolator(self._dims, value, **self._opts)
 
         return self._ppoly
 
-    def __call__(self, *args, **kwargs) -> typing.Any: return self._ppoly()(*args, **kwargs)
+    def __call__(self, *args, **kwargs) -> typing.Any:
+        res = self.ppoly(*args, **kwargs)
+
+        if not isinstance(args[0], array_type) or args[0].size == 1:
+            return np.squeeze(res, axis=0).item()
+        else:
+            return res
 
     def derivative(self, n=1) -> Functor:
-
         return Functor(self.ppoly.derivative(n),  **self._opts)
 
     def partial_derivative(self, *d) -> Functor:

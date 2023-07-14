@@ -1,8 +1,9 @@
 from ..data.Functor import Functor
 from ..data.Expression import Expression
-from ..utils.typing import NumericType
+from ..utils.typing import NumericType, as_array
 import typing
 from .interpolate import interpolate
+import numpy as np
 
 
 class Derivative(Functor):

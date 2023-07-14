@@ -54,9 +54,9 @@ class RectilinearMesh(StructuredMesh):
         for idx in range(len(dims)):
             if isinstance(periods, collections.abc.Sequence) \
                     and periods[idx] is not None \
-                    and not np.isclose(dims[idx][1]-dims[idx][0], periods[idx]):
+                    and not np.isclose(dims[idx][-1]-dims[idx][0], periods[idx]):
                 raise RuntimeError(
-                    f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][1]}] ")
+                    f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] ")
             if not np.all(dims[idx][1:] > dims[idx][:-1]):
                 raise RuntimeError(f"dims[{idx}] is not increasing")
 

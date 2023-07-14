@@ -53,8 +53,8 @@ def find_countours_skimage(vals: list, z: np.ndarray, x: np.ndarray, y: np.ndarr
     if not isinstance(vals, (collections.abc.Sequence, np.ndarray)):
         vals = [vals]
     elif isinstance(vals, np.ndarray) and vals.ndim == 0:
-        logger.debug(vals)
         vals = vals.reshape([1])
+
 
     for val in vals:
         yield val, find_countours_skimage_(val, z, x_inter, y_inter)

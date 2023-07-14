@@ -41,7 +41,7 @@ class Mesh(Pluggable):
         elif all([isinstance(arg, (int, np.ndarray)) for arg in args]):
             mesh_type = "rectilinear"
         else:
-            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={mesh_type} is not found!")
+            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={mesh_type} is not found! {kwargs}")
 
         if isinstance(mesh_type, str):
             mesh_type = [mesh_type,
@@ -61,7 +61,7 @@ class Mesh(Pluggable):
         elif isinstance(geometry, str):
             geometry = {"type": geometry}
 
-        if isinstance(geometry, GeoObject):
+        if isinstance(geometry, (GeoObject, GeoObjectSet)):
             self._geometry = geometry
         elif isinstance(geometry, collections.abc.Mapping):
             self._geometry = GeoObject(*args, **geometry)

@@ -18,7 +18,7 @@ class TestField(unittest.TestCase):
 
         _x = Variable(0, "x")
         _y = Variable(1, "y")
-        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
+        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[TWOPI, 2*TWOPI])
 
         self.assertEqual(fun.mesh.ndim, 2)
         self.assertTrue(np.allclose(fun.mesh.dims[0], x))
@@ -33,7 +33,7 @@ class TestField(unittest.TestCase):
 
         z = np.sin(g_x)*np.cos(g_y)
 
-        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[1, 1])
+        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[TWOPI, 2*TWOPI])
 
         z2 = fun(g_x, g_y)
 
@@ -46,7 +46,7 @@ class TestField(unittest.TestCase):
         y = np.linspace(0, 2*TWOPI, 128)
         g_x, g_y = np.meshgrid(x, y)
 
-        Z = Field(np.sin(_x)*np.cos(_y), x, y,   mesh_periods=[1, 1])
+        Z = Field(np.sin(_x)*np.cos(_y), x, y,   mesh_periods=[TWOPI, 2*TWOPI])
 
         self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
 

@@ -10,7 +10,8 @@ from ..numlib.calculus import antiderivative, derivative, partial_derivative
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, array_type
+from ..utils.typing import ArrayType, array_type, as_array
+from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor
 from .HTree import HTree
@@ -18,7 +19,7 @@ from .HTree import HTree
 _T = typing.TypeVar("_T")
 
 
-class Field(Expression, HTree[_T]):
+class Field(HTree[_T], Expression):
     """ Field
         ---------
         Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
@@ -35,29 +36,37 @@ class Field(Expression, HTree[_T]):
 
     """
 
-    def __init__(self, value, *args,  **kwargs):
+    def __init__(self, value, *args, mesh=None,  **kwargs):
 
-        mesh,  kwargs = group_dict_by_prefix(kwargs,  "mesh")
+        cache = value
+        func = None
 
-        super().__init__(value, **kwargs)
-
-        if isinstance(mesh, Enum):
-            self._mesh = {"type": mesh.name}
-        elif isinstance(mesh, str):
-            self._mesh = {"type":  mesh}
-        elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
-            self._mesh = {"dims": mesh}
+        if isinstance(cache, (Functor, Expression)):
+            func = cache
+            cache = None
+        elif callable(cache):
+            func = Functor(cache)
+            cache = None
         else:
-            self._mesh = mesh if mesh is not None else {}
+            cache = as_array(cache)
 
-        if isinstance(self._mesh, collections.abc.Mapping) and len(args) > 0:
-            self._mesh["dims"] = args
+        HTree.__init__(self, cache, **kwargs)
+
+        Expression.__init__(self, func, label=self._metadata.get("label", None))
+
+        # super().__init__(value, **kwargs)
+
+        if mesh is None and len(args) > 0:
+            mesh = {"dims": args}
         elif len(args) > 0:
-            raise RuntimeError(f"ignore args={args}")
+            logger.warning(f"ignore args={args}")
 
+        self._mesh = mesh
         self._ppoly = None
 
-    def __display__(self): return self.__str__()
+    def __repr_svg__(self) -> str:
+        from ..views.View import display
+        return display(self, format="svg")
 
     @property
     def mesh(self): return self.__mesh__
@@ -67,44 +76,42 @@ class Field(Expression, HTree[_T]):
         if isinstance(self._mesh, Mesh):
             return self._mesh
 
-        mesh_desc, metadata = group_dict_by_prefix(self._metadata, "mesh")
+        coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
 
-        if self._mesh is None:
-            self._mesh = mesh_desc
-        elif isinstance(self._mesh, collections.abc.Mapping) and mesh_desc is not None:
-            self._mesh.update(mesh_desc)
-        # else:
-        #     raise TypeError(f"self._mesh={self._mesh} is not a Mapping")
-
-        if isinstance(self._parent, HTree):
-            coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
-            if coordinates is None or len(coordinates) == 0:
-                coordinates = {}
+        if self._mesh is None and coordinates is not None and isinstance(self._parent, HTree):
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
             if all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
                 o_mesh = getattr(self._parent, "grid", None)
                 if isinstance(o_mesh, Mesh):
-                    if len(self._mesh) > 0:
-                        logger.warning(f"Ignore {self._mesh}")
+                    # if self._mesh is not None and len(self._mesh) > 0:
+                    #     logger.warning(f"Ignore {self._mesh}")
                     self._mesh = o_mesh
                 elif isinstance(o_mesh, collections.abc.Sequence):
-                    self._mesh["dims"] = o_mesh
+                    self._mesh = merge_tree_recursive(self._mesh, {"dims": o_mesh})
                 elif isinstance(o_mesh, collections.abc.Mapping):
-                    self._mesh.update(o_mesh)
+                    self._mesh = merge_tree_recursive(self._mesh, o_mesh)
                 elif o_mesh is not None:
                     raise RuntimeError(f"self._parent.grid is not a Mesh, but {type(o_mesh)}")
             else:
-                if self._mesh is None:
-                    self._mesh = {}
-                self._mesh["dims"] = tuple([(self._parent.get(c) if isinstance(c, str) else c)
-                                            for c in coordinates.values()])
+                dims = tuple([(self._parent.get(c) if isinstance(c, str) else c)
+                              for c in coordinates.values()])
+                self._mesh = merge_tree_recursive(self._mesh, {"dims": dims})
+
+        elif isinstance(self._mesh, Enum):
+            self._mesh = {"type": self._mesh.name}
+
+        elif isinstance(self._mesh, str):
+            self._mesh = {"type":  self._mesh}
+
+        elif isinstance(self._mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in self._mesh):
+            self._mesh = {"dims": self._mesh}
 
         if isinstance(self._mesh, collections.abc.Mapping):
             self._mesh = Mesh(**self._mesh)
 
-        if not isinstance(self._mesh, Mesh):
+        elif not isinstance(self._mesh, Mesh):
             raise RuntimeError(f"self._mesh is not a Mesh, but {type(self._mesh)}")
 
         return self._mesh
@@ -123,50 +130,28 @@ class Field(Expression, HTree[_T]):
         if (value is None or value is _not_found_):
             value = None
 
-        return self._normalize_value(value, *args,  **kwargs)
+        return as_array(value)
+
+        # return self._normalize_value(value, *args,  **kwargs)
 
     @property
     def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
 
-    def _compile(self, *args, force=False, **kwargs) -> Functor:
+    def __functor__(self) -> Functor:
+        if self._func is None:
+            self._func = self._interpolate()
+        return super().__functor__()
+
+    def _interpolate(self, *args, force=False, **kwargs) -> Functor:
         if self._ppoly is None or force:
             self._ppoly = self.__mesh__.interpolator(self.__array__(), *args, **kwargs)
         return self._ppoly
-        # elif self.__mesh__.ndim == 1 and len(d) == 1:
-        #     return self.__mesh__.derivative(d[0], value)
-        # elif self.__mesh__.ndim == 2 and d == (1,):
-        #     return self._compile(1, 0, **kwargs), self._compile(0, 1, **kwargs)
-        # elif self.__mesh__.ndim == 3 and d == (1,):
-        #     return self._compile(1, 0, 0, **kwargs), self._compile(0, 1, 0, **kwargs), self._compile(0, 0, 1, **kwargs)
-        # elif len(d) == 1:
-        #     raise NotImplementedError(f"ndim={self.__mesh__.ndim} d={d}")
-        # elif len(d) != self.__mesh__.ndim:
-        #     raise RuntimeError(f"Illegal! ndim={self.__mesh__.ndim} d={d}")
-        # elif all(v == 0 for v in d) and hasattr(self.__mesh__, "interpolator"):
-        #     return self.__mesh__.interpolator(value)
-        # elif all(v >= 0 for v in d) and hasattr(self.__mesh__, "partial_derivative"):
-        #     return self.__mesh__.partial_derivative(d, value)
-        # elif all(v <= 0 for v in d) and hasattr(self.__mesh__, "antiderivative"):
-        #     return self.__mesh__.antiderivative([-v for v in d], value)
-        # else:
-        #     raise NotImplementedError(f"TODO: {d}")
 
-    def compile(self, *d, **kwargs) -> Field[_T]:
-        op, *opts = self._compile(*d, **kwargs)
-        if len(opts) == 0:
-            pass
-        elif len(opts) > 0:
-            opts = opts[0]
-            op = functools.partial(op, **opts)
-            if len(opts) > 1:
-                logger.warning(f"Function.compile() ignore opts! {opts[1:]}")
-        if op is None:
-            raise RuntimeError(f"Function.compile() failed! {self.__str__()} ")
-
-        return Field[_T](op, mesh=self.__mesh__, name=f"[{self.__str__()}]")
+    def compile(self) -> Field[_T]:
+        return Field[_T](self._interpolate(), mesh=self.__mesh__, name=f"[{self.__str__()}]")
 
     def grad(self, n=1) -> Field:
-        ppoly = self._compile()
+        ppoly = self. __functor__()
 
         if isinstance(ppoly, tuple):
             ppoly, opts = ppoly
@@ -194,13 +179,13 @@ class Field(Expression, HTree[_T]):
             raise NotImplemented(f"TODO: ndim={self.__mesh__.ndim} n={n}")
 
     def derivative(self, n=1) -> Field[_T]:
-        return Field[_T](derivative(self._compile(), n),  mesh=self.__mesh__, name=f"D_{n}({self})")
+        return Field[_T](derivative(self. __functor__(), n),  mesh=self.__mesh__, name=f"D_{n}({self})")
 
     def partial_derivative(self, *d) -> Field[_T]:
-        return Field[_T](partial_derivative(self._compile(), *d), mesh=self.__mesh__, name=f"d_{d}({self})")
+        return Field[_T](self._interpolate().partial_derivative(*d), mesh=self.__mesh__, name=f"d_{d}({self})")
 
     def antiderivative(self, *d) -> Field[_T]:
-        return Field[_T](antiderivative(self._compile(), *d),  mesh=self.__mesh__, name=f"I_{d}({self})")
+        return Field[_T](antiderivative(self. __functor__(), *d),  mesh=self.__mesh__, name=f"I_{d}({self})")
 
     def d(self, n=1) -> Field[_T]: return self.derivative(n)
 

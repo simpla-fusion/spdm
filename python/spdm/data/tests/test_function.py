@@ -88,50 +88,50 @@ class TestFunction(unittest.TestCase):
         fun = Function(y, x)
 
         x2 = np.linspace(0, 1.0, 64)
-        
+
         y2 = np.sin(x2*TWOPI)
 
         self.assertTrue(np.allclose(y2, fun(x2)))
 
-    # def test_delta_fun(self):
+    def test_delta_fun(self):
 
-    #     p = 0.5
-    #     value = 1.2345
+        p = 0.5
+        value = 1.2345
 
-    #     fun0 = Function(value, p)
+        fun0 = Function(value, p)
 
-    #     self.assertTrue(np.isclose(fun0(p), value))
+        self.assertTrue(np.isclose(fun0(p), value))
 
-    #     fun1 = Function([value], [p])
+        fun1 = Function([value], [p])
 
-    #     self.assertTrue(np.isclose(fun1(p), value))
+        self.assertTrue(np.isclose(fun1(p), value))
 
-    #     x = np.linspace(0, 1, 11)
+        x = np.linspace(0, 1, 11)
 
-    #     mark = np.isclose(x, p)
+        mark = np.isclose(x, p)
 
-    #     # logger.debug(fun1(x))
-    #     self.assertTrue(np.allclose(fun1(x)[mark], value))
-    #     self.assertTrue(np.all(np.isnan(fun1(x)[~mark])))
+        # logger.debug(fun1(x))
+        self.assertTrue(np.allclose(fun1(x)[mark], value))
+        self.assertTrue(np.all(np.isnan(fun1(x)[~mark])))
 
-    # def test_delta_nd(self):
+    def test_delta_nd(self):
 
-    #     p = [0.5, 0.4]
-    #     value = 1.2345
+        p = [0.5, 0.4]
+        value = 1.2345
 
-    #     fun0 = Function(value, *p)
+        fun0 = Function(value, *p)
 
-    #     self.assertTrue(np.isclose(fun0(*p), value))
+        self.assertTrue(np.isclose(fun0(*p), value))
 
-    #     dimx = np.linspace(0, 1, 11)
-    #     dimy = np.linspace(0, 1, 11)
+        dimx = np.linspace(0, 1, 11)
+        dimy = np.linspace(0, 1, 11)
 
-    #     x, y = np.meshgrid(dimx, dimy)
+        x, y = np.meshgrid(dimx, dimy)
 
-    #     mark = np.isclose(x, p[0]) & np.isclose(y, p[1])
+        mark = np.isclose(x, p[0]) & np.isclose(y, p[1])
 
-    #     self.assertTrue(np.allclose(fun0(x, y)[mark], value))
-    #     self.assertTrue(np.all(np.isnan(fun0(x, y)[~mark])))
+        self.assertTrue(np.allclose(fun0(x, y)[mark], value))
+        self.assertTrue(np.all(np.isnan(fun0(x, y)[~mark])))
 
 
 if __name__ == '__main__':

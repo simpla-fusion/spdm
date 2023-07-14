@@ -17,7 +17,7 @@ from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_array, numeric_type, scalar_type, get_args, get_origin)
 from .Expression import Expression
-from .Functor import Functor
+from .Functor import Functor, DiracDeltaFun, ConstantsFunc
 from .HTree import HTree
 
 _T = typing.TypeVar("_T")
@@ -57,18 +57,20 @@ class Function(HTree[_T], Expression):
         cache = value
         func = None
 
-        if not isinstance(cache, numeric_type):
+        if isinstance(cache, (Functor, Expression)):
             func = cache
             cache = None
-
-        elif not all([isinstance(v, array_type) for v in dims]):
-            raise TypeError(f"I don't understand! {dims}")
+        elif callable(cache):
+            func = Functor(cache)
+            cache = None
+        else:
+            cache = as_array(cache)
 
         HTree.__init__(self, cache, **kwargs)
 
         Expression.__init__(self, func, label=self._metadata.get("label", None))
 
-        self._dims = dims
+        self._dims = list(dims)
         self._periods = periods
 
     def __copy_from__(self, other: Function) -> Function:
@@ -93,10 +95,7 @@ class Function(HTree[_T], Expression):
     @property
     def dims(self) -> typing.List[ArrayType]:
         """ 函数的网格，即定义域的网格 """
-        if self._dims is not None:
-            return self._dims
-
-        if self._dims is not None and len(self._dims) > 0:
+        if len(self._dims) > 0:
             return self._dims
 
         parent = self._parent  # kwargs.get("parent", None)
@@ -153,7 +152,7 @@ class Function(HTree[_T], Expression):
     @functools.cached_property
     def bbox(self) -> typing.Tuple[typing.List[float], typing.List[float]]:
         """ 函数的定义域 """
-        return tuple([d[0], d[-1]] for d in self.dims)
+        return tuple(([d[0], d[-1]] if not isinstance(d, float) else [d, d]) for d in self.dims)
 
     def _type_hint(self, path=None) -> typing.Type:
         tp = get_args(get_origin(self))
@@ -205,13 +204,22 @@ class Function(HTree[_T], Expression):
         elif func is not None:
             raise RuntimeError(f"expr is not array_type! {type(func)}")
 
+        dims = self.dims
         value = self.__value__
 
-        if isinstance(value, array_type) and value.size > 0:
-            return self.interpolate()
+        if len(dims) == 0 or not isinstance(value, array_type) or value.size == 1:
+            self._func = ConstantsFunc(value)
+
+        elif all([(not isinstance(v, array_type) or v.size == 1) for v in dims]):
+            self._func = DiracDeltaFun(value, [float(v) for v in self.dims])
+
+        elif all([(isinstance(v, array_type) and v.ndim == 1 and v.size > 0) for v in dims]):
+            self._func = self._interpolate()
 
         else:
-            return value
+            raise RuntimeError(f"TODO: {dims} {value}")
+
+        return self._func
 
     def __call__(self, *args, **kwargs) -> typing.Any: return super().__call__(*args, **kwargs)
 
@@ -235,17 +243,19 @@ class Function(HTree[_T], Expression):
         value = self.__array__()
         if not isinstance(value, array_type):
             raise RuntimeError(f"self.__array__ is not array_type! {(value)}")
-        return interpolate(value, dims=self.dims, periods=self.periods,
-                           extrapolate=self._metadata.get("extrapolate", 0))
+        return interpolate(value, *self.dims,
+                           periods=self.periods,
+                           extrapolate=self._metadata.get("extrapolate", 0)
+                           )
 
     def derivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](self._interpolate().derivative(*d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
+        return Function[_T](self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
 
     def partial_derivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](self._interpolate().partial_derivative(*d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
+        return Function[_T](self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
 
     def antiderivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](self._interpolate().antiderivative(*d, **kwargs), dims=self.dims, periods=self.periods, **self.__metadata__)
+        return Function[_T](self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
 
     def d(self, n=1) -> Expression: return self.derivative(n)
 

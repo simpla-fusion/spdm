@@ -40,7 +40,7 @@ class Expression:
 
     fill_value = float_nan
 
-    def __init__(self, expr: Functor | Expression  = None, *children, label: str = None, **kwargs) -> None:
+    def __init__(self, expr: Functor | Expression | None = None, *children, label: str = None, **kwargs) -> None:
         """
             Parameters
             ----------
@@ -143,7 +143,7 @@ class Expression:
         else:
             return True
 
-    def __functor__(self) -> Functor | NumericType: return self._func
+    def __functor__(self) -> Functor: return self._func
     """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
 
     def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:

@@ -30,6 +30,8 @@ class PathOpTags(Flag):
     update  = auto()    # PUT
     insert  = auto()    # POST
     remove  = auto()    # DELETE
+
+    call    = auto()    # call function
     exists  = auto()
     check_type = auto() # check type
     search  = auto()    # search by query return idx
@@ -254,7 +256,7 @@ class Path(list):
         """
         return Path._exec(target, self[:], Path.tags.remove, *args,  quiet=quiet,  **kwargs)
 
-    def find_next(self, target: typing.Any,  start: PathLike=None, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
+    def find_next(self, target: typing.Any,  start: PathLike = None, *args, **kwargs) -> typing.Tuple[typing.Any, PathLike]:
         """  从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
         res = Path._exec(target, self[:], Path.tags.next, start, *args, **kwargs)
 
@@ -955,6 +957,11 @@ class Path(list):
         else:
             raise NotImplementedError(f"{target} {key}")
 
+
+    @staticmethod
+    def _op_call(target, key, *args, **kwargs) -> bool:
+        raise NotImplementedError(f"Not implemented yet! {target} {key}")
+    
     @staticmethod
     def _op_next(target, key, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 

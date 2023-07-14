@@ -31,7 +31,7 @@ class Entry(Pluggable):
                                            self, data, path, *args, **kwargs)
                 return
 
-        self._data = data
+        self._data: typing.Any = data
         self._path = as_path(path)
 
     def __copy__(self) -> Entry:

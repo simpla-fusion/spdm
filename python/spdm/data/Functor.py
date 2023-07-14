@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import typing
 from copy import copy
+
 import numpy as np
 
 from ..utils.logger import logger
-from ..utils.typing import NumericType, numeric_type
+from ..utils.typing import NumericType, as_array, numeric_type
 
 ExprOpLike = typing.Callable | None
 
@@ -89,6 +90,52 @@ class Functor:
     def partial_derivative(self, *d) -> Functor: raise NotImplementedError()
 
     def antiderivative(self, *d) -> Functor: raise NotImplementedError()
+
+
+class ConstantsFunc(Functor):
+    def __init__(self, value: NumericType,  **kwargs) -> None:
+        super().__init__(None, **kwargs)
+        self._value = value
+
+    def __label__(self) -> str: return f"{self._value}"
+
+    def __call__(self, *args, **kwargs):
+        if len(args) > 0 and isinstance(args[0], np.ndarray):
+            return np.full_like(args[0], self._value)
+        else:
+            return self._value
+
+
+class SetpFun(Functor):
+    def __init__(self, y: NumericType, *xargs, y0: NumericType = 0.0, **kwargs) -> None:
+        super().__init__(None, **kwargs)
+        self._y1 = y
+        self._y0 = y0
+        self._xargs = xargs
+
+    def __label__(self) -> str: return r"H"
+
+    def __call__(self, *args, **kwargs):
+        return self._y1 if np.all(self._xargs > as_array(args)) else self._y0
+
+
+class DiracDeltaFun(Functor):
+    def __init__(self, y: NumericType, *xargs, y0: NumericType = 0.0, **kwargs) -> None:
+        super().__init__(None, **kwargs)
+        self._y1 = y
+        self._y0 = y0
+        self._xargs = xargs
+
+    def __label__(self) -> str: return r"\delta"
+
+    def derivative(self, n=1) -> SetpFun:
+        if n == 1:
+            return SetpFun(self._y1, self._xargs, y0=self._y0)
+        else:
+            raise NotImplementedError(f"n={n}")
+
+    def __call__(self, *args, **kwargs):
+        return self._y1 if np.allclose(self._xargs, as_array(args)) else self._y0
 
 
 def as_functor(expr, *args, **kwargs) -> Functor | None:

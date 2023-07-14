@@ -17,6 +17,7 @@ from ..utils.typing import (ArrayType, HNodeLike, HTreeLike, NumericType,
 from .Entry import Entry, as_entry
 from .Expression import Expression
 from .Path import Path, PathLike, as_path
+from .QueryResult import QueryResult
 
 _T = typing.TypeVar("_T")
 
@@ -53,7 +54,7 @@ class HTree(typing.Generic[_T]):
         if isinstance(cache, dict):
             default_value = merge_tree_recursive(default_value, (cache.pop("$default_value", _not_found_)))
 
-        default_value = merge_tree_recursive(default_value, kwargs.pop("default_value",_not_found_))
+        default_value = merge_tree_recursive(default_value, kwargs.pop("default_value", _not_found_))
 
         if cache is None or cache is _undefined_:
             cache = _not_found_
@@ -179,10 +180,10 @@ class HTree(typing.Generic[_T]):
         if obj is _undefined_ and pos <= len(path):
             raise KeyError(f"{path[:pos+1]} not found")
 
-        if isinstance(obj, HTree) and force:
-            tp = obj._type_hint()
-            if tp is None or tp == HTree[_T] or tp in primary_type:
-                obj = obj.__value__
+        # if get_origin(obj) is HTree and force:
+        #     tp = self._type_hint()
+        #     if tp is None or tp == HTree[_T] or tp in primary_type:
+        #         obj = obj.__value__
 
         return obj
 
@@ -269,8 +270,8 @@ class HTree(typing.Generic[_T]):
             #     logger.warning(f"Ignore {cache}")
             try:
                 tmp = getter(self)
-            except Exception:
-                pass
+            except Exception as error:
+                raise RuntimeError(f"id={id}: 'getter' failed!") from error
             else:
                 cache = tmp
 
@@ -477,132 +478,6 @@ class NamedDict(HTree[_T]):
     """ Proxy to access named dict """
 
     def __getattr__(self, name: str) -> typing.Any: return self._get(name)
-
-
-class QueryResult(Entry):
-    """ Handle the result of query    """
-
-    def __init__(self, target: HTree, query: PathLike,  *args,
-                 reducer: typing.Callable[..., HTreeLike] | None = None, **kwargs) -> None:
-        super().__init__(as_htree(target), query, *args, **kwargs)
-        self._reducer = reducer if reducer is not None else QueryResult._default_reducer
-
-    def __copy_from__(self, other: QueryResult) -> QueryResult:
-        super().__copy_from__(other)
-        self._reducer = other._reducer
-        return self
-
-    def __getattr__(self, name: str) -> typing.Any: return self._lazy_get(name)
-
-    def __getitem__(self, path: PathLike) -> typing.Any: return self._lazy_get(path)
-
-    def __setitem__(self, path: PathLike, value): raise NotImplementedError(f"TODO: setitem {path} {value}")
-
-    @ property
-    def current(self) -> typing.Any: return self._lazy_get(-1)
-
-    ###################################################################################
-
-    def _type_hint(self, path=None) -> typing.Type:
-        suffix = copy(self._suffix)
-        suffix.append(path)
-        return self._target._type_hint(suffix)
-
-    def _lazy_get(self, path) -> QueryResult | PrimaryType:
-        other = copy(self)
-        other._suffix.append(path)
-        type_hint = self._target._type_hint([0]+other._suffix[:])
-        if not issubclass(get_origin(type_hint), HTree):
-            return type_hint(other.__reduce__())
-        else:
-            return other
-
-    # def __setattr__(self, path: PathLike, value):
-    #     raise NotImplementedError(f"TODO: setitem {path} {value}")
-
-    def __contain__(self, value):
-        raise NotImplementedError(f"TODO: __contain__ {value}")
-
-    def __len__(self, value):
-        raise NotImplementedError(f"TODO: __len__ {value}")
-
-    def __iter__(self) -> typing.Generator[QueryResult, None, None]:
-
-        default_value = self._suffix.collapse().query(self._target._default_value)
-
-        if not isinstance(default_value, collections.abc.Sequence) or not isinstance(default_value[0], collections.abc.Mapping):
-            raise NotImplementedError(f"TODO: __iter__ {default_value} {self._suffix}")
-
-        identifier = "label"
-
-        for v in default_value:
-
-            id = v.get(identifier, None)
-
-            suffix = copy(self._suffix)+[{f"@{identifier}": id}]
-
-            yield QueryResult(self._target, self._query_cmd, suffix=suffix, reducer=self._reducer)
-
-    def _foreach(self, suffix=None) -> typing.Generator[HTreeLike | HTree, None, None]:
-
-        if suffix is None:
-            suffix = self._suffix
-        else:
-            suffix = as_path(suffix)
-
-        next_id = None
-
-        while True:
-            obj, next_id = self._target._find_next(self._query_cmd, start=next_id)
-
-            if next_id is None:
-                break
-
-            elif len(suffix) == 0:
-                value = obj
-
-            elif isinstance(obj, HTree):
-                value = obj.get(suffix)
-
-            else:
-                value = suffix.query(obj, default_value=_not_found_)
-
-            yield value
-
-    @ property
-    def __value__(self) -> typing.List[HTreeLike]:
-        value = [as_value(v) for v in self._foreach() if v is not _not_found_]
-        if len(value) == 0 or isinstance(value[0], collections.abc.Mapping)\
-                and self._target._default_value is not _not_found_ and len(self._suffix) > 0:
-            default_value = self._suffix.collapse().query(self._target._default_value)
-            value = [default_value]+value
-        return value
-
-    def __array__(self) -> ArrayType: return as_array(self.__reduce__())
-
-    def __reduce__(self) -> HTreeLike: return reduce(self._reducer,  self.__value__)
-
-    @ staticmethod
-    def _default_reducer(first: HTreeLike, second: HTreeLike) -> HTreeLike:
-
-        if first is _not_found_:
-            return second
-        elif second is _not_found_ or second is None:
-            return second
-        elif isinstance(first, (str)):
-            return first
-        elif isinstance(first, array_type) and isinstance(second, array_type):
-            return first+second
-        elif isinstance(first, (dict, list)) or isinstance(second, (dict, list)):
-            return merge_tree_recursive(first, second)
-        else:
-            return first+second
-
-    def __call__(self, *args, **kwargs) -> HTreeLike:
-        value = [(v(*args, **kwargs) if callable(v) else v) for v in self._foreach() if v is not _not_found_]
-        if len(value) == 0:
-            raise RuntimeError(f"TODO: suffix={self._suffix} not found!")
-        return reduce(self._reducer, value)
 
 
 class AoS(List[_T]):
