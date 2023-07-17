@@ -127,16 +127,15 @@ class HTree(typing.Generic[_T]):
     def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
         """ 遍历 children """
 
-        next_id: PathLike = None
+        next_id = []
 
         while True:
 
-            value, next_id = self._find_next(start=next_id, parent=self._parent,
+            value, next_id = self._find_next(None, *next_id, parent=self._parent,
                                              default_value=self._default_value)
-            if next_id is not None:
-                yield value
-            else:
+            if next_id is None or len(next_id) == 0:
                 break
+            yield value
 
     def __equal__(self, other) -> bool: return self._query([], Path.tags.equal, other)  # type:ignore
 
@@ -257,11 +256,6 @@ class HTree(typing.Generic[_T]):
             cache = default_value
             default_value = _not_found_
 
-        # if type_hint is None and isinstance(cache, primary_type):
-        #     value = cache
-        # elif type_hint is None and not isinstance(cache, primary_type):
-        #     value = HTree[_T](cache, entry, parent=parent, *args, **kwargs)
-        # el
         if not isinstance_generic(cache, type_hint) and getter is not None:
             # if cache is not _not_found_ and cache is not None:
             #     logger.warning(f"Ignore {cache}")
@@ -419,21 +413,21 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, start: int | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def _find_next(self, query: PathLike = None, *start: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
             query = slice(None)
 
-        cache, pos = as_path(query).find_next(self._cache, start=start, *args, **kwargs)
+        cache, pos = as_path(query).find_next(self._cache, *start)
 
         if pos is None:
             cache = _not_found_
-            entry, pos = self._entry.child(query).find_next(start=start, *args, **kwargs)
+            entry, pos = self._entry.child(query).find_next(*start)
         else:
             entry = self._entry.child(pos)
 
         if pos is not None:
-            return self._as_child(cache, pos, *args, entry=entry, default_value=default_value, **kwargs), pos
+            return self._as_child(cache, pos,  entry=entry, default_value=default_value, **kwargs), pos
         else:
             return None, None
 
@@ -498,7 +492,6 @@ class AoS(List[_T]):
         return super().__getitem__(path)
 
     def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
-        logger.debug(self._default_value)
         if not isinstance(self._default_value, collections.abc.Sequence):
             yield from super().__iter__()
         else:

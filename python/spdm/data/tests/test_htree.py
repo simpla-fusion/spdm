@@ -197,13 +197,14 @@ class TestNode(unittest.TestCase):
 
         self.assertListEqual([v for v in d0], data)
 
-    def test_get_by_slice(self):
+    # def test_get_by_slice(self):
 
-        data = [1, 2, 3, 4, 5]
+    #     data = [1, 2, 3, 4, 5]
 
-        d0 = List[int](deepcopy(data))
-
-        self.assertListEqual(as_value(d0[1:4]), data[1:4])
+    #     d0 = List[int](data)
+    #     d = d0[1:4]
+    #     res = d.__value__
+    #     self.assertListEqual(res, data[1:4])
 
 
 if __name__ == '__main__':

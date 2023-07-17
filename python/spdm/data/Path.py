@@ -293,7 +293,7 @@ class Path(list):
 
         parent = Path._make_path(root, path, quiet=quiet)
 
-        Path._apply_op(parent, Path.tags.update, path[-1], value, *args, **kwargs)
+        Path._op_update(parent, path[-1], value, *args, **kwargs)
 
         return root["_"]
 
@@ -730,6 +730,7 @@ class Path(list):
                 Path._op_update(obj, p, default_value)
 
                 obj = Path._op_fetch(obj, p)
+                pos += 1
             else:
                 raise PathError(path[:pos+1])
 
@@ -1104,6 +1105,10 @@ class Path(list):
         # elif isinstance(self, collections.abc.Sequence):
         # else:
         #   raise NotImplementedError(type(self))
+
+    @staticmethod
+    def _op_dump(target:typing.Any, *args, **kwargs)->typing.Any:
+        return serialize(target)
 
     # fmt: off
     _op_neg         =np.negative   
