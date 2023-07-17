@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import pathlib
 import typing
@@ -9,15 +11,14 @@ from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
 from lxml.etree import fromstring
 from lxml.etree import parse as parse_xml
-from spdm.utils.PathTraverser import PathTraverser
-from spdm.utils.tags import _not_found_, _undefined_
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.utils.tree_utils import format_string_recursive
-from spdm.utils.misc import normalize_path, serialize
+from spdm.data.Path import Path, PathLike
 from spdm.utils.logger import logger
-from spdm.data.Path import Path
-_TPath = typing.TypeVar("_TPath")
+from spdm.utils.misc import normalize_path, serialize
+from spdm.utils.PathTraverser import PathTraverser
+from spdm.utils.tags import _not_found_, _undefined_
+from spdm.utils.tree_utils import format_string_recursive
 
 
 def merge_xml(first, second):
@@ -217,13 +218,16 @@ class XMLEntry(Entry):
             res = format_string_recursive(res, collections.ChainMap(envs, self._envs))
         return res
 
-    def insert(self,  *args, **kwargs): return super().insert(*args, **kwargs)
+    #############################
+    # API
 
-    def update(self,  *args, **kwargs): return super().update(*args, **kwargs)
+    def insert(self,  *args, **kwargs) -> XMLEntry: return super().insert(*args, **kwargs)
 
-    def remove(self,  *args, **kwargs): return super().remove(*args, **kwargs)
+    def update(self,  *args, **kwargs) -> XMLEntry: return super().update(*args, **kwargs)
 
-    def query(self, op=None, *args, **kwargs):
+    def remove(self,  *args, **kwargs) -> int: return super().remove(*args, **kwargs)
+
+    def query(self, op=None, *args, **kwargs) -> typing.Any:
 
         # res = super().query(op, *args, default_value=_not_found_, quiet=True)
 
@@ -243,9 +247,10 @@ class XMLEntry(Entry):
             target = self._convert(obj, path=path,   envs=envs, **kwargs)
             return Path._apply_op(target, op or Path.tags.fetch, [], *args)
 
-    def find_next(self,  *args, start=None, default_value=None, projection=None, **kwargs):
+    def find_next(self,  start=None,  **kwargs) -> typing.Tuple[typing.Any, int | None]:
         if len(self._path) == 0:
             raise RuntimeError("Can not find next element from root!")
+        
         elif isinstance(self._path[-1], slice):
             start = self._path[-1].start or start or 0
             stop = self._path[-1].stop
@@ -271,12 +276,14 @@ class XMLEntry(Entry):
         if len(data) == 0:
             raise StopIteration(f"Can not find next element from {path}")
         elif len(data) == 1:
-            res = self._convert(data[0], lazy=True, path=path, envs=envs, projection=projection)
+            res = self._convert(data[0], lazy=True, path=path, envs=envs, **kwargs)
             return res, start+step
         else:
             raise RuntimeError(f"Invalid path {path}")
 
-    def _get_value(self,  path: typing.Optional[_TPath] = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
+    #############################
+
+    def _get_value(self,  path: PathLike = None, *args,  only_one=False, default_value=_not_found_, **kwargs):
 
         if not only_one:
             return PathTraverser(path).apply(lambda p: self._get_value(p, only_one=True, **kwargs))
@@ -302,7 +309,7 @@ class XMLEntry(Entry):
                     yield self._convert(child, path=s_path,
                                         envs=collections.ChainMap(s_envs, envs))
 
-    def items(self,    *args, envs={}, **kwargs):
+    def items(self, *args, envs={}, **kwargs):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)
@@ -313,7 +320,7 @@ class XMLEntry(Entry):
                                     envs=collections.ChainMap(s_envs, envs))
                 yield child.tag, res
 
-    def values(self,    *args, envs={}, **kwargs):
+    def values(self, *args, envs={}, **kwargs):
         path = self._path
         for spath in PathTraverser(path):
             xp, s_envs = self.xpath(spath)

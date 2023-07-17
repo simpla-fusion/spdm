@@ -160,7 +160,7 @@ class Entry(Pluggable):
 
     def insert(self, *args, **kwargs) -> Entry:
         self._data, next_path = self._path.insert(self._data, *args, **kwargs)
-        return Entry(self._data, next_path)
+        return self.__class__(self._data, next_path)
 
     def update(self,  *args, **kwargs) -> Entry:
         self._data = self._path.update(self._data,  *args, **kwargs)
@@ -178,16 +178,28 @@ class Entry(Pluggable):
         """
         return self._path.query(self._data, op,  *args, **kwargs)
 
-    def find_next(self,  start: int | None = None, *args, **kwargs) -> Entry:
+    def find_next(self, *start: int | None, **kwargs) -> typing.Tuple[typing.Any, typing.List[int | None]]:
         """
             Find the value from the cache.
             Return a generator of the results.
             Could be overridden by subclasses.
+            支持多维 index
         """
-        value, next_path = self._path.find_next(self._data, start=start, *args, **kwargs)
-        return Entry(value, next_path)
+        return self._path.find_next(self._data, *start,  **kwargs)
 
     ###########################################################
+
+    def for_each(self) -> typing.Generator[typing.Any, None, None]:
+        # for d in self._path.for_each(self._data):
+        #     yield d
+
+        next_id: typing.List[int | None] = []
+
+        while True:
+            value, next_id = self.find_next(*next_id)
+            if len(next_id) == 0:
+                break
+            yield value
 
 
 def as_entry(obj, *args, **kwargs) -> Entry:

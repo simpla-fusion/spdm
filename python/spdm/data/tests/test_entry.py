@@ -97,12 +97,29 @@ class TestEntry(unittest.TestCase):
                                    "d/e":   cache['d']['e'],
                                    "e": _not_found_})
 
-    # def test_iter(self):
-    #     data = [1, 2, 3, 4, 5]
+    def test_iter(self):
+        data = [1, 2, 3, 4, 5]
 
-    #     d0 = Entry(data)
+        d0 = Entry(data)
 
-    #     self.assertListEqual([as_value(v) for v in d0], data)
+        self.assertListEqual([v for v in d0.for_each()], data)
+
+    def test_find_next(self):
+        data = [1, 2, 3, 4, 5]
+
+        d0 = Entry(data)
+
+        res = []
+
+        next_id = []
+
+        while True:
+            value, next_id = d0.find_next(*next_id)
+            if next_id is None or len(next_id) == 0:
+                break
+            res.append(value)
+
+        self.assertListEqual(res, data)
 
 
 if __name__ == '__main__':

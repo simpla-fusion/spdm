@@ -307,51 +307,74 @@ class Path(list):
         """
         obj, suffix = Path._get_by_path(target, self[:])
 
-        # if len(suffix) > 0:
-        #     raise PathError(self[:-len(suffix)+1])
-
         return Path._apply_op(obj, op, suffix, *args, **kwargs)
 
-    def find_next(self, target: typing.Any, start: int | None = None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def find_next(self, target: typing.Any, *ids: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
         """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
-        if len(self) == 0 or not isinstance(self[0], (slice, dict)):
-            raise ValueError(f"Not a generator! [{self}]")
 
-        query = self[0]
-
-        value, next_id = Path._op_next(target, query, start, *args, **kwargs)
-
-        if next_id is None:
-            pass
-        elif hasattr(value, "child"):
-            value = value.child(self[pos+1:])
+        if len(self) == 0:
+            path = [slice(None)]
         else:
-            value = Path._exec(value, self[pos+1:], Path.tags.fetch, *args, **kwargs)
+            path = self[:]
 
-        return value, next_id
+        obj = target
 
-    def for_each(self, target, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        if len(self) == 0 or not isinstance(self[0], (slice, dict)):
-            raise ValueError(f"Not a generator! [{self}]")
+        next_ids = []
 
-        query = self[0]
+        suffix = []
 
-        if isinstance(self[0], slice):
-            query = None
-            start = self[0].start
-            stop = self[0].stop
-            step = self[0].step
+        for pth_pos, p in enumerate(path):
 
-            if start is None or start is _not_found_:
-                start = 0
+            if len(ids) == 0:
+                start = None
 
-            if step is None:
-                step = 1
+            elif len(next_ids) < len(ids):
+                start = ids[len(next_ids)]
 
-            if (stop-start)*step <= 0:
-                raise IndexError(f"Out of range: {self[0]}!")
-        elif isinstance(self[0], dict):
+            else:
+                suffix = self[pth_pos:]
+                break
+
+            if isinstance(p, (slice, dict)):
+                tmp, next_id = Path._op_next(obj, p, start)
+
+                if next_id is None:
+                    break
+                else:
+                    next_ids.append(next_id)
+
+            else:
+                tmp = Path._op_fetch(obj, p, default_value=_not_found_)
+
+            if tmp is _not_found_:
+                suffix = self[pth_pos:]
+                break
+
+            obj = tmp
+
+        if len(suffix) > 0:
+            return _not_found_, []
+        else:
+            return obj, next_ids
+
+    def for_each(self, target,  **kwargs) -> typing.Generator[typing.Any, None, None]:
+        if len(self) == 0:
+            query = slice(None)
+        else:
             query = self[0]
+
+        if not isinstance(query, (slice, dict)):
+            raise PathError(self[:], f"Not a generator! ")
+
+        if isinstance(query, slice):
+            start = query.start if query.start is not None else 0
+            stop = query.stop
+            step = query.step if query.step is not None else 1
+            query = None
+
+            if stop is not None and (stop-start)*step <= 0:
+                raise PathError(self[:], f"Out of range:!")
+        elif isinstance(query, dict):
             start = 0
             stop = None
             step = 1
@@ -366,13 +389,19 @@ class Path(list):
                 break
 
             if query is None or Path._op_check(value, query):
-                value = Path._exec(value, [next_id]+self[1:], Path._op_fetch, [],
-                                   * args, default_value=_not_found_, **kwargs)
+                value, suffix = Path._get_by_path(target, [next_id]+self[1:],
+                                                  * args, default_value=_not_found_, **kwargs)
+            else:
+                value = _not_found_
+                suffix = []
 
-            if value is _not_found_ or (hasattr(value.__class__, "__entry__") and not value.exists):
-                break
-
-            yield value, next_id
+            if value is _not_found_ or len(suffix) > 0 or (hasattr(value.__class__, "__entry__") and not value.exists):
+                if stop is None:
+                    break
+                else:
+                    yield _not_found_
+            else:
+                yield value
 
             next_id += step
 
@@ -668,117 +697,6 @@ class Path(list):
         return res
 
     @staticmethod
-    def _match(target: typing.Any, predicate: typing.Mapping[str, typing.Any]) -> bool:
-        """
-
-        """
-        if not isinstance(predicate, collections.abc.Mapping):
-            predicate = {predicate: None}
-
-        def do_match(op, value, expected):
-            res = False
-            if isinstance(op, str) and isinstance(value, collections.abc.Mapping):
-                return value.get(op, _not_found_) == expected
-            else:
-                raise NotImplementedError(f" {op}:{expected}")
-
-        return all([do_match(op, target, args) for op, args in predicate.items()])
-
-    @staticmethod
-    def _query_decprecated(target: typing.Any, path: typing.List[typing.Any],
-                           op: typing.Optional[Path.tags] = None, *args, **kwargs) -> typing.Any:
-        target, pos = Path._traversal(target, path)
-
-        if hasattr(target, "__entry__"):
-            return target.__entry__.child(path[pos:]).query(op=op, *args, **kwargs)
-        elif pos < len(path) - 1 and not isinstance(path[pos], (int, str)):
-            res = [Path._query_decprecated(d, path[pos+1:], op, *args, **kwargs)
-                   for d in Path._find(target, [path[pos]], **kwargs)]
-            if len(res) == 1 and isinstance(path[pos], collections.abc.Mapping) and (all(k[0] != '@' for k in path[pos].keys()) or path[pos].get("@only_first", False)):
-                res = res[0]
-            elif len(res) == 0:
-                res = _not_found_
-        elif pos == len(path) - 1 and not isinstance(path[pos], (int, str)):
-            target = Path._find_all(target, path[pos:], **kwargs)
-            res = Path._query_decprecated(target, [], op, *args, **kwargs)
-        elif op is None:
-            if pos == len(path):
-                res = target
-            elif pos < len(path):  # Not found
-                res = _not_found_
-            else:
-                res = Path._find_all(target, path[pos:], **kwargs)
-        elif op == Path.tags.count:
-            if pos == len(path):
-                if isinstance(target, str):
-                    res = 1
-                else:
-                    res = len(target)
-            else:
-                res = 0
-        elif op == Path.tags.equal:
-            if pos == len(path):
-                res = target == args[0]
-            else:
-                res = False
-        else:
-            raise NotImplementedError(f"Not implemented yet! {op}")
-
-        if res is _not_found_:
-            res = kwargs.get("default_value", _not_found_)
-        # if res is _not_found_:
-        #   raise KeyError(f"Cannot find {path[:pos+1]} in {target}")
-        return res
-
-    @staticmethod
-    def _exec(target: typing.Any, path: typing.List[PathLike], *args,  quiet=True, **kwargs) -> typing.Any:
-
-        if path is None:
-            path = []
-        elif not isinstance(path, list):
-            path = [path]
-
-        path = ["_"]+path
-        root = {"_": target}
-
-        length = len(path)
-
-        obj = root
-
-        path_idx = 0
-
-        while path_idx < length:
-
-            if obj is _not_found_ or obj is None or hasattr(obj.__class__, "__entry__"):
-                break
-
-            if quiet and path_idx < length-1:
-                default_value = {} if isinstance(path[path_idx+1], str) else []
-            else:
-                default_value = _not_found_
-
-            p = path[path_idx]
-
-            tmp = Path._op_fetch(obj, p, default_value=default_value)
-
-            if tmp is not _not_found_:
-                obj = tmp
-                path_idx += 1
-            else:
-                break
-
-        if hasattr(obj.__class__, "__entry__"):
-            res = obj.__entry__.child(path[path_idx:]).query(*args, **kwargs)
-
-        elif path_idx == length or obj is _not_found_:
-            res = Path._apply_op(obj,  *args, **kwargs)
-
-        else:
-            raise PathError(path[:path_idx+1])
-
-        return res
-
-    @staticmethod
     def _make_path(target: dict | list, path: typing.List[PathLike], quiet=True) -> typing.Any:
 
         length = len(path)
@@ -830,6 +748,7 @@ class Path(list):
 
             if obj is _not_found_ or obj is None:
                 break
+
             elif hasattr(obj.__class__, "__entry__"):
                 obj = obj.__entry__.child(path[pos:length-1])
                 pos = length
@@ -840,12 +759,13 @@ class Path(list):
             if not isinstance(p, (int, str)):
                 break
 
-            tmp = Path._op_fetch(obj, p, default_value=_not_found_)
+            tmp = Path._op_fetch(obj, p, default_value=_not_found_ if pos < length-1 else default_value)
 
             if tmp is _not_found_:
                 break
 
             obj = tmp
+
             pos += 1
 
         return obj, path[pos:]
@@ -892,7 +812,7 @@ class Path(list):
                 target = _not_found_
                 key = _not_found_
 
-        if key is _not_found_:
+        if key is _not_found_ or key is None:
             res = target
 
         elif isinstance(target, array_type) and isinstance(key, (int, slice, tuple)):
@@ -908,7 +828,7 @@ class Path(list):
                 except Exception:
                     res = _not_found_
 
-        elif isinstance(key, int):
+        elif isinstance(key, int) and isinstance(target, list):
             if key < len(target):
                 res = target[key]
             else:
@@ -938,7 +858,7 @@ class Path(list):
 
         return res
 
-    @ staticmethod
+    @staticmethod
     def _op_update(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> None:
 
         if hasattr(target.__class__, "__entry__"):
@@ -975,7 +895,7 @@ class Path(list):
 
         return target
 
-    @ staticmethod
+    @staticmethod
     def _op_insert(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> int | None:
         if hasattr(target.__class__, "__entry__"):
             return target.__entry__.child(key).insert(value, *args, **kwargs)
@@ -1024,7 +944,7 @@ class Path(list):
 
         return target, key
 
-    @ staticmethod
+    @staticmethod
     def _op_remove(target: typing.Any, key: int | str | None, *args, **kwargs) -> int:
         if len(args)+len(kwargs) > 0:
             logger.warning(f"Ignore {args} {kwargs}")
@@ -1040,7 +960,7 @@ class Path(list):
             raise NotImplementedError(f"{key}")
         return target, 1
 
-    @ staticmethod
+    @staticmethod
     def _op_check(target: typing.Any,  query, *args) -> bool:
         if query is None:
             return True
@@ -1051,12 +971,12 @@ class Path(list):
 
         return all([target.get(k[1:], _not_found_) == v for k, v in query.items() if k.startswith("@")])
 
-    @ staticmethod
+    @staticmethod
     def _op_check_type(target: typing.Any, key, tp, *args, **kwargs) -> bool:
         target = Path._op_fetch(target, key, default_value=_not_found_)
         return isinstance_generic(target, tp)
 
-    @ staticmethod
+    @staticmethod
     def _op_search(target: typing.Any, key, query, start=None, *args, **kwargs):
 
         target = Path._op_fetch(target, key)
@@ -1074,15 +994,15 @@ class Path(list):
 
         return pos if pos is not None else _not_found_
 
-    @ staticmethod
+    @staticmethod
     def _op_dump(target: typing.Any, *args, **kwargs):
         return serialize(target, *args, **kwargs)
 
-    @ staticmethod
+    @staticmethod
     def _op_equal(target: typing.Any, value, *args, **kwargs):
         return target == value
 
-    @ staticmethod
+    @staticmethod
     def _op_count(target: typing.Any, *args, **kwargs) -> int:
         if target is _not_found_:
             return 0
@@ -1091,7 +1011,7 @@ class Path(list):
         else:
             return len(target)
 
-    @ staticmethod
+    @staticmethod
     def _op_exists(target: typing.Any,  *args, **kwargs) -> bool: return target is not _not_found_
     # if target is _not_found_ or target is None:
     #   return False
@@ -1106,13 +1026,13 @@ class Path(list):
     # else:
     #   raise NotImplementedError(f"{target} {key}")
 
-    @ staticmethod
+    @staticmethod
     def _op_call(target, *args, **kwargs) -> typing.Any:
         if not callable(target):
             raise ValueError(f"Not callable! {target}")
         return target(*args, **kwargs)
 
-    @ staticmethod
+    @staticmethod
     def _op_next(target, query, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if not isinstance(query, (slice, dict, set)):
@@ -1168,8 +1088,8 @@ class Path(list):
         else:
             raise NotImplementedError(f"Not implemented yet! {type(query)}")
 
-    @ staticmethod
-    def _op_find(target, k, default_value=_undefined_):
+    @staticmethod
+    def _op_find(target, query, start: int | None = None):
         obj, key = Entry._eval_path(self, k, force=False, lazy=False)
         if obj is _not_found_:
             obj = default_value
@@ -1230,12 +1150,12 @@ class Path(list):
 
     ############################################################
     # deprecated method
-    @ deprecated
+    @deprecated
     def traversal(self) -> typing.Generator[PathLike, None, None]:
         yield from Path._traversal_path(self[:])
 
-    @ deprecated
-    @ staticmethod
+    @deprecated
+    @staticmethod
     def _traversal(target: typing.Any, path: typing.List[typing.Any]) -> typing.Tuple[typing.Any, int]:
         """
         Traversal the target with the path, return the last regular target and the position the first non-regular path.
@@ -1278,8 +1198,8 @@ class Path(list):
 
     MAX_SLICE_STOP = 1024
 
-    @ deprecated
-    @ staticmethod
+    @deprecated
+    @staticmethod
     def _traversal_path(path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[PathLike, None, None]:
         """
         traversal all possible path
@@ -1312,8 +1232,8 @@ class Path(list):
             if stop == Path.MAX_SLICE_STOP:
                 logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
 
-    @ deprecated
-    @ staticmethod
+    @deprecated
+    @staticmethod
     def _find(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target, pos = Path._traversal(target, path)
 
@@ -1373,8 +1293,8 @@ class Path(list):
         else:
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
 
-    @ deprecated
-    @ staticmethod
+    @deprecated
+    @staticmethod
     def _find_all(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs):
         return Path._expand(Path._find(target, path, *args, **kwargs))
 

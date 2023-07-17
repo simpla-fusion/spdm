@@ -78,7 +78,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d["d/f"].__value__,          self.data["d"]["f"])
         self.assertEqual(d["a/0"].__value__,            self.data["a"][0])
         self.assertEqual(d["a/1"].__value__,            self.data["a"][1])
-        self.assertEqual(d.get("a/1"),            self.data["a"][1])
+        self.assertEqual(d.get("a/1").__value__,            self.data["a"][1])
         self.assertEqual(len(d["a"]),                                   6)
 
         # self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
