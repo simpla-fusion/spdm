@@ -323,7 +323,7 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
             value = value.__value__
         if value is _not_found_:
             value = kwargs.pop("default_value", _not_found_)
-        if value is not _not_found_:
+        if value is not _not_found_ and value is not None:
             value = type_hint(value)
 
     elif dataclasses.is_dataclass(type_hint):

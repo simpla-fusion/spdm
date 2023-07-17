@@ -232,7 +232,7 @@ class HTree(typing.Generic[_T]):
 
         return tp_hint
 
-    def _as_child(self, cache,  id, *args, entry=None,
+    def _as_child(self, cache,  key, *args, entry=None,
                   type_hint: typing.Type = None,
                   default_value=_not_found_,
                   getter: typing.Callable = None,
@@ -242,16 +242,16 @@ class HTree(typing.Generic[_T]):
             parent = self
 
         if type_hint is None:
-            type_hint = self._type_hint(id if id is not None else 0) or HTree[_T]
+            type_hint = self._type_hint(key if key is not None else 0) or HTree[_T]
 
-        if default_value is not _not_found_:
-            pass
+        if default_value is _not_found_ or isinstance(default_value, collections.abc.Mapping):
+            if isinstance(key, str) and isinstance(self._default_value, collections.abc.Mapping):
+                s_default_value = self._default_value.get(key, _not_found_)
 
-        elif isinstance(id, str) and isinstance(self._default_value, collections.abc.Mapping):
-            default_value = self._default_value.get(id, _not_found_)
+            else:
+                s_default_value = self._default_value
 
-        else:
-            default_value = self._default_value
+            default_value = merge_tree_recursive(s_default_value, default_value)
 
         if cache is _not_found_:
             cache = default_value
@@ -268,7 +268,7 @@ class HTree(typing.Generic[_T]):
             try:
                 tmp = getter(self)
             except Exception as error:
-                raise RuntimeError(f"id={id}:'getter' failed!") from error
+                raise RuntimeError(f"id={key}:'getter' failed!") from error
             else:
                 cache = tmp
 
@@ -421,6 +421,9 @@ class HTree(typing.Generic[_T]):
 
     def _find_next(self, query: PathLike = None, start: int | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
+        if query is None:
+            query = slice(None)
+
         cache, pos = as_path(query).find_next(self._cache, start=start, *args, **kwargs)
 
         if pos is None:
@@ -493,3 +496,11 @@ class AoS(List[_T]):
             path[0] = {f"@{self._identifier}": path[0]}
 
         return super().__getitem__(path)
+
+    def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
+        logger.debug(self._default_value)
+        if not isinstance(self._default_value, collections.abc.Sequence):
+            yield from super().__iter__()
+        else:
+            for d in self._default_value:
+                yield self[d.get(self._identifier)]

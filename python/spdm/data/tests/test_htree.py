@@ -164,9 +164,9 @@ class TestNode(unittest.TestCase):
         d["c"].insert({"a": "hello world", "b": 3.141567})
 
         self.assertEqual(d["c"][0].__value__,  1.23455)
-        self.assertEqual(d.get("c/0"),  1.23455)
+        self.assertEqual(d.get("c/0").__value__,  1.23455)
         self.assertEqual(d["c"][1]["b"].__value__,  3.141567)
-        self.assertEqual(d.get("c/1/b"),  3.141567)
+        self.assertEqual(d.get("c/1/b").__value__,  3.141567)
 
     def test_type_hint(self):
         d1 = List([])

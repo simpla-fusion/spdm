@@ -139,7 +139,7 @@ class Entry(Pluggable):
     def count(self) -> int: return self.query(Path.tags.count)
 
     @property
-    def exists(self) -> bool: return self.query(Path.tags.exists)
+    def exists(self) -> bool: return self.get(default_value=_not_found_) is not _not_found_
 
     def check_type(self, tp: typing.Type) -> bool: return self.query(Path.tags.check_type, tp)
 
@@ -158,32 +158,34 @@ class Entry(Pluggable):
     ###########################################################
     # API: CRUD  operation
 
-    def query(self, op=None, *args, **kwargs) -> typing.Any:
+    def insert(self, *args, **kwargs) -> Entry:
+        self._data, next_path = self._path.insert(self._data, *args, **kwargs)
+        return Entry(self._data, next_path)
+
+    def update(self,  *args, **kwargs) -> Entry:
+        self._data = self._path.update(self._data,  *args, **kwargs)
+        return self
+
+    def remove(self, *args, **kwargs) -> int:
+        self._data, num = self._path.remove(self._data, *args, **kwargs)
+        return num
+
+    def query(self, op=None,  *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.query(self._data, op, *args, **kwargs)
+        return self._path.query(self._data, op,  *args, **kwargs)
 
-    def insert(self, *args, **kwargs) -> Entry:
-        new_path = self._path.insert(self._data, *args, **kwargs)
-        return self.child(new_path)
-
-    def update(self, *args, **kwargs) -> Entry:
-        new_path = self._path.update(self._data,  *args, **kwargs)
-        return self.child(new_path)
-
-    def find_next(self,  start: int | None = None, *args, **kwargs) -> typing.Tuple[Entry, int | None]:
+    def find_next(self,  start: int | None = None, *args, **kwargs) -> Entry:
         """
             Find the value from the cache.
             Return a generator of the results.
             Could be overridden by subclasses.
         """
-        value, start = self._path.find_next(self._data, start=start, *args, **kwargs)
-        return as_entry(value), start
-
-    def remove(self, *args, **kwargs) -> int: return self._path.remove(self._data, *args, **kwargs)
+        value, next_path = self._path.find_next(self._data, start=start, *args, **kwargs)
+        return Entry(value, next_path)
 
     ###########################################################
 

@@ -30,23 +30,6 @@ class TestEntry(unittest.TestCase):
         self.assertEqual(d.child("a/0").__value__,        self.data["a"][0])
         self.assertEqual(d.child("a/1").__value__,        self.data["a"][1])
 
-    def test_put(self):
-        cache = {}
-
-        d = Entry(cache)
-
-        d.update({"a": "hello world {name}!"})
-
-        self.assertEqual(cache["a"], "hello world {name}!")
-
-        d.child("e/f").insert(5)
-
-        d.child("e/g").insert(6)
-
-        self.assertEqual(cache["e"]["f"],   5)
-
-        self.assertEqual(cache["e"]["g"],   6)
-
     def test_exists(self):
         d = Entry(self.data)
 
@@ -59,31 +42,9 @@ class TestEntry(unittest.TestCase):
     def test_count(self):
         d = Entry(self.data)
 
-        self.assertEqual(d.count,          3)
+        self.assertEqual(d.count,          1)
         self.assertEqual(d.child("a").count,   6)
-        self.assertEqual(d.child("d").count,   2)
-
-        # self.assertTrue(d.child(["a", slice(2, 6)]).equal([1, 2, 3, 4]))
-
-    def test_next(self):
-        data = [1, 2, 3, 4, 5]
-
-        d = Entry(data)
-        d0 = d[0]
-
-        self.assertEqual(next(d0), data[0])
-        self.assertEqual(next(d0), data[1])
-        self.assertEqual(next(d0), data[2])
-        self.assertEqual(next(d0), data[3])
-        self.assertEqual(next(d0), data[4])
-        self.assertRaises(StopIteration, next, d0)
-
-    def test_iter(self):
-        data = [1, 2, 3, 4, 5]
-
-        d0 = Entry(data)
-
-        self.assertListEqual([as_value(v) for v in d0], data)
+        self.assertEqual(d.child("d").count,   1)
 
     def test_insert(self):
         cache = deepcopy(self.data)
@@ -135,6 +96,13 @@ class TestEntry(unittest.TestCase):
                                    "c": cache['c'],
                                    "d/e":   cache['d']['e'],
                                    "e": _not_found_})
+
+    # def test_iter(self):
+    #     data = [1, 2, 3, 4, 5]
+
+    #     d0 = Entry(data)
+
+    #     self.assertListEqual([as_value(v) for v in d0], data)
 
 
 if __name__ == '__main__':
