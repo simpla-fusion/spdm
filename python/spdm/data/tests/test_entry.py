@@ -20,15 +20,15 @@ class TestEntry(unittest.TestCase):
         }
     }
 
-    def test_query(self):
+    def test_get(self):
 
         d = Entry(self.data)
 
-        self.assertEqual(d.child("c")  .__value__,           self.data["c"])
-        self.assertEqual(d.child("d/e").__value__,      self.data["d"]["e"])
-        self.assertEqual(d.child("d/f").__value__,      self.data["d"]["f"])
-        self.assertEqual(d.child("a/0").__value__,        self.data["a"][0])
-        self.assertEqual(d.child("a/1").__value__,        self.data["a"][1])
+        self.assertEqual(d.get("c"),           self.data["c"])
+        self.assertEqual(d.get("d/e"),      self.data["d"]["e"])
+        self.assertEqual(d.get("d/f"),      self.data["d"]["f"])
+        self.assertEqual(d.get("a/0"),        self.data["a"][0])
+        self.assertEqual(d.get("a/1"),        self.data["a"][1])
 
     def test_exists(self):
         d = Entry(self.data)

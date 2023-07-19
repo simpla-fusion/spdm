@@ -1,23 +1,18 @@
 from __future__ import annotations
 
 import collections.abc
-import inspect
 import typing
-from copy import copy, deepcopy
-from functools import reduce
+from copy import copy
 
-from ..utils.logger import logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive
-from ..utils.typing import (ArrayType, HNodeLike, HTreeLike, NumericType,
-                            PrimaryType, array_type, as_array, as_value,
+from ..utils.typing import (ArrayType, HTreeLike, NumericType,
+                            array_type, as_array, as_value,
                             get_args, get_origin, isinstance_generic,
-                            numeric_type, primary_type, serialize,
+                            numeric_type, serialize,
                             type_convert)
-from .Entry import Entry, as_entry
-from .Expression import Expression
+from .Entry import Entry, QueryEntry, as_entry
 from .Path import Path, PathLike, as_path
-from .QueryResult import QueryResult
 
 _T = typing.TypeVar("_T")
 
@@ -351,11 +346,11 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _get_as_list(self, key: int | slice | dict,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | QueryResult:
+    def _get_as_list(self, key: int | slice | dict,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T | QueryEntry:
 
         if isinstance(key, (dict, slice)):
             cache = None
-            entry = QueryResult(self, key, *args, **kwargs)
+            entry = QueryEntry(self, key, *args, **kwargs)
             key = None
 
         elif isinstance(self._cache, collections.abc.Sequence):
