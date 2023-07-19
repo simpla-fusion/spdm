@@ -7,7 +7,7 @@ import pprint
 import os
 import sys
 from datetime import datetime
-
+from inspect import getouterframes, getframeinfo,  getsourcefile, getsourcelines, stack
 
 default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
@@ -90,16 +90,23 @@ if not SP_NO_DEBUG:
 
 
 def deprecated(func):
+    """ python 修饰器，作用于类方法或函数，当函数或方法被调用时，在标准日志输出 函数或方法定义所在文件和行数 """
 
     def _wrap(func):
+
         def wrapped(*args, __fun__=func, ** kwargs):
 
+            caller = getframeinfo(stack()[1][0])
+            file_name = caller.filename
+            line_number = caller.lineno
+
             if inspect.isfunction(func):
-                logger.warning(f"Deprecated function '{__fun__.__qualname__}' !")
-                # raise DeprecationWarning(__fun__.__qualname__)
+                logger.info(f"Calling deprecated function {file_name}:{line_number}:'{__fun__.__qualname__}' !")
             else:
-                logger.warning(f"Deprecated object {__fun__}")
+                logger.info(f"Calling deprecated function {file_name}:{line_number}:{__fun__.__name__}")
+
             return __fun__(*args, **kwargs)
+
         return wrapped
 
     if func is None:

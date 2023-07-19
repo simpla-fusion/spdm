@@ -602,31 +602,7 @@ class Path(list):
         if len(suffix) > 0:
             obj = _not_found_
 
-        if op is None:
-            op = Path.tags.fetch
-
-        if isinstance(op, Path.tags):
-            op = op.name
-        elif isinstance(op, str) and op.startswith("$"):
-            op = op[1:]
-
-        if callable(op):
-            _op = op
-        elif isinstance(op, str):
-            _op = getattr(Path, f"_op_{op}", None)
-        else:
-            _op = None
-
-        if not callable(_op):
-            raise RuntimeError(f"Can not find callable operator {op}!")
-
-        try:
-            res = _op(obj, *args,   **kwargs)
-        except Exception as error:
-            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
-
-        return res
-        # return Path._apply_op(obj, op, suffix, *args, **kwargs)
+        return Path._apply_op(obj, op,  *args, **kwargs)
 
     def find_next(self, target: typing.Any, *ids: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
         """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
@@ -726,6 +702,32 @@ class Path(list):
 
     # End API
     ###########################################################
+    @staticmethod
+    def _apply_op(obj: typing.Any,  op: Path.tags | str | None,  *args, **kwargs):
+
+        if op is None:
+            op = Path._op_fetch
+        elif isinstance(op, Path.tags):
+            op = op.name
+        elif isinstance(op, str) and op.startswith("$"):
+            op = op[1:]
+
+        if callable(op):
+            _op = op
+        elif isinstance(op, str):
+            _op = getattr(Path, f"_op_{op}", None)
+        else:
+            _op = None
+
+        if not callable(_op):
+            raise RuntimeError(f"Can not find callable operator {op}!")
+
+        try:
+            res = _op(obj, *args,   **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
+
+        return res
 
     @staticmethod
     def _make_path(target: dict | list, path: typing.List[PathLike], quiet=True) -> typing.Any:
@@ -801,34 +803,6 @@ class Path(list):
             pos += 1
 
         return obj, path[pos:]
-
-    @deprecated
-    @staticmethod
-    def _apply_op(target: typing.Any,  op: Path.tags | str | None,  *args, **kwargs):
-        if op is None:
-            op = Path.tags.fetch
-
-        if isinstance(op, Path.tags):
-            op = op.name
-        elif isinstance(op, str) and op.startswith("$"):
-            op = op[1:]
-
-        if callable(op):
-            _op = op
-        elif isinstance(op, str):
-            _op = getattr(Path, f"_op_{op}", None)
-        else:
-            _op = None
-
-        if not callable(_op):
-            raise RuntimeError(f"Can not find callable operator {op}!")
-
-        try:
-            res = _op(target, *args, **kwargs)
-        except Exception as error:
-            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
-
-        return res
 
     @staticmethod
     def _op_fetch(target: typing.Any,  key: int | str | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Any:
