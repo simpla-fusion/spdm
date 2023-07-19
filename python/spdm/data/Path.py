@@ -18,7 +18,7 @@ from ..utils.typing import array_type, isinstance_generic
 
 
 # fmt:off
-class PathOpTags(Flag):
+class OpTags(Flag):
     # traversal operation 操作
     root  = auto()  # root node
     parent = auto()  # parent node
@@ -55,9 +55,9 @@ class PathOpTags(Flag):
 # fmt:on
 
 
-PathLike = int | str | slice | typing.Dict | typing.List | PathOpTags | None
+PathLike = int | str | slice | typing.Dict | typing.List | OpTags | None
 
-path_like = (int, str, slice, list, None, tuple, set, dict, PathOpTags)
+path_like = (int, str, slice, list, None, tuple, set, dict, OpTags)
 
 
 class PathError(Exception):
@@ -113,7 +113,7 @@ class Path(list):
     find
     """
 
-    tags = PathOpTags
+    tags = OpTags
 
     def __init__(self, path=None, delimiter='/', **kwargs):
         super().__init__(Path._parser(path, delimiter=delimiter), **kwargs)
@@ -217,196 +217,6 @@ class Path(list):
             return Path([p for p in self if isinstance(p, str)])
         else:
             return Path(self[:idx]+self[idx+1:])
-
-    ###########################################################
-    # RESTful API:
-    def insert(self, target: typing.Any, value: typing.Any, *args, quiet=True,  **kwargs) -> typing.Tuple[typing.Any, Path]:
-        """
-          根据路径（self）向 target 添加元素。
-          当路径指向位置为空时，创建（create）元素
-          当路径指向位置为 list 时，追加（ insert ）元素
-          当路径指向位置为非 list 时，合并为 [old,new]
-          当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 insert
-
-          返回新添加元素的路径
-
-          对应 RESTful 中的 post，非幂等操作
-        """
-        # target, next_id = Path._exec(target, self[:-1], Path.tags.insert,
-        #                              self[-1] if len(self) > 0 else None,  value, *args, quiet=quiet, **kwargs)
-        # return target, Path(self[:-1]+[next_id])
-
-        root = {"_": target}
-
-        path = ["_"] + self[:]
-
-        parent = Path._make_path(root, path, quiet=quiet)
-
-        new_pos = Path._apply_op(parent, Path.tags.insert, path[-1], value, *args, **kwargs)
-
-        if new_pos is not None:
-            path += [new_pos]
-
-        return root["_"], Path(path[1:])
-
-    def remove(self, target: typing.Any, *args,  **kwargs) -> typing.Tuple[typing.Any, int]:
-        """ 根据路径（self）删除 target 中的元素。
-
-          if quiet is False then raise KeyError if the path is not found
-
-          对应 RESTful 中的 delete， 幂等操作
-
-          返回修改后的target和删除的元素的个数
-        """
-        # target, num = Path._exec(target, self[:-1], Path.tags.remove, self[-1]
-        #                          if len(self) > 0 else None, *args, quiet=quiet, **kwargs)
-        # return target, num
-        root = {"_": target}
-
-        path = ["_"] + self[:]
-
-        parent, suffix = Path._get_by_path(root, path[:-1], default_value=_not_found_)
-
-        if len(suffix) > 0:
-            return target, 0
-        else:
-            return root.get("_", _not_found_), Path._op_remove(parent, path[-1])
-
-    def update(self, target: typing.Any, value: typing.Any, *args, quiet=True,   **kwargs) -> typing.Any:
-        """
-          根据路径（self）更新 target 中的元素。
-          当路径指向位置为空时，创建（create）元素
-          当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 update
-          当路径指向位置为空时，用新的值替代（replace）元素
-
-          对应 RESTful 中的 put， 幂等操作
-
-          返回修改后的target
-        """
-        # target = Path._exec(target, self[:-1], Path.tags.update,
-        #                     self[-1] if len(self) > 0 else None,  value, *args, quiet=quiet, **kwargs)
-        # return target
-
-        root = {"_": target}
-
-        path = ["_"]+self[:]
-
-        parent = Path._make_path(root, path, quiet=quiet)
-
-        Path._op_update(parent, path[-1], value, *args, **kwargs)
-
-        return root["_"]
-
-    def query(self, target: typing.Any, op: Path.tags | str | None = None, *args,  **kwargs) -> typing.Any:
-        """
-            根据路径（self）查询元素。
-            只读，不会修改 target
-
-            对应 RESTful 中的 read，
-            幂等操作
-        """
-        obj, suffix = Path._get_by_path(target, self[:])
-
-        return Path._apply_op(obj, op, suffix, *args, **kwargs)
-
-    def find_next(self, target: typing.Any, *ids: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
-        """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
-
-        if len(self) == 0:
-            path = [slice(None)]
-        else:
-            path = self[:]
-
-        obj = target
-
-        next_ids = []
-
-        suffix = []
-
-        for pth_pos, p in enumerate(path):
-
-            if len(ids) == 0:
-                start = None
-
-            elif len(next_ids) < len(ids):
-                start = ids[len(next_ids)]
-
-            else:
-                suffix = self[pth_pos:]
-                break
-
-            if isinstance(p, (slice, dict)):
-                tmp, next_id = Path._op_next(obj, p, start)
-
-                if next_id is None:
-                    break
-                else:
-                    next_ids.append(next_id)
-
-            else:
-                tmp = Path._op_fetch(obj, p, default_value=_not_found_)
-
-            if tmp is _not_found_:
-                suffix = self[pth_pos:]
-                break
-
-            obj = tmp
-
-        if len(suffix) > 0:
-            return _not_found_, []
-        else:
-            return obj, next_ids
-
-    def for_each(self, target,  **kwargs) -> typing.Generator[typing.Any, None, None]:
-        if len(self) == 0:
-            query = slice(None)
-        else:
-            query = self[0]
-
-        if not isinstance(query, (slice, dict)):
-            raise PathError(self[:], f"Not a generator! ")
-
-        if isinstance(query, slice):
-            start = query.start if query.start is not None else 0
-            stop = query.stop
-            step = query.step if query.step is not None else 1
-            query = None
-
-            if stop is not None and (stop-start)*step <= 0:
-                raise PathError(self[:], f"Out of range:!")
-        elif isinstance(query, dict):
-            start = 0
-            stop = None
-            step = 1
-        else:
-            raise ValueError(f"Illegal query! {self[0]}")
-
-        value = target
-        next_id = start
-
-        while True:
-            if stop is not None and next_id >= stop:
-                break
-
-            if query is None or Path._op_check(value, query):
-                value, suffix = Path._get_by_path(target, [next_id]+self[1:],
-                                                  * args, default_value=_not_found_, **kwargs)
-            else:
-                value = _not_found_
-                suffix = []
-
-            if value is _not_found_ or len(suffix) > 0 or (hasattr(value.__class__, "__entry__") and not value.exists):
-                if stop is None:
-                    break
-                else:
-                    yield _not_found_
-            else:
-                yield value
-
-            next_id += step
-
-    # End API
-    ###########################################################
 
     @staticmethod
     def reduce(path: list) -> list:
@@ -696,6 +506,227 @@ class Path(list):
 
         return res
 
+    ###########################################################
+    # RESTful API:
+
+    # 非幂等
+
+    def insert(self, target: typing.Any, value: typing.Any, *args, quiet=True,  **kwargs) -> typing.Tuple[typing.Any, Path]:
+        """
+          根据路径（self）向 target 添加元素。
+          当路径指向位置为空时，创建（create）元素
+          当路径指向位置为 list 时，追加（ insert ）元素
+          当路径指向位置为非 list 时，合并为 [old,new]
+          当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 insert
+
+          返回新添加元素的路径
+
+          对应 RESTful 中的 post，非幂等操作
+        """
+        # target, next_id = Path._exec(target, self[:-1], Path.tags.insert,
+        #                              self[-1] if len(self) > 0 else None,  value, *args, quiet=quiet, **kwargs)
+        # return target, Path(self[:-1]+[next_id])
+
+        root = {"_": target}
+
+        path = ["_"] + self[:]
+
+        parent = Path._make_path(root, path, quiet=quiet)
+
+        new_pos = Path._op_insert(parent,   path[-1], value, *args, **kwargs)
+
+        if new_pos is not None:
+            path += [new_pos]
+
+        return root["_"], Path(path[1:])
+
+    # 幂等
+    def remove(self, target: typing.Any, *args,  **kwargs) -> typing.Tuple[typing.Any, int]:
+        """ 根据路径（self）删除 target 中的元素。
+
+          if quiet is False then raise KeyError if the path is not found
+
+          对应 RESTful 中的 delete， 幂等操作
+
+          返回修改后的target和删除的元素的个数
+        """
+        # target, num = Path._exec(target, self[:-1], Path.tags.remove, self[-1]
+        #                          if len(self) > 0 else None, *args, quiet=quiet, **kwargs)
+        # return target, num
+        root = {"_": target}
+
+        path = ["_"] + self[:]
+
+        parent, suffix = Path._get_by_path(root, path[:-1], default_value=_not_found_)
+
+        if len(suffix) > 0:
+            return target, 0
+        else:
+            return root.get("_", _not_found_), Path._op_remove(parent, path[-1])
+
+    def update(self, target: typing.Any, value: typing.Any, *args, quiet=True,   **kwargs) -> typing.Any:
+        """
+          根据路径（self）更新 target 中的元素。
+          当路径指向位置为空时，创建（create）元素
+          当路径指向位置为 dict, 添加值亦为 dict 时，根据 key 递归执行 update
+          当路径指向位置为空时，用新的值替代（replace）元素
+
+          对应 RESTful 中的 put， 幂等操作
+
+          返回修改后的target
+        """
+        # target = Path._exec(target, self[:-1], Path.tags.update,
+        #                     self[-1] if len(self) > 0 else None,  value, *args, quiet=quiet, **kwargs)
+        # return target
+
+        root = {"_": target}
+
+        path = ["_"]+self[:]
+
+        parent = Path._make_path(root, path, quiet=quiet)
+
+        Path._op_update(parent, path[-1], value, *args, **kwargs)
+
+        return root["_"]
+
+    def query(self, target: typing.Any, op: Path.tags | str | None = None, *args,  **kwargs) -> typing.Any:
+        """
+            根据路径（self）查询元素。
+            只读，不会修改 target
+
+            对应 RESTful 中的 read，
+            幂等操作
+        """
+        obj, suffix = Path._get_by_path(target, self[:])
+
+        if len(suffix) > 0:
+            obj = _not_found_
+
+        if op is None:
+            op = Path.tags.fetch
+
+        if isinstance(op, Path.tags):
+            op = op.name
+        elif isinstance(op, str) and op.startswith("$"):
+            op = op[1:]
+
+        if callable(op):
+            _op = op
+        elif isinstance(op, str):
+            _op = getattr(Path, f"_op_{op}", None)
+        else:
+            _op = None
+
+        if not callable(_op):
+            raise RuntimeError(f"Can not find callable operator {op}!")
+
+        try:
+            res = _op(obj, *args,   **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
+
+        return res
+        # return Path._apply_op(obj, op, suffix, *args, **kwargs)
+
+    def find_next(self, target: typing.Any, *ids: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
+        """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
+
+        if len(self) == 0:
+            path = [slice(None)]
+        else:
+            path = self[:]
+
+        obj = target
+
+        next_ids = []
+
+        suffix = []
+
+        for pth_pos, p in enumerate(path):
+
+            if len(ids) == 0:
+                start = None
+
+            elif len(next_ids) < len(ids):
+                start = ids[len(next_ids)]
+
+            else:
+                suffix = self[pth_pos:]
+                break
+
+            if isinstance(p, (slice, dict)):
+                tmp, next_id = Path._op_next(obj, p, start)
+
+                if next_id is None:
+                    break
+                else:
+                    next_ids.append(next_id)
+
+            else:
+                tmp = Path._op_fetch(obj, p, default_value=_not_found_)
+
+            if tmp is _not_found_:
+                suffix = self[pth_pos:]
+                break
+
+            obj = tmp
+
+        if len(suffix) > 0:
+            return _not_found_, []
+        else:
+            return obj, next_ids
+
+    def for_each(self, target,  **kwargs) -> typing.Generator[typing.Any, None, None]:
+        if len(self) == 0:
+            query = slice(None)
+        else:
+            query = self[0]
+
+        if not isinstance(query, (slice, dict)):
+            raise PathError(self[:], f"Not a generator! ")
+
+        if isinstance(query, slice):
+            start = query.start if query.start is not None else 0
+            stop = query.stop
+            step = query.step if query.step is not None else 1
+            query = None
+
+            if stop is not None and (stop-start)*step <= 0:
+                raise PathError(self[:], f"Out of range:!")
+        elif isinstance(query, dict):
+            start = 0
+            stop = None
+            step = 1
+        else:
+            raise ValueError(f"Illegal query! {self[0]}")
+
+        value = target
+        next_id = start
+
+        while True:
+            if stop is not None and next_id >= stop:
+                break
+
+            if query is None or Path._op_check(value, query):
+                value, suffix = Path._get_by_path(target, [next_id]+self[1:],
+                                                  * args, default_value=_not_found_, **kwargs)
+            else:
+                value = _not_found_
+                suffix = []
+
+            if value is _not_found_ or len(suffix) > 0 or (hasattr(value.__class__, "__entry__") and not value.exists):
+                if stop is None:
+                    break
+                else:
+                    yield _not_found_
+            else:
+                yield value
+
+            next_id += step
+
+    # End API
+    ###########################################################
+
     @staticmethod
     def _make_path(target: dict | list, path: typing.List[PathLike], quiet=True) -> typing.Any:
 
@@ -771,8 +802,9 @@ class Path(list):
 
         return obj, path[pos:]
 
+    @deprecated
     @staticmethod
-    def _apply_op(target: typing.Any, op: Path.tags | str | None,  *args, **kwargs):
+    def _apply_op(target: typing.Any,  op: Path.tags | str | None,  *args, **kwargs):
         if op is None:
             op = Path.tags.fetch
 
@@ -860,7 +892,11 @@ class Path(list):
         return res
 
     @staticmethod
-    def _op_update(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> None:
+    def _op_dump(target: typing.Any, *args, **kwargs) -> typing.Any:
+        return serialize(target)
+
+    @staticmethod
+    def _op_update(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Any:
 
         if hasattr(target.__class__, "__entry__"):
             return target.__entry__.child(key).update(value, *args, **kwargs)
@@ -897,7 +933,7 @@ class Path(list):
         return target
 
     @staticmethod
-    def _op_insert(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> int | None:
+    def _op_insert(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int | str | None]:
         if hasattr(target.__class__, "__entry__"):
             return target.__entry__.child(key).insert(value, *args, **kwargs)
 
@@ -962,7 +998,7 @@ class Path(list):
         return target, 1
 
     @staticmethod
-    def _op_check(target: typing.Any,  query, *args) -> bool:
+    def _op_check(target: typing.Any,  query, *args, **kwargs) -> bool:
         if query is None:
             return True
         elif not isinstance(target, collections.abc.Mapping):
@@ -977,34 +1013,12 @@ class Path(list):
         target = Path._op_fetch(target, key, default_value=_not_found_)
         return isinstance_generic(target, tp)
 
-    @staticmethod
-    def _op_search(target: typing.Any, key, query, start=None, *args, **kwargs):
-
-        target = Path._op_fetch(target, key)
-
-        if start is None:
-            start = 0
-        stop = len(target)
-
-        pos = None
-
-        for idx in range(start, stop):
-            if Path._op_check(target[idx], query, *args, **kwargs):
-                pos = idx
-                break
-
-        return pos if pos is not None else _not_found_
+    # @staticmethod
+    # def _op_equal(target: typing.Any, value, *args, **kwargs):
+    #     return target == value
 
     @staticmethod
-    def _op_dump(target: typing.Any, *args, **kwargs):
-        return serialize(target, *args, **kwargs)
-
-    @staticmethod
-    def _op_equal(target: typing.Any, value, *args, **kwargs):
-        return target == value
-
-    @staticmethod
-    def _op_count(target: typing.Any, *args, **kwargs) -> int:
+    def _op_count(target: typing.Any, *args,  **kwargs) -> int:
         if target is _not_found_:
             return 0
         elif not isinstance(target, collections.abc.Sequence) or isinstance(target, str):
@@ -1013,24 +1027,17 @@ class Path(list):
             return len(target)
 
     @staticmethod
-    def _op_exists(target: typing.Any,  *args, **kwargs) -> bool: return target is not _not_found_
-    # if target is _not_found_ or target is None:
-    #   return False
-    # elif key is _not_found_:
-    #   return target is not _not_found_
-    # elif target is _not_found_:
-    #   return False
-    # elif hasattr(target.__class__, "__contains__"):
-    #   return target.__contains__(key)
-    # elif isinstance(target, collections.abc.Sequence) and isinstance(key, int):
-    #   return key >= 0 and key < len(target)
-    # else:
-    #   raise NotImplementedError(f"{target} {key}")
+    def _op_exists(target: typing.Any,  *args,  **kwargs) -> bool:
+        return target is not _not_found_
 
     @staticmethod
-    def _op_call(target, *args, **kwargs) -> typing.Any:
-        if not callable(target):
+    def _op_call(target, *args,  **kwargs) -> typing.Any:
+
+        if suffix is not None:
+            raise RuntimeError(f"Can not call {target}! {suffix}")
+        elif not callable(target):
             raise ValueError(f"Not callable! {target}")
+
         return target(*args, **kwargs)
 
     @staticmethod
@@ -1090,25 +1097,22 @@ class Path(list):
             raise NotImplementedError(f"Not implemented yet! {type(query)}")
 
     @staticmethod
-    def _op_find(target, query, start: int | None = None):
-        obj, key = Entry._eval_path(self, k, force=False, lazy=False)
-        if obj is _not_found_:
-            obj = default_value
-        elif isinstance(key, (int, str, slice)):
-            obj = obj[key]
-        elif isinstance(key, list):
-            obj = [obj[idx] for idx in key]
-        else:
-            raise TypeError(type(key))
-        return obj
-        # if isinstance(self, collections.abc.Mapping):
-        # elif isinstance(self, collections.abc.Sequence):
-        # else:
-        #   raise NotImplementedError(type(self))
+    def _op_search(target: typing.Any, key, query, start=None, *args, **kwargs):
 
-    @staticmethod
-    def _op_dump(target:typing.Any, *args, **kwargs)->typing.Any:
-        return serialize(target)
+        target = Path._op_fetch(target, key)
+
+        if start is None:
+            start = 0
+        stop = len(target)
+
+        pos = None
+
+        for idx in range(start, stop):
+            if Path._op_check(target[idx], query, *args, **kwargs):
+                pos = idx
+                break
+
+        return pos if pos is not None else _not_found_
 
     # fmt: off
     _op_neg         =np.negative   
@@ -1118,7 +1122,7 @@ class Path(list):
     _op_matmul      =np.matmul    
     _op_truediv     =np.true_divide 
     _op_pow         =np.power    
-    _op_eq          =np.equal    
+    _op_equal       =np.equal    
     _op_ne          =np.not_equal  
     _op_lt          =np.less     
     _op_le          =np.less_equal  

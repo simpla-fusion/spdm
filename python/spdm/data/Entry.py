@@ -61,13 +61,6 @@ class Entry(Pluggable):
     def __entry__(self) -> Entry: return self
 
     @property
-    def __value__(self) -> typing.Any:
-        if self._data is None or self._data is _not_found_ or len(self._path) > 0:
-            self._data = self.query(default_value=_not_found_)
-            self._path = Path()
-        return self._data
-
-    @property
     def path(self) -> Path: return self._path
 
     @property
@@ -101,37 +94,19 @@ class Entry(Pluggable):
         other._path.append(path)
         return other
 
-    # def __iter__(self) -> typing.Generator[Entry, None, None]:
-    #     """ Iterate over the children of the Entry."""
-    #     start = None
-    #     while True:
-    #         try:
-    #             value, start = self.find_next(start=start)
-    #         except StopIteration:
-    #             break
-    #         else:
-    #             if start is not None:
-    #                 yield value
-    #             else:
-    #                 break
-    # def __next__(self) -> Entry:
-    #     """ Iterate over the slibings of the Entry."""
-    #     if len(self._path) == 0 or not isinstance(self._path[-1], int):
-    #         raise NotImplementedError(f"Can not iterate over {self._path}")
-    #     start = self._path[-1]
-    #     value, idx = self.parent.find_next(start=start)
-    #     if idx is None:
-    #         raise StopIteration()
-    #     elif isinstance(value, Entry):
-    #         value = value.__value__
-    #     self._path[-1] = idx
-    #     return value
-
     ###########################################################
 
-    def __equal__(self, other) -> bool:
+    @property
+    def __value__(self) -> typing.Any: return self._data if len(self._path) == 0 else self.get()
+
+    def get(self, *args, default_value: typing.Any = _not_found_, **kwargs) -> typing.Any:
+        return self.query(Path.tags.fetch, *args, default_value=default_value, **kwargs)
+
+    def dump(self) -> typing.Any: return self.query(Path.tags.dump)
+
+    def equal(self, other) -> bool:
         if isinstance(other, Entry):
-            return other._data == self._data and other._path == self._path
+            return self.query(Path.tags.equal, other.__value__)
         else:
             return self.query(Path.tags.equal, other)
 
@@ -139,38 +114,26 @@ class Entry(Pluggable):
     def count(self) -> int: return self.query(Path.tags.count)
 
     @property
-    def exists(self) -> bool: return self.get(default_value=_not_found_) is not _not_found_
+    def exists(self) -> bool: return self.query(Path.tags.exists)
 
     def check_type(self, tp: typing.Type) -> bool: return self.query(Path.tags.check_type, tp)
-
-    def dump(self) -> typing.Any: return self.query(Path.tags.dump)
-
-    def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
-        value = self.child(*args, **kwargs).__value__
-        if value is _not_found_:
-            value = default_value
-
-        if value is Ellipsis:
-            raise KeyError(f"Can not find {args} in {self}")
-
-        return value
 
     ###########################################################
     # API: CRUD  operation
 
-    def insert(self, *args, **kwargs) -> Entry:
-        self._data, next_path = self._path.insert(self._data, *args, **kwargs)
+    def insert(self, value,  **kwargs) -> Entry:
+        self._data, next_path = self._path.insert(self._data,  value,  **kwargs)
         return self.__class__(self._data, next_path)
 
-    def update(self,  *args, **kwargs) -> Entry:
-        self._data = self._path.update(self._data,  *args, **kwargs)
+    def update(self, value,   **kwargs) -> Entry:
+        self._data = self._path.update(self._data, value, **kwargs)
         return self
 
-    def remove(self, *args, **kwargs) -> int:
-        self._data, num = self._path.remove(self._data, *args, **kwargs)
+    def remove(self,  **kwargs) -> int:
+        self._data, num = self._path.remove(self._data,  **kwargs)
         return num
 
-    def query(self, op=None,  *args, **kwargs) -> typing.Any:
+    def query(self, op, *args, **kwargs) -> typing.Any:
         """
         Query the Entry.
         Same function as `find`, but put result into a contianer.
@@ -215,53 +178,33 @@ def as_entry(obj, *args, **kwargs) -> Entry:
     return entry
 
 
-class EntryChain(Entry):
-    def __init__(self, data_src: typing.List[typing.Any], *args, **kwargs):
-        if len(data_src) < 2:
-            data_src = [None, *data_src]
-        data_src = [as_entry(c) for c in data_src]
-        super().__init__(data_src,  *args,  **kwargs)
+def as_dataclass(dclass, obj, default_value=None):
+    if dclass is dataclasses._MISSING_TYPE:
+        return obj
 
-    ###########################################################
-    # API: CRUD  operation
+    if hasattr(obj, '_entry'):
+        obj = obj._entry
+    if obj is None:
+        obj = default_value
 
-    def find(self, *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
-        """
-        Find the value from the cache.
-        Return a generator of the results.
-        Could be overridden by subclasses.
-        """
-        for e in self._data:
-            yield from self._path.find(e, *args, **kwargs)
-
-    def query(self, *args, default_value=None, **kwargs) -> typing.Any:
-        """
-        Query the Entry.
-        Same function as `find`, but put result into a contianer.
-        Could be overridden by subclasses.
-        """
-        res = _not_found_
-
-        for e in self._data:
-            res = self._path.query(e, *args, default_value=_not_found_, **kwargs)
-            if res is not _not_found_:
-                break
-
-        if res is _not_found_:
-            res = default_value
-
-        return res
-
-    def insert(self, *args, **kwargs) -> int:
-        return self._path.insert(self._data[0], *args, **kwargs)
-
-    def update(self, *args, **kwargs) -> int:
-        return self._path.update(self._data[0], *args,   **kwargs)
-
-    def remove(self) -> int:
-        return self._path.remove(self._data[0])
-
-    ###########################################################
+    if obj is None or not dataclasses.is_dataclass(dclass) or isinstance(obj, dclass):
+        pass
+    # elif getattr(obj, 'empty', False):
+    #   obj = None
+    elif dclass is array_type:
+        obj = as_array(obj)
+    elif hasattr(obj.__class__, 'get'):
+        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, f.default if f.default is not dataclasses.MISSING else None))
+                        for f in dataclasses.fields(dclass)})
+    elif isinstance(obj, collections.abc.Sequence):
+        obj = dclass(*obj)
+    else:
+        try:
+            obj = dclass(obj)
+        except Exception as error:
+            logger.debug((type(obj), dclass))
+            raise error
+    return obj
 
 
 def deep_reduce(first=None, *others, level=-1):
@@ -295,35 +238,6 @@ def deep_reduce(first=None, *others, level=-1):
         return first
     else:
         raise TypeError(f"Can not merge dict with {others}!")
-
-
-def as_dataclass(dclass, obj, default_value=None):
-    if dclass is dataclasses._MISSING_TYPE:
-        return obj
-
-    if hasattr(obj, '_entry'):
-        obj = obj._entry
-    if obj is None:
-        obj = default_value
-
-    if obj is None or not dataclasses.is_dataclass(dclass) or isinstance(obj, dclass):
-        pass
-    # elif getattr(obj, 'empty', False):
-    #   obj = None
-    elif dclass is array_type:
-        obj = as_array(obj)
-    elif hasattr(obj.__class__, 'get'):
-        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, f.default if f.default is not dataclasses.MISSING else None))
-                        for f in dataclasses.fields(dclass)})
-    elif isinstance(obj, collections.abc.Sequence):
-        obj = dclass(*obj)
-    else:
-        try:
-            obj = dclass(obj)
-        except Exception as error:
-            logger.debug((type(obj), dclass))
-            raise error
-    return obj
 
 
 def convert_from_entry(cls, obj, *args, **kwargs):

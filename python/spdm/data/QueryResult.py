@@ -7,12 +7,9 @@ from functools import reduce
 
 from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
-from ..utils.typing import (PrimaryType,
-                            array_type, as_value, get_origin)
+from ..utils.typing import PrimaryType, array_type, as_value, get_origin
 from .Entry import Entry
 from .Path import Path, PathLike, as_path
-
-_T = typing.TypeVar("_T")
 
 
 class QueryResult(Entry):

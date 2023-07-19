@@ -90,7 +90,7 @@ class TestEntry(unittest.TestCase):
 
         self.assertEqual(d.child('a/2').__value__, self.data['a'][2])
 
-        res = d.child({"a/2", "c",  "d/e", "e"}).__value__
+        res = d.get({"a/2", "c",  "d/e", "e"})
 
         self.assertDictEqual(res, {"a/2": cache['a'][2],
                                    "c": cache['c'],
