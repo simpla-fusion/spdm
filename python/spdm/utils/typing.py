@@ -166,7 +166,7 @@ def as_value(obj: typing.Any) -> HTreeLike:
         return {k: as_value(v) for k, v in obj.items()}
     elif isinstance(obj, collections.abc.Sequence) and not isinstance(obj, str):
         return [as_value(v) for v in obj]
-    elif hasattr(obj, "__value__"):
+    elif hasattr(obj.__class__, "__value__"):
         return obj.__value__
     else:
         return obj
@@ -265,7 +265,7 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
         type_hint 可以是 typing.GenericAlias 或者 typing.Type
     """
     if type_hint is None:
-        raise RuntimeError(f"type_hint is None")
+        return False
 
     orig_class = typing.get_origin(type_hint)
 

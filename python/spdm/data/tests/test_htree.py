@@ -3,7 +3,7 @@ import unittest
 from copy import deepcopy
 
 from spdm.utils.typing import as_value
-from spdm.data.HTree import Dict, HTree, List
+from spdm.data.HTree import Dict, HTree, List, AoS
 from spdm.utils.logger import logger
 from spdm.utils.tags import _undefined_
 import pprint
@@ -34,7 +34,7 @@ class NamedFoo(Dict):
     d: Dict
 
 
-class TestNode(unittest.TestCase):
+class TestHTree(unittest.TestCase):
     data = {
         "a": [
             "hello world {name}!",
@@ -78,7 +78,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(d["d/f"].__value__,          self.data["d"]["f"])
         self.assertEqual(d["a/0"].__value__,            self.data["a"][0])
         self.assertEqual(d["a/1"].__value__,            self.data["a"][1])
-        self.assertEqual(d.get("a/1").__value__,            self.data["a"][1])
+        self.assertEqual(d.get("a/1"),            self.data["a"][1])
         self.assertEqual(len(d["a"]),                                   6)
 
         # self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
@@ -164,9 +164,9 @@ class TestNode(unittest.TestCase):
         d["c"].insert({"a": "hello world", "b": 3.141567})
 
         self.assertEqual(d["c"][0].__value__,  1.23455)
-        self.assertEqual(d.get("c/0").__value__,  1.23455)
+        self.assertEqual(d.get("c/0"),  1.23455)
         self.assertEqual(d["c"][1]["b"].__value__,  3.141567)
-        self.assertEqual(d.get("c/1/b").__value__,  3.141567)
+        self.assertEqual(d.get("c/1/b"),  3.141567)
 
     def test_type_hint(self):
         d1 = List([])
@@ -197,14 +197,33 @@ class TestNode(unittest.TestCase):
 
         self.assertListEqual([v for v in d0], data)
 
-    # def test_get_by_slice(self):
 
-    #     data = [1, 2, 3, 4, 5]
+class TestQuery(unittest.TestCase):
 
-    #     d0 = List[int](data)
-    #     d = d0[1:4]
-    #     res = d.__value__
-    #     self.assertListEqual(res, data[1:4])
+    # fmt:off
+    data = [
+        {"name": "zhangsan",    "age": 18,  "address": "beijing"},
+        {"name": "lisi",        "age": 19,  "address": "shanghai"},
+        {"name": "wangwu",      "age": 20,  "address": "guangzhou"},
+        {"name": "zhaoliu",     "age": 21,  "address": "shenzhen"},
+    ]
+    # fmt:on
+
+    def test_slice(self):
+
+        d0 = AoS(deepcopy(self.data), default_value={"genders": "male"})
+
+        res = d0[1:4].__value__
+
+        self.assertListEqual(res, self.data[1:4])
+
+    def test_query(self):
+
+        d0 = AoS(deepcopy(self.data))
+
+        res = d0.get({"age": {"$ge": 19}})
+
+        self.assertListEqual(res, self.data[1:4])
 
 
 if __name__ == '__main__':
