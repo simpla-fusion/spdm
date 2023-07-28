@@ -78,7 +78,7 @@ class TestHTree(unittest.TestCase):
         self.assertEqual(d["d/f"].__value__,          self.data["d"]["f"])
         self.assertEqual(d["a/0"].__value__,            self.data["a"][0])
         self.assertEqual(d["a/1"].__value__,            self.data["a"][1])
-        self.assertEqual(d.get("a/1"),            self.data["a"][1])
+        self.assertEqual(d.get("a/1"),                  self.data["a"][1])
         self.assertEqual(len(d["a"]),                                   6)
 
         # self.assertListEqual(list(d["a"][2:6]),       [1.0, 2, 3, 4])
@@ -219,8 +219,8 @@ class TestQuery(unittest.TestCase):
 
     def test_query(self):
         d0 = AoS(deepcopy(self.data))
-        res = d0.get({"age": {"$ge": 19}})
-        self.assertListEqual(res, self.data[1:4])
+        res = d0.get({"@name": "zhangsan"})
+        self.assertListEqual(res, self.data[0])
 
 
 if __name__ == '__main__':

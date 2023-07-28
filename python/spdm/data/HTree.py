@@ -107,7 +107,7 @@ class HTree(typing.Generic[_T]):
             p = p._parent
         return p
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return self.get(path, force=False)
+    def __getitem__(self, path) -> HTree[_T] | _T: return self.get(path, force=True)
 
     def __setitem__(self, path, value) -> None: self._update(path, value)
 
@@ -136,7 +136,7 @@ class HTree(typing.Generic[_T]):
 
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
 
-    def get(self, path: Path | PathLike,  default_value=_not_found_, *args,   force=True, **kwargs) -> HTree[_T] | _T:
+    def get(self, path: Path | PathLike,  default_value=_not_found_, *args,   force=False, **kwargs) -> HTree[_T] | _T:
 
         path = as_path(path)
         length = len(path)
@@ -151,7 +151,7 @@ class HTree(typing.Generic[_T]):
         for idx, p in enumerate(path[:-1]):
 
             if isinstance(obj, HTree):
-                tmp = obj._get(p, default_value=_not_found_)
+                tmp = obj._get(p, default_value=_not_found_, force=True)
                 pos = idx
             else:
                 tmp = Path(path[idx:]).fetch(obj, default_value=_not_found_)
@@ -223,7 +223,7 @@ class HTree(typing.Generic[_T]):
                   type_hint: typing.Type = None,
                   default_value=_not_found_,
                   getter: typing.Callable | None = None,
-                  force=False,
+                  force=True,  # 若type_hint为 None，强制 HTree
                   parent=None,  **kwargs) -> HTree[_T] | _T:
 
         if cache is _not_found_ and entry is None:
@@ -231,12 +231,6 @@ class HTree(typing.Generic[_T]):
 
         if parent is None:
             parent = self
-
-        if type_hint is None:
-            type_hint = self._type_hint(key if key is not None else 0)
-
-        if type_hint is None and (not force or entry is not None):
-            type_hint = HTree[_T]
 
         if default_value is _not_found_ or isinstance(default_value, collections.abc.Mapping):
             if isinstance(key, str) and isinstance(self._default_value, collections.abc.Mapping):
@@ -247,9 +241,20 @@ class HTree(typing.Generic[_T]):
 
             default_value = merge_tree_recursive(s_default_value, default_value)
 
-        if cache is _not_found_:
+        if cache is not _not_found_:
+            pass
+        elif not force and entry is not None:
+            cache = entry.__value__
+            entry = None
+        else:
             cache = default_value
             default_value = _not_found_
+
+        if type_hint is None:
+            type_hint = self._type_hint(key if key is not None else 0)
+
+        if type_hint is None and force:
+            type_hint = HTree[_T]
 
         if not isinstance_generic(cache, type_hint) and getter is not None:
             # if cache is not _not_found_ and cache is not None:
@@ -267,6 +272,10 @@ class HTree(typing.Generic[_T]):
         elif issubclass(get_origin(type_hint), HTree):
             value = type_hint(cache, entry=entry, parent=parent, *args, default_value=default_value, **kwargs)
 
+        elif not force and isinstance(cache, HTree):
+            value = cache.__value__
+        elif not force and isinstance(cache, Entry):
+            value = cache.__value__
         else:
             value = cache if cache is not _not_found_ else entry.__value__
             if type_hint is not None:
@@ -406,7 +415,7 @@ class HTree(typing.Generic[_T]):
 
     def _update(self, path: PathLike,  *args, **kwargs):
         tmp = {"_": self._cache}
-        as_path(["_"]+as_path(path)[:]).update(tmp,   *args, **kwargs)
+        as_path(path).prepend(["_"]).update(tmp,   *args, **kwargs)
         self._cache = tmp["_"]
         return self
 
@@ -553,12 +562,12 @@ Node = HTree
 
 class Container(HTree[_T]):
 
-    def __getitem__(self, path: PathLike) -> HTree[_T] | _T: return self.get(path, force=False)
+    def __getitem__(self, path: PathLike) -> HTree[_T] | _T: return super().__getitem__(path)
 
 
 class Dict(Container[_T]):
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return self.get(path, force=False)
+    def __getitem__(self, path) -> HTree[_T] | _T: return super().__getitem__(path)
 
     def __contains__(self, key: str) -> bool:
         return (isinstance(self._cache, collections.abc.Mapping) and key in self._cache) or self._entry.child(key).exists
@@ -572,7 +581,7 @@ class List(Container[_T]):
             cache = [cache]
         super().__init__(cache, *args, **kwargs)
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return self.get(path, force=False)
+    def __getitem__(self, path) -> HTree[_T] | _T: return super().__getitem__(path)
 
 
 class NamedDict(HTree[_T]):

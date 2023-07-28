@@ -65,45 +65,61 @@ class Query:
     def __str__(self) -> str: return str(self._query)
 
     @staticmethod
-    def _parser(query: dict,  **kwargs) -> typing.Callable[..., typing.Any]:
+    def _parser(query: dict, **kwargs) -> dict:
 
         if query is None:
-            op = Path._op_fetch
+            query = {".": Path._op_fetch}
+
         elif isinstance(query, Path.tags):
-            op = op.name
+            query = {".": f"${query.name}"}
+
         elif isinstance(query, str) and query.startswith("$"):
-            op = op[1:]
+            query = {".": query}
+
         elif isinstance(query, dict):
-            query = Path._op_search
+            query = {k: Query._parser(v) for k, v in query.items()}
 
-        if callable(query):
-            _op = op
-        elif isinstance(query, str):
-            _op = getattr(Path, f"_q_{query}", None)
-        else:
-            _op = None
+        elif not isinstance(query, str):
+            raise TypeError(f"{type(query)}")
 
-        if not callable(_op):
-            raise RuntimeError(f"Can not find callable operator {op}!")
-
-        try:
-            res = _op(obj, *args,   **kwargs)
-        except Exception as error:
-            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
-
-        return res
+        return query
 
     def __call__(self, target, *args, **kwargs) -> typing.Any:
-        return self._op(target, *args, **kwargs)
+        return self.check(target, *args, **kwargs)
 
-    def check(self, target, *args, **kwargs) -> bool:
-        return False
+    @staticmethod
+    def _eval_one(target, k, v) -> typing.Any:
+
+        if k == "." or k is OpTags.current:
+            return Query._q_equal(target, v)
+
+        elif isinstance(k, str) and k.startswith("@"):
+            return Query._q_equal(getattr(target, k[1:], _not_found_), v) or Query._q_equal(target.get(k[1:], _not_found_), v)
+
+        return True
+
+    def _eval(self, target) -> bool:
+        return all([Query._eval_one(target, k, v) for k, v in self._query.items()])
+
+    def check(self, target) -> bool:
+        res = self._eval(target)
+
+        if isinstance(res, list):
+            return all(res)
+        else:
+            return bool(res)
 
     def find_next(self, target, start: int | None, **kwargs) -> typing.Tuple[typing.Any,  int | None]:
-
         next = start
-
         return _not_found_, next
+
+    @staticmethod
+    def _q_equal(target, value) -> bool:
+        if isinstance(target, collections.abc.Sequence):
+            return value in target
+        else:
+            return target == value
+
     # fmt: off
     _q_neg         =np.negative   
     _q_add         =np.add     
@@ -206,22 +222,21 @@ class Path(list):
     主要的方法：
     find
     """
-
+    delimiter = "/"
     tags = OpTags
 
-    def __init__(self, path=None, delimiter='/', **kwargs):
-        super().__init__(Path._parser(path, delimiter=delimiter), **kwargs)
-        self._delimiter = delimiter
+    def __init__(self, path=None, **kwargs):
+        super().__init__(Path._parser(path), **kwargs)
 
-    def __repr__(self): return Path._to_str(self, self._delimiter)
+    def __repr__(self): return Path._to_str(self)
 
-    def __str__(self): return Path._to_str(self, self._delimiter)
+    def __str__(self): return Path._to_str(self)
 
     def __hash__(self) -> int: return self.__str__().__hash__()
 
     def __copy__(self) -> Path: return self.__class__(self[:])
 
-    def as_url(self) -> str: return Path._to_str_decprecated(self, delimiter=self._delimiter)
+    def as_url(self) -> str: return Path._to_str_decprecated(self)
 
     @property
     def is_leaf(self) -> bool: return len(self) > 0 and self[-1] is None
@@ -278,9 +293,13 @@ class Path(list):
             super().extend(Path.normalize(args))
         return self
 
+    def prepend(self, d) -> Path:
+        res = as_path(d)
+        return res.append(self)
+
     def append(self, d) -> Path:
         if isinstance(d, str):
-            d = Path._parser_str(d, delimiter=self._delimiter)
+            d = Path._parser_str(d)
         elif not isinstance(d, collections.abc.Sequence):
             d = [d]
         return Path._unroll(d, self)
@@ -366,12 +385,10 @@ class Path(list):
     PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
 
     @staticmethod
-    def _to_str_decprecated(p: typing.Any, delimiter=None) -> str:
-        if delimiter is None:
-            delimiter = Path.DELIMITER
+    def _to_str_decprecated(p: typing.Any) -> str:
 
         if isinstance(p, list):
-            return delimiter.join(map(Path._to_str_decprecated, p))
+            return Path.delimiter.join(map(Path._to_str_decprecated, p))
         elif isinstance(p, str):
             return p
         elif isinstance(p, slice):
@@ -396,15 +413,13 @@ class Path(list):
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
 
     @staticmethod
-    def _from_str_decprecated(path: str, delimiter=None) -> list:
+    def _from_str_decprecated(path: str) -> list:
         """
         """
-        if delimiter is None:
-            delimiter = Path.DELIMITER
 
         path_res = []
 
-        path_list: list = path.split(delimiter)
+        path_list: list = path.split(Path.delimiter)
 
         if path_list[0] == '':
             path_list[0] = Path.tags.root
@@ -439,7 +454,7 @@ class Path(list):
         return path_res
 
     @staticmethod
-    def _unroll_decprecated(path: PathLike | Path.tags, delimiter=None) -> list:
+    def _unroll_decprecated(path: PathLike | Path.tags) -> list:
         """ Parse the to list """
 
         if path is None:
@@ -451,9 +466,9 @@ class Path(list):
 
         for p in path:
             if isinstance(p, str):
-                res.extend(Path._from_str_decprecated(p, delimiter=delimiter))
+                res.extend(Path._from_str_decprecated(p))
             elif isinstance(p, list):
-                res.extend(Path._unroll_decprecated(p, delimiter=delimiter))
+                res.extend(Path._unroll_decprecated(p))
 
             else:
                 res.append(p)
@@ -495,10 +510,10 @@ class Path(list):
         return res
 
     @staticmethod
-    def _to_str(p: typing.Any, delimiter) -> str:
+    def _to_str(p: typing.Any) -> str:
 
         if isinstance(p, list):
-            return delimiter.join([Path._to_str(s, delimiter) for s in p])
+            return Path.delimiter.join([Path._to_str(s) for s in p])
         elif isinstance(p, str):
             return p
         elif isinstance(p, slice):
@@ -509,13 +524,13 @@ class Path(list):
         elif isinstance(p, int):
             return str(p)
         elif isinstance(p, collections.abc.Mapping):
-            m_str = ','.join([f"{k}:{Path._to_str(v, delimiter)}" for k, v in p.items()])
+            m_str = ','.join([f"{k}:{Path._to_str(v)}" for k, v in p.items()])
             return f"?{{{m_str}}}"
         elif isinstance(p, tuple):
-            m_str = ','.join([Path._to_str(s, delimiter) for s in p])
+            m_str = ','.join([Path._to_str(s) for s in p])
             return f"({m_str})"
         elif isinstance(p, set):
-            m_str = ','.join([Path._to_str(s, delimiter) for s in p])
+            m_str = ','.join([Path._to_str(s) for s in p])
             return f"{{{m_str}}}"
         elif p is None:
             return ""
@@ -523,12 +538,12 @@ class Path(list):
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
 
     @staticmethod
-    def _parser_decprecated(path: PathLike | Path.tags, delimiter) -> list:
-        path = Path._unroll_decprecated(path, delimiter=delimiter)
+    def _parser_decprecated(path: PathLike | Path.tags) -> list:
+        path = Path._unroll_decprecated(path)
         return path
 
     @staticmethod
-    def _parser_str_one(s: str | list, delimiter="/") -> list | dict | str | int | slice | Path.tags:
+    def _parser_str_one(s: str | list) -> list | dict | str | int | slice | Path.tags:
         if isinstance(s, str):
             s = s.strip(" ")
 
@@ -537,17 +552,17 @@ class Path(list):
         elif s.startswith(("[", "(", "{")) and s.endswith(("}", ")", "]")):
             tmp = ast.literal_eval(s)
             if isinstance(tmp, dict):
-                item = {Path._parser_str_one(k, delimiter): d for k, d in tmp.items()}
+                item = {Path._parser_str_one(k): d for k, d in tmp.items()}
             elif isinstance(tmp, set):
-                item = set([Path._parser_str_one(k, delimiter) for k in tmp])
+                item = set([Path._parser_str_one(k) for k in tmp])
             elif isinstance(tmp, tuple):
-                item = tuple([Path._parser_str_one(k, delimiter) for k in tmp])
+                item = tuple([Path._parser_str_one(k) for k in tmp])
             elif isinstance(tmp, list):
-                item = [Path._parser_str_one(k, delimiter) for k in tmp]
+                item = [Path._parser_str_one(k) for k in tmp]
 
         elif s.startswith("(") and s.endswith(")"):
             tmp: dict = ast.literal_eval(s)
-            item = {Path._parser_str_one(k, delimiter): d for k, d in tmp.items()}
+            item = {Path._parser_str_one(k): d for k, d in tmp.items()}
         elif ":" in s:
             tmp = s.split(":")
             if len(tmp) == 2:
@@ -575,17 +590,17 @@ class Path(list):
         return item
 
     @staticmethod
-    def _parser_str(path: str | list, delimiter="/") -> list:
+    def _parser_str(path: str | list) -> list:
         """ Parse the path string to list """
 
         if isinstance(path, str):
-            path = path.split(delimiter)
+            path = path.split(Path.delimiter)
             if path[0] == '':
                 path[0] = Path.tags.root
         elif not isinstance(path, list):
             path = [path]
 
-        return [Path._parser_str_one(v, delimiter) for v in path]
+        return [Path._parser_str_one(v) for v in path]
 
     @staticmethod
     def _parser_dict(query: dict, **kwargs):
@@ -598,21 +613,21 @@ class Path(list):
         return Query(query, **kwargs)
 
     @staticmethod
-    def _parser(path: PathLike, delimiter="/") -> list:
+    def _parser(path: PathLike) -> list:
         """ Parse the PathLike to list """
 
         if path is None:
             path = []
 
         elif isinstance(path, str):
-            path = Path._parser_str(path, delimiter)
+            path = Path._parser_str(path)
 
         elif isinstance(path, list):
-            path = sum([(Path._parser_str(p, delimiter) if isinstance(p, str) else [Path._parser(p)])
+            path = sum([(Path._parser_str(p) if isinstance(p, str) else [Path._parser(p)])
                         for p in path], [])
 
         elif isinstance(path, dict):
-            path = [Path._parser_dict(path, delimiter=delimiter)]
+            path = [Path._parser_dict(path)]
 
         else:
             path = [path]
@@ -942,6 +957,12 @@ class Path(list):
                     res = _not_found_
 
         elif isinstance(key, int):
+            if not isinstance(target, list):
+                raise TypeError(f"{type(target)}")
+
+            if key < 0:
+                key += len(target)
+
             if key < len(target):
                 res = target[key]
             else:
@@ -1003,9 +1024,12 @@ class Path(list):
                 target = [_not_found_]*(key+1)
             elif not isinstance(target, list):
                 target = [target]+[_not_found_]*(key)
-            elif key > len(target):
-                target += [_not_found_]*(key-len(target)+1)
-            target[key], _ = Path._op_update(target[key], None, value)
+            else:
+                if key < 0:
+                    key += len(target)
+                if key > len(target):
+                    target += [_not_found_]*(key-len(target)+1)
+            target[key] = Path._op_update(target[key], None, value)
 
         else:
             raise NotImplementedError(f"Not implemented key! '{key}'")
