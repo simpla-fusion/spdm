@@ -136,7 +136,7 @@ class HTree(typing.Generic[_T]):
 
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
 
-    def get(self, path: Path | PathLike,  default_value=_not_found_, *args, reduce=False, force=True, **kwargs) -> HTree[_T] | _T:
+    def get(self, path: Path | PathLike,  default_value=_not_found_, *args,   force=True, **kwargs) -> HTree[_T] | _T:
 
         path = as_path(path)
         length = len(path)
@@ -154,7 +154,7 @@ class HTree(typing.Generic[_T]):
                 tmp = obj._get(p, default_value=_not_found_)
                 pos = idx
             else:
-                tmp = Path(path[idx:]).query(obj, default_value=_not_found_)
+                tmp = Path(path[idx:]).fetch(obj, default_value=_not_found_)
                 pos = len(path)
                 break
 
@@ -171,15 +171,6 @@ class HTree(typing.Generic[_T]):
 
         if obj is _undefined_ and pos <= len(path):
             raise KeyError(f"{path[:pos+1]} not found")
-
-        # if get_origin(obj) is HTree and force:
-        #     tp = self._type_hint()
-        #     if tp is None or tp == HTree[_T] or tp in primary_type:
-        #         obj = obj.__value__
-        if force:
-            obj = as_value(obj)
-        if reduce:
-            obj = reduce(obj)
 
         return obj
 
@@ -228,12 +219,15 @@ class HTree(typing.Generic[_T]):
 
         return tp_hint
 
-    def _as_child(self, cache,  key, *args, entry=None,
+    def _as_child(self, cache,  key, *args, entry: Entry | None = None,
                   type_hint: typing.Type = None,
                   default_value=_not_found_,
-                  getter: typing.Callable = None,
+                  getter: typing.Callable | None = None,
                   force=False,
                   parent=None,  **kwargs) -> HTree[_T] | _T:
+
+        if cache is _not_found_ and entry is None:
+            return _not_found_
 
         if parent is None:
             parent = self
@@ -305,13 +299,13 @@ class HTree(typing.Generic[_T]):
             value = self._get_as_array(query, type_hint=type_hint, *args, **kwargs)
 
         elif isinstance(query, str):
-            value = self._get_as_dict(query, *args,  type_hint=type_hint, **kwargs)
+            value = self._get_as_str(query, *args,  type_hint=type_hint, **kwargs)
 
         elif isinstance(query, (int)):
             value = self._get_as_list(query, *args, type_hint=type_hint,  **kwargs)
 
         elif isinstance(query, set):  # compound
-            value = NamedDict(cache={k: self._get_as_dict(
+            value = NamedDict(cache={k: self._get_as_str(
                 k, type_hint=type_hint, *args,  **kwargs) for k in query})
 
         else:
@@ -333,7 +327,7 @@ class HTree(typing.Generic[_T]):
         else:
             raise RuntimeError(f"{self._cache}")
 
-    def _get_as_dict(self, key: str,  *args, **kwargs) -> HTree[_T] | _T:
+    def _get_as_str(self, key: str,  *args, **kwargs) -> HTree[_T] | _T:
 
         cache = _not_found_
 
@@ -382,9 +376,6 @@ class HTree(typing.Generic[_T]):
         if default_value is _not_found_:
             default_value = self._default_value
 
-        if cache is _not_found_ and not entry.exists:
-            return _not_found_
-
         value = self._as_child(cache, key, *args, entry=entry,
                                parent=self._parent, default_value=default_value, **kwargs)
 
@@ -403,7 +394,7 @@ class HTree(typing.Generic[_T]):
 
     def _query(self,  path: PathLike,   *args,  **kwargs) -> HTree[_T] | _T:
         if self._cache is not _not_found_:
-            return as_path(path).query(self._cache, *args, **kwargs)
+            return as_path(path).fetch(self._cache, *args, **kwargs)
         else:
             return self._entry.child(path).query(*args, **kwargs)
 
@@ -423,12 +414,12 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, *start: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def _find_next(self, query: PathLike = None, *starts: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
             query = slice(None)
 
-        cache, pos = as_path(query).find_next(self._cache, *start)
+        cache, pos = as_path(query).find_next(self._cache, *starts)
 
         if pos is None:
             cache = _not_found_
@@ -484,7 +475,8 @@ class QueryEntry(Entry):
         return self.__reduce__([e.query(Path.tags.dump) for e in self._foreach() if isinstance(e, Entry)])
 
     def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
-        res = [e.get(*args, default_value=_not_found_, **kwargs) for e in self._foreach() if isinstance(e, Entry)]
+        res = [(e.get(*args, default_value=_not_found_, **kwargs) if isinstance(e, Entry) else e)
+               for e in self._foreach()]
 
         res = [e for e in res if e is not _not_found_]
 

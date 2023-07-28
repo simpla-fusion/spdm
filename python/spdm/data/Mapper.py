@@ -30,7 +30,7 @@ class MapperPath(Path):
         for request in self._mapping.child(self[:]).find(*args, **kwargs):
             yield self._op_fetch(target, request)
 
-    def query(self, target: typing.Any, *args, **kwargs) -> typing.Any:
+    def fetch(self, target: typing.Any, *args, **kwargs) -> typing.Any:
         request = self._mapping.child(self[:]).query(*args, **kwargs)
         return self._op_fetch(as_entry(target), request)
 

@@ -55,6 +55,100 @@ class OpTags(Flag):
 # fmt:on
 
 
+class Query:
+    def __init__(self, query: dict | None = None, **kwargs) -> None:
+        if query is not None and not isinstance(query, dict):
+            raise TypeError(f"Query only support OpTags, str or dict, not {type(query)}!")
+
+        self._query = Query._parser(merge_tree_recursive(query, kwargs))
+
+    def __str__(self) -> str: return str(self._query)
+
+    @staticmethod
+    def _parser(query: dict,  **kwargs) -> typing.Callable[..., typing.Any]:
+
+        if query is None:
+            op = Path._op_fetch
+        elif isinstance(query, Path.tags):
+            op = op.name
+        elif isinstance(query, str) and query.startswith("$"):
+            op = op[1:]
+        elif isinstance(query, dict):
+            query = Path._op_search
+
+        if callable(query):
+            _op = op
+        elif isinstance(query, str):
+            _op = getattr(Path, f"_q_{query}", None)
+        else:
+            _op = None
+
+        if not callable(_op):
+            raise RuntimeError(f"Can not find callable operator {op}!")
+
+        try:
+            res = _op(obj, *args,   **kwargs)
+        except Exception as error:
+            raise RuntimeError(f"Illegal operator \"{op}\"!") from error
+
+        return res
+
+    def __call__(self, target, *args, **kwargs) -> typing.Any:
+        return self._op(target, *args, **kwargs)
+
+    def check(self, target, *args, **kwargs) -> bool:
+        return False
+
+    def find_next(self, target, start: int | None, **kwargs) -> typing.Tuple[typing.Any,  int | None]:
+
+        next = start
+
+        return _not_found_, next
+    # fmt: off
+    _q_neg         =np.negative   
+    _q_add         =np.add     
+    _q_sub         =np.subtract   
+    _q_mul         =np.multiply   
+    _q_matmul      =np.matmul    
+    _q_truediv     =np.true_divide 
+    _q_pow         =np.power    
+    _q_equal       =np.equal    
+    _q_ne          =np.not_equal  
+    _q_lt          =np.less     
+    _q_le          =np.less_equal  
+    _q_gt          =np.greater   
+    _q_ge          =np.greater_equal
+    _q_radd        =np.add     
+    _q_rsub        =np.subtract   
+    _q_rmul        =np.multiply   
+    _q_rmatmul     =np.matmul    
+    _q_rtruediv    =np.divide    
+    _q_rpow        =np.power    
+    _q_abs         =np.abs     
+    _q_pos         =np.positive   
+    _q_invert      =np.invert    
+    _q_and         =np.bitwise_and 
+    _q_or          =np.bitwise_or  
+    _q_xor         =np.bitwise_xor 
+    _q_rand        =np.bitwise_and 
+    _q_ror         =np.bitwise_or  
+    _q_rxor        =np.bitwise_xor 
+    _q_rshift      =np.right_shift 
+    _q_lshift      =np.left_shift  
+    _q_rrshift     =np.right_shift 
+    _q_rlshift     =np.left_shift  
+    _q_mod         =np.mod     
+    _q_rmod        =np.mod     
+    _q_floordiv    =np.floor_divide 
+    _q_rfloordiv_  =np.floor_divide 
+    _q_trunc       =np.trunc    
+    _q_round       =np.round    
+    _q_floor       =np.floor    
+    _q_ceil        =np.ceil     
+
+
+    # fmt: on
+
 PathLike = int | str | slice | typing.Dict | typing.List | OpTags | None
 
 path_like = (int, str, slice, list, None, tuple, set, dict, OpTags)
@@ -186,7 +280,7 @@ class Path(list):
 
     def append(self, d) -> Path:
         if isinstance(d, str):
-            d = Path._from_str(d, delimiter=self._delimiter)
+            d = Path._parser_str(d, delimiter=self._delimiter)
         elif not isinstance(d, collections.abc.Sequence):
             d = [d]
         return Path._unroll(d, self)
@@ -366,9 +460,39 @@ class Path(list):
         return res
 
     @staticmethod
-    def _parser_decprecated(path: PathLike | Path.tags, delimiter) -> list:
-        path = Path._unroll_decprecated(path, delimiter=delimiter)
-        return path
+    def _unroll(source: typing.List[PathLike], target: typing.List[PathLike]) -> typing.List[PathLike]:
+        """ Parse the to list """
+
+        for p in source:
+            if isinstance(p, str):
+                list.append(target, p)
+            elif isinstance(p, list):
+                Path._unroll(p, target)
+            elif p is Path.tags.parent:
+                if len(target) > 0 and target[-1] is not Path.tags.parent:
+                    target.pop()
+                else:
+                    list.append(target, p)
+            elif p is Path.tags.root:
+                target.clear()
+                list.append(target, Path.tags.root)
+            else:
+                list.append(target, p)
+
+        return target
+
+    @staticmethod
+    def _expand(target: typing.Any):
+        if isinstance(target, collections.abc.Generator):
+            res = [Path._expand(v) for v in target]
+            if len(res) > 1 and isinstance(res[0], tuple) and len(res[0]) == 2:
+                res = dict(*res)
+            elif len(res) == 1:
+                res = res[0]
+        else:
+            res = target
+
+        return res
 
     @staticmethod
     def _to_str(p: typing.Any, delimiter) -> str:
@@ -399,7 +523,12 @@ class Path(list):
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
 
     @staticmethod
-    def _from_str_one(s: str | list, delimiter) -> list | dict | str | int | slice | Path.tags:
+    def _parser_decprecated(path: PathLike | Path.tags, delimiter) -> list:
+        path = Path._unroll_decprecated(path, delimiter=delimiter)
+        return path
+
+    @staticmethod
+    def _parser_str_one(s: str | list, delimiter="/") -> list | dict | str | int | slice | Path.tags:
         if isinstance(s, str):
             s = s.strip(" ")
 
@@ -408,17 +537,17 @@ class Path(list):
         elif s.startswith(("[", "(", "{")) and s.endswith(("}", ")", "]")):
             tmp = ast.literal_eval(s)
             if isinstance(tmp, dict):
-                item = {Path._from_str_one(k, delimiter): d for k, d in tmp.items()}
+                item = {Path._parser_str_one(k, delimiter): d for k, d in tmp.items()}
             elif isinstance(tmp, set):
-                item = set([Path._from_str_one(k, delimiter) for k in tmp])
+                item = set([Path._parser_str_one(k, delimiter) for k in tmp])
             elif isinstance(tmp, tuple):
-                item = tuple([Path._from_str_one(k, delimiter) for k in tmp])
+                item = tuple([Path._parser_str_one(k, delimiter) for k in tmp])
             elif isinstance(tmp, list):
-                item = [Path._from_str_one(k, delimiter) for k in tmp]
+                item = [Path._parser_str_one(k, delimiter) for k in tmp]
 
         elif s.startswith("(") and s.endswith(")"):
             tmp: dict = ast.literal_eval(s)
-            item = {Path._from_str_one(k, delimiter): d for k, d in tmp.items()}
+            item = {Path._parser_str_one(k, delimiter): d for k, d in tmp.items()}
         elif ":" in s:
             tmp = s.split(":")
             if len(tmp) == 2:
@@ -446,7 +575,7 @@ class Path(list):
         return item
 
     @staticmethod
-    def _from_str(path: str | list, delimiter) -> list:
+    def _parser_str(path: str | list, delimiter="/") -> list:
         """ Parse the path string to list """
 
         if isinstance(path, str):
@@ -456,55 +585,39 @@ class Path(list):
         elif not isinstance(path, list):
             path = [path]
 
-        return [Path._from_str_one(v, delimiter) for v in path]
+        return [Path._parser_str_one(v, delimiter) for v in path]
 
     @staticmethod
-    def _unroll(source: typing.List[PathLike], target: typing.List[PathLike]) -> typing.List[PathLike]:
-        """ Parse the to list """
-
-        for p in source:
-            if isinstance(p, str):
-                list.append(target, p)
-            elif isinstance(p, list):
-                Path._unroll(p, target)
-            elif p is Path.tags.parent:
-                if len(target) > 0 and target[-1] is not Path.tags.parent:
-                    target.pop()
-                else:
-                    list.append(target, p)
-            elif p is Path.tags.root:
-                target.clear()
-                list.append(target, Path.tags.root)
+    def _parser_dict(query: dict, **kwargs):
+        res = {}
+        for k, v in query.items():
+            if not k.startswith("$"):
+                pass
             else:
-                list.append(target, p)
-
-        return target
+                res[k] = Path._parser(v, **kwargs)
+        return Query(query, **kwargs)
 
     @staticmethod
     def _parser(path: PathLike, delimiter="/") -> list:
+        """ Parse the PathLike to list """
+
         if path is None:
             path = []
+
         elif isinstance(path, str):
-            path = Path._from_str(path, delimiter)
+            path = Path._parser_str(path, delimiter)
+
         elif isinstance(path, list):
-            path = sum([(Path._from_str(p, delimiter) if isinstance(p, str) else [p])
+            path = sum([(Path._parser_str(p, delimiter) if isinstance(p, str) else [Path._parser(p)])
                         for p in path], [])
+
+        elif isinstance(path, dict):
+            path = [Path._parser_dict(path, delimiter=delimiter)]
+
         else:
             path = [path]
+
         return Path._unroll(path, [])
-
-    @staticmethod
-    def _expand(target: typing.Any):
-        if isinstance(target, collections.abc.Generator):
-            res = [Path._expand(v) for v in target]
-            if len(res) > 1 and isinstance(res[0], tuple) and len(res[0]) == 2:
-                res = dict(*res)
-            elif len(res) == 1:
-                res = res[0]
-        else:
-            res = target
-
-        return res
 
     ###########################################################
     # RESTful API:
@@ -589,7 +702,7 @@ class Path(list):
 
         return root["_"]
 
-    def query(self, target: typing.Any, op: Path.tags | str | None = None, *args,  **kwargs) -> typing.Any:
+    def fetch(self, target: typing.Any, op: Path.tags | str | None = None, *args,  **kwargs) -> typing.Any:
         """
             根据路径（self）查询元素。
             只读，不会修改 target
@@ -604,7 +717,7 @@ class Path(list):
 
         return Path._apply_op(obj, op,  *args, **kwargs)
 
-    def find_next(self, target: typing.Any, *ids: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
+    def find_next(self, target: typing.Any, *starts: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
         """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
 
         if len(self) == 0:
@@ -618,28 +731,21 @@ class Path(list):
 
         suffix = []
 
-        for pth_pos, p in enumerate(path):
+        for pth_pos, q in enumerate(path):
+            if not isinstance(q, (Query, slice)):
+                tmp = Path._op_fetch(obj, q, default_value=_not_found_)
 
-            if len(ids) == 0:
-                start = None
-
-            elif len(next_ids) < len(ids):
-                start = ids[len(next_ids)]
-
-            else:
-                suffix = self[pth_pos:]
-                break
-
-            if isinstance(p, (slice, dict)):
-                tmp, next_id = Path._op_next(obj, p, start)
+            if isinstance(q, slice):
+                tmp, next_id = Path._op_next(obj, q, *starts)
 
                 if next_id is None:
                     break
                 else:
                     next_ids.append(next_id)
+            elif isinstance(q, Query):
+                tmp, next_id = q.find_next(obj, *starts)
 
-            else:
-                tmp = Path._op_fetch(obj, p, default_value=_not_found_)
+                next_ids.append(next_id)
 
             if tmp is _not_found_:
                 suffix = self[pth_pos:]
@@ -835,7 +941,7 @@ class Path(list):
                 except Exception:
                     res = _not_found_
 
-        elif isinstance(key, int) and isinstance(target, list):
+        elif isinstance(key, int):
             if key < len(target):
                 res = target[key]
             else:
@@ -849,7 +955,7 @@ class Path(list):
             res = target[key]
 
         elif isinstance(key, set):
-            res = {p: Path(p).query(target, *args, **kwargs) for p in key}
+            res = {p: Path(p).fetch(target, *args, **kwargs) for p in key}
 
         elif isinstance(key, Path.tags):
             res = Path._apply_op(target, key, *args, **kwargs)
@@ -956,7 +1062,7 @@ class Path(list):
         return target, key
 
     @staticmethod
-    def _op_remove(target: typing.Any, key: int | str | None, *args, **kwargs) -> int:
+    def _op_remove(target: typing.Any, key: int | str | None, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         if len(args)+len(kwargs) > 0:
             logger.warning(f"Ignore {args} {kwargs}")
 
@@ -975,8 +1081,8 @@ class Path(list):
     def _op_check(target: typing.Any,  query, *args, **kwargs) -> bool:
         if query is None:
             return True
-        elif not isinstance(target, collections.abc.Mapping):
-            raise TypeError(type(target))
+        # elif not isinstance(target, collections.abc.Mapping):
+        #     raise TypeError(type(target))
         elif not isinstance(query, collections.abc.Mapping):
             raise TypeError(type(query))
 
@@ -1015,15 +1121,13 @@ class Path(list):
         return target(*args, **kwargs)
 
     @staticmethod
-    def _op_next(target, query, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def _op_next(target, query, start: int | None = None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
-        if not isinstance(query, (slice, dict, set)):
+        if not isinstance(query, (slice, set, Query)):
             raise ValueError(f"query is not dict,slice! {query}")
 
         if target is _not_found_ or target is None:
             return _not_found_, None
-        # elif not isinstance(target, collections.abc.Sequence):
-        #   raise TypeError((target, key, start))
 
         if isinstance(query, slice):
             if start is None or start is _not_found_:
@@ -1046,7 +1150,7 @@ class Path(list):
 
                 return value, start
 
-        elif isinstance(query, dict):
+        elif isinstance(query, Query):
             if start is None or start is _not_found_:
                 start = 0
 
@@ -1088,51 +1192,9 @@ class Path(list):
 
         return pos if pos is not None else _not_found_
 
-    # fmt: off
-    _op_neg         =np.negative   
-    _op_add         =np.add     
-    _op_sub         =np.subtract   
-    _op_mul         =np.multiply   
-    _op_matmul      =np.matmul    
-    _op_truediv     =np.true_divide 
-    _op_pow         =np.power    
-    _op_equal       =np.equal    
-    _op_ne          =np.not_equal  
-    _op_lt          =np.less     
-    _op_le          =np.less_equal  
-    _op_gt          =np.greater   
-    _op_ge          =np.greater_equal
-    _op_radd        =np.add     
-    _op_rsub        =np.subtract   
-    _op_rmul        =np.multiply   
-    _op_rmatmul     =np.matmul    
-    _op_rtruediv    =np.divide    
-    _op_rpow        =np.power    
-    _op_abs         =np.abs     
-    _op_pos         =np.positive   
-    _op_invert      =np.invert    
-    _op_and         =np.bitwise_and 
-    _op_or          =np.bitwise_or  
-    _op_xor         =np.bitwise_xor 
-    _op_rand        =np.bitwise_and 
-    _op_ror         =np.bitwise_or  
-    _op_rxor        =np.bitwise_xor 
-    _op_rshift      =np.right_shift 
-    _op_lshift      =np.left_shift  
-    _op_rrshift     =np.right_shift 
-    _op_rlshift     =np.left_shift  
-    _op_mod         =np.mod     
-    _op_rmod        =np.mod     
-    _op_floordiv    =np.floor_divide 
-    _op_rfloordiv_  =np.floor_divide 
-    _op_trunc       =np.trunc    
-    _op_round       =np.round    
-    _op_floor       =np.floor    
-    _op_ceil        =np.ceil     
-    # fmt: on
-
     ############################################################
     # deprecated method
+
     @deprecated
     def traversal(self) -> typing.Generator[PathLike, None, None]:
         yield from Path._traversal_path(self[:])

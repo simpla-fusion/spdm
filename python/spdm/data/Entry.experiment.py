@@ -143,7 +143,7 @@ class Entry(Pluggable):
         Same function as `find`, but put result into a contianer.
         Could be overridden by subclasses.
         """
-        return self._path.query(self._data, *args, **kwargs)
+        return self._path.fetch(self._data, *args, **kwargs)
 
     def insert(self, *args, **kwargs) -> int: return self._path.insert(self._data, *args, **kwargs)
 
@@ -214,7 +214,7 @@ class EntryChain(Entry):
         res = _not_found_
 
         for e in self._data:
-            res = self._path.query(e, *args, default_value=_not_found_, **kwargs)
+            res = self._path.fetch(e, *args, default_value=_not_found_, **kwargs)
             if res is not _not_found_:
                 break
 

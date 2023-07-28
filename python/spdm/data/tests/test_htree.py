@@ -1,12 +1,12 @@
+import pprint
 import typing
 import unittest
 from copy import deepcopy
 
-from spdm.utils.typing import as_value
-from spdm.data.HTree import Dict, HTree, List, AoS
+from spdm.data.HTree import AoS, Dict, HTree, List
 from spdm.utils.logger import logger
 from spdm.utils.tags import _undefined_
-import pprint
+from spdm.utils.typing import as_value
 
 
 class Foo(Dict):
@@ -218,11 +218,8 @@ class TestQuery(unittest.TestCase):
         self.assertListEqual(res, self.data[1:4])
 
     def test_query(self):
-
         d0 = AoS(deepcopy(self.data))
-
         res = d0.get({"age": {"$ge": 19}})
-
         self.assertListEqual(res, self.data[1:4])
 
 

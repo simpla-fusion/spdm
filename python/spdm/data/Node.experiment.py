@@ -178,7 +178,7 @@ class Node(typing.Generic[_T]):
 
         path = as_path(path)
 
-        value = path.query(self._cache, default_value=_not_found_,  **kwargs)
+        value = path.fetch(self._cache, default_value=_not_found_,  **kwargs)
 
         if value is _not_found_:
 
@@ -508,7 +508,7 @@ class Node(typing.Generic[_T]):
 class DictProxy(Node[_T]):
 
     def __getitem__(self, path: PathLike) -> typing.Any:
-        return Path(path).query(self)
+        return Path(path).fetch(self)
 
     def __getattr__(self, name: str) -> typing.Any:
         return super().__getitem__(name)

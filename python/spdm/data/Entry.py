@@ -147,7 +147,7 @@ class Entry(Pluggable):
             Same function as `find`, but put result into a contianer.
             Could be overridden by subclasses.
         """
-        return self._path.query(self._data, op, *args, **kwargs)
+        return self._path.fetch(self._data, op, *args, **kwargs)
 
     def find_next(self, *start: int | None, **kwargs) -> typing.Tuple[typing.Any, typing.List[int | None]]:
         """
