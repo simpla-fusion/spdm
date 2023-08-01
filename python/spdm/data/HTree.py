@@ -545,7 +545,7 @@ class QueryEntry(Entry):
     def _foreach(self, *args, **kwargs) -> typing.Generator[Entry, None, None]:
         next_id = None
         while True:
-            entry, next_id = self.find_next(next_id,   **kwargs)
+            entry, next_id = self.find_next(next_id, *args, **kwargs)
             if next_id is None:
                 break
             yield entry
