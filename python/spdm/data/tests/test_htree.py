@@ -218,9 +218,9 @@ class TestQuery(unittest.TestCase):
         self.assertListEqual(res, self.data[1:4])
 
     def test_query(self):
-        d0 = AoS(deepcopy(self.data))
-        res = d0.get({"@name": "zhangsan"})
-        self.assertListEqual(res, self.data[0])
+        d0 = AoS(deepcopy(self.data), identifier="name")
+        res = d0.get("zhangsan")
+        self.assertDictEqual(res, self.data[0])
 
 
 if __name__ == '__main__':
