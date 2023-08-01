@@ -120,13 +120,13 @@ class HTree(typing.Generic[_T]):
     def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
         """ 遍历 children """
 
-        next_id = []
+        next_id = None
 
         while True:
 
-            value, next_id = self._find_next(None, *next_id, parent=self._parent,
+            value, next_id = self._find_next(None, next_id, parent=self._parent,
                                              default_value=self._default_value)
-            if next_id is None or len(next_id) == 0:
+            if next_id is None:
                 break
             yield value
 
@@ -421,16 +421,16 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, *starts: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, typing.List[int | None]]:
+    def _find_next(self, query: PathLike = None, start: int | None = None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
             query = slice(None)
 
-        cache, pos = as_path(query).find_next(self._cache, *starts)
+        cache, pos = as_path(query).find_next(self._cache, start)
 
         if pos is None:
             cache = _not_found_
-            entry, pos = self._entry.child(query).find_next(*starts)
+            entry, pos = self._entry.child(query).find_next(start)
         else:
             entry = self._entry.child(pos)
 
@@ -543,14 +543,14 @@ class QueryEntry(Entry):
     ###########################################################
 
     def _foreach(self, *args, **kwargs) -> typing.Generator[Entry, None, None]:
-        next_id = []
+        next_id = None
         while True:
-            entry, next_id = self.find_next(*next_id,   **kwargs)
-            if next_id is None or len(next_id) == 0:
+            entry, next_id = self.find_next(next_id,   **kwargs)
+            if next_id is None:
                 break
             yield entry
 
-    @ property
+    @property
     def __value__(self) -> typing.List[typing.Any]:
         value = [as_value(v) for v in self._foreach() if v is not _not_found_]
         if len(value) == 0:
@@ -565,7 +565,7 @@ class QueryEntry(Entry):
             value = [value]
         return reduce(self._reducer,  value)
 
-    @ staticmethod
+    @staticmethod
     def _default_reducer(first: typing.Any, second: typing.Any) -> typing.Any:
 
         if first is _not_found_:

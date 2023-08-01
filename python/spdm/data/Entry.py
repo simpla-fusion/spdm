@@ -149,14 +149,14 @@ class Entry(Pluggable):
         """
         return self._path.fetch(self._data, op, *args, **kwargs)
 
-    def find_next(self, *start: int | None, **kwargs) -> typing.Tuple[typing.Any, typing.List[int | None]]:
+    def find_next(self, start: int | None, **kwargs) -> typing.Tuple[typing.Any, int | None]:
         """
             Find the value from the cache.
             Return a generator of the results.
             Could be overridden by subclasses.
             支持多维 index
         """
-        return self._path.find_next(self._data, *start,  **kwargs)
+        return self._path.find_next(self._data, start,  **kwargs)
 
     ###########################################################
 

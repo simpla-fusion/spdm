@@ -124,8 +124,8 @@ class Query:
         else:
             return bool(res)
 
-    def find_next(self, target, *starts: int | None, **kwargs) -> typing.Tuple[typing.Any,  typing.List[int | None]]:
-        next = starts
+    def find_next(self, target, start: int | None, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+        next = start
         return _not_found_, next
 
     @staticmethod
@@ -734,7 +734,7 @@ class Path(list):
 
         return Path._apply_op(obj, op,  *args, **kwargs)
 
-    def find_next(self, target: typing.Any, *starts: int | None) -> typing.Tuple[typing.Any, typing.List[int | None]]:
+    def find_next(self, target: typing.Any, start: int | None) -> typing.Tuple[typing.Any, int | None]:
         """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
 
         if len(self) == 0:
@@ -744,7 +744,7 @@ class Path(list):
 
         obj = target
 
-        next_ids = []
+        next_id = None
 
         suffix = []
 
@@ -752,17 +752,9 @@ class Path(list):
             if not isinstance(q, (Query, slice)):
                 tmp = Path._op_fetch(obj, q, default_value=_not_found_)
 
-            if isinstance(q, slice):
-                tmp, next_id = Path._op_next(obj, q, *starts)
-
-                if next_id is None:
-                    break
-                else:
-                    next_ids.append(next_id)
-            elif isinstance(q, Query):
-                tmp, next_id = q.find_next(obj, *starts)
-
-                next_ids.append(next_id)
+            tmp, next_id = Path._op_next(obj, q, start)
+            if next_id is None:
+                break
 
             if tmp is _not_found_:
                 suffix = self[pth_pos:]
@@ -771,9 +763,9 @@ class Path(list):
             obj = tmp
 
         if len(suffix) > 0:
-            return _not_found_, []
+            return _not_found_, None
         else:
-            return obj, next_ids
+            return obj, next_id
 
     def for_each(self, target,  **kwargs) -> typing.Generator[typing.Any, None, None]:
         if len(self) == 0:
