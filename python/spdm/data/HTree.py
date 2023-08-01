@@ -421,7 +421,7 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, *starts: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def _find_next(self, query: PathLike = None, *starts: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, typing.List[int | None]]:
 
         if query is None:
             query = slice(None)
@@ -430,7 +430,7 @@ class HTree(typing.Generic[_T]):
 
         if pos is None:
             cache = _not_found_
-            entry, pos = self._entry.child(query).find_next(*start)
+            entry, pos = self._entry.child(query).find_next(*starts)
         else:
             entry = self._entry.child(pos)
 
