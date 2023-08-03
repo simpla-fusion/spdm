@@ -182,7 +182,7 @@ class Node(typing.Generic[_T]):
 
         if value is _not_found_:
 
-            value = self._entry.child(path).query(default_value=_not_found_,  **kwargs)
+            value = self._entry.child(path).fetch(default_value=_not_found_,  **kwargs)
 
             # if value is not _not_found_:
             #     value = self._as_child(path, value)

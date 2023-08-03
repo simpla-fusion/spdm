@@ -10,6 +10,7 @@ from ..utils.typing import (ArrayType, HTreeLike, NumericType, array_type,
                             as_array, as_value, get_args, get_origin,
                             isinstance_generic, numeric_type, serialize,
                             type_convert)
+from ..utils.logger import logger, deprecated
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, as_path, Query, QueryLike, as_query
 
@@ -36,7 +37,8 @@ class HTree(typing.Generic[_T]):
         -
     """
 
-    def __init__(self, cache: typing.Any = None, entry: HTreeLike | Entry = None,
+    def __init__(self, cache: typing.Any = None, /,
+                 entry: HTreeLike | Entry = None,
                  parent: HTree | None = None,
                  **kwargs) -> None:
 
@@ -117,20 +119,14 @@ class HTree(typing.Generic[_T]):
 
     def __len__(self) -> int: return self._query([], Path.tags.count)  # type:ignore
 
-    def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
+    def __iter__(self) -> typing.Generator[typing.Tuple[str, _T | HTree[_T]] | _T | HTree[_T], None, None]:
         """ 遍历 children """
-
-        next_id = None
-
-        while True:
-
-            value, next_id = self._find_next(None, next_id, parent=self._parent,
-                                             default_value=self._default_value)
-            if next_id is None:
-                break
-            yield value
+        yield from self.children()
 
     def __equal__(self, other) -> bool: return self._query([], Path.tags.equal, other)  # type:ignore
+
+    # def children(self) -> typing.Generator[typing.Any, None, None]: yield from self._foreach()
+    # """ 遍历 children """
 
     def insert(self,  *args, **kwargs): return self._insert([], *args, **kwargs)
 
@@ -142,7 +138,10 @@ class HTree(typing.Generic[_T]):
         length = len(path)
 
         if length == 0:
-            return self
+            if force:
+                return self
+            else:
+                return self.__value__
 
         obj = self
 
@@ -173,6 +172,18 @@ class HTree(typing.Generic[_T]):
             raise KeyError(f"{path[:pos+1]} not found")
 
         return obj
+
+    def children(self) -> typing.Generator[typing.Tuple[str, _T | HTree[_T]] | _T | HTree[_T], None, None]:
+
+        if isinstance(self._cache, list) and len(self._cache) > 0:
+            for idx, cache in enumerate(self._cache):
+                yield self._as_child(cache, idx, entry=self._entry.child(idx))
+        elif isinstance(self._cache, dict) and len(self._cache) > 0:
+            for key, cache in self._cache.items():
+                yield self._as_child(cache, key, entry=self._entry.child(key))
+        else:
+            for key, entry in self._entry.for_each():
+                yield self._as_child(None, key, entry=entry)
 
     ################################################################################
     # Private methods
@@ -219,14 +230,14 @@ class HTree(typing.Generic[_T]):
 
         return tp_hint
 
-    def _as_child(self, cache,  key, *args, entry: Entry | None = None,
+    def _as_child(self, value,  key, *args, entry: Entry | None = None,
                   type_hint: typing.Type = None,
                   default_value=_not_found_,
                   getter: typing.Callable | None = None,
                   force=True,  # 若type_hint为 None，强制 HTree
                   parent=None,  **kwargs) -> HTree[_T] | _T:
 
-        if cache is _not_found_ and entry is None:
+        if value is _not_found_ and entry is None:
             return _not_found_
 
         if parent is None:
@@ -241,22 +252,27 @@ class HTree(typing.Generic[_T]):
 
             default_value = merge_tree_recursive(s_default_value, default_value)
 
-        if cache is not _not_found_:
-            pass
-        elif not force and entry is not None:
-            cache = entry.__value__
-            entry = None
-        else:
-            cache = default_value
-            default_value = _not_found_
-
         if type_hint is None:
             type_hint = self._type_hint(key if key is not None else 0)
 
         if type_hint is None and force:
             type_hint = HTree[_T]
 
-        if not isinstance_generic(cache, type_hint) and getter is not None:
+        if value is not _not_found_:
+            pass
+
+        elif entry is None:
+            value = default_value
+            default_value = _not_found_
+
+        elif not issubclass(get_origin(type_hint), HTree):
+            value = entry.__value__
+            entry = None
+            if value is _not_found_:
+                value = default_value
+                default_value = _not_found_
+
+        if not isinstance_generic(value, type_hint) and getter is not None:
             # if cache is not _not_found_ and cache is not None:
             #     logger.warning(f"Ignore {cache}")
             try:
@@ -264,22 +280,24 @@ class HTree(typing.Generic[_T]):
             except Exception as error:
                 raise RuntimeError(f"id={key}:'getter' failed!") from error
             else:
-                cache = tmp
+                value = tmp
 
-        if isinstance_generic(cache, type_hint):
-            value = cache
+        if isinstance_generic(value, type_hint):
+            value = value
 
         elif issubclass(get_origin(type_hint), HTree):
-            value = type_hint(cache, entry=entry, parent=parent, *args, default_value=default_value, **kwargs)
+            value = type_hint(value, entry=entry, parent=parent, *args, default_value=default_value, **kwargs)
 
-        elif not force and isinstance(cache, HTree):
-            value = cache.__value__
+        elif not force and isinstance(value, HTree):
+            value = value.__value__
 
-        elif not force and isinstance(cache, Entry):
-            value = cache.__value__
+        elif not force and isinstance(value, Entry):
+            value = value.__value__
 
         else:
-            value = cache if cache is not _not_found_ else entry.__value__
+            if value is not _not_found_ and entry is not None:
+                value = entry.__value__
+
             if type_hint is not None:
                 value = type_convert(value, type_hint=type_hint, **kwargs)
 
@@ -361,16 +379,17 @@ class HTree(typing.Generic[_T]):
 
     def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T:
 
-        if isinstance(key, (Query, dict,  slice)):
+        if isinstance(key, (Query, dict)):
             cache = None
             entry = QueryEntry(self, key, *args, **kwargs)
             key = None
 
-        elif isinstance(key, int):
+        elif isinstance(key, (int, slice)):
             if isinstance(self._cache, list):
                 cache = self._cache[key]
             else:
                 cache = _not_found_
+
             entry = self._entry.child(key)
 
         elif self._cache is _not_found_ or self._cache is None:
@@ -403,7 +422,7 @@ class HTree(typing.Generic[_T]):
         if self._cache is not _not_found_:
             return as_path(path).fetch(self._cache, *args, **kwargs)
         else:
-            return self._entry.child(path).query(*args, **kwargs)
+            return self._entry.child(path).fetch(*args, **kwargs)
 
     def _insert(self, path: PathLike,  *args, **kwargs):
         tmp = {"_": self._cache}
@@ -421,21 +440,35 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    def _find_next(self, query: PathLike = None, start: int | None = None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    @deprecated
+    def _find_next(self, query: PathLike, start: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
             query = slice(None)
 
-        cache, pos = as_path(query).find_next(self._cache, start)
+        cache = None
+        entry = None
+        next_id = start
+        if isinstance(query, slice):
 
-        if pos is None:
-            cache = _not_found_
-            entry, pos = self._entry.child(query).find_next(start)
-        else:
-            entry = self._entry.child(pos)
+            start_q = query.start or 0
+            stop = query.stop
+            step = query.step
+            if start is None:
+                start = start_q
+            else:
+                start = int((start-start_q)/step)*step
 
-        if pos is not None:
-            return self._as_child(cache, pos,  entry=entry, default_value=default_value, **kwargs), pos
+            next_id = start+step
+            if isinstance(self._cache, list) and start < len(self._cache):
+                cache = self._cache[start]
+            entry = self._entry.child(start)
+
+        elif isinstance(query, Query):
+            pass
+
+        if start is not None:
+            return self._as_child(cache, start,  entry=entry, default_value=default_value, **kwargs), next_id
         else:
             return None, None
 
@@ -451,13 +484,17 @@ Node = HTree
 
 
 class Container(HTree[_T]):
-
-    def __getitem__(self, path: PathLike) -> HTree[_T] | _T: return super().__getitem__(path)
+    pass
 
 
 class Dict(Container[_T]):
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return super().__getitem__(path)
+    def __iter__(self) -> typing.Generator[str, None, None]:
+        """ 遍历 children """
+        for k, _ in self._for_each():
+            yield k
+
+    def items(self): yield from self._for_each()
 
     def __contains__(self, key: str) -> bool:
         return (isinstance(self._cache, collections.abc.Mapping) and key in self._cache) or self._entry.child(key).exists
@@ -470,6 +507,11 @@ class List(Container[_T]):
         elif not isinstance(cache, collections.abc.Sequence):
             cache = [cache]
         super().__init__(cache, *args, **kwargs)
+
+    def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
+        """ 遍历 children """
+        for _, v in self._for_each():
+            yield v
 
     def __getitem__(self, path) -> HTree[_T] | _T: return super().__getitem__(path)
 
@@ -499,20 +541,20 @@ class QueryEntry(Entry):
         if isinstance(other, Entry):
             return other._data == self._data and other._path == self._path
         else:
-            return self.query(Path.tags.equal, other)
+            return self.fetch(Path.tags.equal, other)
 
     @property
     def count(self) -> int: raise NotImplementedError(f"TODO: count {self._path}")
 
     @property
     def exists(self) -> bool:
-        return any([e.query(Path.tags.exists) for e in self._foreach() if isinstance(e, Entry)])
+        return any([e.fetch(Path.tags.exists) for e in self._foreach() if isinstance(e, Entry)])
 
     def check_type(self, tp: typing.Type) -> bool:
-        return any([not e.query(Path.tags.check_type, tp) for e in self._foreach() if isinstance(e, Entry)])
+        return any([not e.fetch(Path.tags.check_type, tp) for e in self._foreach() if isinstance(e, Entry)])
 
     def dump(self) -> typing.Any:
-        return self.__reduce__([e.query(Path.tags.dump) for e in self._foreach() if isinstance(e, Entry)])
+        return self.__reduce__([e.fetch(Path.tags.dump) for e in self._foreach() if isinstance(e, Entry)])
 
     def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
         res = [(e.get(*args, default_value=_not_found_, **kwargs) if isinstance(e, Entry) else e)
@@ -528,8 +570,8 @@ class QueryEntry(Entry):
     ###########################################################
     # API: CRUD  operation
 
-    def query(self, op=None, *args, **kwargs) -> typing.Any:
-        return [v.query(op, *args, **kwargs) for v in self._foreach() if v is not _not_found_]
+    def fetch(self, op=None, *args, **kwargs) -> typing.Any:
+        return [v.fetch(op, *args, **kwargs) for v in self._foreach() if v is not _not_found_]
 
     def insert(self, *args, **kwargs) -> Entry:
         raise NotImplementedError(f"TODO: insert {args} {kwargs}")
@@ -588,7 +630,7 @@ class QueryEntry(Entry):
         return reduce(self._reducer, value)
 
 
-class AoS(List[_T]):
+class AoS(Container[_T]):
     """
         Array of structure
     """
@@ -599,14 +641,24 @@ class AoS(List[_T]):
         if self._identifier is None:
             self._identifier = self.__metadata__.get("identifier", "id")
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return super().__getitem__(path)
+    def children(self) -> typing.Generator[_T | HTree[_T], None, None]:
+        """ 遍历 children """
+        cache = self._cache if self._cache is not _not_found_ else self._default_value
 
-    def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]:
-        if not isinstance(self._default_value, collections.abc.Sequence):
-            yield from super().__iter__()
+        if not isinstance(cache, list) or len(cache) == 0:
+            yield from super().children()
+
         else:
-            for d in self._default_value:
-                yield self[d.get(self._identifier)]
+            for idx, value in enumerate(cache):
+
+                id = value.get(self._identifier, None)
+
+                if id is None:
+                    logger.warning(f"TODO: {self._identifier} not found!")
+                    yield self._as_child(value, idx, entry=None)
+
+                else:
+                    yield self._as_child(value, id, entry=self._entry.child({f"@{self._identifier}": id}))
 
     def _get(self, query:   PathLike,  *args, default_value=_not_found_, type_hint=None, **kwargs) -> HTree[_T] | _T:
 

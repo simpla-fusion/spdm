@@ -175,7 +175,7 @@ class H5Entry(Entry):
     def insert(self,  value, *args, **kwargs):
         return h5_put_value(self._data, self._path, value, *args, **kwargs)
 
-    def query(self,   *args, **kwargs) -> typing.Any:
+    def fetch(self,   *args, **kwargs) -> typing.Any:
         return h5_get_value(self._data, self._path, *args,  **kwargs)
 
     def dump(self):

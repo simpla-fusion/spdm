@@ -62,7 +62,7 @@ class SpDict(Dict[_T]):
 
     def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
         return self._get(key, *args, **kwargs)
-        
+
         # if value is _not_found_:
         #     raise KeyError(f"Can not find property \"{key}\" of {self.__class__.__name__}")
         # return value

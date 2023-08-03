@@ -26,9 +26,9 @@ if __name__ == '__main__':
 
         entry = open_entry("MDSplus[EAST]://#70754")
 
-    tf_current = entry.child("tf/coil/0/current/data").query()
+    tf_current = entry.child("tf/coil/0/current/data").fetch()
 
-    tf_time = entry.child("tf/coil/0/current/time").query()
+    tf_time = entry.child("tf/coil/0/current/time").fetch()
 
     # pprint({k: v for k, v in os.environ.items() if k.endswith("_path")})
 
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     time_slice = 100
 
-    eq = entry.child(f"equilibrium/time_slice/{time_slice}").query()
+    eq = entry.child(f"equilibrium/time_slice/{time_slice}").fetch()
 
     logger.debug(eq)
 

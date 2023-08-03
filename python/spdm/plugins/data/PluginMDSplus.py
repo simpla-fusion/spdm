@@ -183,7 +183,7 @@ class MDSplusCollection(Collection):
         if projection is None:
             return entry
         else:
-            return entry.query(projection)
+            return entry.fetch(projection)
 
     def count(self, predicate=None, *args, **kwargs) -> int:
         return NotImplemented()
@@ -236,7 +236,7 @@ class MDSplusEntry(Entry):
             raise TypeError(f"cache must be MDSplusFile or str, but got {type(cache)}")
         super().__init__(cache, *args,  **kwargs)
 
-    def query(self,  *args, **kwargs):
+    def fetch(self,  *args, **kwargs):
         return self._data.query(*args, prefix=self._path,  **kwargs)
 
     def update(self, *args, **kwargs):

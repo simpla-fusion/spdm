@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import collections.abc
 import pathlib
 import typing
 
@@ -221,18 +222,13 @@ class XMLEntry(Entry):
     #############################
     # API
 
-    def insert(self,  *args, **kwargs) -> XMLEntry: return super().insert(*args, **kwargs)
+    def insert(self,  *args, **kwargs) -> XMLEntry: raise NotImplementedError(f"")
 
-    def update(self,  *args, **kwargs) -> XMLEntry: return super().update(*args, **kwargs)
+    def update(self,  *args, **kwargs) -> XMLEntry: raise NotImplementedError(f"")
 
-    def remove(self,  *args, **kwargs) -> int: return super().remove(*args, **kwargs)
+    def remove(self,  *args, **kwargs) -> int: raise NotImplementedError(f"")
 
-    def query(self, op=None, *args, **kwargs) -> typing.Any:
-
-        # res = super().query(op, *args, default_value=_not_found_, quiet=True)
-
-        # if res is not _not_found_:
-        #     return res
+    def fetch(self, op=None, *args, **kwargs) -> typing.Any:
 
         path = self._path[:]
         xp, envs = self.xpath(path)
@@ -243,19 +239,19 @@ class XMLEntry(Entry):
             return len(obj) > 0
         elif op is Path.tags.count:
             return len(obj)
+        elif op is None or op is Path.tags.fetch:
+            return self._convert(obj, path=path,   envs=envs, **kwargs)
         else:
             target = self._convert(obj, path=path,   envs=envs, **kwargs)
-            return Path._apply_op(target, op or Path.tags.fetch, [], *args)
+
+            return Path._apply_op(target, op, [], *args)
 
     def find_next(self,  start=None,  **kwargs) -> typing.Tuple[typing.Any, int | None]:
-        if len(self._path) == 0:
-            raise RuntimeError("Can not find next element from root!")
-        
-        elif isinstance(self._path[-1], slice):
+
+        if len(self._path) > 0 and isinstance(self._path[-1], slice):
             start = self._path[-1].start or start or 0
             stop = self._path[-1].stop
             step = self._path[-1].step or 1
-
             path = self._path[:-1] + [start]
 
         elif isinstance(self._path[-1], dict):
@@ -280,6 +276,41 @@ class XMLEntry(Entry):
             return res, start+step
         else:
             raise RuntimeError(f"Invalid path {path}")
+
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        """ Return a generator of the results. """
+        if len(self._path) > 0 and isinstance(self._path[-1], slice):
+            start = self._path[-1].start or 0
+            stop = self._path[-1].stop
+            step = self._path[-1].step or 1
+            prefix = self._path[:-1]
+
+        elif isinstance(self._path[-1], dict):
+            raise NotImplementedError(f"Can not find next element from dict!")
+
+        else:
+
+            start = 0
+            stop = None
+            step = 1
+            prefix = self._path[:]
+
+        next_id = start
+        while True:
+            if stop is not None and next_id >= stop:
+                raise StopIteration(f"{next_id}>{stop}")
+            path = prefix+[next_id]
+            xp, envs = self.xpath(prefix+[next_id])
+            data = xp.evaluate(self._data)
+            if len(data) == 0:
+                # raise StopIteration(f"Can not find next element from {path}")
+                break
+            elif len(data) == 1:
+                res = self._convert(data[0], lazy=True, path=path, envs=envs, **kwargs)
+                yield next_id, res
+                next_id += step
+            else:
+                raise RuntimeError(f"Invalid path {path}")
 
     #############################
 
@@ -331,10 +362,10 @@ class XMLEntry(Entry):
                                     envs=collections.ChainMap(s_envs, envs))
                 yield res
 
-    @ property
+    @property
     def attribute(self): return self._data.attrib
 
-    def __serialize__(self): return serialize(self.query(default_value=_not_found_))
+    def __serialize__(self): return serialize(self.fetch(default_value=_not_found_))
 
 
 class XMLFile(File):

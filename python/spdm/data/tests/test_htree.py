@@ -189,14 +189,6 @@ class TestHTree(unittest.TestCase):
         self.assertIsInstance(d1[2], Foo)
         self.assertEqual(d1[2].v, data[2])
 
-    def test_iter(self):
-
-        data = [1, 2, 3, 4, 5]
-
-        d0 = List[int](deepcopy(data))
-
-        self.assertListEqual([v for v in d0], data)
-
 
 class TestQuery(unittest.TestCase):
 
@@ -208,6 +200,12 @@ class TestQuery(unittest.TestCase):
         {"name": "zhaoliu",     "age": 21,  "address": "shenzhen"},
     ]
     # fmt:on
+
+    def test_iter(self):
+
+        d0 = AoS(deepcopy(self.data), identifier="name")
+
+        self.assertListEqual([v.__value__ for v in d0], self.data)
 
     def test_slice(self):
 

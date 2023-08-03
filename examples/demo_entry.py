@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     entry = open_entry(f"MDSplus[EAST]://202.127.204.12?tree_name=east_efit#{shot_num}")
 
-    eq = entry.child(f"equilibrium/time_slice/{time_slice}/").query()
+    eq = entry.child(f"equilibrium/time_slice/{time_slice}/").fetch()
 
     with File(f"./g{shot_num}", mode="w", format="geqdsk") as fid:
         fid.write(eq)

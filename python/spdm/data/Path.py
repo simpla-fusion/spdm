@@ -298,24 +298,6 @@ class Path(list):
         other.append(Path.tags.next)
         return other
 
-    def append_decprecated(self, d) -> Path:
-
-        if isinstance(d, Path):
-            self.extend_decprecated(d[:])
-        else:
-            self.extend_decprecated(Path._parser(d))
-        return self
-
-    def extend_decprecated(self, *args, force=False) -> Path:
-
-        if len(args) == 1:
-            args = args[0]
-        if force:
-            super().extend(list(args))
-        else:
-            super().extend(Path.normalize(args))
-        return self
-
     def prepend(self, d) -> Path:
         res = as_path(d)
         return res.append(self)
@@ -406,96 +388,6 @@ class Path(list):
 
     # 正则表达式解析，匹配一段被 {} 包裹的字符串
     PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
-
-    @staticmethod
-    def _to_str_decprecated(p: typing.Any) -> str:
-
-        if isinstance(p, list):
-            return Path.delimiter.join(map(Path._to_str_decprecated, p))
-        elif isinstance(p, str):
-            return p
-        elif isinstance(p, slice):
-            if p.start is None and p.stop is None and p.step is None:
-                return "*"
-            else:
-                return f"{p.start}:{p.stop}:{p.step}"
-        elif isinstance(p, int):
-            return str(p)
-        elif isinstance(p, collections.abc.Mapping):
-            m_str = ','.join([f"{k}:{Path._to_str_decprecated(v)}" for k, v in p.items()])
-            return f"?{{{m_str}}}"
-        elif isinstance(p, tuple):
-            m_str = ','.join(map(Path._to_str_decprecated, p))
-            return f"({m_str})"
-        elif isinstance(p, set):
-            m_str = ','.join(map(Path._to_str_decprecated, p))
-            return f"{{{m_str}}}"
-        elif p is None:
-            return ""
-        else:
-            raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
-
-    @staticmethod
-    def _from_str_decprecated(path: str) -> list:
-        """
-        """
-
-        path_res = []
-
-        path_list: list = path.split(Path.delimiter)
-
-        if path_list[0] == '':
-            path_list[0] = Path.tags.root
-
-        for v in path_list:
-            if v.startswith(("[", "(", "{")) and v.endswith(("]", "}", ")")):
-                try:
-                    item = ast.literal_eval(v)
-                except (ValueError, SyntaxError):
-                    try:
-                        item = slice(*map(int, v[1:-1].split(':')))
-                    except ValueError:
-                        raise ValueError(f"Invalid Path: {v}")
-            elif v == "*":
-                item = slice(None)
-            elif v == "..":
-                item = Path.tags.parent
-            elif v == ".":
-                continue
-            elif v.isnumeric():
-                item = int(v)
-            elif v.startswith("$"):
-                try:
-                    item = Path.tags[v[1:]]
-                except Exception:
-                    item = v
-            else:
-                item = v
-
-            path_res.append(item)
-
-        return path_res
-
-    @staticmethod
-    def _unroll_decprecated(path: PathLike | Path.tags) -> list:
-        """ Parse the to list """
-
-        if path is None:
-            return []
-        elif not isinstance(path, list):
-            path = [path]
-
-        res = []
-
-        for p in path:
-            if isinstance(p, str):
-                res.extend(Path._from_str_decprecated(p))
-            elif isinstance(p, list):
-                res.extend(Path._unroll_decprecated(p))
-
-            else:
-                res.append(p)
-        return res
 
     @staticmethod
     def _unroll(source: typing.List[PathLike], target: typing.List[PathLike]) -> typing.List[PathLike]:
@@ -767,56 +659,69 @@ class Path(list):
         else:
             return obj, next_id
 
-    def for_each(self, target,  **kwargs) -> typing.Generator[typing.Any, None, None]:
-        if len(self) == 0:
-            query = slice(None)
-        else:
-            query = self[0]
+    def has_slice(self) -> bool: return any(isinstance(q, (slice)) for q in self[:])
 
-        if not isinstance(query, (slice, dict)):
-            raise PathError(self[:], f"Not a generator! ")
+    def has_query(self) -> bool: return any(isinstance(q, (Query)) for q in self[:])
 
-        if isinstance(query, slice):
+    def for_each(self, target, *args,  **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        if hasattr(target.__class__, "__entry__"):
+            yield from target.for_each(*args, **kwargs)
+
+        prefix = []
+        suffix = []
+        query = None
+        for i, q in enumerate(self):
+            if isinstance(q, (Query, slice)):
+                query = q
+                suffix = self[i+1:]
+                break
+            else:
+                prefix.append(q)
+
+        if len(prefix) > 0:
+            target = Path._get_by_path(target, prefix,  default_value=_not_found_)
+
+        if query is None and len(suffix) == 0:
+            yield 0, target
+            return
+
+        elif target is _not_found_:
+            raise PathError(prefix, f"Path error in {type(target)}!")
+
+        elif not isinstance(target, collections.abc.Sequence):
+            raise TypeError(f"Can not iterate {type(target)}!")
+
+        elif isinstance(query, slice):
             start = query.start if query.start is not None else 0
-            stop = query.stop
+            stop = query.stop if query.stop is not None else len(target)
             step = query.step if query.step is not None else 1
             query = None
 
-            if stop is not None and (stop-start)*step <= 0:
-                raise PathError(self[:], f"Out of range:!")
-        elif isinstance(query, dict):
+        elif isinstance(query, Query):
             start = 0
-            stop = None
+            stop = len(target)
             step = 1
-        else:
-            raise ValueError(f"Illegal query! {self[0]}")
 
-        value = target
+        else:
+            raise RuntimeError(f"Unknown query type {type(query)} {suffix}!")
+
         next_id = start
 
         while True:
-            if stop is not None and next_id >= stop:
+
+            if next_id >= stop:
                 break
 
-            if query is None or Path._op_check(value, query):
-                value, suffix = Path._get_by_path(target, [next_id]+self[1:],
-                                                  * args, default_value=_not_found_, **kwargs)
-            else:
-                value = _not_found_
-                suffix = []
+            value = target[next_id]
 
-            if value is _not_found_ or len(suffix) > 0 or (hasattr(value.__class__, "__entry__") and not value.exists):
-                if stop is None:
-                    break
-                else:
-                    yield _not_found_
-            else:
-                yield value
+            if query is None or query.check(value):
+                yield next_id, Path._get_by_path(value, suffix)
 
             next_id += step
 
     # End API
     ###########################################################
+
     @staticmethod
     def _apply_op(obj: typing.Any,  op: Path.tags | str | None,  *args, **kwargs):
 
@@ -923,7 +828,7 @@ class Path(list):
     def _op_fetch(target: typing.Any,  key: int | str | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Any:
 
         if hasattr(target.__class__, "__entry__"):
-            return target.__entry__.child(key).query(*args, default_value=default_value, **kwargs)
+            return target.__entry__.child(key).fetch(*args, default_value=default_value, **kwargs)
 
         if isinstance(key, list):
             if len(key) == 0:

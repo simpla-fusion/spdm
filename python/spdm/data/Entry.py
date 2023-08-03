@@ -29,6 +29,8 @@ class Entry(Pluggable):
                                            self, data, path, *args, **kwargs)
                 return
 
+        if isinstance(data, Entry):
+            raise RuntimeError(f"{data}")
         self._data: typing.Any = data
         self._path = as_path(path)
 
@@ -108,23 +110,23 @@ class Entry(Pluggable):
             entry = self.child(query)
             args = ()
 
-        return entry.query(Path.tags.fetch, *args, default_value=default_value, **kwargs)
+        return entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
 
-    def dump(self) -> typing.Any: return self.query(Path.tags.dump)
+    def dump(self) -> typing.Any: return self.fetch(Path.tags.dump)
 
     def equal(self, other) -> bool:
         if isinstance(other, Entry):
-            return self.query(Path.tags.equal, other.__value__)
+            return self.fetch(Path.tags.equal, other.__value__)
         else:
-            return self.query(Path.tags.equal, other)
+            return self.fetch(Path.tags.equal, other)
 
     @property
-    def count(self) -> int: return self.query(Path.tags.count)
+    def count(self) -> int: return self.fetch(Path.tags.count)
 
     @property
-    def exists(self) -> bool: return self.query(Path.tags.exists)
+    def exists(self) -> bool: return self.fetch(Path.tags.exists)
 
-    def check_type(self, tp: typing.Type) -> bool: return self.query(Path.tags.check_type, tp)
+    def check_type(self, tp: typing.Type) -> bool: return self.fetch(Path.tags.check_type, tp)
 
     ###########################################################
     # API: CRUD  operation
@@ -141,7 +143,7 @@ class Entry(Pluggable):
         self._data, num = self._path.remove(self._data,  **kwargs)
         return num
 
-    def query(self, op, *args, **kwargs) -> typing.Any:
+    def fetch(self, op, *args, **kwargs) -> typing.Any:
         """
             Query the Entry.
             Same function as `find`, but put result into a contianer.
@@ -149,28 +151,19 @@ class Entry(Pluggable):
         """
         return self._path.fetch(self._data, op, *args, **kwargs)
 
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        """ Return a generator of the results. """
+        yield from self._path.for_each(self._data, *args, **kwargs)
+
     def find_next(self, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
         """
             Find the value from the cache.
             Return a generator of the results.
             Could be overridden by subclasses.
-            支持多维 index
         """
         return self._path.find_next(self._data, start, *args,  **kwargs)
 
     ###########################################################
-
-    def for_each(self) -> typing.Generator[typing.Any, None, None]:
-        # for d in self._path.for_each(self._data):
-        #     yield d
-
-        next_id = None
-
-        while True:
-            value, next_id = self.find_next(next_id)
-            if next_id is None:
-                break
-            yield value
 
 
 def as_entry(obj, *args, **kwargs) -> Entry:
@@ -279,20 +272,20 @@ class QueryEntry(Entry):
         if isinstance(other, Entry):
             return other._data == self._data and other._path == self._path
         else:
-            return self.query(Path.tags.equal, other)
+            return self.fetch(Path.tags.equal, other)
 
     @property
     def count(self) -> int: raise NotImplementedError(f"TODO: count {self._path}")
 
     @property
     def exists(self) -> bool:
-        return any([e.query(Path.tags.exists) for e in self._foreach() if isinstance(e, Entry)])
+        return any([e.fetch(Path.tags.exists) for e in self._foreach() if isinstance(e, Entry)])
 
     def check_type(self, tp: typing.Type) -> bool:
-        return any([not e.query(Path.tags.check_type, tp) for e in self._foreach() if isinstance(e, Entry)])
+        return any([not e.fetch(Path.tags.check_type, tp) for e in self._foreach() if isinstance(e, Entry)])
 
     def dump(self) -> typing.Any:
-        return self.__reduce__([e.query(Path.tags.dump) for e in self._foreach() if isinstance(e, Entry)])
+        return self.__reduce__([e.fetch(Path.tags.dump) for e in self._foreach() if isinstance(e, Entry)])
 
     def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
         res = [e.get(*args, default_value=_not_found_, **kwargs) for e in self._foreach() if isinstance(e, Entry)]
@@ -307,8 +300,8 @@ class QueryEntry(Entry):
     ###########################################################
     # API: CRUD  operation
 
-    def query(self, op=None, *args, **kwargs) -> typing.Any:
-        return [v.query(op, *args, **kwargs) for v in self._foreach() if v is not _not_found_]
+    def fetch(self, op=None, *args, **kwargs) -> typing.Any:
+        return [v.fetch(op, *args, **kwargs) for v in self._foreach() if v is not _not_found_]
 
     def insert(self, *args, **kwargs) -> Entry:
         raise NotImplementedError(f"TODO: insert {args} {kwargs}")
