@@ -316,6 +316,8 @@ class HTree(typing.Generic[_T]):
 
         elif query is Path.tags.parent:
             value = self._parent
+            if isinstance_generic(value, AoS):
+                value = value._parent
 
         elif query is Path.tags.next:
             raise NotImplementedError(f"TODO: operator 'next'!")
@@ -582,19 +584,18 @@ class QueryEntry(Entry):
     def remove(self, *args, **kwargs) -> int:
         raise NotImplementedError(f"TODO: insert {args} {kwargs}")
 
-    ###########################################################
-
-    def _foreach(self, *args, **kwargs) -> typing.Generator[Entry, None, None]:
+    def foreach(self, *args, **kwargs) -> typing.Generator[Entry, None, None]:
         next_id = None
         while True:
             entry, next_id = self.find_next(next_id, *args, **kwargs)
             if next_id is None:
                 break
             yield entry
+    ###########################################################
 
     @property
     def __value__(self) -> typing.List[typing.Any]:
-        value = [as_value(v) for v in self._foreach() if v is not _not_found_]
+        value = [as_value(v) for v in self.for_each() if v is not _not_found_]
         if len(value) == 0:
             return _not_found_
         else:
@@ -653,12 +654,12 @@ class AoS(Container[_T]):
 
                 id = value.get(self._identifier, None)
 
-                if id is None:
-                    logger.warning(f"TODO: {self._identifier} not found!")
-                    yield self._as_child(value, idx, entry=None)
-
+                if id is not None:
+                    entry = self._entry.child({f"@{self._identifier}": id})
                 else:
-                    yield self._as_child(value, id, entry=self._entry.child({f"@{self._identifier}": id}))
+                    entry = None
+
+                yield self._as_child(value, idx, entry=entry)
 
     def _get(self, query:   PathLike,  *args, default_value=_not_found_, type_hint=None, **kwargs) -> HTree[_T] | _T:
 

@@ -267,6 +267,9 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
     if type_hint is None:
         return False
 
+    elif inspect.isclass(type_hint):
+        return isinstance(obj, type_hint)
+
     orig_class = typing.get_origin(type_hint)
 
     if inspect.isclass(type_hint) and orig_class is None:

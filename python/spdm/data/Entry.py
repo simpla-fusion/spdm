@@ -8,7 +8,7 @@ import typing
 from copy import copy
 from functools import reduce
 
-from ..utils.logger import logger
+from ..utils.logger import logger, deprecated
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
@@ -155,6 +155,7 @@ class Entry(Pluggable):
         """ Return a generator of the results. """
         yield from self._path.for_each(self._data, *args, **kwargs)
 
+    @deprecated
     def find_next(self, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
         """
             Find the value from the cache.

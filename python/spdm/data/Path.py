@@ -259,7 +259,7 @@ class Path(list):
 
     def __copy__(self) -> Path: return self.__class__(self[:])
 
-    def as_url(self) -> str: return Path._to_str_decprecated(self)
+    def as_url(self) -> str: return Path._to_str(self)
 
     @property
     def is_leaf(self) -> bool: return len(self) > 0 and self[-1] is None
@@ -626,6 +626,7 @@ class Path(list):
 
         return Path._apply_op(obj, op,  *args, **kwargs)
 
+    @deprecated
     def find_next(self, target: typing.Any, start: int | None) -> typing.Tuple[typing.Any, int | None]:
         """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
 
@@ -688,8 +689,8 @@ class Path(list):
         elif target is _not_found_:
             raise PathError(prefix, f"Path error in {type(target)}!")
 
-        elif not isinstance(target, collections.abc.Sequence):
-            raise TypeError(f"Can not iterate {type(target)}!")
+        # elif not isinstance(target, collections.abc.Sequence):
+        #     raise TypeError(f"Can not iterate {type(target)}!")
 
         elif isinstance(query, slice):
             start = query.start if query.start is not None else 0
