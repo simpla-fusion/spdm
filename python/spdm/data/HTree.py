@@ -295,9 +295,11 @@ class HTree(typing.Generic[_T]):
 
         if isinstance_generic(value, type_hint):
             pass
+        
         elif type_hint in array_type:
             if isinstance(value, (list)) or isinstance(value, array_type):
                 pass
+        
         elif issubclass(get_origin(type_hint), HTree):
             value = type_hint(value, entry=entry, parent=parent, *args,
                               default_value=default_value,  **kwargs)
@@ -309,7 +311,7 @@ class HTree(typing.Generic[_T]):
             value = value.__value__
 
         else:
-            if value is not _not_found_ and entry is not None:
+            if value is _not_found_ and entry is not None:
                 value = entry.__value__
 
             if type_hint is not None:
@@ -636,7 +638,7 @@ class CombineEntry(Entry):
         return functools.reduce(CombineEntry._default_reducer, [self._path.fetch(v, Path.tags.dump) for v in self._data])
 
     def get(self, *args, default_value: typing.Any = ..., **kwargs) -> typing.Any:
-        return functools.reduce(CombineEntry._default_reducer, [default_value] + [self._path.append(*args).fetch(v, **kwargs) for v in self._data])
+        return functools.reduce(CombineEntry._default_reducer, [default_value] + [self._path.fetch(v, **kwargs) for v in self._data])
 
     ###########################################################
     # API: CRUD  operation
