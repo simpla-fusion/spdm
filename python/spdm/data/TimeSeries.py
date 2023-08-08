@@ -33,7 +33,7 @@ class TimeSeriesAoS(AoS[_T]):
     @property
     def time(self) -> typing.List[float]:
         if self._time is None and self._parent is not None:
-            self._time = self._parent.get(self._metadata.get("coordinate1", "time"), None)
+            self._time = self._parent.get(self._metadata.get("coordinate1", "time"), [0.0])
         else:
             self._time = [0.0]
         return self._time
