@@ -192,8 +192,8 @@ class GeoObjectSet(list[GeoObject]):
 
         if ndim is None:
             ndim_list = [obj.ndim for obj in self if isinstance(obj, GeoObject)]
-            if len(ndim_list) > 0 and all(ndim_list):
-                ndim = ndim_list[0]
+            if len(ndim_list) > 0 :
+                ndim = max(ndim_list)  # [0]
             else:
                 raise RuntimeError(f"Can not get ndim from {ndim_list}")
         self._rank = rank

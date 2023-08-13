@@ -289,7 +289,7 @@ class HTree(typing.Generic[_T]):
             try:
                 tmp = getter(self)
             except Exception as error:
-                raise RuntimeError(f"id={key}:'getter' failed!") from error
+                raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
             else:
                 value = tmp
 
