@@ -165,7 +165,7 @@ class Function(HTree[_T], Expression):
 
     def __domain__(self, *args) -> bool:
         # or self._metadata.get("extrapolate", 0) != 1:
-        if self.dims is None or len(self.dims) == 0 or self._metadata.get("extrapolate", False):
+        if self.dims is None or len(self.dims) == 0 or self._metadata.get("extrapolate",  0) != "raise":
             return True
 
         if len(args) != self.ndim:
@@ -214,7 +214,7 @@ class Function(HTree[_T], Expression):
         if value is _not_found_ or value is None:
             self._func = None
 
-        elif len(dims) == 0 or not isinstance(value, array_type) or value.size == 1:
+        elif isinstance(value, array_type) and value.size == 1:
             value = np.squeeze(value).item()
 
             if not isinstance(value, scalar_type):
@@ -233,7 +233,11 @@ class Function(HTree[_T], Expression):
 
         return self._func
 
-    def __call__(self, *args, **kwargs) -> typing.Any: return super().__call__(*args, **kwargs)
+    def __call__(self, *args, **kwargs) -> typing.Any:
+        if len(args) == 0 and len(kwargs) == 0:
+            return self
+        else:
+            return super().__call__(*args, **kwargs)
 
     def __array__(self, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符

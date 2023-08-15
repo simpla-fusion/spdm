@@ -4,7 +4,7 @@ import collections.abc
 import functools
 import inspect
 import typing
-from copy import copy,deepcopy
+from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
@@ -136,7 +136,7 @@ class HTree(typing.Generic[_T]):
 
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
 
-    def get(self, path: Path | PathLike,  default_value=_not_found_, *args,   force=False, **kwargs) -> HTree[_T] | _T:
+    def get(self, path: Path | PathLike,  default_value: typing.Any = _not_found_, *args,   force=False, **kwargs) -> HTree[_T] | _T:
 
         path = as_path(path)
         length = len(path)
@@ -295,11 +295,11 @@ class HTree(typing.Generic[_T]):
 
         if isinstance_generic(value, type_hint):
             pass
-        
+
         elif type_hint in array_type:
             if isinstance(value, (list)) or isinstance(value, array_type):
                 pass
-        
+
         elif issubclass(get_origin(type_hint), HTree):
             value = type_hint(value, entry=entry, parent=parent, *args,
                               default_value=default_value,  **kwargs)
@@ -716,7 +716,7 @@ class AoS(List[_T]):
         if self._identifier is None:
             self._identifier = self.__metadata__.get("identifier", None)
 
-    def __getitem__(self, idx: str) -> HTree[_T] | _T: return self._get(idx)
+    def __getitem__(self, idx: str) -> _T: return self._get(idx)
 
     def children(self) -> typing.Generator[_T | HTree[_T], None, None]:
         """ 遍历 children """
@@ -743,7 +743,7 @@ class AoS(List[_T]):
         cache = [self.get(k, force=True) for k in range(0, len(self), 1)]
         return self._as_child(self._default_value, None, default_value=None, entry=CombineEntry(cache, None))
 
-    def _get(self, query:   PathLike,  *args, **kwargs) -> HTree[_T] | _T:
+    def _get(self, query:   PathLike,  *args, **kwargs) -> _T:
 
         if isinstance(query, int):
             return super()._get(query)

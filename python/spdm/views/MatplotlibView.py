@@ -79,8 +79,8 @@ class MatplotlibView(View):
                 try:
                     self.draw(canvas[idx], profiles, collections.ChainMap({"x_value": x_value}, sub_styles, kwargs))
                 except Exception as error:
-                    raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
-
+                    # raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
+                    logger.debug(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ")
                 canvas[idx].legend(fontsize=fontsize)
                 canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 

@@ -38,31 +38,30 @@ class SVGView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, *args, **kwargs) -> typing.Any:
+    def render(self, obj, **kwargs) -> typing.Any:
 
         bbox = []
         contents = []
-        if len(args) == 1 and isinstance(args[0], collections.abc.Sequence):
-            args = args[0]
 
-        for obj in args:
-            if isinstance(obj, tuple):
-                obj, opts = obj
-            else:
-                opts = {}
+        logger.debug(obj)
 
-            if hasattr(obj, "__svg__"):
-                contents.append(obj.__svg__(**opts))
-                if hasattr(obj, "bbox"):
-                    bbox.append(obj.bbox)
-            elif hasattr(obj, "bbox"):
-                contents.append(obj.bbox.__svg__(**opts))
-                bbox.append(obj.bbox)
-            else:
-                logger.error(f"Can not plot {obj}")
+        if isinstance(obj, tuple):
+            obj, opts = obj
+        else:
+            opts = {}
+
+        if hasattr(obj, "__geometry__"):
+            geo, *_ = obj.__geometry__
+            contents.append(geo)
+            bbox.append(geo.bbox)
+        elif hasattr(obj, "bbox"):
+            contents.append(obj.bbox.__repr_svg__(**opts))
+            bbox.append(obj.bbox)
+        else:
+            logger.error(f"Can not plot {obj}")
 
         if bbox is None or len(bbox) == 0:
-            raise RuntimeError("SVGView.show() requires a bbox attribute")
+            raise RuntimeError(f"SVGView.show() requires a bbox attribute ")
 
         bbox = np.bitwise_or.reduce(bbox)
 

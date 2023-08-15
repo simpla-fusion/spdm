@@ -67,7 +67,7 @@ class RectInterpolateOp(Functor):
                     value = value[~mark]
                     x = x[~mark]
 
-            self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=self._extrapolate)
+            self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=0)  # self._extrapolate
         elif len(self._dims) == 2:
             if self._check_nan:
                 mark = np.isnan(value)

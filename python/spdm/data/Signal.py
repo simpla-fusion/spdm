@@ -16,7 +16,7 @@ class Signal(Function[_T]):
     def data(self) -> ArrayType: return super().__array__()
 
     @property
-    def time(self) -> ArrayType: return super().domain[0]
+    def time(self) -> ArrayType: return super()._dims[0]
 
 
 class SignalND(Field[_T]):
