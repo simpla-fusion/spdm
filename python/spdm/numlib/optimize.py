@@ -19,7 +19,7 @@ EPSILON = 1.0e-2
 
 
 def minimize_filter(func: typing.Callable[..., ScalarType | ArrayType], X, Y, width=None,
-                    tolerance: float = 0.01,
+                    tolerance: float = None,
                     method="L-BFGS-B"
                     # xmin: float, ymin: float, xmax: float, ymax: float, tolerance: float = EPSILON
                     ):
@@ -45,6 +45,13 @@ def minimize_filter(func: typing.Callable[..., ScalarType | ArrayType], X, Y, wi
     z_max = np.max(data)
 
     z_min = np.min(data)
+
+    if tolerance is None:
+        tolerance = np.abs(z_max-z_min)/np.sqrt(nx*ny)*2
+        if tolerance > 0.01 or tolerance < 0.001:
+            tolerance = 0.01
+
+        logger.debug(tolerance)
 
     if isinstance(width, collections.abc.Sequence):
         wx, wy = width

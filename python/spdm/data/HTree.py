@@ -97,7 +97,7 @@ class HTree(typing.Generic[_T]):
         from ..views.View import display
         return display(self, output="svg")
 
-    def __reduce__(self) -> _T: raise NotImplementedError(f"")
+    # def __reduce__(self) -> _T: raise NotImplementedError(f"")
 
     @property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")
@@ -139,6 +139,10 @@ class HTree(typing.Generic[_T]):
     def refresh(self, cache=None, **kwargs):
         if cache is None:
             cache = kwargs
+        if isinstance(cache, dict):
+            cache = merge_tree_recursive(self._default_value, cache)
+        # logger.debug(self._cache)
+        # logger.debug(self._default_value)
         self._cache = cache
         return self
 
