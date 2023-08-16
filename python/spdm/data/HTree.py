@@ -136,6 +136,12 @@ class HTree(typing.Generic[_T]):
 
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
 
+    def refresh(self, cache=None, **kwargs):
+        if cache is None:
+            cache = kwargs
+        self._cache = cache
+        return self
+
     def get(self, path: Path | PathLike,  default_value: typing.Any = _not_found_, *args,   force=False, **kwargs) -> HTree[_T] | _T:
 
         path = as_path(path)

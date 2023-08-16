@@ -65,21 +65,22 @@ class TimeSeriesAoS(AoS[_T]):
         if len(self) == 0:
             raise RuntimeError(f"TimeSeries is empty!")
 
-        if len(args) > 0 and isinstance(args[0], TimeSlice):
-            new_obj = args[0]
-            new_obj._parent = self._parent
-            self[-1] = new_obj
-        elif len(args) > 0 or len(kwargs) > 0:
-            type_hint = self._type_hint()
+        current_slice = self.current
+        if hasattr(current_slice.__class__, "refresh"):
+            current_slice.refresh(*args, **kwargs)
+        elif len(args) == 1 and len(kwargs) == 0:
+            current_slice.update(args[0])
+        else:
+            type_hint = self._type_hint(-1)
             new_obj = type_hint(*args, **kwargs, parent=self._parent)
             self[-1] = new_obj
-        else:
-            new_obj = self[-1]
 
-        return new_obj
+        return self[-1]
 
     def advance(self, *args, time: float = ..., **kwargs) -> _T:
+        
         self.time.append(time)
+
         if isinstance(self._default_value, collections.abc.Mapping):
             kwargs.setdefault("default_value", self._default_value)
 
