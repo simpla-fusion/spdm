@@ -177,10 +177,12 @@ class MatplotlibView(View):
             R, Z = obj.__mesh__.points
             value = np.asarray(obj.__value__)
 
-            levels = styles.get("levels", 10)
-            canvas.contour(R, Z, value,
-                           **collections.ChainMap({"levels": levels}, s_styles, {"linewidths": 0.5})
+            levels = styles.pop("levels", s_styles.pop("levels", 10))
+
+            canvas.contour(R, Z, value, levels=levels,
+                           **collections.ChainMap(s_styles, {"linewidths": 0.5})
                            )
+
         elif isinstance(obj, Expression):
 
             label = styles.get("label", None) or getattr(obj, "name", None) or str(obj)

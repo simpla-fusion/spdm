@@ -143,7 +143,7 @@ class Entry(Pluggable):
         self._data, num = self._path.remove(self._data,  **kwargs)
         return num
 
-    def fetch(self, op, *args, **kwargs) -> typing.Any:
+    def fetch(self, op=None, *args, **kwargs) -> typing.Any:
         """
             Query the Entry.
             Same function as `find`, but put result into a contianer.
@@ -252,4 +252,3 @@ def convert_from_entry(cls, obj, *args, **kwargs):
         obj = cls(obj, *args, **kwargs)
 
     return obj
-

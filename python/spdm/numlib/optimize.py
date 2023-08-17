@@ -51,8 +51,6 @@ def minimize_filter(func: typing.Callable[..., ScalarType | ArrayType], X, Y, wi
         if tolerance > 0.01 or tolerance < 0.001:
             tolerance = 0.01
 
-        logger.debug(tolerance)
-
     if isinstance(width, collections.abc.Sequence):
         wx, wy = width
     else:

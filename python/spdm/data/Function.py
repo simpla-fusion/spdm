@@ -142,6 +142,9 @@ class Function(HTree[_T], Expression):
     def rank(self) -> int: return 1
     """ 函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定 """
 
+    @property
+    def shape(self) -> typing.List[int]: return [len(d) for d in self.dims]
+
     @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
         if len(self.dims) == 0:
@@ -214,6 +217,9 @@ class Function(HTree[_T], Expression):
         if value is _not_found_ or value is None:
             self._func = None
 
+        elif isinstance(value, scalar_type):
+            self._func = ConstantsFunc(value)
+
         elif isinstance(value, array_type) and value.size == 1:
             value = np.squeeze(value).item()
 
@@ -233,27 +239,16 @@ class Function(HTree[_T], Expression):
 
         return self._func
 
-    def __call__(self, *args, **kwargs) -> typing.Any:
-        if len(args) == 0 and len(kwargs) == 0:
-            return self
-        else:
-            return super().__call__(*args, **kwargs)
-
-    def __array__(self, *args,  **kwargs) -> ArrayType:
+    def __array__(self, *args,  **kwargs) -> NumericType:
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
         value = self.__value__
 
-        if isinstance(value, array_type) and value.size > 0:
-            return value
-
-        elif self._cache is None or self._cache is _not_found_:
-            self._cache = as_array(self.__call__(*self.points), *args,  **kwargs)
-            return self._cache
-
-        else:
+        if not isinstance(value, scalar_type) and not isinstance(value, array_type):
             raise TypeError(f"{self.__class__}.__array__ \"{(value)}\"")
+
+        return value
 
     def _interpolate(self):
         value = self.__array__()
@@ -263,6 +258,12 @@ class Function(HTree[_T], Expression):
                            periods=self.periods,
                            extrapolate=self._metadata.get("extrapolate", 0)
                            )
+
+    def __call__(self, *args, **kwargs) -> typing.Any:
+        if len(args) == 0 and len(kwargs) == 0:
+            return self
+        else:
+            return super().__call__(*args, **kwargs)
 
     def derivative(self, *d, **kwargs) -> Function[_T]:
         return Function[_T](self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)

@@ -1,13 +1,16 @@
 
+import collections.abc
+import typing
+from copy import copy
+
+import numpy as np
 from scipy.interpolate import (InterpolatedUnivariateSpline,
                                RectBivariateSpline, RegularGridInterpolator,
                                UnivariateSpline, interp1d, interp2d)
-import collections.abc
-import numpy as np
+
 from ..data.Functor import Functor
-from ..utils.typing import array_type
 from ..utils.logger import logger
-import typing
+from ..utils.typing import array_type
 
 
 class RectInterpolateOp(Functor):
@@ -58,16 +61,29 @@ class RectInterpolateOp(Functor):
 
         elif len(self._dims) == 1:
             x = self._dims[0]
+
+            if len(x) == 0:
+                raise RuntimeError(f"x is empty!")
+
             if self._check_nan:
                 mark = np.isnan(value)
                 nan_count = np.count_nonzero(mark)
-                if nan_count > 0:
-                    # logger.warning(
-                    #     f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+
+                if nan_count == len(value):
+                    raise RuntimeError(f"value is NaN!")
+                elif nan_count > 0:
+                    logger.warning(
+                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
                     value = value[~mark]
                     x = x[~mark]
 
-            self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=0)  # self._extrapolate
+            try:
+                self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=0)  # self._extrapolate
+            except Exception as error:
+                logger.debug(x)
+                logger.debug(value)
+                raise RuntimeError(f"Can not create Interpolator! \n x={x} value={value}") from error
+
         elif len(self._dims) == 2:
             if self._check_nan:
                 mark = np.isnan(value)

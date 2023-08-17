@@ -6,7 +6,7 @@ import numpy as np
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
-from .HTree import AoS, Dict, List
+from .HTree import List
 from .sp_property import SpDict, sp_property
 
 
@@ -20,7 +20,7 @@ class TimeSlice(SpDict):
 _T = typing.TypeVar("_T")
 
 
-class TimeSeriesAoS(AoS[_T]):
+class TimeSeriesAoS(List[_T]):
     """
         A series of time slices, each time slice is a state of the system at a given time.
         Each slice is a dict .
@@ -78,7 +78,7 @@ class TimeSeriesAoS(AoS[_T]):
         return self[-1]
 
     def advance(self, *args, time: float = ..., **kwargs) -> _T:
-        
+
         self.time.append(time)
 
         if isinstance(self._default_value, collections.abc.Mapping):
