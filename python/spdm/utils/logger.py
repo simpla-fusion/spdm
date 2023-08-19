@@ -1,17 +1,24 @@
-import collections
+import collections.abc
+import inspect
 import logging
 import logging.handlers
-import inspect
+import os
 import pathlib
 import pprint
-import os
 import sys
 from datetime import datetime
-from inspect import getouterframes, getframeinfo,  getsourcefile, getsourcelines, stack
+from inspect import getframeinfo, stack
 
 default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
                                      '%(message)s')
+MPI_MSG = ""
+try:
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.Get_size() > 0:
+        MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
+except ImportError:
+    pass
 
 
 class CustomFormatter(logging.Formatter):
@@ -34,11 +41,12 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[0;31m"
     bold_red = "\x1b[1;31m"
     reset = "\x1b[0m"
-    format_normal = '%(asctime)s %(levelname)s [%(name)s] %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
+    format_normal = '%(asctime)s %(levelname)s [%(name)s]' + MPI_MSG + \
+        ' %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
 
     FORMATS = {
         logging.DEBUG: grey + format_normal + reset,
-        logging.INFO:  blue + '%(asctime)s %(levelname)s [%(name)s] : %(message)s' + reset,
+        logging.INFO:  blue + '%(asctime)s %(levelname)s [%(name)s]' + MPI_MSG+': %(message)s' + reset,
         logging.WARNING: brown + format_normal + reset,
         logging.ERROR: red + format_normal + reset,
         logging.CRITICAL: bold_red + format_normal + reset
