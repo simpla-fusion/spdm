@@ -8,7 +8,7 @@ os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
 
 if __name__ == '__main__':
 
-    method = 1
+    method = 2
 
     if method == 1:
         entry = open_entry(
