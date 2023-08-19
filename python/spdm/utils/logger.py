@@ -12,10 +12,12 @@ from inspect import getframeinfo, stack
 default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
                                      '%(message)s')
+
 MPI_MSG = ""
+
 try:
     from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 0:
+    if MPI.COMM_WORLD.Get_size() > 1:
         MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
 except ImportError:
     pass
@@ -41,6 +43,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[0;31m"
     bold_red = "\x1b[1;31m"
     reset = "\x1b[0m"
+
     format_normal = '%(asctime)s %(levelname)s [%(name)s]' + MPI_MSG + \
         ' %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
 
