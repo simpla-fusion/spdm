@@ -1,6 +1,8 @@
 import collections
+import collections.abc
 import functools
 import importlib
+import importlib.util
 import inspect
 import os
 import pathlib

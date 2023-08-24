@@ -52,13 +52,13 @@ setup(
     author='Zhi YU',
     author_email='yuzhi@ipp.ac.cn',
     license='MIT',
-    packages=find_namespace_packages(),  # 指定需要安装的包
-    requires=requirements,               # 项目运行依赖的第三方包
+    packages=find_namespace_packages(),     # 指定需要安装的包
+    requires=requirements,                  # 项目运行依赖的第三方包
     # extras_require={},                   # 项目运行依赖的额外包
     # package_data={},                     # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
     # data_files=[],                       # 需要安装的静态文件，如配置文件等。例如：data_files=[('/etc/spdm.conf', ['data/spdm.conf'])]
 
-    cmdclass={'build_py': BuildPyCommand, },
+    # cmdclass={'build_py': BuildPyCommand, },
 
     entry_points={},  # 项目的入口模块，即用户使用命令行安装后可调用的模块。
                       # 例如：entry_points={'console_scripts': ['spdm = spdm:main']}
