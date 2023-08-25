@@ -4,22 +4,29 @@
 # Created Time: 2015-12-28 21:58:47
 #
 
-from setuptools import setup, find_namespace_packages
-from setuptools.command.build_py import build_py
 import pathlib
+import subprocess
+
+from setuptools import find_namespace_packages, setup
+from setuptools.command.build_py import build_py
 
 # Get the long description from the README file
-with open('../README.md') as f:
+with open('README.md') as f:
     long_description = f.read()
-# Get the version from git or the VERSION file
-with open('../VERSION') as f:
-    version = f.read().strip()
+
+version = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
+
+# # Get the version from git or the VERSION file
+# with open('VERSION') as f:
+#     version = f.read().strip()
+
 # Get the requirements from the requirements.txt file
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
+with open('LICENSE.txt') as f:
+    license = f.read()
 
-import subprocess
 
 git_describe = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
 
@@ -51,8 +58,8 @@ setup(
     url='http://github.com/simpla/spdm',
     author='Zhi YU',
     author_email='yuzhi@ipp.ac.cn',
-    license='MIT',
-    packages=find_namespace_packages(),     # 指定需要安装的包
+    license=license,
+    packages=find_namespace_packages("python"),     # 指定需要安装的包
     requires=requirements,                  # 项目运行依赖的第三方包
     # extras_require={},                   # 项目运行依赖的额外包
     # package_data={},                     # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
