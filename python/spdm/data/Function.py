@@ -1,546 +1,338 @@
-import collections
+from __future__ import annotations
+
 import collections.abc
 import functools
-import inspect
-import operator
-import warnings
-from functools import cached_property
-from typing import Any, Callable, Optional, Sequence, Set, Type, Union
+import typing
+from copy import copy
 
 import numpy as np
-from scipy.interpolate import CubicSpline, PPoly
-from spdm.logger import logger
-from spdm.tags import _undefined_
 
-from ..util.misc import array_like, float_unique
-from .Entry import Entry
-from .Node import Node
+from ..numlib.calculus import (Antiderivative, Derivative, PartialDerivative,
+                               find_roots, integral)
+from ..numlib.interpolate import interpolate
+from ..utils.logger import logger
+from ..utils.misc import group_dict_by_prefix
+from ..utils.numeric import bitwise_and, is_close, meshgrid
+from ..utils.tags import _not_found_
+from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
+                            is_array, numeric_type, scalar_type, get_args, get_origin)
+from .Expression import Expression
+from .Functor import Functor, DiracDeltaFun, ConstantsFunc
+from .HTree import HTree
 
-
-def create_spline(x, y, **kwargs) -> PPoly:
-    bc_type = "periodic" if np.all(y[0] == y[-1]) else "not-a-knot"
-    try:
-        res = CubicSpline(x, y, bc_type=bc_type)
-    except ValueError as error:
-        logger.error((x, y))
-        raise error
-    return res
+_T = typing.TypeVar("_T")
 
 
-class Function:
+class Function(HTree[_T], Expression):
     """
-        NOTE: Function is immutable!!!!
+        Function
+        ---------
+        A function is a mapping between two sets, the _domain_ and the  _value_.
+        The _value_  is the set of all possible outputs of the function.
+        The _domain_ is the set of all possible inputs  to the function.
+
+        函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
+
     """
 
-    def __init__(self, x: Union[np.ndarray, Sequence] = None,
-                 y: Union[np.ndarray, float, Callable] = _undefined_, /, **kwargs):
-        if y is _undefined_:
-            y = x
-            x = None
+    def __init__(self, value, *dims, periods=None, **kwargs):
+        """
+            Parameters
+            ----------
+            value : NumericType
+                函数的值
+            mesh : typing.List[ArrayType]
+                函数的定义域
+            args : typing.Any
+                位置参数, 用于与mesh_*，coordinate* 一起构建 mesh
+            kwargs : typing.Any
+                命名参数，
+                    *           : 用于传递给 Node 的参数
+            extrapolate: int |str
+                控制当自变量超出定义域后的值
+                * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
+                * if ext=1  or 'nan', return nan
+        """
 
-        if y is None or (isinstance(y, (np.ndarray, collections.abc.Sequence)) and len(y) == 0):
-            self._y = 0
-        elif isinstance(y, Node):
-            self._y = y._entry
-        elif isinstance(y, Entry):
-            self._y = y
-        elif isinstance(y, Function):
-            if x is None:
-                x = y.x_domain
-                self._y = y._y
-            else:
-                self._y = y
-        elif isinstance(y, PPoly):
-            self._y = y
-            if x is None:
-                x = y.x
+        cache = value
+        func = None
+
+        if isinstance(cache, (Functor, Expression)):
+            func = cache
+            cache = None
+        elif callable(cache):
+            func = Functor(cache)
+            cache = None
         else:
-            self._y = y
+            cache = as_array(cache)
 
-        if x is None or len(x) == 0:
-            self._x_axis = None
-            self._x_domain = [-np.inf, np.inf]
-        elif isinstance(x, np.ndarray):
-            if len(x) == 0:
-                logger.error(f"{type(x)} {type(y)}")
-            self._x_axis = x
-            self._x_domain = [x[0], x[-1]]
-        elif isinstance(x, collections.abc.Sequence) and len(x) > 0:
-            self._x_domain = list(set(x))
-            if isinstance(y, np.ndarray):
-                self._x_axis = np.linspace(
-                    self._x_domain[0], self._x_domain[-1], len(y))
-            else:
-                self._x_axis = None
-        else:
-            self._x_domain = [-np.inf, np.inf]
-            self._x_axis = None
+        HTree.__init__(self, cache, **kwargs)
 
-        if isinstance(self._y, np.ndarray) and (self._x_axis is None or self._x_axis.shape != self._y.shape):
-            print(type(self._y))
-            raise ValueError(f"x.shape  != y.shape {x.shape}!={y.shape}")
+        Expression.__init__(self, func, label=self._metadata.get("label", None) or self._metadata.get("name", None))
 
-    @property
-    def is_valid(self) -> bool:
-        return self._x_axis is not None and self._y is not None
+        self._dims = list(dims)
+        self._periods = periods
 
-    @cached_property
-    def is_constant(self) -> bool:
-        return isinstance(self._y, (int, float))
+    def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
-    @cached_property
-    def is_periodic(self) -> bool:
-        return self.is_constant \
-            or (isinstance(self._y, np.ndarray) and np.all(self._y[0] == self._y[-1])) \
-            or np.all(self.__call__(self.x_min) == self.__call__(self.x_max))
+    def __copy_from__(self, other: Function) -> Function:
+        """ copy from other"""
 
-    @property
-    def is_bounded(self):
-        return not (self.x_min == -np.inf or self.x_max == np.inf)
-
-    @property
-    def continuous(self) -> bool:
-        return len(self.x_domain) == 2
-
-    @property
-    def x_domain(self) -> list:
-        return self._x_domain
-
-    @property
-    def x_min(self) -> float:
-        return self.x_domain[0]
-
-    @property
-    def x_max(self) -> float:
-        return self.x_domain[-1]
-
-    @property
-    def x_axis(self) -> np.ndarray:
-        return self._x_axis
-
-    def __len__(self) -> int:
-        if self.x_axis is not None:
-            return len(self.x_axis)
-        else:
-            raise RuntimeError(
-                f"Can not get length from {type(self._y)} or {type(self.x_axis)}")
-
-    def duplicate(self):
-        return self.__class__(self.x_axis, self._y)
-
-    def __array_ufunc__(self, ufunc, method, *inputs,   **kwargs):
-        return Expression(ufunc, method, *inputs, **kwargs)
-
-    def __array__(self) -> np.ndarray:
-        return self._y if isinstance(self._y, np.ndarray) else np.asarray(self.__call__(), dtype=float)
-
-    @cached_property
-    def _ppoly(self) -> PPoly:
-
-        if isinstance(self._y,  PPoly):
-            return self._y
-        elif self.x_axis is None:
-            raise ValueError(f"x_axis is None")
-        elif isinstance(self._y, np.ndarray):
-            assert(self._x_axis.size == self._y.size)
-            return create_spline(self._x_axis,  self._y)
-        else:
-            return create_spline(self._x_axis,  self.__call__())
-
-    def __call__(self, x=None, /,  **kwargs) -> Union[np.ndarray, float]:
-        if x is None:
-            x = self._x_axis
-
-        if x is None:
-            raise RuntimeError(f"x_axis is None!")
-
-        if x is self._x_axis and isinstance(self._y, np.ndarray):
-            return self._y
-
-        if self._y is None:
-            raise RuntimeError(f"Illegal function! y is None {self.__class__}")
-        elif isinstance(self._y, (int, float)):
-            if isinstance(x, np.ndarray):
-                return np.full(x.shape, self._y)
-            else:
-                return self._y
-        elif hasattr(self._y, "__array__"):
-            return self._y.__array__()
-        # elif isinstance(self._y, EntryCombine):
-        #     val = [array_like(x, d) for d in self._y._cache]
-        #     return functools.reduce(operator.__add__, val[1:], val[0])
-        elif callable(self._y):
-            return np.asarray(self._y(x, **kwargs), dtype=float)
-        elif x is not self._x_axis and isinstance(self._y, np.ndarray):
-            return self._ppoly(x, **kwargs)
-        else:
-            raise TypeError((type(x), type(self._y)))
-
-    def resample(self, x_min, x_max=None, /, **kwargs):
-        if x_min is None or (x_max is not None and x_min <= self.x_min and self.x_max <= x_max):
-            if len(kwargs) > 0:
-                logger.warning(f"ignore key-value arguments {kwargs.keys()}")
-                # TODO: Insert points in rapidly changing places.
+        Expression.__copy_from__(self, other)
+        HTree.__copy_from__(self, other)
+        if isinstance(other, Function):
+            self._dims = other._dims
+            self._periods = other._periods
             return self
-        elif x_max is None:
-            return Function(x_min, self.__call__(x_min, **kwargs))
 
-        x_min = max(self.x_min, x_min)
-        x_max = min(self.x_max, x_max)
+    def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"__serialize__")
 
-        if x_min > x_max or np.isclose(x_min, x_max) or x_max <= self.x_min:
-            raise ValueError(f"{x_min,x_max}  not in  {self.x_min,self.x_max}")
-        elif isinstance(self.x_axis, np.ndarray):
-            idx_min = np.argmax(self.x_axis >= x_min)
-            idx_max = np.argmax(self.x_axis > x_max)
-            if idx_max > idx_min:
+    @classmethod
+    def __deserialize__(cls, *args, **kwargs) -> Function: raise NotImplementedError(f"__deserialize__")
+
+    def __getitem__(self, idx) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
+
+    def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
+
+    @property
+    def dims(self) -> typing.List[ArrayType]:
+        """ 函数的网格，即定义域的网格 """
+        if len(self._dims) > 0:
+            return self._dims
+
+        parent = self._parent  # kwargs.get("parent", None)
+        metadata = self._metadata  # kwargs.get("metadata", None)
+        if isinstance(parent, HTree) and isinstance(metadata, collections.abc.Mapping):
+            coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
+            if isinstance(coordinates, collections.abc.Mapping):
+                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+
+            if coordinates is not None and len(coordinates) > 0:
+                self._dims = [as_array(self.get(c) if isinstance(c, str) else c)
+                              for c in coordinates.values()]
+
+        if self._dims is not None and len(self.periods) > 0:
+            dims = [as_array(v) for v in self._dims]
+
+            periods = self.periods
+
+            for idx in range(len(dims)):
+                if periods[idx] is not np.nan and not np.isclose(dims[idx][-1]-dims[idx][0], periods[idx]):
+                    raise RuntimeError(
+                        f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] ")
+                if not np.all(dims[idx][1:] > dims[idx][:-1]):
+                    raise RuntimeError(
+                        f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
+
+        return self._dims
+
+    @property
+    def periods(self) -> typing.List[ArrayType]:
+        if self._periods is not None:
+            return self._periods
+        self._periods = self._metadata.get("periods", [])
+        return self._periods
+
+    @property
+    def ndim(self) -> int: return len(self.dims)
+    """ 函数的维度，函数所能接收参数的个数。 """
+
+    @property
+    def rank(self) -> int: return 1
+    """ 函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定 """
+
+    @property
+    def shape(self) -> typing.List[int]: return [len(d) for d in self.dims]
+
+    @functools.cached_property
+    def points(self) -> typing.List[ArrayType]:
+        if len(self.dims) == 0:
+            raise RuntimeError(self.dims)
+        elif len(self.dims) == 1:
+            return self.dims
+        else:
+            return meshgrid(*self.dims, indexing="ij")
+
+    @functools.cached_property
+    def bbox(self) -> typing.Tuple[typing.List[float], typing.List[float]]:
+        """ 函数的定义域 """
+        return tuple(([d[0], d[-1]] if not isinstance(d, float) else [d, d]) for d in self.dims)
+
+    def _type_hint(self, path=None) -> typing.Type:
+        tp = get_args(get_origin(self))
+        if len(tp) == 0:
+            return float
+        else:
+            return tp[-1]
+
+    def __domain__(self, *args) -> bool:
+        # or self._metadata.get("extrapolate", 0) != 1:
+        if self.dims is None or len(self.dims) == 0 or self._metadata.get("extrapolate",  0) != "raise":
+            return True
+
+        if len(args) != self.ndim:
+            raise RuntimeError(f"len(args) != len(self.dims) {len(args)}!={len(self.dims)}")
+
+        v = []
+        for i, (xmin, xmax) in enumerate(self.bbox):
+            v.append((args[i] >= xmin) & (args[i] <= xmax))
+
+        return bitwise_and.reduce(v)
+
+    def __functor__(self) -> Functor:
+        """
+            对函数进行编译，用插值函数替代原始表达式，提高运算速度
+
+            NOTE：
+                - 由 points，value  生成插值函数，并赋值给 self._ppoly。 插值函数相对原始表达式的优势是速度快，缺点是精度低。
+                - 当函数为expression时，调用 value = self.__call__(*points) 。
+            TODO:
+                - 支持 JIT 编译, support JIT compile
+                - 优化缓存
+                - 支持多维插值
+                - 支持多维求导，自动微分 auto diff
+
+            Parameters
+            ----------
+            d : typing.Any
+                order of function
+            force : bool
+                if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
+
+        """
+
+        func = super().__functor__()
+
+        if isinstance(func, (Functor, Expression)):
+            return func
+
+        elif func is not None:
+            raise RuntimeError(f"expr is not array_type! {type(func)}")
+
+        dims = self.dims
+
+        value = self.__value__
+
+        if value is _not_found_ or value is None:
+            self._func = None
+
+        elif isinstance(value, scalar_type):
+            self._func = ConstantsFunc(value)
+
+        elif isinstance(value, array_type) and value.size == 1:
+            value = np.squeeze(value).item()
+
+            if not isinstance(value, scalar_type):
+                raise RuntimeError(f"TODO:  {value}")
+
+            self._func = ConstantsFunc(value)
+
+        elif all([(not isinstance(v, array_type) or v.size == 1) for v in dims]):
+            self._func = DiracDeltaFun(value, [float(v) for v in self.dims])
+
+        elif all([(isinstance(v, array_type) and v.ndim == 1 and v.size > 0) for v in dims]):
+            self._func = self._interpolate()
+
+        else:
+            raise RuntimeError(f"TODO: {dims} {value}")
+
+        return self._func
+
+    def __array__(self, *args,  **kwargs) -> NumericType:
+        """ 重载 numpy 的 __array__ 运算符
+                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
+        """
+        value = self.__value__
+
+        if not isinstance(value, scalar_type) and not isinstance(value, array_type):
+            raise TypeError(f"{self.__class__}.__array__ \"{(value)}\"")
+
+        return value
+
+    def _interpolate(self):
+        value = self.__array__()
+        if not isinstance(value, array_type):
+            raise RuntimeError(f"self.__array__ is not array_type! {(value)}")
+        return interpolate(value, *self.dims,
+                           periods=self.periods,
+                           extrapolate=self._metadata.get("extrapolate", 0)
+                           )
+
+    def __call__(self, *args, **kwargs) -> typing.Any:
+        if len(args) == 0 and len(kwargs) == 0:
+            return self
+        else:
+            return super().__call__(*args, **kwargs)
+
+    def derivative(self, *d, **kwargs) -> Function[_T]:
+        return Function[_T](self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+
+    def partial_derivative(self, *d, **kwargs) -> Function[_T]:
+        return Function[_T](self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+
+    def antiderivative(self, *d, **kwargs) -> Function[_T]:
+        return Function[_T](self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+
+    def d(self, n=1) -> Expression: return self.derivative(n)
+
+    def pd(self, *d) -> Expression: return self.partial_derivative(*d)
+
+    def dln(self) -> Expression: return self.derivative() / self
+
+    def integral(self, *args, **kwargs) -> _T: return integral(self, *args, **kwargs)
+
+    def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+        yield from find_roots(self, *args, **kwargs)
+
+    def pullback(self, *dims, periods=None) -> Function:
+
+        other = copy(self)
+
+        if len(dims) != len(self.dims):
+            raise RuntimeError(f"len(dims) != len(self._dims) {len(dims)}!={len(self.dims)}")
+        new_dims = []
+        for idx, d in enumerate(dims):
+            if is_array(d) and len(d) == len(self.dims[idx]):
                 pass
-            elif idx_max == 0 and np.isclose(self.x_axis[-1], x_max):
-                idx_max = -1
+            elif callable(d):
+                d = d(self.dims[idx])
             else:
-                logger.debug((x_min, x_max, idx_min, idx_max, self.x_axis))
-            if isinstance(self._y, np.ndarray):
-                return Function(self.x_axis[idx_min:idx_max], self._y[idx_min:idx_max])
-            else:
-                return Function(self.x_axis[idx_min:idx_max],  self.__call__(self.x_axis[idx_min:idx_max]))
-        elif callable(self._y) or isinstance(self._y, Entry):
-            return Function([x_min, x_max], self._y)
+                raise RuntimeError(f"dims does not match {dims}")
+
+            new_dims.append(d)
+
+        other._dims = new_dims
+
+        return other
+
+    def validate(self, value=None, strict=False) -> bool:
+        """ 检查函数的定义域和值是否匹配 """
+
+        m_shape = tuple(self.shape)
+
+        v_shape = ()
+
+        if value is None:
+            value = self.__value__()
+
+        if value is None:
+            raise RuntimeError(f" value is None! {self.__str__()}")
+
+        if isinstance(value, array_type):
+            v_shape = tuple(value.shape)
+
+        if (v_shape == m_shape) or (v_shape[:-1] == m_shape):
+            return True
+        elif strict:
+            raise RuntimeError(f" value.shape is not match with dims! {v_shape}!={m_shape} ")
         else:
-            raise TypeError((type(self.x_axis), type(self._y)))
-            # return x_axis, np.asarray(self.__call__(x_axis), dtype=float)
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}  type={type(self._y)}/>"
-
-    def __float__(self) -> float:
-        if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
-            return float(self._y)
-        else:
-            raise TypeError(
-                f"Can not convert {type(self._y)} to float. {getattr(self._y,'shape',None)}")
-
-    def __int__(self) -> int:
-        if isinstance(self._y, (int, float)) or ((isinstance(self._y, np.ndarray)) and len(self._y.shape) == 0):
-            return int(self._y)
-        else:
-            raise TypeError(f"Can not convert {type(self._y)} to float")
-
-    def __getitem__(self, idx):
-        if isinstance(self._y, np.ndarray):
-            return self._y[idx]
-        elif isinstance(self.x_axis, np.ndarray):
-            return self.__call__(self.x_axis[idx])
-        else:
-            raise RuntimeError(
-                f"x is {type(self.x_axis)} ,y is {type(self._y)}")
-
-    # def __setitem__(self, idx, value):
-    #     if hasattr(self, "_ppoly"):
-    #         delattr(self, "_ppoly")
-    #     self.__real_array__()[idx] = value
-    # def _prepare(self, x, y):
-    #     if not isinstance(x, [collections.abc.Sequence, np.ndarray]):
-    #         x = np.asarray([x])
-    #     if isinstance(y, [collections.abc.Sequence, np.ndarray]):
-    #         y = np.asarray(y)
-    #     elif y is not None:
-    #         y = np.asarray([y])
-    #     else:
-    #         y = self.__call__(x)
-    #     return x, y
-    # def insert(self, x, y=None):
-    #     res = Function(*self._prepare(x, y), func=self._func)
-    #     raise NotImplementedError('Insert points!')
-    #     return res
-    # def __len__(self):
-    #     return len(self.x) if self.x is not None else 0
-
-    def derivative(self, x=None) -> np.ndarray:
-        if x is None:
-            return Function(self._ppoly.derivative())
-        else:
-            return self._ppoly.derivative()(x)
-
-    def antiderivative(self, x=None) -> np.ndarray:
-        if x is None:
-            return Function(self._ppoly.antiderivative())
-        else:
-            return self._ppoly.antiderivative()(x)
-
-    def dln(self, x=None):
-        if x is None:
-            # v = self._ppoly(self.x_axis)
-            # x = (self.x_axis[:-1]+self.x_axis[1:])*0.5
-            # return Function(x, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (self.x_axis[1:]-self.x_axis[:-1])*2.0)
-            return Function(self.x_axis, self._ppoly.derivative()(self.x_axis)/self._ppoly(self.x_axis))
-        else:
-            return self.dln()(x)
-            # v = self._ppoly(x)
-            # return Function((x[:-1]+x[1:])*0.5, (v[1:]-v[:-1]) / (v[1:]+v[:-1]) / (x[1:] - x[:-1])*2.0)
-            # return self._ppoly.derivative()(x)/self._ppoly(x)
-
-    def invert(self, x=None):
-        if x is None:
-            return Function(self.__array__(), self.x_axis)
-        else:
-            return Function(self.__call__(x), x)
-
-    def pullback(self, source: np.ndarray, target: np.ndarray):
-        if source.shape != target.shape:
-            raise ValueError(
-                f"The shapes of axies don't match! {source.shape}!={target.shape}")
-
-            # if len(args) == 0:
-            #     raise ValueError(f"missing arguments!")
-            # elif len(args) == 2 and args[0].shape == args[1].shape:
-            #     x0, x1 = args
-            #     y = self(x0)
-            # elif isinstance(args[0], Function) or callable(args[0]):
-            #     logger.warning(f"FIXME: not complete")
-            #     x1 = args[0](self.x)
-            #     y = self.view(np.ndarray)
-            # elif isinstance(args[0], np.ndarray):
-            #     x1 = args[0]
-            #     y = self(x1)
-            # else:
-            #     raise TypeError(f"{args}")
-
-        return Function(target, np.asarray(self(source), dtype=float))
-
-    def integrate(self, a=None, b=None):
-        return self._ppoly.integrate(a or self.x[0], b or self.x[-1])
+            logger.warning(f" value.shape is not match with dims! {v_shape}!={m_shape} ")
+            return False
 
 
-def function_like(x, y) -> Function:
-    if isinstance(y, Function):
+def function_like(y: NumericType, *args: NumericType, **kwargs) -> Function:
+    if len(args) == 0 and isinstance(y, Function):
         return y
     else:
-        return Function(x, y)
-
-# __op_list__ = ['abs', 'add', 'and',
-#                #  'attrgetter',
-#                'concat',
-#                # 'contains', 'countOf',
-#                'delitem', 'eq', 'floordiv', 'ge',
-#                # 'getitem',
-#                'gt',
-#                'iadd', 'iand', 'iconcat', 'ifloordiv', 'ilshift', 'imatmul', 'imod', 'imul',
-#                'index', 'indexOf', 'inv', 'invert', 'ior', 'ipow', 'irshift',
-#                #    'is_', 'is_not',
-#                'isub',
-#                # 'itemgetter',
-#                'itruediv', 'ixor', 'le',
-#                'length_hint', 'lshift', 'lt', 'matmul',
-#                #    'methodcaller',
-#                'mod',
-#                'mul', 'ne', 'neg', 'not', 'or', 'pos', 'pow', 'rshift',
-#                #    'setitem',
-#                'sub', 'truediv', 'truth', 'xor']
-
-
-_uni_ops = {
-    '__neg__': np.negative,
-}
-
-for name, op in _uni_ops.items():
-    setattr(Function,  name, lambda s, _op=op: _op(s))
-
-_bi_ops = {
-
-    # Add arguments element-wise.
-    "__add__": np.add,
-    # (x1, x2, / [, out, where, casting, …]) Subtract arguments, element-wise.
-    "__sub__": np.subtract,
-    # multiply(x1, x2, / [, out, where, casting, …])  Multiply arguments element-wise.
-    "__mul__": np.multiply,
-    # (x1, x2, / [, out, casting, order, …])   Matrix product of two arrays.
-    "__matmul__": np.matmul,
-    # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
-    "__truediv__": np.true_divide,
-    # Return x to the power p, (x**p).
-    "__pow__": np.power,
-    "__eq__": np.equal,
-    "__ne__": np.not_equal,
-    "__lt__": np.less,
-    "__le__": np.less_equal,
-    "__gt__": np.greater_equal,
-    "__ge__": np.greater_equal,
-}
-
-for name, op in _bi_ops.items():
-    setattr(Function,  name, lambda s, other, _op=op: _op(s, other))
-
-_rbi_ops = {
-    # Add arguments element-wise.
-    "__radd__": np.add,
-    # (x1, x2, / [, out, where, casting, …]) Subtract arguments, element-wise.
-    "__rsub__": np.subtract,
-    # multiply(x1, x2, / [, out, where, casting, …])  Multiply arguments element-wise.
-    "__rmul__": np.multiply,
-    # (x1, x2, / [, out, casting, order, …])   Matrix product of two arrays.
-    "__rmatmul__": np.matmul,
-    # (x1, x2, / [, out, where, casting, …])   Returns a true division of the inputs, element-wise.
-    "__rtruediv__": np.divide,
-    # Return x to the power p, (x**p).
-    "__rpow__": np.power
-}
-
-for name, op in _rbi_ops.items():
-    setattr(Function,  name, lambda s, other, _op=op: _op(other, s))
-
-
-class PiecewiseFunction(Function):
-    def __init__(self, x, y, *args,    **kwargs) -> None:
-        super().__init__(x, y, *args,    **kwargs)
-        assert(len(x) == len(y)+1)
-
-    def resample(self, x_min, x_max=None, /, **kwargs):
-        x_min = x_min or -np.inf
-        x_max = x_max or np.inf
-        if x_min <= self.x_min and x_max >= self.x_max:
-            return self
-        cond_list = []
-        func_list = []
-        for idx, xp in enumerate(self.x_domain[:-1]):
-            if x_max <= xp:
-                break
-            elif x_min >= self.x_domain[idx+1]:
-                continue
-
-            if x_min <= xp:
-                cond_list.append(xp)
-                func_list.append(self._y[idx])
-            if x_max < self.x_domain[idx+1]:
-                break
-        if len(cond_list) == 0:
-            return None
-        else:
-            cond_list.append(min(x_max, self.x_domain[-1]))
-            return PiecewiseFunction(cond_list, func_list)
-
-    def __call__(self, x: Union[float, np.ndarray] = None) -> np.ndarray:
-        if x is None:
-            x = self.x_axis
-        elif not isinstance(x, (int, float, np.ndarray)):
-            x = np.asarray(x, dtype=float)
-
-        if isinstance(x, np.ndarray) and len(x) == 1:
-            x = x[0]
-
-        if isinstance(x, np.ndarray):
-            cond_list = [np.logical_and(self.x_domain[idx] <= x, x < self.x_domain[idx+1])
-                         for idx in range(len(self.x_domain)-1)]
-            cond_list[-1] = np.logical_or(cond_list[-1],
-                                          np.isclose(x, self.x_domain[-1]))
-            return np.piecewise(x, cond_list, self._y)
-        elif isinstance(x, (int, float)):
-
-            if np.isclose(x, self.x_domain[0]):
-                idx = 0
-            elif np.isclose(x, self.x_domain[-1]):
-                idx = -1
-            else:
-                try:
-                    idx = next(i for i, val in enumerate(
-                        self.x_domain) if val >= x)-1
-                except StopIteration:
-                    idx = None
-            if idx is None:
-                raise ValueError(
-                    f"Out of range! {x} not in ({self.x_domain[0]},{self.x_domain[-1]})")
-
-            return self._y[idx](x)
-        else:
-            raise TypeError(type(x))
-
-
-class Expression(Function):
-    def __init__(self, ufunc, method, *inputs,  **kwargs) -> None:
-        super().__init__(inputs)
-        self._ufunc = ufunc
-        self._method = method
-        self._kwargs = kwargs
-
-    def __repr__(self) -> str:
-        def repr(expr):
-            if isinstance(expr, Function):
-                return expr.__repr__()
-            elif isinstance(expr, np.ndarray):
-                return f"<{expr.__class__.__name__} />"
-            else:
-                return expr
-
-        return f"""<{self.__class__.__name__} op='{self._ufunc.__name__}' > {[repr(a) for a in self._y]} </ {self.__class__.__name__}>"""
-
-    @cached_property
-    def x_domain(self) -> list:
-        res = []
-        x_min = -np.inf
-        x_max = np.inf
-        for f in self._y:
-            if not isinstance(f, Function) or f.x_domain is None:
-                continue
-            x_min = max(f.x_min, x_min)
-            x_max = min(f.x_max, x_max)
-            res.extend(f.x_domain)
-        return float_unique(res, x_min, x_max)
-
-    @cached_property
-    def x_axis(self) -> np.ndarray:
-        axis = None
-        is_changed = False
-        for f in self._y:
-            if not isinstance(f, Function) or f.x_axis is None or axis is f.x_axis:
-                continue
-            elif axis is None:
-                axis = f.x_axis
-            else:
-                axis = np.hstack([axis, f.x_axis])
-                is_changed = True
-
-        if is_changed:
-            axis = float_unique(axis, self.x_min, self.x_max)
-        return axis
-
-    def resample(self, x_min, x_max=None, /, **kwargs):
-        inputs = [(f.resample(x_min, x_max, **kwargs)
-                   if isinstance(f, Function) else f) for f in self._y]
-        return Expression(self._ufunc, self._method, *inputs, **self._kwargs)
-
-    def __call__(self, x: Optional[Union[float, np.ndarray]] = None, *args, **kwargs) -> np.ndarray:
-
-        if x is None or (isinstance(x, list) and len(x) == 0):
-            x = self.x_axis
-
-        if x is None:
-            raise RuntimeError(f"Can not get x_axis!")
-
-        def wrap(x, d):
-            if d is None:
-                res = 0
-            elif isinstance(d, Function):
-                res = np.asarray(d(x), dtype=float)
-            elif not isinstance(d, np.ndarray) or len(d.shape) == 0:
-                res = d
-            elif self.x_axis is not None and d.shape == self.x_axis.shape:
-                res = np.asarray(Function(self.x_axis, d)(x), dtype=float)
-            elif d.shape == x.shape:
-                res = d
-            else:
-                raise ValueError(
-                    f"{getattr(self.x_axis,'shape',[])} {x.shape} {type(d)} {d.shape}")
-            return res
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error")
-            try:
-                res = self._ufunc(*[wrap(x, d) for d in self._y])
-            except RuntimeWarning as warning:
-                logger.error((self._ufunc, [wrap(x, d) for d in self._y]))
-                logger.exception(warning)
-                raise RuntimeError(warning)
-        return res
-
-        # if self._method != "__call__":
-        #     op = getattr(self._ufunc, self._method)
-        #     res = op(*[wrap(x, d) for d in self._y])
+        return Function(y, *args, **kwargs)

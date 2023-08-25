@@ -1,6 +1,6 @@
 from spdm.data import file
 import pprint
-from spdm.logger import logger
+from ..util.logger import logger
 
 if __name__ == "__main__":
     d = File("/home/salmon/workspace/fytok/external/SpDB/examples/data/g063982.04800",

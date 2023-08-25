@@ -5,15 +5,15 @@ import re
 from functools import cached_property
 
 import numpy as np
-from spdm.logger import logger
-from spdm.util.urilib import urisplit, uriunsplit
+from ..util.logger import logger
+from spdm.utils.urilib import uri_split, uri_merge
 
 import MDSplus as mds
 
 from spdm.data.Collection import Collection
 from spdm.data.Document import Document
 from spdm.data.Entry import Entry
-from ...util.dict_util import format_string_recursive
+from ...util.tree_utils import format_string_recursive
 
 
 class MDSplusEntry(Entry):

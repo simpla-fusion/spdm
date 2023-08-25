@@ -9,15 +9,22 @@
 
   "python.testing.unittestEnabled": true,
 
-  "python.testing.unittestArgs": [
-    "--verbose",
-    "--start-directory",
-    "tests/python",
-    "-p",
-
-    "test_*.py"
-  ],
+  // "python.testing.unittestArgs": [
+  //   "--verbose",
+  //   "--start-directory",
+  //   "tests/python",
+  //   "-p",
+  //   "test_*.py"
+  // ],
   "terminal.integrated.env.linux": {
     "PYTHONPATH": "${workspaceFolder}/python:${env:PYTHONPATH}"
-  }
+  },
+  "cSpell.words": [
+    "efit",
+    "geqdsk",
+    "mdsplus"
+  ],
+  // "python.analysis.typeCheckingMode": "basic",
+  "cmake.configureOnOpen": false,
+  "python.analysis.typeCheckingMode": "basic"
 }

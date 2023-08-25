@@ -6,7 +6,7 @@ sys.path.append("/home/salmon/workspace/SpDev/SpDB")
 import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data import Document
-from spdm.logger import logger
+from ..util.logger import logger
 
 
 
@@ -44,8 +44,8 @@ if __name__ == '__main__':
     #               for time_slice in entry.equilibrium.time_slice[1:10]])
 
     # plt.contour(
-    #     entry.equilibrium.time_slice[1].profiles_2d.grid.dim1.__value__(),
-    #     entry.equilibrium.time_slice[1].profiles_2d.grid.dim2.__value__(),
+    #     entry.equilibrium.time_slice[1].profiles_2d.Mesh.dim1.__value__(),
+    #     entry.equilibrium.time_slice[1].profiles_2d.Mesh.dim2.__value__(),
     #     entry.equilibrium.time_slice[1].profiles_2d.psi.__value__(),
     #     levels =30,linewidths=0.4
     #     )

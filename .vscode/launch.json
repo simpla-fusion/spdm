@@ -12,9 +12,9 @@
       "console": "integratedTerminal",
       "justMyCode": false,
       "cwd": "${workspaceFolder}/../output",
-      // "env": {
-      //   "PYTHONPATH": "${workspaceFolder}/python"
-      // }
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/python"
+      }
     }
   ]
 }

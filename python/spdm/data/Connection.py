@@ -1,43 +1,127 @@
-import collections.abc
-from copy import deepcopy
+from __future__ import annotations
+
+import typing
 from enum import Flag, auto
-from typing import Mapping, TypeVar, Union
-import pathlib
-from spdm.logger import logger
-from spdm.util.urilib import urisplit_as_dict
 
-from spdm.SpObject import SpObject
-
-_TConnection = TypeVar('_TConnection', bound='Connection')
+from ..utils.plugin import Pluggable
+from ..utils.uri_utils import URITuple, uri_split
+from .Entry import Entry
 
 
-class Connection(SpObject):
+class Connection(Pluggable):
+    """
+        Connection like object
+    """
+    _plugin_registry = {}
+
     class Mode(Flag):
-        r = auto()  # open for reading (default)
-        w = auto()  # open for writing, truncating the file first
-        x = auto()  # open for exclusive creation, failing if the file already exists
-        a = auto()  # open for writing, appending to the end of the file if it exists
+        read = auto()       # open for reading (default)
+        write = auto()      # open for writing, truncating the file first
+        create = auto()     # open for exclusive creation, failing if the file already exists
+        append = read | write | create
+        temporary = auto()  # is temporary
+    """
+        r       Readonly, file must exist (default)
+        r+      Read/write, file must exist
+        w       Create file, truncate if exists
+        w- or x Create file, fail if exists
+        a       Read/write if exists, create otherwise
+    """
+    MOD_MAP = {Mode.read: "r",
+               Mode.read | Mode.write: "rw",
+               Mode.write: "x",
+               Mode.write | Mode.create: "w",
+               Mode.read | Mode.write | Mode.create: "a",
+               }
+    INV_MOD_MAP = {"r": Mode.read,
+                   "rw": Mode.read | Mode.write,
+                   "x": Mode.write,
+                   "w": Mode.write | Mode.create,
+                   "a": Mode.read | Mode.write | Mode.create,
+                   }
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__()
+    class Status(Flag):
+        opened = auto()
+        closed = auto()
+
+    @classmethod
+    def __dispatch__init__(cls, name_list, self, uri, *args, **kwargs):
+        if name_list is None:
+            # guess plugin name from uri
+            name_list = []
+        super().__dispatch__init__(name_list, self, uri, *args, **kwargs)
+
+    def __init__(self, uri, *args, mode=Mode.read, **kwargs):
+        """
+         r       Readonly, file must exist (default)
+         rw      Read/write, file must exist
+         w       Create file, truncate if exists
+         x       Create file, fail if exists
+         a       Read/write if exists, create otherwise
+        """
+        if self.__class__ is Connection:
+            return Connection.__dispatch__init__(None, self, uri, *args, **kwargs)
+
+        self._uri = uri_split(uri)
+        self._mode = Connection.INV_MOD_MAP[mode] if isinstance(mode, str) else mode
+        self._is_open = False
 
     def __del__(self):
         if self.is_open:
             self.close()
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} path={self.uri.path} protocol={self.uri.protocol} format={self.uri.format}>"
+
+    @property
+    def uri(self) -> URITuple:
+        return self._uri
+
+    @property
+    def path(self) -> typing.Any:
+        return self.uri.path
+
+    @property
+    def mode(self) -> Mode:
+        return self._mode
+
+    # @property
+    # def mode_str(self) -> str:
+    #     return ''.join([(m.name[0]) for m in list(Connection.Mode) if m & self._mode])
+
+    @property
+    def is_readable(self) -> bool:
+        return bool(self._mode & Connection.Mode.read)
+
+    @property
+    def is_writable(self) -> bool:
+        return bool(self._mode & Connection.Mode.write)
+
+    @property
+    def is_creatable(self) -> bool:
+        return bool(self._mode & Connection.Mode.create)
+
+    @property
+    def is_temporary(self) -> bool:
+        return bool(self._mode & Connection.Mode.temporary)
+
     @property
     def is_open(self) -> bool:
-        return False
+        return self._is_open
 
-    def open(self) -> _TConnection:
-        # logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
+    def open(self) -> Connection:
+        self._is_open = True
         return self
 
     def close(self) -> None:
-        # logger.debug(f"[{self.__class__.__name__}]: {self._metadata}")
+        self._is_open = False
         return
 
-    def __enter__(self) -> _TConnection:
+    @property
+    def entry(self) -> Entry:
+        raise NotImplementedError()
+
+    def __enter__(self) -> Connection:
         return self.open()
 
     def __exit__(self, exc_type, exc_value, traceback):

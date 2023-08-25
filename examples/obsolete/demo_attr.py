@@ -1,6 +1,6 @@
 import functools
 from spdm.data.AttributeTree import attribute
-from spdm.logger import logger
+from ..util.logger import logger
 
 
 class Doo:

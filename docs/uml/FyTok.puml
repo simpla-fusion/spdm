@@ -7,13 +7,13 @@ object Tokamak
 
 object Equilibrium 
 
-object RZGrid
+object RZMesh
 
 map Equilibrium {
    psirz
    boundary
    limiter
-   coordinates  => RZGrid 
+   coordinates  => RZMesh 
 }
 
 Coordinates --* Equilibrium

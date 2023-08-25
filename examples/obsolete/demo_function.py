@@ -4,9 +4,9 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import constants
-from spdm.util.plot_profiles import plot_profiles
+from spdm.utils.plot_profiles import plot_profiles
 from spdm.data import Function
-from spdm.logger import logger
+from ..util.logger import logger
 
 if __name__ == '__main__':
 

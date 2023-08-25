@@ -3,14 +3,14 @@ from typing import Generic, TypeVar
 from .Dict import Dict
 from .Edge import Edge
 from .List import List
-from .Node import Node
+from .HTree import HTree
 
 _TObject = TypeVar("_TObject")
 _TPath = TypeVar("_TPath")
 _TKey = TypeVar("_TKey")
 
 
-class Graph(Node, Dict[_TKey, _TObject]):
+class Graph(HTree, Dict[_TKey, _TObject]):
     """Represents '''Graph'''.
         * defines namespace for the '''Node'''s
         * Graph is a Node

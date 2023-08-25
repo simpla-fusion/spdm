@@ -1,106 +1,67 @@
+from __future__ import annotations
+
 import collections
-from copy import deepcopy
-import functools
+import collections.abc
 import pathlib
-from functools import cached_property, reduce
-from typing import (Any, Callable, Generic, Iterator, Mapping, MutableMapping,
-                    MutableSequence, Optional, Protocol, Sequence, Tuple, Type,
-                    TypeVar, Union)
+import typing
 
-from spdm.util.urilib import urisplit_as_dict
-
-from spdm.SpObject import SpObject
-
-from spdm.logger import logger
+from ..utils.logger import logger
+from ..utils.sp_export import sp_load_module
+from ..utils.tags import _undefined_
+from ..utils.uri_utils import URITuple, uri_split
+from .Collection import Collection, InsertOneResult
 from .Connection import Connection
 from .Entry import Entry
-
-from ..plugins.data import file as file_plugins
-
-_TFile = TypeVar('_TFile', bound='File')
 
 
 class File(Connection):
     """
         File like object
     """
-
-    def __new__(cls, path, *args, format=None, mode="r", **kwargs):
-        if cls is not File:
-            return SpObject.__new__(cls)
-
-        if isinstance(path, collections.abc.Mapping):
-            metadata = deepcopy(path)
-        elif isinstance(path, str):
-            metadata = urisplit_as_dict(path)
-        elif isinstance(path, (list, pathlib.PosixPath)):
-            metadata = {"path": path}
-
-        if metadata.get("protocol", None) is None:
-            metadata["protocol"] = "file"
-
-        if mode is not None:
-            metadata["mode"] = mode
-
-        cls_name = metadata.get("$class", None)
-
-        if cls_name is None:
-            format = metadata.get("format", format)
-            if format is None:
-                path = metadata.get("path", "")
-                if isinstance(path, str):
-                    format = pathlib.Path(path).suffix[1:]
-                elif isinstance(path, pathlib.PosixPath):
-                    format = path.suffix[1:]
+    @classmethod
+    def __dispatch__init__(cls, name_list, self, path, *args, **kwargs) -> None:
+        if name_list is None:
+            n_cls_name = ''
+            if "format" in kwargs:
+                n_cls_name = kwargs.get("format")
+            elif isinstance(path, collections.abc.Mapping):
+                n_cls_name = path.get("$class", None)
+            elif isinstance(path,   pathlib.PosixPath):
+                n_cls_name = path.suffix[1:].upper()
+            elif isinstance(path, (str, URITuple)):
+                uri = uri_split(path)
+                if isinstance(uri.format, str):
+                    n_cls_name = uri.format
                 else:
-                    format = "text"
-            cls_name = f".data.file.{format}"
-        metadata["$class"] = cls_name.lower()
+                    n_cls_name = pathlib.PosixPath(uri.path).suffix[1:].upper()
+            if n_cls_name == ".":
+                n_cls_name = ".text"
 
-        return SpObject.new_object(metadata)
+            #  f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
 
-    def __init__(self,  *args,   **kwargs):
-        super().__init__(*args, **kwargs)
+            name_list = [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
 
-        logger.debug(f"Open {self.__class__.__name__}: {self.path} mode='{kwargs.get('mode','r')}'")
+        if name_list is None or len(name_list) == 0:
+            return super().__init__(self, path, *args, **kwargs)
+        else:
+            return super().__dispatch__init__(name_list, self, path, *args, **kwargs)
 
-        protocol = self._metadata.get("protocol", None)
-
-        if protocol in ("local",  None):
-            self._metadata["protocol"] = "file"
-        elif protocol in ("http", "https", "ssh"):
-            raise NotImplementedError(
-                f"TODO: Access to remote files [{protocol}] is not yet implemented!")
-        elif protocol != "file":
-            raise NotImplementedError(f"Unsupported protocol {protocol}")
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} path={self.path}>"
+    def __init__(self, path: str | pathlib.Path, *args,  **kwargs):
+        if self.__class__ is File:
+            File.__dispatch__init__(None, self, path, *args, **kwargs)
+            return
+        super().__init__(path, *args, **kwargs)
 
     @property
-    def is_valid(self) -> bool:
-        return getattr(self, "_holder", None) is not None
+    def mode_str(self) -> str:
+        return File.MOD_MAP.get(self.mode, "r")
 
     @property
-    def is_open(self) -> bool:
-        return getattr(self, "_holder", None) is not None
-
-    @property
-    def mode(self) -> Connection.Mode:
-        return self._metadata.get("mode", File.Mode.r)
-
-    @property
-    def path(self) -> Union[str, pathlib.Path]:
-        return self._metadata.get("path", None)
-
-    def open(self, *args, **kwargs) -> _TFile:
-        Connection.open(self)
-        self._holder = SpObject.create(self._metadata, *args, **kwargs)
-        return self
-
-    def close(self):
-        self._holder = None
-        Connection.close(self)
+    def entry(self) -> Entry:
+        if self.is_readable:
+            return self.read()
+        else:
+            return self.write()
 
     def read(self, lazy=False) -> Entry:
         if self._holder is None:
@@ -112,33 +73,144 @@ class File(Connection):
             self.open()
         self._holder.write(*args, **kwargs)
 
-    def __enter__(self) -> _TFile:
+    def __enter__(self) -> File:
         return super().__enter__()
-
-    @property
-    def path(self):
-        return self._metadata.get("path", "")
-
-    @property
-    def mode(self):
-        mode = self._metadata.get("mode", "r")
-        if isinstance(mode, str):
-            mode = functools.reduce(lambda a, b: a | b, [
-                                    File.Mode.__members__[a] for a in mode])
-        elif not isinstance(mode, File.Mode):
-            raise TypeError(mode)
-        return mode
-
-    @property
-    def mode_str(self):
-        mode = self.mode
-        return ''.join([(m.name) for m in list(File.Mode) if m & mode])
 
     def read(self, lazy=False) -> Entry:
         raise NotImplementedError()
 
-    def write(self, data, lazy=False) -> None:
+    def write(self, data, lazy=False) -> Entry:
         raise NotImplementedError()
 
 
-__SP_EXPORT__ = File
+class FileCollection(Collection):
+
+    def __init__(self, *args, glob: typing.Optional[str] = None, ** kwargs):
+        """
+        Example:
+            file_name="{*}"
+        """
+
+        super().__init__(*args, **kwargs)
+
+        if glob is not _undefined_:
+            self._glob = glob
+        else:
+            parts = pathlib.Path(self.uri.path).parts
+
+            idx, _ = next(filter(lambda s: '{' in s[1], enumerate(parts)))
+
+            self.uri.path = pathlib.Path(*list(parts)[:idx])
+
+            self._glob = "/".join(parts[idx:])
+
+    @property
+    def glob(self) -> str:
+        return self._glob
+
+    def guess_id(self, d, auto_inc=True):
+        fid = super().guess_id(d, auto_inc=auto_inc)
+
+        if fid is None and auto_inc:
+            fid = self.count()
+
+        return fid
+
+    def guess_filepath(self, **kwargs) -> pathlib.Path:
+        return self.path/self._glob.format(**kwargs)
+
+    def open_document(self, fid, mode=None) -> Entry:
+        fpath = self.guess_filepath({"_id_": fid})
+        logger.debug(f"Open Document: {fpath} mode=\"{ mode or self.mode}\"")
+        return File(fpath, mode=mode if mode is not _undefined_ else self.mode).entry
+
+    def insert_one(self, predicate, *args,  **kwargs) -> InsertOneResult:
+        doc = self.open_document(self.guess_id(predicate or kwargs, auto_inc=True))
+
+        return doc
+
+    def find_one(self, predicate, projection=None, **kwargs) -> Entry:
+        fpath = self.guess_filepath(predicate or kwargs)
+
+        doc = None
+        if fpath.exists():
+            doc = self.open_document(fpath)
+        else:
+            for fp in self._path.parent.glob(self._path.name.format(_id="*")):
+                if not fp.exists():
+                    continue
+                doc = self.open_document(fp, mode="r")
+                if doc.check(predicate):
+                    break
+                else:
+                    doc = None
+
+        if projection is not None:
+            raise NotImplementedError()
+
+        return doc
+
+    def update_one(self, predicate, update,  *args, **kwargs):
+        raise NotImplementedError()
+
+    def delete_one(self, predicate,  *args, **kwargs):
+        raise NotImplementedError()
+
+    def count(self, predicate=None,   *args, **kwargs) -> int:
+        if predicate is None:
+            logger.warning("NOT IMPLEMENTED! count by predicate")
+
+        return len(list(self._path.parent.glob(self._path.name.format(_id="*"))))
+
+
+class CollectionLocalFile(Collection):
+    """
+        Collection of local files.
+    """
+
+    def __init__(self,   *args, file_format=None, mask=None,   **kwargs):
+        super().__init__(*args, schema="local", **kwargs)
+
+        logger.debug(self.metadata)
+
+        self._path = pathlib.Path(self.metadata.get("authority", "") +
+                                  self.metadata.get("path", ""))  # .replace("*", Collection.ID_TAG)
+
+        self._file_format = file_format
+
+        prefix = self._path
+
+        while "*" in prefix.name or "{" in prefix.name:
+            prefix = prefix.parent
+
+        self._prefix = prefix
+        self._filename = self._path.relative_to(self._prefix).as_posix()
+
+        if "x" in self._mode:
+            self._prefix.mkdir(parents=True, exist_ok=True, mode=mask or 0o777)
+        elif not self._prefix.is_dir():
+            raise NotADirectoryError(self._prefix)
+        elif not self._prefix.exists():
+            raise FileNotFoundError(self._prefix)
+
+        self._path = self._path.as_posix().replace("*", "{id:06}")
+
+    @property
+    def next_id(self):
+        pattern = self._filename if "*" in self._filename else "*"
+        return len(list(self._prefix.glob(pattern)))
+
+    def guess_path(self, *args, fid=None, **kwargs):
+        return self._path.format(id=fid or self.next_id, **kwargs)
+
+    def find_one(self, *args, projection=None, **kwargs):
+        return File(self.guess_path(*args, **kwargs), mode=self.mode).fetch(projection)
+
+    def insert_one(self, *args, projection=None, **kwargs):
+        return File(self.guess_path(*args, **kwargs), mode="x")
+
+    def update_one(self, predicate, update,  *args, **kwargs):
+        raise NotImplementedError()
+
+    def delete_one(self, predicate,  *args, **kwargs):
+        raise NotImplementedError()
