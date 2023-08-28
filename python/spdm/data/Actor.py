@@ -1,16 +1,58 @@
 
 
+import collections.abc
+
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
+from .Path import Path
 from .sp_property import SpDict
 
 
 class Actor(SpDict, Pluggable):
     mpi_enabled = False
 
-    def __init__(self, *args, **kwargs) -> None:
+    _plugin_prefix = ""
+    _plugin_name_path = "plugin_name"
+
+    @classmethod
+    def __dispatch__init__(cls, name_list, self,  *args, default_plugin: str = None,  **kwargs) -> None:
+        if name_list is None:
+            module_name = None
+            name_path = Path(self.__class__._plugin_name_path)
+
+            module_name = name_path.fetch(kwargs)
+
+            if not isinstance(module_name, str) and len(args) > 0:
+                module_name = name_path.fetch(args[0])
+
+            if not isinstance(module_name, str):
+                module_name = default_plugin
+
+            if isinstance(module_name, str):
+                prefix = getattr(self.__class__, "_plugin_prefix", "")
+                if prefix.endswith("/"):
+                    module_preifx = self.__class__.__name__.lower()
+                    if module_preifx.startswith('_t_'):
+                        module_preifx = module_preifx[3:]
+                    prefix += module_preifx
+                if prefix != "" and not prefix.endswith("/"):
+                    prefix = prefix+"/"
+                name_list = [f"{prefix}{module_name}"]
+
+        if name_list is None or len(name_list) == 0:
+            return super().__init__(self, *args, **kwargs)
+        else:
+            return super().__dispatch__init__(name_list, self, *args, **kwargs)
+
+    def __init__(self, *args, **kwargs):
+        if self.__class__ is Actor or "_plugin_registry" in vars(self.__class__):
+            Actor.__dispatch__init__(None, self, *args, **kwargs)
+            return
         super().__init__(*args, **kwargs)
-        logger.debug(f"{self.__class__.__name__} MPI_ENBLAED={self.mpi_enabled}")
+
+    # def __init__(self, *args, **kwargs) -> None:
+    #     super().__init__(*args, **kwargs)
+    #     logger.debug(f"{self.__class__.__name__} MPI_ENBLAED={self.mpi_enabled}")
 
     def advance(self,  *args, time: float, ** kwargs) -> None:
         logger.debug(f"Advancing {self.__class__.__name__} time={time}")

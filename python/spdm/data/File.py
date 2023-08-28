@@ -41,6 +41,10 @@ class File(Connection):
 
             name_list = [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
 
+        default_format = kwargs.pop("default_format", None)
+        if default_format is not None:
+            name_list.append(f"spdm.plugins.data.Plugin{default_format}#{default_format}File")
+
         if name_list is None or len(name_list) == 0:
             return super().__init__(self, path, *args, **kwargs)
         else:

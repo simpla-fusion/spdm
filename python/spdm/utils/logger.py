@@ -9,18 +9,20 @@ import sys
 from datetime import datetime
 from inspect import getframeinfo, stack
 
+from .mpi import MPI
+
 default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
                                      '%(message)s')
 
+
+SP_NO_DEBUG = os.environ.get("SP_NO_DEBUG", False)
+
 MPI_MSG = ""
 
-try:
-    from mpi4py import MPI
-    if MPI.COMM_WORLD.Get_size() > 1:
-        MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
-except ImportError:
-    pass
+
+if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+    MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
 
 
 class CustomFormatter(logging.Formatter):
@@ -94,7 +96,6 @@ def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
 
 logger = sp_enable_logging(__package__[:__package__.find('.')], handler="STDOUT")
 
-SP_NO_DEBUG = os.environ.get("SP_NO_DEBUG", False)
 
 if not SP_NO_DEBUG:
     logger.setLevel(logging.DEBUG)

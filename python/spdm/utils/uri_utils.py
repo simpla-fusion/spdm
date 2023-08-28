@@ -41,6 +41,11 @@ def uri_split_as_dict(uri) -> dict:
     elif isinstance(uri, URITuple):
         return uri.__dict__
     res = _rfc3986_ext.match(uri).groupdict()
+
+    if res["format"] is None and res["protocol"] not in ["local", "https", "http", "ssh"]:
+        res["format"] = res["protocol"]
+        res["protocol"] = "file"
+
     if isinstance(res["query"], str) and res["query"] != "":
         res["query"] = dict([tuple(item.split("="))
                             for item in str(res["query"]).split('&')])

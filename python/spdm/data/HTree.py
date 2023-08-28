@@ -113,7 +113,7 @@ class HTree(typing.Generic[_T]):
             p = p._parent
         return p
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return self.get(path, force=True)
+    def __getitem__(self, path) -> _T: return self.get(path, force=True)
 
     def __setitem__(self, path, value) -> None: self._update(path, value)
 
@@ -145,7 +145,7 @@ class HTree(typing.Generic[_T]):
         self._cache = cache
         return self
 
-    def get(self, path: Path | PathLike,  default_value: typing.Any = _not_found_, *args,   force=False, **kwargs) -> HTree[_T] | _T:
+    def get(self, path: Path | PathLike,  default_value: typing.Any = _not_found_, *args,   force=False, **kwargs) -> _T:
 
         path = as_path(path)
         length = len(path)
@@ -518,6 +518,7 @@ Node = HTree
 
 
 class Container(HTree[_T]):
+    
     pass
 
 
@@ -547,7 +548,7 @@ class List(Container[_T]):
         for v in self.children():
             yield v
 
-    def __getitem__(self, path) -> HTree[_T] | _T: return super().__getitem__(path)
+    def __getitem__(self, path) -> _T: return super().__getitem__(path)
 
 
 # class QueryResult(HTree[_T]):
