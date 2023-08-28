@@ -39,18 +39,12 @@ class HTree(typing.Generic[_T]):
         -
     """
 
-    def __init__(self, cache: typing.Any = None, /,
-                 entry: HTreeLike | Entry = None,
-                 parent: HTree | None = None,
-                 **kwargs) -> None:
+    def __init__(self, cache: typing.Any = None, /,  entry: Entry | None = None, parent: HTree | None = None, **kwargs) -> None:
 
         default_value = _not_found_
 
-        # if isinstance(entry, dict):
-        #     default_value = merge_tree_recursive(default_value, (entry.pop("$default_value", {})))
-
         if isinstance(cache, dict):
-            default_value = merge_tree_recursive(default_value, (cache.pop("$default_value", _not_found_)))
+            default_value = merge_tree_recursive(default_value, cache.pop("$default_value", _not_found_))
 
         default_value = merge_tree_recursive(default_value, kwargs.pop("default_value", _not_found_))
 
@@ -518,7 +512,7 @@ Node = HTree
 
 
 class Container(HTree[_T]):
-    
+
     pass
 
 

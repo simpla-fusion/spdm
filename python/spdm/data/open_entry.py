@@ -53,7 +53,10 @@ def open_entry(uri: typing.Union[str, URITuple], *args,
     elif uri.protocol in ("http", "https"):
         return Entry(fetch_request(uri))
     elif uri.protocol in ("file", "local", "ssh", "scp", None):
-        entry = File(uri, *args, **kwargs).entry
+        if uri.path is not None and len(uri.path) > 0:
+            entry = File(uri, *args, **kwargs).entry
+        else:
+            entry = None
         if mapper is not None:
             entry = mapper.map(entry)
         return entry

@@ -6,6 +6,7 @@ from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from .Path import Path
 from .sp_property import SpDict
+from .open_entry import open_entry
 
 
 class Actor(SpDict, Pluggable):
@@ -15,15 +16,18 @@ class Actor(SpDict, Pluggable):
     _plugin_name_path = "plugin_name"
 
     @classmethod
-    def __dispatch__init__(cls, name_list, self,  *args, default_plugin: str = None,  **kwargs) -> None:
+    def __dispatch__init__(cls, name_list, self,  d=None, *args, default_plugin: str = None,  **kwargs) -> None:
+        if isinstance(d, str):
+            d = open_entry(d)
+
         if name_list is None:
             module_name = None
             name_path = Path(self.__class__._plugin_name_path)
 
             module_name = name_path.fetch(kwargs)
 
-            if not isinstance(module_name, str) and len(args) > 0:
-                module_name = name_path.fetch(args[0])
+            if not isinstance(module_name, str) and d is not None:
+                module_name = name_path.fetch(d)
 
             if not isinstance(module_name, str):
                 module_name = default_plugin
@@ -40,9 +44,9 @@ class Actor(SpDict, Pluggable):
                 name_list = [f"{prefix}{module_name}"]
 
         if name_list is None or len(name_list) == 0:
-            return super().__init__(self, *args, **kwargs)
+            return super().__init__(self, d, *args, **kwargs)
         else:
-            return super().__dispatch__init__(name_list, self, *args, **kwargs)
+            return super().__dispatch__init__(name_list, self, d, *args, **kwargs)
 
     def __init__(self, *args, **kwargs):
         if self.__class__ is Actor or "_plugin_registry" in vars(self.__class__):

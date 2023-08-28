@@ -45,13 +45,15 @@ import collections.abc
 import inspect
 import typing
 from _thread import RLock
+from spdm.data.Entry import Entry
 
-from spdm.data.HTree import HTree
-from spdm.utils.tags import _not_found_
-
+from .open_entry import open_entry
+from .HTree import HTree
+from ..utils.tags import _not_found_
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from ..utils.typing import PrimaryType
+from ..utils.tree_utils import merge_tree_recursive
 from .HTree import Dict
 
 _T = typing.TypeVar("_T")
@@ -59,6 +61,29 @@ _T = typing.TypeVar("_T")
 
 class SpDict(Dict[_T]):
     """  支持 sp_property 的 Dict  """
+
+    def __init__(self, cache: typing.Any = None, /, entry: Entry | None = None, parent: HTree | None = None, **kwargs) -> None:
+
+        if isinstance(cache, dict):
+            pass
+        elif cache is None or cache is _not_found_:
+            cache = {}
+        elif entry is None and isinstance(cache, Entry):
+            entry = cache
+            cache = {}
+        elif entry is None:
+            entry = open_entry(cache)
+            cache = {}
+        else:
+            raise ValueError(f"Invalid arguments! cache={(cache)} entry={entry}")
+
+        attrs = vars(self.__class__)
+
+        for k in [*kwargs.keys()]:
+            if k in attrs:
+                cache[k] = merge_tree_recursive(cache.get(k, None), kwargs.pop(k))
+
+        super().__init__(cache, entry=entry, parent=parent, **kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
         return self._get(key, *args, **kwargs)
