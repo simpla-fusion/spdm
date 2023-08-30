@@ -65,7 +65,7 @@ class GeoObject(Pluggable):
         # return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
 
     def _repr_html_(self) -> str:
-        from ..views.View import display
+        from ..view.View import display
         return display(self, schema="html")
     """ Jupyter 通过调用 _repr_html_ 显示对象 """
 

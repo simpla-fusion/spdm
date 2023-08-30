@@ -65,8 +65,8 @@ class Field(HTree[_T], Expression):
         self._ppoly = None
 
     def __repr_svg__(self) -> str:
-        from ..views.View import display
-        return display(self, format="svg")
+        from ..view.View import display
+        return display(self, output="svg")
 
     @property
     def mesh(self): return self.__mesh__

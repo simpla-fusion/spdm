@@ -25,16 +25,16 @@ class View(Pluggable):
 
         if isinstance(_backend_type, str):
             _backend_type = [_backend_type,
-                             f"spdm.views.{_backend_type}#{_backend_type}",
-                             f"spdm.views.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
-                             f"spdm.views.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
-                             f"spdm.views.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
-                             f"spdm.views.{cls.__name__}#{_backend_type}"
-                             f"spdm.plugins.views.{_backend_type}#{_backend_type}",
-                             f"spdm.plugins.views.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
-                             f"spdm.plugins.views.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
-                             f"spdm.plugins.views.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
-                             f"spdm.plugins.views.{cls.__name__}#{_backend_type}"
+                             f"spdm.view.{_backend_type}#{_backend_type}",
+                             f"spdm.view.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
+                             f"spdm.view.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
+                             f"spdm.view.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
+                             f"spdm.view.{cls.__name__}#{_backend_type}"
+                             f"spdm.plugins.view.{_backend_type}#{_backend_type}",
+                             f"spdm.plugins.view.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
+                             f"spdm.plugins.view.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
+                             f"spdm.plugins.view.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
+                             f"spdm.plugins.view.{cls.__name__}#{_backend_type}"
                              ]
 
         super().__dispatch__init__(_backend_type, self, *args, **kwargs)
@@ -113,7 +113,7 @@ def viewer(output=None, backend=None):
         backend = output.split('.')[-1]
 
     if backend is None:
-        backend = "matplotlib"
+        backend = SP_VIEW_BACKEND  # "matplotlib"
 
     instance = _view_instances.get(backend, None)
 
@@ -123,7 +123,11 @@ def viewer(output=None, backend=None):
     return instance
 
 
+SP_VIEW_BACKEND = "matplotlib"
+
+
 def display(*args, output=None, backend=None, **kwargs):
     """Show an object"""
-
+    if backend is None:
+        backend = SP_VIEW_BACKEND
     return viewer(backend=backend, output=output).render(*args, output=output, **kwargs)

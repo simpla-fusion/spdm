@@ -17,7 +17,7 @@ from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
 from spdm.utils.logger import logger
 from spdm.utils.typing import array_type, as_array, is_array
-from spdm.views.View import View
+from .View import View
 
 
 @View.register(["matplotlib", "Matplotlib"])

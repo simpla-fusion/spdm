@@ -83,13 +83,13 @@ class HTree(typing.Generic[_T]):
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
             self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))
-        return as_value(self._cache)
+        return self._cache
 
     def __array__(self) -> ArrayType: return as_array(self.__value__)
 
     def _repr_svg_(self) -> str:
-        from ..views.View import display
-        return display(self, output="matplotlib")
+        from ..view.View import display
+        return display(self, output="svg")
 
     # def __reduce__(self) -> _T: raise NotImplementedError(f"")
 

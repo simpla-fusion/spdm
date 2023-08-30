@@ -1,25 +1,25 @@
 import collections.abc
 import typing
 import uuid
+
 import bokeh
+import bokeh.models.widgets as bk
+import ipywidgets as ip
+import jupyter_bokeh as jbk
 import numpy as np
-from spdm.utils.logger import logger
-from spdm.views.View import View
-from spdm.geometry.GeoObject import GeoObject
-from spdm.geometry.Curve import Curve
-from spdm.geometry.PointSet import PointSet
-from spdm.geometry.Point import Point
+from bokeh.io import output_notebook
+from bokeh.plotting import figure
+from spdm.data.HTree import HTree
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
+from spdm.geometry.Curve import Curve
+from spdm.geometry.GeoObject import GeoObject
 from spdm.geometry.Line import Line
-from spdm.data.HTree import HTree
+from spdm.geometry.Point import Point
+from spdm.geometry.PointSet import PointSet
+from spdm.utils.logger import logger
 
-import numpy as np
-from bokeh.plotting import figure
-from bokeh.io import output_notebook
-import bokeh.models.widgets as bk
-import jupyter_bokeh as jbk
-import ipywidgets as ip
+from .View import View
 
 
 def bokeh_example():

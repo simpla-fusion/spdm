@@ -87,7 +87,7 @@ class Node(typing.Generic[_T]):
     def __units__(self) -> str: return self._metadata.get("units", None)
 
     def _repr_svg_(self):
-        from ..views.View import display
+        from ..view.View import display
         return display(self, output="svg")
 
     @property

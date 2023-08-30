@@ -11,7 +11,7 @@ from ..utils.numeric import float_nan
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_scalar, numeric_type)
-from ..views.View import display
+from ..view.View import display
 from .Functor import Functor
 
 
@@ -119,7 +119,7 @@ class Expression:
 
     def __str__(self): return self.__label__ or self.__class__.__name__
 
-    def _repr_latex_(self): return display(self, backend="latex")
+    def _repr_latex_(self): return display(self, backend="latex", output="latex")
     """ for jupyter notebook display """
 
     @property

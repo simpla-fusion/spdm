@@ -3,16 +3,17 @@ import typing
 import uuid
 
 import numpy as np
-from spdm.utils.logger import logger
-from spdm.views.View import View
-from spdm.geometry.GeoObject import GeoObject
-from spdm.geometry.Curve import Curve
-from spdm.geometry.PointSet import PointSet
-from spdm.geometry.Point import Point
+from spdm.data.HTree import HTree
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
+from spdm.geometry.Curve import Curve
+from spdm.geometry.GeoObject import GeoObject
 from spdm.geometry.Line import Line
-from spdm.data.HTree import HTree
+from spdm.geometry.Point import Point
+from spdm.geometry.PointSet import PointSet
+from spdm.utils.logger import logger
+
+from .View import View
 
 SVG_TEMPLATE = """<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">

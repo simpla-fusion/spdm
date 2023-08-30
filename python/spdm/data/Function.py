@@ -98,9 +98,19 @@ class Function(HTree[_T], Expression):
     @classmethod
     def __deserialize__(cls, *args, **kwargs) -> Function: raise NotImplementedError(f"__deserialize__")
 
-    def __getitem__(self, idx) -> NumericType: raise NotImplementedError(f"Function.__getitem__ is not implemented!")
+    def __getitem__(self, idx) -> NumericType:
+        if self._cache is None or self._cache is _not_found_:
+            return self.__value__[idx]
+        else:
+            return self._cache[idx]
+        # raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
-    def __setitem__(self, *args) -> None: raise RuntimeError("Function.__setitem__ is prohibited!")
+    def __setitem__(self, idx, value) -> None:
+        if self._cache is None or self._cache is _not_found_:
+            self.__value__[idx] = value
+        else:
+            self._cache[idx] = value
+        raise RuntimeError("Function.__setitem__ is prohibited!")
 
     @property
     def dims(self) -> typing.List[ArrayType]:
