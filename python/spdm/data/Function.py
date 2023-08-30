@@ -73,6 +73,14 @@ class Function(HTree[_T], Expression):
         self._dims = list(dims)
         self._periods = periods
 
+    def rebase(self, *dims, periods) -> Function[_T]:
+        res: Function[_T] = self.__copy__()
+        res._cache = self(*dims)
+        res._dims = dims
+        self._periods = periods if periods is not None else self._periods
+
+        return res
+
     def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
     def __copy_from__(self, other: Function) -> Function:

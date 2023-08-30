@@ -89,7 +89,7 @@ class HTree(typing.Generic[_T]):
 
     def _repr_svg_(self) -> str:
         from ..views.View import display
-        return display(self, output="svg")
+        return display(self, output="matplotlib")
 
     # def __reduce__(self) -> _T: raise NotImplementedError(f"")
 
@@ -128,6 +128,8 @@ class HTree(typing.Generic[_T]):
     def insert(self,  *args, **kwargs): return self._insert([], *args, **kwargs)
 
     def update(self, *args, **kwargs): return self._update([], *args, **kwargs)
+
+    def remove(self, *args, **kwargs): return self._remove(*args, **kwargs)
 
     def refresh(self, cache=None, **kwargs):
         if cache is None:

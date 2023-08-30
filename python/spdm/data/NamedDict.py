@@ -3,23 +3,21 @@ from __future__ import annotations
 import collections.abc
 import typing
 
+from spdm.data.Entry import Entry
+from spdm.data.HTree import HTree
+
 
 from ..utils.tags import _not_found_
 from .HTree import Dict
 
 
 class NamedDict(Dict):
-    def __getitem__(self, key) -> typing.Any:
-        return super().__getitem__(key)
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     def __getattr__(self, key) -> typing.Any:
-        if isinstance(self._cache, dict):
-            value = self._cache.get(key, _not_found_)
-        else:
-            value = _not_found_
-
-        if value is _not_found_:
-            value = self._entry.get(key, _not_found_)
+        value = super()._get(key, _not_found_)
 
         if value is _not_found_:
             raise AttributeError(f"{self.__class__.__name__} object has no attribute {key}")
@@ -30,9 +28,15 @@ class NamedDict(Dict):
             return value
 
     def __setattr__(self, key, value) -> None:
-        self._cache[key] = value
+        """ 以 '_' 开始的 key 视为属性，其他的 key 视为字典键值。"""
+        if key.startswith("_"):
+            super().__setattr__(key, value)
+        else:
+            super().update(key, value)
 
     def __delattr__(self, key: str) -> None:
-        if isinstance(self._cache, dict) and key in self._cache:
-            del self._cache[key]
-        self._entry.child(key).remove()
+        """ 以 '_' 开始的 key 视为属性，其他的 key 视为字典键值。"""
+        if key.startswith("_"):
+            super().__delattr__(key)
+        else:
+            super().remove(key)
