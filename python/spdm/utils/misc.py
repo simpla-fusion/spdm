@@ -18,7 +18,6 @@ from typing import Sequence, Type
 from urllib.parse import ParseResult, urlparse
 
 import numpy as np
-import yaml
 
 from .logger import logger
 from .tags import _empty, _not_found_, _undefined_

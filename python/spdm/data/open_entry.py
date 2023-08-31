@@ -43,6 +43,9 @@ def open_entry(uri: typing.Union[str, URITuple], *args,
     if source_schema is None:
         source_schema = uri.schema
 
+    if target_schema is None:
+        target_schema="imas/3"
+
     if source_schema is not None and source_schema != target_schema:
         mapper = create_mapper(mapper, source_schema=source_schema, target_schema=target_schema)
     else:

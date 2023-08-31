@@ -67,8 +67,8 @@ SPDB_TAG = "spdb"
 
 
 class MapperEntry(Entry):
-    def __init__(self, data: typing.Any, *args, mapping=None,  **kwargs):
-        super().__init__(data,   *args, **kwargs)
+    def __init__(self, data: typing.Any, *args, mapping=None, **kwargs):
+        super().__init__(data, *args, **kwargs)
         self._mapping = as_entry(mapping)
 
     def __copy__(self) -> Entry:
@@ -77,42 +77,55 @@ class MapperEntry(Entry):
         obj._mapping = self._mapping
         return obj
 
-    def insert(self, value,  **kwargs) -> Entry:
+    def insert(self, value, **kwargs) -> Entry:
         raise NotImplementedError(f"")
 
-    def update(self, value,   **kwargs) -> Entry:
+    def update(self, value, **kwargs) -> Entry:
         raise NotImplementedError(f"")
 
-    def remove(self,  **kwargs) -> int:
+    def remove(self, **kwargs) -> int:
         raise NotImplementedError(f"")
 
-    def fetch(self,  *args, default_value=_not_found_, **kwargs) -> typing.Any:
-        request = self._mapping.child(self._path).fetch(*args, default_value=_not_found_, **kwargs)
+    def fetch(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+        request = self._mapping.child(self._path).fetch(
+            *args, default_value=_not_found_, lazy=False, **kwargs
+        )
         if request is _not_found_:
             return default_value
         else:
-            return MapperEntry._op_fetch(self._data, request, default_value=default_value)
+            return MapperEntry._op_fetch(
+                self._data, request, default_value=default_value
+            )
 
-    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        """ Return a generator of the results. """
+    def for_each(
+        self, *args, **kwargs
+    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        """Return a generator of the results."""
         for idx, request in self._mapping.child(self._path).for_each(*args, **kwargs):
             yield idx, MapperEntry._op_fetch(self._data, request)
 
     @staticmethod
-    def _op_fetch(target: Entry,  request: typing.Any, *args, **kwargs) -> typing.Any:
+    def _op_fetch(target: Entry, request: typing.Any, *args, **kwargs) -> typing.Any:
         if isinstance(request, str):
             if request.startswith("@"):
                 request = uri_split_as_dict(request[1:])
-                res = target.child(request.get("path", None)).fetch(*args, request=request, **kwargs)
+                res = target.child(request.get("path", None)).fetch(
+                    *args, request=request, **kwargs
+                )
             else:
                 res = request
         elif isinstance(request, collections.abc.Sequence):
-            res = [MapperEntry._op_fetch(target, v, *args,  **kwargs) for v in request]
+            res = [MapperEntry._op_fetch(target, v, *args, **kwargs) for v in request]
         elif isinstance(request, collections.abc.Mapping):
             if f"@{SPDB_TAG}" in request:
-                res = target.child(request.get("path", None)).fetch(*args, request=request, **kwargs)
+                res = target.child(request.get("path", None)).fetch(
+                    *args, request=request, **kwargs
+                )
             else:
-                res = {k: MapperEntry._op_fetch(target, v, *args, **kwargs) for k, v in request.items()}
+                res = {
+                    k: MapperEntry._op_fetch(target, v, *args, **kwargs)
+                    for k, v in request.items()
+                }
         else:
             res = request
 
@@ -120,11 +133,13 @@ class MapperEntry(Entry):
 
 
 class Mapper(object):
-
-    def __init__(self, mapping=[],
-                 source_schema: typing.Optional[str] = None,
-                 target_schema: typing.Optional[str] = None,
-                 envs=None):
+    def __init__(
+        self,
+        mapping=[],
+        source_schema: typing.Optional[str] = None,
+        target_schema: typing.Optional[str] = None,
+        envs=None,
+    ):
         super().__init__()
         if isinstance(mapping, str):
             mapping = mapping.split(":")
@@ -135,13 +150,19 @@ class Mapper(object):
 
         mapping += os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
 
-        self._mapping_path = [pathlib.Path(p) for p in mapping if p not in ('', "")]
+        self._mapping_path = [pathlib.Path(p) for p in mapping if p not in ("", "")]
 
         if len(self._mapping_path) == 0:
-            raise RuntimeError(f"No mapping file! {mapping}")
+            raise RuntimeError(
+                f"No mapping file!  SP_DATA_MAPPING_PATH={os.environ.get('SP_DATA_MAPPING_PATH', '')}"
+            )
 
-        self._default_source_schema: str = source_schema if source_schema is not None else "EAST"
-        self._default_target_schema: str = target_schema if target_schema is not None else "imas/3"
+        self._default_source_schema: str = (
+            source_schema if source_schema is not None else "EAST"
+        )
+        self._default_target_schema: str = (
+            target_schema if target_schema is not None else "imas/3"
+        )
         self._envs = envs
 
     @property
@@ -159,7 +180,11 @@ class Mapper(object):
         else:
             return MapperEntry(source, mapping=mapping)
 
-    def find_mapping(self,  source_schema: typing.Optional[str] = None, target_schema: typing.Optional[str] = None) -> typing.Optional[Entry]:
+    def find_mapping(
+        self,
+        source_schema: typing.Optional[str] = None,
+        target_schema: typing.Optional[str] = None,
+    ) -> typing.Optional[Entry]:
         if source_schema is None:
             source_schema = self._default_source_schema
         if target_schema is None:
@@ -171,8 +196,7 @@ class Mapper(object):
 
         map_tag = f"{source_schema}/{target_schema}"
 
-        file_path_suffix = ["config.xml",
-                            "static/config.xml", "dynamic/config.xml"]
+        file_path_suffix = ["config.xml", "static/config.xml", "dynamic/config.xml"]
 
         mapping_files = []
         for m_dir in self._mapping_path:
@@ -191,8 +215,15 @@ class Mapper(object):
         return File(mapping_files, mode="r", format="XML").read()
 
 
-def create_mapper(*args,  source_schema: typing.Optional[str] = None, target_schema: typing.Optional[str] = None, **kwargs) -> Mapper:
+def create_mapper(
+    *args,
+    source_schema: typing.Optional[str] = None,
+    target_schema: typing.Optional[str] = None,
+    **kwargs,
+) -> Mapper:
     if len(args) > 0 and isinstance(args[0], Mapper):
         return args[0]
     else:
-        return Mapper(*args, source_schema=source_schema, target_schema=target_schema, **kwargs)
+        return Mapper(
+            *args, source_schema=source_schema, target_schema=target_schema, **kwargs
+        )

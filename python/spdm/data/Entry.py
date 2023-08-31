@@ -29,9 +29,9 @@ class Entry(Pluggable):
                                            self, data, path, *args, **kwargs)
                 return
 
-        if isinstance(data, Entry):
-            raise RuntimeError(f"{data}")
-        self._data: typing.Any = data
+        # if isinstance(data, Entry):
+        #     raise RuntimeError(f"{data}")
+        self._data= data
         self._path = as_path(path)
 
     def __copy__(self) -> Entry:
