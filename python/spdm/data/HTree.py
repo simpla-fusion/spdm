@@ -82,7 +82,7 @@ class HTree(typing.Generic[_T]):
     @property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
-            self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))
+            self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))        
         return self._cache
 
     def __array__(self) -> ArrayType: return as_array(self.__value__)

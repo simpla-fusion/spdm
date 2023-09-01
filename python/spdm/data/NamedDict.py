@@ -13,9 +13,6 @@ from .HTree import Dict
 
 class NamedDict(Dict):
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
     def __getattr__(self, key) -> typing.Any:
         value = super()._get(key, _not_found_)
 

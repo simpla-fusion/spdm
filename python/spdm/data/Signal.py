@@ -1,26 +1,34 @@
 import typing
 
+from spdm.data.Entry import Entry
+from spdm.data.HTree import HTree
 
+import numpy as np
 from ..utils.typing import ArrayType
 from .Field import Field
 from .Function import Function
-
+from .HTree import HTree
+from ..utils.logger import logger
+from .sp_property import sp_property, SpDict
 _T = typing.TypeVar("_T")
 
 
-class Signal(Function[_T]):
-    """Signal with its time base
-    """
+class Signal(SpDict[_T]):
+    """Signal with its time base    """
 
-    @property
-    def data(self) -> ArrayType: return super().__array__()
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._func = None
 
-    @property
-    def time(self) -> ArrayType: return super()._dims[0]
+    data: np.ndarray = sp_property(type="dynamic   ")
+
+    time: np.ndarray = sp_property(units="s", type="dynamic   ")
+
+    def __call__(self, t: float) -> float:
+        if self._func is None:
+            self._func = Function(self.data, self.time)
+        return self._func(t)
 
 
-class SignalND(Field[_T]):
-    """Signal with its time base
-    """
-
+class SignalND(Signal[_T]):
     pass
