@@ -142,7 +142,7 @@ class XMLEntry(Entry):
         p, e = self._xpath(path)
         return _XPath(p), e
 
-    def _convert(self, element: _XMLElement, path=[], lazy=True, envs=None, only_one=False, default_value: typing.Any = _not_found_, **kwargs):
+    def _convert(self, element: _XMLElement, path=[], lazy=False, envs=None, only_one=False, default_value: typing.Any = _not_found_, **kwargs):
         if not isinstance(element, list):
             pass
         elif len(element) == 0:
@@ -160,11 +160,9 @@ class XMLEntry(Entry):
                 if dtype == "string" or dtype is None:
                     res = [text]
                 elif dtype == "int":
-                    res = [int(v.strip())
-                           for v in text.strip(',').split(',')]
+                    res = [int(v.strip()) for v in text.strip(',').split(',')]
                 elif dtype == "float":
-                    res = [float(v.strip())
-                           for v in text.strip(',').split(',')]
+                    res = [float(v.strip()) for v in text.strip(',').split(',')]
                 else:
                     raise NotImplementedError(f"Not supported dtype {dtype}!")
 
@@ -175,8 +173,14 @@ class XMLEntry(Entry):
                     res = np.array(res).reshape(dims)
                 else:
                     res = np.array(res)
-            else:
+            elif len(element.attrib) == 0:
                 res = text
+            else:
+                res = {}
+                for k, v in element.attrib.items():
+                    res[f"@{k}"] = v
+                res["_text"] = text
+
         elif not lazy:
             res = {}
             for child in element:

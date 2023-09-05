@@ -142,3 +142,23 @@ class Collection(Connection):
 
     def list_indexes(self, session=None):
         raise NotImplementedError()
+
+
+def open_collection(uri: typing.Union[str, URITuple], *args, schema=None, ** kwargs) -> Collection:
+    url_ = uri_split(url)
+    if url_.scheme is None:
+        url_.scheme = "localdb"
+
+    if source_schema is None and url_.scheme != "":
+        source_schema = url_.scheme
+
+    mapper = create_mapper(url_.scheme,  schema)
+
+    if url_.scheme == "localdb":
+        db = FileCollection(uri, *args, mapper=mapper, **kwargs)
+    else:
+        db = Collection(uri, *args, mapper=mapper, **kwargs)
+    return db
+
+
+open_db = open_collection

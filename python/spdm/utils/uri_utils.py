@@ -7,32 +7,34 @@ Feature:
 """
 import collections
 import collections.abc
-
+from urllib.parse import urlparse, parse_qs
 import pathlib
 import re
 from dataclasses import dataclass
 from typing import List, Union, Any
 from pathlib import Path
+import ast
 
 from .logger import logger
 
 
 _rfc3986 = re.compile(
     r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+
+_rfc3986_ext0 = re.compile(
+    r"^((?P<schema>[^:/?#\+\[\]]+)?(\+(?P<protocol>[^:/?#\+\[\]]+))?:)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+
 _rfc3986_ext = re.compile(
     r"^((?P<protocol>[^:/?#\+\[\]]+)?(\+(?P<format>[^:/?#\+\[\]]+))?(\[(?P<schema>[^:/?#\+\[\]]*)\])?:)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
 
 @dataclass
 class URITuple:
-    protocol: str = "local"
-    authority: str = ""
+    scheme: str = "local"
+    netloc: str = ""
     path: str = ""
-    query: Any = None
+    query: dict = None
     fragment: str = ""
-
-    format: str = ""
-    schema: str = ""
 
 
 def uri_split_as_dict(uri) -> dict:
@@ -40,23 +42,22 @@ def uri_split_as_dict(uri) -> dict:
         uri = ""
     elif isinstance(uri, URITuple):
         return uri.__dict__
-    res = _rfc3986_ext.match(uri).groupdict()
 
-    if res["format"] is None and res["protocol"] not in ["local", "https", "http", "ssh"]:
-        res["format"] = res["protocol"]
-        res["protocol"] = "file"
+    # res = _rfc3986_ext0.match(uri).groupdict()
 
-    if isinstance(res["query"], str) and res["query"] != "":
-        res["query"] = dict([tuple(item.split("="))
-                            for item in str(res["query"]).split('&')])
-    if isinstance(res["fragment"], str):
-        fragments = res["fragment"].split(',')
-        if len(fragments) == 1:
-            res["fragment"] = fragments[0]
-        elif len(fragments) > 1:
-            res["fragment"] = dict([tuple(item.split("="))
-                                   for item in fragments])
+    url = urlparse(uri)
 
+    query = "{" + ','.join([f'"{k}":{v[0]}' for k, v in parse_qs(url.query).items()])+"}"
+
+    logger.debug(query)
+
+    res = dict(
+        scheme=url.scheme or "file",
+        netloc=url.netloc,
+        path=url.path,
+        query=ast.literal_eval(query),
+        fragment=ast.literal_eval(url.fragment) if url.fragment != "" else url.fragment
+    )
     return res
 
 

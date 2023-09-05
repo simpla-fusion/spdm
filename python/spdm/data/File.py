@@ -6,7 +6,6 @@ import pathlib
 import typing
 
 from ..utils.logger import logger
-from ..utils.sp_export import sp_load_module
 from ..utils.tags import _undefined_
 from ..utils.uri_utils import URITuple, uri_split
 from .Collection import Collection, InsertOneResult
@@ -19,19 +18,19 @@ class File(Connection):
         File like object
     """
     @classmethod
-    def __dispatch__init__(cls, name_list, self, path, *args, **kwargs) -> None:
+    def __dispatch__init__(cls, name_list, self, url, *args, **kwargs) -> None:
         if name_list is None:
             n_cls_name = ''
             if "format" in kwargs:
                 n_cls_name = kwargs.get("format")
-            elif isinstance(path, collections.abc.Mapping):
-                n_cls_name = path.get("$class", None)
-            elif isinstance(path,   pathlib.PosixPath):
-                n_cls_name = path.suffix[1:].upper()
-            elif isinstance(path, (str, URITuple)):
-                uri = uri_split(path)
-                if isinstance(uri.format, str):
-                    n_cls_name = uri.format
+            elif isinstance(url, collections.abc.Mapping):
+                n_cls_name = url.get("$class", None)
+            elif isinstance(url,   pathlib.PosixPath):
+                n_cls_name = url.suffix[1:].upper()
+            elif isinstance(url, (str, URITuple)):
+                uri = uri_split(url)
+                if isinstance(uri.scheme, str) and uri.scheme != "file":
+                    n_cls_name = uri.scheme
                 else:
                     n_cls_name = pathlib.PosixPath(uri.path).suffix[1:].upper()
             if n_cls_name == ".":
@@ -46,9 +45,9 @@ class File(Connection):
             name_list.append(f"spdm.plugins.data.Plugin{default_format}#{default_format}File")
 
         if name_list is None or len(name_list) == 0:
-            return super().__init__(self, path, *args, **kwargs)
+            return super().__init__(self, url, *args, **kwargs)
         else:
-            return super().__dispatch__init__(name_list, self, path, *args, **kwargs)
+            return super().__dispatch__init__(name_list, self, url, *args, **kwargs)
 
     def __init__(self, path: str | pathlib.Path, *args,  **kwargs):
         if self.__class__ is File:
@@ -87,6 +86,7 @@ class File(Connection):
         raise NotImplementedError()
 
 
+@Collection.register(["localdb", "FileCollection"])
 class FileCollection(Collection):
 
     def __init__(self, *args, glob: typing.Optional[str] = None, ** kwargs):

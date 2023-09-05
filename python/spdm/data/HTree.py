@@ -82,7 +82,7 @@ class HTree(typing.Generic[_T]):
     @property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
-            self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))        
+            self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))
         return self._cache
 
     def __array__(self) -> ArrayType: return as_array(self.__value__)
@@ -408,11 +408,25 @@ class HTree(typing.Generic[_T]):
             # entry = None
             # key = None
 
-        elif isinstance(key, (int, slice)):
-            if isinstance(self._cache, list):
+        elif isinstance(key, int):
+            if isinstance(self._cache, list) and key < len(self._cache):
                 cache = self._cache[key]
                 if isinstance(key, int) and key < 0:
                     key = len(self._cache)+key
+            else:
+                cache = _not_found_
+
+            entry = self._entry.child(key)
+        elif isinstance(key, slice):
+            start = key.start or 0
+            stop = key.stop
+            step = key.step or 1
+
+            if isinstance(self._cache, list):
+                if stop is not None and stop < 0 and start >= len(self._cache):
+                    raise NotImplementedError()
+                else:
+                    cache = self._cache[slice(start, stop, step)]
             else:
                 cache = _not_found_
 

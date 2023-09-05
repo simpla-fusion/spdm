@@ -59,7 +59,7 @@ def nc_get_value(grp, path, projection=None, default=_not_found_, **kwargs):
     if grp is None:
         raise RuntimeError("None group")
 
-    path = Path(path).as_list()
+    path = Path(path)[:]
     obj = grp
     for pos, p in enumerate(path):
         if isinstance(p, str):

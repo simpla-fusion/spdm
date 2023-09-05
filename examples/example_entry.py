@@ -1,6 +1,6 @@
 import os
 
-from spdm.data.open_entry import open_entry
+from spdm.data.Entry import open_entry
 from spdm.data.File import File
 
 import matplotlib.pyplot as plt
@@ -9,7 +9,7 @@ from sptask import EQTASK
 
 if __name__ == '__main__':
     # open entry for structure data and smi -structure data
-    entry_db = open_entry("MDSplus[EAST]://127.0.0.1?tree_name=east_efit#38300")
+    entry_db = open_entry("EAST://127.0.0.1#38300")
 
     # get pf,mag ,and wall
     wall = entry_db.child("wall")
@@ -17,7 +17,7 @@ if __name__ == '__main__':
     magnetics = entry_db.child("magnetics")
 
     # open entry2 for non-structure data gdskfile ,which come from other simulation code.
-    entry_file = open_entry("file:///<input path>/38300.gfile", format="GEqdsk", mode="r")
+    entry_file = open_entry("/<input path>/38300.gfile", format="GEqdsk", mode="r")
 
     time_slice = 50
 

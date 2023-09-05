@@ -1,6 +1,7 @@
 import os
 
-from spdm.data.open_entry import File, open_entry
+from spdm.data.Entry import open_entry
+from spdm.data.File import File
 from spdm.utils.logger import logger
 
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
@@ -24,7 +25,7 @@ if __name__ == '__main__':
 
     time_slice = 10
 
-    entry = open_entry(f"MDSplus[EAST]://202.127.204.12?tree_name=east_efit#{shot_num}")
+    entry = open_entry(f"east://202.127.204.12#{shot_num}")
 
     eq = entry.child(f"equilibrium/time_slice/{time_slice}/").fetch()
 

@@ -54,6 +54,7 @@ class Pluggable(metaclass=abc.ABCMeta):
                     # TODO: 需要检查并消除循环依赖
                     n_cls_name = n_cls
                     n_cls = None
+            
             elif inspect.isclass(n_cls_name):
                 n_cls = n_cls_name
                 n_cls_name = n_cls.__name__

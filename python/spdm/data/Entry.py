@@ -4,15 +4,18 @@ import collections
 import collections.abc
 import dataclasses
 import inspect
+import os
+import pathlib
 import typing
 from copy import copy
 from functools import reduce
 
-from ..utils.logger import logger, deprecated
+from ..utils.logger import deprecated, logger
 from ..utils.plugin import Pluggable
-from ..utils.tags import _not_found_
+from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import array_type, as_array, as_value, is_scalar
+from ..utils.uri_utils import URITuple, uri_split, uri_split_as_dict
 from .Path import Path, PathLike, as_path
 
 
@@ -20,18 +23,30 @@ class Entry(Pluggable):
 
     _plugin_registry = {}
 
+    @classmethod
+    def __dispatch__init__(cls, name_list, self,  *args, **kwargs) -> None:
+        if name_list is None:
+            name_list = []
+
+        if len(args) > 0 and isinstance(args[0], (str, URITuple)):
+            scheme = uri_split(args[0]).scheme
+
+            if scheme in ["file", "local", "https", "http", "", None]:
+                raise NotImplementedError(f"")
+            else:
+                name_list.append(EntryProxy)
+
+        if name_list is None or len(name_list) == 0:
+            return super().__init__(self,  *args, **kwargs)
+        else:
+            return super().__dispatch__init__(name_list, self, *args, **kwargs)
+
     def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args,  **kwargs):
-        if self.__class__ is Entry:
-            entry_type = kwargs.pop("entry_type", None)
+        if self.__class__ is Entry and isinstance(data, (str, URITuple)):
+            Entry.__dispatch__init__(None, self, data, path, *args, **kwargs)
+            return
 
-            if entry_type is not None:
-                super().__dispatch__init__([f"spdm.plugins.data.Plugin{entry_type}#{entry_type}Entry"],
-                                           self, data, path, *args, **kwargs)
-                return
-
-        # if isinstance(data, Entry):
-        #     raise RuntimeError(f"{data}")
-        self._data= data
+        self._data = data
         self._path = as_path(path)
 
     def __copy__(self) -> Entry:
@@ -167,6 +182,10 @@ class Entry(Pluggable):
     ###########################################################
 
 
+def open_entry(url: str, *args, schema=None, ** kwargs) -> Entry:
+    return Entry(url, *args, schema=schema, **kwargs)
+
+
 def as_entry(obj, *args, **kwargs) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
@@ -252,3 +271,159 @@ def convert_from_entry(cls, obj, *args, **kwargs):
         obj = cls(obj, *args, **kwargs)
 
     return obj
+
+
+SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
+SPDB_TAG = "spdb"
+
+
+class EntryProxy(Entry):
+
+    _maps = None
+    _mapping_path = []
+
+    @classmethod
+    def load_mappings(cls,
+                      mapping_path: typing.List[str] | str | None = None,
+                      default_source_schema: str = "EAST",
+                      default_target_schema: str = "imas/3",
+                      **kwargs,
+                      ):
+
+        if isinstance(mapping_path, str):
+            mapping_path = mapping_path.split(":")
+        elif isinstance(mapping_path, pathlib.Path):
+            mapping_path = [mapping_path]
+        elif mapping_path is None:
+            mapping_path = []
+
+        mapping_path += os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
+
+        mapping_path = [pathlib.Path(p) for p in mapping_path if p != ""]
+
+        if len(mapping_path) == 0:
+            raise RuntimeError(f"No mapping file!  SP_DATA_MAPPING_PATH={os.environ.get('SP_DATA_MAPPING_PATH', '')}")
+
+        cls._default_source_schema: str = default_source_schema
+        cls._default_target_schema: str = default_target_schema
+
+        cls._envs = merge_tree_recursive(kwargs.pop("envs", {}), kwargs)
+
+        cls._maps = {}
+
+    @classmethod
+    def find_map(cls, source_schema:  str, target_schema:  str, *args, **kwargs) -> Entry:
+        if cls._maps is None:
+            cls.load_mappings()
+
+        if source_schema is None:
+            source_schema = cls._default_source_schema
+        if target_schema is None:
+            target_schema = cls._default_target_schema
+
+        if source_schema == target_schema:
+            logger.debug(f"Source and target schema are the same! {source_schema}")
+            return None
+
+        map_tag = f"{source_schema}/{target_schema}"
+
+        mapper = cls._maps.get(map_tag, _not_found_)
+
+        if mapper is _not_found_:
+
+            file_path_suffix = ["config.xml", "static/config.xml", "dynamic/config.xml"]
+
+            mapping_files: typing.List[str] = []
+            for m_dir in EntryProxy._mapping_path:
+                if not m_dir:
+                    continue
+                elif isinstance(m_dir, str):
+                    m_dir = pathlib.Path(m_dir)
+                for file_name in file_path_suffix:
+                    p = m_dir / map_tag / file_name
+                    if p.exists():
+                        mapping_files.append(p)
+
+            if len(mapping_files) == 0:
+                raise FileNotFoundError(f"Can not find mapping files for {map_tag}!")
+
+            mapper = File(mapping_files, mode="r", format="XML").read()
+
+            cls._maps[map_tag] = mapper
+
+        return mapper
+
+    def __init__(self, entry: str | URITuple | Entry, *args, schema: str | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._mapper = mapper
+        self._entry = {}
+
+        spdb_conf = self._mapper.child("spdb").fetch()
+
+        prefix = kwargs.get("prefix", None) or spdb_conf.get("@prefix", None) or os.environ.get("SPDB_PREFIX", None)
+
+        for entry in spdb_conf.get("entry", []):
+            id = entry.get("id", None)
+            if id is None:
+                continue
+            url = entry.get("_text", "").format(prefix=prefix)
+
+            self._entry[id] = url
+
+    def __copy__(self) -> Entry:
+        obj = object.__new__(self.__class__)
+        obj.__copy_from__(self)
+        obj._mapper = self._mapper
+        return obj
+
+    def insert(self, value, **kwargs) -> Entry: raise NotImplementedError(f"")
+
+    def update(self, value, **kwargs) -> Entry: raise NotImplementedError(f"")
+
+    def remove(self, **kwargs) -> int: raise NotImplementedError(f"")
+
+    def fetch(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
+        request = self._mapper.child(self._path).fetch(
+            *args,
+            default_value=_not_found_,
+            lazy=False,
+            **kwargs
+        )
+
+        return self._op_fetch(request, default_value=default_value)
+
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        """Return a generator of the results."""
+        for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
+            yield idx, self._op_fetch(request)
+
+    def _op_fetch(self, request: typing.Any, *args,  **kwargs) -> typing.Any:
+
+        if isinstance(request, str) and "://" in request:
+            request = uri_split_as_dict(request)
+
+        if request is _not_found_:
+            return kwargs.get("default_value", _not_found_)
+
+        elif isinstance(request, list):
+            res = [self._op_fetch(req, *args, **kwargs) for req in request]
+
+        elif not isinstance(request, dict):
+            res = request
+
+        elif f"@{SPDB_TAG}" not in request:
+            res = {k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()}
+
+        else:
+
+            if request.startswith("@"):
+                request = uri_split_as_dict(request[1:])
+                res = target.child(request.get("path", None)).fetch(
+                    *args, request=request, **kwargs)
+            else:
+                res = request
+
+            res = target.fetch(*args, request=request,  **kwargs)
+
+        return res

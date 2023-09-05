@@ -1,15 +1,16 @@
 import typing
 
+import numpy as np
 from spdm.data.Entry import Entry
 from spdm.data.HTree import HTree
 
-import numpy as np
+from ..utils.logger import logger
 from ..utils.typing import ArrayType
 from .Field import Field
 from .Function import Function
 from .HTree import HTree
-from ..utils.logger import logger
-from .sp_property import sp_property, SpDict
+from .sp_property import SpDict, sp_property
+
 _T = typing.TypeVar("_T")
 
 

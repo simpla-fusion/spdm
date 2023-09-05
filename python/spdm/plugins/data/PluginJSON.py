@@ -3,7 +3,7 @@ import typing
 
 from spdm.data.Entry import Entry
 from spdm.data.File import File
-from spdm.utils.tree_utils import as_native
+from spdm.utils.typing import as_native
 from spdm.utils.logger import logger
 
 
