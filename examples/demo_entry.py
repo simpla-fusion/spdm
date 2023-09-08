@@ -3,8 +3,9 @@ import os
 from spdm.data.Entry import open_entry
 from spdm.data.File import File
 from spdm.utils.logger import logger
-
+import pathlib
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
+DATA_PATH = pathlib.Path(__file__).parent/"data"
 
 if __name__ == '__main__':
 
@@ -21,13 +22,17 @@ if __name__ == '__main__':
     # entry2 = open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east#38300")
     # logger.debug(entry2.get(["magnetics"]).dump())
 
-    shot_num = 70754
+    entry = open_entry(f"file+GEQdsk:///{DATA_PATH.as_posix()}/g063982.04800", mode="r")
 
-    time_slice = 10
+    logger.debug(entry.fetch())
 
-    entry = open_entry(f"east://202.127.204.12#{shot_num}")
+    # shot_num = 70754
 
-    eq = entry.child(f"equilibrium/time_slice/{time_slice}/").fetch()
+    # time_slice = 10
 
-    with File(f"./g{shot_num}", mode="w", format="geqdsk") as fid:
-        fid.write(eq)
+    # entry = open_entry(f"east://202.127.204.12#{shot_num}")
+
+    # eq = entry.child(f"equilibrium/time_slice/{time_slice}/").fetch()
+
+    # with File(f"./g{shot_num}", mode="w", format="geqdsk") as fid:
+    #     fid.write(eq)

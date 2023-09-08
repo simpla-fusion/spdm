@@ -146,15 +146,15 @@ class Collection(Connection):
 
 def open_collection(uri: typing.Union[str, URITuple], *args, schema=None, ** kwargs) -> Collection:
     url_ = uri_split(url)
-    if url_.scheme is None:
+    if url_.protocol is None:
         url_.scheme = "localdb"
 
-    if source_schema is None and url_.scheme != "":
-        source_schema = url_.scheme
+    if source_schema is None and url_.protocol != "":
+        source_schema = url_.protocol
 
-    mapper = create_mapper(url_.scheme,  schema)
+    mapper = create_mapper(url_.protocol,  schema)
 
-    if url_.scheme == "localdb":
+    if url_.protocol == "localdb":
         db = FileCollection(uri, *args, mapper=mapper, **kwargs)
     else:
         db = Collection(uri, *args, mapper=mapper, **kwargs)

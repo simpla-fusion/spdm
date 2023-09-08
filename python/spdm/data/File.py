@@ -17,43 +17,46 @@ class File(Connection):
     """
         File like object
     """
-    @classmethod
-    def __dispatch__init__(cls, name_list, self, url, *args, **kwargs) -> None:
-        if name_list is None:
-            n_cls_name = ''
-            if "format" in kwargs:
-                n_cls_name = kwargs.get("format")
-            elif isinstance(url, collections.abc.Mapping):
-                n_cls_name = url.get("$class", None)
+
+    def __init__(self, url: str | pathlib.Path | URITuple, *args, format=None, default_format=None, **kwargs):
+        if self.__class__ is not File:
+            pass
+        elif not isinstance(url, (str, URITuple, pathlib.Path)):
+            raise ValueError(f"Unknown URL: {url}")
+        else:
+
+            if format is not None:
+                pass
+            elif isinstance(url, dict):
+                format = url.get("$class", None)
             elif isinstance(url,   pathlib.PosixPath):
-                n_cls_name = url.suffix[1:].upper()
+                format = url.suffix[1:].upper()
             elif isinstance(url, (str, URITuple)):
                 uri = uri_split(url)
-                if isinstance(uri.scheme, str) and uri.scheme != "file":
-                    n_cls_name = uri.scheme
+                if isinstance(uri.protocol, str) and uri.protocol != "file":
+                    format = uri.protocol
                 else:
-                    n_cls_name = pathlib.PosixPath(uri.path).suffix[1:].upper()
-            if n_cls_name == ".":
-                n_cls_name = ".text"
+                    format = pathlib.PosixPath(uri.path).suffix[1:].upper()
 
-            #  f"{cls._plugin_prefix}{n_cls_name}#{n_cls_name}{cls.__name__}"
+            if format == ".":
+                format = "text"
 
-            name_list = [f"spdm.plugins.data.Plugin{n_cls_name}#{n_cls_name}File"]
+            plugin_list = []
 
-        default_format = kwargs.pop("default_format", None)
-        if default_format is not None:
-            name_list.append(f"spdm.plugins.data.Plugin{default_format}#{default_format}File")
+            if format is not None:
+                plugin_list.append(format)
 
-        if name_list is None or len(name_list) == 0:
-            return super().__init__(self, url, *args, **kwargs)
-        else:
-            return super().__dispatch__init__(name_list, self, url, *args, **kwargs)
+            if default_format is not None:
+                plugin_list.append(default_format)
 
-    def __init__(self, path: str | pathlib.Path, *args,  **kwargs):
-        if self.__class__ is File:
-            File.__dispatch__init__(None, self, path, *args, **kwargs)
+            plugin_list = [(f"spdm.plugins.data.plugin_{s.lower()}#FILEPLUGIN{s.lower()}" if isinstance(s, str) and "." not in s else s)
+                           for s in plugin_list]
+
+            super().__dispatch__init__(plugin_list, self, url, *args, **kwargs)
+
             return
-        super().__init__(path, *args, **kwargs)
+
+        super().__init__(url, *args, **kwargs)
 
     @property
     def mode_str(self) -> str:

@@ -24,22 +24,22 @@ class Entry(Pluggable):
     _plugin_registry = {}
 
     @classmethod
-    def __dispatch__init__(cls, name_list, self,  *args, **kwargs) -> None:
-        if name_list is None:
-            name_list = []
+    def __dispatch__init__(cls, plugin_list, self,  *args, **kwargs) -> None:
+        if plugin_list is None:
+            plugin_list = []
 
         if len(args) > 0 and isinstance(args[0], (str, URITuple)):
-            scheme = uri_split(args[0]).scheme
+            scheme = uri_split(args[0]).protocol
 
             if scheme in ["file", "local", "https", "http", "", None]:
                 raise NotImplementedError(f"")
             else:
-                name_list.append(EntryProxy)
+                plugin_list.append(EntryProxy)
 
-        if name_list is None or len(name_list) == 0:
+        if plugin_list is None or len(plugin_list) == 0:
             return super().__init__(self,  *args, **kwargs)
         else:
-            return super().__dispatch__init__(name_list, self, *args, **kwargs)
+            return super().__dispatch__init__(plugin_list, self, *args, **kwargs)
 
     def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args,  **kwargs):
         if self.__class__ is Entry and isinstance(data, (str, URITuple)):
@@ -182,8 +182,68 @@ class Entry(Pluggable):
     ###########################################################
 
 
-def open_entry(url: str, *args, schema=None, ** kwargs) -> Entry:
-    return Entry(url, *args, schema=schema, **kwargs)
+_predefined_protocols = ["local", "file",  "http", "https"]
+
+
+def open_entry(url_s: str | pathlib.Path, *args, schema=None, ** kwargs) -> Entry:
+    """
+        Open an Entry from a URL.
+
+        Using urllib.urlparse to parse the URL.  rfc3986
+
+        URL format: <protocol>://<authority>/<path>?<query>#<fragment>  
+
+        RF3986 = r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+
+        Example:
+            /path/to/file.json                      => File
+            file:///path/to/file                    => File
+            ssh://a.b.c.net/path/to/file            => ???
+            https://a.b.c.net/path/to/file          => ???
+
+            imas+ssh://a.b.c.net/path/to/file
+
+            east://<mds_prefix>/#<shot_number>
+            east+ssh://<mds_prefix>/#<shot_number>
+
+    """
+
+    url = uri_split(url_s)
+
+    scheme = url.protocol.split("+")
+
+    local_schema = None
+
+    global_schema = schema
+
+    match len(scheme):
+        case 0:
+            url.protocol = 'local'
+        case 1:
+            if scheme[0] not in _predefined_protocols:
+                local_schema = scheme[0]
+                url.protocol = ""
+        case _:
+            if scheme[0] in _predefined_protocols:
+                url.protocol = scheme[0]
+                if scheme[1] != kwargs.setdefault("format", scheme[1]):
+                    raise ValueError(f"Format mismatch! {scheme[1]} != {kwargs['format']}")
+            else:
+                local_schema = scheme[0]
+                url.protocol = "+".join(scheme[1:])
+
+    if local_schema is not None:
+        return EntryProxy(url, *args, local_schema=local_schema, global_schema=global_schema, ** kwargs)
+
+    elif url.protocol in ["file", "local", "", None]:
+        from .File import File
+        return File(url, *args, **kwargs).read()
+
+    elif url.protocol in ["https", "http"]:
+        return Entry(url, *args, **kwargs)
+
+    else:
+        raise RuntimeError(f"Unknown url {url}")
 
 
 def as_entry(obj, *args, **kwargs) -> Entry:
@@ -274,6 +334,7 @@ def convert_from_entry(cls, obj, *args, **kwargs):
 
 
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
+
 SPDB_TAG = "spdb"
 
 
@@ -347,14 +408,17 @@ class EntryProxy(Entry):
             if len(mapping_files) == 0:
                 raise FileNotFoundError(f"Can not find mapping files for {map_tag}!")
 
-            mapper = File(mapping_files, mode="r", format="XML").read()
+            mapper = open_entry(mapping_files, mode="r", format="XML")
 
             cls._maps[map_tag] = mapper
 
         return mapper
 
-    def __init__(self, entry: str | URITuple | Entry, *args, schema: str | None = None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, entry: Entry | URITuple | str, local_schema: str | None, global_schema: str | None, *args, **kwargs):
+        super().__init__()
+
+        if isinstance(entry, Entry):
+            self._entry = {"_", entry}
 
         self._mapper = mapper
         self._entry = {}

@@ -368,7 +368,7 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return d
 
 
-@ deprecated
+
 def as_native(d, enable_ndarray=True) -> typing.Union[str, bool, float, int, np.ndarray, dict, list]:
     """
         convert d to native data type str,bool,float, int, dict, list

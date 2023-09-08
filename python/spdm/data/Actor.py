@@ -16,11 +16,11 @@ class Actor(SpDict, Pluggable):
     _plugin_name_path = "plugin_name"
 
     @classmethod
-    def __dispatch__init__(cls, name_list, self,  d=None, *args, default_plugin: str = None,  **kwargs) -> None:
+    def __dispatch__init__(cls, plugin_list, self,  d=None, *args, default_plugin: str = None,  **kwargs) -> None:
         if isinstance(d, str):
             d = open_entry(d)
 
-        if name_list is None:
+        if plugin_list is None:
             module_name = None
             name_path = Path(self.__class__._plugin_name_path)
 
@@ -41,12 +41,12 @@ class Actor(SpDict, Pluggable):
                     prefix += module_preifx
                 if prefix != "" and not prefix.endswith("/"):
                     prefix = prefix+"/"
-                name_list = [f"{prefix}{module_name}"]
+                plugin_list = [f"{prefix}{module_name}"]
 
-        if name_list is None or len(name_list) == 0:
+        if plugin_list is None or len(plugin_list) == 0:
             return super().__init__(self, d, *args, **kwargs)
         else:
-            return super().__dispatch__init__(name_list, self, d, *args, **kwargs)
+            return super().__dispatch__init__(plugin_list, self, d, *args, **kwargs)
 
     def __init__(self, *args, **kwargs):
         if self.__class__ is Actor or "_plugin_registry" in vars(self.__class__):

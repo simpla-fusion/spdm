@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     pf_time = entry.child("pf_active/coil/0/current/time").fetch()
 
-    # # pprint({k: v for k, v in os.environ.items() if k.endswith("_path")})
+    # pprint({k: v for k, v in os.environ.items() if k.endswith("_path")})
 
     logger.debug(pf_current)
 
