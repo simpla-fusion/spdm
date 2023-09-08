@@ -282,6 +282,7 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     if psirz.shape != (nw, nh):
         raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw, nh)}")
 
+
     eq["time_slice"] = [{
         "time": 0.0,
         "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__,
@@ -291,8 +292,8 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
                               "ip": Ip
                               },
         # boundary
-        "boundary": {"outline": {"r": geqdsk["bbsrz"][:, 0].__value__,
-                                 "z": geqdsk["bbsrz"][:, 1].__value__}},
+        "boundary": {"outline": {"r": geqdsk["bbsrz"].__value__[:, 0],
+                                 "z": geqdsk["bbsrz"].__value__[:, 1]}},
 
         # profile 1d
         "profiles_1d": {

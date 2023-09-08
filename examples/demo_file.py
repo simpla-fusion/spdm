@@ -1,12 +1,13 @@
 import pathlib
 from spdm.data.File import File
 from spdm.utils.logger import logger
-DATA_PATH = pathlib.Path(__file__).parent/"data"
+DATA_PATH = pathlib.Path("/home/salmon/workspace/fytok_data/gfiles")
 if __name__ == '__main__':
 
     with File(DATA_PATH/"g063982.04800", mode="r", format="GEQdsk") as fid:
         doc = fid.read()
-
+        eq=doc.dump()
+        
     with File("../output/test.json", mode="w") as oid:
         oid.write(doc.dump())
         oid.close()

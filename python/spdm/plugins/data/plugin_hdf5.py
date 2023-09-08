@@ -16,6 +16,9 @@ SPDM_LIGHTDATA_MAX_LENGTH = 64
 
 
 def h5_require_group(grp, path):
+    if isinstance(path, str):
+        path = path.split("/")
+        
     for p in path:
         if isinstance(p, str):
             pass

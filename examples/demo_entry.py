@@ -1,30 +1,27 @@
 import os
+import pathlib
 
 from spdm.data.Entry import open_entry
-from spdm.data.File import File
 from spdm.utils.logger import logger
-import pathlib
+
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
-DATA_PATH = pathlib.Path(__file__).parent/"data"
+
 
 if __name__ == '__main__':
 
-    # db: Collection = open_db("mdsplus[EAST]://202.127.204.12")
+    DATA_PATH = pathlib.Path("/home/salmon/workspace/fytok_data/gfiles")
 
-    # entry = open_entry("MDSplus[EAST]://202.127.204.12?tree_name=pcs_east#70754")
+    eq0 = open_entry(f"file+GEQdsk:///{DATA_PATH.as_posix()}/g063982.04800", mode="r").fetch()
 
-    # ip = entry.child(("tf", "coil",  "current", "data")).query()
-    # pf = entry.child("pf_active").query()
+    eq1 = open_entry(DATA_PATH/"g063982.04800", mode="r", format="geqdsk").fetch()
 
-    # logger.debug(ip)
-    # logger.debug(pf)
+    logger.debug(eq0)
 
-    # entry2 = open_entry("file+mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east#38300")
-    # logger.debug(entry2.get(["magnetics"]).dump())
+    logger.debug(eq1)
 
-    entry = open_entry(f"file+GEQdsk:///{DATA_PATH.as_posix()}/g063982.04800", mode="r")
+    eq2 = open_entry(f"east://{DATA_PATH.as_posix()}/mdsplus/~t/?shot=70745").fetch()
 
-    logger.debug(entry.fetch())
+    logger.debug(eq2)
 
     # shot_num = 70754
 

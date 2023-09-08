@@ -233,7 +233,7 @@ def open_entry(url_s: str | pathlib.Path, *args, schema=None, ** kwargs) -> Entr
                 url.protocol = "+".join(scheme[1:])
 
     if local_schema is not None:
-        return EntryProxy(url, *args, local_schema=local_schema, global_schema=global_schema, ** kwargs)
+        return EntryProxy(local_schema=local_schema, global_schema=global_schema, prefix=url, ** kwargs)
 
     elif url.protocol in ["file", "local", "", None]:
         from .File import File
@@ -414,11 +414,8 @@ class EntryProxy(Entry):
 
         return mapper
 
-    def __init__(self, entry: Entry | URITuple | str, local_schema: str | None, global_schema: str | None, *args, **kwargs):
+    def __init__(self, local_schema: str | None, global_schema: str | None, *args, **kwargs):
         super().__init__()
-
-        if isinstance(entry, Entry):
-            self._entry = {"_", entry}
 
         self._mapper = mapper
         self._entry = {}
