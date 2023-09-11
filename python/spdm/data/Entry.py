@@ -406,7 +406,7 @@ class EntryProxy(Entry):
 
         if local_schema is None:
 
-            schemes = _url.protocol.split("+") if _url.protocol is not None else []
+            schemes = [] if not _url.protocol else _url.protocol.split("+")
 
             if len(schemes) > 0:
                 local_schema = schemes[0]
@@ -451,16 +451,17 @@ class EntryProxy(Entry):
 
         self._entry_list = {}
 
-        if _url is not None:
-            kwargs["url"] = f"{_url.protocol}://{_url.authority}{_url.path}"
-
         spdb = self._mapper.child("spdb").fetch()
+
+        if not isinstance(spdb, dict):
+            return
 
         attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
 
         attr.update(kwargs)
 
-        self._entry_list = {}
+        if _url is not None:
+            attr["url"] = f"{_url.protocol}://{_url.authority}{_url.path}"
 
         for entry in spdb.get("entry", []):
             id = entry.get("@id", None)

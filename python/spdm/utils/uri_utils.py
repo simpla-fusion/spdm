@@ -51,7 +51,7 @@ def uri_split_as_dict(uri) -> dict:
                            for k, v in parse_qs(url.query).items()])+"}"
     ast.literal_eval(query)
     res = dict(
-        protocol=url.scheme or "file",
+        protocol=url.scheme,
         authority=url.netloc,
         path=url.path,
         query=ast.literal_eval(query),
