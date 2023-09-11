@@ -29,7 +29,7 @@ class Mesh(Pluggable):
     _plugin_registry = {}
 
     @classmethod
-    def __dispatch__init__(cls, self, *args, **kwargs) -> None:
+    def __dispatch_init__(cls, self, *args, **kwargs) -> None:
 
         mesh_type = kwargs.pop("mesh_type", _not_found_)
 
@@ -41,18 +41,18 @@ class Mesh(Pluggable):
         elif all([isinstance(arg, (int, np.ndarray)) for arg in args]):
             mesh_type = "rectilinear"
         else:
-            raise RuntimeError(f"Mesh.__dispatch__init__(): mesh_type={mesh_type} is not found! {kwargs}")
+            raise RuntimeError(f"Mesh.__dispatch_init__(): mesh_type={mesh_type} is not found! {kwargs}")
 
         if isinstance(mesh_type, str):
             mesh_type = [mesh_type,
                          f"spdm.mesh.{mesh_type}Mesh#{mesh_type}Mesh",
                          f"spdm.mesh.{mesh_type.capitalize()}Mesh#{mesh_type.capitalize()}Mesh"
                          ]
-        super().__dispatch__init__(mesh_type, self, *args, **kwargs)
+        super().__dispatch_init__(mesh_type, self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Mesh:
-            return Mesh.__dispatch__init__(self, *args,   **kwargs)
+            return Mesh.__dispatch_init__(self, *args,   **kwargs)
 
         geometry, self._metadata = group_dict_by_prefix(kwargs, "geometry")
 

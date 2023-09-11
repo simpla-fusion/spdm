@@ -49,7 +49,7 @@ def nc_put_value(grp, path, value,  **kwargs):
             obj = grp.createGroup(p)
         else:
             obj = grp
-        logger.debug(path[:])
+        
         obj.setncattr(path[-1], value)
     return
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from copy import deepcopy, copy
+from copy import copy, deepcopy
 
 import numpy as np
 import numpy.typing as np_tp

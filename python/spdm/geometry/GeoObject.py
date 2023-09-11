@@ -29,7 +29,7 @@ class GeoObject(Pluggable):
     _plugin_registry = {}
 
     @classmethod
-    def __dispatch__init__(cls, _geo_type, self, *args, **kwargs) -> None:
+    def __dispatch_init__(cls, _geo_type, self, *args, **kwargs) -> None:
         """
         """
         if _geo_type is None or len(_geo_type) == 0:

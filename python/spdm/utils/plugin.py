@@ -4,7 +4,6 @@ import collections.abc
 import inspect
 import os
 import sys
-import typing
 from enum import Enum
 from .tags import _not_found_
 from .logger import logger
@@ -14,68 +13,86 @@ from .sp_export import sp_find_module, sp_load_module
 class Pluggable(metaclass=abc.ABCMeta):
     """ Factory class to create objects from a registry.    """
 
-    _plugin_path_template = "spdm.plugins.plugin_{name}"
     _plugin_registry = {}
 
     @classmethod
-    def register(cls, name_list: str | typing.List[str | None] | None = None, other_cls=None):
-        """
-        Decorator to register a class to the registry.
-        """
-        if other_cls is not None:
-            if isinstance(name_list, str) or name_list is None:
-                cls._plugin_registry[name_list] = other_cls
-            elif isinstance(name_list, collections.abc.Sequence):
-                cls._plugin_registry[name_list[0]] = other_cls
-                for n in name_list[1:]:
-                    cls._plugin_registry[n] = name_list[0]
+    def _get_plugin_fullname(cls, name) -> str:
+        prefix = getattr(cls, "_plugin_name_prefix", None)
+        if prefix is None:
+            name = name.replace('/', '.').lower()
+            m_pth = cls.__module__.split('.')
+            prefix = '.'.join(m_pth[0:1]+['plugins']+m_pth[1:-1]+["plugin_"])
+            cls._plugin_name_prefix = prefix
+        if not name.startswith(prefix):
+            name = prefix+name
+        return name
 
-            return other_cls
+    @classmethod
+    def register(cls, sub_list: str | list | None = None, plugin_cls=None):
+        """
+            Decorator to register a class to the registry. 
+        """
+        if plugin_cls is not None:
+
+            if not isinstance(sub_list, list):
+                sub_list = [sub_list]
+
+            for name in sub_list:
+                if not isinstance(name, str):
+                    continue
+                cls._plugin_registry[cls._get_plugin_fullname(name)] = plugin_cls
+
+            return plugin_cls
         else:
             def decorator(o_cls):
-                cls.register(name_list, o_cls)
+                cls.register(sub_list, o_cls)
                 return o_cls
             return decorator
 
     @classmethod
-    def __dispatch_init__(cls, cls_name_list, self, *args, **kwargs) -> None:
+    def __dispatch_init__(cls, sub_list, self, *args, **kwargs) -> None:
+
+        if not isinstance(sub_list, list):
+            sub_list = [sub_list]
 
         n_cls = None
 
-        for cls_name in cls_name_list:
-            if cls_name is None or cls_name is _not_found_ or cls_name == "":
+        for sub_cls in sub_list:
+            if sub_cls is None or sub_cls is _not_found_ or sub_cls == "":
                 continue
 
-            if isinstance(cls_name, Enum):
-                cls_name = cls_name.name
+            if isinstance(sub_cls, Enum):
+                sub_cls = sub_cls.name
 
-            if isinstance(cls_name, str):
+            if isinstance(sub_cls, str):
+                cls_name = cls._get_plugin_fullname(sub_cls)
+
                 if cls_name not in cls._plugin_registry:
-                    sp_load_module(cls._plugin_path_template.format(name=cls_name))
+                    sp_load_module(cls_name)
 
-                n_cls = cls_name
+                n_cls = cls._plugin_registry.get(cls_name, None)
 
-                while isinstance(n_cls, str):
-                    n_cls = cls._plugin_registry.get(n_cls, None)
-
-            elif inspect.isclass(cls_name):
-                n_cls = cls_name
-                cls_name = n_cls.__name__
+            elif inspect.isclass(sub_cls):
+                n_cls = sub_cls
+                sub_cls = n_cls.__name__
 
             if n_cls is not None:
                 break
 
         if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
-            raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' from {cls_name_list}!")
+            raise ModuleNotFoundError(
+                f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
 
         self.__class__ = n_cls
         n_cls.__init__(self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Pluggable:
-            Pluggable.__dispatch_init__(None, self, *args, **kwargs)
-        elif "__dispatch_init__" in vars(self.__class__):
+        if self.__class__ is Pluggable or "_plugin_registry" in vars(self.__class__):
             self.__class__.__dispatch_init__(None, self, *args, **kwargs)
+            return
+
+        # elif "__dispatch_init__" in vars(self.__class__):
+        #     self.__class__.__dispatch_init__(None, self, *args, **kwargs)
 
     # def __new__(cls,  *args, **kwargs):
     # if not issubclass(cls, Pluggable):

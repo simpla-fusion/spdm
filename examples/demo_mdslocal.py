@@ -4,15 +4,15 @@ from spdm.utils.logger import logger
 from spdm.data.Entry import open_entry
 
 os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
+DATA_PATH = "/home/salmon/workspace/fytok_data/"
 
 if __name__ == '__main__':
 
     method = 1
-    DATA_PATH = "/ssd01/salmon_work/workspace/fytok_data"
     if method == 1:
-        entry = open_entry(f"east://{DATA_PATH}/mdsplus/~t/#[70745,4]")
+        entry = open_entry(f"east+mdsplus://{DATA_PATH}/mdsplus/~t/?shot=70745")
     elif method == 2:
-        entry = open_entry(f"EAST:///share/arch/east/~t/~f~e~d/?tree_name=east,t1,t2,t3,t4,t5,t6#70754")
+        entry = open_entry(f"EAST:///share/arch/east/~t/~f~e~d/?tree_name=east,t1,t2,t3,t4,t5,t6,shot=70754")
     else:
         os.environ['east_path'] = f'{DATA_PATH}/mdsplus/~t'
         os.environ['t1_path'] = f'{DATA_PATH}/mdsplus/~t'

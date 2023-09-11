@@ -19,15 +19,15 @@ if __name__ == '__main__':
 
     # logger.debug(eq1)
 
-    # # eq2 = open_entry(f"east+mdsplus:///home/salmon/workspace/fytok_data/mdsplus/~t/", shot=70745)
+    eq2 = open_entry(f"east+mdsplus:///home/salmon/workspace/fytok_data/mdsplus/~t/", shot=70745)
     
-    eq2 = open_entry(f"east+mdsplus://202.127.204.12", shot=70745)
+    # eq2 = open_entry(f"east+mdsplus://202.127.204.12", shot=70745)
 
     logger.debug(eq2.child("equilibrium/time_slice/0/boundary/outline/r").fetch())
 
-
     eq3 = open_entry(f"cfetr")
-    logger.debug(eq3.child("wall/description_2d/limiter/unit/0/boundary/outline/r").fetch())
+    
+    logger.debug(eq3.child("wall/description_2d/0/limiter/unit/0/boundary/outline/r").fetch())
 
     # # shot_num = 70754
 

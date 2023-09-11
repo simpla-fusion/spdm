@@ -4,8 +4,9 @@ from io import BytesIO
 
 import matplotlib.pyplot as plt
 import numpy as np
-from spdm.data.Field import Field
+
 from spdm.data.Expression import Expression
+from spdm.data.Field import Field
 from spdm.data.Function import Function
 from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
@@ -17,10 +18,10 @@ from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
 from spdm.utils.logger import logger
 from spdm.utils.typing import array_type, as_array, is_array
-from .View import View
+from spdm.view.View import View
 
 
-@View.register(["matplotlib", "Matplotlib"])
+@View.register(["matplotlib"])
 class MatplotlibView(View):
     backend = "matplotlib"
 

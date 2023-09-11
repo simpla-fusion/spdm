@@ -21,7 +21,7 @@ from .Path import Path, PathLike, as_path
 
 class Entry(Pluggable):
 
-    _plugin_path_template = "spdm.plugins.data.plugin_{name}"
+    _plugin_module_path = "spdm.plugins.data.plugin_{name}"
     _plugin_registry = {}
 
     def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args, scheme=None, **kwargs):
@@ -415,12 +415,12 @@ class EntryProxy(Entry):
                 local_schema = _url.path
                 _url = None
             else:
-                raise RuntimeError(f"local schema is not defined!")
+                raise RuntimeError(f"local schema is not defined! {_url}")
 
         if global_schema is None:
             global_schema = EntryProxy._default_global_schema
 
-        map_tag = f"{local_schema}/{global_schema}"
+        map_tag = f"{local_schema.lower()}/{global_schema.lower()}"
 
         mapper = mapper_list.get(map_tag, _not_found_)
 

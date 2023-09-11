@@ -20,29 +20,29 @@ class View(Pluggable):
 
     backend = None
 
-    @classmethod
-    def __dispatch__init__(cls, _backend_type, self, *args, **kwargs) -> None:
+    # @classmethod
+    # def __dispatch_init__(cls, _backend_type, self, *args, **kwargs) -> None:
 
-        if isinstance(_backend_type, str):
-            _backend_type = [_backend_type,
-                             f"spdm.view.{_backend_type}#{_backend_type}",
-                             f"spdm.view.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
-                             f"spdm.view.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
-                             f"spdm.view.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
-                             f"spdm.view.{cls.__name__}#{_backend_type}"
-                             f"spdm.plugins.view.{_backend_type}#{_backend_type}",
-                             f"spdm.plugins.view.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
-                             f"spdm.plugins.view.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
-                             f"spdm.plugins.view.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
-                             f"spdm.plugins.view.{cls.__name__}#{_backend_type}"
-                             ]
+    #     if isinstance(_backend_type, str):
+    #         _backend_type = [_backend_type,
+    #                          f"spdm.view.{_backend_type}#{_backend_type}",
+    #                          f"spdm.view.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
+    #                          f"spdm.view.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
+    #                          f"spdm.view.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
+    #                          f"spdm.view.{cls.__name__}#{_backend_type}"
+    #                          f"spdm.plugins.view.{_backend_type}#{_backend_type}",
+    #                          f"spdm.plugins.view.{_backend_type}{cls.__name__}#{_backend_type}{cls.__name__}",
+    #                          f"spdm.plugins.view.{_backend_type.capitalize()}#{_backend_type.capitalize()}",
+    #                          f"spdm.plugins.view.{_backend_type.capitalize()}{cls.__name__}#{_backend_type.capitalize()}{cls.__name__}",
+    #                          f"spdm.plugins.view.{cls.__name__}#{_backend_type}"
+    #                          ]
 
-        super().__dispatch__init__(_backend_type, self, *args, **kwargs)
+    #     super().__dispatch_init__(_backend_type, self, *args, **kwargs)
 
     def __init__(self, *args,  **kwargs) -> None:
         if self.__class__ is View:
-            return View.__dispatch__init__(kwargs.pop("type", None), self, *args, **kwargs)
-
+            View.__dispatch_init__(kwargs.pop("type", None), self, *args, **kwargs)
+            return
         self._styles = kwargs.pop("styles", {})
 
     @property

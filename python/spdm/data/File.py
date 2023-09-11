@@ -35,7 +35,7 @@ class File(Document):
                 if format is None or format == "":
                     format = pathlib.PosixPath(uri.path).suffix[1:]
 
-            super().__dispatch__init__([format, default_format], self, url, *args, **kwargs)
+            super().__dispatch_init__([format, default_format], self, url, *args, **kwargs)
 
             return
 

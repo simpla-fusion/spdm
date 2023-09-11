@@ -47,7 +47,7 @@ import typing
 from _thread import RLock
 from spdm.data.Entry import Entry
 
-from .open_entry import open_entry
+from .Entry import open_entry
 from .HTree import HTree
 from ..utils.tags import _not_found_
 from ..utils.logger import logger
