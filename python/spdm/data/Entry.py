@@ -402,6 +402,8 @@ class EntryProxy(Entry):
 
         _url = uri_split(url)
 
+        kwargs.update(_url.query)
+
         if local_schema is None:
 
             schemes = _url.protocol.split("+") if _url.protocol is not None else []
