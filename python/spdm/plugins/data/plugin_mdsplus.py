@@ -12,7 +12,7 @@ from spdm.data.Path import Path
 
 
 @File.register(["mdsplus", "mds", "mds+", "MDSplus"])
-class FILEPLUGINmdsplus(File):
+class MDSplusTree(File):
     MDS_MODE = {
         File.Mode.read: "ReadOnly",
         File.Mode.write: "Normal",
@@ -35,17 +35,17 @@ class FILEPLUGINmdsplus(File):
         # {k: (v if not isinstance(v, slice) else f"{v.start}:{v.stop}:{v.step}")
         #   for k, v in self._envs.items()}
 
-        query = self.uri.query or {}
+        query = self.url.query or {}
 
-        self._mds_mode = MDSplusFile.MDS_MODE[self.mode]
+        self._mds_mode = MDSplusTree.MDS_MODE[self.mode]
 
-        path = self.uri.path.rstrip("/")
+        path = self.url.path.rstrip("/")
 
-        if self.uri.authority != "":
-            path = f"{self.uri.authority}::{path}"
+        if self.url.authority != "":
+            path = f"{self.url.authority}::{path}"
 
-        if self.uri.protocol in ("ssh"):
-            path = f"{self.uri.protocol}://" + path
+        if self.url.protocol in ("ssh"):
+            path = f"{self.url.protocol}://" + path
 
         if len(path) == 0:
             path = None
@@ -74,7 +74,7 @@ class FILEPLUGINmdsplus(File):
         self._shot = (
             shot
             if shot is not None
-            else (fid if fid is not None else query.get("shot", self.uri.fragment))
+            else (fid if fid is not None else query.get("shot", self.url.fragment))
         )
 
         self._trees = {}
@@ -151,7 +151,8 @@ class FILEPLUGINmdsplus(File):
         tdi = request.get("query", None) or request.get("@text", None)
 
         if not tdi:
-            return self
+            raise RuntimeError(f"Illegal request {request}")
+        
         try:
             tdi = tdi.format_map(self._envs)
         except KeyError as error:
@@ -203,11 +204,11 @@ class MDSplusCollection(Collection):
             or self.guess_id(*args, **collections.ChainMap((query or {}), kwargs))
             or self.next_id
         )
-        return MDSplusFile(self.uri, fid=fid, mode=mode or "w", **kwargs)
+        return MDSplusTree(self.url, fid=fid, mode=mode or "w", **kwargs)
 
     def find_one(self, predicate, projection=None, only_one=False, **kwargs) -> Entry:
         fid = self.guess_id(predicate, **kwargs)
-        entry = self._mapping(MDSplusFile(self.uri, fid=fid, **kwargs).entry)
+        entry = self._mapping(MDSplusTree(self.url, fid=fid, **kwargs).entry)
         if projection is None:
             return entry
         else:
@@ -256,11 +257,11 @@ class MDSplusCollection(Collection):
 
 @Entry.register(["mdsplus", "mds", "mds+", "MDSplus"])
 class MDSplusEntry(Entry):
-    def __init__(self, cache: typing.Union[MDSplusFile, str], *args, **kwargs):
+    def __init__(self, cache:  MDSplusTree | str, *args, **kwargs):
         if isinstance(cache, str):
-            cache: MDSplusFile = MDSplusFile(cache)
-        if not isinstance(cache, MDSplusFile):
-            raise TypeError(f"cache must be MDSplusFile or str, but got {type(cache)}")
+            cache: MDSplusTree = MDSplusTree(cache)
+        if not isinstance(cache, MDSplusTree):
+            raise TypeError(f"cache must be FILEPLUGINmdsplus or str, but got {type(cache)}")
         super().__init__(cache, *args, **kwargs)
 
     def fetch(self, *args, **kwargs):
@@ -294,4 +295,4 @@ def open_mdstree(tree_name, shot, mode="NORMAL", path=None):
     return tree
 
 
-__SP_EXPORT__ = FILEPLUGINmdsplus
+__SP_EXPORT__ = MDSplusTree

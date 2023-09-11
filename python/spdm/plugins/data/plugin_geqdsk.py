@@ -282,7 +282,6 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     if psirz.shape != (nw, nh):
         raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw, nh)}")
 
-
     eq["time_slice"] = [{
         "time": 0.0,
         "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__,
@@ -317,17 +316,17 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     return eq
 
 
-@File.register(["gfile", "GEQdsk"])
-class FILEPLUGINgeqdsk(File):
+@File.register(["gfile", "geqdsk"])
+class GEQdskFile(File):
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         try:
-            self._fid = open(pathlib.Path(self.uri.path).expanduser().resolve(),  mode=self.mode_str)
+            self._fid = open(pathlib.Path(self.url.path).expanduser().resolve(),  mode=self.mode_str)
         except OSError as error:
-            raise FileExistsError(f"Can not open file {self.uri}! {error}")
+            raise FileExistsError(f"Can not open file {self.url}! {error}")
         else:
-            logger.debug(f"Open File {self.uri} mode={self.mode}")
+            logger.debug(f"Open File {self.url} mode={self.mode}")
 
     # def flush(self, *args, **kwargs):
     #     if self.mode & File.Mode.write:
@@ -341,4 +340,4 @@ class FILEPLUGINgeqdsk(File):
         sp_write_geqdsk(geqdsk, self._fid)
 
 
-__SP_EXPORT__ = FILEPLUGINgeqdsk
+__SP_EXPORT__ = GEQdskFile

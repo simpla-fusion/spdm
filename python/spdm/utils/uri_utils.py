@@ -5,18 +5,18 @@ Feature:
  * This module support extended 'Path' syntax, supports bracket '[]' in the path.
  TODO (salmon.20190919): support  quoting
 """
+import ast
 import collections
 import collections.abc
-from urllib.parse import urlparse, parse_qs
 import pathlib
 import re
+from copy import deepcopy
 from dataclasses import dataclass
-from typing import List, Union, Any
 from pathlib import Path
-import ast
+from typing import Any, List, Union
+from urllib.parse import parse_qs, urlparse
 
 from .logger import logger
-
 
 _rfc3986 = re.compile(
     r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
@@ -30,11 +30,11 @@ _rfc3986_ext = re.compile(
 
 @dataclass
 class URITuple:
-    protocol: str = "local"
-    authority: str = ""
-    path: str = ""
+    protocol: str = None
+    authority: str = None
+    path: str = None
     query: dict = None
-    fragment: str = ""
+    fragment: str = None
 
 
 def uri_split_as_dict(uri) -> dict:
@@ -47,8 +47,9 @@ def uri_split_as_dict(uri) -> dict:
 
     url = urlparse(uri)
 
-    query = "{" + ','.join([f'"{k}":{v[0]}' for k, v in parse_qs(url.query).items()])+"}"
-
+    query = "{" + ','.join([(f'"{k}":"{v[0]}"' if not v[0].isnumeric() else f'"{k}":{v[0]}')
+                           for k, v in parse_qs(url.query).items()])+"}"
+    ast.literal_eval(query)
     res = dict(
         protocol=url.scheme or "file",
         authority=url.netloc,
@@ -61,7 +62,7 @@ def uri_split_as_dict(uri) -> dict:
 
 def uri_split(uri: Union[str, URITuple, Path]) -> URITuple:
     if isinstance(uri, URITuple):
-        return uri
+        return deepcopy(uri)
     elif isinstance(uri, str):
         return URITuple(**uri_split_as_dict(uri))
     elif isinstance(uri, (collections.abc.Sequence, Path)):

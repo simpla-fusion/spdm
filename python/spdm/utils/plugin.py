@@ -6,14 +6,15 @@ import os
 import sys
 import typing
 from enum import Enum
-
+from .tags import _not_found_
 from .logger import logger
-from .sp_export import sp_find_module
+from .sp_export import sp_find_module, sp_load_module
 
 
 class Pluggable(metaclass=abc.ABCMeta):
     """ Factory class to create objects from a registry.    """
 
+    _plugin_path_template = "spdm.plugins.plugin_{name}"
     _plugin_registry = {}
 
     @classmethod
@@ -37,270 +38,269 @@ class Pluggable(metaclass=abc.ABCMeta):
             return decorator
 
     @classmethod
-    def __dispatch__init__(cls, name_list, self, *args, **kwargs) -> None:
-        if not name_list:
-            return super().__init__(self)
-        elif not isinstance(name_list, collections.abc.Sequence) or isinstance(name_list, str):
-            name_list = [name_list]
+    def __dispatch_init__(cls, cls_name_list, self, *args, **kwargs) -> None:
 
         n_cls = None
-        for n_cls_name in name_list:
-            if isinstance(n_cls_name, Enum):
-                n_cls_name = n_cls_name.name
 
-            if isinstance(n_cls_name, str) or n_cls_name is None:
-                n_cls = cls._plugin_registry.get(n_cls_name, None)
-                if isinstance(n_cls, str):
-                    # TODO: 需要检查并消除循环依赖
-                    n_cls_name = n_cls
-                    n_cls = None
-            
-            elif inspect.isclass(n_cls_name):
-                n_cls = n_cls_name
-                n_cls_name = n_cls.__name__
+        for cls_name in cls_name_list:
+            if cls_name is None or cls_name is _not_found_ or cls_name == "":
+                continue
 
-            if not callable(n_cls):
-                n_cls = sp_find_module(n_cls_name)
+            if isinstance(cls_name, Enum):
+                cls_name = cls_name.name
 
-            if callable(n_cls):
+            if isinstance(cls_name, str):
+                if cls_name not in cls._plugin_registry:
+                    sp_load_module(cls._plugin_path_template.format(name=cls_name))
+
+                n_cls = cls_name
+
+                while isinstance(n_cls, str):
+                    n_cls = cls._plugin_registry.get(n_cls, None)
+
+            elif inspect.isclass(cls_name):
+                n_cls = cls_name
+                cls_name = n_cls.__name__
+
+            if n_cls is not None:
                 break
 
         if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
-            raise ModuleNotFoundError(
-                f"Can not find module as subclass of {cls.__name__} from {name_list}! PYTHONPATH={sys.path}")
-        else:
-            self.__class__ = n_cls
-            n_cls.__init__(self, *args, **kwargs)
+            raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' from {cls_name_list}!")
+
+        self.__class__ = n_cls
+        n_cls.__init__(self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Pluggable:
-            Pluggable.__dispatch__init__(None, self, *args, **kwargs)
-        elif "__dispatch__init__" in vars(self.__class__):
-            self.__class__.__dispatch__init__(None, self, *args, **kwargs)
-            # def __new__(cls,  *args, **kwargs):
-            # if not issubclass(cls, Pluggable):
-            #     return object.__new__(cls)
-            # return object.__new__(Pluggable._plugin_guess_cls(*args, **kwargs))
+            Pluggable.__dispatch_init__(None, self, *args, **kwargs)
+        elif "__dispatch_init__" in vars(self.__class__):
+            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
 
-            # @classmethod
-            # def create(cls, *args, **kwargs):
-            #     if not issubclass(cls, Pluggable):
-            #         return cls(*args, **kwargs)
-            #     else:
-            #         n_obj = Pluggable.__new__(cls, *args, **kwargs)
-            #         n_obj.__init__(*args, **kwargs)
-            #         return n_obj
+    # def __new__(cls,  *args, **kwargs):
+    # if not issubclass(cls, Pluggable):
+    #     return object.__new__(cls)
+    # return object.__new__(Pluggable._plugin_guess_cls(*args, **kwargs))
 
-            # def __init__(self, *args, module_prefix=None, resolver=None, handlers=None, ** kwargs):
-            #     super().__init__()
-            #     self._resolver = resolver
-            #     self._cache = {}
-            #     self._handlers = {self._resolver.normalize_uri(k): v for k, v in handlers or {}}
+    # @classmethod
+    # def create(cls, *args, **kwargs):
+    #     if not issubclass(cls, Pluggable):
+    #         return cls(*args, **kwargs)
+    #     else:
+    #         n_obj = Pluggable.__new__(cls, *args, **kwargs)
+    #         n_obj.__init__(*args, **kwargs)
+    #         return n_obj
 
-            #     if module_prefix is None:
-            #         module_prefix = []
-            #     elif isinstance(module_prefix, str):
-            #         module_prefix = [module_prefix]
+    # def __init__(self, *args, module_prefix=None, resolver=None, handlers=None, ** kwargs):
+    #     super().__init__()
+    #     self._resolver = resolver
+    #     self._cache = {}
+    #     self._handlers = {self._resolver.normalize_uri(k): v for k, v in handlers or {}}
 
-            #     self._module_prefix = [*module_prefix, f"{__package__}", ""]
+    #     if module_prefix is None:
+    #         module_prefix = []
+    #     elif isinstance(module_prefix, str):
+    #         module_prefix = [module_prefix]
 
-            # @property
-            # def resolver(self):
-            #     assert(self._resolver is not None)
-            #     return self._resolver
+    #     self._module_prefix = [*module_prefix, f"{__package__}", ""]
 
-            # def insert_handler(self, k, v=None):
-            #     if v is None and hasattr(k, "__class__"):
-            #         v = k
-            #         k = k.__class__.__name__
+    # @property
+    # def resolver(self):
+    #     assert(self._resolver is not None)
+    #     return self._resolver
 
-            #     self._handlers[self._resolver.normalize_uri(k)] = v
+    # def insert_handler(self, k, v=None):
+    #     if v is None and hasattr(k, "__class__"):
+    #         v = k
+    #         k = k.__class__.__name__
 
-            # def find_handler(self, k):
-            #     return self._handlers.get(self._resolver.normalize_uri(k), None)
+    #     self._handlers[self._resolver.normalize_uri(k)] = v
 
-            # def remove_handler(self, k):
-            #     k = self._resolver.normalize_uri(k)
-            #     if k in self._handlers:
-            #         del self._handlers[k]
+    # def find_handler(self, k):
+    #     return self._handlers.get(self._resolver.normalize_uri(k), None)
 
-            # @property
-            # def handlers(self):
-            #     return self._handlers
+    # def remove_handler(self, k):
+    #     k = self._resolver.normalize_uri(k)
+    #     if k in self._handlers:
+    #         del self._handlers[k]
 
-            # def create(self, metadata=None, *args, **kwargs):
-            #     """ Create a new class from metadata
-            #         Parameters:
-            #             metadata: metadata of class
-            #     """
-            #     if isinstance(metadata, collections.abc.Sequence):
-            #         metadata = {"$id": ".".join(metadata)}
+    # @property
+    # def handlers(self):
+    #     return self._handlers
 
-            #     if isinstance(metadata, str):
-            #         metadata = {"$id": metadata}
+    # def create(self, metadata=None, *args, **kwargs):
+    #     """ Create a new class from metadata
+    #         Parameters:
+    #             metadata: metadata of class
+    #     """
+    #     if isinstance(metadata, collections.abc.Sequence):
+    #         metadata = {"$id": ".".join(metadata)}
 
-            #     metadata = collections.ChainMap(metadata or {}, kwargs)
+    #     if isinstance(metadata, str):
+    #         metadata = {"$id": metadata}
 
-            #     cls_id = metadata.get("$id", "")
+    #     metadata = collections.ChainMap(metadata or {}, kwargs)
 
-            #     if self._resolver is not None:
-            #         cls_id = self._resolver.normalize_uri(cls_id)
-            #         metadata["$id"] = cls_id
+    #     cls_id = metadata.get("$id", "")
 
-            #     n_cls = self._cache.get(cls_id, None)
+    #     if self._resolver is not None:
+    #         cls_id = self._resolver.normalize_uri(cls_id)
+    #         metadata["$id"] = cls_id
 
-            #     if n_cls is not None:
-            #         return n_cls
+    #     n_cls = self._cache.get(cls_id, None)
 
-            #     metadata = self._resolver.fetch(metadata)
+    #     if n_cls is not None:
+    #         return n_cls
 
-            #     schema_id = metadata.get("$schema", "")
+    #     metadata = self._resolver.fetch(metadata)
 
-            #     n_cls = self._handlers.get(schema_id, None)
+    #     schema_id = metadata.get("$schema", "")
 
-            #     if n_cls is None:
-            #         mod_path = self._resolver.remove_prefix(schema_id).replace('/', '.')
+    #     n_cls = self._handlers.get(schema_id, None)
 
-            #         for prefix in self._module_prefix:
-            #             n_cls = sp_find_module(mod_path if not prefix else f"{prefix}.{mod_path}")
-            #             if n_cls is not None:
-            #                 break
-            #         if n_cls is None:
-            #             raise LookupError(f"Can not find module {schema_id}!")
+    #     if n_cls is None:
+    #         mod_path = self._resolver.remove_prefix(schema_id).replace('/', '.')
 
-            #     if inspect.isclass(n_cls):
-            #         n_cls_name = self._resolver.remove_prefix(cls_id)
-            #         n_cls_name = re.sub(r'[-\/\.\:]', '_', n_cls_name)
-            #         # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
-            #         n_cls = type(n_cls_name, (n_cls,), {"_metadata": {**metadata}})
+    #         for prefix in self._module_prefix:
+    #             n_cls = sp_find_module(mod_path if not prefix else f"{prefix}.{mod_path}")
+    #             if n_cls is not None:
+    #                 break
+    #         if n_cls is None:
+    #             raise LookupError(f"Can not find module {schema_id}!")
 
-            #     return self._cache.setdefault(cls_id, n_cls)
+    #     if inspect.isclass(n_cls):
+    #         n_cls_name = self._resolver.remove_prefix(cls_id)
+    #         n_cls_name = re.sub(r'[-\/\.\:]', '_', n_cls_name)
+    #         # n_cls_name = f"{n_cls.__name__}_{n_cls_name}"
+    #         n_cls = type(n_cls_name, (n_cls,), {"_metadata": {**metadata}})
 
-            # def create(self, *args, ** kwargs):
-            #     # key starts with '_' are resevered for classmethod new_class
-            #     c_kwargs = {}
-            #     o_kwargs = {}
-            #     for k, v in kwargs.items():
-            #         if k.startswith("_"):
-            #             c_kwargs[k[1:]] = v
-            #         else:
-            #             o_kwargs[k] = v
+    #     return self._cache.setdefault(cls_id, n_cls)
 
-            #     return self._create_from((args, o_kwargs), **c_kwargs)
+    # def create(self, *args, ** kwargs):
+    #     # key starts with '_' are resevered for classmethod new_class
+    #     c_kwargs = {}
+    #     o_kwargs = {}
+    #     for k, v in kwargs.items():
+    #         if k.startswith("_"):
+    #             c_kwargs[k[1:]] = v
+    #         else:
+    #             o_kwargs[k] = v
 
-            # def _create_from(self, init_args=None, *_args, **_kwargs):
-            #     if len(_args) > 0 or len(_kwargs) > 0:
-            #         cls = cls.new_class(*_args, **_kwargs)
+    #     return self._create_from((args, o_kwargs), **c_kwargs)
 
-            #     args = []
-            #     kwargs = {}
-            #     if init_args is None:
-            #         pass
-            #     elif isinstance(init_args, collections.abc.Mapping):
-            #         kwargs = init_args
-            #     elif isinstance(init_args, list):
-            #         args = init_args
-            #     elif isinstance(init_args, tuple):
-            #         args, kwargs = init_args
-            #     else:
-            #         args = [init_args]
+    # def _create_from(self, init_args=None, *_args, **_kwargs):
+    #     if len(_args) > 0 or len(_kwargs) > 0:
+    #         cls = cls.new_class(*_args, **_kwargs)
 
-            #     return cls(*args, **kwargs)
+    #     args = []
+    #     kwargs = {}
+    #     if init_args is None:
+    #         pass
+    #     elif isinstance(init_args, collections.abc.Mapping):
+    #         kwargs = init_args
+    #     elif isinstance(init_args, list):
+    #         args = init_args
+    #     elif isinstance(init_args, tuple):
+    #         args, kwargs = init_args
+    #     else:
+    #         args = [init_args]
 
-            # def expand(self, spec, level_of_expanding=0):
-            #     if isinstance(spec, collections.abc.Mapping) and "$schema" in spec:
-            #         return self.create(spec)
-            #     elif level_of_expanding <= 0:
-            #         return spec
-            #     elif isinstance(spec, collections.abc.Mapping):
-            #         return {k: self.expand(v, level_of_expanding-1)
-            #                 if k[0] != '@' and k[0] != '$' else v for k, v in spec.items()}
-            #     elif not isinstance(spec, str) and isinstance(spec, collections.abc.Sequence):
-            #         return [self.expand(v, level_of_expanding-1) for v in spec]
-            #     else:
-            #         return spec
+    #     return cls(*args, **kwargs)
 
-            # def validate(self, spec, schema=None):
-            #     if self._validater is None:
-            #         # logger.warning("Validator is not defined!")
-            #         return
+    # def expand(self, spec, level_of_expanding=0):
+    #     if isinstance(spec, collections.abc.Mapping) and "$schema" in spec:
+    #         return self.create(spec)
+    #     elif level_of_expanding <= 0:
+    #         return spec
+    #     elif isinstance(spec, collections.abc.Mapping):
+    #         return {k: self.expand(v, level_of_expanding-1)
+    #                 if k[0] != '@' and k[0] != '$' else v for k, v in spec.items()}
+    #     elif not isinstance(spec, str) and isinstance(spec, collections.abc.Sequence):
+    #         return [self.expand(v, level_of_expanding-1) for v in spec]
+    #     else:
+    #         return spec
 
-            #     if isinstance(spec, collections.abc.Mapping):
-            #         schema = schema or spec.get("$schema", None)
+    # def validate(self, spec, schema=None):
+    #     if self._validater is None:
+    #         # logger.warning("Validator is not defined!")
+    #         return
 
-            #     if isinstance(schema, str):
-            #         schema = {"$ref": schema}
-            #     try:
-            #         self._validater.validate(spec, schema)
-            #     except Exception as error:
-            #         raise error
-            #     else:
-            #         logger.info(f"Validate schema '{spec.get('$schema')}' ")
+    #     if isinstance(spec, collections.abc.Mapping):
+    #         schema = schema or spec.get("$schema", None)
 
-            #  @classmethod
-            #     def new_class(cls,  desc=None, *args, ** kwargs):
+    #     if isinstance(schema, str):
+    #         schema = {"$ref": schema}
+    #     try:
+    #         self._validater.validate(spec, schema)
+    #     except Exception as error:
+    #         raise error
+    #     else:
+    #         logger.info(f"Validate schema '{spec.get('$schema')}' ")
 
-            #         description = (getattr(cls, "_description", {}))
+    #  @classmethod
+    #     def new_class(cls,  desc=None, *args, ** kwargs):
 
-            #         if desc is None and len(kwargs) == 0:
-            #             return cls
-            #         elif isinstance(desc, str):
-            #             desc = {"$id": desc}
+    #         description = (getattr(cls, "_description", {}))
 
-            #         description.__update__(desc)
-            #         description.__update__(kwargs)
+    #         if desc is None and len(kwargs) == 0:
+    #             return cls
+    #         elif isinstance(desc, str):
+    #             desc = {"$id": desc}
 
-            #         # if factory is not None:
-            #         #     description = factory.resolver.fetch(description)
+    #         description.__update__(desc)
+    #         description.__update__(kwargs)
 
-            #         # if not base_class:
-            #         #     base_class = cls
-            #         # elif factory is not None:
-            #         #     base_class = factory.new_class(base_class)
-            #         # else:
-            #         #     base_class = cls
-            #         # base_class = description["$base_class"]
+    #         # if factory is not None:
+    #         #     description = factory.resolver.fetch(description)
 
-            #         o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
-            #         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
+    #         # if not base_class:
+    #         #     base_class = cls
+    #         # elif factory is not None:
+    #         #     base_class = factory.new_class(base_class)
+    #         # else:
+    #         #     base_class = cls
+    #         # base_class = description["$base_class"]
 
-            #         path = re.sub(r'[-\/\.]', '_', o.path)
+    #         o = urisplit(description["$id"] or f"{cls.__name__}_{uuid.uuid1().hex}")
+    #         n_cls_name = f"{o.authority.replace('.', '_')}_" if o.authority is not None else ""
 
-            #         n_cls_name = f"{n_cls_name}{path}"
+    #         path = re.sub(r'[-\/\.]', '_', o.path)
 
-            #         n_cls = type(n_cls_name, (cls,), {"_description": (description)})
+    #         n_cls_name = f"{n_cls_name}{path}"
 
-            #         return n_cls
+    #         n_cls = type(n_cls_name, (cls,), {"_description": (description)})
 
-            #     @classmethod
-            #     def create(cls, *args,  ** kwargs):
-            #         # key starts with '_' are resevered for classmethod new_class
-            #         c_kwargs = {}
-            #         o_kwargs = {}
-            #         for k, v in kwargs.items():
-            #             if k.startswith("_"):
-            #                 c_kwargs[k[1:]] = v
-            #             else:
-            #                 o_kwargs[k] = v
+    #         return n_cls
 
-            #         return cls._create_from((args, o_kwargs), **c_kwargs)
+    #     @classmethod
+    #     def create(cls, *args,  ** kwargs):
+    #         # key starts with '_' are resevered for classmethod new_class
+    #         c_kwargs = {}
+    #         o_kwargs = {}
+    #         for k, v in kwargs.items():
+    #             if k.startswith("_"):
+    #                 c_kwargs[k[1:]] = v
+    #             else:
+    #                 o_kwargs[k] = v
 
-            #     @classmethod
-            #     def _create_from(cls, init_args=None, *_args, **_kwargs):
-            #         if len(_args) > 0 or len(_kwargs) > 0:
-            #             cls = cls.new_class(*_args, **_kwargs)
+    #         return cls._create_from((args, o_kwargs), **c_kwargs)
 
-            #         args = []
-            #         kwargs = {}
-            #         if init_args is None:
-            #             pass
-            #         elif isinstance(init_args, collections.abc.Mapping):
-            #             kwargs = init_args
-            #         elif isinstance(init_args, list):
-            #             args = init_args
-            #         elif isinstance(init_args, tuple):
-            #             args, kwargs = init_args
-            #         else:
-            #             args = [init_args]
+    #     @classmethod
+    #     def _create_from(cls, init_args=None, *_args, **_kwargs):
+    #         if len(_args) > 0 or len(_kwargs) > 0:
+    #             cls = cls.new_class(*_args, **_kwargs)
 
-            #         return cls(*args, **kwargs)
+    #         args = []
+    #         kwargs = {}
+    #         if init_args is None:
+    #             pass
+    #         elif isinstance(init_args, collections.abc.Mapping):
+    #             kwargs = init_args
+    #         elif isinstance(init_args, list):
+    #             args = init_args
+    #         elif isinstance(init_args, tuple):
+    #             args, kwargs = init_args
+    #         else:
+    #             args = [init_args]
+
+    #         return cls(*args, **kwargs)

@@ -1,4 +1,3 @@
-# from spdm.data.Collection import FileCollection
 import collections
 import collections.abc
 import pathlib
@@ -18,7 +17,7 @@ SPDM_LIGHTDATA_MAX_LENGTH = 64
 def h5_require_group(grp, path):
     if isinstance(path, str):
         path = path.split("/")
-        
+
     for p in path:
         if isinstance(p, str):
             pass
@@ -159,37 +158,8 @@ def h5_dump(grp):
     return h5_get_value(grp, [])
 
 
-class H5Entry(Entry):
-
-    def __init__(self,   *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def copy(self, other):
-        if isinstance(other, Entry):
-            other = other.entry.__real_value__()
-        self.put(None, other)
-
-    # def put(self, path, value, *args, **kwargs):
-    #     return h5_put_value(self._cache, path, value)
-
-    # def get(self, path=[], projection=None, *args, **kwargs):
-    #     return h5_get_value(self._cache, path, projection=projection)
-
-    def insert(self,  value, *args, **kwargs):
-        return h5_put_value(self._data, self._path, value, *args, **kwargs)
-
-    def fetch(self,   *args, **kwargs) -> typing.Any:
-        return h5_get_value(self._data, self._path, *args,  **kwargs)
-
-    def dump(self):
-        return h5_dump(self._data)
-
-    def iter(self,  path, *args, **kwargs):
-        raise NotImplementedError()
-
-
 @File.register(["h5", "hdf5", "HDF5"])
-class FILEPLUGINhdf5(File):
+class HDF5File(File):
 
     MOD_MAP = {File.Mode.read: "r",
                File.Mode.read | File.Mode.write: "r+",
@@ -212,7 +182,7 @@ class FILEPLUGINhdf5(File):
 
     @property
     def mode_str(self) -> str:
-        return FILEPLUGINhdf5.MOD_MAP[self.mode]
+        return HDF5File.MOD_MAP[self.mode]
 
     def open(self) -> File:
         if self.is_open:
@@ -239,11 +209,46 @@ class FILEPLUGINhdf5(File):
         return super().close()
 
     def read(self, lazy=True) -> Entry:
-        return H5Entry(self.open()._fid)
+        return H5Entry(self.open())
 
     def write(self, *args, **kwargs):
-        H5Entry(self.open()._fid).insert(*args, **kwargs)
+        H5Entry(self.open()).insert(*args, **kwargs)
 
+
+@Entry.register(["h5", "hdf5", "HDF5"])
+class H5Entry(Entry):
+
+    def __init__(self, cache:  str | HDF5File, *args, **kwargs):
+        if isinstance(cache, str):
+            cache: HDF5File = HDF5File(cache).open()._fid
+        elif isinstance(cache, HDF5File):
+            cache = cache._fid
+        else:
+            raise TypeError(f"cache must be HDF5File or str, but got {type(cache)}")
+        super().__init__(cache, *args, **kwargs)
+
+    def copy(self, other):
+        if isinstance(other, Entry):
+            other = other.entry.__real_value__()
+        self.put(None, other)
+
+    # def put(self, path, value, *args, **kwargs):
+    #     return h5_put_value(self._cache, path, value)
+
+    # def get(self, path=[], projection=None, *args, **kwargs):
+    #     return h5_get_value(self._cache, path, projection=projection)
+
+    def insert(self,  value, *args, **kwargs):
+        return h5_put_value(self._data, self._path, value, *args, **kwargs)
+
+    def fetch(self,   *args, **kwargs) -> typing.Any:
+        return h5_get_value(self._data, self._path, *args,  **kwargs)
+
+    def dump(self):
+        return h5_dump(self._data)
+
+    def iter(self,  path, *args, **kwargs):
+        raise NotImplementedError()
 
 # class HDF5Collection(FileCollection):
 #     def __init__(self, uri, *args, **kwargs):
@@ -251,5 +256,3 @@ class FILEPLUGINhdf5(File):
 #                          file_extension=".h5",
 #                          file_factory=lambda *a, **k: H5File(*a, **k),
 #                          ** kwargs)
-
-__SP_EXPORT__ = FILEPLUGINhdf5

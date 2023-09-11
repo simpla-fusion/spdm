@@ -8,10 +8,11 @@ from ..utils.uri_utils import URITuple, uri_split
 from .Entry import Entry
 
 
-class Connection(Pluggable):
+class Document(Pluggable):
     """
         Connection like object
     """
+    _plugin_path_template = "spdm.plugins.data.plugin_{name}"
     _plugin_registry = {}
 
     class Mode(Flag):
@@ -46,12 +47,9 @@ class Connection(Pluggable):
 
     @classmethod
     def __dispatch__init__(cls, name_list, self, uri, *args, **kwargs):
-        if name_list is None:
-            # guess plugin name from uri
-            name_list = []
-        super().__dispatch__init__(name_list, self, uri, *args, **kwargs)
+        super().__dispatch_init__(name_list, self, uri, *args, **kwargs)
 
-    def __init__(self, uri, *args, mode=Mode.read, **kwargs):
+    def __init__(self, uri, *args, mode: typing.Any = Mode.read, **kwargs):
         """
          r       Readonly, file must exist (default)
          rw      Read/write, file must exist
@@ -59,70 +57,61 @@ class Connection(Pluggable):
          x       Create file, fail if exists
          a       Read/write if exists, create otherwise
         """
-        if self.__class__ is Connection:
-            return Connection.__dispatch__init__(None, self, uri, *args, **kwargs)
+        if self.__class__ is Document:
+            return Document.__dispatch_init__(None, self, uri, *args, **kwargs)
 
-        self._uri = uri_split(uri)
-        self._mode = Connection.INV_MOD_MAP[mode] if isinstance(mode, str) else mode
+        self._url = uri_split(uri)
+        self._mode = Document.INV_MOD_MAP[mode] if isinstance(mode, str) else mode
         self._is_open = False
 
     def __del__(self):
-        if self.is_open:
+        if getattr(self, "_is_open", False):
             self.close()
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} path={self.uri.path} protocol={self.uri.protocol} format={self.uri.format}>"
+    def __str__(self): return f"<{self.__class__.__name__}  {self.url} >"
 
     @property
-    def uri(self) -> URITuple:
-        return self._uri
+    def url(self) -> URITuple: return self._url
 
     @property
-    def path(self) -> typing.Any:
-        return self.uri.path
+    def path(self) -> typing.Any: return self.url.path
 
     @property
-    def mode(self) -> Mode:
-        return self._mode
+    def mode(self) -> Mode: return self._mode
 
     # @property
     # def mode_str(self) -> str:
     #     return ''.join([(m.name[0]) for m in list(Connection.Mode) if m & self._mode])
 
     @property
-    def is_readable(self) -> bool:
-        return bool(self._mode & Connection.Mode.read)
+    def is_readable(self) -> bool: return bool(self._mode & Document.Mode.read)
 
     @property
-    def is_writable(self) -> bool:
-        return bool(self._mode & Connection.Mode.write)
+    def is_writable(self) -> bool: return bool(self._mode & Document.Mode.write)
 
     @property
-    def is_creatable(self) -> bool:
-        return bool(self._mode & Connection.Mode.create)
+    def is_creatable(self) -> bool: return bool(self._mode & Document.Mode.create)
 
     @property
-    def is_temporary(self) -> bool:
-        return bool(self._mode & Connection.Mode.temporary)
+    def is_temporary(self) -> bool: return bool(self._mode & Document.Mode.temporary)
 
     @property
-    def is_open(self) -> bool:
-        return self._is_open
+    def is_open(self) -> bool: return self._is_open
 
-    def open(self) -> Connection:
+    def open(self) -> Document:
         self._is_open = True
         return self
 
     def close(self) -> None:
         self._is_open = False
-        return
 
     @property
-    def entry(self) -> Entry:
-        raise NotImplementedError()
+    def entry(self) -> Entry: raise NotImplementedError()
 
-    def __enter__(self) -> Connection:
-        return self.open()
+    def __enter__(self) -> Document: return self.open()
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
+    def __exit__(self, exc_type, exc_value, traceback): return self.close()
+
+    def read(self, lazy=False) -> Entry: raise NotImplementedError()
+
+    def write(self, data=None, lazy=False) -> Entry: raise NotImplementedError()

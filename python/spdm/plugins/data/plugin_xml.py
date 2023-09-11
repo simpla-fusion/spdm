@@ -376,7 +376,7 @@ class XMLEntry(Entry):
 class FILEPLUGINxml(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._root = load_xml(self.uri.path, mode=self.mode)
+        self._root = load_xml(self.url.path, mode=self.mode)
 
     def read(self, lazy=True) -> Entry:
         return XMLEntry(self._root, writable=False)

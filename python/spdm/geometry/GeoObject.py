@@ -25,6 +25,7 @@ class GeoObject(Pluggable):
         - 支持3D可视化 （Jupyter+？）
 
     """
+    _plugin_module_path_template = "spdm.geometry.{name}"
     _plugin_registry = {}
 
     @classmethod
@@ -34,20 +35,21 @@ class GeoObject(Pluggable):
         if _geo_type is None or len(_geo_type) == 0:
             _geo_type = kwargs.pop("type", None)
 
-        if isinstance(_geo_type, str):
-            _geo_type = [_geo_type,
-                         f"spdm.geometry.{_geo_type}#{_geo_type}",
-                         f"spdm.geometry.{_geo_type}{cls.__name__}#{_geo_type}{cls.__name__}",
-                         f"spdm.geometry.{_geo_type.capitalize()}#{_geo_type.capitalize()}",
-                         f"spdm.geometry.{_geo_type.capitalize()}{cls.__name__}#{_geo_type.capitalize()}{cls.__name__}",
-                         f"spdm.geometry.{cls.__name__}#{_geo_type}"
-                         ]
+        # if isinstance(_geo_type, str):
+        #     _geo_type = [_geo_type,
+        #                  f"spdm.geometry.{_geo_type}#{_geo_type}",
+        #                  f"spdm.geometry.{_geo_type}{cls.__name__}#{_geo_type}{cls.__name__}",
+        #                  f"spdm.geometry.{_geo_type.capitalize()}#{_geo_type.capitalize()}",
+        #                  f"spdm.geometry.{_geo_type.capitalize()}{cls.__name__}#{_geo_type.capitalize()}{cls.__name__}",
+        #                  f"spdm.geometry.{cls.__name__}#{_geo_type}"
+        #                  ]
 
-        super().__dispatch__init__(_geo_type, self, *args, **kwargs)
+        super().__dispatch_init__(_geo_type, self, *args, **kwargs)
 
     def __init__(self, *args, ndim: int = 0, rank: int = -1,  **kwargs) -> None:
         if self.__class__ is GeoObject:
-            return GeoObject.__dispatch__init__(None, self, *args, **kwargs)
+            GeoObject.__dispatch_init__(None, self, *args, ndim=ndim, rank=rank, **kwargs)
+            return
 
         self._metadata = kwargs.pop("metadata", {})
         self._metadata.update(kwargs)
@@ -192,7 +194,7 @@ class GeoObjectSet(list[GeoObject]):
 
         if ndim is None:
             ndim_list = [obj.ndim for obj in self if isinstance(obj, GeoObject)]
-            if len(ndim_list) > 0 :
+            if len(ndim_list) > 0:
                 ndim = max(ndim_list)  # [0]
             else:
                 raise RuntimeError(f"Can not get ndim from {ndim_list}")

@@ -4,7 +4,7 @@ import typing
 
 from ..utils.sp_export import sp_find_module
 from ..utils.uri_utils import URITuple, uri_split
-from .Connection import Connection
+from .Document import Document
 from .Entry import Entry
 
 InsertOneResult = collections.namedtuple("InsertOneResult", "inserted_id success")
@@ -13,7 +13,7 @@ UpdateResult = collections.namedtuple("UpdateResult", "inserted_id success")
 DeleteResult = collections.namedtuple("DeleteResult", "deleted_id success")
 
 
-class Collection(Connection):
+class Collection(Document):
     ''' Collection of documents
     '''
     _registry = {}

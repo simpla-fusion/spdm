@@ -8,33 +8,65 @@ import os
 import pathlib
 import pkgutil
 import sys
+import typing
 
 from .logger import logger
 
 SP_EXPORT_KEYWORD = "__SP_EXPORT__"
 
-
-def export(fn):
-    logger.debug((fn.__name__, fn.__package__))
-    mod = sys.modules[fn.__module__]
-    if hasattr(mod, '__all__'):
-        mod.__all__.append(fn.__name__)
-    else:
-        mod.__all__ = [fn.__name__]
-    return fn
+SP_PATH: typing.List[pathlib.Path] = [pathlib.Path(p) for p in os.environ.get("SP_PATH", "").split(':')]
 
 
-def sp_load_module(filepath, name=None, export_entry: str = None):
-    if isinstance(filepath, str):
-        filepath = pathlib.Path(filepath)
-    name = name or filepath.stem
-    logger.debug((name, filepath))
-    return lambda p: p
+@functools.lru_cache
+def sp_load_module(mod_name: str):
+
+    module = sys.modules.get(mod_name, None)  # if module is loaded, use it
+
+    if module is not None:
+        return module
+
+    spec = None
+
+    try:
+        spec = importlib.util.find_spec(mod_name)
+    except ModuleNotFoundError:
+        spec = None
+
+    if spec is None:  # 在路径 SP_PATH 中搜索
+        for p in SP_PATH:
+            m_pth = p / mod_name.replace('.', '/')
+            if m_pth.is_dir():
+                m_pth = m_pth/"__init__.py"
+            else:
+                m_pth = m_pth.with_suffix(".py")
+
+            if not (m_pth.exists() and m_pth.is_file()):
+                continue
+
+            try:
+                spec = importlib.util.spec_from_file_location(mod_name, m_pth)
+            except ModuleNotFoundError:
+                spec = None
+            else:
+                if spec is not None:
+                    break
+
+    if spec is None:
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+
+    spec.loader.exec_module(module)
+
+    sys.modules[spec.name] = module
+
+    logger.info(f"Load module {spec.name} from {spec.origin}")
+
+    return module
 
 
 def sp_find_module(path, fragment=None, pythonpath=None):
     """
-
      path= sympy/tensor/tensor
      path= sympy.tensor.tensor#Matrix
     """
@@ -43,7 +75,7 @@ def sp_find_module(path, fragment=None, pythonpath=None):
     if not isinstance(path, str) and isinstance(path, collections.abc.Sequence):
         path = ".".join(path)
 
-    o = path.strip('/.').replace('/', '.').split('#')
+    o = path.replace('/', '.').strip('.').split('#')
 
     mod_name = o[0]
     if fragment is None and len(o) > 1:
@@ -67,7 +99,7 @@ def sp_find_module(path, fragment=None, pythonpath=None):
                 else:
                     mod_path = mod_path.with_suffix(".py")
 
-                if not(mod_path.exists() and mod_path.is_file()):
+                if not (mod_path.exists() and mod_path.is_file()):
                     continue
                 try:
                     spec = importlib.util.spec_from_file_location(mod_name, mod_path)
@@ -96,16 +128,6 @@ def sp_find_module(path, fragment=None, pythonpath=None):
         module = None
 
     return module
-
-
-@functools.lru_cache
-def sp_load_module(cls_name: str):
-    n_cls = sp_find_module(cls_name)
-    if inspect.isclass(n_cls) or callable(n_cls):
-        logger.debug(f"Load module {cls_name}")
-    else:
-        raise ModuleNotFoundError(f"Load module {cls_name} failed!")
-    return n_cls
 
 
 def sp_find_subclass(cls, path: list):
@@ -139,6 +161,16 @@ def sp_pkg_data_path(pkg, rpath):
         np = pathlib.Path(p)/rpath
         if np.exists():
             yield np
+
+
+def export(fn):
+    logger.debug((fn.__name__, fn.__package__))
+    mod = sys.modules[fn.__module__]
+    if hasattr(mod, '__all__'):
+        mod.__all__.append(fn.__name__)
+    else:
+        mod.__all__ = [fn.__name__]
+    return fn
 
 
 def make_canonical_path_dot(path):

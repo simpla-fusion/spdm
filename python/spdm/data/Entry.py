@@ -21,30 +21,19 @@ from .Path import Path, PathLike, as_path
 
 class Entry(Pluggable):
 
+    _plugin_path_template = "spdm.plugins.data.plugin_{name}"
     _plugin_registry = {}
 
-    @classmethod
-    def __dispatch__init__(cls, plugin_list, self,  *args, **kwargs) -> None:
-        if plugin_list is None:
-            plugin_list = []
+    def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args, scheme=None, **kwargs):
+        if self.__class__ is not Entry:
+            pass
+        elif (scheme is not None or isinstance(data, (str, URITuple, pathlib.Path))):
+            if scheme is None:
+                scheme = uri_split(data).protocol
 
-        if len(args) > 0 and isinstance(args[0], (str, URITuple)):
-            scheme = uri_split(args[0]).protocol
-
-            if scheme in ["file", "local", "https", "http", "", None]:
-                raise NotImplementedError(f"")
-            else:
-                plugin_list.append(EntryProxy)
-
-        if plugin_list is None or len(plugin_list) == 0:
-            return super().__init__(self,  *args, **kwargs)
-        else:
-            return super().__dispatch__init__(plugin_list, self, *args, **kwargs)
-
-    def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args,  **kwargs):
-        if self.__class__ is Entry and isinstance(data, (str, URITuple)):
-            Entry.__dispatch__init__(None, self, data, path, *args, **kwargs)
-            return
+            if isinstance(scheme, str) and scheme != "":
+                super().__dispatch_init__([scheme, EntryProxy], self, data, *args, **kwargs)
+                return
 
         self._data = data
         self._path = as_path(path)
@@ -182,10 +171,7 @@ class Entry(Pluggable):
     ###########################################################
 
 
-_predefined_protocols = ["local", "file",  "http", "https"]
-
-
-def open_entry(url_s: str | pathlib.Path, *args, schema=None, ** kwargs) -> Entry:
+def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
     """
         Open an Entry from a URL.
 
@@ -196,54 +182,83 @@ def open_entry(url_s: str | pathlib.Path, *args, schema=None, ** kwargs) -> Entr
         RF3986 = r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
         Example:
-            /path/to/file.json                      => File
+            ../path/to/file.json                    => File
             file:///path/to/file                    => File
             ssh://a.b.c.net/path/to/file            => ???
             https://a.b.c.net/path/to/file          => ???
 
             imas+ssh://a.b.c.net/path/to/file
 
-            east://<mds_prefix>/#<shot_number>
-            east+ssh://<mds_prefix>/#<shot_number>
+            east+mdsplus://<mds_prefix>  
+            east+mdsplus+ssh://<mds_prefix> 
 
     """
 
-    url = uri_split(url_s)
-
-    scheme = url.protocol.split("+")
+    if isinstance(url, str) and "." not in url and "/" not in url:
+        return EntryProxy(url, global_schema=schema,  **kwargs)
 
     local_schema = None
 
-    global_schema = schema
+    url_ = uri_split(url)
 
-    match len(scheme):
-        case 0:
-            url.protocol = 'local'
-        case 1:
-            if scheme[0] not in _predefined_protocols:
-                local_schema = scheme[0]
-                url.protocol = ""
-        case _:
-            if scheme[0] in _predefined_protocols:
-                url.protocol = scheme[0]
-                if scheme[1] != kwargs.setdefault("format", scheme[1]):
-                    raise ValueError(f"Format mismatch! {scheme[1]} != {kwargs['format']}")
-            else:
-                local_schema = scheme[0]
-                url.protocol = "+".join(scheme[1:])
+    schemes = url_.protocol.split("+") if isinstance(url_.protocol, str) else []
 
-    if local_schema is not None:
-        return EntryProxy(local_schema=local_schema, global_schema=global_schema, prefix=url, ** kwargs)
+    if len(schemes) == 0:
+        local_schema = "local"
 
-    elif url.protocol in ["file", "local", "", None]:
+    elif len(schemes) > 1:
+        local_schema = schemes[0]
+
+    if local_schema in ["local", "file"] and schema is None:
         from .File import File
-        return File(url, *args, **kwargs).read()
+        return File(url_,   **kwargs).entry
 
-    elif url.protocol in ["https", "http"]:
-        return Entry(url, *args, **kwargs)
+    elif schema != local_schema:
+        return EntryProxy(url_,  global_schema=schema,  **kwargs)
 
     else:
-        raise RuntimeError(f"Unknown url {url}")
+        return Entry(url,  **kwargs)
+
+    # url = uri_split(url_s)
+
+    # # scheme = url.protocol.split("+")
+
+    # # local_schema = None
+
+    # # global_schema = schema
+
+    # # match len(scheme):
+    # #     case 0:
+    # #         url.protocol = 'local'
+    # #     case 1:
+    # #         if scheme[0] not in _predefined_protocols:
+    # #             local_schema = scheme[0]
+    # #             url.protocol = ""
+    # #     case _:
+    # #         if scheme[0] in _predefined_protocols:
+    # #             url.protocol = scheme[0]
+    # #             if scheme[1] != kwargs.setdefault("format", scheme[1]):
+    # #                 raise ValueError(f"Format mismatch! {scheme[1]} != {kwargs['format']}")
+    # #         else:
+    # #             local_schema = scheme[0]
+    # #             url.protocol = "+".join(scheme[1:])
+
+    # # if local_schema is not None:
+    # #     kwargs.update(url.query)
+    # #     if url.authority != '' or url.path != '':
+    # #         kwargs['netloc'] = url.authority
+    # #         kwargs['path'] = url.path
+    # #     return EntryProxy(local_schema=local_schema, global_schema=global_schema, ** kwargs)
+
+    # if url.protocol in ["file", "local", "", None]:
+    #     from .File import File
+    #     return File(url, *args, **kwargs).read()
+
+    # elif url.protocol in ["https", "http"]:
+    #     return Entry(url, *args, **kwargs)
+
+    # else:
+    #     raise RuntimeError(f"Unknown url {url} {Entry._plugin_registry}")
 
 
 def as_entry(obj, *args, **kwargs) -> Entry:
@@ -346,10 +361,12 @@ class EntryProxy(Entry):
     @classmethod
     def load_mappings(cls,
                       mapping_path: typing.List[str] | str | None = None,
-                      default_source_schema: str = "EAST",
-                      default_target_schema: str = "imas/3",
+                      default_local_schema: str = "EAST",
+                      default_global_schema: str = "imas/3",
                       **kwargs,
                       ):
+        if cls._maps is not None and mapping_path is None:
+            return cls._maps
 
         if isinstance(mapping_path, str):
             mapping_path = mapping_path.split(":")
@@ -360,35 +377,50 @@ class EntryProxy(Entry):
 
         mapping_path += os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
 
-        mapping_path = [pathlib.Path(p) for p in mapping_path if p != ""]
+        cls._mapping_path = [pathlib.Path(p) for p in mapping_path if p != ""]
 
-        if len(mapping_path) == 0:
+        if len(cls._mapping_path) == 0:
             raise RuntimeError(f"No mapping file!  SP_DATA_MAPPING_PATH={os.environ.get('SP_DATA_MAPPING_PATH', '')}")
 
-        cls._default_source_schema: str = default_source_schema
-        cls._default_target_schema: str = default_target_schema
+        cls._default_local_schema: str = default_local_schema
+        cls._default_global_schema: str = default_global_schema
 
         cls._envs = merge_tree_recursive(kwargs.pop("envs", {}), kwargs)
 
         cls._maps = {}
 
-    @classmethod
-    def find_map(cls, source_schema:  str, target_schema:  str, *args, **kwargs) -> Entry:
-        if cls._maps is None:
-            cls.load_mappings()
+        return cls._maps
 
-        if source_schema is None:
-            source_schema = cls._default_source_schema
-        if target_schema is None:
-            target_schema = cls._default_target_schema
+    def __init__(self, url: str, global_schema: str | None = None, **kwargs):
+        super().__init__()
 
-        if source_schema == target_schema:
-            logger.debug(f"Source and target schema are the same! {source_schema}")
-            return None
+        self._entry_list = None
 
-        map_tag = f"{source_schema}/{target_schema}"
+        mapper_list = EntryProxy.load_mappings()
 
-        mapper = cls._maps.get(map_tag, _not_found_)
+        local_schema = None
+
+        _url = uri_split(url)
+
+        if local_schema is None:
+
+            schemes = _url.protocol.split("+") if _url.protocol is not None else []
+
+            if len(schemes) > 0:
+                local_schema = schemes[0]
+                _url.protocol = "+".join(schemes[1:])
+            elif not _url.authority and "/" not in _url.path:
+                local_schema = _url.path
+                _url = None
+            else:
+                raise RuntimeError(f"local schema is not defined!")
+
+        if global_schema is None:
+            global_schema = EntryProxy._default_global_schema
+
+        map_tag = f"{local_schema}/{global_schema}"
+
+        mapper = mapper_list.get(map_tag, _not_found_)
 
         if mapper is _not_found_:
 
@@ -406,37 +438,48 @@ class EntryProxy(Entry):
                         mapping_files.append(p)
 
             if len(mapping_files) == 0:
-                raise FileNotFoundError(f"Can not find mapping files for {map_tag}!")
+                raise FileNotFoundError(
+                    f"Can not find mapping files for {map_tag} MAPPING_PATH={EntryProxy._mapping_path} !")
 
             mapper = open_entry(mapping_files, mode="r", format="XML")
 
-            cls._maps[map_tag] = mapper
-
-        return mapper
-
-    def __init__(self, local_schema: str | None, global_schema: str | None, *args, **kwargs):
-        super().__init__()
+            mapper_list[map_tag] = mapper
 
         self._mapper = mapper
-        self._entry = {}
 
-        spdb_conf = self._mapper.child("spdb").fetch()
+        self._entry_list = {}
 
-        prefix = kwargs.get("prefix", None) or spdb_conf.get("@prefix", None) or os.environ.get("SPDB_PREFIX", None)
+        if _url is not None:
+            kwargs["url"] = f"{_url.protocol}://{_url.authority}{_url.path}"
 
-        for entry in spdb_conf.get("entry", []):
-            id = entry.get("id", None)
+        spdb = self._mapper.child("spdb").fetch()
+
+        attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
+
+        attr.update(kwargs)
+
+        self._entry_list = {}
+
+        for entry in spdb.get("entry", []):
+            id = entry.get("@id", None)
             if id is None:
                 continue
-            url = entry.get("_text", "").format(prefix=prefix)
 
-            self._entry[id] = url
+            url = entry.get("_text", "").format(**attr)
+
+            self._entry_list[id] = url
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
         obj.__copy_from__(self)
         obj._mapper = self._mapper
+        obj._entry_list = self._entry_list
         return obj
+
+    def child(self, *args, **kwargs) -> Entry:
+        res = super().child(*args, **kwargs)
+        res._entry_list = self._entry_list
+        return res
 
     def insert(self, value, **kwargs) -> Entry: raise NotImplementedError(f"")
 
@@ -459,6 +502,19 @@ class EntryProxy(Entry):
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
             yield idx, self._op_fetch(request)
 
+    def find_entry(self, entry_name: str) -> Entry | None:
+
+        entry = self._entry_list.get(entry_name, None)
+
+        if isinstance(entry, str):
+            entry = open_entry(entry)
+            self._entry_list[entry_name] = entry
+
+        if not isinstance(entry, Entry):
+            raise RuntimeError(f"Can not find entry for {entry_name}")
+
+        return entry
+
     def _op_fetch(self, request: typing.Any, *args,  **kwargs) -> typing.Any:
 
         if isinstance(request, str) and "://" in request:
@@ -473,18 +529,15 @@ class EntryProxy(Entry):
         elif not isinstance(request, dict):
             res = request
 
-        elif f"@{SPDB_TAG}" not in request:
+        elif "@spdb" not in request:
             res = {k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()}
 
         else:
+            entry = self.find_entry(request.get("@spdb", None))
 
-            if request.startswith("@"):
-                request = uri_split_as_dict(request[1:])
-                res = target.child(request.get("path", None)).fetch(
-                    *args, request=request, **kwargs)
-            else:
-                res = request
+            if not isinstance(entry, Entry):
+                raise RuntimeError(f"Can not find entry for {request}")
 
-            res = target.fetch(*args, request=request,  **kwargs)
+            res = entry.fetch(request.get("_text"),  *args, **kwargs)
 
         return res

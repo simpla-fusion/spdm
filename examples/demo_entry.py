@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     DATA_PATH = pathlib.Path("/home/salmon/workspace/fytok_data/gfiles")
 
-    eq0 = open_entry(f"file+GEQdsk:///{DATA_PATH.as_posix()}/g063982.04800", mode="r").fetch()
+    eq0 = open_entry(f"file+geqdsk:///{DATA_PATH.as_posix()}/g063982.04800", mode="r").fetch()
 
     eq1 = open_entry(DATA_PATH/"g063982.04800", mode="r", format="geqdsk").fetch()
 
@@ -19,11 +19,11 @@ if __name__ == '__main__':
 
     logger.debug(eq1)
 
-    eq2 = open_entry(f"east://{DATA_PATH.as_posix()}/mdsplus/~t/?shot=70745").fetch()
+    eq2 = open_entry(f"east+mdsplus:///home/salmon/workspace/fytok_data/mdsplus/~t/", shot=70745)
 
-    logger.debug(eq2)
+    logger.debug(eq2.child("equilibrium/time_slice/0/boundary/outline/r").fetch())
 
-    # shot_num = 70754
+    # # shot_num = 70754
 
     # time_slice = 10
 
