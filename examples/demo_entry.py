@@ -3,13 +3,13 @@ import pathlib
 
 from spdm.data.Entry import open_entry
 from spdm.utils.logger import logger
-
-os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
+WORKSPACE = "/ssd01/salmon_work/workspace/"
+os.environ["SP_DATA_MAPPING_PATH"] = f"{WORKSPACE}/fytok_data/mapping"
 
 
 if __name__ == '__main__':
 
-    DATA_PATH = pathlib.Path("/home/salmon/workspace/fytok_data/gfiles")
+    DATA_PATH = pathlib.Path(f"{WORKSPACE}/fytok_data/gfiles")
 
     # eq0 = open_entry(f"file+geqdsk:///{DATA_PATH.as_posix()}/g063982.04800", mode="r").fetch()
 
@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     # logger.debug(eq1)
 
-    eq2 = open_entry(f"east+mdsplus:///home/salmon/workspace/fytok_data/mdsplus/~t/", shot=70745)
+    eq2 = open_entry(f"east+mdsplus://{WORKSPACE}/fytok_data/mdsplus/~t/", shot=70745)
     
     # eq2 = open_entry(f"east+mdsplus://202.127.204.12", shot=70745)
 

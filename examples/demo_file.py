@@ -1,7 +1,11 @@
 import pathlib
 from spdm.data.File import File
 from spdm.utils.logger import logger
-DATA_PATH = pathlib.Path("/home/salmon/workspace/fytok_data/gfiles")
+
+WORKSPACE = "/ssd01/salmon_work/workspace/"
+
+DATA_PATH = pathlib.Path(f"{WORKSPACE}/fytok_data/gfiles")
+
 if __name__ == '__main__':
 
     with File(DATA_PATH/"g063982.04800", mode="r", format="GEQdsk") as fid:

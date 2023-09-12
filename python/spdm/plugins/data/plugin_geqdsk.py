@@ -1,5 +1,3 @@
-
-
 import typing
 
 import numpy as np
@@ -108,7 +106,6 @@ def sp_read_geqdsk(file):
         "qpsi": qpsi,
         "bbsrz": bbsrz,
         "limrz": limrz,
-
     }
     return data
 
@@ -124,24 +121,32 @@ def sp_write_geqdsk(p, file):
     nw = p["nw"]
     nh = p["nh"]
 
-    file.write("%48s%4i%4i%4i\n" % (p.get("description", "NO DESCRIPTION"), 3, p["nw"], p["nh"]))
-    file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
-               (p["rdim"], p["zdim"], p["rcentr"], p["rleft"], p["zmid"]))
-    file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
-               (p["rmaxis"], p["zmaxis"], p["simag"], p["sibry"], p["bcentr"]))
-    file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
-               (p["current"], p["simag"], 0, p["rmaxis"], 0))
-    file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" %
-               (p["zmaxis"], 0, p["sibry"], 0, 0))
+    file.write(
+        "%48s%4i%4i%4i\n"
+        % (p.get("description", "NO DESCRIPTION"), 3, p["nw"], p["nh"])
+    )
+    file.write(
+        "%16.9e%16.9e%16.9e%16.9e%16.9e\n"
+        % (p["rdim"], p["zdim"], p["rcentr"], p["rleft"], p["zmid"])
+    )
+    file.write(
+        "%16.9e%16.9e%16.9e%16.9e%16.9e\n"
+        % (p["rmaxis"], p["zmaxis"], p["simag"], p["sibry"], p["bcentr"])
+    )
+    file.write(
+        "%16.9e%16.9e%16.9e%16.9e%16.9e\n"
+        % (p["current"], p["simag"], 0, p["rmaxis"], 0)
+    )
+    file.write("%16.9e%16.9e%16.9e%16.9e%16.9e\n" % (p["zmaxis"], 0, p["sibry"], 0, 0))
 
     def _write_data(d):
         count = len(d)
         for n in range(count):
             file.write("%16.9e" % d[n])
             if (n == count - 1) or ((n + 1) % 5 == 0):
-                file.write('\n')
+                file.write("\n")
             else:
-                file.write(' ')
+                file.write(" ")
 
     _write_data(p["fpol"])
     _write_data(p["pres"])
@@ -156,7 +161,9 @@ def sp_write_geqdsk(p, file):
     return
 
 
-def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128, nh=128) -> Entry:
+def sp_to_geqdsk(
+    eq: typing.Any, geqdsk: typing.Optional[Entry] = None, nw=128, nh=128
+) -> Entry:
     eq = as_entry(eq)
 
     if geqdsk is None:
@@ -164,12 +171,15 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
 
     limiter_r = eq["wall/description_2d/0/limiter/unit/0/outline/r"].__value__
     limiter_z = eq["wall/description_2d/0/limiter/unit/0/outline/r"].__value__
-    geqdsk["limrz"] = np.append(limiter_r.reshape([1, limiter_r.size]),
-                                limiter_z.reshape([1, limiter_z.size]), axis=0).transpose()
+    geqdsk["limrz"] = np.append(
+        limiter_r.reshape([1, limiter_r.size]),
+        limiter_z.reshape([1, limiter_z.size]),
+        axis=0,
+    ).transpose()
     geqdsk["rleft"] = limiter_r.min()
-    geqdsk["rmid"] = rmid = 0.5*(limiter_r.max() + limiter_r.min())
-    geqdsk["rdim"] = rdim = (limiter_r.max() - limiter_r.min())
-    geqdsk["zdim"] = zdim = (limiter_z.max() - limiter_z.min())
+    geqdsk["rmid"] = rmid = 0.5 * (limiter_r.max() + limiter_r.min())
+    geqdsk["rdim"] = rdim = limiter_r.max() - limiter_r.min()
+    geqdsk["zdim"] = zdim = limiter_z.max() - limiter_z.min()
 
     # rdim = 0.0
     # zdim = 0.0
@@ -188,10 +198,15 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
     rbbs = eq["equilibrium/boundary/outline/r"].__value__
     zbbs = eq["equilibrium/boundary/outline/z"].__value__
 
-    geqdsk["bbsrz"] = np.append(rbbs.reshape([1, rbbs.size]), zbbs.reshape([1, rbbs.size]), axis=0).transpose()
+    geqdsk["bbsrz"] = np.append(
+        rbbs.reshape([1, rbbs.size]), zbbs.reshape([1, rbbs.size]), axis=0
+    ).transpose()
     # psi
 
-    grid_r, grid_z = np.mgrid[rmid-rdim/2:rmid + rdim/2: nw * 1j, zmid - zdim / 2: zmid + zdim / 2: nh * 1j]
+    grid_r, grid_z = np.mgrid[
+        rmid - rdim / 2 : rmid + rdim / 2 : nw * 1j,
+        zmid - zdim / 2 : zmid + zdim / 2 : nh * 1j,
+    ]
     # coord_r = np.append(coord_r[:, :], coord_r[:, 0].reshape(coord_r.shape[0], 1), axis=1)
     # coord_z = np.append(coord_z[:, :], coord_z[:, 0].reshape(coord_z.shape[0], 1), axis=1)
     # points = np.append(coord_r.reshape([coord_r.size, 1]), coord_z.reshape([coord_z.size, 1]), axis=1)
@@ -236,9 +251,9 @@ def sp_to_geqdsk(eq: typing.Any,  geqdsk: typing.Optional[Entry] = None, nw=128,
 
 
 def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Entry:
-    """ Converts a GEQDSK file to an IMAS equilibrium entry.
-        @TODO: 
-            - convert to COCOS 11 !!!
+    """Converts a GEQDSK file to an IMAS equilibrium entry.
+    @TODO:
+        - convert to COCOS 11 !!!
     """
     geqdsk = as_entry(geqdsk)
 
@@ -254,8 +269,8 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
 
     s_Bp = np.sign(b0)
     s_Ip = np.sign(Ip)
-    s_rtp = np.mean(np.sign(q))/(s_Bp*s_Ip)
-    assert np.sign(psi_boundary-psi_axis) == s_Ip
+    s_rtp = np.mean(np.sign(q)) / (s_Bp * s_Ip)
+    assert np.sign(psi_boundary - psi_axis) == s_Ip
 
     e_Bp_TWOPI = 1.0
 
@@ -270,8 +285,8 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     nh = geqdsk["nh"].__value__
     rmin = geqdsk["rleft"].__value__
     rmax = geqdsk["rleft"].__value__ + geqdsk["rdim"].__value__
-    zmin = geqdsk["zmid"].__value__ - geqdsk["zdim"].__value__/2
-    zmax = geqdsk["zmid"].__value__ + geqdsk["zdim"].__value__/2
+    zmin = geqdsk["zmid"].__value__ - geqdsk["zdim"].__value__ / 2
+    zmax = geqdsk["zmid"].__value__ + geqdsk["zdim"].__value__ / 2
 
     psirz = geqdsk["psirz"].__value__
 
@@ -282,47 +297,61 @@ def sp_from_geqdsk(geqdsk: typing.Any, eq: typing.Optional[Entry] = None) -> Ent
     if psirz.shape != (nw, nh):
         raise ValueError(f"Invalid shape for psirz: {psirz.shape}!={(nw, nh)}")
 
-    eq["time_slice"] = [{
-        "time": 0.0,
-        "global_quantities": {"magnetic_axis": {"r": geqdsk["rmaxis"].__value__,
-                                                "z": geqdsk["zmaxis"].__value__},
-                              "psi_axis": psi_axis,
-                              "psi_boundary": psi_boundary,
-                              "ip": Ip
-                              },
-        # boundary
-        "boundary": {"outline": {"r": geqdsk["bbsrz"].__value__[:, 0],
-                                 "z": geqdsk["bbsrz"].__value__[:, 1]}},
-
-        # profile 1d
-        "profiles_1d": {
-            "f": geqdsk["fpol"].__value__,
-            "f_df_dpsi": geqdsk["ffprim"].__value__,
-            "pressure": geqdsk["pres"].__value__,
-            "dpressure_dpsi": geqdsk["pprim"].__value__,
-            "q": geqdsk["qpsi"].__value__,
-            "psi": np.linspace(psi_axis, psi_boundary, nw),
-        },
-        "profiles_2d": [
-            {
-                "type": "total",  # total field
-                "grid_type": {"name": "rectangular", "index": 1},
-                "grid": {"dim1": np.linspace(rmin, rmax, nw),
-                         "dim2": np.linspace(zmin, zmax, nh)},
-                "psi": psirz
-            }]
-    }]
+    eq["time_slice"] = [
+        {
+            "time": 0.0,
+            "vacuum_toroidal_field": {"r0": r0, "b0": b0},
+            "global_quantities": {
+                "magnetic_axis": {
+                    "r": geqdsk["rmaxis"].__value__,
+                    "z": geqdsk["zmaxis"].__value__,
+                },
+                "psi_axis": psi_axis,
+                "psi_boundary": psi_boundary,
+                "ip": Ip,
+            },
+            # boundary
+            "boundary": {
+                "outline": {
+                    "r": geqdsk["bbsrz"].__value__[:, 0],
+                    "z": geqdsk["bbsrz"].__value__[:, 1],
+                }
+            },
+            # profile 1d
+            "profiles_1d": {
+                "f": geqdsk["fpol"].__value__,
+                "f_df_dpsi": geqdsk["ffprim"].__value__,
+                "pressure": geqdsk["pres"].__value__,
+                "dpressure_dpsi": geqdsk["pprim"].__value__,
+                "q": geqdsk["qpsi"].__value__,
+                "psi": np.linspace(psi_axis, psi_boundary, nw),
+            },
+            "profiles_2d": [
+                {
+                    "type": "total",  # total field
+                    "grid_type": {"name": "rectangular", "index": 1},
+                    "grid": {
+                        "dim1": np.linspace(rmin, rmax, nw),
+                        "dim2": np.linspace(zmin, zmax, nh),
+                    },
+                    "psi": psirz,
+                }
+            ],
+        }
+    ]
 
     return eq
 
 
 @File.register(["gfile", "geqdsk"])
 class GEQdskFile(File):
-    def __init__(self,  *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         try:
-            self._fid = open(pathlib.Path(self.url.path).expanduser().resolve(),  mode=self.mode_str)
+            self._fid = open(
+                pathlib.Path(self.url.path).expanduser().resolve(), mode=self.mode_str
+            )
         except OSError as error:
             raise FileExistsError(f"Can not open file {self.url}! {error}")
         else:

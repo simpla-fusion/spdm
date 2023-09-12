@@ -131,6 +131,7 @@ class HTree(typing.Generic[_T]):
 
     def remove(self, *args, **kwargs): return self._remove(*args, **kwargs)
 
+    @deprecated
     def refresh(self, cache=None, **kwargs):
         if cache is None:
             cache = kwargs

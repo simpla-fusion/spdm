@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 import collections.abc
 import typing
@@ -6,6 +7,8 @@ import numpy as np
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
+from ..utils.tree_utils import merge_tree_recursive
+from ..utils.typing import array_type, as_array, ArrayType
 from .HTree import List
 from .sp_property import SpDict, sp_property
 
@@ -14,7 +17,11 @@ class TimeSlice(SpDict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    time: float = sp_property(unit='s', type='dynamic', default_value=0.0)  # type: ignore
+    time: float = sp_property(unit="s", type="dynamic", default_value=0.0)  # type: ignore
+
+    def refresh(self, *args, **kwargs) -> TimeSlice:
+        super().refresh(*args, **kwargs)
+        return self
 
 
 _T = typing.TypeVar("_T")
@@ -22,70 +29,88 @@ _T = typing.TypeVar("_T")
 
 class TimeSeriesAoS(List[_T]):
     """
-        A series of time slices, each time slice is a state of the system at a given time.
-        Each slice is a dict .
+    A series of time slices, each time slice is a state of the system at a given time.
+    Each slice is a dict .
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._time = None
-        self._current_slice = 0
+        self._slice_start = 0
+        self._slice_stop = 0
+        self._slice_current = 0
 
     @property
-    def time(self) -> typing.List[float]:
-        if self._time is None and self._parent is not None:
-            self._time = self._parent.get(self._metadata.get("coordinate1", "time"), [0.0])
-        else:
-            self._time = [0.0]
-        return self._time
+    def time(self) -> ArrayType:
+        return as_array(
+            [getattr(time_slice, "time", None) for time_slice in self._cache]
+        )
 
-    def __getitem__(self, index: int | slice | float) -> _T:
+    def __getitem__(self, idx: int | slice) -> TimeSlice | _T:
         # TODO: 缓存时间片，避免重复创建，减少内存占用
-        if isinstance(index, int) and index < 0 and self.time is not None:
-            new_key = len(self.time) + index
-            if new_key < 0:
-                raise KeyError(f"TimeSeries too short! length={len(self.time)} < {-index}")
-            else:
-                index = new_key
-        elif isinstance(index, float):
-            index = np.argmax(np.asarray(self.time) < index)
-            logger.debug("TODO: interpolator two time slices!")
 
-        return super().__getitem__(index)
+        if isinstance(idx, slice):
+            raise NotImplementedError(f"NOT YET! {idx}")
+
+        elif not isinstance(idx, int):
+            raise NotImplementedError(f"{idx}")
+
+        elif idx < self._slice_start:
+            raise IndexError(f"{idx}<{self._slice_start}")
+
+        elif idx >= self._slice_stop:
+            if self._cache is None or self._cache is _not_found_:
+                self._cache = []
+
+            self._cache += [None] * (idx - self._slice_stop + 1)
+
+            self._slice_stop = idx
+
+        self._cache[idx - self._slice_start] = self._as_child(
+            self._cache[idx - self._slice_start],
+            idx,
+            entry=self._entry.child(idx) if self._entry is not None else None,
+            parent=self._parent,
+            default_value=self._default_value,
+        )
+        return self._cache[idx - self._slice_start]
 
     def __setitem__(self, idx: int, value):
         raise NotImplementedError(f"")
 
     @property
-    def previous(self) -> _T: return self[self._current_slice-1]
+    def previous(self) -> TimeSlice | _T:
+        return self[self._slice_current - 1]
 
     @property
-    def next(self) -> _T: return self[self._current_slice+1]
+    def next(self) -> TimeSlice | _T:
+        return self[self._slice_current + 1]
 
     @property
-    def current(self) -> _T: return self[self._current_slice]
+    def current(self) -> TimeSlice | _T:
+        return self[self._slice_current]
 
-    def refresh(self,  *args, **kwargs) -> _T:
-        """
-            update the last time slice
-        """
-        if len(self) == 0:
-            raise RuntimeError(f"TimeSeries is empty!")
+    def refresh(self, *args, **kwargs) -> _T:
+        self[self._slice_current].refresh(*args, **kwargs)
 
-        current_slice = self.current
-        if hasattr(current_slice.__class__, "refresh"):
-            current_slice.refresh(*args, **kwargs)
-        elif len(args) == 1 and len(kwargs) == 0:
-            current_slice.update(args[0])
+        self._time[self._slice_current] = self[self._slice_current].time
+
+        return self[self._slice_current]
+
+    def advance(self, *args, **kwargs) -> _T:
+        dt = kwargs.pop("dt", None)
+
+        if dt is None:
+            pass
+        elif len(self) > 0:
+            kwargs["time"] = self.current.time + dt
         else:
-            type_hint = self._type_hint(-1)
-            new_obj = type_hint(*args, **kwargs, parent=self._parent)
-            self[-1] = new_obj
+            kwargs["time"] = dt
 
-        return self[-1]
+        self._slice_current += 1
 
-    def advance(self, *args, time: float = ..., **kwargs) -> _T:
+        return self.refresh(*args, **kwargs)
 
+    def _new_slice(self, *args, time: float, **kwargs):
         self.time.append(time)
 
         if isinstance(self._default_value, collections.abc.Mapping):
@@ -102,4 +127,11 @@ class TimeSeriesAoS(List[_T]):
 
         self.insert(new_obj)
 
-        return new_obj  # type: ignore
+        if hasattr(current_slice.__class__, "refresh"):
+            current_slice.refresh(*args, **kwargs)
+        elif len(args) == 1 and len(kwargs) == 0:
+            current_slice.update(args[0])
+        else:
+            type_hint = self._type_hint(-1)
+            new_obj = type_hint(*args, **kwargs, parent=self._parent)
+            self[-1] = new_obj
