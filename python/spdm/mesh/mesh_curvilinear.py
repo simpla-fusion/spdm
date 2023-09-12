@@ -12,7 +12,7 @@ from ..geometry.Surface import Surface
 from ..utils.logger import logger
 from ..utils.typing import ArrayType, ScalarType
 from .Mesh import Mesh
-from .RectilinearMesh import RectilinearMesh
+from .mesh_rectilinear import RectilinearMesh
 
 
 @Mesh.register("curvilinear")

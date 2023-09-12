@@ -1,7 +1,7 @@
 import typing
 import numpy as np
 from .Mesh import Mesh
-from .StructuredMesh import StructuredMesh
+from .mesh_structured import StructuredMesh
 from ..utils.typing import ArrayType
 
 
@@ -28,4 +28,3 @@ class UniformMesh(StructuredMesh):
         return np.stack([(uvw[i]*self.dx[i]+self.origin[i]) for i in range(self.rank)])
 
 
-__SP_EXPORT__ = UniformMesh

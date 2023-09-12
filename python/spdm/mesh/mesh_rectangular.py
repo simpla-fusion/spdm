@@ -1,10 +1,10 @@
 import typing
 from .Mesh import Mesh
-from .StructuredMesh import StructuredMesh
+from .mesh_structured import StructuredMesh
 import numpy as np
 from ..utils.typing import ArrayType
 from ..utils.logger import logger
-from .RectilinearMesh import RectilinearMesh
+from .mesh_rectilinear import RectilinearMesh
 
 
 @Mesh.register(["rectangular", "rect"])
@@ -20,4 +20,3 @@ class RectangularMesh(RectilinearMesh):
     def dim2(self) -> ArrayType: return self._dims[1]
 
 
-__SP_EXPORT__ = RectangularMesh

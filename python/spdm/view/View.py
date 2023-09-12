@@ -17,6 +17,7 @@ from ..utils.plugin import Pluggable
 class View(Pluggable):
     """Abstract class for all views"""
     _plugin_registry = {}
+    _plugin_name_prefix = "spdm.view.view_"
 
     backend = None
 

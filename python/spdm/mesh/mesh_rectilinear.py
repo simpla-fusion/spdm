@@ -17,7 +17,7 @@ from ..utils.logger import logger
 from ..utils.typing import (ArrayType, NumericType, ScalarType, array_type,
                             numeric_type, scalar_type)
 from .Mesh import Mesh
-from .StructuredMesh import StructuredMesh
+from .mesh_structured import StructuredMesh
 
 # from scipy.interpolate import (InterpolatedUnivariateSpline,
 #                                RectBivariateSpline, RegularGridInterpolator,
