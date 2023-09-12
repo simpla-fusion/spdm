@@ -29,6 +29,7 @@ class TimeSeriesAoS(List[_T]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._time = None
+        self._current_slice = 0
 
     @property
     def time(self) -> typing.List[float]:
@@ -39,7 +40,7 @@ class TimeSeriesAoS(List[_T]):
         return self._time
 
     def __getitem__(self, index: int | slice | float) -> _T:
-
+        # TODO: 缓存时间片，避免重复创建，减少内存占用
         if isinstance(index, int) and index < 0 and self.time is not None:
             new_key = len(self.time) + index
             if new_key < 0:
@@ -52,11 +53,17 @@ class TimeSeriesAoS(List[_T]):
 
         return super().__getitem__(index)
 
-    @property
-    def previous(self) -> _T: return self[-2]
+    def __setitem__(self, idx: int, value):
+        raise NotImplementedError(f"")
 
     @property
-    def current(self) -> _T: return self[-1]
+    def previous(self) -> _T: return self[self._current_slice-1]
+
+    @property
+    def next(self) -> _T: return self[self._current_slice+1]
+
+    @property
+    def current(self) -> _T: return self[self._current_slice]
 
     def refresh(self,  *args, **kwargs) -> _T:
         """

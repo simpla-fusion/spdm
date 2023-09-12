@@ -21,7 +21,7 @@ class Pluggable(metaclass=abc.ABCMeta):
         if prefix is None:
             name = name.replace('/', '.').lower()
             m_pth = cls.__module__.split('.')
-            prefix = '.'.join(m_pth[0:1]+['plugins']+m_pth[1:-1]+[""])
+            prefix = '.'.join(m_pth[0:1]+['plugins']+m_pth[1:]+[""]).lower()
             cls._plugin_prefix = prefix
         if not name.startswith(prefix):
             name = prefix+name

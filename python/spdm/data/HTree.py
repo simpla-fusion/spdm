@@ -553,7 +553,7 @@ class List(Container[_T]):
             cache = [cache]
         super().__init__(cache, *args, **kwargs)
 
-    def __iter__(self) -> typing.Generator[HTree[_T] | _T, None, None]:
+    def __iter__(self) -> typing.Generator[ _T, None, None]:
         """ 遍历 children """
         for v in self.children():
             yield v
