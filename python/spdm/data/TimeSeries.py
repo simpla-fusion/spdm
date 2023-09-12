@@ -75,7 +75,10 @@ class TimeSeriesAoS(List[_T]):
         return self._cache[idx - self._slice_start]
 
     def __setitem__(self, idx: int, value):
-        raise NotImplementedError(f"")
+        if not isinstance(idx, int):
+            raise NotImplementedError(f"")
+        logger.warning("!!!NOT COMPLETE!!!")
+        self._cache[idx - self._slice_start] = value
 
     @property
     def previous(self) -> TimeSlice | _T:
@@ -90,10 +93,10 @@ class TimeSeriesAoS(List[_T]):
         return self[self._slice_current]
 
     def refresh(self, *args, **kwargs) -> _T:
-        self[self._slice_current].refresh(*args, **kwargs)
-
-        self._time[self._slice_current] = self[self._slice_current].time
-
+        if len(args) == 1 and isinstance(args[0], dict):
+            self[self._slice_current] = args[0]
+        else:
+            self[self._slice_current].refresh(*args, **kwargs)
         return self[self._slice_current]
 
     def advance(self, *args, **kwargs) -> _T:
