@@ -21,7 +21,7 @@ from .Path import Path, PathLike, as_path
 
 class Entry(Pluggable):
 
-    _plugin_module_path = "spdm.plugins.data.plugin_{name}"
+    _plugin_prefix = "spdm.plugins.data.plugin_"
     _plugin_registry = {}
 
     def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args, scheme=None, **kwargs):

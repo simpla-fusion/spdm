@@ -17,12 +17,12 @@ class Pluggable(metaclass=abc.ABCMeta):
 
     @classmethod
     def _get_plugin_fullname(cls, name) -> str:
-        prefix = getattr(cls, "_plugin_name_prefix", None)
+        prefix = getattr(cls, "_plugin_prefix", None)
         if prefix is None:
             name = name.replace('/', '.').lower()
             m_pth = cls.__module__.split('.')
-            prefix = '.'.join(m_pth[0:1]+['plugins']+m_pth[1:-1]+["plugin_"])
-            cls._plugin_name_prefix = prefix
+            prefix = '.'.join(m_pth[0:1]+['plugins']+m_pth[1:-1]+[""])
+            cls._plugin_prefix = prefix
         if not name.startswith(prefix):
             name = prefix+name
         return name
@@ -87,7 +87,7 @@ class Pluggable(metaclass=abc.ABCMeta):
         n_cls.__init__(self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Pluggable or "_plugin_name_prefix" in vars(self.__class__):
+        if self.__class__ is Pluggable or "_plugin_prefix" in vars(self.__class__):
             self.__class__.__dispatch_init__(None, self, *args, **kwargs)
             return
 

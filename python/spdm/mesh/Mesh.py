@@ -27,7 +27,7 @@ class Mesh(Pluggable):
     """
 
     _plugin_registry = {}
-    _plugin_name_prefix = "spdm.mesh.mesh_"
+    _plugin_prefix = "spdm.mesh.mesh_"
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Mesh:

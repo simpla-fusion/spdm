@@ -12,8 +12,8 @@ class Document(Pluggable):
     """
         Connection like object
     """
-    _plugin_module_path = "spdm.plugins.data.plugin_{name}"
     _plugin_registry = {}
+    _plugin_prefix = "spdm.plugins.data.plugin_"
 
     class Mode(Flag):
         read = auto()       # open for reading (default)
@@ -45,9 +45,7 @@ class Document(Pluggable):
         opened = auto()
         closed = auto()
 
-    @classmethod
-    def __dispatch_init__(cls, name_list, self, uri, *args, **kwargs):
-        super().__dispatch_init__(name_list, self, uri, *args, **kwargs)
+ 
 
     def __init__(self, uri, *args, mode: typing.Any = Mode.read, **kwargs):
         """
