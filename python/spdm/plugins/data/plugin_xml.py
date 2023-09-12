@@ -145,10 +145,16 @@ class XMLEntry(Entry):
     def _convert(self, element: _XMLElement, path=[], lazy=False, envs=None, only_one=False, default_value: typing.Any = _not_found_, **kwargs):
         if not isinstance(element, list):
             pass
+
         elif len(element) == 0:
             return default_value
-        elif not isinstance(path[-1], slice) and ((len(element) == 1) or only_one):
+
+        elif ((len(element) == 1) or only_one):
             return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
+
+        elif len(path) > 0 and isinstance(path[-1], slice):
+            raise NotImplementedError(f"{path}")
+
         else:
             return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
 

@@ -49,16 +49,16 @@ from spdm.utils.logger import logger
 #         else:
 #             return nobj
 
-@File.register(["namelist", "NAMELIST"])
-class FILEPLUGINnamelist(File):
-    def __init__(self,  *args, **kwargs):
+@File.register(["namelist"])
+class NAMELISTFile(File):
+    def __init__(self,  *args, template: str = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._template = pathlib.Path(kwargs.get("template", None))
+        self._template = pathlib.Path(template) if template is not None else None
 
     def write(self, data=None, *args, **kwargs):
         if data is None:
             data = kwargs
-        if not isinstance(data, collections.abc.Mapping):
+        if not isinstance(data, collections.abc.Mapping) or self._template is None:
             super().write(data, *args, **kwargs)
         else:
             data = normalize_data(data)
@@ -67,6 +67,3 @@ class FILEPLUGINnamelist(File):
     def read(self) -> Entry:
         data: dict = f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)
         return Entry(data)
-
-
-__SP_EXPORT__ = FILEPLUGINnamelist

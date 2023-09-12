@@ -21,9 +21,9 @@ class Signal(SpDict[_T]):
         super().__init__(*args, **kwargs)
         self._func = None
 
-    data: np.ndarray = sp_property(type="dynamic   ")
+    data: np.ndarray = sp_property(type="dynamic")
 
-    time: np.ndarray = sp_property(units="s", type="dynamic   ")
+    time: np.ndarray = sp_property(units="s", type="dynamic")
 
     def __call__(self, t: float) -> float:
         if self._func is None:

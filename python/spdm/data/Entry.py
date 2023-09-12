@@ -177,7 +177,7 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
 
         Using urllib.urlparse to parse the URL.  rfc3986
 
-        URL format: <protocol>://<authority>/<path>?<query>#<fragment>  
+        URL format: <protocol>://<authority>/<path>?<query>#<fragment>
 
         RF3986 = r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
@@ -189,13 +189,13 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
 
             imas+ssh://a.b.c.net/path/to/file
 
-            east+mdsplus://<mds_prefix>  
-            east+mdsplus+ssh://<mds_prefix> 
+            east+mdsplus://<mds_prefix>
+            east+mdsplus+ssh://<mds_prefix>
 
     """
 
     if isinstance(url, str) and "." not in url and "/" not in url:
-        return EntryProxy(url, global_schema=schema,  **kwargs)
+        return EntryProxy(url,  schema=schema,  **kwargs)
 
     local_schema = None
 
@@ -214,7 +214,7 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
         return File(url_,   **kwargs).entry
 
     elif schema != local_schema:
-        return EntryProxy(url_,  global_schema=schema,  **kwargs)
+        return EntryProxy(url_,   schema=schema,  **kwargs)
 
     else:
         return Entry(url,  **kwargs)
@@ -393,10 +393,8 @@ class EntryProxy(Entry):
 
         return cls._maps
 
-    def __init__(self, url: str, global_schema: str | None = None, **kwargs):
-        super().__init__()
-
-        self._entry_list = None
+    @classmethod
+    def load(cls, url: str,  schema: str | None, **kwargs):
 
         mapper_list = EntryProxy.load_mappings()
 
@@ -419,10 +417,10 @@ class EntryProxy(Entry):
             else:
                 raise RuntimeError(f"local schema is not defined! {_url}")
 
-        if global_schema is None:
-            global_schema = EntryProxy._default_global_schema
+        if schema is None:
+            schema = EntryProxy._default_global_schema
 
-        map_tag = f"{local_schema.lower()}/{global_schema.lower()}"
+        map_tag = f"{local_schema.lower()}/{schema.lower()}"
 
         mapper = mapper_list.get(map_tag, _not_found_)
 
@@ -449,11 +447,9 @@ class EntryProxy(Entry):
 
             mapper_list[map_tag] = mapper
 
-        self._mapper = mapper
+        entry_list = {}
 
-        self._entry_list = {}
-
-        spdb = self._mapper.child("spdb").fetch()
+        spdb = mapper.child("spdb").fetch()
 
         if not isinstance(spdb, dict):
             return
@@ -472,7 +468,17 @@ class EntryProxy(Entry):
 
             url = entry.get("_text", "").format(**attr)
 
-            self._entry_list[id] = url
+            entry_list[id] = url
+
+        return mapper, entry_list
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        if len(args) == 2 and isinstance(args[0], Entry) and isinstance(args[1], dict):
+            self._mapper = args[0]
+            self._entry_list = args[1]
+        else:
+            self._mapper, self._entry_list = self.__class__.load(*args,   **kwargs)
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
@@ -527,6 +533,9 @@ class EntryProxy(Entry):
 
         if request is _not_found_:
             return kwargs.get("default_value", _not_found_)
+
+        elif isinstance(request, Entry):
+            res = EntryProxy(request, self._entry_list)
 
         elif isinstance(request, list):
             res = [self._op_fetch(req, *args, **kwargs) for req in request]
