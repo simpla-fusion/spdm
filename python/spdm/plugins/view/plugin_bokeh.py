@@ -19,7 +19,7 @@ from spdm.geometry.Point import Point
 from spdm.geometry.PointSet import PointSet
 from spdm.utils.logger import logger
 
-from .View import View
+from spdm.view.View import View
 
 
 def bokeh_example():

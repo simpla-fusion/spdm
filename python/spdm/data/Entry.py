@@ -264,6 +264,8 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
 def as_entry(obj, *args, **kwargs) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
+    elif isinstance(obj, (str, URITuple, pathlib.Path)):
+        entry = open_entry(obj, *args, **kwargs)
     elif hasattr(obj.__class__, "__entry__"):
         entry = obj.__entry__
     elif obj is None or obj is _not_found_:

@@ -13,7 +13,7 @@ from spdm.geometry.Point import Point
 from spdm.geometry.PointSet import PointSet
 from spdm.utils.logger import logger
 
-from .View import View
+from spdm.view.View import View
 
 SVG_TEMPLATE = """<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">

@@ -87,7 +87,7 @@ class Pluggable(metaclass=abc.ABCMeta):
         n_cls.__init__(self, *args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Pluggable or "_plugin_registry" in vars(self.__class__):
+        if self.__class__ is Pluggable or "_plugin_name_prefix" in vars(self.__class__):
             self.__class__.__dispatch_init__(None, self, *args, **kwargs)
             return
 

@@ -12,24 +12,6 @@ from .sp_property import SpDict
 class Actor(SpDict, Pluggable):
     mpi_enabled = False
 
-    @classmethod
-    def register(cls, name_list: str | typing.List[str | None] | None = None, other_cls=None):
-        if isinstance(name_list, str):
-            name_list = [name_list]
-
-        _nlist = []
-        for name in name_list:
-            if name is None:
-                continue
-            if not isinstance(name, str):
-                raise TypeError(f"Invalid type {type(n)} for name")
-            elif '/' not in name and '.' not in name:
-                name = cls._plugin_module_path.format(name=name)
-
-            _nlist.append(name)
-
-        super().register(_nlist, other_cls)
-
     # _plugin_module_path = "spdm.plugins.actor.actor_{name}"
     # _plugin_registry = {}
     # @classmethod
@@ -62,15 +44,14 @@ class Actor(SpDict, Pluggable):
     #         return super().__init__(self, d, *args, **kwargs)
     #     else:
     #         return super().__dispatch_init__(cls_name_list, self, d, *args, **kwargs)
-    # def __init__(self, *args, **kwargs):
-    #     if self.__class__ is Actor or "_plugin_registry" in vars(self.__class__):
-    #         self.__class__.__dispatch_init__(None, self, *args, **kwargs)
-    #         return
-    #     super().__init__(*args, **kwargs)
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs):
+        if self.__class__ is Actor or "_plugin_config" in vars(self.__class__):
+            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
+            return
         super().__init__(*args, **kwargs)
-        logger.debug(f"Load actor {self.__class__.__name__} MPI_ENBLAED={self.mpi_enabled}")
+
+        logger.debug(f"Load Actor {self.__class__.__name__} MPI_ENBLAED={self.mpi_enabled}")
 
     def advance(self,  *args, time: float, ** kwargs) -> None:
         logger.debug(f"Advancing {self.__class__.__name__} time={time}")

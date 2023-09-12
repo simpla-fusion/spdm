@@ -10,7 +10,7 @@ import numpy as np
 
 from spdm.utils.logger import logger
 from spdm.utils.typing import array_type
-from .View import View
+from spdm.view.View import View
 
 _EXPR_OP_NAME = {
     "negative": "-",
