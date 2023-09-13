@@ -22,6 +22,14 @@ import numpy as np
 from .logger import logger
 from .tags import _empty, _not_found_, _undefined_
 
+import re
+
+
+def camel_to_snake(name):
+    # name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name)
+    return name.lower()
+
 
 def float_unique(d: np.ndarray, x_min=-np.inf, x_max=np.inf) -> np.ndarray:
     if not isinstance(d, np.ndarray):
@@ -264,7 +272,6 @@ def first_not_empty(*args):
     return next(x for x in args if len(x) > 0)
 
 
-
 def guess_class_name(obj):
 
     if not inspect.isclass(obj):
@@ -341,7 +348,6 @@ def fetch_request(url: str) -> typing.Dict:
 primitive_types = (int, bool, str, float, complex, np.ndarray)
 
 builtin_types = (int, bool, str, float, complex, list, dict, set, tuple, np.ndarray)
-
 
 
 def group_dict_by_prefix(d: collections.abc.Mapping, prefixes: str | typing.List[str], keep_prefix=False, sep='_') -> typing.Tuple[typing.Dict, ...]:

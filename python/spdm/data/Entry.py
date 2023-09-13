@@ -452,7 +452,7 @@ class EntryProxy(Entry):
         spdb = mapper.child("spdb").fetch()
 
         if not isinstance(spdb, dict):
-            return
+            return None, None
 
         attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
 

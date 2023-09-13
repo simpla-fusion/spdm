@@ -16,6 +16,7 @@ from spdm.geometry.Point import Point
 from spdm.geometry.PointSet import PointSet
 from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
+from spdm.geometry.Line import Line
 from spdm.utils.logger import logger
 from spdm.utils.typing import array_type, as_array, is_array
 from spdm.view.View import View
@@ -29,7 +30,7 @@ class MatplotlibView(View):
         super().__init__(*args, **kwargs)
         self._view_point = view_point  # TODO: 未实现, for 3D view
 
-    def render(self, obj, **kwargs) -> typing.Any:
+    def render(self, obj,  **kwargs) -> typing.Any:
         fontsize = kwargs.get("fontsize", None)
 
         if isinstance(obj, list):  # draw as profiles
@@ -156,6 +157,9 @@ class MatplotlibView(View):
         elif isinstance(obj, Polyline):
             canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
 
+        elif isinstance(obj, Line):
+            canvas.add_artist(plt.Line2D([obj.p0.x, obj.p1.x], [obj.p0.y, obj.p1.y], **s_styles))
+
         elif isinstance(obj, Curve):
             canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
 
@@ -163,7 +167,7 @@ class MatplotlibView(View):
             canvas.add_patch(plt.Rectangle((obj._x, obj._y), obj._width, obj._height, fill=False, **s_styles))
 
         elif isinstance(obj, Circle):
-            canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r, **s_styles))
+            canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r, fill=False, **s_styles))
 
         elif isinstance(obj, Point):
             canvas.scatter(obj.x, obj.y, **s_styles)
@@ -238,7 +242,10 @@ class MatplotlibView(View):
             if not isinstance(text_styles, dict):
                 text_styles = {}
 
-            if isinstance(obj, GeoObject):
+            if isinstance(obj, Line):
+                text = obj.name
+                pos = [obj.p1.x, obj.p1.y]
+            elif isinstance(obj, GeoObject):
                 text = obj.name
                 pos = obj.bbox.center
             elif hasattr(obj, "__mesh__"):

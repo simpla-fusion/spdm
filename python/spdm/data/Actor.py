@@ -51,7 +51,7 @@ class Actor(SpDict, Pluggable):
             return
         super().__init__(*args, **kwargs)
 
-        logger.debug(f"Load Actor {self.__class__.__name__} MPI_ENBLAED={self.mpi_enabled}")
+        logger.debug(f"Load Actor {self.__class__.__name__}")  # MPI_ENBLAED={self.mpi_enabled}
 
     def advance(self,  *args, time: float, ** kwargs) -> None:
         logger.debug(f"Advancing {self.__class__.__name__} time={time}")

@@ -5,9 +5,11 @@ import inspect
 import os
 import sys
 from enum import Enum
-from .tags import _not_found_
+
 from .logger import logger
+from .misc import camel_to_snake
 from .sp_export import sp_find_module, sp_load_module
+from .tags import _not_found_
 
 
 class Pluggable(metaclass=abc.ABCMeta):
@@ -20,7 +22,7 @@ class Pluggable(metaclass=abc.ABCMeta):
         prefix = getattr(cls, "_plugin_prefix", None)
         if prefix is None:
             name = name.replace('/', '.').lower()
-            m_pth = cls.__module__.split('.')
+            m_pth = camel_to_snake(cls.__module__).split('.')
             prefix = '.'.join(m_pth[0:1]+['plugins']+m_pth[1:]+[""]).lower()
             cls._plugin_prefix = prefix
         if not name.startswith(prefix):

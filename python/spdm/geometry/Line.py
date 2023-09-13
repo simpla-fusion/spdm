@@ -1,12 +1,15 @@
 import abc
+import collections.abc
 import typing
 from functools import cached_property
 from typing import Any
-import collections.abc
+
 import numpy as np
+
 from ..utils.logger import logger
 from ..utils.typing import ArrayType
-from .GeoObject import GeoObject, GeoObject
+from .BBox import BBox
+from .GeoObject import GeoObject
 from .Point import Point
 from .Vector import Vector
 
@@ -19,8 +22,8 @@ class Line(GeoObject):
 
     def __init__(self, p0: Point | ArrayType, p1: Point | ArrayType, *args, **kwargs) -> None:
         super().__init__(*args, rank=1,   **kwargs)
-        self._p0 = Point(p0)
-        self._p1 = Point(p1)
+        self._p0 = Point(*p0)
+        self._p1 = Point(*p1)
 
     @property
     def p0(self) -> Point: return self._p0
@@ -39,6 +42,10 @@ class Line(GeoObject):
 
     @property
     def boundary(self) -> typing.List[Point]: return [self.p0, self.p1]
+
+    @property
+    def bbox(self) -> BBox: return BBox([self.p0.x,self.p0.y], [self.p1.x-self.p0.x, self.p1.y-self.p0.y])
+    """ boundary box of geometry [ [...min], [...max] ] """
 
     def contains(self, o) -> bool:
         return self._impl.contains(o._impl if isinstance(o, GeoObject) else o)

@@ -15,17 +15,17 @@ class Point(GeoObject):
 
     def __init__(self, *args,   **kwargs) -> None:
         super().__init__(*args, rank=0, ndims=len(args),  ** kwargs)
-        self._points = np.array(args)
+        self._coord = np.array(args)
 
     @property
-    def x(self) -> float: return self._points[0]
+    def x(self) -> float: return self._coord[0]
 
     @property
-    def y(self) -> float: return self._points[1]
+    def y(self) -> float: return self._coord[1]
 
     @property
     def measure(self) -> float:
         return 0
 
     @property
-    def points(self): return self._points
+    def points(self): return self._coord

@@ -33,8 +33,11 @@ class TimeSeriesAoS(List[_T]):
     Each slice is a dict .
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, time=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if self._cache is None or self._cache is _not_found_:
+            pass
+
         self._slice_start = 0
         self._slice_stop = 0
         self._slice_current = 0
@@ -46,7 +49,11 @@ class TimeSeriesAoS(List[_T]):
         )
 
     def __getitem__(self, idx: int | slice) -> TimeSlice | _T:
-        # TODO: 缓存时间片，避免重复创建，减少内存占用
+        # TODO:
+        #   1. 缓存时间片，避免重复创建，减少内存占用
+        #   2. 缓存应循环使用
+        #   3. cache 数据自动写入 entry 落盘
+        #
 
         if isinstance(idx, slice):
             raise NotImplementedError(f"NOT YET! {idx}")

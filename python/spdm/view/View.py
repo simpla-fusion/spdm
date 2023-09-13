@@ -46,6 +46,7 @@ class View(Pluggable):
             return
         self._styles = kwargs.pop("styles", {})
 
+ 
     @property
     def signature(self) -> str:
         return f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
@@ -80,7 +81,7 @@ class View(Pluggable):
             self.draw(canvas, o, styles)
 
         elif hasattr(obj.__class__, "__geometry__"):
-            self.draw(canvas, obj.__geometry__, styles)
+            self.draw(canvas, obj.__geometry__(view=styles.get("view","RZ")), styles)
 
         elif isinstance(obj, dict):
             for k, o in obj.items():
@@ -127,8 +128,8 @@ def viewer(output=None, backend=None):
 SP_VIEW_BACKEND = "matplotlib"
 
 
-def display(*args, output=None, backend=None, **kwargs):
+def display(*args, output=None, backend=None,   **kwargs):
     """Show an object"""
     if backend is None:
         backend = SP_VIEW_BACKEND
-    return viewer(backend=backend, output=output).render(*args, output=output, **kwargs)
+    return viewer(backend=backend, output=output ).render(*args, output=output, **kwargs)
