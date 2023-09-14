@@ -302,7 +302,7 @@ class HTree(typing.Generic[_T]):
         if isinstance_generic(value, type_hint):
             pass
 
-        elif type_hint in array_type:
+        elif type_hint is array_type:
             if isinstance(value, (list)) or isinstance(value, array_type):
                 pass
 

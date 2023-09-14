@@ -29,11 +29,11 @@ scalar_type = (*boolean_type, *integral_type, *real_type, *complex_type)
 
 ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
 
-array_type = tuple([np.ndarray,])
+array_type = np.ndarray
 
 NumericType = ScalarType | ArrayType
 
-numeric_type = (*scalar_type, *array_type)
+numeric_type = (*scalar_type, [array_type])
 
 PrimaryType = str | NumericType | Enum
 
