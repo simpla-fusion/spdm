@@ -12,7 +12,7 @@ from inspect import getframeinfo, stack
 
 from .mpi import MPI
 
-default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
+default_formater = logging.Formatter('%(asctime)s [%(name)8s] %(levelname)8s:'
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
                                      '%(message)s')
 
@@ -45,12 +45,12 @@ class CustomFormatter(logging.Formatter):
     bold_red = "\x1b[1;31m"
     reset = "\x1b[0m"
 
-    format_normal = '%(asctime)s %(levelname)s [%(name)s]' + MPI_MSG + \
+    format_normal = '%(asctime)s [%(name)8s] %(levelname)8s:' + MPI_MSG + \
         ' %(pathname)s:%(lineno)d:%(funcName)s: %(message)s'
 
     FORMATS = {
         logging.DEBUG: grey + format_normal + reset,
-        logging.INFO:  blue + '%(asctime)s %(levelname)s [%(name)s]' + MPI_MSG+': %(message)s' + reset,
+        logging.INFO:  blue + '%(asctime)s [%(name)8s] %(levelname)8s: ' + MPI_MSG+'%(message)s' + reset,
         logging.WARNING: brown + format_normal + reset,
         logging.ERROR: red + format_normal + reset,
         logging.CRITICAL: bold_red + format_normal + reset
@@ -94,15 +94,15 @@ def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
 
 
 def the_end():
+    logger.setLevel(logging.INFO)
     logger.info("The End")
     logging.shutdown()
 
 
 atexit.register(the_end)
 
-PKG_NAME = __package__[:__package__.find('.')]
 
-logger = sp_enable_logging(PKG_NAME, handler="STDOUT")
+logger = sp_enable_logging(__package__[:__package__.find('.')], handler="STDOUT")
 
 SP_DEBUG = os.environ.get("SP_DEBUG", "2")
 

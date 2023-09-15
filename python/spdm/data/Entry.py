@@ -195,7 +195,7 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
     """
 
     if isinstance(url, str) and "." not in url and "/" not in url:
-        return EntryProxy(url,  schema=schema,  **kwargs)
+        return EntryProxy(f"{url}+://",  schema=schema,  **kwargs)
 
     local_schema = None
 
@@ -395,6 +395,38 @@ class EntryProxy(Entry):
 
     @classmethod
     def load(cls, url: str,  schema: str | None, **kwargs):
+        """ 检索并导入 mapping files
+
+            mapping files 目录结构约定为 : 
+            
+            - <local schema>/<global schema>
+                - config.xml
+                - static            # 存储静态数据，例如装置描述文件
+                    - config.xml
+                    - <...>
+            
+                - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus      
+                    - config.xml
+                    - <...>
+            
+                - protocol1         # 存储 protocol1 所对应mapping，例如 hdf5
+                    - config.xml
+                    - <...>
+        
+            Example:
+              1. east+mdsplus://.... 对应的目录结构为
+                - east/imas/3
+                    - static
+                        - config.xml
+                        - wall.xml
+                        - pf_active.xml  (包含 pf 线圈几何信息)
+                        - ...
+                    - mdsplus
+                        - config.xml (包含<spdb > 描述子数据库entry )
+                        - pf_active.xml
+
+
+        """
 
         mapper_list = EntryProxy.load_mappings()
 
@@ -420,22 +452,33 @@ class EntryProxy(Entry):
         if schema is None:
             schema = EntryProxy._default_global_schema
 
-        map_tag = f"{local_schema.lower()}/{schema.lower()}"
+        map_tag = [local_schema.lower(), schema.lower()]
 
-        mapper = mapper_list.get(map_tag, _not_found_)
+        if _url.protocol != "":
+            map_tag.append(_url.protocol)
+
+        map_tag_str = '/'.join(map_tag)
+
+        mapper = mapper_list.get(map_tag_str, _not_found_)
 
         if mapper is _not_found_:
 
-            file_path_suffix = ["config.xml", "static/config.xml", "dynamic/config.xml"]
+            prefix = "/".join(map_tag[:2])
 
-            mapping_files: typing.List[str] = []
+            config_files = [f"{prefix}/config.xml", f"{prefix}/static/config.xml"]
+
+            if len(map_tag) > 2:
+                config_files.append(f"{'/'.join(map_tag[:3])}/config.xml")
+
+            mapping_files: typing.List[pathlib.Path] = []
+
             for m_dir in EntryProxy._mapping_path:
                 if not m_dir:
                     continue
                 elif isinstance(m_dir, str):
                     m_dir = pathlib.Path(m_dir)
-                for file_name in file_path_suffix:
-                    p = m_dir / map_tag / file_name
+                for file_name in config_files:
+                    p = m_dir / file_name
                     if p.exists():
                         mapping_files.append(p)
 
@@ -445,30 +488,29 @@ class EntryProxy(Entry):
 
             mapper = open_entry(mapping_files, mode="r", format="XML")
 
-            mapper_list[map_tag] = mapper
+            mapper_list[map_tag_str] = mapper
 
         entry_list = {}
 
         spdb = mapper.child("spdb").fetch()
 
-        if not isinstance(spdb, dict):
-            return None, None
+        if   isinstance(spdb, dict):
 
-        attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
+            attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
 
-        attr.update(kwargs)
+            attr.update(kwargs)
 
-        if _url is not None:
-            attr["url"] = f"{_url.protocol}://{_url.authority}{_url.path}"
+            if _url is not None:
+                attr["url"] = f"{_url.protocol}://{_url.authority}{_url.path}"
 
-        for entry in spdb.get("entry", []):
-            id = entry.get("@id", None)
-            if id is None:
-                continue
+            for entry in spdb.get("entry", []):
+                id = entry.get("@id", None)
+                if id is None:
+                    continue
 
-            url = entry.get("_text", "").format(**attr)
+                url = entry.get("_text", "").format(**attr)
 
-            entry_list[id] = url
+                entry_list[id] = url
 
         return mapper, entry_list
 

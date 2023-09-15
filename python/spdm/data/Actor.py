@@ -2,6 +2,7 @@
 
 import collections.abc
 import typing
+
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from .Entry import open_entry
@@ -13,7 +14,7 @@ class Actor(SpDict, Pluggable):
     mpi_enabled = False
 
     # _plugin_module_path = "spdm.plugins.actor.actor_{name}"
-    # _plugin_registry = {}
+    _plugin_registry = {}
     # @classmethod
     # def __dispatch_init__(cls, cls_name_list, self,  d=None, *args, default_plugin: str = None,  **kwargs) -> None:
     #     # if isinstance(d, str):
@@ -50,8 +51,6 @@ class Actor(SpDict, Pluggable):
             self.__class__.__dispatch_init__(None, self, *args, **kwargs)
             return
         super().__init__(*args, **kwargs)
-
-        logger.debug(f"Load Actor {self.__class__.__name__}")  # MPI_ENBLAED={self.mpi_enabled}
 
     def advance(self,  *args, time: float, ** kwargs) -> None:
         logger.debug(f"Advancing {self.__class__.__name__} time={time}")
