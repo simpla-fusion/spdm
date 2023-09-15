@@ -1,3 +1,4 @@
+import atexit
 import collections.abc
 import inspect
 import logging
@@ -15,8 +16,6 @@ default_formater = logging.Formatter('%(asctime)s %(levelname)s [%(name)s] '
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
                                      '%(message)s')
 
-
-SP_NO_DEBUG = os.environ.get("SP_NO_DEBUG", False)
 
 MPI_MSG = ""
 
@@ -94,11 +93,28 @@ def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
     return m_logger
 
 
-logger = sp_enable_logging(__package__[:__package__.find('.')], handler="STDOUT")
+def the_end():
+    logger.info("The End")
+    logging.shutdown()
 
 
-if not SP_NO_DEBUG:
-    logger.setLevel(logging.DEBUG)
+atexit.register(the_end)
+
+PKG_NAME = __package__[:__package__.find('.')]
+
+logger = sp_enable_logging(PKG_NAME, handler="STDOUT")
+
+SP_DEBUG = os.environ.get("SP_DEBUG", "2")
+
+match SP_DEBUG:
+    case "0" | "warning":
+        logger.setLevel(logging.WARNING)
+    case "2" | "True" | "true" | "verbose" | "debug":
+        logger.setLevel(logging.DEBUG)
+    case "-1" | "quiet":
+        logger.setLevel(logging.CRITICAL)
+    case _:
+        logger.setLevel(logging.INFO)
 
 
 def deprecated(func):
