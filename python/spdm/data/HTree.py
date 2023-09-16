@@ -8,7 +8,7 @@ from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.tree_utils import merge_tree_recursive
+from ..utils.tree_utils import merge_tree_recursive, upate_tree_recursive
 from ..utils.typing import (ArrayType, HTreeLike, NumericType, array_type,
                             as_array, as_value, get_args, get_origin,
                             get_type_hint, isinstance_generic, numeric_type,
@@ -131,17 +131,6 @@ class HTree(typing.Generic[_T]):
 
     def remove(self, *args, **kwargs): return self._remove(*args, **kwargs)
 
-    @deprecated
-    def refresh(self, cache=None, **kwargs):
-        if cache is None:
-            cache = kwargs
-        if isinstance(cache, dict):
-            cache = merge_tree_recursive(self._default_value, cache)
-        # logger.debug(self._cache)
-        # logger.debug(self._default_value)
-        self._cache = cache
-        return self
-
     def get(self, path: Path | PathLike,  default_value: typing.Any = _not_found_, *args,   force=False, **kwargs) -> _T:
 
         path = as_path(path)
@@ -245,7 +234,7 @@ class HTree(typing.Generic[_T]):
                   default_value=_not_found_,
                   getter: typing.Callable | None = None,
                   force=True,  # 若type_hint为 None，强制 HTree
-                  parent=None,  **kwargs) -> HTree[_T] | _T:
+                  parent=None,  **kwargs) -> _T:
 
         if value is _not_found_ and entry is None:
             return _not_found_
@@ -548,13 +537,13 @@ class Dict(Container[_T]):
 
 class List(Container[_T]):
     def __init__(self, cache: typing.Any = None, *args, **kwargs) -> None:
-        if cache is _not_found_:
-            pass
+        if cache is _not_found_ or cache is None:
+            cache = []
         elif not isinstance(cache, collections.abc.Sequence):
             cache = [cache]
         super().__init__(cache, *args, **kwargs)
 
-    def __iter__(self) -> typing.Generator[ _T, None, None]:
+    def __iter__(self) -> typing.Generator[_T, None, None]:
         """ 遍历 children """
         for v in self.children():
             yield v

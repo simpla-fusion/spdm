@@ -10,12 +10,12 @@ from .typing import primary_type
 
 
 class DefaultDict(dict):
-    """ 
-        This code creates a dictionary that can have a default value for 
+    """
+        This code creates a dictionary that can have a default value for
         keys that are not yet in the dictionary. It creates a dictionary that inherits
-        from the built-in dictionary class. It overrides the __missing__ method to 
-        return a default value if the key is not in the dictionary. It uses a private 
-        variable, _factory, that is set to the default factory function. It uses the default 
+        from the built-in dictionary class. It overrides the __missing__ method to
+        return a default value if the key is not in the dictionary. It uses a private
+        variable, _factory, that is set to the default factory function. It uses the default
         factory function to generate the default value for the key. It sets the default value
         for the key with the __setitem__ method. It returns the default value.
     """
@@ -53,6 +53,39 @@ def merge_tree_recursive(first, second, level=-1, in_place=False, append=False) 
     else:
         first = second
         # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")
+
+    return first
+
+
+def upate_tree_recursive(first: dict, second):
+    """ 迭代更新第一个 dict """
+    if not isinstance(first, (collections.abc.MutableSequence, collections.abc.MutableMapping)):
+        raise TypeError(f"{type(first)}")
+
+    elif second is None or second is _not_found_:
+        pass
+
+    elif isinstance(first, collections.abc.MutableSequence):
+        # 合并 sequence
+        if isinstance(second, collections.abc.Sequence):
+            first.extend(second)
+        else:
+            first.append(second)
+
+    elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
+        # 合并 dict
+        for k, v in second.items():
+            if v is _not_found_:
+                continue
+            next_level = first.get(k, None)
+            if isinstance(next_level, (collections.abc.MutableSequence)):
+                upate_tree_recursive(next_level, v)
+            elif isinstance(next_level, (collections.abc.MutableMapping)) and isinstance(v, collections.abc.Mapping):
+                upate_tree_recursive(next_level, v)
+            else:
+                first[k] = v
+    else:
+        raise TypeError(f"Can not update {type(first)} with {type(second)}!")
 
     return first
 

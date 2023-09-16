@@ -98,6 +98,15 @@ class Entry(Pluggable):
         other._path.append(path)
         return other
 
+    def next(self, inc: int = 1) -> Entry:
+        if not isinstance(self._path[-1], int):
+            raise RuntimeError(f"Path must be end with int! {self._path}")
+        
+        next_ = self.__copy__()
+
+        next_._path[-1] += inc
+
+        return next_
     ###########################################################
 
     @property
@@ -398,21 +407,21 @@ class EntryProxy(Entry):
         """ 检索并导入 mapping files
 
             mapping files 目录结构约定为 : 
-            
+
             - <local schema>/<global schema>
                 - config.xml
                 - static            # 存储静态数据，例如装置描述文件
                     - config.xml
                     - <...>
-            
+
                 - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus      
                     - config.xml
                     - <...>
-            
+
                 - protocol1         # 存储 protocol1 所对应mapping，例如 hdf5
                     - config.xml
                     - <...>
-        
+
             Example:
               1. east+mdsplus://.... 对应的目录结构为
                 - east/imas/3
@@ -494,23 +503,22 @@ class EntryProxy(Entry):
 
         spdb = mapper.child("spdb").fetch()
 
-        if   isinstance(spdb, dict):
+        if not isinstance(spdb, dict):
+            entry_list["*"] = url
+        else:
 
             attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
 
-            attr.update(kwargs)
+            attr["prefix"] = f"{_url.protocol}://{_url.authority}{_url.path}"
 
-            if _url is not None:
-                attr["url"] = f"{_url.protocol}://{_url.authority}{_url.path}"
+            attr.update(kwargs)
 
             for entry in spdb.get("entry", []):
                 id = entry.get("@id", None)
                 if id is None:
                     continue
 
-                url = entry.get("_text", "").format(**attr)
-
-                entry_list[id] = url
+                entry_list[id] = entry.get("_text", "").format(**attr)
 
         return mapper, entry_list
 
@@ -574,7 +582,11 @@ class EntryProxy(Entry):
             request = uri_split_as_dict(request)
 
         if request is _not_found_:
-            return kwargs.get("default_value", _not_found_)
+            default_entry = self._entry_list.get("*", None)
+            if default_entry is None:
+                res = _not_found_
+            else:
+                res = default_entry.child(self._path).fetch(*args, **kwargs)
 
         elif isinstance(request, Entry):
             res = EntryProxy(request, self._entry_list)

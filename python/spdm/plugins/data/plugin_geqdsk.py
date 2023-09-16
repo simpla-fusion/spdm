@@ -355,7 +355,7 @@ class GEQdskFile(File):
         except OSError as error:
             raise FileExistsError(f"Can not open file {self.url}! {error}")
         else:
-            logger.debug(f"Open File {self.url} mode={self.mode}")
+            logger.debug(f"Open File mode={self.mode}  {self.url} ")
 
     # def flush(self, *args, **kwargs):
     #     if self.mode & File.Mode.write:
