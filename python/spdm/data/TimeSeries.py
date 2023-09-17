@@ -13,8 +13,6 @@ from .Entry import Entry
 from .HTree import List
 from .sp_property import SpDict, sp_property
 
-_T = typing.TypeVar("_T")
-
 
 class TimeSlice(SpDict):
     def __init__(self, *args, **kwargs):
@@ -23,116 +21,184 @@ class TimeSlice(SpDict):
     time: float = sp_property(unit="s", type="dynamic", default_value=0.0)  # type: ignore
 
     def refresh(self, *args,  **kwargs) -> TimeSlice:
-
-        if self._cache is None or self._cache is _not_found_:
-            self._cache = kwargs
-
-        if len(args) > 0 or len(kwargs) > 0:
+        if len(args)+len(kwargs) > 0:
             super().update(*args, **kwargs)
-
         return self
 
-    def advance(self, *args, dt: float, **kwargs) -> TimeSlice:
-        if self._entry is not None:
-            entry = self._entry.next()
+    def advance(self, *args, dt: float | None = None, **kwargs) -> TimeSlice:
+        if dt is None:
+            if self._entry is not None:
+                entry = self._entry.next()
+                cache = None
+            else:
+                raise RuntimeError(f"Unkonwn dt={dt}")
         else:
             entry = None
+            cache = {"time": self.time + dt}
 
-        next_one = self.__class__({"time": self.time+dt}, *args, entry=entry, parent=self._parent, **kwargs)
-
-        return next_one
+        return self.__class__(cache, *args, entry=entry, parent=self._parent, **kwargs)
 
 
-class TimeSeriesAoS(List[_T]):
-    """ A series of time slices .
+_TSlice = typing.TypeVar("_TSlice")  # , TimeSlice, typing.Type[TimeSlice]
+
+
+class TimeSeriesAoS(List[_TSlice]):
+    """
+        A series of time slices .
+
+        用以管理随时间变化（time series）的一组状态（TimeSlice）。
+
+        current:
+            指向当前时间片，即为序列最后一个时间片吗。
+
         TODO:
           1. 缓存时间片，避免重复创建，减少内存占用
           2. 缓存应循环使用
           3. cache 数据自动写入 entry 落盘
-
-
     """
 
-    def __init__(self, *args,  **kwargs):
+    def __init__(self, *args, start_slice: int | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        # 当前 slice 在 cache 中的位置
-        self._cache_cursor: int = None    # type:ignore
+        self._start_slice = start_slice or self._metadata.get("start_slice", None)
 
     @property
     def time(self) -> ArrayType:
+        """时间序列"""
         return as_array([getattr(time_slice, "time", None) for time_slice in self._cache])
 
     @property
-    def previous(self) -> TimeSlice | _T: return self[-1]
+    def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
 
     @property
-    def current(self) -> TimeSlice | _T: return self[0]
+    def current(self) -> _TSlice: return self[-1]
 
-    @property
-    def next(self) -> TimeSlice | _T: return self[1]
+    # @property
+    # def previous(self) ->_T: return self[-1]
 
-    def _extend_cache(self, rel_index: int = 0) -> int:
+    # @property
+    # def next(self) ->_T: return self[1]
 
-        if self._cache is None or self._cache is _not_found_:
-            self._cache = [None]
-            self._cache_cursor = 0
-        elif len(self._cache) == 0 or self._cache_cursor is None:
-            self._cache.append(None)
-            self._cache_cursor = 0
+    def _find_by_time(self, time) -> int:
+        """查找时间片所在的 entry 的位置"""
 
-        num = len(self._cache)
+        idx = None
+        for idx, t_slice in enumerate(self._cache):
+            if isinstance(t_slice, TimeSlice):
+                if time >= t_slice.time:
+                    return idx
 
-        cache_pos = self._cache_cursor + rel_index
+            elif isinstance(t_slice, dict):
+                t = t_slice.get("time", None)
 
-        # 扩展 cache
-        if cache_pos < 0:
-            self._cache = [None]*(-cache_pos)+self._cache
-            self._cache_cursor -= cache_pos
-            cache_pos = 0
-        elif cache_pos >= num:
-            self._cache += [None]*(cache_pos-num+1)
+                if time >= t:
+                    return idx
 
-        return cache_pos
+        time_coord = getattr(self, "_time_coord", None)
 
-    def _find_slice(self,  *args, cache=None, hint_time=None, hint_index=None, **kwargs) -> TimeSlice | _T:
-        entry = None
-        entry_pos = None
+        if time_coord is None:
+            time_coord = self._metadata.get("coordinate1", None)
+            if time_coord is not None and self._entry is not None:
+                time_coord = self._entry.child(f"../{time_coord}").fetch()
+            self._time_coord = time_coord
 
-        value = self._as_child(cache, entry_pos, *args, entry=entry, parent=self._parent, **kwargs)
+        if isinstance(time_coord, np.ndarray):
+            indices = np.where(time_coord <= time)[0]
+            if len(indices) > 0:
+                idx = indices[-1]
+                if self._start_slice is None:
+                    self._start_slice = idx
+                return idx-self._start_slice
 
-        return value
+        if self._entry is not None and self._start_slice is not None:
+            pos = self._start_slice
+            while True:
+                t_time = self._entry.child(f"{pos}/time").fetch()
+                if t_time is _not_found_ or t_time is None:
+                    break
+                elif t_time >= time:
+                    return pos-self._start_slice
+                else:
+                    pos += 1
 
-    def __getitem__(self, idx: int) -> TimeSlice | _T:
-        if not isinstance(idx, int):
-            raise NotImplementedError(f"{idx}")
+        raise RuntimeError(f"Time {time} not found")
 
-        pos = self._extend_cache(idx)
+    def _pre_load(self, idx: int | None = None, time: float | None = None) -> int:
+        """ load slices into cache, 返回最后一个slice在 cache中的位置
+            NOTE: 不会触发 entry 读取数据，
+        """
 
-        value = self._cache[pos]
+        if idx is not None:
+            pass
+        elif time is not None:
+            idx = self._find_by_time(time)
+        else:
+            raise RuntimeError(f"{time} {idx}")
+
+        length = len(self._cache)
+
+        if idx < 0:
+            idx += length
+
+        if idx < 0:
+            self._cache = [None]*(-idx)+self._cache
+
+            if self._start_slice is None:
+                self._start_slice = 0
+
+            self._start_slice += idx+1
+
+            if self._start_slice < 0:
+                raise RuntimeError(f"Can not determine start_slice {self._start_slice}")
+
+            idx = 0
+
+        elif idx >= length:
+            self._cache += [None]*(idx+1-length)
+
+        return idx
+
+    def __getitem__(self, idx: int) -> _TSlice:
+
+        idx = self._pre_load(idx)
+
+        value = self._cache[idx]
 
         if not isinstance(value, TimeSlice):
-            value = self._find_slice(None, cache=value, hint_index=idx)
-            self._cache[pos] = value  # type:ignore
 
-        return value
+            entry = self._entry.child(self._start_slice+idx) if self._entry is not None else None
 
-    def __setitem__(self, idx: int, value): self._cache[self._extend_cache(idx)] = value
+            value = self._as_child(value, None, entry=entry, parent=self._parent)
 
-    def refresh(self, *args, **kwargs) -> TimeSlice | _T:
-        if self._cache is None or self._cache is _not_found_ or len(self._cache) == 0:
-            pos = self._extend_cache()
-            self._cache[pos] = self._find_slice(kwargs.pop("time", 0.0))  # type:ignore
+            self._cache[idx] = value  # type:ignore
 
-        return self.current.refresh(*args, **kwargs)  # type:ignore
+        return value  # type:ignore
 
-    def advance(self, *args, **kwargs) -> TimeSlice | _T:
+    def __setitem__(self, idx: int, value):
+        idx = self._pre_load(idx)
+        self._cache[idx] = value
 
-        if self._cache is None or self._cache is _not_found_ or len(self._cache) == 0:
-            pos = self._extend_cache()
-            self._cache[pos] = self._find_slice(kwargs.pop("time", 0.0))  # type:ignore
+    def refresh(self, *args, time: float | None = None, **kwargs) -> _TSlice:
+        """
+            更新 current 时间片状态。
+            1. 若 time 非空，则将 current 指向新的 time slice.
+            2. 调用 time_slice.refresh(*args,**kwargs)
+        """
 
+        if time is not None:
+            idx = self._pre_load(time=time)
+            self[idx].refresh(*args, **kwargs)
         else:
-            self[1] = self.current.advance(*args, **kwargs)  # type:ignore
-            self._cache_cursor += 1
+            self.current.refresh(*args, **kwargs)
+
+        return self.current
+
+    def advance(self, *args,  **kwargs) -> _TSlice:
+        """
+            由 current 时间片slice，推进出新的时间片（new slice）并追加在序列最后。
+
+            如 dt is None , 则移动到 entry 中的下一个slice
+        """
+
+        self._cache.append(self.current.advance(*args,   **kwargs))  # type:ignore
 
         return self.current
