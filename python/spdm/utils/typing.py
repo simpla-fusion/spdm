@@ -33,7 +33,7 @@ array_type = np.ndarray
 
 NumericType = ScalarType | ArrayType
 
-numeric_type = (*scalar_type, [array_type])
+numeric_type = (*scalar_type, array_type)
 
 PrimaryType = str | NumericType | Enum
 
@@ -366,7 +366,6 @@ def convert_to_named_tuple(d=None, ntuple=None, **kwargs):
         return [convert_to_named_tuple(v) for v in d]
     else:
         return d
-
 
 
 def as_native(d, enable_ndarray=True) -> typing.Union[str, bool, float, int, np.ndarray, dict, list]:
