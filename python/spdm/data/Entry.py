@@ -443,6 +443,8 @@ class EntryProxy(Entry):
 
         _url = uri_split(url)
 
+        enabled_entry = _url.query.pop("enable", "").split(",")
+
         kwargs.update(_url.query)
 
         if local_schema is None:
@@ -515,7 +517,12 @@ class EntryProxy(Entry):
 
             for entry in spdb.get("entry", []):
                 id = entry.get("@id", None)
+
+                enable = entry.get("@enable", 'true') == 'true'
+
                 if id is None:
+                    continue
+                elif not enable and id not in enabled_entry :
                     continue
 
                 entry_list[id] = entry.get("_text", "").format(**attr)
