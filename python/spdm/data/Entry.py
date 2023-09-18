@@ -100,8 +100,8 @@ class Entry(Pluggable):
 
     def next(self, inc: int = 1) -> Entry:
         if not isinstance(self._path[-1], int):
-            raise RuntimeError(f"Path must be end with int! {self._path}")
-        
+            raise RuntimeError(f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}")
+
         next_ = self.__copy__()
 
         next_._path[-1] += inc

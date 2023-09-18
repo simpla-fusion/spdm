@@ -50,7 +50,8 @@ class HTree(typing.Generic[_T]):
 
         if cache is None or cache is _undefined_:
             cache = _not_found_
-        self._cache = cache
+            
+        self._cache: list | dict = cache
         self._entry = as_entry(entry)
         self._default_value = deepcopy(default_value)
         self._metadata = kwargs.pop("metadata", {}) | kwargs

@@ -516,7 +516,9 @@ class Path(list):
 
         if path is None:
             path = []
-        elif isinstance(path, (int, tuple, set, slice)):
+        elif isinstance(path, (int,  np.integer)):
+            path = [int(path)]
+        elif isinstance(path, (tuple, set, slice)):
             path = [path]
         elif isinstance(path, str):
             path = Path._parser_str(path)

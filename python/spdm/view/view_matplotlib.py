@@ -100,7 +100,7 @@ class MatplotlibView(View):
         return self._render_post(fig, **kwargs)
 
     def _render_post(self, fig, pause=None, **kwargs) -> typing.Any:
-
+        transparent = kwargs.pop("transparent", True)
         fig.suptitle(kwargs.get("title", ""))
         fig.align_ylabels()
         fig.tight_layout()
@@ -118,13 +118,13 @@ class MatplotlibView(View):
 
         if output == "svg":
             buf = BytesIO()
-            fig.savefig(buf, format='svg', transparent=True)
+            fig.savefig(buf, format='svg', transparent=transparent)
             buf.seek(0)
             fig_html = buf.getvalue().decode('utf-8')
             plt.close(fig)
             fig = fig_html
         elif output is not None:
-            fig.savefig(output, transparent=True)
+            fig.savefig(output, transparent=transparent)
             plt.close(fig)
             fig = None
         return fig
