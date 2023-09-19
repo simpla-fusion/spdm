@@ -47,8 +47,8 @@ class File(Document):
     @property
     def mode_str(self) -> str: return File.MOD_MAP.get(self.mode, "r")
 
-    @property
-    def entry(self) -> Entry: return FileEntry(self)
+    # @property
+    # def entry(self) -> Entry: return FileEntry(file=self)
 
     def __enter__(self) -> Document:
         return super().__enter__()

@@ -219,7 +219,7 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
 
     if local_schema in ["local", "file"] and schema is None:
         from .File import File
-        entry = File(url_,   **kwargs).entry
+        entry = File(url_, **kwargs).read()
 
     elif schema != local_schema:
         entry = EntryProxy(url_,   schema=schema,  **kwargs)
@@ -229,7 +229,7 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
 
     if url_.fragment is not None and url_.fragment != "":
         entry = entry.child(url_.fragment.replace('.', '/'))
-        
+
     return entry
 
     # url = uri_split(url_s)
@@ -574,16 +574,20 @@ class EntryProxy(Entry):
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
             yield idx, self._op_fetch(request)
 
-    def find_entry(self, entry_name: str) -> Entry | None:
+    def find_entry(self, entry_name: str, default_value=None) -> Entry | None:
 
         entry = self._entry_list.get(entry_name, None)
 
-        if isinstance(entry, str):
+        if isinstance(entry, (str, URITuple)):
             entry = open_entry(entry)
             self._entry_list[entry_name] = entry
 
-        if not isinstance(entry, Entry):
+        if isinstance(entry, Entry):
+            pass
+        elif default_value is _not_found_:
             raise RuntimeError(f"Can not find entry for {entry_name}")
+        else:
+            entry = default_value
 
         return entry
 
@@ -593,7 +597,7 @@ class EntryProxy(Entry):
             request = uri_split_as_dict(request)
 
         if request is _not_found_:
-            default_entry = self._entry_list.get("*", None)
+            default_entry = self.find_entry("*", None)
             if default_entry is None:
                 res = _not_found_
             else:

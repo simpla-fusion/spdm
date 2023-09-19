@@ -101,8 +101,6 @@ class Document(Pluggable):
     def close(self) -> None:
         self._is_open = False
 
-    @property
-    def entry(self) -> Entry: raise NotImplementedError()
 
     def __enter__(self) -> Document: return self.open()
 
@@ -111,3 +109,6 @@ class Document(Pluggable):
     def read(self, lazy=False) -> Entry: raise NotImplementedError()
 
     def write(self, data=None, lazy=False, **kwargs) -> Entry: raise NotImplementedError()
+
+    @property
+    def entry(self) -> Entry: raise NotImplementedError()
