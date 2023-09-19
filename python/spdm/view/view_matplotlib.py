@@ -376,6 +376,7 @@ class MatplotlibView(View):
 
         if len(sub_plot) <= 1:
             sub_plot[0].set_xlabel(x_label,  fontsize=fontsize)
+        
         else:
             sub_plot[-1].set_xlabel(x_label,  fontsize=fontsize)
 

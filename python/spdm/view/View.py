@@ -80,7 +80,7 @@ class View(Pluggable):
             self.draw(canvas, o, styles)
 
         elif hasattr(obj.__class__, "__geometry__"):
-            self.draw(canvas, obj.__geometry__(view=styles.get("view", "RZ"), **styles), styles)
+            self.draw(canvas, obj.__geometry__(view=styles.pop("view", "RZ"), **styles), styles)
 
         elif isinstance(obj, dict):
             for k, o in obj.items():

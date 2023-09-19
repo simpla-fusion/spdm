@@ -21,8 +21,8 @@ class TimeSlice(SpDict):
     time: float = sp_property(unit="s", type="dynamic", default_value=0.0)  # type: ignore
 
     def refresh(self, *args,  **kwargs) -> TimeSlice:
-        if len(args)+len(kwargs) > 0:
-            super().update(*args, **kwargs)
+        if len(args) == 1 and isinstance(args[0], dict):
+            super().update(args[0])
         return self
 
     def advance(self, *args, dt: float | None = None, **kwargs) -> TimeSlice:
@@ -39,7 +39,7 @@ class TimeSlice(SpDict):
         return self.__class__(cache, *args, entry=entry, parent=self._parent, **kwargs)
 
 
-_TSlice = typing.TypeVar("_TSlice", TimeSlice, typing.Type[TimeSlice])  #
+_TSlice = typing.TypeVar("_TSlice")  # , TimeSlice, typing.Type[TimeSlice]
 
 
 class TimeSeriesAoS(List[_TSlice]):
@@ -101,7 +101,7 @@ class TimeSeriesAoS(List[_TSlice]):
         pos: int = None
 
         if isinstance(time_coord, np.ndarray):
-            
+
             indices = np.where(time_coord <= time)[0]
 
             if len(indices) > 0:
@@ -120,7 +120,8 @@ class TimeSeriesAoS(List[_TSlice]):
                 else:
                     pos += 1
         else:
-            raise RuntimeError(f"Unkonwn time_coord={time_coord} start_slice={self._start_slice} time={time}")
+            pos = None
+            # raise RuntimeError(f"Unkonwn time_coord={time_coord} start_slice={self._start_slice} time={time}")
 
         return pos, time
 
@@ -149,7 +150,8 @@ class TimeSeriesAoS(List[_TSlice]):
                 pos, t_time = self._find_slice_index_by_time(time)
 
                 if pos is None:
-                    raise RuntimeError(f"Can not find slice! {value}")
+                    # raise RuntimeError(f"Can not find slice! {value}")
+                    entry = None
                 else:
                     if not np.isclose(t_time, time):
                         logger.warning(f"Found closest slice. {time}->{t_time}")

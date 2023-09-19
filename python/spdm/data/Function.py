@@ -20,10 +20,8 @@ from .Expression import Expression
 from .Functor import Functor, DiracDeltaFun, ConstantsFunc
 from .HTree import HTree
 
-_T = typing.TypeVar("_T")
 
-
-class Function(HTree[_T], Expression):
+class Function(HTree, Expression):
     """
         Function
         ---------
@@ -73,8 +71,8 @@ class Function(HTree[_T], Expression):
         self._dims = list(dims)
         self._periods = periods
 
-    def rebase(self, *dims, periods) -> Function[_T]:
-        res: Function[_T] = self.__copy__()
+    def rebase(self, *dims, periods) -> Function:
+        res: Function = self.__copy__()
         res._cache = self(*dims)
         res._dims = dims
         self._periods = periods if periods is not None else self._periods
@@ -291,14 +289,14 @@ class Function(HTree[_T], Expression):
         else:
             return super().__call__(*args, **kwargs)
 
-    def derivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+    def derivative(self, *d, **kwargs) -> Function:
+        return Function(self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
 
-    def partial_derivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+    def partial_derivative(self, *d, **kwargs) -> Function:
+        return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
 
-    def antiderivative(self, *d, **kwargs) -> Function[_T]:
-        return Function[_T](self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+    def antiderivative(self, *d, **kwargs) -> Function:
+        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
 
     def d(self, n=1) -> Expression: return self.derivative(n)
 

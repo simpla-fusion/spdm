@@ -1,16 +1,13 @@
-from typing import Generic, TypeVar
+import typing
 
-from .Dict import Dict
 from .Edge import Edge
-from .List import List
-from .HTree import HTree
+from .HTree import Dict, HTree, List
+from .Path import PathLike
 
-_TObject = TypeVar("_TObject")
-_TPath = TypeVar("_TPath")
-_TKey = TypeVar("_TKey")
+_T = typing.TypeVar("_T")
 
 
-class Graph(HTree, Dict[_TKey, _TObject]):
+class Graph(Dict[_T]):
     """Represents '''Graph'''.
         * defines namespace for the '''Node'''s
         * Graph is a Node
@@ -20,19 +17,17 @@ class Graph(HTree, Dict[_TKey, _TObject]):
 
     def __init__(self, value=None, *args, **kwargs):
         super().__init__(value, *args, **kwargs)
-        self._edges = []
+        self._edges: typing.List[Edge] = []
 
     @property
-    def edges(self) -> List[Edge]:
+    def edges(self) -> typing.List[Edge]:
         return self._edges
 
-    def link(self, source: _TPath, target: _TPath, *args, **kwargs):
+    def link(self, source: PathLike, target: PathLike, *args, **kwargs) -> Edge:
         e = Edge(source, target, *args, graph=self, **kwargs)
         self._edges.append(e)
         return e
 
-
-__SP_EXPORT__ = Graph
 
 
 # class FunctionWrapperGraph(Graph):

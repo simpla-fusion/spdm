@@ -2,9 +2,9 @@ import pathlib
 from spdm.data.File import File
 from spdm.utils.logger import logger
 
-WORKSPACE = "/ssd01/salmon_work/workspace/"
+WORKSPACE = "/home/salmon/workspace"  # "/ssd01/salmon_work/workspace/"
 
-DATA_PATH = pathlib.Path(f"{WORKSPACE}/fytok_data/gfiles")
+DATA_PATH = pathlib.Path(f"{WORKSPACE}/fytok_data/data")
 
 if __name__ == '__main__':
 

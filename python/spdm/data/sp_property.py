@@ -45,16 +45,13 @@ import collections.abc
 import inspect
 import typing
 from _thread import RLock
-from spdm.data.Entry import Entry
 
-from .Entry import open_entry
-from .HTree import HTree
-from ..utils.tags import _not_found_
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
-from ..utils.typing import PrimaryType
 from ..utils.tree_utils import merge_tree_recursive
-from .HTree import Dict
+from ..utils.typing import PrimaryType
+from .Entry import Entry, open_entry
+from .HTree import Dict, HTree
 
 _T = typing.TypeVar("_T")
 
@@ -62,7 +59,9 @@ _T = typing.TypeVar("_T")
 class SpDict(Dict[_T]):
     """  支持 sp_property 的 Dict  """
 
-    def __init__(self, cache: typing.Any = None, /, entry: Entry | None = None, parent: HTree | None = None, **kwargs) -> None:
+    def __init__(self, cache: typing.Any = None, /,
+                 entry: Entry | None = None,
+                 parent: HTree | None = None, **kwargs) -> None:
 
         if isinstance(cache, dict):
             pass
@@ -165,7 +164,7 @@ class sp_property(typing.Generic[_T]):
         self.default_value = default_value
         self.metadata = metadata
 
-    def __call__(self, func) -> sp_property[_T]:
+    def __call__(self, func):
         """ 用于定义属性的getter操作，与@property.getter类似 """
         self.getter = func
         return self
@@ -225,7 +224,7 @@ class sp_property(typing.Generic[_T]):
 
         return self.type_hint, self.metadata
 
-    def __set__(self, instance:  SpDict[_T], value: typing.Any):
+    def __set__(self, instance:  SpDict[_T], value: typing.Any) -> None:
         assert (instance is not None)
 
         type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
@@ -239,7 +238,7 @@ class sp_property(typing.Generic[_T]):
                 value=value,
                 setter=self.setter)
 
-    def __get__(self, instance:  SpDict[_T] | None, owner=None) -> _T | sp_property[_T]:
+    def __get__(self, instance:  SpDict[_T] | None, owner=None) -> _T:
         if instance is None:
             # 当调用 getter(cls, <name>) 时执行
             return self

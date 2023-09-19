@@ -50,7 +50,7 @@ class HTree(typing.Generic[_T]):
 
         if cache is None or cache is _undefined_:
             cache = _not_found_
-            
+
         self._cache: list | dict = cache
         self._entry = as_entry(entry)
         self._default_value = deepcopy(default_value)
@@ -93,6 +93,10 @@ class HTree(typing.Generic[_T]):
         return display(self, output="svg")
 
     # def __reduce__(self) -> _T: raise NotImplementedError(f"")
+
+    def dump(self, entry: Entry) -> None:
+        """ 将数据写入 entry """
+        entry.update(self.__value__)
 
     @property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")
@@ -530,6 +534,14 @@ class Dict(Container[_T]):
         for k in self.children():
             yield k
 
+    def dump(self, entry: Entry) -> None:
+        """ 将数据写入 entry """
+        for k, v in self.items():
+            if isinstance(v, HTree):
+                v.dump(entry.child(k))
+            else:
+                entry.child(k).update(v)
+
     def items(self): yield from self.children()
 
     def __contains__(self, key: str) -> bool:
@@ -550,7 +562,11 @@ class List(Container[_T]):
             yield v
 
     def __getitem__(self, path) -> _T: return super().__getitem__(path)
+    
 
+    def dump(self, entry: Entry) -> None:
+        """ 将数据写入 entry """
+        raise NotImplementedError(f"TODO:Dump list")
 
 # class QueryResult(HTree[_T]):
 #     """ Handle the result of query    """
