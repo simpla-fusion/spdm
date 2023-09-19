@@ -12,30 +12,29 @@ if __name__ == '__main__':
         doc = fid.read()
         eq = doc.dump()
 
+    with File("../output/test.gfile", mode="w", format="GEQdsk") as oid:
+        oid.write(eq)
+
     with File("../output/test.json", mode="w") as oid:
-        oid.write(doc.dump())
-        oid.close()
+        oid.write(eq)
 
     with File("../output/test.json", mode="r") as oid:
         logger.debug(oid.read().dump())
 
     with File("../output/test.yaml", mode="w") as oid:
-        oid.write(doc.dump())
-        oid.close()
+        oid.write(eq)
 
     with File("../output/test.yaml", mode="r") as oid:
         logger.debug(oid.read().dump())
 
     with File("../output/test.h5", mode="w", format="HDF5") as oid:
-        oid.write(doc.dump())
-        oid.close()
+        oid.write(eq)
 
     with File("../output/test.h5", mode="r", format="HDF5") as oid:
         logger.debug(oid.read().dump())
 
     with File("../output/test.nc", mode="w", format="NetCDF") as oid:
-        oid.write(doc.dump())
-        oid.close()
+        oid.write(eq)
 
     with File("../output/test.nc", mode="r", format="NetCDF") as oid:
         logger.debug(oid.read().dump())

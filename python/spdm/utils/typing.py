@@ -277,7 +277,7 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
     elif inspect.isclass(type_hint) and obj.__class__ == type_hint:
         return True
     elif orig_class is None:
-        raise RuntimeError(type_hint)
+        # raise RuntimeError(type_hint)
         return False
     elif not isinstance(obj, orig_class):
         return False
@@ -300,6 +300,7 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
 
     if (not inspect.isclass(type_hint) or not issubclass(type_hint, (Enum, *primary_type)))\
             and not dataclasses.is_dataclass(type_hint):
+
         return type_hint(value, **kwargs)
 
     default_value = kwargs.pop("default_value", _not_found_)

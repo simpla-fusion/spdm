@@ -1,28 +1,21 @@
-import pprint
-import sys
+import os
 
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy import constants as constants
+from spdm.utils.logger import logger
+from spdm.data.Entry import open_db
 
 
-if __name__ == "__main__":
+os.environ["SP_DATA_MAPPING_PATH"] = "/home/salmon/workspace/fytok_data/mapping"
 
-    from spdm.data.Document import Document
-    from spdm.data.Collection import Collection
-    from spdm.data.File import File
-    from ..util.logger import logger
+if __name__ == '__main__':
 
-    doc = Collection("EAST+mdsplus:///home/salmon/public_data/~t/?tree_name=efit_east")\
-        .open(shot=55555, time_slice=20, mode="r")
-    # for coil in entry.pf_active.coil:
-    #     logger.debug(coil.current.__value__())
-    # entry = Document({"path": ["/home/salmon/workspace/fytok/devices/EAST/imas/3/dynamic/config.xml",
-    #                            "/home/salmon/workspace/fytok/devices/EAST/imas/3/static/config.xml"
-    #                            ],
-    #                   "schema": "file/XML"}).entry
-    # doc = File(path=["/home/salmon/workspace/fytok/devices/EAST/imas/3/dynamic/config.xml",
-    #                  "/home/salmon/workspace/fytok/devices/EAST/imas/3/static/config.xml"],
-    #            file_format=".xml")
-    for coil in doc.entry.pf_active.coil:
-        logger.debug(coil.current.data.__value__())
+    # db = open_db("mdsplus[EAST]:///home/salmon/workspace/data/~t/?tree_name=efit_east")
+
+    # entry = db.find_one(38300)
+
+    # logger.debug(entry.get(["pf_active"]).dump())
+
+    db = open_db("MDSplus[EAST]://202.127.204.12?tree_name=efit_east")
+
+    entry = db.find_one(114730)
+
+    logger.debug(entry.child("pf_active").__value__())

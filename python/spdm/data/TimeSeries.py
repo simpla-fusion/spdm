@@ -10,7 +10,7 @@ from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import ArrayType, array_type, as_array
 from .Entry import Entry
-from .HTree import List
+from .HTree import List, HTree
 from .sp_property import SpDict, sp_property
 
 
@@ -60,6 +60,15 @@ class TimeSeriesAoS(List[_TSlice]):
     def __init__(self, *args, start_slice: int | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self._start_slice = start_slice or self._metadata.get("start_slice", None)
+
+    def dump(self, entry: Entry, **kwargs) -> None:
+        """ 将数据写入 entry """
+        entry.insert([{}]*len(self._cache))
+        for idx, value in enumerate(self._cache):
+            if isinstance(value, HTree):
+                value.dump(entry.child(idx), **kwargs)
+            else:
+                entry.child(idx).insert(value)
 
     @property
     def time(self) -> ArrayType:

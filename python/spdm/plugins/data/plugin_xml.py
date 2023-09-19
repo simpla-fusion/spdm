@@ -142,21 +142,25 @@ class XMLEntry(Entry):
         p, e = self._xpath(path)
         return _XPath(p), e
 
-    def _convert(self, element: _XMLElement, path=[], lazy=False, envs=None, only_one=False, default_value: typing.Any = _not_found_, **kwargs):
+    def _convert(self, element: _XMLElement | list, path=[], lazy=False, envs=None, only_one=False, default_value: typing.Any = _not_found_, **kwargs):
         if not isinstance(element, list):
             pass
 
         elif len(element) == 0:
             return default_value
 
-        elif ((len(element) == 1) or only_one):
-            return self._convert(element[0], path=path, lazy=lazy, envs=envs, **kwargs)
-
         elif len(path) > 0 and isinstance(path[-1], slice):
             raise NotImplementedError(f"{path}")
 
         else:
-            return [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
+            res = [self._convert(e, path=path, lazy=lazy, envs=envs, **kwargs) for e in element]
+
+            if only_one:
+                res = res[0]
+            elif len(res) == 1:
+                res = res[0]
+
+            return res
 
         res = None
         text = element.text.strip() if element.text is not None else None
@@ -227,6 +231,12 @@ class XMLEntry(Entry):
 
         if envs is not None and isinstance(res, (str, collections.abc.Mapping)):
             res = format_string_recursive(res, collections.ChainMap(envs, self._envs))
+
+        if not isinstance(path[-1], int) and isinstance(res, dict) and res.get("@id", None) == "*":
+            logger.debug((res.get("@id", None), path))
+            if not isinstance(path[-1], int):
+                res = [res]
+
         return res
 
     #############################

@@ -4,6 +4,8 @@ import collections.abc
 import pathlib
 import typing
 
+from spdm.data.Path import Path, PathLike
+
 from ..utils.logger import logger
 from ..utils.tags import _undefined_
 from ..utils.uri_utils import URITuple, uri_split
@@ -46,11 +48,7 @@ class File(Document):
     def mode_str(self) -> str: return File.MOD_MAP.get(self.mode, "r")
 
     @property
-    def entry(self) -> Entry:
-        if self.is_readable:
-            return self.read()
-        else:
-            return self.write()
+    def entry(self) -> Entry: return FileEntry(self)
 
     def __enter__(self) -> Document:
         return super().__enter__()
@@ -58,5 +56,25 @@ class File(Document):
     def read(self, lazy=False) -> Entry:
         raise NotImplementedError()
 
-    def write(self, data=None, lazy=False) -> Entry:
+    def write(self, data=None, *args, lazy=False, **kwargs):
         raise NotImplementedError()
+
+
+class FileEntry(Entry):
+    def __init__(self, *args, file, ** kwargs):
+        super().__init__(*args, ** kwargs)
+        self._fid = file
+
+    def __copy_from__(self, other: FileEntry) -> Entry:
+        super().__copy_from__(other)
+        self._fid = other._fid
+        return self
+
+    # def __del__(self):
+    #     if len(self._path) == 0:
+    #         self.flush()
+
+    def flush(self):
+        logger.debug(self._data)
+        self._fid.write(self._data)
+        self._data = None

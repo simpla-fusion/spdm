@@ -807,7 +807,7 @@ class Path(list):
                 break
 
             elif hasattr(obj.__class__, "__entry__"):
-                obj = obj.__entry__.child(path[pos:length-1])
+                obj = obj.__entry__.child(path[pos:])
                 pos = length
                 break
 
@@ -923,7 +923,7 @@ class Path(list):
             else:
                 if key < 0:
                     key += len(target)
-                if key > len(target):
+                if key >= len(target):
                     target += [_not_found_]*(key-len(target)+1)
             target[key] = Path._op_update(target[key], None, value)
 

@@ -55,7 +55,7 @@ def uri_split_as_dict(uri) -> dict:
         authority=url.netloc,
         path=url.path,
         query=ast.literal_eval(query),
-        fragment=ast.literal_eval(url.fragment) if url.fragment != "" else url.fragment
+        fragment=url.fragment
     )
     return res
 

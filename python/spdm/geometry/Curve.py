@@ -34,7 +34,7 @@ class Curve(PointSet):
         return other
 
     @functools.cached_property
-    def dl(self) -> ArrayType:
+    def dl(self) -> array_type:
         x, y = self.points
         a, b = self.derivative()
 

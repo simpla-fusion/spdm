@@ -5,7 +5,6 @@ import functools
 import inspect
 import typing
 from copy import copy, deepcopy
-
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive, upate_tree_recursive
@@ -15,6 +14,7 @@ from ..utils.typing import (ArrayType, HTreeLike, NumericType, array_type,
                             serialize, type_convert)
 from .Entry import Entry, as_entry
 from .Path import Path, PathLike, Query, QueryLike, as_path, as_query
+
 
 _T = typing.TypeVar("_T")
 
@@ -94,9 +94,29 @@ class HTree(typing.Generic[_T]):
 
     # def __reduce__(self) -> _T: raise NotImplementedError(f"")
 
-    def dump(self, entry: Entry) -> None:
+    def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
-        entry.update(self.__value__)
+        entry.insert(self._cache)
+        # if entry is None:
+        #     tmp = Entry({})
+        #     self.dump(tmp)
+        #     return tmp._data
+
+        # value = self.__value__
+        # if isinstance(value, collections.abc.Mapping):
+        #     for k, v in value.items():
+        #         if isinstance(v, HTree):
+        #             v.dump(entry.child(k))
+        #         else:
+        #             entry.child(k).insert(v)
+        # elif isinstance(value, collections.abc.Sequence):
+        #     for idx, v in enumerate(value):
+        #         if isinstance(v, HTree):
+        #             v.dump(entry.child(idx))
+        #         else:
+        #             entry.child(idx).insert(v)
+        # else:
+        #     entry.update(value)
 
     @property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")
@@ -534,14 +554,6 @@ class Dict(Container[_T]):
         for k in self.children():
             yield k
 
-    def dump(self, entry: Entry) -> None:
-        """ 将数据写入 entry """
-        for k, v in self.items():
-            if isinstance(v, HTree):
-                v.dump(entry.child(k))
-            else:
-                entry.child(k).update(v)
-
     def items(self): yield from self.children()
 
     def __contains__(self, key: str) -> bool:
@@ -562,12 +574,15 @@ class List(Container[_T]):
             yield v
 
     def __getitem__(self, path) -> _T: return super().__getitem__(path)
-    
 
-    def dump(self, entry: Entry) -> None:
+    def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
-        raise NotImplementedError(f"TODO:Dump list")
-
+        entry.insert([{}]*len(self._cache))
+        for idx, value in enumerate(self._cache):
+            if isinstance(value, HTree):
+                value.dump(entry.child(idx), **kwargs)
+            else:
+                entry.child(idx).insert(value)
 # class QueryResult(HTree[_T]):
 #     """ Handle the result of query    """
 

@@ -45,8 +45,6 @@ class Document(Pluggable):
         opened = auto()
         closed = auto()
 
- 
-
     def __init__(self, uri, *args, mode: typing.Any = Mode.read, **kwargs):
         """
          r       Readonly, file must exist (default)
@@ -112,4 +110,4 @@ class Document(Pluggable):
 
     def read(self, lazy=False) -> Entry: raise NotImplementedError()
 
-    def write(self, data=None, lazy=False) -> Entry: raise NotImplementedError()
+    def write(self, data=None, lazy=False, **kwargs) -> Entry: raise NotImplementedError()

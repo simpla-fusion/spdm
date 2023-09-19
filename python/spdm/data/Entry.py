@@ -204,11 +204,10 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
     """
 
     if isinstance(url, str) and "." not in url and "/" not in url:
-        return EntryProxy(f"{url}+://",  schema=schema,  **kwargs)
-
-    local_schema = None
+        url = f"{url}+://"
 
     url_ = uri_split(url)
+    local_schema = None
 
     schemes = url_.protocol.split("+") if isinstance(url_.protocol, str) else []
 
@@ -220,13 +219,18 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
 
     if local_schema in ["local", "file"] and schema is None:
         from .File import File
-        return File(url_,   **kwargs).entry
+        entry = File(url_,   **kwargs).entry
 
     elif schema != local_schema:
-        return EntryProxy(url_,   schema=schema,  **kwargs)
+        entry = EntryProxy(url_,   schema=schema,  **kwargs)
 
     else:
-        return Entry(url,  **kwargs)
+        entry = Entry(url,  **kwargs)
+
+    if url_.fragment is not None and url_.fragment != "":
+        entry = entry.child(url_.fragment.replace('.', '/'))
+        
+    return entry
 
     # url = uri_split(url_s)
 
@@ -522,7 +526,7 @@ class EntryProxy(Entry):
 
                 if id is None:
                     continue
-                elif not enable and id not in enabled_entry :
+                elif not enable and id not in enabled_entry:
                     continue
 
                 entry_list[id] = entry.get("_text", "").format(**attr)

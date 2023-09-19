@@ -208,6 +208,9 @@ class HDF5File(File):
         self._fid = None
         return super().close()
 
+    @property
+    def entry(self) -> Entry: return H5Entry(self.open())
+
     def read(self, lazy=True) -> Entry:
         return H5Entry(self.open())
 
@@ -218,10 +221,10 @@ class HDF5File(File):
 @Entry.register(["h5", "hdf5", "HDF5"])
 class H5Entry(Entry):
 
-    def __init__(self, cache:  str | HDF5File, *args, **kwargs):
+    def __init__(self, cache:  str | File, *args, **kwargs):
         if isinstance(cache, str):
             cache: HDF5File = HDF5File(cache).open()._fid
-        elif isinstance(cache, HDF5File):
+        elif isinstance(cache, File):
             cache = cache._fid
         else:
             raise TypeError(f"cache must be HDF5File or str, but got {type(cache)}")

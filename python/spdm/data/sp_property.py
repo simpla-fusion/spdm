@@ -45,12 +45,14 @@ import collections.abc
 import inspect
 import typing
 from _thread import RLock
+from enum import Enum
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import PrimaryType
 from .Entry import Entry, open_entry
+from .Function import Function
 from .HTree import Dict, HTree
 
 _T = typing.TypeVar("_T")
@@ -90,6 +92,35 @@ class SpDict(Dict[_T]):
     def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self.update(key, value)
 
     def __del_property__(self, key: str, **kwargs): self._remove(key)
+
+    def dump(self, entry: Entry = None, force=False, quiet=True) -> Entry:
+        if entry is None:
+            entry = Entry({})
+            force = True
+
+        for k, _ in inspect.getmembers(self.__class__, is_sp_property):
+
+            try:
+                prop = getattr(self, k, None)
+            except Exception as error:
+                if not quiet:
+                    logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
+            else:
+                if prop is _not_found_:
+                    prop = None
+                elif isinstance(prop, Enum):
+                    prop = {"name": prop.name, "index": prop.value}
+                elif isinstance(prop, Function):
+                    prop = prop.__value__
+
+                if isinstance(prop, HTree):
+                    prop.dump(entry.child(k), quiet=quiet)
+                else:
+                    entry.child(k).insert(prop)
+        if force:
+            return entry._data
+        else:
+            return entry
 
 
 class sp_property(typing.Generic[_T]):
@@ -164,6 +195,9 @@ class sp_property(typing.Generic[_T]):
         self.default_value = default_value
         self.metadata = metadata
 
+        if isinstance(type_hint, str):
+            raise RuntimeError(f"Invalid type_hint={type_hint}!")
+
     def __call__(self, func):
         """ 用于定义属性的getter操作，与@property.getter类似 """
         self.getter = func
@@ -209,6 +243,9 @@ class sp_property(typing.Generic[_T]):
                 child_cls = typing.get_args(self.__orig_class__)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
                     type_hint = child_cls[0]
+
+        if not callable(type_hint):
+            raise TypeError(type_hint)
 
         self.type_hint = type_hint
 
@@ -270,3 +307,6 @@ class sp_property(typing.Generic[_T]):
     def __delete__(self, instance: SpDict[_T]) -> None:
         with self.lock:
             instance.__del_property__(self.property_cache_key, deleter=self.deleter)
+
+
+def is_sp_property(obj) -> bool: return isinstance(obj, sp_property)
