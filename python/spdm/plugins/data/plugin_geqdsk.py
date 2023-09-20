@@ -259,7 +259,7 @@ def sp_to_geqdsk(d, description: str = "UNNAMED",  time_slice=0,   **kwargs) -> 
     # psirz = interpolate.griddata(points, values, (grid_r, grid_z), method='cubic').transpose()
 
     # profile
-    logger.debug(nw)
+   
     psi = eq.get("profiles_1d/psi", None)
 
     psi_axis = eq.get("global_quantities/psi_axis")
