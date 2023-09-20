@@ -64,13 +64,10 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
+def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=None):
 
     m_logger = logging.getLogger(name)
 
-    # if prefix is None and isinstance(handler, str):
-    #     prefix = handler
-    #     handler = None
     formater = formater or CustomFormatter()
 
     if isinstance(handler, str) and handler == "STDOUT":
@@ -90,31 +87,37 @@ def sp_enable_logging(name, /, handler=None, prefix=None, formater=None):
     else:
         raise NotImplementedError()
 
+    if isinstance(level, str):
+        match level.lower():
+            case "1" | "true" | "verbose" | "debug":
+                level = logging.DEBUG
+            case "0" | "warning":
+                level = logging.WARNING
+            case "-2" | "quiet":
+                level = logging.CRITICAL
+            case _:
+                level = logging.INFO
+
+    if level is not None:
+        m_logger.setLevel(level)
+
     return m_logger
 
 
-def the_end():
+logger = sp_enable_logging(__package__[:__package__.find('.')],
+                           level=os.environ.get("SP_DEBUG", "debug"),
+                           handler="STDOUT")
+
+SP_DEBUG = logger.level
+
+
+def _at_end():
     logger.setLevel(logging.INFO)
     logger.info("The End")
     logging.shutdown()
 
 
-atexit.register(the_end)
-
-
-logger = sp_enable_logging(__package__[:__package__.find('.')], handler="STDOUT")
-
-SP_DEBUG = os.environ.get("SP_DEBUG", "2")
-
-match SP_DEBUG:
-    case "0" | "warning":
-        logger.setLevel(logging.WARNING)
-    case "2" | "True" | "true" | "verbose" | "debug":
-        logger.setLevel(logging.DEBUG)
-    case "-1" | "quiet":
-        logger.setLevel(logging.CRITICAL)
-    case _:
-        logger.setLevel(logging.INFO)
+atexit.register(_at_end)
 
 
 def deprecated(func):
@@ -161,3 +164,6 @@ def experimental(func):
         return lambda o: _wrap(func)
     else:
         return _wrap(func)
+
+
+__all__ = ["logger", "register_logger"]

@@ -182,13 +182,11 @@ def sp_write_geqdsk(p, file):
     return
 
 
-def sp_to_geqdsk(d, description: str = "UNNAMED",  time_slice=0,   **kwargs) -> dict:
+def sp_to_geqdsk(d, description: str | None = None,  time_slice=0,   **kwargs) -> dict:
 
     entry: Entry = as_entry(d)
 
-    eq = entry.child(f"equilibrium/time_slice/{time_slice}")
-
-    geqdsk: dict = {"description": description}
+    geqdsk: dict = {"description":  description or entry.get("description", "NOTHING TO SAY")}
 
     limiter_r = entry.get("wall/description_2d/0/limiter/unit/0/outline/r", None)
     limiter_z = entry.get("wall/description_2d/0/limiter/unit/0/outline/z", None)
@@ -199,6 +197,8 @@ def sp_to_geqdsk(d, description: str = "UNNAMED",  time_slice=0,   **kwargs) -> 
             limiter_z.reshape([1, limiter_z.size]),
             axis=0,
         ).transpose()
+
+    eq = entry.child(f"equilibrium/time_slice/{time_slice}")
 
     # rdim = 0.0
     # zdim = 0.0
@@ -259,7 +259,7 @@ def sp_to_geqdsk(d, description: str = "UNNAMED",  time_slice=0,   **kwargs) -> 
     # psirz = interpolate.griddata(points, values, (grid_r, grid_z), method='cubic').transpose()
 
     # profile
-   
+
     psi = eq.get("profiles_1d/psi", None)
 
     psi_axis = eq.get("global_quantities/psi_axis")
