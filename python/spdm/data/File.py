@@ -44,6 +44,12 @@ class File(Document):
         super().__init__(url, *args, **kwargs)
         self._is_open = False
 
+    def __del__(self):
+        fid = getattr(self, "_fid", None)
+        if fid is not None:
+            fid.close()
+            self._fid = None
+
     @property
     def mode_str(self) -> str: return File.MOD_MAP.get(self.mode, "r")
 

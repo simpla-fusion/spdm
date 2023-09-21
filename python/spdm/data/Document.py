@@ -70,7 +70,7 @@ class Document(Pluggable):
     def url(self) -> URITuple: return self._url
 
     @property
-    def path(self) -> typing.Any: return self.url.path
+    def path(self) -> typing.Any: return self.url.path 
 
     @property
     def mode(self) -> Mode: return self._mode

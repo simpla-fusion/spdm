@@ -417,7 +417,7 @@ def sp_from_geqdsk(geqdsk: dict, eq: typing.Optional[Entry] = None) -> Entry:
     return eq
 
 
-@ File.register(["gfile", "geqdsk"])
+@File.register(["gfile", "geqdsk"])
 class GEQdskFile(File):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -440,7 +440,7 @@ class GEQdskFile(File):
     #     if self.mode & File.Mode.write:
     #         self.save(self.path)
 
-    @ property
+    @property
     def entry(self) -> Entry:
         if self.mode == File.Mode.read:
             return self.read()

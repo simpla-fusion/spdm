@@ -65,5 +65,6 @@ class NAMELISTFile(File):
             f90nml.patch(self._template.as_posix(), data, self.path.as_posix())
 
     def read(self) -> Entry:
-        data: dict = f90nml.read(self.path.open(mode="r")).todict(complex_tuple=True)
+        with open(self.path, mode="r") as fid:
+            data: dict = f90nml.read(fid).todict(complex_tuple=True)
         return Entry(data)

@@ -82,8 +82,7 @@ class Pluggable(metaclass=abc.ABCMeta):
                 break
 
         if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
-            raise ModuleNotFoundError(
-                f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
+            raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
 
         self.__class__ = n_cls
         n_cls.__init__(self, *args, **kwargs)
