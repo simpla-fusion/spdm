@@ -30,11 +30,11 @@ _rfc3986_ext = re.compile(
 
 @dataclass
 class URITuple:
-    protocol: str = None
-    authority: str = None
-    path: str = None
+    protocol: str = ""
+    authority: str = ""
+    path: str = ""
     query: dict = None
-    fragment: str = None
+    fragment: str = ""
 
 
 def uri_split_as_dict(uri) -> dict:
@@ -45,28 +45,30 @@ def uri_split_as_dict(uri) -> dict:
 
     # res = _rfc3986_ext0.match(uri).groupdict()
 
-    url = urlparse(uri)
+    uri_ = urlparse(uri)
 
     query = "{" + ','.join([(f'"{k}":"{v[0]}"' if not v[0].isnumeric() else f'"{k}":{v[0]}')
-                           for k, v in parse_qs(url.query).items()])+"}"
+                           for k, v in parse_qs(uri_.query).items()])+"}"
     ast.literal_eval(query)
     res = dict(
-        protocol=url.scheme,
-        authority=url.netloc,
-        path=url.path,
+        protocol=uri_.scheme,
+        authority=uri_.netloc,
+        path=uri_.path,
         query=ast.literal_eval(query),
-        fragment=url.fragment
+        fragment=uri_.fragment
     )
     return res
 
 
-def uri_split(uri: Union[str, URITuple, Path]) -> URITuple:
+def uri_split(uri: str | URITuple | Path | None) -> URITuple:
     if isinstance(uri, URITuple):
         return deepcopy(uri)
     elif isinstance(uri, str):
         return URITuple(**uri_split_as_dict(uri))
     elif isinstance(uri, (collections.abc.Sequence, Path)):
-        return URITuple(path=uri)
+        return URITuple(path=uri, query={})
+    elif uri is None:
+        return URITuple(query={})
     else:
         raise TypeError(uri)
 

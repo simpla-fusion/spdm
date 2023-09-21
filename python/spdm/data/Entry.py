@@ -112,7 +112,7 @@ class Entry(Pluggable):
     @property
     def __value__(self) -> typing.Any: return self._data if len(self._path) == 0 else self.get()
 
-    def get(self, query=None, default_value: typing.Any = _not_found_, **kwargs) -> typing.Any:
+    def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
         if query is None:
             entry = self
             args = ()
@@ -123,7 +123,12 @@ class Entry(Pluggable):
             entry = self.child(query)
             args = ()
 
-        return entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
+        res = entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
+    
+        if res is _undefined_:
+            raise RuntimeError(f"Can not find \"{query}\" in {self}")
+        else:
+            return res
 
     def dump(self) -> typing.Any: return self.fetch(Path.tags.dump)
 
@@ -180,7 +185,7 @@ class Entry(Pluggable):
     ###########################################################
 
 
-def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
+def open_entry(url: str | pathlib.Path, global_schema=None, **kwargs) -> Entry:
     """
         Open an Entry from a URL.
 
@@ -202,6 +207,7 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
             east+mdsplus+ssh://<mds_prefix>
 
     """
+    from .File import File
 
     if isinstance(url, str) and "." not in url and "/" not in url:
         url = f"{url}+://"
@@ -209,26 +215,30 @@ def open_entry(url: str | pathlib.Path,   schema=None, **kwargs) -> Entry:
     url_ = uri_split(url)
     local_schema = None
 
-    schemes = url_.protocol.split("+") if isinstance(url_.protocol, str) else []
+    schemas = url_.protocol.split("+")
+    sub_path = url_.fragment
 
-    if len(schemes) == 0:
-        local_schema = "local"
+    # elif len(schemes) > 1:
+    #     local_schema = schemes[0]
 
-    elif len(schemes) > 1:
-        local_schema = schemes[0]
-
-    if local_schema in ["local", "file"] and schema is None:
-        from .File import File
-        entry = File(url_, **kwargs).read()
-
-    elif schema != local_schema:
-        entry = EntryProxy(url_,   schema=schema,  **kwargs)
-
+    if len(schemas) > 0 and schemas[0] not in ["local", "file", "http", "https", "ssh"]:
+        local_schema = schemas[0]
+        schemas[0] = schemas[1:]
+        url_.protocol = "+".join(schemas[1:])
     else:
-        entry = Entry(url,  **kwargs)
+        local_schema = None
 
-    if url_.fragment is not None and url_.fragment != "":
-        entry = entry.child(url_.fragment.replace('.', '/'))
+    if local_schema is not None and global_schema != local_schema:
+        entry = EntryProxy(url_, local_schema=local_schema, global_schema=global_schema,  **kwargs)
+    elif len(schemas) == 0 or schemas[0] in ["local", "file"]:
+        entry = File(url_,  **kwargs).read()
+    elif schemas[0] in ["http", "https", "ssh"]:
+        raise NotImplementedError(f"{url_}")
+    else:
+        entry = Entry(url_,  **kwargs)
+
+    if sub_path:
+        entry = entry.child(sub_path.replace('.', '/'))
 
     return entry
 
@@ -373,7 +383,7 @@ class EntryProxy(Entry):
     _maps = None
     _mapping_path = []
 
-    @classmethod
+    @ classmethod
     def load_mappings(cls,
                       mapping_path: typing.List[str] | str | None = None,
                       default_local_schema: str = "EAST",
@@ -406,11 +416,11 @@ class EntryProxy(Entry):
 
         return cls._maps
 
-    @classmethod
-    def load(cls, url: str,  schema: str | None, **kwargs):
+    @ classmethod
+    def load(cls,  url: str | None = None,  local_schema: str = None, global_schema: str = None,  **kwargs):
         """ 检索并导入 mapping files
 
-            mapping files 目录结构约定为 : 
+            mapping files 目录结构约定为 :
 
             - <local schema>/<global schema>
                 - config.xml
@@ -418,7 +428,7 @@ class EntryProxy(Entry):
                     - config.xml
                     - <...>
 
-                - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus      
+                - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus
                     - config.xml
                     - <...>
 
@@ -440,10 +450,9 @@ class EntryProxy(Entry):
 
 
         """
+        from .File import File
 
         mapper_list = EntryProxy.load_mappings()
-
-        local_schema = None
 
         _url = uri_split(url)
 
@@ -452,22 +461,12 @@ class EntryProxy(Entry):
         kwargs.update(_url.query)
 
         if local_schema is None:
+            local_schema = EntryProxy._default_local_schema
 
-            schemes = [] if not _url.protocol else _url.protocol.split("+")
+        if global_schema is None:
+            global_schema = EntryProxy._default_global_schema
 
-            if len(schemes) > 0:
-                local_schema = schemes[0]
-                _url.protocol = "+".join(schemes[1:])
-            elif not _url.authority and "/" not in _url.path:
-                local_schema = _url.path
-                _url = None
-            else:
-                raise RuntimeError(f"local schema is not defined! {_url}")
-
-        if schema is None:
-            schema = EntryProxy._default_global_schema
-
-        map_tag = [local_schema.lower(), schema.lower()]
+        map_tag = [local_schema.lower(), global_schema.lower()]
 
         if _url.protocol != "":
             map_tag.append(_url.protocol)
@@ -501,7 +500,7 @@ class EntryProxy(Entry):
                 raise FileNotFoundError(
                     f"Can not find mapping files for {map_tag} MAPPING_PATH={EntryProxy._mapping_path} !")
 
-            mapper = open_entry(mapping_files, mode="r", format="XML")
+            mapper = File(mapping_files, mode="r", format="XML").read()
 
             mapper_list[map_tag_str] = mapper
 
@@ -510,7 +509,7 @@ class EntryProxy(Entry):
         spdb = mapper.child("spdb").fetch()
 
         if not isinstance(spdb, dict):
-            entry_list["*"] = url
+            entry_list["*"] = _url
         else:
 
             attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}

@@ -9,12 +9,12 @@ from ..utils.typing import ArrayType
 from .Field import Field
 from .Function import Function
 from .HTree import HTree
-from .sp_property import SpDict, sp_property
+from .sp_property import SpTree, sp_property
 
 _T = typing.TypeVar("_T")
 
 
-class Signal(SpDict[_T]):
+class Signal(SpTree[_T]):
     """Signal with its time base    """
 
     def __init__(self, *args, **kwargs) -> None:

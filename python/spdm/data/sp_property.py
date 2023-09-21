@@ -53,12 +53,12 @@ from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import PrimaryType
 from .Entry import Entry, open_entry
 from .Function import Function
-from .HTree import Dict, HTree
+from .HTree import HTree
 
 _T = typing.TypeVar("_T")
 
 
-class SpDict(Dict[_T]):
+class SpTree(HTree[_T]):
     """  支持 sp_property 的 Dict  """
 
     def __init__(self, cache: typing.Any = None, /,
@@ -93,7 +93,7 @@ class SpDict(Dict[_T]):
 
     def __del_property__(self, key: str, **kwargs): self._remove(key)
 
-    def dump(self, entry: Entry = None, force=False, quiet=True) -> Entry:
+    def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
         if entry is None:
             entry = Entry({})
             force = True
@@ -261,7 +261,7 @@ class sp_property(typing.Generic[_T]):
 
         return self.type_hint, self.metadata
 
-    def __set__(self, instance:  SpDict[_T], value: typing.Any) -> None:
+    def __set__(self, instance:  SpTree[_T], value: typing.Any) -> None:
         assert (instance is not None)
 
         type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
@@ -275,11 +275,11 @@ class sp_property(typing.Generic[_T]):
                 value=value,
                 setter=self.setter)
 
-    def __get__(self, instance:  SpDict[_T] | None, owner=None) -> _T:
+    def __get__(self, instance:  SpTree[_T] | None, owner=None) -> _T:
         if instance is None:
             # 当调用 getter(cls, <name>) 时执行
             return self
-        elif not isinstance(instance, SpDict):
+        elif not isinstance(instance, SpTree):
             raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpPropertyClass'.")
 
         # 当调用 getter(obj, <name>) 时执行
@@ -304,7 +304,7 @@ class sp_property(typing.Generic[_T]):
 
         return value
 
-    def __delete__(self, instance: SpDict[_T]) -> None:
+    def __delete__(self, instance: SpTree[_T]) -> None:
         with self.lock:
             instance.__del_property__(self.property_cache_key, deleter=self.deleter)
 

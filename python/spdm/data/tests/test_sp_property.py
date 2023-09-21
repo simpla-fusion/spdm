@@ -2,18 +2,18 @@ import unittest
 
 import numpy as np
 from spdm.data.HTree import AoS, Dict, List
-from spdm.data.sp_property import SpDict, sp_property
+from spdm.data.sp_property import SpTree, sp_property
 from spdm.data.TimeSeries import TimeSeriesAoS
 from spdm.utils.logger import logger
 
 
-class Foo(SpDict):
+class Foo(SpTree):
     a: float = sp_property(default_value=4)
     b: float = sp_property()
     c: float = sp_property()
 
 
-class Goo(SpDict):
+class Goo(SpTree):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -22,7 +22,7 @@ class Goo(SpDict):
     foos: List[Foo] = sp_property(default_value={"a": 1, "b": 2, "c": 3})
 
 
-class Doo(SpDict):
+class Doo(SpTree):
 
     foo: Foo = sp_property(default_value={"a": 1})
 
@@ -46,22 +46,22 @@ eq_data = {
 }
 
 
-class Mesh(SpDict):
+class Mesh(SpTree):
     dim1: int = sp_property()
     dim2: int = sp_property()
 
 
-class EquilibriumProfiles2d(SpDict):
+class EquilibriumProfiles2d(SpTree):
 
     grid: Mesh = sp_property()
 
 
-class EqTimeSlice(SpDict):
+class EqTimeSlice(SpTree):
 
     profiles_2d: AoS[EquilibriumProfiles2d] = sp_property()
 
 
-class Eq(SpDict):
+class Eq(SpTree):
 
     time: np.ndarray = sp_property()
     time_slice: TimeSeriesAoS[EqTimeSlice] = sp_property()

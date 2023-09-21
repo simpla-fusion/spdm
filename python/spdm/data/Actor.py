@@ -7,10 +7,10 @@ from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from .Entry import open_entry
 from .Path import Path
-from .sp_property import SpDict
+from .sp_property import SpTree
 
 
-class Actor(SpDict, Pluggable):
+class Actor(SpTree, Pluggable):
     mpi_enabled = False
 
     # _plugin_module_path = "spdm.plugins.actor.actor_{name}"

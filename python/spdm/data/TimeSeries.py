@@ -11,10 +11,10 @@ from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import ArrayType, array_type, as_array
 from .Entry import Entry
 from .HTree import List, HTree
-from .sp_property import SpDict, sp_property
+from .sp_property import SpTree, sp_property
 
 
-class TimeSlice(SpDict):
+class TimeSlice(SpTree):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

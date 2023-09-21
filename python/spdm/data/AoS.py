@@ -6,6 +6,7 @@ import typing
 from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import array_type, get_args, get_type_hint
+from .Entry import Entry
 from .HTree import HTree, List
 from .Path import Path, PathLike, as_path
 
