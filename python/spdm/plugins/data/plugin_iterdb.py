@@ -1,22 +1,18 @@
-import typing
-import io
-import numpy as np
-from scipy import interpolate
-from spdm.data.Entry import Entry, as_entry
-from spdm.data.File import File, FileEntry
-from spdm.utils.logger import logger
 import pathlib
-from spdm.data.Field import Field
-from spdm.data.Function import Function
+
+import numpy as np
+from spdm.utils.logger import logger
+from spdm.data.File import File
+from spdm.data.Entry import Entry
 
 
-def sp_read_iterdb_txt(path: str):
+def sp_read_iterdb_txt(path: str | pathlib.Path):
     """
     :param file: input file / file path
     :return: profile object
     """
     data = []
-    with open(pathlib.Path(path).expanduser().resolve(), mode="r") as fid:
+    with open(path, mode="r") as fid:
         fid.readline()
         key = None
         value = ""
@@ -43,6 +39,10 @@ def sp_read_iterdb_txt(path: str):
             value = ""
 
         # data.append((key,  [float(s) for s in value.split()]))
+    return data
+
+
+def sp_to_imas(data: dict):
 
     entry = Entry({})
     n = 0
@@ -116,7 +116,6 @@ def sp_read_iterdb_txt(path: str):
     entry["core_profiles/profiles_1d/0/_rbfgh"]                                         = np.asarray(data[n:=n+1][1:]) # rho*bp0*fcap*gcap*hcap, tesla*meters
     entry["core_profiles/profiles_1d/0/zeff"]                                           = np.asarray(data[n:=n+1][1:]) # rho*bp0*fcap*gcap*hcap, tesla*meters
     entry["core_profiles/profiles_1d/0/rotation_frequency_tor_sonic"]                   = np.asarray(data[n:=n+1][1:]) # angular rotation speed profile, rad/sec
-    logger.debug(data[n][0])
 
     entry["core_transport/model/0/profiles_1d[0]/electrons/particles/d"]                = np.asarray(data[n:=n+1][1:]) # electron thermal diffusivity, meters**2/sec on half grid
     entry["core_transport/model/0/profiles_1d[0]/ion/0/particles/d"]                    = np.asarray(data[n:=n+1][1:]) # ion thermal diffusivity, meters**2/second on half grid
@@ -127,7 +126,6 @@ def sp_read_iterdb_txt(path: str):
     entry["core_transport/model/0/profiles_1d[0]/ion/0/conductivity_parallel"]          = np.asarray(data[n:=n+1][1:]) # ion conduction, watts/meter**3
     entry["core_transport/model/0/profiles_1d[0]/electrons/particles/v"]                = np.asarray(data[n:=n+1][1:]) # electron convection, watts/meter**3
     entry["core_transport/model/0/profiles_1d[0]/ion/0/particles/v"]                    = np.asarray(data[n:=n+1][1:]) # ion convection, watts/meter**3
-    logger.debug(data[n][0])
 
     # Energy Source
     entry["core_sources/source/nbi/profiles_1d/0/electrons/energy"]                     = np.asarray(data[n:=n+1][1:]) #  power to elec. from beam, watts/meter**3
@@ -149,7 +147,6 @@ def sp_read_iterdb_txt(path: str):
     entry["core_sources/source/sawtooth/profiles_1d/0/ion/0/energy"]                    = np.asarray(data[n:=n+1][1:]) #  sawtooth ion  heating, watts/meter**3
     entry["core_sources/source/radiation/profiles_1d/0/ion/0/energy"]                   = np.asarray(data[n:=n+1][1:]) #  radiated power density, watts/meter**3
     entry["core_sources/source/ohmic/profiles_1d/0/electrons/energy"]                   = np.asarray(data[n:=n+1][1:]) #  (electron) ohmic power density, watts/meter**3
-    logger.debug(data[n][0])
 
     # flux surface  
     entry["equilibrium/time_slice/0/profiles_1d/major_radius"]                          = np.asarray(data[n:=n+1][1:]) #  average major radius of each flux surface, meters, evaluated at elevation of magnetic axis
@@ -163,10 +160,8 @@ def sp_read_iterdb_txt(path: str):
     entry["equilibrium/time_slice/0/profiles_1d/area"]                                  = np.asarray(data[n:=n+1][1:]) #  cross-sectional area of each flux surface, meters**2
     entry["equilibrium/time_slice/0/profiles_1d/gm7"]                                   = np.asarray(data[n:=n+1][1:]) #  flux surface average absolute grad rho
     entry["equilibrium/time_slice/0/profiles_1d/gm3"]                                   = np.asarray(data[n:=n+1][1:]) #  flux surface average (grad rho)**2
-    logger.debug(data[n][0])
 
     nbbdry                                                                              = data[n:=n+1][1]              #  nplasbdry : number of points on plasma boundary
-    logger.debug(data[n][0])
     entry["equilibrium/time_slice/0/boundary/outline/r"]                                = np.asarray(data[n:=n+1][1:]) #  r points for plasma boundary, meters
     entry["equilibrium/time_slice/0/boundary/outline/z"]                                = np.asarray(data[n:=n+1][1:]) #  z points for plasma boundary, meters
 
@@ -180,10 +175,21 @@ def sp_read_iterdb_txt(path: str):
 
 @File.register(["iterdb"])
 class ITERDBFile(File):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def read(self, *args, **kwargs) -> Entry:
-        return as_entry(sp_read_iterdb_txt(self.url.path))
+    def read(self) -> Entry:
+        if self.url.authority:
+            raise NotImplementedError(f"{self.url}")
+
+        path = pathlib.Path(self.url.path)
+
+        if path.suffix.lower() in [".nc", ".h5"]:
+            data = File(path, mode="r").read().dump()
+        else:
+            data = sp_read_iterdb_txt(path)
+
+        return sp_to_imas(data)
 
     def write(self, d, *args, **kwargs): raise NotImplementedError(f"TODO: write ITERDB {self.url}")
