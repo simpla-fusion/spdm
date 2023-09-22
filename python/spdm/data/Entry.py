@@ -18,6 +18,8 @@ from ..utils.typing import array_type, as_array, as_value, is_scalar
 from ..utils.uri_utils import URITuple, uri_split, uri_split_as_dict
 from .Path import Path, PathLike, as_path
 
+PROTOCOL_LIST = ["local", "file", "http", "https", "ssh", "mdsplus"]
+
 
 class Entry(Pluggable):
 
@@ -110,7 +112,7 @@ class Entry(Pluggable):
     ###########################################################
 
     @property
-    def __value__(self) -> typing.Any: return self._data if len(self._path) == 0 else self.get()
+    def __value__(self) -> typing.Any: return self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
 
     def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
         if query is None:
@@ -124,7 +126,7 @@ class Entry(Pluggable):
             args = ()
 
         res = entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
-    
+
         if res is _undefined_:
             raise RuntimeError(f"Can not find \"{query}\" in {self}")
         else:
@@ -221,9 +223,8 @@ def open_entry(url: str | pathlib.Path, global_schema=None, **kwargs) -> Entry:
     # elif len(schemes) > 1:
     #     local_schema = schemes[0]
 
-    if len(schemas) > 0 and schemas[0] not in ["local", "file", "http", "https", "ssh"]:
+    if len(schemas) > 0 and schemas[0] != "" and schemas[0] not in PROTOCOL_LIST:
         local_schema = schemas[0]
-        schemas[0] = schemas[1:]
         url_.protocol = "+".join(schemas[1:])
     else:
         local_schema = None
@@ -559,12 +560,7 @@ class EntryProxy(Entry):
     def remove(self, **kwargs) -> int: raise NotImplementedError(f"")
 
     def fetch(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
-        request = self._mapper.child(self._path).fetch(
-            *args,
-            default_value=_not_found_,
-            lazy=False,
-            **kwargs
-        )
+        request = self._mapper.child(self._path).fetch(*args, default_value=_not_found_, lazy=False, **kwargs)
 
         return self._op_fetch(request, default_value=default_value)
 

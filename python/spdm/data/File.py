@@ -28,7 +28,7 @@ class File(Document):
                 format = url.suffix[1:].lower()
             elif isinstance(url, (str, URITuple)):
                 uri = uri_split(url)
-                schemes = uri.protocol.split("+") if isinstance(uri.protocol, str) else []
+                schemes = uri.protocol.split("+") if uri.protocol != "" and uri.protocol != None else []
                 if len(schemes) == 0:
                     pass
                 elif schemes[0] in ["file", "local"]:

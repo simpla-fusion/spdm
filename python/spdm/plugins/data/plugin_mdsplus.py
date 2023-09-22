@@ -8,10 +8,11 @@ from spdm.data.Collection import Collection
 from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.utils.logger import logger
+from spdm.utils.uri_utils import URITuple
 from spdm.data.Path import Path
 
 
-@File.register(["mdsplus", "mds", "mds+", "MDSplus"])
+@File.register(["mdsplus", "mds", "mds+"])
 class MDSplusTree(File):
     MDS_MODE = {
         File.Mode.read: "ReadOnly",
@@ -21,14 +22,7 @@ class MDSplusTree(File):
         File.Mode.write | File.Mode.create: "New",
     }
 
-    def __init__(
-        self,
-        *args,
-        fid=None,
-        shot: typing.Optional[int] = None,
-        tree_name: typing.Optional[str] = None,
-        **kwargs,
-    ):
+    def __init__(self, *args, fid=None, shot: typing.Optional[int] = None, tree_name: typing.Optional[str] = None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._envs = {}
@@ -71,11 +65,8 @@ class MDSplusTree(File):
                     self._old_env[env_path] = None
                     os.environ[f"{p}_path"] = path
 
-        self._shot = (
-            shot
-            if shot is not None
-            else (fid if fid is not None else query.get("shot", self.url.fragment))
-        )
+        self._shot = (shot if shot is not None
+                      else (fid if fid is not None else query.get("shot", self.url.fragment)))
 
         self._trees = {}
 
@@ -99,11 +90,10 @@ class MDSplusTree(File):
     def entry(self, lazy=True) -> Entry:
         return self._entry
 
-    def get_tree(
-        self,
-        tree_name: typing.Optional[str] = None,
-        tree_path: typing.Optional[str] = None,
-    ):
+    def get_tree(self,
+                 tree_name: typing.Optional[str] = None,
+                 tree_path: typing.Optional[str] = None,
+                 ):
         if tree_name is None:
             tree_name = self._default_tree_name
 
@@ -121,12 +111,9 @@ class MDSplusTree(File):
             tree = mds.Tree(tree_name, shot, mode=mode, path=tree_path)
         except mds.mdsExceptions.TreeFOPENR as error:
             raise FileNotFoundError(
-                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} mode={mode} \n {error}"
-            )
+                f"Can not open mdsplus tree! tree_name={tree_name} shot={shot} tree_path={tree_path} mode={mode} \n {error}")
         except mds.mdsExceptions.TreeNOPATH as error:
-            raise FileNotFoundError(
-                f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}"
-            )
+            raise FileNotFoundError(f"{tree_name}_path is not defined! tree_name={tree_name} shot={shot}  \n {error}")
         else:
             logger.debug(f"Open MDSplus Tree [{tree_name}] shot={shot}")
 
@@ -152,13 +139,11 @@ class MDSplusTree(File):
 
         if not tdi:
             raise RuntimeError(f"Illegal request {request}")
-        
+
         try:
             tdi = tdi.format_map(self._envs)
         except KeyError as error:
-            raise KeyError(
-                f"Can not format tdi! {error} tdi={tdi} envs={self._envs} prefix={prefix}"
-            )
+            raise KeyError(f"Can not format tdi! {error} tdi={tdi} envs={self._envs} prefix={prefix}")
 
         res = None
         tree = self.get_tree(tree_name, tree_path)
@@ -166,19 +151,13 @@ class MDSplusTree(File):
             res = tree.tdiExecute(tdi).data()
         except mds.mdsExceptions.TdiException as error:
             # raise RuntimeError(f"MDSplus TDI error [{tdi}]! {error}")
-            logger.warning(
-                f'MDS TDI error! tree_name={tree_name} shot={self._shot} tdi="{tdi}" \n {error}'
-            )
+            logger.warning(f'MDS TDI error! tree_name={tree_name} shot={self._shot} tdi="{tdi}" \n {error}')
 
         except mds.mdsExceptions.TreeNODATA as error:
-            logger.warning(
-                f'MDS No data! tree_name={tree_name} shot={self._shot} tdi="{tdi}" \n {error}'
-            )
+            logger.warning(f'MDS No data! tree_name={tree_name} shot={self._shot} tdi="{tdi}" \n {error}')
 
         except Exception as error:
-            raise RuntimeError(
-                f'mds.mdsExceptions! tree_name={tree_name} shot={self._shot} tdi="{tdi}"'
-            ) from error
+            raise RuntimeError(f'mds.mdsExceptions! tree_name={tree_name} shot={self._shot} tdi="{tdi}"') from error
             # raise error
 
         if not isinstance(res, np.ndarray):
@@ -257,11 +236,11 @@ class MDSplusCollection(Collection):
 
 @Entry.register(["mdsplus", "mds", "mds+", "MDSplus"])
 class MDSplusEntry(Entry):
-    def __init__(self, cache:  MDSplusTree | str, *args, **kwargs):
-        if isinstance(cache, str):
+    def __init__(self, cache:  MDSplusTree | str | URITuple, *args, **kwargs):
+        if isinstance(cache, (str, URITuple)):
             cache: MDSplusTree = MDSplusTree(cache)
         if not isinstance(cache, MDSplusTree):
-            raise TypeError(f"cache must be FILEPLUGINmdsplus or str, but got {type(cache)}")
+            raise TypeError(f"cache must be MDSplusEntry or str, but got {type(cache)}")
         super().__init__(cache, *args, **kwargs)
 
     def fetch(self, *args, **kwargs):

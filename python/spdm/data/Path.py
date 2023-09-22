@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import collections.abc
+import inspect
 import pprint
 import re
 import typing
@@ -20,22 +21,24 @@ from ..utils.typing import array_type, isinstance_generic
 # fmt:off
 class OpTags(Flag):
     # traversal operation 操作
-    root  = auto()  # root node
-    parent = auto()  # parent node
-    current = auto()  # current node
-    next  = auto()  # next sibling
+    root  = auto()      # root node
+    parent = auto()     # parent node
+    children = auto()   # 所有子节点
+
+    current = auto()    # current node
+    next  = auto()      # next sibling
 
     # RESTful operation for CRUD
-    fetch  = auto()  # GET
-    update = auto()  # PUT
-    insert = auto()  # POST
-    remove = auto()  # DELETE
+    fetch  = auto()     # GET
+    update = auto()     # PUT
+    insert = auto()     # POST
+    remove = auto()     # DELETE
 
-    call  = auto()  # call function
+    call  = auto()      # call function
     exists = auto()
     check_type = auto() # check type
-    search = auto()  # search by query return idx
-    dump  = auto()   # rescurive get all data
+    search = auto()     # search by query return idx
+    dump  = auto()      # rescurive get all data
 
     # for sequence
     reduce = auto()
@@ -188,7 +191,7 @@ def as_query(query: QueryLike = None, **kwargs) -> Query | slice:
         return Query(query, **kwargs)
 
 
-PathLike = int | str | slice | typing.Dict | typing.List | OpTags | None
+PathLike = str | int | slice | dict | list | OpTags | None
 
 path_like = (int, str, slice, list, None, tuple, set, dict, OpTags)
 
@@ -248,7 +251,7 @@ class Path(list):
     delimiter = "/"
     tags = OpTags
 
-    def __init__(self, path=None, **kwargs):
+    def __init__(self, path=[], **kwargs):
         super().__init__(Path._parser(path), **kwargs)
 
     def __repr__(self): return Path._to_str(self)
@@ -302,14 +305,9 @@ class Path(list):
         res = as_path(d)
         return res.append(self)
 
-    def append(self, d) -> Path:
-        if isinstance(d, str):
-            d = Path._parser_str(d)
-        elif not isinstance(d, collections.abc.Sequence):
-            d = [d]
-        return Path._unroll(d, self)
+    def append(self, d) -> Path: return Path._resolve(Path._parser_iter(d), self)
 
-    def extend(self, d: list) -> Path: return Path._unroll(d, self)
+    def extend(self, d: list) -> Path: return Path._resolve(d, self)
 
     def __truediv__(self, p) -> Path: return copy(self).append(p)
 
@@ -336,7 +334,7 @@ class Path(list):
         else:
             return Path(self[:idx]+self[idx+1:])
 
-    @staticmethod
+    @ staticmethod
     def reduce(path: list) -> list:
         if len(path) < 2:
             return path
@@ -352,14 +350,14 @@ class Path(list):
         else:
             return path
 
-    @staticmethod
+    @ staticmethod
     def normalize(p: typing.Any, raw=False) -> typing.Any:
         if p is None:
             res = []
         elif isinstance(p, Path):
             res = p[:]
         elif isinstance(p, str):
-            res = Path._from_str_decprecated(p)
+            res = Path._parser_str(p)
         elif isinstance(p, (int, slice)):
             res = p
         elif isinstance(p, list):
@@ -382,27 +380,17 @@ class Path(list):
 
         return res
 
-    # example:
-    # a/b_c6/c[{value:{$le:10}}][value]/D/[1，2/3，4，5]/6/7.9.8
-    PATH_REGEX = re.compile(r"(?P<key>[^\[\]\/\,\.]+)|(\[(?P<selector>[^\[\]]+)\])")
-
-    # 正则表达式解析，匹配一段被 {} 包裹的字符串
-    PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
-
-    @staticmethod
-    def _unroll(source: typing.List[PathLike], target: typing.List[PathLike]) -> typing.List[PathLike]:
-        """ Parse the to list """
+    @ staticmethod
+    def _resolve(source, target: list | None = None) -> list:
+        """ Make the path absolute, resolving all Path.tags (i.e. tag.root, tags.parent)
+        """
+        if target is None:
+            target = []
 
         for p in source:
-            if isinstance(p, str):
-                list.append(target, p)
-            elif isinstance(p, list):
-                Path._unroll(p, target)
-            elif p is Path.tags.parent:
-                if len(target) > 0 and target[-1] is not Path.tags.parent:
+            if p is Path.tags.parent:
+                if len(target) > 0:
                     target.pop()
-                else:
-                    list.append(target, p)
             elif p is Path.tags.root:
                 target.clear()
                 list.append(target, Path.tags.root)
@@ -411,7 +399,7 @@ class Path(list):
 
         return target
 
-    @staticmethod
+    @ staticmethod
     def _expand(target: typing.Any):
         if isinstance(target, collections.abc.Generator):
             res = [Path._expand(v) for v in target]
@@ -424,7 +412,7 @@ class Path(list):
 
         return res
 
-    @staticmethod
+    @ staticmethod
     def _to_str(p: typing.Any) -> str:
 
         if isinstance(p, list):
@@ -450,8 +438,16 @@ class Path(list):
             return str(p)
             # raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {(p)}")
 
-    @staticmethod
-    def _parser_str_one(s: str | list) -> PathLike:
+    # example:
+    # a/b_c6/c[{value:{$le:10}}][value]/D/[1，2/3，4，5]/6/7.9.8
+
+    PATH_PATTERN = re.compile(r"(?P<key>[^\[\]\/\,\.]+)(\[(?P<selector>[^\[\]]+)\])?")
+
+    # 正则表达式解析，匹配一段被 {} 包裹的字符串
+    PATH_REGEX_DICT = re.compile(r"\{(?P<selector>[^\{\}]+)\}")
+
+    @ staticmethod
+    def _parser_selector(s: str | list) -> PathLike:
         if isinstance(s, str):
             s = s.strip(" ")
 
@@ -462,15 +458,15 @@ class Path(list):
             if isinstance(tmp, dict):
                 item = Query(tmp)  # {Path._parser_str_one(k): d for k, d in tmp.items()}
             elif isinstance(tmp, set):
-                item = set([Path._parser_str_one(k) for k in tmp])
+                item = set([Path._parser_selector(k) for k in tmp])
             elif isinstance(tmp, tuple):
-                item = tuple([Path._parser_str_one(k) for k in tmp])
+                item = tuple([Path._parser_selector(k) for k in tmp])
             elif isinstance(tmp, list):
-                item = [Path._parser_str_one(k) for k in tmp]
+                item = [Path._parser_selector(k) for k in tmp]
 
         elif s.startswith("(") and s.endswith(")"):
             tmp: dict = ast.literal_eval(s)
-            item = {Path._parser_str_one(k): d for k, d in tmp.items()}
+            item = {Path._parser_selector(k): d for k, d in tmp.items()}
         elif ":" in s:
             tmp = s.split(":")
             if len(tmp) == 2:
@@ -497,8 +493,55 @@ class Path(list):
 
         return item
 
-    @staticmethod
-    def _parser_str(path: str | list) -> list:
+    @ staticmethod
+    def _parser_iter(path: typing.Any) -> typing.Generator[PathLike, None, None]:
+        if not isinstance(path, str):
+            if isinstance(path, list) or inspect.isgenerator(path):
+                for item in path:
+                    if isinstance(item, str):
+                        yield from Path._parser_iter(item)
+                    else:
+                        yield item
+            else:
+                yield path
+
+        elif len(path) == 0:
+            pass
+
+        elif path.startswith(('/', "$")):
+            yield Path.tags.root
+            yield from Path._parser_iter(path[1:])
+
+        elif path.startswith("../"):
+            yield Path.tags.parent
+            yield from Path._parser_iter(path[3:])
+
+        elif path == "*":
+            yield Path.tags.children
+
+        else:
+            for match in Path.PATH_PATTERN.finditer(path):
+                key = match.group('key')
+
+                if key is None:
+                    pass
+                elif isinstance(key, str) and key.isdigit():
+                    yield int(key)
+                else:
+                    yield key
+
+                selector = match.group('selector')
+                if selector is not None:
+                    yield Path._parser_selector(selector)
+
+    @ staticmethod
+    def _parser(path, target: list | None = None) -> list:
+        """ Parse the PathLike to list """
+        return [*Path._parser_iter(path)]
+
+    @ deprecated
+    @ staticmethod
+    def _parser_str_2022(path: str) -> list:
         """ Parse the path string to list """
 
         if isinstance(path, str):
@@ -508,10 +551,11 @@ class Path(list):
         elif not isinstance(path, list):
             path = [path]
 
-        return [Path._parser_str_one(v) for v in path]
+        return [Path._parser_selector(v) for v in path]
 
-    @staticmethod
-    def _parser(path: PathLike) -> list:
+    @ deprecated
+    @ staticmethod
+    def _parser_2022(path: PathLike) -> list:
         """ Parse the PathLike to list """
 
         if path is None:
@@ -521,14 +565,14 @@ class Path(list):
         elif isinstance(path, (tuple, set, slice)):
             path = [path]
         elif isinstance(path, str):
-            path = Path._parser_str(path)
+            path = Path._parser_str_2022(path)
         elif isinstance(path, list):
-            path = sum([(Path._parser_str(p) if isinstance(p, str) else [Path._parser(p)])
+            path = sum([(Path._parser_str_2022(p) if isinstance(p, str) else [Path._parser_2022(p)])
                         for p in path], [])
         else:
             path = [as_query(path)]
 
-        return Path._unroll(path, [])
+        return Path._resolve(path, [])
 
     ###########################################################
     # RESTful API:
@@ -615,11 +659,9 @@ class Path(list):
 
     def fetch(self, target: typing.Any, op: Path.tags | str | None = None, *args,  **kwargs) -> typing.Any:
         """
-            根据路径（self）查询元素。
-            只读，不会修改 target
+            根据路径（self）查询元素。只读，不会修改 target
 
-            对应 RESTful 中的 read，
-            幂等操作
+            对应 RESTful 中的 read，幂等操作
         """
         obj, suffix = Path._get_by_path(target, self[:])
 
@@ -628,7 +670,7 @@ class Path(list):
 
         return Path._apply_op(obj, op,  *args, **kwargs)
 
-    @deprecated
+    @ deprecated
     def find_next(self, target: typing.Any, start: int | None) -> typing.Tuple[typing.Any, int | None]:
         """ 从 start 开始搜索符合 path 的元素，返回第一个符合条件的元素和其路径。"""
 
@@ -725,7 +767,7 @@ class Path(list):
     # End API
     ###########################################################
 
-    @staticmethod
+    @ staticmethod
     def _apply_op(obj: typing.Any,  op: Path.tags | str | None,  *args, **kwargs):
 
         if op is None:
@@ -752,7 +794,7 @@ class Path(list):
 
         return res
 
-    @staticmethod
+    @ staticmethod
     def _make_path(target: dict | list, path: typing.List[PathLike], quiet=True) -> typing.Any:
 
         length = len(path)
@@ -792,7 +834,7 @@ class Path(list):
 
         return obj
 
-    @staticmethod
+    @ staticmethod
     def _get_by_path(target: typing.Any, path: typing.List[PathLike], *args, default_value: typing.Any = _not_found_,   **kwargs) -> typing.Any:
 
         length = len(path)
@@ -827,7 +869,7 @@ class Path(list):
 
         return obj, path[pos:]
 
-    @staticmethod
+    @ staticmethod
     def _op_fetch(target: typing.Any,  key: int | str | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Any:
 
         if hasattr(target.__class__, "__entry__"):
@@ -888,11 +930,11 @@ class Path(list):
 
         return res
 
-    @staticmethod
+    @ staticmethod
     def _op_dump(target: typing.Any, *args, **kwargs) -> typing.Any:
         return serialize(target)
 
-    @staticmethod
+    @ staticmethod
     def _op_update(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Any:
 
         if hasattr(target.__class__, "__entry__"):
@@ -932,7 +974,7 @@ class Path(list):
 
         return target
 
-    @staticmethod
+    @ staticmethod
     def _op_insert(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int | str | None]:
         if hasattr(target.__class__, "__entry__"):
             return target.__entry__.child(key).insert(value, *args, **kwargs)
@@ -981,7 +1023,7 @@ class Path(list):
 
         return target, key
 
-    @staticmethod
+    @ staticmethod
     def _op_remove(target: typing.Any, key: int | str | None, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         if len(args)+len(kwargs) > 0:
             logger.warning(f"Ignore {args} {kwargs}")
@@ -997,7 +1039,7 @@ class Path(list):
             raise NotImplementedError(f"{key}")
         return target, 1
 
-    @staticmethod
+    @ staticmethod
     def _op_check(target: typing.Any,  query, *args, **kwargs) -> bool:
         if query is None:
             return True
@@ -1008,12 +1050,12 @@ class Path(list):
 
         return all([target.get(k[1:], _not_found_) == v for k, v in query.items() if k.startswith("@")])
 
-    @staticmethod
+    @ staticmethod
     def _op_check_type(target: typing.Any, key, tp, *args, **kwargs) -> bool:
         target = Path._op_fetch(target, key, default_value=_not_found_)
         return isinstance_generic(target, tp)
 
-    @staticmethod
+    @ staticmethod
     def _op_count(target: typing.Any, *args,  **kwargs) -> int:
         if target is _not_found_:
             return 0
@@ -1022,11 +1064,11 @@ class Path(list):
         else:
             return len(target)
 
-    @staticmethod
+    @ staticmethod
     def _op_exists(target: typing.Any,  *args,  **kwargs) -> bool:
         return target is not _not_found_
 
-    @staticmethod
+    @ staticmethod
     def _op_call(target, *args,  **kwargs) -> typing.Any:
 
         if suffix is not None:
@@ -1036,7 +1078,7 @@ class Path(list):
 
         return target(*args, **kwargs)
 
-    @staticmethod
+    @ staticmethod
     def _op_next(target, query, start: int | None = None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if not isinstance(query, (slice, set, Query)):
@@ -1090,7 +1132,7 @@ class Path(list):
         else:
             raise NotImplementedError(f"Not implemented yet! {type(query)}")
 
-    @staticmethod
+    @ staticmethod
     def _op_search(target: typing.Any, key, query, start=None, *args, **kwargs):
 
         target = Path._op_fetch(target, key)
@@ -1111,12 +1153,12 @@ class Path(list):
     ############################################################
     # deprecated method
 
-    @deprecated
+    @ deprecated
     def traversal(self) -> typing.Generator[PathLike, None, None]:
         yield from Path._traversal_path(self[:])
 
-    @deprecated
-    @staticmethod
+    @ deprecated
+    @ staticmethod
     def _traversal(target: typing.Any, path: typing.List[typing.Any]) -> typing.Tuple[typing.Any, int]:
         """
         Traversal the target with the path, return the last regular target and the position the first non-regular path.
@@ -1159,8 +1201,8 @@ class Path(list):
 
     MAX_SLICE_STOP = 1024
 
-    @deprecated
-    @staticmethod
+    @ deprecated
+    @ staticmethod
     def _traversal_path(path: typing.List[typing.Any], prefix: typing.List[typing.Any] = []) -> typing.Generator[PathLike, None, None]:
         """
         traversal all possible path
@@ -1193,8 +1235,8 @@ class Path(list):
             if stop == Path.MAX_SLICE_STOP:
                 logger.warning(f"MAX_SLICE_STOP, slce.stop is not defined! ")
 
-    @deprecated
-    @staticmethod
+    @ deprecated
+    @ staticmethod
     def _find(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs) -> typing.Generator[typing.Any, None, None]:
         target, pos = Path._traversal(target, path)
 
@@ -1254,8 +1296,8 @@ class Path(list):
         else:
             raise NotImplementedError(f"Not support Query,list,mapping,tuple to str,yet! {path[pos]}")
 
-    @deprecated
-    @staticmethod
+    @ deprecated
+    @ staticmethod
     def _find_all(target: typing.Any, path: typing.List[typing.Any], *args, **kwargs):
         return Path._expand(Path._find(target, path, *args, **kwargs))
 
