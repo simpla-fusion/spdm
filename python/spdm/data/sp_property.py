@@ -61,33 +61,9 @@ _T = typing.TypeVar("_T")
 class SpTree(HTree[_T]):
     """  支持 sp_property 的 Dict  """
 
-    def __init__(self, cache: typing.Any = None, /,
-                 entry: Entry | None = None,
-                 parent: HTree | None = None, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None: super().__init__(*args, **kwargs)
 
-        if isinstance(cache, dict):
-            pass
-        elif cache is None or cache is _not_found_:
-            cache = {}
-        elif entry is None and isinstance(cache, Entry):
-            entry = cache
-            cache = {}
-        elif entry is None:
-            entry = open_entry(cache)
-            cache = {}
-        else:
-            raise ValueError(f"Invalid arguments! cache={(cache)} entry={entry}")
-
-        attrs = vars(self.__class__)
-
-        for k in [*kwargs.keys()]:
-            if k in attrs:
-                cache[k] = merge_tree_recursive(cache.get(k, None), kwargs.pop(k))
-
-        super().__init__(cache, entry=entry, parent=parent, **kwargs)
-
-    def __get_property__(self, key: str, *args, **kwargs) -> HTree[_T] | _T | PrimaryType:
-        return self._get(key, *args, **kwargs)
+    def __get_property__(self, key: str, *args, **kwargs) -> _T: return self._get(key, *args, **kwargs)
 
     def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self.update(key, value)
 
@@ -146,7 +122,7 @@ class sp_property(typing.Generic[_T]):
 
     方法三 会在创建class 是调用 __set_name__,
            会在读写property phi 时调用 __set__,__get__ 方法，
-           从Node的_cache或_entry获得名为 'phi' 的值，将其转换为 type_hint 指定的类型 Profile[float]。
+           从Node的_cache或entry获得名为 'phi' 的值，将其转换为 type_hint 指定的类型 Profile[float]。
 
     """
 
@@ -296,7 +272,7 @@ class sp_property(typing.Generic[_T]):
                                               getter=self.getter,
                                               default_value=self.default_value,
                                               metadata=metadata,
-                                              strict=self.strict,)
+                                              )
 
             if self.strict and value is _not_found_:
                 raise AttributeError(

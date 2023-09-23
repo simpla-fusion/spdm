@@ -123,7 +123,7 @@ class MDSplusTree(File):
 
     def query(self, request=None, prefix=None, **kwargs) -> Entry:
         if request is None:
-            return self.entry
+            return self._entry
 
         if isinstance(request, str):
             request = {"query": request}

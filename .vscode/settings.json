@@ -26,5 +26,5 @@
   ],
   // "python.analysis.typeCheckingMode": "basic",
   "cmake.configureOnOpen": false,
-  "python.analysis.typeCheckingMode": "basic"
+  "python.analysis.typeCheckingMode": "off"
 }

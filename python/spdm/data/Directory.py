@@ -16,11 +16,11 @@ class Directory(Document):
         Default entry for Directory
     """
 
-    def __init__(self, *args, mask=0o777, create_parents=False, **kwargs):
+    def __init__(self, *args, mask=0o777, createparents=False, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._mask = mask
-        self._create_parents = create_parents
+        self._createparents = createparents
 
     def __del__(self):
         if self.is_temporary:
@@ -40,14 +40,14 @@ class Directory(Document):
             pass
         elif self.is_writable:
             self.path.mkdir(mode=self._mask,
-                            parents=self._create_parents and self.is_creatable,
+                            parents=self._createparents and self.is_creatable,
                             exist_ok=self.is_creatable)  # ??? logical correct?
         else:
             raise NotADirectoryError(self.path)
         return self.path
 
     def cd(self, path) -> Directory:
-        return self.__class__(self.path/path, mask=self._mask, create_parents=self._create_parents, mode=self.mode)
+        return self.__class__(self.path/path, mask=self._mask, createparents=self._createparents, mode=self.mode)
 
 
 @Collection.register(["localdb", "FileCollection"])

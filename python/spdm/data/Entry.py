@@ -64,7 +64,7 @@ class Entry(Pluggable):
     def __delitem__(self, *args): return self.child(*args).remove()
 
     @property
-    def __entry__(self) -> Entry: return self
+    def _entry__(self) -> Entry: return self
 
     @property
     def path(self) -> Path: return self._path
@@ -96,7 +96,7 @@ class Entry(Pluggable):
         else:
             self._data = []
 
-        other = copy(self)
+        other = self.__copy__()
         other._path.append(path)
         return other
 
@@ -112,7 +112,8 @@ class Entry(Pluggable):
     ###########################################################
 
     @property
-    def __value__(self) -> typing.Any: return self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
+    def __value__(self) -> typing.Any:
+        return self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
 
     def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
         if query is None:
@@ -187,7 +188,46 @@ class Entry(Pluggable):
     ###########################################################
 
 
-def open_entry(url: str | pathlib.Path, global_schema=None, **kwargs) -> Entry:
+class ChainEntry(Entry):
+
+    def __init__(self, *args,   **kwargs):
+        if len(args) == 0:
+            raise RuntimeError(f"Can not create ChainEntry from empty args!")
+
+        super().__init__(args[0])
+
+        self._others = list(args[1:])
+
+        for idx, v in enumerate(self._others):
+            if not isinstance(v, Entry):
+                self._others[idx] = open_entry(v,   **kwargs)
+
+    def __copy_from__(self, other: Entry) -> ChainEntry:
+        self._data = other._data
+        self._path = copy(other._path)
+        self._others = getattr(other, "_others", [])
+        return self
+
+    def fetch(self, *args, default_value=_not_found_, **kwargs):
+
+        res = super().fetch(*args, default_value=_not_found_, **kwargs)
+
+        if res is not _not_found_:
+            for e in self._others:
+                res = e.fetch(*args, default_value=_not_found_, **kwargs)
+                if res is not _not_found_:
+                    break
+
+        if res is _not_found_:
+            res = default_value
+
+        return res
+
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        raise NotImplementedError(f"for_each is not supported for {self.__class__.__name__}")
+
+
+def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
     """
         Open an Entry from a URL.
 
@@ -209,32 +249,38 @@ def open_entry(url: str | pathlib.Path, global_schema=None, **kwargs) -> Entry:
             east+mdsplus+ssh://<mds_prefix>
 
     """
+
+    if isinstance(url, Entry) and len(kwargs) == 0:
+        return url
+
     from .File import File
+
+    global_schema = kwargs.pop("global_schema", None)
+
+    local_schema = kwargs.pop("local_schema", None)
 
     if isinstance(url, str) and "." not in url and "/" not in url:
         url = f"{url}+://"
 
     url_ = uri_split(url)
-    local_schema = None
 
-    schemas = url_.protocol.split("+")
     sub_path = url_.fragment
 
-    # elif len(schemes) > 1:
-    #     local_schema = schemes[0]
+    schemas = url_.protocol.split("+")
 
-    if len(schemas) > 0 and schemas[0] != "" and schemas[0] not in PROTOCOL_LIST:
+    if local_schema is None and len(schemas) > 0 and schemas[0] != "" and schemas[0] not in PROTOCOL_LIST:
         local_schema = schemas[0]
         url_.protocol = "+".join(schemas[1:])
-    else:
-        local_schema = None
 
     if local_schema is not None and global_schema != local_schema:
         entry = EntryProxy(url_, local_schema=local_schema, global_schema=global_schema,  **kwargs)
+
     elif len(schemas) == 0 or schemas[0] in ["local", "file"]:
         entry = File(url_,  **kwargs).read()
+
     elif schemas[0] in ["http", "https", "ssh"]:
         raise NotImplementedError(f"{url_}")
+
     else:
         entry = Entry(url_,  **kwargs)
 
@@ -242,6 +288,23 @@ def open_entry(url: str | pathlib.Path, global_schema=None, **kwargs) -> Entry:
         entry = entry.child(sub_path.replace('.', '/'))
 
     return entry
+
+
+def open_entry(entry, **kwargs) -> Entry:
+
+    if not isinstance(entry, list):
+        entry = [entry]
+
+    entry = [a for a in entry if a is not None and a is not _not_found_]
+
+    if len(entry) == 0:
+        return Entry()
+
+    elif len(entry) > 1:
+        return ChainEntry(*entry, **kwargs)
+
+    else:
+        return _open_entry(entry[0], **kwargs)
 
     # url = uri_split(url_s)
 
@@ -285,13 +348,13 @@ def open_entry(url: str | pathlib.Path, global_schema=None, **kwargs) -> Entry:
     #     raise RuntimeError(f"Unknown url {url} {Entry._plugin_registry}")
 
 
-def as_entry(obj, *args, **kwargs) -> Entry:
+def asentry(obj, *args, **kwargs) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
     elif isinstance(obj, (str, URITuple, pathlib.Path)):
         entry = open_entry(obj, *args, **kwargs)
-    elif hasattr(obj.__class__, "__entry__"):
-        entry = obj.__entry__
+    elif hasattr(obj.__class__, "_entry__"):
+        entry = obj._entry__
     elif obj is None or obj is _not_found_:
         entry = Entry()
     else:
@@ -304,8 +367,8 @@ def as_dataclass(dclass, obj, default_value=None):
     if dclass is dataclasses._MISSING_TYPE:
         return obj
 
-    if hasattr(obj, '_entry'):
-        obj = obj._entry
+    if hasattr(obj, 'entry'):
+        obj = obj.entry
     if obj is None:
         obj = default_value
 
@@ -362,7 +425,7 @@ def deep_reduce(first=None, *others, level=-1):
         raise TypeError(f"Can not merge dict with {others}!")
 
 
-def convert_from_entry(cls, obj, *args, **kwargs):
+def convert_fromentry(cls, obj, *args, **kwargs):
     origin_type = getattr(cls, '__origin__', cls)
     if dataclasses.is_dataclass(origin_type):
         obj = as_dataclass(origin_type, obj)
@@ -457,7 +520,7 @@ class EntryProxy(Entry):
 
         _url = uri_split(url)
 
-        enabled_entry = _url.query.pop("enable", "").split(",")
+        enabledentry = _url.query.pop("enable", "").split(",")
 
         kwargs.update(_url.query)
 
@@ -526,7 +589,7 @@ class EntryProxy(Entry):
 
                 if id is None:
                     continue
-                elif not enable and id not in enabled_entry:
+                elif not enable and id not in enabledentry:
                     continue
 
                 entry_list[id] = entry.get("_text", "").format(**attr)
@@ -569,7 +632,7 @@ class EntryProxy(Entry):
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
             yield idx, self._op_fetch(request)
 
-    def find_entry(self, entry_name: str, default_value=None) -> Entry | None:
+    def findentry(self, entry_name: str, default_value=None) -> Entry | None:
 
         entry = self._entry_list.get(entry_name, None)
 
@@ -592,11 +655,11 @@ class EntryProxy(Entry):
             request = uri_split_as_dict(request)
 
         if request is _not_found_:
-            default_entry = self.find_entry("*", None)
-            if default_entry is None:
+            defaultentry = self.findentry("*", None)
+            if defaultentry is None:
                 res = _not_found_
             else:
-                res = default_entry.child(self._path).fetch(*args, **kwargs)
+                res = defaultentry.child(self._path).fetch(*args, **kwargs)
 
         elif isinstance(request, Entry):
             res = EntryProxy(request, self._entry_list)
@@ -611,7 +674,7 @@ class EntryProxy(Entry):
             res = {k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()}
 
         else:
-            entry = self.find_entry(request.get("@spdb", None))
+            entry = self.findentry(request.get("@spdb", None))
 
             if not isinstance(entry, Entry):
                 raise RuntimeError(f"Can not find entry for {request}")

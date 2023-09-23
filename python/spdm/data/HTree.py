@@ -3,8 +3,10 @@ from __future__ import annotations
 import collections.abc
 import functools
 import inspect
+import pathlib
 import typing
 from copy import copy, deepcopy
+
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.tree_utils import merge_tree_recursive, upate_tree_recursive
@@ -12,9 +14,9 @@ from ..utils.typing import (ArrayType, HTreeLike, NumericType, array_type,
                             as_array, as_value, get_args, get_origin,
                             get_type_hint, isinstance_generic, numeric_type,
                             serialize, type_convert)
-from .Entry import Entry, as_entry
+from ..utils.uri_utils import URITuple
+from .Entry import Entry, open_entry
 from .Path import Path, PathLike, Query, QueryLike, as_path, as_query
-
 
 _T = typing.TypeVar("_T")
 
@@ -39,24 +41,50 @@ class HTree(typing.Generic[_T]):
         -
     """
 
-    def __init__(self, cache: typing.Any = None, /,  entry: Entry | None = None, parent: HTree | None = None, **kwargs) -> None:
-
-        default_value = _not_found_
+    @staticmethod
+    def _parser_args(cache, entry=None, parent=None, default_value=_not_found_, metadata=None, **kwargs):
+        if not isinstance(entry, list):
+            entry = [entry]
+        else:
+            entry = entry
 
         if isinstance(cache, dict):
-            default_value = merge_tree_recursive(default_value, cache.pop("$default_value", _not_found_))
+            entry = cache.pop("$entry", []) + entry
+            default_value = merge_tree_recursive(cache.pop("$default_value", {}), default_value)
 
-        default_value = merge_tree_recursive(default_value, kwargs.pop("default_value", _not_found_))
+        elif isinstance(cache, (str, URITuple, pathlib.Path)):
+            entry = [cache]+entry
+            cache = None
 
-        if cache is None or cache is _undefined_:
-            cache = _not_found_
+        entry = [v for v in entry if v is not None and v is not _not_found_]
 
-        self._cache: list | dict = cache
-        self._entry = as_entry(entry)
-        self._default_value = deepcopy(default_value)
-        self._metadata = kwargs.pop("metadata", {}) | kwargs
+        if isinstance(cache, dict):
+            kwargs = merge_tree_recursive(
+                {f"{k[1:]}": cache.pop(k) for k in list(cache.keys()) if k.startswith("$")},
+                kwargs)
+
+            cache_ = {k: kwargs.pop(k) for k in list(kwargs.keys()) if not k.startswith("_")}
+
+            cache = merge_tree_recursive(cache, cache_)
+
+        if metadata is None or metadata is _not_found_:
+            metadata = {}
+
+        return cache, entry, default_value, metadata, parent
+
+    def __init__(self, *args, **kwargs) -> None:
+
+        cache, entry, default_value, metadata, parent = HTree._parser_args(*args, **kwargs)
+
         self._parent = parent
-        self._id = self._metadata.get("id", None) or self._metadata.get("name", None)
+
+        self._default_value = default_value
+
+        self._metadata = metadata
+
+        self._cache = cache
+
+        self._entry = open_entry(entry)
 
     def __copy__(self) -> HTree[_T]:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -67,20 +95,20 @@ class HTree(typing.Generic[_T]):
         """ 复制 other 到 self  """
         if isinstance(other, HTree):
             self._cache = copy(other._cache)
-            self._entry = copy(other._entry)
-            self._parent = other._parent
+            self._entry = copy(other.entry)
+            self._parent = other.parent
             self._metadata = copy(other._metadata)
             self._default_value = copy(other._default_value)
         return self
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)
 
-    @classmethod
+    @ classmethod
     def __deserialize__(cls, *args, **kwargs) -> HTree: return cls(*args, **kwargs)
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} />"
 
-    @property
+    @ property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
             self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))
@@ -118,18 +146,18 @@ class HTree(typing.Generic[_T]):
         # else:
         #     entry.update(value)
 
-    @property
+    @ property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")
 
-    @property
+    @ property
     def __metadata__(self) -> dict: return self._metadata
 
-    @property
+    @ property
     def _root(self) -> HTree[_T] | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
-        while p._parent is not None and getattr(p, "ids_properties", None) is None:
-            p = p._parent
+        while p.parent is not None and getattr(p, "ids_properties", None) is None:
+            p = p.parent
         return p
 
     def __getitem__(self, path) -> _T: return self.get(path, force=True)
@@ -223,7 +251,7 @@ class HTree(typing.Generic[_T]):
         for idx, p in enumerate(path):
             pos = idx
             if p is Path.tags.parent:
-                obj = obj._parent
+                obj = obj.parent
             elif p is Path.tags.root:
                 obj = obj._root
             elif p is Path.tags.current:
@@ -254,12 +282,15 @@ class HTree(typing.Generic[_T]):
 
         return tp_hint
 
-    def _as_child(self, value,  key, *args, entry: Entry | None = None,
+    def _as_child(self, value,  key, *args,
+                  entry: Entry | None = None,
+                  parent: HTree | None = None,
                   type_hint: typing.Type = None,
                   default_value=_not_found_,
                   getter: typing.Callable | None = None,
                   force=True,  # 若type_hint为 None，强制 HTree
-                  parent=None,  **kwargs) -> _T:
+                  metadata={},
+                  ** kwargs) -> _T:
 
         if value is _not_found_ and entry is None:
             return _not_found_
@@ -282,12 +313,12 @@ class HTree(typing.Generic[_T]):
         if type_hint is None and force:
             type_hint = HTree[_T]
 
-        metadata = kwargs.pop("metadata", {})
+        # metadata = kwargs.pop("metadata", {})
 
         if isinstance(key, str) and hasattr(self.__class__, key):
             metadata = merge_tree_recursive(metadata, getattr(getattr(self.__class__, key), "metadata", metadata))
 
-        kwargs["metadata"] = metadata
+        # kwargs["metadata"] = metadata
 
         if value is not _not_found_:
             pass
@@ -321,8 +352,11 @@ class HTree(typing.Generic[_T]):
                 pass
 
         elif issubclass(get_origin(type_hint), HTree):
-            value = type_hint(value, entry=entry, parent=parent, *args,
-                              default_value=default_value,  **kwargs)
+            value = type_hint(value,
+                              entry=entry,
+                              parent=parent,
+                              default_value=default_value,
+                              metadata=metadata,  **kwargs)
 
         elif not force and isinstance(value, HTree):
             value = value.__value__
@@ -353,7 +387,7 @@ class HTree(typing.Generic[_T]):
         elif query is Path.tags.parent:
             value = self._parent
             if hasattr(value, "_identifier"):
-                value = value._parent
+                value = value.parent
 
         elif query is Path.tags.next:
             raise NotImplementedError(f"TODO: operator 'next'!")
@@ -372,15 +406,16 @@ class HTree(typing.Generic[_T]):
             value = self._get_as_dict(query, *args,  type_hint=type_hint, **kwargs)
 
         elif isinstance(query, set):  # compound
-            value = NamedDict(cache={k: self._get_as_dict(
-                k, type_hint=type_hint, *args,  **kwargs) for k in query})
+            raise NotImplementedError(f"TODO: NamedDict")
+            # value = NamedDict(cache={k: self._get_as_dict(
+            #     k, type_hint=type_hint, *args,  **kwargs) for k in query})
 
         else:
             raise NotImplementedError(f"TODO: {type(query)}")
 
         return value  # type:ignore
 
-    def _get_as_array(self, query, *args, **kwargs) -> NumericType:
+    def _get_as_array(self, query, *args, default_value=_not_found_, **kwargs) -> NumericType:
 
         if self._cache is _not_found_:
             self._cache = self._entry.__value__  # type:ignore
@@ -389,7 +424,7 @@ class HTree(typing.Generic[_T]):
             return self._cache[query]
 
         elif self._cache is _not_found_:
-            return kwargs.get("default_value", _not_found_)  # type:ignore
+            return default_value  # type:ignore
 
         else:
             raise RuntimeError(f"{self._cache}")
@@ -457,8 +492,8 @@ class HTree(typing.Generic[_T]):
         if default_value is _not_found_:
             default_value = self._default_value
 
-        value = self._as_child(cache, key, *args, entry=entry,
-                               parent=self._parent, default_value=default_value, **kwargs)
+        value = self._as_child(cache, key, *args, entry=entry, parent=self._parent,
+                               default_value=default_value, **kwargs)
 
         if isinstance(key, int):
             if self._cache is _not_found_:
@@ -477,7 +512,7 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _query(self,  path: PathLike,   *args,  **kwargs) -> HTree[_T] | _T:
+    def _query(self,  path: PathLike, *args, **kwargs) -> HTree[_T] | _T:
         if self._cache is not _not_found_:
             return as_path(path).fetch(self._cache, *args, **kwargs)
         else:
@@ -499,8 +534,8 @@ class HTree(typing.Generic[_T]):
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    @deprecated
-    def _find_next(self, query: PathLike, start: int | None,   default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    @ deprecated
+    def _find_next(self, query: PathLike, start: int | None, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
             query = slice(None)

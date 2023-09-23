@@ -93,8 +93,8 @@ class NetCDFEntry(Entry):
         super().__init__(*args, **kwargs)
 
     def copy(self, other):
-        if hasattr(other, "__entry__"):
-            other = other.__entry__.__value__()
+        if hasattr(other, "_entry__"):
+            other = other._entry__.__value__()
         self.update(other)
 
     def insert(self,  value, *args, **kwargs):

@@ -86,7 +86,7 @@ class MDSplusDocument(Document):
             raise ValueError(request)
 
         if not tdi:
-            return self.entry
+            return self._entry
 
         tdi = tdi.format_map(self._envs)
 
