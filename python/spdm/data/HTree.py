@@ -42,7 +42,7 @@ class HTree(typing.Generic[_T]):
     """
 
     @staticmethod
-    def _parser_args(cache, entry=None, parent=None, default_value=_not_found_, metadata=None, **kwargs):
+    def _parser_args(cache=None, entry=None, parent=None, default_value=_not_found_,  **kwargs):
         if not isinstance(entry, list):
             entry = [entry]
         else:
@@ -58,29 +58,17 @@ class HTree(typing.Generic[_T]):
 
         entry = [v for v in entry if v is not None and v is not _not_found_]
 
-        if isinstance(cache, dict):
-            kwargs = merge_tree_recursive(
-                {f"{k[1:]}": cache.pop(k) for k in list(cache.keys()) if k.startswith("$")},
-                kwargs)
-
-            cache_ = {k: kwargs.pop(k) for k in list(kwargs.keys()) if not k.startswith("_")}
-
-            cache = merge_tree_recursive(cache, cache_)
-
-        if metadata is None or metadata is _not_found_:
-            metadata = {}
-
-        return cache, entry, default_value, metadata, parent
+        return cache, entry, default_value,  parent, kwargs
 
     def __init__(self, *args, **kwargs) -> None:
 
-        cache, entry, default_value, metadata, parent = HTree._parser_args(*args, **kwargs)
+        cache, entry, default_value, parent, kwargs = HTree._parser_args(*args, **kwargs)
 
         self._parent = parent
 
         self._default_value = default_value
 
-        self._metadata = metadata
+        self._metadata = merge_tree_recursive(kwargs.pop("metadata", {}), kwargs)
 
         self._cache = cache
 

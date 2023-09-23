@@ -709,7 +709,7 @@ class Path(list):
     def has_query(self) -> bool: return any(isinstance(q, (Query)) for q in self[:])
 
     def for_each(self, target, *args,  **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        if hasattr(target.__class__, "_entry__"):
+        if hasattr(target.__class__, "__entry__"):
             yield from target.for_each(*args, **kwargs)
 
         prefix = []
@@ -807,8 +807,8 @@ class Path(list):
 
             if obj is _not_found_ or obj is None:
                 raise PathError(path[:pos], f"Can not find {type(target)}!")
-            elif hasattr(obj.__class__, "_entry__"):
-                obj = obj._entry__.child(path[pos:length-1])
+            elif hasattr(obj.__class__, "__entry__"):
+                obj = obj.__entry__.child(path[pos:length-1])
                 pos = length-1
                 break
 
@@ -848,8 +848,8 @@ class Path(list):
             if obj is _not_found_ or obj is None:
                 break
 
-            elif hasattr(obj.__class__, "_entry__"):
-                obj = obj._entry__.child(path[pos:])
+            elif hasattr(obj.__class__, "__entry__"):
+                obj = obj.__entry__.child(path[pos:])
                 pos = length
                 break
 
@@ -872,8 +872,8 @@ class Path(list):
     @ staticmethod
     def _op_fetch(target: typing.Any,  key: int | str | None = None, *args, default_value=_not_found_, **kwargs) -> typing.Any:
 
-        if hasattr(target.__class__, "_entry__"):
-            return target._entry__.child(key).fetch(*args, default_value=default_value, **kwargs)
+        if hasattr(target.__class__, "__entry__"):
+            return target.__entry__.child(key).fetch(*args, default_value=default_value, **kwargs)
 
         if isinstance(key, list):
             if len(key) == 0:
@@ -937,8 +937,8 @@ class Path(list):
     @ staticmethod
     def _op_update(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Any:
 
-        if hasattr(target.__class__, "_entry__"):
-            return target._entry__.child(key).update(value, *args, **kwargs)
+        if hasattr(target.__class__, "__entry__"):
+            return target.__entry__.child(key).update(value, *args, **kwargs)
 
         elif value is _not_found_:
             return target
@@ -976,8 +976,8 @@ class Path(list):
 
     @ staticmethod
     def _op_insert(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int | str | None]:
-        if hasattr(target.__class__, "_entry__"):
-            return target._entry__.child(key).insert(value, *args, **kwargs)
+        if hasattr(target.__class__, "__entry__"):
+            return target.__entry__.child(key).insert(value, *args, **kwargs)
 
         elif value is _not_found_:
             return target
@@ -1170,7 +1170,7 @@ class Path(list):
         for idx, p in enumerate(path):
             if target is None or target is _not_found_:
                 break
-            elif hasattr(target, "_entry__"):
+            elif hasattr(target, "__entry__"):
                 break
             elif isinstance(p, str):
                 if not isinstance(target, collections.abc.Mapping):
@@ -1251,8 +1251,8 @@ class Path(list):
             yield target  # target is the last node
         elif hasattr(target.__class__, "_as_child"):
             yield from Path._find(target._as_child(path[pos]), path[pos+1:], *args, **kwargs)
-        elif hasattr(target, "_entry__") and not hasattr(target.__class__, "_as_child"):
-            yield target._entry__.child(path[pos:]).find(*args, **kwargs)
+        elif hasattr(target, "__entry__") and not hasattr(target.__class__, "_as_child"):
+            yield target.__entry__.child(path[pos:]).find(*args, **kwargs)
         elif isinstance(path[pos], str):
             yield from Path._find(target.get(path[pos]), path[pos+1:], **kwargs)
 

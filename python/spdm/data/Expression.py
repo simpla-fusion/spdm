@@ -352,7 +352,7 @@ class Piecewise(Expression):
             value = func(x)
         else:
             raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
-            # [(node(*args, **kwargs) if callable(node) else (node._entry__().__value__() if hasattr(node, "_entry__") else node))
+            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
             #          for node in self._expr_nodes]
         return value
 

@@ -131,8 +131,8 @@ __SP_EXPORT__ = PPolyMesh
 # def __array__(self) -> np.ndarray:
 #     if isinstance(self._data, np.ndarray):
 #         return self._data
-#     elif hasattr(self._data.__class__, "_entry__"):
-#         v = self._data._entry__().__value__()
+#     elif hasattr(self._data.__class__, "__entry__"):
+#         v = self._data.__entry__().__value__()
 #         if v is None or v is _not_found_:
 #             raise ValueError(f"Can not get value from {self._data}")
 #         self._data = np.asarray(v, dtype=self.__type_hint__)

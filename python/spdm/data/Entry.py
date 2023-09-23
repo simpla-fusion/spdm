@@ -64,7 +64,7 @@ class Entry(Pluggable):
     def __delitem__(self, *args): return self.child(*args).remove()
 
     @property
-    def _entry__(self) -> Entry: return self
+    def __entry__(self) -> Entry: return self
 
     @property
     def path(self) -> Path: return self._path
@@ -191,16 +191,13 @@ class Entry(Pluggable):
 class ChainEntry(Entry):
 
     def __init__(self, *args,   **kwargs):
-        if len(args) == 0:
-            raise RuntimeError(f"Can not create ChainEntry from empty args!")
+        super().__init__()
 
-        super().__init__(args[0])
-
-        self._others = list(args[1:])
+        self._others = list(args)
 
         for idx, v in enumerate(self._others):
             if not isinstance(v, Entry):
-                self._others[idx] = open_entry(v,   **kwargs)
+                self._others[idx] = _open_entry(v,   **kwargs)
 
     def __copy_from__(self, other: Entry) -> ChainEntry:
         self._data = other._data
@@ -212,9 +209,9 @@ class ChainEntry(Entry):
 
         res = super().fetch(*args, default_value=_not_found_, **kwargs)
 
-        if res is not _not_found_:
+        if res is _not_found_:
             for e in self._others:
-                res = e.fetch(*args, default_value=_not_found_, **kwargs)
+                res = e.child(self._path).fetch(*args, default_value=_not_found_, **kwargs)
                 if res is not _not_found_:
                     break
 
@@ -224,7 +221,8 @@ class ChainEntry(Entry):
         return res
 
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        raise NotImplementedError(f"for_each is not supported for {self.__class__.__name__}")
+        logger.warning(f"for_each is not supported for {self.__class__.__name__}")
+        yield from ()
 
 
 def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
@@ -255,37 +253,67 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
 
     from .File import File
 
-    global_schema = kwargs.pop("global_schema", None)
-
-    local_schema = kwargs.pop("local_schema", None)
-
     if isinstance(url, str) and "." not in url and "/" not in url:
         url = f"{url}+://"
 
     url_ = uri_split(url)
 
-    sub_path = url_.fragment
+    fragment = url_.fragment
+
+    query = merge_tree_recursive(url_.query, kwargs)
+
+    uid = query.pop("uid", None)
+
+    if uid is not None:
+        shot, *run = uid.split('_')
+        run = '_'.join(run)
+    else:
+        shot = query.pop('shot', None) or ""
+        run = query.pop('run', None)
+        if run is None:
+            uid = shot
+        else:
+            uid = f"{run}_{shot}"
+
+    query["uid"] = uid
+    query["shot"] = shot
+    query["run"] = run
+
+    global_schema = query.pop("global_schema", None)
+
+    local_schema = query.pop("local_schema", None) or query.pop("device", None)
 
     schemas = url_.protocol.split("+")
 
+    if len(schemas) == 0:
+        schemas.append('local')
+
     if local_schema is None and len(schemas) > 0 and schemas[0] != "" and schemas[0] not in PROTOCOL_LIST:
         local_schema = schemas[0]
-        url_.protocol = "+".join(schemas[1:])
+        schemas = schemas[1:]
+
+    new_url = URITuple(
+        protocol="+".join(schemas),
+        authority=url_.authority,
+        path=url_.path,
+        query={},
+        fragment="",
+    )
 
     if local_schema is not None and global_schema != local_schema:
-        entry = EntryProxy(url_, local_schema=local_schema, global_schema=global_schema,  **kwargs)
+        entry = EntryProxy(new_url, local_schema=local_schema, global_schema=global_schema,  **query)
 
-    elif len(schemas) == 0 or schemas[0] in ["local", "file"]:
-        entry = File(url_,  **kwargs).read()
+    elif schemas[0] in ["local", "file"]:
+        entry = File(new_url,  **query).read()
 
     elif schemas[0] in ["http", "https", "ssh"]:
-        raise NotImplementedError(f"{url_}")
+        raise NotImplementedError(f"{new_url}")
 
     else:
-        entry = Entry(url_,  **kwargs)
+        entry = Entry(url_,  **query)
 
-    if sub_path:
-        entry = entry.child(sub_path.replace('.', '/'))
+    if fragment:
+        entry = entry.child(fragment.replace('.', '/'))
 
     return entry
 
@@ -353,8 +381,8 @@ def asentry(obj, *args, **kwargs) -> Entry:
         entry = obj
     elif isinstance(obj, (str, URITuple, pathlib.Path)):
         entry = open_entry(obj, *args, **kwargs)
-    elif hasattr(obj.__class__, "_entry__"):
-        entry = obj._entry__
+    elif hasattr(obj.__class__, "__entry__"):
+        entry = obj.__entry__
     elif obj is None or obj is _not_found_:
         entry = Entry()
     else:
@@ -520,9 +548,9 @@ class EntryProxy(Entry):
 
         _url = uri_split(url)
 
-        enabledentry = _url.query.pop("enable", "").split(",")
+        kwargs = merge_tree_recursive(url.query, kwargs)
 
-        kwargs.update(_url.query)
+        enabled_entry = kwargs.pop("enable", "").split(",")
 
         if local_schema is None:
             local_schema = EntryProxy._default_local_schema
@@ -589,7 +617,7 @@ class EntryProxy(Entry):
 
                 if id is None:
                     continue
-                elif not enable and id not in enabledentry:
+                elif not enable and id not in enabled_entry:
                     continue
 
                 entry_list[id] = entry.get("_text", "").format(**attr)

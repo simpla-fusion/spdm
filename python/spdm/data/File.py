@@ -60,10 +60,10 @@ class File(Document):
         return super().__enter__()
 
     def read(self, lazy=False) -> Entry:
-        raise NotImplementedError()
+        raise NotImplementedError(f"TODO: {self.__class__.__name__}.read")
 
     def write(self, data=None, *args, lazy=False, **kwargs):
-        raise NotImplementedError()
+        raise NotImplementedError(f"TODO: {self.__class__.__name__}.write")
 
 
 class FileEntry(Entry):
