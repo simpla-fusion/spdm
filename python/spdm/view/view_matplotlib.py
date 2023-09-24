@@ -18,6 +18,7 @@ from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
 from spdm.geometry.Line import Line
 from spdm.utils.logger import logger
+from spdm.utils.tags import _not_found_
 from spdm.utils.typing import array_type, as_array, is_array
 from spdm.view.View import View
 
@@ -32,8 +33,9 @@ class MatplotlibView(View):
 
     def render(self, obj,  **kwargs) -> typing.Any:
         fontsize = kwargs.get("fontsize", None)
-
-        if isinstance(obj, list):  # draw as profiles
+        if obj is _not_found_ or None:
+            pass
+        elif isinstance(obj, list):  # draw as profiles
             nprofiles = len(obj)
 
             fig, canvas = plt.subplots(ncols=1, nrows=nprofiles, sharex=True,
@@ -133,7 +135,7 @@ class MatplotlibView(View):
 
         s_styles = styles.get(f"${self.backend}", {})
 
-        if obj is None:
+        if obj is None or obj is _not_found_:
             pass
 
         elif isinstance(obj, (str, int, float, bool)):
@@ -376,7 +378,7 @@ class MatplotlibView(View):
 
         if len(sub_plot) <= 1:
             sub_plot[0].set_xlabel(x_label,  fontsize=fontsize)
-        
+
         else:
             sub_plot[-1].set_xlabel(x_label,  fontsize=fontsize)
 

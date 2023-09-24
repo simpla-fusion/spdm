@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 #  在 MatplotlibView 中 imported matplotlib 会不起作用
 #  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
 from ..utils.tree_utils import merge_tree_recursive
-from ..utils.logger import logger
+from ..utils.logger import logger, SP_DEBUG
 from ..utils.plugin import Pluggable
 
 
@@ -80,7 +80,16 @@ class View(Pluggable):
             self.draw(canvas, o, styles)
 
         elif hasattr(obj.__class__, "__geometry__"):
-            self.draw(canvas, obj.__geometry__(view=styles.pop("view", "RZ"), **styles), styles)
+            try:
+                geo = obj.__geometry__(view=styles.pop("view", "RZ"), **styles)
+            except Exception as e:
+                if SP_DEBUG > 0:
+                    raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
+                else:
+                    logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
+                return
+            else:
+                self.draw(canvas, geo, styles)
 
         elif isinstance(obj, dict):
             for k, o in obj.items():

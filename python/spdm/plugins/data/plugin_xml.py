@@ -10,7 +10,9 @@ from lxml.etree import Comment as _XMLComment
 from lxml.etree import ParseError as _XMLParseError
 from lxml.etree import XPath as _XPath
 from lxml.etree import _Element as _XMLElement
-from lxml.etree import fromstring
+from lxml.etree import Element as Element
+
+from lxml.etree import fromstring, tostring
 from lxml.etree import parse as parse_xml
 from spdm.data.Entry import Entry
 from spdm.data.File import File
@@ -80,6 +82,42 @@ def load_xml(path: str | list | pathlib.Path, *args,  mode: File.Mode | str = "r
             fp = path.parent/child.attrib["href"]
             root.insert(0, load_xml(fp))
             root.remove(child)
+
+    return root
+
+
+def tree_to_xml(root: str | Element, d, *args, **kwargs) -> _XMLElement:
+    if isinstance(root, str):
+        root = Element(root)
+
+    for key, val in d.items():
+        if isinstance(val, dict):
+            child = tree_to_xml(key, val)
+            root.append(child)
+        elif isinstance(val, list):
+            for i, v in enumerate(val):
+                child = tree_to_xml(key, v)
+                child.set("id", str(i))
+                root.append(child)
+
+        elif isinstance(val,   np.ndarray):
+            child = Element(key)
+            if np.issubdtype(val.dtype, np.floating):
+                child.set("dtype", "float")
+            elif np.issubdtype(val.dtype, np.integer):
+                child.set("dtype", "int")
+            else:
+                logger.debug(val.dtype)
+            child.set("shape", str(list(val.shape)).strip("[]"))
+            text = str(val.tolist())
+            text = text.strip("[]")
+
+            child.text = text
+            root.append(child)
+        else:
+            child = Element(key)
+            child.text = str(val)
+            root.append(child)
 
     return root
 
@@ -388,17 +426,22 @@ class XMLEntry(Entry):
     def __serialize__(self): return serialize(self.fetch(default_value=_not_found_))
 
 
-@File.register(["xml", "XML"])
+@File.register(["xml"])
 class FILEPLUGINxml(File):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, root=None, **kwargs):
         super().__init__(*args, ** kwargs)
-        self._root = load_xml(self.url.path, mode=self.mode)
+        if self.mode == File.Mode.read:
+            self._root = load_xml(self.url.path, mode=self.mode)
+        else:
+            self._root = Element(root or "root")
 
     def read(self, lazy=True) -> Entry:
         return XMLEntry(self._root, writable=False)
 
-    def write(self, data, lazy) -> None:
-        raise NotImplementedError()
+    def write(self, data, *args, **kwargs) -> None:
+        tree_to_xml(self._root, data, *args, **kwargs)
+        with open(self.url.path, "w") as f:
+            f.write(tostring(self._root, pretty_print=True).decode())
 
 
 __SP_EXPORT__ = FILEPLUGINxml

@@ -193,16 +193,16 @@ class ChainEntry(Entry):
     def __init__(self, *args,   **kwargs):
         super().__init__()
 
-        self._others = list(args)
+        self._entrys = list(args)
 
-        for idx, v in enumerate(self._others):
+        for idx, v in enumerate(self._entrys):
             if not isinstance(v, Entry):
-                self._others[idx] = _open_entry(v,   **kwargs)
+                self._entrys[idx] = _open_entry(v,   **kwargs)
 
     def __copy_from__(self, other: Entry) -> ChainEntry:
         self._data = other._data
         self._path = copy(other._path)
-        self._others = getattr(other, "_others", [])
+        self._entrys = getattr(other, "_entrys", [])
         return self
 
     def fetch(self, *args, default_value=_not_found_, **kwargs):
@@ -210,7 +210,7 @@ class ChainEntry(Entry):
         res = super().fetch(*args, default_value=_not_found_, **kwargs)
 
         if res is _not_found_:
-            for e in self._others:
+            for e in self._entrys:
                 res = e.child(self._path).fetch(*args, default_value=_not_found_, **kwargs)
                 if res is not _not_found_:
                     break
@@ -221,8 +221,8 @@ class ChainEntry(Entry):
         return res
 
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        logger.warning(f"for_each is not supported for {self.__class__.__name__}")
-        yield from ()
+        for idx, e in enumerate(self._entrys[0].child(self._path).for_each()):
+            yield idx, ChainEntry(e, *[o.child(self._path[:]+[idx]) for o in self._entrys[1:]])
 
 
 def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
@@ -571,7 +571,8 @@ class EntryProxy(Entry):
 
             prefix = "/".join(map_tag[:2])
 
-            config_files = [f"{prefix}/config.xml", f"{prefix}/static/config.xml"]
+            config_files = [f"{prefix}/config.xml", f"{prefix}/static/config.xml",
+                            f"{prefix}/{local_schema.lower()}.xml"]
 
             if len(map_tag) > 2:
                 config_files.append(f"{'/'.join(map_tag[:3])}/config.xml")
