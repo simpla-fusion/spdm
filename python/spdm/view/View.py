@@ -83,7 +83,7 @@ class View(Pluggable):
             try:
                 geo = obj.__geometry__(view=styles.pop("view", "RZ"), **styles)
             except Exception as e:
-                if SP_DEBUG > 0:
+                if SP_DEBUG:
                     raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
                 else:
                     logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
