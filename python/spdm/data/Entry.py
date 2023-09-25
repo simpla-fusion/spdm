@@ -22,19 +22,27 @@ PROTOCOL_LIST = ["local", "file", "http", "https", "ssh", "mdsplus"]
 
 
 class Entry(Pluggable):
-
     _plugin_prefix = "spdm.plugins.data.plugin_"
     _plugin_registry = {}
 
-    def __init__(self, data:  typing.Any = None, path: Path | PathLike = None, *args, scheme=None, **kwargs):
+    def __init__(
+        self,
+        data: typing.Any = None,
+        path: Path | PathLike = None,
+        *args,
+        scheme=None,
+        **kwargs,
+    ):
         if self.__class__ is not Entry:
             pass
-        elif (scheme is not None or isinstance(data, (str, URITuple, pathlib.Path))):
+        elif scheme is not None or isinstance(data, (str, URITuple, pathlib.Path)):
             if scheme is None:
                 scheme = uri_split(data).protocol
 
             if isinstance(scheme, str) and scheme != "":
-                super().__dispatch_init__([scheme, EntryProxy], self, data, *args, **kwargs)
+                super().__dispatch_init__(
+                    [scheme, EntryProxy], self, data, *args, **kwargs
+                )
                 return
 
         self._data = data
@@ -55,28 +63,37 @@ class Entry(Pluggable):
         self._path = as_path(path)
         return self
 
-    def __str__(self) -> str: return f"<{self.__class__.__name__} path=\"{self._path}\" />"
+    def __str__(self) -> str:
+        return f'<{self.__class__.__name__} path="{self._path}" />'
 
-    def __getitem__(self, *args) -> Entry: return self.child(*args)
+    def __getitem__(self, *args) -> Entry:
+        return self.child(*args)
 
-    def __setitem__(self, path, value): return self.child(path).update(value)
+    def __setitem__(self, path, value):
+        return self.child(path).update(value)
 
-    def __delitem__(self, *args): return self.child(*args).remove()
-
-    @property
-    def __entry__(self) -> Entry: return self
-
-    @property
-    def path(self) -> Path: return self._path
+    def __delitem__(self, *args):
+        return self.child(*args).remove()
 
     @property
-    def is_leaf(self) -> bool: return len(self._path) > 0 and self._path[-1] is None
+    def __entry__(self) -> Entry:
+        return self
 
     @property
-    def is_root(self) -> bool: return len(self._path) == 0
+    def path(self) -> Path:
+        return self._path
 
     @property
-    def is_generator(self) -> bool: return self._path.is_generator
+    def is_leaf(self) -> bool:
+        return len(self._path) > 0 and self._path[-1] is None
+
+    @property
+    def is_root(self) -> bool:
+        return len(self._path) == 0
+
+    @property
+    def is_generator(self) -> bool:
+        return self._path.is_generator
 
     @property
     def parent(self) -> Entry:
@@ -102,20 +119,27 @@ class Entry(Pluggable):
 
     def next(self, inc: int = 1) -> Entry:
         if not isinstance(self._path[-1], int):
-            raise RuntimeError(f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}")
+            raise RuntimeError(
+                f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}"
+            )
 
         next_ = self.__copy__()
 
         next_._path[-1] += inc
 
         return next_
+
     ###########################################################
 
     @property
     def __value__(self) -> typing.Any:
-        return self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
+        return (
+            self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
+        )
 
-    def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
+    def get(
+        self, query=None, default_value: typing.Any = _undefined_, **kwargs
+    ) -> typing.Any:
         if query is None:
             entry = self
             args = ()
@@ -129,11 +153,12 @@ class Entry(Pluggable):
         res = entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
 
         if res is _undefined_:
-            raise RuntimeError(f"Can not find \"{query}\" in {self}")
+            raise RuntimeError(f'Can not find "{query}" in {self}')
         else:
             return res
 
-    def dump(self) -> typing.Any: return self.fetch(Path.tags.dump)
+    def dump(self) -> typing.Any:
+        return self.fetch(Path.tags.dump)
 
     def equal(self, other) -> bool:
         if isinstance(other, Entry):
@@ -142,62 +167,68 @@ class Entry(Pluggable):
             return self.fetch(Path.tags.equal, other)
 
     @property
-    def count(self) -> int: return self.fetch(Path.tags.count)
+    def count(self) -> int:
+        return self.fetch(Path.tags.count)
 
     @property
-    def exists(self) -> bool: return self.fetch(Path.tags.exists)
+    def exists(self) -> bool:
+        return self.fetch(Path.tags.exists)
 
-    def check_type(self, tp: typing.Type) -> bool: return self.fetch(Path.tags.check_type, tp)
+    def check_type(self, tp: typing.Type) -> bool:
+        return self.fetch(Path.tags.check_type, tp)
 
     ###########################################################
     # API: CRUD  operation
 
-    def insert(self, value,  **kwargs) -> Entry:
-        self._data, next_path = self._path.insert(self._data,  value,  **kwargs)
+    def insert(self, value, **kwargs) -> Entry:
+        self._data, next_path = self._path.insert(self._data, value, **kwargs)
         return self.__class__(self._data, next_path)
 
-    def update(self, value,   **kwargs) -> Entry:
+    def update(self, value, **kwargs) -> Entry:
         self._data = self._path.update(self._data, value, **kwargs)
         return self
 
-    def remove(self,  **kwargs) -> int:
-        self._data, num = self._path.remove(self._data,  **kwargs)
+    def remove(self, **kwargs) -> int:
+        self._data, num = self._path.remove(self._data, **kwargs)
         return num
 
     def fetch(self, op=None, *args, **kwargs) -> typing.Any:
         """
-            Query the Entry.
-            Same function as `find`, but put result into a contianer.
-            Could be overridden by subclasses.
+        Query the Entry.
+        Same function as `find`, but put result into a contianer.
+        Could be overridden by subclasses.
         """
         return self._path.fetch(self._data, op, *args, **kwargs)
 
-    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        """ Return a generator of the results. """
+    def for_each(
+        self, *args, **kwargs
+    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        """Return a generator of the results."""
         yield from self._path.for_each(self._data, *args, **kwargs)
 
     @deprecated
-    def find_next(self, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
+    def find_next(
+        self, start: int | None, *args, **kwargs
+    ) -> typing.Tuple[typing.Any, int | None]:
         """
-            Find the value from the cache.
-            Return a generator of the results.
-            Could be overridden by subclasses.
+        Find the value from the cache.
+        Return a generator of the results.
+        Could be overridden by subclasses.
         """
-        return self._path.find_next(self._data, start, *args,  **kwargs)
+        return self._path.find_next(self._data, start, *args, **kwargs)
 
     ###########################################################
 
 
 class ChainEntry(Entry):
-
-    def __init__(self, *args,   **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__()
 
         self._entrys = list(args)
 
         for idx, v in enumerate(self._entrys):
             if not isinstance(v, Entry):
-                self._entrys[idx] = _open_entry(v,   **kwargs)
+                self._entrys[idx] = _open_entry(v, **kwargs)
 
     def __copy_from__(self, other: Entry) -> ChainEntry:
         self._data = other._data
@@ -206,12 +237,13 @@ class ChainEntry(Entry):
         return self
 
     def fetch(self, *args, default_value=_not_found_, **kwargs):
-
         res = super().fetch(*args, default_value=_not_found_, **kwargs)
 
         if res is _not_found_:
             for e in self._entrys:
-                res = e.child(self._path).fetch(*args, default_value=_not_found_, **kwargs)
+                res = e.child(self._path).fetch(
+                    *args, default_value=_not_found_, **kwargs
+                )
                 if res is not _not_found_:
                     break
 
@@ -220,31 +252,35 @@ class ChainEntry(Entry):
 
         return res
 
-    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        for idx, e in enumerate(self._entrys[0].child(self._path).for_each()):
-            yield idx, ChainEntry(e, *[o.child(self._path[:]+[idx]) for o in self._entrys[1:]])
+    def for_each(
+        self, *args, **kwargs
+    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+        for idx, e in self._entrys[0].child(self._path).for_each():
+            yield idx, ChainEntry(
+                e, *[o.child(self._path[:] + [idx]) for o in self._entrys[1:]]
+            )
 
 
-def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
+def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
     """
-        Open an Entry from a URL.
+    Open an Entry from a URL.
 
-        Using urllib.urlparse to parse the URL.  rfc3986
+    Using urllib.urlparse to parse the URL.  rfc3986
 
-        URL format: <protocol>://<authority>/<path>?<query>#<fragment>
+    URL format: <protocol>://<authority>/<path>?<query>#<fragment>
 
-        RF3986 = r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
+    RF3986 = r"^((?P<protocol>[^:/?#]+):)?(//(?P<authority>[^/?#]*))?(?P<path>[^?#]*)(\\?(?P<query>[^#]*))?(#(?P<fragment>.*))?")
 
-        Example:
-            ../path/to/file.json                    => File
-            file:///path/to/file                    => File
-            ssh://a.b.c.net/path/to/file            => ???
-            https://a.b.c.net/path/to/file          => ???
+    Example:
+        ../path/to/file.json                    => File
+        file:///path/to/file                    => File
+        ssh://a.b.c.net/path/to/file            => ???
+        https://a.b.c.net/path/to/file          => ???
 
-            imas+ssh://a.b.c.net/path/to/file
+        imas+ssh://a.b.c.net/path/to/file
 
-            east+mdsplus://<mds_prefix>
-            east+mdsplus+ssh://<mds_prefix>
+        east+mdsplus://<mds_prefix>
+        east+mdsplus+ssh://<mds_prefix>
 
     """
 
@@ -258,18 +294,21 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
 
     url_ = uri_split(url)
 
+    if not isinstance(url_.path, str):
+        raise RuntimeError(f"")
+
     fragment = url_.fragment
 
     query = merge_tree_recursive(url_.query, kwargs)
 
     uid = query.pop("uid", None)
 
-    if uid is not None:
-        shot, *run = uid.split('_')
-        run = '_'.join(run)
+    if isinstance(uid, str):
+        shot, *run = uid.split("_")
+        run = "_".join(run)
     else:
-        shot = query.pop('shot', None) or ""
-        run = query.pop('run', None)
+        shot = query.pop("shot", None) or ""
+        run = query.pop("run", None)
         if run is None:
             uid = shot
         else:
@@ -283,12 +322,9 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
 
     local_schema = query.pop("local_schema", None) or query.pop("device", None)
 
-    schemas = url_.protocol.split("+")
+    schemas = [s for s in url_.protocol.split("+") if s != ""]
 
-    if len(schemas) == 0:
-        schemas.append('local')
-
-    if local_schema is None and len(schemas) > 0 and schemas[0] != "" and schemas[0] not in PROTOCOL_LIST:
+    if len(schemas) > 0 and schemas[0] not in PROTOCOL_LIST:
         local_schema = schemas[0]
         schemas = schemas[1:]
 
@@ -296,30 +332,33 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry,  **kwargs) -> Entry:
         protocol="+".join(schemas),
         authority=url_.authority,
         path=url_.path,
-        query={},
+        query=query,
         fragment="",
     )
 
     if local_schema is not None and global_schema != local_schema:
-        entry = EntryProxy(new_url, local_schema=local_schema, global_schema=global_schema,  **query)
+        entry = EntryProxy(
+            new_url, local_schema=local_schema, global_schema=global_schema, **query
+        )
 
-    elif schemas[0] in ["local", "file"]:
-        entry = File(new_url,  **query).read()
+    elif new_url.protocol.startswith(("local+", "file+")) or (
+        new_url.protocol == "" and new_url.path != ""
+    ):
+        entry = File(new_url, **query).read()
 
-    elif schemas[0] in ["http", "https", "ssh"]:
+    elif new_url.protocol.startswith(("http", "https", "ssh")):
         raise NotImplementedError(f"{new_url}")
 
     else:
-        entry = Entry(url_,  **query)
+        entry = Entry(url_, **query)
 
     if fragment:
-        entry = entry.child(fragment.replace('.', '/'))
+        entry = entry.child(fragment.replace(".", "/"))
 
     return entry
 
 
 def open_entry(entry, **kwargs) -> Entry:
-
     if not isinstance(entry, list):
         entry = [entry]
 
@@ -395,7 +434,7 @@ def as_dataclass(dclass, obj, default_value=None):
     if dclass is dataclasses._MISSING_TYPE:
         return obj
 
-    if hasattr(obj, 'entry'):
+    if hasattr(obj, "entry"):
         obj = obj.entry
     if obj is None:
         obj = default_value
@@ -406,9 +445,19 @@ def as_dataclass(dclass, obj, default_value=None):
     #   obj = None
     elif dclass is array_type:
         obj = as_array(obj)
-    elif hasattr(obj.__class__, 'get'):
-        obj = dclass(**{f.name: as_dataclass(f.type, obj.get(f.name, f.default if f.default is not dataclasses.MISSING else None))
-                        for f in dataclasses.fields(dclass)})
+    elif hasattr(obj.__class__, "get"):
+        obj = dclass(
+            **{
+                f.name: as_dataclass(
+                    f.type,
+                    obj.get(
+                        f.name,
+                        f.default if f.default is not dataclasses.MISSING else None,
+                    ),
+                )
+                for f in dataclasses.fields(dclass)
+            }
+        )
     elif isinstance(obj, collections.abc.Sequence):
         obj = dclass(*obj)
     else:
@@ -428,21 +477,27 @@ def deep_reduce(first=None, *others, level=-1):
     elif isinstance(first, str) or is_scalar(first):
         return first
     elif isinstance(first, array_type):
-        return sum([first, *(v for v in others if (v is not None and v is not _not_found_))])
+        return sum(
+            [first, *(v for v in others if (v is not None and v is not _not_found_))]
+        )
     elif len(others) > 1:
         return deep_reduce(first, deep_reduce(others, level=level), level=level)
     elif others[0] is None or first is _not_found_:
         return first
     elif isinstance(first, collections.abc.Sequence):
-        if isinstance(others[0], collections.abc.Sequence) and not isinstance(others, str):
+        if isinstance(others[0], collections.abc.Sequence) and not isinstance(
+            others, str
+        ):
             return [*first, *others[0]]
         else:
             return [*first, others[0]]
-    elif isinstance(first, collections.abc.Mapping) and isinstance(others[0], collections.abc.Mapping):
+    elif isinstance(first, collections.abc.Mapping) and isinstance(
+        others[0], collections.abc.Mapping
+    ):
         second = others[0]
         res = {}
         for k, v in first.items():
-            res[k] = deep_reduce(v, second.get(k, None), level=level-1)
+            res[k] = deep_reduce(v, second.get(k, None), level=level - 1)
         for k, v in second.items():
             if k not in res:
                 res[k] = v
@@ -454,7 +509,7 @@ def deep_reduce(first=None, *others, level=-1):
 
 
 def convert_fromentry(cls, obj, *args, **kwargs):
-    origin_type = getattr(cls, '__origin__', cls)
+    origin_type = getattr(cls, "__origin__", cls)
     if dataclasses.is_dataclass(origin_type):
         obj = as_dataclass(origin_type, obj)
     elif inspect.isclass(origin_type):
@@ -471,17 +526,17 @@ SPDB_TAG = "spdb"
 
 
 class EntryProxy(Entry):
-
     _maps = None
     _mapping_path = []
 
-    @ classmethod
-    def load_mappings(cls,
-                      mapping_path: typing.List[str] | str | None = None,
-                      default_local_schema: str = "EAST",
-                      default_global_schema: str = "imas/3",
-                      **kwargs,
-                      ):
+    @classmethod
+    def load_mappings(
+        cls,
+        mapping_path: typing.List[str] | str | None = None,
+        default_local_schema: str = "EAST",
+        default_global_schema: str = "imas/3",
+        **kwargs,
+    ):
         if cls._maps is not None and mapping_path is None:
             return cls._maps
 
@@ -497,7 +552,9 @@ class EntryProxy(Entry):
         cls._mapping_path = [pathlib.Path(p) for p in mapping_path if p != ""]
 
         if len(cls._mapping_path) == 0:
-            raise RuntimeError(f"No mapping file!  SP_DATA_MAPPING_PATH={os.environ.get('SP_DATA_MAPPING_PATH', '')}")
+            raise RuntimeError(
+                f"No mapping file!  SP_DATA_MAPPING_PATH={os.environ.get('SP_DATA_MAPPING_PATH', '')}"
+            )
 
         cls._default_local_schema: str = default_local_schema
         cls._default_global_schema: str = default_global_schema
@@ -508,37 +565,43 @@ class EntryProxy(Entry):
 
         return cls._maps
 
-    @ classmethod
-    def load(cls,  url: str | None = None,  local_schema: str = None, global_schema: str = None,  **kwargs):
-        """ 检索并导入 mapping files
+    @classmethod
+    def load(
+        cls,
+        url: str | None = None,
+        local_schema: str = None,
+        global_schema: str = None,
+        **kwargs,
+    ):
+        """检索并导入 mapping files
 
-            mapping files 目录结构约定为 :
+        mapping files 目录结构约定为 :
 
-            - <local schema>/<global schema>
+        - <local schema>/<global schema>
+            - config.xml
+            - static            # 存储静态数据，例如装置描述文件
                 - config.xml
-                - static            # 存储静态数据，例如装置描述文件
-                    - config.xml
-                    - <...>
+                - <...>
 
-                - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus
-                    - config.xml
-                    - <...>
+            - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus
+                - config.xml
+                - <...>
 
-                - protocol1         # 存储 protocol1 所对应mapping，例如 hdf5
-                    - config.xml
-                    - <...>
+            - protocol1         # 存储 protocol1 所对应mapping，例如 hdf5
+                - config.xml
+                - <...>
 
-            Example:
-              1. east+mdsplus://.... 对应的目录结构为
-                - east/imas/3
-                    - static
-                        - config.xml
-                        - wall.xml
-                        - pf_active.xml  (包含 pf 线圈几何信息)
-                        - ...
-                    - mdsplus
-                        - config.xml (包含<spdb > 描述子数据库entry )
-                        - pf_active.xml
+        Example:
+          1. east+mdsplus://.... 对应的目录结构为
+            - east/imas/3
+                - static
+                    - config.xml
+                    - wall.xml
+                    - pf_active.xml  (包含 pf 线圈几何信息)
+                    - ...
+                - mdsplus
+                    - config.xml (包含<spdb > 描述子数据库entry )
+                    - pf_active.xml
 
 
         """
@@ -563,16 +626,18 @@ class EntryProxy(Entry):
         if _url.protocol != "":
             map_tag.append(_url.protocol)
 
-        map_tag_str = '/'.join(map_tag)
+        map_tag_str = "/".join(map_tag)
 
         mapper = mapper_list.get(map_tag_str, _not_found_)
 
         if mapper is _not_found_:
-
             prefix = "/".join(map_tag[:2])
 
-            config_files = [f"{prefix}/config.xml", f"{prefix}/static/config.xml",
-                            f"{prefix}/{local_schema.lower()}.xml"]
+            config_files = [
+                f"{prefix}/config.xml",
+                f"{prefix}/static/config.xml",
+                f"{prefix}/{local_schema.lower()}.xml",
+            ]
 
             if len(map_tag) > 2:
                 config_files.append(f"{'/'.join(map_tag[:3])}/config.xml")
@@ -591,7 +656,8 @@ class EntryProxy(Entry):
 
             if len(mapping_files) == 0:
                 raise FileNotFoundError(
-                    f"Can not find mapping files for {map_tag} MAPPING_PATH={EntryProxy._mapping_path} !")
+                    f"Can not find mapping files for {map_tag} MAPPING_PATH={EntryProxy._mapping_path} !"
+                )
 
             mapper = File(mapping_files, mode="r", format="XML").read()
 
@@ -604,7 +670,6 @@ class EntryProxy(Entry):
         if not isinstance(spdb, dict):
             entry_list["*"] = _url
         else:
-
             attr = {k[1:]: v for k, v in spdb.items() if k.startswith("@")}
 
             attr["prefix"] = f"{_url.protocol}://{_url.authority}{_url.path}"
@@ -614,7 +679,7 @@ class EntryProxy(Entry):
             for entry in spdb.get("entry", []):
                 id = entry.get("@id", None)
 
-                enable = entry.get("@enable", 'true') == 'true'
+                enable = entry.get("@enable", "true") == "true"
 
                 if id is None:
                     continue
@@ -631,7 +696,7 @@ class EntryProxy(Entry):
             self._mapper = args[0]
             self._entry_list = args[1]
         else:
-            self._mapper, self._entry_list = self.__class__.load(*args,   **kwargs)
+            self._mapper, self._entry_list = self.__class__.load(*args, **kwargs)
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
@@ -645,24 +710,30 @@ class EntryProxy(Entry):
         res._entry_list = self._entry_list
         return res
 
-    def insert(self, value, **kwargs) -> Entry: raise NotImplementedError(f"")
+    def insert(self, value, **kwargs) -> Entry:
+        raise NotImplementedError(f"")
 
-    def update(self, value, **kwargs) -> Entry: raise NotImplementedError(f"")
+    def update(self, value, **kwargs) -> Entry:
+        raise NotImplementedError(f"")
 
-    def remove(self, **kwargs) -> int: raise NotImplementedError(f"")
+    def remove(self, **kwargs) -> int:
+        raise NotImplementedError(f"")
 
     def fetch(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
-        request = self._mapper.child(self._path).fetch(*args, default_value=_not_found_, lazy=False, **kwargs)
+        request = self._mapper.child(self._path).fetch(
+            *args, default_value=_not_found_, lazy=False, **kwargs
+        )
 
         return self._op_fetch(request, default_value=default_value)
 
-    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+    def for_each(
+        self, *args, **kwargs
+    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         """Return a generator of the results."""
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
             yield idx, self._op_fetch(request)
 
     def findentry(self, entry_name: str, default_value=None) -> Entry | None:
-
         entry = self._entry_list.get(entry_name, None)
 
         if isinstance(entry, (str, URITuple)):
@@ -678,8 +749,7 @@ class EntryProxy(Entry):
 
         return entry
 
-    def _op_fetch(self, request: typing.Any, *args,  **kwargs) -> typing.Any:
-
+    def _op_fetch(self, request: typing.Any, *args, **kwargs) -> typing.Any:
         if isinstance(request, str) and "://" in request:
             request = uri_split_as_dict(request)
 
@@ -700,7 +770,9 @@ class EntryProxy(Entry):
             res = request
 
         elif "@spdb" not in request:
-            res = {k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()}
+            res = {
+                k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()
+            }
 
         else:
             entry = self.findentry(request.get("@spdb", None))
@@ -708,6 +780,6 @@ class EntryProxy(Entry):
             if not isinstance(entry, Entry):
                 raise RuntimeError(f"Can not find entry for {request}")
 
-            res = entry.fetch(request.get("_text"),  *args, **kwargs)
+            res = entry.fetch(request.get("_text"), *args, **kwargs)
 
         return res
