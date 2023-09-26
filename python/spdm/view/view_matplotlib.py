@@ -16,6 +16,7 @@ from spdm.geometry.Point import Point
 from spdm.geometry.PointSet import PointSet
 from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
+from spdm.utils.envs import SP_DEBUG
 from spdm.utils.logger import SP_DEBUG, logger
 from spdm.utils.tags import _not_found_
 from spdm.utils.tree_utils import merge_tree_recursive
@@ -30,10 +31,13 @@ class MatplotlibView(View):
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def _figure_post(self, fig, title="", output=None, **kwargs) -> typing.Any:
+    def _figure_post(self, fig: plt.Figure, title="", output=None, styles={}, **kwargs) -> typing.Any:
+        fontsize = styles.get("fontsize", 16)
 
-        fig.suptitle(title)
+        fig.suptitle(title, fontsize=fontsize)
+
         fig.align_ylabels()
+
         fig.tight_layout()
 
         pos = fig.gca().get_position()
@@ -48,10 +52,6 @@ class MatplotlibView(View):
             alpha=0.2,
             rotation="vertical",
         )
-
-        pause = kwargs.pop("pause", None)
-        if isinstance(pause, float):
-            plt.pause(pause)
 
         if output == "svg":
             buf = BytesIO()
@@ -99,7 +99,7 @@ class MatplotlibView(View):
 
         title = title or styles.get("title", None)
 
-        return self._figure_post(fig, title=title, **kwargs)
+        return self._figure_post(fig, title=title, styles=styles, **kwargs)
 
     def _draw(self, canvas, obj: GeoObject | str | BBox, styles={}, view_point=None, **kwargs):
         if styles is False:
@@ -254,47 +254,38 @@ class MatplotlibView(View):
 
             self._draw(canvas, text, {f"${self.backend}": text_styles})
 
-    def profiles(self, obj, **kwargs) -> typing.Any:
-        fontsize = kwargs.get("fontsize", None)
+    def profiles(self, obj, x_value: Expression | np.ndarray = None, x_label: str = None, x_axis: np.ndarray = None, **kwargs) -> typing.Any:
+
+        styles = merge_tree_recursive(kwargs.pop("styles", {}), kwargs)
+
+        fontsize = styles.get("fontsize", 16)
 
         if not isinstance(obj, list):  # draw as profiles
-            logger.debug(f"ignore {obj}")
-            return
+            obj = [obj]
+
         nprofiles = len(obj)
 
-        fig, canvas = plt.subplots(
-            ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles)
-        )
+        fig, canvas = plt.subplots(ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles))
+
         if nprofiles == 1:
             canvas = [canvas]
 
-        x_axis = kwargs.get("x_axis", None)
-
-        if isinstance(x_axis, tuple):
-            x_axis, x_styles = x_axis
-        else:
-            x_styles = {}
-
-        x_value = x_styles.get("value", None)
-
-        x_label = x_styles.get("label", None)
-
-        if isinstance(x_axis, Function):
-            if x_label is None:
-                x_label = x_axis.__label__
-            if x_value is None:
-                x_value = as_array(x_axis)
+        if isinstance(x_value, np.ndarray):
+            if x_axis is None:
                 x_axis = x_value
+            elif isinstance(x_axis, np.ndarray) and x_axis.size == x_value.size:
+                pass
             else:
-                x_axis = x_axis(x_value)
-        elif isinstance(x_axis, str):
-            x_label = x_axis
-            x_value = None
-            x_axis = None
-        elif is_array(x_axis):
-            x_value = x_axis
+                raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
+
+        elif isinstance(x_value, Expression) and isinstance(x_axis, np.ndarray):
+            if x_label is None:
+                x_label = x_value.__label__
+
+            x_value = x_value(x_axis)
+
         else:
-            x_label = ""
+            raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
 
         for idx, profiles in enumerate(obj):
             if isinstance(profiles, tuple):
@@ -302,77 +293,68 @@ class MatplotlibView(View):
             else:
                 sub_styles = {}
 
-            assert isinstance(sub_styles, dict)
+            if sub_styles is False:
+                continue
 
-            y_label = sub_styles.get("y_label", None) or getattr(
-                profiles, "__label__", ""
-            )
-            try:
-                self.draw(
-                    canvas[idx],
-                    profiles,
-                    collections.ChainMap({"x_value": x_value}, sub_styles, kwargs),
-                )
-            except Exception as error:
-                # raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
-                logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  ')
+            y_label = sub_styles.get("y_label", None) or getattr(profiles, "__label__", "")
+
+            if not isinstance(profiles, (list)):
+                profiles = [profiles]
+
+            for p in profiles:
+                try:
+                    self._profiles(canvas[idx], p, x_value=x_value, x_axis=x_axis,
+                                   styles=collections.ChainMap(sub_styles, styles))
+                except Exception as error:
+                    if SP_DEBUG:
+                        raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
+                    else:
+                        logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  ')
+
             canvas[idx].legend(fontsize=fontsize)
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
-            canvas[-1].set_xlabel(x_label, fontsize=fontsize)
+        canvas[-1].set_xlabel(x_label, fontsize=fontsize)
 
-        return self._figure_post(fig, **kwargs)
+        return self._figure_post(fig, styles=styles, **kwargs)
 
-    def _profiles(self, canvas, obj, x, styles={}, **kwargs):
+    def _profiles(self, canvas, obj, x_axis: array_type, x_value: array_type,   **kwargs):
+        if obj is None or obj is _not_found_:
+            return
+        elif not isinstance(x_value, array_type) or not isinstance(x_axis, array_type):
+            raise RuntimeError(f"Unsupported x_value {x_value} {x_axis} ")
+
+        if isinstance(obj, tuple):
+            obj, styles = obj
+        else:
+            styles = {}
+
+        styles = merge_tree_recursive(styles, kwargs.pop("styles", {}), kwargs)
+
         s_styles = styles.get(f"${self.backend}", {})
 
-        if obj is None or obj is _not_found_:
-            pass
-        elif isinstance(obj, Expression):
-            label = styles.get("label", None) or getattr(obj, "name", None) or str(obj)
+        label = styles.get("label", None) or kwargs.get("label", None)
 
-            x_value = styles.get("x_value", None)
+        if isinstance(obj, Expression):
+            label = label or getattr(obj, "name", None) or str(obj)
+            y_value = obj(x_axis)
 
-            if x_value is None:
-                y = as_array(obj)
-            else:
-                y = obj(x_value)
-                x = styles.get("x_axis", None)
-            if is_array(x):
-                data = [x, y]
-            else:
-                data = [y]
+        elif is_array(obj) and obj.size() == x_value.size():
+            y_value = obj
 
-            if isinstance(s_styles, collections.abc.Mapping):
-                canvas.plot(*data, **s_styles, label=label)
-            elif isinstance(s_styles, str):
-                canvas.plot(*data, s_styles, label=label)
-            else:
-                logger.warning(f"Ignore unknown style {s_styles}!")
-                canvas.plot(*data)
+        elif np.isscalar(obj):
+            y_value = np.full_like(x_value, obj, dtype=float)
 
-        elif is_array(obj):
-            label = styles.get("label", None)
+        else:
+            logger.warning(f"ignore unsupported profiles label={label}")
+            return
+            # raise RuntimeError(f"Unsupported profiles {obj}")
 
-            y = obj
-            x = styles.get("x_axis", None)
-
-            if is_array(x):
-                data = [x, y]
-            else:
-                data = [y]
-
-            if isinstance(s_styles, collections.abc.Mapping):
-                canvas.plot(*data, **s_styles, label=label)
-            elif isinstance(s_styles, str):
-                canvas.plot(*data, s_styles, label=label)
-            else:
-                canvas.plot(*data)
-                logger.warning(f"Ignore unknown style {s_styles}!")
+        canvas.plot(x_value, y_value, **s_styles, label=label)
 
     def profiles_(self, obj, *args,  x_axis=None, x=None,
                   default_num_of_points=128, fontsize=10, grid=True,
-                  signature=None, title=None, **kwargs,):
+                  signature=None, title=None, **kwargs):
         fontsize = kwargs.get("fontsize", 10)
 
         nprofiles = len(obj)
@@ -551,8 +533,6 @@ class MatplotlibView(View):
         canves.labelsize = "media"
         canves.tick_params(labelsize=fontsize)
 
-
-__SP_EXPORT__ = MatplotlibView
 
 # def sp_figure_signature(fig: plt.Figure, signature=None, x=1.0, y=0.1):
 #     if signature is False:

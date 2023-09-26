@@ -30,8 +30,13 @@ class DefaultDict(dict):
         return v
 
 
-def merge_tree_recursive(first, second, level=-1, in_place=False, append=False) -> typing.Any:
+def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
     """ 递归合并两个 Hierarchical Tree """
+    if len(args) > 0:
+        return merge_tree_recursive(
+            merge_tree_recursive(first, second, level=level, in_place=in_place, append=append),
+            *args, level=level, in_place=in_place, append=append)
+
     if second is None or second is _not_found_ or level == 0:
         return first
     elif first is None or first is _not_found_:

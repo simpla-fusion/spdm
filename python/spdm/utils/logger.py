@@ -1,16 +1,16 @@
+
 import atexit
 import collections.abc
 import inspect
 import logging
 import logging.handlers
-import os
 import pathlib
 import pprint
 import sys
 from datetime import datetime
 from inspect import getframeinfo, stack
 
-from .mpi import MPI
+from .envs import SP_DEBUG, SP_MPI
 
 default_formater = logging.Formatter('%(asctime)s [%(name)8s] %(levelname)8s:'
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
@@ -19,8 +19,7 @@ default_formater = logging.Formatter('%(asctime)s [%(name)8s] %(levelname)8s:'
 
 MPI_MSG = ""
 
-
-if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+if SP_MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
 
 
@@ -104,11 +103,7 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
     return m_logger
 
 
-logger = sp_enable_logging(__package__[:__package__.find('.')],
-                           level=os.environ.get("SP_DEBUG", "debug"),
-                           handler="STDOUT")
-
-SP_DEBUG = logger.level
+logger = sp_enable_logging(__package__[:__package__.find('.')], level=SP_DEBUG, handler="STDOUT")
 
 
 def _at_end():
