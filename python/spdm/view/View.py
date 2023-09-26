@@ -7,6 +7,7 @@ import getpass
 import typing
 
 import matplotlib.pyplot as plt
+
 #  在 MatplotlibView 中 imported matplotlib 会不起作用
 #  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
 from ..utils.tree_utils import merge_tree_recursive
@@ -16,6 +17,7 @@ from ..utils.plugin import Pluggable
 
 class View(Pluggable):
     """Abstract class for all views"""
+
     _plugin_registry = {}
     _plugin_prefix = "spdm.view.view_"
 
@@ -40,28 +42,27 @@ class View(Pluggable):
 
     #     super().__dispatch_init__(_backend_type, self, *args, **kwargs)
 
-    def __init__(self, *args,  **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is View:
             View.__dispatch_init__(kwargs.pop("type", None), self, *args, **kwargs)
             return
-        self._styles = kwargs.pop("styles", {})
 
     @property
     def signature(self) -> str:
         return f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
 
-    def render(self, *args,  **kwargs):
+    def render(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
 
-    def _draw(self, canvas, *args,  **kwargs):
+    def _draw(self, canvas, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
 
-    def draw(self, canvas, obj, styles):
+    def draw(self, canvas, obj, styles, view_point="RZ"):
         """Draw an object on canvas"""
 
         if styles is False:
             return
-        elif styles is True:
+        elif styles is True or styles is None:
             styles = {}
         elif not isinstance(styles, collections.abc.Mapping):
             raise TypeError(f"styles must be a dict, not {type(styles)}")
@@ -77,11 +78,11 @@ class View(Pluggable):
             else:
                 logger.warning(f"ignore unsupported styles {s}")
 
-            self.draw(canvas, o, styles)
+            self.draw(canvas, o, styles, view_point=view_point)
 
         elif hasattr(obj.__class__, "__geometry__"):
             try:
-                geo = obj.__geometry__(view=styles.pop("view", "RZ"), **styles)
+                geo = obj.__geometry__(view_point=view_point, **styles)
             except Exception as e:
                 if SP_DEBUG:
                     raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
@@ -89,38 +90,34 @@ class View(Pluggable):
                     logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
                 return
             else:
-                self.draw(canvas, geo, styles)
+                self.draw(canvas, geo, styles, view_point=view_point)
 
         elif isinstance(obj, dict):
             for k, o in obj.items():
-                self.draw(canvas, o, collections.ChainMap({"id": k}, styles.get(k, {})))
-
-            self.draw(canvas, None,  styles)
+                self.draw(canvas, o, collections.ChainMap({"id": k}, styles.get(k, {})), view_point=view_point)
+            self.draw(canvas, None, styles, view_point=view_point)
 
         elif isinstance(obj, list):
             for idx, o in enumerate(obj):
-                self.draw(canvas, o, collections.ChainMap({"id": idx}, styles))
+                self.draw(canvas, o, collections.ChainMap({"id": idx}, styles), view_point=view_point)
 
-            self.draw(canvas, None, styles)
+            self.draw(canvas, None, styles, view_point=view_point)
 
         else:
-            self._draw(canvas, obj, styles)
+            self._draw(canvas, obj, styles, view_point=view_point)
 
     def profiles(self, *args, **kwargs):
         return self.render(*args, as_profiles=True, **kwargs)
 
-    def draw_profile(self, profile, x, axis=None, ** kwargs):
+    def draw_profile(self, profile, x, axis=None, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
 
 
 _view_instances = {}
 
 
-def viewer(output=None, backend=None):
+def viewer(backend=None):
     """Get a viewer instance"""
-
-    if backend is None and isinstance(output, str):
-        backend = output.split('.')[-1]
 
     if backend is None:
         backend = SP_VIEW_BACKEND  # "matplotlib"
@@ -136,8 +133,13 @@ def viewer(output=None, backend=None):
 SP_VIEW_BACKEND = "matplotlib"
 
 
-def display(*args, output=None, backend=None,   **kwargs):
+def display(*args, output=None, backend=None,  **kwargs):
+    """Show an object"""
+    return viewer(backend).render(*args, output=output,  **kwargs)
+
+
+def draw_profiles(*args, output=None, backend=None, **kwargs):
     """Show an object"""
     if backend is None:
         backend = SP_VIEW_BACKEND
-    return viewer(backend=backend, output=output).render(*args, output=output, **kwargs)
+    return viewer(backend=backend, output=output).profiles(*args, output=output, **kwargs)
