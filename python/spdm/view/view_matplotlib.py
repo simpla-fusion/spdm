@@ -42,7 +42,7 @@ class MatplotlibView(View):
 
         if xlabel is not None:
             canvas.set_xlabel(xlabel)
-        elif self._view_point.lower() == "rz":
+        elif view_point.lower() == "rz":
             canvas.set_xlabel(r" $R$ [m]")
         else:
             canvas.set_xlabel(r" $X$ [m]")
@@ -50,7 +50,7 @@ class MatplotlibView(View):
         ylabel = styles.get("ylabel", None)
         if ylabel is not None:
             canvas.set_ylabel(ylabel)
-        elif self._view_point.lower() == "rz":
+        elif view_point.lower() == "rz":
             canvas.set_ylabel(r" $Z$ [m]")
         else:
             canvas.set_ylabel(r" $Y$ [m]")
@@ -58,7 +58,9 @@ class MatplotlibView(View):
         canvas.set_aspect("equal")
         canvas.axis("scaled")
 
-        return self._render_post(fig, **kwargs)
+        title = styles.get("title", None) or kwargs.get("title", None)
+
+        return self._render_post(fig, title=title, **kwargs)
 
     def _render_post(self, fig, title="", output=None,   **kwargs) -> typing.Any:
 
