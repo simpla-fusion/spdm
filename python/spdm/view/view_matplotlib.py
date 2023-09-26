@@ -4,7 +4,6 @@ from io import BytesIO
 
 import matplotlib.pyplot as plt
 import numpy as np
-
 from spdm.data.Expression import Expression
 from spdm.data.Field import Field
 from spdm.data.Function import Function
@@ -12,13 +11,14 @@ from spdm.geometry.BBox import BBox
 from spdm.geometry.Circle import Circle
 from spdm.geometry.Curve import Curve
 from spdm.geometry.GeoObject import GeoObject
+from spdm.geometry.Line import Line
 from spdm.geometry.Point import Point
 from spdm.geometry.PointSet import PointSet
 from spdm.geometry.Polygon import Polygon, Rectangle
 from spdm.geometry.Polyline import Polyline
-from spdm.geometry.Line import Line
-from spdm.utils.logger import logger
+from spdm.utils.logger import SP_DEBUG, logger
 from spdm.utils.tags import _not_found_
+from spdm.utils.tree_utils import merge_tree_recursive
 from spdm.utils.typing import array_type, as_array, is_array
 from spdm.view.View import View
 
@@ -30,39 +30,7 @@ class MatplotlibView(View):
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, obj, styles=None, view_point="rz", **kwargs) -> typing.Any:
-        if styles is None:
-            styles = {}
-
-        fig, canvas = plt.subplots()
-
-        self.draw(canvas, obj, styles, view_point=view_point)
-
-        xlabel = styles.get("xlabel", None)
-
-        if xlabel is not None:
-            canvas.set_xlabel(xlabel)
-        elif view_point.lower() == "rz":
-            canvas.set_xlabel(r" $R$ [m]")
-        else:
-            canvas.set_xlabel(r" $X$ [m]")
-
-        ylabel = styles.get("ylabel", None)
-        if ylabel is not None:
-            canvas.set_ylabel(ylabel)
-        elif view_point.lower() == "rz":
-            canvas.set_ylabel(r" $Z$ [m]")
-        else:
-            canvas.set_ylabel(r" $Y$ [m]")
-
-        canvas.set_aspect("equal")
-        canvas.axis("scaled")
-
-        title = styles.get("title", None) or kwargs.get("title", None)
-
-        return self._render_post(fig, title=title, **kwargs)
-
-    def _render_post(self, fig, title="", output=None,   **kwargs) -> typing.Any:
+    def _figure_post(self, fig, title="", output=None, **kwargs) -> typing.Any:
 
         fig.suptitle(title)
         fig.align_ylabels()
@@ -94,18 +62,97 @@ class MatplotlibView(View):
             fig = fig_html
 
         elif output is not None:
-            logger.debug(f"Output figure to  {output}")
+            logger.debug(f"Write figure to  {output}")
             fig.savefig(output, **kwargs)
             plt.close(fig)
             fig = None
 
         return fig
 
-    def _draw(self, canvas, obj: typing.Any, styles={}, view_point=None):
+    def render(self, obj, styles=None, view_point="rz", title=None, **kwargs) -> typing.Any:
+        if styles is None:
+            styles = {}
+
+        fig, canvas = plt.subplots()
+
+        self._draw(canvas, obj, styles or {}, view_point=view_point)
+
+        xlabel = styles.get("xlabel", None)
+
+        if xlabel is not None:
+            canvas.set_xlabel(xlabel)
+        elif view_point.lower() == "rz":
+            canvas.set_xlabel(r" $R$ [m]")
+        else:
+            canvas.set_xlabel(r" $X$ [m]")
+
+        ylabel = styles.get("ylabel", None)
+        if ylabel is not None:
+            canvas.set_ylabel(ylabel)
+        elif view_point.lower() == "rz":
+            canvas.set_ylabel(r" $Z$ [m]")
+        else:
+            canvas.set_ylabel(r" $Y$ [m]")
+
+        canvas.set_aspect("equal")
+        canvas.axis("scaled")
+
+        title = title or styles.get("title", None)
+
+        return self._figure_post(fig, title=title, **kwargs)
+
+    def _draw(self, canvas, obj: GeoObject | str | BBox, styles={}, view_point=None, **kwargs):
+        if styles is False:
+            return
+        elif styles is None or styles is True:
+            styles = {}
+
         s_styles = styles.get(f"${self.backend}", {})
 
         if obj is None or obj is _not_found_:
             pass
+
+        elif isinstance(obj, tuple):
+            o, s = obj
+            if s is False:
+                styles = False
+            elif s is True:
+                pass
+            elif isinstance(s, collections.abc.Mapping):
+                styles = merge_tree_recursive(styles, s)
+            else:
+                logger.warning(f"ignore unsupported styles {s}")
+
+            self._draw(canvas, o, styles, view_point=view_point,   **kwargs)
+
+        elif hasattr(obj.__class__, "__geometry__"):
+            try:
+                geo, s = obj.__geometry__(view_point=view_point, **kwargs)
+                styles = merge_tree_recursive(styles, s)
+            except Exception as e:
+                if SP_DEBUG:
+                    raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
+                else:
+                    logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
+
+            self._draw(canvas, geo, styles, view_point=view_point, **kwargs)
+
+        elif isinstance(obj, dict):
+            for k, o in obj.items():
+                s = styles.get(k, {})
+                if s is False:
+                    continue
+
+                self._draw(canvas, o, collections.ChainMap({"id": k}, s),
+                           view_point=view_point, **kwargs)
+
+            self._draw(canvas, None, styles, **kwargs)
+
+        elif isinstance(obj, list):
+            for idx, o in enumerate(obj):
+                self._draw(canvas, o, collections.ChainMap({"id": idx}, styles), view_point=view_point, **kwargs)
+
+            self._draw(canvas, None, styles, view_point=view_point,  **kwargs)
 
         elif isinstance(obj, (str, int, float, bool)):
             pos = s_styles.get("position", None)
@@ -181,51 +228,6 @@ class MatplotlibView(View):
                 levels=levels,
                 **collections.ChainMap(s_styles, {"linewidths": 0.5}),
             )
-
-        elif isinstance(obj, Expression):
-            label = styles.get("label", None) or getattr(obj, "name", None) or str(obj)
-
-            x_value = styles.get("x_value", None)
-
-            if x_value is None:
-                y = as_array(obj)
-            else:
-                y = obj(x_value)
-            try:
-                x = styles.get("x_axis", None)
-            except Exception as error:
-                raise RuntimeError(styles) from error
-            if is_array(x):
-                data = [x, y]
-            else:
-                data = [y]
-
-            if isinstance(s_styles, collections.abc.Mapping):
-                canvas.plot(*data, **s_styles, label=label)
-            elif isinstance(s_styles, str):
-                canvas.plot(*data, s_styles, label=label)
-            else:
-                logger.warning(f"Ignore unknown style {s_styles}!")
-                canvas.plot(*data)
-
-        elif is_array(obj):
-            label = styles.get("label", None)
-
-            y = obj
-            x = styles.get("x_axis", None)
-
-            if is_array(x):
-                data = [x, y]
-            else:
-                data = [y]
-
-            if isinstance(s_styles, collections.abc.Mapping):
-                canvas.plot(*data, **s_styles, label=label)
-            elif isinstance(s_styles, str):
-                canvas.plot(*data, s_styles, label=label)
-            else:
-                canvas.plot(*data)
-                logger.warning(f"Ignore unknown style {s_styles}!")
 
         else:
             raise RuntimeError(f"Unsupport type {type(obj)} {obj}")
@@ -319,21 +321,58 @@ class MatplotlibView(View):
 
             canvas[-1].set_xlabel(x_label, fontsize=fontsize)
 
-        return self._render_post(fig, **kwargs)
+        return self._figure_post(fig, **kwargs)
 
-    def profiles_(
-        self,
-        obj,
-        *args,
-        x_axis=None,
-        x=None,
-        default_num_of_points=128,
-        fontsize=10,
-        grid=True,
-        signature=None,
-        title=None,
-        **kwargs,
-    ):
+    def _profiles(self, canvas, obj, x, styles={}, **kwargs):
+        s_styles = styles.get(f"${self.backend}", {})
+
+        if obj is None or obj is _not_found_:
+            pass
+        elif isinstance(obj, Expression):
+            label = styles.get("label", None) or getattr(obj, "name", None) or str(obj)
+
+            x_value = styles.get("x_value", None)
+
+            if x_value is None:
+                y = as_array(obj)
+            else:
+                y = obj(x_value)
+                x = styles.get("x_axis", None)
+            if is_array(x):
+                data = [x, y]
+            else:
+                data = [y]
+
+            if isinstance(s_styles, collections.abc.Mapping):
+                canvas.plot(*data, **s_styles, label=label)
+            elif isinstance(s_styles, str):
+                canvas.plot(*data, s_styles, label=label)
+            else:
+                logger.warning(f"Ignore unknown style {s_styles}!")
+                canvas.plot(*data)
+
+        elif is_array(obj):
+            label = styles.get("label", None)
+
+            y = obj
+            x = styles.get("x_axis", None)
+
+            if is_array(x):
+                data = [x, y]
+            else:
+                data = [y]
+
+            if isinstance(s_styles, collections.abc.Mapping):
+                canvas.plot(*data, **s_styles, label=label)
+            elif isinstance(s_styles, str):
+                canvas.plot(*data, s_styles, label=label)
+            else:
+                canvas.plot(*data)
+                logger.warning(f"Ignore unknown style {s_styles}!")
+
+    def profiles_(self, obj, *args,  x_axis=None, x=None,
+                  default_num_of_points=128, fontsize=10, grid=True,
+                  signature=None, title=None, **kwargs,):
         fontsize = kwargs.get("fontsize", 10)
 
         nprofiles = len(obj)

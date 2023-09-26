@@ -94,7 +94,7 @@ class SVGView(View):
             line_width=line_width,
             color="black",)
 
-    def _draw(self, cancas, obj: GeoObject | HTree | BBox, styles=None, **kwargs) -> str:
+    def _draw_geo(self, cancas, obj: GeoObject | HTree | BBox, styles=None, **kwargs) -> str:
 
         name = kwargs.pop('name', obj.name)
 

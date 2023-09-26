@@ -54,62 +54,7 @@ class View(Pluggable):
     def render(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
 
-    def _draw(self, canvas, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}.draw")
-
-    def draw(self, canvas, obj, styles, view_point="RZ"):
-        """Draw an object on canvas"""
-
-        if styles is False:
-            return
-        elif styles is True or styles is None:
-            styles = {}
-        elif not isinstance(styles, collections.abc.Mapping):
-            raise TypeError(f"styles must be a dict, not {type(styles)}")
-
-        if isinstance(obj, tuple):
-            o, s = obj
-            if s is False:
-                styles = False
-            elif s is True:
-                pass
-            elif isinstance(s, collections.abc.Mapping):
-                styles = merge_tree_recursive(styles, s)
-            else:
-                logger.warning(f"ignore unsupported styles {s}")
-
-            self.draw(canvas, o, styles, view_point=view_point)
-
-        elif hasattr(obj.__class__, "__geometry__"):
-            try:
-                geo = obj.__geometry__(view_point=view_point, **styles)
-            except Exception as e:
-                if SP_DEBUG:
-                    raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
-                else:
-                    logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
-                return
-            else:
-                self.draw(canvas, geo, styles, view_point=view_point)
-
-        elif isinstance(obj, dict):
-            for k, o in obj.items():
-                self.draw(canvas, o, collections.ChainMap({"id": k}, styles.get(k, {})), view_point=view_point)
-            self.draw(canvas, None, styles, view_point=view_point)
-
-        elif isinstance(obj, list):
-            for idx, o in enumerate(obj):
-                self.draw(canvas, o, collections.ChainMap({"id": idx}, styles), view_point=view_point)
-
-            self.draw(canvas, None, styles, view_point=view_point)
-
-        else:
-            self._draw(canvas, obj, styles, view_point=view_point)
-
     def profiles(self, *args, **kwargs):
-        return self.render(*args, as_profiles=True, **kwargs)
-
-    def draw_profile(self, profile, x, axis=None, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
 
 
@@ -133,13 +78,11 @@ def viewer(backend=None):
 SP_VIEW_BACKEND = "matplotlib"
 
 
-def display(*args, output=None, backend=None,  **kwargs):
+def display(*args,   backend=None,  **kwargs):
     """Show an object"""
-    return viewer(backend).render(*args, output=output,  **kwargs)
+    return viewer(backend).render(*args,    **kwargs)
 
 
-def draw_profiles(*args, output=None, backend=None, **kwargs):
+def draw_profiles(*args,   backend=None, **kwargs):
     """Show an object"""
-    if backend is None:
-        backend = SP_VIEW_BACKEND
-    return viewer(backend=backend, output=output).profiles(*args, output=output, **kwargs)
+    return viewer(backend=backend).profiles(*args,  **kwargs)
