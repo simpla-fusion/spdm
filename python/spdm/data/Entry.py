@@ -522,44 +522,10 @@ SPDB_TAG = "spdb"
 
 
 class EntryProxy(Entry):
-    _maps = None
+    _maps = {}
     _mapping_path = []
-
-    @classmethod
-    def load_mappings(
-        cls,
-        mapping_path: typing.List[str] | str | None = None,
-        default_local_schema: str = "EAST",
-        default_global_schema: str = "imas/3",
-        **kwargs,
-    ):
-        if cls._maps is not None and mapping_path is None:
-            return cls._maps
-
-        if isinstance(mapping_path, str):
-            mapping_path = mapping_path.split(":")
-        elif isinstance(mapping_path, pathlib.Path):
-            mapping_path = [mapping_path]
-        elif mapping_path is None:
-            mapping_path = []
-
-        mapping_path += os.environ.get("SP_DATA_MAPPING_PATH", "").split(":")
-
-        cls._mapping_path = [pathlib.Path(p) for p in mapping_path if p != ""]
-
-        if len(cls._mapping_path) == 0:
-            raise RuntimeError(
-                f"No mapping file!  SP_DATA_MAPPING_PATH={os.environ.get('SP_DATA_MAPPING_PATH', '')}"
-            )
-
-        cls._default_local_schema: str = default_local_schema
-        cls._default_global_schema: str = default_global_schema
-
-        cls._envs = merge_tree_recursive(kwargs.pop("envs", {}), kwargs)
-
-        cls._maps = {}
-
-        return cls._maps
+    _default_local_schema: str = "EAST"
+    _default_global_schema: str = "imas/3"
 
     @classmethod
     def load(
@@ -603,7 +569,7 @@ class EntryProxy(Entry):
         """
         from .File import File
 
-        mapper_list = EntryProxy.load_mappings()
+        mapper_list = EntryProxy._maps
 
         _url = uri_split(url)
 
@@ -645,6 +611,7 @@ class EntryProxy(Entry):
                     continue
                 elif isinstance(m_dir, str):
                     m_dir = pathlib.Path(m_dir)
+
                 for file_name in config_files:
                     p = m_dir / file_name
                     if p.exists():
@@ -779,3 +746,7 @@ class EntryProxy(Entry):
             res = entry.fetch(request.get("_text"), *args, **kwargs)
 
         return res
+
+
+EntryProxy._mapping_path.extend([pathlib.Path(p)
+                                for p in os.environ.get("SP_DATA_MAPPING_PATH", "").split(":") if p != ""])
