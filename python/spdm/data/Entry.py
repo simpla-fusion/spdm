@@ -528,13 +528,7 @@ class EntryProxy(Entry):
     _default_global_schema: str = "imas/3"
 
     @classmethod
-    def load(
-        cls,
-        url: str | None = None,
-        local_schema: str = None,
-        global_schema: str = None,
-        **kwargs,
-    ):
+    def load(cls, url: str | None = None, local_schema: str = None, global_schema: str = None, **kwargs):
         """检索并导入 mapping files
 
         mapping files 目录结构约定为 :
