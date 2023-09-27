@@ -47,6 +47,7 @@ import typing
 from _thread import RLock
 from enum import Enum
 
+from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
@@ -78,16 +79,20 @@ class SpTree(HTree[_T]):
 
             try:
                 prop = getattr(self, k, None)
-            except Exception as error:
-                if not quiet:
-                    logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
-            else:
                 if prop is _not_found_:
                     prop = None
-                elif isinstance(prop, Enum):
-                    prop = {"name": prop.name, "index": prop.value}
                 elif isinstance(prop, Function):
                     prop = prop.__value__
+
+            except Exception as error:
+                if SP_DEBUG:
+                    raise RuntimeError(f"Fail to dump property: {self.__class__.__name__}.{k}") from error
+                else:
+                    logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
+            else:
+
+                if isinstance(prop, Enum):
+                    prop = {"name": prop.name, "index": prop.value}
 
                 if isinstance(prop, HTree):
                     prop.dump(entry.child(k), quiet=quiet)

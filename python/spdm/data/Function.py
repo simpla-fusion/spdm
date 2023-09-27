@@ -71,14 +71,6 @@ class Function(HTree, Expression):
         self._dims = list(dims)
         self._periods = periods
 
-    def rebase(self, *dims, periods) -> Function:
-        res: Function = self.__copy__()
-        res._cache = self(*dims)
-        res._dims = dims
-        self._periods = periods if periods is not None else self._periods
-
-        return res
-
     def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
     def __copy_from__(self, other: Function) -> Function:
@@ -116,20 +108,21 @@ class Function(HTree, Expression):
         if len(self._dims) > 0:
             return self._dims
 
-        parent = self._parent  # kwargs.get("parent", None)
-        metadata = self._metadata  # kwargs.get("metadata", None)
-        if isinstance(parent, HTree) and isinstance(metadata, collections.abc.Mapping):
-            coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
-            if isinstance(coordinates, collections.abc.Mapping):
-                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+        dims = []
 
-            if coordinates is not None and len(coordinates) > 0:
-                self._dims = [as_array(self.get(c) if isinstance(c, str) else c)
-                              for c in coordinates.values()]
+        if not isinstance(self._metadata, collections.abc.Mapping):
+            raise RuntimeError(f"Can not find metadata!")
 
-        if self._dims is not None and len(self.periods) > 0:
-            dims = [as_array(v) for v in self._dims]
+        coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
+
+        if isinstance(coordinates, collections.abc.Mapping):
+            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+            dims = [as_array(self.get(c) if isinstance(c, str) else c)
+                    for c in coordinates.values()]
+
+        if len(dims) > 0 and len(self.periods) > 0:
+            dims = [as_array(v) for v in dims]
 
             periods = self.periods
 
@@ -140,6 +133,11 @@ class Function(HTree, Expression):
                 if not np.all(dims[idx][1:] > dims[idx][:-1]):
                     raise RuntimeError(
                         f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
+
+        if any([d is None or d is _not_found_ for d in dims]):
+            raise RuntimeError(f"Can not get dims! {dims}")
+
+        self._dims = dims
 
         return self._dims
 

@@ -200,16 +200,12 @@ class Entry(Pluggable):
         """
         return self._path.fetch(self._data, op, *args, **kwargs)
 
-    def for_each(
-        self, *args, **kwargs
-    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         """Return a generator of the results."""
         yield from self._path.for_each(self._data, *args, **kwargs)
 
     @deprecated
-    def find_next(
-        self, start: int | None, *args, **kwargs
-    ) -> typing.Tuple[typing.Any, int | None]:
+    def find_next(self, start: int | None, *args, **kwargs) -> typing.Tuple[typing.Any, int | None]:
         """
         Find the value from the cache.
         Return a generator of the results.

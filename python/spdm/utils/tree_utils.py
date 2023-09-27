@@ -54,7 +54,7 @@ def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=
     elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
         # 合并 dict
         for k, v in second.items():
-            first[k] = merge_tree_recursive(first.get(k, None), v, level-1, in_place=in_place)
+            first[k] = merge_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
     else:
         first = second
         # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")

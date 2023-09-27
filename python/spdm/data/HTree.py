@@ -222,8 +222,11 @@ class HTree(typing.Generic[_T]):
             for key, cache in self._cache.items():
                 yield self._as_child(cache, key, entry=self._entry.child(key))
         else:
-            for key, entry in self._entry.for_each():
-                yield self._as_child(None, key, entry=entry)
+            for key, d in self._entry.for_each():
+                if not isinstance(d, Entry):
+                    yield self._as_child(d, key)
+                else:
+                    yield self._as_child(None, key, entry=entry)
 
     ################################################################################
     # Private methods
@@ -374,8 +377,8 @@ class HTree(typing.Generic[_T]):
 
         elif query is Path.tags.parent:
             value = self._parent
-            if hasattr(value, "_identifier"):
-                value = value.parent
+            # if hasattr(value, "_identifier"):
+            #     value = value._identifier
 
         elif query is Path.tags.next:
             raise NotImplementedError(f"TODO: operator 'next'!")
