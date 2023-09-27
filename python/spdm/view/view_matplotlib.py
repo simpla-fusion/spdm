@@ -254,7 +254,7 @@ class MatplotlibView(View):
 
             self._draw(canvas, text, {f"${self.backend}": text_styles})
 
-    def profiles(self, obj, x_value: Expression | np.ndarray = None, x_label: str = None, x_axis: np.ndarray = None, **kwargs) -> typing.Any:
+    def profiles(self, obj, x_value: Expression | np.ndarray = None, x_label: str = None, x_axis: np.ndarray = None, stop_if_fail=False, **kwargs) -> typing.Any:
 
         styles = merge_tree_recursive(kwargs.pop("styles", {}), kwargs)
 
@@ -306,10 +306,10 @@ class MatplotlibView(View):
                     self._profiles(canvas[idx], p, x_value=x_value, x_axis=x_axis,
                                    styles=collections.ChainMap(sub_styles, styles))
                 except Exception as error:
-                    if SP_DEBUG:
+                    if stop_if_fail:
                         raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
                     else:
-                        logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  ')
+                        logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
 
             canvas[idx].legend(fontsize=fontsize)
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)

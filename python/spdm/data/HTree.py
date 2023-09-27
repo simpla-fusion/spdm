@@ -325,7 +325,7 @@ class HTree(typing.Generic[_T]):
                 value = default_value
                 default_value = _not_found_
 
-        if not isinstance_generic(value, type_hint) and getter is not None:
+        if not isinstance_generic(value, type_hint) and entry is None and getter is not None:
             # if cache is not _not_found_ and cache is not None:
             #     logger.warning(f"Ignore {cache}")
             try:
