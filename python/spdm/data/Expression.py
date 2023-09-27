@@ -102,7 +102,11 @@ class Expression:
         """
         return Expression(Functor(ufunc, method=method, **kwargs), *args)
 
-    def __array__(self) -> ArrayType: return as_array(self.__call__())
+    def __array__(self) -> ArrayType:
+        res = self.__call__()
+        if isinstance(res, Expression):
+            raise RuntimeError(f"Can not calcuate! {res}")
+        return as_array(res)
 
     @property
     def has_children(self) -> bool: return len(self._children) > 0
@@ -117,7 +121,7 @@ class Expression:
     @property
     def __label__(self) -> str: return self._label
 
-    def __str__(self): return self.__label__ or self.__class__.__name__
+    def __str__(self): return self._label or self._repr_latex_()
 
     def _repr_latex_(self): return display(self, backend="latex", output="latex")
     """ for jupyter notebook display """

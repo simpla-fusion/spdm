@@ -61,7 +61,7 @@ class Function(HTree, Expression):
         elif callable(cache):
             func = Functor(cache)
             cache = None
-        else:
+        elif cache is not _not_found_:
             cache = as_array(cache)
 
         HTree.__init__(self, cache, **kwargs)

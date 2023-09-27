@@ -226,7 +226,7 @@ class HTree(typing.Generic[_T]):
                 if not isinstance(d, Entry):
                     yield self._as_child(d, key)
                 else:
-                    yield self._as_child(None, key, entry=entry)
+                    yield self._as_child(None, key, entry=d)
 
     ################################################################################
     # Private methods
