@@ -59,7 +59,12 @@ setup(
     author='Zhi YU',
     author_email='yuzhi@ipp.ac.cn',
     license=license,
-    packages=find_namespace_packages("python"),     # 指定需要安装的包
+
+    packages=find_namespace_packages(
+        "python", exclude=["*._*", "*.obsolete", "*.obsolete.*", "*.todo", "*.todo.*", "*.tests"]),  # 指定需要安装的包
+
+    package_dir={"": "python"},  # 指定包的root目录
+
     requires=requirements,                  # 项目运行依赖的第三方包
     # extras_require={},                   # 项目运行依赖的额外包
     # package_data={},                     # 需要安装的数据文件，如图片、配置文件等 例如：package_data={'sample': ['package_data.dat']}
@@ -67,10 +72,7 @@ setup(
 
     # cmdclass={'build_py': BuildPyCommand, },
 
-    entry_points={},  # 项目的入口模块，即用户使用命令行安装后可调用的模块。
-                      # 例如：entry_points={'console_scripts': ['spdm = spdm:main']}
 
-    project_urls={},  # 项目相关的额外链接信息。例如：project_urls={'Bug Reports': '...'}
     classifiers=[     # 项目的分类信息列表
         'Development Status :: 1 - Alpha',
         'Intended Audience :: Plasma Physicists',
