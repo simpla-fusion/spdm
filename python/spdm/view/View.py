@@ -1,4 +1,7 @@
 from __future__ import annotations
+from ..utils.plugin import Pluggable
+from ..utils.logger import logger, SP_DEBUG
+from ..utils.tree_utils import merge_tree_recursive
 
 import collections
 import collections.abc
@@ -7,12 +10,11 @@ import getpass
 import typing
 
 import matplotlib.pyplot as plt
+import os
+
 
 #  在 MatplotlibView 中 imported matplotlib 会不起作用
 #  报错 : AttributeError: module 'matplotlib' has no attribute 'colors'. Did you mean: 'colormaps'?
-from ..utils.tree_utils import merge_tree_recursive
-from ..utils.logger import logger, SP_DEBUG
-from ..utils.plugin import Pluggable
 
 
 class View(Pluggable):
@@ -80,7 +82,17 @@ SP_VIEW_BACKEND = "matplotlib"
 
 def display(*args,   backend=None,  **kwargs):
     """Show an object"""
-    return viewer(backend).render(*args,    **kwargs)
+    res = viewer(backend).render(*args,    **kwargs)
+
+    if res.__class__.__name__ == "Figure":
+        try:
+            get_ipython()
+        except Exception as error:
+            logger.debug(error)
+        else:
+            logger.debug("In IPython, use display() to show the figure.")
+            res = None
+    return res
 
 
 def draw_profiles(*args,   backend=None, **kwargs):

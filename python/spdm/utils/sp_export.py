@@ -60,7 +60,7 @@ def sp_load_module(mod_name: str):
 
     sys.modules[spec.name] = module
 
-    logger.info(f"Load module {spec.name} from {spec.origin}")
+    logger.info(f"Load module {spec.name}")  # from {pathlib.Path(spec.origin).resolve().as_posix()}
 
     return module
 
