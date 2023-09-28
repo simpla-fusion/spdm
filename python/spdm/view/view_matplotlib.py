@@ -67,6 +67,13 @@ class MatplotlibView(View):
             plt.close(fig)
             fig = None
 
+        try:
+            get_ipython()
+        except Exception as error:
+            pass  # logger.debug(error)
+        else:
+            logger.debug("In IPython, use display() to show the figure.")
+            fig = None
         return fig
 
     def render(self, obj, styles=None, view_point="rz", title=None, **kwargs) -> typing.Any:
@@ -284,6 +291,9 @@ class MatplotlibView(View):
 
             x_value = x_value(x_axis)
 
+        elif x_value is None:
+            x_value = x_axis
+
         else:
             raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
 
@@ -336,7 +346,7 @@ class MatplotlibView(View):
         label = styles.get("label", None) or kwargs.get("label", None)
 
         if isinstance(obj, Expression):
-            label = label or getattr(obj, "name", None) or str(obj)
+            label = label or getattr(obj, "name", None) or getattr(obj, "__label__", None) or str(obj)
             y_value = obj(x_axis)
 
         elif is_array(obj) and obj.size() == x_value.size():
@@ -352,186 +362,182 @@ class MatplotlibView(View):
 
         canvas.plot(x_value, y_value, **s_styles, label=label)
 
-    def profiles_(self, obj, *args,  x_axis=None, x=None,
-                  default_num_of_points=128, fontsize=10, grid=True,
-                  signature=None, title=None, **kwargs):
-        fontsize = kwargs.get("fontsize", 10)
+    # def profiles_(self, obj, *args,  x_axis=None, x=None,
+    #               default_num_of_points=128, fontsize=10, grid=True,
+    #               signature=None, title=None, **kwargs):
+    #     fontsize = kwargs.get("fontsize", 10)
 
-        nprofiles = len(obj)
+    #     nprofiles = len(obj)
 
-        fig, canves = plt.subplots(
-            ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles)
-        )
+    #     fig, canves = plt.subplots(
+    #         ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles)
+    #     )
 
-        self.draw(canves, obj, styles)
+    #     self.draw(canves, obj, styles)
 
-        x_label = kwargs.get("xlabel", "")
+    #     x_label = kwargs.get("xlabel", "")
 
-        if len(canves) == 1:
-            canves[0].set_xlabel(x_label, fontsize=fontsize)
-        else:
-            canves[-1].set_xlabel(x_label, fontsize=fontsize)
+    #     if len(canves) == 1:
+    #         canves[0].set_xlabel(x_label, fontsize=fontsize)
+    #     else:
+    #         canves[-1].set_xlabel(x_label, fontsize=fontsize)
 
-        if not isinstance(profile_list, collections.abc.Sequence):
-            profile_list = [profile_list]
+    #     if not isinstance(profile_list, collections.abc.Sequence):
+    #         profile_list = [profile_list]
 
-        if isinstance(x_axis, collections.abc.Sequence) and not isinstance(
-            x_axis, np.ndarray
-        ):
-            x_axis, x_label, *x_opts = x_axis
-            x_opts = (x_opts or [{}])[0]
-        else:
-            x_axis = [0, 1]
-            x_label = ""
-            x_opts = {}
+    #     if isinstance(x_axis, collections.abc.Sequence) and not isinstance(
+    #         x_axis, np.ndarray
+    #     ):
+    #         x_axis, x_label, *x_opts = x_axis
+    #         x_opts = (x_opts or [{}])[0]
+    #     else:
+    #         x_axis = [0, 1]
+    #         x_label = ""
+    #         x_opts = {}
 
-        if isinstance(x_axis, Function) and x is not None:
-            x_axis = x_axis(x)
-        elif x is None and isinstance(x_axis, np.ndarray):
-            x = x_axis
+    #     if isinstance(x_axis, Function) and x is not None:
+    #         x_axis = x_axis(x)
+    #     elif x is None and isinstance(x_axis, np.ndarray):
+    #         x = x_axis
 
-        if isinstance(x_axis, np.ndarray):
-            x_min = x_axis[0]
-            x_max = x_axis[-1]
-        elif isinstance(x_axis, collections.abc.Sequence) and len(x_axis) == 2:
-            x_min, x_max = x_axis
-            x_axis = np.linspace(x_min, x_max, default_num_of_points)
-        else:
-            raise TypeError(x_axis)
+    #     if isinstance(x_axis, np.ndarray):
+    #         x_min = x_axis[0]
+    #         x_max = x_axis[-1]
+    #     elif isinstance(x_axis, collections.abc.Sequence) and len(x_axis) == 2:
+    #         x_min, x_max = x_axis
+    #         x_axis = np.linspace(x_min, x_max, default_num_of_points)
+    #     else:
+    #         raise TypeError(x_axis)
 
-        if x is None and isinstance(x_axis, np.ndarray):
-            x = x_axis
-        elif callable(x_axis) or isinstance(x_axis, Function):
-            x_axis = x_axis(x)
+    #     if x is None and isinstance(x_axis, np.ndarray):
+    #         x = x_axis
+    #     elif callable(x_axis) or isinstance(x_axis, Function):
+    #         x_axis = x_axis(x)
 
-        nprofiles = len(profile_list)
+    #     nprofiles = len(profile_list)
 
-        fig, sub_plot = plt.subplots(
-            ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles)
-        )
+    #     fig, sub_plot = plt.subplots(
+    #         ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles)
+    #     )
 
-        if not isinstance(sub_plot, (collections.abc.Sequence, np.ndarray)):
-            sub_plot = [sub_plot]
+    #     if not isinstance(sub_plot, (collections.abc.Sequence, np.ndarray)):
+    #         sub_plot = [sub_plot]
 
-        for idx, profile_grp in enumerate(profile_list):
-            if not isinstance(profile_grp, list):
-                profile_grp = [profile_grp]
-            ylabel = None
-            for jdx, p_desc in enumerate(profile_grp):
-                profile, label, *o_args = p_desc
-                opts = {}
-                if len(o_args) > 0 and ylabel is None:
-                    ylabel = o_args[0]
-                if len(o_args) > 1:
-                    opts = o_args[1]
+    #     for idx, profile_grp in enumerate(profile_list):
+    #         if not isinstance(profile_grp, list):
+    #             profile_grp = [profile_grp]
+    #         ylabel = None
+    #         for jdx, p_desc in enumerate(profile_grp):
+    #             profile, label, *o_args = p_desc
+    #             opts = {}
+    #             if len(o_args) > 0 and ylabel is None:
+    #                 ylabel = o_args[0]
+    #             if len(o_args) > 1:
+    #                 opts = o_args[1]
 
-                y = None
+    #             y = None
 
-                if isinstance(profile, Function) or callable(profile):
-                    try:
-                        y = profile(x)
-                    except Exception as error:
-                        raise RuntimeError(
-                            f"Can not get profile [idx={idx} jdx={jdx}]! name={getattr(profile,'_name',profile)}\n {error} "
-                        ) from error
+    #             if isinstance(profile, Function) or callable(profile):
+    #                 try:
+    #                     y = profile(x)
+    #                 except Exception as error:
+    #                     raise RuntimeError(
+    #                         f"Can not get profile [idx={idx} jdx={jdx}]! name={getattr(profile,'_name',profile)}\n {error} "
+    #                     ) from error
 
-                elif isinstance(profile, np.ndarray) and len(profile) == len(x):
-                    y = profile
-                elif np.isscalar(profile):
-                    y = np.full_like(x, profile, dtype=float)
-                else:
-                    raise RuntimeError(f"Illegal profile! {profile}!={x}")
+    #             elif isinstance(profile, np.ndarray) and len(profile) == len(x):
+    #                 y = profile
+    #             elif np.isscalar(profile):
+    #                 y = np.full_like(x, profile, dtype=float)
+    #             else:
+    #                 raise RuntimeError(f"Illegal profile! {profile}!={x}")
 
-                if not isinstance(y, np.ndarray) or not isinstance(x, np.ndarray):
-                    logger.warning(
-                        f"Illegal profile! {(type(x) ,type(y), label, o_args)}"
-                    )
-                    continue
-                elif x.shape != y.shape:
-                    logger.warning(f"Illegal profile! {x.shape} !={y.shape}")
-                    continue
-                else:
-                    # 删除 y 中的 nan
-                    mark = np.isnan(y)
-                    # if np.any(mark):
-                    #     logger.warning(f"Found NaN in array  {np.argwhere(mark)}! {profile}  ")
-                    sub_plot[idx].plot(x_axis[~mark], y[~mark], label=label, **opts)
+    #             if not isinstance(y, np.ndarray) or not isinstance(x, np.ndarray):
+    #                 logger.warning(f"Illegal profile! {(type(x) ,type(y), label, o_args)}")
+    #                 continue
+    #             elif x.shape != y.shape:
+    #                 logger.warning(f"Illegal profile! {x.shape} !={y.shape}")
+    #                 continue
+    #             else:
+    #                 # 删除 y 中的 nan
+    #                 mark = np.isnan(y)
+    #                 # if np.any(mark):
+    #                 #     logger.warning(f"Found NaN in array  {np.argwhere(mark)}! {profile}  ")
+    #                 sub_plot[idx].plot(x_axis[~mark], y[~mark], label=label, **opts)
 
-            sub_plot[idx].legend(fontsize=fontsize)
+    #         sub_plot[idx].legend(fontsize=fontsize)
 
-            if grid:
-                sub_plot[idx].grid()
+    #         if grid:
+    #             sub_plot[idx].grid()
 
-            if ylabel is not None:
-                sub_plot[idx].set_ylabel(ylabel, fontsize=fontsize)
-            sub_plot[idx].labelsize = "media"
-            sub_plot[idx].tick_params(labelsize=fontsize)
+    #         if ylabel is not None:
+    #             sub_plot[idx].set_ylabel(ylabel, fontsize=fontsize)
+    #         sub_plot[idx].labelsize = "media"
+    #         sub_plot[idx].tick_params(labelsize=fontsize)
 
-        if len(sub_plot) <= 1:
-            sub_plot[0].set_xlabel(x_label, fontsize=fontsize)
+    #     if len(sub_plot) <= 1:
+    #         sub_plot[0].set_xlabel(x_label, fontsize=fontsize)
 
-        else:
-            sub_plot[-1].set_xlabel(x_label, fontsize=fontsize)
+    #     else:
+    #         sub_plot[-1].set_xlabel(x_label, fontsize=fontsize)
 
-        return fig
+    #     return fig
 
-    def draw_profile(
-        self, profiles, x_axis, canves: plt.Axes = ..., style=None, **kwargs
-    ):
-        if style is None:
-            style = {}
+    # def draw_profile(self, profiles, x_axis, canves: plt.Axes = ..., style=None, **kwargs):
+    #     if style is None:
+    #         style = {}
 
-        fontsize = style.get("fontsize", 10)
+    #     fontsize = style.get("fontsize", 10)
 
-        ylabel = None
+    #     ylabel = None
 
-        x_value = x_axis
+    #     x_value = x_axis
 
-        if not isinstance(profiles, collections.abc.Sequence):
-            profiles = [profiles]
+    #     if not isinstance(profiles, collections.abc.Sequence):
+    #         profiles = [profiles]
 
-        for profile, label, legend, *opts in profiles:
-            y = None
+    #     for profile, label, legend, *opts in profiles:
+    #         y = None
 
-            if isinstance(profile, Function) or callable(profile):
-                try:
-                    y = profile(x_value)
-                except Exception as error:
-                    raise RuntimeError(
-                        f"Can not get profile! name={getattr(profile,'name',profile)}\n {error} "
-                    ) from error
+    #         if isinstance(profile, Function) or callable(profile):
+    #             try:
+    #                 y = profile(x_value)
+    #             except Exception as error:
+    #                 raise RuntimeError(
+    #                     f"Can not get profile! name={getattr(profile,'name',profile)}\n {error} "
+    #                 ) from error
 
-            elif isinstance(profile, array_type) and len(profile) == len(x_value):
-                y = profile
-            elif np.isscalar(profile):
-                y = np.full_like(x_value, profile, dtype=float)
-            else:
-                raise RuntimeError(f"Illegal profile! {profile}!={x_value}")
+    #         elif isinstance(profile, array_type) and len(profile) == len(x_value):
+    #             y = profile
+    #         elif np.isscalar(profile):
+    #             y = np.full_like(x_value, profile, dtype=float)
+    #         else:
+    #             raise RuntimeError(f"Illegal profile! {profile}!={x_value}")
 
-            if not isinstance(y, array_type) or not isinstance(x_value, array_type):
-                logger.warning(
-                    f"Illegal profile! {(type(x_value) ,type(y), label, opts)}"
-                )
-                continue
-            elif x.shape != y.shape:
-                logger.warning(f"Illegal profile! {x_value.shape} !={y.shape}")
-                continue
-            else:
-                # 删除 y 中的 nan
-                mark = np.isnan(y)
-                # if np.any(mark):
-                #     logger.warning(f"Found NaN in array  {np.argwhere(mark)}! {profile}  ")
-                canves.plot(x_axis[~mark], y[~mark], label=label, **opts)
+    #         if not isinstance(y, array_type) or not isinstance(x_value, array_type):
+    #             logger.warning(
+    #                 f"Illegal profile! {(type(x_value) ,type(y), label, opts)}"
+    #             )
+    #             continue
+    #         elif x.shape != y.shape:
+    #             logger.warning(f"Illegal profile! {x_value.shape} !={y.shape}")
+    #             continue
+    #         else:
+    #             # 删除 y 中的 nan
+    #             mark = np.isnan(y)
+    #             # if np.any(mark):
+    #             #     logger.warning(f"Found NaN in array  {np.argwhere(mark)}! {profile}  ")
+    #             canves.plot(x_axis[~mark], y[~mark], label=label, **opts)
 
-        canves.legend(fontsize=fontsize)
+    #     canves.legend(fontsize=fontsize)
 
-        if kwargs.get("grid", True):
-            canves.grid()
+    #     if kwargs.get("grid", True):
+    #         canves.grid()
 
-        if ylabel is not None:
-            canves.set_ylabel(ylabel, fontsize=fontsize)
-        canves.labelsize = "media"
-        canves.tick_params(labelsize=fontsize)
+    #     if ylabel is not None:
+    #         canves.set_ylabel(ylabel, fontsize=fontsize)
+    #     canves.labelsize = "media"
+    #     canves.tick_params(labelsize=fontsize)
 
 
 # def sp_figure_signature(fig: plt.Figure, signature=None, x=1.0, y=0.1):

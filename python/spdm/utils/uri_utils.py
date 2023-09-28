@@ -43,17 +43,25 @@ def uri_split_as_dict(uri) -> dict:
     elif isinstance(uri, URITuple):
         return uri.__dict__
 
-    # res = _rfc3986_ext0.match(uri).groupdict()
+    # res = _rfc3986.match(uri).groupdict()
 
     uri_ = urlparse(uri)
 
     query = "{" + ','.join([(f'"{k}":"{v[0]}"' if not v[0].isnumeric() else f'"{k}":{v[0]}')
                            for k, v in parse_qs(uri_.query).items()])+"}"
     ast.literal_eval(query)
+
+    if uri_.netloc in ['.', '..']:
+        path = uri_.netloc+uri_.path
+        netloc = ''
+    else:
+        path = uri_.path
+        netloc = uri_.netloc
+
     res = dict(
         protocol=uri_.scheme,
-        authority=uri_.netloc,
-        path=uri_.path,
+        authority=netloc,
+        path=path,
         query=ast.literal_eval(query),
         fragment=uri_.fragment
     )

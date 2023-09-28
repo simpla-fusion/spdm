@@ -82,19 +82,9 @@ SP_VIEW_BACKEND = "matplotlib"
 
 def display(*args,   backend=None,  **kwargs):
     """Show an object"""
-    res = viewer(backend).render(*args,    **kwargs)
-
-    if res.__class__.__name__ == "Figure":
-        try:
-            get_ipython()
-        except Exception as error:
-            logger.debug(error)
-        else:
-            logger.debug("In IPython, use display() to show the figure.")
-            res = None
-    return res
+    return viewer(backend).render(*args,    **kwargs)
 
 
-def draw_profiles(*args,   backend=None, **kwargs):
+def profiles(*args,   backend=None, **kwargs):
     """Show an object"""
     return viewer(backend=backend).profiles(*args,  **kwargs)
