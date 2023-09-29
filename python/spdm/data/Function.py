@@ -16,6 +16,7 @@ from ..utils.numeric import bitwise_and, is_close, meshgrid
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_array, numeric_type, scalar_type, get_args, get_origin)
+from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor, DiracDeltaFun, ConstantsFunc
 
@@ -32,7 +33,7 @@ class Function(Expression):
 
     """
 
-    def __init__(self, value, *dims, periods=None, **kwargs):
+    def __init__(self, value, *dims, periods=None, parent=None, **kwargs):
         """
             Parameters
             ----------
@@ -62,13 +63,14 @@ class Function(Expression):
             cache = None
         elif cache is not _not_found_:
             cache = as_array(cache)
-
-        Expression.__init__(self, func, label=kwargs.get("label", None) or kwargs.get("name", None))
+        metadata = merge_tree_recursive(kwargs.pop("metadata", {}), kwargs)
+        Expression.__init__(self, func, label=metadata.get("label", None) or metadata.get("name", None))
 
         self._cache = cache
         self._dims = list(dims)
         self._periods = periods
-        self._metada = kwargs
+        self._metadata = metadata
+        self._parent = parent
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
@@ -82,6 +84,7 @@ class Function(Expression):
             self._cache = other._cache
             self._periods = other._periods
             self._metadata = other._metadata
+            self._parent = other._parent
             return self
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"__serialize__")
@@ -91,16 +94,16 @@ class Function(Expression):
 
     def __getitem__(self, idx) -> NumericType:
         if self._cache is None or self._cache is _not_found_:
-            return self.__value__[idx]
+            return self.__array__()[idx]
         else:
             return self._cache[idx]
         # raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
     def __setitem__(self, idx, value) -> None:
         if self._cache is None or self._cache is _not_found_:
-            self.__value__[idx] = value
-        else:
-            self._cache[idx] = value
+            self._cache = self.__array__()
+
+        self._cache[idx] = value
         # raise RuntimeError("Function.__setitem__ is prohibited!")
 
     @property
@@ -119,7 +122,7 @@ class Function(Expression):
         if isinstance(coordinates, collections.abc.Mapping):
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
-            dims = [as_array(self.get(c) if isinstance(c, str) else c)
+            dims = [as_array(self._parent.get(c.lstrip("../"), default_value=_not_found_) if isinstance(c, str) else c)
                     for c in coordinates.values()]
 
         if len(dims) > 0 and len(self.periods) > 0:
@@ -227,7 +230,7 @@ class Function(Expression):
 
         dims = self.dims
 
-        value = self.__value__
+        value = self._cache
 
         if value is _not_found_ or value is None:
             self._func = None
@@ -254,13 +257,7 @@ class Function(Expression):
 
         return self._func
 
-    # @property
-    # def __value__(self) -> typing.Any:
-    #     value = super().__value__
-    #     if value is _not_found_ or value is None:
-    #         self._cache = np.full(self.shape, np.nan)
-    #         value = self._cache
-    #     return value
+
 
     def __array__(self, *args,  **kwargs) -> NumericType:
         """ 重载 numpy 的 __array__ 运算符
@@ -269,7 +266,11 @@ class Function(Expression):
         value = self._cache
 
         if not isinstance(value, scalar_type) and not isinstance(value, array_type):
-            logger.error(f"{self.__class__}.__array__ \"{(value)}\"")
+            self._cache = self.__call__(*self.dims)
+            value = self._cache
+
+        if not isinstance(value, scalar_type) and not isinstance(value, array_type):
+            logger.error(f"{self.__class__} \"{(value)}\"")
 
         return value
 
@@ -289,13 +290,13 @@ class Function(Expression):
             return super().__call__(*args, **kwargs)
 
     def derivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+        return Function(self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
 
     def partial_derivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+        return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
 
     def antiderivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self.__metadata__)
+        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
 
     def d(self, n=1) -> Expression: return self.derivative(n)
 
@@ -337,7 +338,7 @@ class Function(Expression):
         v_shape = ()
 
         if value is None:
-            value = self.__value__()
+            value = self._cache
 
         if value is None:
             raise RuntimeError(f" value is None! {self.__str__()}")
