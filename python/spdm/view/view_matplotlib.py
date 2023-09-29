@@ -222,7 +222,7 @@ class MatplotlibView(View):
 
         elif isinstance(obj, Field):
             R, Z = obj.__mesh__.points
-            value = np.asarray(obj.__value__)
+            value = obj.__array__()
 
             levels = styles.pop("levels", s_styles.pop("levels", 10))
 

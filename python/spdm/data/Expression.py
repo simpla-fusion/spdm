@@ -67,7 +67,7 @@ class Expression:
 
         self._func = expr
         self._children = children
-        self._label = label
+        self._label = label or self.__class__.__name__
 
         if len(kwargs) > 0:
             logger.warning(f"Expression.__init__() ignore kwargs {kwargs}")
@@ -121,7 +121,7 @@ class Expression:
     @property
     def __label__(self) -> str: return self._label
 
-    def __str__(self): return self._label or self._repr_latex_()
+    def __str__(self): return self._label
 
     def _repr_latex_(self): return display(self, backend="latex", output="latex")
     """ for jupyter notebook display """

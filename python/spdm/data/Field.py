@@ -14,12 +14,9 @@ from ..utils.typing import ArrayType, array_type, as_array
 from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor
-from .HTree import HTree
-
-_T = typing.TypeVar("_T")
 
 
-class Field(HTree[_T], Expression):
+class Field(Expression):
     """ Field
         ---------
         Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
@@ -36,7 +33,7 @@ class Field(HTree[_T], Expression):
 
     """
 
-    def __init__(self, value, *args, mesh=None,  **kwargs):
+    def __init__(self, value, *args, mesh=None, metadata=None, parent=None, **kwargs):
 
         cache = value
         func = None
@@ -50,17 +47,18 @@ class Field(HTree[_T], Expression):
         else:
             cache = as_array(cache)
 
-        HTree.__init__(self, cache, **kwargs)
+        metadata = merge_tree_recursive(metadata, kwargs)
 
-        Expression.__init__(self, func, label=self._metadata.get("label", None))
-
-        # super().__init__(value, **kwargs)
+        super().__init__(func, label=metadata.get("label", None) or metadata.get("name", None))
 
         if mesh is None and len(args) > 0:
             mesh = {"dims": args}
         elif len(args) > 0:
             logger.warning(f"ignore args={args}")
 
+        self._cache = cache
+        self._metadata = metadata
+        self._parent = parent
         self._mesh = mesh
         self._ppoly = None
 
@@ -78,7 +76,7 @@ class Field(HTree[_T], Expression):
 
         coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
 
-        if self._mesh is None and coordinates is not None and isinstance(self._parent, HTree):
+        if self._mesh is None and coordinates is not None:
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
@@ -122,7 +120,7 @@ class Field(HTree[_T], Expression):
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        value = self.__value__
+        value = self._cache
 
         if (value is None or value is _not_found_):
             value = self.__call__(*self.points)
@@ -147,8 +145,8 @@ class Field(HTree[_T], Expression):
             self._ppoly = self.__mesh__.interpolator(self.__array__(), *args, **kwargs)
         return self._ppoly
 
-    def compile(self) -> Field[_T]:
-        return Field[_T](self._interpolate(), mesh=self.__mesh__, name=f"[{self.__str__()}]")
+    def compile(self) -> Field:
+        return Field(self._interpolate(), mesh=self.__mesh__, name=f"[{self.__str__()}]")
 
     def grad(self, n=1) -> Field:
         ppoly = self. __functor__()
@@ -178,17 +176,17 @@ class Field(HTree[_T], Expression):
         else:
             raise NotImplemented(f"TODO: ndim={self.__mesh__.ndim} n={n}")
 
-    def derivative(self, n=1) -> Field[_T]:
-        return Field[_T](derivative(self. __functor__(), n),  mesh=self.__mesh__, name=f"D_{n}({self})")
+    def derivative(self, n=1) -> Field:
+        return Field(derivative(self. __functor__(), n),  mesh=self.__mesh__, name=f"D_{n}({self})")
 
-    def partial_derivative(self, *d) -> Field[_T]:
-        return Field[_T](self._interpolate().partial_derivative(*d), mesh=self.__mesh__, name=f"d_{d}({self})")
+    def partial_derivative(self, *d) -> Field:
+        return Field(self._interpolate().partial_derivative(*d), mesh=self.__mesh__, name=f"d_{d}({self})")
 
-    def antiderivative(self, *d) -> Field[_T]:
-        return Field[_T](antiderivative(self. __functor__(), *d),  mesh=self.__mesh__, name=f"I_{d}({self})")
+    def antiderivative(self, *d) -> Field:
+        return Field(antiderivative(self. __functor__(), *d),  mesh=self.__mesh__, name=f"I_{d}({self})")
 
-    def d(self, n=1) -> Field[_T]: return self.derivative(n)
+    def d(self, n=1) -> Field: return self.derivative(n)
 
-    def pd(self, *d) -> Field[_T]: return self.partial_derivative(*d)
+    def pd(self, *d) -> Field: return self.partial_derivative(*d)
 
     def dln(self) -> Expression: return self.derivative() / self

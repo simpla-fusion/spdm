@@ -18,10 +18,9 @@ from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_array, numeric_type, scalar_type, get_args, get_origin)
 from .Expression import Expression
 from .Functor import Functor, DiracDeltaFun, ConstantsFunc
-from .HTree import HTree
 
 
-class Function(HTree, Expression):
+class Function(Expression):
     """
         Function
         ---------
@@ -64,12 +63,12 @@ class Function(HTree, Expression):
         elif cache is not _not_found_:
             cache = as_array(cache)
 
-        HTree.__init__(self, cache, **kwargs)
+        Expression.__init__(self, func, label=kwargs.get("label", None) or kwargs.get("name", None))
 
-        Expression.__init__(self, func, label=self._metadata.get("label", None) or self._metadata.get("name", None))
-
+        self._cache = cache
         self._dims = list(dims)
         self._periods = periods
+        self._metada = kwargs
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
@@ -77,10 +76,12 @@ class Function(HTree, Expression):
         """ copy from other"""
 
         Expression.__copy_from__(self, other)
-        HTree.__copy_from__(self, other)
+
         if isinstance(other, Function):
             self._dims = other._dims
+            self._cache = other._cache
             self._periods = other._periods
+            self._metadata = other._metadata
             return self
 
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"__serialize__")
@@ -265,10 +266,10 @@ class Function(HTree, Expression):
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        value = self.__value__
+        value = self._cache
 
         if not isinstance(value, scalar_type) and not isinstance(value, array_type):
-            raise TypeError(f"{self.__class__}.__array__ \"{(value)}\"")
+            logger.error(f"{self.__class__}.__array__ \"{(value)}\"")
 
         return value
 
