@@ -82,7 +82,8 @@ SP_VIEW_BACKEND = "matplotlib"
 
 def display(*args,   backend=None,  **kwargs):
     """Show an object"""
-    return viewer(backend).render(*args,    **kwargs)
+
+    return viewer(backend).render(*args,  **kwargs)
 
 
 def profiles(*args,   backend=None, **kwargs):

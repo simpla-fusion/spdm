@@ -41,10 +41,15 @@ class MatplotlibView(View):
         fig.tight_layout()
 
         pos = fig.gca().get_position()
+        height = pos.ymin+pos.ymax
+        width = pos.xmax
+
+        # width = fig.get_figwidth()
+        # height = fig.get_figheight()
 
         fig.text(
-            pos.xmax + 0.01,
-            0.5 * (pos.ymin + pos.ymax),
+            width + 0.01,
+            0.5 * height,
             self.signature,
             verticalalignment="center",
             horizontalalignment="left",
@@ -67,13 +72,6 @@ class MatplotlibView(View):
             plt.close(fig)
             fig = None
 
-        try:
-            get_ipython()
-        except Exception as error:
-            pass  # logger.debug(error)
-        else:
-            logger.debug("In IPython, use display() to show the figure.")
-            fig = None
         return fig
 
     def render(self, obj, styles=None, view_point="rz", title=None, **kwargs) -> typing.Any:

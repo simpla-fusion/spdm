@@ -253,13 +253,13 @@ class Function(HTree, Expression):
 
         return self._func
 
-    @property
-    def __value__(self) -> typing.Any:
-        value = super().__value__
-        if value is _not_found_ or value is None:
-            self._cache = np.full(self.shape, np.nan)
-            value = self._cache
-        return value
+    # @property
+    # def __value__(self) -> typing.Any:
+    #     value = super().__value__
+    #     if value is _not_found_ or value is None:
+    #         self._cache = np.full(self.shape, np.nan)
+    #         value = self._cache
+    #     return value
 
     def __array__(self, *args,  **kwargs) -> NumericType:
         """ 重载 numpy 的 __array__ 运算符
