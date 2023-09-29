@@ -11,7 +11,7 @@ from spdm.data.File import File
 from spdm.data.Path import Path
 from spdm.utils.logger import logger
 
-SPDM_LIGHTDATA_MAX_LENGTH = 64
+SPDM_LIGHTDATA_MAX_LENGTH = 3
 
 
 def h5_require_group(grp, path):

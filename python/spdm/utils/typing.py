@@ -323,12 +323,20 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
         value = as_array(value)
 
     elif type_hint in primary_type:
+        
         if hasattr(value, "__value__"):
             value = value.__value__
+
         if value is _not_found_:
             value = kwargs.pop("default_value", _not_found_)
+
         if value is not _not_found_ and value is not None:
-            value = type_hint(value)
+            try:
+                tmp = type_hint(value)
+            except Exception as error:
+                raise TypeError(f"Can not convert {value} to {type_hint}") from error
+            else:
+                value = tmp
 
     elif dataclasses.is_dataclass(type_hint):
         value = as_dataclass(type_hint, value)

@@ -219,10 +219,10 @@ class TimeSeriesAoS(List[_TSlice]):
             self._cache.append(self.current.advance(*args, time=time, **kwargs))
 
         elif time is None:
-            if self.current.entry is None:
+            if self.current._entry is None:
                 raise RuntimeError(f"Can not find next slice! {self.current}")
 
-            self._cache.append(self.current.entry.next())
+            self._cache.append(self.current._entry.next())
 
         elif time < self.current.time:
             raise RuntimeError(f"Can not insert slice! {time}<{self.current.time}")

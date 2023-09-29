@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import numpy as np
 import collections
 import collections.abc
 import dataclasses
@@ -118,10 +118,8 @@ class Entry(Pluggable):
         return other
 
     def next(self, inc: int = 1) -> Entry:
-        if not isinstance(self._path[-1], int):
-            raise RuntimeError(
-                f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}"
-            )
+        if  not isinstance(self._path[-1],int ) and not  np.issubdtype(type(self._path[-1]), np.integer):
+            raise RuntimeError( f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}"  )
 
         next_ = self.__copy__()
 
