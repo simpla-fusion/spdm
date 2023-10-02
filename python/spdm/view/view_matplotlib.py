@@ -259,7 +259,7 @@ class MatplotlibView(View):
 
             self._draw(canvas, text, {f"${self.backend}": text_styles})
 
-    def profiles(self, obj, x_value: Expression | np.ndarray = None, x_label: str = None, x_axis: np.ndarray = None, stop_if_fail=False, **kwargs) -> typing.Any:
+    def plot(self, obj, x_value: Expression | np.ndarray = None, x_label: str = None, x_axis: np.ndarray = None, stop_if_fail=False, **kwargs) -> typing.Any:
 
         styles = merge_tree_recursive(kwargs.pop("styles", {}), kwargs)
 
@@ -311,13 +311,13 @@ class MatplotlibView(View):
 
             for p in profiles:
                 try:
-                    self._profiles(canvas[idx], p, x_value=x_value, x_axis=x_axis,
-                                   styles=collections.ChainMap(sub_styles, styles))
+                    self._plot(canvas[idx], p, x_value=x_value, x_axis=x_axis,
+                               styles=collections.ChainMap(sub_styles, styles))
                 except Exception as error:
-                    if stop_if_fail:
-                        raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
-                    else:
-                        logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
+                    # if stop_if_fail:
+                    raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
+                    # else:
+                    #     logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
 
             canvas[idx].legend(fontsize=fontsize)
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
@@ -326,11 +326,11 @@ class MatplotlibView(View):
 
         return self._figure_post(fig, styles=styles, **kwargs)
 
-    def _profiles(self, canvas, obj, x_axis: array_type, x_value: array_type,   **kwargs):
+    def _plot(self, canvas, obj, x_axis: array_type, x_value: array_type,   **kwargs):
         if obj is None or obj is _not_found_:
             return
-        elif not isinstance(x_value, array_type) or not isinstance(x_axis, array_type):
-            raise RuntimeError(f"Unsupported x_value {x_value} {x_axis} ")
+        # elif not isinstance(x_value, array_type) and not isinstance(x_axis, array_type):
+        #     raise RuntimeError(f"Unsupported x_value {x_value} {x_axis} ")
 
         if isinstance(obj, tuple):
             obj, styles = obj
@@ -343,22 +343,36 @@ class MatplotlibView(View):
 
         label = styles.get("label", None) or kwargs.get("label", None)
 
-        if isinstance(obj, Expression):
+        data = []
+        if isinstance(obj, Function) and x_value is None:
+            x_value = obj.dims[0]
+            y_value = obj.__array__()
+            label = label or obj.__label__
+            data = [x_value, y_value]
+
+        elif isinstance(obj, Expression):
             label = label or getattr(obj, "name", None) or getattr(obj, "__label__", None) or str(obj)
             y_value = obj(x_axis)
+            data = [x_value, y_value]
 
-        elif is_array(obj) and obj.size() == x_value.size():
+        elif is_array(obj):
             y_value = obj
+            label = " "
+            if x_value is not None and x_value.size == obj.size:
+                data = [x_value, y_value]
+            else:
+                data = [y_value]
 
         elif np.isscalar(obj):
             y_value = np.full_like(x_value, obj, dtype=float)
+            data = [x_value, y_value]
 
         else:
             logger.warning(f"ignore unsupported profiles label={label}")
             return
             # raise RuntimeError(f"Unsupported profiles {obj}")
 
-        canvas.plot(x_value, y_value, **s_styles, label=label)
+        canvas.plot(*data, **s_styles, label=label)
 
     # def profiles_(self, obj, *args,  x_axis=None, x=None,
     #               default_num_of_points=128, fontsize=10, grid=True,

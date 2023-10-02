@@ -56,7 +56,7 @@ class View(Pluggable):
     def render(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
 
-    def profiles(self, *args, **kwargs):
+    def plot(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.draw")
 
 
@@ -88,4 +88,9 @@ def display(*args,   backend=None,  **kwargs):
 
 def profiles(*args,   backend=None, **kwargs):
     """Show an object"""
-    return viewer(backend=backend).profiles(*args,  **kwargs)
+    return viewer(backend=backend).plot(*args,  **kwargs)
+
+
+def plot(*args,   backend=None, **kwargs):
+    """Show an object"""
+    return viewer(backend=backend).plot(*args,  **kwargs)

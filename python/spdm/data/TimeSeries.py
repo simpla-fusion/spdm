@@ -134,13 +134,39 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return pos, time
 
-    def __getitem__(self, idx: int) -> _TSlice:
+    def _extend_cache(self, idx):
+
+        if self._cache is None or self._cache is _not_found_:
+            self._cache = []
 
         if idx < 0:
             idx += len(self._cache)
 
-        value = self._cache[idx]
+            if idx == -1:
+                idx = 0
+            elif idx < 0:
+                raise IndexError(
+                    f"Out of range ! {idx} cache length={len(self._cache)} start index={self._start_slice}")
 
+        if self._start_slice is None:
+            self._start_slice = idx
+        elif idx >= 0:
+            idx -= self._start_slice
+        else:
+            idx += len(self._cache)
+
+        if idx < 0:
+            self._start_slice += idx
+            self._cache = [None]*(-idx)+self._cache
+            idx = 0
+        elif idx >= len(self._cache):
+            self._cache += [None]*(idx-len(self._cache)+1)
+
+    def __getitem__(self, idx: int) -> _TSlice:
+
+        self._extend_cache(idx)
+
+        value = self._cache[idx]
         entry = None
 
         if not isinstance(value, TimeSlice):
@@ -182,7 +208,9 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return value  # type:ignore
 
-    def __setitem__(self, idx: int, value): self._cache[idx] = value
+    def __setitem__(self, idx: int, value):
+        self._extend_cache(idx)
+        self._cache[idx] = value
 
     def refresh(self, *args, time: float | None = None, **kwargs) -> _TSlice:
         """

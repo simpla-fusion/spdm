@@ -87,6 +87,15 @@ class Function(Expression):
             self._parent = other._parent
             return self
 
+    def _repr_svg_(self) -> str:
+        try:
+            from ..view import View as sp_view
+            res = sp_view.plot(self, output="svg")
+        except Exception as error:
+            # logger.error(error)
+            res = None
+        return res
+
     def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"__serialize__")
 
     @classmethod
@@ -256,8 +265,6 @@ class Function(Expression):
             raise RuntimeError(f"TODO: {dims} {value}")
 
         return self._func
-
-
 
     def __array__(self, *args,  **kwargs) -> NumericType:
         """ 重载 numpy 的 __array__ 运算符

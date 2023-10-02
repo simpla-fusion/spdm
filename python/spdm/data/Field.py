@@ -62,7 +62,7 @@ class Field(Expression):
         self._mesh = mesh
         self._ppoly = None
 
-    def __repr_svg__(self) -> str:
+    def _repr_svg_(self) -> str:
         from ..view.View import display
         return display(self, output="svg")
 

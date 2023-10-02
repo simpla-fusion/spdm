@@ -82,7 +82,7 @@ class SpTree(HTree[_T]):
                 if prop is _not_found_:
                     prop = None
                 elif isinstance(prop, Function):
-                    prop = prop.__value__
+                    prop = prop.__array__()
 
             except Exception as error:
                 if SP_DEBUG:
