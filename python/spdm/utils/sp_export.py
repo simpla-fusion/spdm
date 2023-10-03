@@ -10,6 +10,7 @@ import pkgutil
 import sys
 import typing
 
+from .envs import SP_DEBUG
 from .logger import logger
 
 SP_EXPORT_KEYWORD = "__SP_EXPORT__"
@@ -60,7 +61,8 @@ def sp_load_module(mod_name: str):
 
     sys.modules[spec.name] = module
 
-    logger.info(f"Load module {spec.name}")  # from {pathlib.Path(spec.origin).resolve().as_posix()}
+    if SP_DEBUG:
+        logger.info(f"Load module {spec.name}")  # from {pathlib.Path(spec.origin).resolve().as_posix()}
 
     return module
 
@@ -113,7 +115,9 @@ def sp_find_module(path, fragment=None, pythonpath=None):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             sys.modules[spec.name] = module
-            logger.info(f"Load module {spec.name} from {spec.origin}")
+
+            if SP_DEBUG:
+                logger.info(f"Load module {spec.name} from {spec.origin}")
 
     if not isinstance(module, object):
         module = None

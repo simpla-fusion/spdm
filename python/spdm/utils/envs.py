@@ -1,6 +1,6 @@
 import os
 
-SP_DEBUG = os.environ.get("SP_DEBUG", "verbose")
+SP_DEBUG = os.environ.get("SP_DEBUG", None)
 
 SP_MPI = None
 
