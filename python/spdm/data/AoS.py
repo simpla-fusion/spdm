@@ -13,7 +13,7 @@ from .Path import Path, PathLike, as_path
 _T = typing.TypeVar("_T")
 
 
-class QueryResult(HTree[_T]):
+class QueryResult(HTree):
     """ Handle the result of query    """
 
     def __init__(self, query: PathLike, *args, **kwargs) -> None:
@@ -51,7 +51,7 @@ class QueryResult(HTree[_T]):
 
         return value
 
-    def __iter__(self) -> typing.Generator[typing.Tuple[str, _T | HTree[_T]] | _T | HTree[_T], None, None]:
+    def __iter__(self) -> typing.Generator[typing.Tuple[str, _T | HTree] | _T | HTree, None, None]:
         raise NotImplementedError(f"TODO:")
 
     @staticmethod
@@ -70,7 +70,7 @@ class QueryResult(HTree[_T]):
         else:
             return first+second
 
-    def children(self) -> typing.Generator[_T | HTree[_T], None, None]:
+    def children(self) -> typing.Generator[_T | HTree, None, None]:
         """ 遍历 children """
         cache = self._cache if self._cache is not _not_found_ else self._default_value
 
@@ -111,7 +111,7 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-    def _get(self, query: PathLike,  **kwargs) -> HTree[_T] | _T | QueryResult[_T]:
+    def _get(self, query: PathLike,  **kwargs) -> HTree | _T | QueryResult[_T]:
 
         if isinstance(query, int):
             return super()._get(query)
@@ -128,7 +128,7 @@ class AoS(List[_T]):
 
         return QueryResult[tp](query, self._cache, entry=self._entry, default_value=default_value, parent=self._parent, **kwargs)
 
-# class NamedDict(HTree[_T]):
+# class NamedDict(HTree):
 #     """ Proxy to access named dict """
 
 #     def __getattr__(self, name: str) -> typing.Any: return self._get(name)

@@ -56,15 +56,13 @@ from .Entry import Entry, open_entry
 from .Function import Function
 from .HTree import HTree
 
-_T = typing.TypeVar("_T")
 
-
-class SpTree(HTree[_T]):
+class SpTree(HTree):
     """  支持 sp_property 的 Dict  """
 
     def __init__(self, *args, **kwargs) -> None: super().__init__(*args, **kwargs)
 
-    def __get_property__(self, key: str, *args, **kwargs) -> _T: return self._get(key, *args, **kwargs)
+    def __get_property__(self, key: str, *args, **kwargs) -> SpTree: return self._get(key, *args, **kwargs)
 
     def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self.update(key, value)
 
@@ -102,6 +100,9 @@ class SpTree(HTree[_T]):
             return entry._data
         else:
             return entry
+
+
+_T = typing.TypeVar("_T")
 
 
 class sp_property(typing.Generic[_T]):
@@ -245,7 +246,7 @@ class sp_property(typing.Generic[_T]):
     def __set__(self, instance:  SpTree[_T], value: typing.Any) -> None:
         assert (instance is not None)
 
-        type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
+        # type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
 
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
@@ -291,3 +292,34 @@ class sp_property(typing.Generic[_T]):
 
 
 def is_sp_property(obj) -> bool: return isinstance(obj, sp_property)
+
+
+def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
+    if not issubclass(cls, HTree):
+        cls_annotations = cls.__annotations__
+        cls = type(cls.__name__, (cls, SpTree), {})
+    else:
+        cls_annotations = cls.__annotations__
+
+    for _name, _type in cls_annotations.items():
+        default_value = getattr(cls, _name, None)
+        if isinstance(default_value, sp_property):
+            prop = default_value
+        else:
+            prop = sp_property(type_hint=_type, default_value=default_value)
+        prop.property_cache_key = _name
+        prop.property_name = _name
+        setattr(cls, _name, prop)
+    return cls
+
+
+def sp_tree(cls: _T = None, /,   **kwargs) -> _T:
+    # 装饰器，将一个类转换为 SpTree 类
+
+    def wrap(cls):
+        return _process_sptree(cls,  **kwargs)
+
+    if cls is None:
+        return wrap
+
+    return wrap(cls)

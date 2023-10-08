@@ -18,10 +18,9 @@ from ..utils.uri_utils import URITuple
 from .Entry import Entry, open_entry
 from .Path import Path, PathLike, Query, QueryLike, as_path, as_query
 from .Expression import Expression
-_T = typing.TypeVar("_T")
 
 
-class HTree(typing.Generic[_T]):
+class HTree:
     """
         Hierarchical Tree:
 
@@ -74,12 +73,12 @@ class HTree(typing.Generic[_T]):
 
         self._entry = open_entry(entry)
 
-    def __copy__(self) -> HTree[_T]:
+    def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
         other.__copy_from__(self)
         return other
 
-    def __copy_from__(self, other: HTree[_T]) -> HTree[_T]:
+    def __copy_from__(self, other: HTree) -> HTree:
         """ 复制 other 到 self  """
         if isinstance(other, HTree):
             self._cache = copy(other._cache)
@@ -108,7 +107,7 @@ class HTree(typing.Generic[_T]):
         from ..view.View import display
         return display(self, output="svg")
 
-    # def __reduce__(self) -> _T: raise NotImplementedError(f"")
+    # def __reduce__(self) -> HTree: raise NotImplementedError(f"")
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
@@ -141,14 +140,14 @@ class HTree(typing.Generic[_T]):
     def __metadata__(self) -> dict: return self._metadata
 
     @ property
-    def _root(self) -> HTree[_T] | None:
+    def _root(self) -> HTree | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
         while p.parent is not None and getattr(p, "ids_properties", None) is None:
             p = p.parent
         return p
 
-    def __getitem__(self, path) -> _T: return self.get(path, force=True)
+    def __getitem__(self, path) -> HTree: return self.get(path, force=True)
 
     def __setitem__(self, path, value) -> None: self._update(path, value)
 
@@ -158,7 +157,7 @@ class HTree(typing.Generic[_T]):
 
     def __len__(self) -> int: return self._query([], Path.tags.count)  # type:ignore
 
-    def __iter__(self) -> typing.Generator[_T | HTree[_T], None, None]: yield from self.children()
+    def __iter__(self) -> typing.Generator[HTree, None, None]: yield from self.children()
     """ 遍历 children """
 
     def __equal__(self, other) -> bool: return self._query([], Path.tags.equal, other)  # type:ignore
@@ -213,7 +212,7 @@ class HTree(typing.Generic[_T]):
 
         return obj
 
-    def children(self) -> typing.Generator[_T, None, None]:
+    def children(self) -> typing.Generator[HTree, None, None]:
 
         if isinstance(self._cache, list) and len(self._cache) > 0:
             for idx, cache in enumerate(self._cache):
@@ -299,7 +298,7 @@ class HTree(typing.Generic[_T]):
             type_hint = self._type_hint(key if key is not None else 0)
 
         if type_hint is None and force:
-            type_hint = HTree[_T]
+            type_hint = HTree
 
         # metadata = kwargs.pop("metadata", {})
 
@@ -349,7 +348,7 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _get(self, query: PathLike = None,  *args, type_hint=None, **kwargs) -> HTree[_T] | _T:
+    def _get(self, query: PathLike = None,  *args, type_hint=None, **kwargs) ->HTree:
         """ 获取子节点  """
 
         value = _not_found_
@@ -405,7 +404,7 @@ class HTree(typing.Generic[_T]):
         else:
             raise RuntimeError(f"{self._cache}")
 
-    def _get_as_dict(self, key: str,  *args, **kwargs) -> HTree[_T] | _T:
+    def _get_as_dict(self, key: str,  *args, **kwargs) ->HTree:
 
         cache = _not_found_
 
@@ -426,7 +425,7 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, **kwargs) -> HTree[_T] | _T:
+    def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, **kwargs) ->HTree:
 
         if isinstance(key, (Query, dict)):
             raise NotImplementedError(f"TODO:")
@@ -488,7 +487,7 @@ class HTree(typing.Generic[_T]):
 
         return value
 
-    def _query(self,  path: PathLike, *args, **kwargs) -> HTree[_T] | _T:
+    def _query(self,  path: PathLike, *args, **kwargs) ->HTree:
         if self._cache is not _not_found_:
             return as_path(path).fetch(self._cache, *args, **kwargs)
         else:
@@ -552,11 +551,13 @@ def as_htree(obj, *args, **kwargs):
 
 Node = HTree
 
+_T = typing.TypeVar("_T")
 
-class Container(HTree[_T]):
-
+class Container(HTree,typing.Generic[_T]):
+    """
+        带有type hint的容器，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
+    """
     pass
-
 
 class Dict(Container[_T]):
 
@@ -594,5 +595,3 @@ class List(Container[_T]):
                 value.dump(entry.child(idx), **kwargs)
             else:
                 entry.child(idx).insert(value)
-
- 
