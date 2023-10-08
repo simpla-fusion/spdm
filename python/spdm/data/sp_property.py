@@ -46,7 +46,7 @@ import inspect
 import typing
 from _thread import RLock
 from enum import Enum
-
+import dataclasses
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
@@ -83,7 +83,7 @@ class SpTree(HTree):
                     prop = prop.__array__()
 
             except Exception as error:
-                if SP_DEBUG:
+                if SP_DEBUG == "CRITICAL":
                     raise RuntimeError(f"Fail to dump property: {self.__class__.__name__}.{k}") from error
                 else:
                     logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
@@ -295,13 +295,15 @@ def is_sp_property(obj) -> bool: return isinstance(obj, sp_property)
 
 
 def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
-    if not issubclass(cls, HTree):
-        cls_annotations = cls.__annotations__
-        cls = type(cls.__name__, (cls, SpTree), {})
-    else:
-        cls_annotations = cls.__annotations__
+    if not inspect.isclass(cls):
+        raise TypeError(f"Not a class {cls}")
 
-    for _name, _type in cls_annotations.items():
+    type_hints = typing.get_type_hints(cls)
+
+    if not issubclass(cls, HTree):
+        cls = type(cls.__name__, (cls, SpTree), {})
+
+    for _name, _type in type_hints.items():
         default_value = getattr(cls, _name, None)
         if isinstance(default_value, sp_property):
             prop = default_value
