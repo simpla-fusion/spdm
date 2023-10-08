@@ -41,18 +41,14 @@
 
 from __future__ import annotations
 
-import collections.abc
 import inspect
 import typing
 from _thread import RLock
 from enum import Enum
-import dataclasses
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
-from ..utils.tree_utils import merge_tree_recursive
-from ..utils.typing import PrimaryType
-from .Entry import Entry, open_entry
+from .Entry import Entry
 from .Function import Function
 from .HTree import HTree
 
