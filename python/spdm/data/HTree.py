@@ -272,12 +272,11 @@ class HTree:
         return tp_hint
 
     def _as_child(self, value,  key, *args,
-                  default_value=_not_found_,
+                  default_value=_undefined_,
                   _type_hint: typing.Type = None,
                   _entry: Entry | None = None,
                   _parent: HTree | None = None,
                   _getter: typing.Callable | None = None,
-                  _force=True,  # 若type_hint为 None，强制 HTree
                   ** kwargs) -> _T:
 
         s_default_value = self._metadata.get("default_value", None)
@@ -296,8 +295,7 @@ class HTree:
         if _type_hint is None:
             _type_hint = self._type_hint(key if key is not None else 0)
 
-        if _type_hint is None and _force:
-            _type_hint = HTree
+        force = _type_hint is None and default_value is _undefined_
 
         if not issubclass(get_origin(_type_hint), HTree) and value is _not_found_ and _entry is not None:
             value = _entry.get(default_value=_not_found_)
@@ -317,10 +315,10 @@ class HTree:
         elif issubclass(get_origin(_type_hint), HTree):
             value = _type_hint(value, _entry=_entry,  _parent=_parent, **kwargs)
 
-        elif not _force and isinstance(value, HTree):
+        elif not force and isinstance(value, HTree):
             value = value.__value__
 
-        elif not _force and isinstance(value, Entry):
+        elif not force and isinstance(value, Entry):
             value = value.__value__
 
         else:

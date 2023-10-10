@@ -33,7 +33,7 @@ class Function(Expression):
 
     """
 
-    def __init__(self, value, *dims, periods=None, parent=None, **kwargs):
+    def __init__(self, value, *dims, periods=None, _parent=None, **kwargs):
         """
             Parameters
             ----------
@@ -63,14 +63,13 @@ class Function(Expression):
             cache = None
         elif cache is not _not_found_:
             cache = as_array(cache)
-        metadata = merge_tree_recursive(kwargs.pop("metadata", {}), kwargs)
-        Expression.__init__(self, func, label=metadata.get("label", None) or metadata.get("name", None))
+        Expression.__init__(self, func, label=kwargs.pop("label", None) or kwargs.pop("name", None))
 
         self._cache = cache
         self._dims = list(dims)
         self._periods = periods
-        self._metadata = metadata
-        self._parent = parent
+        self._metadata = kwargs
+        self._parent = _parent
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
 
@@ -128,12 +127,12 @@ class Function(Expression):
             if isinstance(dims, collections.abc.Mapping):
                 dims = {int(k): v for k, v in dims.items() if k.isdigit()}
                 dims = dict(sorted(dims.items(), key=lambda x: x[0]))
-                if isinstance(holder,Function):
+                if isinstance(holder, Function):
                     dims = [as_array(holder._parent.get(c[3:], _not_found_) if isinstance(c, str) and c.startswith("../") else c)
-                        for c in dims.values()]
+                            for c in dims.values()]
                 else:
                     dims = [as_array(holder.get(c, _not_found_) if isinstance(c, str) else c)
-                        for c in dims.values()]
+                            for c in dims.values()]
             elif dims is not None:
                 logger.warning(f"ignore {dims}")
                 dims = None
