@@ -65,22 +65,22 @@ class RectilinearMesh(StructuredMesh):
         self._periods = periods
         self._aixs = [Function(self._dims[i], np.linspace(0, 1.0, self.shape[i])) for i in range(self.rank)]
 
-    @ property
+    @property
     def dim1(self) -> ArrayType: return self._dims[0].__array__()
 
-    @ property
+    @property
     def dim2(self) -> ArrayType: return self._dims[1].__array__()
 
-    @ property
+    @property
     def dims(self) -> typing.List[ArrayType]: return self._dims
 
-    @ property
+    @property
     def dimensions(self) -> typing.List[ArrayType]: return self._dims
 
-    @ property
+    @property
     def rank(self) -> int: return len(self._dims)
 
-    @ cached_property
+    @cached_property
     def dx(self) -> ArrayType: return np.asarray([(d[-1]-d[0])/len(d) for d in self._dims])
 
     def coordinates(self, *uvw) -> ArrayType:
@@ -91,7 +91,7 @@ class RectilinearMesh(StructuredMesh):
             uvw = uvw[0]
         return np.stack([self._dims[i](uvw[i]) for i in range(self.rank)], axis=-1)
 
-    @ cached_property
+    @cached_property
     def vertices(self) -> ArrayType:
         """ 网格点的 _空间坐标_ """
         if self.geometry.rank == 1:
@@ -99,7 +99,7 @@ class RectilinearMesh(StructuredMesh):
         else:
             return np.stack(self.points, axis=-1)
 
-    @ cached_property
+    @cached_property
     def points(self) -> typing.List[ArrayType]:
         """ 网格点的 _空间坐标_ """
         if self.geometry.rank == 1:

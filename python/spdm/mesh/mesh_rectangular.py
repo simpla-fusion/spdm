@@ -1,9 +1,5 @@
-import typing
 from .Mesh import Mesh
-from .mesh_structured import StructuredMesh
-import numpy as np
 from ..utils.typing import ArrayType
-from ..utils.logger import logger
 from .mesh_rectilinear import RectilinearMesh
 
 

@@ -26,7 +26,7 @@ class Field(Expression):
         Mesh 网格描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。
 
         Field 与 Function的区别：
-            - Function 的 mesh 是 多个一维数组表示dimensions/axis
+            - Function 的 mesh 是一维数组表示dimensions/axis
             - Field 的 mesh 是 Mesh，可以表示复杂流形上的场等。
 
         当 Field 不做为 DTree 的节点时， 应直接由Function继承  Field(Function[_T])
@@ -71,31 +71,42 @@ class Field(Expression):
 
     @property
     def __mesh__(self) -> Mesh:
+
+        if self._mesh is None:
+            mesh = self._metadata.get("mesh", None)
+            if not isinstance(mesh, str):
+                self._mesh = mesh
+            elif mesh.startswith("../"):
+                self._mesh = self._parent.get(mesh[3:], None)
+            else:
+                raise RuntimeError(f"Illegal mesh description! \"{mesh}\" ")
+
         if isinstance(self._mesh, Mesh):
             return self._mesh
 
-        coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
+        elif self._mesh is None:
+            coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
 
-        if self._mesh is None and coordinates is not None:
-            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+            if coordinates is not None:
+                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
 
-            if all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
-                o_mesh = getattr(self._parent, "grid", None)
-                if isinstance(o_mesh, Mesh):
-                    # if self._mesh is not None and len(self._mesh) > 0:
-                    #     logger.warning(f"Ignore {self._mesh}")
-                    self._mesh = o_mesh
-                elif isinstance(o_mesh, collections.abc.Sequence):
-                    self._mesh = merge_tree_recursive(self._mesh, {"dims": o_mesh})
-                elif isinstance(o_mesh, collections.abc.Mapping):
-                    self._mesh = merge_tree_recursive(self._mesh, o_mesh)
-                elif o_mesh is not None:
-                    raise RuntimeError(f"self._parent.grid is not a Mesh, but {type(o_mesh)}")
-            else:
-                dims = tuple([(self._parent.get(c) if isinstance(c, str) else c)
-                              for c in coordinates.values()])
-                self._mesh = merge_tree_recursive(self._mesh, {"dims": dims})
+                if all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
+                    o_mesh = getattr(self._parent, "grid", None)
+                    if isinstance(o_mesh, Mesh):
+                        # if self._mesh is not None and len(self._mesh) > 0:
+                        #     logger.warning(f"Ignore {self._mesh}")
+                        self._mesh = o_mesh
+                    elif isinstance(o_mesh, collections.abc.Sequence):
+                        self._mesh = merge_tree_recursive(self._mesh, {"dims": o_mesh})
+                    elif isinstance(o_mesh, collections.abc.Mapping):
+                        self._mesh = merge_tree_recursive(self._mesh, o_mesh)
+                    elif o_mesh is not None:
+                        raise RuntimeError(f"self._parent.grid is not a Mesh, but {type(o_mesh)}")
+                else:
+                    dims = tuple([(self._parent.get(c) if isinstance(c, str) else c)
+                                  for c in coordinates.values()])
+                    self._mesh = merge_tree_recursive(self._mesh, {"dims": dims})
 
         elif isinstance(self._mesh, Enum):
             self._mesh = {"type": self._mesh.name}
@@ -157,22 +168,22 @@ class Field(Expression):
             opts = {}
 
         if self.__mesh__.ndim == 2 and n == 1:
-            return Field[typing.Tuple[_T, _T]]((ppoly.partial_derivative(1, 0),
-                                                ppoly.partial_derivative(0, 1)),
-                                               mesh=self.__mesh__,
-                                               name=f"\\nabla({self.__str__()})", **opts)
+            return Field((ppoly.partial_derivative(1, 0),
+                          ppoly.partial_derivative(0, 1)),
+                         mesh=self.__mesh__,
+                         name=f"\\nabla({self.__str__()})", **opts)
         elif self.__mesh__.ndim == 3 and n == 1:
-            return Field[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(1, 0, 0),
-                                                    ppoly.partial_derivative(0, 1, 0),
-                                                    ppoly.partial_derivative(0, 0, 1)),
-                                                   mesh=self.__mesh__,
-                                                   name=f"\\nabla({self.__str__()})", **opts)
+            return Field((ppoly.partial_derivative(1, 0, 0),
+                          ppoly.partial_derivative(0, 1, 0),
+                          ppoly.partial_derivative(0, 0, 1)),
+                         mesh=self.__mesh__,
+                         name=f"\\nabla({self.__str__()})", **opts)
         elif self.__mesh__.ndim == 2 and n == 2:
-            return Field[typing.Tuple[_T, _T, _T]]((ppoly.partial_derivative(2, 0),
-                                                    ppoly.partial_derivative(0, 2),
-                                                    ppoly.partial_derivative(1, 1)),
-                                                   mesh=self.__mesh__,
-                                                   name=f"\\nabla^{n}({self.__str__()})", **opts)
+            return Field((ppoly.partial_derivative(2, 0),
+                          ppoly.partial_derivative(0, 2),
+                          ppoly.partial_derivative(1, 1)),
+                         mesh=self.__mesh__,
+                         name=f"\\nabla^{n}({self.__str__()})", **opts)
         else:
             raise NotImplemented(f"TODO: ndim={self.__mesh__.ndim} n={n}")
 

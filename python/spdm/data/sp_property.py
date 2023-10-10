@@ -297,14 +297,22 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
     type_hints = typing.get_type_hints(cls)
 
     if not issubclass(cls, HTree):
-        cls = type(cls.__name__, (cls, SpTree), {})
+        n_cls = type(cls.__name__, (cls, SpTree), {})
+        n_cls.__module__ = cls.__module__
+        cls = n_cls
 
     for _name, _type in type_hints.items():
-        default_value = getattr(cls, _name, None)
-        if isinstance(default_value, sp_property):
-            prop = default_value
+        prop = getattr(cls, _name, None)
+        if isinstance(prop, sp_property):
+            if prop.type_hint is None or prop.type_hint == _type:
+                pass
+            elif _type is not None:
+                if prop.type_hint is not None:
+                    logger.warning(f"{prop.type_hint}")
+                prop.type_hint = _type
+
         else:
-            prop = sp_property(type_hint=_type, default_value=default_value)
+            prop = sp_property(type_hint=_type, default_value=prop)
         prop.property_cache_key = _name
         prop.property_name = _name
         setattr(cls, _name, prop)

@@ -38,6 +38,10 @@ class Mesh(Pluggable):
 
             if mesh_type is not None and mesh_type is not _not_found_:
                 pass
+            elif len(args) == 1 and isinstance(args[0], dict):
+                dims, *_ = group_dict_by_prefix(args[0], "dim", sep=None)
+                args = [*dict(sorted(dims.items(), key=lambda x: x[0])).values()]
+                mesh_type = "rectilinear"
             elif all([isinstance(arg, (int, np.ndarray)) for arg in args]):
                 mesh_type = "rectilinear"
 

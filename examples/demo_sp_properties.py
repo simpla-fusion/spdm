@@ -12,9 +12,13 @@ class Foo:
     first: float
     second: str = "b"
 
+    def goo(self):
+        print("goo")
+
 
 if __name__ == '__main__':
 
     doo = Foo(a=1.0, b="b")
+    logger.debug(Foo)
     logger.info(doo.first)
     logger.info(doo.second)
