@@ -7,7 +7,7 @@ from ..utils.tags import _not_found_
 from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import array_type, get_args, get_type_hint
 from .Entry import Entry
-from .HTree import HTree, List
+from .HTree import HTree, List, Dict
 from .Path import Path, PathLike, as_path
 
 _T = typing.TypeVar("_T")
@@ -100,7 +100,7 @@ class AoS(List[_T]):
         super().__init__(*args, **kwargs)
         self._identifier = identifier
         if self._identifier is None:
-            self._identifier = self.__metadata__.get("identifier", None)
+            self._identifier = self._metadata.get("identifier", None)
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """

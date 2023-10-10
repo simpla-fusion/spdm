@@ -121,20 +121,29 @@ class Function(Expression):
         if len(self._dims) > 0:
             return self._dims
 
-        dims = []
+        dims = None
+        holder = self
+        while dims is None and hasattr(holder, "_metadata"):
+            dims, *_ = group_dict_by_prefix(holder._metadata, "coordinate", sep=None)
+            if isinstance(dims, collections.abc.Mapping):
+                dims = {int(k): v for k, v in dims.items() if k.isdigit()}
+                dims = dict(sorted(dims.items(), key=lambda x: x[0]))
+                if isinstance(holder,Function):
+                    dims = [as_array(holder._parent.get(c[3:], _not_found_) if isinstance(c, str) and c.startswith("../") else c)
+                        for c in dims.values()]
+                else:
+                    dims = [as_array(holder.get(c, _not_found_) if isinstance(c, str) else c)
+                        for c in dims.values()]
+            elif dims is not None:
+                logger.warning(f"ignore {dims}")
+                dims = None
 
-        if not isinstance(self._metadata, collections.abc.Mapping):
-            raise RuntimeError(f"Can not find metadata!")
+            holder = getattr(holder, "_parent", None)
 
-        coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
+        if dims is None:
+            raise RuntimeError(f"Can not get dims! {dims}")
 
-        if isinstance(coordinates, collections.abc.Mapping):
-            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
-            dims = [as_array(self._parent.get(c.lstrip("../"), default_value=_not_found_) if isinstance(c, str) else c)
-                    for c in coordinates.values()]
-
-        if len(dims) > 0 and len(self.periods) > 0:
+        elif len(dims) > 0 and len(self.periods) > 0:
             dims = [as_array(v) for v in dims]
 
             periods = self.periods

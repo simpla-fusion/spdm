@@ -51,6 +51,7 @@ from ..utils.tags import _not_found_
 from .Entry import Entry
 from .Function import Function
 from .HTree import HTree
+from ..utils.tree_utils import merge_tree_recursive
 
 
 class SpTree(HTree):
@@ -136,7 +137,7 @@ class sp_property(typing.Generic[_T]):
                  doc: typing.Optional[str] = None,
                  strict: bool = False,
                  default_value=_not_found_,
-                 ** metadata):
+                 ** kwargs):
         """
             Parameters
             ----------
@@ -171,7 +172,8 @@ class sp_property(typing.Generic[_T]):
         self.type_hint = type_hint
         self.strict = strict
         self.default_value = default_value
-        self.metadata = metadata
+
+        self._kwargs = kwargs
 
         if isinstance(type_hint, str):
             raise RuntimeError(f"Invalid type_hint={type_hint}!")
@@ -186,7 +188,7 @@ class sp_property(typing.Generic[_T]):
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
         self.property_name = name
-        self.metadata.setdefault("name", name)
+        self._kwargs.setdefault("name", name)
         if self.__doc__ is not None:
             pass
         elif callable(self.getter):
@@ -204,7 +206,7 @@ class sp_property(typing.Generic[_T]):
     def _get_desc(self, owner_cls, name: str = None, metadata: dict = None):
 
         if self.type_hint is not None:
-            return self.type_hint, self.metadata
+            return self.type_hint, self._kwargs
 
         type_hint = None
 
@@ -227,17 +229,12 @@ class sp_property(typing.Generic[_T]):
 
         self.type_hint = type_hint
 
-        if metadata is None:
-            metadata = self.metadata
+        kwargs = self._kwargs
 
         for base in owner_cls.__bases__:
-            attr = getattr(base, name, None)
-            if isinstance(attr, sp_property):
-                metadata.update(attr.metadata)
+            kwargs = merge_tree_recursive(getattr(getattr(base, name, None), "_kwargs", None), kwargs)
 
-        self.metadata = metadata
-
-        return self.type_hint, self.metadata
+        return self.type_hint, kwargs
 
     def __set__(self, instance:  SpTree[_T], value: typing.Any) -> None:
         assert (instance is not None)
@@ -262,7 +259,7 @@ class sp_property(typing.Generic[_T]):
 
         # 当调用 getter(obj, <name>) 时执行
 
-        type_hint, metadata = self._get_desc(owner, self.property_name, self.metadata)
+        type_hint, kwargs = self._get_desc(owner, self.property_name)
 
         if self.property_name is None or self.property_cache_key is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
@@ -273,7 +270,7 @@ class sp_property(typing.Generic[_T]):
                                               type_hint=type_hint,
                                               getter=self.getter,
                                               default_value=self.default_value,
-                                              metadata=metadata,
+                                              **kwargs,
                                               )
 
             if self.strict and value is _not_found_:
@@ -307,8 +304,10 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
             if prop.type_hint is None or prop.type_hint == _type:
                 pass
             elif _type is not None:
-                if prop.type_hint is not None:
-                    logger.warning(f"{prop.type_hint}")
+                if prop.type_hint is None:
+                    pass
+                elif inspect.isclass(prop.type_hint) and not issubclass(_type, prop.type_hint):
+                    logger.warning(f"{prop.type_hint} {_type}")
                 prop.type_hint = _type
 
         else:
@@ -316,6 +315,9 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
         prop.property_cache_key = _name
         prop.property_name = _name
         setattr(cls, _name, prop)
+
+    setattr(cls, "_metadata", merge_tree_recursive(getattr(cls, "_metadata", None), kwargs))
+
     return cls
 
 

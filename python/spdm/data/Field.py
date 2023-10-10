@@ -73,19 +73,35 @@ class Field(Expression):
     def __mesh__(self) -> Mesh:
 
         if self._mesh is None:
-            mesh = self._metadata.get("mesh", None)
-            if not isinstance(mesh, str):
-                self._mesh = mesh
-            elif mesh.startswith("../"):
+            mesh = None
+            holder = self
+            while mesh is None and hasattr(holder, "_metadata"):
+                mesh, *_ = group_dict_by_prefix(holder._metadata, "mesh", sep=None)
+                if not isinstance(mesh, str):
+                    pass
+                elif mesh.startswith("../") and not hasattr(holder, "_parent"):
+                    mesh = holder._parent.get(mesh[3:], None)
+                else:
+                    mesh = holder.get(mesh, None)
+                holder = getattr(holder, "_parent", None)
+
+            if isinstance(mesh, str) and mesh.startswith("../"):
                 self._mesh = self._parent.get(mesh[3:], None)
-            else:
-                raise RuntimeError(f"Illegal mesh description! \"{mesh}\" ")
+                
+            elif not isinstance(mesh, Mesh) and mesh is not None:
+                logger.warning(f"ignore mesh {mesh}")
+
+            self._mesh = mesh
 
         if isinstance(self._mesh, Mesh):
             return self._mesh
 
         elif self._mesh is None:
-            coordinates, *_ = group_dict_by_prefix(self._metadata, "coordinate", sep=None)
+            coordinates = None
+            holder = self
+            while coordinates is None and hasattr(holder, "_metadata"):
+                coordinates, *_ = group_dict_by_prefix(holder._metadata, "coordinate", sep=None)
+                holder = getattr(holder, "_parent", None)
 
             if coordinates is not None:
                 coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}

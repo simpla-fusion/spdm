@@ -18,7 +18,7 @@ class TimeSlice(SpTree):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    time: float = sp_property(unit="s", type="dynamic", default_value=0.0)  # type: ignore
+    time: float = sp_property(unit="s",   default_value=0.0)  # type: ignore
 
     def refresh(self, *args,  **kwargs) -> TimeSlice:
         if len(args) == 1 and isinstance(args[0], dict):
@@ -59,7 +59,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
     def __init__(self, *args, start_slice: int | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._start_slice = start_slice or self._metadata.get("start_slice", None)
+        self._start_slice = start_slice or self._kwargs.get("start_slice", None)
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
@@ -76,7 +76,7 @@ class TimeSeriesAoS(List[_TSlice]):
         return as_array([getattr(time_slice, "time", None) for time_slice in self._cache])
 
     @property
-    def dt(self) -> float: return self._metadata.get("dt", 0.1)
+    def dt(self) -> float: return self._kwargs.get("dt", 0.1)
 
     @property
     def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
@@ -98,7 +98,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         if time_coord is None:
 
-            time_coord = self._metadata.get("coordinate1", None)
+            time_coord = self._kwargs.get("coordinate1", None)
 
             if time_coord is not None and self._entry is not None:
                 self._time_coord = self._entry.child(f"../{time_coord}").fetch()

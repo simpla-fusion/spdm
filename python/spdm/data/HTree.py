@@ -39,9 +39,10 @@ class HTree:
             - __getitem__ 返回的类型由 __type_hint__ 决定，默认为 Node
         -
     """
+    _metadata = {}
 
     @staticmethod
-    def _parser_args(cache=None, entry=None, parent=None, default_value=_not_found_,  **kwargs):
+    def _parser_args(cache=None, /, entry=None, parent=None, default_value=_not_found_,  **kwargs):
         if not isinstance(entry, list):
             entry = [entry]
         else:
@@ -67,7 +68,7 @@ class HTree:
 
         self._default_value = default_value
 
-        self._metadata = merge_tree_recursive(kwargs.pop("metadata", {}), kwargs)
+        self._kwargs = kwargs
 
         self._cache = cache
 
@@ -84,18 +85,18 @@ class HTree:
             self._cache = copy(other._cache)
             self._entry = copy(other.entry)
             self._parent = other.parent
-            self._metadata = copy(other._metadata)
+            self._kwargs = copy(other._kwargs)
             self._default_value = copy(other._default_value)
         return self
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)
 
-    @ classmethod
+    @classmethod
     def __deserialize__(cls, *args, **kwargs) -> HTree: return cls(*args, **kwargs)
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} />"
 
-    @ property
+    @property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
             self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))
@@ -133,13 +134,10 @@ class HTree:
         # else:
         #     entry.update(value)
 
-    @ property
-    def __name__(self) -> str: return self._metadata.get("name", "unamed")
+    @property
+    def __name__(self) -> str: return self._kwargs.get("name", "unamed")
 
-    @ property
-    def __metadata__(self) -> dict: return self._metadata
-
-    @ property
+    @property
     def _root(self) -> HTree | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
@@ -279,17 +277,18 @@ class HTree:
                   default_value=_not_found_,
                   getter: typing.Callable | None = None,
                   force=True,  # 若type_hint为 None，强制 HTree
-                  metadata={},
                   ** kwargs) -> _T:
 
         if parent is None:
             parent = self
 
         if default_value is _not_found_ or isinstance(default_value, collections.abc.Mapping):
+            s_default_value = _not_found_
+
             if isinstance(key, str) and isinstance(self._default_value, collections.abc.Mapping):
                 s_default_value = deepcopy(self._default_value.get(key, _not_found_))
 
-            else:
+            elif isinstance(key, int):
                 s_default_value = deepcopy(self._default_value)
 
             default_value = merge_tree_recursive(s_default_value, default_value)
@@ -300,10 +299,8 @@ class HTree:
         if type_hint is None and force:
             type_hint = HTree
 
-        # metadata = kwargs.pop("metadata", {})
-
-        if isinstance(key, str) and hasattr(self.__class__, key):
-            metadata = merge_tree_recursive(metadata, getattr(getattr(self.__class__, key), "metadata", metadata))
+        if isinstance(key, str):  # for sp_property
+            kwargs = merge_tree_recursive(getattr(getattr(self.__class__, key, None), "_kwargs", None), kwargs)
 
         # kwargs["metadata"] = metadata
 
@@ -327,7 +324,7 @@ class HTree:
                               entry=entry,
                               parent=parent,
                               default_value=default_value,
-                              metadata=metadata,  **kwargs)
+                              **kwargs)
 
         elif not force and isinstance(value, HTree):
             value = value.__value__
@@ -344,11 +341,11 @@ class HTree:
                     pass
 
             if type_hint is not None:
-                value = type_convert(value, type_hint=type_hint, metadata=metadata, parent=parent, **kwargs)
+                value = type_convert(value, type_hint=type_hint,   parent=parent, **kwargs)
 
         return value
 
-    def _get(self, query: PathLike = None,  *args, type_hint=None, **kwargs) ->HTree:
+    def _get(self, query: PathLike = None,  *args, type_hint=None, **kwargs) -> HTree:
         """ 获取子节点  """
 
         value = _not_found_
@@ -404,7 +401,7 @@ class HTree:
         else:
             raise RuntimeError(f"{self._cache}")
 
-    def _get_as_dict(self, key: str,  *args, **kwargs) ->HTree:
+    def _get_as_dict(self, key: str,  *args, **kwargs) -> HTree:
 
         cache = _not_found_
 
@@ -425,7 +422,7 @@ class HTree:
 
         return value
 
-    def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, **kwargs) ->HTree:
+    def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, **kwargs) -> HTree:
 
         if isinstance(key, (Query, dict)):
             raise NotImplementedError(f"TODO:")
@@ -487,7 +484,7 @@ class HTree:
 
         return value
 
-    def _query(self,  path: PathLike, *args, **kwargs) ->HTree:
+    def _query(self,  path: PathLike, *args, **kwargs) -> HTree:
         if self._cache is not _not_found_:
             return as_path(path).fetch(self._cache, *args, **kwargs)
         else:
@@ -509,7 +506,7 @@ class HTree:
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    @ deprecated
+    @deprecated
     def _find_next(self, query: PathLike, start: int | None, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
@@ -553,11 +550,13 @@ Node = HTree
 
 _T = typing.TypeVar("_T")
 
-class Container(HTree,typing.Generic[_T]):
+
+class Container(HTree, typing.Generic[_T]):
     """
         带有type hint的容器，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
     """
     pass
+
 
 class Dict(Container[_T]):
 
