@@ -31,7 +31,7 @@ class MatplotlibView(View):
     def __init__(self, *args,  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def _figure_post(self, fig: plt.Figure, title="", output=None, styles={}, **kwargs) -> typing.Any:
+    def _figure_post(self, fig: plt.Figure, title="", output=None, styles={}, transparent=True, **kwargs) -> typing.Any:
         fontsize = styles.get("fontsize", 16)
 
         fig.suptitle(title, fontsize=fontsize)
@@ -60,7 +60,7 @@ class MatplotlibView(View):
 
         if output == "svg":
             buf = BytesIO()
-            fig.savefig(buf, format="svg", **kwargs)
+            fig.savefig(buf, format="svg", transparent=transparent, **kwargs)
             buf.seek(0)
             fig_html = buf.getvalue().decode("utf-8")
             plt.close(fig)
@@ -68,7 +68,7 @@ class MatplotlibView(View):
 
         elif output is not None:
             logger.debug(f"Write figure to  {output}")
-            fig.savefig(output, **kwargs)
+            fig.savefig(output, transparent=transparent, **kwargs)
             plt.close(fig)
             fig = None
 
