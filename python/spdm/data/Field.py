@@ -33,7 +33,7 @@ class Field(Expression):
 
     """
 
-    def __init__(self, value, *args, mesh=None, metadata=None, parent=None, **kwargs):
+    def __init__(self, value, *args, mesh=None,   _parent=None, **kwargs):
 
         cache = value
         func = None
@@ -47,9 +47,7 @@ class Field(Expression):
         else:
             cache = as_array(cache)
 
-        metadata = merge_tree_recursive(metadata, kwargs)
-
-        super().__init__(func, label=metadata.get("label", None) or metadata.get("name", None))
+        super().__init__(func, label=kwargs.pop("label", None) or kwargs.pop("name", None))
 
         if mesh is None and len(args) > 0:
             mesh = {"dims": args}
@@ -57,8 +55,8 @@ class Field(Expression):
             logger.warning(f"ignore args={args}")
 
         self._cache = cache
-        self._metadata = metadata
-        self._parent = parent
+        self._metadata = kwargs
+        self._parent = _parent
         self._mesh = mesh
         self._ppoly = None
 
@@ -87,7 +85,7 @@ class Field(Expression):
 
             if isinstance(mesh, str) and mesh.startswith("../"):
                 self._mesh = self._parent.get(mesh[3:], None)
-                
+
             elif not isinstance(mesh, Mesh) and mesh is not None:
                 logger.warning(f"ignore mesh {mesh}")
 

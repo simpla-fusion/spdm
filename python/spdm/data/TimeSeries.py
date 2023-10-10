@@ -36,7 +36,7 @@ class TimeSlice(SpTree):
             entry = None
             cache = {"time": self.time + dt}
 
-        return self.__class__(cache, *args, entry=entry, parent=self._parent, **kwargs)
+        return self.__class__(cache, *args, _entry=entry, _parent=self._parent, **kwargs)
 
 
 _TSlice = typing.TypeVar("_TSlice")  # , TimeSlice, typing.Type[TimeSlice]
@@ -59,7 +59,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
     def __init__(self, *args, start_slice: int | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._start_slice = start_slice or self._kwargs.get("start_slice", None)
+        self._start_slice = start_slice or self._metadata.get("start_slice", None)
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
@@ -76,7 +76,7 @@ class TimeSeriesAoS(List[_TSlice]):
         return as_array([getattr(time_slice, "time", None) for time_slice in self._cache])
 
     @property
-    def dt(self) -> float: return self._kwargs.get("dt", 0.1)
+    def dt(self) -> float: return self._metadata.get("dt", 0.1)
 
     @property
     def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
@@ -98,7 +98,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         if time_coord is None:
 
-            time_coord = self._kwargs.get("coordinate1", None)
+            time_coord = self._metadata.get("coordinate1", None)
 
             if time_coord is not None and self._entry is not None:
                 self._time_coord = self._entry.child(f"../{time_coord}").fetch()
@@ -202,7 +202,7 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 raise TypeError(f"Unknown type {type(value)}")
 
-            value = self._as_child(value, None, entry=entry, parent=self._parent)
+            value = self._as_child(value, None, _entry=entry, _parent=self._parent)
 
             self._cache[idx] = value
 

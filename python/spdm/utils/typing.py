@@ -291,17 +291,17 @@ def isinstance_generic(obj: typing.Any, type_hint:  typing.Type) -> bool:
         return False
 
 
-def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typing.Any:
+def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typing.Any:
     if value is _not_found_:
         # raise RuntimeError(f"value is _not_found_")
         return value
-    elif type_hint is None or isinstance_generic(value, type_hint):
+    elif _type_hint is None or isinstance_generic(value, _type_hint):
         return value
 
-    if (not inspect.isclass(type_hint) or not issubclass(type_hint, (Enum, *primary_type)))\
-            and not dataclasses.is_dataclass(type_hint):
+    if (not inspect.isclass(_type_hint) or not issubclass(_type_hint, (Enum, *primary_type)))\
+            and not dataclasses.is_dataclass(_type_hint):
 
-        return type_hint(value, **kwargs)
+        return _type_hint(value, **kwargs)
 
     default_value = kwargs.pop("default_value", _not_found_)
 
@@ -314,7 +314,7 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
     if value is _not_found_:
         return _not_found_
 
-    origin_class = get_origin(type_hint)
+    origin_class = get_origin(_type_hint)
 
     if isinstance(value, origin_class):
         pass
@@ -322,7 +322,7 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
     elif issubclass(origin_class, array_type):
         value = as_array(value)
 
-    elif type_hint in primary_type:
+    elif _type_hint in primary_type:
         
         if hasattr(value, "__value__"):
             value = value.__value__
@@ -332,27 +332,27 @@ def type_convert(value: typing.Any, type_hint: typing.Type,    **kwargs) -> typi
 
         if value is not _not_found_ and value is not None:
             try:
-                tmp = type_hint(value)
+                tmp = _type_hint(value)
             except Exception as error:
-                raise TypeError(f"Can not convert {value} to {type_hint}") from error
+                raise TypeError(f"Can not convert {value} to {_type_hint}") from error
             else:
                 value = tmp
 
-    elif dataclasses.is_dataclass(type_hint):
-        value = as_dataclass(type_hint, value)
+    elif dataclasses.is_dataclass(_type_hint):
+        value = as_dataclass(_type_hint, value)
 
     elif issubclass(origin_class, Enum):
         if hasattr(value, "__value__"):
             value = value.__value__
         if isinstance(value, collections.abc.Mapping):
-            value = type_hint[value["name"]]
+            value = _type_hint[value["name"]]
         elif isinstance(value, str):
-            value = type_hint[value]
+            value = _type_hint[value]
         else:
-            raise TypeError(f"Can not convert {value} to {type_hint}")
+            raise TypeError(f"Can not convert {value} to {_type_hint}")
 
     else:
-        raise TypeError(f"Can not convert {type(value)} to {type_hint}")
+        raise TypeError(f"Can not convert {type(value)} to {_type_hint}")
 
     return value
 

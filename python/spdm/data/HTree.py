@@ -28,7 +28,7 @@ class HTree:
         - 树节点也可以是列表 list，也可以是字典 dict
         - 叶节点可以是标量或数组 array_type，或其他 type_hint 类型
         - 节点可以有缓存（cache)
-        - 节点可以有父节点（parent)
+        - 节点可以有父节点（_parent)
         - 节点可以有元数据（metadata)
             - 包含： 唯一标识（id), 名称（name), 单位（units), 描述（description), 标签（tags), 注释（comment)
         - 任意节点都可以通过路径访问
@@ -42,37 +42,38 @@ class HTree:
     _metadata = {}
 
     @staticmethod
-    def _parser_args(cache=None, /, entry=None, parent=None, default_value=_not_found_,  **kwargs):
-        if not isinstance(entry, list):
-            entry = [entry]
+    def _parser_args(_cache=None, /, _entry=None, _parent=None, **kwargs):
+        if not isinstance(_entry, list):
+            _entry = [_entry]
         else:
-            entry = entry
+            _entry = _entry
 
-        if isinstance(cache, dict):
-            entry = cache.pop("$entry", []) + entry
-            default_value = merge_tree_recursive(cache.pop("$default_value", {}), default_value)
+        if isinstance(_cache, dict):
+            _entry = _cache.pop("$_entry", []) + _entry
+            s_default = _cache.pop("$default_value", _not_found_)
+            if s_default is not _not_found_:
+                kwargs["default_value"] = merge_tree_recursive(s_default, kwargs.get("default_value", _not_found_))
 
-        elif isinstance(cache, (str, URITuple, pathlib.Path)):
-            entry = [cache]+entry
-            cache = None
+        elif isinstance(_cache, (str, URITuple, pathlib.Path)):
+            _entry = [_cache]+_entry
+            _cache = None
 
-        entry = [v for v in entry if v is not None and v is not _not_found_]
+        _entry = [v for v in _entry if v is not None and v is not _not_found_]
 
-        return cache, entry, default_value,  parent, kwargs
+        return _cache, _entry,  _parent,  kwargs
 
     def __init__(self, *args, **kwargs) -> None:
 
-        cache, entry, default_value, parent, kwargs = HTree._parser_args(*args, **kwargs)
+        _cache, _entry, _parent, kwargs = HTree._parser_args(*args, **kwargs)
 
-        self._parent = parent
+        self._parent = _parent
 
-        self._default_value = default_value
+        self._cache = _cache
 
-        self._kwargs = kwargs
+        self._entry = open_entry(_entry)
 
-        self._cache = cache
-
-        self._entry = open_entry(entry)
+        if len(kwargs) > 0:
+            self._metadata = collections.ChainMap(kwargs, self.__class__._metadata)
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -83,10 +84,9 @@ class HTree:
         """ 复制 other 到 self  """
         if isinstance(other, HTree):
             self._cache = copy(other._cache)
-            self._entry = copy(other.entry)
-            self._parent = other.parent
-            self._kwargs = copy(other._kwargs)
-            self._default_value = copy(other._default_value)
+            self._entry = copy(other._entry)
+            self._parent = other._parent
+            self._metadata = copy(other._metadata)
         return self
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)
@@ -99,7 +99,8 @@ class HTree:
     @property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
-            self._cache = merge_tree_recursive(self._default_value, self._entry.get(default_value=_not_found_))
+            self._cache = merge_tree_recursive(self._metadata.get(
+                "default_value", None), self._entry.get(default_value=_not_found_))
         return self._cache
 
     def __array__(self) -> ArrayType: return as_array(self.__value__)
@@ -111,9 +112,9 @@ class HTree:
     # def __reduce__(self) -> HTree: raise NotImplementedError(f"")
 
     def dump(self, entry: Entry, **kwargs) -> None:
-        """ 将数据写入 entry """
+        """ 将数据写入 _entry """
         entry.insert(self._cache)
-        # if entry is None:
+        # if _entry is None:
         #     tmp = Entry({})
         #     self.dump(tmp)
         #     return tmp._data
@@ -122,27 +123,27 @@ class HTree:
         # if isinstance(value, collections.abc.Mapping):
         #     for k, v in value.items():
         #         if isinstance(v, HTree):
-        #             v.dump(entry.child(k))
+        #             v.dump(_entry.child(k))
         #         else:
-        #             entry.child(k).insert(v)
+        #             _entry.child(k).insert(v)
         # elif isinstance(value, collections.abc.Sequence):
         #     for idx, v in enumerate(value):
         #         if isinstance(v, HTree):
-        #             v.dump(entry.child(idx))
+        #             v.dump(_entry.child(idx))
         #         else:
-        #             entry.child(idx).insert(v)
+        #             _entry.child(idx).insert(v)
         # else:
-        #     entry.update(value)
+        #     _entry.update(value)
 
     @property
-    def __name__(self) -> str: return self._kwargs.get("name", "unamed")
+    def __name__(self) -> str: return self._metadata.get("name", "unamed")
 
     @property
     def _root(self) -> HTree | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
-        while p.parent is not None and getattr(p, "ids_properties", None) is None:
-            p = p.parent
+        while p._parent is not None and getattr(p, "ids_properties", None) is None:
+            p = p._parent
         return p
 
     def __getitem__(self, path) -> HTree: return self.get(path, force=True)
@@ -214,16 +215,16 @@ class HTree:
 
         if isinstance(self._cache, list) and len(self._cache) > 0:
             for idx, cache in enumerate(self._cache):
-                yield self._as_child(cache, idx, entry=self._entry.child(idx))
+                yield self._as_child(cache, idx, _entry=self._entry.child(idx))
         elif isinstance(self._cache, dict) and len(self._cache) > 0:
             for key, cache in self._cache.items():
-                yield self._as_child(cache, key, entry=self._entry.child(key))
+                yield self._as_child(cache, key, _entry=self._entry.child(key))
         else:
             for key, d in self._entry.for_each():
                 if not isinstance(d, Entry):
                     yield self._as_child(d, key)
                 else:
-                    yield self._as_child(None, key, entry=d)
+                    yield self._as_child(None, key, _entry=d)
 
     ################################################################################
     # Private methods
@@ -239,7 +240,7 @@ class HTree:
         for idx, p in enumerate(path):
             pos = idx
             if p is Path.tags.parent:
-                obj = obj.parent
+                obj = obj._parent
             elif p is Path.tags.root:
                 obj = obj._root
             elif p is Path.tags.current:
@@ -271,81 +272,71 @@ class HTree:
         return tp_hint
 
     def _as_child(self, value,  key, *args,
-                  entry: Entry | None = None,
-                  parent: HTree | None = None,
-                  type_hint: typing.Type = None,
                   default_value=_not_found_,
-                  getter: typing.Callable | None = None,
-                  force=True,  # 若type_hint为 None，强制 HTree
+                  _type_hint: typing.Type = None,
+                  _entry: Entry | None = None,
+                  _parent: HTree | None = None,
+                  _getter: typing.Callable | None = None,
+                  _force=True,  # 若type_hint为 None，强制 HTree
                   ** kwargs) -> _T:
 
-        if parent is None:
-            parent = self
+        s_default_value = self._metadata.get("default_value", None)
 
-        if default_value is _not_found_ or isinstance(default_value, collections.abc.Mapping):
-            s_default_value = _not_found_
+        if isinstance(key, str) and isinstance(s_default_value, dict):
+            s_default_value = deepcopy(s_default_value.get(key, _not_found_))
 
-            if isinstance(key, str) and isinstance(self._default_value, collections.abc.Mapping):
-                s_default_value = deepcopy(self._default_value.get(key, _not_found_))
+        elif isinstance(key, int):
+            s_default_value = deepcopy(s_default_value)
 
-            elif isinstance(key, int):
-                s_default_value = deepcopy(self._default_value)
-
+        if isinstance(s_default_value, dict) or isinstance(default_value, dict):
             default_value = merge_tree_recursive(s_default_value, default_value)
 
-        if type_hint is None:
-            type_hint = self._type_hint(key if key is not None else 0)
+        if _parent is None:
+            _parent = self
+        if _type_hint is None:
+            _type_hint = self._type_hint(key if key is not None else 0)
 
-        if type_hint is None and force:
-            type_hint = HTree
+        if _type_hint is None and _force:
+            _type_hint = HTree
 
-        if isinstance(key, str):  # for sp_property
-            kwargs = merge_tree_recursive(getattr(getattr(self.__class__, key, None), "_kwargs", None), kwargs)
+        if not issubclass(get_origin(_type_hint), HTree) and value is _not_found_ and _entry is not None:
+            value = _entry.get(default_value=_not_found_)
+            _entry = None
 
-        # kwargs["metadata"] = metadata
-
-        if not issubclass(get_origin(type_hint), HTree) and value is _not_found_ and entry is not None:
-            value = entry.get(default_value=_not_found_)
-            entry = None
-
-        if not isinstance_generic(value, type_hint) and entry is None and getter is not None:
+        if not isinstance_generic(value, _type_hint) and _entry is None and _getter is not None:
             try:
-                tmp = getter(self)
+                tmp = _getter(self)
             except Exception as error:
                 raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
             else:
                 value = tmp
 
-        if isinstance_generic(value, type_hint):
+        if isinstance_generic(value, _type_hint):
             pass
 
-        elif issubclass(get_origin(type_hint), HTree):
-            value = type_hint(value,
-                              entry=entry,
-                              parent=parent,
-                              default_value=default_value,
-                              **kwargs)
+        elif issubclass(get_origin(_type_hint), HTree):
+            value = _type_hint(value, _entry=_entry,  _parent=_parent, **kwargs)
 
-        elif not force and isinstance(value, HTree):
+        elif not _force and isinstance(value, HTree):
             value = value.__value__
 
-        elif not force and isinstance(value, Entry):
+        elif not _force and isinstance(value, Entry):
             value = value.__value__
 
         else:
             if value is _not_found_:
                 value = default_value
 
-            if type_hint is array_type:
+            if _type_hint is array_type:
                 if isinstance(value, (list)) or isinstance(value, array_type):
                     pass
 
-            if type_hint is not None:
-                value = type_convert(value, type_hint=type_hint,   parent=parent, **kwargs)
+            if _type_hint is not None:
+                value = type_convert(value, _type_hint=_type_hint,  _parent=_parent, **kwargs)
 
         return value
 
-    def _get(self, query: PathLike = None,  *args, type_hint=None, **kwargs) -> HTree:
+    def _get(self, query: PathLike = None,  *args, _type_hint=None, **kwargs) -> HTree:
         """ 获取子节点  """
 
         value = _not_found_
@@ -369,13 +360,13 @@ class HTree:
             value = self._root
 
         elif isinstance(query, (int, slice, tuple, Query)):
-            if type_hint in numeric_type:
-                value = self._get_as_array(query, type_hint=type_hint, *args, **kwargs)
+            if _type_hint in numeric_type:
+                value = self._get_as_array(query, *args, _type_hint=_type_hint, **kwargs)
             else:
-                value = self._get_as_list(query, *args, type_hint=type_hint,  **kwargs)
+                value = self._get_as_list(query, *args, _type_hint=_type_hint,  **kwargs)
 
         elif isinstance(query, str):
-            value = self._get_as_dict(query, *args,  type_hint=type_hint, **kwargs)
+            value = self._get_as_dict(query, *args,  _type_hint=_type_hint, **kwargs)
 
         elif isinstance(query, set):  # compound
             raise NotImplementedError(f"TODO: NamedDict")
@@ -401,7 +392,7 @@ class HTree:
         else:
             raise RuntimeError(f"{self._cache}")
 
-    def _get_as_dict(self, key: str,  *args, **kwargs) -> HTree:
+    def _get_as_dict(self, key: str,  *args, default_value=_not_found_, **kwargs) -> HTree:
 
         cache = _not_found_
 
@@ -409,11 +400,11 @@ class HTree:
             cache = self._cache.get(key, _not_found_)
 
         if self._entry is not None:
-            entry = self._entry.child(key)
+            _entry = self._entry.child(key)
         else:
-            entry = None
+            _entry = None
 
-        value = self._as_child(cache, key, *args, entry=entry, **kwargs)
+        value = self._as_child(cache, key, *args, _entry=_entry, default_value=default_value, **kwargs)
 
         if self._cache is _not_found_ or self._cache is None:
             self._cache = {}
@@ -427,7 +418,7 @@ class HTree:
         if isinstance(key, (Query, dict)):
             raise NotImplementedError(f"TODO:")
             # cache = QueryResult(self, key, *args, **kwargs)
-            # entry = None
+            # _entry = None
             # key = None
 
         elif isinstance(key, int):
@@ -438,7 +429,7 @@ class HTree:
             else:
                 cache = _not_found_
 
-            entry = self._entry.child(key)
+            _entry = self._entry.child(key)
         elif isinstance(key, slice):
             start = key.start or 0
             stop = key.stop
@@ -452,19 +443,18 @@ class HTree:
             else:
                 cache = _not_found_
 
-            entry = self._entry.child(key)
+            _entry = self._entry.child(key)
 
         elif self._cache is _not_found_ or self._cache is None:
-            entry = self._entry.child(key)
+            _entry = self._entry.child(key)
             cache = None
 
         else:
             raise RuntimeError((key, self._cache, self._entry))
 
-        if default_value is _not_found_:
-            default_value = self._default_value
+        default_value = merge_tree_recursive(self._metadata.get("default_value", _not_found_), default_value)
 
-        value = self._as_child(cache, key, *args, entry=entry, parent=self._parent,
+        value = self._as_child(cache, key, *args, _entry=_entry, _parent=self._parent,
                                default_value=default_value, **kwargs)
 
         if isinstance(key, int):
@@ -513,7 +503,7 @@ class HTree:
             query = slice(None)
 
         cache = None
-        entry = None
+        _entry = None
         next_id = start
         if isinstance(query, slice):
 
@@ -528,13 +518,13 @@ class HTree:
             next_id = start+step
             if isinstance(self._cache, list) and start < len(self._cache):
                 cache = self._cache[start]
-            entry = self._entry.child(start)
+            _entry = self._entry.child(start)
 
         elif isinstance(query, Query):
             pass
 
         if start is not None:
-            return self._as_child(cache, start,  entry=entry, default_value=default_value, **kwargs), next_id
+            return self._as_child(cache, start,  _entry=_entry, default_value=default_value, **kwargs), next_id
         else:
             return None, None
 
@@ -586,11 +576,11 @@ class List(Container[_T]):
 
     def __getitem__(self, path) -> _T: return super().__getitem__(path)
 
-    def dump(self, entry: Entry, **kwargs) -> None:
-        """ 将数据写入 entry """
-        entry.insert([{}]*len(self._cache))
+    def dump(self, _entry: Entry, **kwargs) -> None:
+        """ 将数据写入 _entry """
+        _entry.insert([{}]*len(self._cache))
         for idx, value in enumerate(self._cache):
             if isinstance(value, HTree):
-                value.dump(entry.child(idx), **kwargs)
+                value.dump(_entry.child(idx), **kwargs)
             else:
-                entry.child(idx).insert(value)
+                _entry.child(idx).insert(value)

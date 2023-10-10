@@ -136,7 +136,6 @@ class sp_property(typing.Generic[_T]):
                  type_hint: typing.Type = None,
                  doc: typing.Optional[str] = None,
                  strict: bool = False,
-                 default_value=_not_found_,
                  ** kwargs):
         """
             Parameters
@@ -171,7 +170,6 @@ class sp_property(typing.Generic[_T]):
         self.property_name: str = None
         self.type_hint = type_hint
         self.strict = strict
-        self.default_value = default_value
 
         self._kwargs = kwargs
 
@@ -267,9 +265,8 @@ class sp_property(typing.Generic[_T]):
         with self.lock:
 
             value = instance.__get_property__(self.property_cache_key,
-                                              type_hint=type_hint,
-                                              getter=self.getter,
-                                              default_value=self.default_value,
+                                              _type_hint=type_hint,
+                                              _getter=self.getter,
                                               **kwargs,
                                               )
 
