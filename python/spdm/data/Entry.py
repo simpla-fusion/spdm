@@ -84,12 +84,10 @@ class Entry(Pluggable):
         return self._path
 
     @property
-    def is_leaf(self) -> bool:
-        return len(self._path) > 0 and self._path[-1] is None
+    def is_leaf(self) -> bool: return self.fetch(Path.tags.is_leaf)
 
     @property
-    def is_root(self) -> bool:
-        return len(self._path) == 0
+    def is_root(self) -> bool: return len(self._path) == 0
 
     @property
     def is_generator(self) -> bool:
@@ -118,8 +116,8 @@ class Entry(Pluggable):
         return other
 
     def next(self, inc: int = 1) -> Entry:
-        if  not isinstance(self._path[-1],int ) and not  np.issubdtype(type(self._path[-1]), np.integer):
-            raise RuntimeError( f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}"  )
+        if not isinstance(self._path[-1], int) and not np.issubdtype(type(self._path[-1]), np.integer):
+            raise RuntimeError(f"Path must be end with int! {self._path[-1]} {type(self._path[-1])}")
 
         next_ = self.__copy__()
 
@@ -135,9 +133,7 @@ class Entry(Pluggable):
             self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
         )
 
-    def get(
-        self, query=None, default_value: typing.Any = _undefined_, **kwargs
-    ) -> typing.Any:
+    def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
         if query is None:
             entry = self
             args = ()
@@ -359,7 +355,7 @@ def open_entry(entry, **kwargs) -> Entry:
     entry = [a for a in entry if a is not None and a is not _not_found_]
 
     if len(entry) == 0:
-        return Entry()
+        return None
 
     elif len(entry) > 1:
         return ChainEntry(*entry, **kwargs)

@@ -9,7 +9,7 @@ class Actor(SpTree, Pluggable):
     _plugin_registry = {}
 
     def __init__(self, *args, **kwargs):
-        if self.__class__ is Actor or "_plugin_config" in vars(self.__class__):
+        if self.__class__ is Actor or "_plugin_prefix" in vars(self.__class__):
             self.__class__.__dispatch_init__(None, self, *args, **kwargs)
             return
         super().__init__(*args, **kwargs)

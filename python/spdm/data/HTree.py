@@ -54,7 +54,7 @@ class HTree:
             if s_default is not _not_found_:
                 kwargs["default_value"] = merge_tree_recursive(s_default, kwargs.get("default_value", _not_found_))
 
-        elif isinstance(_cache, (str, URITuple, pathlib.Path)):
+        elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
             _entry = [_cache]+_entry
             _cache = None
 
@@ -114,26 +114,6 @@ class HTree:
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 _entry """
         entry.insert(self._cache)
-        # if _entry is None:
-        #     tmp = Entry({})
-        #     self.dump(tmp)
-        #     return tmp._data
-
-        # value = self.__value__
-        # if isinstance(value, collections.abc.Mapping):
-        #     for k, v in value.items():
-        #         if isinstance(v, HTree):
-        #             v.dump(_entry.child(k))
-        #         else:
-        #             _entry.child(k).insert(v)
-        # elif isinstance(value, collections.abc.Sequence):
-        #     for idx, v in enumerate(value):
-        #         if isinstance(v, HTree):
-        #             v.dump(_entry.child(idx))
-        #         else:
-        #             _entry.child(idx).insert(v)
-        # else:
-        #     _entry.update(value)
 
     @property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")
@@ -292,45 +272,61 @@ class HTree:
 
         if _parent is None:
             _parent = self
+
         if _type_hint is None:
             _type_hint = self._type_hint(key if key is not None else 0)
 
         force = _type_hint is None and default_value is _undefined_
 
-        if not issubclass(get_origin(_type_hint), HTree) and value is _not_found_ and _entry is not None:
-            value = _entry.get(default_value=_not_found_)
-            _entry = None
+        if isinstance(_type_hint, typing.types.UnionType):
+            tp = typing.get_args(_type_hint)
+            if len(tp) > 2 or tp[1] is not type(None):
+                logger.debug(f"ignore {tp[1:]}")
 
-        if not isinstance_generic(value, _type_hint) and _entry is None and _getter is not None:
-            try:
-                tmp = _getter(self)
-            except Exception as error:
-                raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
-            else:
-                value = tmp
+            _type_hint = tp[0]
 
-        if isinstance_generic(value, _type_hint):
-            pass
+            if (value is _not_found_ or value is None):
+                if isinstance(_entry, Entry) and _entry.is_leaf:
+                    value = _entry.get()
+                    _entry = None
 
-        elif issubclass(get_origin(_type_hint), HTree):
-            value = _type_hint(value, _entry=_entry,  _parent=_parent, **kwargs)
-
-        elif not force and isinstance(value, HTree):
-            value = value.__value__
-
-        elif not force and isinstance(value, Entry):
-            value = value.__value__
-
+            if (isinstance(value, (dict, list)) or _entry is not None) and issubclass(get_origin(_type_hint), HTree):
+                value = _type_hint(value, _entry=_entry, _parent=_parent, **kwargs)
         else:
-            if value is _not_found_:
-                value = default_value
+            if not issubclass(get_origin(_type_hint), HTree) and value is _not_found_ and _entry is not None:
+                value = _entry.get(default_value=_not_found_)
+                _entry = None
 
-            if _type_hint is array_type:
-                if isinstance(value, (list)) or isinstance(value, array_type):
-                    pass
+            if not isinstance_generic(value, _type_hint) and _entry is None and _getter is not None:
+                try:
+                    tmp = _getter(self)
+                except Exception as error:
+                    raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
+                else:
+                    value = tmp
 
-            if _type_hint is not None:
-                value = type_convert(value, _type_hint=_type_hint,  _parent=_parent, **kwargs)
+            if isinstance_generic(value, _type_hint):
+                pass
+
+            elif issubclass(get_origin(_type_hint), HTree):
+                value = _type_hint(value, _entry=_entry,  _parent=_parent, **kwargs)
+
+            elif not force and isinstance(value, HTree):
+                value = value.__value__
+
+            elif not force and isinstance(value, Entry):
+                value = value.__value__
+
+            else:
+                if value is _not_found_:
+                    value = default_value
+
+                if _type_hint is array_type:
+                    if isinstance(value, (list)) or isinstance(value, array_type):
+                        pass
+
+                if _type_hint is not None:
+                    value = type_convert(value, _type_hint=_type_hint,  _parent=_parent, **kwargs)
 
         return value
 
@@ -427,7 +423,10 @@ class HTree:
             else:
                 cache = _not_found_
 
-            _entry = self._entry.child(key)
+            if isinstance(self._entry, Entry):
+                _entry = self._entry.child(key)
+            else:
+                _entry = self._entry
         elif isinstance(key, slice):
             start = key.start or 0
             stop = key.stop

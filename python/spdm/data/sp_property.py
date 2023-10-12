@@ -99,6 +99,15 @@ class SpTree(HTree):
             return entry
 
 
+class AttributeTree(SpTree):
+
+    def __getattr__(self, *args, **kwargs):
+        return self.__get_property__(*args, _type_hint=AttributeTree | None,  **kwargs)
+
+    def __getitem__(self, *args, **kwargs):
+        return self.__get_property__(*args, _type_hint=AttributeTree | None,  **kwargs)
+
+
 _T = typing.TypeVar("_T")
 
 
