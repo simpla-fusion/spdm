@@ -286,11 +286,20 @@ class HTree:
             _type_hint = tp[0]
 
             if (value is _not_found_ or value is None):
-                if isinstance(_entry, Entry) and _entry.is_leaf:
+                if not isinstance(_entry, Entry):
+                    pass
+                elif _entry.is_leaf:
                     value = _entry.get()
                     _entry = None
+                elif _entry.is_list:
+                    from .AoS import AoS
+                    _type_hint = AoS[_type_hint]
+            elif isinstance(value, (bool, int, float, str, array_type)):
+                _entry = None
 
-            if (isinstance(value, (dict, list)) or _entry is not None) and issubclass(get_origin(_type_hint), HTree):
+            if isinstance(value, HTree):
+                pass
+            elif (isinstance(value, (dict, list)) or _entry is not None) and issubclass(get_origin(_type_hint), HTree):
                 value = _type_hint(value, _entry=_entry, _parent=_parent, **kwargs)
         else:
             if not issubclass(get_origin(_type_hint), HTree) and value is _not_found_ and _entry is not None:

@@ -107,6 +107,14 @@ class AttributeTree(SpTree):
     def __getitem__(self, *args, **kwargs):
         return self.__get_property__(*args, _type_hint=AttributeTree | None,  **kwargs)
 
+    def __setitem__(self, *args, **kwargs):
+        return self.__set_property__(*args,  **kwargs)
+
+    def __iter__(self) -> typing.Generator[_T, None, None]:
+        """ 遍历 children """
+        for v in self.children():
+            yield v
+
 
 _T = typing.TypeVar("_T")
 

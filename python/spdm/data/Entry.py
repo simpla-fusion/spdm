@@ -87,6 +87,12 @@ class Entry(Pluggable):
     def is_leaf(self) -> bool: return self.fetch(Path.tags.is_leaf)
 
     @property
+    def is_list(self) -> bool: return self.fetch(Path.tags.is_list)
+
+    @property
+    def is_dict(self) -> bool: return self.fetch(Path.tags.is_dict)
+    
+    @property
     def is_root(self) -> bool: return len(self._path) == 0
 
     @property
@@ -242,13 +248,9 @@ class ChainEntry(Entry):
 
         return res
 
-    def for_each(
-        self, *args, **kwargs
-    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         for idx, e in self._entrys[0].child(self._path).for_each():
-            yield idx, ChainEntry(
-                e, *[o.child(self._path[:] + [idx]) for o in self._entrys[1:]]
-            )
+            yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[1:]])
 
 
 def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:

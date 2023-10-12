@@ -37,6 +37,8 @@ class OpTags(Flag):
     call  = auto()      # call function
     exists = auto()
     is_leaf = auto()
+    is_list=auto()
+    is_dict=auto()
     check_type = auto() # check type
     search = auto()     # search by query return idx
     dump  = auto()      # rescurive get all data
@@ -1049,7 +1051,24 @@ class Path(list):
 
     @staticmethod
     def _op_is_leaf(target: typing.Any,   *args, **kwargs) -> bool:
-        return not isinstance(target, (dict, list))
+        if target is _not_found_:
+            return _not_found_
+        else:
+            return not isinstance(target, (dict, list))
+
+    @staticmethod
+    def _op_is_list(target: typing.Any,   *args, **kwargs) -> bool:
+        if target is _not_found_:
+            return _not_found_
+        else:
+            return isinstance(target, list) or (isinstance(target, dict) and "@id" in target)
+
+    @staticmethod
+    def _op_is_dict(target: typing.Any,   *args, **kwargs) -> bool:
+        if target is _not_found_:
+            return _not_found_
+        else:
+            return isinstance(target, dict) 
 
     @staticmethod
     def _op_check(target: typing.Any,  query, *args, **kwargs) -> bool:
