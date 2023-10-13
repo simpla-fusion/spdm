@@ -189,7 +189,7 @@ class TimeSeriesAoS(List[_TSlice]):
                     entry = None
                 else:
                     if not np.isclose(t_time, time):
-                        logger.warning(f"Found closest slice. {time}->{t_time}")
+                        logger.debug(f"Found closest slice. {time}->{t_time}")
                         value["time"] = t_time
 
                     entry = self._entry.child(pos)
