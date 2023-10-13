@@ -2,7 +2,7 @@ import unittest
 from copy import deepcopy
 
 from spdm.utils.tags import _not_found_
-from spdm.views.View import display
+from spdm.view.View import display
 from spdm.utils.logger import logger
 from spdm.geometry.Circle import Circle
 
