@@ -292,8 +292,10 @@ class HTree:
                     value = _entry.get()
                     _entry = None
                 elif _entry.is_list:
-                    from .AoS import AoS
-                    _type_hint = AoS[_type_hint]
+                    _type_hint = List[_type_hint]
+                elif not _entry.exists:
+                    value = _not_found_
+                    _entry = None
             elif isinstance(value, (bool, int, float, str, array_type)):
                 _entry = None
 

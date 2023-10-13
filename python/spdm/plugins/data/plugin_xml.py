@@ -291,12 +291,26 @@ class XMLEntry(Entry):
         path = self._path[:]
         xp, envs = self.xpath(path)
 
-        obj = xp.evaluate(self._data)
+        obj: typing.List[_XMLElement] = xp.evaluate(self._data)
 
         if op is Path.tags.exists:
             return len(obj) > 0
         elif op is Path.tags.count:
             return len(obj)
+        elif op is Path.tags.is_leaf:
+            if len(obj) == 0:
+                return _not_found_
+            elif len(obj) > 1:
+                return False
+            else:
+                return len(obj[0]) == 0
+
+        elif op is Path.tags.is_list:
+            return len(obj) > 1 or (len(obj) == 1 and obj[0].attrib.get("id", None) != None)
+
+        elif op is Path.tags.is_dict:
+            return len(obj) == 1
+
         elif op is None or op is Path.tags.fetch:
             return self._convert(obj, path=path,   envs=envs, **kwargs)
         else:

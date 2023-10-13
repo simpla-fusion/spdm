@@ -9,7 +9,7 @@ from spdm.data.Entry import Entry
 from spdm.data.File import File
 from spdm.utils.logger import logger
 from spdm.utils.uri_utils import URITuple
-from spdm.data.Path import Path
+from spdm.utils.tags import _not_found_
 
 
 @File.register(["mdsplus", "mds", "mds+"])
@@ -121,9 +121,9 @@ class MDSplusTree(File):
 
         return tree
 
-    def query(self, request=None, prefix=None, **kwargs) -> Entry:
+    def query(self, request, prefix=None, **kwargs) -> typing.Any:
         if request is None:
-            return self._entry
+            return _not_found_
 
         if isinstance(request, str):
             request = {"query": request}
@@ -234,7 +234,7 @@ class MDSplusCollection(Collection):
     #     return shot
 
 
-@Entry.register(["mdsplus", "mds", "mds+", "MDSplus"])
+@Entry.register(["mdsplus", "mds"])
 class MDSplusEntry(Entry):
     def __init__(self, cache:  MDSplusTree | str | URITuple, *args, **kwargs):
         if isinstance(cache, (str, URITuple)):
@@ -243,8 +243,8 @@ class MDSplusEntry(Entry):
             raise TypeError(f"cache must be MDSplusEntry or str, but got {type(cache)}")
         super().__init__(cache, *args, **kwargs)
 
-    def fetch(self, *args, **kwargs):
-        return self._data.query(*args, prefix=self._path, **kwargs)
+    def fetch(self, request, *args, **kwargs):
+        return self._data.query(request, *args, prefix=self._path, **kwargs)
 
     def update(self, *args, **kwargs):
         return self._data.update(*args, prefix=self._path, **kwargs)

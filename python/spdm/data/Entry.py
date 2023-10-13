@@ -91,7 +91,7 @@ class Entry(Pluggable):
 
     @property
     def is_dict(self) -> bool: return self.fetch(Path.tags.is_dict)
-    
+
     @property
     def is_root(self) -> bool: return len(self._path) == 0
 
@@ -237,9 +237,7 @@ class ChainEntry(Entry):
 
         if res is _not_found_:
             for e in self._entrys:
-                res = e.child(self._path).fetch(
-                    *args, default_value=_not_found_, **kwargs
-                )
+                res = e.child(self._path).fetch(*args, default_value=_not_found_, **kwargs)
                 if res is not _not_found_:
                     break
 
@@ -251,6 +249,12 @@ class ChainEntry(Entry):
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         for idx, e in self._entrys[0].child(self._path).for_each():
             yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[1:]])
+
+    @property
+    def exists(self) -> bool:
+        res = [super().fetch(Path.tags.exists)]
+        res.extend([e.child(self._path).fetch(Path.tags.exists) for e in self._entrys])
+        return any(res)
 
 
 def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
@@ -679,9 +683,7 @@ class EntryProxy(Entry):
 
         return self._op_fetch(request, default_value=default_value)
 
-    def for_each(
-        self, *args, **kwargs
-    ) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
+    def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         """Return a generator of the results."""
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
             yield idx, self._op_fetch(request)
@@ -706,12 +708,12 @@ class EntryProxy(Entry):
         if isinstance(request, str) and "://" in request:
             request = uri_split_as_dict(request)
 
-        if request is _not_found_:
+        if request is _not_found_ or request is None:
             defaultentry = self.findentry("*", None)
             if defaultentry is None:
                 res = _not_found_
             else:
-                res = defaultentry.child(self._path).fetch(*args, **kwargs)
+                res = defaultentry.child(self._path).fetch(None, *args, **kwargs)
 
         elif isinstance(request, Entry):
             res = EntryProxy(request, self._entry_list)

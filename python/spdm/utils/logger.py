@@ -105,14 +105,13 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
 
 logger = sp_enable_logging(__package__[:__package__.find('.')], level=SP_DEBUG, handler="STDOUT")
 
+if SP_DEBUG:
+    def _at_end():
+        logger.setLevel(logging.INFO)
+        logger.info("The End")
+        logging.shutdown()
 
-def _at_end():
-    logger.setLevel(logging.INFO)
-    logger.info("The End")
-    logging.shutdown()
-
-
-atexit.register(_at_end)
+    atexit.register(_at_end)
 
 
 def deprecated(func):

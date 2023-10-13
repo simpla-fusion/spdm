@@ -65,10 +65,7 @@ class Field(Expression):
         return display(self, output="svg")
 
     @property
-    def mesh(self): return self.__mesh__
-
-    @property
-    def __mesh__(self) -> Mesh:
+    def mesh(self) -> Mesh:
 
         if self._mesh is None:
             mesh = None
@@ -139,7 +136,7 @@ class Field(Expression):
 
         return self._mesh
 
-    def __domain__(self, *xargs) -> bool: return self.__mesh__.geometry.enclose(*xargs)
+    def __domain__(self, *xargs) -> bool: return self.mesh.geometry.enclose(*xargs)
 
     def __array__(self, *args,  **kwargs) -> ArrayType:
         """ 重载 numpy 的 __array__ 运算符
@@ -158,7 +155,7 @@ class Field(Expression):
         # return self._normalize_value(value, *args,  **kwargs)
 
     @property
-    def points(self) -> typing.List[ArrayType]: return self.__mesh__.points
+    def points(self) -> typing.List[ArrayType]: return self.mesh.points
 
     def __functor__(self) -> Functor:
         if self._func is None:
@@ -167,11 +164,11 @@ class Field(Expression):
 
     def _interpolate(self, *args, force=False, **kwargs) -> Functor:
         if self._ppoly is None or force:
-            self._ppoly = self.__mesh__.interpolator(self.__array__(), *args, **kwargs)
+            self._ppoly = self.mesh.interpolator(self.__array__(), *args, **kwargs)
         return self._ppoly
 
     def compile(self) -> Field:
-        return Field(self._interpolate(), mesh=self.__mesh__, name=f"[{self.__str__()}]")
+        return Field(self._interpolate(), mesh=self.mesh, name=f"[{self.__str__()}]")
 
     def grad(self, n=1) -> Field:
         ppoly = self. __functor__()
@@ -181,34 +178,34 @@ class Field(Expression):
         else:
             opts = {}
 
-        if self.__mesh__.ndim == 2 and n == 1:
+        if self.mesh.ndim == 2 and n == 1:
             return Field((ppoly.partial_derivative(1, 0),
                           ppoly.partial_derivative(0, 1)),
-                         mesh=self.__mesh__,
+                         mesh=self.mesh,
                          name=f"\\nabla({self.__str__()})", **opts)
-        elif self.__mesh__.ndim == 3 and n == 1:
+        elif self.mesh.ndim == 3 and n == 1:
             return Field((ppoly.partial_derivative(1, 0, 0),
                           ppoly.partial_derivative(0, 1, 0),
                           ppoly.partial_derivative(0, 0, 1)),
-                         mesh=self.__mesh__,
+                         mesh=self.mesh,
                          name=f"\\nabla({self.__str__()})", **opts)
-        elif self.__mesh__.ndim == 2 and n == 2:
+        elif self.mesh.ndim == 2 and n == 2:
             return Field((ppoly.partial_derivative(2, 0),
                           ppoly.partial_derivative(0, 2),
                           ppoly.partial_derivative(1, 1)),
-                         mesh=self.__mesh__,
+                         mesh=self.mesh,
                          name=f"\\nabla^{n}({self.__str__()})", **opts)
         else:
-            raise NotImplemented(f"TODO: ndim={self.__mesh__.ndim} n={n}")
+            raise NotImplemented(f"TODO: ndim={self.mesh.ndim} n={n}")
 
     def derivative(self, n=1) -> Field:
-        return Field(derivative(self. __functor__(), n),  mesh=self.__mesh__, name=f"D_{n}({self})")
+        return Field(derivative(self. __functor__(), n),  mesh=self.mesh, name=f"D_{n}({self})")
 
     def partial_derivative(self, *d) -> Field:
-        return Field(self._interpolate().partial_derivative(*d), mesh=self.__mesh__, name=f"d_{d}({self})")
+        return Field(self._interpolate().partial_derivative(*d), mesh=self.mesh, name=f"d_{d}({self})")
 
     def antiderivative(self, *d) -> Field:
-        return Field(antiderivative(self. __functor__(), *d),  mesh=self.__mesh__, name=f"I_{d}({self})")
+        return Field(antiderivative(self. __functor__(), *d),  mesh=self.mesh, name=f"I_{d}({self})")
 
     def d(self, n=1) -> Field: return self.derivative(n)
 

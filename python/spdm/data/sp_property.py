@@ -101,8 +101,11 @@ class SpTree(HTree):
 
 class AttributeTree(SpTree):
 
-    def __getattr__(self, *args, **kwargs):
-        return self.__get_property__(*args, _type_hint=AttributeTree | None,  **kwargs)
+    def __getattr__(self, key: str, *args, **kwargs):
+        if key.startswith("__"):
+            return super().__getattribute__(key)
+        else:
+            return self.__get_property__(key, *args, _type_hint=AttributeTree | None,  **kwargs)
 
     def __getitem__(self, *args, **kwargs):
         return self.__get_property__(*args, _type_hint=AttributeTree | None,  **kwargs)

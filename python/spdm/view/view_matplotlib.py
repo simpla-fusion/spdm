@@ -221,7 +221,7 @@ class MatplotlibView(View):
             self._draw(canvas, obj.bbox, styles)
 
         elif isinstance(obj, Field):
-            R, Z = obj.__mesh__.points
+            R, Z = obj.mesh.points
             value = obj.__array__()
 
             levels = styles.pop("levels", s_styles.pop("levels", 10))
@@ -248,9 +248,9 @@ class MatplotlibView(View):
             elif isinstance(obj, GeoObject):
                 text = obj.name
                 pos = obj.bbox.center
-            elif hasattr(obj, "__mesh__"):
+            elif hasattr(obj, "mesh"):
                 text = obj.name
-                pos = obj.__mesh__.bbox.center
+                pos = obj.mesh.bbox.center
             else:
                 text = str(obj)
                 pos = None

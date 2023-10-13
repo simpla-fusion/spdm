@@ -120,7 +120,7 @@ class TimeSeriesAoS(List[_TSlice]):
         elif self._entry is not None and self._start_slice is not None:
             pos = self._start_slice
             while True:
-                t_time = self._entry.child(f"{pos}/time").fetch()
+                t_time = self._entry.child(f"{pos}/time").fetch(default_value=_not_found_)
                 if t_time is _not_found_ or t_time is None:
                     break
                 elif t_time >= time:
