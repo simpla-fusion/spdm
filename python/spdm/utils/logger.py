@@ -86,16 +86,17 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
     else:
         raise NotImplementedError()
 
-    if isinstance(level, str):
-        match level.lower():
-            case "1" | "true" | "verbose" | "debug":
-                level = logging.DEBUG
-            case "0" | "warning":
-                level = logging.WARNING
-            case "-2" | "quiet":
-                level = logging.CRITICAL
-            case _:
-                level = logging.INFO
+    match level:
+        # case "1" | "true" | "verbose" | "debug" | True:
+        #     level = logging.DEBUG
+        case "0" | "warning":
+            level = logging.WARNING
+        case "-2" | "quiet":
+            level = logging.CRITICAL
+        case "false" | "False" | False:
+            level = logging.INFO
+        case _:
+            level = logging.DEBUG
 
     if level is not None:
         m_logger.setLevel(level)
@@ -105,13 +106,13 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
 
 logger = sp_enable_logging(__package__[:__package__.find('.')], level=SP_DEBUG, handler="STDOUT")
 
-if SP_DEBUG:
-    def _at_end():
-        logger.setLevel(logging.INFO)
-        logger.info("The End")
-        logging.shutdown()
+ 
+def _at_end():
+    logger.setLevel(logging.INFO)
+    logger.info("The End")
+    logging.shutdown()
 
-    atexit.register(_at_end)
+atexit.register(_at_end)
 
 
 def deprecated(func):

@@ -139,8 +139,8 @@ class MatplotlibView(View):
                     raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
                 else:
                     logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
-
-            self._draw(canvas, geo, styles, view_point=view_point, **kwargs)
+            else:
+                self._draw(canvas, geo, styles, view_point=view_point, **kwargs)
 
         elif isinstance(obj, dict):
             for k, o in obj.items():
