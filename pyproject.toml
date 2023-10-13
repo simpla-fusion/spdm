@@ -1,14 +1,21 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "spdb"
 
-version = "0.3.0"
+authors = [{ name = "Zhi YU", email = "yuzhi@ipp.ac.cn" }]
+
+# version = "0.3.0"
+
+dynamic = ["version"]
 
 readme = "README.md"
 
 license = { file = "LICENSE.txt" }
 
-
-description = "A ontology base data integration tool."
+description = "A ontology based data integration tool."
 
 classifiers = [
     "Development Status :: 0 - Beta",
@@ -35,22 +42,14 @@ dependencies = [
 ]
 
 [tool.setuptools]
-# ...
 package-dir = { "" = "python" }
 
 [tool.setuptools.packages.find]
-
 where = ["python"]
-exclude = [
-    "*.obsolete",
-    "*.obsolete.*",
-    "*.todo",
-    "*.todo.*",
-    "*.tests",
-]
+
+exclude = ["*.obsolete", "*.obsolete.*", "*.todo", "*.todo.*", "*.tests"]
 
 namespaces = true
 
-
-[build-system]
-requires = ["setuptools>=61.0"]
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
