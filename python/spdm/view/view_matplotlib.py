@@ -136,9 +136,7 @@ class MatplotlibView(View):
                 styles = merge_tree_recursive(styles, s)
             except Exception as e:
                 if SP_DEBUG:
-                    raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from e
-                else:
-                    logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ERROR: {e}")
+                    logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ")
             else:
                 self._draw(canvas, geo, styles, view_point=view_point, **kwargs)
 
