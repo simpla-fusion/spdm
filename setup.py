@@ -14,7 +14,6 @@ from setuptools.command.build_py import build_py
 with open('README.md') as f:
     long_description = f.read()
 
-version = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
 
 # # Get the version from git or the VERSION file
 # with open('VERSION') as f:
@@ -27,8 +26,9 @@ with open('requirements.txt') as f:
 with open('LICENSE.txt') as f:
     license = f.read()
 
+version = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8').split('-')[0]
 
-git_describe = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8')
+git_describe = subprocess.check_output(['git', 'describe', '--always', '--dirty']).strip().decode('utf-8').split('_')[0]
 
 source_dir = pathlib.Path(__file__).parent
 
@@ -44,26 +44,32 @@ class BuildPyCommand(build_py):
         with open(build_dir/'__version__.py', 'w') as f:
             f.write(f"__version__ = \"{self.distribution.get_version()}\"")
 
-        if not (build_dir/"__doc__.py").exists():
-            with open(build_dir/'__doc__.py', 'w') as f:
-                f.write(f'"""\n{self.distribution.get_long_description()}\n"""')
-
+ 
 
 # Setup the package
 setup(
     name='spdm',
+
     version=version,
-    description=f'Scientific Plasma Data Model {git_describe}',
+
+    description=f'Ontology based data integration tool',
+
     long_description=long_description,
-    url='http://github.com/simpla/spdm',
+
+    url='https://github.com/simpla-fusion/spdb',
+
     author='Zhi YU',
+
     author_email='yuzhi@ipp.ac.cn',
+
     license=license,
 
     packages=find_namespace_packages(
         "python", exclude=["*._*", "*.obsolete", "*.obsolete.*", "*.todo", "*.todo.*", "*.tests"]),  # 指定需要安装的包
 
     package_dir={"": "python"},  # 指定包的root目录
+
+    cmdclass={"build_py": BuildPyCommand, },
 
     requires=requirements,                  # 项目运行依赖的第三方包
     # extras_require={},                   # 项目运行依赖的额外包
@@ -81,24 +87,9 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
     ],  # Optional
-    keywords='plasma physics',  # 关键字列表
+
+    keywords='data integration',  # 关键字列表
+
     python_requires='>=3.10, <4',  # Python版本要求
-    # py_modules=[],  # 单文件模块列表
-    # scripts=['bin/spdm'],  # 可执行脚本列表
-    # package_dir={'': 'src'},  # 项目源码目录结构
-    # package_data={'sample': ['package_data.dat']},  # 项目数据文件列表
-    # data_files=[('my_data', ['data/data_file'])],  # 项目静态文件列表
-    # include_package_data=True,  # 是否包含静态文件
-    # zip_safe=False,  # 是否安全压缩
-    # ext_modules=[Extension('spdm', ['src/spdm.c'])],  # 项目扩展模块列表
-    # cmdclass={'build_ext': build_ext},  # 扩展模块构建命令
-    # extras_require={  # Optional
-    #     'dev': ['check-manifest'],
-    #     'test': ['coverage'],
-    # },
-    # entry_points={  # Optional
-    #     'console_scripts': [
-    #         'sample=sample:main',
-    #     ],
-    # },
+
 )
