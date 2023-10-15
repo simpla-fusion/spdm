@@ -3,7 +3,7 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spdb"
+name = "spdm"
 
 authors = [{ name = "Zhi YU", email = "yuzhi@ipp.ac.cn" }]
 
