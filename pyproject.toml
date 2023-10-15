@@ -51,5 +51,6 @@ exclude = ["*.obsolete", "*.obsolete.*", "*.todo", "*.todo.*", "*.tests"]
 
 namespaces = true
 
-[tool.setuptools.dynamic]
-version = { file = "VERSION" }
+ 
+[tool.setuptools_scm]
+version_file = "python/spdm/__version__.py"
