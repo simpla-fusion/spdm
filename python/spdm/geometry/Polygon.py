@@ -68,7 +68,7 @@ class RegularPolygon(Polygon):
     """ Regular Polygon
         正多边形
 
-        cneter: Point or tuple or list or sympy.Point 
+        cneter: Point or tuple or list  
             中心点
         radius: float
             半径

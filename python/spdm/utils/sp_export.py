@@ -68,10 +68,6 @@ def sp_load_module(mod_name: str):
 
 
 def sp_find_module(path, fragment=None, pythonpath=None):
-    """
-     path= sympy/tensor/tensor
-     path= sympy.tensor.tensor#Matrix
-    """
     if path is None:
         return None
     if not isinstance(path, str) and isinstance(path, collections.abc.Sequence):

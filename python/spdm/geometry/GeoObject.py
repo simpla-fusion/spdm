@@ -21,7 +21,6 @@ class GeoObject(Pluggable):
     几何对象，包括点、线、面、体等
 
     TODO:
-        - 目前基于sympy.geometry实现，未来将支持其他几何建模库
         - 支持3D可视化 （Jupyter+？）
 
     """

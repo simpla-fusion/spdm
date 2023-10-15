@@ -35,7 +35,6 @@ dependencies = [
     "lxml",
     "numpy",
     "scipy",
-    "sympy",
     "scikit_image",
     "matplotlib",
 ]
