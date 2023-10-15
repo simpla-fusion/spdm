@@ -1,10 +1,10 @@
-easyblock = 'PythonBundle'
+easyblock = 'PythonPackage'
 
 name = 'spdm'
 version = '0.3.0'
 
 homepage = 'https://python.org/'
-description = "Bundle of Python packages for FuYun"
+description = "SpDM"
 
 toolchain = {'name': 'foss', 'version': '2022b'}
 toolchainopts = {'pic': True, 'lowopt': True}
@@ -36,8 +36,7 @@ dependencies = [
 
 
 exts_default_options = {
-    "source_urls": [PYPI_SOURCE,
-                    "https://gitee.com/SimPla/SpDM.git"],
+    "source_urls": [PYPI_SOURCE],
     # "installopts": "  -i https://pypi.tuna.tsinghua.edu.cn/simple ",
     "pip_ignore_installed": True,
     "use_pip_for_deps": True,
