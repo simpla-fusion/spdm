@@ -13,7 +13,7 @@ dynamic = ["version"]
 
 readme = "README.md"
 
-license = { file = "LICENSE.txt" }
+license = { file = "LICENSE" }
 
 description = "A ontology based data integration tool."
 
@@ -36,8 +36,9 @@ dependencies = [
     "numpy",
     "scipy",
     "scikit_image",
-    "matplotlib",
+    "matplotlib"
 ]
+
 
 [tool.setuptools]
 package-dir = { "" = "python" }
@@ -49,6 +50,6 @@ exclude = ["*.obsolete", "*.obsolete.*", "*.todo", "*.todo.*", "*.tests"]
 
 namespaces = true
 
- 
+
 [tool.setuptools_scm]
 version_file = "python/spdm/__version__.py"
