@@ -10,6 +10,17 @@ toolchain = {'name': 'foss', 'version': '2022b'}
 toolchainopts = {'pic': True, 'lowopt': True}
 
 
+sources = [
+    {
+    'filename': '%(namelower)s-%(version)s.tar.gz',
+    'git_config': {
+        'url': 'https://gitee.com/SimPla/SpDM.git',
+        'repo_name': '%(namelower)s',
+        'tag': '%(version)s',
+    },
+}]
+
+
 dependencies = [
     ('Python', '3.10.8'),
     ('SciPy-bundle', '2023.02'),
@@ -25,7 +36,8 @@ dependencies = [
 
 
 exts_default_options = {
-    "source_urls": [PYPI_SOURCE],
+    "source_urls": [PYPI_SOURCE,
+                    "https://gitee.com/SimPla/SpDM.git"],
     # "installopts": "  -i https://pypi.tuna.tsinghua.edu.cn/simple ",
     "pip_ignore_installed": True,
     "use_pip_for_deps": True,
