@@ -123,3 +123,5 @@ dmypy.json
 .pyre/
 
 docs/_*
+
+python/spdm/__version__.py

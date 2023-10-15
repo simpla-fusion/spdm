@@ -31,7 +31,6 @@ dependencies = [
     "f90nml",
     "h5py",
     "netcdf4",
-    "json",
     "pyyaml",
     "lxml",
     "numpy",
