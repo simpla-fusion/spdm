@@ -5,10 +5,11 @@ import inspect
 import os
 import sys
 from enum import Enum
+import typing
 
 from .logger import logger
 from .misc import camel_to_snake
-from .sp_export import sp_find_module, sp_load_module
+from .sp_export import sp_find_module, sp_load_module, walk_namespace_modules
 from .tags import _not_found_
 
 
@@ -94,6 +95,15 @@ class Pluggable(metaclass=abc.ABCMeta):
 
         # elif "__dispatch_init__" in vars(self.__class__):
         #     self.__class__.__dispatch_init__(None, self, *args, **kwargs)
+
+    @classmethod
+    def _find_plugins(cls) -> typing.List[str]:
+        """ Find all plugins in the Python path.
+
+            仅返回可的module （import 成功的）
+        """
+        head = len(cls._plugin_prefix)
+        return [p[head:] for p in walk_namespace_modules(cls._plugin_prefix[:-1])]
 
     # def __new__(cls,  *args, **kwargs):
     # if not issubclass(cls, Pluggable):
