@@ -39,10 +39,10 @@ class TimeSlice(SpTree):
         return self.__class__(cache, *args, _entry=entry, _parent=self._parent, **kwargs)
 
 
-_TSlice = typing.TypeVar("_TSlice")  # , TimeSlice, typing.Type[TimeSlice]
+_T = typing.TypeVar("_T")  # , TimeSlice, typing.Type[TimeSlice]
 
 
-class TimeSeriesAoS(List[_TSlice]):
+class TimeSeriesAoS(List[_T]):
     """
         A series of time slices .
 
@@ -82,7 +82,7 @@ class TimeSeriesAoS(List[_TSlice]):
     def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
 
     @property
-    def current(self) -> _TSlice:
+    def current(self) -> _T:
         if not self.empty:
             pass
         elif self._entry is not None:
@@ -162,7 +162,7 @@ class TimeSeriesAoS(List[_TSlice]):
         elif idx >= len(self._cache):
             self._cache += [None]*(idx-len(self._cache)+1)
 
-    def __getitem__(self, idx: int) -> _TSlice:
+    def __getitem__(self, idx: int) -> _T:
 
         self._extend_cache(idx)
 
@@ -212,7 +212,7 @@ class TimeSeriesAoS(List[_TSlice]):
         self._extend_cache(idx)
         self._cache[idx] = value
 
-    def refresh(self, *args, time: float | None = None, **kwargs) -> _TSlice:
+    def refresh(self, *args, time: float | None = None, **kwargs) -> _T:
         """
             更新 current 时间片状态。
             1. 若 time 非空，则将 current 指向新的 time slice.
@@ -234,7 +234,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return self.current
 
-    def advance(self, *args, time: float | None = None, **kwargs) -> _TSlice:
+    def advance(self, *args, time: float | None = None, **kwargs) -> _T:
         """
             由 current 时间片slice，推进出新的时间片（new slice）并追加在序列最后。
 
