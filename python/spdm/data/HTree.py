@@ -107,7 +107,11 @@ class HTree:
 
     def _repr_svg_(self) -> str:
         from ..view.View import display
-        return display(self, output="svg")
+        try:
+            res = display(self, output="svg")
+        except Exception:
+            res = ""
+        return res
 
     # def __reduce__(self) -> HTree: raise NotImplementedError(f"")
 
@@ -418,7 +422,7 @@ class HTree:
 
         return value
 
-    def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, **kwargs) -> HTree:
+    def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, _parent=None, **kwargs) -> HTree:
 
         if isinstance(key, (Query, dict)):
             raise NotImplementedError(f"TODO:")
@@ -462,7 +466,7 @@ class HTree:
 
         default_value = merge_tree_recursive(self._metadata.get("default_value", _not_found_), default_value)
 
-        value = self._as_child(cache, key, *args, _entry=_entry, _parent=self._parent,
+        value = self._as_child(cache, key, *args, _entry=_entry, _parent=_parent or self._parent,
                                default_value=default_value, **kwargs)
 
         if isinstance(key, int):
