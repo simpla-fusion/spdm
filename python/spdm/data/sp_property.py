@@ -229,10 +229,9 @@ class sp_property(typing.Generic[_T]):
         type_hint = None
 
         if inspect.isfunction(self.getter):
-            type_hint = self.getter.__annotations__.get("return", None)
+            type_hint = typing.get_type_hints(self.getter).get("return", None)
         else:
-            t_hints = typing.get_type_hints(owner_cls)
-            type_hint = t_hints.get(name, None)
+            type_hint = typing.get_type_hints(owner_cls).get(name, None)
 
         if type_hint is None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
