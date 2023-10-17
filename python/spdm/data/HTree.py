@@ -580,9 +580,11 @@ class List(Container[_T]):
     def __iter__(self) -> typing.Generator[_T, None, None]:
         """ 遍历 children """
         for v in self.children():
+            if isinstance(v, HTree):
+                v._parent = self._parent
             yield v
 
-    def __getitem__(self, path) -> _T: return super().__getitem__(path)
+    def __getitem__(self, path) -> _T: return super().get(path, _parent=self._parent, force=True)
 
     def dump(self, _entry: Entry, **kwargs) -> None:
         """ 将数据写入 _entry """
