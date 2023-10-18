@@ -1,6 +1,8 @@
+from ..view import View as sp_view
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from .sp_property import SpTree
+
 
 
 class Actor(SpTree, Pluggable):
@@ -14,8 +16,13 @@ class Actor(SpTree, Pluggable):
             return
         super().__init__(*args, **kwargs)
 
-    def advance(self,  *args, time: float, ** kwargs) -> None:
-        logger.debug(f"Advancing {self.__class__.__name__} time={time}")
+    def _repr_svg_(self) -> str:
+        try:
+            res = sp_view.display(self, output="svg")
+        except Exception as error:
+            logger.error(error)
+            res = None
+        return res
 
-    def refresh(self,  *args,  ** kwargs) -> None:
-        logger.debug(f"Refreshing {self.__class__.__name__} time={getattr(self, 'time', 0.0)}")
+    def __geometry__(self,  *args,  **kwargs):
+        return {}

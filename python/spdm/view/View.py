@@ -86,11 +86,6 @@ def display(*args,   backend=None,  **kwargs):
     return viewer(backend).render(*args,  **kwargs)
 
 
-def profiles(*args,   backend=None, **kwargs):
-    """Show an object"""
-    return viewer(backend=backend).plot(*args,  **kwargs)
-
-
 def plot(*args,   backend=None, **kwargs):
     """Show an object"""
     return viewer(backend=backend).plot(*args,  **kwargs)

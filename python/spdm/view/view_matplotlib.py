@@ -75,6 +75,9 @@ class MatplotlibView(View):
         return fig
 
     def render(self, obj, styles=None, view_point="rz", title=None, **kwargs) -> typing.Any:
+        # if obj is None:
+        #     return None
+        
         if styles is None:
             styles = {}
 

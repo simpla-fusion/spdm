@@ -30,6 +30,10 @@ class DefaultDict(dict):
         return v
 
 
+def update_tree_recursive(first: dict, second,   level=-1, in_place=False, append=False) -> typing.Any:
+    return merge_tree_recursive(first, second, level=level)
+
+
 def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
     """ 递归合并两个 Hierarchical Tree """
     if len(args) > 0:
