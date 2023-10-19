@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import inspect
 import typing
+from copy import deepcopy
 from _thread import RLock
 from enum import Enum
 from ..utils.envs import SP_DEBUG
@@ -117,6 +118,13 @@ class AttributeTree(SpTree):
         """ 遍历 children """
         for v in self.children():
             yield v
+
+    def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
+        if entry is None:
+            return deepcopy(self._cache)
+        else:
+            entry.update(self._cache)
+            return entry
 
 
 _T = typing.TypeVar("_T")

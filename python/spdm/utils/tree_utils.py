@@ -107,9 +107,13 @@ def update_tree(target: _T, key: str | int | list, *args,  **kwargs) -> _T:
     return target
 
 
-def merge_tree_recursive(target: _T, *args, **kwargs) -> _T:
+def merge_tree(target: _T, *args, **kwargs) -> _T:
     target = copy(target)
     return update_tree(target, None, *args, _idempotent=False, **kwargs)
+
+
+def merge_tree_recursive(*args, **kwargs):
+    return merge_tree(*args, **kwargs)
 
 # def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
 #     """ 递归合并两个 Hierarchical Tree """
