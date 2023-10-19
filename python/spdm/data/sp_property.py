@@ -40,7 +40,7 @@
 """
 
 from __future__ import annotations
-
+import pprint
 import inspect
 import typing
 from copy import deepcopy
@@ -317,7 +317,9 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
 
     type_hints = typing.get_type_hints(cls)
 
-    if not issubclass(cls, HTree):
+    pprint.pprint(cls)
+
+    if not issubclass(cls, HTree):      
         n_cls = type(cls.__name__, (cls, SpTree), {"_metadata": getattr(cls, "_metadata", {})})
         n_cls.__module__ = cls.__module__
         cls = n_cls
@@ -328,10 +330,10 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
             if prop.type_hint is None or prop.type_hint == _type:
                 pass
             elif _type is not None:
-                if prop.type_hint is None:
-                    pass
-                elif inspect.isclass(prop.type_hint) and not issubclass(_type, prop.type_hint):
-                    logger.warning(f"{prop.type_hint} {_type}")
+                # if prop.type_hint is None:
+                #     pass
+                # elif inspect.isclass(prop.type_hint) and not issubclass(_type, prop.type_hint):
+                #     logger.warning(f"{prop.type_hint} {_type}")
                 prop.type_hint = _type
 
         else:
