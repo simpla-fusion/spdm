@@ -7,7 +7,7 @@ from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.tree_utils import merge_tree_recursive
+from ..utils.tree_utils import merge_tree_recursive, update_tree
 from ..utils.typing import (ArrayType, NumericType, array_type,
                             as_array, get_args, get_origin,
                             isinstance_generic, numeric_type,
@@ -38,8 +38,8 @@ class HTree:
     """
     _metadata = {}
 
-    @staticmethod
-    def _parser_args(_cache=None, /, _entry=None, _parent=None, **kwargs):
+    @classmethod
+    def _parser_args(cls, _cache=None, /, _entry=None, _parent=None, **kwargs):
         if not isinstance(_entry, list):
             _entry = [_entry]
         else:
@@ -56,6 +56,10 @@ class HTree:
             _cache = None
 
         _entry = [v for v in _entry if v is not None and v is not _not_found_]
+
+        _cache = merge_tree_recursive(cls._metadata.get("default_value", {}), _cache)
+    
+        # _cache = update_tree(_cache, "code", cls._metadata.get("code", {}))
 
         return _cache, _entry,  _parent,  kwargs
 
@@ -200,7 +204,7 @@ class HTree:
 
         if isinstance(self._cache, list) and len(self._cache) > 0:
             for idx, cache in enumerate(self._cache):
-                yield self._as_child(cache, idx, _entry=self._entry.child(idx))
+                yield self._as_child(cache, idx, _entry=self._entry.child(idx) if self._entry is not None else None)
         elif isinstance(self._cache, dict) and len(self._cache) > 0:
             for key, cache in self._cache.items():
                 yield self._as_child(cache, key, _entry=self._entry.child(key))

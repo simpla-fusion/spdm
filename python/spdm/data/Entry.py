@@ -162,8 +162,8 @@ class Entry(Pluggable):
     # API: CRUD  operation
 
     def insert(self, value, **kwargs) -> Entry:
-        self._data, next_path = self._path.insert(self._data, value, **kwargs)
-        return self.__class__(self._data, next_path)
+        self._data, *others = self._path.insert(self._data, value, **kwargs)
+        return self.__class__(self._data, *others)
 
     def update(self, value, **kwargs) -> Entry:
         self._data = self._path.update(self._data, value, **kwargs)

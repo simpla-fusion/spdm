@@ -74,7 +74,7 @@ def update_tree(target: _T, key: str | int | list, *args,  **kwargs) -> _T:
                     target.extend(src)
                 else:
                     target.append(src)
-            else:
+            elif src is not None:
                 target = src
 
             target = update_tree(target, None, *args[1:], **kwargs)
