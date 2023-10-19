@@ -44,7 +44,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         self._entry_cursor = None
         self._cache_cursor = 0
-        self._cache_depth = self._metadata.get("cache_depth", 3)
+        self._cache_depth = kwargs.pop("cache_depth", 3)
 
         if self._cache is _not_found_ or self._cache is None or len(self._cache) == 0:
             self._cache = [None]*self._cache_depth
@@ -119,7 +119,7 @@ class TimeSeriesAoS(List[_TSlice]):
         if not isinstance(idx, int):
             return _not_found_
         elif self._entry_cursor is None:
-            raise RuntimeError(f"TimeSeries is not initialized!")
+            self.initialize()
 
         cache_pos = (self._cache_cursor + idx + self._cache_depth) % self._cache_depth
 
@@ -130,7 +130,7 @@ class TimeSeriesAoS(List[_TSlice]):
         if not isinstance(value, TimeSlice) and isinstance(self._entry, Entry):
             entry = self._entry.child(self._entry_cursor + idx)
 
-        obj = self._as_child(value, None, _entry=entry, _parent=self._parent)
+        obj = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent )
 
         self._cache[cache_pos] = obj
 
@@ -161,7 +161,7 @@ class TimeSeriesAoS(List[_TSlice]):
         if self._entry_cursor is None:
             return self.initialize(*args, **kwargs)
 
-        update_tree(self._cache, self._cache_cursor, *args, **kwargs)
+        update_tree(self._cache, self._cache_cursor, *args, kwargs)
 
     def advance(self, *args, **kwargs) -> _TSlice:
 

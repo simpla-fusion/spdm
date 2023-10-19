@@ -50,11 +50,11 @@ from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from .Entry import Entry
 from .Function import Function
-from .HTree import HTree
+from .HTree import HTree, Dict
 from ..utils.tree_utils import merge_tree_recursive
 
 
-class SpTree(HTree):
+class SpTree(Dict):
     """  支持 sp_property 的 Dict  """
 
     def __init__(self, *args, **kwargs) -> None: super().__init__(*args, **kwargs)

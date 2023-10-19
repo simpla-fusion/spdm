@@ -45,11 +45,11 @@ class HTree:
         else:
             _entry = _entry
 
+        _default_value = kwargs.pop("default_value", _not_found_)
+
         if isinstance(_cache, dict):
-            _entry = _cache.pop("$_entry", []) + _entry
-            s_default = _cache.pop("$default_value", _not_found_)
-            if s_default is not _not_found_:
-                kwargs["default_value"] = merge_tree_recursive(s_default, kwargs.get("default_value", _not_found_))
+            _entry = merge_tree_recursive(_cache.pop("$entry", []), _entry)
+            _default_value = update_tree(_default_value, None, _cache.pop("$default_value", _not_found_))
 
         elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
             _entry = [_cache]+_entry
@@ -57,9 +57,7 @@ class HTree:
 
         _entry = [v for v in _entry if v is not None and v is not _not_found_]
 
-        _cache = merge_tree_recursive(cls._metadata.get("default_value", {}), _cache)
-    
-        # _cache = update_tree(_cache, "code", cls._metadata.get("code", {}))
+        kwargs["default_value"] = _default_value
 
         return _cache, _entry,  _parent,  kwargs
 
@@ -73,8 +71,9 @@ class HTree:
 
         self._entry = open_entry(_entry)
 
-        if len(kwargs) > 0:
-            self._metadata = collections.ChainMap(kwargs, self.__class__._metadata)
+        self._default_value = update_tree({}, None, kwargs.pop("default_value", _not_found_))
+
+        self._config = kwargs
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -87,17 +86,19 @@ class HTree:
             self._cache = copy(other._cache)
             self._entry = copy(other._entry)
             self._parent = other._parent
-            self._metadata = copy(other._metadata)
+            self._default_value = copy(other._default_value)
+            self._config = copy(other._config)
+
         return self
 
     def __serialize__(self) -> typing.Any: return serialize(self.__value__)
 
-    @classmethod
+    @ classmethod
     def __deserialize__(cls, *args, **kwargs) -> HTree: return cls(*args, **kwargs)
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} />"
 
-    @property
+    @ property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
             self._cache = merge_tree_recursive(self._metadata.get(
@@ -124,10 +125,10 @@ class HTree:
         if isinstance(entry, Entry):
             entry.update(self._cache)
 
-    @property
+    @ property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")
 
-    @property
+    @ property
     def _root(self) -> HTree | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
@@ -261,23 +262,20 @@ class HTree:
         return tp_hint
 
     def _as_child(self, value,  key, *args,
-                  default_value=_undefined_,
+                  default_value=_not_found_,
                   _type_hint: typing.Type = None,
                   _entry: Entry | None = None,
                   _parent: HTree | None = None,
                   _getter: typing.Callable | None = None,
                   ** kwargs) -> _T:
 
-        s_default_value = self._metadata.get("default_value", None)
+        if isinstance(key, str) and isinstance(self._default_value, dict):
+            s_default_value = deepcopy(self._default_value.get(key, _not_found_))
 
-        if isinstance(key, str) and isinstance(s_default_value, dict):
-            s_default_value = deepcopy(s_default_value.get(key, _not_found_))
+        else:
+            s_default_value = deepcopy(self._default_value)
 
-        elif isinstance(key, int):
-            s_default_value = deepcopy(s_default_value)
-
-        if isinstance(s_default_value, dict) or isinstance(default_value, dict):
-            default_value = merge_tree_recursive(s_default_value, default_value)
+        default_value = merge_tree_recursive(s_default_value, default_value)
 
         if _parent is None:
             _parent = self
@@ -329,7 +327,7 @@ class HTree:
                 pass
 
             elif issubclass(get_origin(_type_hint), HTree):
-                value = _type_hint(value, _entry=_entry,  _parent=_parent, **kwargs)
+                value = _type_hint(value, _entry=_entry,  _parent=_parent, default_value=default_value, **kwargs)
 
             elif not force and isinstance(value, HTree):
                 value = value.__value__
@@ -346,7 +344,8 @@ class HTree:
                         pass
 
                 if _type_hint is not None:
-                    value = type_convert(value, _type_hint=_type_hint,  _parent=_parent, **kwargs)
+                    value = type_convert(value, _type_hint=_type_hint,  _parent=_parent,
+                                         default_value=default_value, **kwargs)
 
         return value
 
@@ -509,7 +508,7 @@ class HTree:
         self.update(path, _not_found_)
         self._entry.child(path).remove(*args, **kwargs)
 
-    @deprecated
+    @ deprecated
     def _find_next(self, query: PathLike, start: int | None, default_value=_not_found_, **kwargs) -> typing.Tuple[typing.Any, int | None]:
 
         if query is None:
@@ -563,6 +562,14 @@ class Container(HTree, typing.Generic[_T]):
 
 class Dict(Container[_T]):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for cls in [*self.__class__.__bases__, self.__class__]:
+            # TODO: 需要优化，去掉重复操作
+            metadata = getattr(cls, "_metadata", _not_found_)
+            self._cache = update_tree(self._cache, None, deepcopy(metadata), _idempotent=True)
+
     def __iter__(self) -> typing.Generator[str, None, None]:
         """ 遍历 children """
         for k in self.children():
@@ -575,6 +582,7 @@ class Dict(Container[_T]):
 
 
 class List(Container[_T]):
+
     def __init__(self, cache: typing.Any = None, *args, **kwargs) -> None:
         if cache is _not_found_ or cache is None:
             cache = []
@@ -582,7 +590,7 @@ class List(Container[_T]):
             cache = [cache]
         super().__init__(cache, *args, **kwargs)
 
-    @property
+    @ property
     def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
