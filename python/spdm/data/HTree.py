@@ -1,23 +1,20 @@
 from __future__ import annotations
 
 import collections.abc
-import functools
-import inspect
 import pathlib
 import typing
 from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.tree_utils import merge_tree_recursive, upate_tree_recursive
-from ..utils.typing import (ArrayType, HTreeLike, NumericType, array_type,
-                            as_array, as_value, get_args, get_origin,
-                            get_type_hint, isinstance_generic, numeric_type,
+from ..utils.tree_utils import merge_tree_recursive
+from ..utils.typing import (ArrayType, NumericType, array_type,
+                            as_array, get_args, get_origin,
+                            isinstance_generic, numeric_type,
                             serialize, type_convert)
 from ..utils.uri_utils import URITuple
 from .Entry import Entry, open_entry
-from .Path import Path, PathLike, Query, QueryLike, as_path, as_query
-from .Expression import Expression
+from .Path import Path, PathLike, Query, as_path
 
 
 class HTree:
@@ -486,22 +483,18 @@ class HTree:
 
         return value
 
-    def _query(self,  path: PathLike, *args, **kwargs) -> HTree:
-        if self._cache is not _not_found_:
-            return as_path(path).fetch(self._cache, *args, **kwargs)
-        else:
-            return self._entry.child(path).fetch(*args, **kwargs)
+    def _query(self,  path: PathLike, *args, default_value=_not_found_, **kwargs) -> HTree:
+        res = as_path(path).fetch(self._cache, *args, default_value=_not_found_, **kwargs)
+        if res is _not_found_:
+            res = self._entry.child(path).fetch(*args, default_value=default_value, **kwargs)
+        return res
 
     def _insert(self, path: PathLike,  *args, **kwargs):
-        tmp = {"_": self._cache}
-        as_path(["_"]+as_path(path)[:]).insert(tmp,  *args, **kwargs)
-        self._cache = tmp["_"]
+        self._cache = as_path(path).insert(self._cache,  *args, **kwargs)
         return self
 
     def _update(self, path: PathLike,  *args, **kwargs):
-        tmp = {"_": self._cache}
-        as_path(path).prepend(["_"]).update(tmp,   *args, **kwargs)
-        self._cache = tmp["_"]
+        self._cache = as_path(path).update(self._cache,   *args, **kwargs)
         return self
 
     def _remove(self, path: PathLike,  *args, **kwargs) -> None:
@@ -580,6 +573,9 @@ class List(Container[_T]):
         elif not isinstance(cache, collections.abc.Sequence):
             cache = [cache]
         super().__init__(cache, *args, **kwargs)
+
+    @property
+    def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
         """ 遍历 children """

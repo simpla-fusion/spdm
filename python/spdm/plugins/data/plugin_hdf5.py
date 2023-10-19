@@ -230,6 +230,9 @@ class H5Entry(Entry):
             raise TypeError(f"cache must be HDF5File or str, but got {type(cache)}")
         super().__init__(cache, *args, **kwargs)
 
+    @property
+    def is_writable(self) -> bool: return "r" in self._data.is_writable
+
     def copy(self, other):
         if isinstance(other, Entry):
             other = other.entry.__real_value__()

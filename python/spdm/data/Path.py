@@ -14,7 +14,7 @@ import numpy as np
 from ..utils.logger import deprecated, experimental, logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.tree_utils import merge_tree_recursive
+from ..utils.tree_utils import merge_tree_recursive, update_tree
 from ..utils.typing import array_type, isinstance_generic
 
 
@@ -635,7 +635,7 @@ class Path(list):
         else:
             return root.get("_", _not_found_), Path._op_remove(parent, path[-1])
 
-    def update(self, target: typing.Any, value: typing.Any, *args, quiet=True,   **kwargs) -> typing.Any:
+    def update(self, target: typing.Any, *args,  **kwargs) -> typing.Any:
         """
           根据路径（self）更新 target 中的元素。
           当路径指向位置为空时，创建（create）元素
@@ -654,9 +654,9 @@ class Path(list):
 
         path = ["_"]+self[:]
 
-        parent = Path._make_path(root, path, quiet=quiet)
+        parent = Path._make_path(root, path)
 
-        Path._op_update(parent, path[-1], value, *args, **kwargs)
+        Path._op_update(parent, path[-1], *args, **kwargs)
 
         return root["_"]
 
@@ -945,27 +945,22 @@ class Path(list):
         return serialize(target)
 
     @staticmethod
-    def _op_update(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Any:
+    def _op_update(target: typing.Any, key: int | str | None,   *args, **kwargs) -> typing.Any:
 
-        if hasattr(target.__class__, "__entry__"):
-            return target.__entry__.child(key).update(value, *args, **kwargs)
-
-        elif value is _not_found_:
+        if len(args)+len(kwargs) == 0:
             return target
 
-        elif key is None:
-            if isinstance(target, (dict)) and isinstance(value, dict):
-                for k, v in value.items():
-                    Path._op_update(target, k, v, *args, **kwargs)
-            else:
-                target = value
+        elif hasattr(target.__class__, "__entry__"):
+            return target.__entry__.child(key).update(*args, **kwargs)
 
         elif isinstance(key, str):
             if target is _not_found_:
                 target = {}
-            elif not isinstance(target, dict):
+
+            if not isinstance(target, dict):
                 raise ValueError(f"Can not insert {key} into {target}")
-            target[key] = Path._op_update(target.get(key, _not_found_), None, value)
+
+            target = update_tree(target, key, *args, kwargs)
 
         elif isinstance(key, int):
             if target is _not_found_:
@@ -978,6 +973,13 @@ class Path(list):
                 if key >= len(target):
                     target += [_not_found_]*(key-len(target)+1)
             target[key] = Path._op_update(target[key], None, value)
+
+        elif key is None:
+            if isinstance(target, (dict)) and isinstance(value, dict):
+                for k, v in value.items():
+                    Path._op_update(target, k, v, *args, **kwargs)
+            else:
+                target = value
 
         else:
             raise NotImplementedError(f"Not implemented key! '{key}'")
@@ -1068,7 +1070,7 @@ class Path(list):
         if target is _not_found_:
             return _not_found_
         else:
-            return isinstance(target, dict) 
+            return isinstance(target, dict)
 
     @staticmethod
     def _op_check(target: typing.Any,  query, *args, **kwargs) -> bool:

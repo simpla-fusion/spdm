@@ -53,6 +53,9 @@ class File(Document):
     @property
     def mode_str(self) -> str: return File.MOD_MAP.get(self.mode, "r")
 
+    @property
+    def is_writable(self) -> bool: return self.mode | File.Mode.write > 0
+
     # @property
     # def entry(self) -> Entry: return FileEntry(file=self)
 

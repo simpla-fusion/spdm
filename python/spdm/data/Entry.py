@@ -25,14 +25,7 @@ class Entry(Pluggable):
     _plugin_prefix = "spdm.plugins.data.plugin_"
     _plugin_registry = {}
 
-    def __init__(
-        self,
-        data: typing.Any = None,
-        path: Path | PathLike = None,
-        *args,
-        scheme=None,
-        **kwargs,
-    ):
+    def __init__(self, data: typing.Any = None, path: Path | PathLike = None, *args, scheme=None, **kwargs,):
         if self.__class__ is not Entry:
             pass
         elif scheme is not None or isinstance(data, (str, URITuple, pathlib.Path)):
@@ -40,9 +33,7 @@ class Entry(Pluggable):
                 scheme = uri_split(data).protocol
 
             if isinstance(scheme, str) and scheme != "":
-                super().__dispatch_init__(
-                    [scheme, EntryProxy], self, data, *args, **kwargs
-                )
+                super().__dispatch_init__([scheme, EntryProxy], self, data, *args, **kwargs)
                 return
 
         self._data = data
@@ -63,25 +54,22 @@ class Entry(Pluggable):
         self._path = as_path(path)
         return self
 
-    def __str__(self) -> str:
-        return f'<{self.__class__.__name__} path="{self._path}" />'
+    def __str__(self) -> str: return f'<{self.__class__.__name__} path="{self._path}" />'
 
-    def __getitem__(self, *args) -> Entry:
-        return self.child(*args)
+    def __getitem__(self, *args) -> Entry: return self.child(*args)
 
-    def __setitem__(self, path, value):
-        return self.child(path).update(value)
+    def __setitem__(self, path, value): return self.child(path).update(value)
 
-    def __delitem__(self, *args):
-        return self.child(*args).remove()
+    def __delitem__(self, *args): return self.child(*args).remove()
 
     @property
-    def __entry__(self) -> Entry:
-        return self
+    def __entry__(self) -> Entry: return self
 
     @property
-    def path(self) -> Path:
-        return self._path
+    def is_writable(self) -> bool: return False
+
+    @property
+    def path(self) -> Path: return self._path
 
     @property
     def is_leaf(self) -> bool: return self.fetch(Path.tags.is_leaf)
@@ -96,8 +84,7 @@ class Entry(Pluggable):
     def is_root(self) -> bool: return len(self._path) == 0
 
     @property
-    def is_generator(self) -> bool:
-        return self._path.is_generator
+    def is_generator(self) -> bool: return self._path.is_generator
 
     @property
     def parent(self) -> Entry:
@@ -135,9 +122,7 @@ class Entry(Pluggable):
 
     @property
     def __value__(self) -> typing.Any:
-        return (
-            self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
-        )
+        return (self._data if len(self._path) == 0 else self.get(default_value=_not_found_))
 
     def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
         if query is None:
@@ -157,8 +142,7 @@ class Entry(Pluggable):
         else:
             return res
 
-    def dump(self) -> typing.Any:
-        return self.fetch(Path.tags.dump)
+    def dump(self) -> typing.Any: return self.fetch(Path.tags.dump)
 
     def equal(self, other) -> bool:
         if isinstance(other, Entry):
@@ -167,15 +151,12 @@ class Entry(Pluggable):
             return self.fetch(Path.tags.equal, other)
 
     @property
-    def count(self) -> int:
-        return self.fetch(Path.tags.count)
+    def count(self) -> int: return self.fetch(Path.tags.count)
 
     @property
-    def exists(self) -> bool:
-        return self.fetch(Path.tags.exists)
+    def exists(self) -> bool: return self.fetch(Path.tags.exists)
 
-    def check_type(self, tp: typing.Type) -> bool:
-        return self.fetch(Path.tags.check_type, tp)
+    def check_type(self, tp: typing.Type) -> bool: return self.fetch(Path.tags.check_type, tp)
 
     ###########################################################
     # API: CRUD  operation
@@ -213,15 +194,15 @@ class Entry(Pluggable):
         """
         return self._path.find_next(self._data, start, *args, **kwargs)
 
+    def find(self, *args, **kwargs) -> Entry:
+        raise NotImplementedError()
     ###########################################################
 
 
 class ChainEntry(Entry):
     def __init__(self, *args, **kwargs):
         super().__init__()
-
-        self._entrys = list(args)
-
+        self._entrys: typing.List[Entry] = list(args)
         for idx, v in enumerate(self._entrys):
             if not isinstance(v, Entry):
                 self._entrys[idx] = _open_entry(v, **kwargs)
@@ -231,6 +212,9 @@ class ChainEntry(Entry):
         self._path = copy(other._path)
         self._entrys = getattr(other, "_entrys", [])
         return self
+
+    @property
+    def is_writable(self) -> bool: return self._entrys[0].is_writable
 
     def fetch(self, *args, default_value=_not_found_, **kwargs):
         res = super().fetch(*args, default_value=_not_found_, **kwargs)
@@ -249,6 +233,9 @@ class ChainEntry(Entry):
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         for idx, e in self._entrys[0].child(self._path).for_each():
             yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[1:]])
+
+    def find(self, *args, **kwargs):
+        return ChainEntry(*[e.find(*args, **kwargs) for e in self._entrys])
 
     @property
     def exists(self) -> bool:
@@ -677,9 +664,7 @@ class EntryProxy(Entry):
         raise NotImplementedError(f"")
 
     def fetch(self, *args, default_value=_not_found_, **kwargs) -> typing.Any:
-        request = self._mapper.child(self._path).fetch(
-            *args, default_value=_not_found_, lazy=False, **kwargs
-        )
+        request = self._mapper.child(self._path).fetch(*args, default_value=_not_found_, lazy=False, **kwargs)
 
         return self._op_fetch(request, default_value=default_value)
 
@@ -688,7 +673,10 @@ class EntryProxy(Entry):
         for idx, request in self._mapper.child(self._path).for_each(*args, **kwargs):
             yield idx, self._op_fetch(request)
 
-    def findentry(self, entry_name: str, default_value=None) -> Entry | None:
+    def find(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def _get_entry_by_name(self, entry_name: str, default_value=None) -> Entry | None:
         entry = self._entry_list.get(entry_name, None)
 
         if isinstance(entry, (str, URITuple)):
@@ -709,7 +697,7 @@ class EntryProxy(Entry):
             request = uri_split_as_dict(request)
 
         if request is _not_found_ or request is None:
-            defaultentry = self.findentry("*", None)
+            defaultentry = self._get_entry_by_name("*", None)
             if defaultentry is None:
                 res = _not_found_
             else:
@@ -725,12 +713,10 @@ class EntryProxy(Entry):
             res = request
 
         elif "@spdb" not in request:
-            res = {
-                k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()
-            }
+            res = {k: self._op_fetch(req, *args, **kwargs) for k, req in request.items()}
 
         else:
-            entry = self.findentry(request.get("@spdb", None))
+            entry = self._get_entry_by_name(request.get("@spdb", None))
 
             if not isinstance(entry, Entry):
                 raise RuntimeError(f"Can not find entry for {request}")

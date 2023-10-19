@@ -30,73 +30,106 @@ class DefaultDict(dict):
         return v
 
 
-def update_tree_recursive(first: dict, second,   level=-1, in_place=False, append=False) -> typing.Any:
-    return merge_tree_recursive(first, second, level=level)
+_T = typing.TypeVar("_T")
 
 
-def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
-    """ 递归合并两个 Hierarchical Tree """
-    if len(args) > 0:
-        return merge_tree_recursive(
-            merge_tree_recursive(first, second, level=level, in_place=in_place, append=append),
-            *args, level=level, in_place=in_place, append=append)
+def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
 
-    if second is None or second is _not_found_ or level == 0:
-        return first
-    elif first is None or first is _not_found_:
-        return second
+    pth = None
 
-    if in_place:
-        first = copy(first)
+    if not key and key is not 0:
+        pass
+    elif isinstance(key, str):
+        pth = key.split('/')
+    elif not isinstance(key, list) and key is not None:
+        pth = [key]
+    elif len(key) > 0:
+        pth = key
 
-    if isinstance(first, collections.abc.MutableSequence):
-        # 合并 sequence
-        if isinstance(second, collections.abc.Sequence):
-            first.extend(second)
-        else:
-            first.append(second)
-    elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
-        # 合并 dict
-        for k, v in second.items():
-            first[k] = merge_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
-    else:
-        first = second
-        # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")
-
-    return first
-
-
-def upate_tree_recursive(first: dict, second):
-    """ 迭代更新第一个 dict """
-    if not isinstance(first, (collections.abc.MutableSequence, collections.abc.MutableMapping)):
-        raise TypeError(f"{type(first)}")
-
-    elif second is None or second is _not_found_:
+    if pth is None and len(args) == 0:
         pass
 
-    elif isinstance(first, collections.abc.MutableSequence):
-        # 合并 sequence
-        if isinstance(second, collections.abc.Sequence):
-            first.extend(second)
-        else:
-            first.append(second)
-
-    elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
-        # 合并 dict
-        for k, v in second.items():
-            if v is _not_found_:
-                continue
-            next_level = first.get(k, None)
-            if isinstance(next_level, (collections.abc.MutableSequence)):
-                upate_tree_recursive(next_level, v)
-            elif isinstance(next_level, (collections.abc.MutableMapping)) and isinstance(v, collections.abc.Mapping):
-                upate_tree_recursive(next_level, v)
+    elif pth is None:
+        src = args[0]
+        if target is None or target is _not_found_:
+            target = src
+        elif isinstance(target, collections.abc.MutableSequence):
+            # 合并 sequence
+            if isinstance(src, collections.abc.Sequence):
+                target.extend(src)
             else:
-                first[k] = v
-    else:
-        raise TypeError(f"Can not update {type(first)} with {type(second)}!")
+                target.append(src)
+        elif isinstance(target, collections.abc.MutableMapping) and isinstance(src, collections.abc.Mapping):
+            # 合并 dict
+            for k, v in src.items():
+                update_tree(target, k, v, **kwargs)
+        elif src is not None and src is not _not_found_:
+            target = src
 
-    return first
+        target = update_tree(target, None, *args[1:], **kwargs)
+    else:
+        key = pth[0]
+
+        if isinstance(key, str) and key.isdigit():
+            key = int(key)
+
+        if isinstance(key, int):
+            if target is _not_found_ or target is None:
+                target = [None]*(key+1)
+            elif isinstance(target, collections.abc.Sequence):
+                if key > len(target):
+                    target = [*target]+[None]*(key-len(target)+1)
+            else:
+                raise TypeError(f"{type(target)} {type(key)}")
+            target[key] = update_tree(target[key],  pth[1:], *args, **kwargs)
+
+        elif isinstance(key, str):
+            if target is _not_found_ or target is None:
+                target = {}
+            elif not isinstance(target, collections.abc.MutableMapping):
+                raise TypeError(f"{type(target)} {type(key)}")
+            target[key] = update_tree(target.get(key, _not_found_), pth[1:], *args, **kwargs)
+
+        else:
+            raise NotImplementedError(f"{type(key)}")
+
+    return target
+
+
+def merge_tree_recursive(target: _T, *args, **kwargs) -> _T:
+    target = copy(target)
+    return update_tree(target, None, *args, **kwargs)
+
+# def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
+#     """ 递归合并两个 Hierarchical Tree """
+#     if len(args) > 0:
+#         return merge_tree_recursive(
+#             merge_tree_recursive(first, second, level=level, in_place=in_place, append=append),
+#             *args, level=level, in_place=in_place, append=append)
+
+#     if second is None or second is _not_found_ or level == 0:
+#         return first
+#     elif first is None or first is _not_found_:
+#         return second
+
+#     if in_place:
+#         first = copy(first)
+
+#     if isinstance(first, collections.abc.MutableSequence):
+#         # 合并 sequence
+#         if isinstance(second, collections.abc.Sequence):
+#             first.extend(second)
+#         else:
+#             first.append(second)
+#     elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
+#         # 合并 dict
+#         for k, v in second.items():
+#             first[k] = merge_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
+#     else:
+#         first = second
+#         # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")
+
+#     return first
 
 
 class DictTemplate:
