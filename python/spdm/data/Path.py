@@ -582,7 +582,7 @@ class Path(list):
 
     # 非幂等
 
-    def insert(self, target: typing.Any, value: typing.Any, *args, quiet=True,  **kwargs) -> typing.Tuple[typing.Any, Path]:
+    def insert(self, target: typing.Any, value: typing.Any, *args,   **kwargs) -> typing.Tuple[typing.Any, Path]:
         """
           根据路径（self）向 target 添加元素。
           当路径指向位置为空时，创建（create）元素
@@ -594,24 +594,11 @@ class Path(list):
 
           对应 RESTful 中的 post，非幂等操作
         """
-        # target, next_id = Path._exec(target, self[:-1], Path.tags.insert,
-        #                              self[-1] if len(self) > 0 else None,  value, *args, quiet=quiet, **kwargs)
-        # return target, Path(self[:-1]+[next_id])
 
-        root = {"_": target}
-
-        path = ["_"] + self[:]
-
-        parent = Path._make_path(root, path, quiet=quiet)
-
-        new_pos = Path._op_insert(parent,   path[-1], value, *args, **kwargs)
-
-        if new_pos is not None:
-            path += [new_pos]
-
-        return root["_"], Path(path[1:])
+        return Path._op_insert(target, self[:], *args, _idempotent=False, **kwargs)
 
     # 幂等
+
     def remove(self, target: typing.Any, *args,  **kwargs) -> typing.Tuple[typing.Any, int]:
         """ 根据路径（self）删除 target 中的元素。
 
@@ -646,19 +633,8 @@ class Path(list):
 
           返回修改后的target
         """
-        # target = Path._exec(target, self[:-1], Path.tags.update,
-        #                     self[-1] if len(self) > 0 else None,  value, *args, quiet=quiet, **kwargs)
-        # return target
 
-        root = {"_": target}
-
-        path = ["_"]+self[:]
-
-        parent = Path._make_path(root, path)
-
-        Path._op_update(parent, path[-1], *args, **kwargs)
-
-        return root["_"]
+        return Path._op_update(target, self[:], *args, _idempotent=True, **kwargs)
 
     def fetch(self, target: typing.Any, op: Path.tags | str | None = None, *args,  **kwargs) -> typing.Any:
         """
@@ -945,95 +921,101 @@ class Path(list):
         return serialize(target)
 
     @staticmethod
-    def _op_update(target: typing.Any, key: int | str | None,   *args, **kwargs) -> typing.Any:
-
-        if len(args)+len(kwargs) == 0:
-            return target
-
-        elif hasattr(target.__class__, "__entry__"):
-            return target.__entry__.child(key).update(*args, **kwargs)
-
-        elif isinstance(key, str):
-            if target is _not_found_:
-                target = {}
-
-            if not isinstance(target, dict):
-                raise ValueError(f"Can not insert {key} into {target}")
-
-            target = update_tree(target, key, *args, kwargs)
-
-        elif isinstance(key, int):
-            if target is _not_found_:
-                target = [_not_found_]*(key+1)
-            elif not isinstance(target, list):
-                target = [target]+[_not_found_]*(key)
-            else:
-                if key < 0:
-                    key += len(target)
-                if key >= len(target):
-                    target += [_not_found_]*(key-len(target)+1)
-            target[key] = Path._op_update(target[key], None, value)
-
-        elif key is None:
-            if isinstance(target, (dict)) and isinstance(value, dict):
-                for k, v in value.items():
-                    Path._op_update(target, k, v, *args, **kwargs)
-            else:
-                target = value
-
+    def _op_update(target: typing.Any, pth: int | str | list | None,   *args, **kwargs) -> typing.Any:
+        if hasattr(target.__class__, "__entry__"):
+            return target.__entry__.child(pth).update(*args, **kwargs)
         else:
-            raise NotImplementedError(f"Not implemented key! '{key}'")
+            return update_tree(target, pth, *args, _append=False, **kwargs)
 
-        return target
+        # if len(args)+len(kwargs) == 0:
+        #     return target
+
+        # elif hasattr(target.__class__, "__entry__"):
+        #     return target.__entry__.child(key).update(*args, **kwargs)
+
+        # elif isinstance(key, str):
+        #     if target is _not_found_:
+        #         target = {}
+
+        #     if not isinstance(target, dict):
+        #         raise ValueError(f"Can not insert {key} into {target}")
+
+        #     target = update_tree(target, key, *args, kwargs)
+
+        # elif isinstance(key, int):
+        #     if target is _not_found_:
+        #         target = [_not_found_]*(key+1)
+        #     elif not isinstance(target, list):
+        #         target = [target]+[_not_found_]*(key)
+        #     else:
+        #         if key < 0:
+        #             key += len(target)
+        #         if key >= len(target):
+        #             target += [_not_found_]*(key-len(target)+1)
+        #     target[key] = Path._op_update(target[key], None, value)
+
+        # elif key is None:
+        #     if isinstance(target, (dict)) and isinstance(value, dict):
+        #         for k, v in value.items():
+        #             Path._op_update(target, k, v, *args, **kwargs)
+        #     else:
+        #         target = value
+
+        # else:
+        #     raise NotImplementedError(f"Not implemented key! '{key}'")
+
+        # return target
 
     @staticmethod
-    def _op_insert(target: typing.Any, key: int | str | None, value: typing.Any, *args, **kwargs) -> typing.Tuple[typing.Any, int | str | None]:
+    def _op_insert(target: typing.Any, pth: int | str | None,   *args, **kwargs) -> typing.Any:
         if hasattr(target.__class__, "__entry__"):
-            return target.__entry__.child(key).insert(value, *args, **kwargs)
-
-        elif value is _not_found_:
-            return target
-
-        elif key is None:
-
-            if target is _not_found_:
-                target = value
-            elif not isinstance(target, (list, dict)):
-                target = [target, value]
-                key = 1
-            elif isinstance(target, list):
-                key = len(target)
-                if isinstance(value, list):
-                    target.extend(value)
-                else:
-                    target.append(value)
-
-            elif isinstance(target, dict):
-                if not isinstance(value, dict):
-                    target = value
-                else:
-                    for k, v in value.items():
-                        Path._op_insert(target, k, v, *args, **kwargs)
-
-        elif isinstance(key, int):
-            if target is _not_found_:
-                target = [_not_found_]*(key+1)
-            elif not isinstance(target, list):
-                target = [target]+[_not_found_]*(key)
-            elif key > len(target):
-                target += [_not_found_]*(key-len(target)+1)
-            target[key], _ = Path._op_insert(target[key], None, value)
-        elif isinstance(key, str):
-            if target is _not_found_:
-                target = {}
-            elif not isinstance(target, dict):
-                raise ValueError(f"Can not insert {key} into {target}")
-            target[key], _ = Path._op_insert(target.get(key, _not_found_), None, value)
-
+            return target.__entry__.child(pth).insert(*args, **kwargs)
         else:
-            raise NotImplementedError(f"Not implemented key! '{key}'")
+            return update_tree(target, pth, *args, _append=True, **kwargs)
 
-        return target, key
+        # elif value is _not_found_:
+        #     return target
+
+        # elif key is None:
+
+        #     if target is _not_found_:
+        #         target = value
+        #     elif not isinstance(target, (list, dict)):
+        #         target = [target, value]
+        #         key = 1
+        #     elif isinstance(target, list):
+        #         key = len(target)
+        #         if isinstance(value, list):
+        #             target.extend(value)
+        #         else:
+        #             target.append(value)
+
+        #     elif isinstance(target, dict):
+        #         if not isinstance(value, dict):
+        #             target = value
+        #         else:
+        #             for k, v in value.items():
+        #                 Path._op_insert(target, k, v, *args, **kwargs)
+
+        # elif isinstance(key, int):
+        #     if target is _not_found_:
+        #         target = [_not_found_]*(key+1)
+        #     elif not isinstance(target, list):
+        #         target = [target]+[_not_found_]*(key)
+        #     elif key > len(target):
+        #         target += [_not_found_]*(key-len(target)+1)
+        #     target[key], _ = Path._op_insert(target[key], None, value)
+        # elif isinstance(key, str):
+        #     if target is _not_found_:
+        #         target = {}
+        #     elif not isinstance(target, dict):
+        #         raise ValueError(f"Can not insert {key} into {target}")
+        #     target[key], _ = Path._op_insert(target.get(key, _not_found_), None, value)
+
+        # else:
+        #     raise NotImplementedError(f"Not implemented key! '{key}'")
+
+        # return target, key
 
     @staticmethod
     def _op_remove(target: typing.Any, key: int | str | None, *args, **kwargs) -> typing.Tuple[typing.Any, int]:

@@ -33,11 +33,11 @@ class DefaultDict(dict):
 _T = typing.TypeVar("_T")
 
 
-def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
+def update_tree(target: _T, key: str | int | list, *args,  **kwargs) -> _T:
 
     pth = None
 
-    if not key and key is not 0:
+    if not key and key != 0:
         pass
     elif isinstance(key, str):
         pth = key.split('/')
@@ -46,27 +46,38 @@ def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
     elif len(key) > 0:
         pth = key
 
-    if pth is None and len(args) == 0:
-        pass
+    if pth is None:
+        if target.__class__.__name__ == "HTree":
+            target.update(*args, **kwargs)
 
-    elif pth is None:
-        src = args[0]
-        if target is None or target is _not_found_:
-            target = src
-        elif isinstance(target, collections.abc.MutableSequence):
-            # 合并 sequence
-            if isinstance(src, collections.abc.Sequence):
-                target.extend(src)
+        elif len(args) > 0:
+            src = args[0]
+
+            if src is _not_found_:
+                pass
+            elif target is None or target is _not_found_:
+                target = src
+
+            elif target.__class__.__name__ == "HTree":
+                target.update(src, **kwargs)
+
+            elif isinstance(target, collections.abc.MutableMapping) and isinstance(src, collections.abc.Mapping):
+                # 合并 dict
+                for k, v in src.items():
+                    update_tree(target, k, v, **kwargs)
+
+            elif kwargs.get("_idempotent", False) is True:
+                target = src
+
+            elif isinstance(target, collections.abc.MutableSequence):
+                if isinstance(src, collections.abc.Sequence):
+                    target.extend(src)
+                else:
+                    target.append(src)
             else:
-                target.append(src)
-        elif isinstance(target, collections.abc.MutableMapping) and isinstance(src, collections.abc.Mapping):
-            # 合并 dict
-            for k, v in src.items():
-                update_tree(target, k, v, **kwargs)
-        elif src is not None and src is not _not_found_:
-            target = src
+                target = src
 
-        target = update_tree(target, None, *args[1:], **kwargs)
+            target = update_tree(target, None, *args[1:], **kwargs)
     else:
         key = pth[0]
 
@@ -87,7 +98,7 @@ def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
             if target is _not_found_ or target is None:
                 target = {}
             elif not isinstance(target, collections.abc.MutableMapping):
-                raise TypeError(f"{type(target)} {type(key)}")
+                raise TypeError(f"{(target)} {(key)}")
             target[key] = update_tree(target.get(key, _not_found_), pth[1:], *args, **kwargs)
 
         else:
@@ -98,7 +109,7 @@ def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
 
 def merge_tree_recursive(target: _T, *args, **kwargs) -> _T:
     target = copy(target)
-    return update_tree(target, None, *args, **kwargs)
+    return update_tree(target, None, *args, _idempotent=False, **kwargs)
 
 # def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
 #     """ 递归合并两个 Hierarchical Tree """
@@ -254,7 +265,7 @@ def tree_apply_recursive(obj, op, types=None):
 # 下列function皆已经“废弃”，主要功能已经合并进 Path 和 HTree 两个类
 
 
-@deprecated
+@ deprecated
 def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, force=False) -> dict | list:
     if not in_place:
         first = deepcopy(first)
@@ -281,7 +292,7 @@ def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, 
     return first
 
 
-@deprecated
+@ deprecated
 def reduce_dict(d, **kwargs) -> typing.Dict:
     res = {}
     for v in d:
@@ -293,7 +304,7 @@ def _recursive_get(obj, k):
     return obj if len(k) == 0 else _recursive_get(obj[k[0]], k[1:])
 
 
-@deprecated
+@ deprecated
 def get_value_by_path(data, path, default_value=None):
     # 将路径按 '/' 分割成列表
     if isinstance(path, str):
@@ -329,7 +340,7 @@ def get_value_by_path(data, path, default_value=None):
     return current_value
 
 
-@deprecated
+@ deprecated
 def set_value_by_path(data, path, value):
     # 将路径按 '/' 分割成列表
     segments = path.split("/")
@@ -378,22 +389,22 @@ def set_value_by_path(data, path, value):
     return True
 
 
-@deprecated
+@ deprecated
 def get_value(*args, **kwargs) -> typing.Any:
     return get_value_by_path(*args, **kwargs)
 
 
-@deprecated
+@ deprecated
 def get_many_value(d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None) -> collections.abc.Mapping:
     return {k: get_value(d, k, get_value(default_value, idx)) for idx, k in enumerate(name_list)}
 
 
-@deprecated
+@ deprecated
 def set_value(*args, **kwargs) -> bool:
     return set_value_by_path(*args, **kwargs)
 
 
-@deprecated
+@ deprecated
 def try_get(obj, path: str, default_value=_undefined_):
     if obj is None or obj is _not_found_:
         return default_value
@@ -429,7 +440,7 @@ def try_get(obj, path: str, default_value=_undefined_):
         return default_value
 
 
-@deprecated
+@ deprecated
 def try_getattr_r(obj, path: str):
     if path is None or path == '':
         return obj, ''
@@ -447,7 +458,7 @@ def try_getattr_r(obj, path: str):
     return obj, path[start:]
 
 
-@deprecated
+@ deprecated
 def getattr_r(obj, path: str):
     # o, p = try_getattr_r(obj, path)
 
@@ -465,7 +476,7 @@ def getattr_r(obj, path: str):
     return o
 
 
-@deprecated
+@ deprecated
 def getitem(obj, key=None, default_value=None):
     if key is None:
         return obj
@@ -477,7 +488,7 @@ def getitem(obj, key=None, default_value=None):
         return default_value
 
 
-@deprecated
+@ deprecated
 def setitem(obj, key, value):
     if hasattr(obj, "__setitem__"):
         return obj.__setitem__(key, value)
@@ -485,7 +496,7 @@ def setitem(obj, key, value):
         raise KeyError(f"Can not setitem {key}")
 
 
-@deprecated
+@ deprecated
 def iteritems(obj):
     if obj is None:
         return []

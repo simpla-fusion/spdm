@@ -112,9 +112,13 @@ class HTree:
 
     # def __reduce__(self) -> HTree: raise NotImplementedError(f"")
 
-    def dump(self, entry: Entry, **kwargs) -> None:
+    def dump(self, entry: Entry = None, **kwargs) -> None:
         """ 将数据写入 _entry """
-        entry.insert(self._cache)
+        if entry is None:
+            entry = self._entry
+
+        if isinstance(entry, Entry):
+            entry.update(self._cache)
 
     @property
     def __name__(self) -> str: return self._metadata.get("name", "unamed")

@@ -42,16 +42,21 @@ class TimeSeriesAoS(List[_TSlice]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._cache_cursor = 0
-        self._cache_depth = self._metadata.get("cache_depth", 3)
+        self._entry_cursor = None
 
-        if self._cache is _not_found_ or self._cache is None:
+        if self._cache is _not_found_ or self._cache is None or len(self._cache) == 0:
+
+            self._cache_depth = self._metadata.get("cache_depth", 3)
+            self._cache_cursor = -1
             self._cache = [None]*self._cache_depth
 
-        elif len(self._cache) < self._cache_depth:
-            self._cache += [None]*(self._cache_depth-len(self._cache))
+        else:
+            if len(self._cache) < self._cache_depth:
+                self._cache += [None]*(self._cache_depth-len(self._cache))
+            else:
+                self._cache_depth = len(self._cache)
 
-        self._time_coord = None
+            self._cache_cursor = len(self._cache)-1
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
@@ -69,112 +74,105 @@ class TimeSeriesAoS(List[_TSlice]):
     def dt(self) -> float: return self._metadata.get("dt", 0.1)
 
     @property
-    def current(self) -> typing.Typle[TimeSlice]: return self._get(0)
+    def current(self) -> _TSlice: return self._get(0)
 
     @property
     def prev(self) -> _TSlice: return self._get(-1)
 
-    def _find_slice_by_time(self, time) -> Entry:
+    def _find_slice_by_time(self, time) -> typing.Tuple[int, float]:
+        if self._entry is None:
+            return None, None
 
-        time_coord = self._time_coord or self._metadata.get("coordinate1", "../time")
+        time_coord = getattr(self, "_time_coord", None) or self._metadata.get("coordinate1", "../time")
 
         if isinstance(time_coord, str):
-            self._time_coord = self.get(time_coord, default_value=None) or self._entry.child(time_coord).fetch()
+            time_coord = self.get(time_coord, default_value=None) or self._entry.child(time_coord).fetch()
 
-        entry = None
+        self._time_coord = time_coord
 
-        if isinstance(self._time_coord, np.ndarray):
-            indices = np.where(self._time_coord <= time)[0]
+        pos = None
+
+        if isinstance(time_coord, np.ndarray):
+            indices = np.where(time_coord < time)[0]
             if len(indices) > 0:
-                pos = indices[-1]
-                time = self._time_coord[pos]
-            entry = self._entry.child(pos)
+                pos = indices[-1]+1
+                time = time_coord[pos]
 
         elif self._entry is not None:
-            current = self._cache[self._cache_cursor]
-            if current is None and self._entry is not None:
-                entry = self._entry.child(0)
-            elif isinstance(current, TimeSlice) and current.time < time:
-                entry = self.current._entry
+            pos = self._entry_cursor or 0
 
-            while entry is not None:
-                t_time = entry.child("time").fetch(default_value=_not_found_)
-                if t_time is _not_found_ or t_time is None:
+            while True:
+                t_time = self. _entry.child(f"{pos}/time").fetch(default_value=_not_found_)
+
+                if t_time is _not_found_ or t_time is None or t_time > time:
+                    time = None
                     break
-                elif t_time >= time:
+                elif np.isclose(t_time, time):
                     time = t_time
                     break
+                else:
+                    pos = pos+1
 
-                entry = entry.next()
-
-        return entry, time
+        return pos, time
 
     def _get(self, idx: int, **kwargs) -> _TSlice:
 
         if not isinstance(idx, int):
             return _not_found_
+        elif self._cache_cursor < 0:
+            raise RuntimeError(f"TimeSeries is not initialized!")
 
-        idx = (self._cache_cursor + idx + self._cache_depth) % self._cache_depth
+        cache_pos = (self._cache_cursor + idx + self._cache_depth) % self._cache_depth
 
-        value = self._cache[idx]
+        value = self._cache[cache_pos]
 
         entry = None
 
-        if isinstance(value, TimeSlice) or (self._entry is None or self._entry is _not_found_):
-            pass
-
-        elif isinstance(value, Entry):
-            entry = value
-            value = None
-
-        elif isinstance(value, dict) and "time" in value:
-            entry, time = self._find_slice_by_time(value.get("time"))
-            value["time"] = time
-
-        elif idx == self._cache_cursor:
-            if self._entry is not None:
-                entry = self._entry.child(idx)
-
-        elif self.current._entry is not None:
-            entry = self.current._entry.next(idx-self._cache_cursor)
-
-        elif self._entry is not None:
-            entry = self._entry.child(idx)
+        if not isinstance(value, TimeSlice) and isinstance(self._entry, Entry):
+            entry = self._entry.child(self._entry_cursor + idx)
 
         obj = self._as_child(value, None, _entry=entry, _parent=self._parent)
 
-        self._cache[idx] = obj
+        self._cache[cache_pos] = obj
 
         return obj  # type:ignore
 
-    def _flush(self, start: int = 0, end: int = None) -> None:
-        start = start or self._cache_cursor
-        end = end or start+1
+    def initialize(self, *args, **kwargs) -> _TSlice:
+        if self._cache_cursor > 0:
+            logger.warning(f"TimeSeries is already initialized!")
 
-        if isinstance(self._entry, Entry) and self._entry.is_writable:
-            start_slice = self._current_slice - self._cache_depth + 1
-            for idx in range(start, end):
-                self._entry.child(start_slice+idx).update(self._cache[idx].dump())
+        self._cache_cursor = 0
 
-        for idx in range(start, end):
-            self._cache[idx] = None
-
-    def refresh(self, *args, **kwargs) -> _TSlice:
+        update_tree(self._cache, self._cache_cursor, *args, **kwargs)
 
         current = self._cache[self._cache_cursor]
 
-        if isinstance(current, HTree):
-            current.update(*args, **kwargs)
-
+        if isinstance(current, dict):
+            time = current.get("time", None)
         else:
-            update_tree(self._cache, self._cache_cursor, *args, **kwargs)
+            time = getattr(current, "time", None)
 
-        # return self.current
+        self._entry_cursor, time = self._find_slice_by_time(time)
+
+        current["time"] = time
+
+    def refresh(self, *args, **kwargs) -> _TSlice:
+        if self._cache_cursor < 0:
+            return self.initialize(*args, **kwargs)
+
+        update_tree(self._cache, self._cache_cursor, *args, **kwargs)
 
     def advance(self, *args, **kwargs) -> _TSlice:
 
+        if self._cache_cursor < 0:
+            return self.initialize(*args, **kwargs)
+
+        # self.current.dump()
+
         self._cache_cursor = (self._cache_cursor+1) % self._cache_depth
 
-        self._flush()
+        self._entry_cursor += 1
+
+        self._cache[self._cache_cursor] = None
 
         self.refresh(*args, **kwargs)
