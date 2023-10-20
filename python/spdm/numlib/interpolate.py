@@ -33,7 +33,7 @@ class RectInterpolateOp(Functor):
 
         self._shape = tuple(len(d) for d in self._dims)
 
-        if isinstance(value, array_type):
+        if isinstance(value, array_type) and len(value.shape) > 0:
 
             if len(value.shape) > len(self._shape):
                 raise NotImplementedError(

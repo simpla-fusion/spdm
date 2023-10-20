@@ -108,7 +108,7 @@ class Function(Expression):
         # raise NotImplementedError(f"Function.__getitem__ is not implemented!")
 
     def __setitem__(self, idx, value) -> None:
-        if self._cache is None or self._cache is _not_found_:
+        if self._cache is None or self._cache is _not_found_ or len(self._cache.shape) == 0:
             self._cache = self.__array__()
 
         self._cache[idx] = value
@@ -277,10 +277,7 @@ class Function(Expression):
 
         return self._func
 
-    def __array__(self, *args,  **kwargs) -> NumericType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
-        """
+    def __value__(self, *args, **kwargs) -> array_type | float:
         value = self._cache
 
         if not isinstance(value, scalar_type) and not isinstance(value, array_type):
@@ -289,6 +286,17 @@ class Function(Expression):
 
         if not isinstance(value, scalar_type) and not isinstance(value, array_type):
             logger.error(f"{self.__class__} \"{(value)}\"")
+
+        return value
+
+    def __array__(self, *args,  **kwargs) -> NumericType:
+        """ 重载 numpy 的 __array__ 运算符
+                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
+        """
+        value = self.__value__()
+
+        if isinstance(value, array_type) and len(value.shape) == 0:
+            value = np.full(self.shape, value.item())
 
         return value
 
@@ -308,7 +316,10 @@ class Function(Expression):
             return super().__call__(*args, **kwargs)
 
     def derivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
+        if len(self.__array__().shape) == 0:
+            return Function(0.0, self.dims)
+        else:
+            return Function(self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
 
     def partial_derivative(self, *d, **kwargs) -> Function:
         return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
@@ -320,7 +331,11 @@ class Function(Expression):
 
     def pd(self, *d) -> Expression: return self.partial_derivative(*d)
 
-    def dln(self) -> Expression: return self.derivative() / self
+    def dln(self, *args) -> Expression | float:
+        if len(*args) == 0:
+            return self.derivative() / self
+        else:
+            return self.dln()(*args)
 
     def integral(self, *args, **kwargs) -> _T: return integral(self, *args, **kwargs)
 
