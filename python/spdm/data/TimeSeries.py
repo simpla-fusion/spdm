@@ -130,7 +130,7 @@ class TimeSeriesAoS(List[_TSlice]):
         if not isinstance(value, TimeSlice) and isinstance(self._entry, Entry):
             entry = self._entry.child(self._entry_cursor + idx)
 
-        obj = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent )
+        obj = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
 
         self._cache[cache_pos] = obj
 
@@ -141,7 +141,7 @@ class TimeSeriesAoS(List[_TSlice]):
             logger.warning(f"TimeSeries is already initialized!")
         self._cache_cursor = 0
 
-        update_tree(self._cache, self._cache_cursor, *args, **kwargs)
+        update_tree(self._cache, self._cache_cursor, *args, kwargs)
 
         current = self._cache[self._cache_cursor]
 
@@ -150,10 +150,13 @@ class TimeSeriesAoS(List[_TSlice]):
         else:
             time = getattr(current, "time", None)
 
+        if time is None:
+            time = 0.0
+
         self._entry_cursor, time = self._find_slice_by_time(time)
 
         if time is not None:
-            current["time"] = time
+            self._cache[self._cache_cursor] = update_tree(current, "time", time)
         else:
             self._entry_cursor = 0
 

@@ -6,9 +6,9 @@
 
         class Doo(Dict):
 
-            f0 = sp_property(type_hint=Foo)      # 优先级最高, 不兼容IDE的类型提示
+            f0 = SpProperty(type_hint=Foo)      # 优先级最高, 不兼容IDE的类型提示
 
-            f1: Foo = sp_property()              # 推荐，可以兼容IDE的类型提示
+            f1: Foo = SpProperty()              # 推荐，可以兼容IDE的类型提示
 
             ######################################################
             @sp_property
@@ -53,6 +53,7 @@ from .Entry import Entry
 from .Function import Function
 from .HTree import HTree, Dict
 from ..utils.tree_utils import merge_tree_recursive
+
 
 
 class SpTree(Dict):
@@ -126,11 +127,9 @@ class AttributeTree(SpTree):
             entry.update(self._cache)
             return entry
 
-
 _T = typing.TypeVar("_T")
 
-
-class sp_property(typing.Generic[_T]):
+class SpProperty(typing.Generic[_T]):
     """
     用于为 SpPropertyClass 类（及其子类）定义一个property, 并确保其类型为type_hint 指定的类型。
 
@@ -202,7 +201,7 @@ class sp_property(typing.Generic[_T]):
 
         if type_hint is None and getter is not None:
             type_hint = typing.get_type_hints(getter).get("return", None)
-    
+
         elif isinstance(type_hint, str):
             raise RuntimeError(f"Invalid type_hint={type_hint}!")
 
@@ -218,16 +217,16 @@ class sp_property(typing.Generic[_T]):
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
         self.property_name = name
-            
+
         self.metadata.setdefault("name", name)
-    
+
         if self.__doc__ is not None:
             pass
         elif callable(self.getter):
             self.__doc__ = self.getter.__doc__
         else:
             self.__doc__ = f"sp_roperty:{self.property_name}"
-        
+
         if self.type_hint is None:
             self.type_hint = typing.get_type_hints(owner).get(name, None)
 
@@ -277,7 +276,7 @@ class sp_property(typing.Generic[_T]):
                 value=value,
                 setter=self.setter)
 
-    def __get__(self, instance:  SpTree[_T] | None, owner=None) -> _T:
+    def __get__(self, instance:  SpTree | None, owner=None) -> _T:
         if instance is None:
             # 当调用 getter(cls, <name>) 时执行
             return self
@@ -310,7 +309,14 @@ class sp_property(typing.Generic[_T]):
             instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
-def is_sp_property(obj) -> bool: return isinstance(obj, sp_property)
+def sp_property(getter: typing.Callable[..., _T] | typing.Type[_T] = None,    **kwargs) -> _T:
+    if getter is None:
+        return SpProperty[_T](**kwargs)
+    else:
+        return SpProperty[_T](getter=getter, **kwargs)
+
+
+def is_sp_property(obj) -> bool: return isinstance(obj, SpProperty)
 
 
 def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
@@ -320,25 +326,25 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
     type_hints = typing.get_type_hints(cls)
 
     if not issubclass(cls, HTree):
-        n_cls = type(f"_{cls.__name__}_s", (cls, SpTree), {"_metadata": getattr(cls, "_metadata", {})})
+        n_cls = type(cls.__name__, (cls, SpTree), {"_metadata": getattr(cls, "_metadata", {})})
         n_cls.__module__ = cls.__module__
     else:
         n_cls = cls
 
     for _name, _type_hint in type_hints.items():
-        prop = getattr(cls, _name, None)
-        if isinstance(prop, sp_property):
+        prop = getattr(cls, _name, _not_found_)
+        if isinstance(prop, SpProperty):
             if _name in cls.__dict__ and n_cls is cls:
                 if prop.type_hint is None and _type_hint is not None:
                     prop.type_hint = _type_hint
             else:
-                prop = sp_property(type_hint=_type_hint,
+                prop = SpProperty(type_hint=_type_hint,
                                    getter=prop.getter,
                                    setter=prop.setter,
                                    deleter=prop.deleter,
                                    **prop.metadata)
         else:
-            prop = sp_property(type_hint=_type_hint, default_value=prop)
+            prop = SpProperty(type_hint=_type_hint, default_value=prop)
 
         prop.property_name = _name
         setattr(n_cls, _name, prop)
@@ -351,8 +357,8 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
 def sp_tree(cls: _T = None, /,   **kwargs) -> _T:
     # 装饰器，将一个类转换为 SpTree 类
 
-    def wrap(cls):
-        return _process_sptree(cls,  **kwargs)
+    def wrap(_cls, _kwargs=kwargs):
+        return _process_sptree(_cls,  **_kwargs)
 
     if cls is None:
         return wrap

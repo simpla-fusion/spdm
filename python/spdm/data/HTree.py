@@ -315,13 +315,14 @@ class HTree:
                 value = _entry.get(default_value=_not_found_)
                 _entry = None
 
-            if not isinstance_generic(value, _type_hint) and _entry is None and _getter is not None:
+            if not isinstance_generic(value, _type_hint) and _getter is not None and (_entry is None or not _entry.exists):
                 try:
                     tmp = _getter(self)
                 except Exception as error:
                     raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
                 else:
                     value = tmp
+                    _entry = None
 
             if isinstance_generic(value, _type_hint):
                 pass
