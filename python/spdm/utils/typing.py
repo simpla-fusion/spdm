@@ -300,7 +300,7 @@ def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typ
 
     if (not inspect.isclass(_type_hint) or not issubclass(_type_hint, (Enum, *primary_type)))\
             and not dataclasses.is_dataclass(_type_hint):
-
+      
         return _type_hint(value, **kwargs)
 
     default_value = kwargs.pop("default_value", _not_found_)
@@ -323,7 +323,7 @@ def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typ
         value = as_array(value)
 
     elif _type_hint in primary_type:
-        
+
         if hasattr(value, "__value__"):
             value = value.__value__
 

@@ -194,12 +194,11 @@ class sp_property(typing.Generic[_T]):
         if doc is not None:
             self.__doc__ = doc
 
-        self.property_cache_key: str = getter if isinstance(getter, str) else None
         self.property_name: str = None
         self.type_hint = type_hint
         self.strict = strict
 
-        self._kwargs = kwargs
+        self.metadata = kwargs
 
         if isinstance(type_hint, str):
             raise RuntimeError(f"Invalid type_hint={type_hint}!")
@@ -214,7 +213,7 @@ class sp_property(typing.Generic[_T]):
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
         self.property_name = name
-        self._kwargs.setdefault("name", name)
+        self.metadata.setdefault("name", name)
         if self.__doc__ is not None:
             pass
         elif callable(self.getter):
@@ -222,17 +221,10 @@ class sp_property(typing.Generic[_T]):
         else:
             self.__doc__ = f"sp_roperty:{self.property_name}"
 
-        if self.property_cache_key is None:
-            self.property_cache_key = name
-
-        if self.property_name != self.property_cache_key:
-            logger.warning(
-                f"The property name '{self.property_name}' is different from the cache '{self.property_cache_key}''.")
-
     def _get_desc(self, owner_cls, name: str = None, metadata: dict = None):
 
         if self.type_hint is not None:
-            return self.type_hint, self._kwargs
+            return self.type_hint, self.metadata
 
         type_hint = None
 
@@ -243,9 +235,9 @@ class sp_property(typing.Generic[_T]):
 
         if type_hint is None:
             #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-            orig_class = getattr(self, "__orig_class__", None)
+            orig_class = typing.get_origin(self.__class__)
             if orig_class is not None:
-                child_cls = typing.get_args(self.__orig_class__)
+                child_cls = typing.get_args(orig_class)
                 if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
                     type_hint = child_cls[0]
 
@@ -254,24 +246,24 @@ class sp_property(typing.Generic[_T]):
 
         self.type_hint = type_hint
 
-        kwargs = self._kwargs
+        metadata = self.metadata
 
         for base in owner_cls.__bases__:
-            kwargs = merge_tree_recursive(getattr(getattr(base, name, None), "_kwargs", None), kwargs)
+            metadata = merge_tree_recursive(getattr(getattr(base, name, None), "_kwargs", None), metadata)
 
-        return self.type_hint, kwargs
+        return self.type_hint, metadata
 
     def __set__(self, instance:  SpTree[_T], value: typing.Any) -> None:
         assert (instance is not None)
 
         # type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
 
-        if self.property_name is None or self.property_cache_key is None:
+        if self.property_name is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
             instance.__set_property__(
-                self.property_cache_key,
+                self.property_name,
                 value=value,
                 setter=self.setter)
 
@@ -284,18 +276,18 @@ class sp_property(typing.Generic[_T]):
 
         # 当调用 getter(obj, <name>) 时执行
 
-        type_hint, kwargs = self._get_desc(owner, self.property_name)
+        type_hint, metdata = self._get_desc(owner, self.property_name)
 
-        if self.property_name is None or self.property_cache_key is None:
+        if self.property_name is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-
-            value = instance.__get_property__(self.property_cache_key,
-                                              _type_hint=type_hint,
-                                              _getter=self.getter,
-                                              **kwargs,
-                                              )
+            value = instance.__get_property__(
+                self.property_name,
+                _type_hint=type_hint,
+                _getter=self.getter,
+                **metdata,
+            )
 
             if self.strict and value is _not_found_:
                 raise AttributeError(
@@ -305,7 +297,7 @@ class sp_property(typing.Generic[_T]):
 
     def __delete__(self, instance: SpTree[_T]) -> None:
         with self.lock:
-            instance.__del_property__(self.property_cache_key, deleter=self.deleter)
+            instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
 def is_sp_property(obj) -> bool: return isinstance(obj, sp_property)
@@ -317,34 +309,32 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
 
     type_hints = typing.get_type_hints(cls)
 
-    pprint.pprint(cls)
-
-    if not issubclass(cls, HTree):      
-        n_cls = type(cls.__name__, (cls, SpTree), {"_metadata": getattr(cls, "_metadata", {})})
+    if not issubclass(cls, HTree):
+        n_cls = type(f"_{cls.__name__}_s", (cls, SpTree), {"_metadata": getattr(cls, "_metadata", {})})
         n_cls.__module__ = cls.__module__
-        cls = n_cls
+    else:
+        n_cls = cls
 
-    for _name, _type in type_hints.items():
+    for _name, _type_hint in type_hints.items():
         prop = getattr(cls, _name, None)
         if isinstance(prop, sp_property):
-            if prop.type_hint is None or prop.type_hint == _type:
-                pass
-            elif _type is not None:
-                # if prop.type_hint is None:
-                #     pass
-                # elif inspect.isclass(prop.type_hint) and not issubclass(_type, prop.type_hint):
-                #     logger.warning(f"{prop.type_hint} {_type}")
-                prop.type_hint = _type
-
+            if _name in cls.__dict__:
+                prop.type_hint = _type_hint
+            else:
+                prop = sp_property(type_hint=_type_hint,
+                                   getter=prop.getter,
+                                   setter=prop.setter,
+                                   deleter=prop.deleter,
+                                   **prop.metadata)
         else:
-            prop = sp_property(type_hint=_type, default_value=prop)
-        prop.property_cache_key = _name
+            prop = sp_property(type_hint=_type_hint, default_value=prop)
+
         prop.property_name = _name
-        setattr(cls, _name, prop)
+        setattr(n_cls, _name, prop)
 
-    setattr(cls, "_metadata", merge_tree_recursive(getattr(cls, "_metadata", None), kwargs))
+    setattr(n_cls, "_metadata", merge_tree_recursive(getattr(cls, "_metadata", None), kwargs))
 
-    return cls
+    return n_cls
 
 
 def sp_tree(cls: _T = None, /,   **kwargs) -> _T:
