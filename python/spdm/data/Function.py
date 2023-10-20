@@ -66,7 +66,7 @@ class Function(Expression):
         Expression.__init__(self, func, label=kwargs.pop("label", None) or kwargs.pop("name", None))
 
         self._cache = cache
-        self._dims = list(dims)
+        self._dims = list(dims) if len(dims) > 0 else None
         self._periods = periods
         self._metadata = kwargs
         self._parent = _parent
@@ -117,32 +117,38 @@ class Function(Expression):
     @property
     def dims(self) -> typing.List[ArrayType]:
         """ 函数的网格，即定义域的网格 """
-        if len(self._dims) > 0:
+        if self._dims is not None:
             return self._dims
 
-        dims = None
+        dims = []
         holder = self
-        while dims is None and hasattr(holder, "_metadata"):
-            dims, *_ = group_dict_by_prefix(holder._metadata, "coordinate", sep=None)
-            if isinstance(dims, collections.abc.Mapping):
-                dims = {int(k): v for k, v in dims.items() if k.isdigit()}
-                dims = dict(sorted(dims.items(), key=lambda x: x[0]))
-                if isinstance(holder, Function):
-                    dims = [as_array(holder._parent.get(c[3:], _not_found_) if isinstance(c, str) and c.startswith("../") else c)
-                            for c in dims.values()]
-                else:
-                    dims = [as_array(holder.get(c, _not_found_) if isinstance(c, str) else c)
-                            for c in dims.values()]
-            elif dims is not None:
-                logger.warning(f"ignore {dims}")
-                dims = None
+        metadata = None
+        while hasattr(holder, "_metadata"):
+            metadata = holder._metadata
 
-            holder = getattr(holder, "_parent", None)
+            dims_s, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
 
-        if dims is None:
-            raise RuntimeError(f"Can not get dims! {dims}")
+            if dims_s is not None and len(dims_s) > 0:
+                dims_s = {int(k): v for k, v in dims_s.items() if k.isdigit()}
+                dims_s = dict(sorted(dims_s.items(), key=lambda x: x[0]))
+                for c in dims_s.values():
+                    if not isinstance(c, str):
+                        d = as_array(c)
+                    elif c.startswith("../"):
+                        d = as_array(holder._parent.get(c[3:], _not_found_))
+                    else:
+                        d = as_array(holder.get(c, _not_found_))
+                    dims.append(d)
 
-        elif len(dims) > 0 and len(self.periods) > 0:
+            if len(dims) > 0:
+                break
+            else:
+                holder = getattr(holder, "_parent", None)
+
+        if len(dims) == 0 or any([d is _not_found_ for d in dims]):
+            raise RuntimeError(f"Can not get dims! {metadata} {dims_s} {holder}")
+
+        elif len(self.periods) > 0:
             dims = [as_array(v) for v in dims]
 
             periods = self.periods
@@ -154,9 +160,6 @@ class Function(Expression):
                 if not np.all(dims[idx][1:] > dims[idx][:-1]):
                     raise RuntimeError(
                         f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
-
-        if any([d is None or d is _not_found_ for d in dims]):
-            raise RuntimeError(f"Can not get dims! {dims}")
 
         self._dims = dims
 

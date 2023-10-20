@@ -22,7 +22,7 @@ class RectInterpolateOp(Functor):
         super().__init__(None)
 
         if len(dims) == 0:
-            raise RuntimeError(f"Illegal dims={self._dims} ")
+            raise RuntimeError(f"Illegal dims={dims} ")
 
         self._value = value
         self._dims = dims

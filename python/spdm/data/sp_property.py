@@ -55,7 +55,6 @@ from .HTree import HTree, Dict
 from ..utils.tree_utils import merge_tree_recursive
 
 
-
 class SpTree(Dict):
     """  支持 sp_property 的 Dict  """
 
@@ -127,7 +126,10 @@ class AttributeTree(SpTree):
             entry.update(self._cache)
             return entry
 
+
 _T = typing.TypeVar("_T")
+_TR = typing.TypeVar("_TR")
+
 
 class SpProperty(typing.Generic[_T]):
     """
@@ -207,9 +209,12 @@ class SpProperty(typing.Generic[_T]):
 
         self.type_hint = type_hint
 
-    def __call__(self, func):
+    def __call__(self, func: typing.Callable[..., _TR]) -> _TR:
         """ 用于定义属性的getter操作，与@property.getter类似 """
+        if self.getter is not None:
+            raise RuntimeError(f"Should not reset getter!")
         self.getter = func
+        self.type_hint = typing.get_type_hints(func).get("return", None)
         return self
 
     def __set_name__(self, owner, name):
@@ -339,10 +344,10 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
                     prop.type_hint = _type_hint
             else:
                 prop = SpProperty(type_hint=_type_hint,
-                                   getter=prop.getter,
-                                   setter=prop.setter,
-                                   deleter=prop.deleter,
-                                   **prop.metadata)
+                                  getter=prop.getter,
+                                  setter=prop.setter,
+                                  deleter=prop.deleter,
+                                  **prop.metadata)
         else:
             prop = SpProperty(type_hint=_type_hint, default_value=prop)
 
