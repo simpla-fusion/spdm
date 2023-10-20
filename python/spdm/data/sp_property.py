@@ -191,17 +191,22 @@ class sp_property(typing.Generic[_T]):
         self.getter = getter
         self.setter = setter
         self.deleter = deleter
+
         if doc is not None:
             self.__doc__ = doc
 
         self.property_name: str = None
-        self.type_hint = type_hint
         self.strict = strict
 
         self.metadata = kwargs
 
-        if isinstance(type_hint, str):
+        if type_hint is None and getter is not None:
+            type_hint = typing.get_type_hints(getter).get("return", None)
+    
+        elif isinstance(type_hint, str):
             raise RuntimeError(f"Invalid type_hint={type_hint}!")
+
+        self.type_hint = type_hint
 
     def __call__(self, func):
         """ 用于定义属性的getter操作，与@property.getter类似 """
@@ -213,13 +218,18 @@ class sp_property(typing.Generic[_T]):
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
         self.property_name = name
+            
         self.metadata.setdefault("name", name)
+    
         if self.__doc__ is not None:
             pass
         elif callable(self.getter):
             self.__doc__ = self.getter.__doc__
         else:
             self.__doc__ = f"sp_roperty:{self.property_name}"
+        
+        if self.type_hint is None:
+            self.type_hint = typing.get_type_hints(owner).get(name, None)
 
     def _get_desc(self, owner_cls, name: str = None, metadata: dict = None):
 
@@ -318,8 +328,9 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
     for _name, _type_hint in type_hints.items():
         prop = getattr(cls, _name, None)
         if isinstance(prop, sp_property):
-            if _name in cls.__dict__:
-                prop.type_hint = _type_hint
+            if _name in cls.__dict__ and n_cls is cls:
+                if prop.type_hint is None and _type_hint is not None:
+                    prop.type_hint = _type_hint
             else:
                 prop = sp_property(type_hint=_type_hint,
                                    getter=prop.getter,
