@@ -295,12 +295,17 @@ def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typ
     if value is _not_found_:
         # raise RuntimeError(f"value is _not_found_")
         return value
+
+    elif _type_hint is typing.Any:
+        if hasattr(value, "__value__"):
+            value = value.__value__
+        return value
+        
     elif _type_hint is None or isinstance_generic(value, _type_hint):
         return value
 
     if (not inspect.isclass(_type_hint) or not issubclass(_type_hint, (Enum, *primary_type)))\
             and not dataclasses.is_dataclass(_type_hint):
-      
         return _type_hint(value, **kwargs)
 
     default_value = kwargs.pop("default_value", _not_found_)
@@ -321,6 +326,10 @@ def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typ
 
     elif issubclass(origin_class, array_type):
         value = as_array(value)
+
+    elif _type_hint is typing.Any:
+        if hasattr(value, "__value__"):
+            value = value.__value__
 
     elif _type_hint in primary_type:
 
