@@ -314,7 +314,7 @@ class SpProperty(typing.Generic[_T]):
             instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
-def sp_property(getter: typing.Callable[..., _T] | typing.Type[_T] = None,    **kwargs) -> _T:
+def sp_property(getter: typing.Callable[..., _T]  = None,    **kwargs) -> _T:
     if getter is None:
         return SpProperty[_T](**kwargs)
     else:

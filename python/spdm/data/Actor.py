@@ -21,11 +21,11 @@ class Actor(SpTree, Pluggable):
             return
         super().__init__(*args, **kwargs)
         self._working_dir = None
-        self._log_dir = kwargs.get("log_dir", None) or f"{os.getcwd()}/{self.tag}/"
+        self._log_dir = (kwargs.get("log_dir", None) or os.getcwd()) + f"/{self.tag}/"
 
     @property
     def tag(self) -> str:
-        return f"{os.getpid()}_{self.__class__.__name__.lower()}_{getpass.getuser()}_{os.uname().nodename.lower()}"
+        return f"{getpass.getuser().lower()}_{os.getpid()}_{os.uname().nodename.lower()}/{self.__class__.__name__.lower()}"
 
     @property
     def MPI(self): return SP_MPI
@@ -47,6 +47,7 @@ class Actor(SpTree, Pluggable):
             if SP_DEBUG:
                 self._working_dir = self._log_dir
                 pathlib.Path(self._working_dir).mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Open Directory {self._working_dir}")
             else:
                 self._working_dir = tempfile.TemporaryDirectory()
         return self._working_dir
