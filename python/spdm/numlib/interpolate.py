@@ -72,8 +72,7 @@ class RectInterpolateOp(Functor):
                 if nan_count == len(value):
                     raise RuntimeError(f"value is NaN!")
                 elif nan_count > 0:
-                    logger.warning(
-                        f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
+                    # logger.warning(  f"{self.__class__.__name__}[{self.__str__()}]: Ignore {nan_count} NaN at {np.argwhere(mark)}.")
                     value = value[~mark]
                     x = x[~mark]
 

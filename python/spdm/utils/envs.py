@@ -11,3 +11,4 @@ if os.environ.get('OMPI_COMM_WORLD_SIZE', 0) > 0:
         pass
     else:
         SP_MPI = MPI
+

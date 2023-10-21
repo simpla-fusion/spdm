@@ -176,8 +176,10 @@ class HTree:
         pos = -1
 
         for idx, p in enumerate(path[:-1]):
-
-            if isinstance(obj, HTree):
+            if p in [Path.tags.ancestors, Path.tags.descendants]:
+                pos = idx
+                break
+            elif isinstance(obj, HTree):
                 tmp = obj._get(p, default_value=_not_found_, force=True)
                 pos = idx
             else:
@@ -190,7 +192,22 @@ class HTree:
             else:
                 obj = tmp
 
-        if isinstance(obj, HTree) and pos == length-2:
+        if path[pos] is Path.tags.ancestors:
+            s_pth = path[pos+1:]
+            while obj is not None and obj is not _not_found_:
+                if isinstance(obj, HTree):
+                    tmp = obj.get(s_pth, default_value=_not_found_, force=True)
+                else:
+                    tmp = s_pth.fetch(obj, default_value=_not_found_)
+                if tmp is _not_found_:
+                    obj = getattr(obj, "_parent", _not_found_)
+                else:
+                    obj = tmp
+                    break
+
+        elif path[pos] is Path.tags.descendants:
+            raise NotImplementedError(f"get(descendants) not implemented!")
+        elif isinstance(obj, HTree) and pos == length-2:
             obj = obj._get(path[-1], *args, default_value=default_value, force=force, **kwargs)
 
         if obj is _not_found_:
@@ -246,8 +263,13 @@ class HTree:
             if tp_hint is None:
                 break
             elif isinstance(key, str):
-                if typing.get_origin(tp_hint) is None:
-                    tp_hint = typing.get_type_hints(tp_hint).get(key, None)
+
+                tmp = getattr(getattr(tp_hint, key, None), "type_hint", None)
+                if tmp is not None:
+                    tp_hint = tmp
+                elif typing.get_origin(tp_hint) is None:
+                    tp_hints = typing.get_type_hints(tp_hint)
+                    tp_hint = tp_hints.get(key, None)
                 else:
                     tp_hint = None
             else:

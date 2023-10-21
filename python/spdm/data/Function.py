@@ -136,8 +136,16 @@ class Function(Expression):
                         d = as_array(c)
                     elif c.startswith("../"):
                         d = as_array(holder._parent.get(c[3:], _not_found_))
-                    else:
+                    elif c.startswith(".../"):
+                        d = as_array(holder._parent.get(c, _not_found_))
+                    elif hasattr(holder.__class__, "get"):
                         d = as_array(holder.get(c, _not_found_))
+                    else:
+                        d = _not_found_
+                    # elif c.startswith("*/"):
+                    #     raise NotImplementedError(f"TODO:{self.__class__}.dims:*/")
+                    # else:
+                    #     d = as_array(holder.get(c, _not_found_))
                     dims.append(d)
 
             if len(dims) > 0:
@@ -332,7 +340,7 @@ class Function(Expression):
     def pd(self, *d) -> Expression: return self.partial_derivative(*d)
 
     def dln(self, *args) -> Expression | float:
-        if len(*args) == 0:
+        if len(args) == 0:
             return self.derivative() / self
         else:
             return self.dln()(*args)

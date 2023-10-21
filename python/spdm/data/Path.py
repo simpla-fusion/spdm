@@ -24,6 +24,8 @@ class OpTags(Flag):
     root  = auto()      # root node
     parent = auto()     # parent node
     children = auto()   # 所有子节点
+    ancestors =auto()   # 所有祖先节点  
+    descendants = auto()# 所有后代节点
 
     current = auto()    # current node
     next  = auto()      # next sibling
@@ -482,6 +484,10 @@ class Path(list):
             item = slice(None)
         elif s == "..":
             item = Path.tags.parent
+        elif s == "...":
+            item = Path.tags.ancestors
+        elif s == "**":
+            item = Path.tags.descendants
         elif s == ".":
             item = Path.tags.current
         elif s.isnumeric():
@@ -518,7 +524,9 @@ class Path(list):
         elif path.startswith("../"):
             yield Path.tags.parent
             yield from Path._parser_iter(path[3:])
-
+        elif path.startswith(".../"):
+            yield Path.tags.ancestors
+            yield from Path._parser_iter(path[4:])
         elif path == "*":
             yield Path.tags.children
 
