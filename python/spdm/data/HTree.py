@@ -616,6 +616,13 @@ class List(Container[_T]):
     @ property
     def empty(self) -> bool: return self._cache is None or self._cache is _not_found_ or len(self._cache) == 0
 
+    def __len__(self) -> int:
+        if self._cache is not None and len(self._cache) > 0:
+            return len(self._cache)
+        elif self._entry is not None:
+            return self._entry.fetch(Path.tags.count)
+        return 0
+
     def __iter__(self) -> typing.Generator[_T, None, None]:
         """ 遍历 children """
         for v in self.children():

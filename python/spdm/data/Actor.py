@@ -40,14 +40,14 @@ class Actor(SpTree, Pluggable):
         return {}
 
     @contextlib.contextmanager
-    def working_dir(self):
+    def working_dir(self, suffix: str = "") -> str:
         temp_dir = None
         if SP_DEBUG:
-            _working_dir = pathlib.Path(f"{self.output_dir}/{self.tag}")
-            _working_dir.mkdir(parents=True, exist_ok=True)
+            _working_dir = f"{self.output_dir}/{self.tag}{suffix}"
+            pathlib.Path(_working_dir).mkdir(parents=True, exist_ok=True)
         else:
             temp_dir = tempfile.TemporaryDirectory(prefix=self.tag)
-            _working_dir = pathlib.Path(temp_dir.name)
+            _working_dir = temp_dir.name
 
         pwd = os.getcwd()
 
@@ -63,7 +63,7 @@ class Actor(SpTree, Pluggable):
             error = e
 
         if (error is not None and temp_dir is not None):
-            shutil.copytree(temp_dir.name, f"{self.output_dir}/{self.tag}", dirs_exist_ok=True)
+            shutil.copytree(temp_dir.name, f"{self.output_dir}/{self.tag}{suffix}", dirs_exist_ok=True)
         elif temp_dir is not None:
             temp_dir.cleanup()
 
