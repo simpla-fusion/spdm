@@ -1,6 +1,7 @@
 import os
 
 SP_DEBUG = os.environ.get("SP_DEBUG", True)
+
 SP_LABEL = os.environ.get("SP_LABEL", __package__[:__package__.find('.')])
 
 SP_MPI = None

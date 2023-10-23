@@ -6,7 +6,7 @@ import contextlib
 from ..view import View as sp_view
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
-from ..utils.envs import SP_MPI, SP_DEBUG
+from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
 from .sp_property import SpTree
 import getpass
 
@@ -40,10 +40,10 @@ class Actor(SpTree, Pluggable):
         return {}
 
     @contextlib.contextmanager
-    def working_dir(self, suffix: str = "") -> str:
+    def working_dir(self, suffix: str = "", prefix="") -> str:
         temp_dir = None
         if SP_DEBUG:
-            _working_dir = f"{self.output_dir}/{self.tag}{suffix}"
+            _working_dir = f"{self.output_dir}/{prefix}{self.tag}{suffix}"
             pathlib.Path(_working_dir).mkdir(parents=True, exist_ok=True)
         else:
             temp_dir = tempfile.TemporaryDirectory(prefix=self.tag)
@@ -75,4 +75,5 @@ class Actor(SpTree, Pluggable):
                 f"Failed to execute actor {self.tag}! see log in {self.output_dir}/{self.tag}") from error
 
     @property
-    def output_dir(self) -> str: return self.get("output_dir", None) or os.getenv("SP_OUTPUT_DIR", None) or os.getcwd()
+    def output_dir(self) -> str:
+        return self.get("output_dir", None) or os.getenv("SP_OUTPUT_DIR", None) or f"{os.getcwd()}/{SP_LABEL.lower()}_output"
