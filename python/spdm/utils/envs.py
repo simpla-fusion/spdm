@@ -1,14 +1,11 @@
 import os
 
 SP_DEBUG = os.environ.get("SP_DEBUG", True)
+SP_LABEL = os.environ.get("SP_LABEL", __package__[:__package__.find('.')])
 
 SP_MPI = None
-
-if os.environ.get('OMPI_COMM_WORLD_SIZE', 0) > 0:
+if int(os.environ.get('OMPI_COMM_WORLD_SIZE', "0")) > 0:
     try:
-        from mpi4py import MPI
+        from mpi4py import MPI as SP_MPI
     except ImportError:
-        pass
-    else:
-        SP_MPI = MPI
-
+        SP_MPI = None

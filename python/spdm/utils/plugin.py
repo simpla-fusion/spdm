@@ -15,7 +15,7 @@ from .tags import _not_found_
 
 class Pluggable(metaclass=abc.ABCMeta):
     """ Factory class to create objects from a registry.    """
-
+    _plugin_prefix = __package__
     _plugin_registry = {}
 
     @classmethod
@@ -104,6 +104,7 @@ class Pluggable(metaclass=abc.ABCMeta):
         """
         head = len(cls._plugin_prefix)
         return [p[head:] for p in walk_namespace_modules(cls._plugin_prefix[:-1])]
+
 
     # def __new__(cls,  *args, **kwargs):
     # if not issubclass(cls, Pluggable):

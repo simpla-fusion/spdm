@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 from inspect import getframeinfo, stack
 
-from .envs import SP_DEBUG, SP_MPI
+from .envs import SP_DEBUG, SP_MPI, SP_LABEL
 
 default_formater = logging.Formatter('%(asctime)s [%(name)8s] %(levelname)8s:'
                                      '%(pathname)s:%(lineno)d:%(funcName)s: '
@@ -19,8 +19,8 @@ default_formater = logging.Formatter('%(asctime)s [%(name)8s] %(levelname)8s:'
 
 MPI_MSG = ""
 
-if SP_MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-    MPI_MSG = f"[{MPI.COMM_WORLD.Get_rank()}/{MPI.COMM_WORLD.Get_size()}]"
+if SP_MPI is not None and SP_MPI.COMM_WORLD.Get_size() > 1:
+    MPI_MSG = f"[{SP_MPI.COMM_WORLD.Get_rank()}/{SP_MPI.COMM_WORLD.Get_size()}]"
 
 
 class CustomFormatter(logging.Formatter):
@@ -104,13 +104,14 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
     return m_logger
 
 
-logger = sp_enable_logging(__package__[:__package__.find('.')], level=SP_DEBUG, handler="STDOUT")
+logger = sp_enable_logging(SP_LABEL, level=SP_DEBUG, handler="STDOUT")
 
- 
+
 def _at_end():
     logger.setLevel(logging.INFO)
     logger.info("The End")
     logging.shutdown()
+
 
 atexit.register(_at_end)
 

@@ -2,6 +2,7 @@ import tempfile
 import shutil
 import pathlib
 import os
+import contextlib
 from ..view import View as sp_view
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
@@ -12,7 +13,7 @@ import getpass
 
 class Actor(SpTree, Pluggable):
     mpi_enabled = False
-
+    _plugin_prefix = __package__
     _plugin_registry = {}
 
     def __init__(self, *args, **kwargs):
@@ -20,12 +21,9 @@ class Actor(SpTree, Pluggable):
             self.__class__.__dispatch_init__(None, self, *args, **kwargs)
             return
         super().__init__(*args, **kwargs)
-        self._working_dir = None
-        self._log_dir = (kwargs.get("log_dir", None) or os.getcwd()) + f"/{self.tag}/"
 
     @property
-    def tag(self) -> str:
-        return f"{getpass.getuser().lower()}_{os.getpid()}_{os.uname().nodename.lower()}/{self.__class__.__name__.lower()}"
+    def tag(self) -> str: return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
 
     @property
     def MPI(self): return SP_MPI
@@ -41,18 +39,40 @@ class Actor(SpTree, Pluggable):
     def __geometry__(self,  *args,  **kwargs):
         return {}
 
-    @property
+    @contextlib.contextmanager
     def working_dir(self):
-        if self._working_dir is None:
-            if SP_DEBUG:
-                self._working_dir = self._log_dir
-                pathlib.Path(self._working_dir).mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Open Directory {self._working_dir}")
-            else:
-                self._working_dir = tempfile.TemporaryDirectory()
-        return self._working_dir
+        temp_dir = None
+        if SP_DEBUG:
+            _working_dir = pathlib.Path(f"{self.output_dir}/{self.tag}")
+            _working_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            temp_dir = tempfile.TemporaryDirectory(prefix=self.tag)
+            _working_dir = pathlib.Path(temp_dir.name)
 
-    def finish(self):
-        if self._working_dir != self._log_dir and SP_DEBUG:
-            shutil.copytree(self._working_dir, self._log_dir, dirs_exist_ok=True)
-            self._working_dir = None
+        pwd = os.getcwd()
+
+        os.chdir(_working_dir)
+
+        logger.info(f"Enter directory {_working_dir}")
+
+        error = None
+
+        try:
+            yield _working_dir
+        except Exception as e:
+            error = e
+
+        if (error is not None and temp_dir is not None):
+            shutil.copytree(temp_dir.name, f"{self.output_dir}/{self.tag}", dirs_exist_ok=True)
+        elif temp_dir is not None:
+            temp_dir.cleanup()
+
+        os.chdir(pwd)
+        logger.info(f"Enter directory {pwd}")
+
+        if error is not None:
+            raise RuntimeError(
+                f"Failed to execute actor {self.tag}! see log in {self.output_dir}/{self.tag}") from error
+
+    @property
+    def output_dir(self) -> str: return self.get("output_dir", None) or os.getenv("SP_OUTPUT_DIR", None) or os.getcwd()
