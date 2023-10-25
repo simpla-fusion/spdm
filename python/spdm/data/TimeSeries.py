@@ -76,7 +76,7 @@ class TimeSeriesAoS(List[_TSlice]):
     def current(self) -> _TSlice: return self._get(0)
 
     @property
-    def prev(self) -> _TSlice: return self._get(-1)
+    def previous(self) -> _TSlice: return self._get(-1)
 
     def _find_slice_by_time(self, time) -> typing.Tuple[int, float]:
         if self._entry is None:

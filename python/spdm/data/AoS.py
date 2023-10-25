@@ -111,6 +111,10 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
+    def __iter__(self) -> typing.Generator[_T, None, None]:
+        """ 遍历 children """
+        yield from super().__iter__()
+
     def _get(self, query: PathLike,  **kwargs) -> HTree | _T | QueryResult[_T]:
 
         if isinstance(query, int):
