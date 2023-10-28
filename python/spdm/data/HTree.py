@@ -226,13 +226,13 @@ class HTree:
         elif isinstance(self._cache, dict) and len(self._cache) > 0:
             for key, cache in self._cache.items():
                 yield self._as_child(cache, key, _entry=self._entry.child(key))
-        else:
+        elif self._entry is not None:
             for key, d in self._entry.for_each():
                 if not isinstance(d, Entry):
                     yield self._as_child(d, key)
                 else:
                     yield self._as_child(None, key, _entry=d)
-
+        
     ################################################################################
     # Private methods
 

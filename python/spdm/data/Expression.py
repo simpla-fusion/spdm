@@ -12,7 +12,7 @@ from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_scalar, numeric_type)
 from ..view.View import display
-from .Functor import Functor
+from .Functor import Functor, DerivativeOp
 
 
 class Expression:
@@ -239,6 +239,7 @@ class Expression:
 
         return res
 
+    def d(self, n: int = 0) -> Expression: return Expression(DerivativeOp(n), self)
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)

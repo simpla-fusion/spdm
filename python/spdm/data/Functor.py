@@ -140,6 +140,10 @@ class DiracDeltaFun(Functor):
         return self._y1 if np.allclose(self._xargs, as_array(args)) else self._y0
 
 
+class DerivativeOp(Functor):
+    pass
+
+
 def as_functor(expr, *args, **kwargs) -> Functor | None:
     if isinstance(expr, Functor):
         return expr
