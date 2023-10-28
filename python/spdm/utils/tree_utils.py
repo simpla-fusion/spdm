@@ -84,25 +84,29 @@ def update_tree(target: _T, key: str | int | list, *args,  **kwargs) -> _T:
         if isinstance(key, str) and key.isdigit():
             key = int(key)
 
-        if isinstance(key, int):
+        if isinstance(key, str):
+            if target is _not_found_ or target is None:
+                target = {}
+
+            # if isinstance(target, collections.abc.MutableMapping):
+            if hasattr(target.__class__, key):
+                 update_tree(getattr(target,key), pth[1:], *args, **kwargs)
+            else:
+                target[key] = update_tree(target.get(key, _not_found_), pth[1:], *args, **kwargs)
+
+            #     raise RuntimeError(f"Can not update {target} with {key}!")
+        else:  # if isinstance(key, int):
             if target is _not_found_ or target is None:
                 target = [None]*(key+1)
             elif isinstance(target, collections.abc.Sequence):
                 if key > len(target):
                     target = [*target]+[None]*(key-len(target)+1)
-            else:
-                raise TypeError(f"{type(target)} {type(key)}")
+            # else:
+            #     raise TypeError(f"{type(target)} {type(key)}")
             target[key] = update_tree(target[key],  pth[1:], *args, **kwargs)
 
-        elif isinstance(key, str):
-            if target is _not_found_ or target is None:
-                target = {}
-            elif not isinstance(target, collections.abc.MutableMapping):
-                raise TypeError(f"{(target)} {(key)}")
-            target[key] = update_tree(target.get(key, _not_found_), pth[1:], *args, **kwargs)
-
-        else:
-            raise NotImplementedError(f"{type(key)}")
+        # else:
+        #     raise NotImplementedError(f"{type(key)}")
 
     return target
 
