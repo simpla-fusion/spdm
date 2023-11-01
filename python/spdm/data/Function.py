@@ -334,7 +334,7 @@ class Function(Expression):
         return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
 
     def antiderivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, label=rf"\int {self.__repr__()} ")
+        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, label=rf"\int {self.__repr__()}")
 
     def d(self, n=1) -> Expression: return self.derivative(n)
 

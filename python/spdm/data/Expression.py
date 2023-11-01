@@ -125,7 +125,7 @@ class Expression:
 
     def __repr__(self) -> str: return show_expr(self)
 
-    def _repr_latex_(self): return display(self, backend="latex", output="latex")
+    def _repr_latex_(self): return show_expr(self)
     """ for jupyter notebook display """
 
     @property
