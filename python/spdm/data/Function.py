@@ -55,7 +55,7 @@ class Function(Expression):
         cache = value
         func = None
 
-        if isinstance(cache, (Functor, Expression)):
+        if isinstance(cache, (Functor, Expression, np.ufunc)):
             func = cache
             cache = None
         elif callable(cache):
@@ -63,15 +63,16 @@ class Function(Expression):
             cache = None
         elif cache is not _not_found_:
             cache = as_array(cache)
-        Expression.__init__(self, func, label=kwargs.pop("label", None) or kwargs.pop("name", None))
 
         self._cache = cache
         self._dims = list(dims) if len(dims) > 0 else None
         self._periods = periods
-        self._metadata = kwargs
         self._parent = _parent
 
-    def __str__(self) -> str: return f"<{self.__class__.__name__} label=\"{self.__label__}\"/>"
+        Expression.__init__(self, func, **kwargs)
+
+    # def __str__(self) -> str:
+    #     return f"<{self.__class__.__name__}  dims={tuple(self.shape)} {self._func}/>"
 
     def __copy_from__(self, other: Function) -> Function:
         """ copy from other"""
@@ -250,7 +251,7 @@ class Function(Expression):
 
         func = super().__functor__()
 
-        if isinstance(func, (Functor, Expression)):
+        if isinstance(func, (Functor, Expression, np.ufunc)):
             return func
 
         elif func is not None:
@@ -333,7 +334,7 @@ class Function(Expression):
         return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
 
     def antiderivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
+        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, label=rf"\int {self.__repr__()} ")
 
     def d(self, n=1) -> Expression: return self.derivative(n)
 

@@ -100,7 +100,10 @@ class LatexView(View):
         super().__init__(*args, **kwargs)
 
     def render(self, expr: typing.Any, *args, **kwargs) -> str:
-        return f"$${self._render(expr, *args, **kwargs)[0]}$$"
+        if isinstance(expr, Variable):
+            return f"${expr.__label__}$"
+        else:
+            return f"$${self._render(expr, *args, **kwargs)[0]}$$"
 
     def _render(self, expr: typing.Any, *args, parent: int = None, **kwargs) -> typing.Tuple[str, int]:
 

@@ -12,7 +12,8 @@ from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_scalar, numeric_type)
 from ..view.View import display
-from .Functor import Functor, DerivativeOp
+
+from .Functor import Functor, OpDerivative, OpLogDerivative
 
 
 class Expression:
@@ -36,11 +37,13 @@ class Expression:
             <Expression   op="add" />
             >>> z(0.0)
             3.0
+
+
     """
 
     fill_value = float_nan
 
-    def __init__(self, expr: Functor | Expression | None = None, *children, label: str = None, **kwargs) -> None:
+    def __init__(self, expr: typing.Callable[..., NumericType], *children,   **kwargs) -> None:
         """
             Parameters
             ----------
@@ -55,22 +58,12 @@ class Expression:
 
         if isinstance(expr, Expression) and len(children) == 0:
             self.__copy_from__(expr)
-
-        elif expr is None or isinstance(expr, Functor):
-            pass
-
-        elif callable(expr):
-            expr = Functor(expr)
-
-        elif not isinstance(expr,  Functor):
+        elif expr is None or callable(expr):
+            self._func = expr
+            self._children = children
+            self._metadata = kwargs
+        else:
             raise NotImplementedError(f"{type(expr)}")
-
-        self._func = expr
-        self._children = children
-        self._label = label or self.__class__.__name__
-
-        if len(kwargs) > 0:
-            logger.warning(f"Expression.__init__() ignore kwargs {kwargs}")
 
     def __copy__(self) -> Expression:
         """ 复制一个新的 Expression 对象 """
@@ -83,7 +76,9 @@ class Expression:
         if isinstance(other, Expression):
             self._func = copy(other._func)
             self._children = copy(other._children)
-            self._label = other._label
+            self._metadata = other._metadata
+        else:
+            raise TypeError(f"{type(other)}")
         return self
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
@@ -100,7 +95,10 @@ class Expression:
                 >>> z(0.0)
                 1.0
         """
-        return Expression(Functor(ufunc, method=method, **kwargs), *args)
+        if method != "__call__" or len(kwargs) > 0:
+            return Expression(Functor(ufunc, method=method, **kwargs), *args)
+        else:
+            return Expression(ufunc, *args)
 
     def __array__(self) -> ArrayType:
         res = self.__call__()
@@ -119,9 +117,13 @@ class Expression:
     def callable(self): return callable(self._func) or self.has_children
 
     @property
-    def __label__(self) -> str: return self._label
+    def __label__(self) -> str:
+        label = self._metadata.get("label", None) or self._metadata.get("name", None) or "?"
+        return label
 
-    def __str__(self): return self._label
+    def __str__(self) -> str: return f"<{self.__class__.__name__} label='{self.__label__}' />"
+
+    def __repr__(self) -> str: return show_expr(self)
 
     def _repr_latex_(self): return display(self, backend="latex", output="latex")
     """ for jupyter notebook display """
@@ -170,7 +172,7 @@ class Expression:
         if len(xargs) == 0:
             return self
         elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
-            return Expression(Functor(self, **kwargs), *xargs)
+            return Expression(self, *xargs, label=self.__label__, **kwargs)
 
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
 
@@ -186,14 +188,14 @@ class Expression:
 
         if marked_num < mark_size:
             xargs = tuple([(arg[mark] if isinstance(mark, array_type) and isinstance(arg, array_type) and arg.ndim > 0 else arg)
-                          for arg in xargs])
+                           for arg in xargs])
 
         func = self.__functor__()
 
         if func is None:
             value = np.nan
 
-        elif isinstance(func, (Functor, Expression)):
+        elif isinstance(func, (Functor, Expression, np.ufunc)):
             if len(self._children) > 0:  # Traverse children
                 children = []
                 for child in self._children:
@@ -214,7 +216,7 @@ class Expression:
             try:
                 value = func(*xargs, **kwargs)
             except Exception as error:
-                raise RuntimeError(f"Error when evaluating {func} !") from error
+                raise RuntimeError(f"Error when evaluating {show_expr(self)} !") from error
 
         elif isinstance(func, numeric_type):
             value = func
@@ -239,36 +241,51 @@ class Expression:
 
         return res
 
-    def d(self, n: int = 0) -> Expression: return Expression(DerivativeOp(n), self)
+    @ property
+    def d(self) -> Expression: return derivative(self)
+    """1st derivative 一阶导数"""
+
+    @ property
+    def d2(self) -> Expression: return derivative(self, 2)
+    """2nd derivative 二阶导数"""
+
+    @ property
+    def I(self) -> Expression: return derivative(self, -1)
+    """antiderivative 原函数"""
+
+    def dln(self) -> Expression: return Expression(OpLogDerivative(), self)
+    """logarithmic derivative 对数求导 """
+
+    @ property
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
-    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,)
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,)
-    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,)
-    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,)
-    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,)
-    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,)
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else self
+    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
+    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
+    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else np.nan
+    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else 1
     def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  ,)
     def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  ,)
     def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  ,)
     def __le__       (self, o: NumericType | Expression) : return Expression(np.less_equal   ,  self, o  ,)
     def __gt__       (self, o: NumericType | Expression) : return Expression(np.greater      ,  self, o  ,)
     def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  ,)
-    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,)
-    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,)
-    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,)
-    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,)
+    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else self
+    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else self.__neg__()
+    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
+    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
     def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  ,)
-    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,)
+    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==1)  else 1
     def __abs__      (self                             ) : return Expression(np.abs          ,  self     ,)
     def __pos__      (self                             ) : return Expression(np.positive     ,  self     ,)
     def __invert__   (self                             ) : return Expression(np.invert       ,  self     ,)
-    def __and__      (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  self, o  ,)
-    def __or__       (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  self, o  ,)
+    def __and__      (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  self, o  ,) if not isinstance(o,bool) else ( self if o ==True else False)
+    def __or__       (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  self, o  ,) if not isinstance(o,bool) else ( True if o ==True else self)
     def __xor__      (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  self, o  ,)
-    def __rand__     (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  o, self  ,)
-    def __ror__      (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  o, self  ,)
+    def __rand__     (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  o, self  ,) if not isinstance(o,bool) else ( self if o ==True else False)
+    def __ror__      (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  o, self  ,) if not isinstance(o,bool) else ( True if o ==True else self)
     def __rxor__     (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  o, self  ,)
     def __rshift__   (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  self, o  ,)
     def __lshift__   (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  self, o  ,)
@@ -283,6 +300,31 @@ class Expression:
     def __floor__    (self                             ) : return Expression(np.floor        ,  self     ,)
     def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     ,)
     # fmt: on
+
+
+def derivative(expr: Expression, order: int = 1) -> Expression:
+    """ 求导数
+        Parameters
+        ----------
+        expr : Expression
+            表达式
+        order : int, optional
+            导数阶数, by default 1
+            order=-1   返回原函数 antiderivative
+    """
+    if order == 0:
+        return expr
+    elif isinstance(expr, Expression) and isinstance(expr._func, OpDerivative):
+        order = expr._func.order + order
+        if order == 0:
+            if len(expr._children) == 1:
+                return expr._children[0]
+            else:
+                raise RuntimeError(f"Can not find antiderivative! {expr}")
+        else:
+            return Expression(OpDerivative(order), *expr._children, **expr._metadata)
+    else:
+        return Expression(OpDerivative(order), expr)
 
 
 class Variable(Expression):
@@ -303,13 +345,15 @@ class Variable(Expression):
     """
 
     def __init__(self, idx: int | str, label: str = None) -> None:
-        super().__init__()
+        if label is None:
+            label = idx if isinstance(idx, str) else f"_{idx}"
+        super().__init__(None, label=label)
         self._idx = idx
-        self._label = label if label is not None else (idx if isinstance(idx, str) else f"_{idx}")
-
-    def __str__(self) -> str: return self._label
 
     @property
+    def __label__(self): return f"<{super().__label__}>"
+
+    @ property
     def _type_hint(self) -> typing.Type:
         """ 获取函数的类型
         """
@@ -319,10 +363,7 @@ class Variable(Expression):
         else:
             return float
 
-    @property
-    def __label__(self): return self._label
-
-    @property
+    @ property
     def index(self): return self._idx
 
     def __call__(self, *args, **kwargs):
@@ -376,3 +417,87 @@ class Piecewise(Expression):
             return res
         else:
             raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
+
+
+EXPR_OP_TAG = {
+    "negative": "-",
+    "add": "+",
+    "subtract": "-",
+    "multiply": r"\times",
+    "matmul": r"\times",
+    "true_divide": "/",
+    "power": "^",
+    "equal": "==",
+    "not_equal": "!",
+    "less": "<",
+    "less_equal": "<=",
+    "greater": ">",
+    "greater_equal": ">=",
+    "add": "+",
+    "subtract": "-",
+    "multiply": r"\times",
+    "matmul": r"\times",
+    "divide": "/",
+    "power": "^",
+    # "abs": "",
+    "positive": "+",
+    # "invert": "",
+    "bitwise_and": "&",
+    "bitwise_or": "|",
+
+    # "bitwise_xor": "",
+    # "right_shift": "",
+    # "left_shift": "",
+    # "right_shift": "",
+    # "left_shift": "",
+    "mod": "%",
+
+
+    # "floor_divide": "",
+    # "floor_divide": "",
+    # "trunc": "",
+    # "round": "",
+    # "floor": "",
+    # "ceil": "",
+
+    "sqrt": r"\sqrt",
+}
+
+
+def show_expr(expr: Expression) -> str:
+    if isinstance(expr, (bool, int, float, complex)):
+        return f"{expr}"
+    elif isinstance(expr, np.ndarray):
+        if len(expr.shape) == 0:
+            return f"{expr.item()}"
+        else:
+            return f"{expr.dtype}[{expr.shape}]"
+
+    elif not isinstance(expr, (Expression, np.ufunc)):
+        return str(expr)
+
+    elif isinstance(expr, Variable):
+        return f"<{expr.__label__}>"
+
+    elif isinstance(expr._func, Expression):
+        return show_expr(expr._func)
+
+    elif not isinstance(expr._func, np.ufunc):
+        if len(expr._children) > 0:
+            return f"{expr.__label__}({','.join([show_expr(child) for child in expr._children])})"
+        else:
+            return expr.__label__
+
+    elif expr._func.nin == 1:
+        op = EXPR_OP_TAG.get(expr._func.__name__, None)
+        if op is None or not op.startswith('\\'):
+            return f"{expr._func.__name__}({show_expr(expr._children[0])})"
+        else:
+            return f"{op}{{{show_expr(expr._children[0])}}}"
+
+    elif expr._func.nin == 2:
+        op = EXPR_OP_TAG.get(expr._func.__name__, expr._func.__name__)
+        return f"({show_expr(expr._children[0])} {op} {show_expr(expr._children[1])})"
+
+    else:
+        return f"<{type(expr)}>"

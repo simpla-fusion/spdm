@@ -27,14 +27,12 @@ class Functor:
 
     """
 
-    def __init__(self, func: typing.Callable | None, /,
-                 method: str | None = None,
-                 label: str = None,
+    def __init__(self, func: typing.Callable | None, /, method: str | None = None, label: str = None,
                  **kwargs) -> None:
         self._func = func
         self._method = method
-        self._label = label or func.__class__.__name__
-        self._metadata = kwargs
+        self._label = label
+        self._opts = kwargs
 
     def __copy__(self) -> Functor:
         """ 复制一个新的 Function 对象 """
@@ -46,16 +44,17 @@ class Functor:
         """ 复制一个新的 Function 对象 """
         self._func = other._func
         self._method = other._method
-        self._metadata = copy(other._metadata)
+        self._label = other._label
+        self._opts = copy(other._opts)
         return self
 
     @property
-    def __label__(self) -> str: return self._label
+    def __label__(self) -> str: return self._label or str(self._func)
 
     @property
     def __annotation__(self) -> str:
-        units = self._metadata.get("units", "")
-        label = self._metadata.get("label", None)
+        units = self._opts.get("units", "")
+        label = self._opts.get("label", None)
         if label is not None:
             return f"{label}  {units}"
         else:
@@ -77,7 +76,7 @@ class Functor:
             return op
 
         try:
-            kwargs.update(self._metadata)
+            kwargs.update(self._opts)
             value = op(*args, **kwargs)
         except Exception as error:
             raise RuntimeError(
@@ -140,7 +139,22 @@ class DiracDeltaFun(Functor):
         return self._y1 if np.allclose(self._xargs, as_array(args)) else self._y0
 
 
-class DerivativeOp(Functor):
+class OpDerivative(Functor):
+    """
+        算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
+        受 np.ufunc 启发而来。
+        可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
+
+    """
+
+    def __init__(self,  order=1):
+        self._order = order
+
+    @property
+    def order(self) -> int | None: return self._order
+
+
+class OpLogDerivative(Functor):
     pass
 
 

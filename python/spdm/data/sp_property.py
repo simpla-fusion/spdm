@@ -314,7 +314,7 @@ class SpProperty(typing.Generic[_T]):
             instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
-def sp_property(getter: typing.Callable[..., _T]  = None,    **kwargs) -> _T:
+def sp_property(getter: typing.Callable[..., _T] = None,    **kwargs) -> _T:
     if getter is None:
         return SpProperty[_T](**kwargs)
     else:
@@ -349,7 +349,7 @@ def _process_sptree(cls,  **kwargs) -> typing.Type[SpTree]:
                                   deleter=prop.deleter,
                                   **prop.metadata)
         else:
-            prop = SpProperty(type_hint=_type_hint, default_value=prop)
+            prop = SpProperty(type_hint=_type_hint, default_value=prop, name=_name)
 
         prop.property_name = _name
         setattr(n_cls, _name, prop)
