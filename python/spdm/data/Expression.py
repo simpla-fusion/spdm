@@ -10,10 +10,8 @@ from ..utils.logger import logger
 from ..utils.numeric import float_nan
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
-                            is_scalar, numeric_type)
-from ..view.View import display
-
-from .Functor import Functor, OpDerivative, OpLogDerivative
+                            is_scalar, is_array, numeric_type)
+from .Functor import Functor
 
 
 class Expression:
@@ -118,15 +116,65 @@ class Expression:
 
     @property
     def __label__(self) -> str:
-        label = self._metadata.get("label", None) or self._metadata.get("name", None) or "?"
-        return label
+        return self._metadata.get("label", None) or self._metadata.get("name", None) or "<unnamed>"
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} label='{self.__label__}' />"
 
-    def __repr__(self) -> str: return show_expr(self)
-
-    def _repr_latex_(self): return show_expr(self)
+    def _repr_latex_(self) -> str: return self.__repr__()
     """ for jupyter notebook display """
+
+    @staticmethod
+    def _repr_s(expr: Expression) -> str:
+
+        if isinstance(expr, (bool, int, float, complex)):
+            return f"{expr}"
+
+        elif isinstance(expr, np.ndarray):
+            if len(expr.shape) == 0:
+                return f"{expr.item()}"
+            else:
+                return f"{expr.dtype}[{expr.shape}]"
+
+        else:
+            return expr.__repr__()
+
+    def __repr__(self) -> str:
+
+        nin = len(self._children)
+
+        if self._func is None:
+            op = self.__label__
+        elif isinstance(self._func, Expression):
+            op = self._func.__label__
+        elif isinstance(self._func, np.ufunc):
+            op = EXPR_OP_TAG.get(self._func.__name__, None)
+            nin = self._func.nin
+        else:
+            op = self._func.__class__.__name__
+
+        match nin:
+            case 0:
+                return f"{op}"
+
+            case 1:
+                if op == "-":
+                    return f"- {Expression._repr_s(self._children[0])}"
+
+                elif not op.startswith('\\'):
+                    return f"{op}({Expression._repr_s(self._children[0])})"
+
+                else:
+                    return f"{op}{{{Expression._repr_s(self._children[0])}}}"
+
+            case 2:
+                match op:
+                    case "/":
+                        return f"\\frac{{{Expression._repr_s(self._children[0])}}}{{{Expression._repr_s(self._children[1])}}}"
+                    case _:
+                        return f"({Expression._repr_s(self._children[0])} {op} {Expression._repr_s(self._children[1])})"
+
+            case _:
+                return f"{op}({','.join([Expression._repr_s(child) for child in self._children])})"
 
     @property
     def dtype(self): return self._type_hint()
@@ -216,7 +264,7 @@ class Expression:
             try:
                 value = func(*xargs, **kwargs)
             except Exception as error:
-                raise RuntimeError(f"Error when evaluating {show_expr(self)} !") from error
+                raise RuntimeError(f"Error when evaluating {self.__repr__()} !") from error
 
         elif isinstance(func, numeric_type):
             value = func
@@ -241,22 +289,22 @@ class Expression:
 
         return res
 
-    @ property
-    def d(self) -> Expression: return derivative(self)
+    @property
+    def d(self) -> Expression: return Derivative(self, 1)
     """1st derivative 一阶导数"""
 
-    @ property
-    def d2(self) -> Expression: return derivative(self, 2)
+    @property
+    def d2(self) -> Expression: return Derivative(self, 2)
     """2nd derivative 二阶导数"""
 
-    @ property
-    def I(self) -> Expression: return derivative(self, -1)
+    @property
+    def I(self) -> Expression: return Derivative(self, -1)
     """antiderivative 原函数"""
 
-    def dln(self) -> Expression: return Expression(OpLogDerivative(), self)
+    @property
+    def dln(self) -> Expression: return LogDerivative(self)
     """logarithmic derivative 对数求导 """
 
-    @ property
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
@@ -300,123 +348,6 @@ class Expression:
     def __floor__    (self                             ) : return Expression(np.floor        ,  self     ,)
     def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     ,)
     # fmt: on
-
-
-def derivative(expr: Expression, order: int = 1) -> Expression:
-    """ 求导数
-        Parameters
-        ----------
-        expr : Expression
-            表达式
-        order : int, optional
-            导数阶数, by default 1
-            order=-1   返回原函数 antiderivative
-    """
-    if order == 0:
-        return expr
-    elif isinstance(expr, Expression) and isinstance(expr._func, OpDerivative):
-        order = expr._func.order + order
-        if order == 0:
-            if len(expr._children) == 1:
-                return expr._children[0]
-            else:
-                raise RuntimeError(f"Can not find antiderivative! {expr}")
-        else:
-            return Expression(OpDerivative(order), *expr._children, **expr._metadata)
-    else:
-        return Expression(OpDerivative(order), expr)
-
-
-class Variable(Expression):
-    """
-        Variable
-        ---------
-        变量是一种特殊的函数，它的值由上下文决定。
-        例如：
-            >>> import spdm
-            >>> x = spdm.data.Variable(0,"x")
-            >>> y = spdm.data.Variable(1,"y")
-            >>> z = x + y
-            >>> z
-            <Expression   op="add" />
-            >>> z(0.0, 1.0)
-            1.0
-
-    """
-
-    def __init__(self, idx: int | str, label: str = None) -> None:
-        if label is None:
-            label = idx if isinstance(idx, str) else f"_{idx}"
-        super().__init__(None, label=label)
-        self._idx = idx
-
-    @property
-    def __label__(self): return f"<{super().__label__}>"
-
-    @ property
-    def _type_hint(self) -> typing.Type:
-        """ 获取函数的类型
-        """
-        orig_class = getattr(self, "__orig_class__", None)
-        if orig_class is not None:
-            return typing.get_args(orig_class)[0]
-        else:
-            return float
-
-    @ property
-    def index(self): return self._idx
-
-    def __call__(self, *args, **kwargs):
-        if isinstance(self._idx, str):
-            return kwargs[self._idx]
-        else:
-            return args[self._idx]
-        # if len(args) <= self._idx:
-        #     raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
-        # return args[self._idx]
-
-
-class Piecewise(Expression):
-    """ PiecewiseFunction
-        ----------------
-        A piecewise function. 一维或多维，分段函数
-    """
-
-    def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
-        super().__init__(None, **kwargs)
-        self._piecewise = (func, cond)
-
-    def _apply(self, func, cond, x, *args, **kwargs):
-        if isinstance(x, array_type):
-            x = x[cond(x)]
-        else:
-            return func(x) if cond(x) else None
-
-        if isinstance(func, numeric_type):
-            value = np.full_like(x, func, dtype=float)
-        elif callable(func):
-            value = func(x)
-        else:
-            raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
-            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
-            #          for node in self._expr_nodes]
-        return value
-
-    def __call__(self, x, *args, **kwargs) -> NumericType:
-        if isinstance(x, float):
-            res = [self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise) if cond(x)]
-            if len(res) == 0:
-                raise RuntimeError(f"Can not fit any condition! {x}")
-            elif len(res) > 1:
-                raise RuntimeError(f"Fit multiply condition! {x}")
-            return res[0]
-        elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise)])
-            if len(res) != len(x):
-                raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
-            return res
-        else:
-            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
 
 
 EXPR_OP_TAG = {
@@ -464,40 +395,134 @@ EXPR_OP_TAG = {
 }
 
 
-def show_expr(expr: Expression) -> str:
-    if isinstance(expr, (bool, int, float, complex)):
-        return f"{expr}"
-    elif isinstance(expr, np.ndarray):
-        if len(expr.shape) == 0:
-            return f"{expr.item()}"
+class Variable(Expression):
+    """
+        Variable
+        ---------
+        变量是一种特殊的函数，它的值由上下文决定。
+        例如：
+            >>> import spdm
+            >>> x = spdm.data.Variable(0,"x")
+            >>> y = spdm.data.Variable(1,"y")
+            >>> z = x + y
+            >>> z
+            <Expression   op="add" />
+            >>> z(0.0, 1.0)
+            1.0
+
+    """
+
+    def __init__(self, idx: int | str, name: str = None, **kwargs) -> None:
+        if name is None:
+            name = idx if isinstance(idx, str) else f"_{idx}"
+        super().__init__(None, name=name, **kwargs)
+        self._idx = idx
+
+    @property
+    def _type_hint(self) -> typing.Type:
+        """ 获取函数的类型
+        """
+        orig_class = getattr(self, "__orig_class__", None)
+        if orig_class is not None:
+            return typing.get_args(orig_class)[0]
         else:
-            return f"{expr.dtype}[{expr.shape}]"
+            return float
 
-    elif not isinstance(expr, (Expression, np.ufunc)):
-        return str(expr)
+    @property
+    def index(self): return self._idx
 
-    elif isinstance(expr, Variable):
-        return f"<{expr.__label__}>"
-
-    elif isinstance(expr._func, Expression):
-        return show_expr(expr._func)
-
-    elif not isinstance(expr._func, np.ufunc):
-        if len(expr._children) > 0:
-            return f"{expr.__label__}({','.join([show_expr(child) for child in expr._children])})"
+    def __call__(self, *args, **kwargs):
+        if isinstance(self._idx, str):
+            return kwargs[self._idx]
         else:
-            return expr.__label__
+            return args[self._idx]
+        # if len(args) <= self._idx:
+        #     raise RuntimeError(f"Variable {self} require {self._idx} args, but only {len(args)} provided!")
+        # return args[self._idx]
 
-    elif expr._func.nin == 1:
-        op = EXPR_OP_TAG.get(expr._func.__name__, None)
-        if op is None or not op.startswith('\\'):
-            return f"{expr._func.__name__}({show_expr(expr._children[0])})"
+    def __repr__(self) -> str: return self.__label__
+
+
+class Derivative(Expression):
+    """
+        算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
+        受 np.ufunc 启发而来。
+        可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
+
+    """
+
+    def __init__(self,  func, order=1, label="d", **kwargs):
+        super().__init__(None, func, label=label, **kwargs)
+        self._order = order
+
+    @property
+    def order(self) -> int | None: return self._order
+
+    def __call__(self, x, *args, **kwargs):
+        from .Function import Function
+
+        x = args[0]
+
+        func = self._children[0]
+
+        if callable(func):
+            func = func(x, *args)
+
+        if isinstance(func, Function):
+            return func.derivative(self.order)(x)
+        elif is_scalar(func):
+            return np.full_like(x, 0)
+        elif is_array(func):
+            func = Function(func, x)
+            return func.derivative(self.order)(x)
         else:
-            return f"{op}{{{show_expr(expr._children[0])}}}"
+            raise TypeError(type(func))
 
-    elif expr._func.nin == 2:
-        op = EXPR_OP_TAG.get(expr._func.__name__, expr._func.__name__)
-        return f"({show_expr(expr._children[0])} {op} {show_expr(expr._children[1])})"
+    def __repr__(self) -> str: return f"d{Expression._repr_s(self._children[0])}"
 
-    else:
-        return f"<{type(expr)}>"
+
+class LogDerivative(Expression):
+    def __repr__(self) -> str: return f"d \\ln {Expression._repr_s(self._children[0])}"
+
+
+class Piecewise(Expression):
+    """ PiecewiseFunction
+        ----------------
+        A piecewise function. 一维或多维，分段函数
+    """
+
+    def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
+        super().__init__(None, **kwargs)
+        self._piecewise = (func, cond)
+
+    def _apply(self, func, cond, x, *args, **kwargs):
+        if isinstance(x, array_type):
+            x = x[cond(x)]
+        else:
+            return func(x) if cond(x) else None
+
+        if isinstance(func, numeric_type):
+            value = np.full_like(x, func, dtype=float)
+        elif callable(func):
+            value = func(x)
+        else:
+            raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
+            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
+            #          for node in self._expr_nodes]
+        return value
+
+    def __call__(self, x, *args, **kwargs) -> NumericType:
+        if isinstance(x, float):
+            res = [self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise) if cond(x)]
+            if len(res) == 0:
+                raise RuntimeError(f"Can not fit any condition! {x}")
+            elif len(res) > 1:
+                raise RuntimeError(f"Fit multiply condition! {x}")
+            return res[0]
+        elif isinstance(x, array_type):
+            res = np.hstack([self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise)])
+            if len(res) != len(x):
+                raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
+            return res
+        else:
+            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")

@@ -79,8 +79,6 @@ class RectInterpolateOp(Functor):
             try:
                 self._ppoly = InterpolatedUnivariateSpline(x, value,  ext=0)  # self._extrapolate
             except Exception as error:
-                logger.debug(x)
-                logger.debug(value)
                 raise RuntimeError(f"Can not create Interpolator! \n x={x} value={value}") from error
 
         elif len(self._dims) == 2:

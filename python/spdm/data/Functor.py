@@ -65,7 +65,7 @@ class Functor:
     def __str__(self) -> str: return self.__label__
 
     def __call__(self, *args, **kwargs):
-        if isinstance(self._method, str):
+        if isinstance(getattr(self, "_method", None), str):
             op = getattr(self._func, self._method, None)
         elif self._method is not None:
             raise ValueError(self._method)
@@ -83,12 +83,6 @@ class Functor:
                 f"Error when apply  op={op} args={len(args)} kwargs={kwargs}!") from error
 
         return value
-
-    def derivative(self, n=1) -> Functor: raise NotImplementedError()
-
-    def partial_derivative(self, *d) -> Functor: raise NotImplementedError()
-
-    def antiderivative(self, *d) -> Functor: raise NotImplementedError()
 
 
 class ConstantsFunc(Functor):
@@ -137,25 +131,6 @@ class DiracDeltaFun(Functor):
 
     def __call__(self, *args, **kwargs):
         return self._y1 if np.allclose(self._xargs, as_array(args)) else self._y0
-
-
-class OpDerivative(Functor):
-    """
-        算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
-        受 np.ufunc 启发而来。
-        可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
-
-    """
-
-    def __init__(self,  order=1):
-        self._order = order
-
-    @property
-    def order(self) -> int | None: return self._order
-
-
-class OpLogDerivative(Functor):
-    pass
 
 
 def as_functor(expr, *args, **kwargs) -> Functor | None:

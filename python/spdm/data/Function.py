@@ -51,7 +51,6 @@ class Function(Expression):
                 * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
                 * if ext=1  or 'nan', return nan
         """
-
         cache = value
         func = None
 
@@ -71,9 +70,6 @@ class Function(Expression):
 
         Expression.__init__(self, func, **kwargs)
 
-    # def __str__(self) -> str:
-    #     return f"<{self.__class__.__name__}  dims={tuple(self.shape)} {self._func}/>"
-
     def __copy_from__(self, other: Function) -> Function:
         """ copy from other"""
 
@@ -86,6 +82,8 @@ class Function(Expression):
             self._metadata = other._metadata
             self._parent = other._parent
             return self
+
+    def __repr__(self) -> str: return f"{self.__label__}"
 
     def _repr_svg_(self) -> str:
         try:
@@ -294,7 +292,7 @@ class Function(Expression):
             value = self._cache
 
         if not isinstance(value, scalar_type) and not isinstance(value, array_type):
-            logger.error(f"{self.__class__} \"{(value)}\"")
+            raise RuntimeError(f"{self.__class__} \"{(value)}\"")
 
         return value
 
@@ -346,9 +344,9 @@ class Function(Expression):
         else:
             return self.dln()(*args)
 
-    def integral(self, *args, **kwargs) -> _T: return integral(self, *args, **kwargs)
+    def integral(self, *args, **kwargs) -> float: return integral(self, *args, **kwargs)
 
-    def find_roots(self, *args, **kwargs) -> typing.Generator[_T, None, None]:
+    def find_roots(self, *args, **kwargs) -> typing.Generator[float, None, None]:
         yield from find_roots(self, *args, **kwargs)
 
     def pullback(self, *dims, periods=None) -> Function:

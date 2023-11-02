@@ -300,7 +300,7 @@ def type_convert(value: typing.Any, _type_hint: typing.Type,    **kwargs) -> typ
         if hasattr(value, "__value__"):
             value = value.__value__
         return value
-        
+
     elif _type_hint is None or isinstance_generic(value, _type_hint):
         return value
 
