@@ -458,7 +458,10 @@ class Derivative(Expression):
     @property
     def order(self) -> int | None: return self._order
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self,  *args, **kwargs):
+        if len(args) == 0:
+            return self
+
         from .Function import Function
 
         x = args[0]
