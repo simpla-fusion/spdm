@@ -16,11 +16,9 @@ class Actor(SpTree, Pluggable):
     _plugin_prefix = __package__
     _plugin_registry = {}
 
-    def __init__(self, *args, **kwargs):
-        if self.__class__ is Actor or "_plugin_prefix" in vars(self.__class__):
-            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
-            return
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        Pluggable.__init__(self, *args, **kwargs)
+        SpTree.__init__(self, *args, **kwargs)
 
     @property
     def tag(self) -> str: return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"

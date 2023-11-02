@@ -53,7 +53,13 @@ class Pluggable(metaclass=abc.ABCMeta):
             return decorator
 
     @classmethod
+    def _plugin_guess_name(cls, self,  *args, **kwargs) -> str | None:
+        return kwargs.pop("plugin_name", None)
+
+    @classmethod
     def __dispatch_init__(cls, sub_list, self, *args, **kwargs) -> None:
+        if sub_list is None:
+            sub_list = cls._plugin_guess_name(self, *args, **kwargs)
 
         if not isinstance(sub_list, list):
             sub_list = [sub_list]
@@ -82,11 +88,11 @@ class Pluggable(metaclass=abc.ABCMeta):
             if n_cls is not None:
                 break
 
-        if not inspect.isclass(n_cls) or not issubclass(n_cls, cls):
-            raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
+        if inspect.isclass(n_cls) and issubclass(n_cls, cls):
+            self.__class__ = n_cls
+            n_cls.__init__(self, *args, **kwargs)
 
-        self.__class__ = n_cls
-        n_cls.__init__(self, *args, **kwargs)
+            # raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is Pluggable or "_plugin_prefix" in vars(self.__class__):
@@ -104,7 +110,6 @@ class Pluggable(metaclass=abc.ABCMeta):
         """
         head = len(cls._plugin_prefix)
         return [p[head:] for p in walk_namespace_modules(cls._plugin_prefix[:-1])]
-
 
     # def __new__(cls,  *args, **kwargs):
     # if not issubclass(cls, Pluggable):

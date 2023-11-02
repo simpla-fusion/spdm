@@ -129,12 +129,15 @@ class TimeSeriesAoS(List[_TSlice]):
 
         if not isinstance(value, TimeSlice) and isinstance(self._entry, Entry):
             entry = self._entry.child(self._entry_cursor + idx)
+            if not entry.exists:
+                entry = None
 
-        obj = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
-
-        self._cache[cache_pos] = obj
-
-        return obj  # type:ignore
+        if (value is _not_found_ or value is None) and entry is None:
+            return _not_found_
+        else:
+            obj = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
+            self._cache[cache_pos] = obj
+            return obj  # type:ignore
 
     def initialize(self, *args, **kwargs) -> _TSlice:
         if self._entry_cursor is not None:
