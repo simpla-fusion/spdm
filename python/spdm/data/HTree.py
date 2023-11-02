@@ -73,7 +73,8 @@ class HTree:
 
         self._default_value = update_tree({}, None, kwargs.pop("default_value", _not_found_))
 
-        self._config = kwargs
+        if len(kwargs) > 0:
+            self._metadata = merge_tree_recursive(self.__class__._metadata, kwargs)
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -87,7 +88,8 @@ class HTree:
             self._entry = copy(other._entry)
             self._parent = other._parent
             self._default_value = copy(other._default_value)
-            self._config = copy(other._config)
+            if self._metadata is not self.__class__._metadata:
+                self._metadata = copy(other._metadata)
 
         return self
 
@@ -101,8 +103,9 @@ class HTree:
     @ property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
-            self._cache = merge_tree_recursive(self._metadata.get(
-                "default_value", None), self._entry.get(default_value=_not_found_))
+            self._cache = merge_tree_recursive(
+                self._metadata.get("default_value", None),
+                self._entry.get(default_value=_not_found_))
         return self._cache
 
     def __array__(self) -> ArrayType: return as_array(self.__value__)
@@ -232,7 +235,7 @@ class HTree:
                     yield self._as_child(d, key)
                 else:
                     yield self._as_child(None, key, _entry=d)
-        
+
     ################################################################################
     # Private methods
 

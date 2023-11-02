@@ -284,6 +284,7 @@ class Function(Expression):
 
         return self._func
 
+    @property
     def __value__(self, *args, **kwargs) -> array_type | float:
         value = self._cache
 
@@ -300,7 +301,7 @@ class Function(Expression):
         """ 重载 numpy 的 __array__ 运算符
                 若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
-        value = self.__value__()
+        value = self.__value__
 
         if isinstance(value, array_type) and len(value.shape) == 0:
             value = np.full(self.shape, value.item())

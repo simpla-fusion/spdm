@@ -58,7 +58,8 @@ from ..utils.tree_utils import merge_tree_recursive
 class SpTree(Dict):
     """  支持 sp_property 的 Dict  """
 
-    def __init__(self, *args, **kwargs) -> None: super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None: 
+        super().__init__(*args, **kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree: return self._get(key, *args, **kwargs)
 
@@ -271,15 +272,13 @@ class SpProperty(typing.Generic[_T]):
         assert (instance is not None)
 
         # type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
+        property_name = self.metadata.get("alias", self.property_name)
 
-        if self.property_name is None:
+        if property_name is None:
             logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
 
         with self.lock:
-            instance.__set_property__(
-                self.property_name,
-                value=value,
-                setter=self.setter)
+            instance.__set_property__(property_name, value=value, setter=self.setter)
 
     def __get__(self, instance:  SpTree | None, owner=None) -> _T:
         if instance is None:
@@ -290,22 +289,24 @@ class SpProperty(typing.Generic[_T]):
 
         # 当调用 getter(obj, <name>) 时执行
 
-        type_hint, metdata = self._get_desc(owner, self.property_name)
+        type_hint, metadata = self._get_desc(owner, self.property_name)
 
-        if self.property_name is None:
-            logger.warning("Cannot use sp_property instance without calling __set_name__ on it.")
+        property_name = metadata.get("alias", self.property_name)
+
+        if property_name is None:
+            raise AttributeError(f"property_name is None!")
 
         with self.lock:
             value = instance.__get_property__(
-                self.property_name,
+                property_name,
                 _type_hint=type_hint,
                 _getter=self.getter,
-                **metdata,
+                **metadata,
             )
 
             if self.strict and value is _not_found_:
                 raise AttributeError(
-                    f"The value of property '{owner.__name__ if owner is not None else 'none'}.{self.property_name}' is not assigned!")
+                    f"The value of property '{owner.__name__ if owner is not None else 'none'}.{property_name}' is not assigned!")
 
         return value
 
