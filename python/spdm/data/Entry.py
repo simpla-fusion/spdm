@@ -231,8 +231,14 @@ class ChainEntry(Entry):
         return res
 
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
-        for idx, e in self._entrys[0].child(self._path).for_each():
-            yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[1:]])
+        for idx, main_entry in enumerate(self._entrys):
+            # 根据第一个有效 entry 中的序号，在其他 entry 中的检索子节点
+            _entry = main_entry.child(self._path)
+            if not _entry.exists:
+                continue
+            
+            for idx, e in _entry.for_each():
+                yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[idx+1:]])
 
     def find(self, *args, **kwargs):
         return ChainEntry(*[e.find(*args, **kwargs) for e in self._entrys])
@@ -266,7 +272,9 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
         east+mdsplus+ssh://<mds_prefix>
 
     """
-
+    if isinstance(url, (dict, list)):
+        return Entry(url)
+    
     if isinstance(url, Entry) and len(kwargs) == 0:
         return url
 

@@ -77,7 +77,7 @@ class MatplotlibView(View):
     def render(self, obj, styles=None, view_point="rz", title=None, **kwargs) -> typing.Any:
         # if obj is None:
         #     return None
-        
+
         if styles is None:
             styles = {}
 
@@ -138,8 +138,8 @@ class MatplotlibView(View):
                 geo, s = obj.__geometry__(view_point=view_point, **kwargs)
                 styles = merge_tree_recursive(styles, s)
             except Exception as error:
-                if SP_DEBUG=="strict":
-                    raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from error
+                logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ")
+                raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from error
             else:
                 self._draw(canvas, geo, styles, view_point=view_point, **kwargs)
 
