@@ -46,7 +46,7 @@ class View(Pluggable):
 
     def __init__(self, *args, **kwargs) -> None:
         if self.__class__ is View:
-            View.__dispatch_init__(kwargs.pop("type", None), self, *args, **kwargs)
+            View.__dispatch_init__(kwargs.pop("backend", None), self, *args, **kwargs)
             return
 
     @property
@@ -72,7 +72,7 @@ def viewer(backend=None):
     instance = _view_instances.get(backend, None)
 
     if instance is None:
-        instance = _view_instances[backend] = View(type=backend)
+        instance = _view_instances[backend] = View(backend=backend)
 
     return instance
 

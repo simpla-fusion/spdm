@@ -76,7 +76,7 @@ class Expression:
         if isinstance(other, Expression):
             self._func = copy(other._func)
             self._children = copy(other._children)
-            self._metadata = other._metadata
+            self._metadata = copy(other._metadata)
         else:
             raise TypeError(f"{type(other)}")
         return self
@@ -118,7 +118,7 @@ class Expression:
 
     @property
     def __label__(self) -> str:
-        return self._metadata.get("label", None) or self._metadata.get("name", None) or "<unnamed>"
+        return self._metadata.get("label", None) or self._metadata.get("name", None) or ""
 
     def __str__(self) -> str: return f"<{self.__class__.__name__} label='{self.__label__}' />"
 
@@ -222,7 +222,7 @@ class Expression:
         if len(xargs) == 0:
             return self
         elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
-            return Expression(self, *xargs, label=self.__label__, **kwargs)
+            return Expression(self, *xargs, **self._metadata)
 
         # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
 
@@ -453,7 +453,10 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self,  func, order=1, label="d", **kwargs):
+    def __init__(self,  func, order=1, label=None, **kwargs):
+        if label is None:
+            label = getattr(func, "__label__", "unamed")
+            label = f"d{label}"
         super().__init__(None, func, label=label, **kwargs)
         self._order = order
 
