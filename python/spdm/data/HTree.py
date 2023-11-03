@@ -39,11 +39,24 @@ class HTree:
     _metadata = {}
 
     @classmethod
-    def _parser_args(cls, _cache=None, /, _entry=None, _parent=None, **kwargs):
+    def _parser_args(cls, *args, _parent=None, **kwargs):
+
+        if len(args) > 0 and not isinstance(args[0], str):
+            _cache = args[0]
+            args = args[1:]
+        else:
+            _cache = None
+
+        _entry = kwargs.pop("_entry", [])
+
         if not isinstance(_entry, list):
             _entry = [_entry]
-        else:
-            _entry = _entry
+
+        if len(args) > 0:
+            _entry.extend(list(args))
+
+        _entry = sum([e if isinstance(e, list) else [e]
+                      for e in _entry if e is not None and e is not _not_found_], [])
 
         _default_value = kwargs.pop("default_value", _not_found_)
 

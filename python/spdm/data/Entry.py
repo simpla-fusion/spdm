@@ -276,7 +276,7 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
     url_ = uri_split(url)
 
     if not isinstance(url_.path, str):
-        raise RuntimeError(f"")
+        raise RuntimeError(f"{url} {url_}")
 
     fragment = url_.fragment
 
