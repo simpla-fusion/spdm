@@ -438,17 +438,23 @@ class HTree:
         if isinstance(self._cache, collections.abc.Mapping):
             cache = self._cache.get(key, _not_found_)
 
-        if self._entry is not None:
-            _entry = self._entry.child(key)
+        _type_hint = kwargs.pop("_type_hint", None) or self._type_hint(key)
+
+        if isinstance_generic(cache, _type_hint):
+            value = cache
         else:
-            _entry = None
+            if self._entry is not None:
+                _entry = self._entry.child(key)
+            else:
+                _entry = None
 
-        value = self._as_child(cache, key, *args, _entry=_entry, default_value=default_value, **kwargs)
+            value = self._as_child(cache, key, *args, _entry=_entry, _type_hint=_type_hint,
+                                   default_value=default_value, **kwargs)
 
-        if self._cache is _not_found_ or self._cache is None:
-            self._cache = {}
+            if self._cache is _not_found_ or self._cache is None:
+                self._cache = {}
 
-        self._cache[key] = value
+            self._cache[key] = value
 
         return value
 

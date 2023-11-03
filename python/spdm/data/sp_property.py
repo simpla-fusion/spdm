@@ -58,7 +58,7 @@ from ..utils.tree_utils import merge_tree_recursive
 class SpTree(Dict):
     """  支持 sp_property 的 Dict  """
 
-    def __init__(self, *args, **kwargs) -> None: 
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree: return self._get(key, *args, **kwargs)
@@ -224,7 +224,7 @@ class SpProperty(typing.Generic[_T]):
 
         self.property_name = name
 
-        self.metadata.setdefault("name", name)
+        self.metadata["name"] = name
 
         if self.__doc__ is not None:
             pass

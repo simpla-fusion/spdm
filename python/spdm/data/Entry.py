@@ -270,8 +270,6 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
     if isinstance(url, Entry) and len(kwargs) == 0:
         return url
 
-    from .File import File
-
     if isinstance(url, str) and "." not in url and "/" not in url:
         url = f"{url}+://"
 
@@ -303,10 +301,9 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
 
     global_schema = query.pop("global_schema", None)
 
-    local_schema = query.pop("local_schema", None) or query.pop("device", None)
-
     schemas = [s for s in url_.protocol.split("+") if s != ""]
 
+    local_schema = query.pop("local_schema", None) or query.pop("device", None)
     if len(schemas) > 0 and schemas[0] not in PROTOCOL_LIST:
         local_schema = schemas[0]
         schemas = schemas[1:]
@@ -319,21 +316,18 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
         fragment="",
     )
 
-    if local_schema is not None and global_schema != local_schema:
-        entry = EntryProxy(
-            new_url, local_schema=local_schema, global_schema=global_schema, **query
-        )
-
-    elif new_url.protocol.startswith(("local+", "file+")) or (
-        new_url.protocol == "" and new_url.path != ""
-    ):
+    if new_url.protocol.startswith(("local+", "file+")) or (new_url.protocol == "" and new_url.path != ""):
+        # 单一文件不进行 schema 检查，直接读取。因为schema转换在文件plugin中进行。
+        from .File import File
         entry = File(new_url, **query).read()
-
     elif new_url.protocol.startswith(("http", "https", "ssh")):
+        # http/https/ssh 协议，不进行schema检查，直接读取
         raise NotImplementedError(f"{new_url}")
-
+    elif local_schema is not None and global_schema != local_schema:
+        # 本地schema和全局schema不一致，需要进行schema转换
+        entry = EntryProxy(new_url, local_schema=local_schema, global_schema=global_schema, **query)
     else:
-        entry = Entry(url_, **query)
+        entry = Entry(new_url, **query)
 
     if fragment:
         entry = entry.child(fragment.replace(".", "/"))

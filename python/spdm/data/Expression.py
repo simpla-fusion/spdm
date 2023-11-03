@@ -11,6 +11,7 @@ from ..utils.numeric import float_nan
 from ..utils.tags import _not_found_
 from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
                             is_scalar, is_array, numeric_type)
+from ..utils.tree_utils import update_tree
 from .Functor import Functor
 
 
@@ -56,6 +57,7 @@ class Expression:
 
         if isinstance(expr, Expression) and len(children) == 0:
             self.__copy_from__(expr)
+            update_tree(self._metadata, None, kwargs)
         elif expr is None or callable(expr):
             self._func = expr
             self._children = children
