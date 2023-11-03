@@ -352,20 +352,18 @@ class MatplotlibView(View):
             data = [x_value, y_value]
 
         elif isinstance(obj, Expression):
-            if label is None:
-                label = getattr(obj, "__label__", None) or getattr(obj, "name", None)
+            # if label is None:
+            #     label = getattr(obj, "__label__", None) or getattr(obj, "name", None)
 
-            if label is not None and not label.startswith("$"):
-                label = f"${label}$"
-            elif label is None:
-                label = str(obj)
+            if label is None:
+                label = obj.__repr__()
 
             y_value = obj(x_axis)
             data = [x_value, y_value]
 
         elif is_array(obj):
             y_value = obj
-            label = " "
+            # label = " "
             if x_value is not None and x_value.size == obj.size:
                 data = [x_value, y_value]
             else:

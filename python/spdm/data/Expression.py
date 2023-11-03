@@ -129,16 +129,18 @@ class Expression:
     def _repr_s(expr: Expression) -> str:
 
         if isinstance(expr, (bool, int, float, complex)):
-            return f"{expr}"
+            res = f"{expr}"
 
         elif isinstance(expr, np.ndarray):
             if len(expr.shape) == 0:
-                return f"{expr.item()}"
+                res = f"{expr.item()}"
             else:
-                return f"{expr.dtype}[{expr.shape}]"
+                res = f"{expr.dtype}[{expr.shape}]"
 
         else:
-            return expr.__repr__()
+            res = expr.__repr__()
+
+        return res.strip("$")
 
     def __repr__(self) -> str:
 
@@ -156,27 +158,29 @@ class Expression:
 
         match nin:
             case 0:
-                return f"{op}"
+                res = f"{op}"
 
             case 1:
                 if op == "-":
-                    return f"- {Expression._repr_s(self._children[0])}"
+                    res = f"- {Expression._repr_s(self._children[0])}"
 
                 elif not op.startswith('\\'):
-                    return f"{op}({Expression._repr_s(self._children[0])})"
+                    res = f"{op}({Expression._repr_s(self._children[0])})"
 
                 else:
-                    return f"{op}{{{Expression._repr_s(self._children[0])}}}"
+                    res = f"{op}{{{Expression._repr_s(self._children[0])}}}"
 
             case 2:
                 match op:
                     case "/":
-                        return f"\\frac{{{Expression._repr_s(self._children[0])}}}{{{Expression._repr_s(self._children[1])}}}"
+                        res = f"\\frac{{{Expression._repr_s(self._children[0])}}}{{{Expression._repr_s(self._children[1])}}}"
                     case _:
-                        return f"({Expression._repr_s(self._children[0])} {op} {Expression._repr_s(self._children[1])})"
+                        res = f"({Expression._repr_s(self._children[0])} {op} {Expression._repr_s(self._children[1])})"
 
             case _:
-                return f"{op}({','.join([Expression._repr_s(child) for child in self._children])})"
+                res = f"{op}({','.join([Expression._repr_s(child) for child in self._children])})"
+
+        return f"${res}$"
 
     @property
     def dtype(self): return self._type_hint()
