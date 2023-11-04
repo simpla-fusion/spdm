@@ -301,6 +301,8 @@ class MatplotlibView(View):
                 profiles, sub_styles = profiles
             else:
                 sub_styles = {}
+            if isinstance(sub_styles, str):
+                sub_styles = {"label": sub_styles}
 
             if sub_styles is False:
                 continue
@@ -337,6 +339,9 @@ class MatplotlibView(View):
             obj, styles = obj
         else:
             styles = {}
+
+        if isinstance(styles, str):
+            styles = {"label": styles}
 
         styles = merge_tree_recursive(styles, kwargs.pop("styles", {}), kwargs)
 
