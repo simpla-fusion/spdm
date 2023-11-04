@@ -63,7 +63,7 @@ class SpTree(Dict):
 
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree: return self._get(key, *args, **kwargs)
 
-    def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self.update(key, value)
+    def __set_property__(self, key: str,  value: typing.Any = None, **kwargs) -> None: self.update({key: value})
 
     def __del_property__(self, key: str, **kwargs): self._remove(key)
 

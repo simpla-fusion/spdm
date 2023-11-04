@@ -1,14 +1,21 @@
+from __future__ import annotations
+
 import tempfile
 import shutil
 import pathlib
 import os
+import typing
+import getpass
+import numpy as np
+import uuid
+import hashlib
 import contextlib
 from ..view import View as sp_view
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
 from .sp_property import SpTree
-import getpass
+from .TimeSeries import TimeSeriesAoS, TimeSlice
 
 
 class Actor(SpTree, Pluggable):
@@ -19,6 +26,8 @@ class Actor(SpTree, Pluggable):
     def __init__(self, *args, **kwargs) -> None:
         Pluggable.__init__(self, *args, **kwargs)
         SpTree.__init__(self, *args, **kwargs)
+        self._dependence = {}
+        self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
 
     @property
     def tag(self) -> str: return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
@@ -35,7 +44,7 @@ class Actor(SpTree, Pluggable):
         return res
 
     def __geometry__(self,  *args,  **kwargs):
-        return {}
+        return {}, {}
 
     @contextlib.contextmanager
     def working_dir(self, suffix: str = "", prefix="") -> str:
@@ -75,3 +84,81 @@ class Actor(SpTree, Pluggable):
     @property
     def output_dir(self) -> str:
         return self.get("output_dir", None) or os.getenv("SP_OUTPUT_DIR", None) or f"{os.getcwd()}/{SP_LABEL.lower()}_output"
+
+    @property
+    def uid(self) -> int: return self._uid
+
+    def __hash__(self) -> int:
+        """ 
+            hash 值代表 Actor 状态 stats 
+            Actor 状态由所有依赖 dependence 的状态决定
+            time 时第一个 dependence
+        """
+        iteration = self.time_slice.current.iteration if self.time_slice.is_initializied else 0
+        return hash(":".join([str(self.uid), str(iteration), str(self.status)]
+                             + [str(hash(v)) for v in self._dependence.values()]))
+
+    @property
+    def time(self) -> float | None: return self._dependence.get("time", None)
+    """ 时间戳，代表 Actor 所处时间，用以同步"""
+
+    @property
+    def status(self) -> int: return self._dependence.get("status", 0)
+    """ 执行状态， 用于异步调用
+        0: success 任务完成
+        1: working 任务执行中
+       -1: failed  任务失败  
+    """
+
+    @property
+    def dependences(self) -> typing.List[Actor]: return self._dependence
+
+    time_slice: TimeSeriesAoS[TimeSlice]
+
+    def initialize(self, *args, **kwargs) -> None:
+        """ 初始化 Actor，
+            kwargs中不应包含 Actor 对象作为 input
+        """
+
+        if self.time_slice.is_initializied:
+            logger.warning(f"{self} is initialized!")
+        else:
+            self.time_slice.initialize(*args, **kwargs)
+
+        self._dependence = {"time": self.time_slice.current.time}
+
+    def refresh(self, *args,  **inputs) -> typing.Type[TimeSlice]:
+        """
+            inputs : 输入， Actor 的状态依赖其输入
+        """
+        if not self.time_slice.is_initializied:
+            init_kwargs = {k: inputs.pop(k)
+                           for k in list(inputs.keys()) if not isinstance(inputs[k], Actor)}
+            self.initialize(*args, **init_kwargs)
+            args = []
+
+        if self.status > 0:
+            raise NotImplementedError(f"Async job has not finished! ")
+
+        old_time = self.time
+        old_hash = self.__hash__()
+
+        self._dependence.update(inputs)
+        self._dependence["status"] = 0
+
+        if old_hash == self.__hash__():  # 如果状态未变，do nothing
+            return self.time_slice.current
+        elif np.isclose(old_time, self.time):
+            pass
+        elif self.time < old_time:
+            raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
+        else:
+            self.time_slice.advance(*args, time=self.time)
+            args = []
+
+        self.time_slice.current.refresh(*args)
+
+        return self.time_slice.current
+
+    def advance(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+        return self.refresh(*args, **kwargs)

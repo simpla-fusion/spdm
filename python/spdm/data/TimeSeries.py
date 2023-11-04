@@ -20,6 +20,14 @@ class TimeSlice(SpTree):
 
     time: float = sp_property(unit="s",   default_value=0.0)  # type: ignore
 
+    iteration: int = sp_property(default_value=0)
+    """ 迭代次数 """
+
+    def refresh(self, *args, **kwargs) -> int:
+        self.iteration += 1
+        self.update(*args, **kwargs)
+        return 0
+
 
 _TSlice = typing.TypeVar("_TSlice")  # , TimeSlice, typing.Type[TimeSlice]
 
@@ -78,6 +86,9 @@ class TimeSeriesAoS(List[_TSlice]):
     @property
     def previous(self) -> _TSlice: return self._get(-1)
 
+    @property
+    def is_initializied(self) -> bool: return self._entry_cursor is not None
+
     def _find_slice_by_time(self, time) -> typing.Tuple[int, float]:
         if self._entry is None:
             return None, None
@@ -114,12 +125,12 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return pos, time
 
-    def _get(self, idx: int, **kwargs) -> _TSlice:
+    def _get(self, idx: int, *args, **kwargs) -> _TSlice:
 
         if not isinstance(idx, int):
             return _not_found_
-        elif self._entry_cursor is None:
-            self.initialize()
+        elif not self.is_initializied:
+            self.initialize(*args, **kwargs)
 
         cache_pos = (self._cache_cursor + idx + self._cache_depth) % self._cache_depth
 
@@ -139,9 +150,10 @@ class TimeSeriesAoS(List[_TSlice]):
             self._cache[cache_pos] = obj
             return obj  # type:ignore
 
-    def initialize(self, *args, **kwargs) -> _TSlice:
-        if self._entry_cursor is not None:
-            logger.warning(f"TimeSeries is already initialized!")
+    def initialize(self, *args, **kwargs):
+        if self.is_initializied:
+            raise RuntimeError(f"TimeSeries is already initialized!")
+
         self._cache_cursor = 0
 
         update_tree(self._cache, self._cache_cursor, *args, kwargs)
@@ -163,23 +175,17 @@ class TimeSeriesAoS(List[_TSlice]):
         else:
             self._entry_cursor = 0
 
-    def refresh(self, *args, **kwargs) -> _TSlice:
-        if self._entry_cursor is None:
-            return self.initialize(*args, **kwargs)
-
-        update_tree(self._cache, self._cache_cursor, *args, kwargs)
-
     def advance(self, *args, **kwargs) -> _TSlice:
 
-        if self._entry_cursor is None:
-            return self.initialize(*args, **kwargs)
+        if not self.is_initializied:
+            self.initialize(*args, **kwargs)
+        else:
+            self._cache_cursor = (self._cache_cursor+1) % self._cache_depth
 
-        # self.current.dump()
+            self._entry_cursor += 1
 
-        self._cache_cursor = (self._cache_cursor+1) % self._cache_depth
+            self._cache[self._cache_cursor] = None
 
-        self._entry_cursor += 1
+            update_tree(self._cache, self._cache_cursor, *args, kwargs)
 
-        self._cache[self._cache_cursor] = None
-
-        self.refresh(*args, **kwargs)
+        return self.current
