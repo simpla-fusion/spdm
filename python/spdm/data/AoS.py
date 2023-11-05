@@ -115,26 +115,19 @@ class AoS(List[_T]):
         """ 遍历 children """
         yield from super().__iter__()
 
-    def _get(self, query: PathLike, _parent=_not_found_, **kwargs) -> HTree | _T | QueryResult[_T]:
+    def _get(self, query: PathLike,  **kwargs) -> HTree | _T | QueryResult[_T]:
+
         default_value = kwargs.pop("default_value", self._metadata.get("default_value", _not_found_))
 
-        _parent = _parent or self._parent
-
         if isinstance(query, (int, OpTags)):
-            return super()._get(query, _parent=self._parent, default_value=default_value, **kwargs)
+            return super()._get(query,  default_value=default_value, **kwargs)
 
-        elif isinstance(query, str):
-            pth = Path(query)
-
-            obj = _not_found_
+        elif self._identifier is not None and isinstance(query, str) and query.isidentifier():
             for d in self:
-                if d.get(self._identifier, None) == pth[0]:
-                    obj = d
-
-            if obj is not _not_found_ and len(pth) > 1:
-                return obj._get(pth[1:], _parent=_parent, default_value=default_value, **kwargs)
+                if d.get(self._identifier, None) == query:
+                    return d
             else:
-                return obj
+                return _not_found_
 
         elif not isinstance(query, (slice, dict)):
             raise TypeError(f" {query} is not supported")
@@ -142,4 +135,5 @@ class AoS(List[_T]):
         return QueryResult(query, self._cache,
                            default_value=default_value,
                            _type_hint=self._type_hint(0),
-                           _entry=self._entry, _parent=_parent, **kwargs)
+                           _entry=self._entry,
+                           **kwargs)
