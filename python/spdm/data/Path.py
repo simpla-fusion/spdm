@@ -67,12 +67,14 @@ QueryLike = dict | OpTags | None
 
 
 class Query:
-    def __init__(self, query: QueryLike = None, **kwargs) -> None:
+    def __init__(self, query: QueryLike = None, only_first=True, **kwargs) -> None:
 
         if isinstance(query, Query):
             self._query = Query._parser(query._query, **kwargs)
         else:
             self._query = Query._parser(query, **kwargs)
+
+        self._only_first = only_first
 
     def __str__(self) -> str:
         p = self._query

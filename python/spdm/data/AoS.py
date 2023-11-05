@@ -8,7 +8,7 @@ from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import array_type, get_args, get_type_hint
 from .Entry import Entry
 from .HTree import HTree, List, Dict
-from .Path import Path, PathLike, as_path, OpTags
+from .Path import Path, PathLike, as_path, OpTags, Query
 
 _T = typing.TypeVar("_T")
 
@@ -100,7 +100,7 @@ class AoS(List[_T]):
         super().__init__(*args, **kwargs)
         self._identifier = identifier
         if self._identifier is None:
-            self._identifier = self._metadata.get("identifier", None)
+            self._identifier = self._metadata.get("identifier", "label")
 
     def dump(self, entry: Entry, **kwargs) -> None:
         """ 将数据写入 entry """
@@ -115,19 +115,31 @@ class AoS(List[_T]):
         """ 遍历 children """
         yield from super().__iter__()
 
-    def _get(self, query: PathLike,  **kwargs) -> HTree | _T | QueryResult[_T]:
+    def _get(self, query: PathLike, _parent=_not_found_, **kwargs) -> HTree | _T | QueryResult[_T]:
+        default_value = kwargs.pop("default_value", self._metadata.get("default_value", _not_found_))
+
+        _parent = _parent or self._parent
 
         if isinstance(query, (int, OpTags)):
-            return super()._get(query, _parent=self._parent)
+            return super()._get(query, _parent=self._parent, default_value=default_value, **kwargs)
 
         elif isinstance(query, str):
-            query = {f"@{self._identifier}": query}
+            pth = Path(query)
+
+            obj = _not_found_
+            for d in self:
+                if d.get(self._identifier, None) == pth[0]:
+                    obj = d
+
+            if obj is not _not_found_ and len(pth) > 1:
+                return obj._get(pth[1:], _parent=_parent, default_value=default_value, **kwargs)
+            else:
+                return obj
 
         elif not isinstance(query, (slice, dict)):
             raise TypeError(f" {query} is not supported")
 
-        default_value = kwargs.pop("default_value", self.get("$default_value", _not_found_))
-
-        tp = self._type_hint(0)
-
-        return QueryResult(query, self._cache, _entry=self._entry, default_value=default_value, _parent=self._parent, **kwargs)
+        return QueryResult(query, self._cache,
+                           default_value=default_value,
+                           _type_hint=self._type_hint(0),
+                           _entry=self._entry, _parent=_parent, **kwargs)

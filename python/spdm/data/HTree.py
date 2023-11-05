@@ -426,17 +426,17 @@ class HTree:
             #     k, type_hint=type_hint, *args,  **kwargs) for k in query})
 
         else:
-            raise NotImplementedError(f"TODO: {type(query)}")
+            raise NotImplementedError(f"TODO: {(query)}")
 
         return value  # type:ignore
 
-    def _get_as_array(self, query, *args, default_value=_not_found_, **kwargs) -> NumericType:
+    def _get_as_array(self, idx, *args, default_value=_not_found_, **kwargs) -> NumericType:
 
         if self._cache is _not_found_:
             self._cache = self._entry.__value__  # type:ignore
 
         if isinstance(self._cache, array_type) or isinstance(self._cache, collections.abc.Sequence):
-            return self._cache[query]
+            return self._cache[idx]
 
         elif self._cache is _not_found_:
             return default_value  # type:ignore
@@ -474,7 +474,7 @@ class HTree:
     def _get_as_list(self, key: PathLike,  *args, default_value=_not_found_, _parent=None, **kwargs) -> HTree:
 
         if isinstance(key, (Query, dict)):
-            raise NotImplementedError(f"TODO:")
+            raise NotImplementedError(f"TODO: {key}")
             # cache = QueryResult(self, key, *args, **kwargs)
             # _entry = None
             # key = None
@@ -491,6 +491,7 @@ class HTree:
                 _entry = self._entry.child(key)
             else:
                 _entry = self._entry
+        
         elif isinstance(key, slice):
             start = key.start or 0
             stop = key.stop
