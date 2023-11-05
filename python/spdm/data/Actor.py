@@ -14,7 +14,7 @@ from ..view import View as sp_view
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
-from .sp_property import SpTree
+from .sp_property import SpTree, sp_property
 from .TimeSeries import TimeSeriesAoS, TimeSlice
 
 
@@ -113,7 +113,7 @@ class Actor(SpTree, Pluggable):
     @property
     def dependences(self) -> typing.List[Actor]: return self._dependences
 
-    time_slice: TimeSeriesAoS[TimeSlice]
+    time_slice: TimeSeriesAoS[TimeSlice] = sp_property()
 
     def initialize(self, *args, **kwargs) -> None:
         """ 初始化 Actor，
@@ -127,7 +127,7 @@ class Actor(SpTree, Pluggable):
 
         self._dependences = {"time": self.time_slice.current.time}
 
-    def refresh(self, *args,  **inputs) -> typing.Type[TimeSlice]:
+    def refresh(self, *args,  **inputs):
         """
             inputs : 输入， Actor 的状态依赖其输入
         """
@@ -150,13 +150,14 @@ class Actor(SpTree, Pluggable):
             pass
         elif np.isclose(old_time, self.time):
             self.time_slice.current.refresh(*args, **self._dependences)
-        elif self.time > old_time:
-            self.time_slice.advance(*args, time=self.time)
-            args = []
         else:
-            raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
-
-        return self.time_slice.current
+            logger.error(f"TODO: !!! NOT COMPLETE !!!")
+        # elif self.time > old_time:
+            # self.time_slice.advance(*args, time=self.time)
+            # args = []
+        # else:
+        #     raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
 
     def advance(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+        self.time_slice.advance(*args, **kwargs)
         return self.refresh(*args, **kwargs)
