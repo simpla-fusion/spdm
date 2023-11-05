@@ -8,7 +8,7 @@ from ..utils.tree_utils import merge_tree_recursive
 from ..utils.typing import array_type, get_args, get_type_hint
 from .Entry import Entry
 from .HTree import HTree, List, Dict
-from .Path import Path, PathLike, as_path
+from .Path import Path, PathLike, as_path, OpTags
 
 _T = typing.TypeVar("_T")
 
@@ -117,17 +117,17 @@ class AoS(List[_T]):
 
     def _get(self, query: PathLike,  **kwargs) -> HTree | _T | QueryResult[_T]:
 
-        if isinstance(query, int):
+        if isinstance(query, (int, OpTags)):
             return super()._get(query, _parent=self._parent)
 
         elif isinstance(query, str):
             query = {f"@{self._identifier}": query}
 
         elif not isinstance(query, (slice, dict)):
-            raise TypeError(f"{type(query)}")
+            raise TypeError(f" {query} is not supported")
 
         default_value = kwargs.pop("default_value", self.get("$default_value", _not_found_))
 
         tp = self._type_hint(0)
 
-        return QueryResult[tp](query, self._cache, _entry=self._entry, default_value=default_value, _parent=self._parent, **kwargs)
+        return QueryResult(query, self._cache, _entry=self._entry, default_value=default_value, _parent=self._parent, **kwargs)
