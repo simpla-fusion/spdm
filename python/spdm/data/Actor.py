@@ -26,7 +26,7 @@ class Actor(SpTree, Pluggable):
     def __init__(self, *args, **kwargs) -> None:
         Pluggable.__init__(self, *args, **kwargs)
         SpTree.__init__(self, *args, **kwargs)
-        self._dependence = {}
+        self._dependences = {}
         self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
 
     @property
@@ -96,14 +96,14 @@ class Actor(SpTree, Pluggable):
         """
         iteration = self.time_slice.current.iteration if self.time_slice.is_initializied else 0
         return hash(":".join([str(self.uid), str(iteration), str(self.status)]
-                             + [str(hash(v)) for v in self._dependence.values()]))
+                             + [str(hash(v)) for v in self._dependences.values()]))
 
     @property
-    def time(self) -> float | None: return self._dependence.get("time", None)
+    def time(self) -> float | None: return self._dependences.get("time", None)
     """ 时间戳，代表 Actor 所处时间，用以同步"""
 
     @property
-    def status(self) -> int: return self._dependence.get("status", 0)
+    def status(self) -> int: return self._dependences.get("status", 0)
     """ 执行状态， 用于异步调用
         0: success 任务完成
         1: working 任务执行中
@@ -111,7 +111,7 @@ class Actor(SpTree, Pluggable):
     """
 
     @property
-    def dependences(self) -> typing.List[Actor]: return self._dependence
+    def dependences(self) -> typing.List[Actor]: return self._dependences
 
     time_slice: TimeSeriesAoS[TimeSlice]
 
@@ -125,7 +125,7 @@ class Actor(SpTree, Pluggable):
         else:
             self.time_slice.initialize(*args, **kwargs)
 
-        self._dependence = {"time": self.time_slice.current.time}
+        self._dependences = {"time": self.time_slice.current.time}
 
     def refresh(self, *args,  **inputs) -> typing.Type[TimeSlice]:
         """
@@ -143,20 +143,18 @@ class Actor(SpTree, Pluggable):
         old_time = self.time
         old_hash = self.__hash__()
 
-        self._dependence.update(inputs)
-        self._dependence["status"] = 0
+        self._dependences.update(inputs)
+        self._dependences["status"] = 0
 
         if old_hash == self.__hash__():  # 如果状态未变，do nothing
-            return self.time_slice.current
-        elif np.isclose(old_time, self.time):
             pass
-        elif self.time < old_time:
-            raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
-        else:
+        elif np.isclose(old_time, self.time):
+            self.time_slice.current.refresh(*args, **self._dependences)
+        elif self.time > old_time:
             self.time_slice.advance(*args, time=self.time)
             args = []
-
-        self.time_slice.current.refresh(*args)
+        else:
+            raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
 
         return self.time_slice.current
 
