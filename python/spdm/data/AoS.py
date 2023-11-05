@@ -94,6 +94,10 @@ class QueryResult(HTree):
 class AoS(List[_T]):
     """
         Array of structure
+        
+        FIXME: 需要优化！！ 
+            - 数据结构应为 named list or ordered dict
+            - 可以自动转换 list 类型 cache 和 entry
     """
 
     def __init__(self, *args, identifier: str | None = None, **kwargs):
@@ -116,13 +120,16 @@ class AoS(List[_T]):
         yield from super().__iter__()
 
     def _get(self, query: PathLike,  **kwargs) -> HTree | _T | QueryResult[_T]:
-
+        """ 
+          
+        """
         default_value = kwargs.pop("default_value", self._metadata.get("default_value", _not_found_))
 
         if isinstance(query, (int, OpTags)):
             return super()._get(query,  default_value=default_value, **kwargs)
 
         elif self._identifier is not None and isinstance(query, str) and query.isidentifier():
+            
             for d in self:
                 if d.get(self._identifier, None) == query:
                     return d
