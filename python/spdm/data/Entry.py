@@ -207,6 +207,8 @@ class ChainEntry(Entry):
             if not isinstance(v, Entry):
                 self._entrys[idx] = _open_entry(v, **kwargs)
 
+    def __str__(self)->str: return ','.join([str(e) for e in self._entrys if e._data is None])
+
     def __copy_from__(self, other: Entry) -> ChainEntry:
         self._data = other._data
         self._path = copy(other._path)
@@ -643,6 +645,9 @@ class EntryProxy(Entry):
             self._entry_list = args[1]
         else:
             self._mapper, self._entry_list = self.__class__.load(*args, **kwargs)
+
+    def __str__(self)->str: 
+        return    ','.join([str(e) for e in self._entry_list.values() if isinstance(e,str)])
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)

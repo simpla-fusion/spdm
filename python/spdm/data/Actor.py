@@ -99,7 +99,7 @@ class Actor(SpTree, Pluggable):
                              + [str(hash(v)) for v in self._dependences.values()]))
 
     @property
-    def time(self) -> float | None: return self._dependences.get("time", None)
+    def time(self) -> float | None: return self._dependences.get("time", 0.0)
     """ 时间戳，代表 Actor 所处时间，用以同步"""
 
     @property
