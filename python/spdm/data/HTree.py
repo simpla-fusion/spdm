@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections.abc
 import pathlib
 import typing
+import types
 from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
@@ -491,7 +492,7 @@ class HTree:
                 _entry = self._entry.child(key)
             else:
                 _entry = self._entry
-        
+
         elif isinstance(key, slice):
             start = key.start or 0
             stop = key.stop
@@ -625,6 +626,10 @@ class Dict(Container[_T]):
 
     def __contains__(self, key: str) -> bool:
         return (isinstance(self._cache, collections.abc.Mapping) and key in self._cache) or self._entry.child(key).exists
+
+    def __getitem__(self, path) -> _T:
+        tp_hint = get_args(self)[-1]
+        return super().get(path, _type_hint=tp_hint, force=True)
 
 
 class List(Container[_T]):

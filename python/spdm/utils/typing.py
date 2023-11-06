@@ -220,6 +220,10 @@ def get_origin(tp: typing.Any) -> typing.Type:
     #     return tp
 
 
+def get_orig_bases(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
+    return getattr(tp, "__orig_bases__", tuple([]))
+
+
 def get_args(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
     """
         获得 typing.Generic 类型的 type_hint
@@ -241,8 +245,8 @@ def get_args(tp: typing.Any) -> typing.Tuple[typing.Type, ...]:
     elif typing.get_origin(tp) is not None:
         res = typing.get_args(tp)
 
-    elif inspect.isclass(tp):
-        return get_args(getattr(tp, "__orig_bases__", None))
+    elif len(get_orig_bases(tp)) > 0:
+        return sum([get_args(t) for t in get_orig_bases(tp)], tuple())
 
     else:
         return get_args(getattr(tp, "__orig_class__", tp.__class__))
