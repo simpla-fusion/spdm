@@ -7,15 +7,23 @@ from copy import copy
 
 import numpy as np
 
-from ..numlib.calculus import (Antiderivative, Derivative, PartialDerivative,
-                               find_roots, integral)
+from ..numlib.calculus import Antiderivative, Derivative, PartialDerivative, find_roots, integral
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.numeric import bitwise_and, is_close, meshgrid
 from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
-                            is_array, numeric_type, scalar_type, get_args, get_origin)
+from ..utils.typing import (
+    ArrayType,
+    NumericType,
+    array_type,
+    as_array,
+    is_array,
+    numeric_type,
+    scalar_type,
+    get_args,
+    get_origin,
+)
 from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor, DiracDeltaFun, ConstantsFunc
@@ -23,33 +31,33 @@ from .Functor import Functor, DiracDeltaFun, ConstantsFunc
 
 class Function(Expression):
     """
-        Function
-        ---------
-        A function is a mapping between two sets, the _domain_ and the  _value_.
-        The _value_  is the set of all possible outputs of the function.
-        The _domain_ is the set of all possible inputs  to the function.
+    Function
+    ---------
+    A function is a mapping between two sets, the _domain_ and the  _value_.
+    The _value_  is the set of all possible outputs of the function.
+    The _domain_ is the set of all possible inputs  to the function.
 
-        函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
+    函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
 
     """
 
     def __init__(self, value, *dims, periods=None, _parent=None, **kwargs):
         """
-            Parameters
-            ----------
-            value : NumericType
-                函数的值
-            mesh : typing.List[ArrayType]
-                函数的定义域
-            args : typing.Any
-                位置参数, 用于与mesh_*，coordinate* 一起构建 mesh
-            kwargs : typing.Any
-                命名参数，
-                    *           : 用于传递给 Node 的参数
-            extrapolate: int |str
-                控制当自变量超出定义域后的值
-                * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
-                * if ext=1  or 'nan', return nan
+        Parameters
+        ----------
+        value : NumericType
+            函数的值
+        mesh : typing.List[ArrayType]
+            函数的定义域
+        args : typing.Any
+            位置参数, 用于与mesh_*，coordinate* 一起构建 mesh
+        kwargs : typing.Any
+            命名参数，
+                *           : 用于传递给 Node 的参数
+        extrapolate: int |str
+            控制当自变量超出定义域后的值
+            * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
+            * if ext=1  or 'nan', return nan
         """
         cache = value
         func = None
@@ -71,7 +79,7 @@ class Function(Expression):
         Expression.__init__(self, func, **kwargs)
 
     def __copy_from__(self, other: Function) -> Function:
-        """ copy from other"""
+        """copy from other"""
 
         Expression.__copy_from__(self, other)
 
@@ -83,21 +91,25 @@ class Function(Expression):
             self._parent = other._parent
             return self
 
-    def __repr__(self) -> str: return f"{self.__label__}"
+    def __repr__(self) -> str:
+        return f"{self.__label__}"
 
     def _repr_svg_(self) -> str:
         try:
             from ..view import View as sp_view
+
             res = sp_view.plot(self, output="svg")
         except Exception as error:
             # logger.error(error)
             res = None
         return res
 
-    def __serialize__(self) -> typing.Mapping: raise NotImplementedError(f"__serialize__")
+    def __serialize__(self) -> typing.Mapping:
+        raise NotImplementedError(f"__serialize__")
 
     @classmethod
-    def __deserialize__(cls, *args, **kwargs) -> Function: raise NotImplementedError(f"__deserialize__")
+    def __deserialize__(cls, *args, **kwargs) -> Function:
+        raise NotImplementedError(f"__deserialize__")
 
     def __getitem__(self, idx) -> NumericType:
         if self._cache is None or self._cache is _not_found_:
@@ -115,7 +127,7 @@ class Function(Expression):
 
     @property
     def dims(self) -> typing.List[ArrayType]:
-        """ 函数的网格，即定义域的网格 """
+        """函数的网格，即定义域的网格"""
         if self._dims is not None:
             return self._dims
 
@@ -161,12 +173,14 @@ class Function(Expression):
             periods = self.periods
 
             for idx in range(len(dims)):
-                if periods[idx] is not np.nan and not np.isclose(dims[idx][-1]-dims[idx][0], periods[idx]):
+                if periods[idx] is not np.nan and not np.isclose(dims[idx][-1] - dims[idx][0], periods[idx]):
                     raise RuntimeError(
-                        f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] ")
+                        f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] "
+                    )
                 if not np.all(dims[idx][1:] > dims[idx][:-1]):
                     raise RuntimeError(
-                        f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}")
+                        f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}"
+                    )
 
         self._dims = dims
 
@@ -180,15 +194,20 @@ class Function(Expression):
         return self._periods
 
     @property
-    def ndim(self) -> int: return len(self.dims)
+    def ndim(self) -> int:
+        return len(self.dims)
+
     """ 函数的维度，函数所能接收参数的个数。 """
 
     @property
-    def rank(self) -> int: return 1
+    def rank(self) -> int:
+        return 1
+
     """ 函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定 """
 
     @property
-    def shape(self) -> typing.List[int]: return [len(d) for d in self.dims]
+    def shape(self) -> typing.List[int]:
+        return [len(d) for d in self.dims]
 
     @functools.cached_property
     def points(self) -> typing.List[ArrayType]:
@@ -201,7 +220,7 @@ class Function(Expression):
 
     @functools.cached_property
     def bbox(self) -> typing.Tuple[typing.List[float], typing.List[float]]:
-        """ 函数的定义域 """
+        """函数的定义域"""
         return tuple(([d[0], d[-1]] if not isinstance(d, float) else [d, d]) for d in self.dims)
 
     def _type_hint(self, path=None) -> typing.Type:
@@ -213,7 +232,7 @@ class Function(Expression):
 
     def __domain__(self, *args) -> bool:
         # or self._metadata.get("extrapolate", 0) != 1:
-        if self.dims is None or len(self.dims) == 0 or self._metadata.get("extrapolate",  0) != "raise":
+        if self.dims is None or len(self.dims) == 0 or self._metadata.get("extrapolate", 0) != "raise":
             return True
 
         if len(args) != self.ndim:
@@ -227,23 +246,23 @@ class Function(Expression):
 
     def __functor__(self) -> Functor:
         """
-            对函数进行编译，用插值函数替代原始表达式，提高运算速度
+        对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
-            NOTE：
-                - 由 points，value  生成插值函数，并赋值给 self._ppoly。 插值函数相对原始表达式的优势是速度快，缺点是精度低。
-                - 当函数为expression时，调用 value = self.__call__(*points) 。
-            TODO:
-                - 支持 JIT 编译, support JIT compile
-                - 优化缓存
-                - 支持多维插值
-                - 支持多维求导，自动微分 auto diff
+        NOTE：
+            - 由 points，value  生成插值函数，并赋值给 self._ppoly。 插值函数相对原始表达式的优势是速度快，缺点是精度低。
+            - 当函数为expression时，调用 value = self.__call__(*points) 。
+        TODO:
+            - 支持 JIT 编译, support JIT compile
+            - 优化缓存
+            - 支持多维插值
+            - 支持多维求导，自动微分 auto diff
 
-            Parameters
-            ----------
-            d : typing.Any
-                order of function
-            force : bool
-                if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
+        Parameters
+        ----------
+        d : typing.Any
+            order of function
+        force : bool
+            if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
 
         """
 
@@ -293,13 +312,13 @@ class Function(Expression):
             value = self._cache
 
         if not isinstance(value, scalar_type) and not isinstance(value, array_type):
-            raise RuntimeError(f"{self.__class__} \"{(value)}\"")
+            raise RuntimeError(f'{self.__class__} "{(value)}"')
 
         return value
 
-    def __array__(self, *args,  **kwargs) -> NumericType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
+    def __array__(self, *args, **kwargs) -> NumericType:
+        """重载 numpy 的 __array__ 运算符
+        若 self._value 为 array_type 或标量类型 则返回函数执行的结果
         """
         value = self.__value__
 
@@ -312,10 +331,7 @@ class Function(Expression):
         value = self.__array__()
         if not isinstance(value, array_type):
             raise RuntimeError(f"self.__array__ is not array_type! {(value)}")
-        return interpolate(value, *self.dims,
-                           periods=self.periods,
-                           extrapolate=self._metadata.get("extrapolate", 0)
-                           )
+        return interpolate(value, *self.dims, periods=self.periods, extrapolate=self._metadata.get("extrapolate", 0))
 
     def __call__(self, *args, **kwargs) -> typing.Any:
         if len(args) == 0 and len(kwargs) == 0:
@@ -327,17 +343,28 @@ class Function(Expression):
         if len(self.__array__().shape) == 0:
             return Function(0.0, self.dims)
         else:
-            return Function(self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
+            return Function(
+                self._interpolate().derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata
+            )
 
     def partial_derivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata)
+        return Function(
+            self._interpolate().partial_derivative(*d, **kwargs), *self.dims, periods=self.periods, **self._metadata
+        )
 
     def antiderivative(self, *d, **kwargs) -> Function:
-        return Function(self._interpolate().antiderivative(*d, **kwargs), *self.dims, periods=self.periods, label=rf"\int {self.__repr__()}")
+        return Function(
+            self._interpolate().antiderivative(*d, **kwargs),
+            *self.dims,
+            periods=self.periods,
+            label=rf"\int {self.__repr__()}",
+        )
 
-    def d(self, n=1) -> Expression: return self.derivative(n)
+    def d(self, n=1) -> Expression:
+        return self.derivative(n)
 
-    def pd(self, *d) -> Expression: return self.partial_derivative(*d)
+    def pd(self, *d) -> Expression:
+        return self.partial_derivative(*d)
 
     def dln(self, *args) -> Expression | float:
         if len(args) == 0:
@@ -345,13 +372,13 @@ class Function(Expression):
         else:
             return self.dln()(*args)
 
-    def integral(self, *args, **kwargs) -> float: return integral(self, *args, **kwargs)
+    def integral(self, *args, **kwargs) -> float:
+        return integral(self, *args, **kwargs)
 
     def find_roots(self, *args, **kwargs) -> typing.Generator[float, None, None]:
         yield from find_roots(self, *args, **kwargs)
 
     def pullback(self, *dims, periods=None) -> Function:
-
         other = copy(self)
 
         if len(dims) != len(self.dims):
@@ -372,7 +399,7 @@ class Function(Expression):
         return other
 
     def validate(self, value=None, strict=False) -> bool:
-        """ 检查函数的定义域和值是否匹配 """
+        """检查函数的定义域和值是否匹配"""
 
         m_shape = tuple(self.shape)
 

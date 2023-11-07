@@ -9,53 +9,52 @@ import numpy.typing as np_tp
 from ..utils.logger import logger
 from ..utils.numeric import float_nan
 from ..utils.tags import _not_found_
-from ..utils.typing import (ArrayType, NumericType, array_type, as_array,
-                            is_scalar, is_array, numeric_type)
+from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
 from ..utils.tree_utils import update_tree
 from .Functor import Functor
 
 
 class Expression:
     """
-        Expression
-        -----------
-        表达式是由多个操作数和运算符按照约定的规则构成的一个序列。
-        其中运算符表示对操作数进行何种操作，而操作数可以是变量、常量、数组或者表达式。
-        表达式可以理解为树状结构，每个节点都是一个操作数或运算符，每个节点都可以有多个子节点。
-        表达式的值可以通过对树状结构进行遍历计算得到。
-        没有子节点的节点称为叶子节点，叶子节点可以是常量、数组，也可以是变量和函数。
+    Expression
+    -----------
+    表达式是由多个操作数和运算符按照约定的规则构成的一个序列。
+    其中运算符表示对操作数进行何种操作，而操作数可以是变量、常量、数组或者表达式。
+    表达式可以理解为树状结构，每个节点都是一个操作数或运算符，每个节点都可以有多个子节点。
+    表达式的值可以通过对树状结构进行遍历计算得到。
+    没有子节点的节点称为叶子节点，叶子节点可以是常量、数组，也可以是变量和函数。
 
-        变量是一种特殊的函数，它的值由上下文决定。
+    变量是一种特殊的函数，它的值由上下文决定。
 
-        例如：
-            >>> import spdm
-            >>> x = spdm.data.Expression(op=np.sin)
-            >>> y = spdm.data.Expression(op=np.cos)
-            >>> z = x + y
-            >>> z
-            <Expression   op="add" />
-            >>> z(0.0)
-            3.0
+    例如：
+        >>> import spdm
+        >>> x = spdm.data.Expression(op=np.sin)
+        >>> y = spdm.data.Expression(op=np.cos)
+        >>> z = x + y
+        >>> z
+        <Expression   op="add" />
+        >>> z(0.0)
+        3.0
 
 
     """
 
     fill_value = float_nan
 
-    def __init__(self, expr: typing.Callable[..., NumericType], *children,   **kwargs) -> None:
+    def __init__(self, expr: typing.Callable[..., NumericType], *children, **kwargs) -> None:
         """
-            Parameters
-            ----------
-            args : typing.Any
-                操作数
-            op : typing.Callable  | ExprOp
-                运算符，可以是函数，也可以是类的成员函数
-            kwargs : typing.Any
-                命名参数， 用于传递给运算符的参数
+        Parameters
+        ----------
+        args : typing.Any
+            操作数
+        op : typing.Callable  | ExprOp
+            运算符，可以是函数，也可以是类的成员函数
+        kwargs : typing.Any
+            命名参数， 用于传递给运算符的参数
 
         """
 
-        if isinstance(expr, Expression) and len(children) == 0:
+        if self.__class__ is Expression and expr.__class__ is Expression:
             self.__copy_from__(expr)
             update_tree(self._metadata, None, kwargs)
         elif expr is None or callable(expr):
@@ -63,16 +62,16 @@ class Expression:
             self._children = children
             self._metadata = kwargs
         else:
-            raise NotImplementedError(f"{type(expr)}")
+            raise NotImplementedError(f"{expr}")
 
     def __copy__(self) -> Expression:
-        """ 复制一个新的 Expression 对象 """
+        """复制一个新的 Expression 对象"""
         other: Expression = object.__new__(self.__class__)
         other.__copy_from__(self)
         return other
 
     def __copy_from__(self, other: Expression) -> Expression:
-        """ 复制 other 到 self  """
+        """复制 other 到 self"""
         if isinstance(other, Expression):
             self._func = copy(other._func)
             self._children = copy(other._children)
@@ -83,17 +82,17 @@ class Expression:
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
         """
-            重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。
-            例如：
-                >>> import numpy as np
-                >>> import spdm
-                >>> x = spdm.data.Expression(np.sin)
-                >>> y = spdm.data.Expression(np.cos)
-                >>> z = x + y
-                >>> z
-                <Expression   op="add" />
-                >>> z(0.0)
-                1.0
+        重载 numpy 的 ufunc 运算符, 用于在表达式中使用 numpy 的 ufunc 函数构建新的表达式。
+        例如：
+            >>> import numpy as np
+            >>> import spdm
+            >>> x = spdm.data.Expression(np.sin)
+            >>> y = spdm.data.Expression(np.cos)
+            >>> z = x + y
+            >>> z
+            <Expression   op="add" />
+            >>> z(0.0)
+            1.0
         """
         if method != "__call__" or len(kwargs) > 0:
             return Expression(Functor(ufunc, method=method, **kwargs), *args)
@@ -107,27 +106,33 @@ class Expression:
         return as_array(res)
 
     @property
-    def has_children(self) -> bool: return len(self._children) > 0
+    def has_children(self) -> bool:
+        return len(self._children) > 0
+
     """ 判断是否有子节点"""
 
     @property
-    def empty(self) -> bool: return not self.has_children and self._func is None
+    def empty(self) -> bool:
+        return not self.has_children and self._func is None
 
     @property
-    def callable(self): return callable(self._func) or self.has_children
+    def callable(self):
+        return callable(self._func) or self.has_children
 
     @property
     def __label__(self) -> str:
         return self._metadata.get("label", None) or self._metadata.get("name", None) or ""
 
-    def __str__(self) -> str: return f"<{self.__class__.__name__} label='{self.__label__}' />"
+    def __str__(self) -> str:
+        return f"<{self.__class__.__name__} label='{self.__label__}' />"
 
-    def _repr_latex_(self) -> str: return self.__repr__()
+    def _repr_latex_(self) -> str:
+        return self.__repr__()
+
     """ for jupyter notebook display """
 
     @staticmethod
     def _repr_s(expr: Expression) -> str:
-
         if isinstance(expr, (bool, int, float, complex)):
             res = f"{expr}"
 
@@ -143,7 +148,6 @@ class Expression:
         return res.strip("$")
 
     def __repr__(self) -> str:
-
         nin = len(self._children)
 
         if self._func is None:
@@ -164,7 +168,7 @@ class Expression:
                 if op == "-":
                     res = f"- {Expression._repr_s(self._children[0])}"
 
-                elif not op.startswith('\\'):
+                elif not op.startswith("\\"):
                     res = f"{op}({Expression._repr_s(self._children[0])})"
 
                 else:
@@ -183,13 +187,16 @@ class Expression:
         return f"${res}$"
 
     @property
-    def dtype(self): return self._type_hint()
+    def dtype(self):
+        return self._type_hint()
 
-    def _type_hint(self, *args): return float
+    def _type_hint(self, *args):
+        return float
+
     """ TODO:获取表达式的类型 """
 
     def __domain__(self, *x) -> bool | np_tp.NDArray[np.bool_]:
-        """ 当坐标在定义域内时返回 True，否则返回 False  """
+        """当坐标在定义域内时返回 True，否则返回 False"""
 
         d = [child.__domain__(*x) for child in self._children if hasattr(child, "__domain__")]
 
@@ -203,24 +210,26 @@ class Expression:
         else:
             return True
 
-    def __functor__(self) -> Functor: return self._func
+    def __functor__(self) -> Functor:
+        return self._func
+
     """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
 
     def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
         """
-            重载函数调用运算符，用于计算表达式的值
+        重载函数调用运算符，用于计算表达式的值
 
-            TODO:
-            - support JIT compilation
-            - support broadcasting?
-            - support multiple meshes?
+        TODO:
+        - support JIT compilation
+        - support broadcasting?
+        - support multiple meshes?
 
-            Parameters
-            ----------
-            xargs : NumericType
-                自变量/坐标，可以是标量，也可以是数组
-            kwargs : typing.Any
-                命名参数，用于传递给运算符的参数
+        Parameters
+        ----------
+        xargs : NumericType
+            自变量/坐标，可以是标量，也可以是数组
+        kwargs : typing.Any
+            命名参数，用于传递给运算符的参数
         """
 
         if len(xargs) == 0:
@@ -241,8 +250,16 @@ class Expression:
             raise RuntimeError(f"Out of domain! {self} {xargs} ")
 
         if marked_num < mark_size:
-            xargs = tuple([(arg[mark] if isinstance(mark, array_type) and isinstance(arg, array_type) and arg.ndim > 0 else arg)
-                           for arg in xargs])
+            xargs = tuple(
+                [
+                    (
+                        arg[mark]
+                        if isinstance(mark, array_type) and isinstance(arg, array_type) and arg.ndim > 0
+                        else arg
+                    )
+                    for arg in xargs
+                ]
+            )
 
         func = self.__functor__()
 
@@ -296,30 +313,37 @@ class Expression:
         return res
 
     @property
-    def d(self) -> Expression: return Derivative(self, 1)
+    def d(self) -> Expression:
+        return Derivative(self, 1)
+
     """1st derivative 一阶导数"""
 
     @property
-    def d2(self) -> Expression: return Derivative(self, 2)
+    def d2(self) -> Expression:
+        return Derivative(self, 2)
+
     """2nd derivative 二阶导数"""
 
     @property
-    def I(self) -> Expression: return Derivative(self, -1)
+    def I(self) -> Expression:
+        return Derivative(self, -1)
+
     """antiderivative 原函数"""
 
     @property
-    def dln(self) -> Expression: return LogDerivative(self)
-    """logarithmic derivative 对数求导 """
+    def dln(self) -> Expression:
+        return LogDerivative(self)
 
+    """logarithmic derivative 对数求导 """
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
     def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else self
     def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else self
-    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
-    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
-    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else np.nan
-    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else 1
+    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (np.nan if o==0 else self)
+    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (1 if o==0 else self)
     def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  ,)
     def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  ,)
     def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  ,)
@@ -328,8 +352,8 @@ class Expression:
     def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  ,)
     def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else self
     def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else self.__neg__()
-    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
-    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else 0
+    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  ,)
     def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==1)  else 1
     def __abs__      (self                             ) : return Expression(np.abs          ,  self     ,)
@@ -381,40 +405,36 @@ EXPR_OP_TAG = {
     # "invert": "",
     "bitwise_and": "&",
     "bitwise_or": "|",
-
     # "bitwise_xor": "",
     # "right_shift": "",
     # "left_shift": "",
     # "right_shift": "",
     # "left_shift": "",
     "mod": "%",
-
-
     # "floor_divide": "",
     # "floor_divide": "",
     # "trunc": "",
     # "round": "",
     # "floor": "",
     # "ceil": "",
-
     "sqrt": r"\sqrt",
 }
 
 
 class Variable(Expression):
     """
-        Variable
-        ---------
-        变量是一种特殊的函数，它的值由上下文决定。
-        例如：
-            >>> import spdm
-            >>> x = spdm.data.Variable(0,"x")
-            >>> y = spdm.data.Variable(1,"y")
-            >>> z = x + y
-            >>> z
-            <Expression   op="add" />
-            >>> z(0.0, 1.0)
-            1.0
+    Variable
+    ---------
+    变量是一种特殊的函数，它的值由上下文决定。
+    例如：
+        >>> import spdm
+        >>> x = spdm.data.Variable(0,"x")
+        >>> y = spdm.data.Variable(1,"y")
+        >>> z = x + y
+        >>> z
+        <Expression   op="add" />
+        >>> z(0.0, 1.0)
+        1.0
 
     """
 
@@ -426,8 +446,7 @@ class Variable(Expression):
 
     @property
     def _type_hint(self) -> typing.Type:
-        """ 获取函数的类型
-        """
+        """获取函数的类型"""
         orig_class = getattr(self, "__orig_class__", None)
         if orig_class is not None:
             return typing.get_args(orig_class)[0]
@@ -435,7 +454,8 @@ class Variable(Expression):
             return float
 
     @property
-    def index(self): return self._idx
+    def index(self):
+        return self._idx
 
     def __call__(self, *args, **kwargs):
         if isinstance(self._idx, str):
@@ -446,18 +466,19 @@ class Variable(Expression):
             raise RuntimeError(f"Variable {self.__label__} require {self._idx+1} args, but only {len(args)} provided!")
         # return args[self._idx]
 
-    def __repr__(self) -> str: return self.__label__
+    def __repr__(self) -> str:
+        return self.__label__
 
 
 class Derivative(Expression):
     """
-        算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
-        受 np.ufunc 启发而来。
-        可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
+    算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
+    受 np.ufunc 启发而来。
+    可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
 
     """
 
-    def __init__(self,  func, order=1, label=None, **kwargs):
+    def __init__(self, func, order=1, label=None, **kwargs):
         if label is None:
             label = getattr(func, "__label__", "unamed")
             label = f"d{label}"
@@ -465,9 +486,10 @@ class Derivative(Expression):
         self._order = order
 
     @property
-    def order(self) -> int | None: return self._order
+    def order(self) -> int | None:
+        return self._order
 
-    def __call__(self,  *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         if len(args) == 0:
             return self
 
@@ -490,17 +512,19 @@ class Derivative(Expression):
         else:
             raise TypeError(type(func))
 
-    def __repr__(self) -> str: return f"d{Expression._repr_s(self._children[0])}"
+    def __repr__(self) -> str:
+        return f"d{Expression._repr_s(self._children[0])}"
 
 
 class LogDerivative(Expression):
-    def __repr__(self) -> str: return f"d \\ln {Expression._repr_s(self._children[0])}"
+    def __repr__(self) -> str:
+        return f"d \\ln {Expression._repr_s(self._children[0])}"
 
 
 class Piecewise(Expression):
-    """ PiecewiseFunction
-        ----------------
-        A piecewise function. 一维或多维，分段函数
+    """PiecewiseFunction
+    ----------------
+    A piecewise function. 一维或多维，分段函数
     """
 
     def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):

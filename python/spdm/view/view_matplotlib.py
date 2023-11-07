@@ -28,7 +28,7 @@ from spdm.view.View import View
 class MatplotlibView(View):
     backend = "matplotlib"
 
-    def __init__(self, *args,  **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def _figure_post(self, fig: plt.Figure, title="", output=None, styles={}, transparent=True, **kwargs) -> typing.Any:
@@ -41,7 +41,7 @@ class MatplotlibView(View):
         fig.tight_layout()
 
         pos = fig.gca().get_position()
-        height = pos.ymin+pos.ymax
+        height = pos.ymin + pos.ymax
         width = pos.xmax
 
         # width = fig.get_figwidth()
@@ -131,7 +131,7 @@ class MatplotlibView(View):
             else:
                 logger.warning(f"ignore unsupported styles {s}")
 
-            self._draw(canvas, o, styles, view_point=view_point,   **kwargs)
+            self._draw(canvas, o, styles, view_point=view_point, **kwargs)
 
         elif hasattr(obj.__class__, "__geometry__"):
             try:
@@ -149,8 +149,7 @@ class MatplotlibView(View):
                 if s is False:
                     continue
 
-                self._draw(canvas, o, collections.ChainMap({"id": k}, s),
-                           view_point=view_point, **kwargs)
+                self._draw(canvas, o, collections.ChainMap({"id": k}, s), view_point=view_point, **kwargs)
 
             self._draw(canvas, None, styles, **kwargs)
 
@@ -158,7 +157,7 @@ class MatplotlibView(View):
             for idx, o in enumerate(obj):
                 self._draw(canvas, o, collections.ChainMap({"id": idx}, styles), view_point=view_point, **kwargs)
 
-            self._draw(canvas, None, styles, view_point=view_point,  **kwargs)
+            self._draw(canvas, None, styles, view_point=view_point, **kwargs)
 
         elif isinstance(obj, (str, int, float, bool)):
             pos = s_styles.get("position", None)
@@ -180,34 +179,22 @@ class MatplotlibView(View):
             )
 
         elif isinstance(obj, BBox):
-            canvas.add_patch(
-                plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles)
-            )
+            canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles))
 
         elif isinstance(obj, Polygon):
             canvas.add_patch(plt.Polygon(obj._points, fill=False, **s_styles))
 
         elif isinstance(obj, Polyline):
-            canvas.add_patch(
-                plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles)
-            )
+            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
 
         elif isinstance(obj, Line):
-            canvas.add_artist(
-                plt.Line2D([obj.p0.x, obj.p1.x], [obj.p0.y, obj.p1.y], **s_styles)
-            )
+            canvas.add_artist(plt.Line2D([obj.p0.x, obj.p1.x], [obj.p0.y, obj.p1.y], **s_styles))
 
         elif isinstance(obj, Curve):
-            canvas.add_patch(
-                plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles)
-            )
+            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
 
         elif isinstance(obj, Rectangle):
-            canvas.add_patch(
-                plt.Rectangle(
-                    (obj._x, obj._y), obj._width, obj._height, fill=False, **s_styles
-                )
-            )
+            canvas.add_patch(plt.Rectangle((obj._x, obj._y), obj._width, obj._height, fill=False, **s_styles))
 
         elif isinstance(obj, Circle):
             canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r, fill=False, **s_styles))
@@ -260,8 +247,15 @@ class MatplotlibView(View):
 
             self._draw(canvas, text, {f"${self.backend}": text_styles})
 
-    def plot(self, obj, x_value: Expression | np.ndarray = None, x_label: str = None, x_axis: np.ndarray = None, stop_if_fail=False, **kwargs) -> typing.Any:
-
+    def plot(
+        self,
+        obj,
+        x_value: Expression | np.ndarray = None,
+        x_label: str = None,
+        x_axis: np.ndarray = None,
+        stop_if_fail=False,
+        **kwargs,
+    ) -> typing.Any:
         styles = merge_tree_recursive(kwargs.pop("styles", {}), kwargs)
 
         fontsize = styles.get("fontsize", 16)
@@ -314,11 +308,12 @@ class MatplotlibView(View):
 
             for p in profiles:
                 try:
-                    self._plot(canvas[idx], p, x_value=x_value, x_axis=x_axis,
-                               styles=collections.ChainMap(sub_styles, styles))
+                    self._plot(
+                        canvas[idx], p, x_value=x_value, x_axis=x_axis, styles=collections.ChainMap(sub_styles, styles)
+                    )
                 except Exception as error:
                     # if stop_if_fail:
-                    raise RuntimeError(f"Plot [index={idx}] failed! y_label= \"{y_label}\"  ") from error
+                    raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}"  ') from error
                     # else:
                     #     logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
 
@@ -329,7 +324,7 @@ class MatplotlibView(View):
 
         return self._figure_post(fig, styles=styles, **kwargs)
 
-    def _plot(self, canvas, obj, x_axis: array_type, x_value: array_type,   **kwargs):
+    def _plot(self, canvas, obj, x_axis: array_type, x_value: array_type, **kwargs):
         if obj is None or obj is _not_found_:
             return
         # elif not isinstance(x_value, array_type) and not isinstance(x_axis, array_type):
@@ -366,24 +361,29 @@ class MatplotlibView(View):
             y_value = obj(x_axis)
             data = [x_value, y_value]
 
-        elif is_array(obj):
-            y_value = obj
-            # label = " "
-            if x_value is not None and x_value.size == obj.size:
-                data = [x_value, y_value]
-            else:
-                data = [y_value]
+        # elif is_array(obj):
+        #     y_value = obj
+        #     # label = " "
+        #     if x_value is not None and x_value.size == obj.size:
+        #         data = [x_value, y_value]
+        #     else:
+        #         data = [y_value]
 
-        elif np.isscalar(obj):
+        # elif np.isscalar(obj):
+        elif x_value is not None:
             y_value = np.full_like(x_value, obj, dtype=float)
             data = [x_value, y_value]
-
         else:
-            logger.warning(f"ignore unsupported profiles label={label}")
+            data = [obj]
+            # else:
+            #     logger.warning(f"ignore unsupported profiles label={label}")
             return
             # raise RuntimeError(f"Unsupported profiles {obj}")
 
-        canvas.plot(*data, **s_styles, label=label)
+        try:
+            canvas.plot(*data, **s_styles, label=label)
+        except Exception as e:
+            logger.warning(f"plot failed! {e} {data}")
 
     # def profiles_(self, obj, *args,  x_axis=None, x=None,
     #               default_num_of_points=128, fontsize=10, grid=True,
