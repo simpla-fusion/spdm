@@ -11,13 +11,13 @@ from .typing import primary_type
 
 class DefaultDict(dict):
     """
-        This code creates a dictionary that can have a default value for
-        keys that are not yet in the dictionary. It creates a dictionary that inherits
-        from the built-in dictionary class. It overrides the __missing__ method to
-        return a default value if the key is not in the dictionary. It uses a private
-        variable, _factory, that is set to the default factory function. It uses the default
-        factory function to generate the default value for the key. It sets the default value
-        for the key with the __setitem__ method. It returns the default value.
+    This code creates a dictionary that can have a default value for
+    keys that are not yet in the dictionary. It creates a dictionary that inherits
+    from the built-in dictionary class. It overrides the __missing__ method to
+    return a default value if the key is not in the dictionary. It uses a private
+    variable, _factory, that is set to the default factory function. It uses the default
+    factory function to generate the default value for the key. It sets the default value
+    for the key with the __setitem__ method. It returns the default value.
     """
 
     def __init__(self, default_factory, *args, **kwargs):
@@ -26,29 +26,28 @@ class DefaultDict(dict):
 
     def __missing__(self, k):
         v = self._factory(k)
-        self.__setitem__(k,  v)
+        self.__setitem__(k, v)
         return v
 
 
 _T = typing.TypeVar("_T")
 
 
-def update_tree(target: _T, key: str | int | list, *args,  **kwargs) -> _T:
-
+def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
     pth = None
 
     if not key and key != 0:
         pass
     elif isinstance(key, str):
-        pth = key.split('/')
+        pth = key.split("/")
     elif not isinstance(key, list) and key is not None:
         pth = [key]
     elif len(key) > 0:
         pth = key
 
     if pth is None:
-        if target.__class__.__name__ == "HTree":
-            target.update(*args, **kwargs)
+        if hasattr(target, "_cache"): # is HTree
+            update_tree(target._cache, None, *args, **kwargs)
 
         elif len(args) > 0:
             src = args[0]
@@ -90,20 +89,20 @@ def update_tree(target: _T, key: str | int | list, *args,  **kwargs) -> _T:
 
             # if isinstance(target, collections.abc.MutableMapping):
             if hasattr(target.__class__, key):
-                 update_tree(getattr(target,key), pth[1:], *args, **kwargs)
+                update_tree(getattr(target, key), pth[1:], *args, **kwargs)
             else:
                 target[key] = update_tree(target.get(key, _not_found_), pth[1:], *args, **kwargs)
 
             #     raise RuntimeError(f"Can not update {target} with {key}!")
         else:  # if isinstance(key, int):
             if target is _not_found_ or target is None:
-                target = [None]*(key+1)
+                target = [None] * (key + 1)
             elif isinstance(target, collections.abc.Sequence):
                 if key > len(target):
-                    target = [*target]+[None]*(key-len(target)+1)
+                    target = [*target] + [None] * (key - len(target) + 1)
             # else:
             #     raise TypeError(f"{type(target)} {type(key)}")
-            target[key] = update_tree(target[key],  pth[1:], *args, **kwargs)
+            target[key] = update_tree(target[key], pth[1:], *args, **kwargs)
 
         # else:
         #     raise NotImplementedError(f"{type(key)}")
@@ -118,6 +117,7 @@ def merge_tree(target: _T, *args, **kwargs) -> _T:
 
 def merge_tree_recursive(*args, **kwargs):
     return merge_tree(*args, **kwargs)
+
 
 # def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
 #     """ 递归合并两个 Hierarchical Tree """
@@ -156,7 +156,7 @@ class DictTemplate:
         self._template = tmpl
 
     def __missing__(self, key):
-        return '{'+key+'}'
+        return "{" + key + "}"
 
     def __getitem__(self, key):
         try:
@@ -169,7 +169,7 @@ class DictTemplate:
     def get(self, key, default_value=None):
         try:
             if isinstance(key, str):
-                res = _recursive_get(self._template, key.split('.'))
+                res = _recursive_get(self._template, key.split("."))
             else:
                 res = self._template[key]
         except (KeyError, IndexError):
@@ -183,7 +183,7 @@ class DictTemplate:
 def format_string_recursive(obj, mapping=None):
     class DefaultDict(dict):
         def __missing__(self, key):
-            return '{'+key+'}'
+            return "{" + key + "}"
 
     d = DefaultDict(mapping)
     res, _ = tree_apply_recursive(obj, lambda s, _envs=d: s.format_map(d), str)
@@ -208,7 +208,7 @@ def normalize_data(data):
     if isinstance(data, primary_type):
         return data
     elif isinstance(data, collections.abc.Mapping):
-        return {k:  normalize_data(v) for k, v in data.items()}
+        return {k: normalize_data(v) for k, v in data.items()}
     elif isinstance(data, collections.abc.Sequence):
         return [normalize_data(v) for v in data]
     elif isinstance(data, collections.abc.Iterable):
@@ -273,7 +273,7 @@ def tree_apply_recursive(obj, op, types=None):
 # 下列function皆已经“废弃”，主要功能已经合并进 Path 和 HTree 两个类
 
 
-@ deprecated
+@deprecated
 def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, force=False) -> dict | list:
     if not in_place:
         first = deepcopy(first)
@@ -289,7 +289,7 @@ def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, 
         for k, v in second.items():
             d = first.get(k, None)
             if isinstance(d, collections.abc.Mapping):
-                deep_merge_dict(d, v, level-1)
+                deep_merge_dict(d, v, level - 1)
             elif d is None:  # or not isinstance(v, collections.abc.Mapping):
                 first[k] = v
     elif second is None:
@@ -300,7 +300,7 @@ def deep_merge_dict(first: dict | list, second: dict, level=-1, in_place=False, 
     return first
 
 
-@ deprecated
+@deprecated
 def reduce_dict(d, **kwargs) -> typing.Dict:
     res = {}
     for v in d:
@@ -312,7 +312,7 @@ def _recursive_get(obj, k):
     return obj if len(k) == 0 else _recursive_get(obj[k[0]], k[1:])
 
 
-@ deprecated
+@deprecated
 def get_value_by_path(data, path, default_value=None):
     # 将路径按 '/' 分割成列表
     if isinstance(path, str):
@@ -348,7 +348,7 @@ def get_value_by_path(data, path, default_value=None):
     return current_value
 
 
-@ deprecated
+@deprecated
 def set_value_by_path(data, path, value):
     # 将路径按 '/' 分割成列表
     segments = path.split("/")
@@ -397,41 +397,43 @@ def set_value_by_path(data, path, value):
     return True
 
 
-@ deprecated
+@deprecated
 def get_value(*args, **kwargs) -> typing.Any:
     return get_value_by_path(*args, **kwargs)
 
 
-@ deprecated
-def get_many_value(d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None) -> collections.abc.Mapping:
+@deprecated
+def get_many_value(
+    d: collections.abc.Mapping, name_list: collections.abc.Sequence, default_value=None
+) -> collections.abc.Mapping:
     return {k: get_value(d, k, get_value(default_value, idx)) for idx, k in enumerate(name_list)}
 
 
-@ deprecated
+@deprecated
 def set_value(*args, **kwargs) -> bool:
     return set_value_by_path(*args, **kwargs)
 
 
-@ deprecated
+@deprecated
 def try_get(obj, path: str, default_value=_undefined_):
     if obj is None or obj is _not_found_:
         return default_value
-    elif path is None or path == '':
+    elif path is None or path == "":
         return obj
 
     start = 0
     path = path.strip(".")
     s_len = len(path)
     while start >= 0 and start < s_len:
-        pos = path.find('.', start)
+        pos = path.find(".", start)
         if pos < 0:
             pos = s_len
-        next_obj = getattr(obj, path[start: pos], _not_found_)
+        next_obj = getattr(obj, path[start:pos], _not_found_)
 
         if next_obj is not _not_found_:
             obj = next_obj
         elif isinstance(obj, collections.abc.Mapping):
-            next_obj = obj.get(path[start: pos], _not_found_)
+            next_obj = obj.get(path[start:pos], _not_found_)
             if next_obj is not _not_found_:
                 obj = next_obj
             else:
@@ -439,7 +441,7 @@ def try_get(obj, path: str, default_value=_undefined_):
         else:
             break
 
-        start = pos+1
+        start = pos + 1
     if start > s_len:
         return obj
     elif default_value is _undefined_:
@@ -448,32 +450,32 @@ def try_get(obj, path: str, default_value=_undefined_):
         return default_value
 
 
-@ deprecated
+@deprecated
 def try_getattr_r(obj, path: str):
-    if path is None or path == '':
-        return obj, ''
+    if path is None or path == "":
+        return obj, ""
     start = 0
     path = path.strip(".")
     s_len = len(path)
     while start >= 0 and start < s_len:
-        pos = path.find('.', start)
+        pos = path.find(".", start)
         if pos < 0:
             pos = s_len
         if not hasattr(obj, path[start:pos]):
             break
-        obj = getattr(obj, path[start: pos])
-        start = pos+1
+        obj = getattr(obj, path[start:pos])
+        start = pos + 1
     return obj, path[start:]
 
 
-@ deprecated
+@deprecated
 def getattr_r(obj, path: str):
     # o, p = try_getattr_r(obj, path)
 
     # if p != '':
     #     raise KeyError(f"Can for find path {path}")
     if type(path) is str:
-        path = path.split('.')
+        path = path.split(".")
 
     o = obj
     for p in path:
@@ -484,7 +486,7 @@ def getattr_r(obj, path: str):
     return o
 
 
-@ deprecated
+@deprecated
 def getitem(obj, key=None, default_value=None):
     if key is None:
         return obj
@@ -496,7 +498,7 @@ def getitem(obj, key=None, default_value=None):
         return default_value
 
 
-@ deprecated
+@deprecated
 def setitem(obj, key, value):
     if hasattr(obj, "__setitem__"):
         return obj.__setitem__(key, value)
@@ -504,7 +506,7 @@ def setitem(obj, key, value):
         raise KeyError(f"Can not setitem {key}")
 
 
-@ deprecated
+@deprecated
 def iteritems(obj):
     if obj is None:
         return []

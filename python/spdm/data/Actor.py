@@ -30,10 +30,12 @@ class Actor(SpTree, Pluggable):
         self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
 
     @property
-    def tag(self) -> str: return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
+    def tag(self) -> str:
+        return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
 
     @property
-    def MPI(self): return SP_MPI
+    def MPI(self):
+        return SP_MPI
 
     def _repr_svg_(self) -> str:
         try:
@@ -43,7 +45,7 @@ class Actor(SpTree, Pluggable):
             res = None
         return res
 
-    def __geometry__(self,  *args,  **kwargs):
+    def __geometry__(self, *args, **kwargs):
         return {}, {}
 
     @contextlib.contextmanager
@@ -69,7 +71,7 @@ class Actor(SpTree, Pluggable):
         except Exception as e:
             error = e
 
-        if (error is not None and temp_dir is not None):
+        if error is not None and temp_dir is not None:
             shutil.copytree(temp_dir.name, f"{self.output_dir}/{self.tag}{suffix}", dirs_exist_ok=True)
         elif temp_dir is not None:
             temp_dir.cleanup()
@@ -79,31 +81,44 @@ class Actor(SpTree, Pluggable):
 
         if error is not None:
             raise RuntimeError(
-                f"Failed to execute actor {self.tag}! see log in {self.output_dir}/{self.tag}") from error
+                f"Failed to execute actor {self.tag}! see log in {self.output_dir}/{self.tag}"
+            ) from error
 
     @property
     def output_dir(self) -> str:
-        return self.get("output_dir", None) or os.getenv("SP_OUTPUT_DIR", None) or f"{os.getcwd()}/{SP_LABEL.lower()}_output"
+        return (
+            self.get("output_dir", None)
+            or os.getenv("SP_OUTPUT_DIR", None)
+            or f"{os.getcwd()}/{SP_LABEL.lower()}_output"
+        )
 
     @property
-    def uid(self) -> int: return self._uid
+    def uid(self) -> int:
+        return self._uid
 
     def __hash__(self) -> int:
-        """ 
-            hash 值代表 Actor 状态 stats 
-            Actor 状态由所有依赖 dependence 的状态决定
-            time 时第一个 dependence
+        """
+        hash 值代表 Actor 状态 stats
+        Actor 状态由所有依赖 dependence 的状态决定
+        time 时第一个 dependence
         """
         iteration = self.time_slice.current.iteration if self.time_slice.is_initializied else 0
-        return hash(":".join([str(self.uid), str(iteration), str(self.status)]
-                             + [str(hash(v)) for v in self._dependences.values()]))
+        return hash(
+            ":".join(
+                [str(self.uid), str(iteration), str(self.status)] + [str(hash(v)) for v in self._dependences.values()]
+            )
+        )
 
     @property
-    def time(self) -> float | None: return self._dependences.get("time", 0.0)
+    def time(self) -> float | None:
+        return self._dependences.get("time", 0.0)
+
     """ 时间戳，代表 Actor 所处时间，用以同步"""
 
     @property
-    def status(self) -> int: return self._dependences.get("status", 0)
+    def status(self) -> int:
+        return self._dependences.get("status", 0)
+
     """ 执行状态， 用于异步调用
         0: success 任务完成
         1: working 任务执行中
@@ -111,13 +126,14 @@ class Actor(SpTree, Pluggable):
     """
 
     @property
-    def dependences(self) -> typing.List[Actor]: return self._dependences
+    def dependences(self) -> typing.List[Actor]:
+        return self._dependences
 
     time_slice: TimeSeriesAoS[TimeSlice] = sp_property()
 
     def initialize(self, *args, **kwargs) -> None:
-        """ 初始化 Actor，
-            kwargs中不应包含 Actor 对象作为 input
+        """初始化 Actor，
+        kwargs中不应包含 Actor 对象作为 input
         """
 
         if self.time_slice.is_initializied:
@@ -127,13 +143,12 @@ class Actor(SpTree, Pluggable):
 
         self._dependences = {"time": self.time_slice.current.time}
 
-    def refresh(self, *args,  **inputs):
+    def refresh(self, *args, **inputs):
         """
-            inputs : 输入， Actor 的状态依赖其输入
+        inputs : 输入， Actor 的状态依赖其输入
         """
         if not self.time_slice.is_initializied:
-            init_kwargs = {k: inputs.pop(k)
-                           for k in list(inputs.keys()) if not isinstance(inputs[k], Actor)}
+            init_kwargs = {k: inputs.pop(k) for k in list(inputs.keys()) if not isinstance(inputs[k], Actor)}
             self.initialize(*args, **init_kwargs)
             args = []
 
@@ -146,15 +161,14 @@ class Actor(SpTree, Pluggable):
         self._dependences.update(inputs)
         self._dependences["status"] = 0
 
-        if old_hash == self.__hash__():  # 如果状态未变，do nothing
-            pass
-        elif np.isclose(old_time, self.time):
-            self.time_slice.current.refresh(*args, **self._dependences)
-        else:
-            logger.error(f"TODO: !!! NOT COMPLETE !!!")
+        if not np.isclose(old_time, self.time):
+            logger.error(f"TODO: Time changed !!! NOT COMPLETE !!!")
+
+        self.time_slice.current.refresh(*args, **self._dependences)
+
         # elif self.time > old_time:
-            # self.time_slice.advance(*args, time=self.time)
-            # args = []
+        # self.time_slice.advance(*args, time=self.time)
+        # args = []
         # else:
         #     raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
 
