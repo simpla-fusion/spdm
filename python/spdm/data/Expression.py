@@ -127,7 +127,7 @@ class Expression:
         return f"<{self.__class__.__name__} label='{self.__label__}' />"
 
     def _repr_latex_(self) -> str:
-        return self.__repr__()
+        return f"${self.__repr__()}$"
 
     """ for jupyter notebook display """
 
@@ -184,7 +184,7 @@ class Expression:
             case _:
                 res = f"{op}({','.join([Expression._repr_s(child) for child in self._children])})"
 
-        return f"${res}$"
+        return res
 
     @property
     def dtype(self):

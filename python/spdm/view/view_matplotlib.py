@@ -348,7 +348,7 @@ class MatplotlibView(View):
         if isinstance(obj, Function) and x_value is None:
             x_value = obj.dims[0]
             y_value = obj.__array__()
-            label = label or obj.__label__
+            label = label or obj._repr_latex_() or obj.__label__
             data = [x_value, y_value]
 
         elif isinstance(obj, Expression):
