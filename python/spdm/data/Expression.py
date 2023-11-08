@@ -338,8 +338,8 @@ class Expression:
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
-    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else self
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (isinstance(o,(float,int)) and o ==0) else self
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not ((isinstance(o,(float,int)) and o ==0) or o is _not_found_) else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not ((isinstance(o,(float,int)) and o ==0) or o is _not_found_) else self
     def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (np.nan if o==0 else self)
