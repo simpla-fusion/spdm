@@ -46,7 +46,7 @@ def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
         pth = key
 
     if pth is None:
-        if hasattr(target, "_cache"): # is HTree
+        if hasattr(target, "_cache"):  # is HTree
             update_tree(target._cache, None, *args, **kwargs)
 
         elif len(args) > 0:
@@ -117,6 +117,15 @@ def merge_tree(target: _T, *args, **kwargs) -> _T:
 
 def merge_tree_recursive(*args, **kwargs):
     return merge_tree(*args, **kwargs)
+
+
+def traversal_tree(d: typing.Any, func: typing.Callable[..., typing.Any]) -> typing.Any:
+    if isinstance(d, dict):
+        return {k: traversal_tree(v, func) for k, v in d.items()}
+    elif isinstance(d, list):
+        return [traversal_tree(v, func) for idx, v in enumerate(d)]
+    else:
+        return func(d)
 
 
 # def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:

@@ -5,17 +5,18 @@ import shutil
 import pathlib
 import os
 import typing
-import getpass
 import numpy as np
 import uuid
-import hashlib
 import contextlib
 from ..view import View as sp_view
+from .Expression import Expression
+from .TimeSeries import TimeSeriesAoS, TimeSlice
+from .sp_property import SpTree, sp_property
+
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
-from .sp_property import SpTree, sp_property
-from .TimeSeries import TimeSeriesAoS, TimeSlice
+from ..utils.tree_utils import traversal_tree
 
 
 class Actor(SpTree, Pluggable):
@@ -131,7 +132,7 @@ class Actor(SpTree, Pluggable):
 
     time_slice: TimeSeriesAoS[TimeSlice] = sp_property()
 
-    def initialize(self, *args, **kwargs) -> None:
+    def initialize(self, *args, **kwargs) -> typing.Type[Actor]:
         """初始化 Actor，
         kwargs中不应包含 Actor 对象作为 input
         """
@@ -143,7 +144,9 @@ class Actor(SpTree, Pluggable):
 
         self._dependences = {"time": self.time_slice.current.time}
 
-    def refresh(self, *args, **inputs):
+        return self
+
+    def refresh(self, *args, **inputs) -> typing.Type[Actor]:
         """
         inputs : 输入， Actor 的状态依赖其输入
         """
@@ -171,7 +174,20 @@ class Actor(SpTree, Pluggable):
         # args = []
         # else:
         #     raise RuntimeError(f" Can not go back to time! {self.time} < { old_time }")
+        return self
 
-    def advance(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+    def advance(self, *args, **kwargs) -> typing.Type[Actor]:
         self.time_slice.advance(*args, **kwargs)
-        return self.refresh(*args, **kwargs)
+        self.refresh(*args, **kwargs)
+        return self
+
+    def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+        """
+        获取 Actor 的输出
+        """
+
+        return self.__class__.TimeSlice(
+            traversal_tree(
+                self.time_slice.current._cache, lambda f: f(*args, **kwargs) if isinstance(f, Expression) else f
+            )
+        )
