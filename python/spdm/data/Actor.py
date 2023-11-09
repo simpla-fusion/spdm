@@ -159,7 +159,7 @@ class Actor(SpTree, Pluggable):
             raise NotImplementedError(f"Async job has not finished! ")
 
         old_time = self.time
-        old_hash = self.__hash__()
+        # old_hash = self.__hash__()
 
         self._dependences.update(inputs)
         self._dependences["status"] = 0
@@ -181,17 +181,16 @@ class Actor(SpTree, Pluggable):
         self.refresh(*args, **kwargs)
         return self
 
-    def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+    def fetch(self, idx=0,*args, **kwargs) -> typing.Type[TimeSlice]:
         """
         获取 Actor 的输出
         """
+        # def copy_func(obj, *_args, **_kwargs):
+        #     if isinstance(obj, Expression):
+        #         obj = obj(*_args, **_kwargs)
+        #     elif isinstance(obj, SpTree):
+        #         obj = obj.copy_duplicate(copy_func, *_args, **_kwargs)
+        #     return obj
+        # .copy_duplicate(copy_func, *args, **kwargs)
 
-        def copy_func(obj, *_args, **_kwargs):
-            if isinstance(obj, Expression):
-                obj = obj(*_args, **_kwargs)
-            elif isinstance(obj, SpTree):
-                obj = obj.copy_duplicate(copy_func, *_args, **_kwargs)
-
-            return obj
-
-        return self.time_slice.current.copy_duplicate(copy_func, *args, **kwargs)
+        return self.time_slice.get(idx)

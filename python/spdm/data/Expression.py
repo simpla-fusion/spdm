@@ -57,12 +57,19 @@ class Expression:
         if self.__class__ is Expression and expr.__class__ is Expression:
             self.__copy_from__(expr)
             update_tree(self._metadata, None, kwargs)
+
         elif expr is None or callable(expr):
             self._func = expr
             self._children = children
             self._metadata = kwargs
+
+        elif isinstance(expr, (int, float, np.ndarray)):
+            from .Function import Function
+
+            self.__class__ = Function
+            Function.__init__(self, expr, *children, **kwargs)
         else:
-            raise NotImplementedError(f"{expr}")
+            raise NotImplementedError(f"{expr} {children}")
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
