@@ -571,4 +571,6 @@ class Piecewise(Expression):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
         else:
-            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
+            return super().__call__(x, *args, **kwargs)
+
+            # raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")

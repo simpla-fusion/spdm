@@ -215,16 +215,15 @@ class HTree:
         pos = -1
 
         for idx, p in enumerate(path[:-1]):
+            pos = idx
             if p in [Path.tags.ancestors, Path.tags.descendants]:
-                pos = idx
                 break
+            elif p is Path.tags.parent:
+                tmp = getattr(obj, "_parent", _not_found_)
             elif isinstance(p, str) and hasattr(obj.__class__, p):
                 tmp = getattr(obj, p)
-                pos=idx
             elif isinstance(obj, HTree):
                 tmp = obj._get(p, default_value=_not_found_, force=True)
-                pos = idx
-
             else:
                 tmp = Path(path[idx:]).fetch(obj, default_value=_not_found_)
                 pos = len(path)
@@ -235,7 +234,9 @@ class HTree:
             else:
                 obj = tmp
 
-        if path[pos] is Path.tags.ancestors:
+        if pos >= len(path):
+            pass
+        elif path[pos] is Path.tags.ancestors:
             s_pth = path[pos + 1 :]
             while obj is not None and obj is not _not_found_:
                 if isinstance(obj, HTree):
@@ -251,7 +252,7 @@ class HTree:
             raise NotImplementedError(f"get(descendants) not implemented!")
         elif isinstance(obj, HTree) and pos == length - 2:
             obj = obj._get(path[-1], *args, default_value=default_value, force=force, **kwargs)
-        else : 
+        else:
             # logger.debug(f"Can not find {path} {pos} in {obj}")
             obj = _not_found_
 

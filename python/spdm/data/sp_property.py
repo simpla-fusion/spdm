@@ -51,6 +51,7 @@ from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from .Entry import Entry
 from .Function import Function
+from .Expression import Expression
 from .HTree import HTree, Dict
 from ..utils.tree_utils import merge_tree_recursive
 
@@ -101,13 +102,20 @@ class SpTree(Dict):
         else:
             return entry
 
-    def copy_duplicate(
-        self, copy_func: typing.Callable[[typing.Any], typing.Any], *args, **kwargs
-    ) -> typing.Type[SpTree]:
-        cache = {
-            k: copy_func(getattr(self, k), *args, **kwargs)
-            for k, _ in inspect.getmembers(self.__class__, is_sp_property)
-        }
+    def clone(self, *args, **kwargs) -> typing.Type[SpTree]:
+        cache = {}
+        for k, _ in inspect.getmembers(self.__class__, is_sp_property):
+            try:
+                obj = getattr(self, k, _not_found_)
+            except Exception as error:
+                obj = _not_found_
+                
+            if isinstance(obj, SpTree):
+                cache[k] = obj.clone(*args, **kwargs)
+            elif isinstance(obj, Expression):
+                cache[k] = obj(*args, **kwargs)
+            else:
+                cache[k] = obj
         return self.__class__(cache)
 
 

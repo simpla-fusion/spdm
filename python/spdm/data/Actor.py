@@ -181,16 +181,12 @@ class Actor(SpTree, Pluggable):
         self.refresh(*args, **kwargs)
         return self
 
-    def fetch(self, idx=0,*args, **kwargs) -> typing.Type[TimeSlice]:
+    def fetch(self, idx=0, *args, **kwargs) -> typing.Type[TimeSlice]:
         """
         获取 Actor 的输出
         """
-        # def copy_func(obj, *_args, **_kwargs):
-        #     if isinstance(obj, Expression):
-        #         obj = obj(*_args, **_kwargs)
-        #     elif isinstance(obj, SpTree):
-        #         obj = obj.copy_duplicate(copy_func, *_args, **_kwargs)
-        #     return obj
-        # .copy_duplicate(copy_func, *args, **kwargs)
-
-        return self.time_slice.get(idx)
+        d = self.time_slice.get(idx)
+        if len(args) + len(kwargs) > 0:
+            return d.clone(*args, **kwargs)
+        else:
+            return d
