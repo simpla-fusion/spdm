@@ -215,29 +215,8 @@ class Expression:
 
     """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
 
-    def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
-        """
-        重载函数调用运算符，用于计算表达式的值
-
-        TODO:
-        - support JIT compilation
-        - support broadcasting?
-        - support multiple meshes?
-
-        Parameters
-        ----------
-        xargs : NumericType
-            自变量/坐标，可以是标量，也可以是数组
-        kwargs : typing.Any
-            命名参数，用于传递给运算符的参数
-        """
-
-        if len(xargs) == 0:
-            return self
-        elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
-            return Expression(self, *xargs, **self._metadata)
-
-        # 根据 __domain__ 函数的返回值，对输入坐标进行筛选
+    def check_domain(self, *xargs):
+        """根据 __domain__ 函数的返回值，对输入坐标进行筛选"""
 
         mark = self.__domain__(*xargs)
 
@@ -260,6 +239,33 @@ class Expression:
                     for arg in xargs
                 ]
             )
+        else:
+            mark = None
+        return xargs, mark
+
+    def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
+        """
+        重载函数调用运算符，用于计算表达式的值
+
+        TODO:
+        - support JIT compilation
+        - support broadcasting?
+        - support multiple meshes?
+
+        Parameters
+        ----------
+        xargs : NumericType
+            自变量/坐标，可以是标量，也可以是数组
+        kwargs : typing.Any
+            命名参数，用于传递给运算符的参数
+        """
+
+        if len(xargs) == 0:
+            return self
+        elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
+            return Expression(self, *xargs, **self._metadata)
+
+        # xargs, mark = self.check_domain(*xargs)
 
         func = self.__functor__()
 
@@ -295,22 +301,19 @@ class Expression:
         else:
             raise RuntimeError(f"Unknown functor {func} {type(func)}")
 
-        if marked_num == mark_size:
-            if not isinstance(mark, array_type):
-                res = value
-            elif is_scalar(value):
-                res = np.full_like(mark, value, dtype=self._type_hint())
-            elif isinstance(value, array_type) and value.shape == mark.shape:
-                res = value
-            elif value is None:
-                res = None
-            else:
-                raise RuntimeError(f"Incorrect reuslt {self}! {value}")
-        else:
-            res = np.full_like(mark, self.fill_value, dtype=self._type_hint())
-            res[mark] = value
+        # if mark is None:
+        #     res = value
+        # elif is_scalar(value):
+        #     res = np.full_like(mark, value, dtype=self._type_hint())
+        # elif isinstance(value, array_type) and value.shape == mark.shape:
+        #     res = value
+        # elif value is None:
+        #     res = None
+        # else:
+        #     res = np.full_like(mark, self.fill_value, dtype=self._type_hint())
+        #     res[mark] = value
 
-        return res
+        return value
 
     @property
     def d(self) -> Expression:

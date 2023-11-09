@@ -186,8 +186,12 @@ class Actor(SpTree, Pluggable):
         获取 Actor 的输出
         """
 
-        return self.__class__.TimeSlice(
-            traversal_tree(
-                self.time_slice.current._cache, lambda f: f(*args, **kwargs) if isinstance(f, Expression) else f
-            )
-        )
+        def copy_func(obj, *_args, **_kwargs):
+            if isinstance(obj, Expression):
+                obj = obj(*_args, **_kwargs)
+            elif isinstance(obj, SpTree):
+                obj = obj.copy_duplicate(copy_func, *_args, **_kwargs)
+
+            return obj
+
+        return self.time_slice.current.copy_duplicate(copy_func, *args, **kwargs)
