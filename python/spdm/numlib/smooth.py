@@ -64,7 +64,7 @@ def smooth(x, window_len=11, window="hanning"):
     return y
 
 
-def smooth_1d(y, x, i_begin=0, i_end=None, **kwargs):
+def smooth_1d(x, y, i_begin=0, i_end=None, **kwargs):
     dy = interpolate(x, y).derivative()(x)
     dy[i_begin:i_end] = smooth(dy[i_begin:i_end], **kwargs)
     y_new = interpolate(x, dy).antiderivative()(x) + y[0]

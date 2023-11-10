@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing
 from copy import copy, deepcopy
 import functools
+import collections.abc
 import numpy as np
 import numpy.typing as np_tp
 from .Functor import Functor
@@ -13,15 +14,28 @@ from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
 from ..utils.tree_utils import update_tree, merge_tree
 from ..utils.logger import logger
+from ..numlib.interpolate import interpolate
 
 
-class DomainBase(SpTree):
+class DomainBase:
     """函数定义域"""
 
-    fill_value = float_nan
+    _metadata = {"fill_value": float_nan}
 
-    def __init__(self, d=None, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        if len(args) > 0 and isinstance(args[0], dict):
+            kwargs = merge_tree(args[0], kwargs)
+            args = args[1:]
+
+        if len(args) == 0:
+            pass
+        elif "dims" in kwargs:
+            raise RuntimeError(f"Redefine dims")
+        elif len(args) > 1:
+            kwargs["dims"] = args
+        elif args[0] is not None:
+            kwargs["dims"] = args[0]
+
         # if len(self.periods) > 0:
         #     dims = [as_array(v) for v in dims]
         #     periods = self.periods
@@ -34,7 +48,9 @@ class DomainBase(SpTree):
         #             raise RuntimeError(
         #                 f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}"
         #             )
-        self._dims = d
+        self._dims = kwargs.pop("dims", [])
+        if len(kwargs) > 0:
+            self._metadata = merge_tree(self.__class__._metadata, kwargs)
 
     @property
     def is_simple(self) -> bool:
@@ -43,8 +59,8 @@ class DomainBase(SpTree):
     @property
     def dims(self) -> typing.Tuple[ArrayType]:
         """函数的网格，即定义域的网格"""
-        if self._dims is None:
-            raise RuntimeError(f"dims is not dedined")
+        if self._dims is None or len(self._dims) == 0:
+            raise RuntimeError(f"dims is not defined")
         return self._dims
 
     @property
@@ -57,9 +73,7 @@ class DomainBase(SpTree):
 
     @functools.cached_property
     def points(self) -> typing.Tuple[ArrayType]:
-        if len(self.dims) == 0:
-            raise RuntimeError(self.dims)
-        elif len(self.dims) == 1:
+        if len(self.dims) == 1:
             return self.dims
         else:
             return meshgrid(*self.dims, indexing="ij")
@@ -184,7 +198,7 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
     if len(coords) == 0:
         return guess_coords(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
     else:
-        return coords
+        return tuple(coords)
 
 
 class Expression:
@@ -240,9 +254,13 @@ class Expression:
             from .Function import Function
 
             self.__class__ = Function
-            Function.__init__(self, expr, *children, **kwargs)
+            Function.__init__(self, expr, *children, domain=domain, **kwargs)
             return
 
+        elif isinstance(expr, (int, float)):
+            self.__class__ = ConstantExpr
+            ConstantExpr.__init__(self, expr, *children, domain=domain, **kwargs)
+            return
         else:
             # dims = self.dims
 
@@ -274,6 +292,8 @@ class Expression:
             # return self._func
             raise NotImplementedError(f"{expr} {children}")
 
+        if isinstance(domain, collections.abc.Sequence) and len(domain) == 0:
+            domain = _not_found_
         self._domain = domain
         self._parent = kwargs.pop("_parent", None)
         self._metadata = merge_tree(getattr(self.__class__, "_metadata", {}), kwargs)
@@ -324,13 +344,21 @@ class Expression:
     @property
     def domain(self) -> Domain:
         """返回表达式的定义域"""
-
-        if self._domain is _not_found_:
-            self._domain = {"dims": guess_coords(self)}
-
         if not isinstance(self._domain, DomainBase):
-            self._domain = self.__class__.Domain(self._domain)
+            if self._domain is None or self._domain is _not_found_:
+                self._domain = guess_coords(self)
 
+            if self._domain is not None:
+                self._domain = self.__class__.Domain(self._domain)
+
+        if self._domain is None:
+            for child in self._children:
+                d = getattr(child, "domain", _not_found_)
+                if d is not _not_found_ and d is not None:
+                    self._domain = d
+                    break
+        # if self._domain is None:
+        #     raise RuntimeError(f"Can not get domain! {self} ")
         return self._domain
 
     @property
@@ -494,13 +522,13 @@ class Expression:
         if len(d) == 0:
             d = [1]
         if len(d) > 1:
-            return PartialDerivative(self, d, **kwargs)
+            return PartialDerivative(self, *d, domain=self.domain, _parent=self._parent, **kwargs)
         elif d[0] == 0:
             return self
         elif d[0] > 0:
-            return Derivative(self, d[0], **kwargs)
+            return Derivative(self, d[0], domain=self.domain, _parent=self._parent, **kwargs)
         elif d[0] < 0:
-            return Antiderivative(self, -d[0], **kwargs)
+            return Antiderivative(self, -d[0], domain=self.domain, _parent=self._parent, **kwargs)
 
     def pd(self, *d, **kwargs) -> Expression:
         return self.derivative(*d, **kwargs)
@@ -508,7 +536,7 @@ class Expression:
     @property
     def d(self) -> Expression:
         """1st derivative 一阶导数"""
-        return Derivative(self, 1)
+        return self.derivative(1)
 
     @property
     def d2(self) -> Expression:
@@ -663,6 +691,15 @@ class Variable(Expression):
         return self.__label__
 
 
+class ConstantExpr(Expression):
+    def __init__(self, value, *args, **kwargs) -> None:
+        super().__init__(None, *args, **kwargs)
+        self._value = value
+
+    def __value__(self):
+        return self._value
+
+
 class Derivative(Expression):
     """
     算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
@@ -671,77 +708,67 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, func, order=1, label=None, **kwargs):
-        if label is None:
-            label = getattr(func, "__label__", "unamed")
-            label = f"d{label}"
-        super().__init__(None, func, label=label, **kwargs)
+    def __init__(self, expr, *order, **kwargs):
+        super().__init__(None, **kwargs)
+        self._expr = expr
         self._order = order
 
     @property
     def order(self) -> int | None:
         return self._order
 
-    def __call__(self, *args, **kwargs):
-        if len(args) == 0:
-            return self
+    def __functor__(self):
+        if self._func is None:
+            x = self.domain.points
 
-        from .Function import Function
+            func = self._children[0]
 
-        x = args[0]
+            if hasattr(func, "derivative"):
+                self._func = func.derivative(self.order)
+            elif is_scalar(func):
+                self._func = 0
+            elif is_array(func):
+                func = Function(func, x)
+                return func.derivative(self.order)(x)
+            else:
+                raise TypeError(type(func))
 
-        func = self._children[0]
+            self._func = func
 
-        if callable(func):
-            func = func(x, *args)
-
-        if isinstance(func, Function):
-            return func.derivative(self.order)(x)
-        elif is_scalar(func):
-            return np.full_like(x, 0)
-        elif is_array(func):
-            func = Function(func, x)
-            return func.derivative(self.order)(x)
-        else:
-            raise TypeError(type(func))
+        return self._func
 
     def __repr__(self) -> str:
-        return f"d{Expression._repr_s(self._children[0])}"
+        return f"d({Expression._repr_s(self._children[0])})"
 
 
 class LogDerivative(Derivative):
     def __repr__(self) -> str:
-        return f"d \\ln {Expression._repr_s(self._children[0])}"
+        return f"d \\ln {Expression._repr_s(self._expr)}"
+
+    def __functor__(self):
+        return self._expr.derivative(self._order) / self._expr
 
 
 class PartialDerivative(Derivative):
-    def __init__(self, expr: Expression, *args, **kwargs) -> None:
-        super().__init__(None, **kwargs)
-        self._expr = expr
-        self._order = args
+    def __repr__(self) -> str:
+        return f"d_{{{self._order}}} ({Expression._repr_s(self._expr)})"
 
-    def __call__(self, *args, **kwargs):
-        return super().__call__(*args, **kwargs)
+    def __functor__(self):
+        return self._expr.derivative(self._order) / self._expr
 
 
 class Antiderivative(Derivative):
-    def __init__(self, expr: Expression, *args, **kwargs) -> None:
-        super().__init__(None, **kwargs)
-
-        self._expr = expr
-        self._order = args
-
     def _repr_latex_(self) -> str:
         if len(self._order) > 0:
-            return f"I{list(self._order)}({self._expr})"
+            return f"\int_{{{list(self._order)}}}({self._expr})"
         else:
             return f"I({self._expr})"
 
-    def __call__(self, *args, **kwargs):
-        if self._op is None:
-            value = self._expr(*args)
-            self._op = interpolate(value, *args, **kwargs).antiderivative(*self._order)
-        return super().__call__(*args, **kwargs)
+    def __functor__(self) -> Functor:
+        if self._func is None:
+            value = self._expr(*self.domain.points)
+            self._func = interpolate(*self.domain.points, value).antiderivative(*self._order)
+        return self._func
 
 
 class Piecewise(Expression):

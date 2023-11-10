@@ -14,7 +14,7 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.plugin import Pluggable
 from ..utils.tree_utils import merge_tree
-from ..utils.typing import ArrayType, NumericType, ScalarType
+from ..utils.typing import ArrayType, NumericType, ScalarType, as_array
 from ..utils.tags import _not_found_
 
 
@@ -43,24 +43,37 @@ class Mesh(DomainBase, Pluggable):
 
             mesh_type = kwargs.pop("type", None)
 
-            if isinstance(mesh_type, Enum) and mesh_type is not _not_found_:
+            if mesh_type is not _not_found_ or mesh_type is None or not mesh_type:
+                pass
+            elif isinstance(mesh_type, Enum):
                 mesh_type = mesh_type.name
 
-            if mesh_type is None or mesh_type is _not_found_:
-                if len(args) == 0:
-                    args = kwargs.pop("dims", [])
+            if len(args) == 0:
+                dims, kwargs = group_dict_by_prefix(kwargs, prefixes="dim", sep=None)
+                if dims is None:
+                    pass
+                elif len(dims) == 1 and "s" in dims:
+                    dims = dims["s"]
+                else:
+                    dims = {int(k): v for k, v in dims.items() if k.isdigit()}
+                    dims = dict(sorted(dims.items(), key=lambda x: x[0]))
+                    dims = tuple([as_array(d) for d in dims.values()])
+            else:
+                dims = args
 
-                ndim = len(args)
+            if mesh_type is None or mesh_type is _not_found_ and dims is not None:
+                ndim = len(dims)
 
-                if all([isinstance(d, np.ndarray) for d in args]):
-                    if all([d.ndim == 1 for d in args]):
+                if all([isinstance(d, np.ndarray) for d in dims]):
+                    if all([d.ndim == 1 for d in dims]):
                         mesh_type = "rectilinear"
-                    elif all([d.ndim == ndim for d in args]):
+                    elif all([d.ndim == ndim for d in dims]):
                         mesh_type = "rectangular"
                     else:
-                        raise RuntimeError(f"illegal dims {args}")
+                        raise RuntimeError(f"illegal dims {dims}")
+
             if mesh_type is not None:
-                super().__dispatch_init__(mesh_type, self, *args, **kwargs)
+                super().__dispatch_init__(mesh_type, self, *dims, **kwargs)
             else:
                 logger.warning(f"Can not determint mesh type!")
 

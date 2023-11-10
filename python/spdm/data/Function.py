@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import typing
-
+import collections
 import numpy as np
 
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
-from ..utils.typing import ArrayType, NumericType, array_type, get_args, get_origin
+from ..utils.tags import _not_found_
+from ..utils.typing import ArrayType, NumericType, array_type, get_args, get_origin, as_array
 from .Expression import Expression
 from .Functor import Functor
 
@@ -22,7 +23,7 @@ class Function(Expression):
     函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
     """
 
-    def __init__(self, *xy, **kwargs):
+    def __init__(self, *xy, domain=None, **kwargs):
         """
         Parameters
         ----------
@@ -38,12 +39,28 @@ class Function(Expression):
             * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
             * if ext=1  or 'nan', return nan
         """
-        if len(xy) == 0 or not all([isinstance(v, np.ndarray) for v in xy]):
+        if len(xy) == 0:
             raise RuntimeError(f"illegal x,y {xy} ")
 
-        self._value = xy[-1]
+        if callable(xy[-1]):
+            func = xy[-1]
+            value = _not_found_
+        else:
+            func = None
+            value = as_array(xy[-1])
 
-        Expression.__init__(self, None, domain=xy[:-1], **kwargs)
+        if len(xy) <= 1:
+            pass
+        else:
+            if domain is None or domain is _not_found_:
+                domain = {}
+            if isinstance(domain, dict):
+                domain["dims"] = xy[:-1]
+            # else:
+            #     raise RuntimeError(f"illegal domain={domain}")
+
+        self._value = value
+        Expression.__init__(self, func, domain=domain, **kwargs)
 
     def __copy_from__(self, other: Function) -> Function:
         """copy from other"""
@@ -126,11 +143,20 @@ class Function(Expression):
         return self._func
 
     def __array__(self, *args, **kwargs) -> NumericType:
+        if self._value is _not_found_:
+            if self._func is not None:
+                self._value = super().__array__()
+            else:
+                raise RuntimeError(f"Illegal function {self._value}")
         return self._value
 
     def _interpolate(self):
         if not isinstance(self._value, array_type):
             raise RuntimeError(f"self.__array__ is not array_type! {(self._value)}")
+
+        if self.domain is None:
+            raise RuntimeError(f"{self}")
+
         return interpolate(
             *self.domain.dims,
             self._value,
@@ -146,7 +172,7 @@ class Function(Expression):
 
     def derivative(self, *d, **kwargs) -> Function:
         if len(self.__array__().shape) == 0:
-            return Function(0.0, self.dims)
+            return Function(*self.dims, 0.0)
 
         if len(d) == 0:
             d = [1]
@@ -154,23 +180,26 @@ class Function(Expression):
         if len(d) > 1:
             return Function(
                 self._interpolate().partial_derivative(*d, **kwargs),
-                *self.dims,
-                periods=self.periods,
-                **self._metadata,
+                domain=self.domain,
+                _parent=self._parent,
+                **collections.ChainMap({"label": rf"d_{{[{d}]}} {self.__repr__()}"}, self._metadata),
             )
         elif d[0] < 0:
+            if len(d) > 1:
+                logger.warning(f"ignore {d[1:]} ")
+            func = self._interpolate().antiderivative(-d[0], **kwargs)
             return Function(
-                self._interpolate().antiderivative(*d, **kwargs),
-                *self.dims,
-                periods=self.periods,
-                label=rf"\int {self.__repr__()}",
+                func,
+                domain=self.domain,
+                _parent=self._parent,
+                **collections.ChainMap({"label": rf"\int {self.__repr__()}"}, self._metadata),
             )
         else:
             return Function(
                 self._interpolate().derivative(*d, **kwargs),
-                *self.dims,
-                periods=self.periods,
-                **self._metadata,
+                domain=self.domain,
+                _parent=self._parent,
+                **collections.ChainMap({"label": rf"d({self.__repr__()})"}, self._metadata),
             )
 
     def integral(self, *args, **kwargs) -> float:

@@ -30,13 +30,12 @@ class RectInterpolateOp(Functor):
         self._opts: dict = kwargs
         self._check_nan = check_nan
         self._extrapolate = extrapolate
-
         self._shape = tuple(len(d) for d in self._dims)
 
         if isinstance(self._value, array_type) and len(self._value.shape) > 0:
             if len(self._value.shape) > len(self._shape):
                 raise NotImplementedError(
-                    f"TODO: interpolate for rank >1 . { self._value.shape}!={self._shape}!  func={self.__str__()} "
+                    f"TODO: interpolate for rank >1 . { self._value.shape}!={self._shape}!  {xy} func={self.__str__()} "
                 )
             elif tuple(self._value.shape) != tuple(self._shape):
                 raise RuntimeError(
@@ -132,6 +131,9 @@ class RectInterpolateOp(Functor):
 
 
 def interpolate(*args, type="rectlinear", **kwargs) -> Functor:
-    if type != "rectlinear":
-        raise NotImplementedError(f"type={type}")
-    return RectInterpolateOp(*args, **kwargs)
+    match type:
+        case "rectlinear":
+            res = RectInterpolateOp(*args, **kwargs)
+        case _:
+            raise NotImplementedError(f"type={type}")
+    return res

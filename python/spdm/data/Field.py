@@ -19,53 +19,46 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
     if holder is None or holder is _not_found_:
         return None
 
-    mesh, *_ = group_dict_by_prefix(holder._metadata, prefix, sep=None)
+    metadata = getattr(holder, "_metadata", {})
 
-    if isinstance(mesh, str):
-        mesh = holder.get(mesh, _not_found_)
+    mesh, *_ = group_dict_by_prefix(metadata, prefix, sep=None)
 
-    coordinates = None
-
-    while coordinates is None and hasattr(holder, "_metadata"):
-        coordinates, *_ = group_dict_by_prefix(holder._metadata, "coordinate", sep=None)
-        holder = getattr(holder, "_parent", None)
+    if mesh is None:
+        coordinates, *_ = group_dict_by_prefix(metadata, "coordinate", sep=None)
 
         if coordinates is not None:
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+            coordinates = [holder.get(c, _not_found_) for c in coordinates.values()]
+            mesh = {"dims": coordinates}
 
-            if all([isinstance(c, str) and c.startswith("../grid") for c in coordinates.values()]):
-                o_mesh = getattr(self._parent, "grid", None)
-                if isinstance(o_mesh, Mesh):
-                    # if self._mesh is not None and len(self._mesh) > 0:
-                    #     logger.warning(f"Ignore {self._mesh}")
-                    self._domain = o_mesh
-                elif isinstance(o_mesh, collections.abc.Sequence):
-                    self._domain = merge_tree_recursive(self._domain, {"dims": o_mesh})
-                elif isinstance(o_mesh, collections.abc.Mapping):
-                    self._domain = merge_tree_recursive(self._domain, o_mesh)
-                elif o_mesh is not None:
-                    raise RuntimeError(f"self._parent.grid is not a Mesh, but {type(o_mesh)}")
-            else:
-                dims = tuple([(self._parent.get(c) if isinstance(c, str) else c) for c in coordinates.values()])
-                self._domain = merge_tree_recursive(self._domain, {"dims": dims})
+    elif isinstance(mesh, str):
+        mesh = holder.get(mesh, _not_found_)
 
-        elif isinstance(self._domain, Enum):
-            self._domain = {"type": self._domain.name}
+    # if all([isinstance(c, str) and c.startswith("../grid") for c in coordinates.values()]):
+    #     o_mesh = getattr(holder, "grid", None)
+    #     if isinstance(o_mesh, Mesh):
+    #         # if self._mesh is not None and len(self._mesh) > 0:
+    #         #     logger.warning(f"Ignore {self._mesh}")
+    #         self._domain = o_mesh
+    #     elif isinstance(o_mesh, collections.abc.Sequence):
+    #         self._domain = merge_tree_recursive(self._domain, {"dims": o_mesh})
+    #     elif isinstance(o_mesh, collections.abc.Mapping):
+    #         self._domain = merge_tree_recursive(self._domain, o_mesh)
+    #     elif o_mesh is not None:
+    #         raise RuntimeError(f"holder.grid is not a Mesh, but {type(o_mesh)}")
+    # else:
+    #     dims = tuple([(holder.get(c) if isinstance(c, str) else c) for c in coordinates.values()])
+    #     self._domain = merge_tree_recursive(self._domain, {"dims": dims})
+    elif isinstance(mesh, Enum):
+        mesh = {"type": mesh.name}
 
-        elif isinstance(self._domain, str):
-            self._domain = {"type": self._domain}
+    elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
+        mesh = {"dims": mesh}
 
-        elif isinstance(self._domain, collections.abc.Sequence) and all(
-            isinstance(d, array_type) for d in self._domain
-        ):
-            self._domain = {"dims": self._domain}
+    elif isinstance(mesh, collections.abc.Mapping):
+        pass
 
-        if isinstance(self._domain, collections.abc.Mapping):
-            self._domain = Mesh(**self._domain)
-
-        elif not isinstance(self._domain, Mesh):
-            raise RuntimeError(f"self._mesh is not a Mesh, but {type(self._domain)}")
     if mesh is None or mesh is _not_found_:
         return guess_mesh(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
     else:
@@ -102,6 +95,7 @@ class Field(Expression):
             func = value
             value = None
         else:
+            func = None
             value = as_array(value)
 
         mesh, kwargs = group_dict_by_prefix(kwargs, prefixes="mesh")
@@ -141,11 +135,11 @@ class Field(Expression):
         )
 
     @property
-    def domain(self) -> Mesh:
+    def mesh(self) -> Mesh:
         if isinstance(self._domain, Mesh):
             return self._domain
 
-        if self._domain is None:
+        if self._domain is None or self._domain is _not_found_:
             self._domain = guess_mesh(self, prefix="mesh")
 
         if not isinstance(self._domain, Mesh):
@@ -155,8 +149,8 @@ class Field(Expression):
         return self._domain
 
     @property
-    def mesh(self) -> Mesh:
-        return self.domain
+    def domain(self) -> Mesh:
+        return self.mesh
 
     def ppoly(self):
         if self._ppoly is None:
