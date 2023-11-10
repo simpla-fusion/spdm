@@ -1,24 +1,23 @@
 import unittest
 
 import numpy as np
-from scipy import constants
+import scipy.constants
 
 from spdm.data.Expression import Variable
 from spdm.data.Field import Field
 from spdm.utils.logger import logger
 
-TWOPI = constants.pi*2.0
+TWOPI = scipy.constants.pi * 2.0
 
 
 class TestField(unittest.TestCase):
-
     def test_attribute(self):
-        x = np.linspace(0, 1*TWOPI, 128)
-        y = np.linspace(0, 2*TWOPI, 128)
+        x = np.linspace(0, 1 * TWOPI, 128)
+        y = np.linspace(0, 2 * TWOPI, 128)
 
         _x = Variable(0, "x")
         _y = Variable(1, "y")
-        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[TWOPI, 2*TWOPI])
+        fun = Field(x, y, np.sin(_x) * np.cos(_y), mesh_periods=[TWOPI, 2 * TWOPI])
 
         self.assertEqual(fun.mesh.ndim, 2)
         self.assertTrue(np.allclose(fun.mesh.dims[0], x))
@@ -27,13 +26,13 @@ class TestField(unittest.TestCase):
     def test_spl2d(self):
         _x = Variable(0, "x")
         _y = Variable(1, "y")
-        x = np.linspace(0, 1*TWOPI, 128)
-        y = np.linspace(0, 2*TWOPI, 128)
+        x = np.linspace(0, 1 * TWOPI, 128)
+        y = np.linspace(0, 2 * TWOPI, 128)
         g_x, g_y = np.meshgrid(x, y)
 
-        z = np.sin(g_x)*np.cos(g_y)
+        z = np.sin(g_x) * np.cos(g_y)
 
-        fun = Field(np.sin(_x)*np.cos(_y), x, y, mesh_periods=[TWOPI, 2*TWOPI])
+        fun = Field(x, y, np.sin(_x) * np.cos(_y), mesh_periods=[TWOPI, 2 * TWOPI])
 
         z2 = fun(g_x, g_y)
 
@@ -43,14 +42,14 @@ class TestField(unittest.TestCase):
         _x = Variable(0, "x")
         _y = Variable(1, "y")
         x = np.linspace(0, TWOPI, 128)
-        y = np.linspace(0, 2*TWOPI, 128)
+        y = np.linspace(0, 2 * TWOPI, 128)
         g_x, g_y = np.meshgrid(x, y)
 
-        Z = Field(np.sin(_x)*np.cos(_y), x, y,   mesh_periods=[TWOPI, 2*TWOPI])
+        Z = Field(x, y, np.sin(_x) * np.cos(_y), mesh_periods=[TWOPI, 2 * TWOPI])
 
-        self.assertTrue(np.allclose(np.sin(g_x)*np.cos(g_y),  Z(g_x, g_y), rtol=1.0e-4))
+        self.assertTrue(np.allclose(np.sin(g_x) * np.cos(g_y), Z(g_x, g_y), rtol=1.0e-4))
 
-        self.assertTrue(np.allclose(np.cos(g_x)*np.cos(g_y),  Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
+        self.assertTrue(np.allclose(np.cos(g_x) * np.cos(g_y), Z.pd(1, 0)(g_x, g_y), rtol=1.0e-4))
 
         # dzdx = TWOPI*np.cos(g_x*TWOPI)*np.cos(g_y*TWOPI)
         # dZdx = Z.pd(1, 0)(g_x, g_y)
@@ -68,5 +67,5 @@ class TestField(unittest.TestCase):
         # self.assertTrue(np.allclose(dzdxdy, dZdxdy, rtol=1.0e-4))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

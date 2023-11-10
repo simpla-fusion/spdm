@@ -46,14 +46,15 @@ import typing
 from copy import deepcopy
 from _thread import RLock
 from enum import Enum
+
+from .Entry import Entry
+from .AoS import AoS
+from .HTree import HTree, Dict
+
+from ..utils.tree_utils import merge_tree_recursive
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
-from .Entry import Entry
-from .Function import Function
-from .Expression import Expression
-from .HTree import HTree, Dict
-from ..utils.tree_utils import merge_tree_recursive
 
 
 class SpTree(Dict):
@@ -81,7 +82,7 @@ class SpTree(Dict):
                 prop = getattr(self, k, None)
                 if prop is _not_found_:
                     prop = None
-                elif isinstance(prop, Function):
+                elif hasattr(prop.__class__, "__array__"):
                     prop = prop.__array__()
 
             except Exception as error:
@@ -102,21 +103,29 @@ class SpTree(Dict):
         else:
             return entry
 
+    @staticmethod
+    def _clone(obj, *args, **kwargs):
+        if isinstance(obj, AoS):
+            return [SpTree._clone(o, *args, **kwargs) for o in obj]
+        elif isinstance(obj, SpTree):
+            cache = {}
+            for k, _ in inspect.getmembers(obj.__class__, is_sp_property):
+                try:
+                    obj = getattr(obj, k, _not_found_)
+                except Exception as error:
+                    obj = _not_found_
+
+                cache[k] = SpTree._clone(obj, *args, **kwargs)
+
+            return cache
+
+        elif callable(obj):
+            return obj(*args, **kwargs)
+        else:
+            return obj
+
     def clone(self, *args, **kwargs) -> typing.Type[SpTree]:
-        cache = {}
-        for k, _ in inspect.getmembers(self.__class__, is_sp_property):
-            try:
-                obj = getattr(self, k, _not_found_)
-            except Exception as error:
-                obj = _not_found_
-                
-            if isinstance(obj, SpTree):
-                cache[k] = obj.clone(*args, **kwargs)
-            elif isinstance(obj, Expression):
-                cache[k] = obj(*args, **kwargs)
-            else:
-                cache[k] = obj
-        return self.__class__(cache)
+        return self.__class__(SpTree._clone(self, *args, **kwargs))
 
 
 class AttributeTree(SpTree):

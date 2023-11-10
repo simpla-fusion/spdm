@@ -2,16 +2,189 @@ from __future__ import annotations
 
 import typing
 from copy import copy, deepcopy
-
+import functools
 import numpy as np
 import numpy.typing as np_tp
-
-from ..utils.logger import logger
-from ..utils.numeric import float_nan
+from .Functor import Functor
+from .sp_property import SpTree
+from ..utils.misc import group_dict_by_prefix
+from ..utils.numeric import float_nan, meshgrid, bitwise_and
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
-from ..utils.tree_utils import update_tree
-from .Functor import Functor
+from ..utils.tree_utils import update_tree, merge_tree
+from ..utils.logger import logger
+
+
+class DomainBase(SpTree):
+    """函数定义域"""
+
+    fill_value = float_nan
+
+    def __init__(self, d=None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # if len(self.periods) > 0:
+        #     dims = [as_array(v) for v in dims]
+        #     periods = self.periods
+        #     for idx in range(len(dims)):
+        #         if periods[idx] is not np.nan and not np.isclose(dims[idx][-1] - dims[idx][0], periods[idx]):
+        #             raise RuntimeError(
+        #                 f"idx={idx} periods {periods[idx]} is not compatible with dims [{dims[idx][0]},{dims[idx][-1]}] "
+        #             )
+        #         if not np.all(dims[idx][1:] > dims[idx][:-1]):
+        #             raise RuntimeError(
+        #                 f"dims[{idx}] is not increasing! {dims[idx][:5]} {dims[idx][-1]} \n {dims[idx][1:] - dims[idx][:-1]}"
+        #             )
+        self._dims = d
+
+    @property
+    def is_simple(self) -> bool:
+        return self._dims is not None
+
+    @property
+    def dims(self) -> typing.Tuple[ArrayType]:
+        """函数的网格，即定义域的网格"""
+        if self._dims is None:
+            raise RuntimeError(f"dims is not dedined")
+        return self._dims
+
+    @property
+    def ndims(self) -> int:
+        return len(self._dims)
+
+    @property
+    def shape(self) -> typing.Tuple[int]:
+        return tuple([len(d) for d in self.dims])
+
+    @functools.cached_property
+    def points(self) -> typing.Tuple[ArrayType]:
+        if len(self.dims) == 0:
+            raise RuntimeError(self.dims)
+        elif len(self.dims) == 1:
+            return self.dims
+        else:
+            return meshgrid(*self.dims, indexing="ij")
+
+    @functools.cached_property
+    def bbox(self) -> typing.Tuple[typing.List[float], typing.List[float]]:
+        """函数的定义域"""
+        return tuple(([d[0], d[-1]] if not isinstance(d, float) else [d, d]) for d in self.dims)
+
+    @property
+    def periods(self):
+        return None
+
+    def mask(self, *args) -> bool | np_tp.NDArray[np.bool_]:
+        # or self._metadata.get("extrapolate", 0) != 1:
+        if self.dims is None or len(self.dims) == 0 or self._metadata.get("extrapolate", 0) != "raise":
+            return True
+
+        if len(args) != self.ndim:
+            raise RuntimeError(f"len(args) != len(self.dims) {len(args)}!={len(self.dims)}")
+
+        v = []
+        for i, (xmin, xmax) in enumerate(self.bbox):
+            v.append((args[i] >= xmin) & (args[i] <= xmax))
+
+        return bitwise_and.reduce(v)
+
+    def check(self, *x) -> bool | np_tp.NDArray[np.bool_]:
+        """当坐标在定义域内时返回 True，否则返回 False"""
+
+        d = [child.__check_domain__(*x) for child in self._children if hasattr(child, "__domain__")]
+
+        if isinstance(self._func, Functor):
+            d += [self._func.__domain__(*x)]
+
+        d = [v for v in d if (v is not None and v is not True)]
+
+        if len(d) > 0:
+            return np.bitwise_and.reduce(d)
+        else:
+            return True
+
+    def eval(self, func, *xargs, **kwargs):
+        """根据 __domain__ 函数的返回值，对输入坐标进行筛选"""
+
+        mask = self.__domain__().mask(*xargs)
+
+        mask_size = mask.size if isinstance(mask, array_type) else 1
+        masked_num = np.sum(mask)
+
+        if not isinstance(mask, array_type) and not isinstance(mask, (bool, np.bool_)):
+            raise RuntimeError(f"Illegal mask {mask} {type(mask)}")
+        elif masked_num == 0:
+            raise RuntimeError(f"Out of domain! {self} {xargs} ")
+
+        if masked_num < mask_size:
+            xargs = tuple(
+                [
+                    (
+                        arg[mask]
+                        if isinstance(mask, array_type) and isinstance(arg, array_type) and arg.ndim > 0
+                        else arg
+                    )
+                    for arg in xargs
+                ]
+            )
+        else:
+            mask = None
+
+        value = func._eval(*xargs, **kwargs)
+
+        if masked_num < mask_size:
+            res = value
+        elif is_scalar(value):
+            res = np.full_like(mask, value, dtype=self._type_hint())
+        elif isinstance(value, array_type) and value.shape == mask.shape:
+            res = value
+        elif value is None:
+            res = None
+        else:
+            res = np.full_like(mask, self.fill_value, dtype=self._type_hint())
+            res[mask] = value
+        return res
+
+
+def guess_coords(holder, prefix="coordinate", **kwargs):
+    if holder is None or holder is _not_found_:
+        return None
+
+    coords = []
+
+    metadata = getattr(holder, "_metadata", {})
+
+    dims_s, *_ = group_dict_by_prefix(metadata, prefix, sep=None)
+
+    if dims_s is not None and len(dims_s) > 0:
+        dims_s = {int(k): v for k, v in dims_s.items() if k.isdigit()}
+        dims_s = dict(sorted(dims_s.items(), key=lambda x: x[0]))
+
+        for c in dims_s.values():
+            if isinstance(c, str):
+                d = holder.get(c, _not_found_)
+            if d is _not_found_ or d is None:
+                logger.warning(f"Can not get coordinates {c} from {holder}")
+                coords = []
+                break
+            coords.append(as_array(d))
+
+            # elif c.startswith("../"):
+            #     d = as_array(holder._parent.get(c[3:], _not_found_))
+            # elif c.startswith(".../"):
+            #     d = as_array(holder._parent.get(c, _not_found_))
+            # elif hasattr(holder.__class__, "get"):
+            #     d = as_array(holder.get(c, _not_found_))
+            # else:
+            #     d = _not_found_
+            # elif c.startswith("*/"):
+            #     raise NotImplementedError(f"TODO:{self.__class__}.dims:*/")
+            # else:
+            #     d = as_array(holder.get(c, _not_found_))
+
+    if len(coords) == 0:
+        return guess_coords(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
+    else:
+        return coords
 
 
 class Expression:
@@ -39,9 +212,9 @@ class Expression:
 
     """
 
-    fill_value = float_nan
+    Domain = DomainBase
 
-    def __init__(self, expr: typing.Callable[..., NumericType], *children, **kwargs) -> None:
+    def __init__(self, expr: typing.Callable[..., NumericType], *children, domain=_not_found_, **kwargs) -> None:
         """
         Parameters
         ----------
@@ -60,16 +233,50 @@ class Expression:
 
         elif expr is None or callable(expr):
             self._func = expr
-            self._children = children
-            self._metadata = kwargs
+            self._children: typing.Tuple[typing.Type[Expression]] = children
 
-        elif isinstance(expr, (int, float, np.ndarray)):
+        elif all([isinstance(v, np.ndarray) for v in [expr, *children]]):
+            # 构建插值函数
             from .Function import Function
 
             self.__class__ = Function
             Function.__init__(self, expr, *children, **kwargs)
+            return
+
         else:
+            # dims = self.dims
+
+            # value = self._value
+
+            # if value is _not_found_ or value is None:
+            #     self._func = None
+
+            # elif isinstance(value, scalar_type):
+            #     self._func = ConstantsFunc(value)
+
+            # elif isinstance(value, array_type) and value.size == 1:
+            #     value = np.squeeze(value).item()
+
+            #     if not isinstance(value, scalar_type):
+            #         raise RuntimeError(f"TODO:  {value}")
+
+            #     self._func = ConstantsFunc(value)
+
+            # elif all([(not isinstance(v, array_type) or v.size == 1) for v in dims]):
+            #     self._func = DiracDeltaFun(value, [float(v) for v in self.dims])
+
+            # elif all([(isinstance(v, array_type) and v.ndim == 1 and v.size > 0) for v in dims]):
+            #     self._func = self._interpolate()
+
+            # else:
+            #     raise RuntimeError(f"TODO: {dims} {value}")
+
+            # return self._func
             raise NotImplementedError(f"{expr} {children}")
+
+        self._domain = domain
+        self._parent = kwargs.pop("_parent", None)
+        self._metadata = merge_tree(getattr(self.__class__, "_metadata", {}), kwargs)
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
@@ -82,6 +289,7 @@ class Expression:
         if isinstance(other, Expression):
             self._func = copy(other._func)
             self._children = copy(other._children)
+            self._domain = copy(other._domain)
             self._metadata = copy(other._metadata)
         else:
             raise TypeError(f"{type(other)}")
@@ -107,16 +315,28 @@ class Expression:
             return Expression(ufunc, *args)
 
     def __array__(self) -> ArrayType:
-        res = self.__call__()
-        if isinstance(res, Expression):
+        """在定义域上计算表达式。"""
+        res = self.__call__(*self.domain.points)
+        if not isinstance(res, (np.ndarray, float, int, bool)):
             raise RuntimeError(f"Can not calcuate! {res}")
-        return as_array(res)
+        return res
+
+    @property
+    def domain(self) -> Domain:
+        """返回表达式的定义域"""
+
+        if self._domain is _not_found_:
+            self._domain = {"dims": guess_coords(self)}
+
+        if not isinstance(self._domain, DomainBase):
+            self._domain = self.__class__.Domain(self._domain)
+
+        return self._domain
 
     @property
     def has_children(self) -> bool:
+        """判断是否有子节点"""
         return len(self._children) > 0
-
-    """ 判断是否有子节点"""
 
     @property
     def empty(self) -> bool:
@@ -134,9 +354,8 @@ class Expression:
         return f"<{self.__class__.__name__} label='{self.__label__}' />"
 
     def _repr_latex_(self) -> str:
+        """for jupyter notebook display"""
         return f"${self.__repr__()}$"
-
-    """ for jupyter notebook display """
 
     @staticmethod
     def _repr_s(expr: Expression) -> str:
@@ -198,82 +417,14 @@ class Expression:
         return self._type_hint()
 
     def _type_hint(self, *args):
+        """TODO:获取表达式的类型"""
         return float
 
-    """ TODO:获取表达式的类型 """
-
-    def __domain__(self, *x) -> bool | np_tp.NDArray[np.bool_]:
-        """当坐标在定义域内时返回 True，否则返回 False"""
-
-        d = [child.__domain__(*x) for child in self._children if hasattr(child, "__domain__")]
-
-        if isinstance(self._func, Functor):
-            d += [self._func.__domain__(*x)]
-
-        d = [v for v in d if (v is not None and v is not True)]
-
-        if len(d) > 0:
-            return np.bitwise_and.reduce(d)
-        else:
-            return True
-
     def __functor__(self) -> Functor:
+        """获取表达式的运算符，若为 constants 函数则返回函数值"""
         return self._func
 
-    """ 获取表达式的运算符，若为 constants 函数则返回函数值 """
-
-    def check_domain(self, *xargs):
-        """根据 __domain__ 函数的返回值，对输入坐标进行筛选"""
-
-        mark = self.__domain__(*xargs)
-
-        mark_size = mark.size if isinstance(mark, array_type) else 1
-        marked_num = np.sum(mark)
-
-        if not isinstance(mark, array_type) and not isinstance(mark, (bool, np.bool_)):
-            raise RuntimeError(f"Illegal mark {mark} {type(mark)}")
-        elif marked_num == 0:
-            raise RuntimeError(f"Out of domain! {self} {xargs} ")
-
-        if marked_num < mark_size:
-            xargs = tuple(
-                [
-                    (
-                        arg[mark]
-                        if isinstance(mark, array_type) and isinstance(arg, array_type) and arg.ndim > 0
-                        else arg
-                    )
-                    for arg in xargs
-                ]
-            )
-        else:
-            mark = None
-        return xargs, mark
-
-    def __call__(self, *xargs: NumericType, **kwargs) -> typing.Any:
-        """
-        重载函数调用运算符，用于计算表达式的值
-
-        TODO:
-        - support JIT compilation
-        - support broadcasting?
-        - support multiple meshes?
-
-        Parameters
-        ----------
-        xargs : NumericType
-            自变量/坐标，可以是标量，也可以是数组
-        kwargs : typing.Any
-            命名参数，用于传递给运算符的参数
-        """
-
-        if len(xargs) == 0:
-            return self
-        elif any([(isinstance(arg, Expression) or callable(arg)) for arg in xargs]):
-            return Expression(self, *xargs, **self._metadata)
-
-        # xargs, mark = self.check_domain(*xargs)
-
+    def _eval(self, *xargs, **kwargs):
         func = self.__functor__()
 
         if func is None:
@@ -308,43 +459,75 @@ class Expression:
         else:
             raise RuntimeError(f"Unknown functor {func} {type(func)}")
 
-        # if mark is None:
-        #     res = value
-        # elif is_scalar(value):
-        #     res = np.full_like(mark, value, dtype=self._type_hint())
-        # elif isinstance(value, array_type) and value.shape == mark.shape:
-        #     res = value
-        # elif value is None:
-        #     res = None
-        # else:
-        #     res = np.full_like(mark, self.fill_value, dtype=self._type_hint())
-        #     res[mark] = value
-
         return value
+
+    def __call__(self, *args: NumericType, **kwargs) -> typing.Any:
+        """
+        重载函数调用运算符，用于计算表达式的值
+
+        TODO:
+        - support JIT compilation
+        - support broadcasting?
+        - support multiple meshes?
+
+        Parameters
+        ----------
+        xargs : NumericType
+            自变量/坐标，可以是标量，也可以是数组
+        kwargs : typing.Any
+            命名参数，用于传递给运算符的参数
+        """
+
+        if len(args) == 0:
+            return self
+        elif any([(isinstance(arg, Expression) or callable(arg)) for arg in args]):
+            return Expression(self, *args, **kwargs, **self._metadata)
+        elif getattr(self, "CHECK_DOMAIN", False):
+            return self.domain.eval(self, *args, **kwargs)
+        else:
+            return self._eval(*args, **kwargs)
+
+    def integral(self, **kwargs) -> float:
+        raise NotImplementedError(f"TODO:integral")
+
+    def derivative(self, *d, **kwargs) -> typing.Type[Derivative]:
+        if len(d) == 0:
+            d = [1]
+        if len(d) > 1:
+            return PartialDerivative(self, d, **kwargs)
+        elif d[0] == 0:
+            return self
+        elif d[0] > 0:
+            return Derivative(self, d[0], **kwargs)
+        elif d[0] < 0:
+            return Antiderivative(self, -d[0], **kwargs)
+
+    def pd(self, *d, **kwargs) -> Expression:
+        return self.derivative(*d, **kwargs)
 
     @property
     def d(self) -> Expression:
+        """1st derivative 一阶导数"""
         return Derivative(self, 1)
-
-    """1st derivative 一阶导数"""
 
     @property
     def d2(self) -> Expression:
-        return Derivative(self, 2)
-
-    """2nd derivative 二阶导数"""
+        """2nd derivative 二阶导数"""
+        return self.derivative(2)
 
     @property
     def I(self) -> Expression:
-        return Derivative(self, -1)
-
-    """antiderivative 原函数"""
+        """antiderivative 原函数"""
+        return self.derivative(-1)
 
     @property
     def dln(self) -> Expression:
-        return LogDerivative(self)
+        """logarithmic derivative 对数求导"""
+        return self.derivative() / self
+        # return LogDerivative(self)
 
-    """logarithmic derivative 对数求导 """
+    def find_roots(self, *args, **kwargs) -> typing.Generator[float, None, None]:
+        raise NotImplementedError(f"TODO: find_roots")
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
@@ -526,9 +709,39 @@ class Derivative(Expression):
         return f"d{Expression._repr_s(self._children[0])}"
 
 
-class LogDerivative(Expression):
+class LogDerivative(Derivative):
     def __repr__(self) -> str:
         return f"d \\ln {Expression._repr_s(self._children[0])}"
+
+
+class PartialDerivative(Derivative):
+    def __init__(self, expr: Expression, *args, **kwargs) -> None:
+        super().__init__(None, **kwargs)
+        self._expr = expr
+        self._order = args
+
+    def __call__(self, *args, **kwargs):
+        return super().__call__(*args, **kwargs)
+
+
+class Antiderivative(Derivative):
+    def __init__(self, expr: Expression, *args, **kwargs) -> None:
+        super().__init__(None, **kwargs)
+
+        self._expr = expr
+        self._order = args
+
+    def _repr_latex_(self) -> str:
+        if len(self._order) > 0:
+            return f"I{list(self._order)}({self._expr})"
+        else:
+            return f"I({self._expr})"
+
+    def __call__(self, *args, **kwargs):
+        if self._op is None:
+            value = self._expr(*args)
+            self._op = interpolate(value, *args, **kwargs).antiderivative(*self._order)
+        return super().__call__(*args, **kwargs)
 
 
 class Piecewise(Expression):

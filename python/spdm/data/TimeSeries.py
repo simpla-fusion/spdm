@@ -18,7 +18,7 @@ class TimeSlice(SpTree):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    time: float = sp_property(unit="s",   default_value=0.0)  # type: ignore
+    time: float = sp_property(unit="s", default_value=0.0)  # type: ignore
 
     iteration: int = sp_property(default_value=0)
     """ 迭代次数 """
@@ -34,17 +34,17 @@ _TSlice = typing.TypeVar("_TSlice")  # , TimeSlice, typing.Type[TimeSlice]
 
 class TimeSeriesAoS(List[_TSlice]):
     """
-        A series of time slices .
+    A series of time slices .
 
-        用以管理随时间变化（time series）的一组状态（TimeSlice）。
+    用以管理随时间变化（time series）的一组状态（TimeSlice）。
 
-        current:
-            指向当前时间片，即为序列最后一个时间片吗。
+    current:
+        指向当前时间片，即为序列最后一个时间片吗。
 
-        TODO:
-          1. 缓存时间片，避免重复创建，减少内存占用
-          2. 缓存应循环使用
-          3. cache 数据自动写入 entry 落盘
+    TODO:
+      1. 缓存时间片，避免重复创建，减少内存占用
+      2. 缓存应循环使用
+      3. cache 数据自动写入 entry 落盘
     """
 
     def __init__(self, *args, **kwargs):
@@ -55,19 +55,19 @@ class TimeSeriesAoS(List[_TSlice]):
         self._cache_depth = kwargs.pop("cache_depth", 3)
 
         if self._cache is _not_found_ or self._cache is None or len(self._cache) == 0:
-            self._cache = [None]*self._cache_depth
+            self._cache = [None] * self._cache_depth
 
         else:
             if len(self._cache) < self._cache_depth:
-                self._cache += [None]*(self._cache_depth-len(self._cache))
+                self._cache += [None] * (self._cache_depth - len(self._cache))
             else:
                 self._cache_depth = len(self._cache)
 
-            self._cache_cursor = len(self._cache)-1
+            self._cache_cursor = len(self._cache) - 1
 
     def dump(self, entry: Entry, **kwargs) -> None:
-        """ 将数据写入 entry """
-        entry.insert([{}]*len(self._cache))
+        """将数据写入 entry"""
+        entry.insert([{}] * len(self._cache))
         for idx, value in enumerate(self._cache):
             if isinstance(value, HTree):
                 value.dump(entry.child(idx), **kwargs)
@@ -75,28 +75,37 @@ class TimeSeriesAoS(List[_TSlice]):
                 entry.child(idx).insert(value)
 
     @property
-    def time(self) -> float: return self.current.time
+    def time(self) -> float:
+        return self.current.time
 
     @property
-    def dt(self) -> float: return self._metadata.get("dt", 0.1)
+    def dt(self) -> float:
+        return self._metadata.get("dt", 0.1)
 
     @property
-    def current(self) -> _TSlice: return self._get(0)
+    def current(self) -> _TSlice:
+        return self._get(0)
 
     @property
-    def previous(self) -> _TSlice: return self._get(-1)
+    def previous(self) -> _TSlice:
+        return self._get(-1)
 
     @property
-    def is_initializied(self) -> bool: return self._entry_cursor is not None
+    def is_initializied(self) -> bool:
+        return self._entry_cursor is not None
 
     def _find_slice_by_time(self, time) -> typing.Tuple[int, float]:
         if self._entry is None:
             return None, None
 
-        time_coord = getattr(self, "_time_coord", None) or self._metadata.get("coordinate1", "../time")
+        time_coord = getattr(self, "_time_coord", _not_found_)
+        if time_coord is _not_found_:
+            time_coord = self._metadata.get("coordinate1", "../time")
 
         if isinstance(time_coord, str):
-            time_coord = self.get(time_coord, default_value=None) or self._entry.child(time_coord).fetch()
+            time_coord = self.get(time_coord, default_value=_not_found_)
+            if time_coord is None:
+                time_coord = self._entry.child(time_coord).fetch()
 
         self._time_coord = time_coord
 
@@ -105,14 +114,14 @@ class TimeSeriesAoS(List[_TSlice]):
         if isinstance(time_coord, np.ndarray):
             indices = np.where(time_coord < time)[0]
             if len(indices) > 0:
-                pos = indices[-1]+1
+                pos = indices[-1] + 1
                 time = time_coord[pos]
 
         elif self._entry is not None:
             pos = self._entry_cursor or 0
 
             while True:
-                t_time = self. _entry.child(f"{pos}/time").fetch(default_value=_not_found_)
+                t_time = self._entry.child(f"{pos}/time").fetch(default_value=_not_found_)
 
                 if t_time is _not_found_ or t_time is None or t_time > time:
                     time = None
@@ -121,12 +130,11 @@ class TimeSeriesAoS(List[_TSlice]):
                     time = t_time
                     break
                 else:
-                    pos = pos+1
+                    pos = pos + 1
 
         return pos, time
 
     def _get(self, idx: int, *args, **kwargs) -> _TSlice:
-
         if not isinstance(idx, int):
             return _not_found_
         elif not self.is_initializied:
@@ -176,11 +184,10 @@ class TimeSeriesAoS(List[_TSlice]):
             self._entry_cursor = 0
 
     def advance(self, *args, **kwargs) -> _TSlice:
-
         if not self.is_initializied:
             self.initialize(*args, **kwargs)
         else:
-            self._cache_cursor = (self._cache_cursor+1) % self._cache_depth
+            self._cache_cursor = (self._cache_cursor + 1) % self._cache_depth
 
             self._entry_cursor += 1
 

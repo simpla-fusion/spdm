@@ -4,9 +4,8 @@ import collections.abc
 import functools
 import typing
 from enum import Enum
-
+import numpy as np
 from ..mesh.Mesh import Mesh
-from ..numlib.calculus import antiderivative, derivative, partial_derivative
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
@@ -16,162 +15,166 @@ from .Expression import Expression
 from .Functor import Functor
 
 
+def guess_mesh(holder, prefix="mesh", **kwargs):
+    if holder is None or holder is _not_found_:
+        return None
+
+    mesh, *_ = group_dict_by_prefix(holder._metadata, prefix, sep=None)
+
+    if isinstance(mesh, str):
+        mesh = holder.get(mesh, _not_found_)
+
+    coordinates = None
+
+    while coordinates is None and hasattr(holder, "_metadata"):
+        coordinates, *_ = group_dict_by_prefix(holder._metadata, "coordinate", sep=None)
+        holder = getattr(holder, "_parent", None)
+
+        if coordinates is not None:
+            coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
+            coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
+
+            if all([isinstance(c, str) and c.startswith("../grid") for c in coordinates.values()]):
+                o_mesh = getattr(self._parent, "grid", None)
+                if isinstance(o_mesh, Mesh):
+                    # if self._mesh is not None and len(self._mesh) > 0:
+                    #     logger.warning(f"Ignore {self._mesh}")
+                    self._domain = o_mesh
+                elif isinstance(o_mesh, collections.abc.Sequence):
+                    self._domain = merge_tree_recursive(self._domain, {"dims": o_mesh})
+                elif isinstance(o_mesh, collections.abc.Mapping):
+                    self._domain = merge_tree_recursive(self._domain, o_mesh)
+                elif o_mesh is not None:
+                    raise RuntimeError(f"self._parent.grid is not a Mesh, but {type(o_mesh)}")
+            else:
+                dims = tuple([(self._parent.get(c) if isinstance(c, str) else c) for c in coordinates.values()])
+                self._domain = merge_tree_recursive(self._domain, {"dims": dims})
+
+        elif isinstance(self._domain, Enum):
+            self._domain = {"type": self._domain.name}
+
+        elif isinstance(self._domain, str):
+            self._domain = {"type": self._domain}
+
+        elif isinstance(self._domain, collections.abc.Sequence) and all(
+            isinstance(d, array_type) for d in self._domain
+        ):
+            self._domain = {"dims": self._domain}
+
+        if isinstance(self._domain, collections.abc.Mapping):
+            self._domain = Mesh(**self._domain)
+
+        elif not isinstance(self._domain, Mesh):
+            raise RuntimeError(f"self._mesh is not a Mesh, but {type(self._domain)}")
+    if mesh is None or mesh is _not_found_:
+        return guess_mesh(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
+    else:
+        return mesh
+
+
 class Field(Expression):
-    """ Field
-        ---------
-        Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
+    """Field
+    ---------
+    Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
 
-        Field 所在的流形记为 mesh ，可以是任意维度的，可以是任意形状的，可以是任意拓扑的，可以是任意坐标系的。
+    Field 所在的流形记为 mesh ，可以是任意维度的，可以是任意形状的，可以是任意拓扑的，可以是任意坐标系的。
 
-        Mesh 网格描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。
+    Mesh 网格描述流形的几何结构，比如网格的拓扑结构，网格的几何结构，网格的坐标系等。
 
-        Field 与 Function的区别：
-            - Function 的 mesh 是一维数组表示dimensions/axis
-            - Field 的 mesh 是 Mesh，可以表示复杂流形上的场等。
+    Field 与 Function的区别：
+        - Function 的 mesh 是一维数组表示dimensions/axis
+        - Field 的 mesh 是 Mesh，可以表示复杂流形上的场等。
 
-        当 Field 不做为 DTree 的节点时， 应直接由Function继承  Field(Function[_T])
 
     """
 
-    def __init__(self, value, *args, mesh=None,   _parent=None, **kwargs):
+    Domain = Mesh
 
-        cache = value
-        func = None
+    def __init__(self, *xy, **kwargs):
+        if len(xy) == 0:
+            raise RuntimeError(f"illegal x,y {xy} ")
 
-        if isinstance(cache, (Functor, Expression)):
-            func = cache
-            cache = None
-        elif callable(cache):
-            func = Functor(cache)
-            cache = None
+        value = xy[-1]
+
+        dims = xy[:-1]
+
+        if isinstance(value, (Functor, Expression)) or callable(value):
+            func = value
+            value = None
         else:
-            cache = as_array(cache)
+            value = as_array(value)
 
-        super().__init__(func, label=kwargs.pop("label", None) or kwargs.pop("name", None))
+        mesh, kwargs = group_dict_by_prefix(kwargs, prefixes="mesh")
 
-        if mesh is None and len(args) > 0:
-            mesh = {"dims": args}
-        elif len(args) > 0:
-            logger.warning(f"ignore args={args}")
+        if mesh is not None:
+            if len(dims) == 0:
+                pass
+            elif isinstance(mesh, dict):
+                mesh["dims"] = dims
+            else:
+                raise RuntimeError(f"'mesh' is defined, ignore dims={dims} {mesh}")
 
-        self._cache = cache
-        self._metadata = kwargs
-        self._parent = _parent
-        self._mesh = mesh
+        elif "domain" in kwargs:
+            mesh = kwargs["domain"]
+            if len(dims) > 0:
+                raise RuntimeError(f"'mesh' is defined, ignore dims={dims}")
+        else:
+            mesh = dims
+
+        super().__init__(func, domain=mesh, **kwargs)
+
+        self._value = value
         self._ppoly = None
 
     def _repr_svg_(self) -> str:
         from ..view.View import display
-        return display(self, output="svg")
+
+        return display(
+            (
+                (*self.mesh.points, self.__array__()),
+                {
+                    "label": self.__label__,
+                    "coordinates_label": self.mesh.coordinates_label,
+                },
+            ),
+            output="svg",
+        )
+
+    @property
+    def domain(self) -> Mesh:
+        if isinstance(self._domain, Mesh):
+            return self._domain
+
+        if self._domain is None:
+            self._domain = guess_mesh(self, prefix="mesh")
+
+        if not isinstance(self._domain, Mesh):
+            mesh_desc, *_ = group_dict_by_prefix(self._metadata, prefixes="mesh", sep="_")
+            self._domain = Mesh(self._domain, parent=self, **(mesh_desc or {}))
+
+        return self._domain
 
     @property
     def mesh(self) -> Mesh:
+        return self.domain
 
-        if self._mesh is None:
-            mesh = None
-            holder = self
-            while mesh is None and hasattr(holder, "_metadata"):
-                mesh, *_ = group_dict_by_prefix(holder._metadata, "mesh", sep=None)
-                if not isinstance(mesh, str):
-                    pass
-                elif mesh.startswith("../") and not hasattr(holder, "_parent"):
-                    mesh = holder._parent.get(mesh[3:], None)
-                else:
-                    mesh = holder.get(mesh, None)
-                holder = getattr(holder, "_parent", None)
-
-            if isinstance(mesh, str) and mesh.startswith("../"):
-                self._mesh = self._parent.get(mesh[3:], None)
-
-            elif not isinstance(mesh, Mesh) and mesh is not None:
-                logger.warning(f"ignore mesh {mesh}")
-
-            self._mesh = mesh
-
-        if isinstance(self._mesh, Mesh):
-            return self._mesh
-
-        elif self._mesh is None:
-            coordinates = None
-            holder = self
-            while coordinates is None and hasattr(holder, "_metadata"):
-                coordinates, *_ = group_dict_by_prefix(holder._metadata, "coordinate", sep=None)
-                holder = getattr(holder, "_parent", None)
-
-            if coordinates is not None:
-                coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
-                coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
-
-                if all([isinstance(c, str) and c.startswith('../grid') for c in coordinates.values()]):
-                    o_mesh = getattr(self._parent, "grid", None)
-                    if isinstance(o_mesh, Mesh):
-                        # if self._mesh is not None and len(self._mesh) > 0:
-                        #     logger.warning(f"Ignore {self._mesh}")
-                        self._mesh = o_mesh
-                    elif isinstance(o_mesh, collections.abc.Sequence):
-                        self._mesh = merge_tree_recursive(self._mesh, {"dims": o_mesh})
-                    elif isinstance(o_mesh, collections.abc.Mapping):
-                        self._mesh = merge_tree_recursive(self._mesh, o_mesh)
-                    elif o_mesh is not None:
-                        raise RuntimeError(f"self._parent.grid is not a Mesh, but {type(o_mesh)}")
-                else:
-                    dims = tuple([(self._parent.get(c) if isinstance(c, str) else c)
-                                  for c in coordinates.values()])
-                    self._mesh = merge_tree_recursive(self._mesh, {"dims": dims})
-
-        elif isinstance(self._mesh, Enum):
-            self._mesh = {"type": self._mesh.name}
-
-        elif isinstance(self._mesh, str):
-            self._mesh = {"type":  self._mesh}
-
-        elif isinstance(self._mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in self._mesh):
-            self._mesh = {"dims": self._mesh}
-
-        if isinstance(self._mesh, collections.abc.Mapping):
-            self._mesh = Mesh(**self._mesh)
-
-        elif not isinstance(self._mesh, Mesh):
-            raise RuntimeError(f"self._mesh is not a Mesh, but {type(self._mesh)}")
-
-        return self._mesh
-
-    def __domain__(self, *xargs) -> bool: return self.mesh.geometry.enclose(*xargs)
-
-    def __array__(self, *args,  **kwargs) -> ArrayType:
-        """ 重载 numpy 的 __array__ 运算符
-                若 self._value 为 array_type 或标量类型 则返回函数执行的结果
-        """
-        value = self._cache
-
-        if (value is None or value is _not_found_):
-            value = self.__call__(*self.points)
-
-        if (value is None or value is _not_found_):
-            value = None
-
-        return as_array(value)
-
-        # return self._normalize_value(value, *args,  **kwargs)
-
-    @property
-    def points(self) -> typing.List[ArrayType]: return self.mesh.points
-
-    def __functor__(self) -> Functor:
-        if self._func is None:
-            self._func = self._interpolate()
-        return super().__functor__()
-
-    def _interpolate(self, *args, force=False, **kwargs) -> Functor:
-        if self._ppoly is None or force:
-            self._ppoly = self.mesh.interpolator(self.__array__(), *args, **kwargs)
+    def ppoly(self):
+        if self._ppoly is None:
+            self._ppoly = self.mesh.interpolator(self.__array__())
         return self._ppoly
 
-    def compile(self) -> Field:
-        return Field(self._interpolate(), mesh=self.mesh, name=f"[{self.__str__()}]")
+    def __array__(self, *args, **kwargs) -> ArrayType:
+        if self._value is None or self._value is _not_found_:
+            self._value = super().__array__()
+        return self._value
+
+    def __functor__(self) -> typing.Callable[..., ArrayType]:
+        if self._func is None and self._value is not None:
+            self._func = self.ppoly()
+        return self._func
 
     def grad(self, n=1) -> Field:
-        ppoly = self. __functor__()
+        ppoly = self.__functor__()
 
         if isinstance(ppoly, tuple):
             ppoly, opts = ppoly
@@ -179,36 +182,39 @@ class Field(Expression):
             opts = {}
 
         if self.mesh.ndim == 2 and n == 1:
-            return Field((ppoly.partial_derivative(1, 0),
-                          ppoly.partial_derivative(0, 1)),
-                         mesh=self.mesh,
-                         name=f"\\nabla({self.__str__()})", **opts)
+            return Field(
+                (ppoly.partial_derivative(1, 0), ppoly.partial_derivative(0, 1)),
+                mesh=self.mesh,
+                name=f"\\nabla({self.__str__()})",
+                **opts,
+            )
         elif self.mesh.ndim == 3 and n == 1:
-            return Field((ppoly.partial_derivative(1, 0, 0),
-                          ppoly.partial_derivative(0, 1, 0),
-                          ppoly.partial_derivative(0, 0, 1)),
-                         mesh=self.mesh,
-                         name=f"\\nabla({self.__str__()})", **opts)
+            return Field(
+                (
+                    ppoly.partial_derivative(1, 0, 0),
+                    ppoly.partial_derivative(0, 1, 0),
+                    ppoly.partial_derivative(0, 0, 1),
+                ),
+                mesh=self.mesh,
+                name=f"\\nabla({self.__str__()})",
+                **opts,
+            )
         elif self.mesh.ndim == 2 and n == 2:
-            return Field((ppoly.partial_derivative(2, 0),
-                          ppoly.partial_derivative(0, 2),
-                          ppoly.partial_derivative(1, 1)),
-                         mesh=self.mesh,
-                         name=f"\\nabla^{n}({self.__str__()})", **opts)
+            return Field(
+                (ppoly.partial_derivative(2, 0), ppoly.partial_derivative(0, 2), ppoly.partial_derivative(1, 1)),
+                mesh=self.mesh,
+                name=f"\\nabla^{n}({self.__str__()})",
+                **opts,
+            )
         else:
             raise NotImplemented(f"TODO: ndim={self.mesh.ndim} n={n}")
 
-    def derivative(self, n=1) -> Field:
-        return Field(derivative(self. __functor__(), n),  mesh=self.mesh, name=f"D_{n}({self})")
-
-    def partial_derivative(self, *d) -> Field:
-        return Field(self._interpolate().partial_derivative(*d), mesh=self.mesh, name=f"d_{d}({self})")
-
-    def antiderivative(self, *d) -> Field:
-        return Field(antiderivative(self. __functor__(), *d),  mesh=self.mesh, name=f"I_{d}({self})")
-
-    def d(self, n=1) -> Field: return self.derivative(n)
-
-    def pd(self, *d) -> Field: return self.partial_derivative(*d)
-
-    def dln(self) -> Expression: return self.derivative() / self
+    def derivative(self, *d, **kwargs) -> Field:
+        if len(d) == 0:
+            d = [1]
+        if all([v >= 0 for v in d]):
+            func = self.ppoly().partial_derivative(*d)
+            return Field(func, mesh=self.mesh, name=f"d_{d}({self})")
+        else:
+            func = self.ppoly().antiderivative(*d)
+            return Field(func, mesh=self.mesh, name=f"I_{d}({self})")
