@@ -558,8 +558,8 @@ class Expression:
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
-    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (is_scalar(o) and o == 0 ) else self
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (is_scalar(o) and o == 0 ) else self
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (is_scalar(o) and o == 0 ) and o is not _not_found_ and  o is not None else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (is_scalar(o) and o == 0 ) and o is not _not_found_ and  o is not None else self
     def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (np.nan if o==0 else self)
@@ -695,7 +695,17 @@ class ConstantExpr(Expression):
         super().__init__(None, *args, **kwargs)
         self._value = value
 
-    def __value__(self):
+    @property
+    def __label__(self):
+        return self._value
+
+    def __str__(self):
+        return str(self._value)
+
+    def __repr__(self) -> str:
+        return str(self._value)
+
+    def __call__(self, *args, **kwargs):
         return self._value
 
 
