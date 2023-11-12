@@ -157,34 +157,34 @@ class AttributeTree(SpTree):
 _T = typing.TypeVar("_T")
 _TR = typing.TypeVar("_TR")
 
+"""
+用于为 SpPropertyClass 类（及其子类）定义一个property, 并确保其类型为type_hint 指定的类型。
+
+例如：
+``` python
+    class Foo(SpPropertyClass):
+        # 方法一
+        @sp_property
+        def a(self) -> float: return 128
+
+        # 方法二
+        @sp_property(coordinate1="../psi")
+        def dphi_dpsi(self) -> Profile[float]: return self.a*2
+
+        # 方法三
+        phi: Profile[float] = sp_property(coordinate1="../psi")
+
+```
+方法二、三中参数 coordinate1="../psi"，会在构建 Profile时传递给构造函数  Profile.__init__。
+
+方法三 会在创建class 是调用 __set_name__,
+        会在读写property phi 时调用 __set__,__get__ 方法，
+        从Node的_cache或entry获得名为 'phi' 的值，将其转换为 type_hint 指定的类型 Profile[float]。
+
+"""
+
 
 class SpProperty:
-    """
-    用于为 SpPropertyClass 类（及其子类）定义一个property, 并确保其类型为type_hint 指定的类型。
-
-    例如：
-    ``` python
-        class Foo(SpPropertyClass):
-            # 方法一
-            @sp_property
-            def a(self) -> float: return 128
-
-            # 方法二
-            @sp_property(coordinate1="../psi")
-            def dphi_dpsi(self) -> Profile[float]: return self.a*2
-
-            # 方法三
-            phi: Profile[float] = sp_property(coordinate1="../psi")
-
-    ```
-    方法二、三中参数 coordinate1="../psi"，会在构建 Profile时传递给构造函数  Profile.__init__。
-
-    方法三 会在创建class 是调用 __set_name__,
-           会在读写property phi 时调用 __set__,__get__ 方法，
-           从Node的_cache或entry获得名为 'phi' 的值，将其转换为 type_hint 指定的类型 Profile[float]。
-
-    """
-
     def __init__(
         self,
         getter: typing.Callable[[typing.Any], typing.Any] = None,
@@ -246,7 +246,7 @@ class SpProperty:
         self.type_hint = typing.get_type_hints(func).get("return", None)
         return self
 
-    def __set_name__(self, owner, name):
+    def __set_name__(self, owner_cls, name):
         # TODO：
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
 
@@ -262,7 +262,19 @@ class SpProperty:
             self.__doc__ = f"sp_roperty:{self.property_name}"
 
         if self.type_hint is None:
-            self.type_hint = typing.get_type_hints(owner).get(name, None)
+            self.type_hint = typing.get_type_hints(owner_cls).get(name, None)
+
+        metadata = {}
+        for base_cls in owner_cls.__bases__:
+            attr = getattr(base_cls, name, None)
+            if isinstance(attr, SpProperty):
+                if self.__doc__ is None:
+                    self.__doc__ = attr.__doc__
+                update_tree(metadata, None, attr.metadata)
+            elif attr is not None:
+                metadata.setdefault("default_value", attr)
+        if len(metadata) > 0:
+            self.metadata = update_tree(metadata, None, self.metadata)
 
     def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         if self.type_hint is not None:
@@ -377,10 +389,11 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
                     type_hint=_type_hint, getter=prop.getter, setter=prop.setter, deleter=prop.deleter, **prop.metadata
                 )
         else:
-            prop = SpProperty(type_hint=_type_hint, default_value=prop, name=_name)
+            prop = SpProperty(type_hint=_type_hint, default_value=prop)
 
         prop.property_name = _name
         setattr(n_cls, _name, prop)
+        prop.__set_name__(n_cls, _name)
 
     setattr(n_cls, "_metadata", merge_tree_recursive(getattr(cls, "_metadata", None), kwargs))
 

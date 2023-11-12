@@ -564,9 +564,12 @@ class HTree:
 
         default_value = merge_tree_recursive(self._metadata.get("default_value", _not_found_), default_value)
 
-        value = self._as_child(
-            cache, key, *args, _entry=_entry, _parent=_parent or self._parent, default_value=default_value, **kwargs
-        )
+        if _parent is None or _parent is _not_found_:
+            _parent = self._parent
+            if _parent is not None and not isinstance(_parent,HTree):
+                raise RuntimeError(f"{_parent}")
+
+        value = self._as_child(cache, key, *args, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
 
         if isinstance(key, int):
             if self._cache is _not_found_:

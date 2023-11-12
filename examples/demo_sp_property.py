@@ -1,22 +1,26 @@
-from spdm.data.sp_property import AttributeTree
-from spdm.data.Entry import open_entry
+from spdm.data.sp_property import AttributeTree, SpTree, sp_property, sp_tree
 
 
-class Tokamak(AttributeTree):
-    pass
+class Data(SpTree):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
 
-# tok = Tokamak({
-#     "wall": {
-#         "ids_properties": {
-#             "comment": "just a test"
-#         }
+class Foo(SpTree):
+    boo: Data = sp_property(label="boo", default_value=1.0)
 
-#     },
-#     "core_transport": {"model": [{"identifier": "first"}, {"identifier": "second"}]}
-# })
-WORKSPACE = "/home/salmon/workspace"  # "/ssd01/salmon_work/workspace/"
 
-tok = Tokamak(open_entry(f"file+GEQdsk://{WORKSPACE}/gacode/neo/tools/input/profile_data/g141459.03890#equilibrium"))
+class Bar(Foo):
+    boo: Data = sp_property(label="boo", units="m")
 
-print(tok.time_slice[0].profiles_1d.psi)
+
+@sp_tree
+class Bar2(Foo):
+    boo: Data = 2.1234
+
+
+a = Bar()
+b = Bar2()
+print(a.boo._metadata)
+print(b.boo._metadata)
+print(b.get("boo")._metadata)

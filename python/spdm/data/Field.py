@@ -13,6 +13,7 @@ from ..utils.typing import ArrayType, array_type, as_array
 from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor
+from .Path import Path
 
 
 def guess_mesh(holder, prefix="mesh", **kwargs):
@@ -29,7 +30,7 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
         if coordinates is not None:
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
-            coordinates = [holder.get(c, _not_found_) for c in coordinates.values()]
+            coordinates = [Path(c).fetch(holder) for c in coordinates.values()]
             mesh = {"dims": coordinates}
 
     elif isinstance(mesh, str):
