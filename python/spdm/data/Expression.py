@@ -6,6 +6,7 @@ import functools
 import collections.abc
 import numpy as np
 import numpy.typing as np_tp
+from .HTree import HTree
 from .Functor import Functor
 from .sp_property import SpTree
 from ..utils.misc import group_dict_by_prefix
@@ -174,10 +175,15 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
         dims_s = dict(sorted(dims_s.items(), key=lambda x: x[0]))
 
         for c in dims_s.values():
-            if isinstance(c, str):
+            if not isinstance(c, str):
+                d = as_array(c)
+            elif isinstance(holder, HTree):
                 d = holder.get(c, _not_found_)
+            else:
+                d = getattr(holder, c, _not_found_)
+
             if d is _not_found_ or d is None:
-                logger.warning(f"Can not get coordinates {c} from {holder}")
+                # logger.warning(f"Can not get coordinates {c} from {holder}")
                 coords = []
                 break
             coords.append(as_array(d))
@@ -612,8 +618,8 @@ EXPR_OP_TAG = {
     "negative": "-",
     "add": "+",
     "subtract": "-",
-    "multiply": r"\times",
-    "matmul": r"\times",
+    "multiply": r"\cdot",
+    "matmul": r"\cdot",
     "true_divide": "/",
     "power": "^",
     "equal": "==",
@@ -624,8 +630,8 @@ EXPR_OP_TAG = {
     "greater_equal": ">=",
     "add": "+",
     "subtract": "-",
-    "multiply": r"\times",
-    "matmul": r"\times",
+    "multiply": r"\cdot",
+    "matmul": r"\cdot",
     "divide": "/",
     "power": "^",
     # "abs": "",

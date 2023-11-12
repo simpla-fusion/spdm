@@ -82,7 +82,7 @@ def is_vector(v: typing.Any) -> bool:
 
 
 def is_array(v: typing.Any) -> bool:
-    return (isinstance(v, array_type) and len(v.shape) > 0)
+    return  isinstance(v, array_type) 
 
 
 def is_numeric(v: typing.Any) -> bool:

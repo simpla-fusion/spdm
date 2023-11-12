@@ -291,7 +291,7 @@ class SpProperty(typing.Generic[_T]):
         metadata = self.metadata
 
         for base in owner_cls.__bases__:
-            metadata = merge_tree_recursive(getattr(getattr(base, name, None), "_kwargs", None), metadata)
+            metadata = merge_tree_recursive(getattr(getattr(base, name, None), "metadata", None), metadata)
 
         return self.type_hint, metadata
 
