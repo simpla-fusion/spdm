@@ -403,8 +403,9 @@ class HTree:
                     _entry = None
 
             if isinstance_generic(value, _type_hint):
-                pass
-
+                if hasattr(value, "_metadata") and len(kwargs) > 0:
+                    value._metadata = merge_tree_recursive(value._metadata, kwargs)
+                
             elif not force and issubclass(get_origin(_type_hint), HTree):
                 value = _type_hint(value, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
 

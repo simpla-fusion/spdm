@@ -240,8 +240,9 @@ class Expression:
             命名参数， 用于传递给运算符的参数
 
         """
-
-        if self.__class__ is Expression and expr.__class__ is Expression:
+        if expr is np.subtract and isinstance(children[1], (int, float)) and children[1] == 0:
+            raise RuntimeError(f"TODO: {expr} {children}")
+        if self.__class__ is Expression and expr.__class__ is Expression and len(children) == 0:
             self.__copy_from__(expr)
             update_tree(self._metadata, None, kwargs)
 
@@ -376,7 +377,7 @@ class Expression:
 
     @property
     def __label__(self) -> str:
-        return self._metadata.get("label", None) or self._metadata.get("name", None) or ""
+        return self._metadata.get("label", None) or self._metadata.get("name", None) or str(self.__class__.__name__)
 
     def __str__(self) -> str:
         return f"<{self.__class__.__name__} label='{self.__label__}' />"
@@ -402,14 +403,18 @@ class Expression:
         return res.strip("$")
 
     def __repr__(self) -> str:
+        label = self._metadata.get("label", None) or self._metadata.get("name", None)
+        if label is not None:
+            return label
+
         nin = len(self._children)
 
-        if self._func is None:
-            op = self.__label__
-        elif isinstance(self._func, Expression):
-            op = self._func.__label__
+        # op = self._metadata.get("label", None) or self._metadata.get("name", None)
+
+        if isinstance(self._func, Expression):
+            op = self._func.__repr__()
         elif isinstance(self._func, np.ufunc):
-            op = EXPR_OP_TAG.get(self._func.__name__, None)
+            op = EXPR_OP_TAG.get(self._func.__name__, self._func.__name__)
             nin = self._func.nin
         else:
             op = self._func.__class__.__name__
@@ -423,20 +428,20 @@ class Expression:
                     res = f"- {Expression._repr_s(self._children[0])}"
 
                 elif not op.startswith("\\"):
-                    res = f"{op}({Expression._repr_s(self._children[0])})"
+                    res = rf"{op}\left({Expression._repr_s(self._children[0])}\right)"
 
                 else:
-                    res = f"{op}{{{Expression._repr_s(self._children[0])}}}"
+                    res = rf"{op}\left({Expression._repr_s(self._children[0])}\right)"
 
             case 2:
                 match op:
                     case "/":
                         res = f"\\frac{{{Expression._repr_s(self._children[0])}}}{{{Expression._repr_s(self._children[1])}}}"
                     case _:
-                        res = f"({Expression._repr_s(self._children[0])} {op} {Expression._repr_s(self._children[1])})"
+                        res = rf"\left({Expression._repr_s(self._children[0])} {op} {Expression._repr_s(self._children[1])}\right)"
 
             case _:
-                res = f"{op}({','.join([Expression._repr_s(child) for child in self._children])})"
+                res = rf"{op}\left({','.join([Expression._repr_s(child) for child in self._children])}\right)"
 
         return res
 
@@ -452,32 +457,14 @@ class Expression:
         """获取表达式的运算符，若为 constants 函数则返回函数值"""
         return self._func
 
-    def _eval(self, *xargs, **kwargs):
+    def _eval(self, *args, **kwargs):
         func = self.__functor__()
 
         if func is None:
             value = np.nan
-
-        elif isinstance(func, (Functor, Expression, np.ufunc)):
-            if len(self._children) > 0:  # Traverse children
-                children = []
-                for child in self._children:
-                    if callable(child):
-                        value = child(*xargs, **kwargs)
-                    elif hasattr(child, "__value__"):
-                        value = child.__value__
-                    elif hasattr(child, "__array__"):
-                        value = child.__array__()
-                    else:
-                        value = child
-                    children.append(value)
-
-                if len(children) > 0:
-                    xargs = tuple(children)
-                    kwargs = {}
-
+        elif callable(func):
             try:
-                value = func(*xargs, **kwargs)
+                value = func(*args, **kwargs)
             except Exception as error:
                 raise RuntimeError(f"Error when evaluating {self.__repr__()} !") from error
 
@@ -489,7 +476,7 @@ class Expression:
 
         return value
 
-    def __call__(self, *args: NumericType, **kwargs) -> typing.Any:
+    def __call__(self, *args, **kwargs) -> typing.Any:
         """
         重载函数调用运算符，用于计算表达式的值
 
@@ -510,7 +497,24 @@ class Expression:
             return self
         elif any([(isinstance(arg, Expression) or callable(arg)) for arg in args]):
             return Expression(self, *args, **kwargs, **self._metadata)
-        elif getattr(self, "CHECK_DOMAIN", False):
+
+        if len(self._children) > 0:  # Traverse children
+            children = []
+            for child in self._children:
+                if callable(child):
+                    value = child(*args, **kwargs)
+                elif hasattr(child, "__value__"):
+                    value = child.__value__
+                elif hasattr(child, "__array__"):
+                    value = child.__array__()
+                else:
+                    value = child
+                children.append(value)
+
+            args = tuple(children)
+            kwargs = {}
+
+        if getattr(self, "CHECK_DOMAIN", False):
             return self.domain.eval(self, *args, **kwargs)
         else:
             return self._eval(*args, **kwargs)
@@ -518,20 +522,16 @@ class Expression:
     def integral(self, **kwargs) -> float:
         raise NotImplementedError(f"TODO:integral")
 
-    def derivative(self, *d, **kwargs) -> typing.Type[Derivative]:
-        if len(d) == 0:
-            d = [1]
-        if len(d) > 1:
-            return PartialDerivative(self, *d, domain=self.domain, _parent=self._parent, **kwargs)
-        elif d[0] == 0:
+    def derivative(self, d, *args, **kwargs) -> typing.Type[Derivative]:
+        if d == 0:
             return self
-        elif d[0] > 0:
-            return Derivative(self, d[0], domain=self.domain, _parent=self._parent, **kwargs)
-        elif d[0] < 0:
-            return Antiderivative(self, -d[0], domain=self.domain, _parent=self._parent, **kwargs)
+        elif isinstance(d, int) and d < 0:
+            return Antiderivative(-d, *args, self, domain=self.domain, _parent=self._parent, **kwargs)
+        else:
+            return Derivative(d, *args, self, domain=self.domain, _parent=self._parent, **kwargs)
 
-    def pd(self, *d, **kwargs) -> Expression:
-        return self.derivative(*d, **kwargs)
+    def pd(self, *d) -> Expression:
+        return self.derivative(d)
 
     @property
     def d(self) -> Expression:
@@ -552,31 +552,30 @@ class Expression:
     def dln(self) -> Expression:
         """logarithmic derivative 对数求导"""
         return self.derivative() / self
-        # return LogDerivative(self)
 
     def find_roots(self, *args, **kwargs) -> typing.Generator[float, None, None]:
         raise NotImplementedError(f"TODO: find_roots")
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
-    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not ((isinstance(o,(float,int)) and o ==0) or o is _not_found_) else self
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not ((isinstance(o,(float,int)) and o ==0) or o is _not_found_) else self
-    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (np.nan if o==0 else self)
-    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (1 if o==0 else self)
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (is_scalar(o) and o == 0 ) else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (is_scalar(o) and o == 0 ) else self
+    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (np.nan if o==0 else self)
+    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (1 if o==0 else self)
     def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  ,)
     def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  ,)
     def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  ,)
     def __le__       (self, o: NumericType | Expression) : return Expression(np.less_equal   ,  self, o  ,)
     def __gt__       (self, o: NumericType | Expression) : return Expression(np.greater      ,  self, o  ,)
     def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  ,)
-    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else self
-    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==0) else self.__neg__()
-    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (isinstance(o,(float,int)) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not (is_scalar(o) and o ==0) else self
+    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not (is_scalar(o) and o ==0) else self.__neg__()
+    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  ,)
-    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,) if not (isinstance(o,(float,int)) and o ==1)  else 1
+    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,) if not (is_scalar(o) and o ==1)  else 1
     def __abs__      (self                             ) : return Expression(np.abs          ,  self     ,)
     def __pos__      (self                             ) : return Expression(np.positive     ,  self     ,)
     def __invert__   (self                             ) : return Expression(np.invert       ,  self     ,)
@@ -708,7 +707,7 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, expr, *order, **kwargs):
+    def __init__(self, order, expr, **kwargs):
         super().__init__(None, **kwargs)
         self._expr = expr
         self._order = order
@@ -717,28 +716,23 @@ class Derivative(Expression):
     def order(self) -> int | None:
         return self._order
 
-    def __functor__(self):
-        if self._func is None:
-            x = self.domain.points
-
-            func = self._children[0]
-
-            if hasattr(func, "derivative"):
-                self._func = func.derivative(self.order)
-            elif is_scalar(func):
-                self._func = 0
-            elif is_array(func):
-                func = Function(func, x)
-                return func.derivative(self.order)(x)
-            else:
-                raise TypeError(type(func))
-
-            self._func = func
-
-        return self._func
-
     def __repr__(self) -> str:
-        return f"d({Expression._repr_s(self._children[0])})"
+        return f"d({Expression._repr_s(self._expr)})"
+
+        # return rf"\frac{{d({Expression._repr_s(self._children[1])})}}{{{Expression._repr_s(self._children[0])}}}"
+
+    def _ppoly(self, *args, **kwargs):
+        if isinstance(self._expr, Variable):
+            y = self._expr(*args)
+            x = args[0]
+        elif isinstance(self._expr, Expression):
+            x = self._expr.domain.points[0]
+            y = self._expr.__array__()
+        return interpolate(x, y), args[0]
+
+    def _eval(self, *args, **kwargs):
+        ppoly, x = self._ppoly(*args, **kwargs)
+        return ppoly.derivative(self._order)(x)
 
 
 class LogDerivative(Derivative):
@@ -764,11 +758,9 @@ class Antiderivative(Derivative):
         else:
             return f"I({self._expr})"
 
-    def __functor__(self) -> Functor:
-        if self._func is None:
-            value = self._expr(*self.domain.points)
-            self._func = interpolate(*self.domain.points, value).antiderivative(*self._order)
-        return self._func
+    def _eval(self, *args, **kwargs):
+        ppoly, x = self._ppoly(*args, **kwargs)
+        return ppoly.antiderivative(self._order)(x)
 
 
 class Piecewise(Expression):

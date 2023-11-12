@@ -203,12 +203,13 @@ class Field(Expression):
         else:
             raise NotImplemented(f"TODO: ndim={self.mesh.ndim} n={n}")
 
-    def derivative(self, *d, **kwargs) -> Field:
-        if len(d) == 0:
-            d = [1]
-        if all([v >= 0 for v in d]):
+    def derivative(self, d, *args, **kwargs) -> Field:
+        if isinstance(d, int) and d < 0:
+            func = self.ppoly().antiderivative(*d)
+            return Field(func, mesh=self.mesh, name=f"I_{d}({self})")
+        elif isinstance(d, collections.abc.Sequence):
             func = self.ppoly().partial_derivative(*d)
             return Field(func, mesh=self.mesh, name=f"d_{d}({self})")
         else:
-            func = self.ppoly().antiderivative(*d)
-            return Field(func, mesh=self.mesh, name=f"I_{d}({self})")
+            func = self.ppoly().derivative(d)
+            return Field(func, mesh=self.mesh, name=f"d_{d}({self})")
