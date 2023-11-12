@@ -51,7 +51,7 @@ from .Entry import Entry
 from .AoS import AoS
 from .HTree import HTree, Dict
 
-from ..utils.tree_utils import merge_tree_recursive
+from ..utils.tree_utils import merge_tree_recursive, update_tree
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
@@ -158,7 +158,7 @@ _T = typing.TypeVar("_T")
 _TR = typing.TypeVar("_TR")
 
 
-class SpProperty(typing.Generic[_T]):
+class SpProperty:
     """
     用于为 SpPropertyClass 类（及其子类）定义一个property, 并确保其类型为type_hint 指定的类型。
 
@@ -264,7 +264,7 @@ class SpProperty(typing.Generic[_T]):
         if self.type_hint is None:
             self.type_hint = typing.get_type_hints(owner).get(name, None)
 
-    def _get_desc(self, owner_cls, name: str = None, metadata: dict = None):
+    def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         if self.type_hint is not None:
             return self.type_hint, self.metadata
 
@@ -275,30 +275,30 @@ class SpProperty(typing.Generic[_T]):
         else:
             type_hint = typing.get_type_hints(owner_cls).get(name, None)
 
-        if type_hint is None:
-            #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-            orig_class = typing.get_origin(self.__class__)
-            if orig_class is not None:
-                child_cls = typing.get_args(orig_class)
-                if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-                    type_hint = child_cls[0]
+        # if type_hint is None:
+        #     #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
+        #     orig_class = typing.get_origin(self.__class__)
+        #     if orig_class is not None:
+        #         child_cls = typing.get_args(orig_class)
+        #         if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
+        #             type_hint = child_cls[0]
 
         if not callable(type_hint):
             raise TypeError(type_hint)
 
         self.type_hint = type_hint
 
-        metadata = self.metadata
+        for base_cls in owner_cls.__bases__:
+            m_data = getattr(getattr(base_cls, name, None), "metadata", None)
+            logger.debug(m_data)
+            update_tree(self.metadata, None, m_data)
 
-        for base in owner_cls.__bases__:
-            metadata = merge_tree_recursive(getattr(getattr(base, name, None), "metadata", None), metadata)
-
-        return self.type_hint, metadata
+        return self.type_hint, self.metadata
 
     def __set__(self, instance: SpTree[_T], value: typing.Any) -> None:
         assert instance is not None
 
-        # type_hint, metadata = self._get_desc(instance.__class__, self.property_name, self.metadata)
+        # type_hint, metadata = self._get_type_hint(instance.__class__, self.property_name, self.metadata)
         property_name = self.metadata.get("alias", self.property_name)
 
         if property_name is None:
@@ -316,9 +316,9 @@ class SpProperty(typing.Generic[_T]):
 
         # 当调用 getter(obj, <name>) 时执行
 
-        type_hint, metadata = self._get_desc(owner, self.property_name)
+        type_hint, metadata = self._get_type_hint(owner.__class__, self.property_name)
 
-        property_name = metadata.get("alias", self.property_name)
+        property_name = self.metadata.get("alias", self.property_name)
 
         if property_name is None:
             raise AttributeError(f"property_name is None!")
@@ -345,9 +345,9 @@ class SpProperty(typing.Generic[_T]):
 
 def sp_property(getter: typing.Callable[..., _T] = None, **kwargs) -> _T:
     if getter is None:
-        return SpProperty[_T](**kwargs)
+        return SpProperty(**kwargs)
     else:
-        return SpProperty[_T](getter=getter, **kwargs)
+        return SpProperty(getter=getter, **kwargs)
 
 
 def is_sp_property(obj) -> bool:
