@@ -294,7 +294,7 @@ class ChainEntry(Entry):
         return any(res)
 
 
-def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
+def _open_entry(entry: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
     """
     Open an Entry from a URL.
 
@@ -316,44 +316,42 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
         east+mdsplus+ssh://<mds_prefix>
 
     """
-    if isinstance(url, (dict, list)):
-        return Entry(url)
+    if isinstance(entry, (dict, list)):
+        # 如果是一个字典或者列表，直接转换成 Entry
+        return Entry(entry)
 
-    if isinstance(url, Entry) and len(kwargs) == 0:
-        return url
+    elif isinstance(entry, Entry):
+        # 如果是一个Entry，直接返回
+        if len(kwargs) > 0:  # pragma: no cover
+            logger.warning(f"ignore {kwargs}")
+        return entry
 
-    if isinstance(url, str) and "." not in url and "/" not in url:
-        url = f"{url}+://"
+    elif isinstance(entry, str):
+        # 如果是一个字符串，需要进行解析       
+        uri = uri_split(entry)
 
-    url_ = uri_split(url)
+    elif isinstance(entry, pathlib.Path):
+        # 如果是一个pathlib.Path，需要转换
+        uri = URITuple(protocol="file", fragment=kwargs.pop("fragment", ""), query=kwargs, path=entry)
 
-    if not isinstance(url_.path, str):
-        raise RuntimeError(f"{url} {url_}")
+    elif isinstance(entry, URITuple):
+        # 如果是一个URITuple，不需要转换
+        uri = entry
 
-    fragment = url_.fragment
-
-    query = merge_tree_recursive(url_.query, kwargs)
-
-    uid = query.pop("uid", None)
-
-    if isinstance(uid, str):
-        shot, *run = uid.split("_")
-        run = "_".join(run)
     else:
-        shot = query.pop("shot", None) or ""
-        run = query.pop("run", None)
-        if run is None:
-            uid = shot
-        else:
-            uid = f"{run}_{shot}"
+        # 其他类型，报错
+        raise RuntimeError(f"Unknown entry {entry} {type(entry)}")
 
-    query["uid"] = uid
-    query["shot"] = shot
-    query["run"] = run
+    # if not isinstance(uri.path, str):
+    #     raise RuntimeError(f"{entry} {uri}")
+
+    fragment = uri.fragment
+
+    query = merge_tree_recursive(uri.query, kwargs)
 
     global_schema = query.pop("global_schema", None)
 
-    schemas = [s for s in url_.protocol.split("+") if s != ""]
+    schemas = [s for s in uri.protocol.split("+") if s != ""]
 
     local_schema = query.pop("local_schema", None) or query.pop("device", None)
     if len(schemas) > 0 and schemas[0] not in PROTOCOL_LIST:
@@ -362,8 +360,8 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
 
     new_url = URITuple(
         protocol="+".join(schemas),
-        authority=url_.authority,
-        path=url_.path,
+        authority=uri.authority,
+        path=uri.path,
         query=query,
         fragment="",
     )
