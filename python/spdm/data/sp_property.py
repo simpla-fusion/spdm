@@ -104,28 +104,22 @@ class SpTree(Dict):
             return entry
 
     @staticmethod
-    def _clone(obj, *args, **kwargs):
+    def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
         if isinstance(obj, AoS):
-            return [SpTree._clone(o, *args, **kwargs) for o in obj]
+            return [SpTree._clone(o, func) for o in obj]
         elif isinstance(obj, SpTree):
             cache = {}
-            for k, _ in inspect.getmembers(obj.__class__, is_sp_property):
-                try:
-                    obj = getattr(obj, k, _not_found_)
-                except Exception as error:
-                    obj = _not_found_
-
-                cache[k] = SpTree._clone(obj, *args, **kwargs)
+            for k, _ in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
+                cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
 
             return cache
-
-        elif callable(obj):
-            return obj(*args, **kwargs)
+        elif func is not None:
+            return func(obj)
         else:
             return obj
 
-    def clone(self, *args, **kwargs) -> typing.Type[SpTree]:
-        return self.__class__(SpTree._clone(self, *args, **kwargs))
+    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> typing.Type[SpTree]:
+        return self.__class__(SpTree._clone(self, func))
 
 
 class AttributeTree(SpTree):

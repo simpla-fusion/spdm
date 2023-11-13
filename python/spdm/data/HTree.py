@@ -566,7 +566,7 @@ class HTree:
 
         if _parent is None or _parent is _not_found_:
             _parent = self._parent
-            if _parent is not None and not isinstance(_parent,HTree):
+            if _parent is not None and not isinstance(_parent, HTree):
                 raise RuntimeError(f"{_parent}")
 
         value = self._as_child(cache, key, *args, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
@@ -714,6 +714,12 @@ class List(Container[_T]):
 
     def __getitem__(self, path) -> _T:
         return super().get(path, _parent=self._parent, force=True)
+
+    def __iadd__(self, other) -> typing.Type[List[_T]]:
+        if isinstance(other, list):
+            self._cache.append(other)
+        else:
+            self._cache.append(other)
 
     def dump(self, _entry: Entry, **kwargs) -> None:
         """将数据写入 _entry"""

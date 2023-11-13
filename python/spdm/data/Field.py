@@ -129,7 +129,7 @@ class Field(Expression):
                 (*self.mesh.points, self.__array__()),
                 {
                     "label": self.__label__,
-                    "coordinates_label": self.mesh.coordinates_label,
+                    "axis_label": self.mesh.axis_label,
                 },
             ),
             output="svg",

@@ -98,8 +98,8 @@ class Mesh(DomainBase, Pluggable):
         DomainBase.__init__(self, *args, **kwargs)
 
     @property
-    def coordinates_label(self) -> typing.Tuple[str]:
-        return self._metadata.get("coordinates_label", ["[-]"] * self.ndim)
+    def axis_label(self) -> typing.Tuple[str]:
+        return self._metadata.get("axis_label", ["[-]"] * self.ndim)
 
     @property
     def name(self) -> str:
