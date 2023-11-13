@@ -120,18 +120,28 @@ class MatplotlibView(View):
         if obj is None or obj is _not_found_:
             pass
 
-        elif isinstance(obj, tuple):
-            o, s = obj
-            if s is False:
-                styles = False
-            elif s is True:
-                pass
-            elif isinstance(s, collections.abc.Mapping):
-                styles = merge_tree_recursive(styles, s)
-            else:
-                logger.warning(f"ignore unsupported styles {s}")
+        elif isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], (dict, str)):
+            data, t_styles = obj
 
-            self._draw(canvas, o, styles, view_point=view_point, **kwargs)
+            if isinstance(t_styles, str):
+                styles = merge_tree_recursive(styles, {"label": t_styles})
+            elif isinstance(obj[-1], dict):
+                styles = merge_tree_recursive(styles, t_styles)
+            else:
+                raise RuntimeError(f"Unsupport type {type(obj[-1])} {obj[-1]}")
+
+            self._draw(canvas, data, styles, view_point=view_point, **kwargs)
+
+        elif isinstance(obj, tuple):
+            assert all([isinstance(o, array_type) for o in obj])
+            *x, y = obj
+
+            if len(x) != 2 or y.ndim != 2:
+                raise RuntimeError(f"Illegal dimension {[d.shape for d in x]} {y.shape} ")
+
+            levels = styles.pop("levels", s_styles.pop("levels", 10))
+
+            canvas.contour(*x, y, levels=levels, **collections.ChainMap(s_styles, {"linewidths": 0.5}))
 
         elif hasattr(obj.__class__, "__geometry__"):
             try:
@@ -208,19 +218,8 @@ class MatplotlibView(View):
         elif isinstance(obj, GeoObject):
             self._draw(canvas, obj.bbox, styles)
 
-        elif isinstance(obj, Field):
-            R, Z = obj.mesh.points
-            value = obj.__array__()
-
-            levels = styles.pop("levels", s_styles.pop("levels", 10))
-
-            canvas.contour(
-                R,
-                Z,
-                value,
-                levels=levels,
-                **collections.ChainMap(s_styles, {"linewidths": 0.5}),
-            )
+        elif hasattr(obj, "mesh") and hasattr(obj, "__array__"):
+            self._draw(*obj.mesh.points, obj.__array__(), styles=styles, **kwargs)
 
         else:
             raise RuntimeError(f"Unsupport type {type(obj)} {obj}")
@@ -303,7 +302,6 @@ class MatplotlibView(View):
                 sub_styles = {"label": sub_styles}
 
             y_label = sub_styles.get("y_label", None)
-        
 
             if not isinstance(profiles, (list)):
                 profiles = [profiles]
@@ -333,18 +331,23 @@ class MatplotlibView(View):
             if y_label is None:
                 y_label = "n.a."
             else:
-                y_label = y_label.replace("^-1", "^{-1}").replace("^-2", "^{-2}").replace("^-3", "^{-3}").replace("."," \cdot ")
+                y_label = (
+                    y_label.replace("^-1", "^{-1}")
+                    .replace("^-2", "^{-2}")
+                    .replace("^-3", "^{-3}")
+                    .replace(".", " \cdot ")
+                )
 
             if "$" not in y_label:
                 y_label = f"${y_label}$"
-                
+
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
 
         canvas[-1].set_xlabel(x_label, fontsize=fontsize)
 
         return self._figure_post(fig, styles=styles, **kwargs)
 
-    def _plot(self, canvas, *args, x_axis: array_type, x_value: array_type, **kwargs)->str:
+    def _plot(self, canvas, *args, x_axis: array_type, x_value: array_type, **kwargs) -> str:
         if len(args) == 0:
             return None
         elif isinstance(args[-1], str):
