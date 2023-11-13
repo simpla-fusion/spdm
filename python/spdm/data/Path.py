@@ -783,6 +783,15 @@ class Path(list):
 
             next_id += step
 
+    def keys(self,target,**kwargs)->typing.Generator[str,None,None]:
+        obj, suffix = Path._get_by_path(target, self[:])
+        if len(suffix)>0 :
+            raise KeyError(f"{self[:-len(suffix)]}")
+        elif not isinstance(obj,collections.abc.Mapping):
+            raise KeyError(f"Can not get keys from {type(target)}")
+        yield from obj
+
+
     # End API
     ###########################################################
 

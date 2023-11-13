@@ -25,7 +25,14 @@ class Entry(Pluggable):
     _plugin_prefix = "spdm.plugins.data.plugin_"
     _plugin_registry = {}
 
-    def __init__(self, data: typing.Any = None, path: Path | PathLike = None, *args, scheme=None, **kwargs,):
+    def __init__(
+        self,
+        data: typing.Any = None,
+        path: Path | PathLike = None,
+        *args,
+        scheme=None,
+        **kwargs,
+    ):
         if self.__class__ is not Entry:
             pass
         elif scheme is not None or isinstance(data, (str, URITuple, pathlib.Path)):
@@ -54,37 +61,106 @@ class Entry(Pluggable):
         self._path = as_path(path)
         return self
 
-    def __str__(self) -> str: return f'<{self.__class__.__name__} path="{self._path}" />'
-
-    def __getitem__(self, *args) -> Entry: return self.child(*args)
-
-    def __setitem__(self, path, value): return self.child(path).update(value)
-
-    def __delitem__(self, *args): return self.child(*args).remove()
+    def __str__(self) -> str:
+        return f'<{self.__class__.__name__} path="{self._path}" />'
 
     @property
-    def __entry__(self) -> Entry: return self
+    def __entry__(self) -> Entry:
+        return self
 
     @property
-    def is_writable(self) -> bool: return False
+    def is_writable(self) -> bool:
+        return False
 
     @property
-    def path(self) -> Path: return self._path
+    def path(self) -> Path:
+        return self._path
 
     @property
-    def is_leaf(self) -> bool: return self.fetch(Path.tags.is_leaf)
+    def is_leaf(self) -> bool:
+        return self.fetch(Path.tags.is_leaf)
 
     @property
-    def is_list(self) -> bool: return self.fetch(Path.tags.is_list)
+    def is_list(self) -> bool:
+        return self.fetch(Path.tags.is_list)
 
     @property
-    def is_dict(self) -> bool: return self.fetch(Path.tags.is_dict)
+    def is_dict(self) -> bool:
+        return self.fetch(Path.tags.is_dict)
 
     @property
-    def is_root(self) -> bool: return len(self._path) == 0
+    def is_root(self) -> bool:
+        return len(self._path) == 0
 
     @property
-    def is_generator(self) -> bool: return self._path.is_generator
+    def is_generator(self) -> bool:
+        return self._path.is_generator
+
+    ###########################################################
+
+    @property
+    def __value__(self) -> typing.Any:
+        return self._data if len(self._path) == 0 else self.get(default_value=_not_found_)
+
+    def __getitem__(self, *args) -> Entry:
+        return self.child(*args)
+
+    def __setitem__(self, path, value):
+        return self.child(path).update(value)
+
+    def __delitem__(self, *args):
+        return self.child(*args).remove()
+
+    def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
+        if query is None:
+            entry = self
+            args = ()
+        elif isinstance(query, (slice, set, dict)):
+            entry = self
+            args = (query,)
+        else:
+            entry = self.child(query)
+            args = ()
+
+        res = entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
+
+        if res is _undefined_:
+            raise RuntimeError(f'Can not find "{query}" in {self}')
+        else:
+            return res
+
+    def put(self, pth, value, *args, **kwrags) -> Entry:
+        entry = self.child(pth)
+        entry.update(value, *args, **kwrags)
+        return entry
+
+    def dump(self) -> typing.Any:
+        return self.fetch(Path.tags.dump)
+
+    def equal(self, other) -> bool:
+        if isinstance(other, Entry):
+            return self.fetch(Path.tags.equal, other.__value__)
+        else:
+            return self.fetch(Path.tags.equal, other)
+
+    @property
+    def count(self) -> int:
+        return self.fetch(Path.tags.count)
+
+    @property
+    def exists(self) -> bool:
+        return self.fetch(Path.tags.exists)
+
+    def check_type(self, tp: typing.Type) -> bool:
+        return self.fetch(Path.tags.check_type, tp)
+
+    ###########################################################
+
+    @property
+    def root(self) -> Entry:
+        other = copy(self)
+        other._path = []
+        return other
 
     @property
     def parent(self) -> Entry:
@@ -119,46 +195,6 @@ class Entry(Pluggable):
         return next_
 
     ###########################################################
-
-    @property
-    def __value__(self) -> typing.Any:
-        return (self._data if len(self._path) == 0 else self.get(default_value=_not_found_))
-
-    def get(self, query=None, default_value: typing.Any = _undefined_, **kwargs) -> typing.Any:
-        if query is None:
-            entry = self
-            args = ()
-        elif isinstance(query, (slice, set, dict)):
-            entry = self
-            args = (query,)
-        else:
-            entry = self.child(query)
-            args = ()
-
-        res = entry.fetch(Path.tags.fetch, *args, default_value=default_value, **kwargs)
-
-        if res is _undefined_:
-            raise RuntimeError(f'Can not find "{query}" in {self}')
-        else:
-            return res
-
-    def dump(self) -> typing.Any: return self.fetch(Path.tags.dump)
-
-    def equal(self, other) -> bool:
-        if isinstance(other, Entry):
-            return self.fetch(Path.tags.equal, other.__value__)
-        else:
-            return self.fetch(Path.tags.equal, other)
-
-    @property
-    def count(self) -> int: return self.fetch(Path.tags.count)
-
-    @property
-    def exists(self) -> bool: return self.fetch(Path.tags.exists)
-
-    def check_type(self, tp: typing.Type) -> bool: return self.fetch(Path.tags.check_type, tp)
-
-    ###########################################################
     # API: CRUD  operation
 
     def insert(self, value, **kwargs) -> Entry:
@@ -181,6 +217,9 @@ class Entry(Pluggable):
         """
         return self._path.fetch(self._data, op, *args, **kwargs)
 
+    def keys(self) -> typing.Generator[str, None, None]:
+        yield from self._path.keys(self._data)
+
     def for_each(self, *args, **kwargs) -> typing.Generator[typing.Tuple[int, typing.Any], None, None]:
         """Return a generator of the results."""
         yield from self._path.for_each(self._data, *args, **kwargs)
@@ -196,6 +235,7 @@ class Entry(Pluggable):
 
     def find(self, *args, **kwargs) -> Entry:
         raise NotImplementedError()
+
     ###########################################################
 
 
@@ -207,7 +247,8 @@ class ChainEntry(Entry):
             if not isinstance(v, Entry):
                 self._entrys[idx] = _open_entry(v, **kwargs)
 
-    def __str__(self)->str: return ','.join([str(e) for e in self._entrys if e._data is None])
+    def __str__(self) -> str:
+        return ",".join([str(e) for e in self._entrys if e._data is None])
 
     def __copy_from__(self, other: Entry) -> ChainEntry:
         self._data = other._data
@@ -216,7 +257,8 @@ class ChainEntry(Entry):
         return self
 
     @property
-    def is_writable(self) -> bool: return self._entrys[0].is_writable
+    def is_writable(self) -> bool:
+        return self._entrys[0].is_writable
 
     def fetch(self, *args, default_value=_not_found_, **kwargs):
         res = super().fetch(*args, default_value=_not_found_, **kwargs)
@@ -238,9 +280,9 @@ class ChainEntry(Entry):
             _entry = main_entry.child(self._path)
             if not _entry.exists:
                 continue
-            
+
             for idx, e in _entry.for_each():
-                yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[idx+1:]])
+                yield idx, ChainEntry(e, *[o.child(self._path[:] + [idx]) for o in self._entrys[idx + 1 :]])
 
     def find(self, *args, **kwargs):
         return ChainEntry(*[e.find(*args, **kwargs) for e in self._entrys])
@@ -276,7 +318,7 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
     """
     if isinstance(url, (dict, list)):
         return Entry(url)
-    
+
     if isinstance(url, Entry) and len(kwargs) == 0:
         return url
 
@@ -329,6 +371,7 @@ def _open_entry(url: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
     if new_url.protocol.startswith(("local+", "file+")) or (new_url.protocol == "" and new_url.path != ""):
         # 单一文件不进行 schema 检查，直接读取。因为schema转换在文件plugin中进行。
         from .File import File
+
         entry = File(new_url, **query).read()
     elif new_url.protocol.startswith(("http", "https", "ssh")):
         # http/https/ssh 协议，不进行schema检查，直接读取
@@ -464,23 +507,17 @@ def deep_reduce(first=None, *others, level=-1):
     elif isinstance(first, str) or is_scalar(first):
         return first
     elif isinstance(first, array_type):
-        return sum(
-            [first, *(v for v in others if (v is not None and v is not _not_found_))]
-        )
+        return sum([first, *(v for v in others if (v is not None and v is not _not_found_))])
     elif len(others) > 1:
         return deep_reduce(first, deep_reduce(others, level=level), level=level)
     elif others[0] is None or first is _not_found_:
         return first
     elif isinstance(first, collections.abc.Sequence):
-        if isinstance(others[0], collections.abc.Sequence) and not isinstance(
-            others, str
-        ):
+        if isinstance(others[0], collections.abc.Sequence) and not isinstance(others, str):
             return [*first, *others[0]]
         else:
             return [*first, others[0]]
-    elif isinstance(first, collections.abc.Mapping) and isinstance(
-        others[0], collections.abc.Mapping
-    ):
+    elif isinstance(first, collections.abc.Mapping) and isinstance(others[0], collections.abc.Mapping):
         second = others[0]
         res = {}
         for k, v in first.items():
@@ -646,8 +683,8 @@ class EntryProxy(Entry):
         else:
             self._mapper, self._entry_list = self.__class__.load(*args, **kwargs)
 
-    def __str__(self)->str: 
-        return    ','.join([str(e) for e in self._entry_list.values() if isinstance(e,str)])
+    def __str__(self) -> str:
+        return ",".join([str(e) for e in self._entry_list.values() if isinstance(e, str)])
 
     def __copy__(self) -> Entry:
         obj = object.__new__(self.__class__)
@@ -733,5 +770,6 @@ class EntryProxy(Entry):
         return res
 
 
-EntryProxy._mapping_path.extend([pathlib.Path(p)
-                                for p in os.environ.get("SP_DATA_MAPPING_PATH", "").split(":") if p != ""])
+EntryProxy._mapping_path.extend(
+    [pathlib.Path(p) for p in os.environ.get("SP_DATA_MAPPING_PATH", "").split(":") if p != ""]
+)

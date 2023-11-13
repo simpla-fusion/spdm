@@ -398,7 +398,7 @@ class Expression:
 
     def _repr_latex_(self) -> str:
         """for jupyter notebook display"""
-        return f"${self.__repr__()}$"
+        return f"$${self.__repr__()}$$"
 
     @staticmethod
     def _repr_s(expr: Expression) -> str:
@@ -792,12 +792,15 @@ class PartialDerivative(Derivative):
 
 
 class Antiderivative(Derivative):
-    def _repr_latex_(self) -> str:
-        if len(self._order) > 0:
-            return f"\int_{{{list(self._order)}}}({self._expr})"
+    def __repr__(self) -> str:
+        if isinstance(self._order,(list,tuple)):
+            return rf"\int_{{{self._order}}} \left({self._expr.__repr__()} \right)"
+        elif self._order==1:
+            return rf"\int \left({self._expr.__repr__()} \right)"
+        elif self._order==2:
+            return rf"\iint \left({self._expr.__repr__()} \right)"
         else:
-            return f"I({self._expr})"
-
+            return rf"\intop^{{{self._order}}}\left({self._expr.__repr__()}\right)"
     def _eval(self, *args, **kwargs):
         ppoly, x = self._ppoly(*args, **kwargs)
         return ppoly.antiderivative(self._order)(x)
