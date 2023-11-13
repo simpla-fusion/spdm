@@ -572,8 +572,8 @@ class Expression:
 
     # fmt: off
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
-    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not (is_scalar(o) and o == 0 ) and o is not ConstantZero and o is not _not_found_ and  o is not None else self
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not (is_scalar(o) and o == 0 ) and o is not ConstantZero and o is not _not_found_ and  o is not None else self
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
     def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (np.nan if o==0 else self)
@@ -584,8 +584,8 @@ class Expression:
     def __le__       (self, o: NumericType | Expression) : return Expression(np.less_equal   ,  self, o  ,)
     def __gt__       (self, o: NumericType | Expression) : return Expression(np.greater      ,  self, o  ,)
     def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  ,)
-    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not (is_scalar(o) and o ==0) else self
-    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not (is_scalar(o) and o ==0) else self.__neg__()
+    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
+    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self.__neg__()
     def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
     def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  ,)
@@ -793,14 +793,15 @@ class PartialDerivative(Derivative):
 
 class Antiderivative(Derivative):
     def __repr__(self) -> str:
-        if isinstance(self._order,(list,tuple)):
+        if isinstance(self._order, (list, tuple)):
             return rf"\int_{{{self._order}}} \left({self._expr.__repr__()} \right)"
-        elif self._order==1:
+        elif self._order == 1:
             return rf"\int \left({self._expr.__repr__()} \right)"
-        elif self._order==2:
+        elif self._order == 2:
             return rf"\iint \left({self._expr.__repr__()} \right)"
         else:
             return rf"\intop^{{{self._order}}}\left({self._expr.__repr__()}\right)"
+
     def _eval(self, *args, **kwargs):
         ppoly, x = self._ppoly(*args, **kwargs)
         return ppoly.antiderivative(self._order)(x)

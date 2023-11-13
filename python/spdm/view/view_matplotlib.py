@@ -377,7 +377,9 @@ class MatplotlibView(View):
 
         if isinstance(expr, Expression):
             if label is None:
-                label = expr._repr_latex_()
+                label = expr.__repr__()
+                if "$" not in label:
+                    label = f"${label}$"
             y_value = expr(x_value)
 
         elif hasattr(expr.__class__, "__array__"):
