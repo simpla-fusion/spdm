@@ -128,7 +128,7 @@ class Actor(SpTree, Pluggable):
     def dependences(self) -> typing.List[Actor]:
         return self._inputs
 
-    time_slice: TimeSeriesAoS[TimeSlice] = sp_property()
+    time_slice: TimeSeriesAoS[TimeSlice] = sp_property(default_value={})
 
     def execute(self, current: TimeSlice, *previous: typing.Tuple[TimeSlice], **inputs) -> typing.Type[Actor]:
         """初始化 Actor，

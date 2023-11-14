@@ -24,7 +24,7 @@ class TimeSlice(SpTree):
     """ 迭代次数 """
 
     def refresh(self, *args, **kwargs) -> int:
-        self.iteration += 1
+        # self.iteration = self.iteration + 1
         self.update(*args, **kwargs)
         return 0
 

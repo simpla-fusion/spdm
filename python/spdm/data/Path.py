@@ -674,7 +674,7 @@ class Path(list):
         if len(suffix) > 0:
             obj = _not_found_
 
-        if op is not None and op is _not_found_:
+        if op is not None and op is not _not_found_:
             return Path._apply_op(obj, op, *args, default_value=default_value, **kwargs)
         elif obj is _not_found_:
             return default_value
