@@ -41,6 +41,8 @@ class Function(Expression):
         """
         if len(xy) == 0:
             raise RuntimeError(f"illegal x,y {xy} ")
+        # elif len(xy) == 1 and isinstance(xy[0], tuple):
+        #     xy = xy[0]
 
         if callable(xy[-1]):
             func = xy[-1]

@@ -135,15 +135,9 @@ class Actor(SpTree, Pluggable):
     def initialize(self, *args, **kwargs) -> typing.Type[Actor]:
         """初始化 Actor，
         kwargs中不应包含 Actor 对象作为 input
-        """
-
-        if self.time_slice.is_initializied:
-            logger.warning(f"{self} is initialized!")
-        else:
-            self.time_slice.initialize(*args, **kwargs)
-
+        """        
+        self.time_slice.initialize(*args, **kwargs)
         self._dependences = {"time": self.time_slice.current.time}
-
         return self
 
     def refresh(self, *args, **inputs) -> typing.Type[Actor]:

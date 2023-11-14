@@ -160,7 +160,8 @@ class TimeSeriesAoS(List[_TSlice]):
 
     def initialize(self, *args, **kwargs):
         if self.is_initializied:
-            raise RuntimeError(f"TimeSeries is already initialized!")
+            return 
+            #raise RuntimeError(f"TimeSeries is already initialized!")
 
         self._cache_cursor = 0
 
