@@ -118,7 +118,9 @@ class SpTree(Dict):
         else:
             return obj
 
-    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> typing.Type[SpTree]:
+    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None, *args, **kargs) -> typing.Type[SpTree]:
+        if not callable(func):
+            func = None
         return self.__class__(SpTree._clone(self, func))
 
 

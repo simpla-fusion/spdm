@@ -160,8 +160,8 @@ class TimeSeriesAoS(List[_TSlice]):
 
     def initialize(self, *args, **kwargs):
         if self.is_initializied:
-            return 
-            #raise RuntimeError(f"TimeSeries is already initialized!")
+            return
+            # raise RuntimeError(f"TimeSeries is already initialized!")
 
         self._cache_cursor = 0
 
@@ -184,6 +184,13 @@ class TimeSeriesAoS(List[_TSlice]):
         else:
             self._entry_cursor = 0
 
+    def refresh(self, *args, **kwargs) -> typing.Type[TimeSeriesAoS]:
+        if not self.is_initializied:
+            self.initialize(*args, **kwargs)
+        else:
+            update_tree(self._cache, self._cache_cursor, *args, kwargs)
+        return self
+
     def advance(self, *args, **kwargs) -> _TSlice:
         if not self.is_initializied:
             self.initialize(*args, **kwargs)
@@ -194,6 +201,6 @@ class TimeSeriesAoS(List[_TSlice]):
 
             self._cache[self._cache_cursor] = None
 
-            update_tree(self._cache, self._cache_cursor, *args, kwargs)
+            self.refresh(*args, **kwargs)
 
         return self.current
