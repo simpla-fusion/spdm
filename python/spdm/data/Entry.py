@@ -294,7 +294,7 @@ class ChainEntry(Entry):
         return any(res)
 
 
-def _open_entry(entry: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry:
+def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None, **kwargs) -> Entry:
     """
     Open an Entry from a URL.
 
@@ -327,7 +327,7 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, **kwargs) -> Entry
         return entry
 
     elif isinstance(entry, str):
-        # 如果是一个字符串，需要进行解析       
+        # 如果是一个字符串，需要进行解析
         uri = uri_split(entry)
 
     elif isinstance(entry, pathlib.Path):
@@ -554,7 +554,9 @@ class EntryProxy(Entry):
     _default_global_schema: str = "imas/3"
 
     @classmethod
-    def load(cls, url: str | None = None, local_schema: str = None, global_schema: str = None, **kwargs):
+    def load(
+        cls, url: str | None = None, local_schema: str = None, global_schema: str = None, mapping_files=None, **kwargs
+    ):
         """检索并导入 mapping files
 
         mapping files 目录结构约定为 :
@@ -588,6 +590,11 @@ class EntryProxy(Entry):
 
         """
         from .File import File
+
+        if len(EntryProxy._mapping_path) == 0:
+            EntryProxy._mapping_path.extend(
+                [pathlib.Path(p) for p in os.environ.get("SP_DATA_MAPPING_PATH", "").split(":") if p != ""]
+            )
 
         mapper_list = EntryProxy._maps
 
@@ -624,7 +631,8 @@ class EntryProxy(Entry):
             if len(map_tag) > 2:
                 config_files.append(f"{'/'.join(map_tag[:3])}/config.xml")
 
-            mapping_files: typing.List[pathlib.Path] = []
+            if mapping_files is None:
+                mapping_files: typing.List[pathlib.Path] = []
 
             for m_dir in EntryProxy._mapping_path:
                 if not m_dir:
@@ -766,8 +774,3 @@ class EntryProxy(Entry):
             res = entry.fetch(request.get("_text"), *args, **kwargs)
 
         return res
-
-
-EntryProxy._mapping_path.extend(
-    [pathlib.Path(p) for p in os.environ.get("SP_DATA_MAPPING_PATH", "").split(":") if p != ""]
-)
