@@ -60,16 +60,16 @@ class Function(Expression):
                 domain["dims"] = xy[:-1]
             # else:
             #     raise RuntimeError(f"illegal domain={domain}")
-
-        self._value = value
-        Expression.__init__(self, func, domain=domain, **kwargs)
+            #
+        super().__init__(func, domain=domain, **kwargs)
+        self._cache = value
 
     def __copy_from__(self, other: Function) -> Function:
         """copy from other"""
         Expression.__copy_from__(self, other)
         if isinstance(other, Function):
             self._dims = other._dims
-            self._value = other._value
+            self._cache = other._cache
             return self
 
     def __repr__(self) -> str:
@@ -88,10 +88,10 @@ class Function(Expression):
         return res
 
     def __getitem__(self, idx) -> NumericType:
-        return self._value[idx]
+        return self._cache[idx]
 
     def __setitem__(self, idx, value) -> None:
-        self._value[idx] = value
+        self._cache[idx] = value
 
     @property
     def x_label(self) -> str:
@@ -144,24 +144,16 @@ class Function(Expression):
             self._func = self._interpolate()
         return self._func
 
-    def __array__(self, *args, **kwargs) -> NumericType:
-        if self._value is _not_found_:
-            if self._func is not None:
-                self._value = super().__array__()
-            else:
-                raise RuntimeError(f"Illegal function {self._value}")
-        return self._value
-
     def _interpolate(self):
-        if not isinstance(self._value, array_type):
-            raise RuntimeError(f"self.__array__ is not array_type! {(self._value)}")
+        if not isinstance(self._cache, array_type):
+            raise RuntimeError(f"self.__array__ is not array_type! {(self._cache)}")
 
         if self.domain is None:
             raise RuntimeError(f"{self}")
 
         return interpolate(
             *self.domain.dims,
-            self._value,
+            self._cache,
             periods=self.domain.periods,
             extrapolate=self._metadata.get("extrapolate", 0),
         )
@@ -215,7 +207,7 @@ class Function(Expression):
         v_shape = ()
 
         if value is None:
-            value = self._value
+            value = self._cache
 
         if value is None:
             raise RuntimeError(f" value is None! {self.__str__()}")

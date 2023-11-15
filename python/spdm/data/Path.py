@@ -737,7 +737,7 @@ class Path(list):
 
         query = None
 
-        if target is _not_found_:
+        if target is _not_found_ or len(res_path)>0:
             raise KeyError(f"Can not find {prefix[:-len(res_path)]}")
 
         elif len(suffix) == 0:
@@ -766,7 +766,7 @@ class Path(list):
         next_id = start
 
         while True:
-            if next_id >= stop:
+            if next_id >= stop or next_id >= len(target):
                 break
 
             value = target[next_id]
@@ -783,14 +783,13 @@ class Path(list):
 
             next_id += step
 
-    def keys(self,target,**kwargs)->typing.Generator[str,None,None]:
+    def keys(self, target, **kwargs) -> typing.Generator[str, None, None]:
         obj, suffix = Path._get_by_path(target, self[:])
-        if len(suffix)>0 :
+        if len(suffix) > 0:
             raise KeyError(f"{self[:-len(suffix)]}")
-        elif not isinstance(obj,collections.abc.Mapping):
+        elif not isinstance(obj, collections.abc.Mapping):
             raise KeyError(f"Can not get keys from {type(target)}")
         yield from obj
-
 
     # End API
     ###########################################################

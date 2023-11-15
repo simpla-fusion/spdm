@@ -6,7 +6,7 @@ import functools
 import collections.abc
 import numpy as np
 import numpy.typing as np_tp
-from .HTree import HTree
+from .HTree import HTree, HTreeNode
 from .Functor import Functor
 from .sp_property import SpTree
 from ..utils.misc import group_dict_by_prefix
@@ -207,7 +207,7 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
         return tuple(coords)
 
 
-class Expression:
+class Expression(HTreeNode):
     """
     Expression
     -----------
@@ -246,6 +246,7 @@ class Expression:
             命名参数， 用于传递给运算符的参数
 
         """
+
         if expr is np.subtract and isinstance(children[1], (int, float)) and children[1] == 0:
             raise RuntimeError(f"TODO: {expr} {children}")
         if self.__class__ is Expression and expr.__class__ is Expression and len(children) == 0:
@@ -309,9 +310,10 @@ class Expression:
 
         if isinstance(domain, collections.abc.Sequence) and len(domain) == 0:
             domain = _not_found_
+
         self._domain = domain
-        self._parent = kwargs.pop("_parent", None)
-        self._metadata = merge_tree(getattr(self.__class__, "_metadata", {}), kwargs)
+
+        super().__init__(None, **kwargs)
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
@@ -351,10 +353,12 @@ class Expression:
 
     def __array__(self) -> ArrayType:
         """在定义域上计算表达式。"""
-        res = self.__call__(*self.domain.points)
-        if not isinstance(res, (np.ndarray, float, int, bool)):
-            raise RuntimeError(f"Can not calcuate! {res}")
-        return res
+        if not is_array(self._cache):
+            self._cache = self.__call__(*self.domain.points)
+            if not isinstance(self._cache, (np.ndarray, float, int, bool)):
+                raise RuntimeError(f"Can not calcuate! {self._cache}")
+
+        return self._cache
 
     @property
     def domain(self) -> Domain:

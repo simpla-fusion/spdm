@@ -47,7 +47,7 @@ def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
 
     if pth is None:
         if hasattr(target, "_cache"):  # is HTree
-            update_tree(target._cache, None, *args, **kwargs)
+            target._cache=update_tree(target._cache, None, *args, **kwargs)
 
         elif len(args) > 0:
             src = args[0]

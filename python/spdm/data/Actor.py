@@ -11,7 +11,7 @@ import contextlib
 from ..view import View as sp_view
 from .Expression import Expression
 from .TimeSeries import TimeSeriesAoS, TimeSlice
-from .sp_property import SpTree, sp_property
+from .sp_property import SpTree, sp_property, sp_tree
 
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
@@ -19,7 +19,8 @@ from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
 from ..utils.tree_utils import traversal_tree
 
 
-class Actor(SpTree, Pluggable):
+@sp_tree
+class Actor(Pluggable):
     mpi_enabled = False
     _plugin_prefix = __package__
     _plugin_registry = {}
@@ -42,7 +43,7 @@ class Actor(SpTree, Pluggable):
         try:
             res = sp_view.display(self, output="svg")
         except Exception as error:
-            logger.error(error)
+            raise RuntimeError(f"{self}") from error
             res = None
         return res
 
@@ -110,53 +111,73 @@ class Actor(SpTree, Pluggable):
 
     @property
     def time(self) -> float | None:
-        return self._inputs.get("time", 0.0)
+        """时间戳，代表 Actor 所处时间，用以同步"""
+        return self.time_slice.time
 
-    """ 时间戳，代表 Actor 所处时间，用以同步"""
+    @property
+    def current(self) -> typing.Type[TimeSlice]:
+        return self.time_slice.current
+
+    @property
+    def previous(self) -> typing.Type[TimeSlice]:
+        return self.time_slice.previous
 
     @property
     def status(self) -> int:
+        """执行状态， 用于异步调用
+            0: success 任务完成
+            1: working 任务执行中
+        -1: failed  任务失败
+        """
         return self._inputs.get("status", 0)
 
-    """ 执行状态， 用于异步调用
-        0: success 任务完成
-        1: working 任务执行中
-       -1: failed  任务失败  
-    """
-
     @property
-    def dependences(self) -> typing.List[Actor]:
+    def inputs(self) -> typing.List[Actor]:
         return self._inputs
 
-    time_slice: TimeSeriesAoS[TimeSlice] = sp_property(default_value={})
+    time_slice: TimeSeriesAoS[TimeSlice]
 
-    def execute(self, current: TimeSlice, *previous: typing.Tuple[TimeSlice], **inputs) -> typing.Type[Actor]:
+    def execute(
+        self,
+        current: TimeSlice,
+        *previous: typing.Tuple[TimeSlice],
+        **inputs: typing.Tuple[Actor],
+    ) -> typing.Type[Actor]:
         """初始化 Actor，
         kwargs中不应包含 Actor 对象作为 input
         """
         return self
 
-    def refresh(self, *args, time=None, **inputs) -> typing.Type[Actor]:
+    def refresh(self, *args, **kwargs) ->None:
         """
         inputs : 输入， Actor 的状态依赖其输入
         """
 
-        self._inputs.update(inputs)
+        self._inputs.update({k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor)})
 
-        self.time_slice.current.refresh(*args, time=time)
-
-        self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs)
-
-        return self
-
-    def advance(self, *args, time=None, **kwargs) -> typing.Type[Actor]:
-        self._inputs = kwargs
-
-        self.time_slice.advance(*args, time=time)
+        self.time_slice.refresh(*args, **kwargs)
 
         self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs)
 
-        return self
+       
+
+    def advance(self, *args, dt=None, time=None, **kwargs) -> None:
+        if time is None and dt is None:
+            raise RuntimeError(f"either time or dt should be given")
+        elif time is not None and dt is not None:
+            logger.warning(f"ignore dt={dt} when time={time} is given")
+        elif time is None and dt is not None:
+            time = self.time + dt
+
+        kwargs["time"] = time
+
+        self._inputs.update({k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor)})
+
+        self.time_slice.advance(*args, **kwargs)
+
+        self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs)
+
+     
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """

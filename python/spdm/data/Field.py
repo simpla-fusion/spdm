@@ -9,7 +9,7 @@ from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, array_type, as_array
+from ..utils.typing import ArrayType, array_type, as_array, is_array
 from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor
@@ -31,10 +31,25 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
             coordinates = {int(k): v for k, v in coordinates.items() if k.isdigit()}
             coordinates = dict(sorted(coordinates.items(), key=lambda x: x[0]))
             coordinates = [Path(c).fetch(holder) for c in coordinates.values()]
-            mesh = {"dims": coordinates}
+            if all([is_array(c) for c in coordinates]):
+                mesh = {"dims": coordinates}
 
     elif isinstance(mesh, str):
         mesh = holder.get(mesh, _not_found_)
+
+    elif isinstance(mesh, Enum):
+        mesh = {"type": mesh.name}
+
+    elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
+        mesh = {"dims": mesh}
+
+    elif isinstance(mesh, collections.abc.Mapping):
+        pass
+
+    if mesh is None or mesh is _not_found_:
+        return guess_mesh(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
+    else:
+        return mesh
 
     # if all([isinstance(c, str) and c.startswith("../grid") for c in coordinates.values()]):
     #     o_mesh = getattr(holder, "grid", None)
@@ -51,19 +66,6 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
     # else:
     #     dims = tuple([(holder.get(c) if isinstance(c, str) else c) for c in coordinates.values()])
     #     self._domain = merge_tree_recursive(self._domain, {"dims": dims})
-    elif isinstance(mesh, Enum):
-        mesh = {"type": mesh.name}
-
-    elif isinstance(mesh, collections.abc.Sequence) and all(isinstance(d, array_type) for d in mesh):
-        mesh = {"dims": mesh}
-
-    elif isinstance(mesh, collections.abc.Mapping):
-        pass
-
-    if mesh is None or mesh is _not_found_:
-        return guess_mesh(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
-    else:
-        return mesh
 
 
 class Field(Expression):
@@ -118,22 +120,32 @@ class Field(Expression):
 
         super().__init__(func, domain=mesh, **kwargs)
 
-        self._value = value
+        self._cache = value
+
         self._ppoly = None
 
-    def _repr_svg_(self) -> str:
-        from ..view.View import display
+    def __geometry__(self, view_point="RZ", **kwargs):
+        """
+        plot o-point,x-point,lcfs,separatrix and contour of psi
+        """
 
-        return display(
-            (
-                (*self.mesh.points, self.__array__()),
-                {
+        geo = {}
+        styles = {}
+
+        match view_point.lower():
+            case "rz":
+                geo = (*self.mesh.points, self.__array__())
+                styles = {
                     "label": self.__label__,
                     "axis_label": self.mesh.axis_label,
-                },
-            ),
-            output="svg",
-        )
+                }
+        return geo, styles
+
+    def __array__(self) -> ArrayType:
+        """在定义域上计算表达式。"""
+        if not is_array(self._cache):
+            raise RuntimeError(f"Can not calcuate! {self._cache}")
+        return self._cache
 
     @property
     def mesh(self) -> Mesh:
@@ -158,13 +170,8 @@ class Field(Expression):
             self._ppoly = self.mesh.interpolator(self.__array__())
         return self._ppoly
 
-    def __array__(self, *args, **kwargs) -> ArrayType:
-        if self._value is None or self._value is _not_found_:
-            self._value = super().__array__()
-        return self._value
-
     def __functor__(self) -> typing.Callable[..., ArrayType]:
-        if self._func is None and self._value is not None:
+        if self._func is None and self._cache is not None:
             self._func = self.ppoly()
         return self._func
 

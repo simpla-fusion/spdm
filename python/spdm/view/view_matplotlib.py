@@ -19,7 +19,7 @@ from spdm.geometry.Polyline import Polyline
 from spdm.utils.envs import SP_DEBUG
 from spdm.utils.logger import SP_DEBUG, logger
 from spdm.utils.tags import _not_found_
-from spdm.utils.tree_utils import merge_tree_recursive
+from spdm.utils.tree_utils import merge_tree
 from spdm.utils.typing import array_type, as_array, is_array, is_scalar
 from spdm.view.View import View
 
@@ -83,7 +83,7 @@ class MatplotlibView(View):
 
         fig, canvas = plt.subplots()
 
-        self._draw(canvas, obj, styles or {}, view_point=view_point)
+        self._draw(canvas, obj, styles=styles or {}, view_point=view_point)
 
         xlabel = styles.get("xlabel", None)
 
@@ -124,9 +124,9 @@ class MatplotlibView(View):
             data, t_styles = obj
 
             if isinstance(t_styles, str):
-                styles = merge_tree_recursive(styles, {"label": t_styles})
+                styles = merge_tree(styles, {"label": t_styles})
             elif isinstance(obj[-1], dict):
-                styles = merge_tree_recursive(styles, t_styles)
+                styles = merge_tree(styles, t_styles)
             else:
                 raise RuntimeError(f"Unsupport type {type(obj[-1])} {obj[-1]}")
 
@@ -146,7 +146,7 @@ class MatplotlibView(View):
         elif hasattr(obj.__class__, "__geometry__"):
             try:
                 geo, s = obj.__geometry__(view_point=view_point, **kwargs)
-                styles = merge_tree_recursive(styles, s)
+                styles = merge_tree(styles, s)
             except Exception as error:
                 logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ")
                 raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from error
@@ -219,7 +219,7 @@ class MatplotlibView(View):
             self._draw(canvas, obj.bbox, styles)
 
         elif hasattr(obj, "mesh") and hasattr(obj, "__array__"):
-            self._draw(*obj.mesh.points, obj.__array__(), styles=styles, **kwargs)
+            self._draw(canvas, (*obj.mesh.points, obj.__array__()), styles=styles, **kwargs)
 
         else:
             raise RuntimeError(f"Unsupport type {type(obj)} {obj}")
@@ -255,7 +255,7 @@ class MatplotlibView(View):
         stop_if_fail=False,
         **kwargs,
     ) -> typing.Any:
-        styles = merge_tree_recursive(kwargs.pop("styles", {}), kwargs)
+        styles = merge_tree(kwargs.pop("styles", {}), kwargs)
 
         fontsize = styles.get("fontsize", 16)
 
@@ -364,7 +364,7 @@ class MatplotlibView(View):
         if expr is None or expr is _not_found_:
             return
 
-        styles = merge_tree_recursive(styles, kwargs.pop("styles", {}), kwargs)
+        styles = merge_tree(styles, kwargs.pop("styles", {}), kwargs)
 
         s_styles = styles.get(f"${self.backend}", {})
 
