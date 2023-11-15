@@ -278,7 +278,7 @@ class HTree(HTreeNode):
                 yield self._as_child(cache, idx, _entry=self._entry.child(idx) if self._entry is not None else None)
         elif isinstance(self._cache, dict) and len(self._cache) > 0:
             for key, cache in self._cache.items():
-                yield self._as_child(cache, key, _entry=self._entry.child(key))
+                yield self._as_child(cache, key, _entry=self._entry.child(key) if self._entry is not None else None)
         elif self._entry is not None:
             for key, d in self._entry.for_each():
                 if not isinstance(d, Entry):
@@ -507,7 +507,6 @@ class HTree(HTreeNode):
         return value
 
     def _get_as_list(self, key: PathLike, *args, default_value=_not_found_, _parent=None, **kwargs) -> HTree:
-        
         if isinstance(key, (Query, dict)):
             raise NotImplementedError(f"TODO: {key}")
             # cache = QueryResult(self, key, *args, **kwargs)
