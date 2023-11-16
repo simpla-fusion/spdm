@@ -101,7 +101,7 @@ class Query:
         #     raise TypeError(f"{(query)}")
 
         if isinstance(query, dict):
-            return merge_tree(query, kwargs)
+            return update_tree(query, kwargs)
 
         else:
             return query
@@ -1391,7 +1391,6 @@ def update_tree(target: _T, *args, **kwargs) -> _T:
 
 
 def merge_tree(target: _T, *args, **kwargs) -> _T:
-    target = copy(target)
     return Path().insert(target, *args, **kwargs)
 
 

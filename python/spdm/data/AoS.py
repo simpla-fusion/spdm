@@ -7,7 +7,7 @@ from ..utils.tags import _not_found_
 from ..utils.typing import array_type, get_args, get_type_hint
 from .Entry import Entry
 from .HTree import HTree, List, Dict
-from .Path import Path, PathLike, as_path, OpTags, Query,merge_tree
+from .Path import Path, PathLike, as_path, OpTags, Query,update_tree
 
 _T = typing.TypeVar("_T")
 
@@ -63,7 +63,7 @@ class QueryResult(HTree):
         elif isinstance(first, array_type) and isinstance(second, array_type):
             return first + second
         elif isinstance(first, (dict, list)) or isinstance(second, (dict, list)):
-            return merge_tree(first, second)
+            return update_tree(first, second)
         else:
             return first + second
 

@@ -11,7 +11,7 @@ from ..utils.typing import ArrayType, array_type, as_array
 from .Entry import Entry
 from .HTree import List, HTree
 from .sp_property import SpTree, sp_property
-from .Path import update_tree, merge_tree
+from .Path import update_tree
 
 
 class TimeSlice(SpTree):

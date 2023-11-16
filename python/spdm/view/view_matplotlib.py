@@ -4,6 +4,7 @@ from io import BytesIO
 
 import matplotlib.pyplot as plt
 import numpy as np
+from spdm.data.Path import update_tree
 from spdm.data.Expression import Expression
 from spdm.data.Field import Field
 from spdm.data.Function import Function
@@ -19,7 +20,6 @@ from spdm.geometry.Polyline import Polyline
 from spdm.utils.envs import SP_DEBUG
 from spdm.utils.logger import SP_DEBUG, logger
 from spdm.utils.tags import _not_found_
-from spdm.utils.tree_utils import merge_tree
 from spdm.utils.typing import array_type, as_array, is_array, is_scalar
 from spdm.view.View import View
 
@@ -124,9 +124,9 @@ class MatplotlibView(View):
             data, t_styles = obj
 
             if isinstance(t_styles, str):
-                styles = merge_tree(styles, {"label": t_styles})
+                styles = update_tree(styles, {"label": t_styles})
             elif isinstance(obj[-1], dict):
-                styles = merge_tree(styles, t_styles)
+                styles = update_tree(styles, t_styles)
             else:
                 raise RuntimeError(f"Unsupport type {type(obj[-1])} {obj[-1]}")
 
@@ -146,7 +146,7 @@ class MatplotlibView(View):
         elif hasattr(obj.__class__, "__geometry__"):
             try:
                 geo, s = obj.__geometry__(view_point=view_point, **kwargs)
-                styles = merge_tree(styles, s)
+                styles = update_tree(styles, s)
             except Exception as error:
                 logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ")
                 raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from error
@@ -255,7 +255,7 @@ class MatplotlibView(View):
         stop_if_fail=False,
         **kwargs,
     ) -> typing.Any:
-        styles = merge_tree(kwargs.pop("styles", {}), kwargs)
+        styles = update_tree(kwargs.pop("styles", {}), kwargs)
 
         fontsize = styles.get("fontsize", 16)
 
@@ -364,7 +364,7 @@ class MatplotlibView(View):
         if expr is None or expr is _not_found_:
             return
 
-        styles = merge_tree(styles, kwargs.pop("styles", {}), kwargs)
+        styles = update_tree(styles, kwargs.pop("styles", {}), kwargs)
 
         s_styles = styles.get(f"${self.backend}", {})
 

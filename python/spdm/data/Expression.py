@@ -7,7 +7,7 @@ import collections.abc
 import numpy as np
 import numpy.typing as np_tp
 from .HTree import HTree, HTreeNode
-from .Path import update_tree, merge_tree
+from .Path import update_tree
 from .Functor import Functor
 from .sp_property import SpTree
 from ..utils.misc import group_dict_by_prefix
@@ -25,7 +25,7 @@ class DomainBase:
 
     def __init__(self, *args, **kwargs) -> None:
         if len(args) > 0 and isinstance(args[0], dict):
-            kwargs = merge_tree(args[0], kwargs)
+            kwargs = update_tree(args[0], kwargs)
             args = args[1:]
 
         if len(args) == 0:
@@ -51,7 +51,7 @@ class DomainBase:
         #             )
         self._dims = kwargs.pop("dims", [])
         if len(kwargs) > 0:
-            self._metadata = merge_tree(self.__class__._metadata, kwargs)
+            self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
 
     @property
     def is_simple(self) -> bool:

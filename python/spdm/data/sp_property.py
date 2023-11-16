@@ -50,7 +50,7 @@ from enum import Enum
 from .Entry import Entry
 from .AoS import AoS
 from .HTree import HTree, Dict
-from .Path import merge_tree, update_tree
+from .Path import update_tree
  
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
@@ -392,7 +392,7 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
 
         prop.__set_name__(n_cls, _name)
 
-    setattr(n_cls, "_metadata", merge_tree(getattr(cls, "_metadata", None), kwargs))
+    setattr(n_cls, "_metadata", update_tree(getattr(cls, "_metadata", None), kwargs))
 
     return n_cls
 

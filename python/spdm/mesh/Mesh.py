@@ -9,7 +9,7 @@ from spdm.utils.typing import ArrayType
 
 from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
 from ..data.Expression import DomainBase
-from ..data.Path import update_tree, merge_tree
+from ..data.Path import update_tree
 
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
@@ -38,7 +38,7 @@ class Mesh(DomainBase, Pluggable):
                 if isinstance(args[0], (list, tuple)):
                     args = tuple(args[0])
                 elif isinstance(args[0], dict):
-                    kwargs = merge_tree(args[0], kwargs)
+                    kwargs = update_tree(args[0], kwargs)
                     args = tuple([])
 
             mesh_type = kwargs.pop("type", None)

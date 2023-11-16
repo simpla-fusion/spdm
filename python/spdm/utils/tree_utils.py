@@ -110,9 +110,9 @@ def update_tree(target: _T, key: str | int | list, *args, **kwargs) -> _T:
     return target
 
 
-def merge_tree(target: _T, *args, **kwargs) -> _T:
+def merge_tree(target: _T, *args, _idempotent=False,**kwargs) -> _T:
     target = copy(target)
-    return update_tree(target, None, *args, _idempotent=False, **kwargs)
+    return update_tree(target, None, *args, _idempotent=_idempotent, **kwargs)
 
 
  
@@ -126,11 +126,11 @@ def traversal_tree(d: typing.Any, func: typing.Callable[..., typing.Any]) -> typ
         return func(d)
 
 
-# def merge_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
+# def update_tree_recursive(first, second, *args, level=-1, in_place=False, append=False) -> typing.Any:
 #     """ 递归合并两个 Hierarchical Tree """
 #     if len(args) > 0:
-#         return merge_tree_recursive(
-#             merge_tree_recursive(first, second, level=level, in_place=in_place, append=append),
+#         return update_tree_recursive(
+#             update_tree_recursive(first, second, level=level, in_place=in_place, append=append),
 #             *args, level=level, in_place=in_place, append=append)
 
 #     if second is None or second is _not_found_ or level == 0:
@@ -150,7 +150,7 @@ def traversal_tree(d: typing.Any, func: typing.Callable[..., typing.Any]) -> typ
 #     elif isinstance(first, collections.abc.MutableMapping) and isinstance(second, collections.abc.Mapping):
 #         # 合并 dict
 #         for k, v in second.items():
-#             first[k] = merge_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
+#             first[k] = update_tree_recursive(first.get(k, None), v, level=level-1, in_place=in_place)
 #     else:
 #         first = second
 #         # raise TypeError(f"Can not merge {type(first)} with {type(second)}!")

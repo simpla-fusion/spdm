@@ -15,7 +15,7 @@ from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, as_array, as_value, is_scalar
 from ..utils.uri_utils import URITuple, uri_split, uri_split_as_dict
-from .Path import Path, PathLike, as_path,merge_tree,update_tree
+from .Path import Path, PathLike, as_path,update_tree,update_tree
 
 PROTOCOL_LIST = ["local", "file", "http", "https", "ssh", "mdsplus"]
 
@@ -346,7 +346,7 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
 
     fragment = uri.fragment
 
-    query = merge_tree(uri.query, kwargs)
+    query = update_tree(uri.query, kwargs)
 
     global_schema = query.pop("global_schema", None)
 

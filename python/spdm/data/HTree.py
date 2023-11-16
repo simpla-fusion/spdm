@@ -22,7 +22,7 @@ from ..utils.typing import (
 )
 from ..utils.uri_utils import URITuple
 from .Entry import Entry, open_entry
-from .Path import Path, PathLike, Query, as_path, merge_tree, update_tree
+from .Path import Path, PathLike, Query, as_path, update_tree
 
  
 
@@ -53,7 +53,7 @@ class HTreeNode:
         _default_value = kwargs.pop("default_value", _not_found_)
 
         if isinstance(_cache, dict):
-            _entry = merge_tree(_cache.pop("$entry", []), _entry)
+            _entry = update_tree(_cache.pop("$entry", []), _entry)
             _default_value = update_tree(_default_value, None, _cache.pop("$default_value", _not_found_))
 
         elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
@@ -78,7 +78,7 @@ class HTreeNode:
         self._default_value = update_tree({}, None, kwargs.pop("default_value", _not_found_))
 
         if len(kwargs) > 0:
-            self._metadata = merge_tree(self.__class__._metadata, kwargs)
+            self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -110,7 +110,7 @@ class HTreeNode:
     @property
     def __value__(self) -> typing.Any:
         if self._cache is _not_found_:
-            self._cache = merge_tree(
+            self._cache = update_tree(
                 self._metadata.get("default_value", None), self._entry.get(default_value=_not_found_)
             )
         return self._cache
@@ -359,7 +359,7 @@ class HTree(HTreeNode):
             else:
                 s_default_value = deepcopy(self._default_value)
 
-            default_value = merge_tree(s_default_value, default_value)  # 整合 default_value
+            default_value = update_tree(s_default_value, default_value)  # 整合 default_value
 
         if _parent is None:
             _parent = self
@@ -428,7 +428,7 @@ class HTree(HTreeNode):
                 else {}
             )
             if len(s_metadata) + len(kwargs) > 0:
-                res._metadata = merge_tree(res._metadata, s_metadata, kwargs)
+                res._metadata = update_tree(res._metadata, s_metadata, kwargs)
 
         return res
 
@@ -548,7 +548,7 @@ class HTree(HTreeNode):
         else:
             raise RuntimeError((key, self._cache, self._entry))
 
-        # default_value = merge_tree(self._metadata.get("default_value", _not_found_), default_value)
+        # default_value = update_tree(self._metadata.get("default_value", _not_found_), default_value)
 
         if _parent is None or _parent is _not_found_:
             _parent = self._parent

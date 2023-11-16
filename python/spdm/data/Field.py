@@ -33,9 +33,10 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
             if all([is_array(c) for c in coordinates]):
                 mesh = {"dims": coordinates}
 
+    elif isinstance(mesh, str) and mesh.isidentifier():
+        mesh = getattr(holder, mesh, _not_found_)
     elif isinstance(mesh, str):
-        mesh = holder.get(mesh, _not_found_)
-
+        mesh = Path(mesh).get(holder, _not_found_)
     elif isinstance(mesh, Enum):
         mesh = {"type": mesh.name}
 
@@ -57,14 +58,14 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
     #         #     logger.warning(f"Ignore {self._mesh}")
     #         self._domain = o_mesh
     #     elif isinstance(o_mesh, collections.abc.Sequence):
-    #         self._domain = merge_tree_recursive(self._domain, {"dims": o_mesh})
+    #         self._domain = update_tree_recursive(self._domain, {"dims": o_mesh})
     #     elif isinstance(o_mesh, collections.abc.Mapping):
-    #         self._domain = merge_tree_recursive(self._domain, o_mesh)
+    #         self._domain = update_tree_recursive(self._domain, o_mesh)
     #     elif o_mesh is not None:
     #         raise RuntimeError(f"holder.grid is not a Mesh, but {type(o_mesh)}")
     # else:
     #     dims = tuple([(holder.get(c) if isinstance(c, str) else c) for c in coordinates.values()])
-    #     self._domain = merge_tree_recursive(self._domain, {"dims": dims})
+    #     self._domain = update_tree_recursive(self._domain, {"dims": dims})
 
 
 class Field(Expression):
