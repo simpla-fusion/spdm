@@ -10,7 +10,6 @@ from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, array_type, as_array, is_array
-from ..utils.tree_utils import merge_tree_recursive
 from .Expression import Expression
 from .Functor import Functor
 from .Path import Path
@@ -140,6 +139,15 @@ class Field(Expression):
                     "axis_label": self.mesh.axis_label,
                 }
         return geo, styles
+
+    def _repr_svg_(self) -> str:
+        from ..view.View import display
+
+        try:
+            res = display(self.__geometry__(), output="svg")
+        except Exception:
+            res = ""
+        return res
 
     def __array__(self) -> ArrayType:
         """在定义域上计算表达式。"""

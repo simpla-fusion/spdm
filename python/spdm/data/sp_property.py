@@ -50,11 +50,13 @@ from enum import Enum
 from .Entry import Entry
 from .AoS import AoS
 from .HTree import HTree, Dict
-
-from ..utils.tree_utils import merge_tree_recursive, update_tree
+from .Path import merge_tree, update_tree
+ 
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
+
+
 
 
 class SpTree(Dict):
@@ -66,10 +68,13 @@ class SpTree(Dict):
     def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
         return self._get(key, *args, **kwargs)
 
-    def __set_property__(self, key: str, value: typing.Any = None, **kwargs) -> None:
-        self.update({key: value})
+    def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
+        if setter is not None:
+            setter(self, key, value)
+        else:
+            self.update({key: value})
 
-    def __del_property__(self, key: str, **kwargs):
+    def __del_property__(self, key: str):
         self._remove(key)
 
     def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
@@ -124,18 +129,21 @@ class SpTree(Dict):
         return self.__class__(SpTree._clone(self, func))
 
 
-class AttributeTree(SpTree):
-    def __getattr__(self, key: str, *args, **kwargs):
+class PropertyTree(SpTree):
+    def __getattr__(self, key: str, *args, **kwargs) -> PropertyTree:
         if key.startswith("__"):
             return super().__getattribute__(key)
         else:
-            return self.__get_property__(key, *args, _type_hint=AttributeTree | None, **kwargs)
+            return self.__get_property__(key, *args, _type_hint=PropertyTree | None, **kwargs)
 
     def __getitem__(self, *args, **kwargs):
-        return self.__get_property__(*args, _type_hint=AttributeTree | None, **kwargs)
+        return self.__get_property__(*args, _type_hint=PropertyTree | None, **kwargs)
 
     def __setitem__(self, *args, **kwargs):
         return self.__set_property__(*args, **kwargs)
+
+    def __delitem__(self, key: str):
+        return self.__del_property__(key)
 
     def __iter__(self) -> typing.Generator[_T, None, None]:
         """遍历 children"""
@@ -226,9 +234,9 @@ class SpProperty:
         """用于定义属性的getter操作，与@property.getter类似"""
         if self.getter is not None:
             raise RuntimeError(f"Should not reset getter!")
-        
+
         self.getter = func
-        
+
         self.type_hint = typing.get_type_hints(func).get("return", None)
 
         return self
@@ -384,7 +392,7 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
 
         prop.__set_name__(n_cls, _name)
 
-    setattr(n_cls, "_metadata", merge_tree_recursive(getattr(cls, "_metadata", None), kwargs))
+    setattr(n_cls, "_metadata", merge_tree(getattr(cls, "_metadata", None), kwargs))
 
     return n_cls
 

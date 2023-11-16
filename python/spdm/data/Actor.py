@@ -16,7 +16,6 @@ from .sp_property import SpTree, sp_property, sp_tree
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
-from ..utils.tree_utils import traversal_tree
 
 
 @sp_tree
@@ -148,7 +147,7 @@ class Actor(Pluggable):
         """
         return self
 
-    def refresh(self, *args, **kwargs) ->None:
+    def refresh(self, *args, **kwargs) -> None:
         """
         inputs : 输入， Actor 的状态依赖其输入
         """
@@ -157,9 +156,10 @@ class Actor(Pluggable):
 
         self.time_slice.refresh(*args, **kwargs)
 
-        self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs)
-
-       
+        if len(self._inputs) > 0:
+            current = self.time_slice.current
+            previous = self.time_slice.previous
+            self.execute(current, previous, **self._inputs)
 
     def advance(self, *args, dt=None, time=None, **kwargs) -> None:
         if time is None and dt is None:
@@ -175,9 +175,10 @@ class Actor(Pluggable):
 
         self.time_slice.advance(*args, **kwargs)
 
-        self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs)
-
-     
+        if len(self._inputs) > 0:
+            current = self.time_slice.current
+            previous = self.time_slice.previous
+            self.execute(current, previous, **self._inputs)
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """

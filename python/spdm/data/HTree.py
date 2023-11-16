@@ -8,7 +8,6 @@ from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.tree_utils import merge_tree, update_tree
 from ..utils.typing import (
     ArrayType,
     NumericType,
@@ -23,8 +22,9 @@ from ..utils.typing import (
 )
 from ..utils.uri_utils import URITuple
 from .Entry import Entry, open_entry
-from .Path import Path, PathLike, Query, as_path
+from .Path import Path, PathLike, Query, as_path, merge_tree, update_tree
 
+ 
 
 class HTreeNode:
     _metadata = {}
@@ -647,10 +647,9 @@ class Dict(Container[_T]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        for cls in [*self.__class__.__bases__, self.__class__]:
-            # TODO: 需要优化，去掉重复操作
-            metadata = getattr(cls, "_metadata", _not_found_)
-            self._cache = update_tree(self._cache, None, deepcopy(metadata), _idempotent=True)
+        # for cls in [*self.__class__.__bases__, self.__class__]:
+        #     default_value=deepcopy(getattr(cls, "_metadata", _not_found_))
+        #     self._cache = update_tree(self._cache, , _idempotent=True)
 
     def __iter__(self) -> typing.Generator[str, None, None]:
         """遍历 children"""
@@ -700,10 +699,8 @@ class List(Container[_T]):
         return super().get(path, _parent=self._parent, force=True)
 
     def __iadd__(self, other) -> typing.Type[List[_T]]:
-        if isinstance(other, list):
-            self._cache.append(other)
-        else:
-            self._cache.append(other)
+        self.insert([other])
+        return self
 
     def dump(self, _entry: Entry, **kwargs) -> None:
         """将数据写入 _entry"""

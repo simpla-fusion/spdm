@@ -7,11 +7,11 @@ import numpy as np
 
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
-from ..utils.tree_utils import update_tree
 from ..utils.typing import ArrayType, array_type, as_array
 from .Entry import Entry
 from .HTree import List, HTree
 from .sp_property import SpTree, sp_property
+from .Path import update_tree, merge_tree
 
 
 class TimeSlice(SpTree):
@@ -50,11 +50,11 @@ class TimeSeriesAoS(List[_TSlice]):
         self._cache_depth = kwargs.pop("cache_depth", 3)
 
         if self._cache is _not_found_ or self._cache is None or len(self._cache) == 0:
-            self._cache = [None] * self._cache_depth
+            self._cache = [_not_found_] * self._cache_depth
 
         else:
             if len(self._cache) < self._cache_depth:
-                self._cache += [None] * (self._cache_depth - len(self._cache))
+                self._cache += [_not_found_] * (self._cache_depth - len(self._cache))
             else:
                 self._cache_depth = len(self._cache)
 
@@ -87,7 +87,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
     @property
     def is_initializied(self) -> bool:
-        return self._entry_cursor is not None or self._entry_cursor is not None
+        return self._entry_cursor is not None
 
     def _find_slice_by_time(self, time) -> typing.Tuple[int, float]:
         if self._entry is None:
@@ -139,17 +139,12 @@ class TimeSeriesAoS(List[_TSlice]):
 
         value = self._cache[cache_pos]
 
-        entry = None
+        if not (value is _not_found_ or isinstance(value, TimeSlice)):
+            entry = self._entry.child(self._entry_cursor + idx) if isinstance(self._entry, Entry) else None
+            value = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
+            self._cache[cache_pos] = value
 
-        if not isinstance(value, TimeSlice) and isinstance(self._entry, Entry):
-            entry = self._entry.child(self._entry_cursor + idx)
-
-        if (value is _not_found_ or value is None) and entry is None:
-            return _not_found_
-        else:
-            obj = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
-            self._cache[cache_pos] = obj
-            return obj  # type:ignore
+        return value
 
     def initialize(self, *args, **kwargs):
         if self.is_initializied:
@@ -158,7 +153,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         self._cache_cursor = 0
 
-        self._cache = update_tree(self._cache, self._cache_cursor, *args, kwargs)
+        self._cache[self._cache_cursor] = update_tree(self._cache[self._cache_cursor], *args, kwargs)
 
         current = self._cache[self._cache_cursor]
 
@@ -173,13 +168,13 @@ class TimeSeriesAoS(List[_TSlice]):
         self._entry_cursor, time_hint = self._find_slice_by_time(time)
 
         if time_hint is not None:
-            self._cache[self._cache_cursor] = update_tree(current, "time", time_hint)
+            self._cache[self._cache_cursor] = update_tree(current, {"time": time_hint})
 
     def refresh(self, *args, **kwargs) -> typing.Type[TimeSeriesAoS]:
         if not self.is_initializied:
             self.initialize(*args, **kwargs)
         else:
-            self._cache = update_tree(self._cache, self._cache_cursor, *args, kwargs)
+            self._cache[self._cache_cursor] = update_tree(self._cache[self._cache_cursor], *args, **kwargs)
 
     def advance(self, *args, **kwargs) -> _TSlice:
         if not self.is_initializied:
@@ -189,7 +184,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
             self._entry_cursor += 1
 
-            self._cache[self._cache_cursor] = None
+            self._cache[self._cache_cursor] = _not_found_
 
             self.refresh(*args, **kwargs)
 

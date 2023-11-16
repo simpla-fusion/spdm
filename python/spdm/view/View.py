@@ -1,7 +1,6 @@
 from __future__ import annotations
 from ..utils.plugin import Pluggable
 from ..utils.logger import logger, SP_DEBUG
-from ..utils.tree_utils import merge_tree_recursive
 
 import collections
 import collections.abc

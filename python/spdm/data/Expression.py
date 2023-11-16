@@ -7,13 +7,13 @@ import collections.abc
 import numpy as np
 import numpy.typing as np_tp
 from .HTree import HTree, HTreeNode
+from .Path import update_tree, merge_tree
 from .Functor import Functor
 from .sp_property import SpTree
 from ..utils.misc import group_dict_by_prefix
 from ..utils.numeric import float_nan, meshgrid, bitwise_and
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, as_array, is_scalar, is_array, numeric_type
-from ..utils.tree_utils import update_tree, merge_tree
 from ..utils.logger import logger
 from ..numlib.interpolate import interpolate
 
@@ -251,7 +251,7 @@ class Expression(HTreeNode):
             raise RuntimeError(f"TODO: {expr} {children}")
         if self.__class__ is Expression and expr.__class__ is Expression and len(children) == 0:
             self.__copy_from__(expr)
-            update_tree(self._metadata, None, kwargs)
+            self._metadata = update_tree(self._metadata, kwargs)
 
         elif expr is None or callable(expr):
             self._func = expr

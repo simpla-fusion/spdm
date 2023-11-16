@@ -115,9 +115,7 @@ def merge_tree(target: _T, *args, **kwargs) -> _T:
     return update_tree(target, None, *args, _idempotent=False, **kwargs)
 
 
-def merge_tree_recursive(*args, **kwargs):
-    return merge_tree(*args, **kwargs)
-
+ 
 
 def traversal_tree(d: typing.Any, func: typing.Callable[..., typing.Any]) -> typing.Any:
     if isinstance(d, dict):

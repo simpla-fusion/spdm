@@ -9,11 +9,11 @@ from spdm.utils.typing import ArrayType
 
 from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
 from ..data.Expression import DomainBase
+from ..data.Path import update_tree, merge_tree
 
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.plugin import Pluggable
-from ..utils.tree_utils import merge_tree
 from ..utils.typing import ArrayType, NumericType, ScalarType, as_array
 from ..utils.tags import _not_found_
 

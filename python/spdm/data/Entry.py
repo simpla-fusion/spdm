@@ -13,10 +13,9 @@ from functools import reduce
 from ..utils.logger import deprecated, logger
 from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_, _undefined_
-from ..utils.tree_utils import merge_tree
 from ..utils.typing import array_type, as_array, as_value, is_scalar
 from ..utils.uri_utils import URITuple, uri_split, uri_split_as_dict
-from .Path import Path, PathLike, as_path
+from .Path import Path, PathLike, as_path,merge_tree,update_tree
 
 PROTOCOL_LIST = ["local", "file", "http", "https", "ssh", "mdsplus"]
 
@@ -600,7 +599,7 @@ class EntryProxy(Entry):
 
         _url = uri_split(url)
 
-        kwargs = merge_tree(url.query, kwargs)
+        kwargs = update_tree(url.query, kwargs)
 
         enabled_entry = kwargs.pop("enable", "").split(",")
 
