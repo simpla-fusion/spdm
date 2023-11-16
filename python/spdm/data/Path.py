@@ -1014,7 +1014,11 @@ class Path(list):
 
             if isinstance(target, dict):
                 target[key] = Path._op_update(
-                    target.get(key, _not_found_), pth[1:], *args, _idempotent=_idempotent, **kwargs
+                    target.get(key, _not_found_),
+                    pth[1:],
+                    *args,
+                    _idempotent=_idempotent,
+                    **kwargs,
                 )
             elif key.isidentifier() and hasattr(target, key):
                 attr = getattr(target, key, _not_found_)
@@ -1030,8 +1034,14 @@ class Path(list):
             elif isinstance(target, collections.abc.Sequence) and key >= len(target):
                 if key > len(target):
                     target = [*target] + [_not_found_] * (key - len(target) + 1)
-            else:
-                raise RuntimeError(f"Can not update {target} with {key}!")
+
+            target[key] = Path._op_update(
+                target[key],
+                pth[1:],
+                *args,
+                _idempotent=_idempotent,
+                **kwargs,
+            )
 
         return target
 
@@ -1388,10 +1398,6 @@ _T = typing.TypeVar("_T")
 
 def update_tree(target: _T, *args, **kwargs) -> _T:
     return Path().update(target, *args, **kwargs)
-
-
-def merge_tree(target: _T, *args, **kwargs) -> _T:
-    return Path().insert(target, *args, **kwargs)
 
 
 def as_path(path):
