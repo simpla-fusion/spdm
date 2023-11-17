@@ -273,7 +273,7 @@ class SpProperty:
                 if len(prop.metadata) > 0:
                     self.metadata = update_tree(self.metadata, deepcopy(prop.metadata))
             elif prop is not _not_found_:
-                self.metadata.setdefault("default_value", prop)
+                self.metadata["default_value"] = update_tree(prop, self.metadata.get("default_value",_not_found_))
 
     def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         # if self.type_hint is not None:
@@ -301,7 +301,7 @@ class SpProperty:
 
         for base_cls in owner_cls.__bases__:
             m_data = getattr(getattr(base_cls, name, None), "metadata", None)
-            update_tree(self.metadata, None, m_data)
+            update_tree(self.metadata, m_data)
 
         return type_hint, self.metadata
 
