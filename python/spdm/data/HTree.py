@@ -24,13 +24,9 @@ from ..utils.uri_utils import URITuple
 from .Entry import Entry, open_entry
 from .Path import Path, PathLike, Query, as_path, update_tree
 
- 
 
 class HTreeNode:
     _metadata = {}
-
-    def __init__(self, *args, _parent=None, **kwargs) -> None:
-        self._parent = _parent
 
     @classmethod
     def _parser_args(cls, *args, _parent=None, **kwargs):
@@ -75,10 +71,12 @@ class HTreeNode:
 
         self._entry = open_entry(_entry)
 
-        self._default_value = update_tree({}, None, kwargs.pop("default_value", _not_found_))
+        self._default_value = kwargs.pop("default_value", _not_found_)
 
         if len(kwargs) > 0:
             self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
+
+        self._default_value = update_tree(self._default_value, self._metadata.get("default_value", _not_found_))
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -117,15 +115,6 @@ class HTreeNode:
 
     def __array__(self) -> ArrayType:
         return as_array(self.__value__)
-
-    def _repr_svg_(self) -> str:
-        from ..view.View import display
-
-        try:
-            res = display(self, output="svg")
-        except Exception:
-            res = ""
-        return res
 
     # def __reduce__(self) -> HTree: raise NotImplementedError(f"")
 
@@ -169,9 +158,6 @@ class HTree(HTreeNode):
         - __getitem__ 返回的类型由 __type_hint__ 决定，默认为 Node
     -
     """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     def __getitem__(self, path) -> HTree:
         return self.get(path, force=True)
@@ -644,12 +630,8 @@ class Container(HTree, typing.Generic[_T]):
 
 
 class Dict(Container[_T]):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        # for cls in [*self.__class__.__bases__, self.__class__]:
-        #     default_value=deepcopy(getattr(cls, "_metadata", _not_found_))
-        #     self._cache = update_tree(self._cache, , _idempotent=True)
 
     def __iter__(self) -> typing.Generator[str, None, None]:
         """遍历 children"""
@@ -670,12 +652,14 @@ class Dict(Container[_T]):
 
 
 class List(Container[_T]):
-    def __init__(self, cache: typing.Any = None, *args, **kwargs) -> None:
-        if cache is _not_found_ or cache is None:
-            cache = []
-        elif not isinstance(cache, collections.abc.Sequence):
-            cache = [cache]
-        super().__init__(cache, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        # FIXME: this is a workaround，XMLEntry 在返回长度为一的 list 时会仅返回内部单元， 
+        if self._cache is _not_found_ or self._cache is None:
+            self._cache = []
+        elif not isinstance(self._cache, list):
+            self._cache = [self._cache]
 
     @property
     def empty(self) -> bool:

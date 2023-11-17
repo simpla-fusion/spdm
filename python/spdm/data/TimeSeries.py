@@ -89,11 +89,12 @@ class TimeSeriesAoS(List[_TSlice]):
     def is_initializied(self) -> bool:
         return self._entry_cursor is not None
 
-    def _find_slice_by_time(self, time) -> typing.Tuple[int, float]:
+    def _find_slice_by_time(self, time:float) -> typing.Tuple[int, float]:
         if self._entry is None:
             return None, None
 
         time_coord = getattr(self, "_time_coord", _not_found_)
+        
         if time_coord is _not_found_:
             time_coord = self._metadata.get("coordinate1", _not_found_)
 

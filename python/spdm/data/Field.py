@@ -143,12 +143,7 @@ class Field(Expression):
 
     def _repr_svg_(self) -> str:
         from ..view.View import display
-
-        try:
-            res = display(self.__geometry__(), output="svg")
-        except Exception:
-            res = ""
-        return res
+        return display(self.__geometry__(), output="svg")
 
     def __array__(self) -> ArrayType:
         """在定义域上计算表达式。"""
