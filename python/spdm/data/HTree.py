@@ -188,6 +188,15 @@ class HTree(HTreeNode):
     def remove(self, *args, **kwargs):
         return self._remove(*args, **kwargs)
 
+    def cache_get(self, pth, default_value=_not_found_):
+        pth = as_path(pth)
+        res = pth.get(self._cache, default_value=_not_found_)
+        if res is _not_found_ and self._entry is not None:
+            res = self._entry.get(pth, default_value=_not_found_)
+        if res is _not_found_:
+            res = default_value
+        return res
+
     def get(self, path: Path | PathLike, default_value: typing.Any = _not_found_, *args, force=False, **kwargs) -> _T:
         path = as_path(path)
         length = len(path)
@@ -342,8 +351,8 @@ class HTree(HTreeNode):
             s_default_value = deepcopy(s_default_value[0])
             default_value = update_tree(s_default_value, default_value)
 
-        else:
-            logger.debug(f"ignore {self.__class__.__name__}.{key}  {self._metadata}")
+        elif s_default_value is not _not_found_:
+            logger.debug(f"ignore {self.__class__.__name__}.{key} {s_default_value} {self._metadata}")
 
         if _parent is None:
             _parent = self
@@ -376,9 +385,9 @@ class HTree(HTreeNode):
                     raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
 
             if value is _not_found_:
-                value = default_value
+                res = default_value
 
-            if _type_hint is None or isinstance_generic(value, _type_hint):
+            elif _type_hint is None or isinstance_generic(value, _type_hint):
                 res = value
 
             elif issubclass(get_origin(_type_hint), HTreeNode):

@@ -51,12 +51,10 @@ from .Entry import Entry
 from .AoS import AoS
 from .HTree import HTree, Dict
 from .Path import update_tree
- 
+
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
-
-
 
 
 class SpTree(Dict):
@@ -108,6 +106,12 @@ class SpTree(Dict):
         else:
             return entry
 
+    def update(self, d: dict):
+        if d is _not_found_ or d is None:
+            pass
+        else:
+            self._cache = update_tree(self._cache, d)
+
     @staticmethod
     def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
         if isinstance(obj, AoS):
@@ -126,7 +130,8 @@ class SpTree(Dict):
     def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None, *args, **kargs) -> typing.Type[SpTree]:
         if not callable(func):
             func = None
-        return self.__class__(SpTree._clone(self, func))
+        d = SpTree._clone(self, func)
+        return self.__class__(d)
 
 
 class PropertyTree(SpTree):
@@ -261,18 +266,15 @@ class SpProperty:
         if self.type_hint is None and callable(self.getter):
             self.type_hint = typing.get_type_hints(self.getter).get("return", None)
 
-  
-
         for base_cls in owner_cls.__bases__:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
                 self.doc += prop.doc
                 if len(prop.metadata) > 0:
-                    self.metadata=update_tree(self.metadata,deepcopy(prop.metadata))
+                    self.metadata = update_tree(self.metadata, deepcopy(prop.metadata))
             elif prop is not _not_found_:
                 self.metadata.setdefault("default_value", prop)
 
-       
     def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         # if self.type_hint is not None:
         #     return self.type_hint, self.metadata
