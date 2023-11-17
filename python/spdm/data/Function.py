@@ -76,16 +76,8 @@ class Function(Expression):
         return f"{self.__label__}"
 
     def _repr_svg_(self) -> str:
-        try:
-            from ..view import View as sp_view
-
-            res = sp_view.plot(
-                ((self.dims[0], self.__array__()), {"label": self.__label__, "x_label": self.x_label}), output="svg"
-            )
-        except Exception as error:
-            # logger.error(error)
-            res = None
-        return res
+        from ..view import View as sp_view
+        return sp_view.plot((self.__array__(), self.__label__), x_axis=self.dims[0], x_label=self.x_label, output="svg")
 
     def __getitem__(self, idx) -> NumericType:
         return self._cache[idx]

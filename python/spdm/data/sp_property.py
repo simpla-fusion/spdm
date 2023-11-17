@@ -261,19 +261,18 @@ class SpProperty:
         if self.type_hint is None and callable(self.getter):
             self.type_hint = typing.get_type_hints(self.getter).get("return", None)
 
-        metadata = {}
+  
 
         for base_cls in owner_cls.__bases__:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
                 self.doc += prop.doc
-                update_tree(metadata, None, prop.metadata)
+                if len(prop.metadata) > 0:
+                    self.metadata=update_tree(self.metadata,deepcopy(prop.metadata))
             elif prop is not _not_found_:
-                metadata.setdefault("default_value", prop)
+                self.metadata.setdefault("default_value", prop)
 
-        if len(metadata) > 0:
-            self.metadata = update_tree(metadata, None, self.metadata)
-
+       
     def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         # if self.type_hint is not None:
         #     return self.type_hint, self.metadata

@@ -50,7 +50,7 @@ class HTreeNode:
 
         if isinstance(_cache, dict):
             _entry = update_tree(_cache.pop("$entry", []), _entry)
-            _default_value = update_tree(_default_value, None, _cache.pop("$default_value", _not_found_))
+            # _default_value = update_tree(_default_value, _cache.pop("$default_value", _not_found_))
 
         elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
             _entry = [_cache] + _entry
@@ -59,7 +59,6 @@ class HTreeNode:
         _entry = [v for v in _entry if v is not None and v is not _not_found_]
 
         kwargs["default_value"] = _default_value
-
         return _cache, _entry, _parent, kwargs
 
     def __init__(self, *args, **kwargs) -> None:
@@ -71,12 +70,8 @@ class HTreeNode:
 
         self._entry = open_entry(_entry)
 
-        self._default_value = kwargs.pop("default_value", _not_found_)
-
         if len(kwargs) > 0:
             self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
-
-        self._default_value = update_tree(self._default_value, self._metadata.get("default_value", _not_found_))
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -89,7 +84,6 @@ class HTreeNode:
             self._cache = copy(other._cache)
             self._entry = copy(other._entry)
             self._parent = other._parent
-            self._default_value = copy(other._default_value)
             if self._metadata is not self.__class__._metadata:
                 self._metadata = copy(other._metadata)
 
@@ -335,17 +329,21 @@ class HTree(HTreeNode):
     ) -> _T:
         """ """
 
-        if default_value is _not_found_ or isinstance(default_value, dict):
-            if isinstance(key, str) and isinstance(self._default_value, dict):
-                s_default_value = deepcopy(self._default_value.get(key, _not_found_))
+        # 整合 default_value
+        s_default_value = self._metadata.get("default_value", _not_found_)
+        if s_default_value is _not_found_:
+            pass
 
-            elif isinstance(key, int) and isinstance(self._default_value, list) and len(self._default_value) > 0:
-                s_default_value = deepcopy(self._default_value.get[0])
+        elif isinstance(key, str) and isinstance(s_default_value, dict):
+            s_default_value = deepcopy(s_default_value.get(key, _not_found_))
+            default_value = update_tree(s_default_value, default_value)
 
-            else:
-                s_default_value = deepcopy(self._default_value)
+        elif isinstance(key, int) and isinstance(s_default_value, list) and len(s_default_value) > 0:
+            s_default_value = deepcopy(s_default_value[0])
+            default_value = update_tree(s_default_value, default_value)
 
-            default_value = update_tree(s_default_value, default_value)  # 整合 default_value
+        else:
+            logger.debug(f"ignore {self.__class__.__name__}.{key}  {self._metadata}")
 
         if _parent is None:
             _parent = self
@@ -361,60 +359,36 @@ class HTree(HTreeNode):
             _type_hint = tp[0]
 
         if isinstance_generic(value, _type_hint):
-            return value
+            res = value
+
         elif issubclass(get_origin(_type_hint), HTree) and _getter is None and force is False:
             # 当 type_hint 为 HTree 并且 _getter 为空，利用 value,_entry,default_value 创建 HTree 对象返回
-            return _type_hint(value, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
-
-        # 需要即刻从 _entry 中取回 value 的情况
-        # value is _not_found_ and _entry is not None and (  force == True  or _type_hint is not HTree or _getter is not None)
-        if value is _not_found_ and _entry is not None:
-            value = _entry.get(default_value=default_value)
-            default_value = _not_found_
-            _entry = None
-
-        if value is not _not_found_:
-            pass
-
-        elif _getter is not None:  # 通过 getter 获取 value
-            try:
-                value = _getter(self)
-            except Exception as error:
-                raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
-
-        else:  # 通过 default_value 获取 value
-            value = default_value
-            default_value = _not_found_
-
-        if isinstance_generic(value, _type_hint):
-            res = value
-
-        elif issubclass(get_origin(_type_hint), HTreeNode):
-            res = _type_hint(value, _parent=_parent, default_value=default_value, **kwargs)
-
-        elif _type_hint is array_type:
-            res = as_array(value)
-
-        elif _type_hint is not None:
-            res = type_convert(value, _type_hint)
-
-        elif isinstance(value, (tuple, list)):  # 转换为 HTree
-            res = List(value, _parent=_parent)
-
-        elif isinstance(value, dict):  # 转换为 HTree
-            res = Dict(value, _parent=_parent)
+            res = _type_hint(value, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
 
         else:
-            res = value
+            if value is _not_found_ and _entry is not None:
+                value = _entry.get(default_value=_not_found_)
 
-        if hasattr(res, "_metadata"):
-            s_metadata = (
-                getattr(getattr(self.__class__, key, None), "metadata", {})
-                if isinstance(key, str) and key.isidentifier()
-                else {}
-            )
-            if len(s_metadata) + len(kwargs) > 0:
-                res._metadata = update_tree(res._metadata, s_metadata, kwargs)
+            if not isinstance_generic(value, _type_hint) and _getter is not None:
+                try:
+                    value = _getter(self)
+                except Exception as error:
+                    raise RuntimeError(f"{self.__class__} id={key}: 'getter' failed!") from error
+
+            if value is _not_found_:
+                value = default_value
+
+            if _type_hint is None or isinstance_generic(value, _type_hint):
+                res = value
+
+            elif issubclass(get_origin(_type_hint), HTreeNode):
+                res = _type_hint(value, _parent=_parent, **kwargs)
+
+            elif _type_hint is array_type:
+                res = as_array(value)
+
+            else:
+                res = type_convert(value, _type_hint)
 
         return res
 
@@ -655,7 +629,7 @@ class List(Container[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        # FIXME: this is a workaround，XMLEntry 在返回长度为一的 list 时会仅返回内部单元， 
+        # FIXME: this is a workaround，XMLEntry 在返回长度为一的 list 时会仅返回内部单元，
         if self._cache is _not_found_ or self._cache is None:
             self._cache = []
         elif not isinstance(self._cache, list):

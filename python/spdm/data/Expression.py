@@ -7,7 +7,7 @@ import collections.abc
 import numpy as np
 import numpy.typing as np_tp
 from .HTree import HTree, HTreeNode
-from .Path import update_tree
+from .Path import update_tree, Path
 from .Functor import Functor
 from .sp_property import SpTree
 from ..utils.misc import group_dict_by_prefix
@@ -177,10 +177,8 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
         for c in dims_s.values():
             if not isinstance(c, str):
                 d = as_array(c)
-            elif isinstance(holder, HTree):
-                d = holder.get(c, _not_found_)
             else:
-                d = getattr(holder, c, _not_found_)
+                d = Path(c).get(holder, _not_found_)
 
             if d is _not_found_ or d is None:
                 # logger.warning(f"Can not get coordinates {c} from {holder}")
@@ -400,15 +398,15 @@ class Expression(HTreeNode):
     def __str__(self) -> str:
         return f"<{self.__class__.__name__} label='{self.__label__}' />"
 
-    def _repr_latex_(self) -> str:
-        """for jupyter notebook display"""
-        return f"$${self.__repr__()}$$"
+    def __repr__(self) -> str:
+        return self.__label__
 
     @staticmethod
     def _repr_s(expr: Expression) -> str:
         if isinstance(expr, (bool, int, float, complex)):
             res = f"{expr}"
-
+        elif expr is None:
+            res="n.a"
         elif isinstance(expr, np.ndarray):
             if len(expr.shape) == 0:
                 res = f"{expr.item()}"
@@ -416,21 +414,23 @@ class Expression(HTreeNode):
                 res = f"{expr.dtype}[{expr.shape}]"
 
         else:
-            res = expr.__repr__()
+            res = expr._repr_latex_()
 
         return res.strip("$")
 
-    def __repr__(self) -> str:
-        label = self._metadata.get("label", None) or self._metadata.get("name", None)
-        if label is not None:
-            return label
+    def _repr_latex_(self) -> str:
+        """for jupyter notebook display"""
+
+        # label = self._metadata.get("label", None) or self._metadata.get("name", None)
+        # if label is not None:
+        #     return label
 
         nin = len(self._children)
 
         # op = self._metadata.get("label", None) or self._metadata.get("name", None)
 
         if isinstance(self._func, Expression):
-            op = self._func.__repr__()
+            op = self._func.__label__ 
         elif isinstance(self._func, np.ufunc):
             op = EXPR_OP_TAG.get(self._func.__name__, self._func.__name__)
             nin = self._func.nin
@@ -449,7 +449,7 @@ class Expression(HTreeNode):
                     res = rf"{op}\left({Expression._repr_s(self._children[0])}\right)"
 
                 else:
-                    res = rf"{op}\left({Expression._repr_s(self._children[0])}\right)"
+                    res = rf"{op}{{\left({Expression._repr_s(self._children[0])}\right)}}"
 
             case 2:
                 match op:
@@ -461,7 +461,7 @@ class Expression(HTreeNode):
             case _:
                 res = rf"{op}\left({','.join([Expression._repr_s(child) for child in self._children])}\right)"
 
-        return res
+        return f"$${res}$$"
 
     @property
     def dtype(self):
