@@ -122,32 +122,20 @@ class Actor(Pluggable):
 
     time_slice: TimeSeriesAoS[TimeSlice]
 
-    def execute(
-        self,
-        current: TimeSlice,
-        *previous: typing.Tuple[TimeSlice],
-        **inputs: typing.Tuple[Actor],
-    ) -> typing.Type[Actor]:
-        """初始化 Actor，
-        kwargs中不应包含 Actor 对象作为 input
-        """
-        return self
-
     @property
-    def inputs(self) -> typing.List[Actor]:
+    def inputs(self) -> typing.Dict[str, Actor]:
         return self._inputs
 
-    def update_inputs(self, type_hints={}, **kwargs) -> typing.Tuple[typing.Any]:
-        """更新 inputs"""
-
+    def _update_inputs(self, type_hints={}, *args, **kwargs) -> typing.Tuple[typing.Any]:
+        """处理 args,kwargs 更新 self._inputs"""
         for key in [*type_hints.keys()]:
             tp = type_hints[key]
             if inspect.isclass(tp) and issubclass(tp, Actor):
                 continue
             elif getattr(tp, "_name", None) == "Optional":  # check typing.Optional
-                args = typing.get_args(tp)
-                if len(args) == 2 and args[1] is type(None) and issubclass(args[0], Actor):
-                    type_hints[key] = args[0]
+                t_args = typing.get_args(tp)
+                if len(t_args) == 2 and t_args[1] is type(None) and issubclass(t_args[0], Actor):
+                    type_hints[key] = t_args[0]
                 else:
                     type_hints.pop(key)
             else:
@@ -157,24 +145,47 @@ class Actor(Pluggable):
             self._inputs,
             {k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor) or k in type_hints},
         )
-        return kwargs
+
+        return args, kwargs
+
+    def pre_process(self, current: TimeSlice, *args, **kwargs) -> typing.Tuple[typing.Any]:
+        """预处理
+        - 根据 kwargs，self._inputs, code.parameters 准备 current slice，
+        """
+        pass
+
+    def execute(
+        self,
+        current: TimeSlice,
+        *previouse_slices: typing.Tuple[TimeSlice],
+        **inputs: typing.Tuple[Actor],
+    ) -> typing.Type[Actor]:
+        """根据 inputs 和 前序 time slice 更显当前time slice"""
+        pass
+
+    def post_process(self, current: TimeSlice) -> typing.Tuple[typing.Any]:
+        """后处理
+        - 后处理 current slice，
+        """
+        pass
 
     def refresh(self, *args, **kwargs) -> None:
-        """
-        inputs : 输入， Actor 的状态依赖其输入
-        """
-
-        kwargs = self.update_inputs(typing.get_type_hints(self.__class__.refresh), **kwargs)
+        args, kwargs = self._update_inputs(typing.get_type_hints(self.__class__.refresh), *args, **kwargs)
 
         self.time_slice.refresh(*args, **kwargs)
 
-        if not all([(v is None or v is _not_found_) for v in self._inputs.values()]):
-            current = self.time_slice.current
-            previous = self.time_slice.previous
-            self.execute(current, previous, **self._inputs)
+        current = self.time_slice.current
+
+        previous = self.time_slice.previous
+
+        self.pre_process(current, previous, *args, **kwargs, **self._inputs)
+
+        self.execute(current, previous, **self._inputs)
+
+        self.post_process(current)
 
     def advance(self, *args, dt=None, time=None, **kwargs) -> None:
-        kwargs = self.update_inputs(typing.get_type_hints(self.__class__.refresh), **kwargs)
+        args, kwargs = self.pre_process(typing.get_type_hints(self.__class__.advance), *args, **kwargs)
 
         if time is None and dt is None:
             raise RuntimeError(f"either time or dt should be given")
@@ -184,15 +195,15 @@ class Actor(Pluggable):
             time = self.time + dt
 
         kwargs["time"] = time
-
-        kwargs = self.update_inputs(typing.get_type_hints(self.__class__.advance), **kwargs)
-
         self.time_slice.advance(*args, **kwargs)
+        current = self.time_slice.current
+        previous = self.time_slice.previous
 
-        if not all([(v is None or v is _not_found_) for v in self._inputs.values()]):
-            current = self.time_slice.current
-            previous = self.time_slice.previous
-            self.execute(current, previous, **self._inputs)
+        self.pre_process(current, *args, **kwargs, **self._inputs)
+
+        self.execute(current, previous, **self._inputs)
+
+        self.post_process(current)
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """
