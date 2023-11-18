@@ -8,21 +8,22 @@ import typing
 import numpy as np
 import uuid
 import contextlib
-from ..view import View as sp_view
-from .Expression import Expression
-from .TimeSeries import TimeSeriesAoS, TimeSlice
-from .sp_property import SpTree, sp_property, sp_tree
-
+import inspect
 from ..utils.logger import logger
 from ..utils.plugin import Pluggable
 from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
+from ..utils.tags import _not_found_
+from ..view import View as sp_view
+
+from .Expression import Expression
+from .TimeSeries import TimeSeriesAoS, TimeSlice
+from .sp_property import SpTree, sp_property, sp_tree
+from .Path import update_tree
 
 
 @sp_tree
 class Actor(Pluggable):
     mpi_enabled = False
-    _plugin_prefix = __package__
-    _plugin_registry = {}
 
     def __init__(self, *args, **kwargs) -> None:
         Pluggable.__init__(self, *args, **kwargs)
@@ -37,17 +38,6 @@ class Actor(Pluggable):
     @property
     def MPI(self):
         return SP_MPI
-
-    def _repr_svg_(self) -> str:
-        try:
-            res = sp_view.display(self, output="svg")
-        except Exception as error:
-            raise RuntimeError(f"{self}") from error
-            res = None
-        return res
-
-    def __geometry__(self, *args, **kwargs):
-        return {}, {}
 
     @contextlib.contextmanager
     def working_dir(self, suffix: str = "", prefix="") -> str:
@@ -130,10 +120,6 @@ class Actor(Pluggable):
         """
         return self._inputs.get("status", 0)
 
-    @property
-    def inputs(self) -> typing.List[Actor]:
-        return self._inputs
-
     time_slice: TimeSeriesAoS[TimeSlice]
 
     def execute(
@@ -147,21 +133,49 @@ class Actor(Pluggable):
         """
         return self
 
+    @property
+    def inputs(self) -> typing.List[Actor]:
+        return self._inputs
+
+    def update_inputs(self, type_hints={}, **kwargs) -> typing.Tuple[typing.Any]:
+        """更新 inputs"""
+
+        for key in [*type_hints.keys()]:
+            tp = type_hints[key]
+            if inspect.isclass(tp) and issubclass(tp, Actor):
+                continue
+            elif getattr(tp, "_name", None) == "Optional":  # check typing.Optional
+                args = typing.get_args(tp)
+                if len(args) == 2 and args[1] is type(None) and issubclass(args[0], Actor):
+                    type_hints[key] = args[0]
+                else:
+                    type_hints.pop(key)
+            else:
+                type_hints.pop(key)
+
+        self._inputs = update_tree(
+            self._inputs,
+            {k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor) or k in type_hints},
+        )
+        return kwargs
+
     def refresh(self, *args, **kwargs) -> None:
         """
         inputs : 输入， Actor 的状态依赖其输入
         """
 
-        self._inputs.update({k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor)})
+        kwargs = self.update_inputs(typing.get_type_hints(self.__class__.refresh), **kwargs)
 
         self.time_slice.refresh(*args, **kwargs)
 
-        if len(self._inputs) > 0:
+        if not all([(v is None or v is _not_found_) for v in self._inputs.values()]):
             current = self.time_slice.current
             previous = self.time_slice.previous
             self.execute(current, previous, **self._inputs)
 
     def advance(self, *args, dt=None, time=None, **kwargs) -> None:
+        kwargs = self.update_inputs(typing.get_type_hints(self.__class__.refresh), **kwargs)
+
         if time is None and dt is None:
             raise RuntimeError(f"either time or dt should be given")
         elif time is not None and dt is not None:
@@ -171,11 +185,11 @@ class Actor(Pluggable):
 
         kwargs["time"] = time
 
-        self._inputs.update({k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor)})
+        kwargs = self.update_inputs(typing.get_type_hints(self.__class__.advance), **kwargs)
 
         self.time_slice.advance(*args, **kwargs)
 
-        if len(self._inputs) > 0:
+        if not all([(v is None or v is _not_found_) for v in self._inputs.values()]):
             current = self.time_slice.current
             previous = self.time_slice.previous
             self.execute(current, previous, **self._inputs)

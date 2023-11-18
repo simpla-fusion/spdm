@@ -190,10 +190,10 @@ class HTree(HTreeNode):
 
     def cache_get(self, pth, default_value=_not_found_):
         pth = as_path(pth)
-        res = pth.get(self._cache, default_value=_not_found_)
+        res = pth.get(self._cache, _not_found_)
         if res is _not_found_ and self._entry is not None:
-            res = self._entry.get(pth, default_value=_not_found_)
-        if res is _not_found_:
+            res = self._entry.get(pth, _not_found_)
+        if res is _not_found_ or res is None:
             res = default_value
         return res
 
