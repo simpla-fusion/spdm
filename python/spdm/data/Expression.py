@@ -245,23 +245,23 @@ class Expression(HTreeNode):
 
         """
 
-        if expr is np.subtract and isinstance(children[1], (int, float)) and children[1] == 0:
-            raise RuntimeError(f"TODO: {expr} {children}")
+        if expr is np.divide and is_scalar(children[1]) and children[1] == 0:
+            logger.warning(f"Divide by zero: {expr} {children}")
+
         if self.__class__ is Expression and expr.__class__ is Expression and len(children) == 0:
             self.__copy_from__(expr)
             self._metadata = update_tree(self._metadata, kwargs)
 
-        elif expr is None or callable(expr):
-            self._func = expr
-            self._children: typing.Tuple[typing.Type[Expression]] = children
-
-        elif all([isinstance(v, np.ndarray) for v in [expr, *children]]):
+        elif  all([isinstance(v, np.ndarray) for v in [expr, *children]]):
             # 构建插值函数
             from .Function import Function
 
             self.__class__ = Function
             Function.__init__(self, expr, *children, domain=domain, **kwargs)
             return
+        elif expr is None  or  callable(expr):
+            self._op = expr
+            self._children: typing.Tuple[typing.Type[Expression]] = children
 
         elif is_scalar(expr):
             match expr:
@@ -277,29 +277,20 @@ class Expression(HTreeNode):
             return
         else:
             # dims = self.dims
-
             # value = self._value
-
             # if value is _not_found_ or value is None:
             #     self._func = None
-
             # elif isinstance(value, scalar_type):
             #     self._func = ConstantsFunc(value)
-
             # elif isinstance(value, array_type) and value.size == 1:
             #     value = np.squeeze(value).item()
-
             #     if not isinstance(value, scalar_type):
             #         raise RuntimeError(f"TODO:  {value}")
-
             #     self._func = ConstantsFunc(value)
-
             # elif all([(not isinstance(v, array_type) or v.size == 1) for v in dims]):
             #     self._func = DiracDeltaFun(value, [float(v) for v in self.dims])
-
             # elif all([(isinstance(v, array_type) and v.ndim == 1 and v.size > 0) for v in dims]):
             #     self._func = self._interpolate()
-
             # else:
             #     raise RuntimeError(f"TODO: {dims} {value}")
 
@@ -322,7 +313,7 @@ class Expression(HTreeNode):
     def __copy_from__(self, other: Expression) -> Expression:
         """复制 other 到 self"""
         if isinstance(other, Expression):
-            self._func = copy(other._func)
+            self._op = copy(other._op)
             self._children = copy(other._children)
             self._domain = copy(other._domain)
             self._metadata = copy(other._metadata)
@@ -385,11 +376,11 @@ class Expression(HTreeNode):
 
     @property
     def empty(self) -> bool:
-        return not self.has_children and self._func is None
+        return not self.has_children and self._op is None
 
     @property
     def callable(self):
-        return callable(self._func) or self.has_children
+        return callable(self._op) or self.has_children
 
     @property
     def __label__(self) -> str:
@@ -429,13 +420,13 @@ class Expression(HTreeNode):
 
         # op = self._metadata.get("label", None) or self._metadata.get("name", None)
 
-        if isinstance(self._func, Expression):
-            op = self._func.__label__
-        elif isinstance(self._func, np.ufunc):
-            op = EXPR_OP_TAG.get(self._func.__name__, self._func.__name__)
-            nin = self._func.nin
+        if isinstance(self._op, Expression):
+            op = self._op.__label__
+        elif isinstance(self._op, np.ufunc):
+            op = EXPR_OP_TAG.get(self._op.__name__, self._op.__name__)
+            nin = self._op.nin
         else:
-            op = self._func.__class__.__name__
+            op = self._op.__class__.__name__
 
         match nin:
             case 0:
@@ -473,7 +464,7 @@ class Expression(HTreeNode):
 
     def __functor__(self) -> Functor:
         """获取表达式的运算符，若为 constants 函数则返回函数值"""
-        return self._func
+        return self._op
 
     def _eval(self, *args, **kwargs):
         func = self.__functor__()
@@ -484,7 +475,7 @@ class Expression(HTreeNode):
             try:
                 value = func(*args, **kwargs)
             except Exception as error:
-                raise RuntimeError(f"Error when evaluating {self.__repr__()} !") from error
+                raise RuntimeError(f"Failure to calculate  equation {self._repr_latex_()} !") from error
 
         elif isinstance(func, numeric_type):
             value = func
@@ -575,46 +566,46 @@ class Expression(HTreeNode):
         raise NotImplementedError(f"TODO: find_roots")
 
     # fmt: off
-    def __neg__      (self                             ) : return Expression(np.negative     ,  self     ,)
-    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
-    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
-    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (np.nan if o==0 else self)
-    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (1 if o==0 else self)
-    def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  ,)
-    def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  ,)
-    def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  ,)
-    def __le__       (self, o: NumericType | Expression) : return Expression(np.less_equal   ,  self, o  ,)
-    def __gt__       (self, o: NumericType | Expression) : return Expression(np.greater      ,  self, o  ,)
-    def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  ,)
-    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
-    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ,) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self.__neg__()
-    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ,) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  ,)
-    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ,) if not (is_scalar(o) and o ==1)  else 1
-    def __abs__      (self                             ) : return Expression(np.abs          ,  self     ,)
-    def __pos__      (self                             ) : return Expression(np.positive     ,  self     ,)
-    def __invert__   (self                             ) : return Expression(np.invert       ,  self     ,)
-    def __and__      (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  self, o  ,) if not isinstance(o,bool) else ( self if o ==True else False)
-    def __or__       (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  self, o  ,) if not isinstance(o,bool) else ( True if o ==True else self)
-    def __xor__      (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  self, o  ,)
-    def __rand__     (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  o, self  ,) if not isinstance(o,bool) else ( self if o ==True else False)
-    def __ror__      (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  o, self  ,) if not isinstance(o,bool) else ( True if o ==True else self)
-    def __rxor__     (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  o, self  ,)
-    def __rshift__   (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  self, o  ,)
-    def __lshift__   (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  self, o  ,)
-    def __rrshift__  (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  o, self  ,)
-    def __rlshift__  (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  o, self  ,)
-    def __mod__      (self, o: NumericType | Expression) : return Expression(np.mod          ,  self, o  ,)
-    def __rmod__     (self, o: NumericType | Expression) : return Expression(np.mod          ,  o, self  ,)
-    def __floordiv__ (self, o: NumericType | Expression) : return Expression(np.floor_divide ,  self, o  ,)
-    def __rfloordiv__(self, o: NumericType | Expression) : return Expression(np.floor_divide ,  o, self  ,)
-    def __trunc__    (self                             ) : return Expression(np.trunc        ,  self     ,)
-    def __round__    (self, n=None                     ) : return Expression(np.round        ,  self, n  ,)
-    def __floor__    (self                             ) : return Expression(np.floor        ,  self     ,)
-    def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     ,)
+    def __neg__      (self                             ) : return Expression(np.negative     ,  self     )
+    def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
+    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (np.nan if o==0 else self)
+    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (1 if o==0 else self)
+    def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  )
+    def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  )
+    def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  )
+    def __le__       (self, o: NumericType | Expression) : return Expression(np.less_equal   ,  self, o  )
+    def __gt__       (self, o: NumericType | Expression) : return Expression(np.greater      ,  self, o  )
+    def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  )
+    def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
+    def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self.__neg__()
+    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  )
+    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ) if not (is_scalar(o) and o ==1)  else 1
+    def __abs__      (self                             ) : return Expression(np.abs          ,  self     )
+    def __pos__      (self                             ) : return Expression(np.positive     ,  self     )
+    def __invert__   (self                             ) : return Expression(np.invert       ,  self     )
+    def __and__      (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  self, o  ) if not isinstance(o,bool) else ( self if o ==True else False)
+    def __or__       (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  self, o  ) if not isinstance(o,bool) else ( True if o ==True else self)
+    def __xor__      (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  self, o  )
+    def __rand__     (self, o: NumericType | Expression) : return Expression(np.bitwise_and  ,  o, self  ) if not isinstance(o,bool) else ( self if o ==True else False)
+    def __ror__      (self, o: NumericType | Expression) : return Expression(np.bitwise_or   ,  o, self  ) if not isinstance(o,bool) else ( True if o ==True else self)
+    def __rxor__     (self, o: NumericType | Expression) : return Expression(np.bitwise_xor  ,  o, self  )
+    def __rshift__   (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  self, o  )
+    def __lshift__   (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  self, o  )
+    def __rrshift__  (self, o: NumericType | Expression) : return Expression(np.right_shift  ,  o, self  )
+    def __rlshift__  (self, o: NumericType | Expression) : return Expression(np.left_shift   ,  o, self  )
+    def __mod__      (self, o: NumericType | Expression) : return Expression(np.mod          ,  self, o  )
+    def __rmod__     (self, o: NumericType | Expression) : return Expression(np.mod          ,  o, self  )
+    def __floordiv__ (self, o: NumericType | Expression) : return Expression(np.floor_divide ,  self, o  )
+    def __rfloordiv__(self, o: NumericType | Expression) : return Expression(np.floor_divide ,  o, self  )
+    def __trunc__    (self                             ) : return Expression(np.trunc        ,  self     )
+    def __round__    (self, n=None                     ) : return Expression(np.round        ,  self, n  )
+    def __floor__    (self                             ) : return Expression(np.floor        ,  self     )
+    def __ceil__     (self                             ) : return Expression(np.ceil         ,  self     )
     # fmt: on
 
 

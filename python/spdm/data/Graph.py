@@ -1,7 +1,7 @@
 import typing
 
+from .HTree import Dict, HTree, List, HTreeNode
 from .Edge import Edge
-from .HTree import Dict, HTree, List
 from .Path import PathLike
 
 _T = typing.TypeVar("_T")
@@ -9,10 +9,10 @@ _T = typing.TypeVar("_T")
 
 class Graph(Dict[_T]):
     """Represents '''Graph'''.
-        * defines namespace for the '''Node'''s
-        * Graph is a Node
+    * defines namespace for the '''Node'''s
+    * Graph is a Node
 
-        TODO (salmon 2019.7.25): add subgraph
+    TODO (salmon 2019.7.25): add subgraph
     """
 
     def __init__(self, value=None, *args, **kwargs):
@@ -27,7 +27,6 @@ class Graph(Dict[_T]):
         e = Edge(source, target, *args, graph=self, **kwargs)
         self._edges.append(e)
         return e
-
 
 
 # class FunctionWrapperGraph(Graph):

@@ -17,11 +17,17 @@ from .Path import update_tree
 class TimeSlice(SpTree):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._iteration = 0
 
     time: float = sp_property(unit="s", default_value=0.0)  # type: ignore
 
+    @property
+    def iteration(self) -> int:
+        return self._iteration
+
     def refresh(self, *args, **kwargs):
         self.update(*args, **kwargs)
+        self._iteration += 1
 
 
 _TSlice = typing.TypeVar("_TSlice", bound=TimeSlice)
@@ -74,6 +80,10 @@ class TimeSeriesAoS(List[_TSlice]):
         return self.current.time
 
     @property
+    def iteration(self) -> iteration:
+        return self.current.iteration
+
+    @property
     def dt(self) -> float:
         return self._metadata.get("dt", 0.1)
 
@@ -89,12 +99,12 @@ class TimeSeriesAoS(List[_TSlice]):
     def is_initializied(self) -> bool:
         return self._entry_cursor is not None
 
-    def _find_slice_by_time(self, time:float) -> typing.Tuple[int, float]:
+    def _find_slice_by_time(self, time: float) -> typing.Tuple[int, float]:
         if self._entry is None:
             return None, None
 
         time_coord = getattr(self, "_time_coord", _not_found_)
-        
+
         if time_coord is _not_found_:
             time_coord = self._metadata.get("coordinate1", _not_found_)
 
@@ -141,11 +151,11 @@ class TimeSeriesAoS(List[_TSlice]):
         value = self._cache[cache_pos]
 
         if not (value is _not_found_ or isinstance(value, TimeSlice)):
-            if isinstance(self._entry, Entry) and self._entry_cursor  is not None:
+            if isinstance(self._entry, Entry) and self._entry_cursor is not None:
                 entry_cursor = self._entry_cursor + idx
-                entry = self._entry.child(entry_cursor)  
+                entry = self._entry.child(entry_cursor)
             else:
-                entry_cursor=0
+                entry_cursor = 0
                 entry = None
             value = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
             self._cache[cache_pos] = value

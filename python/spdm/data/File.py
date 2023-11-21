@@ -4,10 +4,8 @@ import collections.abc
 import pathlib
 import typing
 
-from spdm.data.Path import Path, PathLike
 
 from ..utils.logger import logger
-from ..utils.tags import _undefined_
 from ..utils.uri_utils import URITuple, uri_split
 from .Document import Document
 from .Entry import Entry
@@ -15,7 +13,7 @@ from .Entry import Entry
 
 class File(Document):
     """
-        File like object
+    File like object
     """
 
     def __init__(self, url: str | pathlib.Path | URITuple, *args, format=None, default_format=None, **kwargs):
@@ -24,7 +22,7 @@ class File(Document):
                 format = format.lower()
             elif isinstance(url, dict):
                 format = url.get("$class", "").lower()
-            elif isinstance(url,   pathlib.PosixPath):
+            elif isinstance(url, pathlib.PosixPath):
                 format = url.suffix[1:].lower()
             elif isinstance(url, (str, URITuple)):
                 uri = uri_split(url)
@@ -51,10 +49,12 @@ class File(Document):
             self._fid = None
 
     @property
-    def mode_str(self) -> str: return File.MOD_MAP.get(self.mode, "r")
+    def mode_str(self) -> str:
+        return File.MOD_MAP.get(self.mode, "r")
 
     @property
-    def is_writable(self) -> bool: return self.mode | File.Mode.write > 0
+    def is_writable(self) -> bool:
+        return self.mode | File.Mode.write > 0
 
     # @property
     # def entry(self) -> Entry: return FileEntry(file=self)
@@ -70,8 +70,8 @@ class File(Document):
 
 
 class FileEntry(Entry):
-    def __init__(self, *args, file, ** kwargs):
-        super().__init__(*args, ** kwargs)
+    def __init__(self, *args, file, **kwargs):
+        super().__init__(*args, **kwargs)
         self._fid = file
 
     def __copy_from__(self, other: FileEntry) -> Entry:

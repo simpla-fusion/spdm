@@ -122,10 +122,17 @@ class HTreeNode:
 
     @property
     def __name__(self) -> str:
-        return self._metadata.get("name", "unamed")
+        return self._metadata.get("name", f"<{self.__class__.__name__}>")
 
     @property
-    def _root(self) -> HTree | None:
+    def path(self) -> typing.List[str | int]:
+        if self._parent is not None:
+            return self._parent.path + [self.__name__]
+        else:
+            return [self.__name__]
+
+    @property
+    def root(self) -> HTree | None:
         p = self
         # FIXME: ids_properties is a work around for IMAS dd until we found better solution
         while p._parent is not None and getattr(p, "ids_properties", None) is None:
@@ -153,8 +160,15 @@ class HTree(HTreeNode):
     -
     """
 
+    def __missing__(self, path) -> typing.Any:
+        return _not_found_
+
     def __getitem__(self, path) -> HTree:
-        return self.get(path, force=True)
+        res = self.get(path, force=True)
+        if res is _not_found_:
+            return self.__missing__(path)
+        else:
+            return res
 
     def __setitem__(self, path, value) -> None:
         self._update(path, value)
@@ -337,7 +351,10 @@ class HTree(HTreeNode):
         **kwargs,
     ) -> _T:
         """ """
+        if "name" in kwargs and kwargs["name"] != key:
+            logger.warning(f"{kwargs['name']}!={key}")
 
+        kwargs["name"] = key
         # 整合 default_value
         s_default_value = self._metadata.get("default_value", _not_found_)
         if s_default_value is _not_found_:
@@ -401,6 +418,11 @@ class HTree(HTreeNode):
 
             else:
                 res = type_convert(value, _type_hint)
+
+        if isinstance(res, HTreeNode):
+            if res._parent is None:
+                res._parent = _parent
+            res._metadata.setdefault("name", key)
 
         return res
 
@@ -522,8 +544,8 @@ class HTree(HTreeNode):
 
         # default_value = update_tree(self._metadata.get("default_value", _not_found_), default_value)
 
-        if _parent is None or _parent is _not_found_:
-            _parent = self._parent
+        # if _parent is None or _parent is _not_found_:
+        #     _parent = self._parent
 
         value = self._as_child(cache, key, *args, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
 
@@ -666,7 +688,7 @@ class List(Container[_T]):
             yield v
 
     def __getitem__(self, path) -> _T:
-        return super().get(path, _parent=self._parent, force=True)
+        return super().get(path)
 
     def __iadd__(self, other) -> typing.Type[List[_T]]:
         self.insert([other])

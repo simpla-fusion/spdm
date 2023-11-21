@@ -175,9 +175,9 @@ class Field(Expression):
         return self._ppoly
 
     def __functor__(self) -> typing.Callable[..., ArrayType]:
-        if self._func is None and self._cache is not None:
-            self._func = self.ppoly()
-        return self._func
+        if self._op is None and self._cache is not None:
+            self._op = self.ppoly()
+        return self._op
 
     def grad(self, n=1) -> Field:
         ppoly = self.__functor__()

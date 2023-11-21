@@ -7,7 +7,7 @@ from ..utils.tags import _not_found_
 from ..utils.typing import array_type, get_args, get_type_hint
 from .Entry import Entry
 from .HTree import HTree, List, Dict
-from .Path import Path, PathLike, as_path, OpTags, Query,update_tree
+from .Path import Path, PathLike, as_path, OpTags, Query, update_tree
 
 _T = typing.TypeVar("_T")
 
@@ -112,9 +112,7 @@ class AoS(List[_T]):
             else:
                 entry.child(idx).insert(value)
 
-    def __iter__(self) -> typing.Generator[_T, None, None]:
-        """遍历 children"""
-        yield from super().__iter__()
+
 
     def _get(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
@@ -134,7 +132,10 @@ class AoS(List[_T]):
             raise TypeError(f" {query} is not supported")
 
         return QueryResult(
-            query, self._cache, default_value=default_value, _type_hint=self._type_hint(0), _entry=self._entry, **kwargs
+            query,
+            self._cache,
+            default_value=default_value,
+            _type_hint=self._type_hint(0),
+            _entry=self._entry,
+            **kwargs,
         )
-
-

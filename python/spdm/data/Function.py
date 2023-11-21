@@ -132,9 +132,9 @@ class Function(Expression):
             if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
 
         """
-        if self._func is None:
-            self._func = self._interpolate()
-        return self._func
+        if self._op is None:
+            self._op = self._interpolate()
+        return self._op
 
     def _interpolate(self):
         if not isinstance(self._cache, array_type):

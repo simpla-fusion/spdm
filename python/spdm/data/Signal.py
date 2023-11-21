@@ -1,27 +1,21 @@
-import typing
 
-import numpy as np
-from spdm.data.Entry import Entry
-from spdm.data.HTree import HTree
 
-from ..utils.logger import logger
-from ..utils.typing import ArrayType
-from .Field import Field
+from ..utils.typing import array_type
 from .Function import Function
-from .HTree import HTree
-from .sp_property import SpTree, sp_property
+from .sp_property import sp_tree, sp_property
 
 
-class Signal(SpTree):
-    """Signal with its time base    """
+@sp_tree
+class Signal:
+    """Signal with its time base"""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._func = None
 
-    data: np.ndarray = sp_property(type="dynamic")
+    data: array_type
 
-    time: np.ndarray = sp_property(units="s", type="dynamic")
+    time: array_type = sp_property(units="s")
 
     def __call__(self, t: float) -> float:
         if self._func is None:

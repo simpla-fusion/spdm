@@ -15,10 +15,12 @@ from ..utils.envs import SP_MPI, SP_DEBUG, SP_LABEL
 from ..utils.tags import _not_found_
 from ..view import View as sp_view
 
+from .HTree import HTreeNode
+from .sp_property import SpTree, sp_property, sp_tree
 from .Expression import Expression
 from .TimeSeries import TimeSeriesAoS, TimeSlice
-from .sp_property import SpTree, sp_property, sp_tree
 from .Path import update_tree
+from .Edge import InPorts, OutPorts
 
 
 @sp_tree
@@ -28,12 +30,29 @@ class Actor(Pluggable):
     def __init__(self, *args, **kwargs) -> None:
         Pluggable.__init__(self, *args, **kwargs)
         SpTree.__init__(self, *args, **kwargs)
-        self._inputs = {}
         self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
+
+        self._inputs = InPorts(self)
+        self._outputs = OutPorts(self)
+
+        tp_hints = typing.get_type_hints(self.__class__.refresh)
+        for name, tp in tp_hints.items():
+            if name == "return":
+                continue
+            elif getattr(tp, "_name", None) == "Optional":  # check typing.Optional
+                t_args = typing.get_args(tp)
+                if len(t_args) == 2 and t_args[1] is type(None):
+                    tp = t_args[0]
+
+            self._inputs[name].source.update(None, tp)
 
     @property
     def tag(self) -> str:
         return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
+
+    @property
+    def uid(self) -> int:
+        return self._uid
 
     @property
     def MPI(self):
@@ -84,26 +103,6 @@ class Actor(Pluggable):
         )
 
     @property
-    def uid(self) -> int:
-        return self._uid
-
-    def __hash__(self) -> int:
-        """
-        hash 值代表 Actor 状态 stats
-        Actor 状态由所有依赖 dependence 的状态决定
-        time 时第一个 dependence
-        """
-        iteration = self.time_slice.current.iteration if self.time_slice.is_initializied else 0
-        return hash(
-            ":".join([str(self.uid), str(iteration), str(self.status)] + [str(hash(v)) for v in self._inputs.values()])
-        )
-
-    @property
-    def time(self) -> float | None:
-        """时间戳，代表 Actor 所处时间，用以同步"""
-        return self.time_slice.time
-
-    @property
     def current(self) -> typing.Type[TimeSlice]:
         return self.time_slice.current
 
@@ -111,20 +110,24 @@ class Actor(Pluggable):
     def previous(self) -> typing.Type[TimeSlice]:
         return self.time_slice.previous
 
-    @property
-    def status(self) -> int:
-        """执行状态， 用于异步调用
-            0: success 任务完成
-            1: working 任务执行中
-        -1: failed  任务失败
-        """
-        return self._inputs.get("status", 0)
-
     time_slice: TimeSeriesAoS[TimeSlice]
 
     @property
-    def inputs(self) -> typing.Dict[str, Actor]:
+    def time(self) -> float:
+        """时间戳，代表 Actor 所处时间，用以同步"""
+        return self.time_slice.current.time
+
+    @property
+    def iteration(self) -> int:
+        return self.time_slice.current.iteration
+
+    @property
+    def inputs(self) -> InPorts:
         return self._inputs
+
+    @property
+    def outputs(self) -> OutPorts:
+        return self._outputs
 
     def parser_arguments(self, type_hints={}, *args, **kwargs) -> typing.Tuple[typing.Any]:
         """处理 args,kwargs 更新 self._inputs"""
@@ -148,29 +151,22 @@ class Actor(Pluggable):
 
         return args, kwargs
 
-    def execute(
-        self,
-        current: TimeSlice,
-        *previouse_slices: typing.Tuple[TimeSlice],
-        **inputs: typing.Tuple[Actor],
-    ) -> typing.Type[Actor]:
+    def execute(self, current: TimeSlice, *previouse_slices: typing.Tuple[TimeSlice]) -> typing.Type[Actor]:
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
-    def refresh(self, *args, time=_not_found_, **kwargs) -> None:
-        args, kwargs = self.parser_arguments(typing.get_type_hints(self.__class__.refresh), *args, **kwargs)
+    def refresh(self, *args, time=None, **kwargs) -> None:
+        if time is None and self._parent is not None:
+            time = self._parent.time
+
+        self._inputs.update(kwargs)
 
         self.time_slice.refresh(*args, time=time)
-
-        current = self.time_slice.current
-
-        previous = self.time_slice.previous
-
-        self.execute(current, previous, **kwargs, **self._inputs)
+        inputs = self._inputs.fetch()
+        logger.debug(inputs)
+        self.execute(self.time_slice.current, self.time_slice.previous, **inputs)
 
     def advance(self, *args, dt=None, time=None, **kwargs) -> None:
-        args, kwargs = self.pre_process(typing.get_type_hints(self.__class__.advance), *args, **kwargs)
-
         if time is None and dt is None:
             raise RuntimeError(f"either time or dt should be given")
         elif time is not None and dt is not None:
@@ -178,15 +174,11 @@ class Actor(Pluggable):
         elif time is None and dt is not None:
             time = self.time + dt
 
-        kwargs["time"] = time
-        
-        self.time_slice.advance(*args, **kwargs)
+        self._inputs.update(*args, **kwargs)
 
-        current = self.time_slice.current
-        
-        previous = self.time_slice.previous
+        self.time_slice.advance(*args, time=time)
 
-        self.execute(current, previous, **self._inputs)
+        self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs.fetch())
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """
