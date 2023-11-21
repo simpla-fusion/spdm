@@ -352,7 +352,8 @@ class HTree(HTreeNode):
             default_value = update_tree(s_default_value, default_value)
 
         elif s_default_value is not _not_found_:
-            logger.debug(f"ignore {self.__class__.__name__}.{key} {s_default_value} {self._metadata}")
+            # logger.debug(f"ignore {self.__class__.__name__}.{key} {s_default_value} {self._metadata}")
+            pass
 
         if _parent is None:
             _parent = self
@@ -361,11 +362,13 @@ class HTree(HTreeNode):
             _type_hint = self._type_hint(key if key is not None else 0)
 
         if isinstance(_type_hint, typing.types.UnionType):
-            tp = typing.get_args(_type_hint)
-            if len(tp) > 2 or tp[1] is not type(None):
-                logger.debug(f"ignore {tp[1:]}")
-
-            _type_hint = tp[0]
+            tps = typing.get_args(_type_hint)
+            for tp in tps:
+                if isinstance_generic(value, tp):
+                    _type_hint = tp
+                    break
+            else:
+                _type_hint = tps[0]
 
         if isinstance_generic(value, _type_hint):
             res = value

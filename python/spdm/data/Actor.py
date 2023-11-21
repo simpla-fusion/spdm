@@ -126,7 +126,7 @@ class Actor(Pluggable):
     def inputs(self) -> typing.Dict[str, Actor]:
         return self._inputs
 
-    def _update_inputs(self, type_hints={}, *args, **kwargs) -> typing.Tuple[typing.Any]:
+    def parser_arguments(self, type_hints={}, *args, **kwargs) -> typing.Tuple[typing.Any]:
         """处理 args,kwargs 更新 self._inputs"""
         for key in [*type_hints.keys()]:
             tp = type_hints[key]
@@ -148,12 +148,6 @@ class Actor(Pluggable):
 
         return args, kwargs
 
-    def pre_process(self, current: TimeSlice, *args, **kwargs) -> typing.Tuple[typing.Any]:
-        """预处理
-        - 根据 kwargs，self._inputs, code.parameters 准备 current slice，
-        """
-        pass
-
     def execute(
         self,
         current: TimeSlice,
@@ -163,26 +157,16 @@ class Actor(Pluggable):
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
-    def post_process(self, current: TimeSlice) -> typing.Tuple[typing.Any]:
-        """后处理
-        - 后处理 current slice，
-        """
-        pass
+    def refresh(self, *args, time=_not_found_, **kwargs) -> None:
+        args, kwargs = self.parser_arguments(typing.get_type_hints(self.__class__.refresh), *args, **kwargs)
 
-    def refresh(self, *args, **kwargs) -> None:
-        args, kwargs = self._update_inputs(typing.get_type_hints(self.__class__.refresh), *args, **kwargs)
-
-        self.time_slice.refresh(*args, **kwargs)
+        self.time_slice.refresh(*args, time=time)
 
         current = self.time_slice.current
 
         previous = self.time_slice.previous
 
-        self.pre_process(current, previous, *args, **kwargs, **self._inputs)
-
-        self.execute(current, previous, **self._inputs)
-
-        self.post_process(current)
+        self.execute(current, previous, **kwargs, **self._inputs)
 
     def advance(self, *args, dt=None, time=None, **kwargs) -> None:
         args, kwargs = self.pre_process(typing.get_type_hints(self.__class__.advance), *args, **kwargs)
@@ -195,15 +179,14 @@ class Actor(Pluggable):
             time = self.time + dt
 
         kwargs["time"] = time
+        
         self.time_slice.advance(*args, **kwargs)
+
         current = self.time_slice.current
+        
         previous = self.time_slice.previous
 
-        self.pre_process(current, *args, **kwargs, **self._inputs)
-
         self.execute(current, previous, **self._inputs)
-
-        self.post_process(current)
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """

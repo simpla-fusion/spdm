@@ -118,7 +118,9 @@ class SpTree(Dict):
             return [SpTree._clone(o, func) for o in obj]
         elif isinstance(obj, SpTree):
             cache = {}
-            for k, _ in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
+            for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
+                if value.getter is not None:
+                    continue
                 cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
 
             return cache
@@ -135,11 +137,17 @@ class SpTree(Dict):
 
 
 class PropertyTree(SpTree):
-    def __getattr__(self, key: str, *args, **kwargs) -> PropertyTree:
+    def __getattr__(self, key: str, *args, **kwargs) -> PropertyTree | AoS:
         if key.startswith("__"):
             return super().__getattribute__(key)
         else:
-            return self.__get_property__(key, *args, _type_hint=PropertyTree | None, **kwargs)
+            res = self.__get_property__(key, *args, _type_hint=None, **kwargs)
+            if isinstance(res, dict):
+                return PropertyTree(res, _parent=self)
+            elif isinstance(res, list) and (len(res) == 0 or isinstance(res[0], (dict, HTree))):
+                return AoS[PropertyTree](res, _parent=self)
+            else:
+                return res
 
     def __getitem__(self, *args, **kwargs):
         return self.__get_property__(*args, _type_hint=PropertyTree | None, **kwargs)
@@ -273,7 +281,7 @@ class SpProperty:
                 if len(prop.metadata) > 0:
                     self.metadata = update_tree(self.metadata, deepcopy(prop.metadata))
             elif prop is not _not_found_:
-                self.metadata["default_value"] = update_tree(prop, self.metadata.get("default_value",_not_found_))
+                self.metadata["default_value"] = update_tree(prop, self.metadata.get("default_value", _not_found_))
 
     def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         # if self.type_hint is not None:
@@ -293,9 +301,8 @@ class SpProperty:
         #         child_cls = typing.get_args(orig_class)
         #         if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
         #             type_hint = child_cls[0]
-
-        if not callable(type_hint):
-            raise TypeError(type_hint)
+        # if not callable(type_hint):
+        #     raise TypeError(type_hint)
 
         self.type_hint = type_hint
 

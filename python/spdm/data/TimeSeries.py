@@ -141,7 +141,12 @@ class TimeSeriesAoS(List[_TSlice]):
         value = self._cache[cache_pos]
 
         if not (value is _not_found_ or isinstance(value, TimeSlice)):
-            entry = self._entry.child(self._entry_cursor + idx) if isinstance(self._entry, Entry) else None
+            if isinstance(self._entry, Entry) and self._entry_cursor  is not None:
+                entry_cursor = self._entry_cursor + idx
+                entry = self._entry.child(entry_cursor)  
+            else:
+                entry_cursor=0
+                entry = None
             value = self._as_child(value, self._entry_cursor + idx, _entry=entry, _parent=self._parent)
             self._cache[cache_pos] = value
 

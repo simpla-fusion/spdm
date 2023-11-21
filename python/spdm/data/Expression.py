@@ -406,7 +406,7 @@ class Expression(HTreeNode):
         if isinstance(expr, (bool, int, float, complex)):
             res = f"{expr}"
         elif expr is None:
-            res="n.a"
+            res = "n.a"
         elif isinstance(expr, np.ndarray):
             if len(expr.shape) == 0:
                 res = f"{expr.item()}"
@@ -430,7 +430,7 @@ class Expression(HTreeNode):
         # op = self._metadata.get("label", None) or self._metadata.get("name", None)
 
         if isinstance(self._func, Expression):
-            op = self._func.__label__ 
+            op = self._func.__label__
         elif isinstance(self._func, np.ufunc):
             op = EXPR_OP_TAG.get(self._func.__name__, self._func.__name__)
             nin = self._func.nin

@@ -965,17 +965,18 @@ class Path(list):
         for source in sources:
             if source is _not_found_:  # 不更新
                 continue
-
-            elif target is _not_found_ or target is None:  # 直接替换
+            elif (target is _not_found_ or target is None) and not isinstance(source, dict):  # 直接替换
                 target = source
-
             elif isinstance(source, dict):  # 合并 dict
-                if not isinstance(target, dict) and hasattr(target.__class__, "update"):
-                    # target is object with update method
-                    target.update(source)
-                else:
-                    for key, value in source.items():
-                        Path(key).update(target, value, _idempotent=_idempotent)
+                # if not isinstance(target, dict) and hasattr(target.__class__, "update"):
+                #     # target is object with update method
+                #     target.update(source)
+                # else:
+                if target is _not_found_ or target is None:
+                    target = {}
+                
+                for key, value in source.items():
+                    Path(key).update(target, value, _idempotent=_idempotent)
 
             elif _idempotent is True:  # 幂等操作，直接替换对象 target
                 target = source
