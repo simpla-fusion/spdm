@@ -151,7 +151,7 @@ class Actor(Pluggable):
 
         return args, kwargs
 
-    def execute(self, current: TimeSlice, *previouse_slices: typing.Tuple[TimeSlice]) -> typing.Type[Actor]:
+    def execute(self, current: TimeSlice, *previous_slices: typing.Tuple[TimeSlice]) -> typing.Type[Actor]:
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
@@ -162,9 +162,8 @@ class Actor(Pluggable):
         self._inputs.update(kwargs)
 
         self.time_slice.refresh(*args, time=time)
-        inputs = self._inputs.fetch()
-        logger.debug(inputs)
-        self.execute(self.time_slice.current, self.time_slice.previous, **inputs)
+
+        self.execute(self.time_slice.current, self.time_slice.previous, **self.inputs.fetch())
 
     def advance(self, *args, dt=None, time=None, **kwargs) -> None:
         if time is None and dt is None:

@@ -308,7 +308,7 @@ class SpProperty:
 
         for base_cls in owner_cls.__bases__:
             m_data = getattr(getattr(base_cls, name, None), "metadata", None)
-            update_tree(self.metadata, m_data)
+            self.metadata = update_tree(self.metadata, deepcopy(m_data), {})
 
         return type_hint, self.metadata
 
@@ -378,7 +378,7 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
     type_hints = typing.get_type_hints(cls)
 
     if not issubclass(cls, HTree):
-        n_cls = type(cls.__name__, (cls, SpTree), {"_metadata": getattr(cls, "_metadata", {})})
+        n_cls = type(cls.__name__, (cls, SpTree), {})
         n_cls.__module__ = cls.__module__
     else:
         n_cls = cls
@@ -400,7 +400,7 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
 
         prop.__set_name__(n_cls, _name)
 
-    setattr(n_cls, "_metadata", update_tree(getattr(cls, "_metadata", None), kwargs))
+    setattr(n_cls, "_metadata", update_tree(deepcopy(getattr(cls, "_metadata", None)), kwargs))
 
     return n_cls
 

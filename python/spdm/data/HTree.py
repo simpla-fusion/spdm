@@ -70,8 +70,7 @@ class HTreeNode:
 
         self._entry = open_entry(_entry)
 
-        if len(kwargs) > 0:
-            self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
+        self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
 
     def __copy__(self) -> HTree:
         other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
@@ -84,8 +83,7 @@ class HTreeNode:
             self._cache = copy(other._cache)
             self._entry = copy(other._entry)
             self._parent = other._parent
-            if self._metadata is not self.__class__._metadata:
-                self._metadata = copy(other._metadata)
+            self._metadata = deepcopy(other._metadata)
 
         return self
 
