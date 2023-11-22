@@ -130,16 +130,16 @@ class Field(Expression):
         """
 
         geo = {}
-        styles = {}
 
         match view_point.lower():
             case "rz":
-                geo = (*self.mesh.points, self.__array__())
-                styles = {
+                geo["$data"] = (*self.mesh.points, self.__array__())
+                geo["$styles"] = {
                     "label": self.__label__,
                     "axis_label": self.mesh.axis_label,
+                    "$matplotlib": {"levels": 40, "cmap": "jet"},
                 }
-        return geo, styles
+        return geo
 
     def _repr_svg_(self) -> str:
         from ..view.View import display

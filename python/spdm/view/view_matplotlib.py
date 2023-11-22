@@ -74,18 +74,14 @@ class MatplotlibView(View):
 
         return fig
 
-    def render(self, obj, styles=None, view_point="rz", title=None, **kwargs) -> typing.Any:
-        # if obj is None:
-        #     return None
-
-        if styles is None:
-            styles = {}
-
+    def render(self, obj, *styles, view_point="rz", title=None, **kwargs) -> typing.Any:
         fig, canvas = plt.subplots()
 
-        self._draw(canvas, obj, styles=styles or {}, view_point=view_point)
+        self._draw(canvas, obj, *styles, view_point=view_point)
 
-        xlabel = styles.get("xlabel", None)
+        g_styles = collections.ChainMap(*styles)
+
+        xlabel = g_styles.get("xlabel", None)
 
         if xlabel is not None:
             canvas.set_xlabel(xlabel)
@@ -94,7 +90,7 @@ class MatplotlibView(View):
         else:
             canvas.set_xlabel(r" $X$ [m]")
 
-        ylabel = styles.get("ylabel", None)
+        ylabel = g_styles.get("ylabel", None)
         if ylabel is not None:
             canvas.set_ylabel(ylabel)
         elif view_point.lower() == "rz":
@@ -105,141 +101,132 @@ class MatplotlibView(View):
         canvas.set_aspect("equal")
         canvas.axis("scaled")
 
-        title = title or styles.get("title", None)
+        title = title or g_styles.get("title", None)
 
-        return self._figure_post(fig, title=title, styles=styles, **kwargs)
+        return self._figure_post(fig, title=title, styles=g_styles, **kwargs)
 
-    def _draw(self, canvas, obj: GeoObject | str | BBox, styles={}, view_point=None, **kwargs):
-        if styles is False:
+    def _draw(
+        self,
+        canvas,
+        geo: GeoObject | str | BBox,
+        *styles,
+        view_point=None,
+        **kwargs,
+    ):
+        if False in styles:
             return
-        elif styles is None or styles is True:
-            styles = {}
+        g_styles = collections.ChainMap(*styles)
 
-        s_styles = styles.get(f"${self.backend}", {})
-
-        if obj is None or obj is _not_found_:
+        if geo is None or geo is _not_found_:
             pass
-
-        elif isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], (dict, str)):
-            data, t_styles = obj
-
-            if isinstance(t_styles, str):
-                styles = update_tree(styles, {"label": t_styles})
-            elif isinstance(obj[-1], dict):
-                styles = update_tree(styles, t_styles)
-            else:
-                raise RuntimeError(f"Unsupport type {type(obj[-1])} {obj[-1]}")
-
-            self._draw(canvas, data, styles, view_point=view_point, **kwargs)
-
-        elif isinstance(obj, tuple):
-            assert all([isinstance(o, array_type) for o in obj])
-            *x, y = obj
-
-            if len(x) != 2 or y.ndim != 2:
-                raise RuntimeError(f"Illegal dimension {[d.shape for d in x]} {y.shape} ")
-
-            levels = styles.pop("levels", s_styles.pop("levels", 10))
-
-            canvas.contour(*x, y, levels=levels, **collections.ChainMap(s_styles, {"linewidths": 0.5}))
-
-        elif hasattr(obj.__class__, "__geometry__"):
+        elif hasattr(geo.__class__, "__geometry__"):
             try:
-                geo, s = obj.__geometry__(view_point=view_point, **kwargs)
-                styles = update_tree(styles, s)
+                geo = geo.__geometry__(view_point=view_point, **kwargs)
             except Exception as error:
-                logger.warning(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ")
-                raise RuntimeError(f"ignore unsupported geometry {obj.__class__.__name__} {obj}! ") from error
+                logger.warning(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ")
+                raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
             else:
-                self._draw(canvas, geo, styles, view_point=view_point, **kwargs)
+                self._draw(canvas, geo, *styles, view_point=view_point, **kwargs)
 
-        elif isinstance(obj, dict):
-            for k, o in obj.items():
-                s = styles.get(k, {})
-                if s is False:
-                    continue
+        elif hasattr(geo, "mesh") and hasattr(geo, "__array__"):
+            self._draw(canvas, (*geo.mesh.points, geo.__array__()), *styles, **kwargs)
 
-                self._draw(canvas, o, collections.ChainMap({"id": k}, s), view_point=view_point, **kwargs)
+        elif isinstance(geo, dict):
+            s_styles = geo.get("$styles", {})
 
-            self._draw(canvas, None, styles, **kwargs)
+            for s in [k for k in geo.keys() if not k.startswith("$")]:
+                self._draw(canvas, geo[s], {"id": s}, s_styles, *styles, view_point=view_point, **kwargs)
+            else:
+                self._draw(canvas, geo.get("$data"), s_styles, *styles, view_point=view_point, **kwargs)
 
-        elif isinstance(obj, list):
-            for idx, o in enumerate(obj):
-                self._draw(canvas, o, collections.ChainMap({"id": idx}, styles), view_point=view_point, **kwargs)
+            self._draw(canvas, None, s_styles, *styles, **kwargs)
 
-            self._draw(canvas, None, styles, view_point=view_point, **kwargs)
+        elif isinstance(geo, list):
+            for idx, g in enumerate(geo):
+                self._draw(canvas, g, {"id": idx}, *styles, view_point=view_point, **kwargs)
 
-        elif isinstance(obj, (str, int, float, bool)):
-            pos = s_styles.get("position", None)
+            self._draw(canvas, None, *styles, view_point=view_point, **kwargs)
 
-            if pos is None:
-                return
-
-            canvas.text(
-                *pos,
-                str(obj),
-                **collections.ChainMap(
-                    s_styles,
-                    {
-                        "horizontalalignment": "center",
-                        "verticalalignment": "center",
-                        "fontsize": "xx-small",
-                    },
-                ),
-            )
-
-        elif isinstance(obj, BBox):
-            canvas.add_patch(plt.Rectangle(obj.origin, *obj.dimensions, fill=False, **s_styles))
-
-        elif isinstance(obj, Polygon):
-            canvas.add_patch(plt.Polygon(obj._points, fill=False, **s_styles))
-
-        elif isinstance(obj, Polyline):
-            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
-
-        elif isinstance(obj, Line):
-            canvas.add_artist(plt.Line2D([obj.p0.x, obj.p1.x], [obj.p0.y, obj.p1.y], **s_styles))
-
-        elif isinstance(obj, Curve):
-            canvas.add_patch(plt.Polygon(obj._points, fill=False, closed=obj.is_closed, **s_styles))
-
-        elif isinstance(obj, Rectangle):
-            canvas.add_patch(plt.Rectangle((obj._x, obj._y), obj._width, obj._height, fill=False, **s_styles))
-
-        elif isinstance(obj, Circle):
-            canvas.add_patch(plt.Circle((obj.x, obj.y), obj.r, fill=False, **s_styles))
-
-        elif isinstance(obj, Point):
-            canvas.scatter(obj.x, obj.y, **s_styles)
-
-        elif isinstance(obj, PointSet):
-            canvas.scatter(*obj.points, **s_styles)
-
-        elif isinstance(obj, GeoObject):
-            self._draw(canvas, obj.bbox, styles)
-
-        elif hasattr(obj, "mesh") and hasattr(obj, "__array__"):
-            self._draw(canvas, (*obj.mesh.points, obj.__array__()), styles=styles, **kwargs)
+        elif geo.__class__ is GeoObject:
+            self._draw(canvas, geo.bbox, *styles)
 
         else:
-            raise RuntimeError(f"Unsupport type {type(obj)} {obj}")
+            s_styles = g_styles.get("$matplotlib", {})
 
-        text_styles = styles.get("text", False)
+            if isinstance(geo, tuple) and all([isinstance(g, array_type) for g in geo]):
+                *x, y = geo
+
+                if len(x) != 2 or y.ndim != 2:
+                    raise RuntimeError(f"Illegal dimension {[d.shape for d in x]} {y.shape} ")
+
+                canvas.contour(*x, y, **collections.ChainMap(s_styles, {"levels": 10, "linewidths": 0.5}))
+
+            elif isinstance(geo, (str, int, float, bool)):
+                pos = g_styles.get("position", None)
+
+                if pos is None:
+                    return
+
+                canvas.text(
+                    *pos,
+                    str(geo),
+                    **collections.ChainMap(
+                        s_styles,
+                        {
+                            "horizontalalignment": "center",
+                            "verticalalignment": "center",
+                            "fontsize": "xx-small",
+                        },
+                    ),
+                )
+
+            elif isinstance(geo, BBox):
+                canvas.add_patch(plt.Rectangle(geo.origin, *geo.dimensions, fill=False, **s_styles))
+
+            elif isinstance(geo, Polygon):
+                canvas.add_patch(plt.Polygon(geo._points, fill=False, **s_styles))
+
+            elif isinstance(geo, Polyline):
+                canvas.add_patch(plt.Polygon(geo._points, fill=False, closed=geo.is_closed, **s_styles))
+
+            elif isinstance(geo, Line):
+                canvas.add_artist(plt.Line2D([geo.p0.x, geo.p1.x], [geo.p0.y, geo.p1.y], **s_styles))
+
+            elif isinstance(geo, Curve):
+                canvas.add_patch(plt.Polygon(geo._points, fill=False, closed=geo.is_closed, **s_styles))
+
+            elif isinstance(geo, Rectangle):
+                canvas.add_patch(plt.Rectangle((geo._x, geo._y), geo._width, geo._height, fill=False, **s_styles))
+
+            elif isinstance(geo, Circle):
+                canvas.add_patch(plt.Circle((geo.x, geo.y), geo.r, fill=False, **s_styles))
+
+            elif isinstance(geo, Point):
+                canvas.scatter(geo.x, geo.y, **s_styles)
+
+            elif isinstance(geo, PointSet):
+                canvas.scatter(*geo.points, **s_styles)
+
+            else:
+                raise RuntimeError(f"Unsupport type {(geo)} {geo}")
+
+        text_styles = g_styles.get("text", False)
+
         if text_styles:
             if not isinstance(text_styles, dict):
                 text_styles = {}
 
-            if isinstance(obj, Line):
-                text = obj.name
-                pos = [obj.p1.x, obj.p1.y]
-            elif isinstance(obj, GeoObject):
-                text = obj.name
-                pos = obj.bbox.center
-            elif hasattr(obj, "mesh"):
-                text = obj.name
-                pos = obj.mesh.bbox.center
+            if isinstance(geo, Line):
+                text = geo.name
+                pos = [geo.p1.x, geo.p1.y]
+            elif isinstance(geo, GeoObject):
+                text = geo.name
+                pos = geo.bbox.center
+            elif hasattr(geo, "mesh"):
+                text = geo.name
+                pos = geo.mesh.bbox.center
             else:
-                text = str(obj)
+                text = str(geo)
                 pos = None
 
             text_styles.setdefault("position", pos)

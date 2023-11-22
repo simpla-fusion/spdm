@@ -151,7 +151,7 @@ class Actor(Pluggable):
 
         return args, kwargs
 
-    def execute(self, current: TimeSlice, *previous_slices: typing.Tuple[TimeSlice]) -> typing.Type[Actor]:
+    def execute(self, current: TimeSlice, *previous_slices: typing.Tuple[TimeSlice],**kwargs) -> typing.Type[Actor]:
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
