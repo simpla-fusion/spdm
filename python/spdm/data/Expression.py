@@ -252,14 +252,14 @@ class Expression(HTreeNode):
             self.__copy_from__(expr)
             self._metadata = update_tree(self._metadata, kwargs)
 
-        elif  all([isinstance(v, np.ndarray) for v in [expr, *children]]):
+        elif all([isinstance(v, np.ndarray) for v in [expr, *children]]):
             # 构建插值函数
             from .Function import Function
 
             self.__class__ = Function
             Function.__init__(self, expr, *children, domain=domain, **kwargs)
             return
-        elif expr is None  or  callable(expr):
+        elif expr is None or callable(expr):
             self._op = expr
             self._children: typing.Tuple[typing.Type[Expression]] = children
 
@@ -383,8 +383,12 @@ class Expression(HTreeNode):
         return callable(self._op) or self.has_children
 
     @property
+    def name(self) -> str:
+        return self._metadata.get("name", f"<{self.__class__.__name__}>")
+
+    @property
     def __label__(self) -> str:
-        return self._metadata.get("label", None) or self._metadata.get("name", None) or str(self.__class__.__name__)
+        return self._metadata.get("label", None) or self.name
 
     def __str__(self) -> str:
         return f"<{self.__class__.__name__} label='{self.__label__}' />"

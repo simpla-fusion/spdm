@@ -129,33 +129,14 @@ class Actor(Pluggable):
     def outputs(self) -> OutPorts:
         return self._outputs
 
-    def parser_arguments(self, type_hints={}, *args, **kwargs) -> typing.Tuple[typing.Any]:
-        """处理 args,kwargs 更新 self._inputs"""
-        for key in [*type_hints.keys()]:
-            tp = type_hints[key]
-            if inspect.isclass(tp) and issubclass(tp, Actor):
-                continue
-            elif getattr(tp, "_name", None) == "Optional":  # check typing.Optional
-                t_args = typing.get_args(tp)
-                if len(t_args) == 2 and t_args[1] is type(None) and issubclass(t_args[0], Actor):
-                    type_hints[key] = t_args[0]
-                else:
-                    type_hints.pop(key)
-            else:
-                type_hints.pop(key)
+    def preprocess(self, *args, dt=None, time=None, **kwargs):
+        if time is None and dt is None:
+            pass
+        elif time is not None and dt is not None:
+            logger.warning(f"ignore dt={dt} when time={time} is given")
+        elif time is None and dt is not None:
+            time = self.time + dt
 
-        self._inputs = update_tree(
-            self._inputs,
-            {k: kwargs.pop(k) for k in [*kwargs.keys()] if isinstance(kwargs[k], Actor) or k in type_hints},
-        )
-
-        return args, kwargs
-
-    def execute(self, current: TimeSlice, *previous_slices: typing.Tuple[TimeSlice],**kwargs) -> typing.Type[Actor]:
-        """根据 inputs 和 前序 time slice 更显当前time slice"""
-        pass
-
-    def refresh(self, *args, time=None, **kwargs) -> None:
         if time is None and self._parent is not None:
             time = self._parent.time
 
@@ -163,21 +144,19 @@ class Actor(Pluggable):
 
         self.time_slice.refresh(*args, time=time)
 
+    def execute(self, current: TimeSlice, *previous_slices: typing.Tuple[TimeSlice], **kwargs) -> typing.Type[Actor]:
+        """根据 inputs 和 前序 time slice 更显当前time slice"""
+        pass
+
+    def postprocess(self, current: TimeSlice):
+        pass
+
+    def refresh(self, *args, **kwargs) -> None:
+        self.preprocess(*args, **kwargs)
+
         self.execute(self.time_slice.current, self.time_slice.previous, **self.inputs.fetch())
 
-    def advance(self, *args, dt=None, time=None, **kwargs) -> None:
-        if time is None and dt is None:
-            raise RuntimeError(f"either time or dt should be given")
-        elif time is not None and dt is not None:
-            logger.warning(f"ignore dt={dt} when time={time} is given")
-        elif time is None and dt is not None:
-            time = self.time + dt
-
-        self._inputs.update(*args, **kwargs)
-
-        self.time_slice.advance(*args, time=time)
-
-        self.execute(self.time_slice.current, self.time_slice.previous, **self._inputs.fetch())
+        self.postprocess(self.time_slice.current)
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """

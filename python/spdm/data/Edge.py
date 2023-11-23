@@ -206,6 +206,13 @@ class InPorts(Ports):
         for k, v in kwargs.items():
             self[k].source.update(v)
 
+    def get(self, key, default_value=_not_found_):
+        obj = super().get(key, _not_found_)
+        if isinstance(obj, Edge):
+            return obj.source.node
+        else:
+            return default_value
+
 
 class OutPorts(Ports):
     def __missing__(self, name: str | int) -> Edge:
@@ -219,3 +226,6 @@ class OutPorts(Ports):
     def update(self, kwargs: typing.Dict[str, typing.Any]):
         for k, v in kwargs.items():
             self[k].target.update(v)
+
+    def set(self, key, value):
+        self[key].target.node = value
