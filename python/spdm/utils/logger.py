@@ -106,7 +106,7 @@ def sp_enable_logging(name, /, handler=None, level=None, prefix=None, formater=N
 
 logger = sp_enable_logging(SP_LABEL, level=SP_DEBUG, handler="STDOUT")
 
-
+    
 def _at_end():
     logger.setLevel(logging.INFO)
     logger.info("The End")

@@ -192,6 +192,20 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
+    def get_source(self, key, default_value=_not_found_):
+        obj = super().get(key, _not_found_)
+        if not isinstance(obj, Edge) or obj.source.node is None:
+            return default_value
+        else:
+            return obj.source.node
+
+    def get_target(self, key, default_value=_not_found_):
+        obj = super().get(key, _not_found_)
+        if not isinstance(obj, Edge) or obj.target.node is None:
+            return default_value
+        else:
+            return obj.target.node
+
 
 class InPorts(Ports):
     def __missing__(self, name: str | int) -> Edge:
@@ -205,13 +219,6 @@ class InPorts(Ports):
     def update(self, kwargs: typing.Dict[str, typing.Any]):
         for k, v in kwargs.items():
             self[k].source.update(v)
-
-    def get(self, key, default_value=_not_found_):
-        obj = super().get(key, _not_found_)
-        if isinstance(obj, Edge):
-            return obj.source.node
-        else:
-            return default_value
 
 
 class OutPorts(Ports):
