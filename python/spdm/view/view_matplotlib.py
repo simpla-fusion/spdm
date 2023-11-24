@@ -4,7 +4,7 @@ from io import BytesIO
 
 import matplotlib.pyplot as plt
 import numpy as np
-from spdm.data.Path import update_tree
+from spdm.data.Path import update_tree, merge_tree
 from spdm.data.Expression import Expression
 from spdm.data.Field import Field
 from spdm.data.Function import Function
@@ -79,7 +79,7 @@ class MatplotlibView(View):
 
         self._draw(canvas, obj, *styles, view_point=view_point)
 
-        g_styles = collections.ChainMap(*styles)
+        g_styles = merge_tree( *styles)
 
         xlabel = g_styles.get("xlabel", None)
 
@@ -115,7 +115,7 @@ class MatplotlibView(View):
     ):
         if False in styles:
             return
-        g_styles = collections.ChainMap(*styles)
+        g_styles = merge_tree(*styles)
 
         if geo is None or geo is _not_found_:
             pass
@@ -159,7 +159,7 @@ class MatplotlibView(View):
                 if len(x) != 2 or y.ndim != 2:
                     raise RuntimeError(f"Illegal dimension {[d.shape for d in x]} {y.shape} ")
 
-                canvas.contour(*x, y, **collections.ChainMap(s_styles, {"levels": 10, "linewidths": 0.5}))
+                canvas.contour(*x, y, **merge_tree(s_styles, {"levels": 10, "linewidths": 0.5}))
 
             elif isinstance(geo, (str, int, float, bool)):
                 pos = g_styles.get("position", None)
@@ -303,7 +303,7 @@ class MatplotlibView(View):
                         *p,
                         x_value=x_value,
                         x_axis=x_axis,
-                        styles=collections.ChainMap(sub_styles, styles),
+                        styles=merge_tree( sub_styles, styles),
                     )
                     if y_label is None:
                         y_label = tmp
@@ -351,7 +351,7 @@ class MatplotlibView(View):
         if expr is None or expr is _not_found_:
             return
 
-        styles = update_tree(styles, kwargs.pop("styles", {}), kwargs)
+        styles = update_tree(styles, kwargs.pop("styles", {}))
 
         s_styles = styles.get(f"${self.backend}", {})
 
@@ -389,7 +389,7 @@ class MatplotlibView(View):
         except Exception as e:
             logger.warning(f"plot failed! label={label} {y_value} {e}")
 
-        return getattr(expr, "_metadata", {}).get("units", None)
+        return getattr(expr, "_metadata", {}).get("units", "[-]")
 
     # def profiles_(self, obj, *args,  x_axis=None, x=None,
     #               default_num_of_points=128, fontsize=10, grid=True,
@@ -603,13 +603,13 @@ class MatplotlibView(View):
 #                                    desc2d.limiter.unit[0].outline.z]).transpose([1, 0])
 
 #         axis.add_patch(plt.Polygon(limiter_points, **
-#                                    collections.ChainMap(kwargs.get("limiter", {}), {"fill": False, "closed": True})))
+#                                    merge_tree(kwargs.get("limiter", {}), {"fill": False, "closed": True})))
 
-#         axis.add_patch(plt.Polygon(vessel_outer_points, **collections.ChainMap(kwargs.get("vessel_outer", {}),
+#         axis.add_patch(plt.Polygon(vessel_outer_points, **merge_tree(kwargs.get("vessel_outer", {}),
 #                                                                                kwargs.get("vessel", {}),
 #                                                                                {"fill": False, "closed": True})))
 
-#         axis.add_patch(plt.Polygon(vessel_inner_points, **collections.ChainMap(kwargs.get("vessel_inner", {}),
+#         axis.add_patch(plt.Polygon(vessel_inner_points, **merge_tree(kwargs.get("vessel_inner", {}),
 #                                                                                kwargs.get("vessel", {}),
 #                                                                                {"fill": False, "closed": True})))
 
@@ -624,7 +624,7 @@ class MatplotlibView(View):
 
 #             axis.add_patch(plt.Rectangle((rect.r - rect.width / 2.0,  rect.z - rect.height / 2.0),
 #                                          rect.width,  rect.height,
-#                                          **collections.ChainMap(kwargs,  {"fill": False})))
+#                                          **merge_tree(kwargs,  {"fill": False})))
 #             axis.text(rect.r, rect.z, coil.name,
 #                       horizontalalignment='center',
 #                       verticalalignment='center',

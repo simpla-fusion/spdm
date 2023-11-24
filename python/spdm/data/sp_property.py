@@ -50,7 +50,7 @@ from enum import Enum
 from .Entry import Entry
 from .AoS import AoS
 from .HTree import HTree, Dict
-from .Path import update_tree
+from .Path import update_tree, merge_tree
 
 from ..utils.envs import SP_DEBUG
 from ..utils.logger import logger
@@ -278,10 +278,9 @@ class SpProperty:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
                 self.doc += prop.doc
-                if len(prop.metadata) > 0:
-                    self.metadata = update_tree(self.metadata, deepcopy(prop.metadata))
+                self.metadata = update_tree(self.metadata, prop.metadata)
             elif prop is not _not_found_:
-                self.metadata["default_value"] = update_tree(prop, self.metadata.get("default_value", _not_found_))
+                self.metadata["default_value"] = merge_tree(prop, self.metadata.get("default_value", _not_found_))
 
     def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
         # if self.type_hint is not None:
@@ -400,7 +399,7 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
 
         prop.__set_name__(n_cls, _name)
 
-    setattr(n_cls, "_metadata", update_tree(deepcopy(getattr(cls, "_metadata", None)), kwargs))
+    setattr(n_cls, "_metadata", merge_tree(getattr(cls, "_metadata", None), kwargs))
 
     return n_cls
 

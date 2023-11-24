@@ -6,7 +6,7 @@ import inspect
 import pprint
 import re
 import typing
-from copy import copy
+from copy import copy, deepcopy
 from enum import Flag, auto
 
 import numpy as np
@@ -974,7 +974,7 @@ class Path(list):
                 # else:
                 if target is _not_found_ or target is None:
                     target = {}
-                
+
                 for key, value in source.items():
                     Path(key).update(target, value, _idempotent=_idempotent)
 
@@ -1399,6 +1399,10 @@ _T = typing.TypeVar("_T")
 
 def update_tree(target: _T, *args, **kwargs) -> _T:
     return Path().update(target, *args, **kwargs)
+
+
+def merge_tree(*args, **kwargs) -> _T:
+    return update_tree({}, *args, **kwargs)
 
 
 def as_path(path):

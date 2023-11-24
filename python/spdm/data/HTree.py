@@ -22,7 +22,7 @@ from ..utils.typing import (
 )
 from ..utils.uri_utils import URITuple
 from .Entry import Entry, open_entry
-from .Path import Path, PathLike, Query, as_path, update_tree
+from .Path import Path, PathLike, Query, as_path, update_tree, merge_tree
 
 
 class HTreeNode:
@@ -421,6 +421,10 @@ class HTree(HTreeNode):
             if res._parent is None:
                 res._parent = _parent
             res._metadata.setdefault("name", key)
+
+            if isinstance(key, str) and key.isidentifier():
+                metadata = getattr(getattr(self.__class__, key, None), "metadata", _not_found_)
+                res._metadata = merge_tree(metadata, res._metadata)
 
         return res
 
