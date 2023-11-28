@@ -104,29 +104,37 @@ class Actor(Pluggable):
 
     @property
     def current(self) -> typing.Type[TimeSlice]:
+        """当前时间片，指向 Actor 所在时间点的状态。"""
         return self.time_slice.current
 
     @property
     def previous(self) -> typing.Type[TimeSlice]:
+        """前一个时间片，指向 Actor 在前一个时间点的状态。"""
         return self.time_slice.previous
 
     time_slice: TimeSeriesAoS[TimeSlice]
+    """ 时间片序列，保存 Actor 历史状态。
+        @note: TimeSeriesAoS 长度为 n(=3) 循环队列。当压入序列的 TimeSlice 数量超出 n 时，会调用 TimeSeriesAoS.__full__(first_slice)  
+    """
 
     @property
     def time(self) -> float:
-        """时间戳，代表 Actor 所处时间，用以同步"""
+        """当前时间，"""
         return self.time_slice.current.time
 
     @property
     def iteration(self) -> int:
+        """当前时间片执行 refresh 的次数。对于新创建的 TimeSlice，iteration=0"""
         return self.time_slice.current.iteration
 
     @property
     def inputs(self) -> InPorts:
+        """保存输入的 Edge，记录对其他 Actor 的依赖。 """
         return self._inputs
 
     @property
     def outputs(self) -> OutPorts:
+        """保存外链的 Edge，可视为对于引用（reference）的记录"""
         return self._outputs
 
     def preprocess(self, *args, dt=None, time=None, **kwargs):
@@ -151,8 +159,12 @@ class Actor(Pluggable):
     def postprocess(self, current: TimeSlice):
         pass
 
-    def refresh(self, *args, **kwargs) -> None:
-        self.preprocess(*args, **kwargs)
+    def refresh(self, *args, time=None, **kwargs) -> None:
+        """更新当前 Actor 的状态。
+            若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
+            否则，向 time_slice 队列中压入新的时间片。 
+        """
+        self.preprocess(*args, time=time, **kwargs)
 
         self.execute(self.time_slice.current, self.time_slice.previous, **self.inputs.fetch())
 

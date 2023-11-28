@@ -75,6 +75,13 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 entry.child(idx).insert(value)
 
+    def __full__(self, o:typing.Type[Type]):
+        """当循环队列满了的时候调用
+
+            :param o: 最老的 time_slice
+        """
+        pass
+
     @property
     def time(self) -> float:
         return self.current.time
@@ -197,6 +204,11 @@ class TimeSeriesAoS(List[_TSlice]):
             self.initialize(*args, **kwargs)
         else:
             self._cache_cursor = (self._cache_cursor + 1) % self._cache_depth
+
+            
+
+            if self._cache[self._cache_cursor] is not _not_found_:
+                self.__full__(self._cache[self._cache_cursor])
 
             self._entry_cursor += 1
 

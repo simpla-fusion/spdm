@@ -174,9 +174,7 @@ class PropertyTree(SpTree):
 _T = typing.TypeVar("_T")
 _TR = typing.TypeVar("_TR")
 
-
-class SpProperty:
-    """
+"""
     用于为 SpPropertyClass 类（及其子类）定义一个property, 并确保其类型为type_hint 指定的类型。
 
     例如：
@@ -201,6 +199,8 @@ class SpProperty:
             从Node的_cache或entry获得名为 'phi' 的值，将其转换为 type_hint 指定的类型 Profile[float]。
     """
 
+
+class SpProperty:
     def __init__(
         self,
         getter: typing.Callable[[typing.Any], typing.Any] = None,
