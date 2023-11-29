@@ -1,5 +1,3 @@
-
-
 from ..utils.typing import array_type
 from .Function import Function
 from .sp_property import sp_tree, sp_property
@@ -19,7 +17,7 @@ class Signal:
 
     def __call__(self, t: float) -> float:
         if self._func is None:
-            self._func = Function(self.data, self.time)
+            self._func = Function(self.time, self.data)
         return self._func(t)
 
 

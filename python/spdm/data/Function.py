@@ -75,10 +75,6 @@ class Function(Expression):
     def __repr__(self) -> str:
         return f"{self.__label__}"
 
-    def _repr_svg_(self) -> str:
-        from ..view import View as sp_view
-        return sp_view.plot((self.__array__(), self.__label__), x_axis=self.dims[0], x_label=self.x_label, output="svg")
-
     def __getitem__(self, idx) -> NumericType:
         return self._cache[idx]
 

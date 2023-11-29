@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from spdm.data.Path import update_tree, merge_tree
 from spdm.data.Expression import Expression
+from spdm.data.Signal import Signal
 from spdm.data.Field import Field
 from spdm.data.Function import Function
 from spdm.geometry.BBox import BBox
@@ -79,7 +80,7 @@ class MatplotlibView(View):
 
         self._draw(canvas, obj, *styles, view_point=view_point)
 
-        g_styles = merge_tree( *styles)
+        g_styles = merge_tree(*styles)
 
         xlabel = g_styles.get("xlabel", None)
 
@@ -115,7 +116,8 @@ class MatplotlibView(View):
     ):
         if False in styles:
             return
-        g_styles = merge_tree(*styles)
+        g_styles = getattr(geo, "_metadata", {}).get("styles", {})
+        g_styles = update_tree(g_styles, *styles)
 
         if geo is None or geo is _not_found_:
             pass
@@ -159,7 +161,7 @@ class MatplotlibView(View):
                 if len(x) != 2 or y.ndim != 2:
                     raise RuntimeError(f"Illegal dimension {[d.shape for d in x]} {y.shape} ")
 
-                canvas.contour(*x, y, **merge_tree(s_styles, {"levels": 10, "linewidths": 0.5}))
+                canvas.contour(*x, y, **merge_tree(s_styles, {"levels": 20, "linewidths": 0.5}))
 
             elif isinstance(geo, (str, int, float, bool)):
                 pos = g_styles.get("position", None)
@@ -247,7 +249,7 @@ class MatplotlibView(View):
         fontsize = styles.get("fontsize", 16)
 
         if not isinstance(obj, (list, tuple)):  # draw as profiles
-            obj = [obj]
+            obj = [(obj, styles)]
 
         nprofiles = len(obj)
 
@@ -303,7 +305,7 @@ class MatplotlibView(View):
                         *p,
                         x_value=x_value,
                         x_axis=x_axis,
-                        styles=merge_tree( sub_styles, styles),
+                        styles=merge_tree(sub_styles, styles),
                     )
                     if y_label is None:
                         y_label = tmp
@@ -369,6 +371,11 @@ class MatplotlibView(View):
                     label = f"${label}$"
             y_value = expr(x_value)
 
+        elif isinstance(expr, Signal):
+            y_value = expr.data
+            x_value = expr.time
+            if label is None:
+                label = expr._metadata.get("name", "[-]")
         elif hasattr(expr.__class__, "__array__"):
             y_value = expr.__array__()
         else:
