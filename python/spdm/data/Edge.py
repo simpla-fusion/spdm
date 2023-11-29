@@ -41,7 +41,7 @@ class Edge:
 
             self._iteration: int = None
 
-            self.update(node, type_hint)
+            # self.update(node, type_hint)
 
         def update(self, node=None, type_hint=None) -> Edge.Endpoint:
             if type_hint is not None and type_hint is not _not_found_:

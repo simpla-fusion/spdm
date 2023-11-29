@@ -126,7 +126,7 @@ class MatplotlibView(View):
                 geo = geo.__geometry__(view_point=view_point, **kwargs)
             except Exception as error:
                 logger.warning(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ")
-                raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
+                # raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
             else:
                 self._draw(canvas, geo, *styles, view_point=view_point, **kwargs)
 
@@ -258,6 +258,10 @@ class MatplotlibView(View):
         if nprofiles == 1:
             canvas = [canvas]
 
+        if x_value is None:
+            x_value = x_axis
+            x_axis = None
+
         if isinstance(x_value, np.ndarray):
             if x_axis is None:
                 x_axis = x_value
@@ -266,15 +270,14 @@ class MatplotlibView(View):
             else:
                 raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
 
-        elif isinstance(x_value, Expression) and isinstance(x_axis, np.ndarray):
-            if x_label is None:
-                x_label = x_value._repr_latex_()
+        elif isinstance(x_value, Expression):
+            if isinstance(x_axis, np.ndarray):
+                if x_label is None:
+                    x_label = x_value._repr_latex_()
 
-            x_value = x_value(x_axis)
-
-        elif x_value is None:
-            x_value = x_axis
-
+                x_value = x_value(x_axis)
+            else:
+                x_value = x_value.__array__()
         else:
             raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
 

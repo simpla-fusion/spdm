@@ -812,7 +812,7 @@ class Piecewise(Expression):
     A piecewise function. 一维或多维，分段函数
     """
 
-    def __init__(self, func: typing.List[typing.Callable], cond: typing.List[typing.Callable], **kwargs):
+    def __init__(self, func: typing.List[Expression |  float | int], cond: typing.List[typing.Callable], **kwargs):
         super().__init__(None, **kwargs)
         self._piecewise = (func, cond)
 
