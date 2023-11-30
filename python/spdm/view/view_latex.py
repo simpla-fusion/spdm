@@ -99,7 +99,7 @@ class LatexView(View):
     def __init__(self, *args,   **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, expr: typing.Any, *args, **kwargs) -> str:
+    def draw(self, expr: typing.Any, *args, **kwargs) -> str:
         if isinstance(expr, Variable):
             return f"${expr.__label__}$"
         else:

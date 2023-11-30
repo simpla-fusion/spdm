@@ -6,7 +6,7 @@ from .mesh_rectilinear import RectilinearMesh
 @Mesh.register(["rectangular", "rect"])
 class RectangularMesh(RectilinearMesh):
     """ Rectangular Mesh, which is alias of RectilinearMesh
-        矩形网格
+    矩形网格
     """
 
     @property

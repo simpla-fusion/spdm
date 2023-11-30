@@ -25,15 +25,14 @@ from .mesh_structured import StructuredMesh
 
 @Mesh.register("rectilinear")
 class RectilinearMesh(StructuredMesh):
-    """
-    A `rectilinear Mesh` is a tessellation by rectangles or rectangular cuboids (also known as rectangular parallelepipeds)
+    """    A `rectilinear Mesh` is a tessellation by rectangles or rectangular cuboids (also known as rectangular parallelepipeds)
     that are not, in general, all congruent to each other. The cells may still be indexed by integers as above, but the
     mapping from indexes to vertex coordinates is less uniform than in a regular Mesh. An example of a rectilinear Mesh
     that is not regular appears on logarithmic scale graph paper.
-        -- [https://en.wikipedia.org/wiki/Regular_Mesh]
+    -- [https://en.wikipedia.org/wiki/Regular_Mesh]
 
     RectlinearMesh
-    --------------------
+
     可以视为由 n=rank 条称为axis的曲线 curve 平移张成的空间。
 
     xyz= sum([ axis[i](uvw[i]) for i in range(rank) ])

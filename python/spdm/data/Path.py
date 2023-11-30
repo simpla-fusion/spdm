@@ -211,11 +211,11 @@ class PathError(Exception):
 
 
 class Path(list):
-    """
-    Path用于描述数据的路径, 在 HTree ( Hierarchical Tree) 中定位Element, 其语法是 JSONPath 和 XPath的变体，
+    """ Path用于描述数据的路径, 在 HTree ( Hierarchical Tree) 中定位Element, 其语法是 JSONPath 和 XPath的变体，
     并扩展谓词（predicate）语法/查询选择器。
 
-    HTree: Hierarchical Tree 半结构化树状数据，树节点具有 list或dict类型，叶节点为 list和dict 之外的primary数据类型，
+    HTree: 
+        Hierarchical Tree 半结构化树状数据，树节点具有 list或dict类型，叶节点为 list和dict 之外的primary数据类型，
     包括 int，float,string 和 ndarray。
 
     基本原则是用python 原生数据类型（例如，list, dict,set,tuple）等
@@ -229,7 +229,8 @@ class Path(list):
     | `__truediv__`,`__getattr___` | DELIMITER (`/` or `.`)  | 子元素选择符, DELIMITER 可选
     | `__getitem__`         | `[index|slice|selector]`| 数组元素选择符，index为整数,slice，或selector选择器（predicate谓词）
 
-    predicate: 谓词, 过滤表达式，用于过滤数组元素.
+    predicate  谓词, 过滤表达式，用于过滤数组元素.
+
     | `set`             | `[{a,b,1}]`        | 返回dict, named并集运算符，用于组合多个子元素选择器，并将element作为返回的key， {'a':@[a], 'b':@['b'], 1:@[1] }
     | `list`            | `["a",b,1]`        | 返回list, 并集运算符，用于组合多个子元素选择器，[@[a], @['b'], @[1]]
     | `slice`            | `[start:end:step]`，   | 数组切片运算符, 当前元素为 ndarray 时返回数组切片 @[<slice>]，当前元素为 dict,list 以slice选取返回 list （generator），
@@ -238,7 +239,8 @@ class Path(list):
     | `dict` `{$eq:4, }`      | `[?(expression)]`     | 谓词（predicate）或过滤表达式，用于过滤数组元素.
     |                | `==、!=、<、<=、>、>=`   | 比较运算符
 
-    examples：
+    Examples 
+
     | Path               | Description
     | ----               | ---
     | `a/b/c`              | 选择a节点的b节点的c节点
@@ -250,8 +252,7 @@ class Path(list):
     | `a/b/c[{d,e,f}]          |
     | `a/b/c[{value:{$le:10}}]/value  |
     | `a/b/c.$next/           |
-    主要的方法：
-    find
+     
     """
 
     delimiter = "/"

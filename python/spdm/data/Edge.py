@@ -15,16 +15,15 @@ from ..utils.typing import array_type
 
 
 class Edge:
+    """`Edge` defines a connection between two `Port`s 
+    
+    Attribute
 
-    """
-    Description:
-           An `Edge` defines a connection between two `Port`s.
-    Attribute:
-           source      : the start of edge which must be `OUTPUT Port`
-           target      : the start of edge which must be `INPUT Port`
-           dtype       : defines what `Port`s it can be connected, (default: string)
-           label       : short string
-           description : long string
+    - source      : the start of edge which must be `OUTPUT Port`
+    - target      : the start of edge which must be `INPUT Port`
+    - dtype       : defines what `Port`s it can be connected, (default: string)
+    - label       : short string
+    - description : long string
     """
 
     class Endpoint:

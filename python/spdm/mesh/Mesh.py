@@ -19,10 +19,7 @@ from ..utils.tags import _not_found_
 
 
 class Mesh(DomainBase, Pluggable):
-    """
-    Mesh
-    -------
-    网格
+    """Mesh  网格
 
     @NOTE: In general, a mesh provides more flexibility in representing complex geometries and
     can adapt to the local features of the solution, while a grid is simpler to generate
@@ -137,9 +134,8 @@ class Mesh(DomainBase, Pluggable):
         return self._shape
 
     def parametric_coordinates(self, *xyz) -> ArrayType:
-        """
-        parametric coordinates
-        ------------------------
+        """ parametric coordinates
+        
         网格点的 _参数坐标_
         Parametric coordinates, also known as computational coordinates or intrinsic coordinates,
         are a way to represent the position of a point within an element of a mesh.

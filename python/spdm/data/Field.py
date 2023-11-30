@@ -70,7 +70,7 @@ def guess_mesh(holder, prefix="mesh", **kwargs):
 
 class Field(Expression):
     """Field
-    ---------
+
     Field 是 Function 在流形（manifold/Mesh）上的推广， 用于描述流形上的标量场，矢量场，张量场等。
 
     Field 所在的流形记为 mesh ，可以是任意维度的，可以是任意形状的，可以是任意拓扑的，可以是任意坐标系的。

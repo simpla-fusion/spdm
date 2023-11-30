@@ -139,23 +139,17 @@ class HTreeNode:
 
 
 class HTree(HTreeNode):
-    """
-    Hierarchical Tree:
+    """Hierarchical Tree:
 
     一种层次化的数据结构，它具有以下特性：
     - 树节点也可以是列表 list，也可以是字典 dict
     - 叶节点可以是标量或数组 array_type，或其他 type_hint 类型
     - 节点可以有缓存（cache)
     - 节点可以有父节点（_parent)
-    - 节点可以有元数据（metadata)
-        - 包含： 唯一标识（id), 名称（name), 单位（units), 描述（description), 标签（tags), 注释（comment)
+    - 节点可以有元数据（metadata), 包含： 唯一标识（id), 名称（name), 单位（units), 描述（description), 标签（tags), 注释（comment)
     - 任意节点都可以通过路径访问
-    - 泛型 _T 变量，为 element 的类型
-
-    @NOTE:
-        - Node,Dict,List 不缓存__getitem__结果
-        - __getitem__ 返回的类型由 __type_hint__ 决定，默认为 Node
-    -
+    - `get` 返回的类型由 `type_hint` 决定，默认为 Node
+     
     """
 
     def __missing__(self, path) -> typing.Any:

@@ -15,7 +15,7 @@ from .Functor import Functor
 class Function(Expression):
     """
     Function
-    ---------
+ 
     A function is a mapping between two sets, the _domain_ and the  _value_.
     The _value_  is the set of all possible outputs of the function.
     The _domain_ is the set of all possible inputs  to the function.

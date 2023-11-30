@@ -17,11 +17,10 @@ from .mesh_rectilinear import RectilinearMesh
 
 @Mesh.register("curvilinear")
 class CurvilinearMesh(RectilinearMesh):
-    """
-        A `curvilinear Mesh` or `structured Mesh` is a Mesh with the same combinatorial structure as a regular Mesh,
-        in which the cells are quadrilaterals or [general] cuboids, rather than rectangles or rectangular cuboids.
-            -- [https://en.wikipedia.org/wiki/Regular_Mesh]
-    """
+    """A `curvilinear Mesh` or `structured Mesh` is a Mesh with the same combinatorial structure as a regular Mesh,
+in which the cells are quadrilaterals or [general] cuboids, rather than rectangles or rectangular cuboids.
+-- [https://en.wikipedia.org/wiki/Regular_Mesh]
+"""
     TOLERANCE = 1.0e-5
 
     def __init__(self, *args, ** kwargs) -> None:

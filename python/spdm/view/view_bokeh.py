@@ -48,7 +48,7 @@ class BokehView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, obj, **kwargs) -> typing.Any:
+    def draw(self, obj, **kwargs) -> typing.Any:
         """
             Bokeh + Jupyter 生成可交互的widget
         """

@@ -15,7 +15,7 @@ from ..utils.plugin import Pluggable
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, as_array, as_value, is_scalar
 from ..utils.uri_utils import URITuple, uri_split, uri_split_as_dict
-from .Path import Path, PathLike, as_path,update_tree,update_tree
+from .Path import Path, PathLike, as_path, update_tree, update_tree
 
 PROTOCOL_LIST = ["local", "file", "http", "https", "ssh", "mdsplus"]
 
@@ -544,6 +544,35 @@ def convert_fromentry(cls, obj, *args, **kwargs):
 SPDB_XML_NAMESPACE = "{http://fusionyun.org/schema/}"
 
 SPDB_TAG = "spdb"
+########################################################
+#  mapping files 目录结构约定为 :
+#         ```{text}
+#         - <local schema>/<global schema>
+#              config.xml
+#             - static            # 存储静态数据，例如装置描述文件
+#                 - config.xml
+#                 - <...>
+
+#             - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus
+#                 - config.xml
+#                 - <...>
+
+#             - protocol1         # 存储 protocol1 所对应mapping，例如 hdf5
+#                 - config.xml
+#                 - <...>
+#         ```
+#         Example:   east+mdsplus://.... 对应的目录结构为
+#         ```{text}
+#         - east/imas/3
+#             - static
+#                 - config.xml
+#                 - wall.xml
+#                 - pf_active.xml  (包含 pf 线圈几何信息)
+#                 - ...
+#             - mdsplus
+#                 - config.xml (包含<spdb > 描述子数据库entry )
+#                 - pf_active.xml
+#         ```
 
 
 class EntryProxy(Entry):
@@ -554,40 +583,14 @@ class EntryProxy(Entry):
 
     @classmethod
     def load(
-        cls, url: str | None = None, local_schema: str = None, global_schema: str = None, mapping_files=None, **kwargs
+        cls,
+        url: str | None = None,
+        local_schema: str = None,
+        global_schema: str = None,
+        mapping_files=None,
+        **kwargs,
     ):
-        """检索并导入 mapping files
-
-        mapping files 目录结构约定为 :
-
-        - <local schema>/<global schema>
-            - config.xml
-            - static            # 存储静态数据，例如装置描述文件
-                - config.xml
-                - <...>
-
-            - protocol0         # 存储 protocol0 所对应mapping，例如 mdsplus
-                - config.xml
-                - <...>
-
-            - protocol1         # 存储 protocol1 所对应mapping，例如 hdf5
-                - config.xml
-                - <...>
-
-        Example:
-          1. east+mdsplus://.... 对应的目录结构为
-            - east/imas/3
-                - static
-                    - config.xml
-                    - wall.xml
-                    - pf_active.xml  (包含 pf 线圈几何信息)
-                    - ...
-                - mdsplus
-                    - config.xml (包含<spdb > 描述子数据库entry )
-                    - pf_active.xml
-
-
-        """
+        """检索并导入 mapping files"""
         from .File import File
 
         if len(EntryProxy._mapping_path) == 0:

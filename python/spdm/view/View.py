@@ -52,7 +52,7 @@ class View(Pluggable):
     def signature(self) -> str:
         return f"author: {getpass.getuser().capitalize()}. Create by SpDM at {datetime.datetime.now().isoformat()}."
 
-    def render(self, *args, **kwargs):
+    def draw(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}.display")
 
     def plot(self, *args, **kwargs):
@@ -82,7 +82,7 @@ SP_VIEW_BACKEND = "matplotlib"
 def display(*args,   backend=None,  **kwargs):
     """Show an object"""
 
-    return viewer(backend).render(*args,  **kwargs)
+    return viewer(backend).draw(*args,  **kwargs)
 
 
 def plot(*args,   backend=None, **kwargs):

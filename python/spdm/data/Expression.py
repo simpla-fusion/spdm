@@ -206,9 +206,8 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
 
 
 class Expression(HTreeNode):
-    """
-    Expression
-    -----------
+    """Expression
+
     表达式是由多个操作数和运算符按照约定的规则构成的一个序列。
     其中运算符表示对操作数进行何种操作，而操作数可以是变量、常量、数组或者表达式。
     表达式可以理解为树状结构，每个节点都是一个操作数或运算符，每个节点都可以有多个子节点。
@@ -235,7 +234,7 @@ class Expression(HTreeNode):
     def __init__(self, expr: typing.Callable[..., NumericType], *children, domain=_not_found_, **kwargs) -> None:
         """
         Parameters
-        ----------
+
         args : typing.Any
             操作数
         op : typing.Callable  | ExprOp
@@ -499,7 +498,7 @@ class Expression(HTreeNode):
         - support multiple meshes?
 
         Parameters
-        ----------
+
         xargs : NumericType
             自变量/坐标，可以是标量，也可以是数组
         kwargs : typing.Any
@@ -655,19 +654,18 @@ EXPR_OP_TAG = {
 
 
 class Variable(Expression):
-    """
-    Variable
-    ---------
+    """Variable
+
     变量是一种特殊的函数，它的值由上下文决定。
     例如：
-        >>> import spdm
-        >>> x = spdm.data.Variable(0,"x")
-        >>> y = spdm.data.Variable(1,"y")
-        >>> z = x + y
-        >>> z
-        <Expression   op="add" />
-        >>> z(0.0, 1.0)
-        1.0
+    >>> import spdm
+    >>> x = spdm.data.Variable(0,"x")
+    >>> y = spdm.data.Variable(1,"y")
+    >>> z = x + y
+    >>> z
+    <Expression   op="add" />
+    >>> z(0.0, 1.0)
+    1.0
 
     """
 
@@ -739,8 +737,7 @@ class ConstantOne(Scalar):
 
 
 class Derivative(Expression):
-    """
-    算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
+    """算符: 用于表示一个运算符，可以是函数，也可以是类的成员函数
     受 np.ufunc 启发而来。
     可以通过 ExprOp(op, method=method) 的方式构建一个 ExprOp 对象。
 
@@ -808,11 +805,10 @@ class Antiderivative(Derivative):
 
 class Piecewise(Expression):
     """PiecewiseFunction
-    ----------------
     A piecewise function. 一维或多维，分段函数
     """
 
-    def __init__(self, func: typing.List[Expression |  float | int], cond: typing.List[typing.Callable], **kwargs):
+    def __init__(self, func: typing.List[Expression | float | int], cond: typing.List[typing.Callable], **kwargs):
         super().__init__(None, **kwargs)
         self._piecewise = (func, cond)
 

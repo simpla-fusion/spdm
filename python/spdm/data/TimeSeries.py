@@ -34,15 +34,14 @@ _TSlice = typing.TypeVar("_TSlice", bound=TimeSlice)
 
 
 class TimeSeriesAoS(List[_TSlice]):
-    """
-    A series of time slices .
+    """  A series of time slices .
 
     用以管理随时间变化（time series）的一组状态（TimeSlice）。
 
     current:
         指向当前时间片，即为序列最后一个时间片吗。
 
-    TODO:
+    _TODO_ 
       1. 缓存时间片，避免重复创建，减少内存占用
       2. 缓存应循环使用
       3. cache 数据自动写入 entry 落盘

@@ -120,7 +120,7 @@ class Actor(Pluggable):
     @property
     def time(self) -> float:
         """当前时间，"""
-        return self.time_slice.current.time
+        return self.time_slice.current.time 
 
     @property
     def iteration(self) -> int:
@@ -129,7 +129,7 @@ class Actor(Pluggable):
 
     @property
     def inputs(self) -> InPorts:
-        """保存输入的 Edge，记录对其他 Actor 的依赖。 """
+        """保存输入的 Edge，记录对其他 Actor 的依赖。"""
         return self._inputs
 
     @property
@@ -161,14 +161,26 @@ class Actor(Pluggable):
 
     def refresh(self, *args, time=None, **kwargs) -> None:
         """更新当前 Actor 的状态。
-            若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
-            否则，向 time_slice 队列中压入新的时间片。 
+        若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
+        否则，向 time_slice 队列中压入新的时间片。
         """
         self.preprocess(*args, time=time, **kwargs)
 
         self.execute(self.time_slice.current, self.time_slice.previous, **self.inputs.fetch())
 
         self.postprocess(self.time_slice.current)
+
+    def advance(self, *args, dt: float = None, time: float = None, **kwargs) -> None:
+        if time is None and dt is None:
+            raise RuntimeError("time and dt are both None, do nothing")
+        elif time is None:
+            time = self.time + dt
+        elif time <= self.time:
+            raise RuntimeError(f"time={time} is less than current time={self.time}, do nothing")
+        elif dt is not None:
+            logger.warning(f"ignore dt={dt} when time={time} is given")
+
+        return self.refresh(*args, time=time, **kwargs)
 
     def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
         """

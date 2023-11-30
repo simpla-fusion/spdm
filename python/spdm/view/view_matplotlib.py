@@ -75,12 +75,13 @@ class MatplotlibView(View):
 
         return fig
 
-    def render(self, obj, *styles, view_point="rz", title=None, **kwargs) -> typing.Any:
+    def draw(self, geo, *styles, view_point="rz", title=None, **kwargs) -> typing.Any:
         fig, canvas = plt.subplots()
 
-        self._draw(canvas, obj, *styles, view_point=view_point)
+        geo = self._draw(canvas, geo, *styles, view_point=view_point)
 
-        g_styles = merge_tree(*styles)
+        g_styles = geo.get("$styles", {}) if isinstance(geo, dict) else {}
+        g_styles = merge_tree(g_styles, *styles)
 
         xlabel = g_styles.get("xlabel", None)
 
@@ -125,8 +126,8 @@ class MatplotlibView(View):
             try:
                 geo = geo.__geometry__(view_point=view_point, **kwargs)
             except Exception as error:
-                logger.warning(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ")
-                # raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
+                # logger.warning(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ")
+                raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
             else:
                 self._draw(canvas, geo, *styles, view_point=view_point, **kwargs)
 
@@ -235,6 +236,8 @@ class MatplotlibView(View):
 
             self._draw(canvas, text, {f"${self.backend}": text_styles})
 
+        return geo
+
     def plot(
         self,
         obj,
@@ -278,8 +281,8 @@ class MatplotlibView(View):
                 x_value = x_value(x_axis)
             else:
                 x_value = x_value.__array__()
-        else:
-            raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
+        # else:
+        #     raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
 
         for idx, profiles in enumerate(obj):
             if isinstance(profiles, tuple) and isinstance(profiles[-1], (str, dict)):

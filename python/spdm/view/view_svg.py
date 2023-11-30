@@ -39,7 +39,7 @@ class SVGView(View):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def render(self, obj, **kwargs) -> typing.Any:
+    def draw(self, obj, **kwargs) -> typing.Any:
 
         bbox = []
         contents = []

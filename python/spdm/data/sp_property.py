@@ -307,7 +307,9 @@ class SpProperty:
 
         for base_cls in owner_cls.__bases__:
             m_data = getattr(getattr(base_cls, name, None), "metadata", None)
-            self.metadata = update_tree(self.metadata, deepcopy(m_data), {})
+            if m_data is None:
+                continue
+            self.metadata = update_tree(self.metadata, deepcopy(m_data))
 
         return type_hint, self.metadata
 
