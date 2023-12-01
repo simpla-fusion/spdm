@@ -149,7 +149,7 @@ class HTree(HTreeNode):
     - 节点可以有元数据（metadata), 包含： 唯一标识（id), 名称（name), 单位（units), 描述（description), 标签（tags), 注释（comment)
     - 任意节点都可以通过路径访问
     - `get` 返回的类型由 `type_hint` 决定，默认为 Node
-     
+
     """
 
     def __missing__(self, path) -> typing.Any:
@@ -651,7 +651,11 @@ class Dict(Container[_T]):
         ).exists
 
     def __getitem__(self, path) -> _T:
-        tp_hint = get_args(self)[-1]
+        t_args = get_args(self)
+        if len(t_args) > 0:
+            tp_hint = t_args[-1]
+        else:
+            tp_hint = None
         return super().get(path, _type_hint=tp_hint, force=True)
 
 

@@ -211,10 +211,10 @@ class PathError(Exception):
 
 
 class Path(list):
-    """ Path用于描述数据的路径, 在 HTree ( Hierarchical Tree) 中定位Element, 其语法是 JSONPath 和 XPath的变体，
+    """Path用于描述数据的路径, 在 HTree ( Hierarchical Tree) 中定位Element, 其语法是 JSONPath 和 XPath的变体，
     并扩展谓词（predicate）语法/查询选择器。
 
-    HTree: 
+    HTree:
         Hierarchical Tree 半结构化树状数据，树节点具有 list或dict类型，叶节点为 list和dict 之外的primary数据类型，
     包括 int，float,string 和 ndarray。
 
@@ -239,7 +239,7 @@ class Path(list):
     | `dict` `{$eq:4, }`      | `[?(expression)]`     | 谓词（predicate）或过滤表达式，用于过滤数组元素.
     |                | `==、!=、<、<=、>、>=`   | 比较运算符
 
-    Examples 
+    Examples
 
     | Path               | Description
     | ----               | ---
@@ -252,14 +252,18 @@ class Path(list):
     | `a/b/c[{d,e,f}]          |
     | `a/b/c[{value:{$le:10}}]/value  |
     | `a/b/c.$next/           |
-     
+
     """
 
     delimiter = "/"
     tags = OpTags
 
-    def __init__(self, path=[], **kwargs):
-        super().__init__(Path._parser(path), **kwargs)
+    def __init__(self, path=[], force=None, **kwargs):
+        if not force:
+            path = Path._parser(path)
+        elif not isinstance(path, list):
+            path = [path]
+        super().__init__(path, **kwargs)
 
     def __repr__(self):
         return Path._to_str(self)
