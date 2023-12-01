@@ -240,10 +240,9 @@ class MatplotlibView(View):
 
     def plot(
         self,
-        obj,
-        x_value: Expression | np.ndarray = None,
-        x_label: str = None,
-        x_axis: np.ndarray = None,
+        *args,
+        x_axis: Expression | np.ndarray | str = None,
+        x_label=None,
         stop_if_fail=False,
         **kwargs,
     ) -> typing.Any:
@@ -251,89 +250,85 @@ class MatplotlibView(View):
 
         fontsize = styles.get("fontsize", 16)
 
-        if not isinstance(obj, (list, tuple)):  # draw as profiles
-            obj = [(obj, styles)]
+        if len(args) > 1 and isinstance(args[0], array_type):
+            x_value = args[0]
+            args = args[1:]
+        else:
+            x_value = None
 
-        nprofiles = len(obj)
+        nprofiles = len(args)
 
         fig, canvas = plt.subplots(ncols=1, nrows=nprofiles, sharex=True, figsize=(10, 2 * nprofiles))
 
         if nprofiles == 1:
             canvas = [canvas]
 
-        if x_value is None:
-            x_value = x_axis
+        if isinstance(x_axis, Expression):
+            if x_label is None:
+                units = x_axis._metadata.get("units", "-")
+                x_label = f"{ x_value.__label__} [{units}]"
+            if isinstance(x_value, array_type):
+                x_axis = x_axis(x_value)
+            elif x_value is None:
+                x_value = as_array(x_axis)
+                x_axis = None
+        elif isinstance(x_axis, str):
+            x_label = x_axis
             x_axis = None
+        elif isinstance(x_axis, array_type):
+            if x_value is None:
+                x_value = x_axis
+            elif x_value.size != x_value.size:
+                raise RuntimeError(f"size mismatch {x_value.size} != {x_axis.size}")
 
-        if isinstance(x_value, np.ndarray):
-            if x_axis is None:
-                x_axis = x_value
-            elif isinstance(x_axis, np.ndarray) and x_axis.size == x_value.size:
-                pass
-            else:
-                raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
-
-        elif isinstance(x_value, Expression):
-            if isinstance(x_axis, np.ndarray):
-                if x_label is None:
-                    x_label = x_value._repr_latex_()
-
-                x_value = x_value(x_axis)
-            else:
-                x_value = x_value.__array__()
-        # else:
-        #     raise TypeError(f"Unsupported x_value {x_value} {x_axis}")
-
-        for idx, profiles in enumerate(obj):
-            if isinstance(profiles, tuple) and isinstance(profiles[-1], (str, dict)):
+        for idx, profiles in enumerate(args):
+            if isinstance(profiles, tuple):
                 profiles, sub_styles = profiles
             else:
                 sub_styles = {}
 
             if sub_styles is False:
                 continue
-
-            if isinstance(sub_styles, str):
+            elif isinstance(sub_styles, str):
                 sub_styles = {"label": sub_styles}
+
+            elif not isinstance(sub_styles, dict):
+                raise RuntimeError(f"Unsupport sub_styles {sub_styles}")
 
             y_label = sub_styles.get("y_label", None)
 
             if not isinstance(profiles, (list)):
                 profiles = [profiles]
 
+            labels = []
             for p in profiles:
-                if not isinstance(p, (list, tuple)):
-                    p = [p]
+                if isinstance(p, tuple):
+                    p, p_styles = p
+                else:
+                    p_styles = {}
+
+                if isinstance(p_styles, str) or p_styles is None:
+                    p_styles = {"label": p_styles}
+
+                p_styles = collections.ChainMap(p_styles, sub_styles, styles)
 
                 try:
-                    tmp = self._plot(
-                        canvas[idx],
-                        *p,
-                        x_value=x_value,
-                        x_axis=x_axis,
-                        styles=merge_tree(sub_styles, styles),
-                    )
+                    t_label, t_y_label = self._plot(canvas[idx], x_value, p, x_axis=x_axis, styles=p_styles)
+
+                    labels.append(t_label)
                     if y_label is None:
-                        y_label = tmp
+                        y_label = t_y_label
+
                 except Exception as error:
                     if SP_DEBUG == "strict":
                         raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}"  ') from error
                     else:
                         logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
 
-            canvas[idx].legend(fontsize=fontsize)
+            if any(labels):
+                canvas[idx].legend(fontsize=fontsize)
 
-            if y_label is None:
-                y_label = "n.a."
-            else:
-                y_label = (
-                    y_label.replace("^-1", "^{-1}")
-                    .replace("^-2", "^{-2}")
-                    .replace("^-3", "^{-3}")
-                    .replace(".", " \cdot ")
-                )
-
-            if "$" not in y_label:
+            if isinstance(y_label, str) and "$" not in y_label:
                 y_label = f"${y_label}$"
 
             canvas[idx].set_ylabel(ylabel=y_label, fontsize=fontsize)
@@ -342,67 +337,65 @@ class MatplotlibView(View):
 
         return self._figure_post(fig, styles=styles, **kwargs)
 
-    def _plot(self, canvas, *args, x_axis: array_type, x_value: array_type, **kwargs) -> str:
-        if len(args) == 0:
-            return None
-        elif isinstance(args[-1], str):
-            styles = {"label": args[-1]}
-            args = args[:-1]
-        elif isinstance(args[-1], dict):
-            styles = args[-1]
-            args = args[:-1]
-        else:
-            styles = {}
-
-        *x, expr = args
-
+    def _plot(self, canvas, x_value, expr, x_axis=None, styles=None, **kwargs) -> str:
         if expr is None or expr is _not_found_:
-            return
+            return None
 
-        styles = update_tree(styles, kwargs.pop("styles", {}))
+        styles = update_tree(kwargs, styles)
 
         s_styles = styles.get(f"${self.backend}", {})
 
-        label = styles.get("label", None) or kwargs.get("name", None)
-
-        if len(x) > 0:
-            x_value = x[0]
+        label = styles.get("label", None)
 
         y_value = None
 
         if isinstance(expr, Expression):
             if label is None:
-                label = expr.__repr__()
+                label = expr.__label__
                 if "$" not in label:
                     label = f"${label}$"
             y_value = expr(x_value)
 
         elif isinstance(expr, Signal):
-            y_value = expr.data
-            x_value = expr.time
+            if x_value is None:
+                y_value = expr.data
+                x_value = expr.time
+            else:
+                y_value = expr(x_value)
+
             if label is None:
-                label = expr._metadata.get("name", "[-]")
+                label = expr.name
+
+        elif isinstance(expr, array_type):
+            y_value = expr
+
         elif hasattr(expr.__class__, "__array__"):
             y_value = expr.__array__()
         else:
             y_value = expr
 
-        if is_array(y_value) or is_scalar(y_value):
+        if is_scalar(y_value):
             y_value = np.full_like(x_value, y_value, dtype=float)
 
-        else:
-            logger.warning(f"ignore unsupported profiles label={label} {(y_value)}")
-            return
+        elif x_value is None:
+            x_value = np.arange(len(expr))
 
-        if not label:
-            label = "[-]"
+        elif not isinstance(x_value, array_type):
+            raise RuntimeError(f"ignore unsupported profiles label={label} {(y_value)}")
 
-        try:
-            canvas.plot(x_value, y_value, **s_styles, label=label)
-        except Exception as e:
-            logger.warning(f"plot failed! label={label} {y_value} {e}")
+        if x_axis is None:
+            x_axis = x_value
 
-        return getattr(expr, "_metadata", {}).get("units", "[-]")
+        if label is False:
+            label = None
+
+        canvas.plot(x_axis, y_value, **s_styles, label=label)
+
+        units = getattr(expr, "_metadata", {}).get("units", "-")
+
+        units = units.replace("^-1", "^{-1}").replace("^-2", "^{-2}").replace("^-3", "^{-3}").replace(".", " \cdot ")
+
+        return label, f"[{units}]"
 
     # def profiles_(self, obj, *args,  x_axis=None, x=None,
     #               default_num_of_points=128, fontsize=10, grid=True,

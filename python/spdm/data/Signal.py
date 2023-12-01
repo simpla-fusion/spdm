@@ -11,6 +11,10 @@ class Signal:
         super().__init__(*args, **kwargs)
         self._func = None
 
+    @property
+    def name(self) -> str:
+        return self._metadata.get("name", "")
+
     data: array_type
 
     time: array_type = sp_property(units="s")
