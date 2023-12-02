@@ -153,7 +153,7 @@ class HTree(HTreeNode):
     """
 
     def __missing__(self, path) -> typing.Any:
-        return _not_found_
+        raise KeyError(f"{path} not found")
 
     def __getitem__(self, path) -> HTree:
         res = self.get(path, force=True)
@@ -649,14 +649,6 @@ class Dict(Container[_T]):
         return (isinstance(self._cache, collections.abc.Mapping) and key in self._cache) or self._entry.child(
             key
         ).exists
-
-    def __getitem__(self, path) -> _T:
-        t_args = get_args(self)
-        if len(t_args) > 0:
-            tp_hint = t_args[-1]
-        else:
-            tp_hint = None
-        return super().get(path, _type_hint=tp_hint, force=True)
 
 
 class List(Container[_T]):

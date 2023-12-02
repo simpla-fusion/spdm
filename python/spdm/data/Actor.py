@@ -21,6 +21,7 @@ from .Expression import Expression
 from .TimeSeries import TimeSeriesAoS, TimeSlice
 from .Path import update_tree
 from .Edge import InPorts, OutPorts
+from .AoS import AoS
 
 
 @sp_tree
@@ -45,6 +46,25 @@ class Actor(Pluggable):
                     tp = t_args[0]
 
             self._inputs[name].source.update(None, tp)
+
+        # 查找父节点的输入
+        parent = self._parent
+        while isinstance(parent, AoS) and parent is not _not_found_:
+            parent = getattr(parent, "_parent", _not_found_)
+
+        p_inputs = getattr(parent, "inputs", _not_found_)
+        if isinstance(p_inputs, InPorts):
+            # 尝试从父节点获得 inputs
+            for name, edge in self.inputs.items():
+                if edge.source.node is not None:
+                    continue
+                node = p_inputs.get_source(name, _not_found_)
+                
+                if node is _not_found_:
+                    node = getattr(parent, name, _not_found_)
+
+                if node is not _not_found_:
+                    edge.source.update(node)
 
     @property
     def tag(self) -> str:
@@ -120,7 +140,7 @@ class Actor(Pluggable):
     @property
     def time(self) -> float:
         """当前时间，"""
-        return self.time_slice.current.time 
+        return self.time_slice.current.time
 
     @property
     def iteration(self) -> int:

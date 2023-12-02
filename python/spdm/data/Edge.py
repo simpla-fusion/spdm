@@ -15,8 +15,8 @@ from ..utils.typing import array_type
 
 
 class Edge:
-    """`Edge` defines a connection between two `Port`s 
-    
+    """`Edge` defines a connection between two `Port`s
+
     Attribute
 
     - source      : the start of edge which must be `OUTPUT Port`
@@ -191,19 +191,23 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
-    def get_source(self, key, default_value=_not_found_):
+    def get_source(self, key, default_value=...):
         obj = super().get(key, _not_found_)
-        if not isinstance(obj, Edge) or obj.source.node is None:
-            return default_value
-        else:
+        if isinstance(obj, Edge) and obj.source.node is not None:
             return obj.source.node
-
-    def get_target(self, key, default_value=_not_found_):
-        obj = super().get(key, _not_found_)
-        if not isinstance(obj, Edge) or obj.target.node is None:
+        elif default_value is not Ellipsis:
             return default_value
         else:
+            raise KeyError(f"source '{key}' is not found")
+
+    def get_target(self, key, default_value=...):
+        obj = super().get(key, _not_found_)
+        if isinstance(obj, Edge) and obj.target.node is not None:
             return obj.target.node
+        elif default_value is not Ellipsis:
+            return default_value
+        else:
+            raise KeyError(f"target '{key}' is not found")
 
 
 class InPorts(Ports):
