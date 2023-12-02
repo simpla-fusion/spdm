@@ -59,7 +59,7 @@ class Actor(Pluggable):
                 if edge.source.node is not None:
                     continue
                 node = p_inputs.get_source(name, _not_found_)
-                
+
                 if node is _not_found_:
                     node = getattr(parent, name, _not_found_)
 
@@ -79,40 +79,40 @@ class Actor(Pluggable):
         return SP_MPI
 
     @contextlib.contextmanager
-    def working_dir(self, suffix: str = "", prefix="") -> str:
+    def working_dir(self, suffix: str = "", prefix="") -> pathlib.Path:
+        pwd = pathlib.Path.cwd()
+
+        working_dir = f"{self.output_dir}/{prefix}{self.tag}{suffix}"
+
         temp_dir = None
+
         if SP_DEBUG:
-            _working_dir = f"{self.output_dir}/{prefix}{self.tag}{suffix}"
-            pathlib.Path(_working_dir).mkdir(parents=True, exist_ok=True)
+            current_dir = pathlib.Path(working_dir)
+            current_dir.mkdir(parents=True, exist_ok=True)
         else:
             temp_dir = tempfile.TemporaryDirectory(prefix=self.tag)
-            _working_dir = temp_dir.name
+            current_dir = pathlib.Path(temp_dir.name)
 
-        pwd = os.getcwd()
+        os.chdir(current_dir)
 
-        os.chdir(_working_dir)
-
-        logger.info(f"Enter directory {_working_dir}")
+        logger.info(f"Enter directory {current_dir}")
 
         error = None
 
         try:
-            yield _working_dir
-        except Exception as e:
-            error = e
+            yield current_dir
+        except Exception as error:
+            if temp_dir is not None:
+                shutil.copytree(temp_dir.name, working_dir, dirs_exist_ok=True)
 
-        if error is not None and temp_dir is not None:
-            shutil.copytree(temp_dir.name, f"{self.output_dir}/{self.tag}{suffix}", dirs_exist_ok=True)
-        elif temp_dir is not None:
-            temp_dir.cleanup()
+            raise RuntimeError(f"Failed to execute actor {self.tag}! \n See log in {working_dir} ") from error
+        else:
+            if temp_dir is not None:
+                temp_dir.cleanup()
 
         os.chdir(pwd)
-        logger.info(f"Enter directory {pwd}")
 
-        if error is not None:
-            raise RuntimeError(
-                f"Failed to execute actor {self.tag}! see log in {self.output_dir}/{self.tag}"
-            ) from error
+        logger.info(f"Enter directory {pwd}")
 
     @property
     def output_dir(self) -> str:
@@ -158,6 +158,8 @@ class Actor(Pluggable):
         return self._outputs
 
     def preprocess(self, *args, dt=None, time=None, **kwargs):
+        self._inputs.update(kwargs)
+
         if time is None and dt is None:
             pass
         elif time is not None and dt is not None:
@@ -168,11 +170,9 @@ class Actor(Pluggable):
         if time is None and self._parent is not None:
             time = self._parent.time
 
-        self._inputs.update(kwargs)
-
         self.time_slice.refresh(*args, time=time)
 
-    def execute(self, current: TimeSlice, *previous_slices: typing.Tuple[TimeSlice], **kwargs) -> typing.Type[Actor]:
+    def execute(self, current: TimeSlice, *previous_slices, working_dir=None) -> typing.Type[Actor]:
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
@@ -184,9 +184,12 @@ class Actor(Pluggable):
         若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
         否则，向 time_slice 队列中压入新的时间片。
         """
+        self.inputs.update(kwargs)
+
         self.preprocess(*args, time=time, **kwargs)
 
-        self.execute(self.time_slice.current, self.time_slice.previous, **self.inputs.fetch())
+        with self.working_dir() as working_dir:
+            self.execute(self.time_slice.current, self.time_slice.previous, working_dir=working_dir)
 
         self.postprocess(self.time_slice.current)
 

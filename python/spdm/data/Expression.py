@@ -563,7 +563,7 @@ class Expression(HTreeNode):
     @property
     def dln(self) -> Expression:
         """logarithmic derivative 对数求导"""
-        return self.derivative() / self
+        return self.d / self
 
     def find_roots(self, *args, **kwargs) -> typing.Generator[float, None, None]:
         raise NotImplementedError(f"TODO: find_roots")

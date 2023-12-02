@@ -10,7 +10,7 @@ from .HTree import HTree, HTreeNode
 from .Expression import Expression
 from .sp_property import PropertyTree
 from ..utils.logger import logger
-from ..utils.tags import _not_found_
+from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type
 
 
@@ -191,16 +191,16 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
-    def get_source(self, key, default_value=...):
+    def get_source(self, key, default_value=_undefined_) -> HTreeNode:
         obj = super().get(key, _not_found_)
         if isinstance(obj, Edge) and obj.source.node is not None:
             return obj.source.node
-        elif default_value is not Ellipsis:
+        elif default_value is not _undefined_:
             return default_value
         else:
             raise KeyError(f"source '{key}' is not found")
 
-    def get_target(self, key, default_value=...):
+    def get_target(self, key, default_value=_undefined_) -> HTreeNode:
         obj = super().get(key, _not_found_)
         if isinstance(obj, Edge) and obj.target.node is not None:
             return obj.target.node

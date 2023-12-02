@@ -34,14 +34,14 @@ _TSlice = typing.TypeVar("_TSlice", bound=TimeSlice)
 
 
 class TimeSeriesAoS(List[_TSlice]):
-    """  A series of time slices .
+    """A series of time slices .
 
     用以管理随时间变化（time series）的一组状态（TimeSlice）。
 
     current:
         指向当前时间片，即为序列最后一个时间片吗。
 
-    _TODO_ 
+    _TODO_
       1. 缓存时间片，避免重复创建，减少内存占用
       2. 缓存应循环使用
       3. cache 数据自动写入 entry 落盘
@@ -74,10 +74,10 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 entry.child(idx).insert(value)
 
-    def __full__(self, o:typing.Type[Type]):
+    def __full__(self, o: typing.Type[Type]):
         """当循环队列满了的时候调用
 
-            :param o: 最老的 time_slice
+        :param o: 最老的 time_slice
         """
         pass
 
@@ -189,6 +189,8 @@ class TimeSeriesAoS(List[_TSlice]):
 
         self._entry_cursor, time_hint = self._find_slice_by_time(time)
 
+        default_value = self._metadata.get("default_value", {})
+
         if time_hint is not None:
             self._cache[self._cache_cursor] = update_tree(current, {"time": time_hint})
 
@@ -203,8 +205,6 @@ class TimeSeriesAoS(List[_TSlice]):
             self.initialize(*args, **kwargs)
         else:
             self._cache_cursor = (self._cache_cursor + 1) % self._cache_depth
-
-            
 
             if self._cache[self._cache_cursor] is not _not_found_:
                 self.__full__(self._cache[self._cache_cursor])
