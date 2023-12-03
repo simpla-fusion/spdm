@@ -191,7 +191,7 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
-    def get_source(self, key, default_value=_undefined_) -> HTreeNode:
+    def get_source(self, key, default_value=_undefined_) -> typing.Any:
         obj = super().get(key, _not_found_)
         if isinstance(obj, Edge) and obj.source.node is not None:
             return obj.source.node
@@ -204,7 +204,7 @@ class Ports(typing.Dict[str, Edge]):
         obj = super().get(key, _not_found_)
         if isinstance(obj, Edge) and obj.target.node is not None:
             return obj.target.node
-        elif default_value is not Ellipsis:
+        elif default_value is not _undefined_:
             return default_value
         else:
             raise KeyError(f"target '{key}' is not found")
@@ -220,8 +220,8 @@ class InPorts(Ports):
         return edge
 
     def update(self, kwargs: typing.Dict[str, typing.Any]):
-        for k, v in kwargs.items():
-            self[k].source.update(v)
+        ports = [self[k].source.update(kwargs.pop(k)) for k in [*kwargs.keys()] if isinstance(kwargs[k], HTreeNode)]
+        return kwargs
 
 
 class OutPorts(Ports):
@@ -234,8 +234,8 @@ class OutPorts(Ports):
         return edge
 
     def update(self, kwargs: typing.Dict[str, typing.Any]):
-        for k, v in kwargs.items():
-            self[k].target.update(v)
+        ports = [self[k].target.update(kwargs.pop(k)) for k in [*kwargs.keys()] if isinstance(kwargs[k], HTreeNode)]
+        return kwargs
 
     def set(self, key, value):
         self[key].target.node = value

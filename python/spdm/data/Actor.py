@@ -29,7 +29,10 @@ class Actor(Pluggable):
     mpi_enabled = False
 
     def __init__(self, *args, **kwargs) -> None:
-        Pluggable.__init__(self, *args, **kwargs)
+        if self.__class__ is Actor or "_plugin_prefix" in vars(self.__class__):
+            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
+            return
+        
         SpTree.__init__(self, *args, **kwargs)
         self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
 
@@ -97,22 +100,20 @@ class Actor(Pluggable):
 
         logger.info(f"Enter directory {current_dir}")
 
-        error = None
-
         try:
             yield current_dir
         except Exception as error:
             if temp_dir is not None:
                 shutil.copytree(temp_dir.name, working_dir, dirs_exist_ok=True)
-
-            raise RuntimeError(f"Failed to execute actor {self.tag}! \n See log in {working_dir} ") from error
+            os.chdir(pwd)
+            logger.info(f"Enter directory {pwd}")
+            logger.exception(f"Failed to execute actor {self.tag}! \n See log in {working_dir} ")
         else:
             if temp_dir is not None:
                 temp_dir.cleanup()
 
-        os.chdir(pwd)
-
-        logger.info(f"Enter directory {pwd}")
+            os.chdir(pwd)
+            logger.info(f"Enter directory {pwd}")
 
     @property
     def output_dir(self) -> str:
@@ -157,26 +158,19 @@ class Actor(Pluggable):
         """保存外链的 Edge，可视为对于引用（reference）的记录"""
         return self._outputs
 
-    def preprocess(self, *args, dt=None, time=None, **kwargs):
-        self._inputs.update(kwargs)
+    def preprocess(self, *args, **kwargs):
+        """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
+        self.time_slice.refresh(*args, **kwargs)
 
-        if time is None and dt is None:
-            pass
-        elif time is not None and dt is not None:
-            logger.warning(f"ignore dt={dt} when time={time} is given")
-        elif time is None and dt is not None:
-            time = self.time + dt
-
-        if time is None and self._parent is not None:
-            time = self._parent.time
-
-        self.time_slice.refresh(*args, time=time)
-
-    def execute(self, current: TimeSlice, *previous_slices, working_dir=None) -> typing.Type[Actor]:
+    def execute(self, current: TimeSlice, *previous_slices) -> typing.Type[Actor]:
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
     def postprocess(self, current: TimeSlice):
+        """Actor 的后处理，若需要，可以在此处更新 Actor 的状态树。
+        @param current: 当前时间片
+        @param working_dir: 工作目录
+        """
         pass
 
     def refresh(self, *args, time=None, **kwargs) -> None:
@@ -184,12 +178,11 @@ class Actor(Pluggable):
         若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
         否则，向 time_slice 队列中压入新的时间片。
         """
-        self.inputs.update(kwargs)
+        kwargs = self.inputs.update(kwargs)  # 更新 inputs，返回将不是 HTreeNode 的 input
 
         self.preprocess(*args, time=time, **kwargs)
 
-        with self.working_dir() as working_dir:
-            self.execute(self.time_slice.current, self.time_slice.previous, working_dir=working_dir)
+        self.execute(self.time_slice.current, self.time_slice.previous)
 
         self.postprocess(self.time_slice.current)
 
