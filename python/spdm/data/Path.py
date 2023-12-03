@@ -740,8 +740,9 @@ class Path(list):
         query = None
 
         if target is _not_found_ or len(res_path) > 0:
-            raise KeyError(f"Can not find {prefix[:-len(res_path)]} {res_path}")
-
+            # raise KeyError(f"Can not find {prefix[:-len(res_path)]} {res_path}")
+            return
+        
         elif len(suffix) == 0:
             query = None
             start = 0

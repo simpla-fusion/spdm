@@ -241,10 +241,7 @@ class Entry(Pluggable):
 class ChainEntry(Entry):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self._entrys: typing.List[Entry] = list(args)
-        for idx, v in enumerate(self._entrys):
-            if not isinstance(v, Entry):
-                self._entrys[idx] = _open_entry(v, **kwargs)
+        self._entrys: typing.List[Entry] = [(_open_entry(v, **kwargs) if not isinstance(v, Entry) else v) for v in args]
 
     def __str__(self) -> str:
         return ",".join([str(e) for e in self._entrys if e._data is None])

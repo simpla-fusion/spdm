@@ -29,36 +29,47 @@ class HTreeNode:
     _metadata = {}
 
     @classmethod
-    def _parser_args(cls, *args, _parent=None, **kwargs):
-        if len(args) > 0 and not isinstance(args[0], str):
+    def _parser_args(cls, *args, _parent=None, _entry=None, **kwargs):
+        if len(args) == 0:
+            _cache = None
+
+        elif isinstance(args[0], (dict, list)):
             _cache = args[0]
             args = args[1:]
         else:
             _cache = None
 
-        _entry = kwargs.pop("_entry", [])
-
-        if not isinstance(_entry, list):
+        if _entry is None:
+            _entry = []
+        elif not isinstance(_entry, list):
             _entry = [_entry]
 
-        if len(args) > 0:
-            _entry.extend(list(args))
+        _entry = list(args) + _entry
+
+        if isinstance(_cache, dict):
+            t_entry = _cache.pop("$entry", [])
+            if t_entry is None or t_entry is _not_found_:
+                pass
+            elif not isinstance(t_entry, list):
+                _entry = [t_entry] + _entry
+            else:
+                _entry = t_entry + _entry
 
         _entry = sum([e if isinstance(e, list) else [e] for e in _entry if e is not None and e is not _not_found_], [])
 
-        _default_value = kwargs.pop("default_value", _not_found_)
+        # _default_value = kwargs.pop("default_value", _not_found_)
 
-        if isinstance(_cache, dict):
-            _entry = update_tree(_cache.pop("$entry", []), _entry)
-            # _default_value = update_tree(_default_value, _cache.pop("$default_value", _not_found_))
+        # if isinstance(_cache, dict):
+        #     _entry = update_tree(_cache.pop("$entry", []), _entry)
+        #     # _default_value = update_tree(_default_value, _cache.pop("$default_value", _not_found_))
 
-        elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
-            _entry = [_cache] + _entry
-            _cache = None
+        # elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
+        #     _entry = [_cache] + _entry
+        #     _cache = None
 
-        _entry = [v for v in _entry if v is not None and v is not _not_found_]
+        # _entry = [v for v in _entry if v is not None and v is not _not_found_]
 
-        kwargs["default_value"] = _default_value
+        # kwargs["default_value"] = _default_value
         return _cache, _entry, _parent, kwargs
 
     def __init__(self, *args, **kwargs) -> None:
