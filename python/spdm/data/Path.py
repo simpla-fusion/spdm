@@ -511,11 +511,8 @@ class Path(list):
             item = Path.tags.current
         elif s.isnumeric():
             item = int(s)
-        elif s.startswith("$"):
-            try:
-                item = Path.tags[s[1:]]
-            except Exception:
-                item = s
+        elif s.startswith("$") and hasattr(Path.tags, s[1:]):
+            item = Path.tags[s[1:]]
         else:
             item = s
 
@@ -536,7 +533,7 @@ class Path(list):
         elif len(path) == 0:
             pass
 
-        elif path.startswith(("/", "$")):
+        elif path.startswith("/"):
             yield Path.tags.root
             yield from Path._parser_iter(path[1:])
 
@@ -742,7 +739,7 @@ class Path(list):
         if target is _not_found_ or len(res_path) > 0:
             # raise KeyError(f"Can not find {prefix[:-len(res_path)]} {res_path}")
             return
-        
+
         elif len(suffix) == 0:
             query = None
             start = 0

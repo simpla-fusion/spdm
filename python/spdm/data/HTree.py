@@ -47,29 +47,21 @@ class HTreeNode:
         _entry = list(args) + _entry
 
         if isinstance(_cache, dict):
-            t_entry = _cache.pop("$entry", [])
-            if t_entry is None or t_entry is _not_found_:
+            t_entry = _cache.pop("$entry", _not_found_)
+            if t_entry is _not_found_:
                 pass
+            elif t_entry is False:
+                _entry = None
             elif not isinstance(t_entry, list):
                 _entry = [t_entry] + _entry
             else:
                 _entry = t_entry + _entry
 
-        _entry = sum([e if isinstance(e, list) else [e] for e in _entry if e is not None and e is not _not_found_], [])
+        if isinstance(_entry, list):
+            _entry = sum(
+                [e if isinstance(e, list) else [e] for e in _entry if e is not None and e is not _not_found_], []
+            )
 
-        # _default_value = kwargs.pop("default_value", _not_found_)
-
-        # if isinstance(_cache, dict):
-        #     _entry = update_tree(_cache.pop("$entry", []), _entry)
-        #     # _default_value = update_tree(_default_value, _cache.pop("$default_value", _not_found_))
-
-        # elif isinstance(_cache, (str, Entry, URITuple, pathlib.Path)):
-        #     _entry = [_cache] + _entry
-        #     _cache = None
-
-        # _entry = [v for v in _entry if v is not None and v is not _not_found_]
-
-        # kwargs["default_value"] = _default_value
         return _cache, _entry, _parent, kwargs
 
     def __init__(self, *args, **kwargs) -> None:
@@ -186,9 +178,8 @@ class HTree(HTreeNode):
         return self._query([], Path.tags.count)  # type:ignore
 
     def __iter__(self) -> typing.Generator[HTree, None, None]:
+        """遍历 children"""
         yield from self.children()
-
-    """ 遍历 children """
 
     def __equal__(self, other) -> bool:
         return self._query([], Path.tags.equal, other)  # type:ignore
@@ -573,6 +564,7 @@ class HTree(HTreeNode):
 
         return value
 
+    
     def _query(self, path: PathLike, *args, default_value=_not_found_, **kwargs) -> HTree:
         res = as_path(path).fetch(self._cache, *args, default_value=_not_found_, **kwargs)
         if res is _not_found_:
@@ -638,7 +630,7 @@ _T = typing.TypeVar("_T")
 
 class Container(HTree, typing.Generic[_T]):
     """
-    带有type hint的容器，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
+    带有type hint的HTree，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
     """
 
     pass
@@ -647,11 +639,6 @@ class Container(HTree, typing.Generic[_T]):
 class Dict(Container[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-    def __iter__(self) -> typing.Generator[str, None, None]:
-        """遍历 children"""
-        for k in self.children():
-            yield k
 
     def items(self):
         yield from self.children()
@@ -682,13 +669,6 @@ class List(Container[_T]):
         elif self._entry is not None:
             return self._entry.fetch(Path.tags.count)
         return 0
-
-    def __iter__(self) -> typing.Generator[_T, None, None]:
-        """遍历 children"""
-        for v in self.children():
-            if isinstance(v, HTree):
-                v._parent = self._parent
-            yield v
 
     def __getitem__(self, path) -> _T:
         return super().get(path)

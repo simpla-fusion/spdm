@@ -382,20 +382,23 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
     return entry
 
 
-def open_entry(entry, **kwargs) -> Entry:
+def open_entry(entry, local_schema=None, **kwargs) -> Entry:
     if not isinstance(entry, list):
         entry = [entry]
 
     entry = [a for a in entry if a is not None and a is not _not_found_]
 
+    if isinstance(local_schema,str) and not any([ e.startswith(f"{local_schema}+") for e in entry if isinstance(e,str)]):
+        entry=[f"{local_schema}://"] + entry
+    
     if len(entry) == 0:
         return None
 
     elif len(entry) > 1:
-        return ChainEntry(*entry, **kwargs)
+        return ChainEntry(*entry, local_schema=local_schema, **kwargs)
 
     else:
-        return _open_entry(entry[0], **kwargs)
+        return _open_entry(entry[0],local_schema=local_schema,  **kwargs)
 
     # url = uri_split(url_s)
 
