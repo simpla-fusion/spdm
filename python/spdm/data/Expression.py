@@ -177,6 +177,8 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
         for c in dims_s.values():
             if not isinstance(c, str):
                 d = as_array(c)
+            # elif isinstance(holder, HTree):
+            #     d = holder.get(c, _not_found_)
             else:
                 d = Path(c).get(holder, _not_found_)
 

@@ -670,7 +670,22 @@ class Path(list):
         """
         obj, suffix = Path._get_by_path(target, self[:])
 
-        if len(suffix) > 0:
+        if len(suffix) == 0:
+            pass
+        elif suffix[0] is Path.tags.ancestors and len(suffix) > 1:
+            s_path = Path(suffix[1:])
+            while obj is not None and obj is not _not_found_:
+                tmp = s_path.get(obj, default_value=_not_found_)
+                
+                if tmp is _not_found_:
+                    obj = getattr(obj, "_parent", _not_found_)
+                else:
+                    obj = tmp
+                    break
+            
+        elif suffix[0] is Path.tags.descendants:
+            raise NotImplementedError(f"get(descendants) not implemented!")
+        else:
             obj = _not_found_
 
         if op is not None and op is not _not_found_:
@@ -879,7 +894,9 @@ class Path(list):
 
             p = path[pos]
 
-            if p is Path.tags.parent:
+            if p in [Path.tags.ancestors, Path.tags.descendants]:
+                break
+            elif p is Path.tags.parent:
                 tmp = getattr(obj, "_parent", _not_found_)
             elif isinstance(p, (int, str)):
                 tmp = Path._op_fetch(obj, p, default_value=_not_found_ if pos < length - 1 else default_value)
