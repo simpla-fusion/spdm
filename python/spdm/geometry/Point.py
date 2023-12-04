@@ -18,12 +18,20 @@ class Point(GeoObject):
             if isinstance(args[0], (list, tuple)):
                 args = args[0]
             elif isinstance(args[0], dict):
-                args = [*args[0].values()]                
+                args = [*args[0].values()]
         super().__init__(*args, rank=0, ndims=len(args), **kwargs)
         self._coord = np.array(args)
 
+    @property
+    def r(self) -> float:
+        """just a walkaround for spherical coordinate system"""
+        return self._coord[0]
 
-    
+    @property
+    def z(self) -> float:
+        """just a walkaround for spherical coordinate system"""
+        return self._coord[1]
+
     @property
     def x(self) -> float:
         return self._coord[0]
