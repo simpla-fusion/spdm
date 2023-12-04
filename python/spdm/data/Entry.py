@@ -450,7 +450,7 @@ def open_entry(entry, local_schema=None, **kwargs) -> Entry:
     #     raise RuntimeError(f"Unknown url {url} {Entry._plugin_registry}")
 
 
-def asentry(obj, *args, **kwargs) -> Entry:
+def as_entry(obj, *args, **kwargs) -> Entry:
     if isinstance(obj, Entry):
         entry = obj
     elif isinstance(obj, (str, URITuple, pathlib.Path)):
