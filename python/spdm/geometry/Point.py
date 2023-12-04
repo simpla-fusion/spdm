@@ -22,6 +22,8 @@ class Point(GeoObject):
         super().__init__(*args, rank=0, ndims=len(args), **kwargs)
         self._coord = np.array(args)
 
+
+    
     @property
     def x(self) -> float:
         return self._coord[0]

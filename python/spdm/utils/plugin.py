@@ -93,12 +93,13 @@ class Pluggable(metaclass=abc.ABCMeta):
         if inspect.isclass(n_cls) and issubclass(n_cls, cls):
             self.__class__ = n_cls
             n_cls.__init__(self, *args, **kwargs)
+        elif "dummy" in sub_list:
+            return False
         else:
             raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Pluggable or "_plugin_prefix" in vars(self.__class__):
-            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
+        if self.__class__ is Pluggable  and   self.__class__.__dispatch_init__(None, self, *args, **kwargs) is not False:
             return
 
         # elif "__dispatch_init__" in vars(self.__class__):

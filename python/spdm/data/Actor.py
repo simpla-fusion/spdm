@@ -29,10 +29,9 @@ class Actor(Pluggable):
     mpi_enabled = False
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Actor or "_plugin_prefix" in vars(self.__class__):
-            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
+        if self.__class__ is Actor and self.__class__.__dispatch_init__(None, self, *args, **kwargs) is not False:
             return
-        
+
         SpTree.__init__(self, *args, **kwargs)
         self._uid = uuid.uuid3(uuid.uuid1(clock_seq=0), self.__class__.__name__)
 

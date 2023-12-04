@@ -246,72 +246,41 @@ class SpProperty:
     def __call__(self, func: typing.Callable[..., _TR]) -> _TR:
         """用于定义属性的getter操作，与@property.getter类似"""
         if self.getter is not None:
-            raise RuntimeError(f"Should not reset getter!")
-
+            raise RuntimeError(f"Can not reset getter!")
         self.getter = func
-
-        self.type_hint = typing.get_type_hints(func).get("return", None)
-
         return self
 
     def __set_name__(self, owner_cls, name):
         # TODO：
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
-
         self.property_name = name
 
-        self.metadata["name"] = name
-
-        if callable(self.getter):
-            self.doc += self.getter.__doc__ or ""
-
-        if self.doc == "":
-            self.doc = f"{owner_cls.__name__}.{self.property_name}"
+        if self.type_hint is None and callable(self.getter):
+            self.type_hint = typing.get_type_hints(self.getter).get("return", None)
 
         if self.type_hint is None:
             self.type_hint = typing.get_type_hints(owner_cls).get(name, None)
 
-        if self.type_hint is None and callable(self.getter):
-            self.type_hint = typing.get_type_hints(self.getter).get("return", None)
+        metadata = [
+            getattr(getattr(base_cls, name, _not_found_), "metadata", _not_found_) for base_cls in owner_cls.__bases__
+        ]
+
+        self.metadata = merge_tree(*metadata, self.metadata)
+
+        self.metadata["name"] = name
+
+        if self.getter is not None:
+            self.doc += self.getter.__doc__ or ""
 
         for base_cls in owner_cls.__bases__:
             prop = getattr(base_cls, name, _not_found_)
             if isinstance(prop, SpProperty):
                 self.doc += prop.doc
-                self.metadata = update_tree(self.metadata, prop.metadata)
+
             elif prop is not _not_found_:
                 self.metadata["default_value"] = merge_tree(prop, self.metadata.get("default_value", _not_found_))
-
-    def _get_type_hint(self, owner_cls, name: str = None, metadata: dict = None):
-        # if self.type_hint is not None:
-        #     return self.type_hint, self.metadata
-
-        type_hint = None
-
-        if inspect.isfunction(self.getter):
-            type_hint = typing.get_type_hints(self.getter).get("return", None)
-        else:
-            type_hint = typing.get_type_hints(owner_cls).get(name, None)
-
-        # if type_hint is None:
-        #     #  @ref: https://stackoverflow.com/questions/48572831/how-to-access-the-type-arguments-of-typing-generic?noredirect=1
-        #     orig_class = typing.get_origin(self.__class__)
-        #     if orig_class is not None:
-        #         child_cls = typing.get_args(orig_class)
-        #         if child_cls is not None and len(child_cls) > 0 and inspect.isclass(child_cls[0]):
-        #             type_hint = child_cls[0]
-        # if not callable(type_hint):
-        #     raise TypeError(type_hint)
-
-        self.type_hint = type_hint
-
-        for base_cls in owner_cls.__bases__:
-            m_data = getattr(getattr(base_cls, name, None), "metadata", None)
-            if m_data is None:
-                continue
-            self.metadata = update_tree(self.metadata, deepcopy(m_data))
-
-        return type_hint, self.metadata
+        if self.doc == "":
+            self.doc = f"{owner_cls.__name__}.{self.property_name}"
 
     def __set__(self, instance: SpTree[_T], value: typing.Any) -> None:
         assert instance is not None
@@ -330,11 +299,9 @@ class SpProperty:
             # 当调用 getter(cls, <name>) 时执行
             return self
         elif not isinstance(instance, SpTree):
-            raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpPropertyClass'.")
+            raise TypeError(f"Class '{instance.__class__.__name__}' must be a subclass of 'SpTree'.")
 
         # 当调用 getter(obj, <name>) 时执行
-
-        type_hint, metadata = self._get_type_hint(owner_cls, self.property_name)
 
         property_name = self.metadata.get("alias", self.property_name)
 
@@ -344,9 +311,9 @@ class SpProperty:
         with self.lock:
             value = instance.__get_property__(
                 property_name,
-                _type_hint=type_hint,
+                _type_hint=self.type_hint,
                 _getter=self.getter,
-                **metadata,
+                **self.metadata,
             )
 
             if self.strict and value is _not_found_:
@@ -394,8 +361,6 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
             prop = SpProperty(default_value=prop)
 
         prop.type_hint = _type_hint
-
-        prop.property_name = _name
 
         setattr(n_cls, _name, prop)
 

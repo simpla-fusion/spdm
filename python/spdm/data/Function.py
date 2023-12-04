@@ -140,7 +140,7 @@ class Function(Expression):
             raise RuntimeError(f"self._cache is not array_type! {(self._cache)}")
 
         if self.domain is None:
-            raise RuntimeError(f"{self}")
+            raise RuntimeError(f"{self}  self.domain is None! ")
 
         return interpolate(
             *self.domain.dims,
