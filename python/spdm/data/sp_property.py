@@ -255,12 +255,16 @@ class SpProperty:
         #    若 owner 是继承自具有属性name的父类，则默认延用父类sp_property的设置
         self.property_name = name
 
-        if self.type_hint is None and callable(self.getter):
-            self.type_hint = typing.get_type_hints(self.getter).get("return", None)
+        tp = None
+        if callable(self.getter):
+            tp = typing.get_type_hints(self.getter).get("return", None)
 
-        if self.type_hint is None:
-            self.type_hint = typing.get_type_hints(owner_cls).get(name, None)
-
+        if tp is None:
+            tp = typing.get_type_hints(owner_cls).get(name, None)
+        
+        if tp is not None:
+            self.type_hint = tp
+        
         metadata = [
             getattr(getattr(base_cls, name, _not_found_), "metadata", _not_found_) for base_cls in owner_cls.__bases__
         ]

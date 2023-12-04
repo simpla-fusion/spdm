@@ -383,6 +383,11 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
 
 
 def open_entry(entry, local_schema=None, **kwargs) -> Entry:
+    if entry is  None or entry is _not_found_ or len(entry)==0:
+        if local_schema is None:
+            return None
+        else:
+            entry=[f"{local_schema}://"]
     if not isinstance(entry, list):
         entry = [entry]
 
