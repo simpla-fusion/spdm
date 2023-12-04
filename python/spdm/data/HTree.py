@@ -269,6 +269,13 @@ class HTree(HTreeNode):
 
         return obj
 
+    @property
+    def _root(self) -> HTreeNode:
+        root = self
+        while getattr(root, "_parent", None) is not None:
+            root = root._parent
+        return root
+
     def children(self) -> typing.Generator[HTree, None, None]:
         if isinstance(self._cache, list) and len(self._cache) > 0:
             for idx, cache in enumerate(self._cache):
@@ -564,7 +571,6 @@ class HTree(HTreeNode):
 
         return value
 
-    
     def _query(self, path: PathLike, *args, default_value=_not_found_, **kwargs) -> HTree:
         res = as_path(path).fetch(self._cache, *args, default_value=_not_found_, **kwargs)
         if res is _not_found_:
@@ -633,7 +639,9 @@ class Container(HTree, typing.Generic[_T]):
     带有type hint的HTree，其成员类型为 _T，用于存储一组数据或对象，如列表，字典等
     """
 
-    pass
+    def __iter__(self) -> typing.Generator[_T, None, None]:
+        """遍历 children"""
+        yield from self.children()
 
 
 class Dict(Container[_T]):

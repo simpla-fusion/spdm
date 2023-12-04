@@ -137,7 +137,7 @@ class Function(Expression):
 
     def _interpolate(self):
         if not isinstance(self._cache, array_type):
-            raise RuntimeError(f"self.__array__ is not array_type! {(self._cache)}")
+            raise RuntimeError(f"self._cache is not array_type! {(self._cache)}")
 
         if self.domain is None:
             raise RuntimeError(f"{self}")

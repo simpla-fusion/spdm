@@ -290,7 +290,7 @@ class ChainEntry(Entry):
         return any(res)
 
 
-def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None, **kwargs) -> Entry:
+def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None, local_schema=None, **kwargs) -> Entry:
     """
     Open an Entry from a URL.
 
@@ -349,7 +349,7 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
 
     schemas = [s for s in uri.protocol.split("+") if s != ""]
 
-    local_schema = query.pop("local_schema", None) or query.pop("device", None)
+    local_schema = local_schema or query.pop("local_schema", None) or query.pop("device", None)
     if len(schemas) > 0 and schemas[0] not in PROTOCOL_LIST:
         local_schema = schemas[0]
         schemas = schemas[1:]
@@ -388,9 +388,12 @@ def open_entry(entry, local_schema=None, **kwargs) -> Entry:
 
     entry = [a for a in entry if a is not None and a is not _not_found_]
 
-    if isinstance(local_schema,str) and not any([ e.startswith(f"{local_schema}+") for e in entry if isinstance(e,str)]):
-        entry=[f"{local_schema}://"] + entry
-    
+    if isinstance(local_schema, str) and not any(
+        [e.startswith(f"{local_schema}+") or e.startswith(f"mdsplus://")  for e in entry if isinstance(e, str)]
+    ):
+        # just a walk around for mdsplus://
+        entry = [f"{local_schema}://"] + entry
+
     if len(entry) == 0:
         return None
 
@@ -398,7 +401,7 @@ def open_entry(entry, local_schema=None, **kwargs) -> Entry:
         return ChainEntry(*entry, local_schema=local_schema, **kwargs)
 
     else:
-        return _open_entry(entry[0],local_schema=local_schema,  **kwargs)
+        return _open_entry(entry[0], local_schema=local_schema, **kwargs)
 
     # url = uri_split(url_s)
 
