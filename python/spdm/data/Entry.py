@@ -383,18 +383,18 @@ def _open_entry(entry: str | URITuple | pathlib.Path | Entry, mapping_files=None
 
 
 def open_entry(entry, local_schema=None, **kwargs) -> Entry:
-    if entry is  None or entry is _not_found_ or len(entry)==0:
+    if entry is None or entry is _not_found_ or (isinstance(entry, list) and len(entry) == 0):
         if local_schema is None:
             return None
         else:
-            entry=[f"{local_schema}://"]
+            entry = [f"{local_schema}://"]
     if not isinstance(entry, list):
         entry = [entry]
 
     entry = [a for a in entry if a is not None and a is not _not_found_]
 
     if isinstance(local_schema, str) and not any(
-        [e.startswith(f"{local_schema}+") or e.startswith(f"mdsplus://")  for e in entry if isinstance(e, str)]
+        [e.startswith(f"{local_schema}+") or e.startswith(f"mdsplus://") for e in entry if isinstance(e, str)]
     ):
         # just a walk around for mdsplus://
         entry = [f"{local_schema}://"] + entry
