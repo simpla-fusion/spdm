@@ -205,7 +205,7 @@ class HTree(HTreeNode):
             res = default_value
         return res
 
-    def get(self, path: Path | PathLike, default_value: typing.Any = _not_found_, *args, force=False, **kwargs) -> _T:
+    def get(self, path: Path | PathLike, default_value: typing.Any = _undefined_, *args, force=False, **kwargs) -> typing.Any:
         path = as_path(path)
         length = len(path)
 
@@ -247,7 +247,7 @@ class HTree(HTreeNode):
                 if isinstance(obj, HTree):
                     tmp = obj.get(s_pth, default_value=_not_found_, force=True)
                 else:
-                    tmp = s_pth.fetch(obj, default_value=_not_found_)
+                    tmp = Path(s_pth).fetch(obj, default_value=_not_found_)
                 if tmp is _not_found_:
                     obj = getattr(obj, "_parent", _not_found_)
                 else:
@@ -265,14 +265,14 @@ class HTree(HTreeNode):
             obj = default_value
 
         if obj is _undefined_ and pos <= len(path):
-            raise KeyError(f"{path[:pos+1]} not found")
+            raise KeyError(f"Can not find {'.'.join(path[:pos+1])}!")
 
         return obj
 
     @property
-    def _root(self) -> HTreeNode:
+    def _root(self) -> HTreeNode|None:
         root = self
-        while getattr(root, "_parent", None) is not None:
+        while hasattr(root, "_parent") :
             root = root._parent
         return root
 
