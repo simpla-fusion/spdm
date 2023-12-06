@@ -1075,11 +1075,11 @@ class Path(list):
                     _idempotent=_idempotent,
                     **kwargs,
                 )
-            elif key.isidentifier() and hasattr(target, key):
-                attr = getattr(target, key, _not_found_)
-                attr_ = Path._op_update(attr, pth[1:], *args, _idempotent=_idempotent, **kwargs)
-                if attr_ is not attr:
-                    setattr(target, key, attr_)
+            # elif key.isidentifier() and hasattr(target, key):
+            #     attr = getattr(target, key, _not_found_)
+            #     attr_ = Path._op_update(attr, pth[1:], *args, _idempotent=_idempotent, **kwargs)
+            #     if attr_ is not attr:
+            #         setattr(target, key, attr_)
             else:
                 raise RuntimeError(f"Can not update {target} with {key}!")
 
