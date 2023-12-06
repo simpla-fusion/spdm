@@ -431,7 +431,7 @@ class HTree(HTreeNode):
 
         return res
 
-    def _get(self, query: PathLike = None, *args, _type_hint=None, **kwargs) -> HTree:
+    def _get(self, query: PathLike = None, *args, _type_hint=None, **kwargs) -> typing.Any:
         """获取子节点"""
 
         value = _not_found_

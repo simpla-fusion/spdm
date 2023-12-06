@@ -73,7 +73,7 @@ class Actor(Pluggable):
         return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
 
     @property
-    def uid(self) -> int:
+    def uid(self) ->uuid.UUID:
         return self._uid
 
     @property
@@ -81,7 +81,7 @@ class Actor(Pluggable):
         return SP_MPI
 
     @contextlib.contextmanager
-    def working_dir(self, suffix: str = "", prefix="") -> pathlib.Path:
+    def working_dir(self, suffix: str = "", prefix="") ->typing.Generator[pathlib.Path,None,None]:
         pwd = pathlib.Path.cwd()
 
         working_dir = f"{self.output_dir}/{prefix}{self.tag}{suffix}"
@@ -123,12 +123,12 @@ class Actor(Pluggable):
         )
 
     @property
-    def current(self) -> typing.Type[TimeSlice]:
+    def current(self) ->TimeSlice:
         """当前时间片，指向 Actor 所在时间点的状态。"""
         return self.time_slice.current
 
     @property
-    def previous(self) -> typing.Type[TimeSlice]:
+    def previous(self) -> TimeSlice:
         """前一个时间片，指向 Actor 在前一个时间点的状态。"""
         return self.time_slice.previous
 
@@ -161,7 +161,7 @@ class Actor(Pluggable):
         """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
         self.time_slice.refresh(*args, **kwargs)
 
-    def execute(self, current: TimeSlice, *previous_slices) -> typing.Type[Actor]:
+    def execute(self, current:TimeSlice, *previous:TimeSlice) :
         """根据 inputs 和 前序 time slice 更显当前time slice"""
         pass
 
@@ -185,12 +185,12 @@ class Actor(Pluggable):
 
         self.postprocess(self.time_slice.current)
 
-    def advance(self, *args, dt: float = None, time: float = None, **kwargs) -> None:
+    def advance(self, *args, dt: float|None = None, time: float|None  = None, **kwargs) -> None:
         if time is None and dt is None:
             raise RuntimeError("time and dt are both None, do nothing")
-        elif time is None:
+        elif time is None and dt is not None:
             time = self.time + dt
-        elif time <= self.time:
+        elif time is not None  and time <= self.time:
             raise RuntimeError(f"time={time} is less than current time={self.time}, do nothing")
         elif dt is not None:
             logger.warning(f"ignore dt={dt} when time={time} is given")

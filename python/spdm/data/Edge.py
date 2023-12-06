@@ -1,5 +1,6 @@
 from __future__ import annotations
 import collections
+import collections.abc
 import inspect
 import abc
 import typing
@@ -42,7 +43,7 @@ class Edge:
 
             # self.update(node, type_hint)
 
-        def update(self, node=None, type_hint=None) -> Edge.Endpoint:
+        def update(self, node=None, type_hint=None)  :
             if type_hint is not None and type_hint is not _not_found_:
                 self.type_hint = type_hint
 
@@ -65,10 +66,8 @@ class Edge:
 
         @property
         def is_changed(self) -> bool:
-            return not (
-                (not hasattr(self.node, "time") or math.isclose(self.node.time, self._time))
-                and (not hasattr(self.node, "iteration") or self.node.iteration == self._iteration)
-            )
+            return not ( math.isclose(getattr(self.node, "time",0) , self._time) 
+             and (getattr(self.node, "iteration",None)   == self._iteration)  )
 
     def __init__(
         self,
@@ -137,24 +136,24 @@ class Edge:
         source = self._source
         target = self._target
 
-        s = collections.deque([source.parent] if source is not None else [])
-        t = collections.deque([target.parent] if target is not None else [])
+        s = collections.deque([source._parent] if source is not None else [])
+        t = collections.deque([target._parent] if target is not None else [])
 
         if getattr(s[0], "parent", None) is getattr(t[0], "parent", None):
             return self
 
         while s[0] is not None:
-            s.appendleft(s[0].parent)
+            s.appendleft(s[0]._parent)
 
         while t[0] is not None:
-            t.appendleft(t[0].parent)
+            t.appendleft(t[0]._parent)
 
         s_rank = len(s)
         t_rank = len(t)
         pos = s_rank - 2
         tag = ""
         while pos >= t_rank or (pos >= 0 and s[pos] is not t[pos]):
-            tag = f"{tag}_{source.parent.name}"
+            tag = f"{tag}_{source._parent.name}"
 
             s[pos].slot[tag] = source
 
@@ -162,11 +161,11 @@ class Edge:
 
             pos = pos - 1
 
-        tag = f"{tag}_{source.parent.name}"
+        tag = f"{tag}_{source._parent.name}"
 
         while pos < t_rank - 2:
             pos = pos + 1
-            tag = f"{tag}_{source.parent.parent.name}"
+            tag = f"{tag}_{source._parent.parent.name}"
             t[pos].port[tag] = source
 
             source = t[pos].slot[tag]
@@ -191,7 +190,7 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
-    def get_source(self, key, default_value=_undefined_) -> typing.Any:
+    def get_source(self, key, default_value:typing.Any=_undefined_) -> typing.Any:
         obj = super().get(key, _not_found_)
         if isinstance(obj, Edge):
             return obj.source.node
@@ -200,7 +199,7 @@ class Ports(typing.Dict[str, Edge]):
         else:
             raise KeyError(f"source '{key}' is not found")
 
-    def get_target(self, key, default_value=_undefined_) -> HTreeNode:
+    def get_target(self, key, default_value=_undefined_) -> typing.Any:
         obj = super().get(key, _not_found_)
         if isinstance(obj, Edge):
             return obj.target.node

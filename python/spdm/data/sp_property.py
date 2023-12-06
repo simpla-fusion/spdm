@@ -327,12 +327,12 @@ class SpProperty:
 
         return value
 
-    def __delete__(self, instance: SpTree[_T]) -> None:
+    def __delete__(self, instance: SpTree) -> None:
         with self.lock:
             instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
-def sp_property(getter: typing.Callable[..., _T] = None, **kwargs) -> _T:
+def sp_property(getter: typing.Callable[..., _T]|None = None, **kwargs) -> SpProperty:
     if getter is None:
         return SpProperty(**kwargs)
     else:
@@ -383,5 +383,5 @@ def sp_tree(cls: _T = None, /, **kwargs) -> _T:
 
     if cls is None:
         return wrap
-
-    return wrap(cls)
+    else:
+        return wrap(cls)

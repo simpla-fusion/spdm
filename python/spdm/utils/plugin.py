@@ -75,7 +75,16 @@ class Pluggable(metaclass=abc.ABCMeta):
             if isinstance(sub_cls, Enum):
                 sub_cls = sub_cls.name
 
-            if isinstance(sub_cls, str):
+            if inspect.isclass(sub_cls):
+                n_cls = sub_cls
+                sub_cls = n_cls.__name__
+            elif not isinstance(sub_cls, str):
+                logger.warning(f"Invalid plugin name {sub_cls}!")
+                continue
+            elif sub_cls == "dummy":
+                n_cls=cls
+                break
+            else:
                 cls_name = cls._get_plugin_fullname(sub_cls)
 
                 if cls_name not in cls._plugin_registry:
@@ -83,18 +92,16 @@ class Pluggable(metaclass=abc.ABCMeta):
 
                 n_cls = cls._plugin_registry.get(cls_name, None)
 
-            elif inspect.isclass(sub_cls):
-                n_cls = sub_cls
-                sub_cls = n_cls.__name__
+            
 
             if n_cls is not None:
                 break
-
-        if inspect.isclass(n_cls) and issubclass(n_cls, cls):
+        
+        if n_cls is cls :
+            return False
+        elif inspect.isclass(n_cls) and issubclass(n_cls, cls):
             self.__class__ = n_cls
             n_cls.__init__(self, *args, **kwargs)
-        elif "dummy" in sub_list:
-            return False
         else:
             raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
 

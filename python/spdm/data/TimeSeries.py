@@ -74,9 +74,8 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 entry.child(idx).insert(value)
 
-    def __full__(self, o: typing.Type[Type]):
+    def __full__(self, o: typing.Type[TimeSlice]):
         """当循环队列满了的时候调用
-
         :param o: 最老的 time_slice
         """
         pass
@@ -86,7 +85,7 @@ class TimeSeriesAoS(List[_TSlice]):
         return self.current.time
 
     @property
-    def iteration(self) -> iteration:
+    def iteration(self) -> int:
         return self.current.iteration
 
     @property
