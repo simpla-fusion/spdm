@@ -1015,13 +1015,47 @@ class Path(list):
 
     @staticmethod
     def _op_update(target: typing.Any, pth: list, *args, _idempotent=True, **kwargs) -> typing.Any:
+        if hasattr(target.__class__,"__update__"):
+            target.__update__(pth, *args, _idempotent=_idempotent, **kwargs)
+            return target
+
+        elif not isinstance(target, (dict, list)):
+            target=_not_found_
+                
         if len(pth) == 0:
-            for value in args:
-                target = Path._update_tree(target, value, _idempotent=_idempotent)
-
             if len(kwargs) > 0:
-                target = Path._update_tree(target, kwargs, _idempotent=_idempotent)
+                sources = [*args, kwargs]
+            else:
+                sources=args
+            for source in sources:
+                if source is _not_found_:  # 不更新
+                    continue
+                elif (target is _not_found_ or target is None) and not isinstance(source, dict):  # 直接替换
+                    target = source
+                elif isinstance(source, dict):  # 合并 dict
+                    # if not isinstance(target, dict) and hasattr(target.__class__, "update"):
+                    #     # target is object with update method
+                    #     target.update(source)
+                    # else:
+                    if target is _not_found_ or target is None:
+                        target = {}
 
+                    for key, value in source.items():
+                       target=Path(key).update(target, value, _idempotent=_idempotent)
+
+                elif _idempotent is True:  # 幂等操作，直接替换对象 target
+                    target = source
+
+                elif isinstance(target, list):  # 合并 sequence
+                    if isinstance(source, list):
+                        target.extend(source)
+                    else:
+                        target.append(source)
+                elif isinstance(source, list):
+                    target = [target, *source]
+                else:
+                    target = [target, source]
+   
             return target
 
         key = pth[0]

@@ -184,6 +184,9 @@ class HTree(HTreeNode):
     def __equal__(self, other) -> bool:
         return self._query([], Path.tags.equal, other)  # type:ignore
 
+    def __update__(self,*args,**kwargs):
+        Path._op_update(self._cache,*args,**kwargs)
+        return self
     # def children(self) -> typing.Generator[typing.Any, None, None]: yield from self._foreach()
     # """ 遍历 children """
 
@@ -264,8 +267,8 @@ class HTree(HTreeNode):
         if obj is _not_found_:
             obj = default_value
 
-        if obj is _undefined_ and pos <= len(path):
-            raise KeyError(f"Can not find {'.'.join(path[:pos+1])}!")
+        if obj is _undefined_ and pos < len(path):
+            raise KeyError(f"Can not find {path}!")
 
         return obj
 
