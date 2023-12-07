@@ -14,7 +14,7 @@ import numpy as np
 from ..utils.logger import deprecated, logger
 from ..utils.misc import serialize
 from ..utils.tags import _not_found_
-from ..utils.typing import array_type, isinstance_generic
+from ..utils.typing import array_type, isinstance_generic, is_int
 
 
 # fmt:off
@@ -532,6 +532,9 @@ class Path(list):
 
         elif len(path) == 0:
             pass
+        
+        elif (tmp := is_int(path)) is not False:
+            yield tmp
 
         elif path.startswith("/"):
             yield Path.tags.root
@@ -676,13 +679,13 @@ class Path(list):
             s_path = Path(suffix[1:])
             while obj is not None and obj is not _not_found_:
                 tmp = s_path.get(obj, default_value=_not_found_)
-                
+
                 if tmp is _not_found_:
                     obj = getattr(obj, "_parent", _not_found_)
                 else:
                     obj = tmp
                     break
-            
+
         elif suffix[0] is Path.tags.descendants:
             raise NotImplementedError(f"get(descendants) not implemented!")
         else:
@@ -1015,18 +1018,18 @@ class Path(list):
 
     @staticmethod
     def _op_update(target: typing.Any, pth: list, *args, _idempotent=True, **kwargs) -> typing.Any:
-        if hasattr(target.__class__,"__update__"):
+        if hasattr(target.__class__, "__update__"):
             target.__update__(pth, *args, _idempotent=_idempotent, **kwargs)
             return target
 
         elif not isinstance(target, (dict, list)):
-            target=_not_found_
-                
+            target = _not_found_
+
         if len(pth) == 0:
             if len(kwargs) > 0:
                 sources = [*args, kwargs]
             else:
-                sources=args
+                sources = args
             for source in sources:
                 if source is _not_found_:  # 不更新
                     continue
@@ -1041,7 +1044,7 @@ class Path(list):
                         target = {}
 
                     for key, value in source.items():
-                       target=Path(key).update(target, value, _idempotent=_idempotent)
+                        target = Path(key).update(target, value, _idempotent=_idempotent)
 
                 elif _idempotent is True:  # 幂等操作，直接替换对象 target
                     target = source
@@ -1055,7 +1058,7 @@ class Path(list):
                     target = [target, *source]
                 else:
                     target = [target, source]
-   
+
             return target
 
         key = pth[0]

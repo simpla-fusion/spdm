@@ -284,11 +284,11 @@ class HTree(HTreeNode):
 
     def children(self) -> typing.Generator[HTree, None, None]:
         if isinstance(self._cache, list) and len(self._cache) > 0:
-            for idx, cache in enumerate(self._cache):
-                yield self._as_child(cache, idx, _entry=self._entry.child(idx) if self._entry is not None else None)
+            for idx, value in enumerate(self._cache):
+                yield self._as_child(value, idx, _entry=self._entry.child(idx) if self._entry is not None else None)
         elif isinstance(self._cache, dict) and len(self._cache) > 0:
-            for key, cache in self._cache.items():
-                yield self._as_child(cache, key, _entry=self._entry.child(key) if self._entry is not None else None)
+            for key, value in self._cache.items():
+                yield self._as_child(value, key, _entry=self._entry.child(key) if self._entry is not None else None)
         elif self._entry is not None:
             for key, d in self._entry.for_each():
                 if not isinstance(d, Entry):
@@ -435,6 +435,29 @@ class HTree(HTreeNode):
                 metadata = getattr(getattr(self.__class__, key, None), "metadata", _not_found_)
                 res._metadata = merge_tree(metadata, res._metadata)
 
+        if isinstance(key, int):
+            if self._cache is _not_found_:
+                self._cache = []
+            elif not isinstance(self._cache, list):
+                raise ValueError(self._cache)
+
+            if key >= 0:
+                pass
+            else:
+                key += self.__len__()
+
+            if key >= len(self._cache):
+                self._cache.extend([_not_found_] * (key - len(self._cache) + 1))
+                
+
+        elif isinstance(key, str):
+            if self._cache is _not_found_ or self._cache is None:
+                self._cache = {}
+
+        else:
+            return res
+
+        self._cache[key] = res
         return res
 
     def _get(self, query: PathLike = None, *args, _type_hint=None, **kwargs) -> typing.Any:
@@ -502,14 +525,7 @@ class HTree(HTreeNode):
         else:
             _entry = None
 
-        value = self._as_child(cache, key, _entry=_entry, **kwargs)
-
-        if self._cache is _not_found_ or self._cache is None:
-            self._cache = {}
-
-        self._cache[key] = value
-
-        return value
+        return self._as_child(cache, key, _entry=_entry, **kwargs)
 
     def _get_as_list(self, key: PathLike, *args, default_value=_not_found_, _parent=None, **kwargs) -> HTree:
         if isinstance(key, (Query, dict)):
@@ -558,24 +574,7 @@ class HTree(HTreeNode):
         # if _parent is None or _parent is _not_found_:
         #     _parent = self._parent
 
-        value = self._as_child(cache, key, *args, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
-
-        if isinstance(key, int):
-            if self._cache is _not_found_:
-                self._cache = []
-            elif not isinstance(self._cache, list):
-                raise ValueError(self._cache)
-
-            if key >= len(self._cache):
-                self._cache.extend([_not_found_] * (key - len(self._cache) + 1))
-
-        if isinstance(key, int) and (key < 0 or key >= len(self._cache)):
-            raise IndexError(f"Out of range  {key} > {len(self._cache)}")
-
-        if isinstance(key, int) and key >= 0:
-            self._cache[key] = value
-
-        return value
+        return self._as_child(cache, key, *args, _entry=_entry, _parent=_parent, default_value=default_value, **kwargs)
 
     def _query(self, path: PathLike, *args, default_value=_not_found_, **kwargs) -> HTree:
         res = as_path(path).fetch(self._cache, *args, default_value=_not_found_, **kwargs)
