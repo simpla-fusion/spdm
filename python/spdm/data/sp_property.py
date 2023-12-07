@@ -359,7 +359,9 @@ def _process_sptree(cls, **kwargs) -> typing.Type[SpTree]:
     for _name, _type_hint in type_hints.items():
         prop = getattr(cls, _name, _not_found_)
 
-        if isinstance(prop, SpProperty):
+        if isinstance(prop, property):
+            continue
+        elif isinstance(prop, SpProperty):
             if not (_name in cls.__dict__ and n_cls is cls):
                 prop = SpProperty(getter=prop.getter, setter=prop.setter, deleter=prop.deleter, **prop.metadata)
         else:

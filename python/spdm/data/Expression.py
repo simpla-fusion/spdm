@@ -177,6 +177,8 @@ def guess_coords(holder, prefix="coordinate", **kwargs):
         for c in dims_s.values():
             if not isinstance(c, str):
                 d = as_array(c)
+            elif c == "1...N":
+                d = None
             # elif isinstance(holder, HTree):
             #     d = holder.get(c, _not_found_)
             else:
@@ -400,7 +402,7 @@ class Expression(HTreeNode):
     @staticmethod
     def _repr_s(expr: Expression) -> str:
         if isinstance(expr, (bool, int, float, complex)):
-            res = f"{expr}"
+            res = f"{{{expr}}}"
         elif expr is None:
             res = "n.a"
         elif isinstance(expr, np.ndarray):
@@ -408,11 +410,13 @@ class Expression(HTreeNode):
                 res = f"{expr.item()}"
             else:
                 res = f"{expr.dtype}[{expr.shape}]"
-
+        elif isinstance(expr, Variable):
+            res = f"{{{expr.__label__}}}"
+        elif isinstance(expr, Expression):
+            res = expr._repr_latex_().strip("$")
         else:
-            res = expr._repr_latex_()
-
-        return res.strip("$")
+            res = f"{{{expr}}}"
+        return res
 
     def _repr_latex_(self) -> str:
         """for jupyter notebook display"""
@@ -433,31 +437,33 @@ class Expression(HTreeNode):
         else:
             op = self._op.__class__.__name__
 
+        children = [Expression._repr_s(child) for child in self._children]
+
         match nin:
             case 0:
                 res = f"{op}"
 
             case 1:
                 if op == "-":
-                    res = f"- {Expression._repr_s(self._children[0])}"
+                    res = f"- {children[0]}"
 
                 elif not op.startswith("\\"):
-                    res = rf"{op}\left({Expression._repr_s(self._children[0])}\right)"
+                    res = rf"{op}{children[0]}"
 
                 else:
-                    res = rf"{op}{{\left({Expression._repr_s(self._children[0])}\right)}}"
+                    res = rf"{op}{{{children[0]}}}"
 
             case 2:
                 match op:
                     case "/":
-                        res = f"\\frac{{{Expression._repr_s(self._children[0])}}}{{{Expression._repr_s(self._children[1])}}}"
+                        res = f"\\frac{{{children[0]}}}{{{children[1]}}}"
                     case _:
-                        res = rf"\left({Expression._repr_s(self._children[0])} {op} {Expression._repr_s(self._children[1])}\right)"
+                        res = rf"{children[0]} {op} {children[1]}"
 
             case _:
-                res = rf"{op}\left({','.join([Expression._repr_s(child) for child in self._children])}\right)"
+                res = rf"{op}{','.join(children)}"
 
-        return f"$${res}$$"
+        return rf"$$\left({res}\right)$$"
 
     @property
     def dtype(self):
@@ -550,7 +556,9 @@ class Expression(HTreeNode):
     @property
     def d(self) -> Expression:
         """1st derivative 一阶导数"""
-        return self.derivative(1)
+        expr = self.derivative(1)
+        expr._metadata["label"] = rf"$d\left({self.__label__}\right)$"
+        return expr
 
     @property
     def d2(self) -> Expression:
@@ -757,7 +765,10 @@ class Derivative(Expression):
         return self._order
 
     def __repr__(self) -> str:
-        return f"d({Expression._repr_s(self._expr)})"
+        return f"d{Expression._repr_s(self._expr)}"
+
+    def _repr_latex_(self) -> str:
+        return f"$d{Expression._repr_s(self._expr)}$"
 
         # return rf"\frac{{d({Expression._repr_s(self._children[1])})}}{{{Expression._repr_s(self._children[0])}}}"
 

@@ -532,7 +532,7 @@ class Path(list):
 
         elif len(path) == 0:
             pass
-        
+
         elif (tmp := is_int(path)) is not False:
             yield tmp
 
@@ -919,7 +919,6 @@ class Path(list):
     def _op_fetch(
         target: typing.Any, key: int | str | None = None, *args, default_value=_not_found_, **kwargs
     ) -> typing.Any:
-      
         # if isinstance(key, list):
         #     if len(key) == 0:
         #         key = _not_found_
@@ -949,10 +948,10 @@ class Path(list):
             # if key < 0:
             #     key += len(target)
 
-            if key < len(target):
-                res = target[key]
-            else:
+            if key >= len(target):
                 res = _not_found_
+            else:
+                res = target[key]
 
         elif isinstance(target, collections.abc.Sequence) and isinstance(key, slice):
             res = target[key]
