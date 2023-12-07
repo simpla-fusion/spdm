@@ -162,8 +162,7 @@ class TimeSeriesAoS(List[_TSlice]):
             else:
                 entry_cursor = 0
                 entry = None
-            value = self._as_child(value, entry_cursor, _entry=entry, _parent=self._parent)
-            self._cache[cache_pos] = value
+            value = self._as_child(value, cache_pos, _entry=entry, _parent=self._parent)
 
         return value
 

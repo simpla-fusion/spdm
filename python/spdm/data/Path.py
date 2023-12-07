@@ -919,17 +919,15 @@ class Path(list):
     def _op_fetch(
         target: typing.Any, key: int | str | None = None, *args, default_value=_not_found_, **kwargs
     ) -> typing.Any:
-        if hasattr(target.__class__, "__entry__"):
-            return target.__entry__.child(key).fetch(*args, default_value=default_value, **kwargs)
-
-        if isinstance(key, list):
-            if len(key) == 0:
-                key = _not_found_
-            elif len(key) == 1:
-                key = key[0]
-            else:
-                target = _not_found_
-                key = _not_found_
+      
+        # if isinstance(key, list):
+        #     if len(key) == 0:
+        #         key = _not_found_
+        #     elif len(key) == 1:
+        #         key = key[0]
+        #     else:
+        #         target = _not_found_
+        #         key = _not_found_
 
         if key is _not_found_ or key is None:
             res = target
@@ -948,15 +946,15 @@ class Path(list):
                     res = _not_found_
 
         elif isinstance(key, int):
-            if key < 0:
-                key += len(target)
+            # if key < 0:
+            #     key += len(target)
 
             if key < len(target):
                 res = target[key]
             else:
                 res = _not_found_
 
-        elif isinstance(target, collections.abc.Sequence) and isinstance(key, (int, slice)):
+        elif isinstance(target, collections.abc.Sequence) and isinstance(key, slice):
             res = target[key]
 
         elif isinstance(key, set):
