@@ -43,7 +43,7 @@ class Edge:
 
             # self.update(node, type_hint)
 
-        def update(self, node=None, type_hint=None)  :
+        def update(self, node=None, type_hint=None):
             if type_hint is not None and type_hint is not _not_found_:
                 self.type_hint = type_hint
 
@@ -66,8 +66,10 @@ class Edge:
 
         @property
         def is_changed(self) -> bool:
-            return not ( math.isclose(getattr(self.node, "time",0) , self._time) 
-             and (getattr(self.node, "iteration",None)   == self._iteration)  )
+            return not (
+                math.isclose(getattr(self.node, "time", 0), self._time)
+                and (getattr(self.node, "iteration", None) == self._iteration)
+            )
 
     def __init__(
         self,
@@ -190,23 +192,37 @@ class Ports(typing.Dict[str, Edge]):
     def refresh(self):
         return True
 
-    def get_source(self, key, default_value:typing.Any=_undefined_) -> typing.Any:
+    def get_source(self, key, default_value: typing.Any = _undefined_) -> typing.Any:
         obj = super().get(key, _not_found_)
+
+        res = None
+
         if isinstance(obj, Edge):
-            return obj.source.node
-        elif default_value is not _undefined_:
-            return default_value
-        else:
-            raise KeyError(f"source '{key}' is not found")
+            res = obj.source.node
+
+        if res is None or res is _not_found_:
+            res = default_value
+
+        if res is _undefined_:
+            raise KeyError(f"Source '{key}' is not found!")
+
+        return res
 
     def get_target(self, key, default_value=_undefined_) -> typing.Any:
         obj = super().get(key, _not_found_)
+
+        res = None
+
         if isinstance(obj, Edge):
-            return obj.target.node
-        elif default_value is not _undefined_:
-            return default_value
-        else:
-            raise KeyError(f"target '{key}' is not found")
+            res = obj.target.node
+
+        if res is None or res is _not_found_:
+            res = default_value
+
+        if res is _undefined_:
+            raise KeyError(f"Target '{key}' is not found")
+
+        return res
 
 
 class InPorts(Ports):
