@@ -70,7 +70,8 @@ class SpTree(Dict):
         if setter is not None:
             setter(self, key, value)
         else:
-            self.update({key: value})
+            # self.update({key: value})
+            self._cache[key] = value
 
     def __del_property__(self, key: str):
         self._remove(key)
@@ -261,10 +262,10 @@ class SpProperty:
 
         if tp is None:
             tp = typing.get_type_hints(owner_cls).get(name, None)
-        
+
         if tp is not None:
             self.type_hint = tp
-        
+
         metadata = [
             getattr(getattr(base_cls, name, _not_found_), "metadata", _not_found_) for base_cls in owner_cls.__bases__
         ]
@@ -332,7 +333,7 @@ class SpProperty:
             instance.__del_property__(self.property_name, deleter=self.deleter)
 
 
-def sp_property(getter: typing.Callable[..., _T]|None = None, **kwargs) -> SpProperty:
+def sp_property(getter: typing.Callable[..., _T] | None = None, **kwargs) -> SpProperty:
     if getter is None:
         return SpProperty(**kwargs)
     else:

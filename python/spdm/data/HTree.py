@@ -184,9 +184,10 @@ class HTree(HTreeNode):
     def __equal__(self, other) -> bool:
         return self._query([], Path.tags.equal, other)  # type:ignore
 
-    def __update__(self,*args,**kwargs):
-        Path._op_update(self._cache,*args,**kwargs)
+    def __update__(self, *args, **kwargs):
+        Path._op_update(self._cache, *args, **kwargs)
         return self
+
     # def children(self) -> typing.Generator[typing.Any, None, None]: yield from self._foreach()
     # """ 遍历 children """
 
@@ -199,7 +200,7 @@ class HTree(HTreeNode):
     def remove(self, *args, **kwargs):
         return self._remove(*args, **kwargs)
 
-    def cache_get(self, pth, default_value:_T=_not_found_)->_T:
+    def cache_get(self, pth, default_value: _T = _not_found_) -> _T:
         pth = as_path(pth)
         res = pth.get(self._cache, _not_found_)
         if res is _not_found_ and self._entry is not None:
@@ -208,7 +209,9 @@ class HTree(HTreeNode):
             res = default_value
         return res
 
-    def get(self, path: Path | PathLike, default_value: typing.Any = _undefined_, *args, force=False, **kwargs) -> typing.Any:
+    def get(
+        self, path: Path | PathLike, default_value: typing.Any = _undefined_, *args, force=False, **kwargs
+    ) -> typing.Any:
         path = as_path(path)
         length = len(path)
 
@@ -273,9 +276,9 @@ class HTree(HTreeNode):
         return obj
 
     @property
-    def _root(self) -> HTreeNode|None:
+    def _root(self) -> HTreeNode | None:
         root = self
-        while hasattr(root, "_parent") :
+        while hasattr(root, "_parent"):
             root = root._parent
         return root
 
@@ -587,9 +590,9 @@ class HTree(HTreeNode):
     def _update(self, path: PathLike, *args, **kwargs):
         self._cache = as_path(path).update(self._cache, *args, **kwargs)
         return self
-        
-    def __update__(self,*args,**kwargs):
-        self._cache=Path._op_update(self._cache,*args,**kwargs)
+
+    def __update__(self, *args, **kwargs):
+        self._cache = Path._op_update(self._cache, *args, **kwargs)
         return self
 
     def _remove(self, path: PathLike, *args, **kwargs) -> None:
@@ -688,8 +691,8 @@ class List(Container[_T]):
     def __getitem__(self, path) -> _T:
         return super().get(path)
 
-    def __iadd__(self, other) -> typing.Type[List[_T]]:
-        self.insert([other])
+    def __iadd__(self, other: list) -> typing.Type[List[_T]]:
+        self.insert(other)
         return self
 
     def dump(self, _entry: Entry, **kwargs) -> None:
