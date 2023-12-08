@@ -448,7 +448,6 @@ class HTree(HTreeNode):
 
             if key >= len(self._cache):
                 self._cache.extend([_not_found_] * (key - len(self._cache) + 1))
-                
 
         elif isinstance(key, str):
             if self._cache is _not_found_ or self._cache is None:
@@ -657,7 +656,7 @@ class Dict(Container[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def items(self):
+    def items(self) -> typing.Generator[typing.Tuple[str, _T], None, None]:
         yield from self.children()
 
     def __contains__(self, key: str) -> bool:
