@@ -126,8 +126,11 @@ class MatplotlibView(View):
             try:
                 geo = geo.__geometry__(view_point=view_point, **kwargs)
             except Exception as error:
-                # logger.warning(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ")
-                raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
+                if SP_DEBUG == "strict":
+                    raise RuntimeError(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ") from error
+                else:
+                    logger.exception(f"ignore unsupported geometry {geo.__class__.__name__} {geo}! ")
+
             else:
                 self._draw(canvas, geo, *styles, view_point=view_point, **kwargs)
 
@@ -321,10 +324,10 @@ class MatplotlibView(View):
                         y_label = t_y_label
 
                 except Exception as error:
-                    # if SP_DEBUG == "strict":
+                    if SP_DEBUG == "strict":
                         raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}"  ') from error
-                    # else:
-                    #     logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
+                    else:
+                        logger.exception(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
 
             if any(labels):
                 canvas[idx].legend(fontsize=fontsize)
