@@ -256,17 +256,25 @@ class ChainEntry(Entry):
     def is_writable(self) -> bool:
         return self._entrys[0].is_writable
 
-    def fetch(self, *args, default_value=_not_found_, **kwargs):
-        res = super().fetch(*args, default_value=_not_found_, **kwargs)
+    def fetch(self, op=None, *args, default_value=_not_found_, **kwargs):
+        if op is Path.tags.count:
+            res = super().fetch(Path.tags.count, *args, default_value=_not_found_, **kwargs)
+            if res is _not_found_ or res == 0:
+                for e in self._entrys:
+                    res = e.child(self._path).fetch(Path.tags.count, *args, default_value=_not_found_, **kwargs)
+                    if res is not _not_found_ and res != 0:
+                        break
+        else:
+            res = super().fetch(op=op, *args, default_value=_not_found_, **kwargs)
 
-        if res is _not_found_:
-            for e in self._entrys:
-                res = e.child(self._path).fetch(*args, default_value=_not_found_, **kwargs)
-                if res is not _not_found_:
-                    break
+            if res is _not_found_:
+                for e in self._entrys:
+                    res = e.child(self._path).fetch(op=op, *args, default_value=_not_found_, **kwargs)
+                    if res is not _not_found_:
+                        break
 
-        if res is _not_found_:
-            res = default_value
+            if res is _not_found_:
+                res = default_value
 
         return res
 

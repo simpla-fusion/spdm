@@ -321,10 +321,10 @@ class MatplotlibView(View):
                         y_label = t_y_label
 
                 except Exception as error:
-                    if SP_DEBUG == "strict":
+                    # if SP_DEBUG == "strict":
                         raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}"  ') from error
-                    else:
-                        logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
+                    # else:
+                    #     logger.debug(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
 
             if any(labels):
                 canvas[idx].legend(fontsize=fontsize)

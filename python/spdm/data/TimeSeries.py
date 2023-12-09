@@ -5,13 +5,11 @@ import typing
 
 import numpy as np
 
-from ..utils.logger import logger
 from ..utils.tags import _not_found_
-from ..utils.typing import ArrayType, array_type, as_array
 from .Entry import Entry
 from .HTree import List, HTree
-from .sp_property import SpTree, sp_property
 from .Path import update_tree
+from .sp_property import SpTree, sp_property
 
 
 class TimeSlice(SpTree):
@@ -97,8 +95,9 @@ class TimeSeriesAoS(List[_TSlice]):
         return self._get(0)
 
     @property
-    def previous(self) -> _TSlice:
-        return self._get(-1)
+    def previous(self) -> typing.Generator[_TSlice, None]:
+        for i in range(len(self._cache)):
+            yield self._get(-(i + 1))
 
     @property
     def is_initializied(self) -> bool:

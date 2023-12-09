@@ -73,7 +73,7 @@ class Actor(Pluggable):
         return f"{self._plugin_prefix}{self.__class__.__name__.lower()}"
 
     @property
-    def uid(self) ->uuid.UUID:
+    def uid(self) -> uuid.UUID:
         return self._uid
 
     @property
@@ -81,7 +81,7 @@ class Actor(Pluggable):
         return SP_MPI
 
     @contextlib.contextmanager
-    def working_dir(self, suffix: str = "", prefix="") ->typing.Generator[pathlib.Path,None,None]:
+    def working_dir(self, suffix: str = "", prefix="") -> typing.Generator[pathlib.Path, None, None]:
         pwd = pathlib.Path.cwd()
 
         working_dir = f"{self.output_dir}/{prefix}{self.tag}{suffix}"
@@ -123,7 +123,7 @@ class Actor(Pluggable):
         )
 
     @property
-    def current(self) ->TimeSlice:
+    def current(self) -> TimeSlice:
         """当前时间片，指向 Actor 所在时间点的状态。"""
         return self.time_slice.current
 
@@ -161,8 +161,8 @@ class Actor(Pluggable):
         """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
         self.time_slice.refresh(*args, **kwargs)
 
-    def execute(self, current:TimeSlice, *previous:TimeSlice) :
-        """根据 inputs 和 前序 time slice 更显当前time slice"""
+    def execute(self, current: TimeSlice, *previous: TimeSlice):
+        """根据 inputs 和 前序 time slice 更新当前time slice"""
         pass
 
     def postprocess(self, current: TimeSlice):
@@ -172,37 +172,37 @@ class Actor(Pluggable):
         """
         pass
 
-    def refresh(self, *args, time=None, **kwargs) -> None:
+    def refresh(self, *args, **kwargs) -> None:
         """更新当前 Actor 的状态。
         若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
         否则，向 time_slice 队列中压入新的时间片。
         """
         kwargs = self.inputs.update(kwargs)  # 更新 inputs，返回将不是 HTreeNode 的 input
 
-        self.preprocess(*args, time=time, **kwargs)
+        self.preprocess(*args,**kwargs)
 
         self.execute(self.time_slice.current, self.time_slice.previous)
 
         self.postprocess(self.time_slice.current)
 
-    def advance(self, *args, dt: float|None = None, time: float|None  = None, **kwargs) -> None:
+    def advance(self, *args, dt: float | None = None, time: float | None = None, **kwargs) -> None:
         if time is None and dt is None:
             raise RuntimeError("time and dt are both None, do nothing")
         elif time is None and dt is not None:
             time = self.time + dt
-        elif time is not None  and time <= self.time:
+        elif time is not None and time <= self.time:
             raise RuntimeError(f"time={time} is less than current time={self.time}, do nothing")
         elif dt is not None:
             logger.warning(f"ignore dt={dt} when time={time} is given")
 
         return self.refresh(*args, time=time, **kwargs)
 
-    def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
-        """
-        获取 Actor 的输出
-        """
-        t = self.time_slice.get(slice_index)
-        if not isinstance(t, SpTree):
-            return t
-        else:
-            return t.clone(*args, **kwargs)
+    # def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
+    #     """
+    #     获取 Actor 的输出
+    #     """
+    #     t = self.time_slice.get(slice_index)
+    #     if not isinstance(t, SpTree):
+    #         return t
+    #     else:
+    #         return t.clone(*args, **kwargs)

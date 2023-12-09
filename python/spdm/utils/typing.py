@@ -52,6 +52,18 @@ ArrayType = np_tp.NDArray[np.floating | np.complexfloating]
 
 array_type = np.ndarray
 
+
+def array_like(x: array_type, value) -> array_type:
+    if callable(value):
+        return value(x)
+    elif isinstance(value, array_type) and x.size == value.size:
+        return value
+    elif value is _not_found_:
+        return np.full_like(x, 0)
+    else:
+        return np.full_like(x, value)
+
+
 NumericType = ScalarType | ArrayType
 
 numeric_type = (*scalar_type, array_type)

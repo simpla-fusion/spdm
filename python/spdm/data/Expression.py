@@ -535,9 +535,10 @@ class Expression(HTreeNode):
             kwargs = {}
 
         if getattr(self, "CHECK_DOMAIN", False):
-            return self.domain.eval(self, *args, **kwargs)
+            res = self.domain.eval(self, *args, **kwargs)
         else:
-            return self._eval(*args, **kwargs)
+            res = self._eval(*args, **kwargs)
+        return res
 
     def integral(self, **kwargs) -> float:
         raise NotImplementedError(f"TODO:integral")
@@ -584,10 +585,10 @@ class Expression(HTreeNode):
     def __neg__      (self                             ) : return Expression(np.negative     ,  self     )
     def __add__      (self, o: NumericType | Expression) : return Expression(np.add          ,  self, o  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
     def __sub__      (self, o: NumericType | Expression) : return Expression(np.subtract     ,  self, o  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
-    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (np.nan if o==0 else self)
-    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (1 if o==0 else self)
+    def __mul__      (self, o: NumericType | Expression) : return Expression(np.multiply     ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (ConstantZero() if o==0 else self)
+    def __matmul__   (self, o: NumericType | Expression) : return Expression(np.matmul       ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (ConstantZero() if o==0 else self)
+    def __truediv__  (self, o: NumericType | Expression) : return Expression(np.true_divide  ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (Scalar(np.nan) if o==0 else self)
+    def __pow__      (self, o: NumericType | Expression) : return Expression(np.power        ,  self, o  ) if not (is_scalar(o) and (o ==0 or o==1)) else (ConstantOne() if o==0 else self)
     def __eq__       (self, o: NumericType | Expression) : return Expression(np.equal        ,  self, o  )
     def __ne__       (self, o: NumericType | Expression) : return Expression(np.not_equal    ,  self, o  )
     def __lt__       (self, o: NumericType | Expression) : return Expression(np.less         ,  self, o  )
@@ -596,10 +597,10 @@ class Expression(HTreeNode):
     def __ge__       (self, o: NumericType | Expression) : return Expression(np.greater_equal,  self, o  )
     def __radd__     (self, o: NumericType | Expression) : return Expression(np.add          ,  o, self  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self
     def __rsub__     (self, o: NumericType | Expression) : return Expression(np.subtract     ,  o, self  ) if not ((is_scalar(o) and o == 0 ) or isinstance(o, ConstantZero) or o is _not_found_ and o is None) else self.__neg__()
-    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
-    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ) if not (is_scalar(o) and (o ==0 or o==1)) else (0 if o==0 else self)
+    def __rmul__     (self, o: NumericType | Expression) : return Expression(np.multiply     ,  o, self  ) if not (is_scalar(o) and (o ==0 or o==1)) else (ConstantZero() if o==0 else self)
+    def __rmatmul__  (self, o: NumericType | Expression) : return Expression(np.matmul       ,  o, self  ) if not (is_scalar(o) and (o ==0 or o==1)) else (ConstantZero() if o==0 else self)
     def __rtruediv__ (self, o: NumericType | Expression) : return Expression(np.divide       ,  o, self  )
-    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ) if not (is_scalar(o) and o ==1)  else 1
+    def __rpow__     (self, o: NumericType | Expression) : return Expression(np.power        ,  o, self  ) if not (is_scalar(o) and o ==1)  else ConstantOne()
     def __abs__      (self                             ) : return Expression(np.abs          ,  self     )
     def __pos__      (self                             ) : return Expression(np.positive     ,  self     )
     def __invert__   (self                             ) : return Expression(np.invert       ,  self     )
@@ -746,6 +747,10 @@ class ConstantZero(Scalar):
 class ConstantOne(Scalar):
     def __init__(self, *args, **kwargs):
         super().__init__(1, **kwargs)
+
+
+zero = ConstantZero()
+one = ConstantOne()
 
 
 class Derivative(Expression):

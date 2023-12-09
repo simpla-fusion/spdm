@@ -210,7 +210,12 @@ class HTree(HTreeNode):
         return res
 
     def get(
-        self, path: Path | PathLike, default_value: typing.Any = _undefined_, *args, force=False, **kwargs
+        self,
+        path: Path | PathLike,
+        default_value: typing.Any = _undefined_,
+        *args,
+        force=False,
+        **kwargs,
     ) -> typing.Any:
         path = as_path(path)
         length = len(path)
@@ -267,7 +272,7 @@ class HTree(HTreeNode):
             # logger.debug(f"Can not find {path} {pos} in {obj}")
             obj = _not_found_
 
-        if obj is _not_found_:
+        if obj is _not_found_ or obj is _undefined_:
             obj = default_value
 
         if obj is _undefined_ and pos < len(path):
@@ -290,6 +295,7 @@ class HTree(HTreeNode):
             for key, value in self._cache.items():
                 yield self._as_child(value, key, _entry=self._entry.child(key) if self._entry is not None else None)
         elif self._entry is not None:
+            self._cache = [_not_found_] * self._entry.count
             for key, d in self._entry.for_each():
                 if not isinstance(d, Entry):
                     yield self._as_child(d, key)
@@ -562,6 +568,7 @@ class HTree(HTreeNode):
             _entry = self._entry.child(key)
 
         elif self._cache is _not_found_ or self._cache is None:
+            self._cache = [_not_found_] * self._entry.count
             _entry = self._entry.child(key)
             cache = None
 
