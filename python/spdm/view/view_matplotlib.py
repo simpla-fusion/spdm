@@ -343,7 +343,7 @@ class MatplotlibView(View):
 
     def _plot(self, canvas, x_value, expr, x_axis=None, styles=None, **kwargs) -> str:
         if expr is None or expr is _not_found_:
-            return None
+            return None, None
 
         styles = update_tree(kwargs, styles)
 

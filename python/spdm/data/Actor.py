@@ -179,7 +179,7 @@ class Actor(Pluggable):
         """
         kwargs = self.inputs.update(kwargs)  # 更新 inputs，返回将不是 HTreeNode 的 input
 
-        self.preprocess(*args,**kwargs)
+        self.preprocess(*args, **kwargs)
 
         self.execute(self.time_slice.current, self.time_slice.previous)
 
@@ -197,12 +197,12 @@ class Actor(Pluggable):
 
         return self.refresh(*args, time=time, **kwargs)
 
-    # def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
-    #     """
-    #     获取 Actor 的输出
-    #     """
-    #     t = self.time_slice.get(slice_index)
-    #     if not isinstance(t, SpTree):
-    #         return t
-    #     else:
-    #         return t.clone(*args, **kwargs)
+    def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
+        """
+        获取 Actor 的输出
+        """
+        return self.time_slice.get(slice_index)
+        # if not isinstance(t, SpTree):
+        #     return t
+        # else:
+        #     return t.clone(*args, **kwargs)
