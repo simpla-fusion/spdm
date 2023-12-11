@@ -364,10 +364,10 @@ class HTree(HTreeNode):
         **kwargs,
     ) -> _T:
         """ """
-        if "name" in kwargs and kwargs["name"] != key:
-            logger.warning(f"{kwargs['name']}!={key}")
+        # if "name" in kwargs and kwargs["name"] != key:
+        #     logger.warning(f"{kwargs['name']}!={key}")
 
-        kwargs["name"] = key
+        kwargs.setdefault("name", key)
         # 整合 default_value
         s_default_value = self._metadata.get("default_value", _not_found_)
         if s_default_value is _not_found_:
