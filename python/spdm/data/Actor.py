@@ -196,13 +196,3 @@ class Actor(Pluggable):
             logger.warning(f"ignore dt={dt} when time={time} is given")
 
         return self.refresh(*args, time=time, **kwargs)
-
-    def fetch(self, *args, slice_index=0, **kwargs) -> typing.Type[TimeSlice]:
-        """
-        获取 Actor 的输出
-        """
-        return self.time_slice.get(slice_index)
-        # if not isinstance(t, SpTree):
-        #     return t
-        # else:
-        #     return t.clone(*args, **kwargs)

@@ -865,3 +865,7 @@ class Piecewise(Expression):
             return super().__call__(x, *args, **kwargs)
 
             # raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
+
+
+def derivative(y, *args, order=1):
+    return Derivative(y, *args, order=order)
