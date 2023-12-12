@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-
+import typing
 import numpy as np
 from spdm.utils.logger import logger
 
@@ -21,6 +21,9 @@ class Point(GeoObject):
                 args = [*args[0].values()]
         super().__init__(*args, rank=0, ndims=len(args), **kwargs)
         self._coord = np.array(args)
+
+    def __iter__(self) -> typing.Generator[float, None, None]:
+        yield from self._coord
 
     @property
     def r(self) -> float:

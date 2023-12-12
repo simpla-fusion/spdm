@@ -13,7 +13,7 @@ from spdm.geometry.GeoObject import GeoObject, GeoObjectSet
 from spdm.geometry.Point import Point
 from spdm.mesh.Mesh import Mesh
 from spdm.mesh.mesh_curvilinear import CurvilinearMesh
-from spdm.numlib.contours import find_countours
+from spdm.numlib.contours import _find_contours
 from spdm.numlib.optimize import minimize_filter
 from spdm.utils.constants import *
 from spdm.utils.tags import _not_found_

@@ -64,12 +64,19 @@ class GeoObject(Pluggable):
         return other
         # return self.__class__(rank=self.rank, ndim=self.ndim, **self._metadata)
 
-    def _repr_html_(self) -> str:
+    # def _repr_html_(self) -> str:
+    #     """Jupyter 通过调用 _repr_html_ 显示对象"""
+
+    #     from ..view.View import display
+
+    #     return display(self, schema="html")
+
+    def _repr_svg_(self) -> str:
+        """Jupyter 通过调用 _repr_html_ 显示对象"""
+
         from ..view.View import display
 
-        return display(self, schema="html")
-
-    """ Jupyter 通过调用 _repr_html_ 显示对象 """
+        return display(self, schema="svg")
 
     def __equal__(self, other: GeoObject) -> bool:
         return (
@@ -219,6 +226,7 @@ class GeoObjectSet(list[GeoObject]):
                 raise RuntimeError(f"Can not get ndim from {ndim_list}")
         self._rank = rank
         self._ndim = ndim
+        self._metadata = kwargs
         # GeoObject.__init__(self, rank=rank, ndim=ndim, **kwargs)
 
     def __svg__(self) -> str:
