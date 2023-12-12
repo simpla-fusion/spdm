@@ -117,6 +117,7 @@ class SpTree(Dict):
     def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
         if isinstance(obj, AoS):
             return [SpTree._clone(o, func) for o in obj]
+
         elif isinstance(obj, SpTree):
             cache = {}
             for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):

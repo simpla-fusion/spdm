@@ -868,4 +868,9 @@ class Piecewise(Expression):
 
 
 def derivative(y, *args, order=1):
-    return Derivative(y, *args, order=order)
+    if isinstance(y, array_type):
+        from .Function import Function
+
+        return Function(*args, y).d(*args)
+    else:
+        return Derivative(y, *args, order=order)
