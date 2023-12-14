@@ -917,7 +917,11 @@ class Path(list):
 
     @staticmethod
     def _op_fetch(
-        target: typing.Any, key: int | str | None = None, *args, default_value=_not_found_, **kwargs
+        target: typing.Any,
+        key: int | str | None = None,
+        *args,
+        default_value=_not_found_,
+        **kwargs,
     ) -> typing.Any:
         # if isinstance(key, list):
         #     if len(key) == 0:
@@ -1015,13 +1019,6 @@ class Path(list):
 
     @staticmethod
     def _op_update(target: typing.Any, pth: list, *args, _idempotent=True, **kwargs) -> typing.Any:
-        if hasattr(target.__class__, "__update__"):
-            target.__update__(pth, *args, _idempotent=_idempotent, **kwargs)
-            return target
-
-        elif not isinstance(target, (dict, list)):
-            target = _not_found_
-
         if len(pth) == 0:
             if len(kwargs) > 0:
                 sources = [*args, kwargs]
@@ -1056,47 +1053,46 @@ class Path(list):
                 else:
                     target = [target, source]
 
-            return target
+        else:
+            key = pth[0]
 
-        key = pth[0]
+            if isinstance(key, str) and key.isdigit():
+                key = int(key)
 
-        if isinstance(key, str) and key.isdigit():
-            key = int(key)
+            if isinstance(key, str):
+                if target is _not_found_ or target is None:
+                    target = {}
 
-        if isinstance(key, str):
-            if target is _not_found_ or target is None:
-                target = {}
+                if isinstance(target, dict):
+                    target[key] = Path._op_update(
+                        target.get(key, _not_found_),
+                        pth[1:],
+                        *args,
+                        _idempotent=_idempotent,
+                        **kwargs,
+                    )
+                elif key.isidentifier() and hasattr(target, key):
+                    attr = getattr(target, key, _not_found_)
+                    attr_ = Path._op_update(attr, pth[1:], *args, _idempotent=_idempotent, **kwargs)
+                    if attr_ is not attr:
+                        setattr(target, key, attr_)
+                else:
+                    raise RuntimeError(f"Can not update {target} with {key}!")
 
-            if isinstance(target, dict):
+            elif isinstance(key, int):
+                if target is _not_found_ or target is None:
+                    target = [_not_found_] * (key + 1)
+                elif isinstance(target, collections.abc.Sequence) and key >= len(target):
+                    if key > len(target):
+                        target = [*target] + [_not_found_] * (key - len(target) + 1)
+
                 target[key] = Path._op_update(
-                    target.get(key, _not_found_),
+                    target[key],
                     pth[1:],
                     *args,
                     _idempotent=_idempotent,
                     **kwargs,
                 )
-            # elif key.isidentifier() and hasattr(target, key):
-            #     attr = getattr(target, key, _not_found_)
-            #     attr_ = Path._op_update(attr, pth[1:], *args, _idempotent=_idempotent, **kwargs)
-            #     if attr_ is not attr:
-            #         setattr(target, key, attr_)
-            else:
-                raise RuntimeError(f"Can not update {target} with {key}!")
-
-        elif isinstance(key, int):
-            if target is _not_found_ or target is None:
-                target = [_not_found_] * (key + 1)
-            elif isinstance(target, collections.abc.Sequence) and key >= len(target):
-                if key > len(target):
-                    target = [*target] + [_not_found_] * (key - len(target) + 1)
-
-            target[key] = Path._op_update(
-                target[key],
-                pth[1:],
-                *args,
-                _idempotent=_idempotent,
-                **kwargs,
-            )
 
         return target
 

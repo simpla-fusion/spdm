@@ -702,13 +702,16 @@ class Variable(Expression):
         return self._idx
 
     def __call__(self, *args, **kwargs):
-        if isinstance(self._idx, str):
-            return kwargs.get(self._idx, None)
+        if all([isinstance(a, Variable) for a in args]):
+            res = self
+        elif isinstance(self._idx, str):
+            res = kwargs.get(self._idx, None)
         elif self._idx < len(args):
-            return args[self._idx]
+            res = args[self._idx]
         else:
             raise RuntimeError(f"Variable {self.__label__} require {self._idx+1} args, but only {len(args)} provided!")
-        # return args[self._idx]
+
+        return res
 
     def __repr__(self) -> str:
         return self.__label__
