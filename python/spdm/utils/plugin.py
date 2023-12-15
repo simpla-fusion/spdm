@@ -82,7 +82,7 @@ class Pluggable(metaclass=abc.ABCMeta):
                 logger.warning(f"Invalid plugin name {sub_cls}!")
                 continue
             elif sub_cls == "dummy":
-                n_cls=cls
+                n_cls = cls
                 break
             else:
                 cls_name = cls._get_plugin_fullname(sub_cls)
@@ -92,25 +92,22 @@ class Pluggable(metaclass=abc.ABCMeta):
 
                 n_cls = cls._plugin_registry.get(cls_name, None)
 
-            
-
             if n_cls is not None:
                 break
-        
-        if n_cls is cls :
-            return False
+
+        if n_cls is cls and "dummy" in sub_list:
+            return
         elif inspect.isclass(n_cls) and issubclass(n_cls, cls):
             self.__class__ = n_cls
             n_cls.__init__(self, *args, **kwargs)
+
         else:
             raise ModuleNotFoundError(f"Can not find module as subclass of '{cls.__name__}' {n_cls} from {sub_list}!")
 
     def __init__(self, *args, **kwargs) -> None:
-        if self.__class__ is Pluggable  and   self.__class__.__dispatch_init__(None, self, *args, **kwargs) is not False:
+        if self.__class__ is Pluggable:
+            self.__class__.__dispatch_init__(None, self, *args, **kwargs)
             return
-
-        # elif "__dispatch_init__" in vars(self.__class__):
-        #     self.__class__.__dispatch_init__(None, self, *args, **kwargs)
 
     @classmethod
     def _find_plugins(cls) -> typing.List[str]:

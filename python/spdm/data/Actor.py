@@ -157,35 +157,47 @@ class Actor(Pluggable):
         """保存外链的 Edge，可视为对于引用（reference）的记录"""
         return self._outputs
 
-    def preprocess(self, *args, **kwargs):
+    def preprocess(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """Actor 的预处理，若需要，可以在此处更新 Actor 的状态树。"""
         self.time_slice.refresh(*args, **kwargs)
+        return self.time_slice.current
 
-    def execute(self, current: TimeSlice, *previous: TimeSlice):
+    def execute(self, current: typing.Type[TimeSlice], *previous: typing.Type[TimeSlice]) -> typing.Type[TimeSlice]:
         """根据 inputs 和 前序 time slice 更新当前time slice"""
-        pass
+        return current
 
-    def postprocess(self, current: TimeSlice):
+    def postprocess(self, current: typing.Type[TimeSlice]) -> typing.Type[TimeSlice]:
         """Actor 的后处理，若需要，可以在此处更新 Actor 的状态树。
         @param current: 当前时间片
         @param working_dir: 工作目录
         """
         pass
 
-    def refresh(self, *args, **kwargs) -> None:
+    def refresh(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """更新当前 Actor 的状态。
         若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
         否则，向 time_slice 队列中压入新的时间片。
         """
         kwargs = self.inputs.update(kwargs)  # 更新 inputs，返回将不是 HTreeNode 的 input
 
-        self.preprocess(*args, **kwargs)
+        current = self.preprocess(*args, **kwargs)
 
-        self.execute(self.time_slice.current, self.time_slice.previous)
+        if current is None:
+            current = self.time_slice.current
 
-        self.postprocess(self.time_slice.current)
+        current = self.execute(current, *self.time_slice.previous)
 
-    def advance(self, *args, dt: float | None = None, time: float | None = None, **kwargs) -> None:
+        if current is None:
+            current = self.time_slice.current
+
+        current = self.postprocess(current)
+
+        if current is None:
+            current = self.time_slice.current
+
+        return current
+
+    def advance(self, *args, dt: float | None = None, time: float | None = None, **kwargs) -> typing.Type[TimeSlice]:
         if time is None and dt is None:
             raise RuntimeError("time and dt are both None, do nothing")
         elif time is None and dt is not None:
