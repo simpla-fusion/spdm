@@ -104,8 +104,11 @@ class AoS(List[_T]):
         if self._identifier is None:
             self._identifier = self._metadata.get("identifier", "label")
 
-    # def __copy__(self) -> Self:
-    #     other = super().__copy__()
+    def __copy__(self) -> Self:
+        other = super().__copy__()
+        other._identifier = self._identifier
+        return other
+
     #     if isinstance(other._cache, list):
     #         for k, value in enumerate(other._cache):
     #             if isinstance(value, HTreeNode):
