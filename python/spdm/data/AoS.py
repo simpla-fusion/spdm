@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import typing
+from typing_extensions import Self
 
 from ..utils.tags import _not_found_
 from ..utils.typing import array_type, get_args, get_type_hint
@@ -103,6 +104,17 @@ class AoS(List[_T]):
         if self._identifier is None:
             self._identifier = self._metadata.get("identifier", "label")
 
+    # def __copy__(self) -> Self:
+    #     other = super().__copy__()
+    #     if isinstance(other._cache, list):
+    #         for k, value in enumerate(other._cache):
+    #             if isinstance(value, HTreeNode):
+    #                 value = value.__copy__()
+    #                 value._parent = other
+    #                 other._cache[k] = value
+
+    #     return other
+
     def dump(self, entry: Entry, **kwargs) -> None:
         """将数据写入 entry"""
         entry.insert([{}] * len(self._cache))
@@ -111,8 +123,6 @@ class AoS(List[_T]):
                 value.dump(entry.child(idx), **kwargs)
             else:
                 entry.child(idx).insert(value)
-
-
 
     def _get(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """

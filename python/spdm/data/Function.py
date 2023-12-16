@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import typing
 import collections
+from typing import Any
 import numpy as np
+
+from spdm.data.Entry import Entry
 
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
@@ -67,13 +70,11 @@ class Function(Expression):
         super().__init__(func, domain=domain, **kwargs)
         self._cache = value
 
-    def __copy_from__(self, other: Function) -> Function:
+    def __copy__(self) -> Function:
         """copy from other"""
-        Expression.__copy_from__(self, other)
-        if isinstance(other, Function):
-            self._dims = other._dims
-            self._cache = other._cache
-            return self
+        other = super().__copy__()
+        other._cache = self._cache
+        return other
 
     def __repr__(self) -> str:
         return f"{self.__label__}"

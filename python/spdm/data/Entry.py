@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing_extensions import Self
 import numpy as np
 import collections
 import collections.abc
@@ -7,8 +8,7 @@ import inspect
 import os
 import pathlib
 import typing
-from copy import copy
-from functools import reduce
+from copy import copy, deepcopy
 
 from ..utils.logger import deprecated, logger
 from ..utils.plugin import Pluggable
@@ -45,15 +45,11 @@ class Entry(Pluggable):
         self._data = data
         self._path = as_path(path)
 
-    def __copy__(self) -> Entry:
-        obj = object.__new__(self.__class__)
-        obj.__copy_from__(self)
-        return obj
-
-    def __copy_from__(self, other: Entry) -> Entry:
-        self._data = other._data
-        self._path = copy(other._path)
-        return self
+    def __copy__(self) -> Self:
+        other = object.__new__(self.__class__)
+        other._data = self._data
+        other._path = deepcopy(self._path)
+        return other
 
     def reset(self, value=None, path=None) -> Entry:
         self._data = value
@@ -133,8 +129,8 @@ class Entry(Pluggable):
         entry.update(value, *args, **kwrags)
         return entry
 
-    def dump(self) -> typing.Any:
-        return self.fetch(Path.tags.dump)
+    def dump(self, *args, **kwargs) -> typing.Any:
+        return self.fetch(Path.tags.dump, *args, **kwargs)
 
     def equal(self, other) -> bool:
         if isinstance(other, Entry):
@@ -243,14 +239,13 @@ class ChainEntry(Entry):
         super().__init__()
         self._entrys: typing.List[Entry] = [(_open_entry(v, **kwargs) if not isinstance(v, Entry) else v) for v in args]
 
+    def __copy__(self) -> ChainEntry:
+        other = super().__copy__()
+        other._entrys = self._entrys
+        return other
+
     def __str__(self) -> str:
         return ",".join([str(e) for e in self._entrys if e._data is None])
-
-    def __copy_from__(self, other: Entry) -> ChainEntry:
-        self._data = other._data
-        self._path = copy(other._path)
-        self._entrys = getattr(other, "_entrys", [])
-        return self
 
     @property
     def is_writable(self) -> bool:
@@ -269,7 +264,8 @@ class ChainEntry(Entry):
 
             if res is _not_found_:
                 for e in self._entrys:
-                    res = e.child(self._path).fetch(op=op, *args, default_value=_not_found_, **kwargs)
+                    e_child = e.child(self._path)
+                    res = e_child.fetch(op=op, *args, default_value=_not_found_, **kwargs)
                     if res is not _not_found_:
                         break
 
@@ -707,25 +703,24 @@ class EntryProxy(Entry):
         else:
             self._mapper, self._entry_list = self.__class__.load(*args, **kwargs)
 
+    def __copy__(self) -> Self:
+        other = super().__copy__()
+        other._mapper = self._mapper
+        other._entry_list = self._entry_list
+        return other
+
     def __str__(self) -> str:
         return ",".join([str(e) for e in self._entry_list.values() if isinstance(e, str)])
 
-    def __copy__(self) -> Entry:
-        obj = object.__new__(self.__class__)
-        obj.__copy_from__(self)
-        obj._mapper = self._mapper
-        obj._entry_list = self._entry_list
-        return obj
-
-    def child(self, *args, **kwargs) -> Entry:
-        res = super().child(*args, **kwargs)
+    def child(self, *args, **kwargs) -> Self:
+        res: EntryProxy = super().child(*args, **kwargs)
         res._entry_list = self._entry_list
         return res
 
-    def insert(self, value, **kwargs) -> Entry:
+    def insert(self, value, **kwargs) -> Self:
         raise NotImplementedError(f"")
 
-    def update(self, value, **kwargs) -> Entry:
+    def update(self, value, **kwargs) -> Self:
         raise NotImplementedError(f"")
 
     def remove(self, **kwargs) -> int:

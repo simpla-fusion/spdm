@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from typing_extensions import Self
 import collections.abc
 import pathlib
 import typing
@@ -75,30 +75,90 @@ class HTreeNode:
 
         self._metadata = update_tree(deepcopy(self.__class__._metadata), kwargs)
 
-    def __copy__(self) -> HTree:
-        other: HTree = self.__class__.__new__(getattr(self, "__orig_class__", self.__class__))
-        other.__copy_from__(self)
+    def __copy__(self) -> Self:
+        other = object.__new__(self.__class__)
+        other._cache = copy(self._cache)
+        other._entry = self._entry
+        other._parent = None
+        other._metadata = deepcopy(other._metadata)
         return other
 
-    def __copy_from__(self, other: HTree) -> HTree:
-        """复制 other 到 self"""
-        if isinstance(other, HTree):
-            self._cache = copy(other._cache)
-            self._entry = copy(other._entry)
-            self._parent = other._parent
-            self._metadata = deepcopy(other._metadata)
+    @classmethod
+    def _do_serialize(cls, source: typing.Any, dumper: Entry | typing.Callable[..., typing.Any] | bool) -> _T:
+        if source is _not_found_:
+            return source if not isinstance(dumper, Entry) else dumper
 
-        return self
+        elif hasattr(source.__class__, "__serialize__"):
+            return source.__serialize__(dumper)
 
-    def __serialize__(self) -> typing.Any:
-        return serialize(self.__value__)
+        elif isinstance(source, dict):
+            if isinstance(dumper, Entry):
+                for k, v in source.items():
+                    cls._do_serialize(v, dumper.child(k))
+                res = dumper
+            else:
+                res = {k: cls._do_serialize(v, dumper) for k, v in source.items()}
+
+        elif isinstance(source, list):
+            if isinstance(dumper, Entry):
+                for k, v in enumerate(source):
+                    cls._do_serialize(v, dumper.child(k))
+                res = dumper
+            else:
+                res = [cls._do_serialize(v, dumper) for v in source]
+
+        elif isinstance(dumper, Entry):
+            dumper.insert(source)
+            res = dumper
+
+        elif callable(dumper):
+            res = dumper(source)
+
+        elif dumper is True:
+            res = deepcopy(source)
+
+        else:
+            res = source
+
+        return res
+
+    def __serialize__(self, dumper: Entry | typing.Callable[..., typing.Any] | bool = True) -> Entry | typing.Any:
+        """若 dumper 为 Entry，将数据写入 Entry
+           若 dumper 为 callable，将数据传入 callable 并返回结果
+           若 dumper 为 True，返回数据的拷贝
+           否则返回序列化后的数据
+
+        Args:
+            target (Entry, optional): 目标入口. Defaults to None.
+            copier (typing.Callable[[typing.Any], typing.Any] | bool, optional): copier 拷贝器，当 target 为 None 有效。若为 True 则通过 copy 函数返回数据的拷贝. Defaults to None.
+
+        Returns:
+            typing.Any: 若 target is None，返回原始数据，否则返回 target
+        """
+        if self._cache is _not_found_:
+            if self._entry is not None:
+                return self._entry.dump(dumper)
+            else:
+                return self._do_serialize(self.__value__, dumper)
+        else:
+            return self._do_serialize(self._cache, dumper)
 
     @classmethod
     def __deserialize__(cls, *args, **kwargs) -> HTree:
         return cls(*args, **kwargs)
 
+        return other
+
+    def dump(self) -> typing.Any:
+        """导出数据，alias of self.__serialize__(True)"""
+        return self.__serialize__(True)
+
     def __str__(self) -> str:
         return f"<{self.__class__.__name__} />"
+
+    @property
+    def __name__(self) -> str:
+        return self._metadata.get("name", f"<{self.__class__.__name__}>")
 
     @property
     def __value__(self) -> typing.Any:
@@ -110,20 +170,6 @@ class HTreeNode:
 
     def __array__(self) -> ArrayType:
         return as_array(self.__value__)
-
-    # def __reduce__(self) -> HTree: raise NotImplementedError(f"")
-
-    def dump(self, entry: Entry = None, **kwargs) -> None:
-        """将数据写入 _entry"""
-        if entry is None:
-            entry = self._entry
-
-        if isinstance(entry, Entry):
-            entry.update(self._cache)
-
-    @property
-    def __name__(self) -> str:
-        return self._metadata.get("name", f"<{self.__class__.__name__}>")
 
     @property
     def path(self) -> typing.List[str | int]:
@@ -663,6 +709,18 @@ class Dict(Container[_T]):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __copy__(self) -> Self:
+        other = super().__copy__()
+
+        if isinstance(other._cache, dict):
+            for k, value in other._cache.items():
+                if isinstance(value, HTreeNode):
+                    value = value.__copy__()
+                    value._parent = other
+                    other._cache[k] = value
+
+        return other
+
     def items(self) -> typing.Generator[typing.Tuple[str, _T], None, None]:
         yield from self.children()
 
@@ -681,6 +739,17 @@ class List(Container[_T]):
             self._cache = []
         elif not isinstance(self._cache, list):
             self._cache = [self._cache]
+
+    def __copy__(self) -> Self:
+        other = super().__copy__()
+        if isinstance(other._cache, list):
+            for k, value in enumerate(other._cache):
+                if isinstance(value, HTreeNode):
+                    value = value.__copy__()
+                    value._parent = other
+                    other._cache[k] = value
+
+        return other
 
     @property
     def empty(self) -> bool:

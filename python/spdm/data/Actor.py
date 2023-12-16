@@ -210,14 +210,5 @@ class Actor(Pluggable):
         return self.refresh(*args, time=time, **kwargs)
 
     def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
-        """获得状态树。
-            默认返回 self.time_slice.current
-            在 args,kwargs 参数，返回
-        Returns:
-            typing.Type[TimeSlice]: 状态树
-        """
-        t = self.time_slice.current
-        if not isinstance(t, SpTree) or len(args) + len(kwargs) == 0:
-            return t
-        else:
-            return t.clone(*args, **kwargs)
+        """获得当前时间片的拷贝。"""
+        return self.time_slice.current#.__copy__()

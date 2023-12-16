@@ -43,17 +43,18 @@ from __future__ import annotations
 import pprint
 import inspect
 import typing
-from copy import deepcopy
+from copy import deepcopy, copy
 from _thread import RLock
 from enum import Enum
+from typing_extensions import Self
 
 from .Entry import Entry
 from .AoS import AoS
-from .HTree import HTree, Dict
+from .HTree import HTree, Dict, List, HTreeNode
 from .Path import update_tree, merge_tree
-
+from .Expression import Expression
 from ..utils.envs import SP_DEBUG
-from ..utils.logger import logger
+from ..utils.logger import logger, deprecated
 from ..utils.tags import _not_found_
 
 
@@ -63,19 +64,32 @@ class SpTree(Dict):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
-        return self._get(key, *args, **kwargs)
+    # def __copy__(self) -> Self:
+    #     other = super().__copy__()
 
-    def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
-        if setter is not None:
-            setter(self, key, value)
-        else:
-            # self.update({key: value})
-            self._cache[key] = value
+    #     for k, prop in inspect.getmembers(self.__class__, lambda c: is_sp_property(c)):
+    #         if other._entry is None or prop.getter is not None or k in other._cache:
+    #             continue
+    #         other._cache[k] = deepcopy(self.cache_get(k, _not_found_))
 
-    def __del_property__(self, key: str):
-        self._remove(key)
+    #     return other
 
+    def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
+        data = {}
+        for k, prop in inspect.getmembers(self.__class__, lambda c: is_sp_property(c)):
+            if prop.getter is not None:
+                continue
+            value = getattr(self, k, _not_found_)
+            if value is _not_found_:
+                continue
+            # elif isinstance(value, Expression):
+            #     value = value.__array__()
+
+            data[k] = value
+
+        return super()._do_serialize(data, dumper)
+
+    @deprecated
     def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
         if entry is None:
             entry = Entry({})
@@ -108,34 +122,20 @@ class SpTree(Dict):
             return entry
 
     def update(self, d: dict):
-        if d is _not_found_ or d is None:
-            pass
+        self._cache = update_tree(self._cache, d)
+
+    def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
+        return self._get(key, *args, **kwargs)
+
+    def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
+        if setter is not None:
+            setter(self, key, value)
         else:
-            self._cache = update_tree(self._cache, d)
+            # self.update({key: value})
+            self._cache[key] = value
 
-    @staticmethod
-    def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
-        if isinstance(obj, AoS):
-            return [SpTree._clone(o, func) for o in obj]
-
-        elif isinstance(obj, SpTree):
-            cache = {}
-            for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
-                if value.getter is not None:
-                    continue
-                cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
-
-            return cache
-        elif func is not None:
-            return func(obj)
-        else:
-            return obj
-
-    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None, *args, **kargs) -> typing.Type[SpTree]:
-        if not callable(func):
-            func = None
-        d = SpTree._clone(self, func)
-        return self.__class__(d)
+    def __del_property__(self, key: str):
+        self._remove(key)
 
 
 class PropertyTree(SpTree):

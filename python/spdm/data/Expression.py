@@ -6,10 +6,12 @@ import functools
 import collections.abc
 import numpy as np
 import numpy.typing as np_tp
-from .HTree import HTree, HTreeNode
+
+from spdm.utils.typing import ArrayType
+from .Entry import Entry
+from .HTree import HTreeNode
 from .Path import update_tree, Path
 from .Functor import Functor
-from .sp_property import SpTree
 from ..utils.misc import group_dict_by_prefix
 from ..utils.numeric import float_nan, meshgrid, bitwise_and
 from ..utils.tags import _not_found_
@@ -309,19 +311,16 @@ class Expression(HTreeNode):
 
     def __copy__(self) -> Expression:
         """复制一个新的 Expression 对象"""
-        other: Expression = object.__new__(self.__class__)
-        other.__copy_from__(self)
+        other: Expression = super().__copy__()
+        other._op = copy(self._op)
+        other._children = copy(self._children)
+        other._domain = copy(self._domain)
+
         return other
 
-    def __copy_from__(self, other: Expression) -> Expression:
-        """复制 other 到 self"""
-        if isinstance(other, Expression):
-            self._op = copy(other._op)
-            self._children = copy(other._children)
-            self._domain = copy(other._domain)
-            self._metadata = copy(other._metadata)
-        else:
-            raise TypeError(f"{type(other)}")
+    def __serialize__(self, dumper=None):
+        if isinstance(dumper, Entry):
+            raise NotImplementedError(f"TODO: __serialize__")
         return self
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
@@ -368,8 +367,8 @@ class Expression(HTreeNode):
                 if d is not _not_found_ and d is not None:
                     self._domain = d
                     break
-        # if self._domain is None:
-        #     raise RuntimeError(f"Can not get domain! {self} ")
+        if self._domain is None:
+            raise RuntimeError(f"Can not get domain! {self.__class__} ")
         return self._domain
 
     @property
@@ -725,6 +724,9 @@ class Scalar(Expression):
     @property
     def __label__(self):
         return self._value
+
+    def __array__(self) -> ArrayType:
+        return np.array(self._value)
 
     def __str__(self):
         return str(self._value)
