@@ -687,6 +687,11 @@ class Variable(Expression):
         super().__init__(None, name=name, **kwargs)
         self._idx = idx
 
+    def __copy__(self) -> Scalar:
+        res = super().__copy__()
+        res._idx = self._idx
+        return res
+
     @property
     def _type_hint(self) -> typing.Type:
         """获取函数的类型"""
@@ -720,6 +725,11 @@ class Scalar(Expression):
     def __init__(self, value, *args, **kwargs) -> None:
         super().__init__(None, *args, **kwargs)
         self._value = value
+
+    def __copy__(self) -> Scalar:
+        res = super().__copy__()
+        res._value = self._value
+        return res
 
     @property
     def __label__(self):
@@ -769,6 +779,12 @@ class Derivative(Expression):
         super().__init__(None, **kwargs)
         self._expr = expr
         self._order = order
+
+    def __copy__(self) -> Expression:
+        res = super().__copy__()
+        res._expr = self._expr
+        res._order = self._order
+        return res
 
     @property
     def order(self) -> int | None:
@@ -836,6 +852,11 @@ class Piecewise(Expression):
     def __init__(self, func: typing.List[Expression | float | int], cond: typing.List[typing.Callable], **kwargs):
         super().__init__(None, **kwargs)
         self._piecewise = (func, cond)
+
+    def __copy__(self) -> Piecewise:
+        res = super().__copy__()
+        res._piecewise = self._piecewise
+        return res
 
     def _apply(self, func, cond, x, *args, **kwargs):
         if isinstance(x, array_type):
