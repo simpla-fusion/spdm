@@ -137,6 +137,30 @@ class SpTree(Dict):
     def __del_property__(self, key: str):
         self._remove(key)
 
+    @staticmethod
+    def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
+        if isinstance(obj, AoS):
+            return [SpTree._clone(o, func) for o in obj]
+        elif isinstance(obj, SpTree):
+            cache = {}
+            for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
+                if value.getter is not None:
+                    continue
+                cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
+
+            return cache
+        elif func is not None:
+            return func(obj)
+        else:
+            return obj
+
+    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> Self:
+        if not callable(func):
+            return self.__copy__()
+        else:
+            d = SpTree._clone(self, func)
+            return self.__class__(d)
+
 
 class PropertyTree(SpTree):
     def __getattr__(self, key: str, *args, **kwargs) -> PropertyTree | AoS:

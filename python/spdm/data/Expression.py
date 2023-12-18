@@ -152,7 +152,7 @@ class Expression(HTreeNode):
 
     @property
     def name(self) -> str:
-        return self._metadata.get("name", f"<{self.__class__.__name__}>")
+        return self._metadata.get("name", None)
 
     @property
     def __label__(self) -> str:
@@ -168,8 +168,8 @@ class Expression(HTreeNode):
         return self.__label__
 
     def _render_latex_(self) -> str:
-        label = self._metadata.get("label", None)
-        if label is not None:
+        label = self._metadata.get("label", None) or self.name
+        if label is not None or self._op is None:
             return label
 
         vargs = []
@@ -450,7 +450,7 @@ class Variable(Expression):
         elif self._idx < len(args):
             res = args[self._idx]
         else:
-            raise RuntimeError(f"Variable {self.__label__} require {self._idx+1} args, but only {len(args)} provided!")
+            raise RuntimeError(f"Variable {self.__label__} require {self._idx+1} args, but only {args} provided!")
 
         return res
 
@@ -491,10 +491,39 @@ class ConstantZero(Scalar):
     def __init__(self, **kwargs):
         super().__init__(0, **kwargs)
 
+    # fmt: off
+    def __neg__      (self                             ) : return self
+    def __add__      (self, o: NumericType | Expression) : return o
+    def __sub__      (self, o: NumericType | Expression) : return Expression(np.negative     ,  o  ) 
+    def __mul__      (self, o: NumericType | Expression) : return self
+    def __matmul__   (self, o: NumericType | Expression) : return self
+    def __truediv__  (self, o: NumericType | Expression) : return Scalar(np.nan)
+    def __pow__      (self, o: NumericType | Expression) : return Scalar(np.nan)
+    def __radd__     (self, o: NumericType | Expression) : return o
+    def __rsub__     (self, o: NumericType | Expression) : return o
+    def __rmul__     (self, o: NumericType | Expression) : return self
+    def __rmatmul__  (self, o: NumericType | Expression) : return self
+    def __rtruediv__ (self, o: NumericType | Expression) : return self
+    def __rpow__     (self, o: NumericType | Expression) : return one
+    def __abs__      (self                             ) : return self
+    # fmt: on
+
 
 class ConstantOne(Scalar):
     def __init__(self, **kwargs):
         super().__init__(1, **kwargs)
+
+    # fmt: off
+    def __neg__      (self                             ) : return Scalar(-1)
+    def __mul__      (self, o: NumericType | Expression) : return o
+    def __matmul__   (self, o: NumericType | Expression) : return o
+    def __pow__      (self, o: NumericType | Expression) : return self
+    def __rmul__     (self, o: NumericType | Expression) : return o
+    def __rmatmul__  (self, o: NumericType | Expression) : return o
+    def __rtruediv__ (self, o: NumericType | Expression) : return o
+    def __rpow__     (self, o: NumericType | Expression) : return o
+    def __abs__      (self                             ) : return self
+    # fmt: on
 
 
 zero = ConstantZero()

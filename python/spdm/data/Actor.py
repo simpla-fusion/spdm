@@ -211,4 +211,10 @@ class Actor(Pluggable):
 
     def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """获得当前时间片的拷贝。"""
-        return self.time_slice.current.__copy__()
+
+        func = None
+        
+        if len(args) + len(kwargs) > 0:
+            func = lambda o: o(*args, **kwargs) if isinstance(o, Expression) else o
+
+        return self.time_slice.current.clone(func)
