@@ -31,7 +31,7 @@ class RectInterpolateOp(Functor):
         self._check_nan = check_nan
         self._extrapolate = extrapolate
         self._shape = tuple(len(d) for d in self._dims)
-
+        self._ppoly = None
         if isinstance(self._value, array_type) and len(self._value.shape) > 0:
             if len(self._value.shape) > len(self._shape):
                 raise NotImplementedError(
@@ -41,7 +41,6 @@ class RectInterpolateOp(Functor):
                 raise RuntimeError(
                     f"Function.compile() incorrect value shape { self._value.shape}!={self._shape}! func={self.__str__()} "
                 )
-        self._ppoly = None
 
     @property
     def ppoly(self):

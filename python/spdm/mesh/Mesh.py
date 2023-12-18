@@ -5,10 +5,9 @@ import typing
 import numpy as np
 from functools import cached_property
 from enum import Enum
-from spdm.utils.typing import ArrayType
 
 from ..geometry.GeoObject import GeoObject, GeoObjectSet, as_geo_object
-from ..data.Expression import DomainBase
+from ..data.Domain import DomainBase
 from ..data.Path import update_tree
 
 from ..utils.logger import logger
@@ -134,8 +133,8 @@ class Mesh(DomainBase, Pluggable):
         return self._shape
 
     def parametric_coordinates(self, *xyz) -> ArrayType:
-        """ parametric coordinates
-        
+        """parametric coordinates
+
         网格点的 _参数坐标_
         Parametric coordinates, also known as computational coordinates or intrinsic coordinates,
         are a way to represent the position of a point within an element of a mesh.

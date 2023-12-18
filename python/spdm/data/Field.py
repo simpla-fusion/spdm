@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+from copy import copy, deepcopy
 import collections.abc
 import functools
 import typing
 from enum import Enum
 import numpy as np
+import numpy.typing as np_tp
+
 from ..mesh.Mesh import Mesh
 from ..utils.logger import logger
 from ..utils.misc import group_dict_by_prefix
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, array_type, as_array, is_array
+from ..utils.numeric import float_nan, meshgrid, bitwise_and
+
 from .Expression import Expression
 from .Functor import Functor
-from .Path import Path
+from .Path import update_tree, Path
 
 
 def guess_mesh(holder, prefix="mesh", **kwargs):
@@ -80,13 +85,15 @@ class Field(Expression):
     Field 与 Function的区别：
         - Function 的 mesh 是一维数组表示dimensions/axis
         - Field 的 mesh 是 Mesh，可以表示复杂流形上的场等。
-
-
     """
 
     Domain = Mesh
 
     def __init__(self, *xy, **kwargs):
+        mesh, kwargs = group_dict_by_prefix(kwargs, prefixes="mesh")
+
+        super().__init__(None, **kwargs)
+
         if len(xy) == 0:
             raise RuntimeError(f"illegal x,y {xy} ")
 
@@ -100,8 +107,6 @@ class Field(Expression):
         else:
             func = None
             value = as_array(value)
-
-        mesh, kwargs = group_dict_by_prefix(kwargs, prefixes="mesh")
 
         if mesh is not None:
             if len(dims) == 0:
@@ -118,11 +123,10 @@ class Field(Expression):
         else:
             mesh = dims
 
-        super().__init__(func, domain=mesh, **kwargs)
-
+        self._op = func
+        self._mesh = mesh
         self._cache = value
-
-        self._ppoly = None
+        self._ppoly_holder = None
 
     def __geometry__(self, view_point="RZ", **kwargs):
         """
@@ -143,9 +147,10 @@ class Field(Expression):
 
     def _repr_svg_(self) -> str:
         from ..view.View import display
+
         return display(self.__geometry__(), output="svg")
 
-    def __array__(self) -> ArrayType:
+    def __array__(self) -> array_type:
         """在定义域上计算表达式。"""
         if not is_array(self._cache):
             raise RuntimeError(f"Can not calcuate! {self._cache}")
@@ -153,31 +158,22 @@ class Field(Expression):
 
     @property
     def mesh(self) -> Mesh:
-        if isinstance(self._domain, Mesh):
-            return self._domain
+        if isinstance(self._mesh, Mesh):
+            return self._mesh
 
-        if self._domain is None or self._domain is _not_found_:
-            self._domain = guess_mesh(self, prefix="mesh")
+        if self._mesh is None or self._mesh is _not_found_:
+            self._mesh = guess_mesh(self, prefix="mesh")
 
-        if not isinstance(self._domain, Mesh):
+        if not isinstance(self._mesh, Mesh):
             mesh_desc, *_ = group_dict_by_prefix(self._metadata, prefixes="mesh", sep="_")
-            self._domain = Mesh(self._domain, parent=self, **(mesh_desc or {}))
+            self._mesh = Mesh(self._mesh, parent=self, **(mesh_desc or {}))
 
-        return self._domain
+        return self._mesh
 
-    @property
-    def domain(self) -> Mesh:
-        return self.mesh
-
-    def ppoly(self):
-        if self._ppoly is None:
-            self._ppoly = self.mesh.interpolator(self.__array__())
-        return self._ppoly
-
-    def __functor__(self) -> typing.Callable[..., ArrayType]:
+    def __eval__(self, *args, **kwargs) -> typing.Callable[..., ArrayType]:
         if self._op is None and self._cache is not None:
-            self._op = self.ppoly()
-        return self._op
+            self._op = self._ppoly
+        return self._op(*args, **kwargs)
 
     def grad(self, n=1) -> Field:
         ppoly = self.__functor__()
@@ -215,13 +211,25 @@ class Field(Expression):
         else:
             raise NotImplemented(f"TODO: ndim={self.mesh.ndim} n={n}")
 
-    def derivative(self, d, *args, **kwargs) -> Field:
-        if isinstance(d, int) and d < 0:
-            func = self.ppoly().antiderivative(*d)
-            return Field(func, mesh=self.mesh, name=f"I_{d}({self})")
-        elif isinstance(d, collections.abc.Sequence):
-            func = self.ppoly().partial_derivative(*d)
-            return Field(func, mesh=self.mesh, name=f"d_{d}({self})")
+    @property
+    def _ppoly(self):
+        if self._ppoly_holder is None:
+            self._ppoly_holder = self.mesh.interpolator(self.__array__())
+        return self._ppoly_holder
+
+    def derivative(self, order, *args, **kwargs) -> Field:
+        if isinstance(order, int) and order < 0:
+            func = self._ppoly.antiderivative(*order)
+            return Field(func, mesh=self.mesh, name=f"I_{order}({self})")
+        elif isinstance(order, collections.abc.Sequence):
+            func = self._ppoly.partial_derivative(*order)
+            return Field(func, mesh=self.mesh, name=f"d_{order}({self})")
         else:
-            func = self.ppoly().derivative(d)
-            return Field(func, mesh=self.mesh, name=f"d_{d}({self})")
+            func = self._ppoly.derivative(order)
+            return Field(func, mesh=self.mesh, name=f"d_{order}({self})")
+
+    def antiderivative(self, order: int, *args, **kwargs) -> Field:
+        raise NotImplementedError(f"")
+
+    def partial_derivative(self, order: typing.Tuple[int, ...], *args, **kwargs) -> Field:
+        return self.derivative(order, *args, **kwargs)

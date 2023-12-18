@@ -1,18 +1,71 @@
 from __future__ import annotations
 
 import typing
+import functools
+from typing_extensions import Self
 import collections
-from typing import Any
 import numpy as np
-
-from spdm.data.Entry import Entry
+import numpy.typing as np_tp
+from copy import copy, deepcopy
 
 from ..numlib.interpolate import interpolate
 from ..utils.logger import logger
 from ..utils.tags import _not_found_
 from ..utils.typing import ArrayType, NumericType, array_type, get_args, get_origin, as_array
-from .Expression import Expression
+from ..utils.misc import group_dict_by_prefix
+from .Expression import Expression, zero
 from .Functor import Functor
+from .Path import update_tree, Path
+from .Domain import DomainBase
+
+
+def guess_coords(holder, prefix="coordinate", **kwargs):
+    if holder is None or holder is _not_found_:
+        return None
+
+    coords = []
+
+    metadata = getattr(holder, "_metadata", {})
+
+    dims_s, *_ = group_dict_by_prefix(metadata, prefix, sep=None)
+
+    if dims_s is not None and len(dims_s) > 0:
+        dims_s = {int(k): v for k, v in dims_s.items() if k.isdigit()}
+        dims_s = dict(sorted(dims_s.items(), key=lambda x: x[0]))
+
+        for c in dims_s.values():
+            if not isinstance(c, str):
+                d = as_array(c)
+            elif c == "1...N":
+                d = None
+            # elif isinstance(holder, HTree):
+            #     d = holder.get(c, _not_found_)
+            else:
+                d = Path(c).get(holder, _not_found_)
+
+            if d is _not_found_ or d is None:
+                # logger.warning(f"Can not get coordinates {c} from {holder}")
+                coords = []
+                break
+            coords.append(as_array(d))
+
+            # elif c.startswith("../"):
+            #     d = as_array(holder._parent.get(c[3:], _not_found_))
+            # elif c.startswith(".../"):
+            #     d = as_array(holder._parent.get(c, _not_found_))
+            # elif hasattr(holder.__class__, "get"):
+            #     d = as_array(holder.get(c, _not_found_))
+            # else:
+            #     d = _not_found_
+            # elif c.startswith("*/"):
+            #     raise NotImplementedError(f"TODO:{self.__class__}.dims:*/")
+            # else:
+            #     d = as_array(holder.get(c, _not_found_))
+
+    if len(coords) == 0:
+        return guess_coords(getattr(holder, "_parent", None), prefix=prefix, **kwargs)
+    else:
+        return tuple(coords)
 
 
 class Function(Expression):
@@ -26,15 +79,16 @@ class Function(Expression):
     函数定义域为多维空间时，网格采用rectlinear mesh，即每个维度网格表示为一个数组 _dims_ 。
     """
 
-    def __init__(self, *xy, domain=None, **kwargs):
+    Domain = DomainBase
+
+    def __init__(self, *xy: array_type, **kwargs):
         """
         Parameters
         ----------
+        *x : typing.Tuple[ArrayType]
+            自变量
         y : ArrayType
             变量
-        x : typing.Tuple[ArrayType]
-            自变量
-
         kwargs : 命名参数，
                 *           : 用于传递给 Node 的参数
         extrapolate: int |str
@@ -42,37 +96,37 @@ class Function(Expression):
             * if ext=0  or 'extrapolate', return the extrapolated value. 等于 定义域无限
             * if ext=1  or 'nan', return nan
         """
-        if len(xy) == 0:
-            raise RuntimeError(f"illegal x,y {xy} ")
-        elif len(xy) == 1 and isinstance(xy[0], tuple):
+        super().__init__(None, **kwargs)
+
+        if len(xy) == 1 and isinstance(xy[0], tuple):
             xy = xy[0]
 
-        # elif len(xy) == 1 and isinstance(xy[0], tuple):
-        #     xy = xy[0]
+        match len(xy):
+            case 0:
+                raise RuntimeError(f"illegal x,y {xy} ")
 
-        if callable(xy[-1]):
-            func = xy[-1]
-            value = _not_found_
-        else:
-            func = None
-            value = as_array(xy[-1])
+            case 1:
+                x = []
+                y = xy[-1]
 
-        if len(xy) <= 1:
-            pass
-        else:
-            if domain is None or domain is _not_found_:
-                domain = {}
-            if isinstance(domain, dict):
-                domain["dims"] = xy[:-1]
-            # else:
-            #     raise RuntimeError(f"illegal domain={domain}")
-            #
-        super().__init__(func, domain=domain, **kwargs)
-        self._cache = value
+            case _:
+                x = xy[:-1]
+                y = xy[-1]
 
-    def __copy__(self) -> Function:
+        if len(x) == 0:
+            x = guess_coords(self)
+
+        if x is None or len(x) == 0:
+            x = [np.linspace(0, 1, y.size)]
+
+        self._dims = tuple(x)
+
+        self._cache = y
+
+    def __copy__(self) -> Self:
         """copy from other"""
-        other = super().__copy__()
+        other: Function = super().__copy__()
+        other._dims = self._dims
         other._cache = self._cache
         return other
 
@@ -83,35 +137,48 @@ class Function(Expression):
         return self._cache[idx]
 
     def __setitem__(self, idx, value) -> None:
+        self._op = None
         self._cache[idx] = value
 
     @property
     def x_label(self) -> str:
         return self._metadata.get("x_label", "[-]")
 
+    @functools.cached_property
+    def domain(self) -> DomainBase:
+        return self.__class__.Domain(*self.dims)
+
     @property
-    def dims(self) -> typing.Tuple[ArrayType]:
+    def dims(self) -> typing.Tuple[array_type, ...]:
         """函数的网格，即定义域的网格"""
-        return self.domain.dims
+        return self._dims
 
     @property
     def ndim(self) -> int:
         """函数的维度，函数所能接收参数的个数。"""
-        return self.domain.ndims
+        return len(self._dims)
 
     @property
     def rank(self) -> int:
         """函数的秩，rank=1 标量函数， rank=3 矢量函数 None 待定"""
-        return 1
+        return self._cache.shape[self.ndim :] if len(self._cache.shape) > self.ndim else 1
 
-    def _type_hint(self) -> typing.Type:
-        tp = get_args(get_origin(self))
-        if len(tp) == 0:
-            return float
-        else:
-            return tp[-1]
+    @property
+    def _ppoly(self):
+        if self._op is None:
+            if not isinstance(self._cache, array_type):
+                raise RuntimeError(f"self._cache is not array_type! {(self._cache)}")
 
-    def __functor__(self) -> Functor:
+            if len(self._dims) == 0:
+                raise RuntimeError(f" Dimension is not defined!   {self._dims} ")
+
+            periods = (self._metadata.get("periods", None),)
+            extrapolate = (self._metadata.get("extrapolate", 0),)
+
+            self._op = interpolate(*self._dims, self._cache, periods=periods, extrapolate=extrapolate)
+        return self._op
+
+    def __eval__(self, *args, **kwargs):
         """
         对函数进行编译，用插值函数替代原始表达式，提高运算速度
 
@@ -130,62 +197,41 @@ class Function(Expression):
             order of function
         force : bool
             if force 强制返回多项式ppoly ，否则 可能返回 Expression or callable
-
         """
-        if self._op is None:
-            self._op = self._interpolate()
-        return self._op
 
-    def _interpolate(self):
-        if not isinstance(self._cache, array_type):
-            raise RuntimeError(f"self._cache is not array_type! {(self._cache)}")
+        res = self._ppoly(*args, **kwargs)
 
-        if self.domain is None:
-            raise RuntimeError(f"{self}  self.domain is None! ")
+        return res
 
-        return interpolate(
-            *self.domain.dims,
-            self._cache,
-            periods=self.domain.periods,
-            extrapolate=self._metadata.get("extrapolate", 0),
-        )
-
-    def __call__(self, *args, **kwargs) -> typing.Any:
-        if len(args) == 0 and len(kwargs) == 0:
-            return self
-        else:
-            return super().__call__(*args, **kwargs)
-
-    def derivative(self, *d, **kwargs) -> Function:
+    def derivative(self, order, *args, **kwargs) -> Expression:
         if len(self.__array__().shape) == 0:
-            return Function(*self.dims, 0.0)
-
-        if len(d) == 0:
-            d = [1]
-
-        if len(d) > 1:
-            return Function(
-                self._interpolate().partial_derivative(*d, **kwargs),
-                domain=self.domain,
-                _parent=self._parent,
-                **collections.ChainMap({"label": rf"d_{{[{d}]}} {self.__repr__()}"}, self._metadata),
-            )
-        elif d[0] < 0:
-            if len(d) > 1:
-                logger.warning(f"ignore {d[1:]} ")
-            func = self._interpolate().antiderivative(-d[0], **kwargs)
-            return Function(
-                func,
-                domain=self.domain,
-                _parent=self._parent,
-                **collections.ChainMap({"label": rf"\int {self.__repr__()}"}, self._metadata),
-            )
+            return zero
         else:
-            return Function(
-                self._interpolate().derivative(*d, **kwargs),
-                domain=self.domain,
+            return Expression(
+                self._ppoly.derivative(order, *args, **kwargs),
                 _parent=self._parent,
-                **collections.ChainMap({"label": rf"d({self.__repr__()})"}, self._metadata),
+                **collections.ChainMap({"label": rf"d_{{{order}}} {self.__repr__()}"}, self._metadata),
+            )
+
+    def antiderivative(self, order: int, *args, **kwargs) -> Expression:
+        if len(self.__array__().shape) == 0:
+            return zero
+        else:
+            label = rf"\int_{{{order}}} {self.__repr__()}" if order > 1 else rf"\int {self.__repr__()}"
+            return Expression(
+                self._ppoly.derivative(-order, *args, **kwargs),
+                _parent=self._parent,
+                **collections.ChainMap({"label": label}, self._metadata),
+            )
+
+    def partial_derivative(self, order: typing.Tuple[int, ...], *args, **kwargs) -> Expression:
+        if len(self.__array__().shape) == 0:
+            return zero
+        else:
+            return Expression(
+                self._ppoly.derivative(order, *args, **kwargs),
+                _parent=self._parent,
+                **collections.ChainMap({"label": rf"d_{{{order}}} {self.__repr__()}"}, self._metadata),
             )
 
     def integral(self, *args, **kwargs) -> float:
