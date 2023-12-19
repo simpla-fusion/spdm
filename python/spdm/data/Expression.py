@@ -81,6 +81,8 @@ class Expression(HTreeNode):
                 from .Function import Function
 
                 TP = Function
+            else:
+                raise RuntimeError(f"Unknown functor {op} {type(op)}")
 
             self.__class__ = TP
 
@@ -488,7 +490,7 @@ class Scalar(Expression):
 
 
 class ConstantZero(Scalar):
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(0, **kwargs)
 
     # fmt: off
@@ -510,7 +512,7 @@ class ConstantZero(Scalar):
 
 
 class ConstantOne(Scalar):
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(1, **kwargs)
 
     # fmt: off
