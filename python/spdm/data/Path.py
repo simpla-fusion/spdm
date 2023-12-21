@@ -1083,7 +1083,7 @@ class Path(list):
                 if target is _not_found_ or target is None:
                     target = [_not_found_] * (key + 1)
                 elif isinstance(target, collections.abc.Sequence) and key >= len(target):
-                    if key > len(target):
+                    if key >= len(target):
                         target = [*target] + [_not_found_] * (key - len(target) + 1)
 
                 target[key] = Path._op_update(
