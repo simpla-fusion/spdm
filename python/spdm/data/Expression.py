@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import warnings
 import typing
 from copy import copy, deepcopy
 import functools
@@ -236,7 +236,13 @@ class Expression(HTreeNode):
             res = np.nan
 
         elif callable(self._op):
-            res = self._op(*args, **kwargs)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("error", category=RuntimeWarning)
+                try:
+                    res = self._op(*args, **kwargs)
+                except RuntimeWarning as error:
+                    logger.error(f"{self._render_latex_()} ,{args} ")
+                    raise error
 
         elif isinstance(self._op, numeric_type):
             res = self._op
@@ -588,7 +594,7 @@ def derivative(y, *args, order=1):
 
         return Function(*args, y).d(*args)
     else:
-        return Derivative(y, *args, order=order)
+        return Derivative(order, y, *args)
 
 
 class Derivative(Expression):
@@ -598,8 +604,8 @@ class Derivative(Expression):
 
     """
 
-    def __init__(self, order, expr: Expression, **kwargs):
-        super().__init__(None, **kwargs)
+    def __init__(self, order, expr: Expression, *args, **kwargs):
+        super().__init__(None, *args, **kwargs)
         self._order = order
         self._expr = expr
 

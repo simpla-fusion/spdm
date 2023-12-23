@@ -213,8 +213,10 @@ class Actor(Pluggable):
         """获得当前时间片的拷贝。"""
 
         func = None
-        
+
         if len(args) + len(kwargs) > 0:
             func = lambda o: o(*args, **kwargs) if isinstance(o, Expression) else o
 
-        return self.time_slice.current.clone(func)
+            return self.time_slice.current.clone(func)
+        else:
+            return self.time_slice.current
