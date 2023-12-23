@@ -327,7 +327,7 @@ class MatplotlibView(View):
                     if SP_DEBUG == "strict":
                         raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}"  ') from error
                     else:
-                        logger.exception(f'Plot [index={idx}] failed! y_label= "{y_label}"  [{error}] ')
+                        raise RuntimeError(f'Plot [index={idx}] failed! y_label= "{y_label}" ') from error
 
             if any(labels):
                 canvas[idx].legend(fontsize=fontsize)

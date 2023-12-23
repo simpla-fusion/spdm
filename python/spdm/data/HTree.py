@@ -284,7 +284,7 @@ class HTree(HTreeNode):
                 break
             elif p is Path.tags.parent:
                 tmp = getattr(obj, "_parent", _not_found_)
-            elif isinstance(p, str) and hasattr(obj.__class__, p):
+            elif isinstance(p, str) and p.isidentifier() and hasattr(obj.__class__, p):
                 tmp = getattr(obj, p)
             elif isinstance(obj, HTree):
                 tmp = obj._get(p, default_value=_not_found_, force=True)
