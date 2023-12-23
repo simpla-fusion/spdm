@@ -237,12 +237,11 @@ class Expression(HTreeNode):
 
         elif callable(self._op):
             with warnings.catch_warnings():
-                warnings.filterwarnings("error", category=RuntimeWarning)
+                # warnings.filterwarnings("error", category=RuntimeWarning)
                 try:
                     res = self._op(*args, **kwargs)
                 except RuntimeWarning as error:
-                    logger.error(f"{self._render_latex_()} ,{args} ")
-                    raise error
+                    logger.exception(f"{self._render_latex_()} ,{args} ")
 
         elif isinstance(self._op, numeric_type):
             res = self._op

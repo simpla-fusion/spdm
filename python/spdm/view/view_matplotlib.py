@@ -246,7 +246,6 @@ class MatplotlibView(View):
         *args,
         x_axis: Expression | np.ndarray | str = None,
         x_label=None,
-        stop_if_fail=False,
         styles=None,
         **kwargs,
     ) -> typing.Any:
