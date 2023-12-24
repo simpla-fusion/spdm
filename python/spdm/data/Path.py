@@ -1053,11 +1053,29 @@ class Path(list):
                 else:
                     target = [target, source]
 
+        elif hasattr(target.__class__, "__update__"):
+            target.__update__(pth, *args, _idempotent=_idempotent, **kwargs)
+
         else:
             key = pth[0]
 
             if isinstance(key, str) and key.isdigit():
                 key = int(key)
+
+            if isinstance(key, str) and isinstance(target, list):
+                for idx, d in enumerate(target):
+                    if isinstance(d, dict) and d.get("label", None) == key:
+                        target[idx] = Path._op_update(
+                            d,
+                            pth[1:],
+                            *args,
+                            _idempotent=_idempotent,
+                            **kwargs,
+                        )
+                        break
+                else:
+                    raise KeyError(f"Can not find {key} in list {target}!")
+                return target
 
             if isinstance(key, str):
                 if target is _not_found_ or target is None:
