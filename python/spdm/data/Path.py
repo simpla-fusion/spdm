@@ -1053,31 +1053,29 @@ class Path(list):
                 else:
                     target = [target, source]
 
-        elif hasattr(target.__class__, "__update__"):
-            target.__update__(pth, *args, _idempotent=_idempotent, **kwargs)
-
         else:
             key = pth[0]
 
             if isinstance(key, str) and key.isdigit():
                 key = int(key)
 
-            if isinstance(key, str) and isinstance(target, list):
+            if not isinstance(key, (int, slice)) and isinstance(target, list):
+                query = Query(key)
                 for idx, d in enumerate(target):
-                    if isinstance(d, dict) and d.get("label", None) == key:
-                        target[idx] = Path._op_update(
-                            d,
-                            pth[1:],
-                            *args,
-                            _idempotent=_idempotent,
-                            **kwargs,
-                        )
-                        break
-                else:
-                    raise KeyError(f"Can not find {key} in list {target}!")
-                return target
+                    if not query.check(d):
+                        continue
+                    target[idx] = Path._op_update(
+                        d,
+                        pth[1:],
+                        *args,
+                        _idempotent=_idempotent,
+                        **kwargs,
+                    )
+                #         break
+                # else:
+                #     raise KeyError(f"Can not find {key} in list {target}!")
 
-            if isinstance(key, str):
+            elif isinstance(key, str):
                 if target is _not_found_ or target is None:
                     target = {}
 
@@ -1116,7 +1114,7 @@ class Path(list):
 
     @staticmethod
     def _op_insert(target: typing.Any, pth: list, *args, **kwargs) -> typing.Any:
-        Path._op_update(target, pth, *args, _idempotent=False, **kwargs)
+        return Path._op_update(target, pth, *args, _idempotent=False, **kwargs)
 
     # elif value is _not_found_:
     #     return target

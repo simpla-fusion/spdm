@@ -231,7 +231,7 @@ class HTree(HTreeNode):
         return self._query([], Path.tags.equal, other)  # type:ignore
 
     def __update__(self, *args, **kwargs):
-        Path._op_update(self._cache, *args, **kwargs)
+        self._cache = Path._op_update(self._cache, *args, **kwargs)
         return self
 
     # def children(self) -> typing.Generator[typing.Any, None, None]: yield from self._foreach()
@@ -642,10 +642,6 @@ class HTree(HTreeNode):
 
     def _update(self, path: PathLike, *args, **kwargs):
         self._cache = as_path(path).update(self._cache, *args, **kwargs)
-        return self
-
-    def __update__(self, *args, **kwargs):
-        self._cache = Path._op_update(self._cache, *args, **kwargs)
         return self
 
     def _remove(self, path: PathLike, *args, **kwargs) -> None:
