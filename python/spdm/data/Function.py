@@ -17,11 +17,14 @@ from .Expression import Expression, zero
 from .Functor import Functor
 from .Path import update_tree, Path
 from .Domain import DomainBase
+from .HTree import List
 
 
 def guess_coords(holder, prefix="coordinate", **kwargs):
     if holder is None or holder is _not_found_:
         return None
+    elif isinstance(holder, List):
+        return guess_coords(holder._parent, prefix=prefix, **kwargs)
 
     coords = []
 

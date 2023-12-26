@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import functools
 import typing
+from copy import deepcopy
 from typing_extensions import Self
 
-from ..utils.tags import _not_found_
-from ..utils.typing import array_type, get_args, get_type_hint
 from .Entry import Entry
 from .HTree import HTree, List, Dict
 from .Path import Path, PathLike, as_path, OpTags, Query, update_tree
+from ..utils.tags import _not_found_, _undefined_
+from ..utils.typing import array_type, get_args, get_type_hint
 
 _T = typing.TypeVar("_T")
 
@@ -109,15 +110,6 @@ class AoS(List[_T]):
         other._identifier = self._identifier
         return other
 
-    #     if isinstance(other._cache, list):
-    #         for k, value in enumerate(other._cache):
-    #             if isinstance(value, HTreeNode):
-    #                 value = value.__copy__()
-    #                 value._parent = other
-    #                 other._cache[k] = value
-
-    #     return other
-
     def dump(self, entry: Entry, **kwargs) -> None:
         """将数据写入 entry"""
         entry.insert([{}] * len(self._cache))
@@ -129,7 +121,10 @@ class AoS(List[_T]):
 
     def _get(self, query: PathLike, **kwargs) -> HTree | _T | QueryResult[_T]:
         """ """
-        default_value = kwargs.pop("default_value", self._metadata.get("default_value", _not_found_))
+        default_value = kwargs.pop("default_value", _undefined_)
+
+        if default_value is _undefined_:
+            default_value = self._metadata.get("default_value", _not_found_)
 
         if isinstance(query, (int, OpTags)):
             return super()._get(query, default_value=default_value, **kwargs)
@@ -139,7 +134,12 @@ class AoS(List[_T]):
                 if d.get(self._identifier, None) == query:
                     return d
             else:
-                return _not_found_
+                if not isinstance(default_value, dict):
+                    return default_value
+                else:
+                    value = deepcopy(default_value)
+                    value[self._identifier] = query
+                    return self._as_child(value, self.__len__())
 
         elif not isinstance(query, (slice, dict)):
             raise TypeError(f" {query} is not supported")
