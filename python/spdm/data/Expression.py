@@ -552,11 +552,11 @@ class Piecewise(Expression):
         res._piecewise = self._piecewise
         return res
 
-    def _apply(self, func, cond, x, *args, **kwargs):
+    def _apply(self, func, cond, x, *args):
         if isinstance(x, array_type):
-            x = x[cond(x)]
+            x = x[cond(x, *args)]
         else:
-            return func(x) if cond(x) else None
+            return func(x, *args) if cond(x, *args) else None
 
         if isinstance(func, numeric_type):
             value = np.full_like(x, func, dtype=float)
@@ -570,14 +570,14 @@ class Piecewise(Expression):
 
     def __call__(self, x, *args, **kwargs) -> NumericType:
         if isinstance(x, float):
-            res = [self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise) if cond(x)]
+            res = [self._apply(fun, cond, x, *args, **kwargs) for fun, cond in zip(*self._piecewise) if cond(x)]
             if len(res) == 0:
                 raise RuntimeError(f"Can not fit any condition! {x}")
             elif len(res) > 1:
                 raise RuntimeError(f"Fit multiply condition! {x}")
             return res[0]
         elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, cond, x) for fun, cond in zip(*self._piecewise)])
+            res = np.hstack([self._apply(fun, cond, x, *args, **kwargs) for fun, cond in zip(*self._piecewise)])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
