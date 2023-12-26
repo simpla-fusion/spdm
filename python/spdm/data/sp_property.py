@@ -72,7 +72,7 @@ class SpTree(Dict):
             setter(self, key, value)
         else:
             # self.update({key: value})
-            self._cache[key] = value
+            self._cache=update_tree(self._cache,{key:value})
 
     def __del_property__(self, key: str):
         self._remove(key)

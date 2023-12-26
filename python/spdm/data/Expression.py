@@ -275,14 +275,14 @@ class Expression(HTreeNode):
         elif any([callable(val) for val in args]):
             return Expression(self, *args, **kwargs)
 
-        if len(self._children) > 0:
-            args = [(child(*args, **kwargs) if callable(child) else child) for child in self._children]
-            kwargs = {}
-
-        try:
-            res = self.__eval__(*args, **kwargs)
-        except Exception as error:
-            raise RuntimeError(f"Failure to calculate  equation {self._repr_latex_()} !") from error
+        else:
+            try:
+                if len(self._children) > 0:
+                    args = [(child(*args, **kwargs) if callable(child) else child) for child in self._children]
+                    kwargs = {}
+                res = self.__eval__(*args, **kwargs)
+            except Exception as error:
+                raise RuntimeError(f"Failure to calculate  equation {self._repr_latex_()} !") from error
 
         return res
 
@@ -543,41 +543,44 @@ class Piecewise(Expression):
     A piecewise function. 一维或多维，分段函数
     """
 
-    def __init__(self, func: typing.List[Expression | float | int], cond: typing.List[typing.Callable], **kwargs):
+    def __init__(self, piecewis_func: typing.List[typing.Tuple[Expression | float | int, Expression]], **kwargs):
         super().__init__(None, **kwargs)
-        self._piecewise = (func, cond)
+        self._piecewise = piecewis_func
 
     def __copy__(self) -> Piecewise:
         res = super().__copy__()
         res._piecewise = self._piecewise
         return res
 
-    def _apply(self, func, cond, x, *args):
-        if isinstance(x, array_type):
-            x = x[cond(x, *args)]
+    def _apply(self, func, cond, *args):
+        cond_mark = cond(*args)
+        if isinstance(cond_mark, array_type):
+            args = [(a[cond_mark] if isinstance(a, array_type) else a) for a in args]
+        elif cond_mark == True:
+            return func(*args)
         else:
-            return func(x, *args) if cond(x, *args) else None
+            return None
 
         if isinstance(func, numeric_type):
-            value = np.full_like(x, func, dtype=float)
+            value = np.full_like(args[0], func, dtype=float)
         elif callable(func):
-            value = func(x)
+            value = func(*args)
         else:
-            raise ValueError(f"PiecewiseFunction._apply() error! {func} {x}")
+            raise ValueError(f"PiecewiseFunction._apply() error! {func}  {args}")
             # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
             #          for node in self._expr_nodes]
         return value
 
     def __call__(self, x, *args, **kwargs) -> NumericType:
         if isinstance(x, float):
-            res = [self._apply(fun, cond, x, *args, **kwargs) for fun, cond in zip(*self._piecewise) if cond(x)]
+            res = [self._apply(fun, cond, x, *args, **kwargs) for fun, cond in self._piecewise if cond(x)]
             if len(res) == 0:
                 raise RuntimeError(f"Can not fit any condition! {x}")
             elif len(res) > 1:
                 raise RuntimeError(f"Fit multiply condition! {x}")
             return res[0]
         elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, cond, x, *args, **kwargs) for fun, cond in zip(*self._piecewise)])
+            res = np.hstack([self._apply(fun, cond, x, *args, **kwargs) for fun, cond in self._piecewise])
             if len(res) != len(x):
                 raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
             return res
