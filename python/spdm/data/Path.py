@@ -1092,8 +1092,14 @@ class Path(list):
                     attr_ = Path._op_update(attr, pth[1:], *args, _idempotent=_idempotent, **kwargs)
                     if attr_ is not attr:
                         setattr(target, key, attr_)
+
                 else:
-                    raise RuntimeError(f"Can not update {target} with {key}!")
+                    try:
+                        obj = target[key]
+                    except Exception:
+                        raise RuntimeError(f"Can not update {target} with {key}!")
+                    else:
+                        Path._op_update(obj, pth[1:], *args, _idempotent=_idempotent, **kwargs)
 
             elif isinstance(key, int):
                 if target is _not_found_ or target is None:

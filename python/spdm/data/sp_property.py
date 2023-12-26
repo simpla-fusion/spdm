@@ -64,15 +64,21 @@ class SpTree(Dict):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    # def __copy__(self) -> Self:
-    #     other = super().__copy__()
+    def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
+        return self._get(key, *args, **kwargs)
 
-    #     for k, prop in inspect.getmembers(self.__class__, lambda c: is_sp_property(c)):
-    #         if other._entry is None or prop.getter is not None or k in other._cache:
-    #             continue
-    #         other._cache[k] = deepcopy(self.cache_get(k, _not_found_))
+    def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
+        if setter is not None:
+            setter(self, key, value)
+        else:
+            # self.update({key: value})
+            self._cache[key] = value
 
-    #     return other
+    def __del_property__(self, key: str):
+        self._remove(key)
+
+    def update(self, d: dict):
+        update_tree(self, d)
 
     def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
         data = {}
@@ -88,6 +94,30 @@ class SpTree(Dict):
             data[k] = value
 
         return super()._do_serialize(data, dumper)
+
+    @staticmethod
+    def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
+        if isinstance(obj, AoS):
+            return [SpTree._clone(o, func) for o in obj]
+        elif isinstance(obj, SpTree):
+            cache = {}
+            for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
+                if value.getter is not None:
+                    continue
+                cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
+
+            return cache
+        elif func is not None:
+            return func(obj)
+        else:
+            return obj
+
+    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> Self:
+        if not callable(func):
+            return self.__copy__()
+        else:
+            d = SpTree._clone(self, func)
+            return self.__class__(d)
 
     @deprecated
     def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
@@ -120,46 +150,6 @@ class SpTree(Dict):
             return entry._data
         else:
             return entry
-
-    def update(self, d: dict):
-        self._cache = update_tree(self._cache, d)
-
-    def __get_property__(self, key: str, *args, **kwargs) -> SpTree:
-        return self._get(key, *args, **kwargs)
-
-    def __set_property__(self, key: str, value: typing.Any = None, setter=None) -> None:
-        if setter is not None:
-            setter(self, key, value)
-        else:
-            # self.update({key: value})
-            self._cache[key] = value
-
-    def __del_property__(self, key: str):
-        self._remove(key)
-
-    @staticmethod
-    def _clone(obj, func: typing.Callable[[typing.Any], typing.Any]):
-        if isinstance(obj, AoS):
-            return [SpTree._clone(o, func) for o in obj]
-        elif isinstance(obj, SpTree):
-            cache = {}
-            for k, value in inspect.getmembers(obj.__class__, lambda c: is_sp_property(c)):
-                if value.getter is not None:
-                    continue
-                cache[k] = SpTree._clone(getattr(obj, k, _not_found_), func)
-
-            return cache
-        elif func is not None:
-            return func(obj)
-        else:
-            return obj
-
-    def clone(self, func: typing.Callable[[typing.Any], typing.Any] = None) -> Self:
-        if not callable(func):
-            return self.__copy__()
-        else:
-            d = SpTree._clone(self, func)
-            return self.__class__(d)
 
 
 class PropertyTree(SpTree):

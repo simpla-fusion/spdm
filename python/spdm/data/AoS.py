@@ -7,7 +7,7 @@ from typing_extensions import Self
 
 from .Entry import Entry
 from .HTree import HTree, List, Dict
-from .Path import Path, PathLike, as_path, OpTags, Query, update_tree
+from .Path import Path, PathLike, as_path, OpTags, update_tree
 from ..utils.tags import _not_found_, _undefined_
 from ..utils.typing import array_type, get_args, get_type_hint
 
@@ -124,7 +124,7 @@ class AoS(List[_T]):
         default_value = kwargs.pop("default_value", _undefined_)
 
         if default_value is _undefined_:
-            default_value = self._metadata.get("default_value", _not_found_)
+            default_value = self._metadata.get("default_initial", _not_found_)
 
         if isinstance(query, (int, OpTags)):
             return super()._get(query, default_value=default_value, **kwargs)
