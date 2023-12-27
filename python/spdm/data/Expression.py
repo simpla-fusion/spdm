@@ -155,7 +155,7 @@ class Expression(HTreeNode):
 
     @property
     def name(self) -> str:
-        return self._metadata.get("name", None)
+        return self._metadata.get("name", None) or self.__class__.__name__
 
     @property
     def __label__(self) -> str:
@@ -165,10 +165,12 @@ class Expression(HTreeNode):
         return label
 
     def __str__(self) -> str:
-        return f"<{getattr(self._op,'name',self._op.__class__.__name__)} label='{self.__label__}' />"
+        return self._metadata.get("label", None) or self._metadata.get("name", None) or self.__class__.__name__
+
+    # f"<{getattr(self._op,'name',self._op.__class__.__name__)} label='{self.__label__}' />"
 
     def __repr__(self) -> str:
-        return self.__label__
+        return self._render_latex_()
 
     def _render_latex_(self, show=False) -> str:
         vargs = []
@@ -208,7 +210,7 @@ class Expression(HTreeNode):
 
         else:
             if isinstance(self._op, Expression):
-                op_tag = self._op.__label__ or self._op.name
+                op_tag = self._op.name
             else:
                 op_tag = self._op.__class__.__name__
 
@@ -557,8 +559,12 @@ class Piecewise(Expression):
         return res
 
     def _apply(self, func, cond, *args, **kwargs):
-        cond_mark = cond(*args, **kwargs)
-        if isinstance(cond_mark, array_type):
+        if callable(cond):
+            cond_mark = cond(*args, **kwargs)
+        else:
+            cond_mark = cond
+
+        if isinstance(cond_mark, array_type) and cond_mark.size > 1:
             args = [(a[cond_mark] if isinstance(a, array_type) else a) for a in args]
             kwargs = {k: (v[cond_mark] if isinstance(v, array_type) else v) for k, v in kwargs.items()}
 
@@ -595,7 +601,16 @@ class Piecewise(Expression):
                 )
             return res
         else:
-            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
+            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {args}")
+
+
+def piecewise(func_cond, **kwargs):
+    if not isinstance(func_cond, list):
+        raise TypeError(f"Illegal type {type(func_cond)}")
+    elif all([isinstance(d[0], array_type) for d in func_cond]):
+        return np.hstack([fun[cond] for fun, cond in func_cond])
+    else:
+        return Piecewise(func_cond, **kwargs)
 
 
 def derivative(y, *args, order=1):
