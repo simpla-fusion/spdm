@@ -175,8 +175,8 @@ class Actor(Pluggable):
 
     def refresh(self, *args, **kwargs) -> typing.Type[TimeSlice]:
         """更新当前 Actor 的状态。
-        若 time 为 None 或者与当前时间一致，则更新当前状态树，并执行 self.iteration+=1
-        否则，向 time_slice 队列中压入新的时间片。
+        更新当前状态树 （time_slice），并执行 self.iteration+=1
+
         """
         kwargs = self.inputs.update(kwargs)  # 更新 inputs，返回将不是 HTreeNode 的 input
 
@@ -198,6 +198,12 @@ class Actor(Pluggable):
         return current
 
     def advance(self, *args, dt: float | None = None, time: float | None = None, **kwargs) -> typing.Type[TimeSlice]:
+        """推进 Actor 到下一时间片，向 time_slice 队列中压入新的时间片。"""
+
+        # 保存当前状态
+        self.flush()
+
+        # 确定新的时间戳
         if time is None and dt is None:
             raise RuntimeError("time and dt are both None, do nothing")
         elif time is None and dt is not None:
@@ -207,16 +213,16 @@ class Actor(Pluggable):
         elif dt is not None:
             logger.warning(f"ignore dt={dt} when time={time} is given")
 
-        return self.refresh(*args, time=time, **kwargs)
+        # 获得新的时间片
+        new_slice = self.time_slice.advance(*args, time=time, **kwargs)
 
-    def fetch(self, *args, **kwargs) -> typing.Type[TimeSlice]:
-        """获得当前时间片的拷贝。"""
+        return new_slice
 
-        func = None
-
-        if len(args) + len(kwargs) > 0:
-            func = lambda o: o(*args, **kwargs) if isinstance(o, Expression) else o
-
-            return self.time_slice.current.clone(func)
-        else:
-            return self.time_slice.current
+    def flush(self, *args, **kwargs) -> typing.Type[TimeSlice]:
+        """保存当前时间片的状态。
+        根据当前 inputs 的状态，更新状态并写入 time_slice，
+        默认 do nothing， 返回当前时间片
+        """
+        current = self.time_slice.current
+        current.update(*args, **kwargs)
+        return current

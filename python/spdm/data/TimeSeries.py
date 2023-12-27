@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import collections.abc
 import typing
-
 import numpy as np
-
+from copy import deepcopy
 from ..utils.tags import _not_found_
 from .Entry import Entry
 from .HTree import List, HTree
-from .Path import update_tree
+from .Path import update_tree, merge_tree
 from .sp_property import SpTree, sp_property
 
 
@@ -148,7 +147,7 @@ class TimeSeriesAoS(List[_TSlice]):
         if not isinstance(idx, int):
             return _not_found_
         elif not self.is_initializied:
-            self.initialize(*args, **kwargs)
+            self._initialize(*args, **kwargs)
 
         cache_pos = (self._cache_cursor + idx + self._cache_depth) % self._cache_depth
 
@@ -165,7 +164,7 @@ class TimeSeriesAoS(List[_TSlice]):
 
         return value
 
-    def initialize(self, *args, **kwargs):
+    def _initialize(self, *args, **kwargs):
         if self.is_initializied:
             return
             # raise RuntimeError(f"TimeSeries is already initialized!")
@@ -189,17 +188,19 @@ class TimeSeriesAoS(List[_TSlice]):
         default_value = self._metadata.get("default_value", {})
 
         if time_hint is not None:
-            self._cache[self._cache_cursor] = update_tree(current, {"time": time_hint})
+            time = time_hint
+
+        self._cache[self._cache_cursor] = update_tree(deepcopy(default_value), current, {"time": time})
 
     def refresh(self, *args, **kwargs) -> typing.Type[TimeSeriesAoS]:
         if not self.is_initializied:
-            self.initialize(*args, **kwargs)
+            self._initialize(*args, **kwargs)
         else:
             self._cache[self._cache_cursor] = update_tree(self._cache[self._cache_cursor], *args, **kwargs)
 
     def advance(self, *args, **kwargs) -> _TSlice:
         if not self.is_initializied:
-            self.initialize(*args, **kwargs)
+            self._initialize(*args, **kwargs)
         else:
             self._cache_cursor = (self._cache_cursor + 1) % self._cache_depth
 
@@ -208,8 +209,6 @@ class TimeSeriesAoS(List[_TSlice]):
 
             self._entry_cursor += 1
 
-            self._cache[self._cache_cursor] = _not_found_
-
-            self.refresh(*args, **kwargs)
+            self._cache[self._cache_cursor] = merge_tree(*args, **kwargs)
 
         return self.current

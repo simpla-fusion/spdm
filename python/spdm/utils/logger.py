@@ -136,7 +136,8 @@ def deprecated(func):
 
         return wrapped
 
-    if func is None:
+    if isinstance(func, str):
+        logger.warning(func)
         return lambda o: _wrap(func)
     else:
         return _wrap(func)

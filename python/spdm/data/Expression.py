@@ -96,7 +96,8 @@ class Expression(HTreeNode):
         return other
 
     def __serialize__(self, dumper=None):
-        raise NotImplementedError(f"TODO: __serialize__")
+        logger.debug(f"TODO: __serialize__ {self}")
+        return None
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs) -> Expression:
         """
@@ -169,11 +170,7 @@ class Expression(HTreeNode):
     def __repr__(self) -> str:
         return self.__label__
 
-    def _render_latex_(self) -> str:
-        label = self._metadata.get("label", None) or self.name
-        if label is not None or self._op is None:
-            return label
-
+    def _render_latex_(self, show=False) -> str:
         vargs = []
         for expr in self._children:
             if isinstance(expr, (bool, int, float, complex)):
@@ -205,7 +202,7 @@ class Expression(HTreeNode):
                 if op_tag == "/":
                     res = f"\\frac{{{vargs[0]}}}{{{vargs[1]}}}"
                 else:
-                    res = rf"{vargs[0]} {op_tag} {vargs[1]}"
+                    res = rf"{{{vargs[0]}}} {op_tag} {{{vargs[1]}}}"
             else:
                 raise RuntimeError(f"Tri-op is not defined!")
 
@@ -217,11 +214,18 @@ class Expression(HTreeNode):
 
             res: str = rf"{op_tag}\left({','.join(vargs)}\right)"
 
-        return res
+        if show:
+            return rf"$${res}$$"
+        else:
+            return res
 
     def _repr_latex_(self) -> str:
         """for jupyter notebook display"""
-        return rf"$${self._render_latex_()}$$"
+        # label = self._metadata.get("label", None) or self.name
+        # if label is not None or self._op is None:
+        #     return rf"$${label}$$"
+        # else:
+        return self._render_latex_(show=True)
 
     @property
     def dtype(self):
@@ -280,7 +284,7 @@ class Expression(HTreeNode):
                 if len(self._children) > 0:
                     args = [(child(*args, **kwargs) if callable(child) else child) for child in self._children]
                     kwargs = {}
-                res = self.__eval__(*args, **kwargs)
+                res = self.__eval__(*args)
             except Exception as error:
                 raise RuntimeError(f"Failure to calculate  equation {self._repr_latex_()} !") from error
 
@@ -552,42 +556,46 @@ class Piecewise(Expression):
         res._piecewise = self._piecewise
         return res
 
-    def _apply(self, func, cond, *args):
-        cond_mark = cond(*args)
+    def _apply(self, func, cond, *args, **kwargs):
+        cond_mark = cond(*args, **kwargs)
         if isinstance(cond_mark, array_type):
             args = [(a[cond_mark] if isinstance(a, array_type) else a) for a in args]
+            kwargs = {k: (v[cond_mark] if isinstance(v, array_type) else v) for k, v in kwargs.items()}
+
         elif cond_mark == True:
-            return func(*args)
+            return func(*args, **kwargs)
         else:
             return None
 
         if isinstance(func, numeric_type):
             value = np.full_like(args[0], func, dtype=float)
         elif callable(func):
-            value = func(*args)
+            value = func(*args, **kwargs)
         else:
             raise ValueError(f"PiecewiseFunction._apply() error! {func}  {args}")
             # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
             #          for node in self._expr_nodes]
         return value
 
-    def __call__(self, x, *args, **kwargs) -> NumericType:
-        if isinstance(x, float):
-            res = [self._apply(fun, cond, x, *args, **kwargs) for fun, cond in self._piecewise if cond(x)]
+    def __call__(self, *args, **kwargs) -> NumericType:
+        if len(args) == 0 or any([callable(val) for val in args]):
+            return super().__call__(*args, **kwargs)
+        elif isinstance(args[0], float):
+            res = [self._apply(fun, cond, *args, **kwargs) for fun, cond in self._piecewise if cond(*args, **kwargs)]
             if len(res) == 0:
-                raise RuntimeError(f"Can not fit any condition! {x}")
+                raise RuntimeError(f"Can not fit any condition! {args}")
             elif len(res) > 1:
-                raise RuntimeError(f"Fit multiply condition! {x}")
+                raise RuntimeError(f"Fit multiply condition! {args}")
             return res[0]
-        elif isinstance(x, array_type):
-            res = np.hstack([self._apply(fun, cond, x, *args, **kwargs) for fun, cond in self._piecewise])
-            if len(res) != len(x):
-                raise RuntimeError(f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(x)}")
+        elif isinstance(args[0], array_type):
+            res = np.hstack([self._apply(fun, cond, *args, **kwargs) for fun, cond in self._piecewise])
+            if len(res) != len(args[0]):
+                raise RuntimeError(
+                    f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(args[0])}"
+                )
             return res
         else:
-            return super().__call__(x, *args, **kwargs)
-
-            # raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
+            raise TypeError(f"PiecewiseFunction only support single float or  1D array, {type(x)} {array_type}")
 
 
 def derivative(y, *args, order=1):

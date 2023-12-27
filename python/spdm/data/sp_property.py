@@ -72,13 +72,42 @@ class SpTree(Dict):
             setter(self, key, value)
         else:
             # self.update({key: value})
-            self._cache=update_tree(self._cache,{key:value})
+            self._cache = update_tree(self._cache, {key: value})
 
     def __del_property__(self, key: str):
         self._remove(key)
 
-    def update(self, d: dict):
-        update_tree(self, d)
+    # @deprecated("replace by __serialize__")
+    # def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
+    #     if entry is None:
+    #         entry = Entry({})
+    #         force = True
+
+    #     for k, _ in inspect.getmembers(self.__class__, is_sp_property):
+    #         try:
+    #             prop = getattr(self, k, None)
+    #             if prop is _not_found_:
+    #                 prop = None
+    #             elif hasattr(prop.__class__, "__array__"):
+    #                 prop = prop.__array__()
+
+    #         except Exception as error:
+    #             if SP_DEBUG == "CRITICAL":
+    #                 raise RuntimeError(f"Fail to dump property: {self.__class__.__name__}.{k}") from error
+    #             else:
+    #                 logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
+    #         else:
+    #             if isinstance(prop, Enum):
+    #                 prop = {"name": prop.name, "index": prop.value}
+
+    #             if isinstance(prop, HTree):
+    #                 prop.dump(entry.child(k), quiet=quiet)
+    #             else:
+    #                 entry.child(k).insert(prop)
+    #     if force:
+    #         return entry._data
+    #     else:
+    #         return entry
 
     def __serialize__(self, dumper: typing.Callable[...] | bool = True) -> typing.Dict[str, typing.Any]:
         data = {}
@@ -119,37 +148,15 @@ class SpTree(Dict):
             d = SpTree._clone(self, func)
             return self.__class__(d)
 
-    @deprecated
-    def dump(self, entry: Entry | None = None, force=False, quiet=True) -> Entry:
-        if entry is None:
-            entry = Entry({})
-            force = True
-
-        for k, _ in inspect.getmembers(self.__class__, is_sp_property):
-            try:
-                prop = getattr(self, k, None)
-                if prop is _not_found_:
-                    prop = None
-                elif hasattr(prop.__class__, "__array__"):
-                    prop = prop.__array__()
-
-            except Exception as error:
-                if SP_DEBUG == "CRITICAL":
-                    raise RuntimeError(f"Fail to dump property: {self.__class__.__name__}.{k}") from error
-                else:
-                    logger.warning(f"Fail to dump property: {self.__class__.__name__}.{k}")
+    def update(self, *args, **kwargs):
+        for other in [*args, kwargs]:
+            if isinstance(other, dict):
+                if len(other) > 0:
+                    update_tree(self, other)
+            elif isinstance(other, SpTree):
+                self._cache = update_tree(self._cache, other._cache)
             else:
-                if isinstance(prop, Enum):
-                    prop = {"name": prop.name, "index": prop.value}
-
-                if isinstance(prop, HTree):
-                    prop.dump(entry.child(k), quiet=quiet)
-                else:
-                    entry.child(k).insert(prop)
-        if force:
-            return entry._data
-        else:
-            return entry
+                raise NotImplementedError(f"{type(other)}")
 
 
 class PropertyTree(SpTree):
