@@ -162,7 +162,7 @@ class Expression(HTreeNode):
         label = self._metadata.get("label", None)
         if label is None:
             label = self._render_latex_()
-        return label
+        return str(label)
 
     def __str__(self) -> str:
         return self._metadata.get("label", None) or self._metadata.get("name", None) or self.__class__.__name__
@@ -549,66 +549,63 @@ class Piecewise(Expression):
     A piecewise function. 一维或多维，分段函数
     """
 
-    def __init__(self, piecewis_func: typing.List[typing.Tuple[Expression | float | int, Expression]], **kwargs):
+    def __init__(self, piecewise_func: typing.List[typing.Tuple[Expression | float | int, Expression]], **kwargs):
         super().__init__(None, **kwargs)
-        self._piecewise = piecewis_func
+        self._piecewise = piecewise_func
 
     def __copy__(self) -> Piecewise:
         res = super().__copy__()
         res._piecewise = self._piecewise
         return res
 
-    def _apply(self, func, cond, *args, **kwargs):
-        if callable(cond):
-            cond_mark = cond(*args, **kwargs)
-        else:
-            cond_mark = cond
-
-        if isinstance(cond_mark, array_type) and cond_mark.size > 1:
-            args = [(a[cond_mark] if isinstance(a, array_type) else a) for a in args]
-            kwargs = {k: (v[cond_mark] if isinstance(v, array_type) else v) for k, v in kwargs.items()}
-
-        elif cond_mark == True:
-            return func(*args, **kwargs)
-        else:
-            return None
-
-        if isinstance(func, numeric_type):
-            value = np.full_like(args[0], func, dtype=float)
-        elif callable(func):
-            value = func(*args, **kwargs)
-        else:
-            raise ValueError(f"PiecewiseFunction._apply() error! {func}  {args}")
-            # [(node(*args, **kwargs) if callable(node) else (node.__entry__().__value__() if hasattr(node, "__entry__") else node))
-            #          for node in self._expr_nodes]
-        return value
-
     def __call__(self, *args, **kwargs) -> NumericType:
-        if len(args) == 0 or any([callable(val) for val in args]):
+        if len(args) == 0:
+            return self
+
+        elif any([callable(val) for val in args]):
             return super().__call__(*args, **kwargs)
+
         elif isinstance(args[0], float):
-            res = [self._apply(fun, cond, *args, **kwargs) for fun, cond in self._piecewise if cond(*args, **kwargs)]
-            if len(res) == 0:
+            for func, cond in self._piecewise:
+                if not cond(*args, **kwargs):
+                    continue
+                else:
+                    res = func(*args, **kwargs)
+                    break
+            else:
                 raise RuntimeError(f"Can not fit any condition! {args}")
-            elif len(res) > 1:
-                raise RuntimeError(f"Fit multiply condition! {args}")
-            return res[0]
+
+            return res
         elif isinstance(args[0], array_type):
-            res = np.hstack([self._apply(fun, cond, *args, **kwargs) for fun, cond in self._piecewise])
-            if len(res) != len(args[0]):
-                raise RuntimeError(
-                    f"PiecewiseFunction result length not equal to input length, {len(res)}!={len(args[0])}"
-                )
+            res = np.full_like(args[0], np.nan)
+            for func, cond in self._piecewise:
+                marker = cond(*args, **kwargs)
+                if callable(func):
+                    _args = [(a[marker] if isinstance(a, array_type) else a) for a in args]
+                    _kwargs = {k: (v[marker] if isinstance(v, array_type) else v) for k, v in kwargs.items()}
+                    res[marker] = func(*_args, **_kwargs)
+                else:
+                    res[marker] = func
+
             return res
         else:
             raise TypeError(f"PiecewiseFunction only support single float or  1D array, {args}")
 
 
-def piecewise(func_cond, **kwargs):
+def piecewise(func_cond, size=None, **kwargs):
     if not isinstance(func_cond, list):
         raise TypeError(f"Illegal type {type(func_cond)}")
-    elif all([isinstance(d[0], array_type) for d in func_cond]):
-        return np.hstack([fun[cond] for fun, cond in func_cond])
+    elif all([isinstance(func, (array_type, float, int)) and isinstance(cond, array_type) for func, cond in func_cond]):
+        res = np.full_like(func_cond[0][0], np.nan)
+        for func, cond in func_cond:
+            if np.sum(cond) == 0:
+                continue
+            if isinstance(func, array_type) and func.size == res.size:
+                res[cond] = func[cond]
+            else:
+                res[cond] = func
+
+        return res
     else:
         return Piecewise(func_cond, **kwargs)
 
@@ -691,3 +688,32 @@ class PartialDerivative(Derivative):
 
     def __functor__(self):
         return self._expr.derivative(self._order) / self._expr
+
+
+from ..numlib.smooth import smooth as _smooth
+
+from scipy.signal import savgol_filter
+
+
+class SmoothOp(Expression):
+    def __init__(self, op, *args, **kwargs) -> None:
+        super().__init__(op or savgol_filter, *args, options=kwargs)
+
+    def __eval__(self, y: array_type, *args, **kwargs) -> typing.Any:
+        if len(args) + len(kwargs) > 0:
+            logger.warning(f"Ignore {args} {kwargs}")
+
+        return self._op(y, **self._metadata.get("options", {}))
+
+    def __call__(self, *args, **kwargs):
+        if len(args) + len(kwargs) > 0:
+            return super().__call__(*args, **kwargs)
+        else:
+            return self.__eval__(*self._children)
+
+
+def smooth(expr, *args, op=None, **kwargs):
+    if isinstance(expr, array_type):
+        return SmoothOp(op, expr, *args, **kwargs)()
+    else:
+        return SmoothOp(op, expr, *args, **kwargs)

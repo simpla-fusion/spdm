@@ -59,9 +59,8 @@ def smooth(x, window_len=11, window="hanning"):
     else:
         w = eval("np." + window + "(window_len)")
 
-    y = np.convolve(w / w.sum(), s, mode="same")[window_len - 1 : -window_len + 1]
-
-    return y
+    res = np.convolve(w / w.sum(), s, mode="same")[window_len - 1 : -window_len + 1]
+    return res
 
 
 def smooth_1d(x, y, i_begin=0, i_end=None, **kwargs):
